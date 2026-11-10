@@ -100,3 +100,56 @@ func TestARefusalThatCannotBeReadSaysSo(t *testing.T) {
 	require.Error(t, err)
 	assert.False(t, refused)
 }
+
+func TestAWarnedAccountIsRefusedUntilItAcknowledges(t *testing.T) {
+	clock := cptime.NewFixedClock(at)
+	book := refusals.NewBook(refusals.NewMemoryStore(), clock)
+	payer := clicks.Payer{Scope: scope, Account: account}
+	require.NoError(t, book.Decide(t.Context(), refusals.Caller{Account: account}, refusals.Warned(at)))
+
+	clock.Advance(time.Hour)
+	refusal, refused, err := book.Refusal(t.Context(), payer)
+	require.NoError(t, err)
+	require.True(t, refused)
+	assert.Equal(t, clicks.NewWarning(), refusal)
+
+	require.NoError(t, book.Acknowledge(t.Context(), payer))
+
+	_, refused, err = book.Refusal(t.Context(), payer)
+	require.NoError(t, err)
+	assert.False(t, refused)
+}
+
+func TestABanIsToldBeforeAWarning(t *testing.T) {
+	book := refusals.NewBook(refusals.NewMemoryStore(), cptime.NewFixedClock(at))
+	require.NoError(t, book.Decide(t.Context(), refusals.Caller{Scope: scope}, refusals.Refused(at.Add(time.Hour), at)))
+	require.NoError(t, book.Decide(t.Context(), refusals.Caller{Account: account}, refusals.Warned(at)))
+
+	refusal, refused, err := book.Refusal(t.Context(), clicks.Payer{Scope: scope, Account: account})
+
+	require.NoError(t, err)
+	require.True(t, refused)
+	assert.Equal(t, clicks.NewRefusal(at.Add(time.Hour)), refusal)
+}
+
+func TestAnAcknowledgementLiftsNoBan(t *testing.T) {
+	book := refusals.NewBook(refusals.NewMemoryStore(), cptime.NewFixedClock(at))
+	payer := clicks.Payer{Scope: scope, Account: account}
+	require.NoError(t, book.Decide(t.Context(), refusals.Caller{Account: account}, refusals.Refused(at.Add(time.Hour), at)))
+
+	require.NoError(t, book.Acknowledge(t.Context(), payer))
+
+	_, refused, err := book.Refusal(t.Context(), payer)
+	require.NoError(t, err)
+	assert.True(t, refused)
+}
+
+func TestAWarningIsNoBanInTheList(t *testing.T) {
+	book := refusals.NewBook(refusals.NewMemoryStore(), cptime.NewFixedClock(at))
+	require.NoError(t, book.Decide(t.Context(), refusals.Caller{Account: account}, refusals.Warned(at)))
+
+	refused, err := book.Refusals(t.Context(), []clicks.Payer{{Scope: scope, Account: account}})
+
+	require.NoError(t, err)
+	assert.Empty(t, refused)
+}

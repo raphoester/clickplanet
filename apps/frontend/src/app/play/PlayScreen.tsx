@@ -14,6 +14,7 @@ import {
     TileHolders,
     LandmassReader,
     UpdatesListener,
+    WarningAcknowledger,
 } from "../../backends/backend.ts";
 import News from "../news/News.tsx";
 import ConnectionLost from "../components/ConnectionLost.tsx";
@@ -35,6 +36,7 @@ import {useRefusedClicks} from "../clicks/refusedClicksStore.ts";
 import SessionUnavailableModal from "../components/SessionUnavailableModal.tsx";
 import VPNBlockedModal from "../components/VPNBlockedModal.tsx";
 import BannedModal from "../components/BannedModal.tsx";
+import WarningModal from "../components/WarningModal.tsx";
 import WelcomeBackModal from "../account/WelcomeBackModal.tsx";
 import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
@@ -142,6 +144,7 @@ export type Backends = {
     bomber: Bomber
     refiller: Refiller
     shielder: Shielder
+    warnings: WarningAcknowledger
     allegiance: AllegianceSource
     chatBackend: ChatRooms
     account: AccountStore
@@ -557,6 +560,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <VPNBlockedModal/>
         <BannedModal/>
+        <WarningModal warnings={backends.warnings}/>
         {account.kind === 'ready' && account.restored &&
             <WelcomeBackModal onClose={() => backends.account.welcomedBack()}/>}
 

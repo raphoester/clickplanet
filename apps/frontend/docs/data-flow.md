@@ -27,8 +27,8 @@
    `useRefusedClicks` (`clicks/refusedClicksStore.ts`, see [Stores](stores.md)),
    and `ClickBudgetMeter` shakes and flashes red once per bump — a
    dialog here was annoying, since a player hits the wall mid-burst and the meter
-   already says why. The other three raise a flag in the same store, and
-   `BannedModal`, `VPNBlockedModal` or `SessionUnavailableModal` reads its own and
+   already says why. The other four raise a flag in the same store, and
+   `BannedModal`, `WarningModal`, `VPNBlockedModal` or `SessionUnavailableModal` reads its own and
    shows. The globe reports
    every refused click, so those flags hold one value and are not a queue — a burst
    is one thing to say, once.
@@ -46,6 +46,10 @@
    links the terms' "Play fair" section in a new tab (`GAME_RULES`,
    `/terms#play-fair`). It gives no reason, on purpose: the server sends none.
    Bombs and shields refused for a ban raise it too (`reportClaimFailure`).
+
+   **`WarningModal` warns before a ban for playing several accounts.** Its "Got it" calls `acknowledgeWarning` and
+   closes once the call lands; a failed call leaves it open. Until then every click, bomb and shield is refused and
+   opens it again, so its × only closes it.
 
 6. `ClickBudgetMeter` shows what is left of the bucket, in the dock at the bottom
    (see [The screen](screen.md)). It warns

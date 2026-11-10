@@ -36,18 +36,63 @@ func (b Book) Decide(ctx context.Context, caller Caller, decision Decision) erro
 	return nil
 }
 
-// The refusal of the scope or of the account that ends last.
+func (b Book) Acknowledge(ctx context.Context, payer clicks.Payer) error {
+	if payer.Account == "" {
+		return nil
+	}
+
+	caller := Caller{Account: payer.Account}
+	if err := b.store.Change(ctx, caller, func(refusal Refusal) Refusal {
+		return refusal.Acknowledged(b.clock.Now())
+	}); err != nil {
+		return fmt.Errorf("failed to keep the warning acknowledged by %+v: %w", caller, err)
+	}
+	return nil
+}
+
+// The ban of the scope or of the account that ends last, or else the account's warning.
 func (b Book) Refusal(ctx context.Context, payer clicks.Payer) (clicks.Refusal, bool, error) {
-	refused, err := b.Refusals(ctx, []clicks.Payer{payer})
+	standings, err := b.standings(ctx, []clicks.Payer{payer})
 	if err != nil {
 		return clicks.Refusal{}, false, err
 	}
-	refusal, ok := refused[payer]
-	return refusal, ok, nil
+	refusal, refused := standings[payer].refusal()
+	return refusal, refused, nil
 }
 
-// The refusal of each payer, read at once; a payer refused nothing is not in it.
+// The ban of each payer, read at once; a payer banned by nothing is not in it, a warned one neither.
 func (b Book) Refusals(ctx context.Context, payers []clicks.Payer) (map[clicks.Payer]clicks.Refusal, error) {
+	standings, err := b.standings(ctx, payers)
+	if err != nil {
+		return nil, err
+	}
+
+	refused := map[clicks.Payer]clicks.Refusal{}
+	for payer, standing := range standings {
+		if !standing.until.IsZero() {
+			refused[payer] = clicks.NewRefusal(standing.until)
+		}
+	}
+	return refused, nil
+}
+
+type standing struct {
+	until  time.Time
+	warned bool
+}
+
+func (s standing) refusal() (clicks.Refusal, bool) {
+	switch {
+	case !s.until.IsZero():
+		return clicks.NewRefusal(s.until), true
+	case s.warned:
+		return clicks.NewWarning(), true
+	default:
+		return clicks.Refusal{}, false
+	}
+}
+
+func (b Book) standings(ctx context.Context, payers []clicks.Payer) (map[clicks.Payer]standing, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
@@ -61,17 +106,17 @@ func (b Book) Refusals(ctx context.Context, payers []clicks.Payer) (map[clicks.P
 	}
 
 	now := b.clock.Now()
-	refused := map[clicks.Payer]clicks.Refusal{}
+	standings := make(map[clicks.Payer]standing, len(payers))
 	for _, payer := range payers {
-		var until time.Time
+		var s standing
 		for _, caller := range callersOf(payer) {
-			if refusal := kept[caller]; refusal.Standing(now) && refusal.until.After(until) {
-				until = refusal.until
+			refusal := kept[caller]
+			if refusal.banned(now) && refusal.until.After(s.until) {
+				s.until = refusal.until
 			}
+			s.warned = s.warned || refusal.warning
 		}
-		if !until.IsZero() {
-			refused[payer] = clicks.NewRefusal(until)
-		}
+		standings[payer] = s
 	}
-	return refused, nil
+	return standings, nil
 }

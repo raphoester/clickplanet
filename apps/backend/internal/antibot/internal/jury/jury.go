@@ -8,6 +8,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -55,8 +56,19 @@ type Banner interface {
 	Pardoned(ctx context.Context, caller bans.Caller) (bool, error)
 }
 
+type Warner interface {
+	Warned(ctx context.Context, accounts []string) (bool, error)
+	Warn(ctx context.Context, accounts []string) ([]warnings.Warning, error)
+}
+
+type Turns interface {
+	ForgetTurns(account string, until time.Time)
+}
+
 type Hooks struct {
 	OnFlag func(detect.Report)
+
+	OnWarn func(detect.Report)
 
 	OnRise func(watchdog string, level detect.Verdict)
 
@@ -67,6 +79,8 @@ func New(
 	config Config,
 	rules func() Rules,
 	banner Banner,
+	warner Warner,
+	turns Turns,
 	clock cptime.Clock,
 	hooks Hooks,
 	watchdogs ...detect.Watchdog,
@@ -79,6 +93,8 @@ func New(
 		config:    config.withDefaults(),
 		rules:     rules,
 		banner:    banner,
+		warner:    warner,
+		turns:     turns,
 		clock:     clock,
 		hooks:     hooks,
 		watchdogs: watchdogs,
@@ -91,6 +107,8 @@ type Jury struct {
 	config    Config
 	rules     func() Rules
 	banner    Banner
+	warner    Warner
+	turns     Turns
 	clock     cptime.Clock
 	hooks     Hooks
 	watchdogs []detect.Watchdog
@@ -141,11 +159,73 @@ func (j *Jury) Inspect(ctx context.Context, click detect.Click) error {
 		}
 	}
 
-	if report, convicts, guilty := j.deliberate(click); guilty {
+	report, convicts, weighed := j.deliberate(click)
+	if weighed.guilty {
 		return j.flag(ctx, click, report, convicts)
+	}
+	if weighed.turns > detect.Clear {
+		return j.judgeTurns(ctx, click, report, convicts, weighed.turns)
 	}
 
 	return nil
+}
+
+func (j *Jury) judgeTurns(
+	ctx context.Context,
+	click detect.Click,
+	report detect.Report,
+	convicts []bans.Caller,
+	level detect.Verdict,
+) error {
+	accounts := accountsOf(convicts)
+
+	warned, err := j.warner.Warned(ctx, accounts)
+	if err != nil {
+		return err //nolint:wrapcheck // the warner already named what failed.
+	}
+	if warned {
+		return j.flag(ctx, click, report, convicts)
+	}
+	if level < detect.Certain {
+		return nil
+	}
+
+	pardoned, err := j.banner.Pardoned(ctx, callerOf(click))
+	if err != nil || pardoned {
+		return err //nolint:wrapcheck // the banner already named what failed.
+	}
+
+	return j.warn(ctx, click, report, accounts)
+}
+
+func (j *Jury) warn(ctx context.Context, click detect.Click, report detect.Report, accounts []string) error {
+	warned, err := j.warner.Warn(ctx, accounts)
+
+	for _, warning := range warned {
+		j.turns.ForgetTurns(warning.Account, warning.At)
+
+		if j.hooks.OnWarn == nil {
+			continue
+		}
+		passed := report
+		passed.Account = warning.Account
+		if warning.Account != click.Account {
+			passed.Alongside = click.Account
+		}
+		j.hooks.OnWarn(passed)
+	}
+
+	return err //nolint:wrapcheck // the warner already named what failed.
+}
+
+func accountsOf(convicts []bans.Caller) []string {
+	accounts := make([]string, 0, len(convicts))
+	for _, convict := range convicts {
+		if convict.Account != "" {
+			accounts = append(accounts, convict.Account)
+		}
+	}
+	return accounts
 }
 
 func (j *Jury) flag(ctx context.Context, click detect.Click, report detect.Report, convicts []bans.Caller) error {
@@ -199,7 +279,7 @@ func convictsOf(click detect.Click, weighed weight) []bans.Caller {
 	}
 
 	// Turns name accounts: the networks they clicked from can be a school or a VPN's exit.
-	if weighed.onTurns {
+	if !weighed.guilty {
 		for i := range convicts {
 			convicts[i].Scope = ""
 		}
@@ -282,15 +362,15 @@ func (j *Jury) opine(click detect.Click, watchdog string, verdict detect.Verdict
 	return rises
 }
 
-func (j *Jury) deliberate(click detect.Click) (detect.Report, []bans.Caller, bool) {
+func (j *Jury) deliberate(click detect.Click) (detect.Report, []bans.Caller, weight) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	c := j.callerLocked(click)
 
 	weighed := j.weighLocked(c, click.At, j.rules())
-	if !weighed.guilty {
-		return detect.Report{}, nil, false
+	if !weighed.guilty && weighed.turns == detect.Clear {
+		return detect.Report{}, nil, weighed
 	}
 
 	country, countryClicks := c.topCountry()
@@ -305,7 +385,7 @@ func (j *Jury) deliberate(click detect.Click) (detect.Report, []bans.Caller, boo
 		TopCountry:       country,
 		TopCountryClicks: countryClicks,
 		Tiles:            append([]uint32(nil), c.tiles...),
-	}, convictsOf(click, weighed), true
+	}, convictsOf(click, weighed), weighed
 }
 
 type weight struct {
@@ -313,16 +393,16 @@ type weight struct {
 	suspects int
 	guilty   bool
 
-	onTurns bool
+	turns detect.Verdict
 }
 
-// Turns are never a suspect: a certain reading of them bans alone, and a suspect one counts for nothing.
+// Turns are never a suspect: they are judged alone, on whether the ring was warned.
 func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) weight {
 	cutoff := at.Add(-rules.SuspicionWindow)
 
 	var (
 		certain  bool
-		turns    bool
+		turns    detect.Verdict
 		zeal     bool
 		suspects int
 		opinions = make([]detect.Opinion, 0, len(j.watchdogs))
@@ -340,7 +420,7 @@ func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) weight {
 
 		switch {
 		case opinion.Evidence.Turns:
-			turns = turns || opinion.Verdict == detect.Certain
+			turns = max(turns, opinion.Verdict)
 		case opinion.Verdict == detect.Certain:
 			certain = true
 			suspects++
@@ -357,12 +437,11 @@ func (j *Jury) weighLocked(c *caller, at time.Time, rules Rules) weight {
 		suspects++
 	}
 
-	guilty := certain || suspects >= rules.MinSuspects
-
-	return weight{opinions: opinions, suspects: suspects, guilty: guilty || turns, onTurns: turns && !guilty}
+	return weight{opinions: opinions, suspects: suspects, guilty: certain || suspects >= rules.MinSuspects, turns: turns}
 }
 
-func (j *Jury) Examine(scope, account string) detect.Examination {
+// A ring is read as warned when the account examined was.
+func (j *Jury) Examine(scope, account string, warned bool) detect.Examination {
 	now := j.clock.Now()
 	rules := j.rules()
 
@@ -395,7 +474,7 @@ func (j *Jury) Examine(scope, account string) detect.Examination {
 
 	examination.Tracked = true
 	examination.Suspects = weighed.suspects
-	examination.Guilty = weighed.guilty
+	examination.Guilty = weighed.guilty || (warned && weighed.turns > detect.Clear)
 	examination.Clicks = c.clicks
 	examination.ActiveFor = c.lastSeen.Sub(c.firstSeen)
 	examination.LongestGap = c.longestGap

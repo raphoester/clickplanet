@@ -514,6 +514,13 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   pardonedUntil?: Timestamp;
 
   /**
+   * When the account was warned that playing several accounts is refused. Unset for one never warned.
+   *
+   * @generated from field: google.protobuf.Timestamp warned_at = 19;
+   */
+  warnedAt?: Timestamp;
+
+  /**
    * @generated from field: repeated antibot.v1.WatchdogReading readings = 7;
    */
   readings: WatchdogReading[] = [];
@@ -579,6 +586,7 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
     { no: 5, name: "offence", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "flags", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 18, name: "pardoned_until", kind: "message", T: Timestamp },
+    { no: 19, name: "warned_at", kind: "message", T: Timestamp },
     { no: 7, name: "readings", kind: "message", T: WatchdogReading, repeated: true },
     { no: 8, name: "suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "min_suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },

@@ -29,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_choice_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_rule_set_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_warning_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/ban_player_usecase/audit_ban"
@@ -39,6 +40,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/unban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/unban_player_usecase/audit_unban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings/outbox_planet_teller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -81,6 +84,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			book := bans.NewBook(rules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
 				postgres_ban_store.NewScopes(db), postgres_ban_store.NewAccounts(db),
 				db, outbox_planet_enforcer.New(cpoutbox.New(db)))
+			warner := warnings.NewBook(book, clock, postgres_warning_store.New(db), db,
+				outbox_planet_teller.New(cpoutbox.New(db)))
 
 			// The bans running at a deploy reach planet's refused callers with no hand migration.
 			players := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce, book)
@@ -96,7 +101,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			marks := listener.NewMarks()
-			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book,
+			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book, warner,
 				postgres_evidence_store.New(db), marks)
 			if err := watchdogs.Load(ctx); err != nil {
 				closeStores()

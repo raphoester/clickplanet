@@ -76,9 +76,11 @@ so a set can hold a zero or an `enabled: false` of its own. Its snapshot is the 
   share of hops that reads each level
 - `rotator.window`, `minSeconds`, `minByChance`, `maxShare` — how far back slots count, the seconds each account must
   click in for a pair to share a slot, the shared seconds chance must have given, and the share a rotating pair stays
-  under; `minSlots` — the shared slots that read `suspect`, which the jury counts for nothing; `certainSlots` and
-  `certainByChance` — the shared slots and the seconds by chance that read `certain` together, which bans the ring's
-  accounts alone (48 and 300 since migration `20261103120000_rotator_certain`; `certainSlots` 0 is off)
+  under; `minSlots` — the shared slots that read `suspect`, which the jury counts for nothing but on a ring warned
+  before, which it bans; `certainSlots` and `certainByChance` — the shared slots and the seconds by chance that read
+  `certain` together, which warns the ring's accounts alone, once (48 and 300 since migration
+  `20261103120000_rotator_certain`; `certainSlots` 0 is off). See [A ring is warned before its
+  ban](antibot.md#a-ring-is-warned-before-its-ban)
 
 ## Where it is kept
 

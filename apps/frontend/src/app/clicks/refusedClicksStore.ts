@@ -9,17 +9,20 @@ type RefusedClicksStore = {
     dryTaps: number
     vpnBlocked: boolean
     bannedUntil?: number
+    warned: boolean
     sessionUnavailable: boolean
     lockedOut?: {allegiance: Allegiance, id: number}
     outOfReach?: {id: number}
     refuse: () => void
     blockVPN: () => void
     ban: (until: number) => void
+    warn: () => void
     failSession: () => void
     lockOut: (allegiance: Allegiance) => void
     refuseOutOfReach: () => void
     dismissVPNBlocked: () => void
     dismissBanned: () => void
+    dismissWarning: () => void
     dismissSessionUnavailable: () => void
 }
 
@@ -31,10 +34,12 @@ export const useRefusedClicks = create<RefusedClicksStore>()((set) => {
         refusals: 0,
         dryTaps: 0,
         vpnBlocked: false,
+        warned: false,
         sessionUnavailable: false,
         refuse: () => set(({refusals, dryTaps}) => ({refusals: refusals + 1, dryTaps: dryTaps + 1})),
         blockVPN: () => set({vpnBlocked: true}),
         ban: (until) => set({bannedUntil: until}),
+        warn: () => set({warned: true}),
         failSession: () => set({sessionUnavailable: true}),
         lockOut: (allegiance) => {
             const lockedOut = {allegiance, id: ++lockOuts}
@@ -48,6 +53,7 @@ export const useRefusedClicks = create<RefusedClicksStore>()((set) => {
         },
         dismissVPNBlocked: () => set({vpnBlocked: false}),
         dismissBanned: () => set({bannedUntil: undefined}),
+        dismissWarning: () => set({warned: false}),
         dismissSessionUnavailable: () => set({sessionUnavailable: false}),
     }
 })

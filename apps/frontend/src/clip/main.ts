@@ -532,6 +532,7 @@ async function choose(): Promise<Chosen> {
             onFrozen: () => {},
             onVPNBlocked: () => {},
             onBanned: () => {},
+            onWarned: () => {},
             onSessionUnavailable: () => {},
             onAllegianceLocked: () => {},
             onOutOfReach: () => {},

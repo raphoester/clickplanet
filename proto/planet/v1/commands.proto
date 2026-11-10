@@ -26,6 +26,12 @@ message RefuseCaller {
   google.protobuf.Timestamp decided_at = 4;
 }
 
+// Refuses the account's clicks, bombs and shields until it acknowledges its warning, by the same rule.
+message WarnCaller {
+  string account_id = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}
+
 // Ends the caller's refusal now, by the same rule.
 message AdmitCaller {
   oneof caller {

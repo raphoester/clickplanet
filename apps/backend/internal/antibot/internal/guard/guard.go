@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/scraper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -87,6 +88,8 @@ type Observer struct {
 
 	OnFlag func(report Report)
 
+	OnWarn func(report Report)
+
 	OnRise func(watchdog, level string)
 
 	OnStanding func(watchdog, level string, callers int)
@@ -111,12 +114,15 @@ func New(
 	clock cptime.Clock,
 	observer Observer,
 	banner *bans.Book,
+	warner *warnings.Book,
 	evidences evidence.Persistence,
 	heard ...evidence.Section,
 ) *Guard {
 	onStateError := orNothing(observer.OnStateError)
 
-	g := &Guard{onStart: observer.OnStart, onStateError: onStateError, rules: inForce, banner: banner}
+	g := &Guard{
+		onStart: observer.OnStart, onStateError: onStateError, rules: inForce, clock: clock, banner: banner, warner: warner,
+	}
 
 	onScopeAccounts := observer.OnScopeAccounts
 	if onScopeAccounts == nil {
@@ -125,6 +131,7 @@ func New(
 
 	g.catcher = catcher.New(config.Catcher, rules.Reader(inForce, catcher.Part), clock)
 	g.scraper = scraper.New(config.Scraper, rules.Reader(inForce, scraper.Part), clock, orNothing(observer.OnMapReads))
+	g.rotator = rotator.New(config.Rotator, rules.Reader(inForce, rotator.Part), clock, orNothing(observer.OnRotationShare))
 
 	watchdogs := []interface {
 		detect.Watchdog
@@ -141,7 +148,7 @@ func New(
 		g.scraper,
 		churner.New(config.Churner, rules.Reader(inForce, churner.Part), clock, onScopeAccounts, orNothing(observer.OnRelayLinks)),
 		hopper.New(config.Hopper, rules.Reader(inForce, hopper.Part), clock, orNothing(observer.OnHopShare)),
-		rotator.New(config.Rotator, rules.Reader(inForce, rotator.Part), clock, orNothing(observer.OnRotationShare)),
+		g.rotator,
 	}
 
 	sections := make([]evidence.Section, 0, len(watchdogs)+2+len(heard))
@@ -151,7 +158,8 @@ func New(
 		sections = append(sections, watchdog)
 	}
 
-	g.jury = jury.New(config.Jury, rules.Reader(inForce, jury.Part), banner, clock, juryHooks(observer), g.watchdogs...)
+	g.jury = jury.New(config.Jury, rules.Reader(inForce, jury.Part), banner, warner, g.rotator, clock, juryHooks(observer),
+		g.watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
 	g.evidence = evidence.New(config.Evidence, clock, evidences, onStateError, append(append(sections, g.jury, g.jury.Accounts()), heard...)...)
@@ -168,7 +176,7 @@ func orNothing[T any](observe func(T)) func(T) {
 }
 
 func juryHooks(observer Observer) jury.Hooks {
-	hooks := jury.Hooks{OnFlag: observer.OnFlag}
+	hooks := jury.Hooks{OnFlag: observer.OnFlag, OnWarn: observer.OnWarn}
 
 	if observer.OnRise != nil {
 		hooks.OnRise = func(watchdog string, level detect.Verdict) {
@@ -194,10 +202,13 @@ type Description struct {
 
 type Guard struct {
 	jury      *jury.Jury
+	clock     cptime.Clock
 	banner    *bans.Book
+	warner    *warnings.Book
 	evidence  *evidence.Store
 	catcher   *catcher.Watchdog
 	scraper   *scraper.Watchdog
+	rotator   *rotator.Watchdog
 	runners   []func(context.Context)
 	watchdogs []detect.Watchdog
 	rules     *rules.InForce
@@ -250,6 +261,20 @@ func (g *Guard) Load(ctx context.Context) error {
 	if err := g.evidence.Load(ctx); err != nil {
 		return fmt.Errorf("failed to load the antibot evidence: %w", err)
 	}
+	return g.forgetWarnedTurns(ctx)
+}
+
+// Evidence saved before a warning, then a crash, would ban the ring on the turns that earned it.
+func (g *Guard) forgetWarnedTurns(ctx context.Context) error {
+	window := rules.Reader(g.rules, rotator.Part)().Window
+
+	warned, err := g.warner.Since(ctx, g.clock.Now().Add(-window))
+	if err != nil {
+		return fmt.Errorf("failed to read the warnings: %w", err)
+	}
+	for _, warning := range warned {
+		g.rotator.ForgetTurns(warning.Account, warning.At)
+	}
 	return nil
 }
 
@@ -275,7 +300,13 @@ func (g *Guard) Pardon(ctx context.Context, scope, account string) (Pardon, bool
 
 // An account is read on the scope of its latest click the jury heard.
 func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination, error) {
-	examination := g.jury.Examine(scope, account)
+	warning, warned, err := g.warner.Warning(ctx, account)
+	if err != nil {
+		return Examination{}, err //nolint:wrapcheck // the warner already named what failed.
+	}
+
+	examination := g.jury.Examine(scope, account, warned)
+	examination.WarnedAt = warning.At
 
 	caller := bans.Caller{Scope: examination.Scope, Account: account}
 

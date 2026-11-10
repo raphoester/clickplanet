@@ -40,7 +40,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 - **What the globe tells goes into the store of its feature.** `useGlobe` hands `createGlobe` the verbs of four
   stores, and puts the stores back to their start when it unmounts:
   - `useRefusedClicks` (`clicks/refusedClicksStore.ts`): the count of clicks the bank or a frozen map refused,
-    the VPN, ban and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the three modals
+    the VPN, ban, warning and session flags, and the flag that locked a click out. `ClickBudgetMeter` and the four modals
     read it; `PlayScreen` reads the count only to hand it to `useSignInNudge`.
   - `useBonus` (`bonus/bonusStore.ts`): the box won, read by `BonusAward`, and what `Inventory` reads: the notice,
     the charges, the rules, the switches and the armed bomb. `PlayScreen` reads the charges and the rules only for

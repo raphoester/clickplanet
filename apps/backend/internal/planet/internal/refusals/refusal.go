@@ -53,8 +53,9 @@ func callersOf(payer clicks.Payer) []Caller {
 }
 
 type Decision struct {
-	Until time.Time
-	At    time.Time
+	Until   time.Time
+	Warning bool
+	At      time.Time
 }
 
 func Refused(until, at time.Time) Decision {
@@ -65,8 +66,13 @@ func Admitted(at time.Time) Decision {
 	return Decision{Until: at, At: at}
 }
 
+func Warned(at time.Time) Decision {
+	return Decision{Until: at, Warning: true, At: at}
+}
+
 type Refusal struct {
 	until     time.Time
+	warning   bool
 	decidedAt time.Time
 }
 
@@ -75,22 +81,34 @@ func (r Refusal) Decided(decision Decision) Refusal {
 	if !decision.At.After(r.decidedAt) {
 		return r
 	}
-	return Refusal{until: decision.Until, decidedAt: decision.At}
+	return Refusal{until: decision.Until, warning: decision.Warning, decidedAt: decision.At}
+}
+
+func (r Refusal) Acknowledged(at time.Time) Refusal {
+	if !r.warning {
+		return r
+	}
+	return r.Decided(Admitted(at))
 }
 
 func (r Refusal) Standing(now time.Time) bool {
+	return r.warning || r.banned(now)
+}
+
+func (r Refusal) banned(now time.Time) bool {
 	return now.Before(r.until)
 }
 
 func (r Refusal) TakeSnapshot() Snapshot {
-	return Snapshot{Until: r.until, DecidedAt: r.decidedAt}
+	return Snapshot{Until: r.until, Warning: r.warning, DecidedAt: r.decidedAt}
 }
 
 type Snapshot struct {
 	Until     time.Time
+	Warning   bool
 	DecidedAt time.Time
 }
 
 func (s Snapshot) Restore() Refusal {
-	return Refusal{until: s.Until, decidedAt: s.DecidedAt}
+	return Refusal{until: s.Until, warning: s.Warning, decidedAt: s.DecidedAt}
 }

@@ -37,6 +37,8 @@ import {
     VPNBlockedError,
     FrozenError,
     OutOfReachError,
+    WarnedError,
+    WarningAcknowledger,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
@@ -56,6 +58,7 @@ import {
     PlanetEvent,
     ReachRefusal,
     SharedWith,
+    WarningRefusal,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
@@ -77,7 +80,7 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader, WarningAcknowledger {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -875,6 +878,15 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
+    public async acknowledgeWarning(): Promise<void> {
+        const token = await this.session.identity()
+
+        const headers = new Headers()
+        if (token) headers.set(SESSION_HEADER, token)
+
+        await this.client.acknowledgeWarning({}, {headers})
+    }
+
     public listenForUpdatesBatch(
         callback: (updates: Update[]) => void,
     ): () => void {
@@ -1035,15 +1047,17 @@ export function asBonusError(e: unknown): unknown {
     if (e instanceof ConnectError) {
         if (e.code === Code.NotFound || e.code === Code.Unimplemented) return new BonusLostError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
-        if (e.code === Code.PermissionDenied) return bannedOf(e) ?? e
+        if (e.code === Code.PermissionDenied) return deniedOf(e) ?? e
     }
 
     return e
 }
 
-function bannedOf(e: ConnectError): BannedError | undefined {
-    const refusal = e.findDetails(BanRefusal)[0]
-    return refusal && new BannedError(Number(refusal.bannedUntilUnixMs), {cause: e})
+function deniedOf(e: ConnectError): BannedError | WarnedError | undefined {
+    const ban = e.findDetails(BanRefusal)[0]
+    if (ban) return new BannedError(Number(ban.bannedUntilUnixMs), {cause: e})
+    if (e.findDetails(WarningRefusal).length > 0) return new WarnedError({cause: e})
+    return undefined
 }
 
 export function asShieldError(e: unknown): unknown {
@@ -1107,7 +1121,7 @@ export function asClickError(e: unknown): unknown {
         if (e.code === Code.FailedPrecondition && e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
         if (e.code === Code.FailedPrecondition && e.findDetails(ReachRefusal).length > 0) return new OutOfReachError({cause: e})
         if (e.code === Code.ResourceExhausted) return new RateLimitedError({cause: e})
-        if (e.code === Code.PermissionDenied) return bannedOf(e) ?? new VPNBlockedError({cause: e})
+        if (e.code === Code.PermissionDenied) return deniedOf(e) ?? new VPNBlockedError({cause: e})
         if (e.code === Code.Unauthenticated) return new SessionUnavailableError({cause: e})
     }
 

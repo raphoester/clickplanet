@@ -404,14 +404,28 @@ describe("useGlobe refused clicks", () => {
         expect(useRefusedClicks.getState()).toMatchObject({vpnBlocked: true, refusals: 0})
     })
 
+    it("raises the warning flag apart from the ban", async () => {
+        renderHook()
+        await waitFor(() => expect(latest.status.state).toBe('ready'))
+
+        act(() => createGlobe.mock.calls[0][0].onWarned())
+
+        expect(useRefusedClicks.getState()).toMatchObject({warned: true, refusals: 0})
+        expect(useRefusedClicks.getState().bannedUntil).toBeUndefined()
+    })
+
     it("leaves nothing to show once it is gone", async () => {
         const {unmount} = renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
-        act(() => createGlobe.mock.calls[0][0].onBanned(Date.now() + 3600_000))
+        act(() => {
+            createGlobe.mock.calls[0][0].onBanned(Date.now() + 3600_000)
+            createGlobe.mock.calls[0][0].onWarned()
+        })
 
         unmount()
 
         expect(useRefusedClicks.getState().bannedUntil).toBeUndefined()
+        expect(useRefusedClicks.getState().warned).toBe(false)
     })
 })
 

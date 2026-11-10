@@ -21,9 +21,9 @@ service AdminService {
   // banned is banned on its account and its scope: two calls. NotFound when no offence is left.
   rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
 
-  // What the antibot holds on one caller now, and how close it is to a ban: any running ban, each watchdog's level
-  // and evidence, the suspects against how many make a ban, and whether the jury would ban on a click now. An account
-  // is read on the scope of its latest take.
+  // What the antibot holds on one caller now, and how close it is to a ban: any running ban, the account's warning,
+  // each watchdog's level and evidence, the suspects against how many make a ban, and whether the jury would ban on a
+  // click now. An account is read on the scope of its latest take.
   rpc InspectPlayer(InspectPlayerRequest) returns (InspectPlayerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -108,6 +108,8 @@ message InspectPlayerResponse {
   uint32 offence = 5;
   uint32 flags = 6;
   google.protobuf.Timestamp pardoned_until = 18;
+  // When the account was warned that playing several accounts is refused. Unset for one never warned.
+  google.protobuf.Timestamp warned_at = 19;
 
   repeated WatchdogReading readings = 7;
 

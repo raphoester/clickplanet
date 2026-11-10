@@ -141,7 +141,7 @@ with no wait, and **a click that timed out is not sent again**, since it may
 have landed and costs a click and maybe a charge. It is rolled back, and the
 echo repaints it if it did land.
 
-The backend refuses a click in five ways, and `clickTile` translates all of
+The backend refuses a click in seven ways, and `clickTile` translates all of
 them into errors declared beside the interfaces — `SessionUnavailableError` in
 `session.ts`, the others in `backend.ts` — so `globe.ts` recognises them without knowing what a
 Connect code is:
@@ -150,6 +150,8 @@ Connect code is:
 - `permission_denied` with a `BanRefusal` detail → `BannedError`, with `until`,
   when the ban ends. The account or its network is banned (see the backend's
   [A ban is told](../../backend/docs/antibot.md#a-ban-is-told)).
+- `permission_denied` with a `WarningRefusal` detail → `WarnedError`. The account was warned for playing several
+  accounts, and is refused until it calls `AcknowledgeWarning` (`acknowledgeWarning`, on `WarningAcknowledger`).
 - `permission_denied` with no detail → `VPNBlockedError`. The address is in the
   backend's VPN and proxy blocklist.
 - `unauthenticated` → `SessionUnavailableError`, **and only after a retry** —
@@ -163,14 +165,14 @@ Connect code is:
 
 They are separate classes rather than one with a field because each one says
 something different: ease off for a second (the click meter shakes — no dialog),
-wait for the ban to end, turn the VPN off, or reload and unblock the challenge.
+wait for the ban to end, keep to one account, turn the VPN off, or reload and unblock the challenge.
 Everything else is a transport fault and still reaches the console.
 
-**A bomb and a shield are refused for a ban the same way** (`asBonusError` reads
+**A bomb and a shield are refused for a ban or a warning the same way** (`asBonusError` reads
 the detail), and the bomb or the shield stays in hand, since the server spent
 nothing.
 
-`FakeBackend` reproduces the throttle, the ban and the frozen map in dev: it
+`FakeBackend` reproduces the throttle, the ban, the warning and the frozen map in dev: it
 enforces the same bucket as production's `rateLimiter` (one click every 5s, 60 in hand). Its own simulated traffic
 bypasses all of them, standing in for other players rather than for this one.
 

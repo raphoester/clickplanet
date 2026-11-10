@@ -34,6 +34,8 @@ import {
     Update,
     UpdatesListener,
     FrozenError,
+    WarnedError,
+    WarningAcknowledger,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
@@ -115,7 +117,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader, WarningAcknowledger {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
@@ -161,6 +163,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private rules = RULES
     private bannedUntil: number | undefined
+    private warned = false
 
     constructor(batchUpdateDurationMs: number, options: FakeBackendOptions) {
         this.tilePositions = options.tilePositions
@@ -246,7 +249,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
         if (switches.spread && switches.enclose) throw new Error("spread and enclose switched on together")
-        this.refuseBanned()
+        this.refuseDenied()
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
 
@@ -438,8 +441,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bannedUntil = minutes > 0 ? Date.now() + minutes * 60_000 : undefined
     }
 
-    private refuseBanned() {
+    public warn(): void {
+        this.warned = true
+    }
+
+    public async acknowledgeWarning(): Promise<void> {
+        this.warned = false
+    }
+
+    private refuseDenied() {
         if (this.bannedUntil !== undefined && Date.now() < this.bannedUntil) throw new BannedError(this.bannedUntil)
+        if (this.warned) throw new WarnedError()
     }
 
     public closeShapes(close: boolean): void {
@@ -585,7 +597,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async placeShield(tileId: number, countryId: string): Promise<void> {
-        this.refuseBanned()
+        this.refuseDenied()
         this.play(countryId)
         if (this.charges.shields === 0) throw new BonusLostError()
         if (!this.botShield(tileId, countryId)) throw new ShieldRefusedError()
@@ -724,7 +736,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
-        this.refuseBanned()
+        this.refuseDenied()
         if (!this.charges.bomb) throw new BonusLostError()
 
         this.hold({...this.charges, bomb: false})

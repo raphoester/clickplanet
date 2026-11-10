@@ -72,6 +72,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/reset_map_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/warn_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -91,6 +92,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/usecases/return_placements_usecase/log_return_placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/acknowledge_warning_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -346,13 +348,18 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to handle planet.v1.AdmitCaller: %w", err)
 			}
+			warned, err := cpredis.Handle(ctx, streams, log_subscriber.New(warn_caller_handler.New(refusalBook), props.Logger))
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to handle planet.v1.WarnCaller: %w", err)
+			}
 			refusing := log_refusals.New(refusalBook, props.Logger)
 
 			told := facts.NewLog(clock)
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, newPlayers, refused, admitted, chosen, resetting,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, newPlayers, refused, admitted, warned, chosen, resetting,
 					arenaCommands, cpoutbox.NewRelay("planet-outbox", db, streams, props.Logger),
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
@@ -531,8 +538,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
 				GetLandmassHandler: get_landmass_handler.New(borders,
 					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage))),
-				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
-				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
+				GetAllegianceHandler:      get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
+				PledgeAllegianceHandler:   pledge_allegiance_handler.New(book),
+				AcknowledgeWarningHandler: acknowledge_warning_handler.New(refusalBook),
 			}
 
 			return props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

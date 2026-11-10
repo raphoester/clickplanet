@@ -135,7 +135,7 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
             mapView: "split",
             rendering: "sharp",
             onLeaderboardChange: (entries) => setLeaders(entries.slice(0, 5)),
-            onLoadProgress: none, onRateLimited: none, onFrozen: none, onVPNBlocked: none, onBanned: none,
+            onLoadProgress: none, onRateLimited: none, onFrozen: none, onVPNBlocked: none, onBanned: none, onWarned: none,
             onSessionUnavailable: none, onAllegianceLocked: none, onOutOfReach: none, onBonusWon: none, onCharges: none,
             onRules: none, onSwitchesChange: none, onBombDropped: none, onArmedChange: none,
             signal: aborted.signal,

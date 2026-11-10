@@ -151,6 +151,7 @@ type Examination struct {
 	BannedUntil time.Time
 
 	PardonedUntil time.Time
+	WarnedAt      time.Time
 
 	Readings []Reading
 

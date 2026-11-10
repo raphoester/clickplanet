@@ -65,3 +65,30 @@ func TestACallerIsAScopeOrAnAccountAndOnlyOne(t *testing.T) {
 	_, err = refusals.ParseCaller("", "not-an-id")
 	require.ErrorIs(t, err, refusals.ErrInvalidAccount)
 }
+
+func TestAWarningStandsUntilItIsAcknowledged(t *testing.T) {
+	refusal := refusals.Refusal{}.Decided(refusals.Warned(at))
+
+	assert.True(t, refusal.Standing(at.Add(24*time.Hour)))
+	assert.False(t, refusal.Acknowledged(at.Add(time.Minute)).Standing(at.Add(time.Minute)))
+}
+
+func TestABanIsNotTheCallersToAcknowledge(t *testing.T) {
+	refusal := refusals.Refusal{}.Decided(refusals.Refused(at.Add(time.Hour), at))
+
+	assert.Equal(t, refusal, refusal.Acknowledged(at.Add(time.Minute)))
+}
+
+func TestAWarningSentAgainAfterItsAcknowledgementChangesNothing(t *testing.T) {
+	acknowledged := refusals.Refusal{}.Decided(refusals.Warned(at)).Acknowledged(at.Add(time.Minute))
+
+	assert.Equal(t, acknowledged, acknowledged.Decided(refusals.Warned(at)))
+}
+
+func TestABanAfterAWarningReplacesIt(t *testing.T) {
+	refusal := refusals.Refusal{}.
+		Decided(refusals.Warned(at)).
+		Decided(refusals.Refused(at.Add(time.Hour), at.Add(time.Minute)))
+
+	assert.False(t, refusal.Standing(at.Add(time.Hour)), "the warning went with the ban that replaced it")
+}

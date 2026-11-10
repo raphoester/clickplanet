@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -35,15 +36,18 @@ type stack struct {
 	bans           *bans.MemoryStore
 	accountBans    *bans.MemoryStore
 	enforcer       *bans.MemoryEnforcer
+	warned         *warnings.MemoryStore
+	teller         *warnings.MemoryTeller
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
-	owner   map[uint32]string
-	shields map[uint32]int
-	linked  *cpcolls.Set[string]
-	reports []guard.Report
-	rises   []string
-	errors  []error
+	owner    map[uint32]string
+	shields  map[uint32]int
+	linked   *cpcolls.Set[string]
+	reports  []guard.Report
+	warnings []guard.Report
+	rises    []string
+	errors   []error
 }
 
 type option func(config *guard.Config, set *antibotv1.Rules)
@@ -60,6 +64,8 @@ func newStack(t *testing.T, options ...option) *stack {
 		bans:        bans.NewMemoryStore(),
 		accountBans: bans.NewMemoryStore(),
 		enforcer:    &bans.MemoryEnforcer{},
+		warned:      warnings.NewMemoryStore(),
+		teller:      &warnings.MemoryTeller{},
 		evidence:    evidence.NewMemoryPersistence(),
 		inForce:     rules.NewInForce(),
 	}
@@ -114,10 +120,11 @@ func (s *stack) boot() {
 
 	built := guard.NewInMemory(s.config, s.inForce, s.clock, guard.Observer{
 		OnFlag:       func(report guard.Report) { s.reports = append(s.reports, report) },
+		OnWarn:       func(report guard.Report) { s.warnings = append(s.warnings, report) },
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(guard.Description) { close(started) },
-	}, s.bans, s.accountBans, s.enforcer, s.evidence)
+	}, s.bans, s.accountBans, s.enforcer, s.warned, s.teller, s.evidence)
 	if err := built.Load(context.Background()); err != nil {
 		panic(err)
 	}

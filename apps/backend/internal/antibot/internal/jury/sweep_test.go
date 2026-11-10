@@ -7,6 +7,8 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +42,12 @@ func (stubBanner) Pardoned(context.Context, bans.Caller) (bool, error) { return 
 
 func (stubBanner) Flagged(context.Context) (int, error) { return 0, nil }
 
+func (stubBanner) Enforcing() bool { return true }
+
+func stubWarner(clock cptime.Clock) *warnings.Book {
+	return warnings.NewBook(stubBanner{}, clock, warnings.NewMemoryStore(), cpatomic.FakeTransactioner{}, &warnings.MemoryTeller{})
+}
+
 func inspect(t *testing.T, j *Jury, click detect.Click) {
 	t.Helper()
 	require.NoError(t, j.Inspect(t.Context(), click))
@@ -48,7 +56,7 @@ func inspect(t *testing.T, j *Jury, click detect.Click) {
 func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{TrackWindow: time.Minute}, shipped, stubBanner{}, clock, Hooks{})
+	j := New(Config{TrackWindow: time.Minute}, shipped, stubBanner{}, stubWarner(clock), &MemoryTurns{}, clock, Hooks{})
 
 	inspect(t, j, detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
 	require.Len(t, j.callers, 1)
@@ -62,7 +70,7 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 func TestTheCountryTallyIsCapped(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{}, shipped, stubBanner{}, clock, Hooks{})
+	j := New(Config{}, shipped, stubBanner{}, stubWarner(clock), &MemoryTurns{}, clock, Hooks{})
 
 	for i := range 100 {
 		inspect(t, j, detect.Click{
@@ -80,7 +88,7 @@ func TestTheCountryTallyIsCapped(t *testing.T) {
 func TestOnlyTheLastFewTilesAreKept(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	j := New(Config{}, shipped, stubBanner{}, clock, Hooks{})
+	j := New(Config{}, shipped, stubBanner{}, stubWarner(clock), &MemoryTurns{}, clock, Hooks{})
 
 	for i := range uint32(100) {
 		inspect(t, j, detect.Click{Scope: "caller", Tile: i, Country: "FR", At: clock.Now()})
@@ -97,7 +105,7 @@ func TestTheSweepReportsWhoIsStanding(t *testing.T) {
 	unsure := &fixedWatchdog{name: "unsure", verdict: detect.Suspect}
 	sure := &fixedWatchdog{name: "sure", verdict: detect.Clear}
 
-	j := New(Config{TrackWindow: time.Hour}, shipped, stubBanner{}, clock, Hooks{
+	j := New(Config{TrackWindow: time.Hour}, shipped, stubBanner{}, stubWarner(clock), &MemoryTurns{}, clock, Hooks{
 		OnStanding: func(watchdog string, level detect.Verdict, callers int) {
 			standing[watchdog+" "+level.String()] = callers
 		},
