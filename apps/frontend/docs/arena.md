@@ -37,4 +37,21 @@ standing, and stops a click elsewhere.
   - The shield switch on a capital sends nothing, and the slot says "No shield on a capital" (`placementOf` answers
     `"capital"`).
   - A fortify raises no shield on it, as on the server.
+- **A knock-out** (the backend's [The knock-out](../../backend/docs/arenas.md#the-knock-out)): a take of a flag's
+  capital clears every other tile of the flag. The stream sends it as one `knock_out`, after the take (`knockOutOf`,
+  `listenForKnockOuts`); the globe flushes the earlier updates first, as for a bomb, and `MapTiles.applyKnockOut`
+  clears each tile at its version. The crown goes with the capital's owner.
+- **The flags out**: every map read says them (`Ownerships.knockedOut`), and `MapTiles` keeps them with each knock-out
+  heard. A read of the same start adds to them; a new start replaces them.
+- **The flags still in reach React**: the globe hands `onArenaFlags` the capitals' countries and the flags out
+  (`ArenaFlags`, `domain/standing.ts`) on each read and knock-out of an arena, and `undefined` on the world's map; it
+  goes into `useArena` (`app/arena/arenaStore.ts`). `stands(flags, flag)` is the server's rule: outside an arena every
+  flag, in one a flag with a capital not out. A region flag (England, Scotland, Wales, Brittany) has no capital.
+- **The out window** (`app/arena/OutModal.tsx`, in `PlayScreen`): while an arena plays and the flag played (held, or a
+  newcomer's choice) does not stand, "France is out" (or "England has no capital"), "Pick a flag that is still in.",
+  and the list of the flags still in. A pick pledges at once (the server lets a flag that does not stand change past
+  the lock and the hour). **It can be closed, to watch** (the owner, 2026-11-10); a click out of reach opens it again
+  (`useArena.ask`).
+- **The menu's picker** lists only the flags still in while an arena plays, and is open to a player whose flag does not
+  stand (`lockOf` learns the arena's flags): see [The flag played for](flag.md).
 - **The fake backend has no arena.** Check it on the local stack.

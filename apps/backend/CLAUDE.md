@@ -54,7 +54,8 @@ and says what is in it. Read the doc before you change its area.
 - [Arena battles](docs/arenas.md) — a battle whose set has `arena.on` plays on a blank map, and the map from
   before comes back at its end; the order that waits on facts kept (day K scored, the arena opened, the map back), the
   freeze, the gaps; each flag's capital with its shields, written with the arena, and the reach: a take only next to
-  the flag's land or across its waters.
+  the flag's land or across its waters; the knock-out: a capital taken clears its flag's land in one event, the flags
+  out kept with the tiles, and the pick of a flag still in.
   No arena battle in production before slice 5.
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
   them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.

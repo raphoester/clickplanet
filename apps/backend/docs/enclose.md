@@ -27,6 +27,9 @@ tells closed from open — there is no second rule.
 - **In an arena, a pocket needs no check of the flag's reach** (see [Arena battles](arenas.md#capitals-and-reach)):
   it is walled by the flag's own tiles alone, and its flood stops at any coast, so every tile inside is the flag's
   inside. The click that closed it was checked.
+- **A capital inside a pocket knocks its flag out once the whole pocket is written** (see
+  [The knock-out](arenas.md#the-knock-out)): the blank never clears a tile the pocket takes after the capital, and the
+  knock-out goes on the stream after the enclosure and its fortifies.
 - **An enclosure is one click**, spent through `Charges.Spend(holder, Held.AfterEnclose)` only by a
   click sent with enclose on that closed a pocket, so a click that closes nothing
   (too big, open to the coast, no inside) keeps it. With enclose off, closing a

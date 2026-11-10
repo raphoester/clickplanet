@@ -44,7 +44,7 @@ func gate(t *testing.T, pledged string) placements.Gate {
 func gateOn(t *testing.T, store *allegiances.MemoryStore, pledged string) placements.Gate {
 	t.Helper()
 
-	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false },
+	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{},
 		cptime.NewFixedClock(takenAt), &allegiances.RecordedPledges{})
 	if pledged != "" {
 		require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(alice)}, pledged))

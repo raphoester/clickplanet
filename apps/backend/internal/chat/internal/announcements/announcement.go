@@ -25,12 +25,13 @@ const (
 	KindFortify     Kind = "fortify"
 	KindChampion    Kind = "champion"
 	KindFlagMission Kind = "flag_mission"
+	KindKnockOut    Kind = "knock_out"
 )
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
 func Kinds() []Kind {
-	return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion, KindFlagMission}
+	return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion, KindFlagMission, KindKnockOut}
 }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
@@ -132,6 +133,30 @@ func (f Fortify) Announcement(at time.Time) (Announcement, error) {
 		return Announcement{}, fmt.Errorf("failed to encode a fortify announcement: %w", err)
 	}
 	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/fortify", f.position)), KindFortify, at, payload), nil
+}
+
+// KnockOut is a flag an arena knocked out, and the flag whose take felled its capital.
+type KnockOut struct {
+	position uint64
+	country  string
+	by       string
+}
+
+func KnockOutOf(position uint64, country string, by string) KnockOut {
+	return KnockOut{position: position, country: country, by: by}
+}
+
+type knockOutPayload struct {
+	Country string `json:"country"`
+	By      string `json:"by"`
+}
+
+func (k KnockOut) Announcement(at time.Time) (Announcement, error) {
+	payload, err := json.Marshal(knockOutPayload{Country: k.country, By: k.by})
+	if err != nil {
+		return Announcement{}, fmt.Errorf("failed to encode a knock-out announcement: %w", err)
+	}
+	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/knock-out", k.position)), KindKnockOut, at, payload), nil
 }
 
 type Muted struct {

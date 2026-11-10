@@ -20,7 +20,7 @@ import (
 const alice = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 
 func logged(store *allegiances.MemoryStore, out *bytes.Buffer) *log_allegiances.Logged {
-	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false },
+	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{},
 		cptime.NewFixedClock(time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC)), &allegiances.RecordedPledges{})
 	return log_allegiances.New(book, slog.New(slog.NewTextHandler(out, nil)))
 }

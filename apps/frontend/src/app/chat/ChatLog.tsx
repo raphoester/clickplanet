@@ -1,5 +1,6 @@
 import {Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FlagMissionAnnouncement, FortifyAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FlagMissionAnnouncement,
+    FortifyAnnouncement, KnockOutAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import {landmassName} from "../../domain/landmassNames.ts";
 import {Countries} from "../../domain/countries.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
@@ -335,7 +336,22 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
             return <ChampionLine announcement={announcement}/>
         case "flag_mission":
             return <FlagMissionLine announcement={announcement}/>
+        case "knock_out":
+            return <KnockOutLine announcement={announcement}/>
     }
+}
+
+function KnockOutLine({announcement}: {announcement: KnockOutAnnouncement}) {
+    return <li className="chat-announcement" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">👑</span>
+        <CountryFlag code={announcement.by}/>
+        <span className="chat-announcement-text">
+            <strong>{countryName(announcement.by)}</strong> knocked out <strong>{countryName(announcement.country)}</strong>
+        </span>
+        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
+            {clock.format(announcement.announcedAt)}
+        </time>
+    </li>
 }
 
 // The words of the moment the flag's own players see.

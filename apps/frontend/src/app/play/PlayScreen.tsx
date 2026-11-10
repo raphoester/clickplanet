@@ -121,6 +121,7 @@ import {useFlagMissionDone} from "../missions/useFlagMissionDone.ts";
 import {CrazyGamesPage} from "../../backends/crazyGames.ts";
 import {useCrazyGames, useGameplay, useInvites, useRoom} from "../crazygames/useCrazyGames.ts";
 import InvitedModal from "../crazygames/InvitedModal.tsx";
+import OutModal from "../arena/OutModal.tsx";
 import InviteFriends from "../share/InviteFriends.tsx";
 import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
@@ -503,6 +504,8 @@ export default function PlayScreen(props: PlayScreenProps) {
             fastStart={fastStart}
             fullBank={signInRefill}
             onClose={nudge.close}/>}
+
+        <OutModal flag={countryState} onPick={pickCountry}/>
 
         {invitation.asked && allegiance && <InvitedModal key={invitation.asked.code}
                                                          friend={invitation.asked}

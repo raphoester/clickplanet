@@ -40,6 +40,7 @@ type Change struct {
 	Blast         *Blast
 	Enclosure     *Enclosure
 	Fortification *Fortification
+	KnockOut      *KnockOut
 	// The rows the writes since the last tally changed, each whole: a flag at zero is listed.
 	Tally *Tally
 }
@@ -55,6 +56,8 @@ type DenseBatch struct {
 
 	// The map is an arena's, not the world's.
 	Arena bool
+	// The flags the arena knocked out.
+	KnockedOut []string
 }
 
 type TileShields struct {

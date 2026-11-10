@@ -797,6 +797,13 @@ export class GetMapResponse extends Message<GetMapResponse> {
    */
   arena = false;
 
+  /**
+   * The flags the arena knocked out: each lost its capital to another flag.
+   *
+   * @generated from field: repeated string knocked_out = 7;
+   */
+  knockedOut: string[] = [];
+
   constructor(data?: PartialMessage<GetMapResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -811,6 +818,7 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 4, name: "shields", kind: "message", T: TileShields, repeated: true },
     { no: 5, name: "version", kind: "message", T: MapVersion },
     { no: 6, name: "arena", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "knocked_out", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {
@@ -1258,6 +1266,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: ChargesGranted;
     case: "chargesGranted";
+  } | {
+    /**
+     * @generated from field: planet.v1.KnockOut knock_out = 13;
+     */
+    value: KnockOut;
+    case: "knockOut";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1280,6 +1294,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 10, name: "holdings_changed", kind: "message", T: HoldingsChanged, oneof: "event" },
     { no: 11, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
     { no: 12, name: "charges_granted", kind: "message", T: ChargesGranted, oneof: "event" },
+    { no: 13, name: "knock_out", kind: "message", T: KnockOut, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1296,6 +1311,76 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * The one event of a knock-out, after the take that felled the capital: every other tile of the flag went blank, with
+ * no shield.
+ *
+ * @generated from message planet.v1.KnockOut
+ */
+export class KnockOut extends Message<KnockOut> {
+  /**
+   * The flag out of the arena.
+   *
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * The flag whose take felled the capital, and holds it now.
+   *
+   * @generated from field: string by_country_id = 2;
+   */
+  byCountryId = "";
+
+  /**
+   * The capital.
+   *
+   * @generated from field: uint32 tile_id = 3;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: repeated uint32 cleared_tile_ids = 4;
+   */
+  clearedTileIds: number[] = [];
+
+  /**
+   * @generated from field: planet.v1.MapVersion version = 5;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<KnockOut>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.KnockOut";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "by_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "cleared_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 5, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KnockOut {
+    return new KnockOut().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KnockOut {
+    return new KnockOut().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KnockOut {
+    return new KnockOut().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KnockOut | PlainMessage<KnockOut> | undefined, b: KnockOut | PlainMessage<KnockOut> | undefined): boolean {
+    return proto3.util.equals(KnockOut, a, b);
   }
 }
 

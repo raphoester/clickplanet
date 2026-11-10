@@ -24,12 +24,13 @@ type memoryMap struct {
 	shields    map[uint32]int
 	holders    map[uint32]cpsession.AccountID
 	landmasses map[string]map[clicks.LandmassID]string
+	out        map[string]OutFlag
 }
 
 func newMemoryMap() *memoryMap {
 	return &memoryMap{
 		rows: map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
-		landmasses: map[string]map[clicks.LandmassID]string{},
+		landmasses: map[string]map[clicks.LandmassID]string{}, out: map[string]OutFlag{},
 	}
 }
 
@@ -113,7 +114,30 @@ func (m *MemoryPersistence) Load(_ context.Context, played clicks.MapID, visit f
 	return nil
 }
 
-func (m *MemoryPersistence) Save(_ context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass) error {
+func (m *MemoryPersistence) LoadOutFlags(_ context.Context, played clicks.MapID, visit func(out OutFlag)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	for _, out := range m.mapLocked(played).out {
+		visit(out)
+	}
+	return nil
+}
+
+// StoredOutFlagsOn is a map's flags out, by flag.
+func (m *MemoryPersistence) StoredOutFlagsOn(played clicks.MapID) map[string]OutFlag {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return maps.Clone(m.mapLocked(played).out)
+}
+
+func (m *MemoryPersistence) Save(
+	_ context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass, out []OutFlag,
+) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -124,6 +148,11 @@ func (m *MemoryPersistence) Save(_ context.Context, played clicks.MapID, tiles [
 		m.saves = append(m.saves, slices.Clone(tiles))
 	}
 	kept := m.mapLocked(played)
+	for _, flag := range out {
+		if _, ok := kept.out[flag.Flag]; !ok {
+			kept.out[flag.Flag] = flag
+		}
+	}
 	for _, landmass := range landmasses {
 		if kept.landmasses[landmass.Asset] == nil {
 			kept.landmasses[landmass.Asset] = map[clicks.LandmassID]string{}

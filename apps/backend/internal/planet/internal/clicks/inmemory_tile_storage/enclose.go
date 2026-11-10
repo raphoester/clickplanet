@@ -6,7 +6,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Enclose holds the lock through every write of `write`: one change at one version, then the fortifies it earned.
+// Enclose holds the lock through every write of `write`: one change at one version, then the fortifies it earned, then
+// the knock-outs.
 func (s *Storage) Enclose(_ context.Context, enclosure clicks.Enclosure, write func(tiles clicks.Claimable) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -19,14 +20,18 @@ func (s *Storage) Enclose(_ context.Context, enclosure clicks.Enclosure, write f
 	for i := range inside.fortified {
 		s.publishLocked(clicks.Change{Fortification: &inside.fortified[i]})
 	}
+	for i := range inside.knockedOut {
+		s.publishLocked(clicks.Change{KnockOut: &inside.knockedOut[i]})
+	}
 
 	return err
 }
 
 type insideEnclosure struct {
-	storage   *Storage
-	enclosure clicks.Enclosure
-	fortified []clicks.Fortification
+	storage    *Storage
+	enclosure  clicks.Enclosure
+	fortified  []clicks.Fortification
+	knockedOut []clicks.KnockOut
 }
 
 var _ clicks.Claimable = (*insideEnclosure)(nil)
@@ -64,4 +69,14 @@ func (e *insideEnclosure) Fortify(ctx context.Context, tile uint32, flag string,
 	e.fortified = append(e.fortified, fortification)
 
 	return fortification, nil
+}
+
+func (e *insideEnclosure) KnockOut(ctx context.Context, tile uint32, flag string) (clicks.KnockOut, error) {
+	knockOut, err := e.storage.knockOutLocked(ctx, tile, flag)
+	if err != nil {
+		return clicks.KnockOut{}, err
+	}
+	e.knockedOut = append(e.knockedOut, knockOut)
+
+	return knockOut, nil
 }

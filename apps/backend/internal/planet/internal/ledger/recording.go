@@ -57,6 +57,7 @@ func (r Recording) Click(ctx context.Context, tile uint32, flag string) (clicks.
 		r.record(ctx, func(by Caller, at time.Time) Event { return clickOf(by, at, flag, impact) })
 	}
 	r.recordFortified(ctx, flag, []clicks.Impact{impact})
+	r.recordKnockedOut(ctx, []clicks.Impact{impact})
 
 	return impact, nil
 }
@@ -67,6 +68,7 @@ func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbo
 		return Spreading{Tile: tile, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Impacts: impacts}
 	})
 	r.recordFortified(ctx, flag, impacts)
+	r.recordKnockedOut(ctx, impacts)
 
 	return err
 }
@@ -80,6 +82,7 @@ func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, insi
 		}
 	})
 	r.recordFortified(ctx, enclosure.Country, impacts)
+	r.recordKnockedOut(ctx, impacts)
 	if err != nil {
 		return fmt.Errorf("failed to enclose from tile %d: %w", enclosure.ClosingTile, err)
 	}
@@ -132,6 +135,14 @@ func (r Recording) recordFortified(ctx context.Context, flag string, impacts []c
 	for _, impact := range impacts {
 		if impact.Fortified != nil {
 			r.record(ctx, func(by Caller, at time.Time) Event { return fortifyingOfImpact(by, at, flag, impact.Fortified) })
+		}
+	}
+}
+
+func (r Recording) recordKnockedOut(ctx context.Context, impacts []clicks.Impact) {
+	for _, impact := range impacts {
+		if impact.KnockedOut != nil {
+			r.record(ctx, func(by Caller, at time.Time) Event { return knockingOutOfImpact(by, at, impact.KnockedOut) })
 		}
 	}
 }

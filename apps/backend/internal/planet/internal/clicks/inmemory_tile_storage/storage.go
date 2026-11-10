@@ -39,6 +39,7 @@ func New(
 		playing:       clicks.World,
 		board:         newBoard(borders.Tiles()),
 		landmasses:    newLandmasses(borders),
+		out:           newOutFlags(),
 		recount:       newRecount(borders.Landmasses()),
 		version:       clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
 		feed:          newFeed(config.SubscriberBuffer, logger),
@@ -65,6 +66,7 @@ type Storage struct {
 	playing    clicks.MapID
 	board      *board
 	landmasses *landmasses
+	out        *outFlags
 	recount    recount
 	version    clicks.MapVersion
 
@@ -240,6 +242,7 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 	batch := s.board.batch(start, end)
 	batch.Version = s.version
 	batch.Arena = s.playing != clicks.World
+	batch.KnockedOut = s.out.flags()
 
 	return batch, nil
 }

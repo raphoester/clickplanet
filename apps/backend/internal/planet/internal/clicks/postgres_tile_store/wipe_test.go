@@ -14,7 +14,7 @@ import (
 
 func (s *testSuite) TestAWipeDeletesTheMapInTheResetsTransaction() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2, 3), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2, 3), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}, nil))
 	kept := postgres_reset_store.New(s.db)
 	seasonOne, err := resets.New("season-1", time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC))
 	s.Require().NoError(err)
@@ -28,7 +28,7 @@ func (s *testSuite) TestAWipeDeletesTheMapInTheResetsTransaction() {
 	s.Require().NoError(s.store.LoadLandmasses(ctx, clicks.World, "borders.bin", func(id clicks.LandmassID, by string) { locks[id] = by }))
 	s.Empty(locks)
 
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("de", 7), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("de", 7), nil, nil))
 	wiped, err = s.store.Wipe(ctx, clicks.World, keep)
 	s.Require().NoError(err)
 	s.False(wiped, "a reset kept already wipes nothing")
@@ -37,7 +37,7 @@ func (s *testSuite) TestAWipeDeletesTheMapInTheResetsTransaction() {
 
 func (s *testSuite) TestAWipeThatFailsKeepsTheMapAndNoReset() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1), nil, nil))
 	kept := postgres_reset_store.New(s.db)
 	seasonOne, err := resets.New("season-1", time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC))
 	s.Require().NoError(err)

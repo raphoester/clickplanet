@@ -12,15 +12,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// Persistence keeps each map's tiles and fortify locks: the world's, and each arena's.
+// Persistence keeps each map's tiles, fortify locks and flags out: the world's, and each arena's.
 type Persistence interface {
 	Load(ctx context.Context, played clicks.MapID, visit func(tile Tile)) error
 	LoadLandmasses(ctx context.Context, played clicks.MapID, asset string,
 		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
-	Save(ctx context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass) error
+	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
+	Save(ctx context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass, out []OutFlag) error
 	// Open writes a map's first tiles in one transaction with keep, once keep says to.
 	Open(ctx context.Context, played clicks.MapID, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
-	// Wipe deletes every tile and every landmass's lock of a map, in one transaction with keep, once keep says to.
+	// Wipe deletes every tile, every landmass's lock and every flag out of a map, in one transaction with keep, once
+	// keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
 	// ForgetHolder takes an account off every tile of every map.
 	ForgetHolder(ctx context.Context, account cpsession.AccountID) error
@@ -57,8 +59,8 @@ func (s *Storage) Load(ctx context.Context, playing clicks.MapID) error {
 	return s.fillLocked(ctx)
 }
 
-// fillLocked puts the tiles and the locks the map in play keeps on the board, as on a blank one, and settles every
-// landmass.
+// fillLocked puts the tiles, the locks and the flags out the map in play keeps on the board, as on a blank one, and
+// settles every landmass.
 func (s *Storage) fillLocked(ctx context.Context) error {
 	var (
 		owned, outside int
@@ -110,6 +112,11 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 		return fmt.Errorf("failed to intern a stored country: %w", internErr)
 	}
 
+	err = s.persistence.LoadOutFlags(ctx, s.playing, s.out.restore)
+	if err != nil {
+		return fmt.Errorf("failed to read the stored flags out: %w", err)
+	}
+
 	s.landmasses.each(s.settleLandmassLocked)
 
 	if outside > 0 {
@@ -120,7 +127,7 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 	}
 
 	s.logger.Info("loaded the tile map", slog.String("map", string(s.playing)), slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
-		slog.Int("fortifiedLandmasses", fortified))
+		slog.Int("fortifiedLandmasses", fortified), slog.Int("flagsOut", len(s.out.flags())))
 
 	return nil
 }
@@ -160,12 +167,12 @@ func (s *Storage) Flush(ctx context.Context) error {
 	defer s.flushing.Unlock()
 
 	s.mu.Lock()
-	playing, tiles, landmasses, placed := s.playing, s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf), s.drainPlacedLocked()
+	playing, changes := s.playing, s.drainLocked()
 	s.mu.Unlock()
 
-	if err := s.save(ctx, playing, tiles, landmasses, placed); err != nil {
+	if err := s.save(ctx, playing, changes); err != nil {
 		s.mu.Lock()
-		s.markDirtyLocked(tiles, landmasses, placed)
+		s.markDirtyLocked(changes)
 		s.mu.Unlock()
 		return err
 	}
@@ -174,38 +181,54 @@ func (s *Storage) Flush(ctx context.Context) error {
 
 // flushLocked saves what changed while the caller holds the flush lock and the tiles lock.
 func (s *Storage) flushLocked(ctx context.Context) error {
-	tiles, landmasses, placed := s.board.drainDirty(), s.landmasses.drainDirty(s.board.nameOf), s.drainPlacedLocked()
-	if err := s.save(ctx, s.playing, tiles, landmasses, placed); err != nil {
-		s.markDirtyLocked(tiles, landmasses, placed)
+	changes := s.drainLocked()
+	if err := s.save(ctx, s.playing, changes); err != nil {
+		s.markDirtyLocked(changes)
 		return err
 	}
 	return nil
 }
 
-func (s *Storage) save(ctx context.Context, playing clicks.MapID, tiles []Tile, landmasses []Landmass, placed []clicks.PlacementID) error {
-	if len(tiles) == 0 && len(landmasses) == 0 && len(placed) == 0 {
+// What changed since the last flush, saved in one transaction.
+type unsaved struct {
+	tiles      []Tile
+	landmasses []Landmass
+	out        []OutFlag
+	placed     []clicks.PlacementID
+}
+
+func (s *Storage) drainLocked() unsaved {
+	return unsaved{
+		tiles: s.board.drainDirty(), landmasses: s.landmasses.drainDirty(s.board.nameOf), out: s.out.drainUnsaved(),
+		placed: s.drainPlacedLocked(),
+	}
+}
+
+func (s *Storage) save(ctx context.Context, playing clicks.MapID, changes unsaved) error {
+	if len(changes.tiles) == 0 && len(changes.landmasses) == 0 && len(changes.out) == 0 && len(changes.placed) == 0 {
 		return nil
 	}
 	if err := s.transactioner.InTx(ctx, func(ctx context.Context) error {
-		if err := s.persistence.Save(ctx, playing, tiles, landmasses); err != nil {
+		if err := s.persistence.Save(ctx, playing, changes.tiles, changes.landmasses, changes.out); err != nil {
 			return err //nolint:wrapcheck // wrapped once below.
 		}
-		return s.placements.Confirm(ctx, placed) //nolint:wrapcheck // wrapped once below.
+		return s.placements.Confirm(ctx, changes.placed) //nolint:wrapcheck // wrapped once below.
 	}); err != nil {
-		return fmt.Errorf("failed to save %d tiles, %d landmasses and %d shields placed: %w",
-			len(tiles), len(landmasses), len(placed), err)
+		return fmt.Errorf("failed to save %d tiles, %d landmasses, %d flags out and %d shields placed: %w",
+			len(changes.tiles), len(changes.landmasses), len(changes.out), len(changes.placed), err)
 	}
 	return nil
 }
 
-func (s *Storage) markDirtyLocked(tiles []Tile, landmasses []Landmass, placed []clicks.PlacementID) {
-	for _, tile := range tiles {
+func (s *Storage) markDirtyLocked(changes unsaved) {
+	for _, tile := range changes.tiles {
 		s.board.markDirty(tile.ID)
 	}
-	for _, landmass := range landmasses {
+	for _, landmass := range changes.landmasses {
 		s.landmasses.markDirty(landmass.ID)
 	}
-	s.placed = append(s.placed, placed...)
+	s.out.markUnsaved(changes.out)
+	s.placed = append(s.placed, changes.placed...)
 }
 
 func (s *Storage) drainPlacedLocked() []clicks.PlacementID {

@@ -364,7 +364,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
 
-			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, clock, allegiance_facts.New(told))
+			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, tilesStorage, clock, allegiance_facts.New(told))
 			flags := log_allegiances.New(book, props.Logger)
 
 			writer := ledger.NewRecording(tilesStorage,

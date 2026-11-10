@@ -62,12 +62,13 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 ## Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Six kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
+without a bubble. Seven kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
 mute an operator gave (see [Mutes](#mutes)), `round`, every day and battle of a season scoring scored, `fortify`, every
 landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
 from its own table, `ground` for a country's main one; see [Fortify](fortify.md)), `champion`, the country that
 won a season, and `flag_mission`, every flag that finished its mission of the day (see
-[The flag's mission](missions.md#the-flags-mission)), told in that flag's room too.
+[The flag's mission](missions.md#the-flags-mission)), told in that flag's room too, and `knock_out`, every flag an
+arena knocked out (`{country, by}`; see [Arena battles](arenas.md#the-knock-out)).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one
@@ -120,6 +121,10 @@ won a season, and `flag_mission`, every flag that finished its mission of the da
   `rival` whose shields to break. **A kind the chat does not know is still told**, as `{country, points}` alone, so a new
   kind of flag mission in missions never silences the line. It is the only kind told in a flag's room: see
   [Rooms](#rooms).
+- **How a knock-out gets here**: the ledger relay tells `planet.v1.FlagKnockedOut` once the ledger flushed the
+  knock-out, with its position. `flag_knocked_out_subscriber` (`chat-announcements-knock-outs`) makes it an
+  `announcements.KnockOut`, under `ledger/<position>/knock-out`, and `announce_usecase` keeps it, in the world.
+  **Every knock-out is told**, an empty capital's too (the owner, 2026-11-10).
 - **`GetHistory` returns them beside the messages**, in `announcements`, the newest `historySize` within
   `retention`, bounded apart from the messages so a burst of bombs never pushes one out. The client puts the two
   lists in one by time. **Once the messages fill the window, none is older than the oldest of them**

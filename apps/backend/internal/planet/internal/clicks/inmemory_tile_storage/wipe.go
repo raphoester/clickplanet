@@ -8,8 +8,9 @@ import (
 )
 
 // Wipe empties the map in play once keep says to, in keep's transaction: every tile blank, with no holder and no
-// shield, and no fortify lock. The map starts a new epoch and every stream is cut, so every client reads it again. What
-// changed is saved first, so every shield placed is confirmed. No flush runs meanwhile, so none writes the map before it
+// shield, no fortify lock and no flag out. The map starts a new epoch and every stream is cut, so every client reads it
+// again. What changed is saved first, so every shield placed is confirmed. No flush runs meanwhile, so none writes the
+// map before it
 // back.
 func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool, error)) (bool, error) {
 	s.flushing.Lock()
@@ -35,11 +36,12 @@ func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool
 	return true, nil
 }
 
-// A blank board, no landmass held or locked, nothing to recount.
+// A blank board, no landmass held or locked, no flag out, nothing to recount.
 func (s *Storage) emptyLocked() {
 	borders := s.landmasses.borders
 	s.board = newBoard(s.board.last())
 	s.landmasses = newLandmasses(borders)
+	s.out = newOutFlags()
 	s.recount = newRecount(borders.Landmasses())
 }
 

@@ -31,6 +31,7 @@ type Event struct {
 	Enclosure     *clicks.Enclosure
 	Yours         bool
 	Fortification *clicks.Fortification
+	KnockOut      *clicks.KnockOut
 	Tally         *clicks.Tally
 	Heartbeat     bool
 	RulesChanged  bool
@@ -126,7 +127,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			if err := sink.Send(Event{
 				Version: change.Version, Update: change.Update, Blast: change.Blast, Enclosure: change.Enclosure,
 				Yours:         change.Enclosure != nil && bonuses.EntrantOf(change.Enclosure.By) == entrant,
-				Fortification: change.Fortification, Tally: change.Tally,
+				Fortification: change.Fortification, KnockOut: change.KnockOut, Tally: change.Tally,
 			}); err != nil {
 				return err
 			}

@@ -393,6 +393,18 @@ describe("decodedAnnouncement", () => {
         expect(decodedAnnouncement(bomb(`{"season":0}`, "champion"))).toBeUndefined()
     })
 
+    it("reads a knock-out: the flag out and the flag that took its capital", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"fr","by":"de"}`, "knock_out"))).toEqual({
+            kind: "knock_out",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            country: "fr",
+            by: "de",
+        })
+        expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "knock_out"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"by":"de"}`, "knock_out"))).toBeUndefined()
+    })
+
     it("drops a kind it does not know, and a payload that is not the kind's", () => {
         expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "meteor"))).toBeUndefined()
         expect(decodedAnnouncement(bomb(`not json`))).toBeUndefined()
