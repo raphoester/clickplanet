@@ -38,10 +38,11 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 
 	findings := posts.Findings{
 		Since: written.GetSince().AsTime(), Until: written.GetUntil().AsTime(),
-		Names: written.GetNames(), Continents: map[string]string{}, Anthems: written.GetAnthems(),
+		Names: written.GetNames(), Continents: map[string]string{}, ContinentTiles: map[string]int{}, Anthems: written.GetAnthems(),
 	}
 	for _, continent := range written.GetContinents() {
 		findings.Continents[continent.GetName()] = continent.GetFlag()
+		findings.ContinentTiles[continent.GetName()] = int(continent.GetTiles())
 	}
 	for _, front := range written.GetFronts() {
 		findings.Fronts = append(findings.Fronts, frontOf(front))
@@ -64,6 +65,9 @@ func (f FindingsFile) Findings(_ context.Context) (posts.Findings, error) {
 	}
 	for _, saga := range written.GetSagas() {
 		findings.Sagas = append(findings.Sagas, sagaOf(saga))
+	}
+	for _, path := range written.GetPaths() {
+		findings.Paths = append(findings.Paths, pathOf(path))
 	}
 	for _, seasonal := range written.GetSeasonal() {
 		facts, err := factsOf(seasonal.GetFacts())
@@ -112,7 +116,29 @@ func sagaOf(written *clipsv1.Saga) posts.Saga {
 			LostTo: reign.GetLostTo(),
 		})
 	}
+	for _, contender := range written.GetContenders() {
+		saga.Contenders = append(saga.Contenders, posts.Contender{
+			Flag: contender.GetFlag(), Since: timeOf(contender.GetSince()), Until: timeOf(contender.GetUntil()), Peak: contender.GetPeak(),
+			Share: contender.GetShare(),
+		})
+	}
 	return saga
+}
+
+func pathOf(written *clipsv1.Path) posts.Path {
+	path := posts.Path{Flag: written.GetFlag(), Marks: make([]posts.PathMark, 0, len(written.GetMarks()))}
+	for _, mark := range written.GetMarks() {
+		path.Marks = append(path.Marks, posts.PathMark{At: timeOf(mark.GetAt()), TilesByContinent: countsOf(mark.GetTilesByContinent())})
+	}
+	return path
+}
+
+// The zero time is unset.
+func sinceOf(at time.Time) *timestamppb.Timestamp {
+	if at.IsZero() {
+		return nil
+	}
+	return timestamppb.New(at)
 }
 
 // Unset is the zero time, never 1970.
@@ -152,7 +178,7 @@ func StoryJSON(story posts.Story) ([]byte, error) {
 	}
 	written, err := protojson.MarshalOptions{UseProtoNames: false}.Marshal(&clipsv1.Pick{
 		Front: uint32(story.Front), Tour: uint32(story.Tour), Place: uint32(story.Place), Seasonal: uint32(story.Seasonal), //nolint:gosec // from 1, a few dozen at most.
-		Saga: uint32(story.Saga), Reign: uint32(story.Reign), //nolint:gosec // from 1, a few dozen at most.
+		Saga: uint32(story.Saga), Since: sinceOf(story.Since), //nolint:gosec // from 1, a few dozen at most.
 		Kind: string(story.Kind), Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom,
 		Countries: story.Countries, Continent: story.Continent, Team: story.Team,
 		Headline: story.Headline, Teasers: story.Teasers, Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem,

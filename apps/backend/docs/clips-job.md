@@ -33,8 +33,9 @@ clips edit -findings <findings.json> [-count 2] [-prompt]
   **With `-history`, which needs `-season`, it saves the map every hour since the season started**
   ([`GetMapHistory`](planet-module.md), on the internal listener, `127.0.0.1:8082` in the container: the job is the
   operator's, over ssh, as for the others), from the turn's `timeline.current.starts_at` to the end of the replay's
-  window, step `3600s`. The generator tells each place's saga from it: who held over half of it, from when to when
-  (the frontend's [Clips](../../frontend/docs/clips.md), "`sagas`"). **The 12 hours cannot see a war of days**: on
+  window, step `3600s`. The generator tells each place's saga from it: who held a tenth of it and who held over half
+  of it, from when to when, and each ruling flag's land on each continent every 12 hours (the frontend's
+  [Clips](../../frontend/docs/clips.md), "`sagas`" and "`paths`"). **The 12 hours cannot see a war of days**: on
   2026-11-10 the season's map showed Czechia holding China 5 days and losing it in the battle hour of 2026-11-07,
   Brazil holding South America 9 days, Palau taking Russia whole, and none of it was in a clip; China was in none at
   all. Between two seasons, or when the backend does not answer it, there is no history, a warning, and the run
@@ -130,10 +131,14 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   world, every place and its holder, and the season's stories (the frontend's [Clips](../../frontend/docs/clips.md),
   "`--findings`"). `Findings.Offer` is what the editor is offered: all of it, how many clips the run makes (the
   budgets' count), the seasonal stories told first (`First`, a day won not told in the last 3 days, by its number),
-  the posts of the last 3 days with their keys and countries, how many of the last 6 showed each flag, and the sagas
-  posted in the last 4 weeks (`sagasTold`, a post whose key's angle is `saga`), so a reign is told when it is made,
-  when it falls and when it has lasted, not every run. **It keeps
-  nothing from the editor.** `Findings.Edited` is the run as the editor tells it: the seasonal stories first, then the
+  how many of the last 6 posts showed each flag, and **the posts of the season** (`Told`: from the history's start,
+  4 weeks at most, the last 3 days when the run has no history), each with what its clip told when its record kept
+  it (`TellingFacts`, read back by `metadata.FactsOf`: its kind, sides, place, line, the stretch it played and the
+  key's flag's share of the place at its start and end). **A saga is a chapter, not a fact told once**: Brazil ruling
+  South America for a week, then turning north, then losing half of it and taking it back are three posts, and the
+  editor writes each from what the viewers already saw. On 2026-11-10 the owner turned down a check that told a reign
+  at most twice: a flag's story crosses places and goes back and forth, and only the model can tell a new chapter
+  from a repeat. **It keeps nothing from the editor.** `Findings.Edited` is the run as the editor tells it: the seasonal stories first, then the
   editor's stories in its order, each one **checked against the findings** (`Findings.Check`), with a headline that
   can be drawn and was not a headline of the last week or of this run, a teaser at least, a call that can be drawn,
   one story a key in the run, up to the count;
@@ -146,9 +151,9 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   that held it then, a team only for a continent's flags on their own continent. A tour is by a flag that switched a
   landmass's painted flag somewhere (`FlippedByContinent`), since its camera shows nothing else from far: "BRAZIL IS
   TAKING OVER THE WORLD" of 2026-10-27 switched none, and showed flashes under Europe's flags. A place and a seasonal
-  story only have to exist. A saga is told from one of its reigns (`checkSaga`), about a flag that held it from that
-  reign on, against another such flag or the flag that reign took it from, with no kind, look, place, team, flags
-  taken from or fighters of its own: the generator plays it whole. A front and a place have a look the camera knows, `flags` or `dive` (`checkLook`). A
+  story only have to exist. A saga is told from a time of its history (`checkSaga`), about a flag that held a tenth of
+  it after that time (a contender), against another or none, with no kind, look, place, team, flags taken from or
+  fighters of its own: the generator plays it whole. A front and a place have a look the camera knows, `flags` or `dive` (`checkLook`). A
   headline is upper case once written (`headlineFrom`), 60 letters at most, starting with a letter or a digit (so
   `--story` never reads as a flag), only letters of any script, digits and `! ? ' ’ % : , . & -`.
   A teaser is upper case too (`teasersFrom`); one that says the headline, says another teaser again, or is over 86
@@ -181,8 +186,12 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
 - **What it is sent** (`claude_editor.PromptOf`): the instructions, then the run's findings as compact JSON: `now`,
   `slots`, `toldFirst`, the `window`, `names`, `continents`, `anthems`, each front numbered from 1 with its stretch in hours, its
   countries and its flags, each tour and each place numbered the same, each saga numbered the same with each reign
-  numbered in it, its `days` held and its `conquestHours`, `recentPosts` with their keys and countries,
-  `shownLately`, and `sagasTold`. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
+  numbered in it, its `days` held and its `conquestHours`, and its `contenders`; `paths`, each ruling flag's land at
+  one list of times (`at`), in percent of each continent and of `the world`, a continent it never held 1% of left out;
+  `told`, the season's posts with what each told (an older post with the countries it `shown`); and `shownLately`.
+  On the season's first 9 days the prompt is about 34,000 tokens before the posts told, the sagas 74,000 characters
+  of it and the paths 17,000. A post told is about 90 tokens, so 4 weeks of them (about 300) and longer paths should
+  keep it near 75,000, under the 100,000 a call is billed 5 times over past: watch the run's tokens as a season grows. **The instructions are `claude_editor/instructions.md`, embedded**: prose on what the facts mean,
   what makes a story worth telling and a headline good, from the lessons of this section and of the frontend's.
   **Tuning that file is how the model's taste is shaped**; a change ships with the next commit, and the record's
   `generator` names the commit, so the analysis can tell the versions apart. **Cut before you add**: Haiku follows a
@@ -201,7 +210,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   continents are not names for a headline, takes that clip as its example in place of Ireland's, and gives each verb
   its shape.
 - **What it answers** (`answerSchema`): `why`, then `stories`, best first, each with its `front`, `tour`, `place` or
-  `saga` (the others 0), for a saga its `reign`, `attacker` and `rival`, and for a front its `kind`, `attacker`,
+  `saga` (the others 0), for a saga its `since` (when its clip starts, a time; empty for the others), `attacker` and
+  `rival`, and for a front its `kind`, `attacker`,
   `rival`, `takenFrom`, `countries` or `continent`, `team`,
   for every story its `headline`, `teasers`, `line`, `call`, `callFlags`, `anthem` and `fighters`, and for a front or
   a place its `look`: `flags`, the camera back out of the tiles halfway so the painted flags switch on screen, for a
@@ -341,8 +351,8 @@ makes the stories since 2026-10-27). The renderer and its camera are as they wer
   its `metadata` (`posts/metadata`: `storyFlag`, `storyContinent`, `storyCountries`, and `storyAngle` and
   `storyRound` when it has them, never published; a post with none is of what a flag did), which the publishing module
   keeps on Zernio as the job gives it, and `choose` asks the module for the posts of the last 4 weeks (`ListPosts`,
-  `ToldSince`, `ssh_publishing.Told`; a headline is checked against the last week of them, and the sagas told against
-  all), on every platform: one Zernio post is one clip, whatever accounts it goes to, and
+  `ToldSince`, `ssh_publishing.Told`; a headline is checked against the last week of them, and the editor reads the
+  season's), on every platform: one Zernio post is one clip, whatever accounts it goes to, and
   the key is on the post (the module reads from the day of `since`, so the domain filters to the hour). So a clip cancelled in the dashboard still
   counts as told, nothing can disagree with what Zernio holds, and a post made by hand, with no key, counts for
   nothing. **A history that cannot be read fails the run**, rather than tell a story twice.

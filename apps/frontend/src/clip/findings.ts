@@ -1,9 +1,9 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {Findings, Front, Pick, Place as PlaceWritten, Reign as ReignWritten, Saga, Seasonal, StoryFacts, Tour} from "../gen/grpc/clips/v1/clips_pb.ts"
+import {Contender as ContenderWritten, Findings, Front, Path as PathWritten, Pick, Place as PlaceWritten, Reign as ReignWritten, Saga, Seasonal, StoryFacts, Tour} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {Counts, FrontFacts, PlaceFacts, TourFacts} from "../domain/clip/findings.ts"
 import {KINDS, Place, Story, storyCountriesOf, storyKeyOf} from "../domain/clip/story.ts"
 import {Look, LOOKS} from "../domain/clip/look.ts"
-import {SagaFacts} from "../domain/clip/saga.ts"
+import {Path, SagaFacts} from "../domain/clip/saga.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
 import {nameOf, placeName, said, wordsOf, Written} from "./overlay.ts"
 import {languageOf} from "./clipRecord.ts"
@@ -42,8 +42,11 @@ export type Found = {
     tours: TourFound[]
     places: PlaceFound[]
     sagas: SagaFacts[]
+    paths: Path[]
     seasonal: SeasonalFound[]
     anthems: string[]
+    // Each continent's size in tiles.
+    continentTiles: Counts
 }
 
 const rounded = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places
@@ -63,7 +66,10 @@ export function findingsOf(found: Found): Findings {
     }
     for (const tour of found.tours) noted(tour.flag, ...Object.keys(tour.tookFrom))
     for (const place of found.places) noted(place.code, place.holder, ...Object.keys(place.rivals))
-    for (const saga of found.sagas) noted(saga.code, saga.holder, ...saga.reigns.flatMap(({flag, tookFrom, lostTo}) => [flag, tookFrom, lostTo]))
+    for (const saga of found.sagas) {
+        noted(saga.code, saga.holder, ...saga.reigns.flatMap(({flag, tookFrom, lostTo}) => [flag, tookFrom, lostTo]))
+        noted(...saga.contenders.map(({flag}) => flag))
+    }
     for (const {story} of found.seasonal) noted(story.attacker, story.rival, ...story.victims, ...storyCountriesOf(story))
 
     return new Findings({
@@ -100,6 +106,13 @@ export function findingsOf(found: Found): Findings {
                 tookFromShare: rounded(reign.tookFromShare, 3), lostTo: reign.lostTo ?? "",
             })),
             holder: saga.holder ?? "", share: rounded(saga.share, 3), since: at(saga.since), until: at(saga.until),
+            contenders: saga.contenders.map((contender) => new ContenderWritten({
+                flag: contender.flag, since: at(contender.since), until: atMaybe(contender.until), peak: rounded(contender.peak, 3),
+                share: rounded(contender.share, 3),
+            })),
+        })),
+        paths: found.paths.map((path) => new PathWritten({
+            flag: path.flag, marks: path.marks.map((mark) => ({at: at(mark.at), tilesByContinent: mark.tilesByContinent})),
         })),
         seasonal: found.seasonal.map(({story, measured}) => {
             const words = wordsOf(story)
@@ -109,7 +122,7 @@ export function findingsOf(found: Found): Findings {
             })
         }),
         names: Object.fromEntries([...codes].sort().map((code) => [code, said(nameOf(code))])),
-        continents: continents().map((name) => ({name, flag: flagOfContinent(name) ?? ""})),
+        continents: continents().map((name) => ({name, flag: flagOfContinent(name) ?? "", tiles: found.continentTiles[name] ?? 0})),
         anthems: found.anthems,
     })
 }
@@ -149,7 +162,7 @@ export type Told =
     | {front: number, story: Story, look: Look}
     | {tour: number}
     | {place: number, look: Look}
-    | {saga: number, reign: number, attacker: string, rival: string | undefined}
+    | {saga: number, since: number, attacker: string, rival: string | undefined}
     | {seasonal: number}
 
 // The story the editor wrote, as a clips.v1.Pick says it, with its words; a seasonal story has words of its own. Nothing
@@ -169,8 +182,11 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
     }
     if (pick.tour > 0) return {told: {tour: pick.tour}, written, fighters}
     if (pick.saga > 0) {
-        if (pick.reign === 0 || pick.attacker === "") throw new Error("a saga is told from one of its reigns, about one of its flags")
-        return {told: {saga: pick.saga, reign: pick.reign, attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival}, written, fighters: []}
+        if (pick.since === undefined || pick.attacker === "") throw new Error("a saga is told from a time, about one of its flags")
+        return {
+            told: {saga: pick.saga, since: pick.since.toDate().getTime(), attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival},
+            written, fighters: [],
+        }
     }
     const look = LOOKS.find((known) => known === pick.look)
     if (look === undefined) throw new Error(`a front or a place is told with the look "flags" or "dive", not "${pick.look}"`)

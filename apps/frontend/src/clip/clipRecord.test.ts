@@ -11,7 +11,7 @@ const shown: Shown = {
     camera: "front", look: "dive", since: SINCE, until: SINCE + 2 * 3_600_000 + 15_000,
     tilesChanged: 1_480, storyTilesChanged: 1_210, placeTiles: 6_120, flagTiles: {start: 2_900, end: 3_640},
     landmassesFlipped: 2, bombs: 3, spreads: 41, enclosures: 1, screens: 2.4567, tourStops: 0, solidity: 0.91234,
-    fighters: 0,
+    fighters: 0, line: undefined,
 }
 
 describe("what a clip was", () => {
@@ -24,9 +24,17 @@ describe("what a clip was", () => {
                 camera: "front", look: "dive", storyKind: "battle", spanMinutes: 120.3, tilesChanged: 1_480,
                 storyTilesChanged: 1_210, placeTiles: 6_120, flagTilesStart: 2_900, flagTilesEnd: 3_640, landmassesFlipped: 2,
                 bombs: 3, spreads: 41, enclosures: 1, screensCrossed: 2.46, solidity: 0.91,
-                storyEndedAt: "2026-10-23T11:00:15Z",
+                storyEndedAt: "2026-10-23T11:00:15Z", attacker: "fr", rival: "pw", placeCountries: ["fr"],
             },
         })
+    })
+
+    it("keeps what it told, so a later run tells what comes next: its line, its sides and where", () => {
+        const told = clipRecordOf({...shown, line: "AFTER A WEEK IN SOUTH AMERICA", story: {...battle, rival: undefined, place: {region: "North America"}}})
+
+        expect([told.common?.line, told.globe?.attacker, told.globe?.rival, told.globe?.placeCountries, told.globe?.placeRegion])
+            .toEqual(["AFTER A WEEK IN SOUTH AMERICA", "fr", "", [], "North America"])
+        expect(clipRecordOf({...shown, camera: "tour"}).globe?.placeRegion).toBe("the world")
     })
 
     it("says a tour is one, with its stops, and says none for the look and the anthem it has none of", () => {

@@ -23,6 +23,7 @@ func told(key posts.StoryKey, title string, ago time.Duration, countries ...stri
 
 func TestTheOfferIsTheFindingsWholeAndTheLastPostsToVaryOn(t *testing.T) {
 	found := findings(t)
+	found.Sagas[0].Since = foundAt.Add(-10 * 24 * time.Hour)
 	posted := []posts.Telling{
 		told(posts.StoryKey{Flag: "tr", Continent: "Middle East"}, "TURKEY KICKS ALGERIA OUT OF IRAN", 28*time.Hour, "ir", "tr", "dz"),
 		told(posts.StoryKey{Flag: "bg", Continent: "East Asia"}, "BULGARIA IS INVADING MONGOLIA", 4*time.Hour, "mn", "bg", "fr"),
@@ -35,7 +36,8 @@ func TestTheOfferIsTheFindingsWholeAndTheLastPostsToVaryOn(t *testing.T) {
 	assert.Equal(t, []int{1}, offer.First)
 	assert.Equal(t, 1, offer.Slots())
 	assert.True(t, offer.Open())
-	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TURKEY KICKS ALGERIA OUT OF IRAN"}, titlesOf(offer.Recent), "the last 3 days, newest first")
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TURKEY KICKS ALGERIA OUT OF IRAN", "SPAIN IS SWALLOWING MOROCCO"},
+		titlesOf(offer.Told), "the season's, newest first")
 	assert.Equal(t, map[string]int{"ir": 1, "tr": 1, "dz": 1, "mn": 1, "bg": 1, "fr": 1, "ma": 1, "es": 1}, offer.Shown)
 }
 
@@ -67,21 +69,25 @@ func TestARunWithNoFrontTourPlaceOrSagaAsksNobody(t *testing.T) {
 	assert.False(t, findings(t).Offer(1, nil, foundAt).Open(), "the day won fills the run")
 }
 
-func TestTheSagasToldInTheSeasonAreOfferedApartNewestFirst(t *testing.T) {
-	saga := func(flag, continent string) posts.StoryKey {
-		return posts.StoryKey{Flag: flag, Continent: continent, Angle: posts.Reigning}
-	}
+func TestThePostsToldAreTheSeasonsWithinFourWeeks(t *testing.T) {
 	posted := []posts.Telling{
-		told(saga("br", "South America"), "BRAZIL RULES SOUTH AMERICA", 20*24*time.Hour, "br"),
-		told(saga("pw", "Europe"), "TINY PALAU CONQUERS RUSSIA", 2*24*time.Hour, "ru", "pw"),
-		told(saga("ie", "North America"), "IRELAND RULES NORTH AMERICA", 29*24*time.Hour, "us", "ie"),
+		told(posts.StoryKey{Flag: "br", Continent: "South America", Angle: posts.Reigning}, "BRAZIL RULES SOUTH AMERICA", 20*24*time.Hour, "br"),
+		told(posts.StoryKey{Flag: "pw", Continent: "Europe"}, "TINY PALAU CONQUERS RUSSIA", 5*24*time.Hour, "ru", "pw"),
+		told(posts.StoryKey{Flag: "ie", Continent: "North America"}, "IRELAND RULES NORTH AMERICA", 29*24*time.Hour, "us", "ie"),
 		told(posts.StoryKey{Flag: "bg", Continent: "East Asia"}, "BULGARIA IS INVADING MONGOLIA", 4*time.Hour, "mn", "bg"),
 	}
+	found := findings(t)
+	found.Sagas[0].Since = foundAt.Add(-10 * 24 * time.Hour)
+	long := findings(t)
+	long.Sagas[0].Since = foundAt.Add(-40 * 24 * time.Hour)
+	noHistory := findings(t)
+	noHistory.Sagas = nil
 
-	offer := findings(t).Offer(2, posted, foundAt)
-
-	assert.Equal(t, []string{"TINY PALAU CONQUERS RUSSIA", "BRAZIL RULES SOUTH AMERICA"}, titlesOf(offer.Sagas), "the last 4 weeks")
-	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TINY PALAU CONQUERS RUSSIA"}, titlesOf(offer.Recent))
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TINY PALAU CONQUERS RUSSIA"}, titlesOf(found.Offer(2, posted, foundAt).Told),
+		"since the season started")
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TINY PALAU CONQUERS RUSSIA", "BRAZIL RULES SOUTH AMERICA"},
+		titlesOf(long.Offer(2, posted, foundAt).Told), "4 weeks at most")
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA"}, titlesOf(noHistory.Offer(2, posted, foundAt).Told), "the last 3 days")
 }
 
 func TestAHeadlineOverAWeekOldMayBeWrittenAgain(t *testing.T) {

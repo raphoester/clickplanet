@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {MapFrame, MapHistory} from "../mapHistory.ts"
-import {framedTilesOf, sagasOf} from "./saga.ts"
+import {framedTilesOf, pathsOf, sagasOf} from "./saga.ts"
 
 // Tiles 1 to 10 are France, in Europe; 11 to 20 Algeria, in Africa.
 const groundOf = (tile: number) => tile <= 10 ? "fr" : tile <= 20 ? "dz" : undefined
@@ -95,10 +95,49 @@ describe("a place's saga", () => {
         expect(europe?.reigns[0]).toMatchObject({flag: "ie", pushedAt: undefined, since: HOUR, tookFrom: undefined})
     })
 
-    it("leaves out a place no flag ever held over half of", () => {
-        const sagas = sagasOf(historyOf(frame(0, ...take("ie", 11, 12, 13, 14, 15)), frame(1)), 20, groundOf, regionOf)
+    it("tells a place no flag held over half of, with each flag that held a tenth of it", () => {
+        const africa = sagasOf(historyOf(frame(0, ...take("ie", 11, 12, 13, 14, 15)), frame(1)), 20, groundOf, regionOf)
+            .find(({continent}) => continent === "Africa")
 
-        expect(sagas.map(({continent}) => continent)).toEqual([])
+        expect(africa).toMatchObject({reigns: [], contenders: [{flag: "ie", since: 0, until: undefined, peak: 0.5, share: 0.5}]})
+    })
+
+    it("tells each flag that held a tenth of it, from when, to when it fell under a tenth for the last time", () => {
+        const europe = europeOf(historyOf(
+            frame(0, ...take("ie", 1, 2, 3)),
+            frame(1, ...take("pw", 1, 2, 3, 4)),
+            frame(2, ...take("ie", 5)),
+            frame(3, ...take("ie", 6, 7)),
+            frame(4, ...take("pw", 5, 6, 7)),
+        ))
+
+        expect(europe?.contenders).toEqual([
+            {flag: "ie", since: 0, until: 4 * HOUR, peak: 0.3, share: 0},
+            {flag: "pw", since: HOUR, until: undefined, peak: 0.7, share: 0.7},
+        ])
+    })
+
+    it("leaves out a place no flag ever held a tenth of", () => {
+        const sagas = sagasOf(historyOf(frame(0), frame(1)), 20, groundOf, regionOf)
+
+        expect(sagas).toEqual([])
+    })
+})
+
+describe("a flag's path", () => {
+    it("counts its tiles on each continent every 12 hours and at the end", () => {
+        const paths = pathsOf(historyOf(
+            frame(0, ...take("ie", 1, 2)),
+            frame(6, ...take("ie", 11)),
+            frame(12, ...take("pw", 1)),
+            frame(20, ...take("ie", 12, 13)),
+        ), 20, new Set(["ie"]), groundOf, regionOf)
+
+        expect(paths).toEqual([{flag: "ie", marks: [
+            {at: 0, tilesByContinent: {Europe: 2}},
+            {at: 12 * HOUR, tilesByContinent: {Africa: 1, Europe: 1}},
+            {at: 20 * HOUR, tilesByContinent: {Africa: 3, Europe: 1}},
+        ]}])
     })
 })
 

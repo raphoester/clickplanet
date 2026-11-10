@@ -32,7 +32,8 @@ if (!replay || has("help")) {
   --cast <path>       who took which tiles (clips.v1.Cast): the fighters the story names are on its end card, and the
                       findings name each front's, tour's and place's top fighters
   --history <path>    the map every hour since the season started (planet.v1.GetMapHistoryResponse): the findings tell
-                      each place's saga, who held over half of it from when to when, and a saga is told from it
+                      each place's saga, who held a tenth of it and who held over half of it from when to when, and
+                      each ruling flag's land on each continent; a saga is told from it, from the time its pick names
   --silent            no anthem under the clip, for a sound added where it is posted
   --preview <s>       only the first s seconds of the clip
 

@@ -79,27 +79,33 @@ What chooses, when a clip goes out, the client of the service and the run's summ
     Earth's Europe, so a flag holding Siberia would "hold Europe"; Russia is a place of its own. A share is of all the
     place's tiles, empty ones too.
   - **`sagas`**: each place over the whole season, from `--history` (`domain/clip/saga.ts`, `sagasOf`): the world, each
-    continent and each country of 1,000 tiles or more, as a place is, and each flag that held over half of it, oldest
-    first, with when its conquest began (`pushedAt`, the last hour it held under a tenth before), when it held over
-    half (`since`) and when it fell (`until`, none while it holds), its peak, whom it took the place from and whom it
-    fell to. **The 12 hours the rest is searched in cannot see a war of days**: Czechia held China 5 days and lost it
-    in the battle hour of 2026-11-07, Brazil held South America for 9, Palau took Russia whole; China was in no clip in
-    9 days. A dip under half shorter than 3 hours does not end a reign, and a reign shorter than that which ended is
-    a raid and left out. A place no flag held over half of has none, and a country that is its whole continent
-    (Antarctica) is told as the continent.
+    continent and each country of 1,000 tiles or more, as a place is. Its reigns: each flag that held over half of it,
+    oldest first, with when its conquest began (`pushedAt`, the last hour it held under a tenth before), when it held
+    over half (`since`) and when it fell (`until`, none while it holds), its peak, whom it took the place from and whom
+    it fell to. Its contenders: each flag that held a tenth of it or more, from the first hour it did to when it fell
+    under a tenth for the last time (none while it still holds a tenth), with its peak and its share at the end: a
+    flag invading a place another rules is one before it holds half. **The 12 hours the rest is searched in cannot see
+    a war of days**: Czechia held China 5 days and lost it in the battle hour of 2026-11-07, Brazil held South America
+    for 9, Palau took Russia whole; China was in no clip in 9 days. A dip under half shorter than 3 hours does not end
+    a reign, and a reign shorter than that which ended is a raid and left out. A place no flag held a tenth of has no
+    saga, and a country that is its whole continent (Antarctica) is told as the continent.
+  - **`paths`**: each flag that held over half of a place, and its tiles on each continent every 12 hours of the
+    history and at its end (`pathsOf`). **A flag's story crosses places**: Brazil ruled South America from 2026-11-01,
+    took Antarctica from the 5th and India in the battle of the 7th, from 9% of the world to 22%. The sagas tell it
+    place by place; a path tells it whole, so the editor sees where a flag spread, was beaten and turned next.
   - **`seasonal`**: a day of the season won and each country called up after it (`round.ts`, `callup.ts`, below),
     told whole by this app, with the title, the key, the countries and the facts their clips would record
     (`StoryFacts`, `storyFactsOf`, the numbers `record()` works out, measured once by `measuredOf`).
   - **`names`**, how a clip says each code in the findings ("gb": "the UK"), **`continents`**, each with its own
-    flag when it has one (Europe's), and **`anthems`**, the codes a clip has a recording for (below).
+    flag when it has one (Europe's) and its size in tiles, and **`anthems`**, the codes a clip has a recording for (below).
   - **`fighters`**, with a cast (`--cast`): the players who took the most, 3 at most (`topFightersOf`,
     `domain/clip/cast.ts`), each with its number in the cast, its name and the tiles it took from another flag. On each
     front's flag, its takes on the front's tiles in the front's stretch; on each tour, the flag's on the tour's tiles;
     on each place, the holder's of the place in the window. **A take is matched by its tile and the stretch, never by
     its time**: the cast's times are postgres's, the replay's the stream's.
 - **`--story <json>`** is the story to render, a `Pick` (`toldOf`): one front, tour, place, saga or seasonal story of
-  the findings by its number, from 1, for a saga the reign it plays from (`reign`, from 1), its `attacker` and its
-  `rival`, and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
+  the findings by its number, from 1, for a saga the time its clip starts (`since`), its `attacker` and its `rival`,
+  and for a front what the editor made of it: its `kind` (`attack`, `invasion`,
   `comeback`, `kickout`, `rout`, `battle`), its `attacker`, its `rival` in a battle, whom it took from (`takenFrom`,
   the flag thrown out first), where it is told (`countries` of the front, or `continent`), the continent whose flags
   strike back together (`team`). A tour, a place and a seasonal story are the facts' own: the flag taking the world,
@@ -173,6 +179,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   - **`storyEndedAt` is when the stretch it plays ends**, the newest moment of the story, as a time (the stretch's
     `until`, so the cutoff for a day or a call-up). The post's `scheduledAt` minus it is how long the story took to
     reach the feed, which is what running every 2 hours set out to cut.
+  - **What it told, for the next runs**: the story's `attacker` and `rival`, where it is told (`placeCountries`, else
+    `placeRegion`, a continent or "the world"), and in `common` the `line` under the headline. The job reads them back
+    from each post of the season, so its editor knows what the viewers know and tells the next chapter.
   - **`generator` is the commit that made it**: `render.mjs` passes the workflow's `GITHUB_SHA`, else the checkout's
     `HEAD`, to the page as `commit`; `unknown` without either.
   - **`variants`, the arm of each experiment the clip was in, is `reserved`**: none runs since 2026-11-05, and the
@@ -290,8 +299,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   keyed by the content-addressed file, and both anthem scripts run it, since a new encode is a new file; a test
   fails when one is missing. A clip starts on the best highlight that leaves the anthem playing to its end, else
   early enough that it does.
-- **A saga's clip plays its place over days** (`sagaReviewOf`): from the conquest of the reign the pick names to the
-  end of the history, its counters the share of the place the attacker and the rival hold, and **the day it is at
+- **A saga's clip plays its place over days** (`sagaReviewOf`): from the time the pick names to the end of the
+  history, its counters the share of the place the attacker and the rival hold (with no rival, the flag holding the
+  most of it after the attacker at the start is the one it is told against), and **the day it is at
   as big as the counters** ("SAT 7 NOV"), since the days going by are the story. The history is played as a replay
   (`ReplayBackend.ofHistory`): **each change at the second it was made**, its last of the hour (the history's
   `seconds_into_step`), so an enclosure's tiles land together and clicks land one by one, as they did. Until

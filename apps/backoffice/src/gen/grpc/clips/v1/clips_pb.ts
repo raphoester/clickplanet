@@ -67,12 +67,20 @@ export class Findings extends Message<Findings> {
   anthems: string[] = [];
 
   /**
-   * Each place over the whole season, from the map every hour: who held over half of it, from when to when. Empty
-   * when the run fetched no history.
+   * Each place over the whole season, from the map every hour: who held a tenth of it or more, and who held over half,
+   * from when to when. Empty when the run fetched no history.
    *
    * @generated from field: repeated clips.v1.Saga sagas = 10;
    */
   sagas: Saga[] = [];
+
+  /**
+   * Each flag that held over half of a place in the season, and its land on each continent over it: the story of one
+   * flag across places, which the sagas tell place by place. Empty when the run fetched no history.
+   *
+   * @generated from field: repeated clips.v1.Path paths = 11;
+   */
+  paths: Path[] = [];
 
   constructor(data?: PartialMessage<Findings>) {
     super();
@@ -92,6 +100,7 @@ export class Findings extends Message<Findings> {
     { no: 8, name: "continents", kind: "message", T: Continent, repeated: true },
     { no: 9, name: "anthems", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 10, name: "sagas", kind: "message", T: Saga, repeated: true },
+    { no: 11, name: "paths", kind: "message", T: Path, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Findings {
@@ -112,8 +121,9 @@ export class Findings extends Message<Findings> {
 }
 
 /**
- * A place over the season: the world, a continent or a country of 1,000 tiles or more, and each flag that held over half
- * of it, oldest first. A dip under half shorter than 3 hours does not end a reign.
+ * A place over the season: the world, a continent or a country of 1,000 tiles or more that a flag held a tenth of at
+ * some hour, each flag that held over half of it, oldest first, and each flag that held a tenth of it. A dip under half
+ * shorter than 3 hours does not end a reign.
  *
  * @generated from message clips.v1.Saga
  */
@@ -173,6 +183,13 @@ export class Saga extends Message<Saga> {
    */
   until?: Timestamp;
 
+  /**
+   * By the first hour each held a tenth, oldest first.
+   *
+   * @generated from field: repeated clips.v1.Contender contenders = 10;
+   */
+  contenders: Contender[] = [];
+
   constructor(data?: PartialMessage<Saga>) {
     super();
     proto3.util.initPartial(data, this);
@@ -190,6 +207,7 @@ export class Saga extends Message<Saga> {
     { no: 7, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 8, name: "since", kind: "message", T: Timestamp },
     { no: 9, name: "until", kind: "message", T: Timestamp },
+    { no: 10, name: "contenders", kind: "message", T: Contender, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Saga {
@@ -206,6 +224,163 @@ export class Saga extends Message<Saga> {
 
   static equals(a: Saga | PlainMessage<Saga> | undefined, b: Saga | PlainMessage<Saga> | undefined): boolean {
     return proto3.util.equals(Saga, a, b);
+  }
+}
+
+/**
+ * A flag holding a tenth of a place or more, from the first hour it did to the last.
+ *
+ * @generated from message clips.v1.Contender
+ */
+export class Contender extends Message<Contender> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp since = 2;
+   */
+  since?: Timestamp;
+
+  /**
+   * Unset while it still holds a tenth.
+   *
+   * @generated from field: google.protobuf.Timestamp until = 3;
+   */
+  until?: Timestamp;
+
+  /**
+   * The most of the place it held, and its share at the end.
+   *
+   * @generated from field: double peak = 4;
+   */
+  peak = 0;
+
+  /**
+   * @generated from field: double share = 5;
+   */
+  share = 0;
+
+  constructor(data?: PartialMessage<Contender>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Contender";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "since", kind: "message", T: Timestamp },
+    { no: 3, name: "until", kind: "message", T: Timestamp },
+    { no: 4, name: "peak", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 5, name: "share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Contender {
+    return new Contender().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Contender {
+    return new Contender().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Contender {
+    return new Contender().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Contender | PlainMessage<Contender> | undefined, b: Contender | PlainMessage<Contender> | undefined): boolean {
+    return proto3.util.equals(Contender, a, b);
+  }
+}
+
+/**
+ * A flag's land on each continent, every 12 hours of the history and at its end.
+ *
+ * @generated from message clips.v1.Path
+ */
+export class Path extends Message<Path> {
+  /**
+   * @generated from field: string flag = 1;
+   */
+  flag = "";
+
+  /**
+   * @generated from field: repeated clips.v1.PathMark marks = 2;
+   */
+  marks: PathMark[] = [];
+
+  constructor(data?: PartialMessage<Path>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.Path";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "marks", kind: "message", T: PathMark, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Path {
+    return new Path().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Path {
+    return new Path().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Path {
+    return new Path().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Path | PlainMessage<Path> | undefined, b: Path | PlainMessage<Path> | undefined): boolean {
+    return proto3.util.equals(Path, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.PathMark
+ */
+export class PathMark extends Message<PathMark> {
+  /**
+   * @generated from field: google.protobuf.Timestamp at = 1;
+   */
+  at?: Timestamp;
+
+  /**
+   * A continent it holds none of is left out.
+   *
+   * @generated from field: map<string, uint32> tiles_by_continent = 2;
+   */
+  tilesByContinent: { [key: string]: number } = {};
+
+  constructor(data?: PartialMessage<PathMark>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.PathMark";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "at", kind: "message", T: Timestamp },
+    { no: 2, name: "tiles_by_continent", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 13 /* ScalarType.UINT32 */} },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PathMark {
+    return new PathMark().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PathMark {
+    return new PathMark().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PathMark {
+    return new PathMark().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PathMark | PlainMessage<PathMark> | undefined, b: PathMark | PlainMessage<PathMark> | undefined): boolean {
+    return proto3.util.equals(PathMark, a, b);
   }
 }
 
@@ -323,6 +498,11 @@ export class Continent extends Message<Continent> {
    */
   flag = "";
 
+  /**
+   * @generated from field: uint32 tiles = 3;
+   */
+  tiles = 0;
+
   constructor(data?: PartialMessage<Continent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -333,6 +513,7 @@ export class Continent extends Message<Continent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "flag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Continent {
@@ -1248,17 +1429,17 @@ export class Pick extends Message<Pick> {
   fighters: number[] = [];
 
   /**
-   * A saga of the findings, by its number from 1, and the reign it plays from, from 1: the clip plays the place from
-   * that reign's conquest to the end of the history, its counters the attacker's share and the rival's.
+   * A saga of the findings, by its number from 1, and when its clip starts: the clip plays the place from then to the
+   * end of the history, its counters the attacker's share and the rival's.
    *
    * @generated from field: uint32 saga = 20;
    */
   saga = 0;
 
   /**
-   * @generated from field: uint32 reign = 21;
+   * @generated from field: google.protobuf.Timestamp since = 22;
    */
-  reign = 0;
+  since?: Timestamp;
 
   constructor(data?: PartialMessage<Pick>) {
     super();
@@ -1288,7 +1469,7 @@ export class Pick extends Message<Pick> {
     { no: 18, name: "look", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 19, name: "fighters", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
     { no: 20, name: "saga", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 21, name: "reign", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 22, name: "since", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Pick {
@@ -1544,6 +1725,13 @@ export class ClipCommon extends Message<ClipCommon> {
    */
   fighters = 0;
 
+  /**
+   * The small line under the headline; empty for none.
+   *
+   * @generated from field: string line = 6;
+   */
+  line = "";
+
   constructor(data?: PartialMessage<ClipCommon>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1557,6 +1745,7 @@ export class ClipCommon extends Message<ClipCommon> {
     { no: 3, name: "music_start_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 4, name: "language", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "fighters", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "line", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClipCommon {
@@ -1665,6 +1854,30 @@ export class GlobeReplay extends Message<GlobeReplay> {
    */
   storyEndedAt?: Timestamp;
 
+  /**
+   * The flags the story is between: its attacker, and its rival, empty for none.
+   *
+   * @generated from field: string attacker = 18;
+   */
+  attacker = "";
+
+  /**
+   * @generated from field: string rival = 19;
+   */
+  rival = "";
+
+  /**
+   * Where it is told: the countries' codes, else a continent or "the world".
+   *
+   * @generated from field: repeated string place_countries = 20;
+   */
+  placeCountries: string[] = [];
+
+  /**
+   * @generated from field: string place_region = 21;
+   */
+  placeRegion = "";
+
   constructor(data?: PartialMessage<GlobeReplay>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1690,6 +1903,10 @@ export class GlobeReplay extends Message<GlobeReplay> {
     { no: 15, name: "tour_stops", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 16, name: "solidity", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 17, name: "story_ended_at", kind: "message", T: Timestamp },
+    { no: 18, name: "attacker", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 19, name: "rival", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 20, name: "place_countries", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 21, name: "place_region", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GlobeReplay {

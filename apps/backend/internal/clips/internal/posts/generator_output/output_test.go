@@ -49,13 +49,20 @@ const (
      "reigns": [
        {"flag": "ru", "since": "2026-11-03T04:00:00Z", "until": "2026-11-05T22:00:00Z", "peak": 0.99, "share": 0.49, "tookFrom": "ie", "tookFromShare": 0.42, "lostTo": "lv"},
        {"flag": "pw", "pushedAt": "2026-11-07T20:00:00Z", "since": "2026-11-07T21:00:00Z", "peak": 0.97, "share": 0.91, "tookFrom": "lv", "tookFromShare": 0.44}
+     ],
+     "contenders": [
+       {"flag": "ru", "since": "2026-11-01T15:00:00Z", "until": "2026-11-07T21:00:00Z", "peak": 0.99},
+       {"flag": "pw", "since": "2026-11-07T20:00:00Z", "peak": 0.97, "share": 0.91}
      ]}
+  ],
+  "paths": [
+    {"flag": "pw", "marks": [{"at": "2026-11-01T15:00:00Z"}, {"at": "2026-11-10T14:00:00Z", "tilesByContinent": {"Europe": 25877}}]}
   ],
   "seasonal": [
     {"title": "PALAU WINS DAY 18", "key": {"flag": "pw", "continent": "the world", "angle": "round", "round": "0.18"}, "countries": ["pw", "dz"], "teasers": ["PALAU TAKES DAY 18"], "facts": {"kind": "round", "storyTilesChanged": 1200}}
   ],
   "names": {"fr": "France", "tr": "Turkey"},
-  "continents": [{"name": "Europe", "flag": "eu"}, {"name": "Middle East"}],
+  "continents": [{"name": "Europe", "flag": "eu", "tiles": 40225}, {"name": "Middle East", "tiles": 9000}],
   "anthems": ["eu", "fr", "tr"]
 }
 `
@@ -132,7 +139,15 @@ func TestTheFindingsAreEveryFrontTourPlaceSagaAndSeasonalStoryTheGeneratorWrote(
 			{Flag: "ru", Since: hour(3, 4), Until: hour(5, 22), Peak: 0.99, Share: 0.49, TookFrom: "ie", TookFromShare: 0.42, LostTo: "lv"},
 			{Flag: "pw", PushedAt: hour(7, 20), Since: hour(7, 21), Peak: 0.97, Share: 0.91, TookFrom: "lv", TookFromShare: 0.44},
 		},
+		Contenders: []posts.Contender{
+			{Flag: "ru", Since: hour(1, 15), Until: hour(7, 21), Peak: 0.99},
+			{Flag: "pw", Since: hour(7, 20), Peak: 0.97, Share: 0.91},
+		},
 	}}, findings.Sagas)
+	assert.Equal(t, []posts.Path{{Flag: "pw", Marks: []posts.PathMark{
+		{At: hour(1, 15), TilesByContinent: map[string]int{}},
+		{At: hour(10, 14), TilesByContinent: map[string]int{"Europe": 25877}},
+	}}}, findings.Paths)
 	require.Len(t, findings.Seasonal, 1)
 	assert.Equal(t, "PALAU WINS DAY 18", findings.Seasonal[0].Title)
 	assert.Equal(t, posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}, findings.Seasonal[0].Key)
@@ -140,6 +155,7 @@ func TestTheFindingsAreEveryFrontTourPlaceSagaAndSeasonalStoryTheGeneratorWrote(
 	assert.JSONEq(t, `{"kind":"round","storyTilesChanged":1200}`, string(findings.Seasonal[0].Facts))
 	assert.Equal(t, map[string]string{"fr": "France", "tr": "Turkey"}, findings.Names)
 	assert.Equal(t, map[string]string{"Europe": "eu", "Middle East": ""}, findings.Continents)
+	assert.Equal(t, map[string]int{"Europe": 40225, "Middle East": 9000}, findings.ContinentTiles)
 	assert.Equal(t, []string{"eu", "fr", "tr"}, findings.Anthems)
 }
 
@@ -173,14 +189,14 @@ func TestAStoryIsWrittenAsTheGeneratorsStoryFlagTakesIt(t *testing.T) {
 	seasonal, err := generator_output.StoryJSON(posts.Story{Seasonal: 1})
 	require.NoError(t, err)
 	saga, err := generator_output.StoryJSON(posts.Story{
-		Saga: 2, Reign: 1, Attacker: "pw", Rival: "lv", Headline: "TINY PALAU CONQUERS RUSSIA", Teasers: []string{"RUSSIA FALLS TO PALAU"},
+		Saga: 2, Since: time.Date(2026, 11, 7, 19, 0, 0, 0, time.UTC), Attacker: "pw", Rival: "lv", Headline: "TINY PALAU CONQUERS RUSSIA", Teasers: []string{"RUSSIA FALLS TO PALAU"},
 		Call: "TAKE RUSSIA BACK", CallFlags: []string{"ru"}, Anthem: "pw",
 	})
 	require.NoError(t, err)
 
 	assert.JSONEq(t, `{"front":3,"kind":"battle","attacker":"fr","rival":"tr","takenFrom":["tr"],"countries":["tr","sy"],"headline":"FRANCE VS TURKEY","teasers":["THE WAR FOR TURKEY"],"line":"The battle for Turkey","call":"PICK A SIDE","callFlags":["fr","tr"],"anthem":"fr","look":"flags","fighters":[2,1]}`, string(front))
 	assert.JSONEq(t, `{"seasonal":1}`, string(seasonal))
-	assert.JSONEq(t, `{"saga":2,"reign":1,"attacker":"pw","rival":"lv","headline":"TINY PALAU CONQUERS RUSSIA","teasers":["RUSSIA FALLS TO PALAU"],"call":"TAKE RUSSIA BACK","callFlags":["ru"],"anthem":"pw"}`, string(saga))
+	assert.JSONEq(t, `{"saga":2,"since":"2026-11-07T19:00:00Z","attacker":"pw","rival":"lv","headline":"TINY PALAU CONQUERS RUSSIA","teasers":["RUSSIA FALLS TO PALAU"],"call":"TAKE RUSSIA BACK","callFlags":["ru"],"anthem":"pw"}`, string(saga))
 }
 
 func TestAFolderGivesEachClipWithItsVideo(t *testing.T) {

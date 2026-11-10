@@ -118,7 +118,7 @@ type answer struct {
 		Tour      int      `json:"tour"`
 		Place     int      `json:"place"`
 		Saga      int      `json:"saga"`
-		Reign     int      `json:"reign"`
+		Since     string   `json:"since"`
 		Kind      string   `json:"kind"`
 		Attacker  string   `json:"attacker"`
 		Rival     string   `json:"rival"`
@@ -149,7 +149,7 @@ var answerSchema = map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
 				"required": []string{
-					"front", "tour", "place", "saga", "reign", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
+					"front", "tour", "place", "saga", "since", "kind", "attacker", "rival", "takenFrom", "countries", "continent", "team", "headline", "teasers",
 					"line", "call", "callFlags", "anthem", "look", "fighters",
 				},
 				"properties": map[string]any{
@@ -157,7 +157,7 @@ var answerSchema = map[string]any{
 					"tour":      map[string]any{"type": "integer"},
 					"place":     map[string]any{"type": "integer"},
 					"saga":      map[string]any{"type": "integer"},
-					"reign":     map[string]any{"type": "integer"},
+					"since":     map[string]any{"type": "string"},
 					"kind":      map[string]any{"type": "string", "enum": []string{"attack", "invasion", "comeback", "kickout", "rout", "battle", ""}},
 					"attacker":  map[string]any{"type": "string"},
 					"rival":     map[string]any{"type": "string"},
@@ -196,8 +196,10 @@ func editionOf(content []anthropic.ContentBlockUnion) (posts.Edition, error) {
 			for _, number := range story.Fighters {
 				fighters = append(fighters, posts.FighterNumber(number))
 			}
+			// A time that is none is no time of a saga: the check refuses it.
+			since, _ := time.Parse(time.RFC3339, story.Since)
 			edition.Stories = append(edition.Stories, posts.Story{
-				Front: story.Front, Tour: story.Tour, Place: story.Place, Saga: story.Saga, Reign: story.Reign, Kind: posts.Kind(story.Kind),
+				Front: story.Front, Tour: story.Tour, Place: story.Place, Saga: story.Saga, Since: since, Kind: posts.Kind(story.Kind),
 				Attacker: story.Attacker, Rival: story.Rival, TakenFrom: story.TakenFrom, Countries: story.Countries,
 				Continent: story.Continent, Team: story.Team, Headline: story.Headline, Teasers: story.Teasers,
 				Line: story.Line, Call: story.Call, CallFlags: story.CallFlags, Anthem: story.Anthem, Look: posts.Look(story.Look),
