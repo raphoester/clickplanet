@@ -59,13 +59,23 @@ func findings(t *testing.T) posts.Findings {
 		},
 		Sagas: []posts.Saga{
 			{
-				Kind: posts.CountryPlace, Code: "cn", Continent: "East Asia", Tiles: 18622, Holder: "de", Share: 0.98,
+				Kind: posts.CountryPlace, Code: "cn", Continent: "East Asia", Tiles: 18622, Holder: "de", Share: 0.68,
+				Since: hour(1, 14), Until: hour(10, 14),
 				Reigns: []posts.Reign{
 					{Flag: "cz", PushedAt: hour(2, 12), Since: hour(2, 19), Until: hour(7, 21), Peak: 0.98, Share: 0.4, TookFrom: "kp", LostTo: "de"},
-					{Flag: "de", PushedAt: hour(7, 20), Since: hour(7, 21), Peak: 0.98, Share: 0.98, TookFrom: "cz", TookFromShare: 0.91},
+					{Flag: "de", PushedAt: hour(7, 20), Since: hour(7, 21), Peak: 0.98, Share: 0.68, TookFrom: "cz", TookFromShare: 0.91},
+				},
+				Contenders: []posts.Contender{
+					{Flag: "kp", Since: hour(1, 14), Until: hour(3, 0), Peak: 0.4},
+					{Flag: "cz", Since: hour(2, 12), Until: hour(8, 0), Peak: 0.98},
+					{Flag: "de", Since: hour(7, 20), Peak: 0.98, Share: 0.68},
+					{Flag: "br", Since: hour(9, 0), Peak: 0.3, Share: 0.3},
 				},
 			},
-			{Kind: posts.World, Tiles: 262000, Holder: "ie", Share: 0.22},
+			{
+				Kind: posts.World, Tiles: 262000, Holder: "ie", Share: 0.22, Since: hour(1, 14), Until: hour(10, 14),
+				Contenders: []posts.Contender{{Flag: "ie", Since: hour(1, 14), Peak: 0.25, Share: 0.22}},
+			},
 		},
 		Seasonal:   []posts.Seasonal{{Title: "PALAU WINS DAY 18", Key: day18, Countries: []string{"pw", "dz"}}},
 		Names:      map[string]string{"fr": "France", "tr": "Turkey", "dz": "Algeria", "in": "India", "sy": "Syria", "pw": "Palau"},
@@ -171,7 +181,7 @@ func TestAStoryNamesOneOfTheFindingsAndOneThatExists(t *testing.T) {
 	for why, story := range map[string]posts.Story{
 		"names 0 of a front, a tour, a place, a saga and a seasonal story, not one": {},
 		"names 2 of a front, a tour, a place, a saga and a seasonal story, not one": {Front: 1, Tour: 1},
-		"no saga 3 of 2": {Saga: 3, Reign: 1, Attacker: "de"},
+		"no saga 3 of 2": {Saga: 3, Since: hour(2, 0), Attacker: "de"},
 		"no tour 3 of 2": {Tour: 3},
 		`no landmass's painted flag switched to "br" on tour 2`: {Tour: 2},
 		"no place 3 of 2":          {Place: 3},
@@ -202,40 +212,44 @@ func TestWhatAStoryTellsOfIsSaidByItsNumber(t *testing.T) {
 	assert.Equal(t, "tour 1", posts.Story{Tour: 1}.Names())
 	assert.Equal(t, "place 2", posts.Story{Place: 2}.Names())
 	assert.Equal(t, "seasonal 1", posts.Story{Seasonal: 1}.Names())
-	assert.Equal(t, "saga 4", posts.Story{Saga: 4, Reign: 2}.Names())
+	assert.Equal(t, "saga 4", posts.Story{Saga: 4, Since: hour(2, 0)}.Names())
 }
 
-func TestASagaIsToldFromAReignByAFlagThatHeldThePlaceFromThenOn(t *testing.T) {
+func TestASagaIsToldFromATimeByFlagsThatHeldATenthOfThePlaceFromThen(t *testing.T) {
 	found := findings(t)
 
-	whole, err := found.Check(posts.Story{Saga: 1, Reign: 1, Attacker: "de", Rival: "cz"})
+	whole, err := found.Check(posts.Story{Saga: 1, Since: hour(2, 12), Attacker: "de", Rival: "cz"})
 	require.NoError(t, err)
-	handover, err := found.Check(posts.Story{Saga: 1, Reign: 2, Attacker: "de", Rival: "cz"})
+	handover, err := found.Check(posts.Story{Saga: 1, Since: hour(7, 19), Attacker: "de", Rival: "cz"})
 	require.NoError(t, err)
-	rise, err := found.Check(posts.Story{Saga: 1, Reign: 1, Attacker: "cz"})
+	rise, err := found.Check(posts.Story{Saga: 1, Since: hour(1, 14), Attacker: "cz"})
+	require.NoError(t, err)
+	invasion, err := found.Check(posts.Story{Saga: 1, Since: hour(8, 12), Attacker: "br", Rival: "de"})
 	require.NoError(t, err)
 
 	assert.Equal(t, posts.StoryKey{Flag: "de", Continent: "East Asia", Angle: posts.Reigning}, whole)
-	assert.Equal(t, whole, handover, "the reign Germany took China from Czechia in")
+	assert.Equal(t, whole, handover, "the hour Germany took China from Czechia in")
 	assert.Equal(t, posts.StoryKey{Flag: "cz", Continent: "East Asia", Angle: posts.Reigning}, rise)
+	assert.Equal(t, posts.StoryKey{Flag: "br", Continent: "East Asia", Angle: posts.Reigning}, invasion, "a flag that never held over half of it")
 }
 
-func TestASagaThatSaysWhatItsReignsDoNotIsRefusedWithWhy(t *testing.T) {
+func TestASagaThatSaysWhatItsPlaceDidNotIsRefusedWithWhy(t *testing.T) {
 	found := findings(t)
-	china := posts.Story{Saga: 1, Reign: 2, Attacker: "de", Rival: "cz"}
+	china := posts.Story{Saga: 1, Since: hour(7, 19), Attacker: "de", Rival: "cz"}
 
 	for why, story := range map[string]posts.Story{
-		"no reign 3 of 2 on saga 1":                    with(china, func(s *posts.Story) { s.Reign = 3 }),
-		"no reign 0 of 2 on saga 1":                    with(china, func(s *posts.Story) { s.Reign = 0 }),
-		"no reign 1 of 0 on saga 2":                    {Saga: 2, Reign: 1, Attacker: "ie"},
-		`"cz" held no reign from reign 2`:              with(china, func(s *posts.Story) { s.Attacker = "cz"; s.Rival = "" }),
-		`"kp" held no reign from reign 2`:              with(china, func(s *posts.Story) { s.Rival = "kp" }),
-		`"de" held no reign from reign 2, and reign 2`: with(china, func(s *posts.Story) { s.Rival = "de" }),
-		"a saga has no kind, look, place":              with(china, func(s *posts.Story) { s.Kind = posts.Invasion }),
-		"a saga has no kind, look":                     with(china, func(s *posts.Story) { s.Look = posts.PaintedFlags }),
-		"a saga has no kind, look, place, team":        with(china, func(s *posts.Story) { s.Countries = []string{"cn"} }),
-		"or flags taken from of its own":               with(china, func(s *posts.Story) { s.TakenFrom = []string{"cz"} }),
-		"fighter 1 took nothing for a side of saga 1":  with(china, func(s *posts.Story) { s.Fighters = []posts.FighterNumber{1} }),
+		"it starts at 2026-11-01T13:00:00Z, out of its history":    with(china, func(s *posts.Story) { s.Since = hour(1, 13) }),
+		"it starts at 2026-11-10T14:00:00Z, out of its history":    with(china, func(s *posts.Story) { s.Since = hour(10, 14) }),
+		"it starts at 0001-01-01T00:00:00Z, out of its history":    with(china, func(s *posts.Story) { s.Since = time.Time{} }),
+		`"kp" held no tenth of it from 2026-11-07T19:00:00Z`:       with(china, func(s *posts.Story) { s.Attacker = "kp" }),
+		`the rival "kp" held no tenth of it from 2026-11-07T19:00`: with(china, func(s *posts.Story) { s.Rival = "kp" }),
+		`"de" is its own rival`:                                    with(china, func(s *posts.Story) { s.Rival = "de" }),
+		`the rival "cz" held no tenth of it from 2026-11-08T00:00`: with(china, func(s *posts.Story) { s.Since = hour(8, 0) }),
+		"a saga has no kind, look, place":                          with(china, func(s *posts.Story) { s.Kind = posts.Invasion }),
+		"a saga has no kind, look":                                 with(china, func(s *posts.Story) { s.Look = posts.PaintedFlags }),
+		"a saga has no kind, look, place, team":                    with(china, func(s *posts.Story) { s.Countries = []string{"cn"} }),
+		"or flags taken from of its own":                           with(china, func(s *posts.Story) { s.TakenFrom = []string{"cz"} }),
+		"fighter 1 took nothing for a side of saga 1":              with(china, func(s *posts.Story) { s.Fighters = []posts.FighterNumber{1} }),
 	} {
 		t.Run(why, func(t *testing.T) {
 			_, err := found.Check(story)

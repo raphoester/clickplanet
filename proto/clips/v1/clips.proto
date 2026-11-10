@@ -20,13 +20,17 @@ message Findings {
   repeated Continent continents = 8;
   // The codes a clip has an anthem for, a continent's own flag among them: what a Pick's anthem names.
   repeated string anthems = 9;
-  // Each place over the whole season, from the map every hour: who held over half of it, from when to when. Empty
-  // when the run fetched no history.
+  // Each place over the whole season, from the map every hour: who held a tenth of it or more, and who held over half,
+  // from when to when. Empty when the run fetched no history.
   repeated Saga sagas = 10;
+  // Each flag that held over half of a place in the season, and its land on each continent over it: the story of one
+  // flag across places, which the sagas tell place by place. Empty when the run fetched no history.
+  repeated Path paths = 11;
 }
 
-// A place over the season: the world, a continent or a country of 1,000 tiles or more, and each flag that held over half
-// of it, oldest first. A dip under half shorter than 3 hours does not end a reign.
+// A place over the season: the world, a continent or a country of 1,000 tiles or more that a flag held a tenth of at
+// some hour, each flag that held over half of it, oldest first, and each flag that held a tenth of it. A dip under half
+// shorter than 3 hours does not end a reign.
 message Saga {
   // "world", "continent" or "country".
   string kind = 1;
@@ -42,6 +46,31 @@ message Saga {
   // When the history it is measured on starts and ends.
   google.protobuf.Timestamp since = 8;
   google.protobuf.Timestamp until = 9;
+  // By the first hour each held a tenth, oldest first.
+  repeated Contender contenders = 10;
+}
+
+// A flag holding a tenth of a place or more, from the first hour it did.
+message Contender {
+  string flag = 1;
+  google.protobuf.Timestamp since = 2;
+  // When it fell under a tenth for the last time; unset while it still holds a tenth.
+  google.protobuf.Timestamp until = 3;
+  // The most of the place it held, and its share at the end.
+  double peak = 4;
+  double share = 5;
+}
+
+// A flag's land on each continent, every 12 hours of the history and at its end.
+message Path {
+  string flag = 1;
+  repeated PathMark marks = 2;
+}
+
+message PathMark {
+  google.protobuf.Timestamp at = 1;
+  // A continent it holds none of is left out.
+  map<string, uint32> tiles_by_continent = 2;
 }
 
 // A flag holding over half of a place, from since to until.
@@ -67,6 +96,7 @@ message Continent {
   string name = 1;
   // Its own flag, when it has one: "eu".
   string flag = 2;
+  uint32 tiles = 3;
 }
 
 // Where tiles changed hands the most in one stretch of time: everything within about 2,900 km of it.
@@ -231,10 +261,13 @@ message Pick {
   string look = 18;
   // The players the clip names, by their number in the cast.
   repeated uint32 fighters = 19;
-  // A saga of the findings, by its number from 1, and the reign it plays from, from 1: the clip plays the place from
-  // that reign's conquest to the end of the history, its counters the attacker's share and the rival's.
+  reserved 21;
+  reserved "reign";
+
+  // A saga of the findings, by its number from 1, and when its clip starts: the clip plays the place from then to the
+  // end of the history, its counters the attacker's share and the rival's.
   uint32 saga = 20;
-  uint32 reign = 21;
+  google.protobuf.Timestamp since = 22;
 }
 
 message Clip {
@@ -278,6 +311,8 @@ message ClipCommon {
   string language = 4;
   // The players it names.
   uint32 fighters = 5;
+  // The small line under the headline; empty for none.
+  string line = 6;
 }
 
 message GlobeReplay {
@@ -298,6 +333,12 @@ message GlobeReplay {
   uint32 tour_stops = 15;
   double solidity = 16;
   google.protobuf.Timestamp story_ended_at = 17;
+  // The flags the story is between: its attacker, and its rival, empty for none.
+  string attacker = 18;
+  string rival = 19;
+  // Where it is told: the countries' codes, else a continent or "the world".
+  repeated string place_countries = 20;
+  string place_region = 21;
 }
 
 message PostRecord {

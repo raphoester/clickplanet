@@ -1,6 +1,7 @@
 package metadata_test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -98,4 +99,38 @@ func TestTheCountriesReadBackAreTheCodesAlone(t *testing.T) {
 	assert.Equal(t, []string{"kz", "ps", "ro"}, metadata.CountriesOf(map[string]any{"storyCountries": []any{"kz", "ps", float64(3), "", "ro"}}))
 	assert.Empty(t, metadata.CountriesOf(map[string]any{"storyCountries": "pt"}))
 	assert.Empty(t, metadata.CountriesOf(nil))
+}
+
+func TestWhatAPostToldIsReadBackFromItsRecord(t *testing.T) {
+	record := posts.ClipRecord(`{"format":"globe-replay","common":{"line":"AFTER A WEEK IN SOUTH AMERICA"},"globe":{"camera":"saga",` +
+		`"storyKind":"saga","spanMinutes":1440,"placeTiles":20000,"flagTilesStart":1000,"flagTilesEnd":7000,` +
+		`"storyEndedAt":"2026-11-12T08:00:00Z","attacker":"br","rival":"ie","placeRegion":"North America"}}`)
+	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "br", Continent: "North America", Angle: posts.Reigning}, record, "invades"))
+	require.NoError(t, err)
+
+	assert.Equal(t, posts.TellingFacts{
+		Kind: "saga", Attacker: "br", Rival: "ie", Region: "North America", Line: "AFTER A WEEK IN SOUTH AMERICA",
+		Since: time.Date(2026, 11, 11, 8, 0, 0, 0, time.UTC), Until: time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC),
+		ShareAtStart: 0.05, ShareAtEnd: 0.35,
+	}, metadata.FactsOf(readBack(t, kept)))
+}
+
+func TestAPostWhoseRecordKeptNotWhatItToldHasNoFacts(t *testing.T) {
+	record := posts.ClipRecord(`{"format":"globe-replay","globe":{"camera":"front","storyKind":"invasion","placeTiles":900}}`)
+	kept, err := metadata.Of(snapshotOf(t, posts.StoryKey{Flag: "fr", Continent: "Europe"}, record, "invades"))
+	require.NoError(t, err)
+
+	assert.Zero(t, metadata.FactsOf(readBack(t, kept)))
+	assert.Zero(t, metadata.FactsOf(map[string]any{"storyFlag": "fr"}))
+}
+
+// The metadata as the publishing module gives it back: JSON's numbers and lists.
+func readBack(t *testing.T, kept map[string]any) map[string]any {
+	t.Helper()
+
+	written, err := json.Marshal(kept)
+	require.NoError(t, err)
+	var back map[string]any
+	require.NoError(t, json.Unmarshal(written, &back))
+	return back
 }

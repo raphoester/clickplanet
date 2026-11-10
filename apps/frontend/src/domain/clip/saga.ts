@@ -19,15 +19,32 @@ export type Reign = {
     lostTo: string | undefined
 }
 
-// A place over a history, and each flag that held over half of it, oldest first; its holder and share at the end.
+// A flag holding a tenth of a place or more, from the first frame it did to the frame it fell under a tenth for the last
+// time (undefined while it still holds a tenth).
+export type Contender = {
+    flag: string
+    since: number
+    until: number | undefined
+    peak: number
+    share: number
+}
+
+// A place over a history: each flag that held over half of it, and each that held a tenth of it, oldest first; its
+// holder and share at the end.
 export type SagaFacts = Pick<PlaceFacts, "kind" | "place" | "code" | "continent"> & {
     tiles: number
     reigns: Reign[]
+    contenders: Contender[]
     holder: string | undefined
     share: number
     since: number
     until: number
 }
+
+// A flag's tiles on each continent at a time.
+export type PathMark = {at: number, tilesByContinent: Record<string, number>}
+
+export type Path = {flag: string, marks: PathMark[]}
 
 const HELD = 0.5
 
@@ -42,7 +59,7 @@ const KEPT = 5
 type Seen = {at: number, top: [string, number][], above: ReadonlyMap<string, number>}
 
 // Each place of the map over a history, from the map at each of its frames. A share is of all the place's tiles, empty
-// ones too, as a place's is. A place no flag ever held over half of is left out, and so is a country that is its whole
+// ones too, as a place's is. A place no flag ever held a tenth of is left out, and so is a country that is its whole
 // continent: Antarctica is told once.
 export function sagasOf(
     history: MapHistory,
@@ -102,12 +119,12 @@ export function sagasOf(
 
     const sagas = names.flatMap((name, key): SagaFacts[] => {
         const ground = grounds[key]
-        const reigns = reignsOf(seen[key], ground)
-        if (reigns.length === 0) return []
+        const contenders = contendersOf(seen[key], ground)
+        if (contenders.length === 0) return []
         const [holder, held] = seen[key][seen[key].length - 1].top[0] ?? [undefined, 0]
         return [{
-            ...placeOf(name, regionOf), tiles: ground, reigns, holder, share: held / Math.max(1, ground),
-            since: frames[0].at, until: frames[frames.length - 1].at,
+            ...placeOf(name, regionOf), tiles: ground, reigns: reignsOf(seen[key], ground), contenders, holder,
+            share: held / Math.max(1, ground), since: frames[0].at, until: frames[frames.length - 1].at,
         }]
     })
     const wholeContinent = (saga: SagaFacts) => saga.kind === "country"
@@ -115,8 +132,27 @@ export function sagasOf(
     return sagas.filter((saga) => !wholeContinent(saga)).sort((a, b) => b.tiles - a.tiles)
 }
 
+const countOf = (frame: Seen, flag: string) => frame.above.get(flag) ?? frame.top.find(([code]) => code === flag)?.[1] ?? 0
+
+function contendersOf(seen: readonly Seen[], ground: number): Contender[] {
+    const shareOf = (frame: Seen, flag: string) => countOf(frame, flag) / Math.max(1, ground)
+    const found = new Map<string, {first: number, last: number, peak: number}>()
+    seen.forEach((frame, i) => frame.above.forEach((count, flag) => {
+        const kept = found.get(flag)
+        const share = count / Math.max(1, ground)
+        if (kept === undefined) found.set(flag, {first: i, last: i, peak: share})
+        else {
+            kept.last = i
+            kept.peak = Math.max(kept.peak, share)
+        }
+    }))
+    const end = seen.length - 1
+    return [...found].map(([flag, {first, last, peak}]) => ({
+        flag, since: seen[first].at, until: last === end ? undefined : seen[last + 1].at, peak, share: shareOf(seen[end], flag),
+    })).sort((a, b) => a.since - b.since || b.peak - a.peak)
+}
+
 function reignsOf(seen: readonly Seen[], ground: number): Reign[] {
-    const countOf = (frame: Seen, flag: string) => frame.above.get(flag) ?? frame.top.find(([code]) => code === flag)?.[1] ?? 0
     const shareOf = (frame: Seen, flag: string) => countOf(frame, flag) / Math.max(1, ground)
     const nextAfter = (frame: Seen, flag: string) => frame.top.find(([code]) => code !== flag)
     const holderAt = seen.map(({top}) => top[0] !== undefined && top[0][1] > HELD * ground ? top[0][0] : undefined)
@@ -174,4 +210,49 @@ export function framedTilesOf(placeTiles: readonly number[], landmassOf: (tile: 
     const sizes = tally(placeTiles.map(landmassOf))
     const biggest = Math.max(0, ...sizes.values())
     return placeTiles.filter((tile) => (sizes.get(landmassOf(tile)) ?? 0) * 4 >= biggest)
+}
+
+const MARK_MS = 12 * 3_600_000
+
+// Each flag's tiles on each continent, every 12 hours of the history and at its end: a flag's story across places.
+export function pathsOf(
+    history: MapHistory,
+    tiles: number,
+    flags: ReadonlySet<string>,
+    groundOf: (tile: number) => string | undefined,
+    regionOf: RegionOf,
+): Path[] {
+    const frames = history.frames
+    if (frames.length === 0 || flags.size === 0) return []
+    const continentOf = Array.from({length: tiles + 1}, (_, tile) => {
+        const ground = tile === 0 ? undefined : groundOf(tile)
+        return ground === undefined ? undefined : regionOf(ground)
+    })
+    const owners = new Array<string>(tiles + 1).fill("")
+    const held = new Map([...flags].map((flag) => [flag, new Map<string, number>()]))
+    const count = (flag: string, continent: string, by: number) => {
+        const of = held.get(flag)
+        if (of !== undefined) of.set(continent, (of.get(continent) ?? 0) + by)
+    }
+    const paths = new Map([...flags].map((flag): [string, PathMark[]] => [flag, []]))
+    let next = frames[0].at
+    frames.forEach((frame, i) => {
+        frame.tiles.forEach((tile, j) => {
+            if (tile < 1 || tile > tiles) return
+            const was = owners[tile]
+            const now = frame.owners[j]
+            owners[tile] = now
+            const continent = continentOf[tile]
+            if (was === now || continent === undefined) return
+            if (was !== "") count(was, continent, -1)
+            if (now !== "") count(now, continent, 1)
+        })
+        if (frame.at < next && i < frames.length - 1) return
+        while (next <= frame.at) next += MARK_MS
+        for (const [flag, marks] of paths) {
+            const tilesByContinent = Object.fromEntries([...held.get(flag) ?? []].filter(([, n]) => n > 0).sort(([a], [b]) => a.localeCompare(b)))
+            marks.push({at: frame.at, tilesByContinent})
+        }
+    })
+    return [...paths].map(([flag, marks]) => ({flag, marks})).sort((a, b) => a.flag.localeCompare(b.flag))
 }

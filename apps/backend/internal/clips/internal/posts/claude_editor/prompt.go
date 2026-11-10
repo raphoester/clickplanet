@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"slices"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 // The user's turn: everything after the cached instructions, which changes every run.
@@ -25,8 +27,8 @@ type prompt struct {
 	Tours       []tour            `json:"tours"`
 	Places      []place           `json:"places"`
 	Sagas       []saga            `json:"sagas"`
-	RecentPosts []recent          `json:"recentPosts"`
-	SagasTold   []recent          `json:"sagasTold"`
+	Paths       paths             `json:"paths"`
+	Told        []told            `json:"told"`
 	ShownLately map[string]int    `json:"shownLately"`
 }
 
@@ -111,16 +113,37 @@ type place struct {
 }
 
 type saga struct {
-	Saga      int       `json:"saga"`
-	Kind      string    `json:"kind"`
-	Code      string    `json:"code,omitempty"`
-	Continent string    `json:"continent,omitempty"`
-	Tiles     int       `json:"tiles"`
-	Holder    string    `json:"holder"`
-	Share     float64   `json:"share"`
-	Since     time.Time `json:"since"`
-	Until     time.Time `json:"until"`
-	Reigns    []reign   `json:"reigns"`
+	Saga       int         `json:"saga"`
+	Kind       string      `json:"kind"`
+	Code       string      `json:"code,omitempty"`
+	Continent  string      `json:"continent,omitempty"`
+	Tiles      int         `json:"tiles"`
+	Holder     string      `json:"holder"`
+	Share      float64     `json:"share"`
+	Since      time.Time   `json:"since"`
+	Until      time.Time   `json:"until"`
+	Reigns     []reign     `json:"reigns"`
+	Contenders []contender `json:"contenders"`
+}
+
+type contender struct {
+	Flag  string     `json:"flag"`
+	Since time.Time  `json:"since"`
+	Until *time.Time `json:"until,omitempty"`
+	Peak  float64    `json:"peak"`
+	Share float64    `json:"share"`
+}
+
+// Each flag's land at each of at, in percent of each continent's tiles and of the world's: a continent it never held 1%
+// of is left out.
+type paths struct {
+	At    []time.Time `json:"at"`
+	Flags []path      `json:"flags"`
+}
+
+type path struct {
+	Flag      string           `json:"flag"`
+	PercentOf map[string][]int `json:"percentOf"`
 }
 
 // days: how long it held over half, to its until or to the saga's. conquestHours: from its push to holding over half.
@@ -139,11 +162,22 @@ type reign struct {
 	LostTo        string     `json:"lostTo,omitempty"`
 }
 
-type recent struct {
-	At        time.Time `json:"at"`
-	Headline  string    `json:"headline"`
-	Key       key       `json:"key"`
-	Countries []string  `json:"countries,omitempty"`
+// A post, and what its clip told when its record kept it: else only the countries it showed (shown).
+type told struct {
+	At           time.Time  `json:"at"`
+	Headline     string     `json:"headline"`
+	Line         string     `json:"line,omitempty"`
+	Key          key        `json:"key"`
+	Kind         string     `json:"kind,omitempty"`
+	Attacker     string     `json:"attacker,omitempty"`
+	Rival        string     `json:"rival,omitempty"`
+	Countries    []string   `json:"countries,omitempty"`
+	Continent    string     `json:"continent,omitempty"`
+	Since        *time.Time `json:"since,omitempty"`
+	Until        *time.Time `json:"until,omitempty"`
+	ShareAtStart *float64   `json:"shareAtStart,omitempty"`
+	ShareAtEnd   *float64   `json:"shareAtEnd,omitempty"`
+	Shown        []string   `json:"shown,omitempty"`
 }
 
 type key struct {
@@ -159,14 +193,14 @@ func PromptOf(offer posts.Offer) (string, error) {
 	written := prompt{
 		Now: offer.Now.UTC().Truncate(time.Second), Slots: offer.Slots(), ShownLately: offer.Shown,
 		Window: window{Since: findings.Since.UTC(), Until: findings.Until.UTC()}, Names: findings.Names,
-		Continents:  slices.Sorted(maps.Keys(findings.Continents)),
-		Anthems:     findings.Anthems,
-		Fronts:      make([]front, 0, len(findings.Fronts)),
-		Tours:       make([]tour, 0, len(findings.Tours)),
-		Places:      make([]place, 0, len(findings.Places)),
-		Sagas:       make([]saga, 0, len(findings.Sagas)),
-		RecentPosts: make([]recent, 0, len(offer.Recent)),
-		SagasTold:   make([]recent, 0, len(offer.Sagas)),
+		Continents: slices.Sorted(maps.Keys(findings.Continents)),
+		Anthems:    findings.Anthems,
+		Fronts:     make([]front, 0, len(findings.Fronts)),
+		Tours:      make([]tour, 0, len(findings.Tours)),
+		Places:     make([]place, 0, len(findings.Places)),
+		Sagas:      make([]saga, 0, len(findings.Sagas)),
+		Paths:      pathsOf(findings),
+		Told:       make([]told, 0, len(offer.Told)),
 	}
 	for _, number := range offer.First {
 		written.ToldFirst = append(written.ToldFirst, findings.Seasonal[number-1].Title)
@@ -193,11 +227,8 @@ func PromptOf(offer posts.Offer) (string, error) {
 	for i, found := range findings.Sagas {
 		written.Sagas = append(written.Sagas, sagaOf(i+1, found))
 	}
-	for _, telling := range offer.Recent {
-		written.RecentPosts = append(written.RecentPosts, recentOf(telling))
-	}
-	for _, telling := range offer.Sagas {
-		written.SagasTold = append(written.SagasTold, recentOf(telling))
+	for _, telling := range offer.Told {
+		written.Told = append(written.Told, toldOf(telling))
 	}
 
 	text, err := json.Marshal(written)
@@ -207,8 +238,65 @@ func PromptOf(offer posts.Offer) (string, error) {
 	return "The run's findings, as JSON:\n\n" + string(text), nil
 }
 
-func recentOf(telling posts.Telling) recent {
-	return recent{At: telling.At.UTC(), Headline: telling.Title, Key: keyOf(telling.Key), Countries: telling.Countries}
+func toldOf(telling posts.Telling) told {
+	written := told{At: telling.At.UTC(), Headline: telling.Title, Key: keyOf(telling.Key)}
+	facts := telling.Facts
+	if facts.Attacker == "" {
+		written.Shown = telling.Countries
+		return written
+	}
+	written.Line, written.Kind, written.Attacker, written.Rival = facts.Line, facts.Kind, facts.Attacker, facts.Rival
+	written.Countries, written.Continent = facts.Countries, facts.Region
+	written.Since, written.Until = setOf(facts.Since), setOf(facts.Until)
+	start, end := math.Round(facts.ShareAtStart*1000)/1000, math.Round(facts.ShareAtEnd*1000)/1000
+	written.ShareAtStart, written.ShareAtEnd = &start, &end
+	return written
+}
+
+// Every path's marks at one list of times: a flag with no mark at a time held nothing then.
+func pathsOf(findings posts.Findings) paths {
+	times := cpcolls.NewSet[time.Time]()
+	for _, found := range findings.Paths {
+		for _, mark := range found.Marks {
+			times.Add(mark.At.UTC())
+		}
+	}
+	at := make([]time.Time, 0, times.Len())
+	times.ForEach(func(when time.Time) { at = append(at, when) })
+	slices.SortFunc(at, time.Time.Compare)
+	index := make(map[time.Time]int, len(at))
+	for i, when := range at {
+		index[when] = i
+	}
+	world := 0
+	for _, tiles := range findings.ContinentTiles {
+		world += tiles
+	}
+
+	written := paths{At: at, Flags: make([]path, 0, len(findings.Paths))}
+	for _, found := range findings.Paths {
+		held := map[string][]int{}
+		percent := func(continent string, i, tiles, of int) {
+			if of == 0 {
+				return
+			}
+			if held[continent] == nil {
+				held[continent] = make([]int, len(at))
+			}
+			held[continent][i] = int(math.Round(float64(tiles) * 100 / float64(of)))
+		}
+		for _, mark := range found.Marks {
+			i, total := index[mark.At.UTC()], 0
+			for continent, tiles := range mark.TilesByContinent {
+				percent(continent, i, tiles, findings.ContinentTiles[continent])
+				total += tiles
+			}
+			percent(posts.TheWorld, i, total, world)
+		}
+		maps.DeleteFunc(held, func(_ string, percents []int) bool { return slices.Max(percents) == 0 })
+		written.Flags = append(written.Flags, path{Flag: found.Flag, PercentOf: held})
+	}
+	return written
 }
 
 func sagaOf(number int, found posts.Saga) saga {
@@ -230,6 +318,10 @@ func sagaOf(number int, found posts.Saga) saga {
 			told.ConquestHours = hoursOf(r.PushedAt, r.Since)
 		}
 		written.Reigns = append(written.Reigns, told)
+	}
+	written.Contenders = make([]contender, 0, len(found.Contenders))
+	for _, c := range found.Contenders {
+		written.Contenders = append(written.Contenders, contender{Flag: c.Flag, Since: c.Since.UTC(), Until: setOf(c.Until), Peak: c.Peak, Share: c.Share})
 	}
 	return written
 }
