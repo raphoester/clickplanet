@@ -848,7 +848,9 @@ func (x *SpreadRules) GetMaxPerBox() uint32 {
 type BombRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The blast's radius, in tile spacings.
-	Rings         *float64 `protobuf:"fixed64,1,opt,name=rings,proto3,oneof" json:"rings,omitempty"`
+	Rings *float64 `protobuf:"fixed64,1,opt,name=rings,proto3,oneof" json:"rings,omitempty"`
+	// No bomb: no box or quiz offers one, and a bomb held is not dropped (DropBomb answers a BombRefusal).
+	Off           *bool `protobuf:"varint,2,opt,name=off,proto3,oneof" json:"off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -888,6 +890,13 @@ func (x *BombRules) GetRings() float64 {
 		return *x.Rings
 	}
 	return 0
+}
+
+func (x *BombRules) GetOff() bool {
+	if x != nil && x.Off != nil {
+		return *x.Off
+	}
+	return false
 }
 
 type EncloseRules struct {
@@ -1281,10 +1290,12 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x06clicks\x18\x01 \x01(\rH\x00R\x06clicks\x88\x01\x01\x12#\n" +
 	"\vmax_per_box\x18\x02 \x01(\rH\x01R\tmaxPerBox\x88\x01\x01B\t\n" +
 	"\a_clicksB\x0e\n" +
-	"\f_max_per_box\"0\n" +
+	"\f_max_per_box\"O\n" +
 	"\tBombRules\x12\x19\n" +
-	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01B\b\n" +
-	"\x06_rings\"\xc6\x01\n" +
+	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01\x12\x15\n" +
+	"\x03off\x18\x02 \x01(\bH\x01R\x03off\x88\x01\x01B\b\n" +
+	"\x06_ringsB\x06\n" +
+	"\x04_off\"\xc6\x01\n" +
 	"\fEncloseRules\x12 \n" +
 	"\tmax_tiles\x18\x01 \x01(\rH\x00R\bmaxTiles\x88\x01\x01\x12\x17\n" +
 	"\x04held\x18\x02 \x01(\rH\x01R\x04held\x88\x01\x01\x12#\n" +

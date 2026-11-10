@@ -107,7 +107,7 @@ export type TollStep = {share: string, slowdown: string}
 export type Draft = {
     name: string, values: Record<string, string>, quiz?: boolean, signInRefill?: boolean, frozen?: boolean,
     allegianceLocked?: boolean, arena?: boolean, enclosuresUnlimited?: boolean, toll?: TollStep[], reach?: boolean,
-    knockOut?: boolean, fixedShields?: boolean
+    knockOut?: boolean, fixedShields?: boolean, bombsOff?: boolean
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -120,6 +120,7 @@ export function draftOf(set: RuleSet): Draft {
         quiz: rules.bonuses?.quiz?.enabled,
         signInRefill: rules.bonuses?.signInRefill,
         enclosuresUnlimited: rules.bonuses?.enclose?.unlimited,
+        bombsOff: rules.bonuses?.bomb?.off,
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
         arena: rules.arena?.on,
@@ -179,6 +180,7 @@ export const SWITCHES = [
     {key: "quiz", label: "Quizzes on"},
     {key: "signInRefill", label: "Refill at first sign-in"},
     {key: "enclosuresUnlimited", label: "Enclosures unlimited"},
+    {key: "bombsOff", label: "Bombs off"},
 ] as const
 
 // Every value the draft holds otherwise than `before`, the set it started from.
@@ -235,6 +237,7 @@ export function ruleSetOf(draft: Draft): RuleSet {
         "capitals.knockOut": draft.knockOut, "capitals.fixedShields": draft.fixedShields,
         "bonuses.quiz.enabled": draft.quiz,
         "bonuses.signInRefill": draft.signInRefill, "bonuses.enclose.unlimited": draft.enclosuresUnlimited,
+        "bonuses.bomb.off": draft.bombsOff,
     }
     for (const [path, on] of Object.entries(switches)) {
         if (on !== undefined) put(json, path, on)

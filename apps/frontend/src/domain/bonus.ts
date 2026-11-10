@@ -88,6 +88,8 @@ export type BonusRules = {
     knockOut: boolean
     // No shield goes on a capital, and a fortify skips it.
     capitalShieldsFixed: boolean
+    // No bomb is offered or dropped: the page hides the bomb.
+    bombsOff: boolean
 }
 
 export function describeReward(reward: BonusReward): {

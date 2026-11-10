@@ -35,6 +35,7 @@ import {
     Counts,
     MapVersion,
     BonusListener,
+    BombRefusedError,
     BonusLostError,
     BonusOffer,
     ClaimedBonus,
@@ -840,7 +841,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const arm = () => {
-        if (armed || !charges.bomb || !bomber || !rules) return
+        if (armed || !charges.bomb || !bomber || !rules || rules.bombsOff) return
         armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
         onArmedChange(true)
@@ -907,6 +908,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 uniforms.shieldCells.value = shieldCellsOf(read.tileShields)
             }
             followRules(read)
+            if (read.bombsOff) disarm()
             invalidate()
             onRules(read)
         },
@@ -1731,7 +1733,7 @@ export function reportClaimFailure(
     error: unknown,
     handlers: {onSessionUnavailable: () => void, onBanned: (until: number) => void},
 ) {
-    if (error instanceof BonusLostError) return
+    if (error instanceof BonusLostError || error instanceof BombRefusedError) return
     if (error instanceof SessionUnavailableError) handlers.onSessionUnavailable()
     else if (error instanceof BannedError) handlers.onBanned(error.until)
     else console.error(error)

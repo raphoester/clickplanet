@@ -700,6 +700,13 @@ export class BombRules extends Message<BombRules> {
    */
   rings?: number;
 
+  /**
+   * No bomb: no box or quiz offers one, and a bomb held is not dropped (DropBomb answers a BombRefusal).
+   *
+   * @generated from field: optional bool off = 2;
+   */
+  off?: boolean;
+
   constructor(data?: PartialMessage<BombRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -709,6 +716,7 @@ export class BombRules extends Message<BombRules> {
   static readonly typeName = "planet.v1.BombRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "rings", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 2, name: "off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombRules {

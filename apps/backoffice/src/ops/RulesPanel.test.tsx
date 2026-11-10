@@ -186,6 +186,18 @@ describe("the game rules page", () => {
         expect(sent(admin)?.rules?.capitals?.fixedShields).toBe(false)
     })
 
+    it("turns bombs off with a switch of its own", async () => {
+        const admin = withCalm()
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        pick("Bombs off: no box offers one, and none is dropped", "yes")
+        save()
+
+        await waitFor(() => expect(sent(admin)).toBeDefined())
+        expect(sent(admin)?.rules?.bonuses?.bomb?.off).toBe(true)
+    })
+
     it("makes a new set from a copy of default, which holds only what is typed", async () => {
         const admin = new FakeAdmin()
         render(<RulesPanel planet={admin}/>)

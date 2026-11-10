@@ -54,13 +54,15 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `bonuses.boxes.minInterval`, `maxInterval`, `maxChargesPerHour` — a box's wait and the hourly cap (4–8 min, 12).
   Half the shorter of this `minInterval` and the quiz's is how far a box and a quiz keep apart (see [Quizzes](quizzes.md))
 - `bonuses.kinds.*` — what a box is drawn as: a weight per kind, `refill`, `spreadClicks`, `encloseClicks`, `bomb`,
-  `shields` (5, 3, 2, 1, 3). 0 is never offered
+  `shields` (5, 3, 2, 1, 3). 0 is never offered, nor a bomb while `bonuses.bomb.off`; a set where no kind could be
+  offered cannot play
 - `bonuses.offerTtl` — how long a box flies; **it must outlast the flight the client draws**, or a box caught on its
   last frame is refused (15 s)
 - `bonuses.missRetry` — a box missed brings the next one this soon, once (2 min)
 - `bonuses.activeWithin` — no box and no quiz for a caller that has not clicked for this long (2 min)
 - `bonuses.spread.clicks`, `.maxPerBox` — the spread pool and what one box adds at most (8, 4). See [Spread](spread.md)
 - `bonuses.bomb.rings` — the blast's radius in tile spacings (4). See [Bomb](bomb.md)
+- `bonuses.bomb.off` — no bomb: no box or quiz offers one, and a bomb held is not dropped (off). See [Bomb](bomb.md)
 - `bonuses.enclose.maxTiles`, `.held`, `.maxPerBox` — the biggest shape, the stack, a box's most (25, 3, 3). See
   [Enclose](enclose.md)
 - `bonuses.enclose.unlimited` — a click with enclose on needs no charge and spends none (off). See
@@ -139,7 +141,7 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `allegiances.LockPart` — `allegiances.Book` (a pledge and a click for another flag) and `allegiance_query`
   (`Allegiance.locked`).
 - `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
-  `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius), `enclose_click`, `place_shield_usecase`,
+  `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`, `place_shield_usecase`,
   `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
 - `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
   takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`rules.PartOf.Of(set)`).

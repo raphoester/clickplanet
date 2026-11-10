@@ -38,7 +38,7 @@ func (r Rules) Validate() error {
 		rules.Positive("boxes.minInterval", r.Boxes.MinInterval),
 		rules.AtLeast("boxes.maxInterval", r.Boxes.MaxInterval, "boxes.minInterval", r.Boxes.MinInterval),
 		rules.Positive("boxes.maxChargesPerHour", r.Boxes.MaxChargesPerHour),
-		weightsProblem(r.Kinds),
+		weightsProblem(r),
 		rules.Positive("offerTtl", r.OfferTTL),
 		rules.Positive("missRetry", r.MissRetry),
 		rules.Positive("activeWithin", r.ActiveWithin),
@@ -71,16 +71,16 @@ var weighed = []struct {
 	{KindShields, "shields"},
 }
 
-func weightsProblem(weights map[Kind]float64) error {
+func weightsProblem(r Rules) error {
 	var problems []error
-	total := 0.0
+	offered := false
 	for _, each := range weighed {
-		weight := weights[each.kind]
+		weight := r.Kinds[each.kind]
 		problems = append(problems, rules.NotNegative("kinds."+each.field, weight), rules.Finite("kinds."+each.field, weight))
-		total += weight
+		offered = offered || r.Offered(each.kind)
 	}
-	if total <= 0 {
-		problems = append(problems, fmt.Errorf("kinds weigh every kind 0, so no box could be anything"))
+	if !offered {
+		problems = append(problems, fmt.Errorf("kinds weigh every kind a box may be 0, so no box could be anything"))
 	}
 
 	return errors.Join(problems...)
@@ -103,8 +103,15 @@ type SpreadRules struct {
 	MaxPerBox int
 }
 
+// BombRules: Off, no box or quiz offers a bomb, and a bomb held is not dropped.
 type BombRules struct {
 	Rings float64
+	Off   bool
+}
+
+// Offered is true for a kind a box or a quiz may be: weighed above 0, and not a bomb while bombs are off.
+func (r Rules) Offered(kind Kind) bool {
+	return r.Kinds[kind] > 0 && (kind != KindBomb || !r.Bomb.Off)
 }
 
 type EncloseRules struct {

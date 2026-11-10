@@ -89,7 +89,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
                       if (onUseRefill()) setSaid(undefined)
                       else say("refill", "Your clicks are already full", NOTICE_MS, "Full")
                   })}/>
-            <Slot {...slot("bomb")}
+            {!rules?.bombsOff && <Slot {...slot("bomb")}
                   name="Bomb"
                   held={charges.bomb}
                   on={bombArmed}
@@ -98,7 +98,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
                   onPress={onToggleBomb && (() => {
                       pressed("bomb", !bombArmed, "Hold your finger still on the planet to drop it")
                       onToggleBomb()
-                  })}/>
+                  })}/>}
             <Slot {...slot("spreadClicks")}
                   name="Spread"
                   held={charges.spreadClicksLeft > 0}

@@ -110,6 +110,7 @@ const RULES: BonusRules = {
     reach: false,
     knockOut: false,
     capitalShieldsFixed: false,
+    bombsOff: false,
 }
 
 export type FakeBackendOptions = {

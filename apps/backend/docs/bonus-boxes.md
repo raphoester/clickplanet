@@ -10,7 +10,7 @@ strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
 - **`spread_clicks`** — 1 to `bonuses.spread.maxPerBox` (4) clicks added to a pool
   of at most `bonuses.spread.clicks` (8). While the player switches spread on, each
   click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](spread.md).
-- **`bomb`** — a charge: one bomb, kept until it is dropped. It
+- **`bomb`** — a charge: one bomb, kept until it is dropped (never offered while `bonuses.bomb.off`). It
   clears a circle of `bonuses.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](bomb.md).
 - **`enclose_clicks`** — 1 to `bonuses.enclose.maxPerBox` (3) enclosures added to a

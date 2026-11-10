@@ -20,6 +20,7 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Allegiance as AllegianceMessage,
     BanRefusal,
+    BombRefusal,
     FrozenRefusal,
     BombDropped,
     BonusKind,
@@ -56,7 +57,7 @@ import {
     TilesSpread,
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BombRefusedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusRules, Charges} from "../domain/bonus.ts"
@@ -1693,7 +1694,7 @@ describe("the rules", () => {
         const getBonusRules = vi.fn().mockResolvedValue(new GetBonusRulesResponse({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
-            reach: true, knockOut: true, capitalShieldsFixed: false,
+            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true,
         }))
         const backend = new PlanetBackend(clientWith({getBonusRules}), 1_000)
 
@@ -1706,7 +1707,7 @@ describe("the rules", () => {
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
-            reach: true, knockOut: true, capitalShieldsFixed: false,
+            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true,
         }))
         backend.close()
     })
@@ -1858,6 +1859,20 @@ describe("the charges held", () => {
         const dropping = backend.dropBomb({x: 0, y: 0, z: 1}, "fr")
         expect(seen.at(-1)?.bomb).toBe(false)
         await expect(dropping).rejects.toBeDefined()
+
+        expect(seen.at(-1)?.bomb).toBe(true)
+        backend.close()
+    })
+
+    it("gives the bomb back when bombs are off, and says so with a BombRefusedError", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true})})
+        const dropBomb = vi.fn().mockRejectedValue(new ConnectError("bombs are off", Code.FailedPrecondition, undefined,
+            [new BombRefusal()]))
+        const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.bomb).toBe(true))
+
+        await expect(backend.dropBomb({x: 0, y: 0, z: 1}, "fr")).rejects.toBeInstanceOf(BombRefusedError)
 
         expect(seen.at(-1)?.bomb).toBe(true)
         backend.close()

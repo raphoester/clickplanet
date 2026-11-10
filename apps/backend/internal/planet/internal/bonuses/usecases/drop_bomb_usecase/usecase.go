@@ -51,7 +51,12 @@ type UseCase struct {
 	rules     bonuses.Bombing
 }
 
+// Execute refuses a drop while bombs are off before anything else, so the bomb stays held: DropBomb has no throttle,
+// and no token is spent.
 func (u *UseCase) Execute(ctx context.Context, in In) (clicks.Blast, error) {
+	if err := u.rules.Refuses(); err != nil {
+		return clicks.Blast{}, err //nolint:wrapcheck // the sentinel, for the handler.
+	}
 	if !u.countries.CheckCountry(in.CountryID) {
 		return clicks.Blast{}, fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, in.CountryID)
 	}

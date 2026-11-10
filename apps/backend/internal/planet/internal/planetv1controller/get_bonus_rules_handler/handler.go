@@ -52,6 +52,7 @@ func (h GetBonusRulesHandler) GetBonusRules(
 		Reach:               bool(h.reach()),
 		KnockOut:            capitals.KnockOut,
 		CapitalShieldsFixed: capitals.FixedShields,
+		BombsOff:            rules.Bomb.Off,
 	}), nil
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
@@ -52,6 +53,18 @@ func TestDroppingWithNoBombIsNotFound(t *testing.T) {
 	err := drop(t, &stubUseCase{err: drop_bomb_usecase.ErrNoBomb})
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestADropWhileBombsAreOffIsAFailedPreconditionWithABombRefusal(t *testing.T) {
+	err := drop(t, &stubUseCase{err: bonuses.ErrBombsOff})
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	var refused *connect.Error
+	require.ErrorAs(t, err, &refused)
+	require.Len(t, refused.Details(), 1)
+	detail, detailErr := refused.Details()[0].Value()
+	require.NoError(t, detailErr)
+	assert.IsType(t, &planetv1.BombRefusal{}, detail)
 }
 
 func TestAMalformedDropIsAnInvalidArgument(t *testing.T) {

@@ -18,7 +18,7 @@ beforeEach(() => window.localStorage.clear())
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false,
-    reach: false, knockOut: false, capitalShieldsFixed: false,
+    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false,
 }
 
 type Held = {
@@ -67,6 +67,13 @@ describe("Inventory", () => {
         expect(toggle).not.toHaveBeenCalled()
         expect(toggleBomb).not.toHaveBeenCalled()
         expect(bubble()).toBe("Catch a ? box or win a quiz to get one")
+    })
+
+    it("shows no bomb while bombs are off, held or not", () => {
+        render(inventory({rules: {...RULES, bombsOff: true}, charges: {...NO_CHARGES, bomb: true}}))
+
+        expect(screen.queryByRole("button", {name: /^Bomb/})).toBeNull()
+        expect(slot(/^Refill/)).toBeDefined()
     })
 
     it("counts the pools against how many can be held", () => {

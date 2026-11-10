@@ -145,3 +145,20 @@ func TestAStoreThatFailsFailsTheDropWithoutSayingThereIsNoBomb(t *testing.T) {
 	assert.NotErrorIs(t, err, drop_bomb_usecase.ErrNoBomb)
 	assert.Empty(t, p.clearer.cleared)
 }
+
+func TestWhileBombsAreOffADropIsRefusedAndTheBombStaysHeld(t *testing.T) {
+	off := bonuses.TestRules()
+	off.Bomb.Rings, off.Bomb.Off = 6, true
+	offRules := func() bonuses.Rules { return off }
+	bombs := bonuses.NewMemoryStore()
+	bombs.Keep(bomber, bonuses.Held{Bomb: true})
+	clearer := &stubClearer{}
+	useCase := drop_bomb_usecase.New(bonuses.NewCharges(bombs, offRules), &stubMap{nearest: 10, arc: 0.001}, clearer,
+		countries{}, bonuses.NewBombing(offRules, 0.005))
+
+	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "xx"})
+
+	require.ErrorIs(t, err, bonuses.ErrBombsOff, "refused before anything else, a malformed drop too")
+	assert.Equal(t, bonuses.Held{Bomb: true}, bombs.Kept(bomber), "the bomb stays held")
+	assert.Empty(t, clearer.cleared)
+}
