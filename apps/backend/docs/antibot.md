@@ -139,8 +139,8 @@ the rule, before any ban.
   service, routed by Caddy as every other. `ListenForEvents` (one stream per page, `listen_for_warnings_usecase`) sends
   the caller's warning as the stream opens while it is not acknowledged, then each one as it is given: `warnings.Book`
   publishes a warning kept to an in-process feed (`inprocess_warning_feed`), as progression's titles do. The page
-  shows "One account per player" and its Got it calls `AcknowledgeWarning`, which keeps `acknowledged_at` (the first
-  one). Clicks are not refused: the warning is a message on the screen, and a ring that plays on is banned as above.
+  shows "One account per player", which cannot be dismissed: the player holds "Hold to confirm" for 2 seconds, and it
+  calls `AcknowledgeWarning`, which keeps `acknowledged_at` (the first one). So the player cannot say it was missed. Clicks are not refused: the warning is a message on the screen, and a ring that plays on is banned as above.
   Planet holds nothing of it.
 - **The cost is one more stream a page**: 6 for a guest, 7 signed in, 8 in a battle. HTTP/2 in production; a local
   plain-HTTP stack already runs out of connections at 6 (Chrome's pool per host).

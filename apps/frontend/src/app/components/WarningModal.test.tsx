@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from "vitest"
-import {act, cleanup, render, screen, waitFor} from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
-import WarningModal from "./WarningModal.tsx"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
+import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
+import WarningModal, {ACKNOWLEDGE_HOLD_MS} from "./WarningModal.tsx"
 import {GAME_RULES} from "./BannedModal.tsx"
 import {useWarning} from "../warning/warningStore.ts"
 
+beforeEach(() => {
+    vi.useFakeTimers()
+})
+
 afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.restoreAllMocks()
     useWarning.setState(useWarning.getInitialState(), true)
 })
@@ -18,6 +22,11 @@ function warned() {
 
 function acknowledging() {
     return {acknowledgeWarning: vi.fn().mockResolvedValue(undefined)}
+}
+
+async function hold() {
+    fireEvent.pointerDown(screen.getByRole("button", {name: "Hold to confirm"}))
+    await act(() => vi.advanceTimersByTimeAsync(ACKNOWLEDGE_HOLD_MS))
 }
 
 describe("WarningModal", () => {
@@ -44,61 +53,61 @@ describe("WarningModal", () => {
         expect(screen.queryByText("One account per player")).toBeNull()
     })
 
-    it("acknowledges the warning on Got it, then closes", async () => {
-        const user = userEvent.setup()
+    it("acknowledges the warning once the button is held, then closes", async () => {
         const warnings = acknowledging()
         render(<WarningModal warnings={warnings}/>)
         warned()
 
-        await user.click(screen.getByRole("button", {name: "Got it"}))
+        await hold()
 
         expect(warnings.acknowledgeWarning).toHaveBeenCalledTimes(1)
-        await waitFor(() => expect(screen.queryByText("One account per player")).toBeNull())
+        expect(screen.queryByText("One account per player")).toBeNull()
         expect(useWarning.getState().warned).toBe(false)
     })
 
-    it("stays open when the server could not take it, so the player can press again", async () => {
+    it("takes no click: the button must be held", async () => {
+        const warnings = acknowledging()
+        render(<WarningModal warnings={warnings}/>)
+        warned()
+
+        const button = screen.getByRole("button", {name: "Hold to confirm"})
+        fireEvent.pointerDown(button)
+        fireEvent.pointerUp(button)
+        fireEvent.click(button)
+        await act(() => vi.advanceTimersByTimeAsync(ACKNOWLEDGE_HOLD_MS))
+
+        expect(warnings.acknowledgeWarning).not.toHaveBeenCalled()
+        expect(useWarning.getState().warned).toBe(true)
+    })
+
+    it("cannot be closed any other way", () => {
+        render(<WarningModal warnings={acknowledging()}/>)
+        warned()
+
+        expect(screen.queryByRole("button", {name: "Close"})).toBeNull()
+        fireEvent.keyDown(document, {key: "Escape"})
+        fireEvent.click(document.querySelector(".modal") as Element)
+
+        expect(useWarning.getState().warned).toBe(true)
+        expect(screen.getByText("One account per player")).not.toBeNull()
+    })
+
+    it("stays open when the server could not take it, so the player can hold again", async () => {
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
-        const user = userEvent.setup()
         const warnings = {acknowledgeWarning: vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce(undefined)}
         render(<WarningModal warnings={warnings}/>)
         warned()
 
-        await user.click(screen.getByRole("button", {name: "Got it"}))
-        await waitFor(() => expect(logged).toHaveBeenCalledTimes(1))
+        await hold()
 
+        expect(logged).toHaveBeenCalledTimes(1)
         expect(useWarning.getState().warned).toBe(true)
         expect(screen.getByText("One account per player")).not.toBeNull()
 
-        await user.click(screen.getByRole("button", {name: "Got it"}))
+        fireEvent.pointerUp(screen.getByRole("button", {name: "Hold to confirm"}))
+        await hold()
 
         expect(warnings.acknowledgeWarning).toHaveBeenCalledTimes(2)
-        await waitFor(() => expect(useWarning.getState().warned).toBe(false))
-    })
-
-    it("closes on the × and Escape without acknowledging", async () => {
-        const user = userEvent.setup()
-        const warnings = acknowledging()
-        render(<WarningModal warnings={warnings}/>)
-
-        for (const close of [() => user.click(screen.getByRole("button", {name: "Close"})),
-            () => user.keyboard("{Escape}")]) {
-            warned()
-            await close()
-            expect(useWarning.getState().warned).toBe(false)
-            expect(screen.queryByText("One account per player")).toBeNull()
-        }
-        expect(warnings.acknowledgeWarning).not.toHaveBeenCalled()
-    })
-
-    it("shows again when the stream sends the warning after a close", async () => {
-        const user = userEvent.setup()
-        render(<WarningModal warnings={acknowledging()}/>)
-        warned()
-
-        await user.click(screen.getByRole("button", {name: "Close"}))
-        warned()
-
-        expect(screen.getByText("One account per player")).not.toBeNull()
+        expect(useWarning.getState().warned).toBe(false)
     })
 })

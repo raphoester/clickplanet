@@ -48,9 +48,11 @@
    Bombs and shields refused for a ban raise it too (`reportClaimFailure`).
 
    **`WarningModal` warns once before a ban for playing several accounts.** It is not a refusal: the clicks still go
-   through. The antibot's stream sends the warning (`useWarningFeed` puts it in `useWarning`). "Got it" calls
-   `acknowledgeWarning` and closes when the call succeeds; a failed call keeps it open. The × only hides it: the stream
-   sends it again when it opens next, until "Got it".
+   through. The antibot's stream sends the warning (`useWarningFeed` puts it in `useWarning`). **It cannot be
+   dismissed**, so the player cannot say it was missed: no ×, and Escape and the backdrop leave it open. "Hold to
+   confirm" (`HoldButton`) must be held 2 seconds (`ACKNOWLEDGE_HOLD_MS`), mouse, finger, or Space or Enter, while a
+   gold fill grows under it; a click or an early release does nothing. Then it calls `acknowledgeWarning` and closes
+   when the call succeeds; a failed call keeps it open.
 
 6. `ClickBudgetMeter` shows what is left of the bucket, in the dock at the bottom
    (see [The screen](screen.md)). It warns
