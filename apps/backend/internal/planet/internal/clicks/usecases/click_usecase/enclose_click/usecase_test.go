@@ -81,6 +81,10 @@ func (b board) Fortify(context.Context, uint32, string, int) (clicks.Fortificati
 	return clicks.Fortification{}, clicks.ErrNotWhole
 }
 
+func (b board) KnockOut(context.Context, uint32, string) (clicks.KnockOut, error) {
+	return clicks.KnockOut{}, clicks.ErrNoKnockOut
+}
+
 func (b board) Enclose(_ context.Context, _ clicks.Enclosure, write func(clicks.Claimable) error) error {
 	return write(b)
 }

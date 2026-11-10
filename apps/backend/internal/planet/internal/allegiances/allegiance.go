@@ -33,12 +33,24 @@ type Allegiance struct {
 	change Change
 }
 
-func (a Allegiance) Pledged(flag string, at time.Time, lock Lock) (Allegiance, error) {
-	switch a.flag {
-	case flag:
+// Standing says which flags are still in the game: every one outside an arena, and in one each flag with a capital
+// not knocked out.
+type Standing interface {
+	Stands(flag string) bool
+}
+
+// Pledged is the flag the account plays for after it asks for flag. A flag that does not stand is refused; an account
+// whose flag does not stand changes at once, past the lock and the wait.
+func (a Allegiance) Pledged(flag string, at time.Time, lock Lock, standing Standing) (Allegiance, error) {
+	switch {
+	case a.flag == flag:
 		return a, nil
-	case "":
+	case !standing.Stands(flag):
+		return Allegiance{}, fmt.Errorf("%w: %q", ErrDown, flag)
+	case a.flag == "":
 		return Allegiance{flag: flag}, nil
+	case !standing.Stands(a.flag):
+		return Allegiance{flag: flag, change: ChangedAt(at)}, nil
 	}
 
 	until := a.change.ChangeableAt()

@@ -41,6 +41,20 @@ message BombLanded {
   uint32 landmass_id = 8;
 }
 
+// A flag knocked out of an arena: another flag's take felled its capital, and every other tile it held went blank.
+message FlagKnockedOut {
+  string country = 1;
+  // The flag whose take felled the capital.
+  string by = 2;
+  // The capital.
+  uint32 tile_id = 3;
+  string account_id = 4;
+  // How many other tiles it held.
+  uint32 cleared = 5;
+  google.protobuf.Timestamp knocked_out_at = 6;
+  uint64 position = 7;
+}
+
 message Fortified {
   string country = 1;
   uint32 landmass_id = 2;

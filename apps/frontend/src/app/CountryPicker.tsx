@@ -1,9 +1,11 @@
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {Countries, Country} from "../domain/countries.ts";
 import {Allegiance, Lock, lockOf} from "../domain/allegiance.ts";
 import {describeEnd} from "../domain/endTime.ts";
 import {AllegianceLockedError} from "../backends/backend.ts";
 import SelectWithSearch from "./components/SelectWithSearch.tsx";
+import {useArena} from "./arena/arenaStore.ts";
+import {stands} from "../domain/standing.ts";
 import "./CountryPicker.css"
 
 export type CountryPickerProps = {
@@ -27,7 +29,12 @@ function ruleLineOf(lock: Lock | undefined, now: number): string {
 
 export default function CountryPicker(props: CountryPickerProps) {
     const now = useNowUntilUnlocked(props.allegiance)
-    const locked = lockOf(props.allegiance, now)
+    const arena = useArena((store) => store.flags)
+    const locked = lockOf(props.allegiance, now, arena)
+    const values = useMemo(
+        () => Array.from(Countries.values()).filter((country) => stands(arena, country.code)),
+        [arena],
+    )
     const [sending, setSending] = useState(false)
     const [failed, setFailed] = useState(false)
 
@@ -53,8 +60,8 @@ export default function CountryPicker(props: CountryPickerProps) {
         {!locked && <div className="country-picker-list" aria-busy={sending || undefined}>
             <SelectWithSearch
                 onChange={pick}
-                selected={props.country}
-                values={Array.from(Countries.values())}
+                selected={stands(arena, props.country.code) ? props.country : undefined}
+                values={values}
             />
         </div>}
     </>

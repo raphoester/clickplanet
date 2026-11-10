@@ -8,9 +8,9 @@ export function matchesSearch(value: Value, search: string): boolean {
     return term === "" || value.name.toLowerCase().includes(term)
 }
 
-export function visibleOptions(values: Value[], selected: Value, search: string): Value[] {
+export function visibleOptions(values: Value[], selected: Value | undefined, search: string): Value[] {
     const matches = values.filter((v) => matchesSearch(v, search))
 
-    if (matches.some((v) => v.code === selected.code)) return matches
+    if (selected === undefined || matches.some((v) => v.code === selected.code)) return matches
     return [selected, ...matches]
 }

@@ -47,7 +47,7 @@ func setup(t *testing.T, shields int) fixture {
 		clock, slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 
-	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, clock,
+	book := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), func() allegiances.Lock { return false }, allegiances.EveryFlagStands{}, clock,
 		&allegiances.RecordedPledges{})
 	require.NoError(t, book.Pledge(t.Context(), clicks.Payer{Account: string(caller)}, "fr"))
 	gate := placements.NewGate(tiles, cpcountries.New(), book, twoATile)

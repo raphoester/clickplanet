@@ -44,6 +44,9 @@ and so is one from an account that pledged none.
   list. **There is no confirm step**: a tap on a country switches, since
   the rule is right above it. A pick that failed for another reason says so, and
   the picker stays open.
+- **In an arena the picker lists only the flags still in** (`useArena`, see [The arena](arena.md)), with no flag
+  selected when the one played is out, and `lockOf(allegiance, now, arenaFlags)` locks nothing for a flag held that
+  does not stand: the server lets it change at once. The same goes for the Change button and the out window.
 - **The Change button shows the lock**: a padlock and the minutes left
   (`minutesLeftOf`), named with the time of the next change; under the rules' lock, a padlock and "Locked".
 - **A refused click is rolled back, plays the refusal, and says why** in a bubble

@@ -29,7 +29,7 @@ func bookTelling() (allegiances.Book, *allegiances.MemoryStore, *cptime.FixedClo
 	clock := cptime.NewFixedClock(at)
 	told := &allegiances.RecordedPledges{}
 
-	return allegiances.NewBook(store, cpcountries.New(), unlocked, clock, told), store, clock, told
+	return allegiances.NewBook(store, cpcountries.New(), unlocked, allegiances.EveryFlagStands{}, clock, told), store, clock, told
 }
 
 func TestAnAccountIsHeldToItsFlagForAnHourAfterAChange(t *testing.T) {
@@ -76,7 +76,8 @@ func unlocked() allegiances.Lock { return false }
 func TestNoAccountChangesItsFlagWhileTheRulesLockThem(t *testing.T) {
 	var lock allegiances.Lock
 	store := allegiances.NewMemoryStore()
-	b := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return lock }, cptime.NewFixedClock(at), &allegiances.RecordedPledges{})
+	b := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return lock }, allegiances.EveryFlagStands{},
+		cptime.NewFixedClock(at), &allegiances.RecordedPledges{})
 	payer := clicks.Payer{Account: alice}
 	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
 
@@ -174,4 +175,20 @@ func TestAReleaseTellsNothing(t *testing.T) {
 	require.NoError(t, b.Release(t.Context(), alice))
 
 	assert.Len(t, told.Told(), 1)
+}
+
+func TestInAnArenaAnAccountWhoseFlagIsOutPicksAFlagStillInAtOnce(t *testing.T) {
+	store := allegiances.NewMemoryStore()
+	told := &allegiances.RecordedPledges{}
+	locked := func() allegiances.Lock { return true }
+	payer := clicks.Payer{Account: alice}
+	require.NoError(t, allegiances.NewBook(store, cpcountries.New(), locked, allegiances.EveryFlagStands{},
+		cptime.NewFixedClock(at), &allegiances.RecordedPledges{}).Pledge(t.Context(), payer, "fr"))
+	arena := allegiances.NewBook(store, cpcountries.New(), locked, allegiances.StandingFlags{"de"}, cptime.NewFixedClock(at), told)
+
+	require.ErrorIs(t, arena.Pledge(t.Context(), payer, "it"), allegiances.ErrDown)
+	require.NoError(t, arena.Pledge(t.Context(), payer, "de"))
+
+	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, store.Kept(alice))
+	assert.Equal(t, []allegiances.RecordedPledge{{Account: alice, Flag: "de", Previous: "fr"}}, told.Told())
 }

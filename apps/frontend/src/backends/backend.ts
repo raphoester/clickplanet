@@ -25,6 +25,8 @@ export type Ownerships = {
     shields: Map<number, number>
     // The map read is an arena's: a battle's blank map, started from each country's capital.
     arena: boolean
+    // The flags the arena knocked out.
+    knockedOut: readonly string[]
 }
 
 // A read lists every row; a change lists the rows that changed, a flag that left the map at 0.
@@ -102,12 +104,23 @@ export interface UpdatesListener {
     listenForHoldings(callback: (change: Counts) => void): () => void
 
     listenForFortifications(callback: (fortification: Fortification) => void): () => void
+
+    listenForKnockOuts(callback: (knockOut: KnockOut) => void): () => void
 }
 
 export type Fortification = {
     landmass: number
     countryId: string
     tile: number
+    version: MapVersion
+}
+
+// A flag out of the arena: another flag took its capital, and every other tile it held went blank.
+export type KnockOut = {
+    countryId: string
+    byCountryId: string
+    tile: number
+    cleared: number[]
     version: MapVersion
 }
 

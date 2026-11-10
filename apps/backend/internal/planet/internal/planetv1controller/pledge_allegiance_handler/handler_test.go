@@ -73,6 +73,12 @@ func TestAPledgeWithNoAccountOrNoCountryIsTheCallersFault(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
+func TestAPledgeOfAFlagOutOfTheArenaIsRefused(t *testing.T) {
+	err := pledge(t, &stubBook{err: fmt.Errorf("%w: %q", allegiances.ErrDown, "fr")}, "fr")
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
 func TestAPledgeThatFailsIsLeftToTheErrorNet(t *testing.T) {
 	down := errors.New("postgres is down")
 

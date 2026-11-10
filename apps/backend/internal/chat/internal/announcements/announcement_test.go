@@ -134,6 +134,7 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 		"bomb 7":         announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement,
 		"bomb 8":         announcements.BombOf(8, "fr", "de", 7, 42, 3).Announcement,
 		"fortify 7":      announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
+		"knock-out 7":    announcements.KnockOutOf(7, "fr", "de").Announcement,
 		"mute 1":         announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", mutes.Chat, time.Hour).Announcement,
 		"day 5":          announcements.DayOf(0, 5).Announcement,
 		"day 5 of 1":     announcements.DayOf(1, 5).Announcement,
@@ -151,7 +152,7 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 		ids[first.ID()] += name
 	}
 
-	assert.Len(t, ids, 10, "each fact has an id no other fact has")
+	assert.Len(t, ids, 11, "each fact has an id no other fact has")
 }
 
 func TestAFlagMissionSaysWhichFlagDidWhatForHowManyPoints(t *testing.T) {
@@ -187,4 +188,8 @@ func TestAFlagMissionWithNoIDIsRefused(t *testing.T) {
 	_, err := announcements.FlagMissionIDOf("")
 
 	assert.ErrorIs(t, err, announcements.ErrNoFlagMission)
+}
+
+func TestAKnockOutSaysWhichFlagIsOutAndWhoKnockedItOut(t *testing.T) {
+	assert.JSONEq(t, `{"country":"fr","by":"de"}`, payloadOf(t, announcements.KnockOutOf(7, "fr", "de").Announcement))
 }

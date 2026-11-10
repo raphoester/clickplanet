@@ -14,6 +14,7 @@ var (
 	ErrOtherFlag      = errors.New("the account plays for another flag")
 	ErrNoFlag         = errors.New("the account plays for no flag yet")
 	ErrNoAccount      = errors.New("only an account plays for a flag")
+	ErrDown           = errors.New("the flag is out of the arena, or has no capital")
 )
 
 type Refusal struct {

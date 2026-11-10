@@ -42,7 +42,8 @@ func setupOn(t *testing.T) (*allegiance_click.UseCase, *countingClicks, allegian
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC))
 	inner := &countingClicks{}
 	store := allegiances.NewMemoryStore()
-	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false }, clock, &allegiances.RecordedPledges{})
+	book := allegiances.NewBook(store, cpcountries.New(), func() allegiances.Lock { return false },
+		allegiances.EveryFlagStands{}, clock, &allegiances.RecordedPledges{})
 
 	return allegiance_click.New(inner, book), inner, book, clock, store
 }

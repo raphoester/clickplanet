@@ -5,6 +5,7 @@ import {
     bombOf,
     countsOf,
     fortificationOf,
+    knockOutOf,
     catchOf,
     shieldsOf,
     enclosureOf,
@@ -43,6 +44,7 @@ import {
     LandmassHolder as LandmassHolderMessage,
     GlobePoint,
     Heartbeat,
+    KnockOut as KnockOutMessage,
     LandmassFortified,
     PlanetEvent,
     ReachRefusal,
@@ -283,6 +285,20 @@ describe("PlanetBackend.getOwnerships", () => {
         await backend.getOwnerships([{start: 1, end: 2}], ({arena}) => seen.push(arena))
 
         expect(seen).toEqual([true])
+        backend.close()
+    })
+
+    it("says which flags the arena knocked out", async () => {
+        const getMap = getMapMock(async () => new GetMapResponse({
+            startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 0]), arena: true, knockedOut: ["de", "it"],
+            version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
+        }))
+        const backend = backendWith(getMap)
+
+        const seen: (readonly string[])[] = []
+        await backend.getOwnerships([{start: 1, end: 2}], ({knockedOut}) => seen.push(knockedOut))
+
+        expect(seen).toEqual([["de", "it"]])
         backend.close()
     })
 
@@ -1196,6 +1212,25 @@ describe("fortificationOf", () => {
     })
 })
 
+describe("knockOutOf", () => {
+    it("reads the flag out, the flag that took its capital, and the tiles it cleared at their version", () => {
+        const event = new PlanetEvent({
+            event: {case: "knockOut", value: new KnockOutMessage({
+                countryId: "fr", byCountryId: "de", tileId: 4, clearedTileIds: [5, 6],
+                version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
+            })},
+        })
+
+        expect(knockOutOf(event)).toEqual({
+            countryId: "fr", byCountryId: "de", tile: 4, cleared: [5, 6], version: {epoch: 1_790_000_000, seq: 9},
+        })
+    })
+
+    it("drops everything that is not a knock-out", () => {
+        expect(knockOutOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
 describe("updateOf with the bonus cases on the stream", () => {
     it("still ignores them, so an old client is unaffected by either", () => {
         const offer = new PlanetEvent({
@@ -1315,6 +1350,27 @@ describe("PlanetBackend bombs", () => {
         backend.listenForBombs(() => order.push("bomb"))
 
         await vi.waitFor(() => expect(order).toEqual(["updates", "bomb"]))
+        backend.close()
+    })
+
+    it("hands over the take of a capital before the knock-out it made", async () => {
+        const events = [
+            tileUpdateEvent({tileId: 4, countryId: "de"}),
+            new PlanetEvent({
+                event: {case: "knockOut", value: new KnockOutMessage({countryId: "fr", byCountryId: "de", tileId: 4, clearedTileIds: [5]})},
+            }),
+        ]
+        const listenForEvents = vi.fn(async function* () {
+            yield* events
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+
+        const order: string[] = []
+        backend.listenForUpdatesBatch(() => order.push("updates"))
+        backend.listenForKnockOuts(() => order.push("knock-out"))
+
+        await vi.waitFor(() => expect(order).toEqual(["updates", "knock-out"]))
         backend.close()
     })
 

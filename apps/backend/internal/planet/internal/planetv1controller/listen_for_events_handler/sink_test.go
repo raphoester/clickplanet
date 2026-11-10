@@ -279,3 +279,19 @@ func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
 
 	assert.NotNil(t, stream.sent[0].GetHeartbeat())
 }
+
+func TestASinkFramesAKnockOutAsOneEventWithItsTilesAndVersion(t *testing.T) {
+	stream := &recorder{}
+
+	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Version:  clicks.MapVersion{Epoch: 1_790_000_000, Seq: 9},
+		KnockOut: &clicks.KnockOut{Country: "fr", By: "de", Tile: 4, Cleared: []uint32{5, 6}},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, stream.sent, 1)
+	assert.True(t, proto.Equal(&planetv1.KnockOut{
+		CountryId: "fr", ByCountryId: "de", TileId: 4, ClearedTileIds: []uint32{5, 6},
+		Version: &planetv1.MapVersion{Epoch: 1_790_000_000, Seq: 9},
+	}, stream.sent[0].GetKnockOut()))
+}

@@ -48,7 +48,7 @@ export class HistoryBackend implements OwnershipsGetter, UpdatesListener {
                 const owner = this.codeOf(this.shown[tile] ?? 0)
                 if (owner !== undefined) bindings.set(tile, owner)
             }
-            callback({range, version: this.version(), bindings, shields: new Map(), arena: false})
+            callback({range, version: this.version(), bindings, shields: new Map(), arena: false, knockedOut: []})
         }
     }
 
@@ -80,6 +80,10 @@ export class HistoryBackend implements OwnershipsGetter, UpdatesListener {
     }
 
     listenForFortifications(): () => void {
+        return () => {}
+    }
+
+    listenForKnockOuts(): () => void {
         return () => {}
     }
 

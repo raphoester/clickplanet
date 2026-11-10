@@ -24,8 +24,8 @@ func (s *testSuite) loadOn(played clicks.MapID) map[uint32]string {
 func (s *testSuite) TestEachMapKeepsItsOwnTilesAndLocks() {
 	ctx := context.Background()
 	fortified := []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2), fortified))
-	s.Require().NoError(s.store.Save(ctx, battle, append(owned("it", 2), owned("de", 3)...), nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2), fortified, nil))
+	s.Require().NoError(s.store.Save(ctx, battle, append(owned("it", 2), owned("de", 3)...), nil, nil))
 
 	s.Equal(map[uint32]string{1: "fr", 2: "fr"}, s.loadOn(clicks.World))
 	s.Equal(map[uint32]string{2: "it", 3: "de"}, s.loadOn(battle))
@@ -36,8 +36,8 @@ func (s *testSuite) TestEachMapKeepsItsOwnTilesAndLocks() {
 
 func (s *testSuite) TestAWipeDeletesOneMapAndLeavesTheOthers() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2), nil))
-	s.Require().NoError(s.store.Save(ctx, battle, owned("it", 2), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "it"}}))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2), nil, nil))
+	s.Require().NoError(s.store.Save(ctx, battle, owned("it", 2), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "it"}}, nil))
 
 	wiped, err := s.store.Wipe(ctx, battle, func(context.Context) (bool, error) { return true, nil })
 
@@ -51,8 +51,8 @@ func (s *testSuite) TestAForgottenHolderHoldsNoTileOfAnyMap() {
 	ctx := context.Background()
 	ana := cpsession.AccountID(uuid.New())
 	held := []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Holder: ana}}
-	s.Require().NoError(s.store.Save(ctx, clicks.World, held, nil))
-	s.Require().NoError(s.store.Save(ctx, battle, held, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.World, held, nil, nil))
+	s.Require().NoError(s.store.Save(ctx, battle, held, nil, nil))
 
 	s.Require().NoError(s.store.ForgetHolder(ctx, ana))
 

@@ -64,6 +64,16 @@ func TestGetMapMapsTheBatch(t *testing.T) {
 	assert.Equal(t, uint32(4), res.Msg.GetShields()[0].GetShields())
 }
 
+func TestGetMapSaysTheArenaAndTheFlagsItKnockedOut(t *testing.T) {
+	useCase := &stubUseCase{batch: clicks.DenseBatch{Arena: true, KnockedOut: []string{"de", "fr"}}}
+
+	res, err := getMap(t, useCase, &planetv1.GetMapRequest{})
+
+	require.NoError(t, err)
+	assert.True(t, res.Msg.GetArena())
+	assert.Equal(t, []string{"de", "fr"}, res.Msg.GetKnockedOut())
+}
+
 func TestGetMapMapsTheErrors(t *testing.T) {
 	t.Run("a span the map cannot answer is the caller's fault", func(t *testing.T) {
 		_, err := getMap(t, &stubUseCase{err: clicks.ErrInvalidTileRange}, &planetv1.GetMapRequest{})

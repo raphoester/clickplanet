@@ -304,6 +304,87 @@ export class BombLanded extends Message<BombLanded> {
 }
 
 /**
+ * A flag knocked out of an arena: another flag's take felled its capital, and every other tile it held went blank.
+ *
+ * @generated from message planet.v1.FlagKnockedOut
+ */
+export class FlagKnockedOut extends Message<FlagKnockedOut> {
+  /**
+   * @generated from field: string country = 1;
+   */
+  country = "";
+
+  /**
+   * The flag whose take felled the capital.
+   *
+   * @generated from field: string by = 2;
+   */
+  by = "";
+
+  /**
+   * The capital.
+   *
+   * @generated from field: uint32 tile_id = 3;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string account_id = 4;
+   */
+  accountId = "";
+
+  /**
+   * How many other tiles it held.
+   *
+   * @generated from field: uint32 cleared = 5;
+   */
+  cleared = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp knocked_out_at = 6;
+   */
+  knockedOutAt?: Timestamp;
+
+  /**
+   * @generated from field: uint64 position = 7;
+   */
+  position = protoInt64.zero;
+
+  constructor(data?: PartialMessage<FlagKnockedOut>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FlagKnockedOut";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "cleared", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "knocked_out_at", kind: "message", T: Timestamp },
+    { no: 7, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FlagKnockedOut {
+    return new FlagKnockedOut().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FlagKnockedOut {
+    return new FlagKnockedOut().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FlagKnockedOut {
+    return new FlagKnockedOut().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FlagKnockedOut | PlainMessage<FlagKnockedOut> | undefined, b: FlagKnockedOut | PlainMessage<FlagKnockedOut> | undefined): boolean {
+    return proto3.util.equals(FlagKnockedOut, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.Fortified
  */
 export class Fortified extends Message<Fortified> {
