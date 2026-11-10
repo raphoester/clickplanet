@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,6 +41,8 @@ type zernioFake struct {
 	presign  answer
 	posts    answer
 	listed   answer
+	// The pages after the first, by their number: the first page is listed.
+	morePages map[string]answer
 
 	calls     []string
 	queries   map[string]url.Values
@@ -94,6 +97,10 @@ func (f *zernioFake) service(t *testing.T) *zernio.Service {
 			assert.NoError(t, json.Unmarshal(raw, &f.presigned))
 			f.presign.write(w)
 		case "GET /v1/posts":
+			if page, more := f.morePages[r.URL.Query().Get("page")]; more {
+				page.write(w)
+				return
+			}
 			f.listed.write(w)
 		case "POST /v1/posts":
 			assert.NoError(t, json.Unmarshal(raw, &f.sent))
@@ -402,7 +409,7 @@ func TestWhatEachPlatformHoldsIsEveryPostOnItByHandOrNotAtThatPlatformsTime(t *t
 		{ID: "p-4", At: time.Date(2026, 10, 24, 10, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
 		{ID: "p-8", At: time.Date(2026, 10, 24, 11, 0, 0, 0, time.UTC), Platforms: []calendar.Platform{calendar.YouTube}},
 	}, feed)
-	assert.Equal(t, url.Values{"fromDate": {"2026-10-23"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
+	assert.Equal(t, url.Values{"fromDate": {"2026-10-23"}, "limit": {"500"}, "page": {"1"}}, fake.queries["GET /v1/posts"])
 	assert.Equal(t, "Bearer the-key", fake.headers["GET /v1/posts"].Get("Authorization"))
 }
 
@@ -434,7 +441,24 @@ func TestEveryPostIsListedAsTheServiceHoldsItWithItsMetadata(t *testing.T) {
 		Failure: "tiktok: TikTok creator has reached the daily posting limit.",
 	}, listed[3]), "got %v", listed[3])
 	assert.True(t, proto.Equal(&publishingv1.Post{PostId: "p-7", Title: "A DRAFT", Status: "draft"}, listed[6]), "got %v", listed[6])
-	assert.Equal(t, url.Values{"fromDate": {"2026-10-23"}, "limit": {"500"}}, fake.queries["GET /v1/posts"])
+	assert.Equal(t, url.Values{"fromDate": {"2026-10-23"}, "limit": {"500"}, "page": {"1"}}, fake.queries["GET /v1/posts"])
+}
+
+func TestEveryPageOfTheListIsRead(t *testing.T) {
+	full := make([]string, 0, 500)
+	for len(full) < 500 {
+		full = append(full, fmt.Sprintf(`{"_id":"p-%d","status":"published"}`, len(full)))
+	}
+	fake := newFake()
+	fake.listed = answer{status: http.StatusOK, body: `{"posts":[` + strings.Join(full, ",") + `],"pagination":{"page":1,"pages":2}}`}
+	fake.morePages = map[string]answer{"2": {status: http.StatusOK, body: `{"posts":[{"_id":"p-last","status":"published"}],"pagination":{"page":2,"pages":2}}`}}
+
+	listed, err := fake.service(t).Posts(t.Context(), at)
+
+	require.NoError(t, err)
+	require.Len(t, listed, 501)
+	assert.Equal(t, "p-last", listed[500].GetPostId())
+	assert.Equal(t, "2", fake.queries["GET /v1/posts"].Get("page"))
 }
 
 func TestAListOfPostsWithNoPostsInItIsAnError(t *testing.T) {

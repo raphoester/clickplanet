@@ -56,12 +56,41 @@ func TestASeasonalStoryToldInTheLastThreeDaysIsNotToldFirstAgain(t *testing.T) {
 	assert.Equal(t, 2, offer.Slots())
 }
 
-func TestARunWithNoFrontTourOrPlaceAsksNobody(t *testing.T) {
+func TestARunWithNoFrontTourPlaceOrSagaAsksNobody(t *testing.T) {
 	found := findings(t)
 	found.Fronts, found.Tours, found.Places = nil, nil, nil
+	sagasAlone := found
+	found.Sagas = nil
 
 	assert.False(t, found.Offer(2, nil, foundAt).Open())
+	assert.True(t, sagasAlone.Offer(2, nil, foundAt).Open())
 	assert.False(t, findings(t).Offer(1, nil, foundAt).Open(), "the day won fills the run")
+}
+
+func TestTheSagasToldInTheSeasonAreOfferedApartNewestFirst(t *testing.T) {
+	saga := func(flag, continent string) posts.StoryKey {
+		return posts.StoryKey{Flag: flag, Continent: continent, Angle: posts.Reigning}
+	}
+	posted := []posts.Telling{
+		told(saga("br", "South America"), "BRAZIL RULES SOUTH AMERICA", 20*24*time.Hour, "br"),
+		told(saga("pw", "Europe"), "TINY PALAU CONQUERS RUSSIA", 2*24*time.Hour, "ru", "pw"),
+		told(saga("ie", "North America"), "IRELAND RULES NORTH AMERICA", 29*24*time.Hour, "us", "ie"),
+		told(posts.StoryKey{Flag: "bg", Continent: "East Asia"}, "BULGARIA IS INVADING MONGOLIA", 4*time.Hour, "mn", "bg"),
+	}
+
+	offer := findings(t).Offer(2, posted, foundAt)
+
+	assert.Equal(t, []string{"TINY PALAU CONQUERS RUSSIA", "BRAZIL RULES SOUTH AMERICA"}, titlesOf(offer.Sagas), "the last 4 weeks")
+	assert.Equal(t, []string{"BULGARIA IS INVADING MONGOLIA", "TINY PALAU CONQUERS RUSSIA"}, titlesOf(offer.Recent))
+}
+
+func TestAHeadlineOverAWeekOldMayBeWrittenAgain(t *testing.T) {
+	found := findings(t)
+	posted := []posts.Telling{told(posts.StoryKey{Flag: "fr", Continent: "South Asia", Angle: posts.Holding}, "ALGERIA LOSES ALL OF INDIA", 8*24*time.Hour)}
+
+	choice := found.Edited(found.Offer(3, posted, foundAt), posts.Edition{Stories: []posts.Story{india}}, posted, foundAt)
+
+	assert.Empty(t, choice.Skipped)
 }
 
 func TestTheRunIsItsSeasonalStoryFirstThenTheEditorsInItsOrderWithTheirKeys(t *testing.T) {

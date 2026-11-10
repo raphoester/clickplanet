@@ -10,6 +10,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
+func hour(day, hour int) time.Time {
+	return time.Date(2026, 11, day, hour, 0, 0, 0, time.UTC)
+}
+
 var (
 	foundAt = time.Date(2026, 10, 26, 20, 29, 0, 0, time.UTC)
 	day18   = posts.StoryKey{Flag: "pw", Continent: "the world", Angle: posts.DayWon, Round: "0.18"}
@@ -52,6 +56,16 @@ func findings(t *testing.T) posts.Findings {
 		Places: []posts.Place{
 			{Kind: posts.ContinentPlace, Continent: "South Asia", Tiles: 9600, Holder: "fr", Held: 6170, Share: 0.64, Changed: 6000},
 			{Kind: posts.World, Tiles: 262000, Holder: "pw", Held: 74000, Share: 0.28, Changed: 7000},
+		},
+		Sagas: []posts.Saga{
+			{
+				Kind: posts.CountryPlace, Code: "cn", Continent: "East Asia", Tiles: 18622, Holder: "de", Share: 0.98,
+				Reigns: []posts.Reign{
+					{Flag: "cz", PushedAt: hour(2, 12), Since: hour(2, 19), Until: hour(7, 21), Peak: 0.98, Share: 0.4, TookFrom: "kp", LostTo: "de"},
+					{Flag: "de", PushedAt: hour(7, 20), Since: hour(7, 21), Peak: 0.98, Share: 0.98, TookFrom: "cz", TookFromShare: 0.91},
+				},
+			},
+			{Kind: posts.World, Tiles: 262000, Holder: "ie", Share: 0.22},
 		},
 		Seasonal:   []posts.Seasonal{{Title: "PALAU WINS DAY 18", Key: day18, Countries: []string{"pw", "dz"}}},
 		Names:      map[string]string{"fr": "France", "tr": "Turkey", "dz": "Algeria", "in": "India", "sy": "Syria", "pw": "Palau"},
@@ -155,8 +169,9 @@ func TestAStoryNamesOneOfTheFindingsAndOneThatExists(t *testing.T) {
 	found := findings(t)
 
 	for why, story := range map[string]posts.Story{
-		"names 0 of a front, a tour, a place and a seasonal story, not one": {},
-		"names 2 of a front, a tour, a place and a seasonal story, not one": {Front: 1, Tour: 1},
+		"names 0 of a front, a tour, a place, a saga and a seasonal story, not one": {},
+		"names 2 of a front, a tour, a place, a saga and a seasonal story, not one": {Front: 1, Tour: 1},
+		"no saga 3 of 2": {Saga: 3, Reign: 1, Attacker: "de"},
 		"no tour 3 of 2": {Tour: 3},
 		`no landmass's painted flag switched to "br" on tour 2`: {Tour: 2},
 		"no place 3 of 2":          {Place: 3},
@@ -187,6 +202,48 @@ func TestWhatAStoryTellsOfIsSaidByItsNumber(t *testing.T) {
 	assert.Equal(t, "tour 1", posts.Story{Tour: 1}.Names())
 	assert.Equal(t, "place 2", posts.Story{Place: 2}.Names())
 	assert.Equal(t, "seasonal 1", posts.Story{Seasonal: 1}.Names())
+	assert.Equal(t, "saga 4", posts.Story{Saga: 4, Reign: 2}.Names())
+}
+
+func TestASagaIsToldFromAReignByAFlagThatHeldThePlaceFromThenOn(t *testing.T) {
+	found := findings(t)
+
+	whole, err := found.Check(posts.Story{Saga: 1, Reign: 1, Attacker: "de", Rival: "cz"})
+	require.NoError(t, err)
+	handover, err := found.Check(posts.Story{Saga: 1, Reign: 2, Attacker: "de", Rival: "cz"})
+	require.NoError(t, err)
+	rise, err := found.Check(posts.Story{Saga: 1, Reign: 1, Attacker: "cz"})
+	require.NoError(t, err)
+
+	assert.Equal(t, posts.StoryKey{Flag: "de", Continent: "East Asia", Angle: posts.Reigning}, whole)
+	assert.Equal(t, whole, handover, "the reign Germany took China from Czechia in")
+	assert.Equal(t, posts.StoryKey{Flag: "cz", Continent: "East Asia", Angle: posts.Reigning}, rise)
+}
+
+func TestASagaThatSaysWhatItsReignsDoNotIsRefusedWithWhy(t *testing.T) {
+	found := findings(t)
+	china := posts.Story{Saga: 1, Reign: 2, Attacker: "de", Rival: "cz"}
+
+	for why, story := range map[string]posts.Story{
+		"no reign 3 of 2 on saga 1":                    with(china, func(s *posts.Story) { s.Reign = 3 }),
+		"no reign 0 of 2 on saga 1":                    with(china, func(s *posts.Story) { s.Reign = 0 }),
+		"no reign 1 of 0 on saga 2":                    {Saga: 2, Reign: 1, Attacker: "ie"},
+		`"cz" held no reign from reign 2`:              with(china, func(s *posts.Story) { s.Attacker = "cz"; s.Rival = "" }),
+		`"kp" held no reign from reign 2`:              with(china, func(s *posts.Story) { s.Rival = "kp" }),
+		`"de" held no reign from reign 2, and reign 2`: with(china, func(s *posts.Story) { s.Rival = "de" }),
+		"a saga has no kind, look, place":              with(china, func(s *posts.Story) { s.Kind = posts.Invasion }),
+		"a saga has no kind, look":                     with(china, func(s *posts.Story) { s.Look = posts.PaintedFlags }),
+		"a saga has no kind, look, place, team":        with(china, func(s *posts.Story) { s.Countries = []string{"cn"} }),
+		"or flags taken from of its own":               with(china, func(s *posts.Story) { s.TakenFrom = []string{"cz"} }),
+		"fighter 1 took nothing for a side of saga 1":  with(china, func(s *posts.Story) { s.Fighters = []posts.FighterNumber{1} }),
+	} {
+		t.Run(why, func(t *testing.T) {
+			_, err := found.Check(story)
+
+			require.ErrorIs(t, err, posts.ErrInvalidStory)
+			assert.ErrorContains(t, err, why)
+		})
+	}
 }
 
 func TestAStoryNamesOnlyTheFightersOfItsSides(t *testing.T) {

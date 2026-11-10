@@ -11,6 +11,11 @@ describe("the sides of a story", () => {
         expect(sidesOf({...attack, kind: "kickout", place: {country: "de"}})).toEqual(["hr", "fr"])
     })
 
+    it("are the flag a saga tells and the flag it is counted against, or the flag alone", () => {
+        expect(sidesOf({...attack, kind: "saga", rival: "fr"})).toEqual(["hr", "fr"])
+        expect(sidesOf({...attack, kind: "saga"})).toEqual(["hr"])
+    })
+
     it("are the loser first for a flag thrown out, against the continent's flag when its flags threw it out together", () => {
         expect(sidesOf({...attack, kind: "rout"})).toEqual(["fr"])
         expect(sidesOf({...attack, kind: "rout", team: "Europe"})).toEqual(["fr", "eu"])
@@ -28,6 +33,8 @@ describe("the key of a story", () => {
         expect(storyKeyOf({...attack, place: {country: "dz"}}, regionOf)).toEqual({flag: "hr", continent: "Africa"})
         expect(storyKeyOf({...attack, kind: "rout", place: {countries: ["eg", "tr"]}}, regionOf)).toEqual({flag: "fr", continent: "Africa"})
         expect(storyKeyOf({...attack, place: {region: "the world"}}, regionOf)).toEqual({flag: "hr", continent: "the world"})
+        expect(storyKeyOf({...attack, kind: "saga", rival: "fr", place: {country: "ru"}}, regionOf))
+            .toEqual({flag: "hr", continent: "Europe", angle: "saga"})
         expect(storyKeyOf({...attack, kind: "holding", victims: ["se"], share: 0.8}, regionOf)).toEqual({flag: "hr", continent: "Europe", angle: "holding"})
     })
 

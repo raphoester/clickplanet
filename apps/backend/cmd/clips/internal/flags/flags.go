@@ -13,7 +13,7 @@ import (
 )
 
 const usage = `usage:
-  clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
+  clips fetch -out <replay.json> [-race <race.json>] [-season <season.json>] [-history <history.json>] [-cast <cast.json>] [-ssh <user@host>] [-hours 72] [-until <2026-10-12T12:00:00Z>]
   clips choose -findings <findings.json> [-count 2] [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
   clips edit -findings <findings.json> [-count 2] [-prompt]
   clips schedule -clips <folder> [-platforms tiktok,youtube] [-ssh <user@host>] [-summary <file>]
@@ -21,7 +21,8 @@ const usage = `usage:
 Every command asks the production backend over ssh, as its operator does: CLICKPLANET_SSH stands in for -ssh.
 fetch asks it for a replay, and the ledger keeps 72 hours in memory, so a replay cannot reach further back. With
 -season it asks for the gamemaster's turn too (the timeline, and the last moment scoring scored), and with -race, which
-needs -season, for that moment's round as scoring scored it; with -cast, the players who took tiles in the replay,
+needs -season, for that moment's round as scoring scored it; with -history, which needs -season too, for the map every
+hour since the season started, as the backend replays it from the ledger, which the sagas are measured on; with -cast, the players who took tiles in the replay,
 numbered and named, never an account; it leaves each out with a warning when the backend does not answer it. choose
 prints the stories to render, as a JSON array, each with its number in the run: a day of the season won first, not
 told yet, then the stories Claude (ANTHROPIC_API_KEY) makes of the generator's findings and headlines, each checked
@@ -58,6 +59,8 @@ type Config struct {
 	TurnFile string
 	// Empty is no round. A round needs its turn.
 	RoundFile string
+	// Empty is no season's map. It needs the turn, which says when the season started.
+	HistoryFile string
 	// Empty is no cast.
 	CastFile     string
 	FindingsFile string
@@ -97,13 +100,15 @@ func parseFetch(args []string) (Config, error) {
 	flags.StringVar(&parsed.RoundFile, "race", "", "the file the round the turn debriefs is written to, default none")
 	flags.StringVar(&parsed.TurnFile, "season", "", "the file the gamemaster's turn is written to, default none")
 	flags.StringVar(&parsed.CastFile, "cast", "", "the file the replay's cast is written to, default none")
+	flags.StringVar(&parsed.HistoryFile, "history", "", "the file the season's map every hour is written to, default none")
 	flags.StringVar(&parsed.Job.Replay.SSH, "ssh", os.Getenv(HostVariable), "user@host of the machine the backend runs on")
 	hours := flags.Float64("hours", 0, "how long the replay is")
 	until := flags.String("until", "", "when the replay ends, default now")
 	if err := flags.Parse(args); err != nil {
 		return Config{}, misused(err)
 	}
-	if parsed.ReplayFile == "" || parsed.Job.Replay.SSH == "" || (parsed.RoundFile != "" && parsed.TurnFile == "") {
+	needsTurn := parsed.RoundFile != "" || parsed.HistoryFile != ""
+	if parsed.ReplayFile == "" || parsed.Job.Replay.SSH == "" || (needsTurn && parsed.TurnFile == "") {
 		return Config{}, misused(ErrArguments)
 	}
 

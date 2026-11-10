@@ -46,10 +46,33 @@ func TestAHistoryOpensOnEveryTileHeldThenKeepsWhatChangedAtEachStep(t *testing.T
 	)
 
 	assert.Equal(t, []ledger.Frame{
-		{At: historySince, Owners: map[uint32]string{1: "fr", 2: "de"}},
-		{At: historySince.Add(time.Hour), Owners: map[uint32]string{}},
-		{At: historyUntil, Owners: map[uint32]string{2: "", 3: "jp"}},
+		{At: historySince, Owners: map[uint32]ledger.Owner{
+			1: {Country: "fr", At: historySince.Add(-48 * time.Hour)}, 2: {Country: "de", At: historySince.Add(-time.Hour)},
+		}},
+		{At: historySince.Add(time.Hour), Owners: map[uint32]ledger.Owner{}},
+		{At: historyUntil, Owners: map[uint32]ledger.Owner{
+			2: {At: historySince.Add(80 * time.Minute)}, 3: {Country: "jp", At: historySince.Add(time.Hour)},
+		}},
 	}, history.Frames(), "tile 1 went back to France within the hour; a take at a step's time is in the next frame")
+}
+
+func TestATileKeepsWhenItWentToItsOwnerLastSoAnEnclosuresTilesLandTogether(t *testing.T) {
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour)
+	require.NoError(t, err)
+
+	enclosed := historySince.Add(70 * time.Minute)
+	record(t, history,
+		take(1, "de", historySince.Add(65*time.Minute)),
+		take(1, "cz", historySince.Add(66*time.Minute)),
+		take(1, "de", historySince.Add(68*time.Minute)),
+		ledger.Enclosing{Tile: 3, Scope: "203.0.113.7", Country: "de", At: enclosed, Impacts: []clicks.Impact{
+			{Tile: 2, Owner: "cz", Outcome: clicks.Taken}, {Tile: 3, Owner: "cz", Outcome: clicks.Taken},
+		}},
+	)
+
+	assert.Equal(t, map[uint32]ledger.Owner{
+		1: {Country: "de", At: historySince.Add(68 * time.Minute)}, 2: {Country: "de", At: enclosed}, 3: {Country: "de", At: enclosed},
+	}, history.Frames()[2].Owners)
 }
 
 func TestAHistoryCountsEachTilesChangesAndShieldHitsDuringTheWindowOnly(t *testing.T) {
@@ -75,9 +98,9 @@ func TestAWipeAtTheWindowsStartOpensItOnAnEmptyMap(t *testing.T) {
 	record(t, history, take(2, "de", historySince.Add(time.Minute)))
 
 	assert.Equal(t, []ledger.Frame{
-		{At: historySince, Owners: map[uint32]string{}},
-		{At: historySince.Add(time.Hour), Owners: map[uint32]string{2: "de"}},
-		{At: historyUntil, Owners: map[uint32]string{}},
+		{At: historySince, Owners: map[uint32]ledger.Owner{}},
+		{At: historySince.Add(time.Hour), Owners: map[uint32]ledger.Owner{2: {Country: "de", At: historySince.Add(time.Minute)}}},
+		{At: historyUntil, Owners: map[uint32]ledger.Owner{}},
 	}, history.Frames())
 }
 

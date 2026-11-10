@@ -21,6 +21,9 @@ message TileOwner {
   uint32 tile = 1;
   // Empty for a tile left with no owner: a bomb cleared it.
   string country_id = 2;
+  // When the tile went to this owner, its last change of the step: whole seconds after the frame before. 0 in the first
+  // frame. A replay plays each change at its time, so an enclosure's tiles land together, as they did.
+  uint32 seconds_into_step = 3;
 }
 
 message TileHits {

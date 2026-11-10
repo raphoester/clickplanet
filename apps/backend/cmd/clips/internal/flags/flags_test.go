@@ -15,7 +15,8 @@ func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
 	t.Setenv(flags.HostVariable, "")
 
 	parsed, err := flags.Parse([]string{
-		"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-race", "race.json", "-season", "season.json", "-cast", "cast.json", "-hours", "1.5", "-until", "2026-10-12T12:00:00Z",
+		"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-race", "race.json", "-season", "season.json", "-history", "history.json",
+		"-cast", "cast.json", "-hours", "1.5", "-until", "2026-10-12T12:00:00Z",
 	})
 
 	require.NoError(t, err)
@@ -23,7 +24,10 @@ func TestFetchFlagsSayWhichReplayAndWhereItGoes(t *testing.T) {
 	job.Replay.SSH = "deploy@vps.example"
 	job.Replay.Span = 90 * time.Minute
 	job.Replay.Until = time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
-	assert.Equal(t, flags.Config{Command: flags.Fetch, ReplayFile: "replay.json", TurnFile: "season.json", RoundFile: "race.json", CastFile: "cast.json", Job: job}, parsed)
+	assert.Equal(t, flags.Config{
+		Command: flags.Fetch, ReplayFile: "replay.json", TurnFile: "season.json", RoundFile: "race.json", CastFile: "cast.json",
+		HistoryFile: "history.json", Job: job,
+	}, parsed)
 }
 
 func TestAFetchWithNoRaceOrSeasonFileAsksForNeither(t *testing.T) {
@@ -36,6 +40,12 @@ func TestAFetchWithNoRaceOrSeasonFileAsksForNeither(t *testing.T) {
 
 func TestARaceWithNoSeasonIsRefused(t *testing.T) {
 	_, err := flags.Parse([]string{"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-race", "race.json"})
+
+	require.ErrorIs(t, err, flags.ErrArguments)
+}
+
+func TestAHistoryWithNoSeasonIsRefused(t *testing.T) {
+	_, err := flags.Parse([]string{"fetch", "-ssh", "deploy@vps.example", "-out", "replay.json", "-history", "history.json"})
 
 	require.ErrorIs(t, err, flags.ErrArguments)
 }

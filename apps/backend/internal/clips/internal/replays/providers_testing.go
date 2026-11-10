@@ -20,6 +20,10 @@ type ScriptedSource struct {
 	CastsAsked []Window
 	cast       Cast
 	castErr    error
+
+	HistoriesAsked []Window
+	history        History
+	historyErr     error
 }
 
 func NewScriptedSource(replay Replay) *ScriptedSource {
@@ -68,10 +72,11 @@ func (s *ScriptedSource) Round(_ context.Context, round RoundID) (Round, error) 
 }
 
 type MemoryStore struct {
-	Saved       []Replay
-	SavedTurns  []Turn
-	SavedRounds []Round
-	err         error
+	Saved          []Replay
+	SavedTurns     []Turn
+	SavedRounds    []Round
+	SavedHistories []History
+	err            error
 }
 
 var _ Store = (*MemoryStore)(nil)
@@ -121,4 +126,29 @@ func (s *ScriptedSource) FailCastWith(err error) {
 func (s *ScriptedSource) Cast(_ context.Context, window Window) (Cast, error) {
 	s.CastsAsked = append(s.CastsAsked, window)
 	return s.cast, s.castErr
+}
+
+var _ HistorySource = (*ScriptedSource)(nil)
+
+func (s *ScriptedSource) AnswerHistory(history History) {
+	s.history = history
+}
+
+func (s *ScriptedSource) FailHistoryWith(err error) {
+	s.historyErr = err
+}
+
+func (s *ScriptedSource) History(_ context.Context, window Window) (History, error) {
+	s.HistoriesAsked = append(s.HistoriesAsked, window)
+	return s.history, s.historyErr
+}
+
+var _ HistoryStore = (*MemoryStore)(nil)
+
+func (s *MemoryStore) SaveHistory(_ context.Context, history History) error {
+	if s.err != nil {
+		return s.err
+	}
+	s.SavedHistories = append(s.SavedHistories, history)
+	return nil
 }

@@ -1,8 +1,9 @@
 import {Timestamp} from "@bufbuild/protobuf"
-import {Findings, Front, Pick, Place as PlaceWritten, Seasonal, StoryFacts, Tour} from "../gen/grpc/clips/v1/clips_pb.ts"
+import {Findings, Front, Pick, Place as PlaceWritten, Reign as ReignWritten, Saga, Seasonal, StoryFacts, Tour} from "../gen/grpc/clips/v1/clips_pb.ts"
 import {Counts, FrontFacts, PlaceFacts, TourFacts} from "../domain/clip/findings.ts"
 import {KINDS, Place, Story, storyCountriesOf, storyKeyOf} from "../domain/clip/story.ts"
 import {Look, LOOKS} from "../domain/clip/look.ts"
+import {SagaFacts} from "../domain/clip/saga.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
 import {nameOf, placeName, said, wordsOf, Written} from "./overlay.ts"
 import {languageOf} from "./clipRecord.ts"
@@ -40,6 +41,7 @@ export type Found = {
     fronts: FrontFound[]
     tours: TourFound[]
     places: PlaceFound[]
+    sagas: SagaFacts[]
     seasonal: SeasonalFound[]
     anthems: string[]
 }
@@ -47,6 +49,8 @@ export type Found = {
 const rounded = (value: number, places: number) => Math.round(value * 10 ** places) / 10 ** places
 
 const at = (ms: number) => Timestamp.fromDate(new Date(ms))
+
+const atMaybe = (ms: number | undefined) => ms === undefined ? undefined : at(ms)
 
 // Everything the editor makes the run's stories from, as a clips.v1.Findings: the fronts, the tours, the places, the
 // stories the season's data tells, and how every code in them is said.
@@ -59,6 +63,7 @@ export function findingsOf(found: Found): Findings {
     }
     for (const tour of found.tours) noted(tour.flag, ...Object.keys(tour.tookFrom))
     for (const place of found.places) noted(place.code, place.holder, ...Object.keys(place.rivals))
+    for (const saga of found.sagas) noted(saga.code, saga.holder, ...saga.reigns.flatMap(({flag, tookFrom, lostTo}) => [flag, tookFrom, lostTo]))
     for (const {story} of found.seasonal) noted(story.attacker, story.rival, ...story.victims, ...storyCountriesOf(story))
 
     return new Findings({
@@ -86,6 +91,15 @@ export function findingsOf(found: Found): Findings {
             kind: place.kind, code: place.code ?? "", continent: place.continent ?? "", tiles: place.tiles, holder: place.holder,
             held: place.held, share: rounded(place.share, 3), rivals: place.rivals, changed: place.changed,
             flippedByContinent: place.flippedByContinent, fighters: place.fighters,
+        })),
+        sagas: found.sagas.map((saga) => new Saga({
+            kind: saga.kind, code: saga.code ?? "", continent: saga.continent ?? "", tiles: saga.tiles,
+            reigns: saga.reigns.map((reign) => new ReignWritten({
+                flag: reign.flag, pushedAt: atMaybe(reign.pushedAt), since: at(reign.since), until: atMaybe(reign.until),
+                peak: rounded(reign.peak, 3), share: rounded(reign.share, 3), tookFrom: reign.tookFrom ?? "",
+                tookFromShare: rounded(reign.tookFromShare, 3), lostTo: reign.lostTo ?? "",
+            })),
+            holder: saga.holder ?? "", share: rounded(saga.share, 3), since: at(saga.since), until: at(saga.until),
         })),
         seasonal: found.seasonal.map(({story, measured}) => {
             const words = wordsOf(story)
@@ -135,6 +149,7 @@ export type Told =
     | {front: number, story: Story, look: Look}
     | {tour: number}
     | {place: number, look: Look}
+    | {saga: number, reign: number, attacker: string, rival: string | undefined}
     | {seasonal: number}
 
 // The story the editor wrote, as a clips.v1.Pick says it, with its words; a seasonal story has words of its own. Nothing
@@ -144,8 +159,8 @@ export type Told =
 export function toldOf(json: string): {told: Told, written: Written | undefined, fighters: number[]} {
     const pick = Pick.fromJson(JSON.parse(json), {ignoreUnknownFields: true})
     const fighters = pick.fighters
-    const named = [pick.front, pick.tour, pick.place, pick.seasonal].filter((number) => number > 0)
-    if (named.length !== 1) throw new Error("a story names one front, one tour, one place or one seasonal story")
+    const named = [pick.front, pick.tour, pick.place, pick.saga, pick.seasonal].filter((number) => number > 0)
+    if (named.length !== 1) throw new Error("a story names one front, one tour, one place, one saga or one seasonal story")
     if (pick.seasonal > 0) return {told: {seasonal: pick.seasonal}, written: undefined, fighters: []}
     if (pick.headline === "" || pick.call === "") throw new Error("a story the editor tells has its headline and its call")
     const written: Written = {
@@ -153,12 +168,16 @@ export function toldOf(json: string): {told: Told, written: Written | undefined,
         callFlags: pick.callFlags, anthem: pick.anthem === "" ? undefined : pick.anthem,
     }
     if (pick.tour > 0) return {told: {tour: pick.tour}, written, fighters}
+    if (pick.saga > 0) {
+        if (pick.reign === 0 || pick.attacker === "") throw new Error("a saga is told from one of its reigns, about one of its flags")
+        return {told: {saga: pick.saga, reign: pick.reign, attacker: pick.attacker, rival: pick.rival === "" ? undefined : pick.rival}, written, fighters: []}
+    }
     const look = LOOKS.find((known) => known === pick.look)
     if (look === undefined) throw new Error(`a front or a place is told with the look "flags" or "dive", not "${pick.look}"`)
     if (pick.place > 0) return {told: {place: pick.place, look}, written, fighters}
 
     const kind = KINDS.find((known) => known === pick.kind)
-    if (kind === undefined || kind === "holding" || kind === "round" || kind === "callup") {
+    if (kind === undefined || kind === "holding" || kind === "saga" || kind === "round" || kind === "callup") {
         throw new Error(`a front's story is an attack, an invasion, a comeback, a kickout, a rout or a battle, not "${pick.kind}"`)
     }
     if (pick.attacker === "") throw new Error("a front's story has an attacker")

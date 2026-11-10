@@ -11,7 +11,9 @@ export type Shown = {
     generator: string
     seconds: number
     music: {code: string, from: number} | undefined
-    // undefined on a tour.
+    // A front's camera follows its fighting, a tour's flies over the world, a saga's stays out over its place.
+    camera: "front" | "tour" | "saga"
+    // undefined on a tour and a saga.
     look: Look | undefined
     since: number
     until: number
@@ -40,7 +42,7 @@ export function languageOf(story: Story): string {
 }
 
 export function clipRecordOf(shown: Shown): ClipRecord {
-    const tour = shown.look === undefined
+    const tour = shown.camera === "tour"
     return new ClipRecord({
         format: "globe-replay",
         generator: shown.generator || "unknown",
@@ -52,7 +54,7 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             fighters: shown.fighters,
         },
         globe: {
-            camera: tour ? "tour" : "front",
+            camera: shown.camera,
             look: shown.look ?? NONE,
             storyKind: shown.story.kind,
             spanMinutes: rounded((shown.until - shown.since) / 60_000, 1),
@@ -65,7 +67,7 @@ export function clipRecordOf(shown: Shown): ClipRecord {
             bombs: shown.bombs,
             spreads: shown.spreads,
             enclosures: shown.enclosures,
-            screensCrossed: tour ? 0 : rounded(shown.screens, 2),
+            screensCrossed: shown.camera === "front" ? rounded(shown.screens, 2) : 0,
             tourStops: tour ? shown.tourStops : 0,
             solidity: rounded(shown.solidity, 2),
             storyEndedAt: Timestamp.fromDate(new Date(shown.until)),

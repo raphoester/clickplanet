@@ -35,3 +35,24 @@ func TestAReplayThatSpansNoTimeIsRefused(t *testing.T) {
 		require.ErrorIs(t, err, replays.ErrInvalidRequest)
 	}
 }
+
+func TestTheSeasonsHistoryRunsFromItsStartToTheEndAskedFor(t *testing.T) {
+	started := time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC)
+
+	window, err := replays.Turn{SeasonSince: started}.SeasonUntil(now.AddDate(0, 0, 30))
+
+	require.NoError(t, err)
+	assert.Equal(t, replays.Window{Since: started, Until: now.AddDate(0, 0, 30)}, window)
+}
+
+func TestNoSeasonHasNoHistory(t *testing.T) {
+	_, err := replays.Turn{}.SeasonUntil(now)
+
+	require.ErrorIs(t, err, replays.ErrNoSeason)
+}
+
+func TestASeasonThatStartsAfterTheEndAskedForIsRefused(t *testing.T) {
+	_, err := replays.Turn{SeasonSince: now}.SeasonUntil(now)
+
+	require.ErrorIs(t, err, replays.ErrInvalidRequest)
+}

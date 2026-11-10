@@ -73,8 +73,12 @@ internal/planet/internal/
   **`InternalService/GetLedgerTotals(since, until)` reads it there too** (`totals_query`): the events of each kind in
   the window and the accounts that made them, in one scan of `taken_at` (no index on it: seconds over a season). The
   gamemaster asks it once per ended season and keeps the answer (see [The gamemaster](gamemaster.md)).
-  **`InternalService/GetMapHistory(since, until, step)` replays it from its first event** (`history_query`,
-  `ledger.History`): the map at each step, the first frame every tile held at `since`, each next one the tiles whose
+  **`InternalService/GetMapHistory(since, until, step)` replays it from the last map reset at or before `since`**, or
+  from its first event when none precedes it (`history_query`, `ledger.History`): the map is blank at a reset, so
+  what came before it changes nothing, and a season's history reads the season's events alone (`WHERE taken_at >=`
+  the reset, not the 4 million of the seasons before; the clips job asks it every run). Each tile of a frame says the
+  seconds into the step it went to its owner (`seconds_into_step`, its last change of the step: an enclosure's tiles
+  share one), so a replay plays each change at its time. The map at each step, the first frame every tile held at `since`, each next one the tiles whose
   owner changed, and each tile's changes and shield hits in the window, by `Event.Replay` and `Event.Strikes`, so no kind
   is asked. The read stops at the first event at or after `until`, since positions follow time, and the map's resets
   (`map_resets`, which write no event) wipe it at their time. What a reassign, a paint or a revert wrote is not in it.

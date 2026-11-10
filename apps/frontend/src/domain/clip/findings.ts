@@ -266,7 +266,7 @@ export function inHolding(place: Place, ground: string | undefined, regionOf: Re
     return ground !== OUTSIDE_EUROPE && regionOf(ground) === place.region
 }
 
-function placeKeysOf(ground: string | undefined, sizes: ReadonlyMap<string, number>, regionOf: RegionOf): string[] {
+export function placeKeysOf(ground: string | undefined, sizes: ReadonlyMap<string, number>, regionOf: RegionOf): string[] {
     if (ground === undefined) return [THE_WORLD]
     const continent = ground === OUTSIDE_EUROPE ? undefined : regionOf(ground)
     return [
@@ -276,7 +276,7 @@ function placeKeysOf(ground: string | undefined, sizes: ReadonlyMap<string, numb
     ]
 }
 
-function placeOf(key: string, regionOf: RegionOf): Pick<PlaceFacts, "kind" | "place" | "code" | "continent"> {
+export function placeOf(key: string, regionOf: RegionOf): Pick<PlaceFacts, "kind" | "place" | "code" | "continent"> {
     if (key === THE_WORLD) return {kind: "world", place: {region: THE_WORLD}, code: undefined, continent: undefined}
     const [scale, name] = key.split(":")
     return scale === "country"

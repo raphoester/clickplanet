@@ -1,5 +1,5 @@
 import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {PlanetEvent} from "../gen/grpc/planet/v1/planet_pb.ts"
+import {PlanetEvent, TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {
     BombDrop,
     Bomber,
@@ -18,6 +18,7 @@ import {
 import {bindingsOf, bombOf, enclosureOf, shieldsOf, spreadOf, takenOf, updateOf} from "./planetBackend.ts"
 import {TileChange} from "../domain/clip/changes.ts"
 import {FakeTally} from "./fakeTally.ts"
+import {MapHistory, MapReel} from "../domain/mapHistory.ts"
 
 type Step = {at: number, event: PlanetEvent}
 
@@ -64,6 +65,41 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             shields: shieldsOf(opening),
             steps: response.events.flatMap(({at, event}) => at && event ? [{at: at.toDate().getTime(), event}] : []),
             landmasses,
+        })
+    }
+
+    // A map history played from its frame at or before since to its end: each change at the time it was made, its last
+    // of the step, so an enclosure's tiles land together and clicks one by one, as they did.
+    static ofHistory(history: MapHistory, reel: MapReel, since: number, landmasses: ReplayLandmasses): ReplayBackend {
+        const frames = history.frames
+        if (frames.length === 0) throw new Error("a history needs a frame")
+        let first = 0
+        while (first + 1 < frames.length && frames[first + 1].at <= since) first++
+
+        const owners = new Map<number, string>()
+        reel.ownersAt(first).forEach((owner, tile) => {
+            if (owner !== 0) owners.set(tile, reel.codes[owner])
+        })
+        const opening = new Map(owners)
+        const steps: Step[] = []
+        for (let k = first + 1; k < frames.length; k++) {
+            const {tiles, owners: next, changedAt} = frames[k]
+            const moved = Array.from(tiles, (tile, i) => ({tile, owner: next[i], at: Math.min(frames[k].at, Math.max(frames[k - 1].at, changedAt[i]))}))
+                .filter(({tile, owner}) => (owners.get(tile) ?? "") !== owner)
+                .sort((a, b) => a.at - b.at || a.tile - b.tile)
+            for (const {tile, owner, at} of moved) {
+                const previous = owners.get(tile) ?? ""
+                if (owner === "") owners.delete(tile)
+                else owners.set(tile, owner)
+                const event = new PlanetEvent({
+                    event: {case: "tileUpdate", value: new TileUpdate({tileId: tile, countryId: owner, previousCountryId: previous})},
+                })
+                steps.push({at, event})
+            }
+        }
+
+        return new ReplayBackend({
+            since: frames[first].at, until: frames[frames.length - 1].at, opening, shields: new Map(), steps, landmasses,
         })
     }
 

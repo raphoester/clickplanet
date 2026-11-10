@@ -24,7 +24,9 @@ type prompt struct {
 	Fronts      []front           `json:"fronts"`
 	Tours       []tour            `json:"tours"`
 	Places      []place           `json:"places"`
+	Sagas       []saga            `json:"sagas"`
 	RecentPosts []recent          `json:"recentPosts"`
+	SagasTold   []recent          `json:"sagasTold"`
 	ShownLately map[string]int    `json:"shownLately"`
 }
 
@@ -108,6 +110,35 @@ type place struct {
 	Fighters           []fighter      `json:"fighters,omitempty"`
 }
 
+type saga struct {
+	Saga      int       `json:"saga"`
+	Kind      string    `json:"kind"`
+	Code      string    `json:"code,omitempty"`
+	Continent string    `json:"continent,omitempty"`
+	Tiles     int       `json:"tiles"`
+	Holder    string    `json:"holder"`
+	Share     float64   `json:"share"`
+	Since     time.Time `json:"since"`
+	Until     time.Time `json:"until"`
+	Reigns    []reign   `json:"reigns"`
+}
+
+// days: how long it held over half, to its until or to the saga's. conquestHours: from its push to holding over half.
+type reign struct {
+	Reign         int        `json:"reign"`
+	Flag          string     `json:"flag"`
+	PushedAt      *time.Time `json:"pushedAt,omitempty"`
+	Since         time.Time  `json:"since"`
+	Until         *time.Time `json:"until,omitempty"`
+	Days          float64    `json:"days"`
+	ConquestHours float64    `json:"conquestHours,omitempty"`
+	Peak          float64    `json:"peak"`
+	Share         float64    `json:"share"`
+	TookFrom      string     `json:"tookFrom,omitempty"`
+	TookFromShare float64    `json:"tookFromShare,omitempty"`
+	LostTo        string     `json:"lostTo,omitempty"`
+}
+
 type recent struct {
 	At        time.Time `json:"at"`
 	Headline  string    `json:"headline"`
@@ -133,7 +164,9 @@ func PromptOf(offer posts.Offer) (string, error) {
 		Fronts:      make([]front, 0, len(findings.Fronts)),
 		Tours:       make([]tour, 0, len(findings.Tours)),
 		Places:      make([]place, 0, len(findings.Places)),
+		Sagas:       make([]saga, 0, len(findings.Sagas)),
 		RecentPosts: make([]recent, 0, len(offer.Recent)),
+		SagasTold:   make([]recent, 0, len(offer.Sagas)),
 	}
 	for _, number := range offer.First {
 		written.ToldFirst = append(written.ToldFirst, findings.Seasonal[number-1].Title)
@@ -157,10 +190,14 @@ func PromptOf(offer posts.Offer) (string, error) {
 			Fighters:           fightersOf(found.Fighters),
 		})
 	}
+	for i, found := range findings.Sagas {
+		written.Sagas = append(written.Sagas, sagaOf(i+1, found))
+	}
 	for _, telling := range offer.Recent {
-		written.RecentPosts = append(written.RecentPosts, recent{
-			At: telling.At.UTC(), Headline: telling.Title, Key: keyOf(telling.Key), Countries: telling.Countries,
-		})
+		written.RecentPosts = append(written.RecentPosts, recentOf(telling))
+	}
+	for _, telling := range offer.Sagas {
+		written.SagasTold = append(written.SagasTold, recentOf(telling))
 	}
 
 	text, err := json.Marshal(written)
@@ -168,6 +205,42 @@ func PromptOf(offer posts.Offer) (string, error) {
 		return "", fmt.Errorf("failed to write the prompt: %w", err)
 	}
 	return "The run's findings, as JSON:\n\n" + string(text), nil
+}
+
+func recentOf(telling posts.Telling) recent {
+	return recent{At: telling.At.UTC(), Headline: telling.Title, Key: keyOf(telling.Key), Countries: telling.Countries}
+}
+
+func sagaOf(number int, found posts.Saga) saga {
+	written := saga{
+		Saga: number, Kind: string(found.Kind), Code: found.Code, Continent: found.Continent, Tiles: found.Tiles, Holder: found.Holder,
+		Share: found.Share, Since: found.Since.UTC(), Until: found.Until.UTC(), Reigns: make([]reign, 0, len(found.Reigns)),
+	}
+	for i, r := range found.Reigns {
+		end := found.Until
+		if !r.Until.IsZero() {
+			end = r.Until
+		}
+		told := reign{
+			Reign: i + 1, Flag: r.Flag, PushedAt: setOf(r.PushedAt), Since: r.Since.UTC(), Until: setOf(r.Until),
+			Days: float64(end.Sub(r.Since).Round(144*time.Minute)) / float64(24*time.Hour), Peak: r.Peak, Share: r.Share,
+			TookFrom: r.TookFrom, TookFromShare: r.TookFromShare, LostTo: r.LostTo,
+		}
+		if !r.PushedAt.IsZero() {
+			told.ConquestHours = hoursOf(r.PushedAt, r.Since)
+		}
+		written.Reigns = append(written.Reigns, told)
+	}
+	return written
+}
+
+// Unset is left out.
+func setOf(at time.Time) *time.Time {
+	if at.IsZero() {
+		return nil
+	}
+	utc := at.UTC()
+	return &utc
 }
 
 func frontOf(number int, found posts.Front) front {
