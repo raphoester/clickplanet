@@ -267,6 +267,43 @@ func (s *testSuite) TestAccountMarksAreKeptApartFromScopeMarks() {
 	s.Equal(map[ledger.Caller]ledger.Position{{Account: guest}: 4}, loaded.Forgotten, "the head drops account marks too")
 }
 
+func (s *testSuite) forgottenPositions() []int64 {
+	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
+		`SELECT position FROM ledger_events WHERE forgotten ORDER BY position`)
+	s.Require().NoError(err)
+	defer func() { s.Require().NoError(rows.Close()) }()
+
+	var positions []int64
+	for rows.Next() {
+		var position int64
+		s.Require().NoError(rows.Scan(&position))
+		positions = append(positions, position)
+	}
+	s.Require().NoError(rows.Err())
+	return positions
+}
+
+func (s *testSuite) TestAMarkForgetsTheEventsOfItsCallerBeforeItForGood() {
+	ctx := s.T().Context()
+	takes := []inmemory_ledger_storage.Stored{
+		stored(0, 1, "1.2.3.4", "fr", "", start),
+		stored(1, 2, "5.6.7.8", "fr", "", start),
+		stored(2, 3, "1.2.3.4", "fr", "", start),
+		stored(3, 4, "9.9.9.9", "fr", "", start),
+		stored(4, 5, "9.9.9.9", "fr", "", start),
+	}
+	takes[0].Entry.Account, takes[3].Entry.Account, takes[4].Entry.Account = guest, guest, guest
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{}, takes...)))
+
+	s.Require().NoError(s.store.Save(ctx, changes(5, 0, map[ledger.Caller]ledger.Position{{Scope: "1.2.3.4"}: 2, {Account: guest}: 4})))
+	s.Equal([]int64{0, 3}, s.forgottenPositions(), "the scope's take before its mark, and the account's")
+
+	s.Require().NoError(s.store.Save(ctx, changes(5, 5, map[ledger.Caller]ledger.Position{})))
+	_, marks := s.load()
+	s.Empty(marks.Forgotten)
+	s.Equal([]int64{0, 3}, s.forgottenPositions(), "the events stay forgotten once the head drops the marks")
+}
+
 func withPayload(position ledger.Position, kind, payload string) inmemory_ledger_storage.Stored {
 	entry := stored(position, 7, "1.2.3.4", "", "il", start)
 	entry.Entry.Kind, entry.Entry.Payload = kind, []byte(payload)

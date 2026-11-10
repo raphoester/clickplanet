@@ -477,3 +477,29 @@ func TestTheSeatsAndLakesRemapDropsATileUnderALakeAndForgetsItsTakes(t *testing.
 	assert.Equal(t, []int{1}, scan(t, db, `SELECT tile FROM ledger_events`),
 		"a take on it is deleted, not left pointing at other ground")
 }
+
+const ledgerEventsForgotten = "20261110140000"
+
+func TestTheEventsALiveMarkCoversAreForgotten(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, ledgerEventsForgotten))
+	ana, bob := "0192f0a0-0000-7000-8000-000000000001", "0192f0a0-0000-7000-8000-000000000002"
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO ledger_events (position, kind, tile, scope, account, country, previous, taken_at) VALUES
+			(0, 'take', 1, '203.0.113.7', $1, 'fr', '', now()),
+			(1, 'take', 2, '198.51.100.4', $2, 'de', '', now()),
+			(2, 'take', 3, '203.0.113.7', NULL, 'fr', '', now()),
+			(3, 'take', 4, '198.51.100.4', $1, 'fr', '', now())
+	`, ana, bob)
+	require.NoError(t, err)
+	_, err = db.On(t.Context()).ExecContext(t.Context(),
+		`INSERT INTO ledger_forgotten_accounts (account, before_position) VALUES ($1, 3)`, ana)
+	require.NoError(t, err)
+	_, err = db.On(t.Context()).ExecContext(t.Context(),
+		`INSERT INTO ledger_forgotten (scope, before_position) VALUES ('198.51.100.4', 3)`)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	assert.Equal(t, []int{0, 1}, scan(t, db, `SELECT position FROM ledger_events WHERE forgotten ORDER BY position`),
+		"the account's take and the scope's take before their marks")
+}

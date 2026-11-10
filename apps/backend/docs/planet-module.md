@@ -76,9 +76,12 @@ internal/planet/internal/
   makes of the tile (a take, a tile a spread or an enclose took, a bomb's clear), as `{account_id, country_id,
   taken_at_unix_ms}`. A clear is no holder. **A take with no account still holds the tile**, with no `account_id`:
   a deleted account's takes keep their flag and time, and the client shows it as a deleted account. It needs no token. It knows no name: the
-  client names the account with `player.v1.PlayerService/GetPlayer`, as the admin page joins `TopPlayers`. A
-  reassign, a paint or a revert writes no event, and the last second is not flushed yet, so the client shows the
-  holder only while the tile still wears its `country_id`. A parity test runs every kind through both.
+  client names the account with `player.v1.PlayerService/GetPlayer`, as the admin page joins `TopPlayers`. **It skips
+  the events a revert forgot** (`forgotten`, see [Durability](durability.md)), as memory replays none of them, so a
+  tile a revert gave back names the take it went back to. Until 2026-11-10 it named the reverted take, of another
+  flag, and the card showed nothing. A reassign, a paint or a revert writes no event, and the last second is not
+  flushed yet, so the client names the holder only while the tile still wears its `country_id`. A parity test runs
+  every kind through both.
 - **`refusals/`** — the callers planet refuses, each a scope or an account (`Caller`), until when, and when that was
   decided (`Refusal`, `Decision`). It keeps the latest decision (`Refusal.Decided`), from the commands another module
   sends in planet's words (`RefuseCaller`, `AdmitCaller`). `Book.Refusal(payer)` is what the click, the bomb and the
