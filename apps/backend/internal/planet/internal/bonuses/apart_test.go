@@ -109,12 +109,12 @@ func TestAQuizWaitsForABoxStillFlyingPastTheSpacing(t *testing.T) {
 func TestAWelcomeBoxWaitsForTheWelcomeQuizToBeGoneAndNoLonger(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
 	require.Greater(t, spacing(*rulesOf(registry)), time.Minute)
-	entrant := EntrantOf(newcomerPayer)
+	entrant := entrantOf(newcomerPayer)
 	events := attend(t, registry, entrant)
 
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	registry.Clicked(clickOf(newcomerPayer, false))
 	after(t, registry, clock, 50*time.Second)
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	registry.Clicked(clickOf(newcomerPayer, true))
 	after(t, registry, clock, time.Second)
 	quizzes := receivedOn(events).quizzes
 	require.Len(t, quizzes, 1, "the empty bank asks at once")

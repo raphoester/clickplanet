@@ -1,0 +1,94 @@
+package postgres_charge_store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+)
+
+const chargeLock = 0x63686172
+
+func New(db cppg.Conn) *Store {
+	return &Store{db: db}
+}
+
+type Store struct {
+	db cppg.Conn
+}
+
+var _ charges.Store = (*Store)(nil)
+
+func (s *Store) Change(
+	ctx context.Context,
+	holder charges.Holder,
+	change func(charges.Held) (charges.Held, error),
+) error {
+	return s.db.InTx(ctx, func(ctx context.Context) error {
+		tx := s.db.On(ctx)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, chargeLock, string(holder)); err != nil {
+			return fmt.Errorf("failed to lock the charges: %w", err)
+		}
+
+		before, err := heldBy(ctx, tx, holder)
+		if err != nil {
+			return err
+		}
+
+		after, err := change(before)
+		if err != nil {
+			return err
+		}
+
+		if after != before {
+			if err := keep(ctx, tx, holder, after); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (s *Store) Held(ctx context.Context, holder charges.Holder) (charges.Held, error) {
+	return heldBy(ctx, s.db.On(ctx), holder)
+}
+
+func keep(ctx context.Context, tx cppg.Querier, holder charges.Holder, held charges.Held) error {
+	if held.Empty() {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM charges WHERE account = $1`, string(holder)); err != nil {
+			return fmt.Errorf("failed to delete a spent hand: %w", err)
+		}
+		return nil
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+		INSERT INTO charges (account, refill, bomb, enclosures, spread_clicks, shields) VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (account) DO UPDATE SET
+			refill = EXCLUDED.refill,
+			bomb = EXCLUDED.bomb,
+			enclosures = EXCLUDED.enclosures,
+			spread_clicks = EXCLUDED.spread_clicks,
+			shields = EXCLUDED.shields
+	`, string(holder), held.Refill, held.Bomb, held.Enclosures, held.SpreadClicks, held.Shields); err != nil {
+		return fmt.Errorf("failed to write the hand: %w", err)
+	}
+	return nil
+}
+
+func heldBy(ctx context.Context, db cppg.Querier, holder charges.Holder) (charges.Held, error) {
+	var held charges.Held
+	err := db.QueryRowContext(ctx,
+		`SELECT refill, bomb, enclosures, spread_clicks, shields FROM charges WHERE account = $1`, string(holder)).
+		Scan(&held.Refill, &held.Bomb, &held.Enclosures, &held.SpreadClicks, &held.Shields)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return charges.Held{}, nil
+	case err != nil:
+		return charges.Held{}, fmt.Errorf("failed to read the hand: %w", err)
+	}
+
+	return held, nil
+}

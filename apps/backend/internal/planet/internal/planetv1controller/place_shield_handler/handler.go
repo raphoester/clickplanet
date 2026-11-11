@@ -7,8 +7,8 @@ import (
 	"connectrpc.com/connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/allegiancemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
@@ -16,7 +16,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in place_shield_usecase.In) (bonuses.Held, error)
+	Execute(ctx context.Context, in place_shield_usecase.In) (charges.Held, error)
 }
 
 func New(useCase UseCase) PlaceShieldHandler {

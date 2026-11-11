@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 )
 
-// Rules is what the rule set in force says of the boxes, the quizzes and the charges.
+// Rules is the half of planet.v1.BonusRules the offers read: when a box or a quiz comes, what it may be and how much
+// it grants. How much of each charge a hand holds, and what it does when it is spent, is the wallet's half
+// (charges.Rules): an offer pays what it drew, and the wallet keeps what fits.
 type Rules struct {
 	Boxes Pace
 
@@ -30,31 +30,21 @@ type Rules struct {
 	SignInRefill bool
 }
 
-// A tile keeps its shields in a byte.
-const mostShieldsOnATile = 255
-
 func (r Rules) Validate() error {
 	return errors.Join(
-		rules.Positive("boxes.minInterval", r.Boxes.MinInterval),
-		rules.AtLeast("boxes.maxInterval", r.Boxes.MaxInterval, "boxes.minInterval", r.Boxes.MinInterval),
-		rules.Positive("boxes.maxChargesPerHour", r.Boxes.MaxChargesPerHour),
+		positive("boxes.minInterval", r.Boxes.MinInterval),
+		atLeast("boxes.maxInterval", r.Boxes.MaxInterval, "boxes.minInterval", r.Boxes.MinInterval),
+		positive("boxes.maxChargesPerHour", r.Boxes.MaxChargesPerHour),
 		weightsProblem(r),
-		rules.Positive("offerTtl", r.OfferTTL),
-		rules.Positive("missRetry", r.MissRetry),
-		rules.Positive("activeWithin", r.ActiveWithin),
-		rules.Positive("spread.clicks", r.Spread.Clicks),
-		rules.Positive("spread.maxPerBox", r.Spread.MaxPerBox),
-		rules.Positive("bomb.rings", r.Bomb.Rings), rules.Finite("bomb.rings", r.Bomb.Rings),
-		rules.Positive("enclose.maxTiles", r.Enclose.MaxTiles),
-		rules.Positive("enclose.held", r.Enclose.Held),
-		rules.Positive("enclose.maxPerBox", r.Enclose.MaxPerBox),
-		rules.Positive("shield.held", r.Shield.Held),
-		rules.Positive("shield.minPerBox", r.Shield.MinPerBox),
-		rules.AtLeast("shield.maxPerBox", r.Shield.MaxPerBox, "shield.minPerBox", r.Shield.MinPerBox),
-		rules.Positive("shield.perTile", r.Shield.PerTile),
-		rules.AtMost("shield.perTile", r.Shield.PerTile, "what a tile keeps", mostShieldsOnATile),
-		rules.NotNegative("welcome.within", r.Welcome.Within),
-		rules.NotNegative("welcome.boxAfter", r.Welcome.BoxAfter),
+		positive("offerTtl", r.OfferTTL),
+		positive("missRetry", r.MissRetry),
+		positive("activeWithin", r.ActiveWithin),
+		positive("spread.maxPerBox", r.Spread.MaxPerBox),
+		positive("enclose.maxPerBox", r.Enclose.MaxPerBox),
+		positive("shield.minPerBox", r.Shield.MinPerBox),
+		atLeast("shield.maxPerBox", r.Shield.MaxPerBox, "shield.minPerBox", r.Shield.MinPerBox),
+		notNegative("welcome.within", r.Welcome.Within),
+		notNegative("welcome.boxAfter", r.Welcome.BoxAfter),
 		r.Quiz.validate(),
 	)
 }
@@ -76,7 +66,7 @@ func weightsProblem(r Rules) error {
 	offered := false
 	for _, each := range weighed {
 		weight := r.Kinds[each.kind]
-		problems = append(problems, rules.NotNegative("kinds."+each.field, weight), rules.Finite("kinds."+each.field, weight))
+		problems = append(problems, notNegative("kinds."+each.field, weight), finite("kinds."+each.field, weight))
 		offered = offered || r.Offered(each.kind)
 	}
 	if !offered {
@@ -88,25 +78,23 @@ func weightsProblem(r Rules) error {
 
 func (q QuizRules) validate() error {
 	return errors.Join(
-		rules.Positive("quiz.minInterval", q.MinInterval),
-		rules.AtLeast("quiz.maxInterval", q.MaxInterval, "quiz.minInterval", q.MinInterval),
-		rules.Positive("quiz.maxChargesPerHour", q.MaxChargesPerHour),
-		rules.Positive("quiz.missRetry", q.MissRetry),
-		rules.Positive("quiz.offerTtl", q.OfferTTL),
-		rules.Positive("quiz.answerWindow", q.AnswerWindow),
-		rules.NotNegative("quiz.leaderBias", q.LeaderBias), rules.Finite("quiz.leaderBias", q.LeaderBias),
+		positive("quiz.minInterval", q.MinInterval),
+		atLeast("quiz.maxInterval", q.MaxInterval, "quiz.minInterval", q.MinInterval),
+		positive("quiz.maxChargesPerHour", q.MaxChargesPerHour),
+		positive("quiz.missRetry", q.MissRetry),
+		positive("quiz.offerTtl", q.OfferTTL),
+		positive("quiz.answerWindow", q.AnswerWindow),
+		notNegative("quiz.leaderBias", q.LeaderBias), finite("quiz.leaderBias", q.LeaderBias),
 	)
 }
 
 type SpreadRules struct {
-	Clicks    int
 	MaxPerBox int
 }
 
-// BombRules: Off, no box or quiz offers a bomb, and a bomb held is not dropped.
+// BombRules: Off, no box or quiz offers a bomb. The wallet reads bomb.off too, and drops none.
 type BombRules struct {
-	Rings float64
-	Off   bool
+	Off bool
 }
 
 // Offered is true for a kind a box or a quiz may be: weighed above 0, and not a bomb while bombs are off.
@@ -115,17 +103,12 @@ func (r Rules) Offered(kind Kind) bool {
 }
 
 type EncloseRules struct {
-	MaxTiles  int
-	Held      int
 	MaxPerBox int
-	Unlimited bool
 }
 
 type ShieldRules struct {
-	Held      int
 	MinPerBox int
 	MaxPerBox int
-	PerTile   int
 }
 
 type WelcomeRules struct {

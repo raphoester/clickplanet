@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/offercaller"
 )
 
 type UseCase interface {
@@ -28,6 +29,7 @@ func (h ClaimBonusHandler) ClaimBonus(
 	req *connect.Request[planetv1.ClaimBonusRequest],
 ) (*connect.Response[planetv1.ClaimBonusResponse], error) {
 	out, err := h.useCase.Execute(ctx, claim_bonus_usecase.In{
+		Caller:    offercaller.Of(ctx),
 		Token:     req.Msg.GetToken(),
 		CountryID: req.Msg.GetCountryId(),
 	})
@@ -41,7 +43,7 @@ func (h ClaimBonusHandler) ClaimBonus(
 	return connect.NewResponse(&planetv1.ClaimBonusResponse{
 		Kind:    EncodeKind(out.Kind),
 		Amount:  uint32(out.Amount),
-		Charges: chargesheld.Encode(out.Held),
+		Charges: chargesheld.EncodeHand(out.Hand),
 	}), nil
 }
 

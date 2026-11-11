@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
@@ -21,7 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-const holder bonuses.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
+const holder charges.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 
 type confirmThenFail struct{ placements.Escrow }
 
@@ -40,13 +40,13 @@ func setup(t *testing.T) flushed {
 	t.Helper()
 
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	charges := bonuses.NewCharges(postgres_charge_store.New(db), bonuses.TestRules)
-	_, err := charges.Grant(t.Context(), holder, bonuses.KindShields, 2)
+	wallet := charges.NewCharges(postgres_charge_store.New(db), charges.TestRules)
+	_, err := wallet.Grant(t.Context(), holder, charges.KindShields, 2)
 	require.NoError(t, err)
 	store := postgres_placement_store.New(db)
 	return flushed{
 		db: db, tiles: postgres_tile_store.New(db), store: store,
-		escrow: placements.NewEscrow(db, charges, store, &placements.SequentialIDs{}, cptime.SystemClock{}),
+		escrow: placements.NewEscrow(db, wallet, store, &placements.SequentialIDs{}, cptime.SystemClock{}),
 	}
 }
 

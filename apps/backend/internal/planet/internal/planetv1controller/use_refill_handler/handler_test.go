@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
@@ -42,7 +42,7 @@ func use(t *testing.T, useCase *stubUseCase) (*planetv1.UseRefillResponse, error
 func TestARefillAnswersTheFullBankAndWhatIsLeft(t *testing.T) {
 	useCase := &stubUseCase{out: use_refill_usecase.Out{
 		Budget: clicks.Budget{State: cpratelimit.State{Tokens: 60, Capacity: 60, PerSecond: 0.2}},
-		Held:   bonuses.Held{Bomb: true},
+		Held:   charges.Held{Bomb: true},
 	}}
 
 	msg, err := use(t, useCase)

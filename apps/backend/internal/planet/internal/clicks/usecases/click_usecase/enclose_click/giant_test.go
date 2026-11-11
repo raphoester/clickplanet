@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -167,8 +167,8 @@ type game struct {
 	tiles   *inmemory_tile_storage.Storage
 	ledger  *inmemory_ledger_storage.Storage
 	click   click_usecase.IUseCase
-	terrain bonuses.Terrain
-	rules   bonuses.Rules
+	terrain charges.Terrain
+	rules   charges.Rules
 }
 
 func newGame(t testing.TB, w world) *game {
@@ -180,11 +180,11 @@ func newGame(t testing.TB, w world) *game {
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), nil)
 	require.NoError(t, takings.Load(t.Context()))
 
-	rules := bonuses.Rules{Enclose: bonuses.EncloseRules{MaxTiles: 1_000_000, Unlimited: true}}
+	rules := charges.Rules{Enclose: charges.EncloseRules{MaxTiles: 1_000_000, Unlimited: true}}
 	writer := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), takings, cptime.SystemClock{})
-	terrain := bonuses.NewTerrain(w.geography, tiles)
+	terrain := charges.NewTerrain(w.geography, tiles)
 	var chain click_usecase.IUseCase = click_usecase.New(clicks.NewBoard(mapTiles), writer, cpcountries.New())
-	chain = enclose_click.New(chain, nil, terrain, enclose_click.NewAnnexer(writer, nil), func() bonuses.Rules { return rules })
+	chain = enclose_click.New(chain, nil, terrain, enclose_click.NewAnnexer(writer, nil), func() charges.Rules { return rules })
 
 	return &game{world: w, tiles: tiles, ledger: takings, click: chain, terrain: terrain, rules: rules}
 }

@@ -1,0 +1,164 @@
+package drop_bomb_usecase_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+)
+
+type stubMap struct {
+	nearest uint32
+	arc     float64
+	centre  clicks.Vec3
+	radius  float64
+}
+
+func (s *stubMap) Nearest(clicks.Vec3) (uint32, float64) { return s.nearest, s.arc }
+
+func (s *stubMap) Position(uint32) (clicks.Vec3, bool) { return clicks.Vec3{Y: 1}, true }
+
+func (s *stubMap) Within(centre clicks.Vec3, radius float64) []uint32 {
+	s.centre, s.radius = centre, radius
+	return []uint32{9, 10, 11}
+}
+
+type stubClearer struct{ cleared []clicks.Blast }
+
+func (s *stubClearer) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, error) {
+	s.cleared = append(s.cleared, blast)
+	return blast, nil
+}
+
+type countries struct{}
+
+func (countries) CheckCountry(country string) bool { return country == "fr" }
+
+var inForce = func() func() charges.Rules {
+	rules := charges.TestRules()
+	rules.Bomb.Rings = 6
+	return func() charges.Rules { return rules }
+}()
+
+var rules = charges.NewBombing(inForce, 0.005)
+
+type parts struct {
+	bombs   *charges.MemoryStore
+	geo     *stubMap
+	clearer *stubClearer
+}
+
+func setup(held bool, arc float64) (*drop_bomb_usecase.UseCase, parts) {
+	p := parts{
+		bombs:   charges.NewMemoryStore(),
+		geo:     &stubMap{nearest: 10, arc: arc},
+		clearer: &stubClearer{},
+	}
+
+	p.bombs.Keep(bomber, charges.Held{Bomb: held})
+
+	return drop_bomb_usecase.New(charges.NewCharges(p.bombs, inForce), p.geo, p.clearer, countries{}, rules), p
+}
+
+const bomber charges.Holder = "a-guest"
+
+func dropping(t *testing.T) context.Context {
+	t.Helper()
+
+	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), string(bomber))
+}
+
+func TestABombOnLandClearsACircleAroundTheTileHit(t *testing.T) {
+	useCase, p := setup(true, 0.001)
+
+	blast, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, uint32(10), blast.Tile)
+	assert.Equal(t, []uint32{9, 10, 11}, blast.Cleared)
+	assert.Equal(t, clicks.Vec3{Y: 1}, p.geo.centre, "the circle is centred on the tile hit, not the raw aim")
+	assert.InDelta(t, 0.03, p.geo.radius, 1e-9)
+	assert.InDelta(t, 0.03, blast.Radius, 1e-9)
+	assert.Equal(t, clicks.Vec3{Y: 1}, blast.Point, "drawn at the tile's centre")
+	assert.Equal(t, charges.Held{}, p.bombs.Kept(bomber))
+}
+
+func TestACallerWithNoAccountHasNoBomb(t *testing.T) {
+	useCase, p := setup(true, 0.001)
+
+	_, err := useCase.Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
+	require.ErrorIs(t, err, drop_bomb_usecase.ErrNoBomb, "a caller with no account holds no bomb")
+
+	assert.Equal(t, charges.Held{Bomb: true}, p.bombs.Kept(bomber))
+}
+
+func TestABombInTheSeaIsSpentAndClearsNothing(t *testing.T) {
+	useCase, p := setup(true, 0.2)
+
+	blast, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Zero(t, blast.Tile)
+	assert.Empty(t, blast.Cleared)
+	assert.Equal(t, clicks.Vec3{X: 1}, blast.Point, "drawn where it was aimed, on the unit sphere")
+	assert.Len(t, p.clearer.cleared, 1, "a splash is still announced")
+	assert.Equal(t, charges.Held{}, p.bombs.Kept(bomber), "the bomb is gone")
+}
+
+func TestNoBombNoBlast(t *testing.T) {
+	useCase, p := setup(false, 0.001)
+
+	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 1}, CountryID: "fr"})
+
+	require.ErrorIs(t, err, drop_bomb_usecase.ErrNoBomb)
+	assert.Empty(t, p.clearer.cleared)
+}
+
+func TestAMalformedDropDoesNotCostTheBomb(t *testing.T) {
+	useCase, p := setup(true, 0.001)
+
+	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 1}, CountryID: "xx"})
+	require.ErrorIs(t, err, clicks.ErrUnknownCountry)
+
+	p.geo.nearest = 0
+	_, err = useCase.Execute(dropping(t), drop_bomb_usecase.In{CountryID: "fr"})
+	require.ErrorIs(t, err, clicks.ErrTileOutOfRange)
+
+	assert.Equal(t, charges.Held{Bomb: true}, p.bombs.Kept(bomber), "a malformed drop is refused before the bomb is touched")
+}
+
+func TestAStoreThatFailsFailsTheDropWithoutSayingThereIsNoBomb(t *testing.T) {
+	useCase, p := setup(true, 0.001)
+	down := errors.New("postgres is down")
+	p.bombs.FailWith(down)
+
+	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 1}, CountryID: "fr"})
+
+	require.ErrorIs(t, err, down)
+	assert.NotErrorIs(t, err, drop_bomb_usecase.ErrNoBomb)
+	assert.Empty(t, p.clearer.cleared)
+}
+
+func TestWhileBombsAreOffADropIsRefusedAndTheBombStaysHeld(t *testing.T) {
+	off := charges.TestRules()
+	off.Bomb.Rings, off.Bomb.Off = 6, true
+	offRules := func() charges.Rules { return off }
+	bombs := charges.NewMemoryStore()
+	bombs.Keep(bomber, charges.Held{Bomb: true})
+	clearer := &stubClearer{}
+	useCase := drop_bomb_usecase.New(charges.NewCharges(bombs, offRules), &stubMap{nearest: 10, arc: 0.001}, clearer,
+		countries{}, charges.NewBombing(offRules, 0.005))
+
+	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "xx"})
+
+	require.ErrorIs(t, err, charges.ErrBombsOff, "refused before anything else, a malformed drop too")
+	assert.Equal(t, charges.Held{Bomb: true}, bombs.Kept(bomber), "the bomb stays held")
+	assert.Empty(t, clearer.cleared)
+}

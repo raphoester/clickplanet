@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
@@ -23,7 +23,7 @@ type Allegiances interface {
 	PlayError(ctx context.Context, payer clicks.Payer, flag string) error
 }
 
-func NewGate(tiles Tiles, countries Countries, allegiances Allegiances, rules func() bonuses.Rules) Gate {
+func NewGate(tiles Tiles, countries Countries, allegiances Allegiances, rules func() charges.Rules) Gate {
 	return Gate{tiles: tiles, countries: countries, allegiances: allegiances, rules: rules}
 }
 
@@ -32,7 +32,7 @@ type Gate struct {
 	tiles       Tiles
 	countries   Countries
 	allegiances Allegiances
-	rules       func() bonuses.Rules
+	rules       func() charges.Rules
 }
 
 type Aim struct {

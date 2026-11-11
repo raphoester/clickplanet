@@ -7,8 +7,8 @@ import (
 	"connectrpc.com/connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 )
 
@@ -30,7 +30,7 @@ func (h GrantChargesHandler) GrantCharges(
 ) (*connect.Response[planetv1.GrantChargesResponse], error) {
 	out, err := h.useCase.Execute(ctx, grant_charges_usecase.In{
 		Account: req.Msg.GetAccountId(),
-		Grant: bonuses.Held{
+		Grant: charges.Held{
 			Refill:       req.Msg.GetRefill(),
 			Bomb:         req.Msg.GetBomb(),
 			Enclosures:   int(req.Msg.GetEnclosures()),
@@ -46,8 +46,8 @@ func (h GrantChargesHandler) GrantCharges(
 			Before:    chargesheld.Encode(out.Before),
 			After:     chargesheld.Encode(out.After),
 		}), nil
-	case errors.Is(err, bonuses.ErrInvalidHolder), errors.Is(err, bonuses.ErrNothingToGrant),
-		errors.Is(err, bonuses.ErrNegativeGrant):
+	case errors.Is(err, charges.ErrInvalidHolder), errors.Is(err, charges.ErrNothingToGrant),
+		errors.Is(err, charges.ErrNegativeGrant):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	default:
 		return nil, err

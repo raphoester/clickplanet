@@ -14,7 +14,6 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -45,47 +44,38 @@ func (s *stubRegistry) Claim(token string, entrant bonuses.Entrant, scope string
 
 func (s *stubRegistry) Publish(taken bonuses.Taken) { s.published = append(s.published, taken) }
 
-const guest bonuses.Holder = "a-guest"
-
-func charges() (bonuses.Charges, *bonuses.MemoryStore) {
-	store := bonuses.NewMemoryStore()
-	rules := bonuses.TestRules()
-	rules.Shield.Held = 12
-	return bonuses.NewCharges(store, func() bonuses.Rules { return rules }), store
-}
+var guest = bonuses.Caller{Scope: "1.2.3.4", Account: "a-guest"}
 
 func granting(kind bonuses.Kind) *stubRegistry {
 	return &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: kind, Amount: 1}}
 }
 
-func played(t *testing.T) context.Context {
-	t.Helper()
-
-	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), string(guest))
+func claimOf(token, country string) claim_bonus_usecase.In {
+	return claim_bonus_usecase.In{Caller: guest, Token: token, CountryID: country}
 }
 
 func TestAClaimHandsTheChargeToTheAccount(t *testing.T) {
 	registry := granting(bonuses.KindRefill)
-	charger, store := charges()
+	wallet := bonuses.NewFakeWallet()
 
-	out, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
-		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
+	out, err := claim_bonus_usecase.New(registry, wallet, cpredis.NewRecordedEvents(), clock).
+		Execute(t.Context(), claimOf("a-token", "fr"))
 	require.NoError(t, err)
 
 	assert.Equal(t, "a-token", registry.token)
 	assert.Equal(t, bonuses.Entrant("1.2.3.4"), registry.entrant, "a guest's offer is the scope's")
-	assert.Equal(t, bonuses.Held{Refill: true}, store.Kept(guest))
+	assert.Equal(t, bonuses.Hand{Refill: true}, wallet.Kept(guest.Account))
 	assert.Equal(t, bonuses.KindRefill, out.Kind)
-	assert.Equal(t, bonuses.Held{Refill: true}, out.Held)
+	assert.Equal(t, bonuses.Hand{Refill: true}, out.Hand)
 }
 
 func TestALinkedAccountClaimsWhatWasOfferedToTheAccount(t *testing.T) {
 	registry := granting(bonuses.KindRefill)
-	charger, _ := charges()
-	ctx := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-player"))
+	wallet := bonuses.NewFakeWallet()
+	player := bonuses.Caller{Scope: "1.2.3.4", Account: "a-player", Linked: true}
 
-	_, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
-		Execute(ctx, claim_bonus_usecase.In{Token: "a-token", CountryID: "fr"})
+	_, err := claim_bonus_usecase.New(registry, wallet, cpredis.NewRecordedEvents(), clock).
+		Execute(t.Context(), claim_bonus_usecase.In{Caller: player, Token: "a-token", CountryID: "fr"})
 	require.NoError(t, err)
 
 	assert.Equal(t, bonuses.Entrant("account:a-player"), registry.entrant)
@@ -94,100 +84,105 @@ func TestALinkedAccountClaimsWhatWasOfferedToTheAccount(t *testing.T) {
 
 func TestEveryKindIsGrantedAsACharge(t *testing.T) {
 	for _, kind := range bonuses.Kinds {
-		charger, store := charges()
+		wallet := bonuses.NewFakeWallet()
 
-		_, err := claim_bonus_usecase.New(granting(kind), charger, cpredis.NewRecordedEvents(), clock).
-			Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+		_, err := claim_bonus_usecase.New(granting(kind), wallet, cpredis.NewRecordedEvents(), clock).
+			Execute(t.Context(), claimOf("a-token", ""))
 		require.NoError(t, err)
 
-		assert.Equal(t, 1, store.Kept(guest).Count(kind), kind)
+		require.Len(t, wallet.Payments(), 1)
+		assert.Equal(t, bonuses.Payment{
+			Grant: bonuses.OfferGrantOf("a-token"), Account: guest.Account, Kind: kind, Amount: 1,
+		}, wallet.Payments()[0], kind)
 	}
 }
 
 func TestACatchIsAnnouncedWithTheCountryTheClaimNamed(t *testing.T) {
 	registry := granting(bonuses.KindBomb)
-	charger, _ := charges()
+	wallet := bonuses.NewFakeWallet()
 
-	_, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
-		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
+	_, err := claim_bonus_usecase.New(registry, wallet, cpredis.NewRecordedEvents(), clock).
+		Execute(t.Context(), claimOf("a-token", "jp"))
 	require.NoError(t, err)
 
 	assert.Equal(t, []bonuses.Taken{{CountryID: "jp", Kind: bonuses.KindBomb}}, registry.published)
 }
 
 func TestACatchIsToldToTheOtherModulesWithTheAccountThatCaughtIt(t *testing.T) {
-	charger, _ := charges()
+	wallet := bonuses.NewFakeWallet()
 	events := cpredis.NewRecordedEvents()
 
-	_, err := claim_bonus_usecase.New(granting(bonuses.KindBomb), charger, events, clock).
-		Execute(played(t), claim_bonus_usecase.In{Token: "a-token", CountryID: "jp"})
+	_, err := claim_bonus_usecase.New(granting(bonuses.KindBomb), wallet, events, clock).
+		Execute(t.Context(), claimOf("a-token", "jp"))
 	require.NoError(t, err)
 
 	require.Len(t, events.Published(), 1)
-	assert.True(t, proto.Equal(&planetv1.BonusClaimed{AccountId: string(guest), ClaimedAt: timestamppb.New(now)},
+	assert.True(t, proto.Equal(&planetv1.BonusClaimed{AccountId: string(guest.Account), ClaimedAt: timestamppb.New(now)},
 		events.Published()[0]))
 }
 
 func TestARefusedClaimGrantsNothingAndAnnouncesNothing(t *testing.T) {
 	registry := &stubRegistry{claimable: false}
-	charger, store := charges()
+	wallet := bonuses.NewFakeWallet()
 	events := cpredis.NewRecordedEvents()
 
-	_, err := claim_bonus_usecase.New(registry, charger, events, clock).
-		Execute(played(t), claim_bonus_usecase.In{Token: "not-mine"})
+	_, err := claim_bonus_usecase.New(registry, wallet, events, clock).
+		Execute(t.Context(), claimOf("not-mine", ""))
 
 	require.ErrorIs(t, err, claim_bonus_usecase.ErrNoSuchBonus)
-	assert.Equal(t, bonuses.Held{}, store.Kept(guest))
+	assert.Equal(t, bonuses.Hand{}, wallet.Kept(guest.Account))
 	assert.Empty(t, registry.published)
 	assert.Empty(t, events.Published())
 }
 
 func TestTheAmountTheBoxGaveIsGrantedAndAnswered(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3}}
-	charger, store := charges()
+	wallet := bonuses.NewFakeWallet()
 
-	out, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
-		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+	out, err := claim_bonus_usecase.New(registry, wallet, cpredis.NewRecordedEvents(), clock).
+		Execute(t.Context(), claimOf("a-token", ""))
 	require.NoError(t, err)
 
-	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, store.Kept(guest))
+	assert.Equal(t, bonuses.Hand{SpreadClicks: 3}, wallet.Kept(guest.Account))
 	assert.Equal(t, 3, out.Amount)
-	assert.Equal(t, bonuses.Held{SpreadClicks: 3}, out.Held)
+	assert.Equal(t, bonuses.Hand{SpreadClicks: 3}, out.Hand)
 }
 
 func TestTheAnswerSaysOnlyWhatThePoolKept(t *testing.T) {
 	registry := &stubRegistry{claimable: true, reward: bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 4}}
-	charger, store := charges()
-	store.Keep(guest, bonuses.Held{SpreadClicks: 7})
+	wallet := bonuses.NewFakeWallet()
+	wallet.Size(bonuses.KindSpreadClicks, 8)
+	wallet.Keep(guest.Account, bonuses.Hand{SpreadClicks: 7})
 
-	out, err := claim_bonus_usecase.New(registry, charger, cpredis.NewRecordedEvents(), clock).
-		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+	out, err := claim_bonus_usecase.New(registry, wallet, cpredis.NewRecordedEvents(), clock).
+		Execute(t.Context(), claimOf("a-token", ""))
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, out.Amount, "the pool held 7 of 8, so a box of 4 added 1")
-	assert.Equal(t, bonuses.Held{SpreadClicks: 8}, out.Held)
+	assert.Equal(t, bonuses.Hand{SpreadClicks: 8}, out.Hand)
 }
 
 func TestAClaimIsGrantedWhenTheCallerLeavesAfterIt(t *testing.T) {
-	charger, store := charges()
-	ctx, leave := context.WithCancel(played(t))
+	wallet := bonuses.NewFakeWallet()
+	ctx, leave := context.WithCancel(t.Context())
 	leave()
 
-	_, err := claim_bonus_usecase.New(granting(bonuses.KindBomb), charger, cpredis.NewRecordedEvents(), clock).
-		Execute(ctx, claim_bonus_usecase.In{Token: "a-token"})
+	_, err := claim_bonus_usecase.New(granting(bonuses.KindBomb), wallet, cpredis.NewRecordedEvents(), clock).
+		Execute(ctx, claimOf("a-token", ""))
 	require.NoError(t, err)
 
-	assert.Equal(t, bonuses.Held{Bomb: true}, store.Kept(guest))
+	assert.Equal(t, []error{nil}, wallet.Gone(), "the payment runs on a context the caller's leaving does not end")
+	assert.Equal(t, bonuses.Hand{Bomb: true}, wallet.Kept(guest.Account))
 }
 
 func TestAFailedGrantIsNotARefusalAndIsToldToNobody(t *testing.T) {
 	registry := granting(bonuses.KindBomb)
-	charger, store := charges()
-	store.FailWith(errors.New("postgres is down"))
+	wallet := bonuses.NewFakeWallet()
+	wallet.FailWith(errors.New("postgres is down"))
 	events := cpredis.NewRecordedEvents()
 
-	_, err := claim_bonus_usecase.New(registry, charger, events, clock).
-		Execute(played(t), claim_bonus_usecase.In{Token: "a-token"})
+	_, err := claim_bonus_usecase.New(registry, wallet, events, clock).
+		Execute(t.Context(), claimOf("a-token", ""))
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, claim_bonus_usecase.ErrNoSuchBonus)

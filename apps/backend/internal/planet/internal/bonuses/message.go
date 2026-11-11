@@ -6,11 +6,9 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 )
 
-var Part = rules.PartOf[Rules]{Key: "bonuses", Read: func(m *planetv1.Rules) Rules { return RulesOf(m.GetBonuses()) }}
-
+// RulesOf reads the offers' half of bonuses; planet's rule sets hold it as a part (rules/parts.Grants).
 func RulesOf(m *planetv1.BonusRules) Rules {
 	kinds, quiz := m.GetKinds(), m.GetQuiz()
 
@@ -30,21 +28,11 @@ func RulesOf(m *planetv1.BonusRules) Rules {
 		OfferTTL:     duration(m.GetOfferTtl()),
 		MissRetry:    duration(m.GetMissRetry()),
 		ActiveWithin: duration(m.GetActiveWithin()),
-		Spread:       SpreadRules{Clicks: int(m.GetSpread().GetClicks()), MaxPerBox: int(m.GetSpread().GetMaxPerBox())},
-		Bomb:         BombRules{Rings: m.GetBomb().GetRings(), Off: m.GetBomb().GetOff()},
-		Enclose: EncloseRules{
-			MaxTiles:  int(m.GetEnclose().GetMaxTiles()),
-			Held:      int(m.GetEnclose().GetHeld()),
-			MaxPerBox: int(m.GetEnclose().GetMaxPerBox()),
-			Unlimited: m.GetEnclose().GetUnlimited(),
-		},
-		Shield: ShieldRules{
-			Held:      int(m.GetShield().GetHeld()),
-			MinPerBox: int(m.GetShield().GetMinPerBox()),
-			MaxPerBox: int(m.GetShield().GetMaxPerBox()),
-			PerTile:   int(m.GetShield().GetPerTile()),
-		},
-		Welcome: WelcomeRules{Within: duration(m.GetWelcome().GetWithin()), BoxAfter: duration(m.GetWelcome().GetBoxAfter())},
+		Spread:       SpreadRules{MaxPerBox: int(m.GetSpread().GetMaxPerBox())},
+		Bomb:         BombRules{Off: m.GetBomb().GetOff()},
+		Enclose:      EncloseRules{MaxPerBox: int(m.GetEnclose().GetMaxPerBox())},
+		Shield:       ShieldRules{MinPerBox: int(m.GetShield().GetMinPerBox()), MaxPerBox: int(m.GetShield().GetMaxPerBox())},
+		Welcome:      WelcomeRules{Within: duration(m.GetWelcome().GetWithin()), BoxAfter: duration(m.GetWelcome().GetBoxAfter())},
 		Quiz: QuizRules{
 			Enabled:           quiz.GetEnabled(),
 			MinInterval:       duration(quiz.GetMinInterval()),

@@ -14,8 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/reach_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
@@ -214,10 +214,10 @@ func (accountVerifier) Verify(_ context.Context, token string, _ string, _ time.
 
 func accountServer(t *testing.T, change func(*clicks.Throttle)) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
 	t.Helper()
-	return refillServer(t, change, bonuses.NewMemoryStore())
+	return refillServer(t, change, charges.NewMemoryStore())
 }
 
-func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.MemoryStore) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
+func refillServer(t *testing.T, change func(*clicks.Throttle), refills *charges.MemoryStore) (*httptest.Server, *cpratelimit.Limiter, *cptime.FixedClock) {
 	t.Helper()
 
 	throttle := clicks.TestThrottle()
@@ -232,7 +232,7 @@ func refillServer(t *testing.T, change func(*clicks.Throttle), refills *bonuses.
 			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, buckets)),
 			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, buckets, thawed)),
 			UseRefillHandler: use_refill_handler.New(use_refill_usecase.New(
-				bonuses.NewCharges(refills, bonuses.TestRules), limiter, onePrice, buckets)),
+				charges.NewCharges(refills, charges.TestRules), limiter, onePrice, buckets)),
 		},
 		connect.WithInterceptors(
 			errorNet(),
@@ -373,10 +373,10 @@ func useRefill(t *testing.T, server *httptest.Server, ip string, token string) (
 }
 
 func TestARefillGivesABankWhenTheNetworksBucketIsTheTighter(t *testing.T) {
-	refills := bonuses.NewMemoryStore()
+	refills := charges.NewMemoryStore()
 	server, _, clock := refillServer(t, func(throttle *clicks.Throttle) { throttle.V6ScopeMultiplier = 2 }, refills)
 	me, partner := linkedPrefix+accountNumber(0).String(), linkedPrefix+accountNumber(1).String()
-	refills.Keep(bonuses.Holder(accountNumber(0).String()), bonuses.Held{Refill: true})
+	refills.Keep(charges.Holder(accountNumber(0).String()), charges.Held{Refill: true})
 
 	for _, token := range []string{me, partner} {
 		for click := range 10 {

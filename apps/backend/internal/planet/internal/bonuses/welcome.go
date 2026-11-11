@@ -21,10 +21,10 @@ func (r *Registry) welcome(entry *caller, click Click, rules Rules, now time.Tim
 		return
 	}
 
-	account, ok := r.newcomers[click.Holder]
+	account, ok := r.newcomers[click.Caller.Account]
 	if !ok {
 		account = &newcomer{until: until}
-		r.newcomers[click.Holder] = account
+		r.newcomers[click.Caller.Account] = account
 	}
 
 	if !account.boxed {
@@ -41,9 +41,9 @@ func (r *Registry) welcome(entry *caller, click Click, rules Rules, now time.Tim
 }
 
 func (r *Registry) forgetNewcomers(now time.Time) {
-	for holder, account := range r.newcomers {
+	for each, account := range r.newcomers {
 		if !now.Before(account.until) {
-			delete(r.newcomers, holder)
+			delete(r.newcomers, each)
 		}
 	}
 }

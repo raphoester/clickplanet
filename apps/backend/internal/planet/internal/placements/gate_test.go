@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -29,8 +29,8 @@ func (b board) Owner(tile uint32) (string, bool) {
 
 func (b board) Shields(tile uint32) int { return b.shields[tile] }
 
-var twoATile = func() bonuses.Rules {
-	rules := bonuses.TestRules()
+var twoATile = func() charges.Rules {
+	rules := charges.TestRules()
 	rules.Shield.PerTile = 2
 	return rules
 }

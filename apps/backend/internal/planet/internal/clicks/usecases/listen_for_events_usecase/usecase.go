@@ -10,8 +10,10 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
@@ -39,12 +41,18 @@ type Event struct {
 	Offer   *bonuses.Offer
 	Quiz    *bonuses.QuizOffer
 	Taken   *bonuses.Taken
-	Spread  *bonuses.Spread
-	Granted *bonuses.Held
+	Spread  *notices.Spread
+	Granted *charges.Held
 }
 
-type BonusFeed interface {
+// Offers is the boxes and quizzes for the caller, and every catch.
+type Offers interface {
 	Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func())
+}
+
+// Notices is planet's own news for the caller: every spread, and what its account holds after a grant.
+type Notices interface {
+	Attend(caller clicks.Caller) (<-chan notices.Event, func())
 }
 
 type RulesFeed interface {
@@ -59,7 +67,9 @@ type Facts interface {
 	Tell(fact facts.Fact)
 }
 
-func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFeed, rules RulesFeed, facts Facts) *UseCase {
+func New(
+	subscriber UpdatesSubscriber, heartbeat time.Duration, offers Offers, notices Notices, rules RulesFeed, facts Facts,
+) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
@@ -67,7 +77,8 @@ func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFee
 	return &UseCase{
 		subscriber: subscriber,
 		heartbeat:  heartbeat,
-		bonuses:    bonuses,
+		offers:     offers,
+		notices:    notices,
 		rules:      rules,
 		facts:      facts,
 	}
@@ -76,7 +87,8 @@ func New(subscriber UpdatesSubscriber, heartbeat time.Duration, bonuses BonusFee
 type UseCase struct {
 	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
-	bonuses    BonusFeed
+	offers     Offers
+	notices    Notices
 	rules      RulesFeed
 	facts      Facts
 }
@@ -93,9 +105,14 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
 
-	entrant := bonuses.EntrantOf(clicks.PayerOf(ctx))
-	boxes, leave := u.bonuses.Attend(entrant)
+	payer := clicks.PayerOf(ctx)
+	caller := clicks.CallerOf(payer)
+	boxes, leave := u.offers.Attend(bonuses.EntrantOf(
+		bonuses.Caller{Scope: payer.Scope, Account: bonuses.Account(payer.Account), Linked: payer.Linked}))
 	defer leave()
+
+	news, stopHearing := u.notices.Attend(caller)
+	defer stopHearing()
 
 	changes, stopWatching := u.rules.Watch()
 	defer stopWatching()
@@ -126,7 +143,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			version = change.Version
 			if err := sink.Send(Event{
 				Version: change.Version, Update: change.Update, Blast: change.Blast, Enclosure: change.Enclosure,
-				Yours:         change.Enclosure != nil && bonuses.EntrantOf(change.Enclosure.By) == entrant,
+				Yours:         change.Enclosure != nil && clicks.CallerOf(change.Enclosure.By) == caller,
 				Fortification: change.Fortification, KnockOut: change.KnockOut, Tally: change.Tally,
 			}); err != nil {
 				return err
@@ -142,9 +159,12 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 				return nil
 			}
 
-			if err := sink.Send(Event{
-				Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken, Spread: event.Spread, Granted: event.Granted,
-			}); err != nil {
+			if err := sink.Send(Event{Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken}); err != nil {
+				return err
+			}
+
+		case notice := <-news:
+			if err := sink.Send(Event{Spread: notice.Spread, Granted: notice.Granted}); err != nil {
 				return err
 			}
 		}

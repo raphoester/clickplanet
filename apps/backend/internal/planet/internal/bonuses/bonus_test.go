@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -36,7 +35,7 @@ func newRuledRegistry(change func(*Rules)) (*Registry, *cptime.FixedClock) {
 	change(&rules)
 
 	read := &rules
-	registry := New(Config{ForgetAfter: 5 * time.Minute, SweepInterval: time.Second}, clock, NewMemoryStore(),
+	registry := New(Config{ForgetAfter: 5 * time.Minute, SweepInterval: time.Second}, clock, &fakeRoom{},
 		func() Rules { return *read }, fixedBank{})
 	testRules[registry] = read
 
@@ -50,12 +49,12 @@ func rulesOf(r *Registry) *Rules {
 	return testRules[r]
 }
 
-func holderOf(entrant Entrant) Holder {
-	return HolderOf(clicks.Payer{Scope: string(entrant), Account: "acc-" + string(entrant)})
+func accountOf(entrant Entrant) Account {
+	return Account("acc-" + string(entrant))
 }
 
-func holdingsOf(r *Registry) *MemoryStore {
-	return r.holdings.(*MemoryStore) //nolint:forcetypeassert // every registry in these tests is built with one.
+func roomOf(r *Registry) *fakeRoom {
+	return r.room.(*fakeRoom) //nolint:forcetypeassert // every registry in these tests is built with one.
 }
 
 func attend(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
@@ -68,7 +67,7 @@ func attend(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
 }
 
 func clicked(r *Registry, entrant Entrant) {
-	r.Clicked(Click{Entrant: entrant, Scope: string(entrant), Holder: holderOf(entrant)})
+	r.Clicked(Click{Caller: Caller{Scope: string(entrant), Account: accountOf(entrant)}})
 }
 
 func playing(t *testing.T, r *Registry, entrant Entrant) <-chan Event {
@@ -385,7 +384,7 @@ func TestCatchingAChargeBringsTheNextBoxAWindowAfterTheClaim(t *testing.T) {
 func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 1})
 	events := playing(t, registry, "scope-a")
-	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Bomb: true})
+	roomOf(registry).Keep(accountOf("scope-a"), KindBomb)
 
 	for range 5 {
 		clock.Advance(window + time.Second)
@@ -394,7 +393,7 @@ func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 		require.Nil(t, offered(t, events), "a second bomb would be a stockpile")
 	}
 
-	holdingsOf(registry).Keep(holderOf("scope-a"), Held{})
+	roomOf(registry).Keep(accountOf("scope-a"))
 
 	waitOut(t, registry, clock)
 	clicked(registry, "scope-a")
@@ -405,7 +404,7 @@ func TestAKindHeldIsNotOfferedAgainUntilItIsSpent(t *testing.T) {
 func TestAKindHeldIsLeftOutOfTheDrawAndTheOthersStillCome(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 100, KindRefill: 1})
 	events := playing(t, registry, "scope-a")
-	holdingsOf(registry).Keep(holderOf("scope-a"), Held{Bomb: true})
+	roomOf(registry).Keep(accountOf("scope-a"), KindBomb)
 
 	for range 20 {
 		clock.Advance(window + time.Second)
@@ -444,11 +443,11 @@ func TestWhileBombsAreOffNoBoxIsABomb(t *testing.T) {
 
 func TestAKindHeldByAnAccountThatClicksFromTheScopeIsNotOffered(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindEncloseClicks: 1})
-	account := HolderOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"})
+	account := Account("acc-1")
 
 	events := attend(t, registry, "scope-a")
-	registry.Clicked(Click{Entrant: "scope-a", Scope: "scope-a", Holder: account})
-	holdingsOf(registry).Keep(account, Held{Enclosures: 3})
+	registry.Clicked(Click{Caller: Caller{Scope: "scope-a", Account: account}})
+	roomOf(registry).Keep(account, KindEncloseClicks)
 
 	waitOut(t, registry, clock)
 	assert.Nil(t, offered(t, events), "the charge is the account's, whatever address it plays from")
@@ -456,11 +455,11 @@ func TestAKindHeldByAnAccountThatClicksFromTheScopeIsNotOffered(t *testing.T) {
 
 func TestAPlayerWhoStoppedClickingNoLongerHoldsBackAKind(t *testing.T) {
 	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 1})
-	gone := HolderOf(clicks.Payer{Scope: "scope-a", Account: "gone"})
+	gone := Account("gone")
 
 	events := attend(t, registry, "scope-a")
-	registry.Clicked(Click{Entrant: "scope-a", Scope: "scope-a", Holder: gone})
-	holdingsOf(registry).Keep(gone, Held{Bomb: true})
+	registry.Clicked(Click{Caller: Caller{Scope: "scope-a", Account: gone}})
+	roomOf(registry).Keep(gone, KindBomb)
 
 	clock.Advance(6 * time.Minute)
 	clicked(registry, "scope-a")
@@ -477,7 +476,7 @@ func TestACallerWithNoAccountIsOfferedNothing(t *testing.T) {
 
 	for range 5 {
 		clock.Advance(window + time.Second)
-		registry.Clicked(Click{Entrant: "scope-a", Scope: "scope-a"})
+		registry.Clicked(Click{Caller: Caller{Scope: "scope-a"}})
 		registry.sweep(t.Context())
 
 		require.Nil(t, offered(t, events), "every bonus is a charge, and only an account can hold one")
@@ -501,9 +500,10 @@ func TestAKindLeftOutOrAtZeroIsNeverOffered(t *testing.T) {
 	} {
 		registry, clock := newRegistryOffering(kinds)
 		clicked(registry, "scope-a")
-		entry := registry.callers["scope-a"]
+		entry, rules := registry.callers["scope-a"], *rulesOf(registry)
+		one := &dueOne{entrant: "scope-a", accounts: entry.playing(rules, clock.Now())}
 
-		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(t.Context(), entry, *rulesOf(registry), clock.Now()))
+		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), registry.offerable(entry, one, rules, clock.Now()))
 	}
 }
 
@@ -778,25 +778,6 @@ func TestACatchIsAnnouncedToEveryone(t *testing.T) {
 	}
 }
 
-func TestASpreadClickIsAnnouncedToEveryone(t *testing.T) {
-	registry, _ := newTestRegistry()
-
-	watchers := []<-chan Event{playing(t, registry, "scope-a"), playing(t, registry, "scope-b")}
-	for _, events := range watchers {
-		drain(events)
-	}
-
-	registry.PublishSpread(Spread{CountryID: "fr", Tile: 100, Neighbours: []uint32{99, 101}})
-
-	for _, events := range watchers {
-		require.Len(t, events, 1)
-
-		spread := <-events
-		require.NotNil(t, spread.Spread)
-		assert.Equal(t, Spread{CountryID: "fr", Tile: 100, Neighbours: []uint32{99, 101}}, *spread.Spread)
-	}
-}
-
 func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	registry, _ := newTestRegistry()
 	events := playing(t, registry, "scope-a")
@@ -806,27 +787,6 @@ func TestACallerThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	}
 
 	assert.Len(t, events, eventBuffer)
-}
-
-func TestAGrantReachesOnlyTheSignedInAccountsOwnStreams(t *testing.T) {
-	registry, _ := newTestRegistry()
-	mine := attend(t, registry, EntrantOf(clicks.Payer{Scope: "scope-a", Account: "acc-1", Linked: true}))
-	sameAddress := attend(t, registry, EntrantOf(clicks.Payer{Scope: "scope-a", Account: "acc-1"}))
-	other := attend(t, registry, EntrantOf(clicks.Payer{Scope: "scope-b", Account: "acc-2", Linked: true}))
-
-	registry.PublishGranted("acc-1", Held{Bomb: true, Shields: 12})
-
-	granted := (<-mine).Granted
-	require.NotNil(t, granted)
-	assert.Equal(t, Held{Bomb: true, Shields: 12}, *granted)
-	assert.Empty(t, sameAddress, "a guest's stream is its address's, which others share")
-	assert.Empty(t, other)
-}
-
-func TestAGrantToAnAccountWithNoStreamIsDropped(t *testing.T) {
-	registry, _ := newTestRegistry()
-
-	assert.NotPanics(t, func() { registry.PublishGranted("acc-1", Held{Bomb: true}) })
 }
 
 func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.T) {

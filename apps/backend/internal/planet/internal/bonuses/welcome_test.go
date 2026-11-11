@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -18,8 +17,8 @@ const (
 )
 
 var (
-	newcomerPayer = clicks.Payer{Scope: "scope-n", Account: "newcomer", Created: epoch}
-	veteranPayer  = clicks.Payer{Scope: "scope-v", Account: "veteran", Created: epoch.Add(-24 * time.Hour)}
+	newcomerPayer = payer{Scope: "scope-n", Account: "newcomer", Created: epoch}
+	veteranPayer  = payer{Scope: "scope-v", Account: "veteran", Created: epoch.Add(-24 * time.Hour)}
 	everyWeight   = map[Kind]float64{KindRefill: 5, KindSpreadClicks: 3, KindEncloseClicks: 2, KindBomb: 1, KindShields: 3}
 )
 
@@ -85,8 +84,8 @@ func answerRight(t *testing.T, r *Registry, quiz *QuizOffer, entrant Entrant) An
 
 func TestANewcomersFirstBoxIsASpreadAMinuteAfterItsAccountWasMade(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	events := attend(t, registry, EntrantOf(newcomerPayer))
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	events := attend(t, registry, entrantOf(newcomerPayer))
+	registry.Clicked(clickOf(newcomerPayer, false))
 
 	after(t, registry, clock, firstBoxAfter-time.Second)
 	require.Empty(t, receivedOn(events).boxes, "not before the minute")
@@ -99,10 +98,10 @@ func TestANewcomersFirstBoxIsASpreadAMinuteAfterItsAccountWasMade(t *testing.T) 
 
 func TestTheFirstMinuteCountsFromTheAccountNotFromItsLaterClick(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	events := attend(t, registry, EntrantOf(newcomerPayer))
+	events := attend(t, registry, entrantOf(newcomerPayer))
 
 	clock.Advance(3 * time.Minute)
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	registry.Clicked(clickOf(newcomerPayer, false))
 	registry.sweep(t.Context())
 
 	boxes := receivedOn(events).boxes
@@ -112,9 +111,9 @@ func TestTheFirstMinuteCountsFromTheAccountNotFromItsLaterClick(t *testing.T) {
 
 func TestANewcomerIsWelcomedWithOneBoxOnly(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	entrant := EntrantOf(newcomerPayer)
+	entrant := entrantOf(newcomerPayer)
 	events := attend(t, registry, entrant)
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	registry.Clicked(clickOf(newcomerPayer, false))
 
 	after(t, registry, clock, firstBoxAfter)
 	boxes := receivedOn(events).boxes
@@ -122,33 +121,33 @@ func TestANewcomerIsWelcomedWithOneBoxOnly(t *testing.T) {
 	_, claimed := registry.Claim(boxes[0].Token, entrant, newcomerPayer.Scope)
 	require.True(t, claimed)
 
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	registry.Clicked(clickOf(newcomerPayer, false))
 	after(t, registry, clock, ordinaryWindow-time.Second)
 	assert.Empty(t, receivedOn(events).boxes, "the next box waits the ordinary window after the claim")
 
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	registry.Clicked(clickOf(newcomerPayer, false))
 	after(t, registry, clock, time.Second)
 	assert.Len(t, receivedOn(events).boxes, 1)
 }
 
 func TestAnOlderAccountWaitsTheOrdinaryWindow(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	events := attend(t, registry, EntrantOf(veteranPayer))
-	registry.Clicked(ClickOf(veteranPayer, false))
+	events := attend(t, registry, entrantOf(veteranPayer))
+	registry.Clicked(clickOf(veteranPayer, false))
 
 	after(t, registry, clock, firstBoxAfter)
 	assert.Empty(t, receivedOn(events).boxes)
 
-	registry.Clicked(ClickOf(veteranPayer, false))
+	registry.Clicked(clickOf(veteranPayer, false))
 	after(t, registry, clock, ordinaryWindow-firstBoxAfter)
 	assert.Len(t, receivedOn(events).boxes, 1)
 }
 
 func TestAnAccountThatSaysNothingOfItsAgeIsNotWelcomed(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	unknown := clicks.Payer{Scope: "scope-u", Account: "unknown"}
-	events := attend(t, registry, EntrantOf(unknown))
-	registry.Clicked(ClickOf(unknown, true))
+	unknown := payer{Scope: "scope-u", Account: "unknown"}
+	events := attend(t, registry, entrantOf(unknown))
+	registry.Clicked(clickOf(unknown, true))
 
 	after(t, registry, clock, firstBoxAfter)
 
@@ -159,8 +158,8 @@ func TestAnAccountThatSaysNothingOfItsAgeIsNotWelcomed(t *testing.T) {
 
 func TestWithNoWelcomeANewcomerWaitsLikeAnybody(t *testing.T) {
 	registry, clock := newWelcomingRegistry(t, everyWeight, WelcomeRules{})
-	events := attend(t, registry, EntrantOf(newcomerPayer))
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	events := attend(t, registry, entrantOf(newcomerPayer))
+	registry.Clicked(clickOf(newcomerPayer, true))
 
 	after(t, registry, clock, firstBoxAfter)
 
@@ -171,8 +170,8 @@ func TestWithNoWelcomeANewcomerWaitsLikeAnybody(t *testing.T) {
 
 func TestAWelcomeKindTheConfigLeavesOutGivesNoEarlyBoxAndNoEarlyRefill(t *testing.T) {
 	registry, clock := welcoming(t, map[Kind]float64{KindRefill: 1})
-	events := attend(t, registry, EntrantOf(newcomerPayer))
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	events := attend(t, registry, entrantOf(newcomerPayer))
+	registry.Clicked(clickOf(newcomerPayer, true))
 
 	after(t, registry, clock, firstBoxAfter)
 
@@ -180,21 +179,21 @@ func TestAWelcomeKindTheConfigLeavesOutGivesNoEarlyBoxAndNoEarlyRefill(t *testin
 	assert.Empty(t, got.boxes, "a fresh account is never handed a bank early")
 	assert.Empty(t, got.quizzes)
 
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	registry.Clicked(clickOf(newcomerPayer, false))
 	after(t, registry, clock, ordinaryWindow)
 	assert.Len(t, receivedOn(events).boxes, 1, "the ordinary schedule goes on")
 }
 
 func TestANewcomerWhoseClickEmptiesItsBankIsAskedAQuizForShieldsAtOnce(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	entrant := EntrantOf(newcomerPayer)
+	entrant := entrantOf(newcomerPayer)
 	events := attend(t, registry, entrant)
 
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	registry.Clicked(clickOf(newcomerPayer, false))
 	after(t, registry, clock, time.Second)
 	require.Empty(t, receivedOn(events).quizzes, "clicks still in the bank")
 
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	registry.Clicked(clickOf(newcomerPayer, true))
 	after(t, registry, clock, time.Second)
 
 	quizzes := receivedOn(events).quizzes
@@ -204,25 +203,25 @@ func TestANewcomerWhoseClickEmptiesItsBankIsAskedAQuizForShieldsAtOnce(t *testin
 
 func TestOnlyTheFirstEmptyBankAsksTheWelcomeQuiz(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	entrant := EntrantOf(newcomerPayer)
+	entrant := entrantOf(newcomerPayer)
 	events := attend(t, registry, entrant)
 
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	registry.Clicked(clickOf(newcomerPayer, true))
 	after(t, registry, clock, time.Second)
 	quizzes := receivedOn(events).quizzes
 	require.Len(t, quizzes, 1)
 	answerRight(t, registry, quizzes[0], entrant)
 
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	registry.Clicked(clickOf(newcomerPayer, true))
 	after(t, registry, clock, time.Second)
 	assert.Empty(t, receivedOn(events).quizzes)
 }
 
 func TestAnOlderAccountWhoseBankRunsDryIsAskedNothing(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	events := attend(t, registry, EntrantOf(veteranPayer))
+	events := attend(t, registry, entrantOf(veteranPayer))
 
-	registry.Clicked(ClickOf(veteranPayer, true))
+	registry.Clicked(clickOf(veteranPayer, true))
 	after(t, registry, clock, time.Second)
 
 	assert.Empty(t, receivedOn(events).quizzes)
@@ -230,10 +229,10 @@ func TestAnOlderAccountWhoseBankRunsDryIsAskedNothing(t *testing.T) {
 
 func TestANewcomerHoldingAFullStackOfShieldsIsAskedNoWelcomeQuiz(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	events := attend(t, registry, EntrantOf(newcomerPayer))
-	holdingsOf(registry).Keep(HolderOf(newcomerPayer), Held{Shields: rulesOf(registry).Shield.Held})
+	events := attend(t, registry, entrantOf(newcomerPayer))
+	roomOf(registry).Keep(newcomerPayer.Account, KindShields)
 
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	registry.Clicked(clickOf(newcomerPayer, true))
 	after(t, registry, clock, time.Second)
 
 	assert.Empty(t, receivedOn(events).quizzes)
@@ -241,8 +240,8 @@ func TestANewcomerHoldingAFullStackOfShieldsIsAskedNoWelcomeQuiz(t *testing.T) {
 
 func TestANewcomerIsForgottenOnceItIsNoLongerNew(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
-	attend(t, registry, EntrantOf(newcomerPayer))
-	registry.Clicked(ClickOf(newcomerPayer, false))
+	attend(t, registry, entrantOf(newcomerPayer))
+	registry.Clicked(clickOf(newcomerPayer, false))
 	require.Len(t, registry.newcomers, 1)
 
 	after(t, registry, clock, newFor)
@@ -253,9 +252,9 @@ func TestANewcomerIsForgottenOnceItIsNoLongerNew(t *testing.T) {
 func TestANewcomerIsAskedNoWelcomeQuizWhileQuizzesAreOff(t *testing.T) {
 	registry, clock := welcoming(t, everyWeight)
 	rulesOf(registry).Quiz.Enabled = false
-	events := attend(t, registry, EntrantOf(newcomerPayer))
+	events := attend(t, registry, entrantOf(newcomerPayer))
 
-	registry.Clicked(ClickOf(newcomerPayer, true))
+	registry.Clicked(clickOf(newcomerPayer, true))
 	rulesOf(registry).Quiz.Enabled = true
 	after(t, registry, clock, time.Second)
 

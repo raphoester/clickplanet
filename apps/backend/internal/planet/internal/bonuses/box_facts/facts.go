@@ -8,11 +8,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 )
 
+// Fact is told when it is stamped: at is when the log took it.
+type Fact = func(at time.Time) proto.Message
+
+// Facts is planet's log of what callers did, which relays each fact in order to whoever listens.
 type Facts interface {
-	Tell(fact facts.Fact)
+	Tell(fact Fact)
 }
 
 func New(facts Facts) Boxes {
