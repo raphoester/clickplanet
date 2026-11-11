@@ -25,6 +25,10 @@ from `flagRectangles`, a float texture of one row per flag, and passes it on as
 layouts. One read per tile in the vertex shader, not one per pixel in the
 fragment shader. A u8 cannot hold it: the atlas has 256 flags, and 0 is taken.
 
+**The territory layer reads the same flag numbers from a texture**, `TileField.tileData`: each tile's flag and
+landmass, two u16, at the texel `cellsOf` gives it (1 MB), in both layouts. It is sent a row at a time as tiles change
+hands (`uploadTiles`), not whole. See [The zoomed-out view](zoomed-out-view.md).
+
 **Small integers, read as exact floats.** `ids` is a `Uint16Array` and `marks` a
 `Uint8Array`, with `normalized` off, and the shader declares them as `vec2` and
 `vec4`: the GPU turns 76 into 76.0, so every test the shader makes on them is

@@ -29,37 +29,40 @@ running globe through `Globe.setMapView` and the `splitFlags` uniform, so it nev
 rebuilds it. The flag that leads the landmass gets the frame fitted to it and its slot:
 `BorderField` writes it from the server's row for the landmass (`setRows`, with
 `Holdings.leaderOf`: see [The counts are the server's](counts.md)) into one row
-per landmass of a `DataTexture` the vertex shader reads. Any other flag covers the
-landmass from its middle (`coverOf` in the display vertex shader), from the
+per landmass of a `DataTexture` the territory layer reads. Any other flag covers the
+landmass from its middle (`coverOf` in the territory fragment shader), from the
 landmass's reach, which the same row keeps. A tile knows it holds the leader's flag
 when its own atlas rectangle is the one in the row.
 
-**The painted flag is read under the pixel, not per tile.** It still reaches the
-screen through the discs — that is what the widening is for — but what each
-fragment shows is the flag at the point of ground beneath it, so overlapping
-discs of one holder agree and its ground comes out as one image at the resolution
-of the screen. The vertex shader hands the fragment shader the frame rather than a
-colour: where the tile's own centre falls in the flag, and how far that slides
-under one screen pixel across and up. A pixel is a step on the *screen*, so the
-ground step behind it is the one whose projection is a pixel — the tangent part
-of the camera's axis over how much of itself the projection keeps, floored near
-the limb where that divisor runs to zero. Those same two vectors are the
-footprint the atlas is sampled over (`textureGrad`), which is the only reason a
-mip level can be chosen at all: the frame is flat across a sprite, so without
-them the driver takes the top one and point-samples a 100px flag into a few
-dozen pixels.
+**The flags are painted by the territory layer, not by the tiles.** `territoryLayer.ts` is a sphere drawn after
+the earth and before the tiles. For each pixel, its fragment shader finds the ground under it (the camera is
+orthographic, so every pixel looks down one axis onto the tiles' sphere of radius 1), then the lattice point nearest
+that ground: the icosahedron face the direction leaves through, the point on that face's flat grid, and its
+canonical id (`cellOf` in `domain/latticeCells.ts` does the same, and its tests check that every one of the 260,503
+shipped tiles falls in its own cell). Whether the id is a tile, and which texel holds that tile, comes from one word
+per 32 ids: their bits and the count of tiles before them (`tileCells`, 226 KB). The tile's flag and landmass come
+from `TileField.tileData`, two u16 per tile (1 MB), which `TileField.uploadTiles` sends a row at a time as tiles
+change hands. So a pixel wears exactly its own tile's flag: a drawing keeps the shape of its cells, and no tile
+reaches over another.
 
-One sample per disc was the whole flag's resolution before, and a landmass is
-often only a few tiles across at the zoom where its flag is painted — six or
-seven samples of Macedonia's sun or Serbia's arms, with neighbouring discs each
-landing on a different one. Bands survived it; anything carrying a device came
-out as pixel soup on exactly the countries that are too small to zoom past.
+**The tiles drew it until November 2026, and that is why they overlapped.** Each disc was widened to 1.31 of the
+spacing so the discs covered the ground, and each painted the flag at the ground under each of its pixels. Where
+two discs of different holders overlapped, the depth test chose the one in front, and which one that is changes as
+the globe turns: the edges of a drawing moved and flickered. The discs are now never widened, and a disc stays inside
+its own cell but round the lattice's 12 corners, where two neighbours are as close as 0.73 of the median spacing.
 
-The lookup is skipped outright while `flagPaint` is 0, which pays for it: zoomed
-in it was four vertex texture fetches and a frame per tile for a colour the
-fragment shader mixed straight back out, and the fragment shader now skips the
-tile's own atlas fetch at the other end, where the painted flag has the frame to
-itself.
+**A flag is read at the pixel's own ground.** The footprint the atlas is sampled over (`textureGrad`) is how far the
+flag's uv moves to the next pixel across and up, from `dFdx` and `dFdy` of the ground, which runs on smoothly from
+one tile to the next: derivatives of the uv itself would jump at every edge between two flags and blur it. Without a
+footprint the driver takes the top mip level and point-samples a 100px flag into a few dozen pixels.
+
+**The layer draws a tile's effects too**: a bomb's flash, ring and scorch, and the fortify wave, from the same
+`tileEffects.glsl` the tiles' vertex shader reads, at the tile's own centre, so they are drawn cell by cell as on the
+tiles. The tiles' own effects fade out as the layer comes in; drawn on both, the gaps between the discs showed as dots.
+
+**It costs one pass over the globe's pixels while it is on**, and it is off (`visible`) wherever `flagPaint` is 0. A
+sea pixel stops after one texel. The widened discs it replaces were about 9 million fragments for the front half of
+the globe at the last zoom they were drawn.
 
 **A painted flag has no frame of its own.** Ground past the flag's rectangle
 wears the colour the flag ends on, and the country outline is the only line
@@ -90,10 +93,9 @@ flag that needs `EVICTION_MARGIN` (1.2×) more, so a tile war over one landmass
 does not redraw the texture every second. The ranking runs on every recount,
 never per frame. **A slotted flag samples its slot wherever it is painted**,
 whatever the landmass's size and whether it leads it or not: `FlagSlots` keeps
-the atlas rectangle of each slot's flag in `slotRegions`, the vertex shader
-finds the tile's flag among them, reads that slot's frame from `slotFrames` and
-hands the fragment shader the frame to sample, with the same uv and the same
-`textureGrad` footprint as on the atlas. So one flag looks the same everywhere,
+the atlas rectangle of each slot's flag in `slotRegions`, and the territory layer
+finds the tile's flag among them and samples that slot's frame from `slotFrames`,
+with the same uv and the same `textureGrad` footprint as on the atlas. So one flag looks the same everywhere,
 and a flag beyond the eight stays on the atlas everywhere. One slot for the
 biggest flag in view was tried first, and a sharp Brazil beside a blurred Brazil
 on Peru looked worse than neither. The slot was then only for the landmasses a
@@ -119,19 +121,15 @@ into it — measured at 5x for Sudan with the share cubed. `borderField.test.ts`
 pins this.
 
 **One schedule owns the whole handover** — `coarseHandover` in `pointSize.ts`
-drives the flag fading out, the tiles fading in, the disc widening being undone,
-and the outline moving from over the tiles to under them. They only work
-together: the flag reaches the ground only through the discs, so while it is
-painted they must cover the ground, and a tile you are about to aim at must not
-be fattened. Circles on a regular hex lattice cover it at 1.155x the spacing, but
-this lattice is up to 11% wider than its median spacing (its 99th percentile), so
-the discs are widened to 1.31x (`SPREAD`). At 1.16x half the globe had holes, and
-the opaque flag showed them as a fine dotted pattern. A disc only a few pixels wide
-is drawn square (`SQUARE_UNTIL` in the display fragment shader): a round one that
-small leaves whole pixels between its neighbours.
-Running them on separate schedules left a band where the flag was painted
-through a lattice with holes in it. `pointSize.test.ts` pins that too, and those
-tests fail if the two are split again.
+drives the layer fading out, the tiles fading in, and the outline moving from over
+the tiles to under them. The layer stays solid through the first half
+(`min(1, 2 * flagPaint)`), so the tiles come in over a whole map, and fades in the
+second: faded both at once, the earth showed between the discs and the map looked
+washed out. `pointSize.test.ts` pins the schedule.
+
+**In orbit a tile is still picked wide** (`pickPointSize`, 1.73 of its size): the
+picker reads tiles, not the layer, and a pixel between two discs is still the
+territory.
 
 **A player can turn the painted flags off** — Off under "Country flags".
 Players draw pictures with the tiles, and the painted flag hides them. With it off

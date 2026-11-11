@@ -1,46 +1,13 @@
 uniform float pointSize;
 
-uniform sampler2D landmassData;
-uniform float landmassCount;
-
-uniform float flagPaint;
-// 1: each tile paints its own holder's flag. 0: the landmass's leader paints all of it, at its share.
-uniform float splitFlags;
-
 uniform float pixelsPerRadian;
 
 uniform float highlight;
 
-uniform vec2 atlasTextureSize;
-
-// Must match SLOT_COUNT in slotRanking.ts.
-#define FLAG_SLOTS 8
-uniform vec4 slotFrames[FLAG_SLOTS];
-uniform vec4 slotRegions[FLAG_SLOTS];
-
-#include ../flagFrame.glsl;
-
-// Must match MAX_BLASTS and BLAST_TIMELINE in domain/blast.ts.
-#define MAX_BLASTS 4
-const float BLAST_FALL = 0.8;
-const float BLAST_SCORCH = 5.0;
-
-uniform float time;
-uniform vec4 blasts[MAX_BLASTS];
-uniform float blastRadii[MAX_BLASTS];
-uniform float motion;
-
-// Must match MAX_FORTIFY_WAVES, FORTIFY_WAVE_SECONDS and FORTIFY_GLOW_SECONDS in domain/fortifyWave.ts.
-#define MAX_FORTIFIES 4
-const float FORTIFY_WAVE = 1.2;
-const float FORTIFY_GLOW = 0.7;
+#include ../tileEffects.glsl;
 
 // A tile a flag close to fortifying still misses; the fragment shader beats at the same rate.
 const float PULSE_RATE = 6.2831853 / 1.1;
-
-uniform vec4 fortifies[MAX_FORTIFIES];
-uniform float fortifyLandmass[MAX_FORTIFIES];
-uniform float fortifyReach[MAX_FORTIFIES];
 
 varying float vGlow;
 varying float vScorch;
@@ -71,37 +38,7 @@ flat out float vShield;
 flat out float vPulse;
 flat out float vHighlit;
 
-flat out vec2 vFlagUV;
-flat out vec4 vFlagStep;
-flat out vec4 vFlagFrame;
-flat out float vFlagShare;
-
 flat out float vSpriteSize;
-flat out float vSlotted;
-
-vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, vec2 anchor) {
-    vec2 offset = vec2(dot(ground, east), dot(ground, north));
-    float reach = length(offset);
-    // Not acos: a pixel from the centre tile, the dot rounds to 1 and the flag's step flickers to nothing.
-    float angle = atan(reach, dot(ground, centre));
-    vec2 surface = reach > 1e-6 ? offset / reach * angle : vec2(0.0);
-    return surface / halfSize * 0.5 + anchor;
-}
-
-// Must match MAX_FLAG_RADIUS in borderField.ts.
-const float MAX_FLAG_RADIUS = 0.42;
-const float LEAST_FLAG_RADIUS = 0.004;
-
-// A flag that does not lead the landmass covers its ground from the middle, as the leader's would with no fit.
-vec2 coverOf(vec2 reach, float aspect) {
-    float halfV = clamp(max(reach.y, reach.x / aspect), LEAST_FLAG_RADIUS, MAX_FLAG_RADIUS);
-    return vec2(halfV * aspect, halfV);
-}
-
-vec3 screenStep(vec3 ground, vec3 screenAxis, float perPixel) {
-    float along = dot(ground, screenAxis);
-    return (screenAxis - along * ground) * (perPixel / max(1.0 - along * along, 0.05));
-}
 
 const float LIMB = 0.05;
 
@@ -125,119 +62,15 @@ void main() {
     vPulse = pulse;
     vHighlit = highlight > 0.5 && abs(landmassIndex - highlight) < 0.5 ? 1.0 : 0.0;
 
-    vFlagFrame = vec4(0.0);
-    vFlagUV = vec2(0.0);
-    vFlagStep = vec4(0.0);
-    vFlagShare = 0.0;
-    vSlotted = 0.0;
+    TileEffects effects = tileEffectsAt(ground, landmassIndex);
+    vGlow = effects.glow;
+    vScorch = effects.scorch;
+    vFortify = effects.fortify;
 
-    bool split = splitFlags > 0.5;
-    if (flagPaint > 0.0 && landmassIndex > 0.5) {
-        float row = (landmassIndex + 0.5) / landmassCount;
-        vec4 region = texture(landmassData, vec2(5.0 / 8.0, row));
-        vec4 held = texture(landmassData, vec2(7.0 / 8.0, row));
-
-        vec4 flag = split ? regionVector : region;
-        float share = split ? 1.0 : held.r;
-        // Only the leader's flag is fitted to the ground and drawn large.
-        bool leads = all(equal(region, flag));
-
-        if (flag.z > 0.0 && share > 0.0) {
-            vec4 frame = texture(landmassData, vec2(1.0 / 8.0, row));
-            vec4 axis = texture(landmassData, vec2(3.0 / 8.0, row));
-            vec2 halfSize = leads ? vec2(frame.w, axis.w) : coverOf(axis.xy, flag.z / flag.w);
-            vec2 anchor = leads ? held.ba : vec2(0.5);
-
-            vec3 centre = frame.xyz;
-            vec3 east = normalize(vec3(centre.z, 0.0, -centre.x));
-            if (abs(centre.y) > 0.9999) east = vec3(1.0, 0.0, 0.0);
-            vec3 north = cross(centre, east);
-
-            if (dot(ground, centre) > 0.0) {
-                vec3 right = normalize(vec3(modelViewMatrix[0][0], modelViewMatrix[1][0], modelViewMatrix[2][0]));
-                vec3 up = normalize(vec3(modelViewMatrix[0][1], modelViewMatrix[1][1], modelViewMatrix[2][1]));
-
-                float perPixel = 1.0 / max(pixelsPerRadian, 1.0);
-
-                vec2 uv = flagUVof(ground, centre, east, north, halfSize, anchor);
-                vec3 across = normalize(ground + screenStep(ground, right, perPixel));
-                vec3 upward = normalize(ground + screenStep(ground, up, perPixel));
-
-                vFlagUV = uv;
-                vFlagStep = vec4(
-                    flagUVof(across, centre, east, north, halfSize, anchor) - uv,
-                    flagUVof(upward, centre, east, north, halfSize, anchor) - uv
-                );
-
-                vFlagShare = split ? 1.0 : share * (hover > 0.5 ? 1.0 : 0.94);
-
-                vec4 slotFrame = vec4(0.0);
-                for (int i = 0; i < FLAG_SLOTS; i++) {
-                    if (all(equal(slotRegions[i], flag))) slotFrame = slotFrames[i];
-                }
-                vSlotted = slotFrame.z > 0.0 ? 1.0 : 0.0;
-                vFlagFrame = vSlotted > 0.5 ? slotFrame : atlasFrameOf(flag);
-            }
-        }
-    }
-
-    vec3 displaced = position;
-    float swell = 0.0;
-
-    vGlow = 0.0;
-    vScorch = 0.0;
-
-    for (int i = 0; i < MAX_BLASTS; i++) {
-        float radius = blastRadii[i];
-        if (radius <= 0.0) continue;
-
-        float t = time - blasts[i].w;
-        if (t < 0.0 || t > BLAST_FALL + BLAST_SCORCH) continue;
-
-        float along = dot(ground, blasts[i].xyz);
-        if (along < cos(min(radius * 3.0, 3.14159))) continue;
-
-        float d = acos(min(along, 1.0)) / radius;
-
-        if (t < BLAST_FALL) continue;
-
-        float s = t - BLAST_FALL;
-
-        float front = 2.6 * (1.0 - exp(-s * 3.2));
-        float ring = exp(-pow((d - front) * 2.8, 2.0)) * exp(-s * 1.6);
-        float flash = (1.0 - smoothstep(0.0, 1.1, d)) * exp(-s * 5.0);
-        vGlow = max(vGlow, max(ring, flash));
-
-        vec3 outward = ground - blasts[i].xyz * along;
-        float reach = length(outward);
-        if (reach > 1e-5) displaced += motion * (outward / reach) * ring * radius * 0.3;
-        displaced += motion * ground * flash * radius * 0.25;
-        swell = max(swell, ring * 1.2 + flash * 1.8);
-
-        float crater = 1.0 - smoothstep(0.85, 1.1, d);
-        vScorch = max(vScorch, crater * (1.0 - smoothstep(0.0, BLAST_SCORCH, s)));
-    }
-
-    vFortify = 0.0;
-    for (int i = 0; i < MAX_FORTIFIES; i++) {
-        if (abs(landmassIndex - fortifyLandmass[i]) > 0.5) continue;
-
-        float t = time - fortifies[i].w;
-        if (t < 0.0 || t > FORTIFY_WAVE + FORTIFY_GLOW) continue;
-
-        float d = acos(clamp(dot(ground, fortifies[i].xyz), -1.0, 1.0));
-        float arrival = fortifyReach[i] > 0.0 ? d / fortifyReach[i] * FORTIFY_WAVE : 0.0;
-        float since = t - arrival;
-        if (since < 0.0) continue;
-
-        float lit = exp(-since * 5.0);
-        vFortify = max(vFortify, lit);
-        swell = max(swell, lit * 0.6);
-    }
-
+    float swell = effects.swell;
     if (mod(pulse, 4.0) > 0.5) swell = max(swell, 0.12 * (0.5 + 0.5 * sin(time * PULSE_RATE)));
 
     vSpriteSize = pointSize * (1.0 + motion * swell);
     gl_PointSize = vSpriteSize;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position + effects.push, 1.0);
 }

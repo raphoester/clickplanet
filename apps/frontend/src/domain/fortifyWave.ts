@@ -1,4 +1,4 @@
-// Must match MAX_FORTIFIES, FORTIFY_WAVE and FORTIFY_GLOW in shaders/display/vertex.glsl.
+// Must match MAX_FORTIFIES, FORTIFY_WAVE and FORTIFY_GLOW in app/viewer/shaders/tileEffects.glsl.
 export const MAX_FORTIFY_WAVES = 4
 export const FORTIFY_WAVE_SECONDS = 1.2
 export const FORTIFY_GLOW_SECONDS = 0.7

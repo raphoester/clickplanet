@@ -1,4 +1,4 @@
-// MAX_BLASTS and BLAST_TIMELINE are mirrored in shaders/display/vertex.glsl.
+// MAX_BLASTS and BLAST_TIMELINE are mirrored in app/viewer/shaders/tileEffects.glsl.
 export const MAX_BLASTS = 4
 
 export const BLAST_TIMELINE = {fall: 0.8, shock: 1.2, scorch: 5} as const

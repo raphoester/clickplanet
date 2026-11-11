@@ -1,9 +1,9 @@
 import {beforeEach, describe, expect, it, vi} from "vitest"
 import * as THREE from "three"
-import {TileField} from "./tileField.ts"
+import {TILE_COLUMNS, TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
 import {resetWarnOnce} from "../../domain/warnOnce.ts"
-import type {PointGeometryData} from "./coordinatesBinary.ts"
+import type {TileGeometry} from "./points.ts"
 
 const SIZE = 32
 
@@ -29,10 +29,12 @@ const COMPACT: Layout = {
     shield: {name: "marks", offset: 2, width: 1},
 }
 
+// The texels run backwards, so a test sees a tile written at its texel and not at its index.
 function fieldOf(compact: boolean, size = SIZE) {
-    const data: PointGeometryData = {
+    const data: TileGeometry = {
         positions: new Float32Array(size * 3),
         size,
+        cells: {words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => size - 1 - i)},
     }
     return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, {compact})
 }
@@ -387,5 +389,47 @@ describe("picking", () => {
         const f = fieldOf(true)
         expect(f.pickingPoints.geometry.getAttribute("color")).toBeUndefined()
         expect((f.pickingPoints.material as THREE.ShaderMaterial).defines.COMPACT).toBe(true)
+    })
+})
+
+describe("the territory layer's tile data", () => {
+    const SIZE_OVER_ROWS = TILE_COLUMNS * 2 + 10
+    const flagNumberOf = (code: string) => Array.from(regions.keys()).indexOf(code) + 1
+    const valuesOf = (f: TileField) => f.tileData.image.data as unknown as Uint16Array
+    const texelOf = (tile: number) => SIZE_OVER_ROWS - tile
+
+    it.each([false, true])("holds each tile's flag at its cell's texel, compact %s", (compact) => {
+        const f = fieldOf(compact, SIZE_OVER_ROWS)
+
+        f.setOwners([{tile: 3, country: "fr"}, {tile: 4, country: "jp"}])
+        f.setOwners([{tile: 4, country: undefined}])
+
+        expect(valuesOf(f)[texelOf(3) * 2]).toBe(flagNumberOf("fr"))
+        expect(valuesOf(f)[texelOf(4) * 2]).toBe(0)
+        expect(valuesOf(f)[2 * 2]).toBe(0)
+    })
+
+    it("holds each tile's landmass beside its flag", () => {
+        const f = fieldOf(true, SIZE_OVER_ROWS)
+
+        f.setLandmasses(Uint16Array.from({length: SIZE_OVER_ROWS}, (_, i) => i % 7))
+
+        for (const tile of [1, 2, 600, SIZE_OVER_ROWS]) expect(valuesOf(f)[texelOf(tile) * 2 + 1]).toBe((tile - 1) % 7)
+    })
+
+    it("sends only the rows whose tiles changed hands, once", () => {
+        const f = fieldOf(true, SIZE_OVER_ROWS)
+        const copyTextureToTexture = vi.fn()
+        const renderer = {copyTextureToTexture} as unknown as THREE.WebGLRenderer
+
+        f.setOwners([{tile: 1, country: "fr"}, {tile: 5, country: "fr"}])
+        f.uploadTiles(renderer)
+        f.uploadTiles(renderer)
+
+        expect(copyTextureToTexture).toHaveBeenCalledTimes(1)
+        const [, target, region, position] = copyTextureToTexture.mock.calls[0]
+        expect(target).toBe(f.tileData)
+        expect([region.min.y, region.max.y, region.min.x, region.max.x]).toEqual([2, 3, 0, TILE_COLUMNS])
+        expect(position.y).toBe(2)
     })
 })

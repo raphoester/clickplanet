@@ -52,9 +52,8 @@ a tile apart.
 **It is drawn twice, on either side of the tiles, and `flagPaint` picks.**
 Zoomed in the outline sits just inside the tile shell, so the discs' own depth
 hides whatever they cover and the line only ever shows in the gaps — which is
-the whole width of it. Zoomed out that gap is gone: the discs are widened until
-they cover the ground so the painted flag can reach it, and a line underneath
-them would be invisible. So the same outline is drawn just outside the shell as
+the whole width of it. Zoomed out that gap is gone: the territory layer paints
+the flags over the whole ground, and a line underneath it would be invisible. So the same outline is drawn just outside the shell as
 well, fading with the painted flag, and the two hand over on the one schedule that
 owns the rest of the handover. **The over pass is thinner and darkens the flag
 under it** (`ORBIT_WIDTH`, 0.25px and a pixel of feather, black at `ORBIT_INK`, 70%): a red flag gets a

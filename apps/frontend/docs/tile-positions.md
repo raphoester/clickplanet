@@ -14,7 +14,8 @@ before it rather than 3.06 MB.
 
 `points.ts` fetches the landmask and hands it to `latticeWorker.ts`, which runs
 `rebuildTilePositions` (`domain/landmask.ts`, over `domain/lattice.ts`) and sends the positions
-back as a transfer. **It is a worker because of the engines with no JIT**: 60-80 ms on V8 or
+back as a transfer, with the cells the territory layer finds a pixel's tile by (`cellsOf`; see [The zoomed-out
+view](zoomed-out-view.md)). **It is a worker because of the engines with no JIT**: 60-80 ms on V8 or
 JavaScriptCore, 1.5s on JavaScriptCore with its JIT off, as in iOS Lockdown Mode — a frozen page for that
 long. `loadPointGeometryData` still returns `{positions, size}`, so nothing that reads
 `positions` knows where they came from.
