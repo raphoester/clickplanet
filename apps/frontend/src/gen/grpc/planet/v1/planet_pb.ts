@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { MapHistory } from "./history_pb.js";
 
 /**
  * @generated from enum planet.v1.SharedWith
@@ -1775,6 +1776,74 @@ export class LandmassFortification extends Message<LandmassFortification> {
 
   static equals(a: LandmassFortification | PlainMessage<LandmassFortification> | undefined, b: LandmassFortification | PlainMessage<LandmassFortification> | undefined): boolean {
     return proto3.util.equals(LandmassFortification, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetRecentMapHistoryRequest
+ */
+export class GetRecentMapHistoryRequest extends Message<GetRecentMapHistoryRequest> {
+  constructor(data?: PartialMessage<GetRecentMapHistoryRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetRecentMapHistoryRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRecentMapHistoryRequest {
+    return new GetRecentMapHistoryRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRecentMapHistoryRequest {
+    return new GetRecentMapHistoryRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRecentMapHistoryRequest {
+    return new GetRecentMapHistoryRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRecentMapHistoryRequest | PlainMessage<GetRecentMapHistoryRequest> | undefined, b: GetRecentMapHistoryRequest | PlainMessage<GetRecentMapHistoryRequest> | undefined): boolean {
+    return proto3.util.equals(GetRecentMapHistoryRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetRecentMapHistoryResponse
+ */
+export class GetRecentMapHistoryResponse extends Message<GetRecentMapHistoryResponse> {
+  /**
+   * @generated from field: planet.v1.MapHistory history = 1;
+   */
+  history?: MapHistory;
+
+  constructor(data?: PartialMessage<GetRecentMapHistoryResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetRecentMapHistoryResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "history", kind: "message", T: MapHistory },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRecentMapHistoryResponse {
+    return new GetRecentMapHistoryResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRecentMapHistoryResponse {
+    return new GetRecentMapHistoryResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRecentMapHistoryResponse {
+    return new GetRecentMapHistoryResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRecentMapHistoryResponse | PlainMessage<GetRecentMapHistoryResponse> | undefined, b: GetRecentMapHistoryResponse | PlainMessage<GetRecentMapHistoryResponse> | undefined): boolean {
+    return proto3.util.equals(GetRecentMapHistoryResponse, a, b);
   }
 }
 

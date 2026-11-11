@@ -121,6 +121,14 @@ export class TileOwner extends Message<TileOwner> {
    */
   secondsIntoStep = 0;
 
+  /**
+   * The account whose act made the change. Empty in the first frame, for an act no account made or a deleted account's,
+   * and in every frame of GetMapHistory, whose season replays would carry one per change.
+   *
+   * @generated from field: string account_id = 4;
+   */
+  accountId = "";
+
   constructor(data?: PartialMessage<TileOwner>) {
     super();
     proto3.util.initPartial(data, this);
@@ -132,6 +140,7 @@ export class TileOwner extends Message<TileOwner> {
     { no: 1, name: "tile", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "seconds_into_step", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileOwner {
