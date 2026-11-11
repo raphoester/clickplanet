@@ -7,9 +7,9 @@
     --chat-lift: 0px;
     --chat-width: max(300px, min(var(--chat-wanted-width, 360px), calc(50vw - var(--dock-width) / 2 - 32px)));
     --chat-height: min(calc(100vh - 32px - var(--chat-lift)), max(280px, var(--chat-wanted-height, 520px)));
-    /* The room at the top right of the desktop menu (Menu's MENU_RIGHT), where what is centred at the top centres. */
-    --top-room: calc(100vw - var(--menu-right, 0px));
-    --top-centre: calc(100vw - var(--top-room) / 2);
+    /* The globe's centre, moved right to keep 240px (half the quiz and its margins) clear of Menu's MENU_RIGHT. */
+    --top-centre: max(50vw, min(calc(var(--menu-right, 0px) + 240px), calc((100vw + var(--menu-right, 0px)) / 2)));
+    --top-room: calc(2 * min(var(--top-centre) - var(--menu-right, 0px), 100vw - var(--top-centre)));
 }
 
 @media only screen and (max-width: 1279px) {
