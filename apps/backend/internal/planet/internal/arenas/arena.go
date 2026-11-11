@@ -11,7 +11,7 @@ import (
 
 var (
 	ErrInvalidArena = errors.New("not an arena")
-	// ErrRefused is a command that can never apply: delivered again, it would hold back the ones after it.
+	// ErrRefused is a call that can never apply: made again, it is refused again.
 	ErrRefused = errors.New("refused")
 )
 
@@ -53,14 +53,12 @@ type Closing struct {
 	ClosedAt time.Time
 }
 
-// Arena is what planet keeps of one: its opening once it opened, and its closing once it closed.
+// Arena is what planet keeps of one: its opening once it opened, and whether it closed.
 type Arena struct {
 	ID      ID
 	Opening Opening
 	Opened  bool
 	Closed  bool
-	// ClosedAt is a closed arena's.
-	ClosedAt time.Time
 }
 
 // Played is the map that plays while the arena is as it is: its own while it is open, else the world's.
@@ -87,11 +85,11 @@ func (a Arena) Open(endsAt, now time.Time, freeze time.Duration, playing Arena) 
 	return Opening{ID: a.ID, EndsAt: endsAt.UTC(), OpenedAt: now.UTC(), Freeze: freeze}, true, nil
 }
 
-// Close is the arena closed now, or its closing and false when it closed already. One never opened closes too, with no
-// map to bring back, so whoever waits for it never waits for ever.
+// Close is the arena closed now, or false when it closed already. One never opened closes too, with no map to bring
+// back, so whoever waits for it never waits for ever.
 func (a Arena) Close(now time.Time) (Closing, bool) {
 	if a.Closed {
-		return Closing{ID: a.ID, ClosedAt: a.ClosedAt}, false
+		return Closing{}, false
 	}
 	return Closing{ID: a.ID, ClosedAt: now.UTC()}, true
 }

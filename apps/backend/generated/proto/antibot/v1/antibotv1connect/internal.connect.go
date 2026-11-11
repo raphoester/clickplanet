@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// InternalServicePlayRuleSetProcedure is the fully-qualified name of the InternalService's
+	// PlayRuleSet RPC.
+	InternalServicePlayRuleSetProcedure = "/antibot.v1.InternalService/PlayRuleSet"
 	// InternalServiceGetRuleSetNamesProcedure is the fully-qualified name of the InternalService's
 	// GetRuleSetNames RPC.
 	InternalServiceGetRuleSetNamesProcedure = "/antibot.v1.InternalService/GetRuleSetNames"
@@ -40,6 +43,10 @@ const (
 
 // InternalServiceClient is a client for the antibot.v1.InternalService service.
 type InternalServiceClient interface {
+	// Judges with the rule set of this name. The antibot keeps the latest decision by decided_at, so a call made twice,
+	// or after a newer one, changes nothing. FailedPrecondition for a name the antibot keeps no set of, or a set it cannot
+	// play: it judges on with the set it plays.
+	PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error)
 	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
 }
 
@@ -54,6 +61,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_antibot_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
+		playRuleSet: connect.NewClient[v1.PlayRuleSetRequest, v1.PlayRuleSetResponse](
+			httpClient,
+			baseURL+InternalServicePlayRuleSetProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("PlayRuleSet")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		getRuleSetNames: connect.NewClient[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse](
 			httpClient,
 			baseURL+InternalServiceGetRuleSetNamesProcedure,
@@ -66,7 +80,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
+	playRuleSet     *connect.Client[v1.PlayRuleSetRequest, v1.PlayRuleSetResponse]
 	getRuleSetNames *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
+}
+
+// PlayRuleSet calls antibot.v1.InternalService.PlayRuleSet.
+func (c *internalServiceClient) PlayRuleSet(ctx context.Context, req *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error) {
+	return c.playRuleSet.CallUnary(ctx, req)
 }
 
 // GetRuleSetNames calls antibot.v1.InternalService.GetRuleSetNames.
@@ -76,6 +96,10 @@ func (c *internalServiceClient) GetRuleSetNames(ctx context.Context, req *connec
 
 // InternalServiceHandler is an implementation of the antibot.v1.InternalService service.
 type InternalServiceHandler interface {
+	// Judges with the rule set of this name. The antibot keeps the latest decision by decided_at, so a call made twice,
+	// or after a newer one, changes nothing. FailedPrecondition for a name the antibot keeps no set of, or a set it cannot
+	// play: it judges on with the set it plays.
+	PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error)
 	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
 }
 
@@ -86,6 +110,13 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_antibot_v1_internal_proto.Services().ByName("InternalService").Methods()
+	internalServicePlayRuleSetHandler := connect.NewUnaryHandler(
+		InternalServicePlayRuleSetProcedure,
+		svc.PlayRuleSet,
+		connect.WithSchema(internalServiceMethods.ByName("PlayRuleSet")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalServiceGetRuleSetNamesHandler := connect.NewUnaryHandler(
 		InternalServiceGetRuleSetNamesProcedure,
 		svc.GetRuleSetNames,
@@ -95,6 +126,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 	)
 	return "/antibot.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case InternalServicePlayRuleSetProcedure:
+			internalServicePlayRuleSetHandler.ServeHTTP(w, r)
 		case InternalServiceGetRuleSetNamesProcedure:
 			internalServiceGetRuleSetNamesHandler.ServeHTTP(w, r)
 		default:
@@ -105,6 +138,10 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
+
+func (UnimplementedInternalServiceHandler) PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.InternalService.PlayRuleSet is not implemented"))
+}
 
 func (UnimplementedInternalServiceHandler) GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.InternalService.GetRuleSetNames is not implemented"))

@@ -11,6 +11,7 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpproto"
 )
 
@@ -92,26 +93,17 @@ func TestOverlayChangesNeitherBaseNorTop(t *testing.T) {
 }
 
 func TestOverlayMergesTheOneofCaseBothHold(t *testing.T) {
-	ends := timestamppb.New(time.Date(2026, 11, 12, 22, 0, 0, 0, time.UTC))
-	base := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
-		OpenArena: &planetv1.OpenArena{ArenaId: "battle", EndsAt: ends},
-	}}
+	base := &planetv1.Seed{Pattern: &planetv1.Seed_Capitals{Capitals: &planetv1.CapitalSeed{Shields: proto.Uint32(3)}}}
 
-	overlaid := cpproto.Overlay(base, &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
-		OpenArena: &planetv1.OpenArena{RuleSet: "siege"},
-	}})
+	overlaid := cpproto.Overlay(base, &planetv1.Seed{Pattern: &planetv1.Seed_Capitals{Capitals: &planetv1.CapitalSeed{}}})
 
-	want := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
-		OpenArena: &planetv1.OpenArena{ArenaId: "battle", EndsAt: ends, RuleSet: "siege"},
-	}}
-	assert.True(t, proto.Equal(want, overlaid), "%v", overlaid)
+	assert.True(t, proto.Equal(base, overlaid), "%v", overlaid)
 }
 
 func TestOverlayPlaysTopsOneofCaseAloneOverAnother(t *testing.T) {
-	base := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_OpenArena{
-		OpenArena: &planetv1.OpenArena{ArenaId: "battle", RuleSet: "siege"},
-	}}
-	top := &planetv1.ArenaCommand{Command: &planetv1.ArenaCommand_CloseArena{CloseArena: &planetv1.CloseArena{}}}
+	ends := timestamppb.New(time.Date(2026, 11, 12, 22, 0, 0, 0, time.UTC))
+	base := &scoringv1.CloseRoundResponse{Outcome: &scoringv1.CloseRoundResponse_ScoredAt{ScoredAt: ends}}
+	top := &scoringv1.CloseRoundResponse{Outcome: &scoringv1.CloseRoundResponse_MissedAt{MissedAt: ends}}
 
 	overlaid := cpproto.Overlay(base, top)
 

@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
+
+const bookLock = 0x626f6f6b
 
 func New(db cppg.Conn) *Store {
 	return &Store{db: db}
@@ -119,4 +122,32 @@ func (s *Store) Close(ctx context.Context, book books.Book) (bool, error) {
 		return nil
 	})
 	return closed, err //nolint:wrapcheck // each step named what failed.
+}
+
+func (s *Store) Lock(ctx context.Context, id books.BookID) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, bookLock, string(id)); err != nil {
+		return fmt.Errorf("failed to lock the book: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) Missed(ctx context.Context, id books.BookID) (books.MissedBook, bool, error) {
+	var endedAt time.Time
+	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT ended_at FROM missed_books WHERE book_id = $1`, string(id)).Scan(&endedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return books.MissedBook{}, false, nil
+	}
+	if err != nil {
+		return books.MissedBook{}, false, fmt.Errorf("failed to read the missed book: %w", err)
+	}
+	return books.NewMissedBook(id, endedAt), true, nil
+}
+
+func (s *Store) KeepMissed(ctx context.Context, missed books.MissedBook) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO missed_books (book_id, ended_at) VALUES ($1, $2) ON CONFLICT (book_id) DO NOTHING
+	`, string(missed.ID), missed.EndsAt); err != nil {
+		return fmt.Errorf("failed to keep the book missed: %w", err)
+	}
+	return nil
 }

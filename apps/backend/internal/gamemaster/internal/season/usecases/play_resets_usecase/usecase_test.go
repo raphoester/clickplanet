@@ -3,6 +3,7 @@ package play_resets_usecase_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,11 +27,17 @@ var (
 )
 
 type planet struct {
-	reset []season.Number
-	err   error
+	reset   []season.Number
+	asked   int
+	err     error
+	refuses bool
 }
 
 func (p *planet) Reset(_ context.Context, starts season.Window) error {
+	p.asked++
+	if p.refuses {
+		return fmt.Errorf("%w: no time", moments.ErrRefused)
+	}
 	if p.err != nil {
 		return p.err
 	}
@@ -80,7 +87,7 @@ func harnessWith(t *testing.T, at time.Time, zero season.Snapshot, pause time.Du
 	told, clock := &planet{}, cptime.NewFixedClock(at)
 	planner := moments.NewPlanner(seasons, inmemory_entry_store.New(), kept, judged, season.Cutoff(21*time.Hour))
 	return stores{
-		t: t, useCase: planned{t: t, planner: planner, useCase: play_resets_usecase.New(told, clock)}, told: told, clock: clock,
+		t: t, useCase: planned{t: t, planner: planner, useCase: play_resets_usecase.New(kept, told, clock, time.Minute)}, told: told, clock: clock,
 		judged: judged, kept: kept,
 	}
 }
@@ -138,16 +145,25 @@ func TestASeasonThatStartsAfterAnArenaBattleResetsOnceItsArenaClosed(t *testing.
 	assert.Equal(t, []season.Number{1}, told.reset)
 }
 
-func TestSeasonOnesStartResetsTheMapOnce(t *testing.T) {
-	useCase, told, clock := harness(t, seasonOne.Add(-time.Second))
+func TestSeasonOnesStartResetsTheMapOnceAndKeepsItForTheNextBoot(t *testing.T) {
+	h := harnessWith(t, seasonOne.Add(-time.Second), season.Snapshot{Number: 0, Length: seasonZeroEnds.Sub(season.Origin)},
+		16*time.Hour)
+	h.close(moments.ClosedBook{Book: "season-0", EndedAt: seasonZeroEnds})
 
 	for range 3 {
-		_, _, err := useCase.Execute(t.Context())
+		_, _, err := h.useCase.Execute(t.Context())
 		require.NoError(t, err)
-		clock.Advance(time.Second)
+		h.clock.Advance(time.Second)
 	}
+	h.useCase.useCase = play_resets_usecase.New(h.kept, h.told, h.clock, time.Minute)
+	_, done, err := h.useCase.Execute(t.Context())
 
-	assert.Equal(t, []season.Number{1}, told.reset, "at 15:00, and not again")
+	require.NoError(t, err)
+	assert.False(t, done, "a boot asks nothing planet answered")
+	assert.Equal(t, []season.Number{1}, h.told.reset, "at 15:00, and not again")
+	kept, err := h.kept.Kept(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, []moments.BookID{"season-1"}, kept.Reset)
 }
 
 func TestSeasonZeroAndTheBreakResetNothing(t *testing.T) {
@@ -162,18 +178,36 @@ func TestSeasonZeroAndTheBreakResetNothing(t *testing.T) {
 	}
 }
 
-func TestAResetRedisDidNotTakeIsSentAgain(t *testing.T) {
+func TestAResetPlanetDidNotAnswerIsAskedAgainAMinuteLater(t *testing.T) {
 	useCase, told, clock := harness(t, seasonOne)
-	down := errors.New("redis is down")
+	down := errors.New("planet is down")
 	told.err = down
 
 	_, _, err := useCase.Execute(t.Context())
 	require.ErrorIs(t, err, down)
 
 	told.err = nil
-	clock.Advance(time.Second)
-	_, sent, err := useCase.Execute(t.Context())
+	clock.Advance(59 * time.Second)
+	_, done, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
-	assert.True(t, sent)
+	assert.False(t, done, "it waits a minute")
+
+	clock.Advance(time.Second)
+	_, done, err = useCase.Execute(t.Context())
+	require.NoError(t, err)
+	assert.True(t, done)
 	assert.Equal(t, []season.Number{1}, told.reset)
+}
+
+func TestAResetPlanetRefusesIsNotAskedAgain(t *testing.T) {
+	useCase, told, clock := harness(t, seasonOne)
+	told.refuses = true
+
+	_, _, err := useCase.Execute(t.Context())
+	require.ErrorIs(t, err, moments.ErrRefused)
+	clock.Advance(time.Hour)
+	_, _, err = useCase.Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, told.asked)
 }

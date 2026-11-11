@@ -91,6 +91,23 @@ func (s *BooksContractSuite) TestEveryBookIsListedTheFirstStartFirst() {
 	s.Equal([]Book{contractBook, contractNext}, all)
 }
 
+func (s *BooksContractSuite) TestABookKeptMissedKeepsItsFirstEndAndIsNotOpen() {
+	_, found, err := s.store.Missed(s.T().Context(), contractBook.ID)
+	s.Require().NoError(err)
+	s.False(found)
+	missed := NewMissedBook(contractBook.ID, contractEnd)
+
+	s.Require().NoError(s.store.KeepMissed(s.T().Context(), missed))
+	s.Require().NoError(s.store.KeepMissed(s.T().Context(), NewMissedBook(contractBook.ID, contractEnd.Add(time.Hour))))
+
+	kept, found, err := s.store.Missed(s.T().Context(), contractBook.ID)
+	s.Require().NoError(err)
+	s.True(found)
+	s.Equal(missed, kept)
+	_, found = s.find(contractBook.ID)
+	s.False(found)
+}
+
 // RoundsContractSuite needs the books of its rounds open: NewStores answers both stores over the same data.
 type RoundsContractSuite struct {
 	suite.Suite
@@ -187,6 +204,23 @@ func (s *RoundsContractSuite) TestARoundScoredKeepsItsEndAndResultsAndIsScoredOn
 	round, _ := s.find(contractDay.ID)
 	s.Equal(scored.Round, round)
 	s.Equal([]Scored{scored}, s.scoredIn(contractBook.ID))
+}
+
+func (s *RoundsContractSuite) TestARoundKeptMissedKeepsItsFirstEndAndIsNotOpen() {
+	_, found, err := s.rounds.Missed(s.T().Context(), contractBattle.ID)
+	s.Require().NoError(err)
+	s.False(found)
+	missed := NewMissedRound(contractBattle.ID, contractEnd)
+
+	s.Require().NoError(s.rounds.KeepMissed(s.T().Context(), missed))
+	s.Require().NoError(s.rounds.KeepMissed(s.T().Context(), NewMissedRound(contractBattle.ID, contractEnd.Add(time.Hour))))
+
+	kept, found, err := s.rounds.Missed(s.T().Context(), contractBattle.ID)
+	s.Require().NoError(err)
+	s.True(found)
+	s.Equal(missed, kept)
+	_, found = s.find(contractBattle.ID)
+	s.False(found)
 }
 
 func (s *RoundsContractSuite) TestABookListsTheRoundsItScoredInTheOrderTheyEnded() {

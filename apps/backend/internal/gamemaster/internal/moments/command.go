@@ -1,6 +1,7 @@
 package moments
 
 import (
+	"errors"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
@@ -52,7 +53,7 @@ const (
 	RankedByHeldAndGain Ranking = "held and gain"
 )
 
-// Key is a command's identity: an open is sent once per process, a close again until scoring answers it.
+// Key is a command's identity: a call is made until scoring answers it, once per process.
 type Key struct {
 	Action Action
 	Book   BookID
@@ -61,5 +62,12 @@ type Key struct {
 
 func (c Command) Key() Key { return Key{Action: c.Action, Book: c.Book, Round: c.Round} }
 
-// Closes is true for the commands scoring answers with a fact: each is sent again until the fact comes.
-func (a Action) Closes() bool { return a == CloseRound || a == CloseBook }
+// ErrRefused is a call its receiver refused for good: it is not made again in this process.
+var ErrRefused = errors.New("refused")
+
+// Answer is what scoring answered a close: the end it scored the round or ranked the book at, or Missed: it never
+// opened, so nothing scores it and nothing waits on it.
+type Answer struct {
+	Missed  bool
+	EndedAt time.Time
+}

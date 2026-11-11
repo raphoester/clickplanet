@@ -4,8 +4,41 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { TablePlace } from "./scoring_pb.js";
+
+/**
+ * How a round places the countries that hold tiles when it closes. Countries in the same place share its points.
+ *
+ * @generated from enum scoring.v1.Ranking
+ */
+export enum Ranking {
+  /**
+   * @generated from enum value: RANKING_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * By the tiles each gained since the round opened, most first; only a gain scores.
+   *
+   * @generated from enum value: RANKING_GAIN = 1;
+   */
+  GAIN = 1,
+
+  /**
+   * By the sum of two ranks, on the tiles each holds and on the tiles it gained, smallest first, the gain's rank
+   * breaking a tie; every country placed scores.
+   *
+   * @generated from enum value: RANKING_HELD_AND_GAIN = 2;
+   */
+  HELD_AND_GAIN = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(Ranking)
+proto3.util.setEnumType(Ranking, "scoring.v1.Ranking", [
+  { no: 0, name: "RANKING_UNSPECIFIED" },
+  { no: 1, name: "RANKING_GAIN" },
+  { no: 2, name: "RANKING_HELD_AND_GAIN" },
+]);
 
 /**
  * @generated from message scoring.v1.GetRankPointsRequest
@@ -332,6 +365,386 @@ export class GetTableResponse extends Message<GetTableResponse> {
 
   static equals(a: GetTableResponse | PlainMessage<GetTableResponse> | undefined, b: GetTableResponse | PlainMessage<GetTableResponse> | undefined): boolean {
     return proto3.util.equals(GetTableResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.OpenBookRequest
+ */
+export class OpenBookRequest extends Message<OpenBookRequest> {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 2;
+   */
+  startsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<OpenBookRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.OpenBookRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "starts_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenBookRequest {
+    return new OpenBookRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenBookRequest {
+    return new OpenBookRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenBookRequest {
+    return new OpenBookRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenBookRequest | PlainMessage<OpenBookRequest> | undefined, b: OpenBookRequest | PlainMessage<OpenBookRequest> | undefined): boolean {
+    return proto3.util.equals(OpenBookRequest, a, b);
+  }
+}
+
+/**
+ * The book is open.
+ *
+ * @generated from message scoring.v1.OpenBookResponse
+ */
+export class OpenBookResponse extends Message<OpenBookResponse> {
+  constructor(data?: PartialMessage<OpenBookResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.OpenBookResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenBookResponse {
+    return new OpenBookResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenBookResponse {
+    return new OpenBookResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenBookResponse {
+    return new OpenBookResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenBookResponse | PlainMessage<OpenBookResponse> | undefined, b: OpenBookResponse | PlainMessage<OpenBookResponse> | undefined): boolean {
+    return proto3.util.equals(OpenBookResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.OpenRoundRequest
+ */
+export class OpenRoundRequest extends Message<OpenRoundRequest> {
+  /**
+   * @generated from field: string round_id = 1;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: string book_id = 2;
+   */
+  bookId = "";
+
+  /**
+   * 1 to 10.
+   *
+   * @generated from field: uint32 times = 3;
+   */
+  times = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp starts_at = 4;
+   */
+  startsAt?: Timestamp;
+
+  /**
+   * The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
+   *
+   * @generated from field: bool from_nothing = 5;
+   */
+  fromNothing = false;
+
+  /**
+   * @generated from field: scoring.v1.Ranking ranking = 6;
+   */
+  ranking = Ranking.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<OpenRoundRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.OpenRoundRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "times", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "starts_at", kind: "message", T: Timestamp },
+    { no: 5, name: "from_nothing", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "ranking", kind: "enum", T: proto3.getEnumType(Ranking) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenRoundRequest {
+    return new OpenRoundRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenRoundRequest {
+    return new OpenRoundRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenRoundRequest {
+    return new OpenRoundRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenRoundRequest | PlainMessage<OpenRoundRequest> | undefined, b: OpenRoundRequest | PlainMessage<OpenRoundRequest> | undefined): boolean {
+    return proto3.util.equals(OpenRoundRequest, a, b);
+  }
+}
+
+/**
+ * The round is open.
+ *
+ * @generated from message scoring.v1.OpenRoundResponse
+ */
+export class OpenRoundResponse extends Message<OpenRoundResponse> {
+  constructor(data?: PartialMessage<OpenRoundResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.OpenRoundResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenRoundResponse {
+    return new OpenRoundResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenRoundResponse {
+    return new OpenRoundResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenRoundResponse {
+    return new OpenRoundResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenRoundResponse | PlainMessage<OpenRoundResponse> | undefined, b: OpenRoundResponse | PlainMessage<OpenRoundResponse> | undefined): boolean {
+    return proto3.util.equals(OpenRoundResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.CloseRoundRequest
+ */
+export class CloseRoundRequest extends Message<CloseRoundRequest> {
+  /**
+   * @generated from field: string round_id = 1;
+   */
+  roundId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  constructor(data?: PartialMessage<CloseRoundRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.CloseRoundRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseRoundRequest {
+    return new CloseRoundRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseRoundRequest {
+    return new CloseRoundRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseRoundRequest {
+    return new CloseRoundRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseRoundRequest | PlainMessage<CloseRoundRequest> | undefined, b: CloseRoundRequest | PlainMessage<CloseRoundRequest> | undefined): boolean {
+    return proto3.util.equals(CloseRoundRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.CloseRoundResponse
+ */
+export class CloseRoundResponse extends Message<CloseRoundResponse> {
+  /**
+   * @generated from oneof scoring.v1.CloseRoundResponse.outcome
+   */
+  outcome: {
+    /**
+     * The round is scored, by this close or one before: the end it was scored at.
+     *
+     * @generated from field: google.protobuf.Timestamp scored_at = 1;
+     */
+    value: Timestamp;
+    case: "scoredAt";
+  } | {
+    /**
+     * The round never opened: the end of the close that missed it.
+     *
+     * @generated from field: google.protobuf.Timestamp missed_at = 2;
+     */
+    value: Timestamp;
+    case: "missedAt";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<CloseRoundResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.CloseRoundResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "scored_at", kind: "message", T: Timestamp, oneof: "outcome" },
+    { no: 2, name: "missed_at", kind: "message", T: Timestamp, oneof: "outcome" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseRoundResponse {
+    return new CloseRoundResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseRoundResponse {
+    return new CloseRoundResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseRoundResponse {
+    return new CloseRoundResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseRoundResponse | PlainMessage<CloseRoundResponse> | undefined, b: CloseRoundResponse | PlainMessage<CloseRoundResponse> | undefined): boolean {
+    return proto3.util.equals(CloseRoundResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.CloseBookRequest
+ */
+export class CloseBookRequest extends Message<CloseBookRequest> {
+  /**
+   * @generated from field: string book_id = 1;
+   */
+  bookId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * @generated from field: string tiebreak_round_id = 3;
+   */
+  tiebreakRoundId = "";
+
+  constructor(data?: PartialMessage<CloseBookRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.CloseBookRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "book_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 3, name: "tiebreak_round_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseBookRequest {
+    return new CloseBookRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseBookRequest {
+    return new CloseBookRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseBookRequest {
+    return new CloseBookRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseBookRequest | PlainMessage<CloseBookRequest> | undefined, b: CloseBookRequest | PlainMessage<CloseBookRequest> | undefined): boolean {
+    return proto3.util.equals(CloseBookRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message scoring.v1.CloseBookResponse
+ */
+export class CloseBookResponse extends Message<CloseBookResponse> {
+  /**
+   * @generated from oneof scoring.v1.CloseBookResponse.outcome
+   */
+  outcome: {
+    /**
+     * The book is ranked, by this close or one before: the end it was closed at.
+     *
+     * @generated from field: google.protobuf.Timestamp closed_at = 1;
+     */
+    value: Timestamp;
+    case: "closedAt";
+  } | {
+    /**
+     * The book never opened: the end of the close that missed it.
+     *
+     * @generated from field: google.protobuf.Timestamp missed_at = 2;
+     */
+    value: Timestamp;
+    case: "missedAt";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<CloseBookResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "scoring.v1.CloseBookResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "closed_at", kind: "message", T: Timestamp, oneof: "outcome" },
+    { no: 2, name: "missed_at", kind: "message", T: Timestamp, oneof: "outcome" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseBookResponse {
+    return new CloseBookResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseBookResponse {
+    return new CloseBookResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseBookResponse {
+    return new CloseBookResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseBookResponse | PlainMessage<CloseBookResponse> | undefined, b: CloseBookResponse | PlainMessage<CloseBookResponse> | undefined): boolean {
+    return proto3.util.equals(CloseBookResponse, a, b);
   }
 }
 

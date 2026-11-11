@@ -66,13 +66,11 @@ func (s *StoreContractSuite) TestAClosedArenaPlaysNoMore() {
 	ctx := s.T().Context()
 	s.Require().NoError(s.store.Open(ctx, s.opening("battle")))
 
-	closedAt := contractEndsAt.Add(3 * time.Second)
-	s.Require().NoError(s.store.Close(ctx, Closing{ID: "battle", ClosedAt: closedAt}))
+	s.Require().NoError(s.store.Close(ctx, Closing{ID: "battle", ClosedAt: contractEndsAt.Add(3 * time.Second)}))
 
 	found := s.find("battle")
 	s.True(found.Opened)
 	s.True(found.Closed)
-	s.True(closedAt.Equal(found.ClosedAt), "closed at: want %s, got %s", closedAt, found.ClosedAt)
 	playing, err := s.store.Playing(ctx)
 	s.Require().NoError(err)
 	s.False(playing.Opened, "no arena is open once it closed")
@@ -81,10 +79,7 @@ func (s *StoreContractSuite) TestAClosedArenaPlaysNoMore() {
 func (s *StoreContractSuite) TestAnArenaNeverOpenedCloses() {
 	s.Require().NoError(s.store.Close(s.T().Context(), Closing{ID: "battle", ClosedAt: contractEndsAt}))
 
-	found := s.find("battle")
-	s.True(contractEndsAt.Equal(found.ClosedAt), "closed at: want %s, got %s", contractEndsAt, found.ClosedAt)
-	found.ClosedAt = time.Time{}
-	s.Equal(Arena{ID: "battle", Closed: true}, found)
+	s.Equal(Arena{ID: "battle", Closed: true}, s.find("battle"))
 }
 
 func (s *StoreContractSuite) TestTheStretchesAreEachArenaThatOpenedByOpen() {

@@ -26,7 +26,7 @@ and says what is in it. Read the doc before you change its area.
   modules depend on each other with no cycle, and only player and alerts speak auth's language.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams,
-  the idempotent receivers, the outboxes, the commands.
+  the idempotent receivers, the outboxes, the commands, and the gamemaster's calls that answer at once.
 - [Inside the planet module](docs/planet-module.md) — one directory per concept, no `domain` or `adapters` layer;
   use cases.
 - [Inside the chat module](docs/chat-module.md) — the same shape, for chat's ten concepts.
@@ -49,11 +49,12 @@ and says what is in it. Read the doc before you change its area.
 
 - [Key flow](docs/key-flow.md) — the path of one click, step by step, from the mint to the stream.
 - [The map load](docs/map-load.md) — `GetMap` is a cached HTTP GET; the stream carries what follows.
-- [The map reset](docs/map-reset.md) — a season after season 0 starts on a blank map: the gamemaster's `ResetMap`,
-  wiped once per reset, a new epoch, and replays that start at the reset.
+- [The map reset](docs/map-reset.md) — a season after season 0 starts on a blank map: the gamemaster's `ResetMap` call,
+  wiped once per reset on a context the caller cannot cut, a new epoch, and replays that start at the reset.
 - [Arena battles](docs/arenas.md) — a battle whose set has `arena.on` plays on a fresh map, and the map from
   before comes back at its end; the arena is a shell: it switches the map and seeds it (`seeds`, the capitals pattern);
-  the order that waits on facts kept (day K scored, the arena opened, the battle's set played after, the map back), the
+  the order that waits on answers kept (day K scored, the arena opened, the battle's set played after, the map back),
+  the `OpenArena` and `CloseArena` calls whose swap the caller cannot cut, the
   freeze, the gaps; the ledger's readers (replays, map history, clips, the holder card) skip it by time, so the world's
   map before and after joins up.
 - [The reach](docs/reach.md) — a knob: a take only next to the flag's land or across its waters, on any map.
@@ -127,16 +128,15 @@ and says what is in it. Read the doc before you change its area.
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells
   `SeasonEnded`; Season 0 Top 1-3, its best players, given once by hand.
 - [Scoring](docs/scoring.md) — a points accountant: books, rounds and grants by the ids it is given, opened and closed
-  by the gamemaster's commands, each round placed by its ranking: a battle on the tiles each country gained, a day on that rank plus its rank on the tiles held; no season, day, battle or clock; who a
+  by the gamemaster's calls (a round or book never opened answered missed, and kept so no open lands after), each round placed by its ranking: a battle on the tiles each country gained, a day on that rank plus its rank on the tiles held; no season, day, battle or clock; who a
   board may rank, kept from player's events.
-- [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that commands planet and the
-  antibot, the seasons, days and battles it opens and closes in scoring's books, each season's finale (the Final
+- [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that calls planet and the
+  antibot, the seasons, days and battles it opens and closes in scoring's books, the map swaps on a runner of their own, each season's finale (the Final
   Battle), the events in the game's words (each season, day and battle as it starts), and how to freeze the map over
   the break between two seasons.
 - [The gamemaster as a reconciler](docs/gamemaster-reconciler.md) — each second, what the game wants against what the
-  modules answered: a close sent again until answered, every close answered again, scoring's `RoundMissed` and
-  `BookMissed`, the reset after the
-  book before it, the boot, a refusal, the cost.
+  modules answered: each change an RPC called until it answers, kept right after the call, no call before the ones ahead
+  of it answered, a refusal for good, a call cut by its timeout, the reset after the book before it, the boot, the cost.
 - [Missions](docs/missions.md) — four or five missions a day per player, in the days the gamemaster tells
   (`DayStarted`), counted from planet's facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
   with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to

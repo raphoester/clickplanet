@@ -6,15 +6,16 @@ import (
 )
 
 type Runner struct {
+	name     string
 	interval time.Duration
 	executor Executor
 }
 
-func NewRunner(interval time.Duration, executor Executor) *Runner {
-	return &Runner{interval: interval, executor: executor}
+func NewRunner(name string, interval time.Duration, executor Executor) *Runner {
+	return &Runner{name: name, interval: interval, executor: executor}
 }
 
-func (r *Runner) Name() string { return "gamemaster-plan" }
+func (r *Runner) Name() string { return r.name }
 
 func (r *Runner) Run(ctx context.Context) {
 	ticker := time.NewTicker(r.interval)

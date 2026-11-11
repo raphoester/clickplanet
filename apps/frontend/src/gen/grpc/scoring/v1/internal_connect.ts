@@ -3,18 +3,75 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRoundRequest, GetRoundResponse } from "./scoring_pb.js";
+import { CloseBookRequest, CloseBookResponse, CloseRoundRequest, CloseRoundResponse, GetRankPointsRequest, GetRankPointsResponse, GetRoundPlayersRequest, GetRoundPlayersResponse, GetTableRequest, GetTableResponse, OpenBookRequest, OpenBookResponse, OpenRoundRequest, OpenRoundResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetRankPointsRequest, GetRankPointsResponse, GetRoundPlayersRequest, GetRoundPlayersResponse, GetTableRequest, GetTableResponse } from "./internal_pb.js";
+import { GetRoundRequest, GetRoundResponse } from "./scoring_pb.js";
 
 /**
- * What another module reads of scoring's books, by the ids it was given.
+ * What another module reads of scoring's books, by the ids it was given, and what the gamemaster asks of them. Scoring
+ * is a points accountant: it knows books and rounds by the ids it is given, and no season, day, battle or clock. Each
+ * call of the gamemaster's is idempotent by its ids and answers what it did, or did before; InvalidArgument for a bad
+ * id or no time.
  *
  * @generated from service scoring.v1.InternalService
  */
 export const InternalService = {
   typeName: "scoring.v1.InternalService",
   methods: {
+    /**
+     * A book gathers the points of its rounds and each player's takes, from starts_at until it is closed. A take counts
+     * in every book open at its time. A book open already is left as it is. FailedPrecondition for a book closed missed.
+     *
+     * @generated from rpc scoring.v1.InternalService.OpenBook
+     */
+    openBook: {
+      name: "OpenBook",
+      I: OpenBookRequest,
+      O: OpenBookResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`.
+     * Takes from starts_at count in it. A round open already is left as it is. FailedPrecondition for a round whose book
+     * is not open, or a round closed missed; InvalidArgument for one with no ranking, or times outside 1 to 10.
+     *
+     * @generated from rpc scoring.v1.InternalService.OpenRound
+     */
+    openRound: {
+      name: "OpenRound",
+      I: OpenRoundRequest,
+      O: OpenRoundResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A
+     * round scored already is not scored again. One never opened is missed: nothing scores it, and it never opens.
+     *
+     * @generated from rpc scoring.v1.InternalService.CloseRound
+     */
+    closeRound: {
+      name: "CloseRound",
+      I: CloseRoundRequest,
+      O: CloseRoundResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third
+     * key). Takes after ends_at count in it no more. A book closed already is not ranked again. One never opened is
+     * missed: nothing ranks it, and it never opens.
+     *
+     * @generated from rpc scoring.v1.InternalService.CloseBook
+     */
+    closeBook: {
+      name: "CloseBook",
+      I: CloseBookRequest,
+      O: CloseBookResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
     /**
      * @generated from rpc scoring.v1.InternalService.GetRound
      */

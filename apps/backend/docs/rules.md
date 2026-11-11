@@ -149,9 +149,9 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `clicks.CapitalsPart` — `clicks.CapitalPlay` in the tile storage (a shield on a capital, a fortify, the knock-out, the
   standing) and `GetBonusRules` (`knock_out`, `capital_shields_fixed`).
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
-  set the schedule chose last, and `default` until it chose one; then each `planet.v1.PlayRuleSet` the schedule sends (`Play`, from
-  `commands/play_rule_set_handler`); the same turn, sent again each minute with the same `decided_at`, is no newer
-  and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). A missing or broken set at boot refuses the boot. Each time it reads the set to
+  set the schedule chose last, and `default` until it chose one; then each `planet.v1.InternalService/PlayRuleSet` the
+  schedule calls (`Play`, from `planetv1controller/play_rule_set_handler`); the same turn called again, with the same
+  `decided_at`, is no newer and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). A missing or broken set at boot refuses the boot. Each time it reads the set to
   play from the store and enforces it when its values changed (`Set.Equal`), one play at a time under a lock. A failed
   read, or a kept set that cannot play, keeps the rules in force, and `log_play_rules` logs it; each set taken is
   logged at Warn (`rules in force`, `set`, `rules`: every value it plays, as protojson). A save of `default` changes
@@ -159,7 +159,8 @@ The readers call it where they use the rules, not when they are built: a set tak
   at the next play or boot.
 - **The choice is kept** in `planet.rule_set_choice` (`rules.Choice`: the set and when the schedule decided it, one
   row, `postgres_choice_store`): a later decision overrules it, and an older one or one sent again changes nothing. A
-  set planet keeps none of is refused, the choice is not kept, and the command is dropped.
+  set planet keeps none of, or one that cannot play, is refused (`FailedPrecondition`) and the choice is not kept; the
+  schedule calls again each minute.
 - `InForce.Enforce` also stamps when the set took over (`Since`) and wakes each `Watch()`er: every planet stream sends
   `PlanetEvent.rules_changed`, and the web client reads `GetBudget` and `GetBonusRules` again, so an open tab shows a
   new refill and new sizes with no reload. `GetBonusRules` is a GET no cache keeps for that reason.

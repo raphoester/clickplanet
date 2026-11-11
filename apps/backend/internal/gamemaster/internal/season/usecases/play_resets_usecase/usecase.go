@@ -2,48 +2,69 @@ package play_resets_usecase
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Commands interface {
-	// Reset asks planet to start the season on a blank map; planet wipes it once per season.
+type Kept interface {
+	KeepReset(ctx context.Context, book moments.BookID) (bool, error)
+}
+
+type Planet interface {
+	// Reset asks planet to start the season on a blank map: nil once it is wiped, moments.ErrRefused for a refusal for
+	// good, any other error no answer.
 	Reset(ctx context.Context, starts season.Window) error
 }
 
-// Execute answers the season whose start it told, and told is true when it told one.
+// Execute answers the season whose reset it asked, and done is true when planet answered it wiped.
 type Executor interface {
-	Execute(ctx context.Context, plan moments.Plan) (starts season.Window, told bool, err error)
+	Execute(ctx context.Context, plan moments.Plan) (starts season.Window, done bool, err error)
 }
 
-func New(commands Commands, clock cptime.Clock) *UseCase {
-	return &UseCase{commands: commands, clock: clock, told: cpcolls.NewSet[season.Number]()}
+func New(kept Kept, planet Planet, clock cptime.Clock, again time.Duration) *UseCase {
+	return &UseCase{kept: kept, planet: planet, clock: clock, calls: moments.NewCalls[season.Number](again)}
 }
 
-// UseCase tells planet once per process that the running season starts on a blank map, once the plan says the map may
-// be wiped (Plan.ResetAt): scoring answered the book of the season before it, so its finale was scored on the map, and
-// no arena battle before it waits for its map, whose end would undo the reset. Planet keeps each reset, so a boot that
-// tells it again wipes nothing; a command Redis did not take is sent again at the next Execute.
+// UseCase asks planet to reset the map of the season that runs once the plan says it may be wiped (Plan.ResetAt), until
+// planet answers, and keeps the answer right after the call. A call planet did not answer is made again after `again`;
+// one it refused for good is not made again in this process.
 type UseCase struct {
-	commands Commands
-	clock    cptime.Clock
+	kept   Kept
+	planet Planet
+	clock  cptime.Clock
 
-	told *cpcolls.Set[season.Number]
+	calls *moments.Calls[season.Number]
 }
 
 var _ Executor = (*UseCase)(nil)
 
 func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) (season.Window, bool, error) {
-	running, ok := plan.ResetAt(u.clock.Now())
-	if !ok || u.told.Contains(running.Number) {
+	now := u.clock.Now()
+	running, ok := plan.ResetAt(now)
+	if !ok || u.calls.Answered(running.Number) || u.calls.Waits(running.Number, now) {
 		return season.Window{}, false, nil
 	}
-	if err := u.commands.Reset(ctx, running); err != nil {
-		return running, false, err //nolint:wrapcheck // the adapter names the season.
+	err := u.call(ctx, running)
+	switch {
+	case errors.Is(err, moments.ErrRefused):
+		u.calls.Answer(running.Number)
+		return running, false, err
+	case err != nil:
+		u.calls.Fail(running.Number, now)
+		return running, false, err
 	}
-	u.told.Add(running.Number)
+	u.calls.Answer(running.Number)
 	return running, true, nil
+}
+
+func (u *UseCase) call(ctx context.Context, running season.Window) error {
+	if err := u.planet.Reset(ctx, running); err != nil {
+		return err //nolint:wrapcheck // the adapter names the season.
+	}
+	_, err := u.kept.KeepReset(ctx, moments.BookOf(running.Number))
+	return err //nolint:wrapcheck // the store names the season.
 }

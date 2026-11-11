@@ -2,27 +2,35 @@ package log_command
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 )
 
-type Executor[C any] interface {
-	Execute(ctx context.Context, command C) (bool, error)
+type Executor[C, A any] interface {
+	Execute(ctx context.Context, command C) (A, error)
 }
 
-func New[C any](name string, inner Executor[C], logger *slog.Logger) *Logged[C] {
-	return &Logged[C]{name: name, inner: inner, logger: logger}
+func New[C, A any](name string, inner Executor[C, A], logger *slog.Logger) *Logged[C, A] {
+	return &Logged[C, A]{name: name, inner: inner, logger: logger}
 }
 
-type Logged[C any] struct {
+// Logged logs each answer and each refusal, and leaves any other failure to its caller's log.
+type Logged[C, A any] struct {
 	name   string
-	inner  Executor[C]
+	inner  Executor[C, A]
 	logger *slog.Logger
 }
 
-func (l *Logged[C]) Execute(ctx context.Context, command C) (bool, error) {
-	applied, err := l.inner.Execute(ctx, command)
-	if applied {
-		l.logger.Info("scoring command applied", slog.String("command", l.name), slog.Any("args", command))
+func (l *Logged[C, A]) Execute(ctx context.Context, command C) (A, error) {
+	answer, err := l.inner.Execute(ctx, command)
+	if err == nil {
+		l.logger.Info("scoring command answered",
+			slog.String("command", l.name), slog.Any("args", command), slog.Any("answer", answer))
+	} else if errors.Is(err, books.ErrRefused) {
+		l.logger.Warn("scoring command refused",
+			slog.String("command", l.name), slog.Any("args", command), slog.Any("error", err))
 	}
-	return applied, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+	return answer, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 }

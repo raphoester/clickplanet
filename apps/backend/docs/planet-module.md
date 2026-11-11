@@ -50,9 +50,7 @@ internal/planet/internal/
   subscribers/                    the edge for events: player.v1.PlayerForgotten → anonymize_takes_usecase,
                                   player.v1.PlayerCreated → grant_sign_in_refill_usecase
   commands/                       the edge for commands: planet.v1.GrantCharges → apply_grant_usecase,
-                                  planet.v1.RefuseCaller and AdmitCaller → refusals.Book,
-                                  planet.v1.PlayRuleSet → play_rules_usecase, planet.v1.ResetMap → reset_map_usecase,
-                                  planet.v1.ArenaCommand → open_arena_usecase and close_arena_usecase
+                                  planet.v1.RefuseCaller and AdmitCaller → refusals.Book
 ```
 
 - **`clicks/`** — what a click is worth, what the map looks like, and what
@@ -159,8 +157,8 @@ because it serves every concept over one Connect service. It only maps.
 | `bonuses/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Gate`, `Escrow`, `Tiles` |
 | `placements/usecases/return_placements_usecase` | at boot, gives back every shield a stop left between the hand and the map | `Placements`, `Escrow` |
 | `resets/usecases/reset_map_usecase` | wipes the map once per reset (see [The map reset](map-reset.md)) | `Tiles`, `resets.Store` |
-| `arenas/usecases/open_arena_usecase` | reads the battle's set, saves the world's map, plays the arena's seeded one and tells `ArenaOpened`, once per arena (see [Arena battles](arenas.md)) | `Tiles`, `Setups`, `Arenas`, `Outbox`, `InPlay` |
-| `arenas/usecases/close_arena_usecase` | deletes the arena's map, plays the world's again and tells `ArenaClosed`, once per arena | `Tiles`, `Arenas`, `Outbox`, `InPlay` |
+| `arenas/usecases/open_arena_usecase` | reads the battle's set, saves the world's map and plays the arena's seeded one, once per arena (see [Arena battles](arenas.md)) | `Tiles`, `Setups`, `Arenas`, `InPlay` |
+| `arenas/usecases/close_arena_usecase` | deletes the arena's map and plays the world's again, once per arena | `Tiles`, `Arenas`, `InPlay` |
 | `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Choices`, `Rules` |
 | `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values; never the one that plays | `Sets`, `Playing` |
 | `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TilesTaken` and `ShieldsStruck`, one per event in parts of `PartTiles` (4,096) at most, `BombLanded`, `Fortified` and `ShieldPlaced`, each with its position, each tile with its index in its event and a taken one with its point on the globe; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Positions`, `Sender` |

@@ -42,7 +42,7 @@ func NewSetups(sets Sets, seeds Seeds) Setups {
 	return Setups{sets: sets, seeds: seeds}
 }
 
-// Setup is refused for a set planet keeps none of, or one that cannot play: delivered again, it never would.
+// Setup is refused for a set planet keeps none of, or one that cannot play: asked again, it never would.
 func (s Setups) Setup(ctx context.Context, name rules.SetName) (Setup, error) {
 	set, err := s.sets.Set(ctx, name)
 	if errors.Is(err, rules.ErrUnknownSet) || errors.Is(err, rules.ErrInvalidSet) {

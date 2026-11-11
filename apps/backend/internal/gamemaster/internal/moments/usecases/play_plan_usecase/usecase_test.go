@@ -14,7 +14,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_maps_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
@@ -41,25 +43,32 @@ func (s *steps) saw(step string, plan moments.Plan) {
 	s.unjudged = append(s.unjudged, unjudged)
 }
 
+type judge struct{ *steps }
+
+func (j judge) Execute(_ context.Context, plan moments.Plan) ([]moments.Judgement, error) {
+	j.saw("judge", plan)
+	return j.judged, nil
+}
+
 type resets struct{ *steps }
 
 func (r resets) Execute(_ context.Context, plan moments.Plan) (season.Window, bool, error) {
 	r.saw("resets", plan)
-	return season.Window{}, false, nil
+	return season.Window{}, false, r.err
 }
 
 type arenas struct{ *steps }
 
-func (a arenas) Execute(_ context.Context, plan moments.Plan) (play_arenas_usecase.Tick, error) {
+func (a arenas) Execute(_ context.Context, plan moments.Plan) ([]play_arenas_usecase.Call, error) {
 	a.saw("arenas", plan)
-	return play_arenas_usecase.Tick{Judged: a.judged}, a.err
+	return nil, nil
 }
 
 type scoring struct{ *steps }
 
-func (s scoring) Execute(_ context.Context, plan moments.Plan) ([]moments.Command, error) {
+func (s scoring) Execute(_ context.Context, plan moments.Plan) ([]play_scoring_usecase.Call, error) {
 	s.saw("scoring", plan)
-	return nil, nil
+	return nil, s.err
 }
 
 type starting struct{ *steps }
@@ -83,7 +92,8 @@ type harness struct {
 	seasons *inmemory_season_store.Store
 	planner *counted
 	steps   *steps
-	useCase *play_plan_usecase.UseCase
+	plays   *play_plan_usecase.UseCase
+	maps    *play_maps_usecase.UseCase
 }
 
 func newHarness(t *testing.T) *harness {
@@ -100,39 +110,44 @@ func newHarness(t *testing.T) *harness {
 			inmemory_arena_store.New(), season.Cutoff(21*time.Hour))},
 		steps: &steps{},
 	}
-	h.useCase = play_plan_usecase.New(h.planner, resets{h.steps}, arenas{h.steps}, scoring{h.steps}, starting{h.steps})
+	h.plays = play_plan_usecase.New(h.planner, judge{h.steps}, scoring{h.steps}, starting{h.steps})
+	h.maps = play_maps_usecase.New(h.planner, resets{h.steps}, arenas{h.steps})
 	return h
 }
 
 func TestEachStepGetsThePlanReadOnceThisTickInOrder(t *testing.T) {
 	h := newHarness(t)
 
-	require.NoError(t, h.useCase.Execute(t.Context()))
-
+	require.NoError(t, h.plays.Execute(t.Context()))
 	assert.Equal(t, 1, h.planner.reads)
-	assert.Equal(t, []string{"resets", "arenas", "scoring", "starts"}, h.steps.ran)
+	require.NoError(t, h.maps.Execute(t.Context()))
+	assert.Equal(t, 2, h.planner.reads, "the map swaps read their own plan")
+
+	assert.Equal(t, []string{"judge", "scoring", "starts", "resets", "arenas"}, h.steps.ran)
 }
 
-func TestTheStepsAfterTheArenaBattlesGetTheBattleTheyJudged(t *testing.T) {
+func TestTheStepsAfterTheJudgeGetTheBattleItJudged(t *testing.T) {
 	h := newHarness(t)
 	h.steps.judged = []moments.Judgement{{Round: fought, Mode: moments.Arena}}
 
-	require.NoError(t, h.useCase.Execute(t.Context()))
+	require.NoError(t, h.plays.Execute(t.Context()))
 
-	assert.Equal(t, []bool{true, true, false, false}, h.steps.unjudged)
+	assert.Equal(t, []bool{true, false, false}, h.steps.unjudged)
 	assert.Equal(t, 1, h.planner.reads, "the judgement is not read back")
 }
 
 func TestAStepThatFailsStopsNoneAfterIt(t *testing.T) {
 	h := newHarness(t)
-	down := errors.New("planet is down")
+	down := errors.New("scoring is down")
 	h.steps.err = down
 
-	err := h.useCase.Execute(t.Context())
+	plays := h.plays.Execute(t.Context())
+	maps := h.maps.Execute(t.Context())
 
-	require.ErrorIs(t, err, down)
-	require.NotErrorIs(t, err, play_plan_usecase.ErrUnplanned)
-	assert.Equal(t, []string{"resets", "arenas", "scoring", "starts"}, h.steps.ran)
+	require.ErrorIs(t, plays, down)
+	require.NotErrorIs(t, plays, play_plan_usecase.ErrUnplanned)
+	require.ErrorIs(t, maps, down)
+	assert.Equal(t, []string{"judge", "scoring", "starts", "resets", "arenas"}, h.steps.ran)
 }
 
 func TestAPlanThatCannotBeReadRunsNoStep(t *testing.T) {
@@ -140,9 +155,11 @@ func TestAPlanThatCannotBeReadRunsNoStep(t *testing.T) {
 	down := errors.New("postgres is down")
 	h.seasons.FailWith(down)
 
-	err := h.useCase.Execute(t.Context())
+	plays := h.plays.Execute(t.Context())
+	maps := h.maps.Execute(t.Context())
 
-	require.ErrorIs(t, err, play_plan_usecase.ErrUnplanned)
-	require.ErrorIs(t, err, down)
+	require.ErrorIs(t, plays, play_plan_usecase.ErrUnplanned)
+	require.ErrorIs(t, plays, down)
+	require.ErrorIs(t, maps, play_plan_usecase.ErrUnplanned)
 	assert.Empty(t, h.steps.ran)
 }

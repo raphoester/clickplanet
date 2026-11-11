@@ -57,5 +57,5 @@ func TestAFailedReadOfTheSetIsNoRefusal(t *testing.T) {
 	_, err := arenas.NewSetups(failingSets{}, namedSeeds{}).Setup(t.Context(), "siege")
 
 	require.Error(t, err)
-	assert.NotErrorIs(t, err, arenas.ErrRefused, "delivered again, it may apply")
+	assert.NotErrorIs(t, err, arenas.ErrRefused, "asked again, it may apply")
 }

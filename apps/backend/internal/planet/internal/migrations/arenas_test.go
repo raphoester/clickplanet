@@ -14,6 +14,8 @@ import (
 const (
 	arenas      = "20261110120000"
 	afterArenas = "20261110120100"
+	dropOutbox  = "20261111170000"
+	tellArenas  = `INSERT INTO outbox (event, payload) VALUES ('planet.v1.ArenaOpened', ''), ('planet.v1.ArenaClosed', '')`
 )
 
 func countWhere(t *testing.T, db *cppg.Postgres, query string) int {
@@ -54,4 +56,15 @@ func TestTheArenasGoBackWithTheWorldsMapAlone(t *testing.T) {
 
 	assert.Equal(t, []int{1}, scan(t, db, `SELECT id FROM tiles`))
 	assert.Equal(t, map[int]string{4: "fr"}, locksOf(t, db, "borders.bin"))
+}
+
+func TestTheOutboxGoesWithTheArenasEventsItHeld(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "planet", before(t, dropOutbox))
+	_, err := db.On(t.Context()).ExecContext(t.Context(), tellArenas)
+	require.NoError(t, err)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	assert.Equal(t, 0, countWhere(t, db, `SELECT count(*) WHERE to_regclass('outbox') IS NOT NULL`))
+	assert.Equal(t, 0, countWhere(t, db, `SELECT count(*) WHERE to_regtype('outbox_event') IS NOT NULL`))
 }

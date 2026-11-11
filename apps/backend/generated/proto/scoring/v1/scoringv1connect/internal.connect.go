@@ -33,6 +33,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// InternalServiceOpenBookProcedure is the fully-qualified name of the InternalService's OpenBook
+	// RPC.
+	InternalServiceOpenBookProcedure = "/scoring.v1.InternalService/OpenBook"
+	// InternalServiceOpenRoundProcedure is the fully-qualified name of the InternalService's OpenRound
+	// RPC.
+	InternalServiceOpenRoundProcedure = "/scoring.v1.InternalService/OpenRound"
+	// InternalServiceCloseRoundProcedure is the fully-qualified name of the InternalService's
+	// CloseRound RPC.
+	InternalServiceCloseRoundProcedure = "/scoring.v1.InternalService/CloseRound"
+	// InternalServiceCloseBookProcedure is the fully-qualified name of the InternalService's CloseBook
+	// RPC.
+	InternalServiceCloseBookProcedure = "/scoring.v1.InternalService/CloseBook"
 	// InternalServiceGetRoundProcedure is the fully-qualified name of the InternalService's GetRound
 	// RPC.
 	InternalServiceGetRoundProcedure = "/scoring.v1.InternalService/GetRound"
@@ -49,6 +61,20 @@ const (
 
 // InternalServiceClient is a client for the scoring.v1.InternalService service.
 type InternalServiceClient interface {
+	// A book gathers the points of its rounds and each player's takes, from starts_at until it is closed. A take counts
+	// in every book open at its time. A book open already is left as it is. FailedPrecondition for a book closed missed.
+	OpenBook(context.Context, *connect.Request[v1.OpenBookRequest]) (*connect.Response[v1.OpenBookResponse], error)
+	// A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`.
+	// Takes from starts_at count in it. A round open already is left as it is. FailedPrecondition for a round whose book
+	// is not open, or a round closed missed; InvalidArgument for one with no ranking, or times outside 1 to 10.
+	OpenRound(context.Context, *connect.Request[v1.OpenRoundRequest]) (*connect.Response[v1.OpenRoundResponse], error)
+	// Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A
+	// round scored already is not scored again. One never opened is missed: nothing scores it, and it never opens.
+	CloseRound(context.Context, *connect.Request[v1.CloseRoundRequest]) (*connect.Response[v1.CloseRoundResponse], error)
+	// Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third
+	// key). Takes after ends_at count in it no more. A book closed already is not ranked again. One never opened is
+	// missed: nothing ranks it, and it never opens.
+	CloseBook(context.Context, *connect.Request[v1.CloseBookRequest]) (*connect.Response[v1.CloseBookResponse], error)
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
 	GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error)
@@ -67,6 +93,34 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_scoring_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
+		openBook: connect.NewClient[v1.OpenBookRequest, v1.OpenBookResponse](
+			httpClient,
+			baseURL+InternalServiceOpenBookProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("OpenBook")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		openRound: connect.NewClient[v1.OpenRoundRequest, v1.OpenRoundResponse](
+			httpClient,
+			baseURL+InternalServiceOpenRoundProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("OpenRound")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		closeRound: connect.NewClient[v1.CloseRoundRequest, v1.CloseRoundResponse](
+			httpClient,
+			baseURL+InternalServiceCloseRoundProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("CloseRound")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		closeBook: connect.NewClient[v1.CloseBookRequest, v1.CloseBookResponse](
+			httpClient,
+			baseURL+InternalServiceCloseBookProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("CloseBook")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		getRound: connect.NewClient[v1.GetRoundRequest, v1.GetRoundResponse](
 			httpClient,
 			baseURL+InternalServiceGetRoundProcedure,
@@ -100,10 +154,34 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
+	openBook        *connect.Client[v1.OpenBookRequest, v1.OpenBookResponse]
+	openRound       *connect.Client[v1.OpenRoundRequest, v1.OpenRoundResponse]
+	closeRound      *connect.Client[v1.CloseRoundRequest, v1.CloseRoundResponse]
+	closeBook       *connect.Client[v1.CloseBookRequest, v1.CloseBookResponse]
 	getRound        *connect.Client[v1.GetRoundRequest, v1.GetRoundResponse]
 	getTable        *connect.Client[v1.GetTableRequest, v1.GetTableResponse]
 	getRoundPlayers *connect.Client[v1.GetRoundPlayersRequest, v1.GetRoundPlayersResponse]
 	getRankPoints   *connect.Client[v1.GetRankPointsRequest, v1.GetRankPointsResponse]
+}
+
+// OpenBook calls scoring.v1.InternalService.OpenBook.
+func (c *internalServiceClient) OpenBook(ctx context.Context, req *connect.Request[v1.OpenBookRequest]) (*connect.Response[v1.OpenBookResponse], error) {
+	return c.openBook.CallUnary(ctx, req)
+}
+
+// OpenRound calls scoring.v1.InternalService.OpenRound.
+func (c *internalServiceClient) OpenRound(ctx context.Context, req *connect.Request[v1.OpenRoundRequest]) (*connect.Response[v1.OpenRoundResponse], error) {
+	return c.openRound.CallUnary(ctx, req)
+}
+
+// CloseRound calls scoring.v1.InternalService.CloseRound.
+func (c *internalServiceClient) CloseRound(ctx context.Context, req *connect.Request[v1.CloseRoundRequest]) (*connect.Response[v1.CloseRoundResponse], error) {
+	return c.closeRound.CallUnary(ctx, req)
+}
+
+// CloseBook calls scoring.v1.InternalService.CloseBook.
+func (c *internalServiceClient) CloseBook(ctx context.Context, req *connect.Request[v1.CloseBookRequest]) (*connect.Response[v1.CloseBookResponse], error) {
+	return c.closeBook.CallUnary(ctx, req)
 }
 
 // GetRound calls scoring.v1.InternalService.GetRound.
@@ -128,6 +206,20 @@ func (c *internalServiceClient) GetRankPoints(ctx context.Context, req *connect.
 
 // InternalServiceHandler is an implementation of the scoring.v1.InternalService service.
 type InternalServiceHandler interface {
+	// A book gathers the points of its rounds and each player's takes, from starts_at until it is closed. A take counts
+	// in every book open at its time. A book open already is left as it is. FailedPrecondition for a book closed missed.
+	OpenBook(context.Context, *connect.Request[v1.OpenBookRequest]) (*connect.Response[v1.OpenBookResponse], error)
+	// A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`.
+	// Takes from starts_at count in it. A round open already is left as it is. FailedPrecondition for a round whose book
+	// is not open, or a round closed missed; InvalidArgument for one with no ranking, or times outside 1 to 10.
+	OpenRound(context.Context, *connect.Request[v1.OpenRoundRequest]) (*connect.Response[v1.OpenRoundResponse], error)
+	// Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A
+	// round scored already is not scored again. One never opened is missed: nothing scores it, and it never opens.
+	CloseRound(context.Context, *connect.Request[v1.CloseRoundRequest]) (*connect.Response[v1.CloseRoundResponse], error)
+	// Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third
+	// key). Takes after ends_at count in it no more. A book closed already is not ranked again. One never opened is
+	// missed: nothing ranks it, and it never opens.
+	CloseBook(context.Context, *connect.Request[v1.CloseBookRequest]) (*connect.Response[v1.CloseBookResponse], error)
 	GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error)
 	GetTable(context.Context, *connect.Request[v1.GetTableRequest]) (*connect.Response[v1.GetTableResponse], error)
 	GetRoundPlayers(context.Context, *connect.Request[v1.GetRoundPlayersRequest]) (*connect.Response[v1.GetRoundPlayersResponse], error)
@@ -142,6 +234,34 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_scoring_v1_internal_proto.Services().ByName("InternalService").Methods()
+	internalServiceOpenBookHandler := connect.NewUnaryHandler(
+		InternalServiceOpenBookProcedure,
+		svc.OpenBook,
+		connect.WithSchema(internalServiceMethods.ByName("OpenBook")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceOpenRoundHandler := connect.NewUnaryHandler(
+		InternalServiceOpenRoundProcedure,
+		svc.OpenRound,
+		connect.WithSchema(internalServiceMethods.ByName("OpenRound")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceCloseRoundHandler := connect.NewUnaryHandler(
+		InternalServiceCloseRoundProcedure,
+		svc.CloseRound,
+		connect.WithSchema(internalServiceMethods.ByName("CloseRound")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceCloseBookHandler := connect.NewUnaryHandler(
+		InternalServiceCloseBookProcedure,
+		svc.CloseBook,
+		connect.WithSchema(internalServiceMethods.ByName("CloseBook")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalServiceGetRoundHandler := connect.NewUnaryHandler(
 		InternalServiceGetRoundProcedure,
 		svc.GetRound,
@@ -172,6 +292,14 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 	)
 	return "/scoring.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case InternalServiceOpenBookProcedure:
+			internalServiceOpenBookHandler.ServeHTTP(w, r)
+		case InternalServiceOpenRoundProcedure:
+			internalServiceOpenRoundHandler.ServeHTTP(w, r)
+		case InternalServiceCloseRoundProcedure:
+			internalServiceCloseRoundHandler.ServeHTTP(w, r)
+		case InternalServiceCloseBookProcedure:
+			internalServiceCloseBookHandler.ServeHTTP(w, r)
 		case InternalServiceGetRoundProcedure:
 			internalServiceGetRoundHandler.ServeHTTP(w, r)
 		case InternalServiceGetTableProcedure:
@@ -188,6 +316,22 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
+
+func (UnimplementedInternalServiceHandler) OpenBook(context.Context, *connect.Request[v1.OpenBookRequest]) (*connect.Response[v1.OpenBookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.OpenBook is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) OpenRound(context.Context, *connect.Request[v1.OpenRoundRequest]) (*connect.Response[v1.OpenRoundResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.OpenRound is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) CloseRound(context.Context, *connect.Request[v1.CloseRoundRequest]) (*connect.Response[v1.CloseRoundResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.CloseRound is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) CloseBook(context.Context, *connect.Request[v1.CloseBookRequest]) (*connect.Response[v1.CloseBookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.CloseBook is not implemented"))
+}
 
 func (UnimplementedInternalServiceHandler) GetRound(context.Context, *connect.Request[v1.GetRoundRequest]) (*connect.Response[v1.GetRoundResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("scoring.v1.InternalService.GetRound is not implemented"))

@@ -67,6 +67,16 @@ func (s *Store) KeepOpened(ctx context.Context, round moments.RoundID) error {
 	return nil
 }
 
+func (s *Store) KeepReset(ctx context.Context, book moments.BookID) (bool, error) {
+	res, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO reset_seasons (book_id) VALUES ($1) ON CONFLICT (book_id) DO NOTHING
+	`, string(book))
+	if err != nil {
+		return false, fmt.Errorf("failed to keep the season %s reset: %w", book, err)
+	}
+	return inserted(res)
+}
+
 func (s *Store) KeepToldSeason(ctx context.Context, book moments.BookID) (bool, error) {
 	res, err := s.db.On(ctx).ExecContext(ctx, `
 		INSERT INTO told_seasons (book_id) VALUES ($1) ON CONFLICT (book_id) DO NOTHING
@@ -118,6 +128,8 @@ func (s *Store) Kept(ctx context.Context) (moments.Kept, error) {
 		SELECT 'closed', book_id FROM closed_books
 		UNION ALL
 		SELECT 'missed book', book_id FROM missed_books
+		UNION ALL
+		SELECT 'reset', book_id FROM reset_seasons
 	`)
 	if err != nil {
 		return moments.Kept{}, fmt.Errorf("failed to read what scoring answered: %w", err)
@@ -141,6 +153,8 @@ func (s *Store) Kept(ctx context.Context) (moments.Kept, error) {
 			kept.Closed = append(kept.Closed, moments.BookID(id))
 		case "missed book":
 			kept.MissedBooks = append(kept.MissedBooks, moments.BookID(id))
+		case "reset":
+			kept.Reset = append(kept.Reset, moments.BookID(id))
 		default:
 			return moments.Kept{}, fmt.Errorf("a row of a kind this build does not know: %q", kind)
 		}

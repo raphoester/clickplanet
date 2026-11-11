@@ -2,6 +2,7 @@ package log_play_resets
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
@@ -21,13 +22,15 @@ type Logged struct {
 var _ play_resets_usecase.Executor = (*Logged)(nil)
 
 func (l *Logged) Execute(ctx context.Context, plan moments.Plan) (season.Window, bool, error) {
-	starts, told, err := l.inner.Execute(ctx, plan)
-	if told {
-		l.logger.Warn("planet is told to reset the map", slog.Uint64("season", uint64(starts.Number)),
-			slog.Time("starts_at", starts.StartsAt))
+	starts, done, err := l.inner.Execute(ctx, plan)
+	attrs := []any{slog.Uint64("season", uint64(starts.Number)), slog.Time("starts_at", starts.StartsAt)}
+	switch {
+	case done:
+		l.logger.Warn("planet reset the map", attrs...)
+	case errors.Is(err, moments.ErrRefused):
+		l.logger.Error("planet refused to reset the map", append(attrs, slog.Any("error", err))...)
+	case err != nil && ctx.Err() == nil:
+		l.logger.Error("failed to ask planet to reset the map", append(attrs, slog.Any("error", err))...)
 	}
-	if err != nil && ctx.Err() == nil {
-		l.logger.Error("failed to tell planet to reset the map", slog.Any("error", err))
-	}
-	return starts, told, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+	return starts, done, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 }

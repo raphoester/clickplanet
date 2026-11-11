@@ -68,10 +68,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/reassign_country_usecase/audit_reassign"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/admit_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/arena_command_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/reset_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -94,6 +91,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/close_arena_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/find_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
@@ -133,12 +131,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_arena_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/pledge_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reassign_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/release_allegiance_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reset_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
@@ -165,7 +166,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -268,18 +268,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to play the rules postgres keeps: %w", err)
 			}
-			chosen, err := cpredis.Handle(ctx, streams, play_rule_set_handler.New(playRules))
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to handle planet.v1.PlayRuleSet: %w", err)
-			}
 			resetStore := postgres_reset_store.New(db)
-			resetMap := log_reset_map.New(reset_map_usecase.New(tilesStorage, resetStore), props.Logger)
-			resetting, err := cpredis.Handle(ctx, streams, reset_map_handler.New(resetMap))
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to handle planet.v1.ResetMap: %w", err)
-			}
 			throttle := rules.Reader(inForce, clicks.ThrottlePart)
 			freeze := rules.Reader(inForce, clicks.FreezePart)
 			lock := rules.Reader(inForce, allegiances.LockPart)
@@ -288,15 +277,6 @@ func NewModule(config Config) cpbootstrap.Module {
 			inPlay.Resume(playing)
 			reach := clicks.NewReach(rules.Reader(inForce, clicks.ReachPart), geography, waters, tilesStorage)
 			setups := arenas.NewSetups(ruleSets, seeds.NewCatalog(seeds.Ground{Capitals: capitals}))
-			arenaCommands, err := cpredis.Handle(ctx, streams, arena_command_handler.New(
-				log_open_arena.New(open_arena_usecase.New(tilesStorage, setups, arenaStore,
-					cpoutbox.New(db), inPlay, clock), props.Logger),
-				log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, cpoutbox.New(db), inPlay, clock),
-					props.Logger)))
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to handle planet.v1.ArenaCommand: %w", err)
-			}
 
 			bank, err := quizzes.Load(tilesStorage)
 			if err != nil {
@@ -354,8 +334,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, newPlayers, refused, admitted, chosen, resetting,
-					arenaCommands, cpoutbox.NewRelay("planet-outbox", db, streams, props.Logger),
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, newPlayers, refused, admitted,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
@@ -438,6 +417,13 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			internalService := planetv1controller.InternalService{
+				PlayRuleSetHandler: play_rule_set_handler.New(playRules),
+				ResetMapHandler: reset_map_handler.New(
+					log_reset_map.New(reset_map_usecase.New(tilesStorage, resetStore), props.Logger)),
+				OpenArenaHandler: open_arena_handler.New(
+					log_open_arena.New(open_arena_usecase.New(tilesStorage, setups, arenaStore, inPlay, clock), props.Logger)),
+				CloseArenaHandler: close_arena_handler.New(
+					log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, inPlay, clock), props.Logger)),
 				GetLedgerHandler:         getLedger,
 				GetLedgerTotalsHandler:   get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
 				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, arenaStore)),

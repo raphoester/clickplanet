@@ -3,12 +3,8 @@ package close_arena_usecase
 import (
 	"context"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -41,22 +37,21 @@ type Executor interface {
 	Execute(ctx context.Context, arena arenas.ID) (Closed, error)
 }
 
-func New(tiles Tiles, kept Arenas, outbox cpatomic.Outbox, inPlay InPlay, clock cptime.Clock) *UseCase {
-	return &UseCase{tiles: tiles, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock}
+func New(tiles Tiles, kept Arenas, inPlay InPlay, clock cptime.Clock) *UseCase {
+	return &UseCase{tiles: tiles, kept: kept, inPlay: inPlay, clock: clock}
 }
 
 type UseCase struct {
 	tiles  Tiles
 	kept   Arenas
-	outbox cpatomic.Outbox
 	inPlay InPlay
 	clock  cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-// Execute deletes the arena's map, keeps the arena closed and records ArenaClosed, in one transaction under the map's
-// locks; the world's map plays again. An arena never opened is closed and told the same way, with the map left as it is.
+// Execute deletes the arena's map and keeps the arena closed, in one transaction under the map's locks; the world's map
+// plays again. An arena never opened is closed the same way, with the map left as it is.
 func (u *UseCase) Execute(ctx context.Context, id arenas.ID) (Closed, error) {
 	closed := Already
 	_, err := u.tiles.PutBack(ctx, id.Map(), func(ctx context.Context) (bool, error) {
@@ -65,18 +60,11 @@ func (u *UseCase) Execute(ctx context.Context, id arenas.ID) (Closed, error) {
 			return false, err //nolint:wrapcheck // the store names it.
 		}
 		closing, closes := arena.Close(u.clock.Now())
-		if closes {
-			if err := u.kept.Close(ctx, closing); err != nil {
-				return false, err //nolint:wrapcheck // the store names it.
-			}
-		}
-		if err := u.outbox.Record(ctx, &planetv1.ArenaClosed{
-			ArenaId: string(id), ClosedAt: timestamppb.New(closing.ClosedAt),
-		}); err != nil {
-			return false, err //nolint:wrapcheck // the outbox names it.
-		}
 		if !closes {
 			return false, nil
+		}
+		if err := u.kept.Close(ctx, closing); err != nil {
+			return false, err //nolint:wrapcheck // the store names it.
 		}
 		closed = Unopened
 		if arena.Opened {

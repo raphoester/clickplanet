@@ -4,13 +4,9 @@ import (
 	"context"
 	"time"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -44,24 +40,23 @@ type Executor interface {
 	Execute(ctx context.Context, command Command) (bool, error)
 }
 
-func New(tiles Tiles, setups Setups, kept Arenas, outbox cpatomic.Outbox, inPlay InPlay, clock cptime.Clock) *UseCase {
-	return &UseCase{tiles: tiles, setups: setups, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock}
+func New(tiles Tiles, setups Setups, kept Arenas, inPlay InPlay, clock cptime.Clock) *UseCase {
+	return &UseCase{tiles: tiles, setups: setups, kept: kept, inPlay: inPlay, clock: clock}
 }
 
 type UseCase struct {
 	tiles  Tiles
 	setups Setups
 	kept   Arenas
-	outbox cpatomic.Outbox
 	inPlay InPlay
 	clock  cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-// Execute keeps the arena open and records ArenaOpened, in one transaction under the map's locks, and plays the arena's
-// fresh map, seeded as the battle's set says: the world's map stays in postgres as it is. The arena is read under the
-// locks, so a command told twice opens it once and is told once.
+// Execute keeps the arena open, in one transaction under the map's locks, and plays the arena's fresh map, seeded as the
+// battle's set says: the world's map stays in postgres as it is. The arena is read under the locks, so a call made twice
+// opens it once.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	setup, err := u.setups.Setup(ctx, command.Set)
 	if err != nil {
@@ -84,11 +79,6 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		}
 		if err := u.kept.Open(ctx, next); err != nil {
 			return false, err //nolint:wrapcheck // the store names it.
-		}
-		if err := u.outbox.Record(ctx, &planetv1.ArenaOpened{
-			ArenaId: string(next.ID), OpenedAt: timestamppb.New(next.OpenedAt),
-		}); err != nil {
-			return false, err //nolint:wrapcheck // the outbox names it.
 		}
 		opening = next
 		return true, nil

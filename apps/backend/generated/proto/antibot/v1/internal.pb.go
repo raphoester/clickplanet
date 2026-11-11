@@ -9,6 +9,7 @@ package antibotv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -102,16 +103,111 @@ func (x *GetRuleSetNamesResponse) GetNames() []string {
 	return nil
 }
 
+type PlayRuleSetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RuleSet       string                 `protobuf:"bytes,1,opt,name=rule_set,json=ruleSet,proto3" json:"rule_set,omitempty"`
+	DecidedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=decided_at,json=decidedAt,proto3" json:"decided_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayRuleSetRequest) Reset() {
+	*x = PlayRuleSetRequest{}
+	mi := &file_antibot_v1_internal_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayRuleSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayRuleSetRequest) ProtoMessage() {}
+
+func (x *PlayRuleSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_internal_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayRuleSetRequest.ProtoReflect.Descriptor instead.
+func (*PlayRuleSetRequest) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_internal_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *PlayRuleSetRequest) GetRuleSet() string {
+	if x != nil {
+		return x.RuleSet
+	}
+	return ""
+}
+
+func (x *PlayRuleSetRequest) GetDecidedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DecidedAt
+	}
+	return nil
+}
+
+// The antibot judges with the latest decision.
+type PlayRuleSetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlayRuleSetResponse) Reset() {
+	*x = PlayRuleSetResponse{}
+	mi := &file_antibot_v1_internal_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlayRuleSetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlayRuleSetResponse) ProtoMessage() {}
+
+func (x *PlayRuleSetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_internal_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlayRuleSetResponse.ProtoReflect.Descriptor instead.
+func (*PlayRuleSetResponse) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_internal_proto_rawDescGZIP(), []int{3}
+}
+
 var File_antibot_v1_internal_proto protoreflect.FileDescriptor
 
 const file_antibot_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"\x19antibot/v1/internal.proto\x12\n" +
-	"antibot.v1\"\x18\n" +
+	"antibot.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x18\n" +
 	"\x16GetRuleSetNamesRequest\"/\n" +
 	"\x17GetRuleSetNamesResponse\x12\x14\n" +
-	"\x05names\x18\x01 \x03(\tR\x05names2r\n" +
-	"\x0fInternalService\x12_\n" +
+	"\x05names\x18\x01 \x03(\tR\x05names\"j\n" +
+	"\x12PlayRuleSetRequest\x12\x19\n" +
+	"\brule_set\x18\x01 \x01(\tR\aruleSet\x129\n" +
+	"\n" +
+	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"\x15\n" +
+	"\x13PlayRuleSetResponse2\xc7\x01\n" +
+	"\x0fInternalService\x12S\n" +
+	"\vPlayRuleSet\x12\x1e.antibot.v1.PlayRuleSetRequest\x1a\x1f.antibot.v1.PlayRuleSetResponse\"\x03\x90\x02\x02\x12_\n" +
 	"\x0fGetRuleSetNames\x12\".antibot.v1.GetRuleSetNamesRequest\x1a#.antibot.v1.GetRuleSetNamesResponse\"\x03\x90\x02\x01B\xbc\x01\n" +
 	"\x0ecom.antibot.v1B\rInternalProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +
 	"Antibot.V1\xca\x02\n" +
@@ -129,19 +225,25 @@ func file_antibot_v1_internal_proto_rawDescGZIP() []byte {
 	return file_antibot_v1_internal_proto_rawDescData
 }
 
-var file_antibot_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_antibot_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_antibot_v1_internal_proto_goTypes = []any{
 	(*GetRuleSetNamesRequest)(nil),  // 0: antibot.v1.GetRuleSetNamesRequest
 	(*GetRuleSetNamesResponse)(nil), // 1: antibot.v1.GetRuleSetNamesResponse
+	(*PlayRuleSetRequest)(nil),      // 2: antibot.v1.PlayRuleSetRequest
+	(*PlayRuleSetResponse)(nil),     // 3: antibot.v1.PlayRuleSetResponse
+	(*timestamppb.Timestamp)(nil),   // 4: google.protobuf.Timestamp
 }
 var file_antibot_v1_internal_proto_depIdxs = []int32{
-	0, // 0: antibot.v1.InternalService.GetRuleSetNames:input_type -> antibot.v1.GetRuleSetNamesRequest
-	1, // 1: antibot.v1.InternalService.GetRuleSetNames:output_type -> antibot.v1.GetRuleSetNamesResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: antibot.v1.PlayRuleSetRequest.decided_at:type_name -> google.protobuf.Timestamp
+	2, // 1: antibot.v1.InternalService.PlayRuleSet:input_type -> antibot.v1.PlayRuleSetRequest
+	0, // 2: antibot.v1.InternalService.GetRuleSetNames:input_type -> antibot.v1.GetRuleSetNamesRequest
+	3, // 3: antibot.v1.InternalService.PlayRuleSet:output_type -> antibot.v1.PlayRuleSetResponse
+	1, // 4: antibot.v1.InternalService.GetRuleSetNames:output_type -> antibot.v1.GetRuleSetNamesResponse
+	3, // [3:5] is the sub-list for method output_type
+	1, // [1:3] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_internal_proto_init() }
@@ -155,7 +257,7 @@ func file_antibot_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_antibot_v1_internal_proto_rawDesc), len(file_antibot_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

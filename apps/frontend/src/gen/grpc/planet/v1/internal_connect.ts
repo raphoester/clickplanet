@@ -3,9 +3,9 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
+import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
+import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 
 /**
  * @generated from service planet.v1.InternalService
@@ -13,6 +13,66 @@ import { GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest
 export const InternalService = {
   typeName: "planet.v1.InternalService",
   methods: {
+    /**
+     * Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a call made twice, or after a
+     * newer one, changes nothing. FailedPrecondition for a name planet keeps no set of, or a set it cannot play: planet
+     * plays on the set it plays.
+     *
+     * @generated from rpc planet.v1.InternalService.PlayRuleSet
+     */
+    playRuleSet: {
+      name: "PlayRuleSet",
+      I: PlayRuleSetRequest,
+      O: PlayRuleSetResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Wipes the map: every tile goes blank, with no holder and no shield, and every fortify lock goes. The map starts a
+     * new epoch, so every client reads it again. Planet keeps each reset_id it applied, so a reset asked twice wipes
+     * once. decided_at is when the reset is due: a replay never reaches before it. The wipe goes on when the caller gives
+     * up. InvalidArgument for a reset with no id or no time.
+     *
+     * @generated from rpc planet.v1.InternalService.ResetMap
+     */
+    resetMap: {
+      name: "ResetMap",
+      I: ResetMapRequest,
+      O: ResetMapResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * An arena is the blank map an arena battle is fought on, kept apart from the world's map, which plays again when it
+     * closes. Each call is idempotent by arena_id, and its swap of the map goes on when the caller gives up.
+     *
+     * Plays the arena's map, fresh, while the world's map stays as it is: a new epoch, so every client reads the map
+     * again. The map starts as rule_set's seed says. Every play is refused for rule_set's arena.freeze after it opens and
+     * before ends_at. An arena open already is left as it is. FailedPrecondition for an arena closed already, at or after
+     * ends_at, while another is open, or with a set planet cannot seed it with; InvalidArgument for a bad id.
+     *
+     * @generated from rpc planet.v1.InternalService.OpenArena
+     */
+    openArena: {
+      name: "OpenArena",
+      I: OpenArenaRequest,
+      O: OpenArenaResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
+     * left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
+     *
+     * @generated from rpc planet.v1.InternalService.CloseArena
+     */
+    closeArena: {
+      name: "CloseArena",
+      I: CloseArenaRequest,
+      O: CloseArenaResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
     /**
      * AdminService/GetLedger, for the clips module's cast: who took which tile.
      *

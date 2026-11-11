@@ -2,6 +2,7 @@ package grant_points_handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
@@ -41,4 +42,21 @@ func (h Handler) Handle(ctx context.Context, command *scoringv1.GrantPoints) err
 		Grant: grant, Country: books.Country(command.GetCountry()), Points: command.GetPoints(), At: command.GetGrantedAt().AsTime(),
 	})
 	return err //nolint:wrapcheck // the use case named it.
+}
+
+func NewDropping(inner cpredis.Handler[*scoringv1.GrantPoints]) Dropping {
+	return Dropping{inner: inner}
+}
+
+// Dropping drops a grant refused, once it is logged: delivered again, it would hold back every grant after it on its
+// stream.
+type Dropping struct {
+	inner cpredis.Handler[*scoringv1.GrantPoints]
+}
+
+func (d Dropping) Handle(ctx context.Context, command *scoringv1.GrantPoints) error {
+	if err := d.inner.Handle(ctx, command); err != nil && !errors.Is(err, books.ErrRefused) {
+		return err //nolint:wrapcheck // the handler named it.
+	}
+	return nil
 }

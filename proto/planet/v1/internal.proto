@@ -11,6 +11,38 @@ import "planet/v1/rules.proto";
 import "planet/v1/totals.proto";
 
 service InternalService {
+  // Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a call made twice, or after a
+  // newer one, changes nothing. FailedPrecondition for a name planet keeps no set of, or a set it cannot play: planet
+  // plays on the set it plays.
+  rpc PlayRuleSet(PlayRuleSetRequest) returns (PlayRuleSetResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // Wipes the map: every tile goes blank, with no holder and no shield, and every fortify lock goes. The map starts a
+  // new epoch, so every client reads it again. Planet keeps each reset_id it applied, so a reset asked twice wipes
+  // once. decided_at is when the reset is due: a replay never reaches before it. The wipe goes on when the caller gives
+  // up. InvalidArgument for a reset with no id or no time.
+  rpc ResetMap(ResetMapRequest) returns (ResetMapResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // An arena is the blank map an arena battle is fought on, kept apart from the world's map, which plays again when it
+  // closes. Each call is idempotent by arena_id, and its swap of the map goes on when the caller gives up.
+  //
+  // Plays the arena's map, fresh, while the world's map stays as it is: a new epoch, so every client reads the map
+  // again. The map starts as rule_set's seed says. Every play is refused for rule_set's arena.freeze after it opens and
+  // before ends_at. An arena open already is left as it is. FailedPrecondition for an arena closed already, at or after
+  // ends_at, while another is open, or with a set planet cannot seed it with; InvalidArgument for a bad id.
+  rpc OpenArena(OpenArenaRequest) returns (OpenArenaResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
+  // left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
+  rpc CloseArena(CloseArenaRequest) returns (CloseArenaResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
   // AdminService/GetLedger, for the clips module's cast: who took which tile.
   rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -145,3 +177,35 @@ message GetRuleSetResponse {
   // Every value, the set's own or default's.
   Rules played = 1;
 }
+
+message PlayRuleSetRequest {
+  string rule_set = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}
+
+// Planet plays the latest decision.
+message PlayRuleSetResponse {}
+
+message ResetMapRequest {
+  string reset_id = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}
+
+// The map is wiped, by this reset or the same one before.
+message ResetMapResponse {}
+
+message OpenArenaRequest {
+  string arena_id = 1;
+  google.protobuf.Timestamp ends_at = 2;
+  string rule_set = 3;
+}
+
+// The arena is open.
+message OpenArenaResponse {}
+
+message CloseArenaRequest {
+  string arena_id = 1;
+}
+
+// The arena is closed.
+message CloseArenaResponse {}

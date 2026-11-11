@@ -802,3 +802,307 @@ export class GetRuleSetResponse extends Message<GetRuleSetResponse> {
   }
 }
 
+/**
+ * @generated from message planet.v1.PlayRuleSetRequest
+ */
+export class PlayRuleSetRequest extends Message<PlayRuleSetRequest> {
+  /**
+   * @generated from field: string rule_set = 1;
+   */
+  ruleSet = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 2;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PlayRuleSetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PlayRuleSetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayRuleSetRequest {
+    return new PlayRuleSetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayRuleSetRequest {
+    return new PlayRuleSetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayRuleSetRequest {
+    return new PlayRuleSetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayRuleSetRequest | PlainMessage<PlayRuleSetRequest> | undefined, b: PlayRuleSetRequest | PlainMessage<PlayRuleSetRequest> | undefined): boolean {
+    return proto3.util.equals(PlayRuleSetRequest, a, b);
+  }
+}
+
+/**
+ * Planet plays the latest decision.
+ *
+ * @generated from message planet.v1.PlayRuleSetResponse
+ */
+export class PlayRuleSetResponse extends Message<PlayRuleSetResponse> {
+  constructor(data?: PartialMessage<PlayRuleSetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.PlayRuleSetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayRuleSetResponse {
+    return new PlayRuleSetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayRuleSetResponse {
+    return new PlayRuleSetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayRuleSetResponse {
+    return new PlayRuleSetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayRuleSetResponse | PlainMessage<PlayRuleSetResponse> | undefined, b: PlayRuleSetResponse | PlainMessage<PlayRuleSetResponse> | undefined): boolean {
+    return proto3.util.equals(PlayRuleSetResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ResetMapRequest
+ */
+export class ResetMapRequest extends Message<ResetMapRequest> {
+  /**
+   * @generated from field: string reset_id = 1;
+   */
+  resetId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 2;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ResetMapRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ResetMapRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "reset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ResetMapRequest {
+    return new ResetMapRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ResetMapRequest {
+    return new ResetMapRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ResetMapRequest {
+    return new ResetMapRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ResetMapRequest | PlainMessage<ResetMapRequest> | undefined, b: ResetMapRequest | PlainMessage<ResetMapRequest> | undefined): boolean {
+    return proto3.util.equals(ResetMapRequest, a, b);
+  }
+}
+
+/**
+ * The map is wiped, by this reset or the same one before.
+ *
+ * @generated from message planet.v1.ResetMapResponse
+ */
+export class ResetMapResponse extends Message<ResetMapResponse> {
+  constructor(data?: PartialMessage<ResetMapResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ResetMapResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ResetMapResponse {
+    return new ResetMapResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ResetMapResponse {
+    return new ResetMapResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ResetMapResponse {
+    return new ResetMapResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ResetMapResponse | PlainMessage<ResetMapResponse> | undefined, b: ResetMapResponse | PlainMessage<ResetMapResponse> | undefined): boolean {
+    return proto3.util.equals(ResetMapResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.OpenArenaRequest
+ */
+export class OpenArenaRequest extends Message<OpenArenaRequest> {
+  /**
+   * @generated from field: string arena_id = 1;
+   */
+  arenaId = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp ends_at = 2;
+   */
+  endsAt?: Timestamp;
+
+  /**
+   * @generated from field: string rule_set = 3;
+   */
+  ruleSet = "";
+
+  constructor(data?: PartialMessage<OpenArenaRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OpenArenaRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "arena_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "ends_at", kind: "message", T: Timestamp },
+    { no: 3, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenArenaRequest {
+    return new OpenArenaRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenArenaRequest {
+    return new OpenArenaRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenArenaRequest {
+    return new OpenArenaRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenArenaRequest | PlainMessage<OpenArenaRequest> | undefined, b: OpenArenaRequest | PlainMessage<OpenArenaRequest> | undefined): boolean {
+    return proto3.util.equals(OpenArenaRequest, a, b);
+  }
+}
+
+/**
+ * The arena is open.
+ *
+ * @generated from message planet.v1.OpenArenaResponse
+ */
+export class OpenArenaResponse extends Message<OpenArenaResponse> {
+  constructor(data?: PartialMessage<OpenArenaResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.OpenArenaResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenArenaResponse {
+    return new OpenArenaResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenArenaResponse {
+    return new OpenArenaResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenArenaResponse {
+    return new OpenArenaResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenArenaResponse | PlainMessage<OpenArenaResponse> | undefined, b: OpenArenaResponse | PlainMessage<OpenArenaResponse> | undefined): boolean {
+    return proto3.util.equals(OpenArenaResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.CloseArenaRequest
+ */
+export class CloseArenaRequest extends Message<CloseArenaRequest> {
+  /**
+   * @generated from field: string arena_id = 1;
+   */
+  arenaId = "";
+
+  constructor(data?: PartialMessage<CloseArenaRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CloseArenaRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "arena_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseArenaRequest {
+    return new CloseArenaRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseArenaRequest {
+    return new CloseArenaRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseArenaRequest {
+    return new CloseArenaRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseArenaRequest | PlainMessage<CloseArenaRequest> | undefined, b: CloseArenaRequest | PlainMessage<CloseArenaRequest> | undefined): boolean {
+    return proto3.util.equals(CloseArenaRequest, a, b);
+  }
+}
+
+/**
+ * The arena is closed.
+ *
+ * @generated from message planet.v1.CloseArenaResponse
+ */
+export class CloseArenaResponse extends Message<CloseArenaResponse> {
+  constructor(data?: PartialMessage<CloseArenaResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CloseArenaResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CloseArenaResponse {
+    return new CloseArenaResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CloseArenaResponse {
+    return new CloseArenaResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CloseArenaResponse {
+    return new CloseArenaResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CloseArenaResponse | PlainMessage<CloseArenaResponse> | undefined, b: CloseArenaResponse | PlainMessage<CloseArenaResponse> | undefined): boolean {
+    return proto3.util.equals(CloseArenaResponse, a, b);
+  }
+}
+

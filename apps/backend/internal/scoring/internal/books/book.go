@@ -52,6 +52,10 @@ func (b Book) ClosedAt(endsAt time.Time, tiebreak RoundID) Book {
 	return b
 }
 
+func (b Book) Ending() Ending {
+	return Ending{At: b.EndsAt}
+}
+
 // Table ranks the book from the rounds it scored and the grants it holds.
 func (b Book) Table(scored []Scored, grants []Grant) []Placed {
 	var held []Grant

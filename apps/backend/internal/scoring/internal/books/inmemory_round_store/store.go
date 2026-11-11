@@ -23,6 +23,7 @@ type kept struct {
 type Store struct {
 	mu     sync.Mutex
 	rounds map[books.RoundID]*kept
+	missed map[books.RoundID]books.MissedRound
 }
 
 var (
@@ -31,7 +32,7 @@ var (
 )
 
 func New() *Store {
-	return &Store{rounds: map[books.RoundID]*kept{}}
+	return &Store{rounds: map[books.RoundID]*kept{}, missed: map[books.RoundID]books.MissedRound{}}
 }
 
 func (s *Store) Find(_ context.Context, id books.RoundID) (books.Round, bool, error) {
@@ -124,6 +125,28 @@ func (s *Store) ScoredIn(_ context.Context, book books.BookID) ([]books.Scored, 
 		return a.Round.StartsAt.Compare(b.Round.StartsAt)
 	})
 	return scored, nil
+}
+
+func (s *Store) Lock(context.Context, books.RoundID) error {
+	return nil
+}
+
+func (s *Store) Missed(_ context.Context, id books.RoundID) (books.MissedRound, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	missed, found := s.missed[id]
+	return missed, found, nil
+}
+
+func (s *Store) KeepMissed(_ context.Context, missed books.MissedRound) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, kept := s.missed[missed.ID]; !kept {
+		s.missed[missed.ID] = missed
+	}
+	return nil
 }
 
 func (s *Store) Count(_ context.Context, held map[books.RoundID][]books.Take) error {

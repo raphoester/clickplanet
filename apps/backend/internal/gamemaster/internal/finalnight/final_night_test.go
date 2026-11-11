@@ -12,12 +12,12 @@ import (
 
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/judge_battles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_book_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/hear_round_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_maps_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_starts_usecase"
@@ -60,28 +60,14 @@ func (p *planetAndAntibot) Play(_ context.Context, turn schedule.Turn, decidedAt
 	return nil
 }
 
-// scoring scores each round and closes each book as it is commanded, and tells the gamemaster at once.
+// scoring scores each round and closes each book as it is called, and answers at once.
 type scoring struct {
-	t        *testing.T
 	commands []moments.Command
-	rounds   *hear_round_usecase.Hearing
-	books    *hear_book_usecase.Hearing
 }
 
-func (s *scoring) Send(ctx context.Context, command moments.Command) error {
+func (s *scoring) Ask(_ context.Context, command moments.Command) (moments.Answer, error) {
 	s.commands = append(s.commands, command)
-	switch command.Action {
-	case moments.CloseRound:
-		heard, err := s.rounds.Execute(ctx, moments.ScoredRound{Round: command.Round, Book: command.Book, EndedAt: command.At})
-		require.NoError(s.t, err)
-		require.Equal(s.t, hear_round_usecase.Told, heard, "%q", command.Round)
-	case moments.CloseBook:
-		heard, err := s.books.Execute(ctx, moments.ClosedBook{Book: command.Book, EndedAt: command.At})
-		require.NoError(s.t, err)
-		require.Equal(s.t, hear_book_usecase.Told, heard)
-	case moments.OpenBook, moments.OpenRound:
-	}
-	return nil
+	return moments.Answer{EndedAt: command.At}, nil
 }
 
 // rulesOf answers whether a set makes an arena battle: none of season 0's does.
@@ -95,7 +81,7 @@ type arenaCommands struct {
 	commands []moments.ArenaCommand
 }
 
-func (a *arenaCommands) Send(_ context.Context, command moments.ArenaCommand) error {
+func (a *arenaCommands) Ask(_ context.Context, command moments.ArenaCommand) error {
 	a.commands = append(a.commands, command)
 	return nil
 }
@@ -111,28 +97,23 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 
 	modules := &planetAndAntibot{}
 	rules := play_schedule_usecase.New(entries, seasons, planner, modules, clock, time.Minute)
-	scored := &scoring{
-		t:      t,
-		rounds: hear_round_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{}),
-		books:  hear_book_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{}),
-	}
-	planet := &arenaCommands{}
-	plan := play_plan_usecase.New(planner,
-		play_resets_usecase.New(&resetsTold{}, clock),
-		play_arenas_usecase.New(judged, rulesOf{}, planet, clock, time.Minute),
-		play_scoring_usecase.New(kept, scored, clock, time.Minute),
+	scored, planet := &scoring{}, &arenaCommands{}
+	plan := play_plan_usecase.New(planner, judge_battles_usecase.New(judged, rulesOf{}, clock),
+		play_scoring_usecase.New(kept, scored, told, cpatomic.FakeTransactioner{}, clock, time.Minute),
 		tell_starts_usecase.New(kept, outbox_moment_events.New(&cpatomic.FakeOutbox{}), cpatomic.FakeTransactioner{}, clock))
+	maps := play_maps_usecase.New(planner,
+		play_resets_usecase.New(kept, &resetsTold{}, clock, time.Minute),
+		play_arenas_usecase.New(judged, planet, clock, time.Minute))
 
 	tick := func() {
 		_, _, err := rules.Execute(t.Context())
 		require.NoError(t, err)
 		require.NoError(t, plan.Execute(t.Context()))
+		require.NoError(t, maps.Execute(t.Context()))
 	}
 	tick()
-	scored.commands, outbox = nil, &cpatomic.FakeOutbox{}
-	told = outbox_moment_events.New(outbox)
-	scored.rounds = hear_round_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{})
-	scored.books = hear_book_usecase.New(planner, kept, told, cpatomic.FakeTransactioner{})
+	scored.commands = nil
+	before := len(outbox.Recorded())
 
 	commandedAt := map[time.Time][]moments.Command{}
 	for clock.Now().Before(seasonEnds.Add(time.Minute)) {
@@ -179,7 +160,7 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 			Season: 0, BookId: "season-0", EndedAt: timestamppb.New(seasonEnds), FinaleRoundId: "season-0/finale", FinaleBattle: finale,
 		},
 	}
-	recorded := outbox.Recorded()
+	recorded := outbox.Recorded()[before:]
 	require.Len(t, recorded, len(want))
 	for i := range want {
 		assert.True(t, proto.Equal(want[i], recorded[i]), "%d: %v", i, recorded[i])

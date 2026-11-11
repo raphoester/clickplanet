@@ -10,10 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/judge_battles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/usecases/play_arenas_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_maps_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_plan_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/tell_starts_usecase"
@@ -39,26 +41,6 @@ func (r *resetsTold) Reset(_ context.Context, starts season.Window) error {
 	return nil
 }
 
-type scoringTold struct {
-	t        *testing.T
-	kept     *inmemory_moment_store.Store
-	commands []moments.Command
-}
-
-func (s *scoringTold) Send(ctx context.Context, command moments.Command) error {
-	s.commands = append(s.commands, command)
-	var err error
-	switch command.Action {
-	case moments.CloseRound:
-		_, err = s.kept.KeepRound(ctx, moments.ScoredRound{Round: command.Round, Book: command.Book, EndedAt: command.At})
-	case moments.CloseBook:
-		_, err = s.kept.KeepBook(ctx, moments.ClosedBook{Book: command.Book, EndedAt: command.At})
-	case moments.OpenBook, moments.OpenRound:
-	}
-	require.NoError(s.t, err)
-	return nil
-}
-
 func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 	clock := cptime.NewFixedClock(seasonEnds.Add(-time.Second))
 	seasons, entries, kept := inmemory_season_store.New(), inmemory_entry_store.New(), inmemory_moment_store.New()
@@ -69,24 +51,27 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 		Priority: 1, MadeAt: seasonEnds.Add(-24 * time.Hour),
 	}.Restore()))
 
-	modules, planet, scoring := &planetAndAntibot{}, &resetsTold{}, &scoringTold{t: t, kept: kept}
+	modules, planet, scoring := &planetAndAntibot{}, &resetsTold{}, &scoring{}
 	judged := inmemory_arena_store.New()
 	_, err := judged.KeepJudged(t.Context(), moments.Judgement{Round: moments.FinaleRoundOf(0), Mode: moments.Plain})
 	require.NoError(t, err, "the finale was judged as it started, before this test's last second of it")
-	boot := func() (*play_schedule_usecase.UseCase, *play_plan_usecase.UseCase) {
+	told := outbox_moment_events.New(&cpatomic.FakeOutbox{})
+	boot := func() (*play_schedule_usecase.UseCase, *play_plan_usecase.UseCase, *play_maps_usecase.UseCase) {
 		planner := moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour))
-		return play_schedule_usecase.New(entries, seasons, planner, modules, clock, time.Minute), play_plan_usecase.New(
-			planner,
-			play_resets_usecase.New(planet, clock),
-			play_arenas_usecase.New(judged, rulesOf{}, &arenaCommands{}, clock, time.Minute),
-			play_scoring_usecase.New(kept, scoring, clock, time.Minute),
-			tell_starts_usecase.New(kept, outbox_moment_events.New(&cpatomic.FakeOutbox{}), cpatomic.FakeTransactioner{}, clock))
+		return play_schedule_usecase.New(entries, seasons, planner, modules, clock, time.Minute),
+			play_plan_usecase.New(planner, judge_battles_usecase.New(judged, rulesOf{}, clock),
+				play_scoring_usecase.New(kept, scoring, told, cpatomic.FakeTransactioner{}, clock, time.Minute),
+				tell_starts_usecase.New(kept, told, cpatomic.FakeTransactioner{}, clock)),
+			play_maps_usecase.New(planner,
+				play_resets_usecase.New(kept, planet, clock, time.Minute),
+				play_arenas_usecase.New(judged, &arenaCommands{}, clock, time.Minute))
 	}
-	rules, plan := boot()
+	rules, plan, maps := boot()
 	tick := func() {
 		_, _, err := rules.Execute(t.Context())
 		require.NoError(t, err)
 		require.NoError(t, plan.Execute(t.Context()))
+		require.NoError(t, maps.Execute(t.Context()))
 	}
 	tick()
 	scoring.commands = nil
@@ -116,7 +101,7 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 	}}, opensAt, "no book or round opens over the break")
 
 	clock.Advance(4 * time.Minute)
-	rules, plan = boot()
+	rules, plan, maps = boot()
 	tick()
-	assert.Equal(t, []season.Number{1, 1}, planet.of, "a boot tells it again: planet keeps season-1 and wipes nothing")
+	assert.Equal(t, []season.Number{1}, planet.of, "a boot asks no reset planet answered")
 }
