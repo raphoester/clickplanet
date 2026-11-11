@@ -241,7 +241,6 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 
 	batch := s.board.batch(start, end)
 	batch.Version = s.version
-	batch.Arena = s.playing != clicks.World
 	batch.KnockedOut = s.out.flags()
 
 	return batch, nil

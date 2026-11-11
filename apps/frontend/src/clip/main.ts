@@ -367,7 +367,10 @@ async function choose(): Promise<Chosen> {
         if (front === undefined) return undefined
         return {front, story, score: 0, scope: undefined, world: false, backend, solidity: 1, look: SEASONAL_LOOK}
     }
-    const told = focus === undefined ? roundStoryOf(day, since, until) : undefined
+    const asides = recorded.asides.map(({openedAt, closedAt}) => ({
+        openedAt: openedAt?.toDate().getTime() ?? 0, closedAt: closedAt?.toDate().getTime(),
+    }))
+    const told = focus === undefined ? roundStoryOf(day, since, until, asides) : undefined
     const seasonal = [...told === undefined ? [] : [told], ...focus === undefined ? callUpsOf(day, finaleAt, since, until) : []]
         .flatMap((story) => roundReviewOf(story) ?? [])
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
@@ -21,11 +22,13 @@ type Owner struct {
 	At      time.Time
 }
 
-// History replays the ledger's entries, in position order from its first one, into the map every step of a window,
-// and each tile's changes of owner and shield hits during it.
+// History replays the ledger's entries, in position order from its first one, into the world's map every step of a
+// window, and each tile's changes of owner and shield hits during it. An entry made on an arena's map changes none of
+// it: the world's map came back as it was.
 type History struct {
 	since, until time.Time
 	step         time.Duration
+	world        arenas.Played
 
 	owners  map[uint32]Owner
 	shown   map[uint32]string
@@ -35,12 +38,12 @@ type History struct {
 	hits    map[uint32]uint32
 }
 
-func NewHistory(since, until time.Time, step time.Duration) (*History, error) {
+func NewHistory(since, until time.Time, step time.Duration, world arenas.Played) (*History, error) {
 	if !since.Before(until) || step <= 0 {
 		return nil, ErrInvalidHistory
 	}
 	return &History{
-		since: since, until: until, step: step, next: since,
+		since: since, until: until, step: step, world: world, next: since,
 		owners: map[uint32]Owner{}, shown: map[uint32]string{}, changed: cpcolls.NewSet[uint32](), hits: map[uint32]uint32{},
 	}, nil
 }
@@ -54,6 +57,9 @@ func (h *History) Record(entry Entry) error {
 	event, err := EventOf(entry)
 	if err != nil {
 		return err
+	}
+	if !h.world.Holds(entry.At) {
+		return nil
 	}
 	h.frameUpTo(entry.At)
 	during := !entry.At.Before(h.since)

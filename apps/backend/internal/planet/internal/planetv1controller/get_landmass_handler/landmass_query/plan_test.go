@@ -3,7 +3,9 @@ package landmass_query
 import (
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -24,7 +26,8 @@ func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)
 	require.NoError(t, err)
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+lastFortify, 42)
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+lastFortify, 42, time.Time{},
+		pq.Array([]time.Time{time.Now().Add(-time.Hour)}), pq.Array([]time.Time{time.Now().Add(-30 * time.Minute)}))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string

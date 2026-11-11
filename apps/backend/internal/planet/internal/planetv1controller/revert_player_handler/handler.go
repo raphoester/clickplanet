@@ -44,6 +44,8 @@ func (h RevertPlayerHandler) RevertPlayer(
 		}), nil
 	case errors.Is(err, ledger.ErrInvalidScope), errors.Is(err, ledger.ErrInvalidAccount), errors.Is(err, ledger.ErrNoCaller):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, revert_player_usecase.ErrArenaPlays):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	default:
 		return nil, err
 	}

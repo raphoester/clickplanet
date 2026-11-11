@@ -13,6 +13,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -62,7 +64,7 @@ func (s *testSuite) record(events ...ledger.Event) {
 
 // Every page of the window, one after the other.
 func (s *testSuite) ledger(since, until time.Time) []*planetv1.LedgerChange {
-	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour)))
+	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour)), postgres_arena_store.New(s.db))
 	var changes []*planetv1.LedgerChange
 	for page := ""; ; {
 		answer, err := query.Ledger(s.T().Context(), since, until, page)
@@ -238,7 +240,7 @@ func (s *testSuite) TestAPageEndsOnAWholeEventAndTheNextOneStartsAfterIt() {
 		ledger.Taking{Tile: 5, Scope: "b", Country: "de", At: at},
 	)
 	s.record(events...)
-	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour)))
+	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour)), postgres_arena_store.New(s.db))
 
 	first, err := query.Ledger(s.T().Context(), at, at.Add(time.Minute), "")
 	s.Require().NoError(err)
@@ -270,7 +272,7 @@ func (s *testSuite) TestAnEventWithNoChangeStillCountsOnItsPage() {
 }
 
 func (s *testSuite) TestAPageThisQueryNeverGaveIsRefused() {
-	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at))
+	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at), postgres_arena_store.New(s.db))
 
 	for _, page := range []string{"x", "-1", "1.5"} {
 		_, err := query.Ledger(s.T().Context(), at.Add(-time.Hour), at, page)
@@ -279,7 +281,7 @@ func (s *testSuite) TestAPageThisQueryNeverGaveIsRefused() {
 }
 
 func (s *testSuite) TestAWindowOfNothingOrOfMoreThan72HoursIsRefused() {
-	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at))
+	query := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at), postgres_arena_store.New(s.db))
 
 	for _, window := range [][2]time.Time{
 		{},
@@ -296,7 +298,7 @@ func (s *testSuite) TestAStoreFailureIsAnError() {
 	ctx, cancel := context.WithCancel(s.T().Context())
 	cancel()
 
-	_, err := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at)).Ledger(ctx, at.Add(-time.Hour), at, "")
+	_, err := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at), postgres_arena_store.New(s.db)).Ledger(ctx, at.Add(-time.Hour), at, "")
 
 	s.Error(err)
 }
@@ -307,4 +309,25 @@ func (s *testSuite) equal(expected, actual []*planetv1.LedgerChange) {
 	for i := range expected {
 		s.True(proto.Equal(expected[i], actual[i]), "change %d: expected %v, got %v", i, expected[i], actual[i])
 	}
+}
+
+func (s *testSuite) TestAChangeMadeOnAnArenasMapIsNoneOfTheWorlds() {
+	ctx := s.T().Context()
+	kept := postgres_arena_store.New(s.db)
+	opened, closed := at.Add(10*time.Minute+200*time.Millisecond), at.Add(40*time.Minute+500*time.Millisecond)
+	s.Require().NoError(kept.Open(ctx, arenas.Opening{ID: "battle", OpenedAt: opened, EndsAt: closed.Add(-3 * time.Second)}))
+	s.Require().NoError(kept.Close(ctx, arenas.Closing{ID: "battle", ClosedAt: closed}))
+	s.Require().NoError(kept.Open(ctx, arenas.Opening{ID: "next", OpenedAt: at.Add(50 * time.Minute), EndsAt: at.Add(2 * time.Hour)}))
+	s.record(
+		ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: at.Add(time.Minute)},
+		ledger.Taking{Tile: 2, Scope: "b", Country: "br", At: at.Add(20 * time.Minute)},
+		ledger.Taking{Tile: 3, Scope: "a", Country: "de", Previous: "pl", At: closed.Truncate(time.Second)},
+		ledger.Taking{Tile: 4, Scope: "b", Country: "ar", At: at.Add(55 * time.Minute)},
+	)
+
+	changes := s.ledger(at, at.Add(time.Hour))
+
+	s.Require().Len(changes, 2, "neither arena's take is the world's")
+	s.Equal(uint32(1), changes[0].GetUpdate().GetTileId())
+	s.Equal(uint32(3), changes[1].GetUpdate().GetTileId(), "a world take in the second the arena closed")
 }

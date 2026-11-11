@@ -277,7 +277,7 @@ describe("PlanetBackend.getOwnerships", () => {
 
     it("says which flags are knocked out", async () => {
         const getMap = getMapMock(async () => new GetMapResponse({
-            startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 0]), arena: true, knockedOut: ["de", "it"],
+            startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 0]), knockedOut: ["de", "it"],
             version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
         }))
         const backend = backendWith(getMap)

@@ -54,7 +54,8 @@ and says what is in it. Read the doc before you change its area.
 - [Arena battles](docs/arenas.md) — a battle whose set has `arena.on` plays on a fresh map, and the map from
   before comes back at its end; the arena is a shell: it switches the map and seeds it (`seeds`, the capitals pattern);
   the order that waits on facts kept (day K scored, the arena opened, the battle's set played after, the map back), the
-  freeze, the gaps. No arena battle in production before slice 5.
+  freeze, the gaps; the ledger's readers (replays, map history, clips, the holder card) skip it by time, so the world's
+  map before and after joins up.
 - [The reach](docs/reach.md) — a knob: a take only next to the flag's land or across its waters, on any map.
 - [The capitals' rules](docs/capitals.md) — two knobs: no shield on a capital, and the knock-out (a capital taken clears
   its flag's land in one event, the flags out kept with the tiles, the pick of a flag still in).

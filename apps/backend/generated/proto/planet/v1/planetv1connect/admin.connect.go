@@ -91,8 +91,8 @@ type AdminServiceClient interface {
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
-	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
-	// connector does not offer it.
+	// The world's map as it was at since, and every act on it until until, for the clip generator; the acts on an arena's
+	// map are left out. Megabytes for a day, so the connector does not offer it.
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
 	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)
@@ -299,8 +299,8 @@ type AdminServiceHandler interface {
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
-	// The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
-	// connector does not offer it.
+	// The world's map as it was at since, and every act on it until until, for the clip generator; the acts on an arena's
+	// map are left out. Megabytes for a day, so the connector does not offer it.
 	GetReplay(context.Context, *connect.Request[v1.GetReplayRequest]) (*connect.Response[v1.GetReplayResponse], error)
 	// Lifts the account's hour of wait, so its next change of flag goes at once. A lock of the rules in force still holds.
 	ReleaseAllegiance(context.Context, *connect.Request[v1.ReleaseAllegianceRequest]) (*connect.Response[v1.ReleaseAllegianceResponse], error)

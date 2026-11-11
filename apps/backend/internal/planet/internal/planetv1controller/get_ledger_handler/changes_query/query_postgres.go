@@ -7,9 +7,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/lib/pq"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -25,16 +27,22 @@ var (
 	ErrInvalidPage   = errors.New("not a page this query gave")
 )
 
-func NewPostgresQuery(db cppg.Conn, clock cptime.Clock) *PostgresQuery {
-	return &PostgresQuery{db: db, clock: clock}
+type Arenas interface {
+	Stretches(ctx context.Context) ([]arenas.Stretch, error)
+}
+
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock, arenas Arenas) *PostgresQuery {
+	return &PostgresQuery{db: db, clock: clock, arenas: arenas}
 }
 
 type PostgresQuery struct {
-	db    cppg.Conn
-	clock cptime.Clock
+	db     cppg.Conn
+	clock  cptime.Clock
+	arenas Arenas
 }
 
-// Each change as Event.Show shows it, in its order. A shield a bomb struck is left out: no owner is kept for it.
+// Each change of the world's map as Event.Show shows it, in its order: none made while an arena's played ($5, $6). A
+// shield a bomb struck is left out: no owner is kept for it.
 // From the head on, every change keeps its address, and the primary key finds the page. An event with no change is
 // still a row, its tile 0, so the page counts it.
 const changes = `
@@ -46,6 +54,10 @@ const changes = `
 		SELECT position, kind, tile, country, previous, taken_at, payload, account, scope
 		FROM ledger_events
 		WHERE position >= GREATEST(COALESCE((SELECT head FROM ledger_head), 0), $3) AND taken_at >= $1 AND taken_at < $2
+			AND NOT EXISTS (
+				SELECT 1 FROM unnest($5::timestamptz[], $6::timestamptz[]) AS aside (after, before)
+				WHERE taken_at > aside.after AND taken_at < aside.before
+			)
 		ORDER BY position
 		LIMIT $4
 	) e
@@ -96,6 +108,11 @@ func (q *PostgresQuery) Ledger(ctx context.Context, since, until time.Time, page
 	if err != nil {
 		return nil, err
 	}
+	stretches, err := q.arenas.Stretches(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the arenas: %w", err)
+	}
+	world := arenas.Played{Gaps: arenas.MapsOf(stretches).Asides(since, until)}
 
 	var answer *planetv1.GetLedgerResponse
 	err = q.db.InTx(ctx, func(ctx context.Context) error {
@@ -103,7 +120,7 @@ func (q *PostgresQuery) Ledger(ctx context.Context, since, until time.Time, page
 		if _, err := q.db.On(ctx).ExecContext(ctx, `SET LOCAL jit = off`); err != nil {
 			return fmt.Errorf("failed to read the ledger: %w", err)
 		}
-		answer, err = q.page(ctx, since, until, from)
+		answer, err = q.page(ctx, since, until, from, world)
 		return err
 	})
 	if err != nil {
@@ -112,8 +129,11 @@ func (q *PostgresQuery) Ledger(ctx context.Context, since, until time.Time, page
 	return answer, nil
 }
 
-func (q *PostgresQuery) page(ctx context.Context, since, until time.Time, from int64) (*planetv1.GetLedgerResponse, error) {
-	rows, err := q.db.On(ctx).QueryContext(ctx, changes, since, until, from, PageEvents)
+func (q *PostgresQuery) page(
+	ctx context.Context, since, until time.Time, from int64, world arenas.Played,
+) (*planetv1.GetLedgerResponse, error) {
+	afters, befores := world.Bounds(until)
+	rows, err := q.db.On(ctx).QueryContext(ctx, changes, since, until, from, PageEvents, pq.Array(afters), pq.Array(befores))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the ledger: %w", err)
 	}

@@ -9,6 +9,8 @@ type Store interface {
 	Find(ctx context.Context, id ID) (Arena, error)
 	// Playing is the arena open now: opened and not closed; none is an Arena that never opened.
 	Playing(ctx context.Context) (Arena, error)
+	// Stretches are the times each arena that opened played, by open.
+	Stretches(ctx context.Context) ([]Stretch, error)
 	Open(ctx context.Context, opening Opening) error
 	Close(ctx context.Context, closing Closing) error
 }

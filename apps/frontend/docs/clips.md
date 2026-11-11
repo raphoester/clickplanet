@@ -132,7 +132,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   or the round is not the one debriefed (`{}`, the job's file when nothing was debriefed). **A battle is never told
   as a day** (`Day.own`): it is numbered apart from the days, so its clip says "wins the battle" ("the final battle"
   for the finale) and calls to play, never "day 1" or "who wins day 2", and nobody is called up after it, since its
-  podium scored its times.
+  podium scored its times. **A battle fought in an arena is not told at all** (`roundStoryOf`): the replay is the
+  world's map and leaves out each stretch an arena's played (`asides`), so it holds none of the battle, and the 3 hours
+  before its end would be the world's takes from before it (see the backend's [Arena
+  battles](../../backend/docs/arenas.md#the-ledgers-readers)).
 - **`--cast <path>`** is who took which tiles, a `clips.v1.Cast` the backend's `clips fetch` makes for the run,
   served at `/__clip/cast.json` the same way (`src/clip/cast.ts`, `castOf`): each player with a username who lets the
   clips show it, under a number of this cast alone (1 took the most), and only its takes from another flag. **No

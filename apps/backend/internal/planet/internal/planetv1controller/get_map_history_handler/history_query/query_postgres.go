@@ -11,16 +11,22 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-func NewPostgresQuery(db cppg.Conn) *PostgresQuery {
-	return &PostgresQuery{db: db}
+type Arenas interface {
+	Stretches(ctx context.Context) ([]arenas.Stretch, error)
+}
+
+func NewPostgresQuery(db cppg.Conn, arenas Arenas) *PostgresQuery {
+	return &PostgresQuery{db: db, arenas: arenas}
 }
 
 type PostgresQuery struct {
-	db cppg.Conn
+	db     cppg.Conn
+	arenas Arenas
 }
 
 // The map at the window's start is every take before it, from the last reset at or before it, where the map was blank.
@@ -33,7 +39,11 @@ const events = `
 `
 
 func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, step time.Duration) (*planetv1.MapHistory, error) {
-	history, err := ledger.NewHistory(since, until, step)
+	stretches, err := q.arenas.Stretches(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the arenas: %w", err)
+	}
+	history, err := ledger.NewHistory(since, until, step, arenas.MapsOf(stretches).World())
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the map's history: %w", err)
 	}

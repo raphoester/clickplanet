@@ -825,13 +825,6 @@ export class GetMapResponse extends Message<GetMapResponse> {
   version?: MapVersion;
 
   /**
-   * The map is an arena's: a battle's blank map, which started with each country's capital.
-   *
-   * @generated from field: bool arena = 6;
-   */
-  arena = false;
-
-  /**
    * The flags the arena knocked out: each lost its capital to another flag.
    *
    * @generated from field: repeated string knocked_out = 7;
@@ -851,7 +844,6 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 3, name: "tiles", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
     { no: 4, name: "shields", kind: "message", T: TileShields, repeated: true },
     { no: 5, name: "version", kind: "message", T: MapVersion },
-    { no: 6, name: "arena", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "knocked_out", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 

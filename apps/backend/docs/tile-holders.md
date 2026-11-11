@@ -25,6 +25,8 @@ thousands of index probes, or a scan of the whole ledger, for one card on the 1-
   partial index `ledger_events_fortify` (`((payload ->> 'landmass')::integer), position` where `kind = 'fortify'`),
   and the holders through its port `Holders`, which `landmass_query/inmemory_tile_holders` answers from
   `HoldingsOf`. It knows no name: the client asks `player.v1.PlayerService/GetPlayer`, as for a tile.
-- **The last fortify is the ledger's, the lock the tiles'**: a lock settled at boot or by an operator has no fortify,
+- **The last fortify is the ledger's, the lock the tiles'**: the last of the map that plays (while an arena plays its
+  own, after it none of its, see [Arena battles](arenas.md#the-ledgers-readers)); a lock settled at boot or by an
+  operator has no fortify,
   and a landmass's id in an old fortify's payload is the borders blob of its day. The client shows who fortified only
   when the fortify's flag is the lock's.

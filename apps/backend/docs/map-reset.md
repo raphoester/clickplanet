@@ -52,6 +52,9 @@ The ledger keeps every take, the ones before the reset too, and `GetReplay` rewi
 - **A window that ended before a reset is refused** (`ErrBeforeReset`, `FailedPrecondition`): the map it played on is
   gone.
 
+An arena is the other change of the map the ledger does not see; a replay skips its stretch rather than starting at it,
+since the world's map comes back: see [Arena battles](arenas.md#the-ledgers-readers).
+
 ## Tests
 
 `inmemory_tile_storage`'s `wipe_test.go` pins the blank map in memory and stored, no flush writing the old map back,
