@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
+import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetChargesOfRequest, GetChargesOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 
@@ -172,6 +172,57 @@ export const InternalService = {
       name: "GetRuleSet",
       I: GetRuleSetRequest,
       O: GetRuleSetResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Grants charges to an account at once, and answers what fit its stack and all it holds after. Planet grants each
+     * grant_id once: a call made again keeps nothing and answers the hand as it is. What does not fit is not granted.
+     * InvalidArgument for a bad id, an unknown kind or no amount.
+     *
+     * @generated from rpc planet.v1.InternalService.GrantCharges
+     */
+    grantCharges: {
+      name: "GrantCharges",
+      I: InternalGrantChargesRequest,
+      O: InternalGrantChargesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * For each account asked, the kinds of charge it has no room for: a full stack, and a bomb while the rules in force
+     * hold charges.bomb.off.
+     *
+     * @generated from rpc planet.v1.InternalService.GetRoom
+     */
+    getRoom: {
+      name: "GetRoom",
+      I: GetRoomRequest,
+      O: GetRoomResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * All an account holds now.
+     *
+     * @generated from rpc planet.v1.InternalService.GetChargesOf
+     */
+    getChargesOf: {
+      name: "GetChargesOf",
+      I: GetChargesOfRequest,
+      O: GetChargesOfResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
+     *
+     * @generated from rpc planet.v1.InternalService.GetFreeze
+     */
+    getFreeze: {
+      name: "GetFreeze",
+      I: GetFreezeRequest,
+      O: GetFreezeResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

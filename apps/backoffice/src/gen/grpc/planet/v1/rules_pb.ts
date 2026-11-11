@@ -25,13 +25,8 @@ export class Rules extends Message<Rules> {
   toll?: TollRules;
 
   /**
-   * @generated from field: planet.v1.BonusRules bonuses = 3;
-   */
-  bonuses?: BonusRules;
-
-  /**
-   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
-   * map still loads and streams.
+   * The map takes no play: Click, DropBomb, PlaceShield and UseRefill are refused, and GetFreeze answers frozen. The map
+   * still loads and streams.
    *
    * @generated from field: optional bool frozen = 4;
    */
@@ -69,6 +64,11 @@ export class Rules extends Message<Rules> {
    */
   capitals?: CapitalRules;
 
+  /**
+   * @generated from field: planet.v1.ChargeRules charges = 10;
+   */
+  charges?: ChargeRules;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -79,13 +79,13 @@ export class Rules extends Message<Rules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "clicks", kind: "message", T: ClickRules },
     { no: 2, name: "toll", kind: "message", T: TollRules },
-    { no: 3, name: "bonuses", kind: "message", T: BonusRules },
     { no: 4, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 5, name: "allegiance_locked", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 6, name: "arena", kind: "message", T: ArenaRules },
     { no: 7, name: "seed", kind: "message", T: Seed },
     { no: 8, name: "reach", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 9, name: "capitals", kind: "message", T: CapitalRules },
+    { no: 10, name: "charges", kind: "message", T: ChargeRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -199,7 +199,7 @@ export class Seed extends Message<Seed> {
 }
 
 /**
- * Each country's capital, held by its country, with this many shields, past bonuses.shield.per_tile. 0 to 255.
+ * Each country's capital, held by its country, with this many shields, past charges.shield.per_tile. 0 to 255.
  *
  * @generated from message planet.v1.CapitalSeed
  */
@@ -424,223 +424,59 @@ export class TollRules extends Message<TollRules> {
 }
 
 /**
- * @generated from message planet.v1.BonusRules
+ * The wallet's: how much of each charge a hand holds, and what each does when it is spent.
+ *
+ * @generated from message planet.v1.ChargeRules
  */
-export class BonusRules extends Message<BonusRules> {
+export class ChargeRules extends Message<ChargeRules> {
   /**
-   * @generated from field: planet.v1.BoxPace boxes = 1;
-   */
-  boxes?: BoxPace;
-
-  /**
-   * @generated from field: planet.v1.KindWeights kinds = 2;
-   */
-  kinds?: KindWeights;
-
-  /**
-   * @generated from field: google.protobuf.Duration offer_ttl = 3;
-   */
-  offerTtl?: Duration;
-
-  /**
-   * A box missed brings the next one this soon, once.
-   *
-   * @generated from field: google.protobuf.Duration miss_retry = 4;
-   */
-  missRetry?: Duration;
-
-  /**
-   * No box or quiz for a caller that has not clicked for this long.
-   *
-   * @generated from field: google.protobuf.Duration active_within = 5;
-   */
-  activeWithin?: Duration;
-
-  /**
-   * @generated from field: planet.v1.SpreadRules spread = 6;
+   * @generated from field: planet.v1.SpreadRules spread = 1;
    */
   spread?: SpreadRules;
 
   /**
-   * @generated from field: planet.v1.BombRules bomb = 7;
+   * @generated from field: planet.v1.BombRules bomb = 2;
    */
   bomb?: BombRules;
 
   /**
-   * @generated from field: planet.v1.EncloseRules enclose = 8;
+   * @generated from field: planet.v1.EncloseRules enclose = 3;
    */
   enclose?: EncloseRules;
 
   /**
-   * @generated from field: planet.v1.ShieldRules shield = 9;
+   * @generated from field: planet.v1.ShieldRules shield = 4;
    */
   shield?: ShieldRules;
 
-  /**
-   * @generated from field: planet.v1.WelcomeRules welcome = 10;
-   */
-  welcome?: WelcomeRules;
-
-  /**
-   * @generated from field: planet.v1.QuizRules quiz = 11;
-   */
-  quiz?: QuizRules;
-
-  /**
-   * A guest's first sign-in earns a refill, once per account.
-   *
-   * @generated from field: optional bool sign_in_refill = 12;
-   */
-  signInRefill?: boolean;
-
-  constructor(data?: PartialMessage<BonusRules>) {
+  constructor(data?: PartialMessage<ChargeRules>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.BonusRules";
+  static readonly typeName = "planet.v1.ChargeRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "boxes", kind: "message", T: BoxPace },
-    { no: 2, name: "kinds", kind: "message", T: KindWeights },
-    { no: 3, name: "offer_ttl", kind: "message", T: Duration },
-    { no: 4, name: "miss_retry", kind: "message", T: Duration },
-    { no: 5, name: "active_within", kind: "message", T: Duration },
-    { no: 6, name: "spread", kind: "message", T: SpreadRules },
-    { no: 7, name: "bomb", kind: "message", T: BombRules },
-    { no: 8, name: "enclose", kind: "message", T: EncloseRules },
-    { no: 9, name: "shield", kind: "message", T: ShieldRules },
-    { no: 10, name: "welcome", kind: "message", T: WelcomeRules },
-    { no: 11, name: "quiz", kind: "message", T: QuizRules },
-    { no: 12, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 1, name: "spread", kind: "message", T: SpreadRules },
+    { no: 2, name: "bomb", kind: "message", T: BombRules },
+    { no: 3, name: "enclose", kind: "message", T: EncloseRules },
+    { no: 4, name: "shield", kind: "message", T: ShieldRules },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusRules {
-    return new BonusRules().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeRules {
+    return new ChargeRules().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BonusRules {
-    return new BonusRules().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargeRules {
+    return new ChargeRules().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BonusRules {
-    return new BonusRules().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargeRules {
+    return new ChargeRules().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BonusRules | PlainMessage<BonusRules> | undefined, b: BonusRules | PlainMessage<BonusRules> | undefined): boolean {
-    return proto3.util.equals(BonusRules, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.BoxPace
- */
-export class BoxPace extends Message<BoxPace> {
-  /**
-   * @generated from field: google.protobuf.Duration min_interval = 1;
-   */
-  minInterval?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration max_interval = 2;
-   */
-  maxInterval?: Duration;
-
-  /**
-   * @generated from field: optional uint32 max_charges_per_hour = 3;
-   */
-  maxChargesPerHour?: number;
-
-  constructor(data?: PartialMessage<BoxPace>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.BoxPace";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "min_interval", kind: "message", T: Duration },
-    { no: 2, name: "max_interval", kind: "message", T: Duration },
-    { no: 3, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BoxPace {
-    return new BoxPace().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BoxPace {
-    return new BoxPace().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BoxPace {
-    return new BoxPace().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: BoxPace | PlainMessage<BoxPace> | undefined, b: BoxPace | PlainMessage<BoxPace> | undefined): boolean {
-    return proto3.util.equals(BoxPace, a, b);
-  }
-}
-
-/**
- * What a box is drawn as: a kind's chance is its weight over the sum of the kinds it may be.
- *
- * @generated from message planet.v1.KindWeights
- */
-export class KindWeights extends Message<KindWeights> {
-  /**
-   * @generated from field: optional double refill = 1;
-   */
-  refill?: number;
-
-  /**
-   * @generated from field: optional double spread_clicks = 2;
-   */
-  spreadClicks?: number;
-
-  /**
-   * @generated from field: optional double enclose_clicks = 3;
-   */
-  encloseClicks?: number;
-
-  /**
-   * @generated from field: optional double bomb = 4;
-   */
-  bomb?: number;
-
-  /**
-   * @generated from field: optional double shields = 5;
-   */
-  shields?: number;
-
-  constructor(data?: PartialMessage<KindWeights>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.KindWeights";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "refill", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 2, name: "spread_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 3, name: "enclose_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 4, name: "bomb", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 5, name: "shields", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KindWeights {
-    return new KindWeights().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KindWeights {
-    return new KindWeights().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KindWeights {
-    return new KindWeights().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: KindWeights | PlainMessage<KindWeights> | undefined, b: KindWeights | PlainMessage<KindWeights> | undefined): boolean {
-    return proto3.util.equals(KindWeights, a, b);
+  static equals(a: ChargeRules | PlainMessage<ChargeRules> | undefined, b: ChargeRules | PlainMessage<ChargeRules> | undefined): boolean {
+    return proto3.util.equals(ChargeRules, a, b);
   }
 }
 
@@ -655,11 +491,6 @@ export class SpreadRules extends Message<SpreadRules> {
    */
   clicks?: number;
 
-  /**
-   * @generated from field: optional uint32 max_per_box = 2;
-   */
-  maxPerBox?: number;
-
   constructor(data?: PartialMessage<SpreadRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -669,7 +500,6 @@ export class SpreadRules extends Message<SpreadRules> {
   static readonly typeName = "planet.v1.SpreadRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-    { no: 2, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SpreadRules {
@@ -701,7 +531,8 @@ export class BombRules extends Message<BombRules> {
   rings?: number;
 
   /**
-   * No bomb: no box or quiz offers one, and a bomb held is not dropped (DropBomb answers a BombRefusal).
+   * No bomb: a bomb held is not dropped (DropBomb answers a BombRefusal), and no hand has room for one (GetRoom), so
+   * no box or quiz offers one.
    *
    * @generated from field: optional bool off = 2;
    */
@@ -753,11 +584,6 @@ export class EncloseRules extends Message<EncloseRules> {
   held?: number;
 
   /**
-   * @generated from field: optional uint32 max_per_box = 3;
-   */
-  maxPerBox?: number;
-
-  /**
    * A click with enclose on needs no charge and spends none.
    *
    * @generated from field: optional bool unlimited = 4;
@@ -774,7 +600,6 @@ export class EncloseRules extends Message<EncloseRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 2, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-    { no: 3, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 4, name: "unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
@@ -807,16 +632,6 @@ export class ShieldRules extends Message<ShieldRules> {
   held?: number;
 
   /**
-   * @generated from field: optional uint32 min_per_box = 2;
-   */
-  minPerBox?: number;
-
-  /**
-   * @generated from field: optional uint32 max_per_box = 3;
-   */
-  maxPerBox?: number;
-
-  /**
    * At most 255.
    *
    * @generated from field: optional uint32 per_tile = 4;
@@ -832,8 +647,6 @@ export class ShieldRules extends Message<ShieldRules> {
   static readonly typeName = "planet.v1.ShieldRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-    { no: 2, name: "min_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-    { no: 3, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 4, name: "per_tile", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
@@ -851,132 +664,6 @@ export class ShieldRules extends Message<ShieldRules> {
 
   static equals(a: ShieldRules | PlainMessage<ShieldRules> | undefined, b: ShieldRules | PlainMessage<ShieldRules> | undefined): boolean {
     return proto3.util.equals(ShieldRules, a, b);
-  }
-}
-
-/**
- * An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is off.
- *
- * @generated from message planet.v1.WelcomeRules
- */
-export class WelcomeRules extends Message<WelcomeRules> {
-  /**
-   * @generated from field: google.protobuf.Duration within = 1;
-   */
-  within?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration box_after = 2;
-   */
-  boxAfter?: Duration;
-
-  constructor(data?: PartialMessage<WelcomeRules>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.WelcomeRules";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "within", kind: "message", T: Duration },
-    { no: 2, name: "box_after", kind: "message", T: Duration },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WelcomeRules {
-    return new WelcomeRules().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WelcomeRules {
-    return new WelcomeRules().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WelcomeRules {
-    return new WelcomeRules().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: WelcomeRules | PlainMessage<WelcomeRules> | undefined, b: WelcomeRules | PlainMessage<WelcomeRules> | undefined): boolean {
-    return proto3.util.equals(WelcomeRules, a, b);
-  }
-}
-
-/**
- * @generated from message planet.v1.QuizRules
- */
-export class QuizRules extends Message<QuizRules> {
-  /**
-   * @generated from field: optional bool enabled = 1;
-   */
-  enabled?: boolean;
-
-  /**
-   * @generated from field: google.protobuf.Duration min_interval = 2;
-   */
-  minInterval?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration max_interval = 3;
-   */
-  maxInterval?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration miss_retry = 4;
-   */
-  missRetry?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration offer_ttl = 5;
-   */
-  offerTtl?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration answer_window = 6;
-   */
-  answerWindow?: Duration;
-
-  /**
-   * How much a question leans to the countries that hold the most; 0 is a flat draw.
-   *
-   * @generated from field: optional double leader_bias = 7;
-   */
-  leaderBias?: number;
-
-  /**
-   * @generated from field: optional uint32 max_charges_per_hour = 8;
-   */
-  maxChargesPerHour?: number;
-
-  constructor(data?: PartialMessage<QuizRules>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.QuizRules";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-    { no: 2, name: "min_interval", kind: "message", T: Duration },
-    { no: 3, name: "max_interval", kind: "message", T: Duration },
-    { no: 4, name: "miss_retry", kind: "message", T: Duration },
-    { no: 5, name: "offer_ttl", kind: "message", T: Duration },
-    { no: 6, name: "answer_window", kind: "message", T: Duration },
-    { no: 7, name: "leader_bias", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 8, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizRules {
-    return new QuizRules().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizRules {
-    return new QuizRules().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizRules {
-    return new QuizRules().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: QuizRules | PlainMessage<QuizRules> | undefined, b: QuizRules | PlainMessage<QuizRules> | undefined): boolean {
-    return proto3.util.equals(QuizRules, a, b);
   }
 }
 

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerQuizRequest, AnswerQuizResponse, ClaimBonusRequest, ClaimBonusResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBonusRulesRequest, GetBonusRulesResponse, GetBudgetRequest, GetBudgetResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, OpenQuizRequest, OpenQuizResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
+import { ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -72,15 +72,6 @@ export const ClickService = {
       kind: MethodKind.ServerStreaming,
     },
     /**
-     * @generated from rpc planet.v1.ClickService.ClaimBonus
-     */
-    claimBonus: {
-      name: "ClaimBonus",
-      I: ClaimBonusRequest,
-      O: ClaimBonusResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * @generated from rpc planet.v1.ClickService.DropBomb
      */
     dropBomb: {
@@ -110,32 +101,16 @@ export const ClickService = {
       kind: MethodKind.Unary,
     },
     /**
-     * @generated from rpc planet.v1.ClickService.GetBonusRules
+     * How much of each charge a hand holds and what each does, and the map's knobs the page shows.
+     *
+     * @generated from rpc planet.v1.ClickService.GetChargeRules
      */
-    getBonusRules: {
-      name: "GetBonusRules",
-      I: GetBonusRulesRequest,
-      O: GetBonusRulesResponse,
+    getChargeRules: {
+      name: "GetChargeRules",
+      I: GetChargeRulesRequest,
+      O: GetChargeRulesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * @generated from rpc planet.v1.ClickService.OpenQuiz
-     */
-    openQuiz: {
-      name: "OpenQuiz",
-      I: OpenQuizRequest,
-      O: OpenQuizResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc planet.v1.ClickService.AnswerQuiz
-     */
-    answerQuiz: {
-      name: "AnswerQuiz",
-      I: AnswerQuizRequest,
-      O: AnswerQuizResponse,
-      kind: MethodKind.Unary,
     },
     /**
      * @generated from rpc planet.v1.ClickService.PlaceShield

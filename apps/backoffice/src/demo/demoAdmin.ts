@@ -44,6 +44,8 @@ import {
     TopPlayersResponse,
 } from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
+import {GetRulesResponse as BonusesGetRulesResponse, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {Rules as BonusesRules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
 import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {
     GetPlayerLinkRequest,
@@ -271,9 +273,10 @@ export class DemoAdmin extends FakeAdmin {
             })),
         ].sort((a, b) => Number((b.createdAt?.seconds ?? 0n) - (a.createdAt?.seconds ?? 0n)))
 
-        // The sets the schedule names, in both modules: calm plays now. Each holds what it changes from default.
+        // The sets the schedule names, in each module: calm plays now. Each holds what it changes from default.
         const [planetDefault] = this.rules.sets
         const [antibotDefault] = this.antibotRules.sets
+        const [bonusesDefault] = this.bonusRules.sets
         this.rules = new GetRulesResponse({playing: "calm", sets: [
             planetDefault,
             new RuleSet({name: "calm", rules: PlanetRules.fromJson({clicks: {tempo: 0.5}})}),
@@ -288,11 +291,23 @@ export class DemoAdmin extends FakeAdmin {
                 line: "1st place wins {battle.points.first} points, 2nd {battle.points.second}, 3rd {battle.points.third}.",
             }),
             new CardDraft({backgroundId: "demo-rally", headline: "Bring your friends", line: "Your flag needs every click."}),
+            new CardDraft({
+                backgroundId: "demo-war", headline: "A box every {bonuses.boxes.minInterval}",
+                line: "Bombs blast {charges.bomb.rings} rings wide.",
+            }),
         ])
         this.antibotRules = new AntibotGetRulesResponse({playing: "calm", sets: [
             antibotDefault,
             ...["calm", "frozen"].map(name => new AntibotRuleSet({name})),
             new AntibotRuleSet({name: "rush", rules: AntibotRules.fromJson({cohort: {certainMembers: 50}})}),
+        ]})
+        this.bonusRules = new BonusesGetRulesResponse({playing: "calm", sets: [
+            bonusesDefault,
+            new BonusesRuleSet({name: "calm", rules: BonusesRules.fromJson({boxes: {maxChargesPerHour: 6}, quiz: {enabled: false}})}),
+            new BonusesRuleSet({name: "frozen", rules: BonusesRules.fromJson({frozen: true})}),
+            new BonusesRuleSet({name: "rush", rules: BonusesRules.fromJson({
+                boxes: {minInterval: "60s", maxInterval: "60s", maxChargesPerHour: 30}, kinds: {bomb: 3},
+            })}),
         ]})
 
         // Their files are not in the demo: the page says it cannot play them.

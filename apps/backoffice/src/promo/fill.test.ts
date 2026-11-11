@@ -3,7 +3,7 @@ import {Placeholder} from "../gen/grpc/promo/v1/admin_pb.ts"
 import {durationWord, fill, namesBattle, Values} from "./fill.ts"
 
 const RULES = ["clicks.tempo", "clicks.perSecond", "clicks.burst", "bonuses.boxes.minInterval", "bonuses.boxes.maxInterval",
-    "bonuses.bomb.rings", "bonuses.quiz.offerTtl"]
+    "charges.bomb.rings", "bonuses.quiz.offerTtl"]
 const TRIPLE = [
     new Placeholder({path: "battle.times", example: "3"}),
     new Placeholder({path: "battle.points.first", example: "75"}),
@@ -31,8 +31,8 @@ describe("fill", () => {
     })
 
     it("says what does not fill, and leaves it as written", () => {
-        expect(fill("{bonuses.bomb.rings} rings", urf)).toEqual({
-            text: "{bonuses.bomb.rings} rings", problems: ["The set plays no value at {bonuses.bomb.rings}."],
+        expect(fill("{charges.bomb.rings} rings", urf)).toEqual({
+            text: "{charges.bomb.rings} rings", problems: ["The set plays no value at {charges.bomb.rings}."],
         })
         expect(fill("{frozen}", urf).problems).toEqual(["{frozen} names no number or duration of the rules or the battle."])
         expect(fill("an { alone", urf).problems).toEqual(["A brace opens or closes no placeholder."])

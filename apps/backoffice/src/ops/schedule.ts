@@ -2,6 +2,7 @@ import {proto3, Timestamp} from "@bufbuild/protobuf"
 import {GamemasterAdmin} from "../clients.ts"
 import {localOf} from "../components/time.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {GetRulesResponse as BonusesRules} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse, ScheduledFinale} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
@@ -35,15 +36,18 @@ export function changeable(row: Row, now: Date): boolean {
     return row.startsAt !== undefined && now < row.startsAt
 }
 
-// What each module the schedule commands keeps and plays.
-export type Modules = {planet: PlanetRules, antibot: AntibotRules}
+// What each module the schedule commands keeps and plays: planet, the antibot, and the offers (bonuses.v1), whose sets
+// say when a box and a quiz come.
+export type Modules = {planet: PlanetRules, antibot: AntibotRules, bonuses: BonusesRules}
+
+// Each module in the operator's words, in the order the page names them.
+const MODULES: {key: keyof Modules, name: string}[] = [
+    {key: "planet", name: "planet"}, {key: "antibot", name: "the antibot"}, {key: "bonuses", name: "the offers"},
+]
 
 // The modules that keep no set of this name.
 export function lacking(set: string, modules: Modules): string[] {
-    const missing: string[] = []
-    if (!modules.planet.sets.some(kept => kept.name === set)) missing.push("planet")
-    if (!modules.antibot.sets.some(kept => kept.name === set)) missing.push("the antibot")
-    return missing
+    return MODULES.filter(({key}) => !modules[key].sets.some(kept => kept.name === set)).map(({name}) => name)
 }
 
 // The sets an entry may play: the ones every module keeps.

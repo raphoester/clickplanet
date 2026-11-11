@@ -5,6 +5,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {clockOf, localOf, spanOf} from "../components/time.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {GetRulesResponse as BonusesRules, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {AddEntryRequest, EditEntryRequest, Playing} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
@@ -18,7 +19,7 @@ const rowOf = (set: string) =>
 const type = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
-// Planet and the antibot keep calm and frozen too, and play calm.
+// Planet, the antibot and the offers keep calm and frozen too, and play calm.
 function keeping(): FakeAdmin {
     const admin = new FakeAdmin()
     const planetDefault = admin.rules.sets[0]
@@ -31,11 +32,16 @@ function keeping(): FakeAdmin {
         sets: ["default", "calm", "frozen", "rush"].map(name => new AntibotRuleSet({name, rules: antibotDefault.rules?.clone()})),
         playing: "calm",
     })
+    const bonusesDefault = admin.bonusRules.sets[0]
+    admin.bonusRules = new BonusesRules({
+        sets: ["default", "calm", "frozen", "rush"].map(name => new BonusesRuleSet({name, rules: bonusesDefault.rules?.clone()})),
+        playing: "calm",
+    })
     return admin
 }
 
 function show(admin: FakeAdmin) {
-    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot}/>)
+    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} bonuses={admin.bonuses}/>)
 }
 
 describe("the rule schedule page", () => {
@@ -54,7 +60,8 @@ describe("the rule schedule page", () => {
         expect(within(rowOf("frozen")).getByText("4×")).toBeTruthy()
         expect(within(rowOf("calm")).queryByText(/×/)).toBeNull()
         expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
-        expect(screen.getByText(/the antibot plays/)).toBeTruthy()
+        expect(screen.getByText(/Planet plays/).textContent?.replace(/\s+/g, " "))
+            .toBe("Planet plays calm, the antibot plays calm, the offers play calm.")
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
@@ -85,6 +92,7 @@ describe("the rule schedule page", () => {
         admin.schedule.playing = new Playing({ruleSet: "rush", kind: EntryKind.BATTLE, finaleSeason: 2})
         admin.rules.playing = "rush"
         admin.antibotRules.playing = "rush"
+        admin.bonusRules.playing = "rush"
         show(admin)
 
         expect(await screen.findByText(/season 2's final battle/)).toBeTruthy()
@@ -105,9 +113,19 @@ describe("the rule schedule page", () => {
         show(new FakeAdmin())
 
         await screen.findByRole("table")
-        expect(within(rowOf("frozen")).getByText("No set frozen in planet or the antibot.")).toBeTruthy()
-        expect(within(rowOf("calm")).getByText("No set calm in planet or the antibot.")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot or the offers.")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot or the offers.")).toBeTruthy()
         expect(within(rowOf("rush")).queryByRole("alert")).toBeNull()
+    })
+
+    it("warns of a set the offers alone do not keep", async () => {
+        const admin = keeping()
+        admin.bonusRules = new BonusesRules({sets: admin.bonusRules.sets.filter(set => set.name !== "frozen"), playing: "calm"})
+        show(admin)
+
+        await screen.findByRole("table")
+        expect(within(rowOf("frozen")).getByText("No set frozen in the offers.")).toBeTruthy()
+        expect(within(rowOf("calm")).queryByRole("alert")).toBeNull()
     })
 
     it("says when a module does not play what the schedule plays", async () => {
@@ -115,6 +133,15 @@ describe("the rule schedule page", () => {
 
         expect(await screen.findByText(/Planet does not play/)).toBeTruthy()
         expect(screen.getByText(/The antibot does not play/)).toBeTruthy()
+        expect(screen.getByText(/The offers do not play/)).toBeTruthy()
+    })
+
+    it("says when the offers alone do not play what the schedule plays", async () => {
+        const admin = keeping()
+        admin.bonusRules.playing = "default"
+        show(admin)
+
+        expect((await screen.findByRole("alert")).textContent).toBe("The offers do not play calm.")
     })
 
     it("adds an entry once confirmed, and reads the schedule again", async () => {
@@ -182,9 +209,10 @@ describe("the rule schedule page", () => {
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
-    it("offers only the sets both modules keep", async () => {
+    it("offers only the sets planet, the antibot and the offers all keep", async () => {
         const admin = keeping()
-        admin.antibotRules = new AntibotRules({sets: [admin.antibotRules.sets[0], admin.antibotRules.sets[3]], playing: "calm"})
+        admin.antibotRules = new AntibotRules({sets: [admin.antibotRules.sets[0], admin.antibotRules.sets[2], admin.antibotRules.sets[3]], playing: "calm"})
+        admin.bonusRules = new BonusesRules({sets: [admin.bonusRules.sets[0], admin.bonusRules.sets[1], admin.bonusRules.sets[3]], playing: "calm"})
         show(admin)
 
         fireEvent.click(await screen.findByRole("button", {name: "Add an entry"}))

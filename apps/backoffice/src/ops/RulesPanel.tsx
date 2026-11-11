@@ -7,10 +7,12 @@ import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {changesWord} from "../support/labels.ts"
 import {useCall} from "../useCall.ts"
+import {SwitchField, ValueField} from "./RuleFields.tsx"
 import {
-    boxesOf, changedAt, changesOf, clicksOf, complete, copyOf, DEFAULT_SET, Draft, draftOf, Field, GROUPS, playedOf, playOf,
-    saveRuleSet, shownOf, tempoOf, tollOf, TollStep, yesOf,
+    changesOf, clicksOf, complete, copyOf, DEFAULT_SET, Draft, draftOf, GROUPS, playedOf, playOf, saveRuleSet, tempoOf, tollOf,
+    TollStep,
 } from "./rules.ts"
+import {changedAt} from "./ruleValues.ts"
 
 // made: an edit of a set kept, with its name fixed; otherwise a new set copied from `from`. Either way the form
 // shows what it changes from that set. defaults: default's values, for a set that plays them where it holds none.
@@ -46,6 +48,7 @@ export function RulesPanel({planet}: {planet: PlanetAdmin}) {
             {rules.state === "done" && (
                 <>
                     <p className="hint">Playing: <code>{rules.value.playing}</code></p>
+                    <p className="hint">When a box and a quiz come, and what each grants, are the Box & quiz rules'.</p>
                     <Sets
                         rules={rules.value}
                         onEdit={set => setEditing({
@@ -76,7 +79,7 @@ function Sets({rules, onEdit, onCopy}: {
         <table className="table">
             <caption>Sets</caption>
             <thead>
-                <tr><th>Set</th><th/><th>Map</th><th>Refill</th><th>Clicks</th><th>Boxes</th><th/></tr>
+                <tr><th>Set</th><th/><th>Map</th><th>Refill</th><th>Clicks</th><th/></tr>
             </thead>
             <tbody>
                 {rules.sets.map(set => ({set, played: playedOf(set, defaults)})).map(({set, played}) => (
@@ -86,7 +89,6 @@ function Sets({rules, onEdit, onCopy}: {
                         <td>{playOf(played)}</td>
                         <td>{tempoOf(played)}</td>
                         <td>{clicksOf(played.rules?.clicks)}</td>
-                        <td>{boxesOf(played.rules?.bonuses?.boxes)}</td>
                         <td className="row-buttons">
                             <button type="button" className="button-small" aria-label={`Edit ${set.name}`} onClick={() => onEdit(set)}>
                                 Edit
@@ -142,10 +144,6 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                 {GROUPS.map(group => (
                     <fieldset key={group.title} className="rule-group">
                         <legend>{group.title}</legend>
-                        {group.title === "New accounts" && (
-                            <SwitchField label="Refill at first sign-in" on={draft.signInRefill} defaults={defaults?.signInRefill}
-                                         inherits={defaults !== undefined} onChange={signInRefill => change({signInRefill})}/>
-                        )}
                         {group.title === "Charges" && <>
                             <SwitchField label="Enclosures unlimited: enclose spends no charge" on={draft.enclosuresUnlimited}
                                          defaults={defaults?.enclosuresUnlimited} inherits={defaults !== undefined}
@@ -154,10 +152,6 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                                          defaults={defaults?.bombsOff} inherits={defaults !== undefined}
                                          onChange={bombsOff => change({bombsOff})}/>
                         </>}
-                        {group.title === "Quizzes" && (
-                            <SwitchField label="Quizzes on" on={draft.quiz} defaults={defaults?.quiz}
-                                         inherits={defaults !== undefined} onChange={quiz => change({quiz})}/>
-                        )}
                         <div className="fields">
                             {group.fields.map(field => (
                                 <ValueField
@@ -194,65 +188,6 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                 <button type="button" className="button" onClick={onCancel}>Cancel</button>
             </div>
         </section>
-    )
-}
-
-type SwitchProps = {
-    label: string, on: boolean | undefined, defaults: boolean | undefined, inherits: boolean,
-    onChange: (on: boolean | undefined) => void,
-}
-
-// In default, a box; in another set, its own yes or no, or default's.
-function SwitchField({label, on, defaults, inherits, onChange}: SwitchProps) {
-    if (!inherits) {
-        return (
-            <label className="check">
-                <input type="checkbox" checked={on === true} onChange={e => onChange(e.target.checked)}/>
-                {label}
-            </label>
-        )
-    }
-    return (
-        <div className="field">
-            <span className="muted">{label}</span>
-            <select aria-label={label} value={yesOf(on)}
-                    onChange={e => onChange(e.target.value === "default" ? undefined : e.target.value === "yes")}>
-                <option value="default">Default ({yesOf(defaults)})</option>
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-            </select>
-        </div>
-    )
-}
-
-type ValueProps = {
-    field: Field, typed: string, inherited: string | undefined, was: string | undefined, onChange: (typed: string) => void,
-}
-
-// A value of the set: a duration says what it reads as, and a value changed says what it was. Outside default, an
-// empty value plays default's, which it shows.
-function ValueField({field, typed, inherited, was, onChange}: ValueProps) {
-    const shown = shownOf(field, typed)
-    const follows = inherited !== undefined && typed.trim() === ""
-    const notes = [
-        ...(follows ? [`default: ${shownOf(field, inherited)}`] : []),
-        ...(shown !== typed && shown !== `${typed.trim()} s` && shown !== "" ? [shown] : []),
-        ...(was !== undefined ? [`was ${shownOf(field, was) || (inherited === undefined ? "empty" : "default")}`] : []),
-    ]
-    return (
-        <div className={was === undefined ? "field" : "field field-changed"}>
-            <label className="field">
-                <span className="muted">{field.label}</span>
-                <input type="number" inputMode="decimal" value={typed} placeholder={inherited}
-                       onChange={e => onChange(e.target.value)}/>
-            </label>
-            {notes.length > 0 && <span className="hint">{notes.join(" · ")}</span>}
-            {inherited !== undefined && !follows && (
-                <button type="button" className="button-mini" aria-label={`${field.label}: use default`} onClick={() => onChange("")}>
-                    Use default
-                </button>
-            )}
-        </div>
     )
 }
 

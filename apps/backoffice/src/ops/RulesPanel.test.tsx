@@ -25,6 +25,8 @@ const sent = (admin: FakeAdmin) => (admin.askedFor("saveRuleSet") as {set: RuleS
 const pick = (label: string, value: "default" | "yes" | "no") =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
+const BOMBS_OFF = "Bombs off: no box offers one, and none is dropped"
+
 // A set that holds only a slower refill, and plays default's for the rest.
 function withSlow(): FakeAdmin {
     const admin = new FakeAdmin()
@@ -42,7 +44,7 @@ function withCalm(): FakeAdmin {
 }
 
 describe("the game rules page", () => {
-    it("lists every set with its refill, its clicks and its boxes, and says which plays", async () => {
+    it("lists every set with its refill and its clicks, and says which plays", async () => {
         render(<RulesPanel planet={new FakeAdmin()}/>)
 
         await screen.findByRole("button", {name: "Copy default"})
@@ -51,7 +53,19 @@ describe("the game rules page", () => {
         expect(row.getAttribute("aria-current")).toBe("true")
         expect(within(row).getByText("1×")).toBeTruthy()
         expect(within(row).getByText("60 in hand, 0.2 a second")).toBeTruthy()
-        expect(within(row).getByText("Every 4 min to 8 min, 12 an hour at most")).toBeTruthy()
+    })
+
+    it("edits a hand's charges, and leaves the boxes and quizzes to their own page", async () => {
+        render(<RulesPanel planet={new FakeAdmin()}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
+        const charges = within(screen.getByRole("group", {name: "Charges"}))
+        expect(charges.getAllByRole("spinbutton").map(field => field.closest("label")?.textContent)).toEqual([
+            "Spread clicks held", "Bomb rings", "Enclose tiles, at most", "Enclosures held", "Shields held", "Shields on a tile, at most",
+        ])
+        expect(screen.queryByLabelText("Shortest box wait (s)")).toBeNull()
+        expect(screen.queryByLabelText("Quizzes on")).toBeNull()
+        expect(screen.queryByLabelText("Refill at first sign-in")).toBeNull()
     })
 
     it("edits the set that plays, and says it takes over at once", async () => {
@@ -77,15 +91,15 @@ describe("the game rules page", () => {
         expect((screen.getByLabelText("Shields on a tile, at most") as HTMLInputElement).value).toBe("10")
         type("Refill, times as fast", "3")
         type("Shields on a tile, at most", "20")
-        type("Time to answer (s)", "6")
+        type("Enclosures held", "5")
         save()
 
         await waitFor(() => expect(within(rowOf("calm")).getByText("3×")).toBeTruthy())
         const rules = sent(admin)?.rules
         expect(sent(admin)?.name).toBe("calm")
         expect(rules?.clicks?.tempo).toBe(3)
-        expect(rules?.bonuses?.shield?.perTile).toBe(20)
-        expect(Number(rules?.bonuses?.quiz?.answerWindow?.seconds)).toBe(6)
+        expect(rules?.charges?.shield?.perTile).toBe(20)
+        expect(rules?.charges?.enclose?.held).toBe(5)
         expect(rules?.clicks?.burst).toBe(60)
         expect(screen.queryByRole("region", {name: "Edit calm"})).toBeNull()
     })
@@ -96,28 +110,27 @@ describe("the game rules page", () => {
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(true)
         expect(screen.getByText("No change yet")).toBeTruthy()
-        type("Shortest box wait (s)", "120")
+        type("New account, signed-in pace for (s)", "600")
         type("Clicks in hand", "60.0")
         pick("Frozen: the map takes no play", "yes")
         expect(screen.getByText("2 changes")).toBeTruthy()
-        expect(screen.getByText("2 min · was 4 min")).toBeTruthy()
+        expect(screen.getByText("10 min · was 30 min")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Save"}))
 
         const changes = within(screen.getByRole("list", {name: "What changes"})).getAllByRole("listitem")
         expect(changes.map(change => change.textContent)).toEqual([
             "Frozen no → yes",
-            "Boxes · Shortest box wait (s) 4 min → 2 min",
+            "Clicks · New account, signed-in pace for (s) 30 min → 10 min",
         ])
         expect(screen.queryByText("It plays now: it takes over at once.")).toBeNull()
     })
 
-    it("switches quizzes and the sign-in refill off, and edits the toll", async () => {
+    it("switches unlimited enclosures on, and edits the toll", async () => {
         const admin = withCalm()
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
-        pick("Quizzes on", "no")
-        pick("Refill at first sign-in", "no")
+        pick("Enclosures unlimited: enclose spends no charge", "yes")
         fireEvent.click(screen.getByRole("button", {name: "Remove step 1"}))
         fireEvent.click(screen.getByRole("button", {name: "Add a step"}))
         expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(true)
@@ -127,8 +140,7 @@ describe("the game rules page", () => {
         save()
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
-        expect(sent(admin)?.rules?.bonuses?.quiz?.enabled).toBe(false)
-        expect(sent(admin)?.rules?.bonuses?.signInRefill).toBe(false)
+        expect(sent(admin)?.rules?.charges?.enclose?.unlimited).toBe(true)
         expect(sent(admin)?.rules?.toll?.steps.map(step => [step.share, step.slowdown])).toEqual([[0.2, 2.5], [0.3, 4], [0.4, 6]])
     })
 
@@ -191,11 +203,11 @@ describe("the game rules page", () => {
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
-        pick("Bombs off: no box offers one, and none is dropped", "yes")
+        pick(BOMBS_OFF, "yes")
         save()
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
-        expect(sent(admin)?.rules?.bonuses?.bomb?.off).toBe(true)
+        expect(sent(admin)?.rules?.charges?.bomb?.off).toBe(true)
     })
 
     it("makes a new set from a copy of default, which holds only what is typed", async () => {
@@ -221,7 +233,7 @@ describe("the game rules page", () => {
 
         await screen.findByRole("button", {name: "Edit slow"})
         expect(within(rowOf("slow")).getByText("0.5×")).toBeTruthy()
-        expect(within(rowOf("slow")).getByText("Every 4 min to 8 min, 12 an hour at most")).toBeTruthy()
+        expect(within(rowOf("slow")).getByText("60 in hand, 0.2 a second")).toBeTruthy()
     })
 
     it("shows default's value in a field the set leaves empty, and sends only what the set holds", async () => {
@@ -231,15 +243,15 @@ describe("the game rules page", () => {
         fireEvent.click(await screen.findByRole("button", {name: "Edit slow"}))
         expect((screen.getByLabelText("Clicks in hand") as HTMLInputElement).value).toBe("")
         expect(screen.getByText("default: 60")).toBeTruthy()
-        expect((screen.getByLabelText("Quizzes on") as HTMLSelectElement).value).toBe("default")
+        expect((screen.getByLabelText(BOMBS_OFF) as HTMLSelectElement).value).toBe("default")
         expect(screen.getByText("Default's: 10% ×1.5, 20% ×2.5, 30% ×4")).toBeTruthy()
         type("Clicks in hand", "40")
-        pick("Quizzes on", "no")
+        pick(BOMBS_OFF, "yes")
         fireEvent.click(screen.getByRole("button", {name: "Refill, times as fast: use default"}))
         save()
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
-        expect(sent(admin)?.rules?.toJson()).toEqual({clicks: {burst: 40}, bonuses: {quiz: {enabled: false}}})
+        expect(sent(admin)?.rules?.toJson()).toEqual({clicks: {burst: 40}, charges: {bomb: {off: true}}})
     })
 
     it("gives a set a toll of its own, none at all included", async () => {
@@ -262,7 +274,7 @@ describe("the game rules page", () => {
         render(<RulesPanel planet={new FakeAdmin()}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
-        expect((screen.getByLabelText("Quizzes on") as HTMLInputElement).type).toBe("checkbox")
+        expect((screen.getByLabelText(BOMBS_OFF) as HTMLInputElement).type).toBe("checkbox")
         expect(screen.queryByLabelText("A toll of its own")).toBeNull()
         type("Clicks in hand", "")
         expect((screen.getByRole("button", {name: "Save"}) as HTMLButtonElement).disabled).toBe(true)

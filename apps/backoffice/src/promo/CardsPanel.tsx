@@ -2,6 +2,7 @@ import {JsonValue} from "@bufbuild/protobuf"
 import {useRef, useState} from "react"
 import {PromoAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
+import {GetRulesResponse as BonusesRules} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {GetRulesResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Background, Card, CardDraft, ExampleBattle, GetCardsResponse, Placeholder, SetCards} from "../gen/grpc/promo/v1/admin_pb.ts"
 import {DEFAULT_SET} from "../ops/rules.ts"
@@ -13,14 +14,15 @@ type Props = {
     library: Background[]
     cards: GetCardsResponse
     rules: GetRulesResponse
+    offers: BonusesRules
     onSaved: () => void
 }
 
-export function CardsPanel({promo, library, cards, rules, onSaved}: Props) {
+export function CardsPanel({promo, library, cards, rules, offers, onSaved}: Props) {
     const first = cards.sets.find(set => set.cards.length > 0) ?? cards.sets.find(set => set.ruleSet !== DEFAULT_SET) ?? cards.sets[0]
     const [chosen, setChosen] = useState(first?.ruleSet ?? "")
     const set = cards.sets.find(each => each.ruleSet === chosen)
-    const played = playedBySet(rules)
+    const played = playedBySet(rules, offers)
 
     return (
         <section className="panel" aria-label="Cards">

@@ -5,7 +5,10 @@ import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-libr
 import {afterEach, describe, expect, it} from "vitest"
 import {clockOf, localOf, timeOf} from "../components/time.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
+import {RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {AddSeasonRequest, EditSeasonRequest} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
+import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {SeasonsPanel} from "./SeasonsPanel.tsx"
 
 afterEach(cleanup)
@@ -28,7 +31,7 @@ const later = (date: Date, seconds: number) => new Date(date.getTime() + seconds
 const alerts = () => screen.queryAllByRole("alert").map(alert => alert.textContent)
 
 function show(admin: FakeAdmin) {
-    render(<SeasonsPanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot}/>)
+    render(<SeasonsPanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} bonuses={admin.bonuses}/>)
 }
 
 async function edit(number: number) {
@@ -257,5 +260,19 @@ describe("the seasons page", () => {
         expect(asked.finale?.length?.seconds).toBe(BigInt(4 * HOUR))
         expect(asked.finale?.ruleSet).toBe("default")
         expect(asked.finale?.times).toBe(3)
+    })
+
+    it("offers a final battle only a set planet, the antibot and the offers all keep", async () => {
+        const admin = new FakeAdmin()
+        admin.rules.sets.push(new RuleSet({name: "rush"}), new RuleSet({name: "urf"}))
+        admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}), new AntibotRuleSet({name: "urf"}))
+        admin.bonusRules.sets.push(new BonusesRuleSet({name: "urf"}))
+        show(admin)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Add a season"}))
+        fireEvent.click(screen.getByLabelText("Ends with a final battle"))
+
+        expect(within(screen.getByLabelText("Rule set")).getAllByRole("option").map(option => option.textContent))
+            .toEqual(["Pick a set", "default", "urf"])
     })
 })

@@ -35,6 +35,14 @@ import {
     UnbanPlayerResponse,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
+import {
+    GetRulesRequest as BonusesGetRulesRequest,
+    GetRulesResponse as BonusesGetRulesResponse,
+    RuleSet as BonusesRuleSet,
+    SaveRuleSetRequest as BonusesSaveRuleSetRequest,
+    SaveRuleSetResponse as BonusesSaveRuleSetResponse,
+} from "./gen/grpc/bonuses/v1/admin_pb.ts"
+import {Rules as BonusesRules} from "./gen/grpc/bonuses/v1/rules_pb.ts"
 import {MuteKind} from "./gen/grpc/chat/v1/chat_pb.ts"
 import {
     DiscordLink,
@@ -180,8 +188,8 @@ import {
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
 import {
-    AlertsAdmin, AntibotAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin, PlayerAdmin,
-    ProgressionAdmin, PromoAdmin, SupportAdmin,
+    AlertsAdmin, AntibotAdmin, BonusesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin,
+    PlayerAdmin, ProgressionAdmin, PromoAdmin, SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -201,6 +209,7 @@ function change(minutes: number, by: string, update: PartialMessage<TileUpdate>)
 export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAdmin, ClipsAdmin {
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
+    readonly bonuses: FakeBonuses = new FakeBonuses(this)
     readonly alerts: FakeAlerts = new FakeAlerts(this)
     readonly progression: FakeProgression = new FakeProgression(this)
     readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
@@ -357,20 +366,11 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             linkedMultiplier: 2, newAccountClicks: 10, fastStart: "1800s",
         },
         toll: {steps: [{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}, {share: 0.3, slowdown: 4}]},
-        bonuses: {
-            boxes: {minInterval: "240s", maxInterval: "480s", maxChargesPerHour: 12},
-            kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3},
-            offerTtl: "15s", missRetry: "120s", activeWithin: "120s",
-            spread: {clicks: 8, maxPerBox: 4},
+        charges: {
+            spread: {clicks: 8},
             bomb: {rings: 4, off: false},
-            enclose: {maxTiles: 25, held: 3, maxPerBox: 3, unlimited: false},
-            shield: {held: 30, minPerBox: 5, maxPerBox: 20, perTile: 10},
-            welcome: {within: "600s", boxAfter: "60s"},
-            quiz: {
-                enabled: true, minInterval: "240s", maxInterval: "480s", missRetry: "120s", offerTtl: "25s",
-                answerWindow: "8s", leaderBias: 1, maxChargesPerHour: 12,
-            },
-            signInRefill: true,
+            enclose: {maxTiles: 25, held: 3, unlimited: false},
+            shield: {held: 30, perTile: 10},
         },
         frozen: false,
         allegianceLocked: false,
@@ -378,6 +378,22 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         seed: {capitals: {shields: 100}},
         reach: false,
         capitals: {knockOut: false, fixedShields: false},
+    })})], playing: "default"})
+    // The offers' set the migration keeps: when a box and a quiz come, and what each grants.
+    bonusRules = new BonusesGetRulesResponse({sets: [new BonusesRuleSet({name: "default", rules: BonusesRules.fromJson({
+        boxes: {minInterval: "240s", maxInterval: "480s", maxChargesPerHour: 12},
+        kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3},
+        offerTtl: "15s", missRetry: "120s", activeWithin: "120s",
+        spread: {maxPerBox: 4},
+        enclose: {maxPerBox: 3},
+        shield: {minPerBox: 5, maxPerBox: 20},
+        welcome: {within: "600s", boxAfter: "60s"},
+        quiz: {
+            enabled: true, minInterval: "240s", maxInterval: "480s", missRetry: "120s", offerTtl: "25s",
+            answerWindow: "8s", leaderBias: 1, maxChargesPerHour: 12,
+        },
+        signInRefill: true,
+        frozen: false,
     })})], playing: "default"})
     roster = [
         new RosterEntry({key: "1", accountId: ACCOUNT, name: "BraveFox42", countryId: "fr"}),
@@ -418,7 +434,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     clients(): Clients {
         return {
-            alerts: this.alerts, antibot: this.antibot, chat: this, planet: this, player: this, progression: this.progression,
+            alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
             publishing: this,
         }
@@ -731,6 +747,31 @@ export class FakeAntibot implements AntibotAdmin {
     }
 }
 
+// bonuses.v1's rules, asked of the same fake as getBonusRules and saveBonusRuleSet: planet.v1 and antibot.v1 have a
+// getRules and a saveRuleSet of their own.
+export class FakeBonuses implements BonusesAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getRules(request: PartialMessage<BonusesGetRulesRequest>): Promise<BonusesGetRulesResponse> {
+        return this.admin.answer("getBonusRules", request, this.admin.bonusRules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<BonusesSaveRuleSetRequest>): Promise<BonusesSaveRuleSetResponse> {
+        const answer = this.admin.answer("saveBonusRuleSet", request, new BonusesSaveRuleSetResponse())
+        if (!this.admin.refusals.has("saveBonusRuleSet") && request.set !== undefined) {
+            const saved = new BonusesRuleSet(request.set)
+            const others = this.admin.bonusRules.sets.filter(set => set.name !== saved.name)
+            this.admin.bonusRules = new BonusesGetRulesResponse({
+                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
+                    a.name.localeCompare(b.name)),
+                playing: this.admin.bonusRules.playing,
+            })
+        }
+        return answer
+    }
+}
+
 // missions.v1's rules, asked of the same fake: planet.v1 and antibot.v1 have a getRules of their own. A save replaces
 // them whole, as the server does, and checks nothing.
 export class FakeMissions implements MissionsAdmin {
@@ -880,7 +921,7 @@ function daysOf(startsAt: Date, endsAt: Date): Day[] {
 }
 
 // promo.v1's calls, asked of the same fake. GetCards lists the sets planet's fake keeps (`rules`), each with the cards
-// `decks` holds, filled the way the page fills a draft.
+// `decks` holds, filled the way the page fills a draft: `{bonuses.…}` from the offers' fake (`bonusRules`).
 export class FakePromo implements PromoAdmin {
     backgrounds: PromoBackground[] = [
         new PromoBackground({
@@ -937,7 +978,7 @@ export class FakePromo implements PromoAdmin {
     }
 
     getCards(request: PartialMessage<GetCardsRequest>): Promise<GetCardsResponse> {
-        const played = playedBySet(this.admin.rules)
+        const played = playedBySet(this.admin.rules, this.admin.bonusRules)
         const rules = this.placeholders.map(placeholder => placeholder.path)
         const sets = this.admin.rules.sets.map(set => new SetCards({
             ruleSet: set.name,
@@ -966,8 +1007,11 @@ export class FakePromo implements PromoAdmin {
     }
 }
 
-// A few of planet.v1.Rules' numbers and durations, as GetCards lists them.
-const PLACEHOLDER_PATHS = ["clicks.tempo", "clicks.burst", "bonuses.boxes.minInterval", "bonuses.boxes.maxInterval", "bonuses.bomb.rings"]
+// A few of planet.v1.Rules' numbers and durations, and of bonuses.v1.Rules' under `bonuses.`, as GetCards lists them.
+const PLACEHOLDER_PATHS = [
+    "clicks.tempo", "clicks.burst", "charges.bomb.rings", "charges.shield.held", "bonuses.boxes.minInterval",
+    "bonuses.boxes.maxInterval", "bonuses.quiz.offerTtl",
+]
 
 // The example battle's values, as scoring scores a ×3 battle.
 const TRIPLE = {"battle.times": "3", "battle.points.first": "75", "battle.points.second": "54", "battle.points.third": "45"}
