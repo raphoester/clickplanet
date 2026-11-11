@@ -12,6 +12,8 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1/bonusesv1connect"
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -21,11 +23,12 @@ import (
 )
 
 // It runs last, by its name: the battle takes the rest of today, and the other tests need a day.
-func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring() {
+func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndTheOffersAndScoredByScoring() {
 	t := s.T()
 	ctx := t.Context()
 	planet := planetv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	antibot := antibotv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
+	offers := bonusesv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	schedule := gamemasterv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 
 	planetRules, err := planet.GetRules(ctx, connect.NewRequest(&planetv1.GetRulesRequest{}))
@@ -40,6 +43,10 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAnd
 		Set: &antibotv1.RuleSet{Name: "encore", Rules: antibotRules.Msg.GetSets()[0].GetRules()},
 	}))
 	require.NoError(t, err)
+	_, err = offers.SaveRuleSet(ctx, connect.NewRequest(&bonusesv1.SaveRuleSetRequest{
+		Set: &bonusesv1.RuleSet{Name: "encore", Rules: &bonusesv1.Rules{}},
+	}))
+	require.NoError(t, err, "a set that changes none of the offers' values plays default's")
 
 	startsAt := time.Now().Add(2 * time.Second)
 	endsAt := startsAt.UTC().Truncate(24 * time.Hour).Add(21 * time.Hour)
@@ -50,7 +57,8 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAnd
 		RuleSet: "encore", Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE, Description: "The same rules, once more.",
 		StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(endsAt), Priority: 1, Times: 2,
 	}))
-	require.NoError(t, err, "the gamemaster module asks planet and the antibot over the internal listener whether they keep the set")
+	require.NoError(t, err,
+		"the gamemaster module asks planet, the antibot and the offers over the internal listener whether they keep the set")
 
 	scoring := scoringv1connect.NewScoringServiceClient(http.DefaultClient, s.game.baseURL)
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -60,10 +68,13 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAnd
 		antibotRules, err := antibot.GetRules(ctx, connect.NewRequest(&antibotv1.GetRulesRequest{}))
 		require.NoError(c, err)
 		assert.Equal(c, "encore", antibotRules.Msg.GetPlaying())
+		offerRules, err := offers.GetRules(ctx, connect.NewRequest(&bonusesv1.GetRulesRequest{}))
+		require.NoError(c, err)
+		assert.Equal(c, "encore", offerRules.Msg.GetPlaying())
 		round, err := scoring.GetRound(ctx, connect.NewRequest(&scoringv1.GetRoundRequest{RoundId: added.Msg.GetId()}))
 		require.NoError(c, err)
 		assert.Equal(c, uint32(2), round.Msg.GetRound().GetTimes())
-	}, 15*time.Second, 100*time.Millisecond, "the gamemaster commands the set to planet and the antibot, and opens the battle's round in scoring")
+	}, 15*time.Second, 100*time.Millisecond, "the gamemaster commands the set to planet, the antibot and the offers, and opens the battle's round in scoring")
 
 	playing, err := schedule.GetSchedule(ctx, connect.NewRequest(&gamemasterv1.GetScheduleRequest{}))
 	require.NoError(t, err)

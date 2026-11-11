@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package bonuses.v1;
+
+import "bonuses/v1/rules.proto";
+
+// The rules the boxes and quizzes are offered by. No authentication of its own: served on the console listener, and on
+// the admin listener behind its gate. Never the public router.
+service AdminService {
+  // Every rule set the offers keep, and the one they play now: when a box and a quiz come, what each may be and how
+  // much it grants. SaveRuleSet changes one.
+  rpc GetRules(GetRulesRequest) returns (GetRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Makes a set, or replaces its values. A save of the set that plays now takes over at once. A save of default is
+  // refused while another set could not play over it.
+  rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
+}
+
+message GetRulesRequest {}
+
+message GetRulesResponse {
+  // Every set postgres keeps, "default" first, as kept: one that cannot play too, so it can be mended.
+  repeated RuleSet sets = 1;
+  // The set the offers play now: the one the schedule played last, or "default".
+  string playing = 2;
+}
+
+message RuleSet {
+  string name = 1;
+  Rules rules = 2;
+}
+
+message SaveRuleSetRequest {
+  RuleSet set = 1;
+}
+
+message SaveRuleSetResponse {}

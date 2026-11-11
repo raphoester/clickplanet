@@ -1,0 +1,90 @@
+//go:build testing
+
+package rules
+
+import (
+	"github.com/stretchr/testify/suite"
+	"google.golang.org/protobuf/proto"
+
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+)
+
+type StoreContractSuite struct {
+	suite.Suite
+
+	NewStore func() Store
+	Parts    Parts
+
+	store Store
+}
+
+func (s *StoreContractSuite) SetupTest() {
+	s.store = s.NewStore()
+	s.save(Seeded())
+}
+
+func (s *StoreContractSuite) save(kept Snapshot) {
+	set, err := kept.Restore(s.Parts, Seeded())
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(s.T().Context(), set))
+}
+
+func (s *StoreContractSuite) set(name SetName) Set {
+	set, err := s.store.Set(s.T().Context(), name)
+	s.Require().NoError(err)
+	return set
+}
+
+func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
+	rush := Snapshot{Name: "rush", Rules: &bonusesv1.Rules{Spread: &bonusesv1.SpreadRules{MaxPerBox: proto.Uint32(3)}}}
+	s.save(rush)
+
+	kept := s.set("rush").TakeSnapshot()
+	s.Equal(SetName("rush"), kept.Name)
+	s.True(proto.Equal(rush.Rules, kept.Rules), "%v", kept.Rules)
+}
+
+func (s *StoreContractSuite) TestASetPlaysDefaultsValuesForThoseItLeavesUnset() {
+	s.save(Snapshot{Name: "rush", Rules: &bonusesv1.Rules{
+		Spread: &bonusesv1.SpreadRules{MaxPerBox: proto.Uint32(3)},
+		Quiz:   &bonusesv1.QuizRules{Enabled: proto.Bool(false)},
+	}})
+
+	played := Named("rush", func(r *bonusesv1.Rules) {
+		r.Spread.MaxPerBox = proto.Uint32(3)
+		r.Quiz.Enabled = proto.Bool(false)
+	})
+	s.True(proto.Equal(played.Rules, s.set("rush").TakePlayedSnapshot().Rules))
+}
+
+func (s *StoreContractSuite) TestASetFollowsDefaultWhereItHoldsNothing() {
+	s.save(Snapshot{Name: "rush", Rules: &bonusesv1.Rules{Spread: &bonusesv1.SpreadRules{MaxPerBox: proto.Uint32(3)}}})
+	s.save(Named(Default, func(r *bonusesv1.Rules) { r.Enclose.MaxPerBox = proto.Uint32(5) }))
+
+	played := s.set("rush").TakePlayedSnapshot().Rules
+	s.Equal(uint32(3), played.GetSpread().GetMaxPerBox())
+	s.Equal(uint32(5), played.GetEnclose().GetMaxPerBox())
+}
+
+func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
+	_, err := s.store.Set(s.T().Context(), "frozen")
+	s.Require().ErrorIs(err, ErrUnknownSet)
+}
+
+func (s *StoreContractSuite) TestASetKeptAgainReplacesItsValues() {
+	s.save(Snapshot{Name: "rush", Rules: &bonusesv1.Rules{Spread: &bonusesv1.SpreadRules{MaxPerBox: proto.Uint32(3)}}})
+	quicker := Snapshot{Name: "rush", Rules: &bonusesv1.Rules{
+		Shield: &bonusesv1.ShieldRules{MaxPerBox: proto.Uint32(30)},
+	}}
+	s.save(quicker)
+
+	s.True(proto.Equal(quicker.Rules, s.set("rush").TakeSnapshot().Rules))
+}
+
+func (s *StoreContractSuite) TestNamesAreEverySetKept() {
+	s.save(Snapshot{Name: "rush", Rules: &bonusesv1.Rules{}})
+
+	names, err := s.store.Names(s.T().Context())
+	s.Require().NoError(err)
+	s.Equal([]SetName{Default, "rush"}, names)
+}

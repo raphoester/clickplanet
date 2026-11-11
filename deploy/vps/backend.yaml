@@ -111,10 +111,6 @@ antiBot:
     sweepInterval: 1m
 
 # The game's rules are the rule set postgres keeps (planet.rule_sets), edited on the backoffice.
-bonus:
-  forgetAfter: 5m
-
-  sweepInterval: 1s
 
 auth:
   enabled: true
@@ -275,6 +271,26 @@ gamemaster:
     address: redis:6379
     password: env://REDIS_PASSWORD
 
+# The boxes and the quizzes. Their rules are the rule sets postgres keeps (bonuses.rule_sets), edited on the backoffice.
+bonuses:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: bonuses
+    # Its rule sets alone: each statement takes the one connection, and a save's transaction holds it alone.
+    pool:
+      maxOpenConns: 1
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+  offers:
+    forgetAfter: 5m
+    sweepInterval: 1s
+
 missions:
   database:
     host: postgres
@@ -390,7 +406,7 @@ promo:
     sslMode: disable
     schema: promo
     pool:
-      maxOpenConns: 2
+      maxOpenConns: 1
   backgrounds:
     enabled: true
     maxBytes: 2097152

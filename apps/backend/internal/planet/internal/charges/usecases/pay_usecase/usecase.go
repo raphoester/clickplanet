@@ -36,7 +36,7 @@ func New(transactioner cpatomic.Transactioner, grants Grants, charger Charger, c
 	return &UseCase{transactioner: transactioner, grants: grants, charger: charger, clock: clock}
 }
 
-// UseCase pays what an offer granted: a box, a right answer or a sign-in's refill. It is the GrantCharges command's
+// UseCase pays a grant another module makes at once (InternalService/GrantCharges). It is the GrantCharges command's
 // path (apply_grant_usecase) with an answer, since the player is told what it kept.
 type UseCase struct {
 	transactioner cpatomic.Transactioner

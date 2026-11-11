@@ -30,8 +30,8 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	require.True(t, config.AntiBot.Enabled)
 
-	assert.Equal(t, 5*time.Minute, config.Planet.Bonus.ForgetAfter)
-	assert.Equal(t, time.Second, config.Planet.Bonus.SweepInterval)
+	assert.Equal(t, 5*time.Minute, config.Bonuses.Offers.ForgetAfter)
+	assert.Equal(t, time.Second, config.Bonuses.Offers.SweepInterval)
 	assert.Equal(t, time.Minute, config.Planet.RateLimiter.SweepInterval)
 
 	assert.False(t, config.Auth.Connector.Enabled, "the example connects nothing")
@@ -144,6 +144,9 @@ gamemaster:
 missions:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: missions}
   redis: {address: localhost:6379}
+bonuses:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: bonuses}
+  redis: {address: localhost:6379}
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
   redis: {address: localhost:6379}
@@ -221,6 +224,18 @@ func TestTheExampleConfigReachesTheMissionsBlock(t *testing.T) {
 
 	assert.Equal(t, "missions", config.Missions.Database.Schema)
 	require.NoError(t, config.Missions.Validate())
+}
+
+func TestTheExampleConfigReachesTheBonusesBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "bonuses", config.Bonuses.Database.Schema)
+	require.NoError(t, config.Bonuses.Validate())
+}
+
+func TestTheBonusesModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "bonuses.database")
 }
 
 func TestTheMissionsModuleWithNoDatabaseIsRefused(t *testing.T) {
@@ -516,6 +531,7 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
 		"progression": config.Progression.Redis,
 		"scoring":     config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
+		"bonuses": config.Bonuses.Redis,
 		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
 		"alerts": config.Alerts.Redis,
 	} {

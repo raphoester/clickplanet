@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package bonuses.v1;
+
+import "google/protobuf/duration.proto";
+
+// When a box and a quiz come, what each may be and how much it grants. "default" holds every value; another set holds
+// the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
+// (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules).
+message Rules {
+  BoxPace boxes = 1;
+  KindWeights kinds = 2;
+  // How long a box flies. It must outlast the flight the page draws.
+  google.protobuf.Duration offer_ttl = 3;
+  // A box missed brings the next one this soon, once.
+  google.protobuf.Duration miss_retry = 4;
+  // No box or quiz for a caller that has not clicked for this long.
+  google.protobuf.Duration active_within = 5;
+  SpreadRules spread = 6;
+  EncloseRules enclose = 7;
+  ShieldRules shield = 8;
+  WelcomeRules welcome = 9;
+  QuizRules quiz = 10;
+  // A guest's first sign-in earns a refill, once per account.
+  optional bool sign_in_refill = 11;
+  // No box or quiz is offered, and ClaimBonus, OpenQuiz and AnswerQuiz are refused.
+  optional bool frozen = 12;
+}
+
+message BoxPace {
+  google.protobuf.Duration min_interval = 1;
+  google.protobuf.Duration max_interval = 2;
+  optional uint32 max_charges_per_hour = 3;
+}
+
+// What a box or a quiz is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind planet
+// says a hand has no room for is never offered to it, nor a bomb while planet's bombs are off.
+message KindWeights {
+  optional double refill = 1;
+  optional double spread_clicks = 2;
+  optional double enclose_clicks = 3;
+  optional double bomb = 4;
+  optional double shields = 5;
+}
+
+message SpreadRules {
+  // What one box or right answer adds to the spread pool at most.
+  optional uint32 max_per_box = 1;
+}
+
+message EncloseRules {
+  optional uint32 max_per_box = 1;
+}
+
+message ShieldRules {
+  optional uint32 min_per_box = 1;
+  optional uint32 max_per_box = 2;
+}
+
+// An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is
+// off.
+message WelcomeRules {
+  google.protobuf.Duration within = 1;
+  google.protobuf.Duration box_after = 2;
+}
+
+message QuizRules {
+  optional bool enabled = 1;
+  google.protobuf.Duration min_interval = 2;
+  google.protobuf.Duration max_interval = 3;
+  google.protobuf.Duration miss_retry = 4;
+  google.protobuf.Duration offer_ttl = 5;
+  google.protobuf.Duration answer_window = 6;
+  // How much a question leans to the countries that hold the most; 0 is a flat draw.
+  optional double leader_bias = 7;
+  optional uint32 max_charges_per_hour = 8;
+}

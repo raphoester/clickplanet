@@ -122,13 +122,10 @@ func TestSessionInterceptor(t *testing.T) {
 		require.InDelta(t, 1.0, sessionChecks(t, result.registry, "unattested"), 1e-9)
 	})
 
-	t.Run("refuses every procedure that grants or spends a charge", func(t *testing.T) {
+	t.Run("refuses every procedure that spends a charge", func(t *testing.T) {
 		for _, procedure := range []string{
-			planetv1connect.ClickServiceClaimBonusProcedure,
 			planetv1connect.ClickServiceDropBombProcedure,
 			planetv1connect.ClickServiceUseRefillProcedure,
-			planetv1connect.ClickServiceOpenQuizProcedure,
-			planetv1connect.ClickServiceAnswerQuizProcedure,
 		} {
 			result := checkSession(t, validVerifier(), procedure, "")
 

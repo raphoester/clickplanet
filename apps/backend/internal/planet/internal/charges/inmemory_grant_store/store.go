@@ -8,9 +8,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 )
 
-// Store keeps each grant for keep, in memory: an offer's grant, named by a token that lives seconds, is paid in the
-// claim that took it, so nothing of a box or a quiz is written to postgres. A grant that must outlive a restart (the
-// sign-in refill's, a GrantCharges command's) is kept in charge_grants (postgres_grant_store).
+// Store keeps each grant for keep, in memory: a grant made at once and not for good is named by what lives minutes, and
+// is never asked again past them, so it writes nothing to postgres. A grant that must outlive a restart (a lasting
+// one, a GrantCharges command's) is kept in charge_grants (postgres_grant_store).
 type Store struct {
 	keep time.Duration
 
@@ -23,7 +23,7 @@ func New(keep time.Duration) *Store {
 	return &Store{keep: keep, recorded: make(map[charges.GrantID]time.Time)}
 }
 
-// Record is not undone by the payment's rollback: a payment that failed is lost, as a box whose grant failed is.
+// Record is not undone by the payment's rollback: a payment that failed is lost, and one asked again is told again.
 func (s *Store) Record(_ context.Context, grant charges.GrantID, at time.Time) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

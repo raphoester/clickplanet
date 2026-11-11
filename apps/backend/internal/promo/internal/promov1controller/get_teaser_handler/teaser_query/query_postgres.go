@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	promov1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards"
@@ -35,9 +34,9 @@ type Points interface {
 	Battle(ctx context.Context, times uint32) (placeholders.Battle, error)
 }
 
-// Planet is the values a set plays: cards/rpc_planet_rules, cards.ErrUnknownSet for a set it does not keep.
+// Planet is the values a set plays: cards/rpc_rule_sets, cards.ErrUnknownSet for a set it does not keep.
 type Planet interface {
-	Played(ctx context.Context, set string) (*planetv1.Rules, error)
+	Played(ctx context.Context, set string) (placeholders.Played, error)
 }
 
 type Links interface {

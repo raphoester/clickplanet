@@ -100,6 +100,18 @@ gamemaster:
   redis:
     address: redis:6379
 
+bonuses:
+  database:
+    host: postgres
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: bonuses
+  redis:
+    address: redis:6379
+
 missions:
   database:
     host: postgres

@@ -1320,6 +1320,446 @@ func (*CloseArenaResponse) Descriptor() ([]byte, []int) {
 	return file_planet_v1_internal_proto_rawDescGZIP(), []int{27}
 }
 
+type InternalGrantChargesRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	GrantId   string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Kind      BonusKind              `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	Amount    uint32                 `protobuf:"varint,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	// Planet keeps the grant_id for good, with the grant. Unset, it knows it ten minutes, in memory: for a grant whose
+	// call is never made again after that.
+	Lasting       bool `protobuf:"varint,5,opt,name=lasting,proto3" json:"lasting,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InternalGrantChargesRequest) Reset() {
+	*x = InternalGrantChargesRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InternalGrantChargesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InternalGrantChargesRequest) ProtoMessage() {}
+
+func (x *InternalGrantChargesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InternalGrantChargesRequest.ProtoReflect.Descriptor instead.
+func (*InternalGrantChargesRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *InternalGrantChargesRequest) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+func (x *InternalGrantChargesRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *InternalGrantChargesRequest) GetKind() BonusKind {
+	if x != nil {
+		return x.Kind
+	}
+	return BonusKind_BONUS_KIND_UNSPECIFIED
+}
+
+func (x *InternalGrantChargesRequest) GetAmount() uint32 {
+	if x != nil {
+		return x.Amount
+	}
+	return 0
+}
+
+func (x *InternalGrantChargesRequest) GetLasting() bool {
+	if x != nil {
+		return x.Lasting
+	}
+	return false
+}
+
+type InternalGrantChargesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How many of the kind the stack kept: fewer than the amount when it is full, none for a grant_id granted before.
+	Kept          uint32       `protobuf:"varint,1,opt,name=kept,proto3" json:"kept,omitempty"`
+	Charges       *ChargesHeld `protobuf:"bytes,2,opt,name=charges,proto3" json:"charges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InternalGrantChargesResponse) Reset() {
+	*x = InternalGrantChargesResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InternalGrantChargesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InternalGrantChargesResponse) ProtoMessage() {}
+
+func (x *InternalGrantChargesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InternalGrantChargesResponse.ProtoReflect.Descriptor instead.
+func (*InternalGrantChargesResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *InternalGrantChargesResponse) GetKept() uint32 {
+	if x != nil {
+		return x.Kept
+	}
+	return 0
+}
+
+func (x *InternalGrantChargesResponse) GetCharges() *ChargesHeld {
+	if x != nil {
+		return x.Charges
+	}
+	return nil
+}
+
+type GetRoomRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountIds    []string               `protobuf:"bytes,1,rep,name=account_ids,json=accountIds,proto3" json:"account_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomRequest) Reset() {
+	*x = GetRoomRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomRequest) ProtoMessage() {}
+
+func (x *GetRoomRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *GetRoomRequest) GetAccountIds() []string {
+	if x != nil {
+		return x.AccountIds
+	}
+	return nil
+}
+
+type GetRoomResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An account with room for every kind is left out.
+	Rooms         []*Room `protobuf:"bytes,1,rep,name=rooms,proto3" json:"rooms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomResponse) Reset() {
+	*x = GetRoomResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomResponse) ProtoMessage() {}
+
+func (x *GetRoomResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GetRoomResponse) GetRooms() []*Room {
+	if x != nil {
+		return x.Rooms
+	}
+	return nil
+}
+
+type Room struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Full          []BonusKind            `protobuf:"varint,2,rep,packed,name=full,proto3,enum=planet.v1.BonusKind" json:"full,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Room) Reset() {
+	*x = Room{}
+	mi := &file_planet_v1_internal_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Room) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Room) ProtoMessage() {}
+
+func (x *Room) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Room.ProtoReflect.Descriptor instead.
+func (*Room) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *Room) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *Room) GetFull() []BonusKind {
+	if x != nil {
+		return x.Full
+	}
+	return nil
+}
+
+type GetChargesOfRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChargesOfRequest) Reset() {
+	*x = GetChargesOfRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChargesOfRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChargesOfRequest) ProtoMessage() {}
+
+func (x *GetChargesOfRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChargesOfRequest.ProtoReflect.Descriptor instead.
+func (*GetChargesOfRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GetChargesOfRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+type GetChargesOfResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Charges       *ChargesHeld           `protobuf:"bytes,1,opt,name=charges,proto3" json:"charges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetChargesOfResponse) Reset() {
+	*x = GetChargesOfResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetChargesOfResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetChargesOfResponse) ProtoMessage() {}
+
+func (x *GetChargesOfResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetChargesOfResponse.ProtoReflect.Descriptor instead.
+func (*GetChargesOfResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GetChargesOfResponse) GetCharges() *ChargesHeld {
+	if x != nil {
+		return x.Charges
+	}
+	return nil
+}
+
+type GetFreezeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFreezeRequest) Reset() {
+	*x = GetFreezeRequest{}
+	mi := &file_planet_v1_internal_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFreezeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFreezeRequest) ProtoMessage() {}
+
+func (x *GetFreezeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFreezeRequest.ProtoReflect.Descriptor instead.
+func (*GetFreezeRequest) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{35}
+}
+
+type GetFreezeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Frozen        bool                   `protobuf:"varint,1,opt,name=frozen,proto3" json:"frozen,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFreezeResponse) Reset() {
+	*x = GetFreezeResponse{}
+	mi := &file_planet_v1_internal_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFreezeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFreezeResponse) ProtoMessage() {}
+
+func (x *GetFreezeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_internal_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFreezeResponse.ProtoReflect.Descriptor instead.
+func (*GetFreezeResponse) Descriptor() ([]byte, []int) {
+	return file_planet_v1_internal_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GetFreezeResponse) GetFrozen() bool {
+	if x != nil {
+		return x.Frozen
+	}
+	return false
+}
+
 var File_planet_v1_internal_proto protoreflect.FileDescriptor
 
 const file_planet_v1_internal_proto_rawDesc = "" +
@@ -1398,7 +1838,34 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x11OpenArenaResponse\".\n" +
 	"\x11CloseArenaRequest\x12\x19\n" +
 	"\barena_id\x18\x01 \x01(\tR\aarenaId\"\x14\n" +
-	"\x12CloseArenaResponse2\xfe\b\n" +
+	"\x12CloseArenaResponse\"\xb3\x01\n" +
+	"\x1bInternalGrantChargesRequest\x12\x19\n" +
+	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12(\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
+	"\x06amount\x18\x04 \x01(\rR\x06amount\x12\x18\n" +
+	"\alasting\x18\x05 \x01(\bR\alasting\"d\n" +
+	"\x1cInternalGrantChargesResponse\x12\x12\n" +
+	"\x04kept\x18\x01 \x01(\rR\x04kept\x120\n" +
+	"\acharges\x18\x02 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"1\n" +
+	"\x0eGetRoomRequest\x12\x1f\n" +
+	"\vaccount_ids\x18\x01 \x03(\tR\n" +
+	"accountIds\"8\n" +
+	"\x0fGetRoomResponse\x12%\n" +
+	"\x05rooms\x18\x01 \x03(\v2\x0f.planet.v1.RoomR\x05rooms\"O\n" +
+	"\x04Room\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12(\n" +
+	"\x04full\x18\x02 \x03(\x0e2\x14.planet.v1.BonusKindR\x04full\"4\n" +
+	"\x13GetChargesOfRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"H\n" +
+	"\x14GetChargesOfResponse\x120\n" +
+	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x12\n" +
+	"\x10GetFreezeRequest\"+\n" +
+	"\x11GetFreezeResponse\x12\x16\n" +
+	"\x06frozen\x18\x01 \x01(\bR\x06frozen2\xce\v\n" +
 	"\x0fInternalService\x12Q\n" +
 	"\vPlayRuleSet\x12\x1d.planet.v1.PlayRuleSetRequest\x1a\x1e.planet.v1.PlayRuleSetResponse\"\x03\x90\x02\x02\x12H\n" +
 	"\bResetMap\x12\x1a.planet.v1.ResetMapRequest\x1a\x1b.planet.v1.ResetMapResponse\"\x03\x90\x02\x02\x12K\n" +
@@ -1414,7 +1881,11 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x0fGetAllegianceOf\x12!.planet.v1.GetAllegianceOfRequest\x1a\".planet.v1.GetAllegianceOfResponse\"\x03\x90\x02\x01\x12]\n" +
 	"\x0fGetRuleSetNames\x12!.planet.v1.GetRuleSetNamesRequest\x1a\".planet.v1.GetRuleSetNamesResponse\"\x03\x90\x02\x01\x12N\n" +
 	"\n" +
-	"GetRuleSet\x12\x1c.planet.v1.GetRuleSetRequest\x1a\x1d.planet.v1.GetRuleSetResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
+	"GetRuleSet\x12\x1c.planet.v1.GetRuleSetRequest\x1a\x1d.planet.v1.GetRuleSetResponse\"\x03\x90\x02\x01\x12d\n" +
+	"\fGrantCharges\x12&.planet.v1.InternalGrantChargesRequest\x1a'.planet.v1.InternalGrantChargesResponse\"\x03\x90\x02\x02\x12E\n" +
+	"\aGetRoom\x12\x19.planet.v1.GetRoomRequest\x1a\x1a.planet.v1.GetRoomResponse\"\x03\x90\x02\x01\x12T\n" +
+	"\fGetChargesOf\x12\x1e.planet.v1.GetChargesOfRequest\x1a\x1f.planet.v1.GetChargesOfResponse\"\x03\x90\x02\x01\x12K\n" +
+	"\tGetFreeze\x12\x1b.planet.v1.GetFreezeRequest\x1a\x1c.planet.v1.GetFreezeResponse\"\x03\x90\x02\x01B\xb5\x01\n" +
 	"\rcom.planet.v1B\rInternalProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
@@ -1430,94 +1901,118 @@ func file_planet_v1_internal_proto_rawDescGZIP() []byte {
 	return file_planet_v1_internal_proto_rawDescData
 }
 
-var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
+var file_planet_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_planet_v1_internal_proto_goTypes = []any{
-	(*GetMapHistoryRequest)(nil),      // 0: planet.v1.GetMapHistoryRequest
-	(*GetMapHistoryResponse)(nil),     // 1: planet.v1.GetMapHistoryResponse
-	(*GetLedgerTotalsRequest)(nil),    // 2: planet.v1.GetLedgerTotalsRequest
-	(*GetLedgerTotalsResponse)(nil),   // 3: planet.v1.GetLedgerTotalsResponse
-	(*GetTakesByCountryRequest)(nil),  // 4: planet.v1.GetTakesByCountryRequest
-	(*GetTakesByCountryResponse)(nil), // 5: planet.v1.GetTakesByCountryResponse
-	(*CountryTakes)(nil),              // 6: planet.v1.CountryTakes
-	(*GetTerritoriesRequest)(nil),     // 7: planet.v1.GetTerritoriesRequest
-	(*GetTerritoriesResponse)(nil),    // 8: planet.v1.GetTerritoriesResponse
-	(*Territory)(nil),                 // 9: planet.v1.Territory
-	(*Ground)(nil),                    // 10: planet.v1.Ground
-	(*GetCountrySizesRequest)(nil),    // 11: planet.v1.GetCountrySizesRequest
-	(*GetCountrySizesResponse)(nil),   // 12: planet.v1.GetCountrySizesResponse
-	(*CountrySize)(nil),               // 13: planet.v1.CountrySize
-	(*GetAllegianceOfRequest)(nil),    // 14: planet.v1.GetAllegianceOfRequest
-	(*GetAllegianceOfResponse)(nil),   // 15: planet.v1.GetAllegianceOfResponse
-	(*GetRuleSetNamesRequest)(nil),    // 16: planet.v1.GetRuleSetNamesRequest
-	(*GetRuleSetNamesResponse)(nil),   // 17: planet.v1.GetRuleSetNamesResponse
-	(*GetRuleSetRequest)(nil),         // 18: planet.v1.GetRuleSetRequest
-	(*GetRuleSetResponse)(nil),        // 19: planet.v1.GetRuleSetResponse
-	(*PlayRuleSetRequest)(nil),        // 20: planet.v1.PlayRuleSetRequest
-	(*PlayRuleSetResponse)(nil),       // 21: planet.v1.PlayRuleSetResponse
-	(*ResetMapRequest)(nil),           // 22: planet.v1.ResetMapRequest
-	(*ResetMapResponse)(nil),          // 23: planet.v1.ResetMapResponse
-	(*OpenArenaRequest)(nil),          // 24: planet.v1.OpenArenaRequest
-	(*OpenArenaResponse)(nil),         // 25: planet.v1.OpenArenaResponse
-	(*CloseArenaRequest)(nil),         // 26: planet.v1.CloseArenaRequest
-	(*CloseArenaResponse)(nil),        // 27: planet.v1.CloseArenaResponse
-	(*timestamppb.Timestamp)(nil),     // 28: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),       // 29: google.protobuf.Duration
-	(*MapHistory)(nil),                // 30: planet.v1.MapHistory
-	(*LedgerTotals)(nil),              // 31: planet.v1.LedgerTotals
-	(*Allegiance)(nil),                // 32: planet.v1.Allegiance
-	(*Rules)(nil),                     // 33: planet.v1.Rules
-	(*GetLedgerRequest)(nil),          // 34: planet.v1.GetLedgerRequest
-	(*GetLedgerResponse)(nil),         // 35: planet.v1.GetLedgerResponse
+	(*GetMapHistoryRequest)(nil),         // 0: planet.v1.GetMapHistoryRequest
+	(*GetMapHistoryResponse)(nil),        // 1: planet.v1.GetMapHistoryResponse
+	(*GetLedgerTotalsRequest)(nil),       // 2: planet.v1.GetLedgerTotalsRequest
+	(*GetLedgerTotalsResponse)(nil),      // 3: planet.v1.GetLedgerTotalsResponse
+	(*GetTakesByCountryRequest)(nil),     // 4: planet.v1.GetTakesByCountryRequest
+	(*GetTakesByCountryResponse)(nil),    // 5: planet.v1.GetTakesByCountryResponse
+	(*CountryTakes)(nil),                 // 6: planet.v1.CountryTakes
+	(*GetTerritoriesRequest)(nil),        // 7: planet.v1.GetTerritoriesRequest
+	(*GetTerritoriesResponse)(nil),       // 8: planet.v1.GetTerritoriesResponse
+	(*Territory)(nil),                    // 9: planet.v1.Territory
+	(*Ground)(nil),                       // 10: planet.v1.Ground
+	(*GetCountrySizesRequest)(nil),       // 11: planet.v1.GetCountrySizesRequest
+	(*GetCountrySizesResponse)(nil),      // 12: planet.v1.GetCountrySizesResponse
+	(*CountrySize)(nil),                  // 13: planet.v1.CountrySize
+	(*GetAllegianceOfRequest)(nil),       // 14: planet.v1.GetAllegianceOfRequest
+	(*GetAllegianceOfResponse)(nil),      // 15: planet.v1.GetAllegianceOfResponse
+	(*GetRuleSetNamesRequest)(nil),       // 16: planet.v1.GetRuleSetNamesRequest
+	(*GetRuleSetNamesResponse)(nil),      // 17: planet.v1.GetRuleSetNamesResponse
+	(*GetRuleSetRequest)(nil),            // 18: planet.v1.GetRuleSetRequest
+	(*GetRuleSetResponse)(nil),           // 19: planet.v1.GetRuleSetResponse
+	(*PlayRuleSetRequest)(nil),           // 20: planet.v1.PlayRuleSetRequest
+	(*PlayRuleSetResponse)(nil),          // 21: planet.v1.PlayRuleSetResponse
+	(*ResetMapRequest)(nil),              // 22: planet.v1.ResetMapRequest
+	(*ResetMapResponse)(nil),             // 23: planet.v1.ResetMapResponse
+	(*OpenArenaRequest)(nil),             // 24: planet.v1.OpenArenaRequest
+	(*OpenArenaResponse)(nil),            // 25: planet.v1.OpenArenaResponse
+	(*CloseArenaRequest)(nil),            // 26: planet.v1.CloseArenaRequest
+	(*CloseArenaResponse)(nil),           // 27: planet.v1.CloseArenaResponse
+	(*InternalGrantChargesRequest)(nil),  // 28: planet.v1.InternalGrantChargesRequest
+	(*InternalGrantChargesResponse)(nil), // 29: planet.v1.InternalGrantChargesResponse
+	(*GetRoomRequest)(nil),               // 30: planet.v1.GetRoomRequest
+	(*GetRoomResponse)(nil),              // 31: planet.v1.GetRoomResponse
+	(*Room)(nil),                         // 32: planet.v1.Room
+	(*GetChargesOfRequest)(nil),          // 33: planet.v1.GetChargesOfRequest
+	(*GetChargesOfResponse)(nil),         // 34: planet.v1.GetChargesOfResponse
+	(*GetFreezeRequest)(nil),             // 35: planet.v1.GetFreezeRequest
+	(*GetFreezeResponse)(nil),            // 36: planet.v1.GetFreezeResponse
+	(*timestamppb.Timestamp)(nil),        // 37: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),          // 38: google.protobuf.Duration
+	(*MapHistory)(nil),                   // 39: planet.v1.MapHistory
+	(*LedgerTotals)(nil),                 // 40: planet.v1.LedgerTotals
+	(*Allegiance)(nil),                   // 41: planet.v1.Allegiance
+	(*Rules)(nil),                        // 42: planet.v1.Rules
+	(BonusKind)(0),                       // 43: planet.v1.BonusKind
+	(*ChargesHeld)(nil),                  // 44: planet.v1.ChargesHeld
+	(*GetLedgerRequest)(nil),             // 45: planet.v1.GetLedgerRequest
+	(*GetLedgerResponse)(nil),            // 46: planet.v1.GetLedgerResponse
 }
 var file_planet_v1_internal_proto_depIdxs = []int32{
-	28, // 0: planet.v1.GetMapHistoryRequest.since:type_name -> google.protobuf.Timestamp
-	28, // 1: planet.v1.GetMapHistoryRequest.until:type_name -> google.protobuf.Timestamp
-	29, // 2: planet.v1.GetMapHistoryRequest.step:type_name -> google.protobuf.Duration
-	30, // 3: planet.v1.GetMapHistoryResponse.history:type_name -> planet.v1.MapHistory
-	28, // 4: planet.v1.GetLedgerTotalsRequest.since:type_name -> google.protobuf.Timestamp
-	28, // 5: planet.v1.GetLedgerTotalsRequest.until:type_name -> google.protobuf.Timestamp
-	31, // 6: planet.v1.GetLedgerTotalsResponse.totals:type_name -> planet.v1.LedgerTotals
+	37, // 0: planet.v1.GetMapHistoryRequest.since:type_name -> google.protobuf.Timestamp
+	37, // 1: planet.v1.GetMapHistoryRequest.until:type_name -> google.protobuf.Timestamp
+	38, // 2: planet.v1.GetMapHistoryRequest.step:type_name -> google.protobuf.Duration
+	39, // 3: planet.v1.GetMapHistoryResponse.history:type_name -> planet.v1.MapHistory
+	37, // 4: planet.v1.GetLedgerTotalsRequest.since:type_name -> google.protobuf.Timestamp
+	37, // 5: planet.v1.GetLedgerTotalsRequest.until:type_name -> google.protobuf.Timestamp
+	40, // 6: planet.v1.GetLedgerTotalsResponse.totals:type_name -> planet.v1.LedgerTotals
 	6,  // 7: planet.v1.GetTakesByCountryResponse.taken_for:type_name -> planet.v1.CountryTakes
 	6,  // 8: planet.v1.GetTakesByCountryResponse.taken_from:type_name -> planet.v1.CountryTakes
 	9,  // 9: planet.v1.GetTerritoriesResponse.territories:type_name -> planet.v1.Territory
 	10, // 10: planet.v1.Territory.grounds:type_name -> planet.v1.Ground
 	13, // 11: planet.v1.GetCountrySizesResponse.country_sizes:type_name -> planet.v1.CountrySize
-	32, // 12: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
-	33, // 13: planet.v1.GetRuleSetResponse.played:type_name -> planet.v1.Rules
-	28, // 14: planet.v1.PlayRuleSetRequest.decided_at:type_name -> google.protobuf.Timestamp
-	28, // 15: planet.v1.ResetMapRequest.decided_at:type_name -> google.protobuf.Timestamp
-	28, // 16: planet.v1.OpenArenaRequest.ends_at:type_name -> google.protobuf.Timestamp
-	20, // 17: planet.v1.InternalService.PlayRuleSet:input_type -> planet.v1.PlayRuleSetRequest
-	22, // 18: planet.v1.InternalService.ResetMap:input_type -> planet.v1.ResetMapRequest
-	24, // 19: planet.v1.InternalService.OpenArena:input_type -> planet.v1.OpenArenaRequest
-	26, // 20: planet.v1.InternalService.CloseArena:input_type -> planet.v1.CloseArenaRequest
-	34, // 21: planet.v1.InternalService.GetLedger:input_type -> planet.v1.GetLedgerRequest
-	4,  // 22: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
-	2,  // 23: planet.v1.InternalService.GetLedgerTotals:input_type -> planet.v1.GetLedgerTotalsRequest
-	0,  // 24: planet.v1.InternalService.GetMapHistory:input_type -> planet.v1.GetMapHistoryRequest
-	7,  // 25: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	11, // 26: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
-	14, // 27: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
-	16, // 28: planet.v1.InternalService.GetRuleSetNames:input_type -> planet.v1.GetRuleSetNamesRequest
-	18, // 29: planet.v1.InternalService.GetRuleSet:input_type -> planet.v1.GetRuleSetRequest
-	21, // 30: planet.v1.InternalService.PlayRuleSet:output_type -> planet.v1.PlayRuleSetResponse
-	23, // 31: planet.v1.InternalService.ResetMap:output_type -> planet.v1.ResetMapResponse
-	25, // 32: planet.v1.InternalService.OpenArena:output_type -> planet.v1.OpenArenaResponse
-	27, // 33: planet.v1.InternalService.CloseArena:output_type -> planet.v1.CloseArenaResponse
-	35, // 34: planet.v1.InternalService.GetLedger:output_type -> planet.v1.GetLedgerResponse
-	5,  // 35: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
-	3,  // 36: planet.v1.InternalService.GetLedgerTotals:output_type -> planet.v1.GetLedgerTotalsResponse
-	1,  // 37: planet.v1.InternalService.GetMapHistory:output_type -> planet.v1.GetMapHistoryResponse
-	8,  // 38: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	12, // 39: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
-	15, // 40: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
-	17, // 41: planet.v1.InternalService.GetRuleSetNames:output_type -> planet.v1.GetRuleSetNamesResponse
-	19, // 42: planet.v1.InternalService.GetRuleSet:output_type -> planet.v1.GetRuleSetResponse
-	30, // [30:43] is the sub-list for method output_type
-	17, // [17:30] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	41, // 12: planet.v1.GetAllegianceOfResponse.allegiance:type_name -> planet.v1.Allegiance
+	42, // 13: planet.v1.GetRuleSetResponse.played:type_name -> planet.v1.Rules
+	37, // 14: planet.v1.PlayRuleSetRequest.decided_at:type_name -> google.protobuf.Timestamp
+	37, // 15: planet.v1.ResetMapRequest.decided_at:type_name -> google.protobuf.Timestamp
+	37, // 16: planet.v1.OpenArenaRequest.ends_at:type_name -> google.protobuf.Timestamp
+	43, // 17: planet.v1.InternalGrantChargesRequest.kind:type_name -> planet.v1.BonusKind
+	44, // 18: planet.v1.InternalGrantChargesResponse.charges:type_name -> planet.v1.ChargesHeld
+	32, // 19: planet.v1.GetRoomResponse.rooms:type_name -> planet.v1.Room
+	43, // 20: planet.v1.Room.full:type_name -> planet.v1.BonusKind
+	44, // 21: planet.v1.GetChargesOfResponse.charges:type_name -> planet.v1.ChargesHeld
+	20, // 22: planet.v1.InternalService.PlayRuleSet:input_type -> planet.v1.PlayRuleSetRequest
+	22, // 23: planet.v1.InternalService.ResetMap:input_type -> planet.v1.ResetMapRequest
+	24, // 24: planet.v1.InternalService.OpenArena:input_type -> planet.v1.OpenArenaRequest
+	26, // 25: planet.v1.InternalService.CloseArena:input_type -> planet.v1.CloseArenaRequest
+	45, // 26: planet.v1.InternalService.GetLedger:input_type -> planet.v1.GetLedgerRequest
+	4,  // 27: planet.v1.InternalService.GetTakesByCountry:input_type -> planet.v1.GetTakesByCountryRequest
+	2,  // 28: planet.v1.InternalService.GetLedgerTotals:input_type -> planet.v1.GetLedgerTotalsRequest
+	0,  // 29: planet.v1.InternalService.GetMapHistory:input_type -> planet.v1.GetMapHistoryRequest
+	7,  // 30: planet.v1.InternalService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	11, // 31: planet.v1.InternalService.GetCountrySizes:input_type -> planet.v1.GetCountrySizesRequest
+	14, // 32: planet.v1.InternalService.GetAllegianceOf:input_type -> planet.v1.GetAllegianceOfRequest
+	16, // 33: planet.v1.InternalService.GetRuleSetNames:input_type -> planet.v1.GetRuleSetNamesRequest
+	18, // 34: planet.v1.InternalService.GetRuleSet:input_type -> planet.v1.GetRuleSetRequest
+	28, // 35: planet.v1.InternalService.GrantCharges:input_type -> planet.v1.InternalGrantChargesRequest
+	30, // 36: planet.v1.InternalService.GetRoom:input_type -> planet.v1.GetRoomRequest
+	33, // 37: planet.v1.InternalService.GetChargesOf:input_type -> planet.v1.GetChargesOfRequest
+	35, // 38: planet.v1.InternalService.GetFreeze:input_type -> planet.v1.GetFreezeRequest
+	21, // 39: planet.v1.InternalService.PlayRuleSet:output_type -> planet.v1.PlayRuleSetResponse
+	23, // 40: planet.v1.InternalService.ResetMap:output_type -> planet.v1.ResetMapResponse
+	25, // 41: planet.v1.InternalService.OpenArena:output_type -> planet.v1.OpenArenaResponse
+	27, // 42: planet.v1.InternalService.CloseArena:output_type -> planet.v1.CloseArenaResponse
+	46, // 43: planet.v1.InternalService.GetLedger:output_type -> planet.v1.GetLedgerResponse
+	5,  // 44: planet.v1.InternalService.GetTakesByCountry:output_type -> planet.v1.GetTakesByCountryResponse
+	3,  // 45: planet.v1.InternalService.GetLedgerTotals:output_type -> planet.v1.GetLedgerTotalsResponse
+	1,  // 46: planet.v1.InternalService.GetMapHistory:output_type -> planet.v1.GetMapHistoryResponse
+	8,  // 47: planet.v1.InternalService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	12, // 48: planet.v1.InternalService.GetCountrySizes:output_type -> planet.v1.GetCountrySizesResponse
+	15, // 49: planet.v1.InternalService.GetAllegianceOf:output_type -> planet.v1.GetAllegianceOfResponse
+	17, // 50: planet.v1.InternalService.GetRuleSetNames:output_type -> planet.v1.GetRuleSetNamesResponse
+	19, // 51: planet.v1.InternalService.GetRuleSet:output_type -> planet.v1.GetRuleSetResponse
+	29, // 52: planet.v1.InternalService.GrantCharges:output_type -> planet.v1.InternalGrantChargesResponse
+	31, // 53: planet.v1.InternalService.GetRoom:output_type -> planet.v1.GetRoomResponse
+	34, // 54: planet.v1.InternalService.GetChargesOf:output_type -> planet.v1.GetChargesOfResponse
+	36, // 55: planet.v1.InternalService.GetFreeze:output_type -> planet.v1.GetFreezeResponse
+	39, // [39:56] is the sub-list for method output_type
+	22, // [22:39] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_internal_proto_init() }
@@ -1536,7 +2031,7 @@ func file_planet_v1_internal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_internal_proto_rawDesc), len(file_planet_v1_internal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   28,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

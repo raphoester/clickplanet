@@ -47,12 +47,12 @@ func (s *StoreContractSuite) TestASetIsReadAsItWasKept() {
 func (s *StoreContractSuite) TestASetPlaysDefaultsValuesForThoseItLeavesUnset() {
 	s.save(Snapshot{Name: "rush", Rules: &planetv1.Rules{
 		Clicks:  &planetv1.ClickRules{Tempo: proto.Float64(3)},
-		Bonuses: &planetv1.BonusRules{Quiz: &planetv1.QuizRules{Enabled: proto.Bool(false)}},
+		Charges: &planetv1.ChargeRules{Bomb: &planetv1.BombRules{Off: proto.Bool(true)}},
 	}})
 
 	played := Named("rush", func(r *planetv1.Rules) {
 		r.Clicks.Tempo = proto.Float64(3)
-		r.Bonuses.Quiz.Enabled = proto.Bool(false)
+		r.Charges.Bomb.Off = proto.Bool(true)
 	})
 	s.True(proto.Equal(played.Rules, s.set("rush").TakePlayedSnapshot().Rules))
 }
@@ -80,7 +80,7 @@ func (s *StoreContractSuite) TestASetNeverKeptIsUnknown() {
 func (s *StoreContractSuite) TestASetKeptAgainReplacesItsValues() {
 	s.save(Snapshot{Name: "rush", Rules: &planetv1.Rules{Clicks: &planetv1.ClickRules{Tempo: proto.Float64(3)}}})
 	quicker := Snapshot{Name: "rush", Rules: &planetv1.Rules{
-		Bonuses: &planetv1.BonusRules{Shield: &planetv1.ShieldRules{PerTile: proto.Uint32(20)}},
+		Charges: &planetv1.ChargeRules{Shield: &planetv1.ShieldRules{PerTile: proto.Uint32(20)}},
 	}}
 	s.save(quicker)
 

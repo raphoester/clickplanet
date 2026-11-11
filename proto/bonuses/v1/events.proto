@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package bonuses.v1;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// What the offers tell the other modules, over Redis Streams. Each message reads on the wire as the planet.v1 one of
+// the same name, which planet told until the offers were a module of their own.
+
+// A box caught by a caller with an account, once planet kept its charge.
+message BonusClaimed {
+  string account_id = 1;
+  google.protobuf.Timestamp claimed_at = 2;
+}
+
+// A quiz answered, right or wrong, by a caller with an account; a right one once planet kept its charge.
+message QuizAnswered {
+  string account_id = 1;
+  bool correct = 2;
+  google.protobuf.Timestamp answered_at = 3;
+}
+
+// The box facts, for whoever judges the callers. Each is told at a later time than the one before: a time names its
+// fact.
+
+// A box claimed by the scope it was offered to.
+message BoxCaught {
+  string scope = 1;
+  // From the offer to the claim.
+  google.protobuf.Duration after = 2;
+  google.protobuf.Timestamp caught_at = 3;
+}
+
+// A box nobody claimed.
+message BoxLapsed {
+  string scope = 1;
+  google.protobuf.Timestamp lapsed_at = 2;
+}
+
+// A claim of a box offered to another scope, or to nobody the offers remember.
+message ForeignBoxClaimed {
+  string scope = 1;
+  google.protobuf.Timestamp claimed_at = 2;
+}

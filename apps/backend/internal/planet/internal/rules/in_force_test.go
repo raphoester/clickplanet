@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -20,7 +20,7 @@ func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
 	inForce := rules.NewInForce(cptime.NewFixedClock(epoch))
 	throttle := rules.Reader(inForce, clicks.ThrottlePart)
 	toll := rules.Reader(inForce, clicks.TollPart)
-	game := rules.Reader(inForce, parts.Grants)
+	wallet := rules.Reader(inForce, charges.Part)
 
 	for _, kept := range []rules.Snapshot{rules.Seeded(), rush()} {
 		inForce.Enforce(restored(t, kept))
@@ -29,7 +29,7 @@ func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
 	assert.Equal(t, rules.SetName("rush"), inForce.Name())
 	assert.InDelta(t, 3.0, throttle().Tempo, 1e-9)
 	assert.Len(t, toll(), 3)
-	assert.Equal(t, 30, game().Boxes.MaxChargesPerHour)
+	assert.Equal(t, 30, wallet().Spread.Clicks)
 }
 
 func TestASetSaysWhenItTookOver(t *testing.T) {

@@ -47,21 +47,15 @@ const (
 	// ClickServiceListenForEventsProcedure is the fully-qualified name of the ClickService's
 	// ListenForEvents RPC.
 	ClickServiceListenForEventsProcedure = "/planet.v1.ClickService/ListenForEvents"
-	// ClickServiceClaimBonusProcedure is the fully-qualified name of the ClickService's ClaimBonus RPC.
-	ClickServiceClaimBonusProcedure = "/planet.v1.ClickService/ClaimBonus"
 	// ClickServiceDropBombProcedure is the fully-qualified name of the ClickService's DropBomb RPC.
 	ClickServiceDropBombProcedure = "/planet.v1.ClickService/DropBomb"
 	// ClickServiceUseRefillProcedure is the fully-qualified name of the ClickService's UseRefill RPC.
 	ClickServiceUseRefillProcedure = "/planet.v1.ClickService/UseRefill"
 	// ClickServiceGetChargesProcedure is the fully-qualified name of the ClickService's GetCharges RPC.
 	ClickServiceGetChargesProcedure = "/planet.v1.ClickService/GetCharges"
-	// ClickServiceGetBonusRulesProcedure is the fully-qualified name of the ClickService's
-	// GetBonusRules RPC.
-	ClickServiceGetBonusRulesProcedure = "/planet.v1.ClickService/GetBonusRules"
-	// ClickServiceOpenQuizProcedure is the fully-qualified name of the ClickService's OpenQuiz RPC.
-	ClickServiceOpenQuizProcedure = "/planet.v1.ClickService/OpenQuiz"
-	// ClickServiceAnswerQuizProcedure is the fully-qualified name of the ClickService's AnswerQuiz RPC.
-	ClickServiceAnswerQuizProcedure = "/planet.v1.ClickService/AnswerQuiz"
+	// ClickServiceGetChargeRulesProcedure is the fully-qualified name of the ClickService's
+	// GetChargeRules RPC.
+	ClickServiceGetChargeRulesProcedure = "/planet.v1.ClickService/GetChargeRules"
 	// ClickServicePlaceShieldProcedure is the fully-qualified name of the ClickService's PlaceShield
 	// RPC.
 	ClickServicePlaceShieldProcedure = "/planet.v1.ClickService/PlaceShield"
@@ -91,14 +85,12 @@ type ClickServiceClient interface {
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlanetEvent], error)
-	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
-	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
-	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
-	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
+	// How much of each charge a hand holds and what each does, and the map's knobs the page shows.
+	GetChargeRules(context.Context, *connect.Request[v1.GetChargeRulesRequest]) (*connect.Response[v1.GetChargeRulesResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
@@ -161,12 +153,6 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("ListenForEvents")),
 			connect.WithClientOptions(opts...),
 		),
-		claimBonus: connect.NewClient[v1.ClaimBonusRequest, v1.ClaimBonusResponse](
-			httpClient,
-			baseURL+ClickServiceClaimBonusProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("ClaimBonus")),
-			connect.WithClientOptions(opts...),
-		),
 		dropBomb: connect.NewClient[v1.DropBombRequest, v1.DropBombResponse](
 			httpClient,
 			baseURL+ClickServiceDropBombProcedure,
@@ -185,23 +171,11 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("GetCharges")),
 			connect.WithClientOptions(opts...),
 		),
-		getBonusRules: connect.NewClient[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse](
+		getChargeRules: connect.NewClient[v1.GetChargeRulesRequest, v1.GetChargeRulesResponse](
 			httpClient,
-			baseURL+ClickServiceGetBonusRulesProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("GetBonusRules")),
+			baseURL+ClickServiceGetChargeRulesProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetChargeRules")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
-		openQuiz: connect.NewClient[v1.OpenQuizRequest, v1.OpenQuizResponse](
-			httpClient,
-			baseURL+ClickServiceOpenQuizProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("OpenQuiz")),
-			connect.WithClientOptions(opts...),
-		),
-		answerQuiz: connect.NewClient[v1.AnswerQuizRequest, v1.AnswerQuizResponse](
-			httpClient,
-			baseURL+ClickServiceAnswerQuizProcedure,
-			connect.WithSchema(clickServiceMethods.ByName("AnswerQuiz")),
 			connect.WithClientOptions(opts...),
 		),
 		placeShield: connect.NewClient[v1.PlaceShieldRequest, v1.PlaceShieldResponse](
@@ -254,13 +228,10 @@ type clickServiceClient struct {
 	getMap           *connect.Client[v1.GetMapRequest, v1.GetMapResponse]
 	getHoldings      *connect.Client[v1.GetHoldingsRequest, v1.GetHoldingsResponse]
 	listenForEvents  *connect.Client[v1.ListenForEventsRequest, v1.PlanetEvent]
-	claimBonus       *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
 	dropBomb         *connect.Client[v1.DropBombRequest, v1.DropBombResponse]
 	useRefill        *connect.Client[v1.UseRefillRequest, v1.UseRefillResponse]
 	getCharges       *connect.Client[v1.GetChargesRequest, v1.GetChargesResponse]
-	getBonusRules    *connect.Client[v1.GetBonusRulesRequest, v1.GetBonusRulesResponse]
-	openQuiz         *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
-	answerQuiz       *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
+	getChargeRules   *connect.Client[v1.GetChargeRulesRequest, v1.GetChargeRulesResponse]
 	placeShield      *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
 	getFortresses    *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
 	getTileHolder    *connect.Client[v1.GetTileHolderRequest, v1.GetTileHolderResponse]
@@ -299,11 +270,6 @@ func (c *clickServiceClient) ListenForEvents(ctx context.Context, req *connect.R
 	return c.listenForEvents.CallServerStream(ctx, req)
 }
 
-// ClaimBonus calls planet.v1.ClickService.ClaimBonus.
-func (c *clickServiceClient) ClaimBonus(ctx context.Context, req *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error) {
-	return c.claimBonus.CallUnary(ctx, req)
-}
-
 // DropBomb calls planet.v1.ClickService.DropBomb.
 func (c *clickServiceClient) DropBomb(ctx context.Context, req *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error) {
 	return c.dropBomb.CallUnary(ctx, req)
@@ -319,19 +285,9 @@ func (c *clickServiceClient) GetCharges(ctx context.Context, req *connect.Reques
 	return c.getCharges.CallUnary(ctx, req)
 }
 
-// GetBonusRules calls planet.v1.ClickService.GetBonusRules.
-func (c *clickServiceClient) GetBonusRules(ctx context.Context, req *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error) {
-	return c.getBonusRules.CallUnary(ctx, req)
-}
-
-// OpenQuiz calls planet.v1.ClickService.OpenQuiz.
-func (c *clickServiceClient) OpenQuiz(ctx context.Context, req *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error) {
-	return c.openQuiz.CallUnary(ctx, req)
-}
-
-// AnswerQuiz calls planet.v1.ClickService.AnswerQuiz.
-func (c *clickServiceClient) AnswerQuiz(ctx context.Context, req *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error) {
-	return c.answerQuiz.CallUnary(ctx, req)
+// GetChargeRules calls planet.v1.ClickService.GetChargeRules.
+func (c *clickServiceClient) GetChargeRules(ctx context.Context, req *connect.Request[v1.GetChargeRulesRequest]) (*connect.Response[v1.GetChargeRulesResponse], error) {
+	return c.getChargeRules.CallUnary(ctx, req)
 }
 
 // PlaceShield calls planet.v1.ClickService.PlaceShield.
@@ -373,14 +329,12 @@ type ClickServiceHandler interface {
 	GetMap(context.Context, *connect.Request[v1.GetMapRequest]) (*connect.Response[v1.GetMapResponse], error)
 	GetHoldings(context.Context, *connect.Request[v1.GetHoldingsRequest]) (*connect.Response[v1.GetHoldingsResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlanetEvent]) error
-	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
 	DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error)
 	UseRefill(context.Context, *connect.Request[v1.UseRefillRequest]) (*connect.Response[v1.UseRefillResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
 	GetCharges(context.Context, *connect.Request[v1.GetChargesRequest]) (*connect.Response[v1.GetChargesResponse], error)
-	GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error)
-	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
-	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
+	// How much of each charge a hand holds and what each does, and the map's knobs the page shows.
+	GetChargeRules(context.Context, *connect.Request[v1.GetChargeRulesRequest]) (*connect.Response[v1.GetChargeRulesResponse], error)
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
@@ -439,12 +393,6 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("ListenForEvents")),
 		connect.WithHandlerOptions(opts...),
 	)
-	clickServiceClaimBonusHandler := connect.NewUnaryHandler(
-		ClickServiceClaimBonusProcedure,
-		svc.ClaimBonus,
-		connect.WithSchema(clickServiceMethods.ByName("ClaimBonus")),
-		connect.WithHandlerOptions(opts...),
-	)
 	clickServiceDropBombHandler := connect.NewUnaryHandler(
 		ClickServiceDropBombProcedure,
 		svc.DropBomb,
@@ -463,23 +411,11 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("GetCharges")),
 		connect.WithHandlerOptions(opts...),
 	)
-	clickServiceGetBonusRulesHandler := connect.NewUnaryHandler(
-		ClickServiceGetBonusRulesProcedure,
-		svc.GetBonusRules,
-		connect.WithSchema(clickServiceMethods.ByName("GetBonusRules")),
+	clickServiceGetChargeRulesHandler := connect.NewUnaryHandler(
+		ClickServiceGetChargeRulesProcedure,
+		svc.GetChargeRules,
+		connect.WithSchema(clickServiceMethods.ByName("GetChargeRules")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
-	clickServiceOpenQuizHandler := connect.NewUnaryHandler(
-		ClickServiceOpenQuizProcedure,
-		svc.OpenQuiz,
-		connect.WithSchema(clickServiceMethods.ByName("OpenQuiz")),
-		connect.WithHandlerOptions(opts...),
-	)
-	clickServiceAnswerQuizHandler := connect.NewUnaryHandler(
-		ClickServiceAnswerQuizProcedure,
-		svc.AnswerQuiz,
-		connect.WithSchema(clickServiceMethods.ByName("AnswerQuiz")),
 		connect.WithHandlerOptions(opts...),
 	)
 	clickServicePlaceShieldHandler := connect.NewUnaryHandler(
@@ -535,20 +471,14 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceGetHoldingsHandler.ServeHTTP(w, r)
 		case ClickServiceListenForEventsProcedure:
 			clickServiceListenForEventsHandler.ServeHTTP(w, r)
-		case ClickServiceClaimBonusProcedure:
-			clickServiceClaimBonusHandler.ServeHTTP(w, r)
 		case ClickServiceDropBombProcedure:
 			clickServiceDropBombHandler.ServeHTTP(w, r)
 		case ClickServiceUseRefillProcedure:
 			clickServiceUseRefillHandler.ServeHTTP(w, r)
 		case ClickServiceGetChargesProcedure:
 			clickServiceGetChargesHandler.ServeHTTP(w, r)
-		case ClickServiceGetBonusRulesProcedure:
-			clickServiceGetBonusRulesHandler.ServeHTTP(w, r)
-		case ClickServiceOpenQuizProcedure:
-			clickServiceOpenQuizHandler.ServeHTTP(w, r)
-		case ClickServiceAnswerQuizProcedure:
-			clickServiceAnswerQuizHandler.ServeHTTP(w, r)
+		case ClickServiceGetChargeRulesProcedure:
+			clickServiceGetChargeRulesHandler.ServeHTTP(w, r)
 		case ClickServicePlaceShieldProcedure:
 			clickServicePlaceShieldHandler.ServeHTTP(w, r)
 		case ClickServiceGetFortressesProcedure:
@@ -594,10 +524,6 @@ func (UnimplementedClickServiceHandler) ListenForEvents(context.Context, *connec
 	return connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.ListenForEvents is not implemented"))
 }
 
-func (UnimplementedClickServiceHandler) ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.ClaimBonus is not implemented"))
-}
-
 func (UnimplementedClickServiceHandler) DropBomb(context.Context, *connect.Request[v1.DropBombRequest]) (*connect.Response[v1.DropBombResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.DropBomb is not implemented"))
 }
@@ -610,16 +536,8 @@ func (UnimplementedClickServiceHandler) GetCharges(context.Context, *connect.Req
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetCharges is not implemented"))
 }
 
-func (UnimplementedClickServiceHandler) GetBonusRules(context.Context, *connect.Request[v1.GetBonusRulesRequest]) (*connect.Response[v1.GetBonusRulesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetBonusRules is not implemented"))
-}
-
-func (UnimplementedClickServiceHandler) OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.OpenQuiz is not implemented"))
-}
-
-func (UnimplementedClickServiceHandler) AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.AnswerQuiz is not implemented"))
+func (UnimplementedClickServiceHandler) GetChargeRules(context.Context, *connect.Request[v1.GetChargeRulesRequest]) (*connect.Response[v1.GetChargeRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetChargeRules is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error) {

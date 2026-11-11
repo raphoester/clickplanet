@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1/bonusesv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1/promov1connect"
@@ -25,7 +26,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds/usecases/remove_background_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/postgres_card_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/rpc_planet_rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/rpc_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/usecases/save_cards_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders/rpc_scoring_points"
@@ -88,7 +89,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("the promo module asks planet what each set plays, the gamemaster what a battle plays, "+
 			"scoring what its ranks score and publishing for the teasers' posts: %w", err)
 	}
-	planet := rpc_planet_rules.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
+	planet := rpc_rule_sets.New(planetv1connect.NewInternalServiceClient(internal, baseURL),
+		bonusesv1connect.NewInternalServiceClient(internal, baseURL))
 	gamemaster := gamemasterv1connect.NewInternalServiceClient(internal, baseURL)
 	battles := rpc_gamemaster_battles.New(gamemaster)
 	points := rpc_scoring_points.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))

@@ -32,11 +32,8 @@ func NewSessionInterceptor(
 		ErrNoSession,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		cpconnect.Attested(planetv1connect.ClickServiceClickProcedure),
-		cpconnect.Attested(planetv1connect.ClickServiceClaimBonusProcedure),
 		cpconnect.Attested(planetv1connect.ClickServiceDropBombProcedure),
 		cpconnect.Attested(planetv1connect.ClickServiceUseRefillProcedure),
-		cpconnect.Attested(planetv1connect.ClickServiceOpenQuizProcedure),
-		cpconnect.Attested(planetv1connect.ClickServiceAnswerQuizProcedure),
 		cpconnect.Attested(planetv1connect.ClickServicePlaceShieldProcedure),
 	)
 }

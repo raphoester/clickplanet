@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers"
@@ -24,11 +24,11 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*planetv1.BonusClaimed] = Subscriber{}
+var _ cpredis.Handler[*bonusesv1.BonusClaimed] = Subscriber{}
 
 var errNoTime = errors.New("the claim has no time")
 
-func (s Subscriber) Handle(ctx context.Context, event *planetv1.BonusClaimed) error {
+func (s Subscriber) Handle(ctx context.Context, event *bonusesv1.BonusClaimed) error {
 	account, err := missions.AccountIDOf(event.GetAccountId())
 	if err != nil {
 		return fmt.Errorf("box caught: %w", err)

@@ -1,0 +1,45 @@
+package audit_save_rule_set_test
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"log/slog"
+	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
+)
+
+type stubUseCase struct{ err error }
+
+func (s stubUseCase) Execute(context.Context, rules.Snapshot) error { return s.err }
+
+var saved = rules.Named("rush", func(r *bonusesv1.Rules) { r.Boxes.MaxChargesPerHour = proto.Uint32(30) })
+
+func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
+	var logs bytes.Buffer
+
+	err := audit_save_rule_set.New(stubUseCase{}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), saved)
+
+	require.NoError(t, err)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin offer rule set saved" set=rush rules=`)
+	assert.Contains(t, logs.String(), `\"maxChargesPerHour\":30`)
+}
+
+func TestARefusedSaveIsLoggedWithWhyAndPassedOn(t *testing.T) {
+	var logs bytes.Buffer
+	cause := errors.New("no box")
+
+	err := audit_save_rule_set.New(stubUseCase{err: cause}, slog.New(slog.NewTextHandler(&logs, nil))).Execute(t.Context(), saved)
+
+	require.ErrorIs(t, err, cause)
+	assert.Contains(t, logs.String(), `level=WARN msg="admin offer rule set refused" set=rush`)
+	assert.Contains(t, logs.String(), `error="no box"`)
+}

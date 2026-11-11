@@ -173,12 +173,14 @@ func listen(ctx context.Context, streams *cpredis.Streams, heard *listener.Liste
 	keep(cpredis.Subscribe(ctx, streams, "antibot-clicks", heard.ClickTried()))
 	keep(cpredis.Subscribe(ctx, streams, "antibot-map-reads", heard.MapRead()))
 	keep(cpredis.Subscribe(ctx, streams, "antibot-streams", heard.StreamOpened()))
-	keep(cpredis.Subscribe(ctx, streams, "antibot-boxes-caught", heard.BoxCaught()))
-	keep(cpredis.Subscribe(ctx, streams, "antibot-boxes-lapsed", heard.BoxLapsed()))
-	keep(cpredis.Subscribe(ctx, streams, "antibot-boxes-foreign", heard.ForeignBoxClaimed()))
+	// The box facts are the offers' since 2026-11-11: each group handles what planet's stream of the fact held first.
+	keep(cpredis.SubscribeMoved(ctx, streams, "planet.v1.BoxCaught", "antibot-boxes-caught", heard.BoxCaught()))
+	keep(cpredis.SubscribeMoved(ctx, streams, "planet.v1.BoxLapsed", "antibot-boxes-lapsed", heard.BoxLapsed()))
+	keep(cpredis.SubscribeMoved(ctx, streams, "planet.v1.ForeignBoxClaimed", "antibot-boxes-foreign",
+		heard.ForeignBoxClaimed()))
 
 	if err := errors.Join(errs...); err != nil {
-		return nil, fmt.Errorf("failed to listen to planet: %w", err)
+		return nil, fmt.Errorf("failed to listen to planet and the offers: %w", err)
 	}
 	return feeds, nil
 }

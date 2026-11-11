@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
@@ -129,10 +130,10 @@ func TestTheBoxesReachTheCatcher(t *testing.T) {
 	heard := listener.New(guard, listener.NewMarks())
 
 	require.NoError(t, heard.BoxCaught().Handle(t.Context(),
-		&planetv1.BoxCaught{Scope: "1.2.3.4", After: durationpb.New(800 * time.Millisecond), CaughtAt: timestamppb.New(at)}))
-	require.NoError(t, heard.BoxLapsed().Handle(t.Context(), &planetv1.BoxLapsed{Scope: "1.2.3.4", LapsedAt: timestamppb.New(at)}))
+		&bonusesv1.BoxCaught{Scope: "1.2.3.4", After: durationpb.New(800 * time.Millisecond), CaughtAt: timestamppb.New(at)}))
+	require.NoError(t, heard.BoxLapsed().Handle(t.Context(), &bonusesv1.BoxLapsed{Scope: "1.2.3.4", LapsedAt: timestamppb.New(at)}))
 	require.NoError(t, heard.ForeignBoxClaimed().Handle(t.Context(),
-		&planetv1.ForeignBoxClaimed{Scope: "5.6.7.8", ClaimedAt: timestamppb.New(at)}))
+		&bonusesv1.ForeignBoxClaimed{Scope: "5.6.7.8", ClaimedAt: timestamppb.New(at)}))
 
 	assert.Equal(t, []string{"caught 1.2.3.4 800ms", "missed 1.2.3.4", "foreign 5.6.7.8"}, guard.calls)
 }

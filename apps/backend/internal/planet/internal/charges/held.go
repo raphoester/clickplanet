@@ -43,12 +43,14 @@ type Held struct {
 	Shields int
 }
 
+// Full is every kind the hand has no room for: a stack at its size, a charge held where one is the most, and a bomb
+// while bombs are off, which no hand may take.
 func (h Held) Full(rules Rules) []Kind {
 	var kinds []Kind
 	if h.Refill {
 		kinds = append(kinds, KindRefill)
 	}
-	if h.Bomb {
+	if h.Bomb || rules.Bomb.Off {
 		kinds = append(kinds, KindBomb)
 	}
 	if h.Enclosures >= rules.Enclose.Held {

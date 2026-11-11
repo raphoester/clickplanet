@@ -17,13 +17,12 @@ import (
 
 func base() *planetv1.Rules {
 	return &planetv1.Rules{
-		Clicks: &planetv1.ClickRules{Tempo: proto.Float64(1), Burst: proto.Uint32(60)},
-		Toll:   &planetv1.TollRules{Steps: []*planetv1.TollStep{{Share: 0.1, Slowdown: 1.5}}},
-		Bonuses: &planetv1.BonusRules{
-			Boxes: &planetv1.BoxPace{MinInterval: durationpb.New(4 * time.Minute), MaxInterval: durationpb.New(8 * time.Minute)},
-			Quiz:  &planetv1.QuizRules{Enabled: proto.Bool(true)},
+		Clicks: &planetv1.ClickRules{
+			Tempo: proto.Float64(1), Burst: proto.Uint32(60), FastStart: durationpb.New(30 * time.Minute),
 		},
-		Frozen: proto.Bool(false),
+		Toll:    &planetv1.TollRules{Steps: []*planetv1.TollStep{{Share: 0.1, Slowdown: 1.5}}},
+		Charges: &planetv1.ChargeRules{Bomb: &planetv1.BombRules{Rings: proto.Float64(4), Off: proto.Bool(true)}},
+		Frozen:  proto.Bool(false),
 	}
 }
 
@@ -38,21 +37,21 @@ func TestOverlayKeepsWhatTopLeavesUnset(t *testing.T) {
 func TestOverlayWritesAZeroTopHolds(t *testing.T) {
 	overlaid := cpproto.Overlay(base(), &planetv1.Rules{
 		Frozen:  proto.Bool(true),
-		Bonuses: &planetv1.BonusRules{Quiz: &planetv1.QuizRules{Enabled: proto.Bool(false)}},
+		Charges: &planetv1.ChargeRules{Bomb: &planetv1.BombRules{Off: proto.Bool(false)}},
 	})
 
 	assert.True(t, overlaid.GetFrozen())
-	assert.False(t, overlaid.GetBonuses().GetQuiz().GetEnabled())
-	assert.Equal(t, 4*time.Minute, overlaid.GetBonuses().GetBoxes().GetMinInterval().AsDuration())
+	assert.False(t, overlaid.GetCharges().GetBomb().GetOff())
+	assert.InDelta(t, 4, overlaid.GetCharges().GetBomb().GetRings(), 0)
 }
 
 func TestOverlayWritesADurationWhole(t *testing.T) {
 	overlaid := cpproto.Overlay(base(), &planetv1.Rules{
-		Bonuses: &planetv1.BonusRules{Boxes: &planetv1.BoxPace{MinInterval: durationpb.New(90 * time.Second)}},
+		Clicks: &planetv1.ClickRules{FastStart: durationpb.New(90 * time.Second)},
 	})
 
-	assert.Equal(t, 90*time.Second, overlaid.GetBonuses().GetBoxes().GetMinInterval().AsDuration())
-	assert.Equal(t, 8*time.Minute, overlaid.GetBonuses().GetBoxes().GetMaxInterval().AsDuration())
+	assert.Equal(t, 90*time.Second, overlaid.GetClicks().GetFastStart().AsDuration())
+	assert.Equal(t, uint32(60), overlaid.GetClicks().GetBurst())
 }
 
 func TestAMessageOfListsOnlyIsOneValueEvenEmpty(t *testing.T) {

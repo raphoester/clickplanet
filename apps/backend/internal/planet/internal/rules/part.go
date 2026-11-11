@@ -12,23 +12,13 @@ type Rules interface {
 
 // PartOf is one concept's rules in a set, read by its own package.
 type PartOf[R Rules] struct {
-	Key string
-	// Path names the part's reasons by the message of planet.v1.Rules it reads, when that is not Key: two parts read
-	// bonuses, the half that grants charges and the half that holds them.
-	Path string
+	Key  string
 	Read func(*planetv1.Rules) R
 	// InDefault, when set, refuses what default itself may not play: every other set would play it too.
 	InDefault func(R) error
 }
 
 func (p PartOf[R]) key() string { return p.Key }
-
-func (p PartOf[R]) path() string {
-	if p.Path == "" {
-		return p.Key
-	}
-	return p.Path
-}
 
 func (p PartOf[R]) read(message *planetv1.Rules, isDefault bool) (any, error) {
 	rules := p.Read(message)
@@ -41,7 +31,6 @@ func (p PartOf[R]) read(message *planetv1.Rules, isDefault bool) (any, error) {
 
 type Part interface {
 	key() string
-	path() string
 	read(message *planetv1.Rules, isDefault bool) (any, error)
 }
 

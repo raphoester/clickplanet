@@ -68,12 +68,12 @@ func TestASetKeptThatCannotPlayIsRefused(t *testing.T) {
 func TestASetIsWrittenWithTheValuesItHoldsZerosIncluded(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
 	quiet, err := rules.Snapshot{Name: "quiet", Rules: &planetv1.Rules{
-		Bonuses: &planetv1.BonusRules{Quiz: &planetv1.QuizRules{Enabled: proto.Bool(false)}},
+		Charges: &planetv1.ChargeRules{Bomb: &planetv1.BombRules{Off: proto.Bool(false)}},
 	}}.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
 	require.NoError(t, postgres_rule_set_store.New(db, parts.All()).Save(t.Context(), quiet))
 
-	assert.JSONEq(t, `{"bonuses": {"quiz": {"enabled": false}}}`, document(t, db, "quiet"))
+	assert.JSONEq(t, `{"charges": {"bomb": {"off": false}}}`, document(t, db, "quiet"))
 }
 
 func TestAFrozenSetIsReadFrozen(t *testing.T) {
@@ -132,7 +132,8 @@ func TestTheMigrationGoesBackToSetsThatHoldEveryValue(t *testing.T) {
 	require.NoError(t, err)
 
 	var played planetv1.Rules
-	require.NoError(t, protojson.Unmarshal([]byte(document(t, db, "rush")), &played))
+	require.NoError(t, protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal([]byte(document(t, db, "rush")), &played),
+		"bonuses, which planet reads no more, is left for the offers' module to copy")
 	assert.True(t, proto.Equal(rules.Named("rush", func(r *planetv1.Rules) {
 		r.Clicks.Tempo = proto.Float64(3)
 		r.Toll.Steps = nil

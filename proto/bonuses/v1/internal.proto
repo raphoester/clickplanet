@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package bonuses.v1;
+
+import "bonuses/v1/rules.proto";
+import "google/protobuf/timestamp.proto";
+
+service InternalService {
+  // Plays the rule set of this name. The offers keep the latest decision by decided_at, so a call made twice, or after
+  // a newer one, changes nothing. FailedPrecondition for a name the offers keep no set of, or a set they cannot play:
+  // they play on the set they play.
+  rpc PlayRuleSet(PlayRuleSetRequest) returns (PlayRuleSetResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The values a set plays: default's, with the set's own written over them. NotFound for a set postgres does not keep.
+  rpc GetRuleSet(GetRuleSetRequest) returns (GetRuleSetResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message PlayRuleSetRequest {
+  string rule_set = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}
+
+// The offers play the latest decision.
+message PlayRuleSetResponse {}
+
+message GetRuleSetNamesRequest {}
+
+// The name of every rule set postgres keeps.
+message GetRuleSetNamesResponse {
+  repeated string names = 1;
+}
+
+message GetRuleSetRequest {
+  string name = 1;
+}
+
+message GetRuleSetResponse {
+  // Every value, the set's own or default's.
+  Rules played = 1;
+}

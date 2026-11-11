@@ -4,11 +4,9 @@ import (
 	"errors"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 )
 
@@ -36,12 +34,6 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(&planetv1.PlanetEvent{
 			Event: &planetv1.PlanetEvent_RulesChanged{RulesChanged: &planetv1.RulesChanged{}},
 		})
-	case event.Offer != nil:
-		return s.stream.Send(bonusOfferedEvent(event.Offer))
-	case event.Quiz != nil:
-		return s.stream.Send(quizOfferedEvent(event.Quiz))
-	case event.Taken != nil:
-		return s.stream.Send(bonusTakenEvent(event.Taken))
 	case event.Update != nil:
 		return s.stream.Send(planetmessage.TileUpdate(*event.Update, event.Version))
 	case event.Blast != nil:
@@ -64,43 +56,6 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		})
 	default:
 		return errEmptyEvent
-	}
-}
-
-func bonusOfferedEvent(offer *bonuses.Offer) *planetv1.PlanetEvent {
-	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_BonusOffered{
-			BonusOffered: &planetv1.BonusOffered{
-				Token:           offer.Token,
-				Seed:            offer.Seed,
-				Kind:            claim_bonus_handler.EncodeKind(offer.Kind),
-				ExpiresAtUnixMs: offer.ExpiresAt.UnixMilli(),
-			},
-		},
-	}
-}
-
-// Token and expiry only: anything about the question here can give its answer away.
-func quizOfferedEvent(offer *bonuses.QuizOffer) *planetv1.PlanetEvent {
-	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_QuizOffered{
-			QuizOffered: &planetv1.QuizOffered{
-				Token:           offer.Token,
-				ExpiresAtUnixMs: offer.ExpiresAt.UnixMilli(),
-			},
-		},
-	}
-}
-
-func bonusTakenEvent(taken *bonuses.Taken) *planetv1.PlanetEvent {
-	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_BonusTaken{
-			BonusTaken: &planetv1.BonusTaken{
-				CountryId:            taken.CountryID,
-				Kind:                 claim_bonus_handler.EncodeKind(taken.Kind),
-				QuizSubjectCountryId: taken.QuizSubject,
-			},
-		},
 	}
 }
 

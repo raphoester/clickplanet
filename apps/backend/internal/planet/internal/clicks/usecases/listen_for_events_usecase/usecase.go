@@ -9,7 +9,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
@@ -38,16 +37,8 @@ type Event struct {
 	Heartbeat     bool
 	RulesChanged  bool
 
-	Offer   *bonuses.Offer
-	Quiz    *bonuses.QuizOffer
-	Taken   *bonuses.Taken
 	Spread  *notices.Spread
 	Granted *charges.Held
-}
-
-// Offers is the boxes and quizzes for the caller, and every catch.
-type Offers interface {
-	Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func())
 }
 
 // Notices is planet's own news for the caller: every spread, and what its account holds after a grant.
@@ -68,7 +59,7 @@ type Facts interface {
 }
 
 func New(
-	subscriber UpdatesSubscriber, heartbeat time.Duration, offers Offers, notices Notices, rules RulesFeed, facts Facts,
+	subscriber UpdatesSubscriber, heartbeat time.Duration, notices Notices, rules RulesFeed, facts Facts,
 ) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
@@ -77,7 +68,6 @@ func New(
 	return &UseCase{
 		subscriber: subscriber,
 		heartbeat:  heartbeat,
-		offers:     offers,
 		notices:    notices,
 		rules:      rules,
 		facts:      facts,
@@ -87,7 +77,6 @@ func New(
 type UseCase struct {
 	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
-	offers     Offers
 	notices    Notices
 	rules      RulesFeed
 	facts      Facts
@@ -107,9 +96,6 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 	payer := clicks.PayerOf(ctx)
 	caller := clicks.CallerOf(payer)
-	boxes, leave := u.offers.Attend(bonuses.EntrantOf(
-		bonuses.Caller{Scope: payer.Scope, Account: bonuses.Account(payer.Account), Linked: payer.Linked}))
-	defer leave()
 
 	news, stopHearing := u.notices.Attend(caller)
 	defer stopHearing()
@@ -151,15 +137,6 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 
 		case <-changes:
 			if err := sink.Send(Event{RulesChanged: true}); err != nil {
-				return err
-			}
-
-		case event, open := <-boxes:
-			if !open {
-				return nil
-			}
-
-			if err := sink.Send(Event{Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken}); err != nil {
 				return err
 			}
 

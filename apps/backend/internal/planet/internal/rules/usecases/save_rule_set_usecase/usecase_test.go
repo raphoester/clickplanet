@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/durationpb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
@@ -71,11 +69,11 @@ func TestADefaultIsKeptWhenEveryOtherSetStillPlaysOverIt(t *testing.T) {
 
 func TestADefaultThatLeavesAnotherSetUnableToPlayIsRefusedWithTheSetNamed(t *testing.T) {
 	quick := rules.Snapshot{Name: "quick", Rules: &planetv1.Rules{
-		Bonuses: &planetv1.BonusRules{Boxes: &planetv1.BoxPace{MaxInterval: durationpb.New(5 * time.Minute)}},
+		Clicks: &planetv1.ClickRules{NewAccountClicks: proto.Float64(50)},
 	}}
 	store := rules.NewMemoryStore(parts.All(), rules.Seeded(), quick)
 	plays := &playing{}
-	slower := rules.Named(rules.Default, func(r *planetv1.Rules) { r.Bonuses.Boxes.MinInterval = durationpb.New(6 * time.Minute) })
+	slower := rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks.Burst = proto.Uint32(40) })
 
 	err := saving(store, plays).Execute(t.Context(), slower)
 

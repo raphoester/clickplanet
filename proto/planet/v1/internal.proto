@@ -86,6 +86,29 @@ service InternalService {
   rpc GetRuleSet(GetRuleSetRequest) returns (GetRuleSetResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Grants charges to an account at once, and answers what fit its stack and all it holds after. Planet grants each
+  // grant_id once: a call made again keeps nothing and answers the hand as it is. What does not fit is not granted.
+  // InvalidArgument for a bad id, an unknown kind or no amount.
+  rpc GrantCharges(InternalGrantChargesRequest) returns (InternalGrantChargesResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // For each account asked, the kinds of charge it has no room for: a full stack, and a bomb while the rules in force
+  // hold charges.bomb.off.
+  rpc GetRoom(GetRoomRequest) returns (GetRoomResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // All an account holds now.
+  rpc GetChargesOf(GetChargesOfRequest) returns (GetChargesOfResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
+  rpc GetFreeze(GetFreezeRequest) returns (GetFreezeResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetMapHistoryRequest {
@@ -209,3 +232,47 @@ message CloseArenaRequest {
 
 // The arena is closed.
 message CloseArenaResponse {}
+
+message InternalGrantChargesRequest {
+  string grant_id = 1;
+  string account_id = 2;
+  BonusKind kind = 3;
+  uint32 amount = 4;
+  // Planet keeps the grant_id for good, with the grant. Unset, it knows it ten minutes, in memory: for a grant whose
+  // call is never made again after that.
+  bool lasting = 5;
+}
+
+message InternalGrantChargesResponse {
+  // How many of the kind the stack kept: fewer than the amount when it is full, none for a grant_id granted before.
+  uint32 kept = 1;
+  ChargesHeld charges = 2;
+}
+
+message GetRoomRequest {
+  repeated string account_ids = 1;
+}
+
+message GetRoomResponse {
+  // An account with room for every kind is left out.
+  repeated Room rooms = 1;
+}
+
+message Room {
+  string account_id = 1;
+  repeated BonusKind full = 2;
+}
+
+message GetChargesOfRequest {
+  string account_id = 1;
+}
+
+message GetChargesOfResponse {
+  ChargesHeld charges = 1;
+}
+
+message GetFreezeRequest {}
+
+message GetFreezeResponse {
+  bool frozen = 1;
+}

@@ -2,14 +2,12 @@ package listen_for_events_handler_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
@@ -132,51 +130,6 @@ func TestSinkReportsAFailedSend(t *testing.T) {
 	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{Heartbeat: true})
 
 	require.ErrorIs(t, err, assert.AnError)
-}
-
-func TestASinkFramesABoxOfferedToThisCaller(t *testing.T) {
-	stream := &recorder{}
-
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Offer: &bonuses.Offer{
-			Token:     "a-token",
-			Seed:      42,
-			Kind:      bonuses.KindSpreadClicks,
-			ExpiresAt: time.Unix(0, 0).Add(15 * time.Second),
-		},
-	}))
-
-	offered := stream.sent[0].GetBonusOffered()
-	require.NotNil(t, offered, "expected a bonus_offered case, got %+v", stream.sent[0].GetEvent())
-	assert.Equal(t, "a-token", offered.GetToken())
-	assert.Equal(t, uint32(42), offered.GetSeed())
-	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS, offered.GetKind())
-	assert.Equal(t, int64(15_000), offered.GetExpiresAtUnixMs())
-}
-
-func TestASinkFramesAQuizOfferedToThisCaller(t *testing.T) {
-	stream := &recorder{}
-
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Quiz: &bonuses.QuizOffer{Token: "a-quiz", ExpiresAt: time.Unix(0, 0).Add(20 * time.Second)},
-	}))
-
-	quiz := stream.sent[0].GetQuizOffered()
-	require.NotNil(t, quiz, "expected a quiz_offered case, got %+v", stream.sent[0].GetEvent())
-	assert.Equal(t, "a-quiz", quiz.GetToken())
-	assert.Equal(t, int64(20_000), quiz.GetExpiresAtUnixMs())
-}
-
-func TestASinkFramesACatchWithNoTokenOnIt(t *testing.T) {
-	stream := &recorder{}
-
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Taken: &bonuses.Taken{CountryID: "jp", Kind: bonuses.KindRefill},
-	}))
-
-	taken := stream.sent[0].GetBonusTaken()
-	require.NotNil(t, taken)
-	assert.Equal(t, "jp", taken.GetCountryId())
 }
 
 func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {

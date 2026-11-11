@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/try_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -71,7 +72,7 @@ func try(t *testing.T, ctx context.Context, inner answer, tile uint32) (*planetv
 func TestATryNamesWhoClickedWhatAndWhen(t *testing.T) {
 	ctx := cpctx.AddAccountCreatedToContext(cpctx.AddLinkedToContext(cpctx.AddAccountToContext(
 		cpctx.AddIPToContext(t.Context(), "2001:db8::9"), "a-player")), created)
-	inner := answer{out: click_usecase.Out{Outcome: clicks.Taken, Owner: "de", Limited: true}}
+	inner := answer{out: click_usecase.Out{Outcome: clicks.Taken, Owner: "de", Limited: true, Budget: leaving(5).Budget}}
 
 	tried, out, err := try(t, ctx, inner, 42)
 
@@ -82,6 +83,33 @@ func TestATryNamesWhoClickedWhatAndWhen(t *testing.T) {
 		TileId: 42, Country: "fr", TriedAt: timestamppb.New(at), Outcome: planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN,
 		Owner: "de", Position: &planetv1.GlobePoint{X: 1}, Tempo: 3,
 	}, tried), "got %v", tried)
+}
+
+func leaving(tokens float64) click_usecase.Out {
+	return click_usecase.Out{
+		Outcome: clicks.Taken, Budget: clicks.Budget{State: cpratelimit.State{Tokens: tokens, Capacity: 60}}, Limited: true,
+	}
+}
+
+// What brings a newcomer's first quiz: the offers read it off the try.
+func TestAClickThatLeavesLessThanOneClickInTheBankIsToldDry(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		out  click_usecase.Out
+		dry  bool
+	}{
+		{name: "nothing left", out: leaving(0), dry: true},
+		{name: "part of a click left", out: leaving(0.9), dry: true},
+		{name: "one click left", out: leaving(1)},
+		{name: "no throttle, so no reading", out: click_usecase.Out{Outcome: clicks.Taken}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tried, _, err := try(t, t.Context(), answer{out: tc.out}, 42)
+			require.NoError(t, err)
+
+			assert.Equal(t, tc.dry, tried.GetDry())
+		})
+	}
 }
 
 func TestEachAnswerIsAnOutcome(t *testing.T) {
