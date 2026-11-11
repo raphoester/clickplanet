@@ -60,12 +60,13 @@ the error away (to 0.07, measured) and 400 take it under 0.035 (0.02, measured).
 | an opened question answered right or wrong | `AnswerQuiz` in time |
 | a timeout the page sends: a choice past the three | wrong, `timed_out` |
 | an answer that lands past the deadline | wrong |
-| an answer that lands up to 10 s after its question lapsed | wrong, as a late answer (below) |
+| an answer that lands after the sweep took its question, up to 10 s past the deadline | wrong, as a late answer (below) |
 
 | does not count | why |
 |---|---|
 | a banner never opened | the player never saw the question |
 | a question opened then left to lapse (the tab closed) | "didn't know" cannot be told from "left" |
+| an answer more than 10 s past its deadline | a page that comes back that late was left, a phone locked or a tab asleep |
 | an answer refused by the freeze or the session check | it never reached the offers |
 
 - **A caller with no account counts for the question**, with no account recorded.
@@ -73,7 +74,7 @@ the error away (to 0.07, measured) and 400 take it under 0.035 (0.02, measured).
   countdown ends, so it reaches the server about one trip after the deadline, and seconds later from a clock behind the
   server's. The sweep collects an opened question the second its deadline passes, so a timeout that lost that race was a
   lapse, and timeouts were lost to the log in proportion to the players' latency: the questions would have read easier
-  than they are. **The registry keeps each opened question that lapsed for 10 s** (`lapsedQuizzes`, `lateAnswers`), and
+  than they are. **The registry keeps each opened question that lapsed until 10 s past its deadline** (`lapsedQuizzes`, `lateAnswers`), and
   an answer that lands then is counted wrong (`Answered.Late`) while `AnswerQuiz` answers `NotFound` as before. The
   lapse itself, its miss and the next quiz's wait are what they were.
 - **The time to answer is from the opening**, which stamps the deadline (`pendingQuiz.openedAt`), not from the banner.

@@ -156,7 +156,7 @@ type Registry struct {
 
 	quizOffers map[string]*pendingQuiz
 
-	// Each question opened and lapsed, for lateAnswers: an answer that lands then is counted, late.
+	// Each question opened and lapsed, until lateAnswers past its deadline: an answer that lands then is counted, late.
 	lapsedQuizzes map[string]*pendingQuiz
 
 	newcomers map[Account]*newcomer

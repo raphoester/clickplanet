@@ -75,7 +75,7 @@ Everything below exists to make whatever it is set to real:
 **Every answer is counted for its question's rating** ([How hard each quiz question is](quiz-difficulty.md)): right,
 wrong, the page's timeout, and an answer past the deadline, a caller's with no account too. A banner never opened and a
 question opened and left are not. Nothing of it reaches the page: no difficulty is on the banner, the question or the
-answer. **An answer that lands up to 10 s after its opened question lapsed** is counted wrong, and still answered
+answer. **An answer that lands after its opened question lapsed, up to 10 s past the deadline,** is counted wrong, and still answered
 `NotFound`, as before: the page's own timeout often reaches the server a trip after the deadline.
 
 **A wrong answer is not a failed call.** It resolves, grants nothing, and says

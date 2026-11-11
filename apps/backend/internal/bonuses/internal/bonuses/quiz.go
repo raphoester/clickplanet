@@ -44,7 +44,7 @@ type Answered struct {
 	Late bool
 }
 
-// An answer lands at most this long after its question lapsed to be counted, late: the page's timeout reaches the
+// An answer lands at most this long past its question's deadline to be counted, late: the page's timeout reaches the
 // server a trip after the deadline, and after the sweep that collected it on a slow network or a clock behind ours.
 const lateAnswers = 10 * time.Second
 
