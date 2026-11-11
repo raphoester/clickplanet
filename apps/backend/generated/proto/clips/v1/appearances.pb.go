@@ -22,6 +22,149 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// 100 at most.
+type GetShownNamesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountIds    []string               `protobuf:"bytes,1,rep,name=account_ids,json=accountIds,proto3" json:"account_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetShownNamesRequest) Reset() {
+	*x = GetShownNamesRequest{}
+	mi := &file_clips_v1_appearances_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetShownNamesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetShownNamesRequest) ProtoMessage() {}
+
+func (x *GetShownNamesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_appearances_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetShownNamesRequest.ProtoReflect.Descriptor instead.
+func (*GetShownNamesRequest) Descriptor() ([]byte, []int) {
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetShownNamesRequest) GetAccountIds() []string {
+	if x != nil {
+		return x.AccountIds
+	}
+	return nil
+}
+
+// Once each, in the order asked: an account whose name it holds now the judge or the operator let the posts show, and
+// that did not turn the clips off. A guest, an account unknown, deleted or asked deleted, or a name not judged is left out.
+type GetShownNamesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShownNames    []*ShownName           `protobuf:"bytes,1,rep,name=shown_names,json=shownNames,proto3" json:"shown_names,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetShownNamesResponse) Reset() {
+	*x = GetShownNamesResponse{}
+	mi := &file_clips_v1_appearances_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetShownNamesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetShownNamesResponse) ProtoMessage() {}
+
+func (x *GetShownNamesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_appearances_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetShownNamesResponse.ProtoReflect.Descriptor instead.
+func (*GetShownNamesResponse) Descriptor() ([]byte, []int) {
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetShownNamesResponse) GetShownNames() []*ShownName {
+	if x != nil {
+		return x.ShownNames
+	}
+	return nil
+}
+
+type ShownName struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShownName) Reset() {
+	*x = ShownName{}
+	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShownName) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShownName) ProtoMessage() {}
+
+func (x *ShownName) ProtoReflect() protoreflect.Message {
+	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShownName.ProtoReflect.Descriptor instead.
+func (*ShownName) Descriptor() ([]byte, []int) {
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ShownName) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *ShownName) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
 type GetAppearancesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -30,7 +173,7 @@ type GetAppearancesRequest struct {
 
 func (x *GetAppearancesRequest) Reset() {
 	*x = GetAppearancesRequest{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[0]
+	mi := &file_clips_v1_appearances_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +185,7 @@ func (x *GetAppearancesRequest) String() string {
 func (*GetAppearancesRequest) ProtoMessage() {}
 
 func (x *GetAppearancesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[0]
+	mi := &file_clips_v1_appearances_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +198,7 @@ func (x *GetAppearancesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppearancesRequest.ProtoReflect.Descriptor instead.
 func (*GetAppearancesRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{0}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{3}
 }
 
 type GetAppearancesResponse struct {
@@ -70,7 +213,7 @@ type GetAppearancesResponse struct {
 
 func (x *GetAppearancesResponse) Reset() {
 	*x = GetAppearancesResponse{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[1]
+	mi := &file_clips_v1_appearances_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -82,7 +225,7 @@ func (x *GetAppearancesResponse) String() string {
 func (*GetAppearancesResponse) ProtoMessage() {}
 
 func (x *GetAppearancesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[1]
+	mi := &file_clips_v1_appearances_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -95,7 +238,7 @@ func (x *GetAppearancesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAppearancesResponse.ProtoReflect.Descriptor instead.
 func (*GetAppearancesResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{1}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetAppearancesResponse) GetAppearances() []*Appearance {
@@ -121,7 +264,7 @@ type SetNameShownRequest struct {
 
 func (x *SetNameShownRequest) Reset() {
 	*x = SetNameShownRequest{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	mi := &file_clips_v1_appearances_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -133,7 +276,7 @@ func (x *SetNameShownRequest) String() string {
 func (*SetNameShownRequest) ProtoMessage() {}
 
 func (x *SetNameShownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[2]
+	mi := &file_clips_v1_appearances_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -146,7 +289,7 @@ func (x *SetNameShownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNameShownRequest.ProtoReflect.Descriptor instead.
 func (*SetNameShownRequest) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{2}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SetNameShownRequest) GetNameShown() bool {
@@ -165,7 +308,7 @@ type SetNameShownResponse struct {
 
 func (x *SetNameShownResponse) Reset() {
 	*x = SetNameShownResponse{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[3]
+	mi := &file_clips_v1_appearances_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -177,7 +320,7 @@ func (x *SetNameShownResponse) String() string {
 func (*SetNameShownResponse) ProtoMessage() {}
 
 func (x *SetNameShownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[3]
+	mi := &file_clips_v1_appearances_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -190,7 +333,7 @@ func (x *SetNameShownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetNameShownResponse.ProtoReflect.Descriptor instead.
 func (*SetNameShownResponse) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{3}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SetNameShownResponse) GetNameShown() bool {
@@ -213,7 +356,7 @@ type Appearance struct {
 
 func (x *Appearance) Reset() {
 	*x = Appearance{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[4]
+	mi := &file_clips_v1_appearances_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -225,7 +368,7 @@ func (x *Appearance) String() string {
 func (*Appearance) ProtoMessage() {}
 
 func (x *Appearance) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[4]
+	mi := &file_clips_v1_appearances_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -238,7 +381,7 @@ func (x *Appearance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Appearance.ProtoReflect.Descriptor instead.
 func (*Appearance) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{4}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Appearance) GetPostId() string {
@@ -280,7 +423,7 @@ type ClipLink struct {
 
 func (x *ClipLink) Reset() {
 	*x = ClipLink{}
-	mi := &file_clips_v1_appearances_proto_msgTypes[5]
+	mi := &file_clips_v1_appearances_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +435,7 @@ func (x *ClipLink) String() string {
 func (*ClipLink) ProtoMessage() {}
 
 func (x *ClipLink) ProtoReflect() protoreflect.Message {
-	mi := &file_clips_v1_appearances_proto_msgTypes[5]
+	mi := &file_clips_v1_appearances_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,7 +448,7 @@ func (x *ClipLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClipLink.ProtoReflect.Descriptor instead.
 func (*ClipLink) Descriptor() ([]byte, []int) {
-	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{5}
+	return file_clips_v1_appearances_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ClipLink) GetPlatform() string {
@@ -326,7 +469,17 @@ var File_clips_v1_appearances_proto protoreflect.FileDescriptor
 
 const file_clips_v1_appearances_proto_rawDesc = "" +
 	"\n" +
-	"\x1aclips/v1/appearances.proto\x12\bclips.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x17\n" +
+	"\x1aclips/v1/appearances.proto\x12\bclips.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"7\n" +
+	"\x14GetShownNamesRequest\x12\x1f\n" +
+	"\vaccount_ids\x18\x01 \x03(\tR\n" +
+	"accountIds\"M\n" +
+	"\x15GetShownNamesResponse\x124\n" +
+	"\vshown_names\x18\x01 \x03(\v2\x13.clips.v1.ShownNameR\n" +
+	"shownNames\">\n" +
+	"\tShownName\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x17\n" +
 	"\x15GetAppearancesRequest\"o\n" +
 	"\x16GetAppearancesResponse\x126\n" +
 	"\vappearances\x18\x01 \x03(\v2\x14.clips.v1.AppearanceR\vappearances\x12\x1d\n" +
@@ -346,10 +499,11 @@ const file_clips_v1_appearances_proto_rawDesc = "" +
 	"\x05links\x18\x04 \x03(\v2\x12.clips.v1.ClipLinkR\x05links\"8\n" +
 	"\bClipLink\x12\x1a\n" +
 	"\bplatform\x18\x01 \x01(\tR\bplatform\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url2\xb7\x01\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url2\x8e\x02\n" +
 	"\fClipsService\x12X\n" +
 	"\x0eGetAppearances\x12\x1f.clips.v1.GetAppearancesRequest\x1a .clips.v1.GetAppearancesResponse\"\x03\x90\x02\x01\x12M\n" +
-	"\fSetNameShown\x12\x1d.clips.v1.SetNameShownRequest\x1a\x1e.clips.v1.SetNameShownResponseB\xb1\x01\n" +
+	"\fSetNameShown\x12\x1d.clips.v1.SetNameShownRequest\x1a\x1e.clips.v1.SetNameShownResponse\x12U\n" +
+	"\rGetShownNames\x12\x1e.clips.v1.GetShownNamesRequest\x1a\x1f.clips.v1.GetShownNamesResponse\"\x03\x90\x02\x01B\xb1\x01\n" +
 	"\fcom.clips.v1B\x10AppearancesProtoP\x01ZNgithub.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1;clipsv1\xa2\x02\x03CXX\xaa\x02\bClips.V1\xca\x02\bClips\\V1\xe2\x02\x14Clips\\V1\\GPBMetadata\xea\x02\tClips::V1b\x06proto3"
 
 var (
@@ -364,29 +518,35 @@ func file_clips_v1_appearances_proto_rawDescGZIP() []byte {
 	return file_clips_v1_appearances_proto_rawDescData
 }
 
-var file_clips_v1_appearances_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_clips_v1_appearances_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_clips_v1_appearances_proto_goTypes = []any{
-	(*GetAppearancesRequest)(nil),  // 0: clips.v1.GetAppearancesRequest
-	(*GetAppearancesResponse)(nil), // 1: clips.v1.GetAppearancesResponse
-	(*SetNameShownRequest)(nil),    // 2: clips.v1.SetNameShownRequest
-	(*SetNameShownResponse)(nil),   // 3: clips.v1.SetNameShownResponse
-	(*Appearance)(nil),             // 4: clips.v1.Appearance
-	(*ClipLink)(nil),               // 5: clips.v1.ClipLink
-	(*timestamppb.Timestamp)(nil),  // 6: google.protobuf.Timestamp
+	(*GetShownNamesRequest)(nil),   // 0: clips.v1.GetShownNamesRequest
+	(*GetShownNamesResponse)(nil),  // 1: clips.v1.GetShownNamesResponse
+	(*ShownName)(nil),              // 2: clips.v1.ShownName
+	(*GetAppearancesRequest)(nil),  // 3: clips.v1.GetAppearancesRequest
+	(*GetAppearancesResponse)(nil), // 4: clips.v1.GetAppearancesResponse
+	(*SetNameShownRequest)(nil),    // 5: clips.v1.SetNameShownRequest
+	(*SetNameShownResponse)(nil),   // 6: clips.v1.SetNameShownResponse
+	(*Appearance)(nil),             // 7: clips.v1.Appearance
+	(*ClipLink)(nil),               // 8: clips.v1.ClipLink
+	(*timestamppb.Timestamp)(nil),  // 9: google.protobuf.Timestamp
 }
 var file_clips_v1_appearances_proto_depIdxs = []int32{
-	4, // 0: clips.v1.GetAppearancesResponse.appearances:type_name -> clips.v1.Appearance
-	6, // 1: clips.v1.Appearance.scheduled_at:type_name -> google.protobuf.Timestamp
-	5, // 2: clips.v1.Appearance.links:type_name -> clips.v1.ClipLink
-	0, // 3: clips.v1.ClipsService.GetAppearances:input_type -> clips.v1.GetAppearancesRequest
-	2, // 4: clips.v1.ClipsService.SetNameShown:input_type -> clips.v1.SetNameShownRequest
-	1, // 5: clips.v1.ClipsService.GetAppearances:output_type -> clips.v1.GetAppearancesResponse
-	3, // 6: clips.v1.ClipsService.SetNameShown:output_type -> clips.v1.SetNameShownResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: clips.v1.GetShownNamesResponse.shown_names:type_name -> clips.v1.ShownName
+	7, // 1: clips.v1.GetAppearancesResponse.appearances:type_name -> clips.v1.Appearance
+	9, // 2: clips.v1.Appearance.scheduled_at:type_name -> google.protobuf.Timestamp
+	8, // 3: clips.v1.Appearance.links:type_name -> clips.v1.ClipLink
+	3, // 4: clips.v1.ClipsService.GetAppearances:input_type -> clips.v1.GetAppearancesRequest
+	5, // 5: clips.v1.ClipsService.SetNameShown:input_type -> clips.v1.SetNameShownRequest
+	0, // 6: clips.v1.ClipsService.GetShownNames:input_type -> clips.v1.GetShownNamesRequest
+	4, // 7: clips.v1.ClipsService.GetAppearances:output_type -> clips.v1.GetAppearancesResponse
+	6, // 8: clips.v1.ClipsService.SetNameShown:output_type -> clips.v1.SetNameShownResponse
+	1, // 9: clips.v1.ClipsService.GetShownNames:output_type -> clips.v1.GetShownNamesResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_clips_v1_appearances_proto_init() }
@@ -400,7 +560,7 @@ func file_clips_v1_appearances_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_clips_v1_appearances_proto_rawDesc), len(file_clips_v1_appearances_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

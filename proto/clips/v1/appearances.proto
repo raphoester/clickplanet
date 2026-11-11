@@ -4,13 +4,34 @@ package clips.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// The clips that name the caller, on the public router: each needs the identity token, and acts on the caller's alone.
+// The clips that name the caller, on the public router: each needs the identity token, and acts on the caller's alone,
+// but GetShownNames, which needs none.
 service ClipsService {
   rpc GetAppearances(GetAppearancesRequest) returns (GetAppearancesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
   // Whether the clips may name the caller.
   rpc SetNameShown(SetNameShownRequest) returns (SetNameShownResponse);
+  // Of a page of accounts, the names a player's own video may show.
+  rpc GetShownNames(GetShownNamesRequest) returns (GetShownNamesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// 100 at most.
+message GetShownNamesRequest {
+  repeated string account_ids = 1;
+}
+
+// Once each, in the order asked: an account whose name it holds now the judge or the operator let the posts show, and
+// that did not turn the clips off. A guest, an account unknown, deleted or asked deleted, or a name not judged is left out.
+message GetShownNamesResponse {
+  repeated ShownName shown_names = 1;
+}
+
+message ShownName {
+  string account_id = 1;
+  string name = 2;
 }
 
 message GetAppearancesRequest {}
