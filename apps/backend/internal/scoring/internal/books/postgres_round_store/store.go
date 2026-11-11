@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -13,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
+
+const roundLock = 0x726f756e
 
 func New(db cppg.Conn) *Store {
 	return &Store{db: db}
@@ -387,6 +390,34 @@ func (s *sum) write(ctx context.Context, tx cppg.Querier) error {
 func (s *Store) ForgetAccount(ctx context.Context, account books.AccountID) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM round_players WHERE account_id = $1`, uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to forget the account's takes in the rounds: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) Lock(ctx context.Context, id books.RoundID) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, roundLock, string(id)); err != nil {
+		return fmt.Errorf("failed to lock the round: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) Missed(ctx context.Context, id books.RoundID) (books.MissedRound, bool, error) {
+	var endedAt time.Time
+	err := s.db.On(ctx).QueryRowContext(ctx, `SELECT ended_at FROM missed_rounds WHERE round_id = $1`, string(id)).Scan(&endedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return books.MissedRound{}, false, nil
+	}
+	if err != nil {
+		return books.MissedRound{}, false, fmt.Errorf("failed to read the missed round: %w", err)
+	}
+	return books.NewMissedRound(id, endedAt), true, nil
+}
+
+func (s *Store) KeepMissed(ctx context.Context, missed books.MissedRound) error {
+	if _, err := s.db.On(ctx).ExecContext(ctx, `
+		INSERT INTO missed_rounds (round_id, ended_at) VALUES ($1, $2) ON CONFLICT (round_id) DO NOTHING
+	`, string(missed.ID), missed.EndsAt); err != nil {
+		return fmt.Errorf("failed to keep the round missed: %w", err)
 	}
 	return nil
 }

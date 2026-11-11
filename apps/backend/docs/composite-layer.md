@@ -86,6 +86,7 @@ return []bootstrap.Module{
 | `clips` | `player.v1.InternalService/GetPlayers` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
 | `gamemaster` | `planet.v1.InternalService/GetRuleSetNames` and `antibot.v1.InternalService/GetRuleSetNames` | the rule sets each module keeps, on each schedule entry an operator adds or edits | `schedule/rpc_planet_rule_sets`, `schedule/rpc_antibot_rule_sets` |
 | `gamemaster` | `planet.v1.InternalService/GetRuleSet` | whether a battle's set makes an arena battle (`arena.on`), once per battle as it starts | `arenas/rpc_planet_arenas` |
+| `gamemaster` | scoring's, planet's and the antibot's calls that change something (`OpenBook` to `CloseBook`, `OpenArena`, `CloseArena`, `ResetMap`, `PlayRuleSet`) | each as it is due, until answered: see [The gamemaster's calls](#the-gamemasters-calls) | `moments/rpc_scoring_books`, `arenas/rpc_planet_arenas`, `season/rpc_planet_resets`, `schedule/rpc_rule_set_plays` |
 | `gamemaster` | `planet.v1.InternalService/GetMapHistory` | the map every step of an ended season, or of its finale, once per season, part and process, on the first `GetSeasonReplay` | `get_season_replay_handler/season_replay_query` |
 | `gamemaster` | `planet.v1.InternalService/GetLedgerTotals` | the ledger's totals over an ended season's window, once per season and process, on the first `GetSeasonTotals` | `get_season_totals_handler/season_totals_query` |
 | `promo` | `planet.v1.InternalService/GetRuleSetNames` and `GetRuleSet` | the sets planet keeps, on each `SaveCards` and `GetCards`; the values a set plays, on each teaser read and once per set with cards on each `GetCards` | `cards/rpc_planet_rules` |
@@ -165,9 +166,6 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `player-departures-requests`, `player-departures-restores` | each event names when it was decided; the departure keeps the latest (`departures.Departure.Decided`), so one told again, or a request heard after a later restore from the other stream, changes nothing |
 | `antibot-clicks`, `antibot-map-reads`, `antibot-streams`, `antibot-boxes-*` | planet tells each kind of fact at a later time than the one before (`facts.Log`), from one sender. The listener keeps the latest time it heard of each kind (`listener.Marks`), saved with the evidence as of the same moment, and skips a fact at or before it |
 | `commands:planet.v1.RefuseCaller`, `commands:planet.v1.AdmitCaller` (planet's `handler`) | each command names when it was decided; planet keeps the latest decision on each caller (`refusals.Refusal.Decided`), so a command sent again, or an older one from the other stream, changes nothing |
-| `commands:scoring.v1.ScoringCommand` (scoring's `handler`) | each command names its book or round: a book or round opened twice is one, a round closed twice is scored once and a book closed twice ranked once, each told again (`RoundScored`, `BookClosed`), and a close of a round or book never opened scores nothing and is told missed again (`RoundMissed`, `BookMissed`); the gamemaster keeps each answer once |
-| `commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet` (each module's `handler`) | each command names when it was decided; the module keeps the latest choice (`rules.Choice.Overrules`, `rule_set_choice`), so a command sent again, or an older one, changes nothing |
-| `commands:planet.v1.ResetMap` (`handler`) | planet keeps each reset id in `map_resets`, in the wipe's transaction, so a reset told again wipes nothing |
 | `chat-rooms` | ends the open streams of the room an account left; a second delivery finds none open |
 | `alerts-allegiances` | moves a link's role only when the pledged flag is not the role's already; a second delivery finds it moved |
 | `alerts-attacks` | the watch forgets the attacker's takes once it found an attack, and a flag is pinged once in 3 hours (`attack_pings`), so a take told again finds no second attack |
@@ -177,11 +175,6 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `alerts-joins` | joins only an account not linked to that Discord user yet (`links.Link.Joins`); a second delivery finds the link the first kept, and names the user only if it does not wear its name yet. Auth keeps the grant for ten minutes and deletes nothing on a read, so a try again reads it again |
 | `chat-judge-reports` | the judge keeps a judgement per report (`chat.judgements`, in the transaction that acts on it): a report told again finds it and does nothing; many reports of one message are judged once, by the first that judged it |
 | `commands:support.v1.DecideReport` (support's `handler`) | the report's id is the command's: `SaveOnce` keeps a decision only for a report not decided yet, so one told again, or one the operator decided first, changes nothing |
-| `commands:planet.v1.ArenaCommand` (planet's `handler`) | planet keeps each arena by its id (`arenas`, `closed_arenas`): an arena opens once and never after it closed, and closes once, told again (`ArenaClosed`) at each close |
-| `gamemaster-arenas-opened` | the gamemaster keeps each arena opened once (`opened_arenas`) |
-| `gamemaster-arenas-closed` | the gamemaster keeps each arena closed once (`closed_arenas`) |
-| `gamemaster-rounds`, `gamemaster-books` | the gamemaster keeps each round scored and each book closed it heard (`scored_rounds`, `closed_books`, inserted once), and records its own event only for a new one |
-| `gamemaster-rounds-missed`, `gamemaster-books-missed` | the gamemaster keeps each round and book scoring missed once (`missed_rounds`, `missed_books`), and records nothing |
 
 The marks need each source in order per account, which is why the map facts come from the ledger relay and not from each click: two clicks of one account could reach Redis in the other order. **What stays uncertain, on purpose**: two messages, boxes or answers of one account in the same microsecond, or a clock that jumps back, count once.
 
@@ -196,19 +189,6 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
   gave leave to. `signin.Admitter` records it in the transaction that saves the sign-in and keeps the grant it names.
   It holds no token: the alerts module asks auth for it by the grant's id (`GetDiscordGrant`).
 - `planet.v1.RefuseCaller` and `AdmitCaller`, from the antibot: a lost one leaves a ban the antibot keeps and planet never refuses, or a lifted one planet keeps refusing. `bans.Banner` records the command in the transaction that changes the ban row, under the ban's lock. At each rule set it takes, the first at boot, the antibot records one again for every running ban (`bans.Book.Restate`), so the bans running at a deploy reach planet's new table too, and a set that stops enforcing admits them.
-- `scoring.v1.RoundMissed` and `BookMissed`: a close of a round or book scoring never opened. A lost one is told again
-  at the gamemaster's next close, a minute later, so the outbox is not needed for loss; it is there so the answer is
-  recorded in the order of scoring's other answers. `close_round_usecase` and `close_book_usecase` record each in a
-  transaction of its own.
-- `scoring.v1.RoundScored` and `BookClosed`: the round is scored once and the book closed once, so the answer must be
-  recorded with what it tells. Scoring records each in the transaction that scores the round or closes the book, and
-  again, in a transaction of its own, at each close that finds it done: one the gamemaster never heard is told again a
-  minute later (see [The gamemaster as a reconciler](gamemaster-reconciler.md#every-close-is-answered)).
-- `planet.v1.ArenaOpened`: a lost one is an arena battle whose round never opens, so it scores nothing, since an arena
-  opens once. Planet records it in the transaction that keeps the arena open, before its map plays (`Storage.Blank`).
-- `planet.v1.ArenaClosed`: the arena closes once, so the answer must be recorded with the close. Planet records it in
-  the transaction that closes the arena and deletes its map (planet's first outbox, `planet-outbox`), and again at each
-  close that finds it closed, so one the gamemaster never heard is told again a minute later.
 - `gamemaster.v1.DayEnded`, `BattleEnded` and `SeasonEnded`: the gamemaster records each in the transaction that keeps what it heard from scoring, only when it is new, so the chat announces each podium and champion once.
 - `gamemaster.v1.DayStarted`: the gamemaster records it in the transaction that keeps the day told (`told_days`), only when the day is new or its end moved, so missions keeps each day once.
 - `gamemaster.v1.SeasonStarted` and `BattleStarted`: the gamemaster records each in the same transaction, keeping the season and the battle told (`told_seasons`, `told_battles`), only when new, so the alerts ping each start once.
@@ -229,9 +209,8 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
   the transaction that removes, mutes and keeps the judgement; the relay sends the command to support's stream and the
   event to the listeners (`redis_outbox_sender`), from one outbox.
 - `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the grant's transaction. The relay sends the grants as commands and it as an event (`redis_outbox_sender`), from one outbox.
-- **Not the gamemaster's commands** (`PlayRuleSet`, `ResetMap`, `ScoringCommand`, `ArenaCommand`): the clock decides them, not a transaction. The
-  gamemaster's runners send them with `streams.Commands().Send` and keep what they told only once Redis took it, so a
-  refused send is sent again the next second, and each boot sends again what holds (see [The gamemaster](gamemaster.md)).
+- **Not the gamemaster's calls** to scoring, planet and the antibot: each is an RPC answered at once, and the gamemaster
+  keeps the answer in its own postgres right after the call (see [The gamemaster's calls](#the-gamemasters-calls)).
 - `planet.v1.TilesTaken`, `BombLanded`, `Fortified`, `FlagKnockedOut`, `ShieldPlaced` and `ShieldsStruck`: **the ledger is their outbox.** `ledger/usecases/relay_ledger_usecase` reads what the ledger flushed past `planet.ledger_relayed`, sends it, then moves the row. A take a hard kill loses before its flush is never told, so the stats and the standings never count what the ledger does not hold; a crash between the send and the move tells the batch again, which the marks make harmless. The migration put the row after the last take the old server had published. When the takes and the shields struck moved to one fact per ledger event (2026-11-07, `20261107200000_relay_takes_per_event`), a migration moved the row back to the first event of the last hour, so the new streams tell again what the old ones held unread, and the marks skip what was counted.
 
 Not in an outbox, because a loss is harmless or the next event repairs it: `SignedOut` (the roster drops the visit when it expires), `MessageSent`, `BonusClaimed` and `QuizAnswered` (a stat short by one), an operator's `AccountMuted` (an announcement missed), `progression.v1.StatsChanged` (the next one grants the title), `planet.v1.AllegiancePledged` (a role or a room stream that follows the flag at the next pledge), and planet's facts about callers (`ClickTried` and the rest: a try or a read short, in a watchdog's window). Those go through `facts.Relay`, which sends what `facts.Log` holds every 100ms with `Publish`, in order: a crash loses the last 100ms of them.
@@ -243,8 +222,8 @@ Not in an outbox, because a loss is harmless or the next event repairs it: `Sign
 **A command, over Redis Streams, through the sender's outbox.** A module that needs another to change its own state
 does not call it: it records a command in the receiver's language (`proto/<receiver>/v1/commands.proto`,
 `planet.v1.GrantCharges`) in its outbox, in the transaction of what decided it, and the relay sends it. The receiver
-never learns who sent it, as an emitter never learns who listens. The rule schedule's commands, which the clock
-decides, are sent straight (see [The rule schedule](gamemaster.md)).
+never learns who sent it, as an emitter never learns who listens. The gamemaster's, which the clock decides and
+which wait on their answers, are calls instead (see [The gamemaster's calls](#the-gamemasters-calls)).
 
 - **One stream per type of command** (`commands:planet.v1.GrantCharges`), apart from the events, with **one group**
   (`handler`): the module that owns the command reads each one once, in order, and one sent before it listened too.
@@ -265,11 +244,34 @@ The commands today:
 | `planet.v1.GrantCharges{grant_id, account_id, kind, amount}` | `missions`, through its outbox | a mission finished: its reward | `planet` (`apply_grant_handler`), which grants what fits the account's stack, once per `grant_id` |
 | `scoring.v1.GrantPoints{grant_id, country, points, granted_at}` | `missions`, through its outbox | a flag finished its flag mission: its points | `scoring` (`grant_points_handler`), which counts them in every book open at `granted_at`, once per `grant_id` |
 | `planet.v1.RefuseCaller{scope \| account_id, until, decided_at}`, `AdmitCaller{scope \| account_id, decided_at}` | `antibot`, through its outbox, from `bans.Banner` (a flag, a ban, an unban) and `bans.Book.Restate` (each rule set taken, the first at boot) | a ban changed: refuse the caller until a time, or admit it from now | `planet` (`refuse_caller_handler`, `admit_caller_handler`), which keeps the latest decision on each caller by `decided_at` in `planet.refused_callers` and refuses clicks, bombs and shields from it |
-| `planet.v1.PlayRuleSet{rule_set, decided_at}`, `antibot.v1.PlayRuleSet{rule_set, decided_at}` | `gamemaster`, straight to the command streams, from `play_schedule_usecase` | the schedule's turn changed, once at each boot, and the same turn again each minute with the same `decided_at` | `planet` and `antibot` (`play_rule_set_handler`), which each play the set when it is newer than the choice kept, and refuse a set they keep none of |
 | `support.v1.DecideReport{report_id, outcome, comment}` | `chat`, through its outbox, from `judge_report_usecase` | the judge acted on a report or dismissed it; a report it leaves open sends none | `support` (`decide_report_handler`), which keeps the decision once per report with `decide_report_usecase`, and leaves one decided already |
-| `planet.v1.ResetMap{reset_id, decided_at}` | `gamemaster`, straight to planet's command stream, from `play_resets_usecase` | a season after season 0 runs and scoring answered the book before it, once per process | `planet` (`reset_map_handler`), which wipes the map once per reset id it keeps in `map_resets` (see [The map reset](map-reset.md)) |
-| `planet.v1.ArenaCommand{open_arena \| close_arena}` | `gamemaster`, straight to **one** command stream, from `play_arenas_usecase` | an arena battle runs and scoring answered the round before it (open, until `ArenaOpened`), or it ended and scoring answered its round, scored or missed (close, again each minute until `ArenaClosed`); each boot sends again what holds | `planet` (`arena_command_handler`), which plays the arena's blank map once per arena and the world's again once (see [Arena battles](arenas.md)) |
-| `scoring.v1.ScoringCommand{open_book \| open_round \| close_round \| close_book}` | `gamemaster`, straight to **one** command stream, from `play_scoring_usecase` | a season's start and end (a book), each day's and each battle's start and end (a round), in that order at one instant; a close again each minute until scoring answers it; each boot sends again what holds | `scoring`, which opens, scores and ranks by the ids it is given. **One stream for four kinds, on purpose**: a round must be scored before its book is ranked, and two streams would not keep that order |
+
+### The gamemaster's calls
+
+**The gamemaster asks scoring, planet and the antibot to change something over their `InternalService`, and each call
+answers at once** (the user, 2026-11-11). Until then they were commands on Redis Streams, answered by events through the
+receiver's outbox (`scoring.v1.RoundScored`, `BookClosed`, `RoundMissed`, `BookMissed`, `planet.v1.ArenaOpened`,
+`ArenaClosed`). The gamemaster's reconciler already sent each close again until answered, so the broker added no
+durability: it only added places where an answer was lost (the relay, the stream, the subscriber that buries an event
+after 8 tries), and a buried answer stalled the game. See [The gamemaster as a reconciler](gamemaster-reconciler.md).
+
+| call | when | answers |
+|---|---|---|
+| `scoring.v1.InternalService/OpenBook`, `OpenRound`, `CloseRound`, `CloseBook` | a season's start and end (a book), each day's and each battle's start and end (a round), in that order at one instant, from `play_scoring_usecase` | open; a round `scored_at` or `missed_at`, a book `closed_at` or `missed_at`; `FailedPrecondition` for an open of a book not open, or of a round or book answered missed |
+| `planet.v1.InternalService/OpenArena`, `CloseArena` | an arena battle runs and scoring answered the round before it, or it ended and scoring answered its round, from `play_arenas_usecase` | open or closed; `FailedPrecondition` for an open past the battle's end, of an arena closed, or beside another |
+| `planet.v1.InternalService/ResetMap` | a season after season 0 runs and scoring answered the book before it, from `play_resets_usecase` | wiped, now or before |
+| `planet.v1.InternalService/PlayRuleSet`, `antibot.v1.InternalService/PlayRuleSet` | the schedule's turn changed, or the boot, from `play_schedule_usecase` | played, or a newer decision kept; `FailedPrecondition` for a set the module keeps none of, or cannot play |
+
+- **Each call is idempotent on its receiver**: a book, a round and an arena by its id, a reset by its id, a rule set by
+  its `decided_at` (the latest decision wins). A call made again answers what was done.
+- **A refusal for good is `FailedPrecondition` or `InvalidArgument`**; any other error is no answer, and the gamemaster
+  calls again a minute later. No call goes before the ones ahead of it are answered.
+- **A call cut by its timeout may still run on its receiver**: scoring keeps a round or book it answered missed, under a
+  lock per id, so a late open never lands after it; planet runs a swap of the map (`OpenArena`, `CloseArena`,
+  `ResetMap`) on a context detached from the request, so it never stops halfway.
+- The rest stays a command over Redis: `planet.v1.GrantCharges` and `scoring.v1.GrantPoints` from missions,
+  `RefuseCaller` and `AdmitCaller` from the antibot, `support.v1.DecideReport` from the chat. Each is decided in a
+  transaction and sent through its sender's outbox, and none waits on an answer.
 
 **In process still, on purpose**: the live fanouts to open browser streams (the tile map, the chat feed, the roster and the titles, the season boards and the race) are not module-to-module; they are lossy by design, and a client reads again when its stream reopens.
 
@@ -307,11 +309,6 @@ The events today:
 | `player.v1.PlayerLeaving{account_id, decided_at}`, `PlayerReturned{account_id, decided_at}` | `player`, through its outbox, from `decide_departure_usecase` | with each decision on a departure, applied or not: `AccountDeletionRequested` and `AccountRestored` heard | `progression`, which keeps the latest and hides or shows the account's badges and progress; `scoring` (`scoring-departures-leaving`, `scoring-departures-returns`), which keeps the latest and ranks the account or not; `alerts` (`alerts-names-leaving`, `alerts-names-returns`), which asks player the name now and takes the Discord nickname off or gives it back |
 | `player.v1.PlayerForgotten{account_id}` | `player`, through its outbox, from `forget_account_usecase` | with the deletion of the profile and the guest code, for every `AccountDeleted` heard, an account player kept nothing about too | `progression`, which forgets the stats, the titles, the title worn, the fights, the nameplate and the departure; `planet` (`planet-ledger-forgotten`), which takes the account off every take postgres keeps; `chat`, which forgets the seen mark (`chat-seen-forgotten`) and the account's moderation history (`chat-moderation-forgotten`); `scoring`, which forgets the account's tallies (`seasons-standings-forgotten`), its takes in the rounds (`seasons-rounds-forgotten`), the player (`scoring-players-forgotten`) and the departure (`scoring-departures-forgotten`); `support`, which takes the account off the notes it sent (`support-notes-forgotten`) and deletes the reports that name it (`support-reports-forgotten`); `missions` (`missions-forgotten`), which forgets the account's briefs, sheets, progress and payments; `alerts` (`alerts-forgotten`), which takes the Discord nickname off and forgets the link; `clips`, which forgets the account's appearances (`clips-appearances-forgotten`) and opt-out (`clips-optouts-forgotten`) and its name in the casts (`clips-casts-forgotten`) |
 | `progression.v1.StatsChanged{account_id}` | `progression`, `record_stats_usecase` | after each take, message, bomb, fortify, box, right answer or missions paid is counted on the account's stats; a failed write publishes nothing | `progression`, which grants the titles the stats now earn. Until 2026-11-04 it was `player.v1.StatsChanged` |
-| `planet.v1.ArenaOpened{arena_id, opened_at}` | `planet`, through its outbox, from `open_arena_usecase` | an arena opened: its blank map plays | `gamemaster` (`gamemaster-arenas-opened`), which opens the arena battle's round, from nothing |
-| `planet.v1.ArenaClosed{arena_id, closed_at}` | `planet`, through its outbox, from `close_arena_usecase` | an arena closed: the map from before it is back, or it never opened | `gamemaster` (`gamemaster-arenas-closed`), which lets what waited for the map open |
-| `scoring.v1.RoundScored{round_id, book_id, ended_at}` | `scoring`, through its outbox | a round closed: scored from the map then, its points times its times | `gamemaster`, which tells which day or battle it was |
-| `scoring.v1.BookClosed{book_id, ended_at}` | `scoring`, through its outbox | a book closed | `gamemaster`, which tells which season it was |
-| `scoring.v1.RoundMissed{round_id, ended_at}`, `BookMissed{book_id, ended_at}` | `scoring`, through its outbox | a close of a round or book it never opened, at each such close | `gamemaster`, which closes it no more and tells nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)) |
 | `gamemaster.v1.DayStarted{season, day, round_id, book_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the day that runs, once as it starts (a boot tells it if it was never told), and again when a moved season end moves its end | `missions`, which keeps it: a fact counts in the day that runs at its time |
 | `gamemaster.v1.SeasonStarted{season, book_id, starts_at, ends_at}`, `BattleStarted{season, number, entry_id, times, ends_season, round_id, starts_at, ends_at}` | `gamemaster`, through its outbox, from `tell_starts_usecase` | the season and the battle (the finale too) that run, once as each starts; a boot tells one that runs if it was never told, never one that ended | `alerts`, which pings the server |
 | `gamemaster.v1.DayEnded{season, day, round_id, ended_at}`, `BattleEnded{season, number, entry_id, times, ends_season, round_id, ended_at}`, `SeasonEnded{season, book_id, ended_at, finale_round_id}` | `gamemaster`, through its outbox, once scoring scored it | a day, a battle or a season ended, in the game's words, with the ids to read its numbers by | `chat`, which reads the numbers from scoring and announces the podium or the champion; `progression`, which records a season's finale fighters from scoring (`SeasonEnded`) |

@@ -12,6 +12,10 @@ type Books interface {
 	Open(ctx context.Context, book Book) (bool, error)
 	// Close answers whether this call closed the book: one closed before is left as it is.
 	Close(ctx context.Context, book Book) (bool, error)
+	// Lock holds the id until the transaction ctx carries ends: call it in one.
+	Lock(ctx context.Context, id BookID) error
+	Missed(ctx context.Context, id BookID) (MissedBook, bool, error)
+	KeepMissed(ctx context.Context, missed MissedBook) error
 }
 
 type Rounds interface {
@@ -26,6 +30,10 @@ type Rounds interface {
 	Score(ctx context.Context, scored Scored) (bool, error)
 	// ScoredIn is every round of the book scored, in the order they ended.
 	ScoredIn(ctx context.Context, book BookID) ([]Scored, error)
+	// Lock holds the id until the transaction ctx carries ends: call it in one.
+	Lock(ctx context.Context, id RoundID) error
+	Missed(ctx context.Context, id RoundID) (MissedRound, bool, error)
+	KeepMissed(ctx context.Context, missed MissedRound) error
 }
 
 type Grants interface {

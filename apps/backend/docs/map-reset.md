@@ -1,25 +1,29 @@
 # The map reset
 
-**A season after season 0 starts on a blank map** (the owner, 2026-10-28). The gamemaster tells planet when; planet
+**A season after season 0 starts on a blank map** (the owner, 2026-10-28). The gamemaster calls planet when; planet
 wipes the map once per reset, and every client reads the blank map again through the path it already takes after a
 restart.
 
 ## Who decides, who wipes
 
 - **The gamemaster decides when** (`season.Window.StartsOnBlankMap`: every season but season 0).
-  `play_resets_usecase` runs every second, the first step of the gamemaster's [plan tick](gamemaster.md#one-plan-a-tick) (`gamemaster-plan`), over the plan: once the running season is one that
-  starts on a blank map, **scoring answered the book of the season before it** (closed, or missed: `closed_books`,
-  `missed_books`), and no arena battle that ended before it waits for its map (`Plan.Waits`: the arena battle's end would
-  put the old season's map back, see [Arena battles](arenas.md)), all in `Plan.ResetAt`, it sends `planet.v1.ResetMap{reset_id: "season-N", decided_at: its start}` on planet's command stream
-  (`season/redis_map_commands`), **once per process**, and again at the next second if Redis refused it.
-  `log_play_resets` logs it at Warn (`planet is told to reset the map`). A boot during the season sends it again:
-  planet keeps the id and wipes nothing.
-- **The book before it comes first**: scoring closes it after the finale's round, on its one stream, so the finale is
-  read on the map it was fought on, then planet wipes. Until 2026-11-10 the reset went at the season's start: with a
+  `play_resets_usecase` runs every second, the first step of the gamemaster's map tick (`gamemaster-maps`, see
+  [One plan a tick](gamemaster.md#one-plan-a-tick)), over the plan: once the running season is one that starts on a
+  blank map, **scoring answered the book of the season before it** (closed, or missed: `closed_books`, `missed_books`),
+  and no arena battle that ended before it waits for its map (`Plan.Waits`: the arena battle's end would put the old
+  season's map back, see [Arena battles](arenas.md)), all in `Plan.ResetAt`, it calls
+  `planet.v1.InternalService/ResetMap{reset_id: "season-N", decided_at: its start}` (`season/rpc_planet_resets`) **until
+  planet answers**, a minute apart, and keeps the answer in `gamemaster.reset_seasons` right after the call, so a boot
+  asks it no more. A refusal (`InvalidArgument`: no id or no time) is kept for the process. `log_play_resets` logs the
+  answer at Warn (`planet reset the map`).
+- **The book before it comes first**: the gamemaster closes it only once the finale's round is answered, so the finale
+  is read on the map it was fought on, then planet wipes. Until 2026-11-10 the reset went at the season's start: with a
   break of 0, or a restart across it, planet could wipe the map before scoring read the finale. See [The gamemaster as a
   reconciler](gamemaster-reconciler.md).
-- **Planet wipes** (`commands/reset_map_handler`, `resets/usecases/reset_map_usecase`, `log_reset_map`): a command
-  with no id or no time is dropped (`resets.ErrInvalidReset`); otherwise `inmemory_tile_storage.Storage.Wipe` runs.
+- **Planet wipes** (`planetv1controller/reset_map_handler`, `resets/usecases/reset_map_usecase`, `log_reset_map`): a
+  call with no id or no time is `InvalidArgument` (`resets.ErrInvalidReset`); otherwise
+  `inmemory_tile_storage.Storage.Wipe` runs, **on a context detached from the request**: a caller that gives up (its
+  timeout is 30 s) never stops the wipe halfway, and the next call finds the reset kept and answers it.
 
 ## The wipe, once
 
@@ -61,9 +65,11 @@ since the world's map comes back: see [Arena battles](arenas.md#the-ledgers-read
 the fortify lock gone, the new epoch and every stream cut, a reset kept already wiping nothing, and a failed keep
 leaving the map. `postgres_tile_store`'s pins the delete in the reset's transaction and its rollback;
 `postgres_reset_store`'s each reset kept once and read by time; `replay_usecase`'s a replay over a reset, a window
-before one, and a reset before the window; `reset_map_handler`'s a command dropped with no id or no time.
+before one, and a reset before the window; `reset_map_handler`'s `InvalidArgument` with no id or no time.
 `finalnight/season_one_test.go` plays Sat 31 Oct 22:59:59 to Sun 1 Nov 15:01, second by second: the finale's set, then
 `frozen` from 23:00, then `default` and one reset at 15:00 with season 1's book and day 1, nothing opened over the break,
-and a boot after that tells the reset again. `finalnight/no_break_test.go` plays season 1 right after the Final Battle,
-and a restart across that end, with scoring answering late: the reset comes after the finale is scored and the book
-closed. `play_resets_usecase`'s tests pin the reset held until the book before it is closed or told missed.
+and a boot after that asks no reset. `finalnight/no_break_test.go` plays season 1 right after the Final Battle, and a
+restart across that end, with scoring slower than the call: the reset comes after the finale is scored and the book
+closed. `play_resets_usecase`'s tests pin the reset held until the book before it is closed or missed, kept for the next
+boot, called again a minute after no answer, and a refusal not called again; `reset_map_handler`'s a wipe that goes on
+when the caller gives up.

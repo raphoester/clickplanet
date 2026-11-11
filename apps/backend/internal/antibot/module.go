@@ -18,11 +18,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/inspect_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/unban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans/outbox_planet_enforcer"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/commands/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
@@ -97,11 +97,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to play the antibot rules postgres keeps: %w", err)
 			}
-			chosen, err := cpredis.Handle(ctx, streams, play_rule_set_handler.New(playRules))
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to handle antibot.v1.PlayRuleSet: %w", err)
-			}
 
 			marks := listener.NewMarks()
 			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book, warner,
@@ -120,7 +115,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: the evidence and the outbox keep being written until the last fact is handled.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-				watchdogs.Hearing(feeds...), chosen, cpoutbox.NewRelay(moduleName, db, streams.Commands(), props.Logger))))
+				watchdogs.Hearing(feeds...), cpoutbox.NewRelay(moduleName, db, streams.Commands(), props.Logger))))
 
 			admin := antibotv1controller.AdminService{
 				BanPlayerHandler: ban_player_handler.New(
@@ -152,6 +147,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			internalService := antibotv1controller.InternalService{
+				PlayRuleSetHandler:     play_rule_set_handler.New(playRules),
 				GetRuleSetNamesHandler: get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

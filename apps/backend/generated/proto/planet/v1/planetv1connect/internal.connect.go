@@ -33,6 +33,18 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// InternalServicePlayRuleSetProcedure is the fully-qualified name of the InternalService's
+	// PlayRuleSet RPC.
+	InternalServicePlayRuleSetProcedure = "/planet.v1.InternalService/PlayRuleSet"
+	// InternalServiceResetMapProcedure is the fully-qualified name of the InternalService's ResetMap
+	// RPC.
+	InternalServiceResetMapProcedure = "/planet.v1.InternalService/ResetMap"
+	// InternalServiceOpenArenaProcedure is the fully-qualified name of the InternalService's OpenArena
+	// RPC.
+	InternalServiceOpenArenaProcedure = "/planet.v1.InternalService/OpenArena"
+	// InternalServiceCloseArenaProcedure is the fully-qualified name of the InternalService's
+	// CloseArena RPC.
+	InternalServiceCloseArenaProcedure = "/planet.v1.InternalService/CloseArena"
 	// InternalServiceGetLedgerProcedure is the fully-qualified name of the InternalService's GetLedger
 	// RPC.
 	InternalServiceGetLedgerProcedure = "/planet.v1.InternalService/GetLedger"
@@ -64,6 +76,26 @@ const (
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
 type InternalServiceClient interface {
+	// Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a call made twice, or after a
+	// newer one, changes nothing. FailedPrecondition for a name planet keeps no set of, or a set it cannot play: planet
+	// plays on the set it plays.
+	PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error)
+	// Wipes the map: every tile goes blank, with no holder and no shield, and every fortify lock goes. The map starts a
+	// new epoch, so every client reads it again. Planet keeps each reset_id it applied, so a reset asked twice wipes
+	// once. decided_at is when the reset is due: a replay never reaches before it. The wipe goes on when the caller gives
+	// up. InvalidArgument for a reset with no id or no time.
+	ResetMap(context.Context, *connect.Request[v1.ResetMapRequest]) (*connect.Response[v1.ResetMapResponse], error)
+	// An arena is the blank map an arena battle is fought on, kept apart from the world's map, which plays again when it
+	// closes. Each call is idempotent by arena_id, and its swap of the map goes on when the caller gives up.
+	//
+	// Plays the arena's map, fresh, while the world's map stays as it is: a new epoch, so every client reads the map
+	// again. The map starts as rule_set's seed says. Every play is refused for rule_set's arena.freeze after it opens and
+	// before ends_at. An arena open already is left as it is. FailedPrecondition for an arena closed already, at or after
+	// ends_at, while another is open, or with a set planet cannot seed it with; InvalidArgument for a bad id.
+	OpenArena(context.Context, *connect.Request[v1.OpenArenaRequest]) (*connect.Response[v1.OpenArenaResponse], error)
+	// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
+	// left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
+	CloseArena(context.Context, *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error)
 	// AdminService/GetLedger, for the clips module's cast: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
@@ -94,6 +126,34 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalServiceMethods := v1.File_planet_v1_internal_proto.Services().ByName("InternalService").Methods()
 	return &internalServiceClient{
+		playRuleSet: connect.NewClient[v1.PlayRuleSetRequest, v1.PlayRuleSetResponse](
+			httpClient,
+			baseURL+InternalServicePlayRuleSetProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("PlayRuleSet")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		resetMap: connect.NewClient[v1.ResetMapRequest, v1.ResetMapResponse](
+			httpClient,
+			baseURL+InternalServiceResetMapProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("ResetMap")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		openArena: connect.NewClient[v1.OpenArenaRequest, v1.OpenArenaResponse](
+			httpClient,
+			baseURL+InternalServiceOpenArenaProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("OpenArena")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		closeArena: connect.NewClient[v1.CloseArenaRequest, v1.CloseArenaResponse](
+			httpClient,
+			baseURL+InternalServiceCloseArenaProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("CloseArena")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		getLedger: connect.NewClient[v1.GetLedgerRequest, v1.GetLedgerResponse](
 			httpClient,
 			baseURL+InternalServiceGetLedgerProcedure,
@@ -162,6 +222,10 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // internalServiceClient implements InternalServiceClient.
 type internalServiceClient struct {
+	playRuleSet       *connect.Client[v1.PlayRuleSetRequest, v1.PlayRuleSetResponse]
+	resetMap          *connect.Client[v1.ResetMapRequest, v1.ResetMapResponse]
+	openArena         *connect.Client[v1.OpenArenaRequest, v1.OpenArenaResponse]
+	closeArena        *connect.Client[v1.CloseArenaRequest, v1.CloseArenaResponse]
 	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
 	getLedgerTotals   *connect.Client[v1.GetLedgerTotalsRequest, v1.GetLedgerTotalsResponse]
@@ -171,6 +235,26 @@ type internalServiceClient struct {
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
 	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
 	getRuleSet        *connect.Client[v1.GetRuleSetRequest, v1.GetRuleSetResponse]
+}
+
+// PlayRuleSet calls planet.v1.InternalService.PlayRuleSet.
+func (c *internalServiceClient) PlayRuleSet(ctx context.Context, req *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error) {
+	return c.playRuleSet.CallUnary(ctx, req)
+}
+
+// ResetMap calls planet.v1.InternalService.ResetMap.
+func (c *internalServiceClient) ResetMap(ctx context.Context, req *connect.Request[v1.ResetMapRequest]) (*connect.Response[v1.ResetMapResponse], error) {
+	return c.resetMap.CallUnary(ctx, req)
+}
+
+// OpenArena calls planet.v1.InternalService.OpenArena.
+func (c *internalServiceClient) OpenArena(ctx context.Context, req *connect.Request[v1.OpenArenaRequest]) (*connect.Response[v1.OpenArenaResponse], error) {
+	return c.openArena.CallUnary(ctx, req)
+}
+
+// CloseArena calls planet.v1.InternalService.CloseArena.
+func (c *internalServiceClient) CloseArena(ctx context.Context, req *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error) {
+	return c.closeArena.CallUnary(ctx, req)
 }
 
 // GetLedger calls planet.v1.InternalService.GetLedger.
@@ -220,6 +304,26 @@ func (c *internalServiceClient) GetRuleSet(ctx context.Context, req *connect.Req
 
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
+	// Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a call made twice, or after a
+	// newer one, changes nothing. FailedPrecondition for a name planet keeps no set of, or a set it cannot play: planet
+	// plays on the set it plays.
+	PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error)
+	// Wipes the map: every tile goes blank, with no holder and no shield, and every fortify lock goes. The map starts a
+	// new epoch, so every client reads it again. Planet keeps each reset_id it applied, so a reset asked twice wipes
+	// once. decided_at is when the reset is due: a replay never reaches before it. The wipe goes on when the caller gives
+	// up. InvalidArgument for a reset with no id or no time.
+	ResetMap(context.Context, *connect.Request[v1.ResetMapRequest]) (*connect.Response[v1.ResetMapResponse], error)
+	// An arena is the blank map an arena battle is fought on, kept apart from the world's map, which plays again when it
+	// closes. Each call is idempotent by arena_id, and its swap of the map goes on when the caller gives up.
+	//
+	// Plays the arena's map, fresh, while the world's map stays as it is: a new epoch, so every client reads the map
+	// again. The map starts as rule_set's seed says. Every play is refused for rule_set's arena.freeze after it opens and
+	// before ends_at. An arena open already is left as it is. FailedPrecondition for an arena closed already, at or after
+	// ends_at, while another is open, or with a set planet cannot seed it with; InvalidArgument for a bad id.
+	OpenArena(context.Context, *connect.Request[v1.OpenArenaRequest]) (*connect.Response[v1.OpenArenaResponse], error)
+	// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
+	// left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
+	CloseArena(context.Context, *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error)
 	// AdminService/GetLedger, for the clips module's cast: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
@@ -246,6 +350,34 @@ type InternalServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalServiceMethods := v1.File_planet_v1_internal_proto.Services().ByName("InternalService").Methods()
+	internalServicePlayRuleSetHandler := connect.NewUnaryHandler(
+		InternalServicePlayRuleSetProcedure,
+		svc.PlayRuleSet,
+		connect.WithSchema(internalServiceMethods.ByName("PlayRuleSet")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceResetMapHandler := connect.NewUnaryHandler(
+		InternalServiceResetMapProcedure,
+		svc.ResetMap,
+		connect.WithSchema(internalServiceMethods.ByName("ResetMap")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceOpenArenaHandler := connect.NewUnaryHandler(
+		InternalServiceOpenArenaProcedure,
+		svc.OpenArena,
+		connect.WithSchema(internalServiceMethods.ByName("OpenArena")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceCloseArenaHandler := connect.NewUnaryHandler(
+		InternalServiceCloseArenaProcedure,
+		svc.CloseArena,
+		connect.WithSchema(internalServiceMethods.ByName("CloseArena")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalServiceGetLedgerHandler := connect.NewUnaryHandler(
 		InternalServiceGetLedgerProcedure,
 		svc.GetLedger,
@@ -311,6 +443,14 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case InternalServicePlayRuleSetProcedure:
+			internalServicePlayRuleSetHandler.ServeHTTP(w, r)
+		case InternalServiceResetMapProcedure:
+			internalServiceResetMapHandler.ServeHTTP(w, r)
+		case InternalServiceOpenArenaProcedure:
+			internalServiceOpenArenaHandler.ServeHTTP(w, r)
+		case InternalServiceCloseArenaProcedure:
+			internalServiceCloseArenaHandler.ServeHTTP(w, r)
 		case InternalServiceGetLedgerProcedure:
 			internalServiceGetLedgerHandler.ServeHTTP(w, r)
 		case InternalServiceGetTakesByCountryProcedure:
@@ -337,6 +477,22 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 
 // UnimplementedInternalServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalServiceHandler struct{}
+
+func (UnimplementedInternalServiceHandler) PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.PlayRuleSet is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) ResetMap(context.Context, *connect.Request[v1.ResetMapRequest]) (*connect.Response[v1.ResetMapResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.ResetMap is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) OpenArena(context.Context, *connect.Request[v1.OpenArenaRequest]) (*connect.Response[v1.OpenArenaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.OpenArena is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) CloseArena(context.Context, *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.CloseArena is not implemented"))
+}
 
 func (UnimplementedInternalServiceHandler) GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetLedger is not implemented"))

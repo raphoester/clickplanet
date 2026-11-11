@@ -17,8 +17,9 @@ func New() *Store {
 	return &Store{
 		rounds: map[moments.RoundID]moments.ScoredRound{}, books: map[moments.BookID]moments.ClosedBook{},
 		missedRounds: map[moments.RoundID]moments.MissedRound{}, missedBooks: map[moments.BookID]moments.MissedBook{},
-		opened: cpcolls.NewSet[moments.RoundID](), toldSeasons: cpcolls.NewSet[moments.BookID](),
-		toldDays: map[moments.RoundID]time.Time{}, toldBattles: cpcolls.NewSet[moments.RoundID](),
+		opened: cpcolls.NewSet[moments.RoundID](), reset: cpcolls.NewSet[moments.BookID](),
+		toldSeasons: cpcolls.NewSet[moments.BookID](),
+		toldDays:    map[moments.RoundID]time.Time{}, toldBattles: cpcolls.NewSet[moments.RoundID](),
 	}
 }
 
@@ -29,6 +30,7 @@ type Store struct {
 	missedRounds map[moments.RoundID]moments.MissedRound
 	missedBooks  map[moments.BookID]moments.MissedBook
 	opened       *cpcolls.Set[moments.RoundID]
+	reset        *cpcolls.Set[moments.BookID]
 	toldSeasons  *cpcolls.Set[moments.BookID]
 	toldDays     map[moments.RoundID]time.Time
 	toldBattles  *cpcolls.Set[moments.RoundID]
@@ -102,6 +104,20 @@ func (s *Store) KeepOpened(_ context.Context, round moments.RoundID) error {
 	return nil
 }
 
+func (s *Store) KeepReset(_ context.Context, book moments.BookID) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return false, s.failWith
+	}
+	if s.reset.Contains(book) {
+		return false, nil
+	}
+	s.reset.Add(book)
+	return true, nil
+}
+
 func (s *Store) KeepToldSeason(_ context.Context, book moments.BookID) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -165,6 +181,7 @@ func (s *Store) Kept(context.Context) (moments.Kept, error) {
 	for book := range s.missedBooks {
 		kept.MissedBooks = append(kept.MissedBooks, book)
 	}
+	s.reset.ForEach(func(book moments.BookID) { kept.Reset = append(kept.Reset, book) })
 	return kept, nil
 }
 

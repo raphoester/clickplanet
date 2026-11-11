@@ -9,6 +9,7 @@ package scoringv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -20,6 +21,59 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// How a round places the countries that hold tiles when it closes. Countries in the same place share its points.
+type Ranking int32
+
+const (
+	Ranking_RANKING_UNSPECIFIED Ranking = 0
+	// By the tiles each gained since the round opened, most first; only a gain scores.
+	Ranking_RANKING_GAIN Ranking = 1
+	// By the sum of two ranks, on the tiles each holds and on the tiles it gained, smallest first, the gain's rank
+	// breaking a tie; every country placed scores.
+	Ranking_RANKING_HELD_AND_GAIN Ranking = 2
+)
+
+// Enum value maps for Ranking.
+var (
+	Ranking_name = map[int32]string{
+		0: "RANKING_UNSPECIFIED",
+		1: "RANKING_GAIN",
+		2: "RANKING_HELD_AND_GAIN",
+	}
+	Ranking_value = map[string]int32{
+		"RANKING_UNSPECIFIED":   0,
+		"RANKING_GAIN":          1,
+		"RANKING_HELD_AND_GAIN": 2,
+	}
+)
+
+func (x Ranking) Enum() *Ranking {
+	p := new(Ranking)
+	*p = x
+	return p
+}
+
+func (x Ranking) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Ranking) Descriptor() protoreflect.EnumDescriptor {
+	return file_scoring_v1_internal_proto_enumTypes[0].Descriptor()
+}
+
+func (Ranking) Type() protoreflect.EnumType {
+	return &file_scoring_v1_internal_proto_enumTypes[0]
+}
+
+func (x Ranking) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Ranking.Descriptor instead.
+func (Ranking) EnumDescriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{0}
+}
 
 type GetRankPointsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -409,12 +463,504 @@ func (x *GetTableResponse) GetClosed() bool {
 	return false
 }
 
+type OpenBookRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenBookRequest) Reset() {
+	*x = OpenBookRequest{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenBookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenBookRequest) ProtoMessage() {}
+
+func (x *OpenBookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenBookRequest.ProtoReflect.Descriptor instead.
+func (*OpenBookRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *OpenBookRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *OpenBookRequest) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+// The book is open.
+type OpenBookResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenBookResponse) Reset() {
+	*x = OpenBookResponse{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenBookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenBookResponse) ProtoMessage() {}
+
+func (x *OpenBookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenBookResponse.ProtoReflect.Descriptor instead.
+func (*OpenBookResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{9}
+}
+
+type OpenRoundRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	RoundId string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	BookId  string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	// 1 to 10.
+	Times    uint32                 `protobuf:"varint,3,opt,name=times,proto3" json:"times,omitempty"`
+	StartsAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
+	// The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
+	FromNothing   bool    `protobuf:"varint,5,opt,name=from_nothing,json=fromNothing,proto3" json:"from_nothing,omitempty"`
+	Ranking       Ranking `protobuf:"varint,6,opt,name=ranking,proto3,enum=scoring.v1.Ranking" json:"ranking,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenRoundRequest) Reset() {
+	*x = OpenRoundRequest{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenRoundRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenRoundRequest) ProtoMessage() {}
+
+func (x *OpenRoundRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenRoundRequest.ProtoReflect.Descriptor instead.
+func (*OpenRoundRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *OpenRoundRequest) GetRoundId() string {
+	if x != nil {
+		return x.RoundId
+	}
+	return ""
+}
+
+func (x *OpenRoundRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *OpenRoundRequest) GetTimes() uint32 {
+	if x != nil {
+		return x.Times
+	}
+	return 0
+}
+
+func (x *OpenRoundRequest) GetStartsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartsAt
+	}
+	return nil
+}
+
+func (x *OpenRoundRequest) GetFromNothing() bool {
+	if x != nil {
+		return x.FromNothing
+	}
+	return false
+}
+
+func (x *OpenRoundRequest) GetRanking() Ranking {
+	if x != nil {
+		return x.Ranking
+	}
+	return Ranking_RANKING_UNSPECIFIED
+}
+
+// The round is open.
+type OpenRoundResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenRoundResponse) Reset() {
+	*x = OpenRoundResponse{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenRoundResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenRoundResponse) ProtoMessage() {}
+
+func (x *OpenRoundResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenRoundResponse.ProtoReflect.Descriptor instead.
+func (*OpenRoundResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{11}
+}
+
+type CloseRoundRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoundId       string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseRoundRequest) Reset() {
+	*x = CloseRoundRequest{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseRoundRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseRoundRequest) ProtoMessage() {}
+
+func (x *CloseRoundRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseRoundRequest.ProtoReflect.Descriptor instead.
+func (*CloseRoundRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CloseRoundRequest) GetRoundId() string {
+	if x != nil {
+		return x.RoundId
+	}
+	return ""
+}
+
+func (x *CloseRoundRequest) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+type CloseRoundResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*CloseRoundResponse_ScoredAt
+	//	*CloseRoundResponse_MissedAt
+	Outcome       isCloseRoundResponse_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseRoundResponse) Reset() {
+	*x = CloseRoundResponse{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseRoundResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseRoundResponse) ProtoMessage() {}
+
+func (x *CloseRoundResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseRoundResponse.ProtoReflect.Descriptor instead.
+func (*CloseRoundResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CloseRoundResponse) GetOutcome() isCloseRoundResponse_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *CloseRoundResponse) GetScoredAt() *timestamppb.Timestamp {
+	if x != nil {
+		if x, ok := x.Outcome.(*CloseRoundResponse_ScoredAt); ok {
+			return x.ScoredAt
+		}
+	}
+	return nil
+}
+
+func (x *CloseRoundResponse) GetMissedAt() *timestamppb.Timestamp {
+	if x != nil {
+		if x, ok := x.Outcome.(*CloseRoundResponse_MissedAt); ok {
+			return x.MissedAt
+		}
+	}
+	return nil
+}
+
+type isCloseRoundResponse_Outcome interface {
+	isCloseRoundResponse_Outcome()
+}
+
+type CloseRoundResponse_ScoredAt struct {
+	// The round is scored, by this close or one before: the end it was scored at.
+	ScoredAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=scored_at,json=scoredAt,proto3,oneof"`
+}
+
+type CloseRoundResponse_MissedAt struct {
+	// The round never opened: the end of the close that missed it.
+	MissedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=missed_at,json=missedAt,proto3,oneof"`
+}
+
+func (*CloseRoundResponse_ScoredAt) isCloseRoundResponse_Outcome() {}
+
+func (*CloseRoundResponse_MissedAt) isCloseRoundResponse_Outcome() {}
+
+type CloseBookRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BookId          string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	EndsAt          *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
+	TiebreakRoundId string                 `protobuf:"bytes,3,opt,name=tiebreak_round_id,json=tiebreakRoundId,proto3" json:"tiebreak_round_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *CloseBookRequest) Reset() {
+	*x = CloseBookRequest{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseBookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseBookRequest) ProtoMessage() {}
+
+func (x *CloseBookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseBookRequest.ProtoReflect.Descriptor instead.
+func (*CloseBookRequest) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CloseBookRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *CloseBookRequest) GetEndsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndsAt
+	}
+	return nil
+}
+
+func (x *CloseBookRequest) GetTiebreakRoundId() string {
+	if x != nil {
+		return x.TiebreakRoundId
+	}
+	return ""
+}
+
+type CloseBookResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*CloseBookResponse_ClosedAt
+	//	*CloseBookResponse_MissedAt
+	Outcome       isCloseBookResponse_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CloseBookResponse) Reset() {
+	*x = CloseBookResponse{}
+	mi := &file_scoring_v1_internal_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CloseBookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CloseBookResponse) ProtoMessage() {}
+
+func (x *CloseBookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scoring_v1_internal_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CloseBookResponse.ProtoReflect.Descriptor instead.
+func (*CloseBookResponse) Descriptor() ([]byte, []int) {
+	return file_scoring_v1_internal_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CloseBookResponse) GetOutcome() isCloseBookResponse_Outcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return nil
+}
+
+func (x *CloseBookResponse) GetClosedAt() *timestamppb.Timestamp {
+	if x != nil {
+		if x, ok := x.Outcome.(*CloseBookResponse_ClosedAt); ok {
+			return x.ClosedAt
+		}
+	}
+	return nil
+}
+
+func (x *CloseBookResponse) GetMissedAt() *timestamppb.Timestamp {
+	if x != nil {
+		if x, ok := x.Outcome.(*CloseBookResponse_MissedAt); ok {
+			return x.MissedAt
+		}
+	}
+	return nil
+}
+
+type isCloseBookResponse_Outcome interface {
+	isCloseBookResponse_Outcome()
+}
+
+type CloseBookResponse_ClosedAt struct {
+	// The book is ranked, by this close or one before: the end it was closed at.
+	ClosedAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=closed_at,json=closedAt,proto3,oneof"`
+}
+
+type CloseBookResponse_MissedAt struct {
+	// The book never opened: the end of the close that missed it.
+	MissedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=missed_at,json=missedAt,proto3,oneof"`
+}
+
+func (*CloseBookResponse_ClosedAt) isCloseBookResponse_Outcome() {}
+
+func (*CloseBookResponse_MissedAt) isCloseBookResponse_Outcome() {}
+
 var File_scoring_v1_internal_proto protoreflect.FileDescriptor
 
 const file_scoring_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"\x19scoring/v1/internal.proto\x12\n" +
-	"scoring.v1\x1a\x18scoring/v1/scoring.proto\",\n" +
+	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18scoring/v1/scoring.proto\",\n" +
 	"\x14GetRankPointsRequest\x12\x14\n" +
 	"\x05times\x18\x01 \x01(\rR\x05times\"E\n" +
 	"\x15GetRankPointsResponse\x12,\n" +
@@ -437,8 +983,44 @@ const file_scoring_v1_internal_proto_rawDesc = "" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\"X\n" +
 	"\x10GetTableResponse\x12,\n" +
 	"\x05table\x18\x01 \x03(\v2\x16.scoring.v1.TablePlaceR\x05table\x12\x16\n" +
-	"\x06closed\x18\x02 \x01(\bR\x06closed2\xe5\x02\n" +
+	"\x06closed\x18\x02 \x01(\bR\x06closed\"c\n" +
+	"\x0fOpenBookRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x127\n" +
+	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\x12\n" +
+	"\x10OpenBookResponse\"\xe7\x01\n" +
+	"\x10OpenRoundRequest\x12\x19\n" +
+	"\bround_id\x18\x01 \x01(\tR\aroundId\x12\x17\n" +
+	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x14\n" +
+	"\x05times\x18\x03 \x01(\rR\x05times\x127\n" +
+	"\tstarts_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x12!\n" +
+	"\ffrom_nothing\x18\x05 \x01(\bR\vfromNothing\x12-\n" +
+	"\aranking\x18\x06 \x01(\x0e2\x13.scoring.v1.RankingR\aranking\"\x13\n" +
+	"\x11OpenRoundResponse\"c\n" +
+	"\x11CloseRoundRequest\x12\x19\n" +
+	"\bround_id\x18\x01 \x01(\tR\aroundId\x123\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x95\x01\n" +
+	"\x12CloseRoundResponse\x129\n" +
+	"\tscored_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bscoredAt\x129\n" +
+	"\tmissed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bmissedAtB\t\n" +
+	"\aoutcome\"\x8c\x01\n" +
+	"\x10CloseBookRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x123\n" +
+	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12*\n" +
+	"\x11tiebreak_round_id\x18\x03 \x01(\tR\x0ftiebreakRoundId\"\x94\x01\n" +
+	"\x11CloseBookResponse\x129\n" +
+	"\tclosed_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bclosedAt\x129\n" +
+	"\tmissed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\bmissedAtB\t\n" +
+	"\aoutcome*O\n" +
+	"\aRanking\x12\x17\n" +
+	"\x13RANKING_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\fRANKING_GAIN\x10\x01\x12\x19\n" +
+	"\x15RANKING_HELD_AND_GAIN\x10\x022\xa1\x05\n" +
 	"\x0fInternalService\x12J\n" +
+	"\bOpenBook\x12\x1b.scoring.v1.OpenBookRequest\x1a\x1c.scoring.v1.OpenBookResponse\"\x03\x90\x02\x02\x12M\n" +
+	"\tOpenRound\x12\x1c.scoring.v1.OpenRoundRequest\x1a\x1d.scoring.v1.OpenRoundResponse\"\x03\x90\x02\x02\x12P\n" +
+	"\n" +
+	"CloseRound\x12\x1d.scoring.v1.CloseRoundRequest\x1a\x1e.scoring.v1.CloseRoundResponse\"\x03\x90\x02\x02\x12M\n" +
+	"\tCloseBook\x12\x1c.scoring.v1.CloseBookRequest\x1a\x1d.scoring.v1.CloseBookResponse\"\x03\x90\x02\x02\x12J\n" +
 	"\bGetRound\x12\x1b.scoring.v1.GetRoundRequest\x1a\x1c.scoring.v1.GetRoundResponse\"\x03\x90\x02\x01\x12J\n" +
 	"\bGetTable\x12\x1b.scoring.v1.GetTableRequest\x1a\x1c.scoring.v1.GetTableResponse\"\x03\x90\x02\x01\x12_\n" +
 	"\x0fGetRoundPlayers\x12\".scoring.v1.GetRoundPlayersRequest\x1a#.scoring.v1.GetRoundPlayersResponse\"\x03\x90\x02\x01\x12Y\n" +
@@ -459,37 +1041,65 @@ func file_scoring_v1_internal_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_internal_proto_rawDescData
 }
 
-var file_scoring_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_scoring_v1_internal_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_scoring_v1_internal_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_scoring_v1_internal_proto_goTypes = []any{
-	(*GetRankPointsRequest)(nil),    // 0: scoring.v1.GetRankPointsRequest
-	(*GetRankPointsResponse)(nil),   // 1: scoring.v1.GetRankPointsResponse
-	(*RankPoints)(nil),              // 2: scoring.v1.RankPoints
-	(*GetRoundPlayersRequest)(nil),  // 3: scoring.v1.GetRoundPlayersRequest
-	(*GetRoundPlayersResponse)(nil), // 4: scoring.v1.GetRoundPlayersResponse
-	(*RoundPlayer)(nil),             // 5: scoring.v1.RoundPlayer
-	(*GetTableRequest)(nil),         // 6: scoring.v1.GetTableRequest
-	(*GetTableResponse)(nil),        // 7: scoring.v1.GetTableResponse
-	(*TablePlace)(nil),              // 8: scoring.v1.TablePlace
-	(*GetRoundRequest)(nil),         // 9: scoring.v1.GetRoundRequest
-	(*GetRoundResponse)(nil),        // 10: scoring.v1.GetRoundResponse
+	(Ranking)(0),                    // 0: scoring.v1.Ranking
+	(*GetRankPointsRequest)(nil),    // 1: scoring.v1.GetRankPointsRequest
+	(*GetRankPointsResponse)(nil),   // 2: scoring.v1.GetRankPointsResponse
+	(*RankPoints)(nil),              // 3: scoring.v1.RankPoints
+	(*GetRoundPlayersRequest)(nil),  // 4: scoring.v1.GetRoundPlayersRequest
+	(*GetRoundPlayersResponse)(nil), // 5: scoring.v1.GetRoundPlayersResponse
+	(*RoundPlayer)(nil),             // 6: scoring.v1.RoundPlayer
+	(*GetTableRequest)(nil),         // 7: scoring.v1.GetTableRequest
+	(*GetTableResponse)(nil),        // 8: scoring.v1.GetTableResponse
+	(*OpenBookRequest)(nil),         // 9: scoring.v1.OpenBookRequest
+	(*OpenBookResponse)(nil),        // 10: scoring.v1.OpenBookResponse
+	(*OpenRoundRequest)(nil),        // 11: scoring.v1.OpenRoundRequest
+	(*OpenRoundResponse)(nil),       // 12: scoring.v1.OpenRoundResponse
+	(*CloseRoundRequest)(nil),       // 13: scoring.v1.CloseRoundRequest
+	(*CloseRoundResponse)(nil),      // 14: scoring.v1.CloseRoundResponse
+	(*CloseBookRequest)(nil),        // 15: scoring.v1.CloseBookRequest
+	(*CloseBookResponse)(nil),       // 16: scoring.v1.CloseBookResponse
+	(*TablePlace)(nil),              // 17: scoring.v1.TablePlace
+	(*timestamppb.Timestamp)(nil),   // 18: google.protobuf.Timestamp
+	(*GetRoundRequest)(nil),         // 19: scoring.v1.GetRoundRequest
+	(*GetRoundResponse)(nil),        // 20: scoring.v1.GetRoundResponse
 }
 var file_scoring_v1_internal_proto_depIdxs = []int32{
-	2,  // 0: scoring.v1.GetRankPointsResponse.ranks:type_name -> scoring.v1.RankPoints
-	5,  // 1: scoring.v1.GetRoundPlayersResponse.players:type_name -> scoring.v1.RoundPlayer
-	8,  // 2: scoring.v1.GetTableResponse.table:type_name -> scoring.v1.TablePlace
-	9,  // 3: scoring.v1.InternalService.GetRound:input_type -> scoring.v1.GetRoundRequest
-	6,  // 4: scoring.v1.InternalService.GetTable:input_type -> scoring.v1.GetTableRequest
-	3,  // 5: scoring.v1.InternalService.GetRoundPlayers:input_type -> scoring.v1.GetRoundPlayersRequest
-	0,  // 6: scoring.v1.InternalService.GetRankPoints:input_type -> scoring.v1.GetRankPointsRequest
-	10, // 7: scoring.v1.InternalService.GetRound:output_type -> scoring.v1.GetRoundResponse
-	7,  // 8: scoring.v1.InternalService.GetTable:output_type -> scoring.v1.GetTableResponse
-	4,  // 9: scoring.v1.InternalService.GetRoundPlayers:output_type -> scoring.v1.GetRoundPlayersResponse
-	1,  // 10: scoring.v1.InternalService.GetRankPoints:output_type -> scoring.v1.GetRankPointsResponse
-	7,  // [7:11] is the sub-list for method output_type
-	3,  // [3:7] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	3,  // 0: scoring.v1.GetRankPointsResponse.ranks:type_name -> scoring.v1.RankPoints
+	6,  // 1: scoring.v1.GetRoundPlayersResponse.players:type_name -> scoring.v1.RoundPlayer
+	17, // 2: scoring.v1.GetTableResponse.table:type_name -> scoring.v1.TablePlace
+	18, // 3: scoring.v1.OpenBookRequest.starts_at:type_name -> google.protobuf.Timestamp
+	18, // 4: scoring.v1.OpenRoundRequest.starts_at:type_name -> google.protobuf.Timestamp
+	0,  // 5: scoring.v1.OpenRoundRequest.ranking:type_name -> scoring.v1.Ranking
+	18, // 6: scoring.v1.CloseRoundRequest.ends_at:type_name -> google.protobuf.Timestamp
+	18, // 7: scoring.v1.CloseRoundResponse.scored_at:type_name -> google.protobuf.Timestamp
+	18, // 8: scoring.v1.CloseRoundResponse.missed_at:type_name -> google.protobuf.Timestamp
+	18, // 9: scoring.v1.CloseBookRequest.ends_at:type_name -> google.protobuf.Timestamp
+	18, // 10: scoring.v1.CloseBookResponse.closed_at:type_name -> google.protobuf.Timestamp
+	18, // 11: scoring.v1.CloseBookResponse.missed_at:type_name -> google.protobuf.Timestamp
+	9,  // 12: scoring.v1.InternalService.OpenBook:input_type -> scoring.v1.OpenBookRequest
+	11, // 13: scoring.v1.InternalService.OpenRound:input_type -> scoring.v1.OpenRoundRequest
+	13, // 14: scoring.v1.InternalService.CloseRound:input_type -> scoring.v1.CloseRoundRequest
+	15, // 15: scoring.v1.InternalService.CloseBook:input_type -> scoring.v1.CloseBookRequest
+	19, // 16: scoring.v1.InternalService.GetRound:input_type -> scoring.v1.GetRoundRequest
+	7,  // 17: scoring.v1.InternalService.GetTable:input_type -> scoring.v1.GetTableRequest
+	4,  // 18: scoring.v1.InternalService.GetRoundPlayers:input_type -> scoring.v1.GetRoundPlayersRequest
+	1,  // 19: scoring.v1.InternalService.GetRankPoints:input_type -> scoring.v1.GetRankPointsRequest
+	10, // 20: scoring.v1.InternalService.OpenBook:output_type -> scoring.v1.OpenBookResponse
+	12, // 21: scoring.v1.InternalService.OpenRound:output_type -> scoring.v1.OpenRoundResponse
+	14, // 22: scoring.v1.InternalService.CloseRound:output_type -> scoring.v1.CloseRoundResponse
+	16, // 23: scoring.v1.InternalService.CloseBook:output_type -> scoring.v1.CloseBookResponse
+	20, // 24: scoring.v1.InternalService.GetRound:output_type -> scoring.v1.GetRoundResponse
+	8,  // 25: scoring.v1.InternalService.GetTable:output_type -> scoring.v1.GetTableResponse
+	5,  // 26: scoring.v1.InternalService.GetRoundPlayers:output_type -> scoring.v1.GetRoundPlayersResponse
+	2,  // 27: scoring.v1.InternalService.GetRankPoints:output_type -> scoring.v1.GetRankPointsResponse
+	20, // [20:28] is the sub-list for method output_type
+	12, // [12:20] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_internal_proto_init() }
@@ -498,18 +1108,27 @@ func file_scoring_v1_internal_proto_init() {
 		return
 	}
 	file_scoring_v1_scoring_proto_init()
+	file_scoring_v1_internal_proto_msgTypes[13].OneofWrappers = []any{
+		(*CloseRoundResponse_ScoredAt)(nil),
+		(*CloseRoundResponse_MissedAt)(nil),
+	}
+	file_scoring_v1_internal_proto_msgTypes[15].OneofWrappers = []any{
+		(*CloseBookResponse_ClosedAt)(nil),
+		(*CloseBookResponse_MissedAt)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_internal_proto_rawDesc), len(file_scoring_v1_internal_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   8,
+			NumEnums:      1,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_scoring_v1_internal_proto_goTypes,
 		DependencyIndexes: file_scoring_v1_internal_proto_depIdxs,
+		EnumInfos:         file_scoring_v1_internal_proto_enumTypes,
 		MessageInfos:      file_scoring_v1_internal_proto_msgTypes,
 	}.Build()
 	File_scoring_v1_internal_proto = out.File

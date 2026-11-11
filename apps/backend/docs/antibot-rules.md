@@ -112,9 +112,9 @@ each time it is called. They call it when they judge, not when they are built: a
 judgement sees one set.
 
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
-  chose last, and `default` until it chose one; then each `antibot.v1.PlayRuleSet` the schedule sends (`Play`, from
-  `commands/play_rule_set_handler`); the same turn, sent again each minute with the same `decided_at`, is no newer
-  and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). After each save, `Execute` plays the set chosen last again (see [The
+  chose last, and `default` until it chose one; then each `antibot.v1.InternalService/PlayRuleSet` the schedule calls
+  (`Play`, from `antibotv1controller/play_rule_set_handler`); the same turn called again, with the same `decided_at`, is
+  no newer and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). After each save, `Execute` plays the set chosen last again (see [The
   operator](#the-operator)), so a save of the set in force takes over at once. Each time it reads the set to play from the store, which restores it, and enforces it when its
   values changed (`Set.Equal`), one play at a time under a lock. A missing set at boot refuses the boot. A failed read,
   or a kept set that cannot play, keeps the rules in force; the caller gets the error and `log_play_rules` logs it.
@@ -122,11 +122,12 @@ judgement sees one set.
   that change the rules in force, a push is enough, and a hand edit in SQL takes effect at the next play or boot.
 - **The choice is kept** in `antibot.rule_set_choice` (`rules.Choice`, one row, `postgres_choice_store`): a later
   decision overrules it, and an older one or one sent again changes nothing. A set the antibot keeps none of is
-  refused: the rules in force stay, the choice is not kept, and the command is dropped.
+  refused (`FailedPrecondition`): the rules in force stay, the choice is not kept, and the schedule calls again each
+  minute.
 - **Each set taken tells planet every running ban again** (`bans.Book.Restate`), under the set's `bans.enforce`: a set
   that stops enforcing admits the banned callers at once, and one that enforces refuses them again. The first take is at
   boot, before the antibot hears anything, so the bans running at a deploy reach planet's table as before. A failed
-  restatement is tried again at the next play: the redelivery of the command, or the next boot.
+  restatement fails the call, and is tried again at the next play: the schedule's call a minute later, or the next boot.
 - **`log_play_rules` logs each set taken** at Warn (`antibot rules in force`, `set`, `rules` as protojson), and each
   failure or refusal at Error, and the start line (`antibot enabled`) names the set and the watchdogs on.
 
@@ -140,7 +141,7 @@ off in the YAML was never built. `TestAWatchdogTurnedOffKeepsWatchingAndCountsFo
 
 ## Which set plays
 
-**The schedule picks it**, in the gamemaster module, and commands it in the antibot's words (`antibot.v1.PlayRuleSet`, see
+**The schedule picks it**, in the gamemaster module, and calls it in the antibot's words (`antibot.v1.InternalService/PlayRuleSet`, see
 [The gamemaster module](gamemaster.md)). The antibot was to follow the name of planet's set; now each module is told
 on its own, so planet never hears of a crowd, and the antibot never follows planet.
 
@@ -149,7 +150,7 @@ on its own, so planet never hears of a crowd, and the antibot never follows plan
   refuses an entry of a set the antibot lacks.
 - **For the Final Battle** (Sat 31 Oct 2026, 21:00–23:00 UTC), an entry plays `rush`. An antibot set `rush` that holds
   `cohort.certainMembers` 50 makes the crowd bound 50 for the evening, and judges with default's for the rest. It must
-  be saved before 21:00: an antibot with no `rush` refuses the command and keeps `default`. A save of `rush` while it
+  be saved before 21:00: an antibot with no `rush` refuses the call and keeps `default`. A save of `rush` while it
   plays takes over at once.
 
 ## The machine, in the YAML

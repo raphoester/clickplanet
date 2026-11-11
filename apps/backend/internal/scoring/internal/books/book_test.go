@@ -36,7 +36,6 @@ func TestARoundScoresOneToTenTimes(t *testing.T) {
 	for _, times := range []uint32{0, 11} {
 		_, err := books.NewRound("battle", "season-0", times, books.GainRanking{}, utc(31, 21))
 		require.ErrorIs(t, err, books.ErrInvalidTimes)
-		require.ErrorIs(t, err, books.ErrRefused)
 	}
 	round, err := books.NewRound("battle", "season-0", 10, books.GainRanking{}, utc(31, 21))
 	require.NoError(t, err)

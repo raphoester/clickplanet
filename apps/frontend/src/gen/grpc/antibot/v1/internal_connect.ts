@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRuleSetNamesRequest, GetRuleSetNamesResponse } from "./internal_pb.js";
+import { GetRuleSetNamesRequest, GetRuleSetNamesResponse, PlayRuleSetRequest, PlayRuleSetResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -12,6 +12,20 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const InternalService = {
   typeName: "antibot.v1.InternalService",
   methods: {
+    /**
+     * Judges with the rule set of this name. The antibot keeps the latest decision by decided_at, so a call made twice,
+     * or after a newer one, changes nothing. FailedPrecondition for a name the antibot keeps no set of, or a set it cannot
+     * play: it judges on with the set it plays.
+     *
+     * @generated from rpc antibot.v1.InternalService.PlayRuleSet
+     */
+    playRuleSet: {
+      name: "PlayRuleSet",
+      I: PlayRuleSetRequest,
+      O: PlayRuleSetResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
     /**
      * @generated from rpc antibot.v1.InternalService.GetRuleSetNames
      */

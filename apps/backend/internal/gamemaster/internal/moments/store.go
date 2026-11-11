@@ -36,7 +36,7 @@ type ToldDay struct {
 	EndsAt time.Time
 }
 
-// Store keeps what scoring told, each once, each day as it was told, and each season and battle told.
+// Store keeps what scoring and planet answered, each once, each day as it was told, and each season and battle told.
 type Store interface {
 	// KeepRound is true when the round was not kept yet.
 	KeepRound(ctx context.Context, scored ScoredRound) (bool, error)
@@ -47,13 +47,15 @@ type Store interface {
 	// KeepMissedBook is true when the book was not kept missed yet.
 	KeepMissedBook(ctx context.Context, missed MissedBook) (bool, error)
 	KeepOpened(ctx context.Context, round RoundID) error
+	// KeepReset is true when the season's reset, by its book, was not kept yet.
+	KeepReset(ctx context.Context, book BookID) (bool, error)
 	// KeepToldSeason is true when the season was not told yet.
 	KeepToldSeason(ctx context.Context, book BookID) (bool, error)
 	// KeepToldDay is true when the day was not told yet, or was told with another end.
 	KeepToldDay(ctx context.Context, day ToldDay) (bool, error)
 	// KeepToldBattle is true when the battle was not told yet.
 	KeepToldBattle(ctx context.Context, round RoundID) (bool, error)
-	// Kept is every round opened, and every round and book scoring answered, in one read.
+	// Kept is every round opened, every round and book scoring answered, and every season reset, in one read.
 	Kept(ctx context.Context) (Kept, error)
 }
 

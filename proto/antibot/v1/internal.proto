@@ -2,7 +2,16 @@ syntax = "proto3";
 
 package antibot.v1;
 
+import "google/protobuf/timestamp.proto";
+
 service InternalService {
+  // Judges with the rule set of this name. The antibot keeps the latest decision by decided_at, so a call made twice,
+  // or after a newer one, changes nothing. FailedPrecondition for a name the antibot keeps no set of, or a set it cannot
+  // play: it judges on with the set it plays.
+  rpc PlayRuleSet(PlayRuleSetRequest) returns (PlayRuleSetResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
   rpc GetRuleSetNames(GetRuleSetNamesRequest) returns (GetRuleSetNamesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -14,3 +23,11 @@ message GetRuleSetNamesRequest {}
 message GetRuleSetNamesResponse {
   repeated string names = 1;
 }
+
+message PlayRuleSetRequest {
+  string rule_set = 1;
+  google.protobuf.Timestamp decided_at = 2;
+}
+
+// The antibot judges with the latest decision.
+message PlayRuleSetResponse {}

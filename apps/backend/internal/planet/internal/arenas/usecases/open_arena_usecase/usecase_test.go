@@ -1,16 +1,13 @@
 package open_arena_usecase_test
 
 import (
-	"context"
 	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
@@ -31,28 +28,10 @@ var (
 	ends   = time.Date(2026, 11, 10, 23, 0, 0, 0, time.UTC)
 )
 
-// The storage's transaction, as postgres runs it: the outbox records in it.
-type inTx struct {
-	*inmemory_tile_storage.MemoryPersistence
-}
-
-func (p inTx) Open(
-	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, keep func(context.Context) (bool, error),
-) (bool, error) {
-	var opened bool
-	err := cpatomic.FakeTransactioner{}.InTx(ctx, func(ctx context.Context) error {
-		var err error
-		opened, err = p.MemoryPersistence.Open(ctx, played, tiles, keep)
-		return err //nolint:wrapcheck // the persistence names it.
-	})
-	return opened, err
-}
-
 type harness struct {
 	tiles   *inmemory_tile_storage.Storage
 	stored  *inmemory_tile_storage.MemoryPersistence
 	kept    *arenas.MemoryStore
-	outbox  *cpatomic.FakeOutbox
 	inPlay  *arenas.InPlay
 	clock   *cptime.FixedClock
 	useCase *open_arena_usecase.UseCase
@@ -62,11 +41,11 @@ func newHarness(t *testing.T) harness {
 	t.Helper()
 	clock := cptime.NewFixedClock(starts)
 	stored := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr", 2: "fr", 3: "de"})
-	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.CapitalsPlayed(capitals), inmemory_tile_storage.Config{}, inTx{stored},
+	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.CapitalsPlayed(capitals), inmemory_tile_storage.Config{}, stored,
 		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, clock,
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
-	kept, outbox := arenas.NewMemoryStore(), &cpatomic.FakeOutbox{}
+	kept := arenas.NewMemoryStore()
 	inPlay := arenas.NewInPlay(clock)
 	sets := rules.NewMemoryStore(parts.All(), rules.Seeded(), rules.Named(battleSet, func(r *planetv1.Rules) {
 		r.Arena = &planetv1.ArenaRules{On: new(true), Freeze: durationpb.New(6 * time.Second)}
@@ -74,8 +53,8 @@ func newHarness(t *testing.T) harness {
 	}))
 	setups := arenas.NewSetups(sets, seeds.NewCatalog(seeds.Ground{Capitals: capitals}))
 	return harness{
-		tiles: tiles, stored: stored, kept: kept, outbox: outbox, inPlay: inPlay, clock: clock,
-		useCase: open_arena_usecase.New(tiles, setups, kept, outbox, inPlay, clock),
+		tiles: tiles, stored: stored, kept: kept, inPlay: inPlay, clock: clock,
+		useCase: open_arena_usecase.New(tiles, setups, kept, inPlay, clock),
 	}
 }
 
@@ -110,9 +89,7 @@ func TestAnArenaOpensOnABlankMapAndLeavesTheWorldsAsItIs(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, clicks.MapID("battle"), playing.Played())
 	assert.Equal(t, 6*time.Second, playing.Opening.Freeze, "the battle's set's freeze, kept for a boot")
-	require.Len(t, h.outbox.Recorded(), 1)
-	assert.True(t, proto.Equal(&planetv1.ArenaOpened{ArenaId: "battle", OpenedAt: timestamppb.New(starts)},
-		h.outbox.Recorded()[0]))
+	assert.Equal(t, starts, playing.Opening.OpenedAt)
 }
 
 func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
@@ -127,7 +104,6 @@ func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, opened)
 	assert.Equal(t, "pt", h.owner(7), "the battle's map stays")
-	assert.Len(t, h.outbox.Recorded(), 1, "told once")
 }
 
 func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
@@ -153,7 +129,6 @@ func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
 			assert.False(t, opened)
 			assert.Equal(t, "fr", h.owner(1), "the map stays")
 			assert.False(t, bool(h.inPlay.Freeze()))
-			assert.Empty(t, h.outbox.Recorded())
 		})
 	}
 }
@@ -181,5 +156,4 @@ func TestAnArenaOfASetPlanetKeepsNoneOfIsRefused(t *testing.T) {
 	require.ErrorIs(t, err, arenas.ErrRefused)
 	assert.False(t, opened)
 	assert.Equal(t, "fr", h.owner(1), "the map stays")
-	assert.Empty(t, h.outbox.Recorded())
 }

@@ -39,7 +39,7 @@ type Round struct {
 
 func NewRound(id RoundID, book BookID, times uint32, ranking Ranking, startsAt time.Time) (Round, error) {
 	if err := checkTimes(times); err != nil {
-		return Round{}, fmt.Errorf("%w: round %q: %w", ErrRefused, id, err)
+		return Round{}, fmt.Errorf("round %q: %w", id, err)
 	}
 	return Round{ID: id, Book: book, Times: times, Ranking: ranking, StartsAt: startsAt.UTC()}, nil
 }
@@ -54,6 +54,10 @@ func checkTimes(times uint32) error {
 // Holds says whether a take at a time counts in the round's numbers: from its start, and before its end once scored.
 func (r Round) Holds(at time.Time) bool {
 	return !at.Before(r.StartsAt) && (!r.Scored || at.Before(r.EndsAt))
+}
+
+func (r Round) Ending() Ending {
+	return Ending{At: r.EndsAt}
 }
 
 // ScoredAt is the round scored at its end from the map then, against the map it opened on.

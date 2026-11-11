@@ -63,12 +63,25 @@ func TestAnEventOfAKindNoLongerSentIsDroppedAndTheOutboxKeepsTheNewKinds(t *test
 	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", cppg.MigrationsBefore(t, migrations.FS, "20261028090000"))
 	seed(t, db, `INSERT INTO outbox (event, payload) VALUES ('seasons.v1.RoundClosed', ''), ('seasons.v1.SeasonClosed', '')`)
 
-	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+	require.NoError(t, db.Migrate(t.Context(), cppg.MigrationsBefore(t, migrations.FS, "20261111120000")))
 
 	var left int
 	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT count(*) FROM outbox`).Scan(&left))
 	assert.Zero(t, left)
 	seed(t, db, `INSERT INTO outbox (event, payload) VALUES ('scoring.v1.RoundScored', ''), ('scoring.v1.BookClosed', '')`)
+}
+
+func TestTheOutboxGoesWithTheEventsItHeldAndTheMissedAreKept(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", cppg.MigrationsBefore(t, migrations.FS, "20261111120000"))
+	seed(t, db, `INSERT INTO outbox (event, payload) VALUES ('scoring.v1.RoundMissed', ''), ('scoring.v1.BookClosed', '')`)
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var outbox, event, rounds, books bool
+	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT
+		to_regclass('outbox') IS NOT NULL, to_regtype('outbox_event') IS NOT NULL,
+		to_regclass('missed_rounds') IS NOT NULL, to_regclass('missed_books') IS NOT NULL`).Scan(&outbox, &event, &rounds, &books))
+	assert.Equal(t, []bool{false, false, true, true}, []bool{outbox, event, rounds, books})
 }
 
 const battle = "0192f5a0-7c00-7000-8000-000000000031"

@@ -2,85 +2,90 @@ package play_arenas_usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
-	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Judged interface {
-	KeepJudged(ctx context.Context, judgement moments.Judgement) (bool, error)
+type Kept interface {
+	KeepOpened(ctx context.Context, arena moments.RoundID) (bool, error)
+	KeepClosed(ctx context.Context, arena moments.RoundID) (bool, error)
 }
 
-// Planet says whether a rule set makes an arena battle.
+// Planet opens and closes arenas: nil is open or closed, moments.ErrRefused a refusal for good, any other error no
+// answer.
 type Planet interface {
-	Arena(ctx context.Context, set schedule.SetName) (bool, error)
+	Ask(ctx context.Context, command moments.ArenaCommand) error
 }
 
-type Commands interface {
-	Send(ctx context.Context, command moments.ArenaCommand) error
+// Call is an arena command planet answered this time, or refused for good.
+type Call struct {
+	Command moments.ArenaCommand
+	Refusal error
 }
 
-// Tick is what one Execute did: the battle it judged, and each arena command it sent.
-type Tick struct {
-	Judged []moments.Judgement
-	Sent   []moments.ArenaCommand
-}
-
+// Execute answers each arena command planet answered this time.
 type Executor interface {
-	Execute(ctx context.Context, plan moments.Plan) (Tick, error)
+	Execute(ctx context.Context, plan moments.Plan) ([]Call, error)
 }
 
-func New(judged Judged, planet Planet, commands Commands, clock cptime.Clock, again time.Duration) *UseCase {
-	return &UseCase{
-		judged: judged, planet: planet, commands: commands, clock: clock, again: again, sent: map[moments.ArenaKey]time.Time{},
-	}
+func New(kept Kept, planet Planet, clock cptime.Clock, again time.Duration) *UseCase {
+	return &UseCase{kept: kept, planet: planet, clock: clock, calls: moments.NewCalls[moments.ArenaKey](again)}
 }
 
-// UseCase judges the battle that runs, once, and sends each arena command the plan says is due, in order: an open once
-// per process, and a close again each `again` until planet tells the arena closed. A command Redis refused stops the
-// tick, and it and every one after it go at the next Execute. Planet keeps each arena, so a boot that sends them again
-// changes nothing.
+// UseCase calls planet with each arena command due, in order, until it answers, keeping each answer right after the call. A call planet did not answer is made again after `again`, and holds back
+// the ones after it.
 type UseCase struct {
-	judged   Judged
-	planet   Planet
-	commands Commands
-	clock    cptime.Clock
-	again    time.Duration
+	kept   Kept
+	planet Planet
+	clock  cptime.Clock
 
-	sent map[moments.ArenaKey]time.Time
+	calls *moments.Calls[moments.ArenaKey]
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) (Tick, error) {
-	var tick Tick
+func (u *UseCase) Execute(ctx context.Context, plan moments.Plan) ([]Call, error) {
 	now := u.clock.Now()
-
-	if battle, ok := plan.Unjudged(now); ok {
-		inArena, err := u.planet.Arena(ctx, battle.Set)
-		if err != nil {
-			return tick, err //nolint:wrapcheck // the adapter names the set.
-		}
-		judgement := plan.Judge(battle, inArena)
-		if _, err := u.judged.KeepJudged(ctx, judgement); err != nil {
-			return tick, fmt.Errorf("failed to keep %s judged: %w", battle, err)
-		}
-		tick.Judged = append(tick.Judged, judgement)
-		plan = plan.Judged(judgement)
-	}
-
+	var calls []Call
 	for _, command := range plan.ArenasDueAt(now) {
-		if last, ok := u.sent[command.Key()]; ok && (!command.Action.Closes() || now.Sub(last) < u.again) {
+		key := command.Key()
+		if u.calls.Answered(key) {
 			continue
 		}
-		if err := u.commands.Send(ctx, command); err != nil {
-			return tick, err //nolint:wrapcheck // the adapter names the arena.
+		if u.calls.Waits(key, now) {
+			return calls, nil
 		}
-		u.sent[command.Key()] = now
-		tick.Sent = append(tick.Sent, command)
+		err := u.call(ctx, command)
+		if errors.Is(err, moments.ErrRefused) {
+			u.calls.Answer(key)
+			calls = append(calls, Call{Command: command, Refusal: err})
+			continue
+		}
+		if err != nil {
+			u.calls.Fail(key, now)
+			return calls, err
+		}
+		u.calls.Answer(key)
+		calls = append(calls, Call{Command: command})
 	}
-	return tick, nil
+	return calls, nil
+}
+
+func (u *UseCase) call(ctx context.Context, command moments.ArenaCommand) error {
+	if err := u.planet.Ask(ctx, command); err != nil {
+		return err //nolint:wrapcheck // the adapter names the arena.
+	}
+	switch command.Action {
+	case moments.OpenArena:
+		_, err := u.kept.KeepOpened(ctx, command.Arena)
+		return err //nolint:wrapcheck // the store names the arena.
+	case moments.CloseArena:
+		_, err := u.kept.KeepClosed(ctx, command.Arena)
+		return err //nolint:wrapcheck // the store names the arena.
+	}
+	return fmt.Errorf("planet has no arena call to %s", command.Action)
 }

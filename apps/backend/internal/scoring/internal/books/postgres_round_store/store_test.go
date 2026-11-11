@@ -1,9 +1,12 @@
 package postgres_round_store_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -34,6 +37,52 @@ func TestThePostgresStoreCountsTheTakesAsTheContractSays(t *testing.T) {
 		},
 		CountedIn: func(round books.RoundID) books.Counted { return countedIn(t, db, round) },
 	})
+}
+
+func TestACloseWaitsForTheOpenThatHoldsTheRoundAndFindsItOpen(t *testing.T) {
+	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", migrations.FS)
+	ctx := t.Context()
+	start := time.Date(2026, 11, 8, 21, 0, 0, 0, time.UTC)
+	_, err := postgres_book_store.New(db).Open(ctx, books.NewBook("season-1", start))
+	require.NoError(t, err)
+	store := postgres_round_store.New(db)
+	round := books.Round{ID: "season-1/day-1", Book: "season-1", Times: 1, Ranking: books.GainRanking{}, StartsAt: start}
+	locked, release, opened := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		opened <- db.InTx(ctx, func(ctx context.Context) error {
+			if err := store.Lock(ctx, round.ID); err != nil {
+				return err //nolint:wrapcheck // the store says what failed.
+			}
+			close(locked)
+			<-release
+			_, err := store.Open(ctx, round, books.Start{})
+			return err //nolint:wrapcheck // the store says what failed.
+		})
+	}()
+	select {
+	case <-locked:
+	case err := <-opened:
+		require.FailNow(t, "the open never held the round", err)
+	}
+
+	closing := make(chan bool, 1)
+	go func() {
+		found := false
+		assert.NoError(t, db.InTx(ctx, func(ctx context.Context) error {
+			if err := store.Lock(ctx, round.ID); err != nil {
+				return err //nolint:wrapcheck // the store says what failed.
+			}
+			var err error
+			_, found, err = store.Find(ctx, round.ID)
+			return err //nolint:wrapcheck // the store says what failed.
+		}))
+		closing <- found
+	}()
+
+	assert.Never(t, func() bool { return len(closing) > 0 }, 300*time.Millisecond, 10*time.Millisecond, "the close waits for the open")
+	close(release)
+	require.NoError(t, <-opened)
+	assert.True(t, <-closing, "once the open commits, the close finds the round open")
 }
 
 func countedIn(t *testing.T, db *cppg.Postgres, round books.RoundID) books.Counted {

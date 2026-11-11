@@ -254,13 +254,13 @@ func (p Plan) opening(book Book, r round) (Command, bool) {
 	return open, true
 }
 
-// ResetAt is the season that runs at a time and starts on a blank map, once its map may be wiped: scoring answered the
-// book of the season before it, so that season's last round was read on the map before the wipe, and no arena battle
-// before it waits for its map, which would put the old season's map back.
+// ResetAt is the season that runs at a time and starts on a blank map, once its map may be wiped and until planet
+// answered its reset: scoring answered the book of the season before it, so that season's last round was read on the map
+// before the wipe, and no arena battle before it waits for its map, which would put the old season's map back.
 func (p Plan) ResetAt(at time.Time) (season.Window, bool) {
 	book, ok := p.BookAt(at)
 	running := book.Window
-	if !ok || !running.StartsOnBlankMap() || p.Waits(running.StartsAt) {
+	if !ok || !running.StartsOnBlankMap() || p.Waits(running.StartsAt) || p.known.reset.Contains(book.ID()) {
 		return season.Window{}, false
 	}
 	for _, before := range p.books {

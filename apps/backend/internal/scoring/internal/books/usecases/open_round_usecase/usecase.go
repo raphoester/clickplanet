@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type Books interface {
@@ -16,6 +17,8 @@ type Books interface {
 type Rounds interface {
 	Find(ctx context.Context, id books.RoundID) (books.Round, bool, error)
 	Of(ctx context.Context, books []books.BookID) ([]books.Round, error)
+	Lock(ctx context.Context, id books.RoundID) error
+	Missed(ctx context.Context, id books.RoundID) (books.MissedRound, bool, error)
 	Open(ctx context.Context, round books.Round, start books.Start) (bool, error)
 }
 
@@ -35,18 +38,19 @@ type Command struct {
 	FromNothing bool
 }
 
-func New(books Books, rounds Rounds, territory Territory) *UseCase {
-	return &UseCase{books: books, rounds: rounds, territory: territory}
+func New(transactioner cpatomic.Transactioner, books Books, rounds Rounds, territory Territory) *UseCase {
+	return &UseCase{transactioner: transactioner, books: books, rounds: rounds, territory: territory}
 }
 
 type UseCase struct {
-	books     Books
-	rounds    Rounds
-	territory Territory
+	transactioner cpatomic.Transactioner
+	books         Books
+	rounds        Rounds
+	territory     Territory
 }
 
-// Execute answers whether it opened the round: one kept before is left as it is, and one whose book is not open is
-// refused.
+// Execute answers whether it opened the round: one kept before is left as it is, and one missed or of no open book
+// is refused.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	round, err := books.NewRound(command.Round, command.Book, command.Times, command.Ranking, command.StartsAt)
 	if err != nil {
@@ -66,11 +70,25 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	opened, err := u.rounds.Open(ctx, round, start)
-	if err != nil {
-		return false, fmt.Errorf("failed to open round %s: %w", command.Round, err)
-	}
-	return opened, nil
+
+	opened := false
+	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := u.rounds.Lock(ctx, command.Round); err != nil {
+			return err //nolint:wrapcheck // the store says what failed.
+		}
+		_, missed, err := u.rounds.Missed(ctx, command.Round)
+		if err != nil {
+			return err //nolint:wrapcheck // the store says what failed.
+		}
+		if missed {
+			return fmt.Errorf("%w: round %s: %w", books.ErrRefused, command.Round, books.ErrMissed)
+		}
+		if opened, err = u.rounds.Open(ctx, round, start); err != nil {
+			return fmt.Errorf("failed to open round %s: %w", command.Round, err)
+		}
+		return nil
+	})
+	return opened, err //nolint:wrapcheck // each step named what failed.
 }
 
 func (u *UseCase) startOf(ctx context.Context, round books.Round, fromNothing bool) (books.Start, error) {

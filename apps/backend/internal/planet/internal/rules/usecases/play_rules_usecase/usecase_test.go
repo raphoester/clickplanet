@@ -155,7 +155,7 @@ func TestAChoiceThatCannotBeKeptPlaysNothing(t *testing.T) {
 	choices.FailWith(nil)
 	_, took, err := useCase.Play(t.Context(), rules.Choice{Set: "rush", DecidedAt: finale})
 	require.NoError(t, err)
-	assert.True(t, took, "the command delivered again plays it")
+	assert.True(t, took, "the call made again plays it")
 }
 
 func TestWithNoDefaultNothingPlays(t *testing.T) {

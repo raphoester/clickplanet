@@ -2,10 +2,40 @@ syntax = "proto3";
 
 package scoring.v1;
 
+import "google/protobuf/timestamp.proto";
 import "scoring/v1/scoring.proto";
 
-// What another module reads of scoring's books, by the ids it was given.
+// What another module reads of scoring's books, by the ids it was given, and what the gamemaster asks of them. Scoring
+// is a points accountant: it knows books and rounds by the ids it is given, and no season, day, battle or clock. Each
+// call of the gamemaster's is idempotent by its ids and answers what it did, or did before; InvalidArgument for a bad
+// id or no time.
 service InternalService {
+  // A book gathers the points of its rounds and each player's takes, from starts_at until it is closed. A take counts
+  // in every book open at its time. A book open already is left as it is. FailedPrecondition for a book closed missed.
+  rpc OpenBook(OpenBookRequest) returns (OpenBookResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`.
+  // Takes from starts_at count in it. A round open already is left as it is. FailedPrecondition for a round whose book
+  // is not open, or a round closed missed; InvalidArgument for one with no ranking, or times outside 1 to 10.
+  rpc OpenRound(OpenRoundRequest) returns (OpenRoundResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A
+  // round scored already is not scored again. One never opened is missed: nothing scores it, and it never opens.
+  rpc CloseRound(CloseRoundRequest) returns (CloseRoundResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  // Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third
+  // key). Takes after ends_at count in it no more. A book closed already is not ranked again. One never opened is
+  // missed: nothing ranks it, and it never opens.
+  rpc CloseBook(CloseBookRequest) returns (CloseBookResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
   rpc GetRound(GetRoundRequest) returns (GetRoundResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -62,4 +92,65 @@ message GetTableRequest {
 message GetTableResponse {
   repeated TablePlace table = 1;
   bool closed = 2;
+}
+
+message OpenBookRequest {
+  string book_id = 1;
+  google.protobuf.Timestamp starts_at = 2;
+}
+
+// The book is open.
+message OpenBookResponse {}
+
+message OpenRoundRequest {
+  string round_id = 1;
+  string book_id = 2;
+  // 1 to 10.
+  uint32 times = 3;
+  google.protobuf.Timestamp starts_at = 4;
+  // The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
+  bool from_nothing = 5;
+  Ranking ranking = 6;
+}
+
+// How a round places the countries that hold tiles when it closes. Countries in the same place share its points.
+enum Ranking {
+  RANKING_UNSPECIFIED = 0;
+  // By the tiles each gained since the round opened, most first; only a gain scores.
+  RANKING_GAIN = 1;
+  // By the sum of two ranks, on the tiles each holds and on the tiles it gained, smallest first, the gain's rank
+  // breaking a tie; every country placed scores.
+  RANKING_HELD_AND_GAIN = 2;
+}
+
+// The round is open.
+message OpenRoundResponse {}
+
+message CloseRoundRequest {
+  string round_id = 1;
+  google.protobuf.Timestamp ends_at = 2;
+}
+
+message CloseRoundResponse {
+  oneof outcome {
+    // The round is scored, by this close or one before: the end it was scored at.
+    google.protobuf.Timestamp scored_at = 1;
+    // The round never opened: the end of the close that missed it.
+    google.protobuf.Timestamp missed_at = 2;
+  }
+}
+
+message CloseBookRequest {
+  string book_id = 1;
+  google.protobuf.Timestamp ends_at = 2;
+  string tiebreak_round_id = 3;
+}
+
+message CloseBookResponse {
+  oneof outcome {
+    // The book is ranked, by this close or one before: the end it was closed at.
+    google.protobuf.Timestamp closed_at = 1;
+    // The book never opened: the end of the close that missed it.
+    google.protobuf.Timestamp missed_at = 2;
+  }
 }

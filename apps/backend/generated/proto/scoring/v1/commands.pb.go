@@ -22,434 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// How a round places the countries that hold tiles when it closes. Countries in the same place share its points.
-type Ranking int32
-
-const (
-	Ranking_RANKING_UNSPECIFIED Ranking = 0
-	// By the tiles each gained since the round opened, most first; only a gain scores.
-	Ranking_RANKING_GAIN Ranking = 1
-	// By the sum of two ranks, on the tiles each holds and on the tiles it gained, smallest first, the gain's rank
-	// breaking a tie; every country placed scores.
-	Ranking_RANKING_HELD_AND_GAIN Ranking = 2
-)
-
-// Enum value maps for Ranking.
-var (
-	Ranking_name = map[int32]string{
-		0: "RANKING_UNSPECIFIED",
-		1: "RANKING_GAIN",
-		2: "RANKING_HELD_AND_GAIN",
-	}
-	Ranking_value = map[string]int32{
-		"RANKING_UNSPECIFIED":   0,
-		"RANKING_GAIN":          1,
-		"RANKING_HELD_AND_GAIN": 2,
-	}
-)
-
-func (x Ranking) Enum() *Ranking {
-	p := new(Ranking)
-	*p = x
-	return p
-}
-
-func (x Ranking) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Ranking) Descriptor() protoreflect.EnumDescriptor {
-	return file_scoring_v1_commands_proto_enumTypes[0].Descriptor()
-}
-
-func (Ranking) Type() protoreflect.EnumType {
-	return &file_scoring_v1_commands_proto_enumTypes[0]
-}
-
-func (x Ranking) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Ranking.Descriptor instead.
-func (Ranking) EnumDescriptor() ([]byte, []int) {
-	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{0}
-}
-
-// One stream for every command, handled in order: a round closed, then its book, is always scored in that order. Each
-// command is idempotent by its ids: one handled twice, or one that is too late, changes nothing.
-type ScoringCommand struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Command:
-	//
-	//	*ScoringCommand_OpenBook
-	//	*ScoringCommand_OpenRound
-	//	*ScoringCommand_CloseRound
-	//	*ScoringCommand_CloseBook
-	Command       isScoringCommand_Command `protobuf_oneof:"command"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ScoringCommand) Reset() {
-	*x = ScoringCommand{}
-	mi := &file_scoring_v1_commands_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ScoringCommand) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ScoringCommand) ProtoMessage() {}
-
-func (x *ScoringCommand) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_commands_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ScoringCommand.ProtoReflect.Descriptor instead.
-func (*ScoringCommand) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *ScoringCommand) GetCommand() isScoringCommand_Command {
-	if x != nil {
-		return x.Command
-	}
-	return nil
-}
-
-func (x *ScoringCommand) GetOpenBook() *OpenBook {
-	if x != nil {
-		if x, ok := x.Command.(*ScoringCommand_OpenBook); ok {
-			return x.OpenBook
-		}
-	}
-	return nil
-}
-
-func (x *ScoringCommand) GetOpenRound() *OpenRound {
-	if x != nil {
-		if x, ok := x.Command.(*ScoringCommand_OpenRound); ok {
-			return x.OpenRound
-		}
-	}
-	return nil
-}
-
-func (x *ScoringCommand) GetCloseRound() *CloseRound {
-	if x != nil {
-		if x, ok := x.Command.(*ScoringCommand_CloseRound); ok {
-			return x.CloseRound
-		}
-	}
-	return nil
-}
-
-func (x *ScoringCommand) GetCloseBook() *CloseBook {
-	if x != nil {
-		if x, ok := x.Command.(*ScoringCommand_CloseBook); ok {
-			return x.CloseBook
-		}
-	}
-	return nil
-}
-
-type isScoringCommand_Command interface {
-	isScoringCommand_Command()
-}
-
-type ScoringCommand_OpenBook struct {
-	OpenBook *OpenBook `protobuf:"bytes,1,opt,name=open_book,json=openBook,proto3,oneof"`
-}
-
-type ScoringCommand_OpenRound struct {
-	OpenRound *OpenRound `protobuf:"bytes,2,opt,name=open_round,json=openRound,proto3,oneof"`
-}
-
-type ScoringCommand_CloseRound struct {
-	CloseRound *CloseRound `protobuf:"bytes,3,opt,name=close_round,json=closeRound,proto3,oneof"`
-}
-
-type ScoringCommand_CloseBook struct {
-	CloseBook *CloseBook `protobuf:"bytes,4,opt,name=close_book,json=closeBook,proto3,oneof"`
-}
-
-func (*ScoringCommand_OpenBook) isScoringCommand_Command() {}
-
-func (*ScoringCommand_OpenRound) isScoringCommand_Command() {}
-
-func (*ScoringCommand_CloseRound) isScoringCommand_Command() {}
-
-func (*ScoringCommand_CloseBook) isScoringCommand_Command() {}
-
-// A book gathers the points of its rounds and each player's takes, from starts_at until it is closed. A take counts in
-// every book open at its time.
-type OpenBook struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BookId        string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	StartsAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *OpenBook) Reset() {
-	*x = OpenBook{}
-	mi := &file_scoring_v1_commands_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenBook) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenBook) ProtoMessage() {}
-
-func (x *OpenBook) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_commands_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenBook.ProtoReflect.Descriptor instead.
-func (*OpenBook) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *OpenBook) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-func (x *OpenBook) GetStartsAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.StartsAt
-	}
-	return nil
-}
-
-// A round credits its book once it closes: the countries placed by its ranking, points by place, times `times`. Takes
-// from starts_at count in it. A round whose book is not open, or with no ranking, is refused.
-type OpenRound struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	RoundId string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
-	BookId  string                 `protobuf:"bytes,2,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	// 1 to 10.
-	Times    uint32                 `protobuf:"varint,3,opt,name=times,proto3" json:"times,omitempty"`
-	StartsAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=starts_at,json=startsAt,proto3" json:"starts_at,omitempty"`
-	// The round counts from nothing: its gain is the tiles each country holds when it closes, and opening it reads no map.
-	FromNothing   bool    `protobuf:"varint,5,opt,name=from_nothing,json=fromNothing,proto3" json:"from_nothing,omitempty"`
-	Ranking       Ranking `protobuf:"varint,6,opt,name=ranking,proto3,enum=scoring.v1.Ranking" json:"ranking,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *OpenRound) Reset() {
-	*x = OpenRound{}
-	mi := &file_scoring_v1_commands_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenRound) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenRound) ProtoMessage() {}
-
-func (x *OpenRound) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_commands_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenRound.ProtoReflect.Descriptor instead.
-func (*OpenRound) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *OpenRound) GetRoundId() string {
-	if x != nil {
-		return x.RoundId
-	}
-	return ""
-}
-
-func (x *OpenRound) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-func (x *OpenRound) GetTimes() uint32 {
-	if x != nil {
-		return x.Times
-	}
-	return 0
-}
-
-func (x *OpenRound) GetStartsAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.StartsAt
-	}
-	return nil
-}
-
-func (x *OpenRound) GetFromNothing() bool {
-	if x != nil {
-		return x.FromNothing
-	}
-	return false
-}
-
-func (x *OpenRound) GetRanking() Ranking {
-	if x != nil {
-		return x.Ranking
-	}
-	return Ranking_RANKING_UNSPECIFIED
-}
-
-// Scores the round from the map now. Takes before ends_at still count in its numbers when they arrive after it. A round
-// already scored is not scored again; one never opened is not scored, and scoring tells RoundMissed.
-type CloseRound struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RoundId       string                 `protobuf:"bytes,1,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
-	EndsAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CloseRound) Reset() {
-	*x = CloseRound{}
-	mi := &file_scoring_v1_commands_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CloseRound) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CloseRound) ProtoMessage() {}
-
-func (x *CloseRound) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_commands_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CloseRound.ProtoReflect.Descriptor instead.
-func (*CloseRound) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *CloseRound) GetRoundId() string {
-	if x != nil {
-		return x.RoundId
-	}
-	return ""
-}
-
-func (x *CloseRound) GetEndsAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.EndsAt
-	}
-	return nil
-}
-
-// Ranks the book from its rounds: points, then rounds won, then the points of tiebreak_round_id (empty: no third key).
-// Takes after ends_at count in it no more. A book already closed is not ranked again; one never opened is not ranked,
-// and scoring tells BookMissed.
-type CloseBook struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	BookId          string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
-	EndsAt          *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ends_at,json=endsAt,proto3" json:"ends_at,omitempty"`
-	TiebreakRoundId string                 `protobuf:"bytes,3,opt,name=tiebreak_round_id,json=tiebreakRoundId,proto3" json:"tiebreak_round_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *CloseBook) Reset() {
-	*x = CloseBook{}
-	mi := &file_scoring_v1_commands_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CloseBook) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CloseBook) ProtoMessage() {}
-
-func (x *CloseBook) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_commands_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CloseBook.ProtoReflect.Descriptor instead.
-func (*CloseBook) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *CloseBook) GetBookId() string {
-	if x != nil {
-		return x.BookId
-	}
-	return ""
-}
-
-func (x *CloseBook) GetEndsAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.EndsAt
-	}
-	return nil
-}
-
-func (x *CloseBook) GetTiebreakRoundId() string {
-	if x != nil {
-		return x.TiebreakRoundId
-	}
-	return ""
-}
-
 // Gives a country points in every book open at granted_at, beside its rounds' points: no round won, no tiebreak. Its
 // own stream. A grant_id told twice is granted once.
 type GrantPoints struct {
@@ -464,7 +36,7 @@ type GrantPoints struct {
 
 func (x *GrantPoints) Reset() {
 	*x = GrantPoints{}
-	mi := &file_scoring_v1_commands_proto_msgTypes[5]
+	mi := &file_scoring_v1_commands_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -476,7 +48,7 @@ func (x *GrantPoints) String() string {
 func (*GrantPoints) ProtoMessage() {}
 
 func (x *GrantPoints) ProtoReflect() protoreflect.Message {
-	mi := &file_scoring_v1_commands_proto_msgTypes[5]
+	mi := &file_scoring_v1_commands_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -489,7 +61,7 @@ func (x *GrantPoints) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantPoints.ProtoReflect.Descriptor instead.
 func (*GrantPoints) Descriptor() ([]byte, []int) {
-	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{5}
+	return file_scoring_v1_commands_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *GrantPoints) GetGrantId() string {
@@ -525,44 +97,13 @@ var File_scoring_v1_commands_proto protoreflect.FileDescriptor
 const file_scoring_v1_commands_proto_rawDesc = "" +
 	"\n" +
 	"\x19scoring/v1/commands.proto\x12\n" +
-	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfb\x01\n" +
-	"\x0eScoringCommand\x123\n" +
-	"\topen_book\x18\x01 \x01(\v2\x14.scoring.v1.OpenBookH\x00R\bopenBook\x126\n" +
-	"\n" +
-	"open_round\x18\x02 \x01(\v2\x15.scoring.v1.OpenRoundH\x00R\topenRound\x129\n" +
-	"\vclose_round\x18\x03 \x01(\v2\x16.scoring.v1.CloseRoundH\x00R\n" +
-	"closeRound\x126\n" +
-	"\n" +
-	"close_book\x18\x04 \x01(\v2\x15.scoring.v1.CloseBookH\x00R\tcloseBookB\t\n" +
-	"\acommand\"\\\n" +
-	"\bOpenBook\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\x127\n" +
-	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\xe0\x01\n" +
-	"\tOpenRound\x12\x19\n" +
-	"\bround_id\x18\x01 \x01(\tR\aroundId\x12\x17\n" +
-	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x14\n" +
-	"\x05times\x18\x03 \x01(\rR\x05times\x127\n" +
-	"\tstarts_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\x12!\n" +
-	"\ffrom_nothing\x18\x05 \x01(\bR\vfromNothing\x12-\n" +
-	"\aranking\x18\x06 \x01(\x0e2\x13.scoring.v1.RankingR\aranking\"\\\n" +
-	"\n" +
-	"CloseRound\x12\x19\n" +
-	"\bround_id\x18\x01 \x01(\tR\aroundId\x123\n" +
-	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\"\x85\x01\n" +
-	"\tCloseBook\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\x123\n" +
-	"\aends_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06endsAt\x12*\n" +
-	"\x11tiebreak_round_id\x18\x03 \x01(\tR\x0ftiebreakRoundId\"\x95\x01\n" +
+	"scoring.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\x01\n" +
 	"\vGrantPoints\x12\x19\n" +
 	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x18\n" +
 	"\acountry\x18\x02 \x01(\tR\acountry\x12\x16\n" +
 	"\x06points\x18\x03 \x01(\rR\x06points\x129\n" +
 	"\n" +
-	"granted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tgrantedAt*O\n" +
-	"\aRanking\x12\x17\n" +
-	"\x13RANKING_UNSPECIFIED\x10\x00\x12\x10\n" +
-	"\fRANKING_GAIN\x10\x01\x12\x19\n" +
-	"\x15RANKING_HELD_AND_GAIN\x10\x02B\xbc\x01\n" +
+	"granted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tgrantedAtB\xbc\x01\n" +
 	"\x0ecom.scoring.v1B\rCommandsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1;scoringv1\xa2\x02\x03SXX\xaa\x02\n" +
 	"Scoring.V1\xca\x02\n" +
 	"Scoring\\V1\xe2\x02\x16Scoring\\V1\\GPBMetadata\xea\x02\vScoring::V1b\x06proto3"
@@ -579,34 +120,18 @@ func file_scoring_v1_commands_proto_rawDescGZIP() []byte {
 	return file_scoring_v1_commands_proto_rawDescData
 }
 
-var file_scoring_v1_commands_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_scoring_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_scoring_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_scoring_v1_commands_proto_goTypes = []any{
-	(Ranking)(0),                  // 0: scoring.v1.Ranking
-	(*ScoringCommand)(nil),        // 1: scoring.v1.ScoringCommand
-	(*OpenBook)(nil),              // 2: scoring.v1.OpenBook
-	(*OpenRound)(nil),             // 3: scoring.v1.OpenRound
-	(*CloseRound)(nil),            // 4: scoring.v1.CloseRound
-	(*CloseBook)(nil),             // 5: scoring.v1.CloseBook
-	(*GrantPoints)(nil),           // 6: scoring.v1.GrantPoints
-	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
+	(*GrantPoints)(nil),           // 0: scoring.v1.GrantPoints
+	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
 }
 var file_scoring_v1_commands_proto_depIdxs = []int32{
-	2,  // 0: scoring.v1.ScoringCommand.open_book:type_name -> scoring.v1.OpenBook
-	3,  // 1: scoring.v1.ScoringCommand.open_round:type_name -> scoring.v1.OpenRound
-	4,  // 2: scoring.v1.ScoringCommand.close_round:type_name -> scoring.v1.CloseRound
-	5,  // 3: scoring.v1.ScoringCommand.close_book:type_name -> scoring.v1.CloseBook
-	7,  // 4: scoring.v1.OpenBook.starts_at:type_name -> google.protobuf.Timestamp
-	7,  // 5: scoring.v1.OpenRound.starts_at:type_name -> google.protobuf.Timestamp
-	0,  // 6: scoring.v1.OpenRound.ranking:type_name -> scoring.v1.Ranking
-	7,  // 7: scoring.v1.CloseRound.ends_at:type_name -> google.protobuf.Timestamp
-	7,  // 8: scoring.v1.CloseBook.ends_at:type_name -> google.protobuf.Timestamp
-	7,  // 9: scoring.v1.GrantPoints.granted_at:type_name -> google.protobuf.Timestamp
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	1, // 0: scoring.v1.GrantPoints.granted_at:type_name -> google.protobuf.Timestamp
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_scoring_v1_commands_proto_init() }
@@ -614,25 +139,18 @@ func file_scoring_v1_commands_proto_init() {
 	if File_scoring_v1_commands_proto != nil {
 		return
 	}
-	file_scoring_v1_commands_proto_msgTypes[0].OneofWrappers = []any{
-		(*ScoringCommand_OpenBook)(nil),
-		(*ScoringCommand_OpenRound)(nil),
-		(*ScoringCommand_CloseRound)(nil),
-		(*ScoringCommand_CloseBook)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scoring_v1_commands_proto_rawDesc), len(file_scoring_v1_commands_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   6,
+			NumEnums:      0,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_scoring_v1_commands_proto_goTypes,
 		DependencyIndexes: file_scoring_v1_commands_proto_depIdxs,
-		EnumInfos:         file_scoring_v1_commands_proto_enumTypes,
 		MessageInfos:      file_scoring_v1_commands_proto_msgTypes,
 	}.Build()
 	File_scoring_v1_commands_proto = out.File

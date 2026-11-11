@@ -20,18 +20,21 @@ type Logged struct {
 
 var _ play_arenas_usecase.Executor = (*Logged)(nil)
 
-func (l *Logged) Execute(ctx context.Context, plan moments.Plan) (play_arenas_usecase.Tick, error) {
-	tick, err := l.inner.Execute(ctx, plan)
-	for _, judgement := range tick.Judged {
-		l.logger.Warn("a battle is judged", slog.String("round", string(judgement.Round)),
-			slog.String("mode", judgement.Mode.String()))
-	}
-	for _, command := range tick.Sent {
-		l.logger.Warn("planet is commanded", slog.String("command", command.Action.String()),
-			slog.String("arena", string(command.Arena)), slog.String("at", command.At.UTC().Format(time.RFC3339)))
+func (l *Logged) Execute(ctx context.Context, plan moments.Plan) ([]play_arenas_usecase.Call, error) {
+	calls, err := l.inner.Execute(ctx, plan)
+	for _, call := range calls {
+		attrs := []any{
+			slog.String("command", call.Command.Action.String()), slog.String("arena", string(call.Command.Arena)),
+			slog.String("at", call.Command.At.UTC().Format(time.RFC3339)),
+		}
+		if call.Refusal != nil {
+			l.logger.Error("planet refused an arena command", append(attrs, slog.Any("error", call.Refusal))...)
+			continue
+		}
+		l.logger.Warn("planet answered", attrs...)
 	}
 	if err != nil && ctx.Err() == nil {
 		l.logger.Error("failed to play the arena battles", slog.Any("error", err))
 	}
-	return tick, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
+	return calls, err //nolint:wrapcheck // a decorator adds a log line, not a sentence.
 }

@@ -147,3 +147,16 @@ func (s *StoreContractSuite) TestARoundAndABookOfOneSeasonAreEachKept() {
 	s.Require().NoError(err)
 	s.True(kept)
 }
+
+func (s *StoreContractSuite) TestAResetIsKeptOnceAndRead() {
+	first, err := s.store.KeepReset(s.T().Context(), "season-1")
+	s.Require().NoError(err)
+	again, err := s.store.KeepReset(s.T().Context(), "season-1")
+	s.Require().NoError(err)
+
+	s.True(first)
+	s.False(again)
+	kept, err := s.store.Kept(s.T().Context())
+	s.Require().NoError(err)
+	s.Equal(Kept{Reset: []BookID{"season-1"}}, kept)
+}

@@ -11,14 +11,15 @@ import (
 )
 
 type Store struct {
-	mu    sync.Mutex
-	books map[books.BookID]books.Book
+	mu     sync.Mutex
+	books  map[books.BookID]books.Book
+	missed map[books.BookID]books.MissedBook
 }
 
 var _ books.Books = (*Store)(nil)
 
 func New() *Store {
-	return &Store{books: map[books.BookID]books.Book{}}
+	return &Store{books: map[books.BookID]books.Book{}, missed: map[books.BookID]books.MissedBook{}}
 }
 
 func (s *Store) Find(_ context.Context, id books.BookID) (books.Book, bool, error) {
@@ -62,4 +63,26 @@ func (s *Store) Close(_ context.Context, book books.Book) (bool, error) {
 	}
 	s.books[book.ID] = book
 	return true, nil
+}
+
+func (s *Store) Lock(context.Context, books.BookID) error {
+	return nil
+}
+
+func (s *Store) Missed(_ context.Context, id books.BookID) (books.MissedBook, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	missed, found := s.missed[id]
+	return missed, found, nil
+}
+
+func (s *Store) KeepMissed(_ context.Context, missed books.MissedBook) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, kept := s.missed[missed.ID]; !kept {
+		s.missed[missed.ID] = missed
+	}
+	return nil
 }

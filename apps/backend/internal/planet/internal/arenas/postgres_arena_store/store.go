@@ -43,9 +43,7 @@ func (s *Store) Find(ctx context.Context, id arenas.ID) (arenas.Arena, error) {
 			Freeze: time.Duration(freezeMs.Int64) * time.Millisecond,
 		}
 	}
-	if closedAt.Valid {
-		arena.Closed, arena.ClosedAt = true, closedAt.Time.UTC()
-	}
+	arena.Closed = closedAt.Valid
 	return arena, nil
 }
 

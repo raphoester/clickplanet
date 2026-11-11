@@ -28,7 +28,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/open_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/grant_points_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/log_command"
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/scoring_command_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/postgres_departure_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/usecases/decide_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/departures/usecases/forget_departure_usecase"
@@ -37,6 +36,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/usecases/forget_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/players/usecases/keep_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/close_book_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/close_round_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_board_handler/board_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_book_history_handler"
@@ -53,6 +54,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/listen_for_events_handler/inprocess_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/listen_for_events_handler/log_reader"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/open_book_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/open_round_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/postgres_contribution_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/usecases/forget_account_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/standings/usecases/record_take_usecase"
@@ -65,7 +68,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -123,7 +125,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	grantStore := postgres_grant_store.New(db)
 	contributions := postgres_contribution_store.New(db)
 	territories := rpc_planet_territories.New(planet)
-	outbox := cpoutbox.New(db)
 
 	// The take groups keep their names: a new name is a new group, which reads TilesTaken again from the start of the stream.
 	takes, err := cpredis.SubscribeBatch(ctx, streams, "seasons-standings",
@@ -151,17 +152,6 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe the rounds to player.v1.PlayerForgotten: %w", err)
 	}
 
-	commands, err := cpredis.Handle(ctx, streams, scoring_command_handler.New(log_subscriber.New[*scoringv1.ScoringCommand](
-		scoring_command_handler.NewDispatcher(scoring_command_handler.UseCases{
-			OpenBook:   log_command.New("open_book", open_book_usecase.New(bookStore), props.Logger),
-			OpenRound:  log_command.New("open_round", open_round_usecase.New(bookStore, roundStore, territories), props.Logger),
-			CloseRound: log_command.New("close_round", close_round_usecase.New(db, territories, roundStore, outbox), props.Logger),
-			CloseBook:  log_command.New("close_book", close_book_usecase.New(db, bookStore, outbox), props.Logger),
-		}), props.Logger)))
-	if err != nil {
-		closeStores()
-		return fmt.Errorf("failed to handle scoring.v1.ScoringCommand: %w", err)
-	}
 	playerStore := postgres_player_store.New(db)
 	departureStore := postgres_departure_store.New(db)
 	decideDeparture := decide_departure_usecase.New(departureStore)
@@ -185,8 +175,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe scoring to who may be ranked: %w", subscribeErr)
 	}
 
-	grants, err := cpredis.Handle(ctx, streams, scoring_command_handler.New(log_subscriber.New[*scoringv1.GrantPoints](
-		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(grantStore), props.Logger)), props.Logger)))
+	grants, err := cpredis.Handle(ctx, streams, grant_points_handler.NewDropping(log_subscriber.New[*scoringv1.GrantPoints](
+		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(grantStore), props.Logger)),
+		props.Logger)))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to handle scoring.v1.GrantPoints: %w", err)
@@ -204,7 +195,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, boards, scores, rounds, cpredis.CloseAfter(streams, props.Logger,
 		takes, deletions, roundTakes, roundDeletions, players, forgottenPlayers, leaving, returns, forgottenDepartures,
-		commands, grants, cpoutbox.NewRelay("scoring-outbox", db, streams, props.Logger))))
+		grants)))
 
 	getRound := get_round_handler.New(roundQuery)
 	service := scoringv1controller.ScoringService{
@@ -225,7 +216,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to mount scoring.v1.ScoringService: %w", err)
 	}
 
+	openBook := open_book_usecase.New(db, bookStore)
+	openRound := open_round_usecase.New(db, bookStore, roundStore, territories)
+	closeRound := close_round_usecase.New(db, territories, roundStore)
+	closeBook := close_book_usecase.New(db, bookStore)
 	internalService := scoringv1controller.InternalService{
+		OpenBookHandler:        open_book_handler.New(log_command.New("open_book", openBook, props.Logger)),
+		OpenRoundHandler:       open_round_handler.New(log_command.New("open_round", openRound, props.Logger)),
+		CloseRoundHandler:      close_round_handler.New(log_command.New("close_round", closeRound, props.Logger)),
+		CloseBookHandler:       close_book_handler.New(log_command.New("close_book", closeBook, props.Logger)),
 		GetRoundHandler:        getRound,
 		GetTableHandler:        get_table_handler.New(scoresQuery),
 		GetRoundPlayersHandler: get_round_players_handler.New(round_players_query.NewPostgresQuery(db)),

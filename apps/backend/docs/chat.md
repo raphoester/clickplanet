@@ -94,8 +94,8 @@ arena knocked out (`{country, by}`; see [The knock-out](capitals.md#the-knock-ou
   ground is `au`, and the line says "Tasmania". `bomb_landed_subscriber` turns it into a `Bomb` and
   `announce_usecase` keeps it, then publishes it on `inprocess_feed`. The announcement's time is the event's
   `landed_at`, to the second the ledger keeps. A bomb Redis did not take is a line missed, never a bomb.
-- **How a round gets here**: scoring scores a round and tells `scoring.v1.RoundScored`; the gamemaster hears it and
-  tells, in the game's words, `gamemaster.v1.DayEnded` or `BattleEnded`, with the round's id and no numbers.
+- **How a round gets here**: the gamemaster calls scoring to close a round; scoring answers it scored, and the
+  gamemaster tells, in the game's words, `gamemaster.v1.DayEnded` or `BattleEnded`, with the round's id and no numbers.
   `day_ended_subscriber` (group `chat-announcements-days`) and `battle_ended_subscriber`
   (`chat-announcements-battles`) name the round, `announcements.DayOf(season, day)` or
   `announcements.BattleOf(season, number, ends_season, times)`, and `announce_round_usecase` reads its results by
@@ -105,8 +105,8 @@ arena knocked out (`{country, by}`; see [The knock-out](capitals.md#the-knock-ou
   it ran to the season's end, and is told under an id of its own (`seasons/<season>/own-rounds/<number>`), since its
   number counts the season's battles and not the days. The announcement's time is the event's `ended_at`. A round
   scoring cannot answer for is refused and logged, so the bus delivers it again.
-- **How a champion gets here, once**: scoring closes the season's book and tells `scoring.v1.BookClosed`; the
-  gamemaster tells `gamemaster.v1.SeasonEnded` with the book's id. `season_ended_subscriber`
+- **How a champion gets here, once**: the gamemaster calls scoring to close the season's book; scoring answers it
+  closed, and the gamemaster tells `gamemaster.v1.SeasonEnded` with the book's id. `season_ended_subscriber`
   (`chat-announcements-champions`) and `announce_champion_usecase` read the book's table from
   `InternalService/GetTable` (refused while the book is not closed) and keep the countries ranked 1st
   (`announcements.ChampionOf`; level on everything, they win together) as a `{season, countries}` payload at the

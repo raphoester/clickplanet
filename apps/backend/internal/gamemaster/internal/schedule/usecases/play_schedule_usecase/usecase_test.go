@@ -129,21 +129,15 @@ func TestNothingIsSentWhileTheTurnHolds(t *testing.T) {
 	assert.Len(t, h.commands.sent, 1)
 }
 
-func TestTheTurnIsSentAgainEachMinuteWithTheTimeItWasDecided(t *testing.T) {
+func TestATurnBothModulesPlayIsNotCalledAgain(t *testing.T) {
 	h := newHarness(t, finale.Add(-time.Hour))
 	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, h.commands, h.clock, time.Minute)
 	h.execute()
 
-	h.clock.Advance(59 * time.Second)
-	assert.False(t, h.execute())
-	h.clock.Advance(time.Second)
-	assert.False(t, h.execute(), "a turn sent again is not a new turn told")
-	h.clock.Advance(time.Second)
+	h.clock.Advance(time.Hour - time.Second)
 	assert.False(t, h.execute())
 
-	decided := finale.Add(-time.Hour)
-	assert.Equal(t, []command{{set: "default", decidedAt: decided}, {set: "default", decidedAt: decided}}, h.commands.sent,
-		"a module that plays it already finds it no newer and changes nothing")
+	assert.Equal(t, []command{{set: "default", decidedAt: finale.Add(-time.Hour)}}, h.commands.sent)
 }
 
 func TestASetAModuleRefusedPlaysOnceItIsMade(t *testing.T) {
@@ -151,18 +145,21 @@ func TestASetAModuleRefusedPlaysOnceItIsMade(t *testing.T) {
 	module := &refusing{keeps: cpcolls.NewSet[schedule.SetName]("default"), playing: "default"}
 	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, module, h.clock, time.Minute)
 
-	h.execute()
+	_, _, err := h.useCase.Execute(t.Context())
+	require.ErrorIs(t, err, errUnknownSet)
 	assert.Equal(t, schedule.SetName("default"), module.playing, "rush is refused")
 
 	module.keeps.Add("rush")
 	h.clock.Advance(30 * time.Second)
-	h.execute()
+	assert.False(t, h.execute(), "the call waits a minute")
 	assert.Equal(t, schedule.SetName("default"), module.playing)
 	h.clock.Advance(30 * time.Second)
-	h.execute()
+	assert.True(t, h.execute())
 	assert.Equal(t, schedule.SetName("rush"), module.playing)
 	assert.Equal(t, finale, module.decidedAt)
 }
+
+var errUnknownSet = errors.New("no such set")
 
 type refusing struct {
 	keeps     *cpcolls.Set[schedule.SetName]
@@ -174,10 +171,12 @@ func (r *refusing) PlayAntibot(context.Context, schedule.Turn, time.Time) error 
 
 func (r *refusing) Play(_ context.Context, turn schedule.Turn, decidedAt time.Time) error {
 	set := turn.TakeSnapshot().Set
-	if !decidedAt.After(r.decidedAt) || !r.keeps.Contains(set) {
-		return nil
+	if !r.keeps.Contains(set) {
+		return errUnknownSet
 	}
-	r.playing, r.decidedAt = set, decidedAt
+	if decidedAt.After(r.decidedAt) {
+		r.playing, r.decidedAt = set, decidedAt
+	}
 	return nil
 }
 
@@ -223,9 +222,10 @@ func TestAnEntryOfTheSetThatPlaysIsSentAgain(t *testing.T) {
 	assert.Equal(t, []schedule.SetName{"rush", "rush"}, h.commands.sets())
 }
 
-func TestACommandRedisDidNotTakeIsSentAtTheNextExecute(t *testing.T) {
+func TestACallNoModuleAnsweredIsMadeAgainAMinuteLaterWithTheTurnsDecisionTime(t *testing.T) {
 	h := newHarness(t, finale)
-	down := errors.New("redis is down")
+	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, h.commands, h.clock, time.Minute)
+	down := errors.New("planet is down")
 	h.commands.err = down
 
 	_, told, err := h.useCase.Execute(t.Context())
@@ -234,8 +234,10 @@ func TestACommandRedisDidNotTakeIsSentAtTheNextExecute(t *testing.T) {
 
 	h.commands.err = nil
 	h.clock.Advance(time.Second)
+	assert.False(t, h.execute())
+	h.clock.Advance(time.Minute)
 	assert.True(t, h.execute())
-	assert.Equal(t, []command{{set: "rush", decidedAt: finale.Add(time.Second)}}, h.commands.sent)
+	assert.Equal(t, []command{{set: "rush", decidedAt: finale}}, h.commands.sent)
 }
 
 func TestAScheduleThatCannotBeReadSendsNothing(t *testing.T) {
@@ -345,7 +347,7 @@ func TestAPlainTurnNeverAsksWhetherItsSetWaits(t *testing.T) {
 	assert.Equal(t, []command{{set: "default", decidedAt: finale.Add(-time.Hour)}}, h.commands.sent)
 }
 
-func TestASetThatStillWaitsIsSentAgainToTheAntibotAlone(t *testing.T) {
+func TestASetThatStillWaitsIsToldToTheAntibotOnce(t *testing.T) {
 	h := newHarness(t, finale)
 	h.useCase = play_schedule_usecase.New(h.entries, h.seasons, h.battles, h.commands, h.clock, time.Minute)
 	h.battle(10, "siege", finale, battleEnds)
@@ -355,7 +357,7 @@ func TestASetThatStillWaitsIsSentAgainToTheAntibotAlone(t *testing.T) {
 	h.clock.Advance(time.Minute)
 	h.execute()
 
-	assert.Equal(t, []command{{set: "siege", decidedAt: finale}, {set: "siege", decidedAt: finale}}, h.commands.antibot)
+	assert.Equal(t, []command{{set: "siege", decidedAt: finale}}, h.commands.antibot)
 	assert.Empty(t, h.commands.sent)
 }
 

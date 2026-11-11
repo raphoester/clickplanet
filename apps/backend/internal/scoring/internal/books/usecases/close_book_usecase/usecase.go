@@ -5,10 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
@@ -16,6 +12,9 @@ import (
 type Books interface {
 	Find(ctx context.Context, id books.BookID) (books.Book, bool, error)
 	Close(ctx context.Context, book books.Book) (bool, error)
+	Lock(ctx context.Context, id books.BookID) error
+	Missed(ctx context.Context, id books.BookID) (books.MissedBook, bool, error)
+	KeepMissed(ctx context.Context, missed books.MissedBook) error
 }
 
 type Command struct {
@@ -27,55 +26,50 @@ type Command struct {
 type UseCase struct {
 	transactioner cpatomic.Transactioner
 	books         Books
-	outbox        cpatomic.Outbox
 }
 
-func New(transactioner cpatomic.Transactioner, books Books, outbox cpatomic.Outbox) *UseCase {
-	return &UseCase{transactioner: transactioner, books: books, outbox: outbox}
+func New(transactioner cpatomic.Transactioner, books Books) *UseCase {
+	return &UseCase{transactioner: transactioner, books: books}
 }
 
-// Execute closes the book, and answers whether it did: a book closed before is not closed again, and one never opened
-// is not closed and is told missed, at each close of it.
-func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
-	book, found, err := u.books.Find(ctx, command.Book)
-	if err != nil {
-		return false, err //nolint:wrapcheck // the store says what failed.
-	}
-	if !found {
-		return false, u.tell(ctx, command.Book, &scoringv1.BookMissed{
-			BookId: string(command.Book), EndedAt: timestamppb.New(command.EndsAt),
-		})
-	}
-	if book.Closed {
-		return false, u.tell(ctx, command.Book, eventOf(book))
-	}
-
-	closed := book.ClosedAt(command.EndsAt, command.Tiebreak)
-	done := false
-	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
-		if done, err = u.books.Close(ctx, closed); err != nil || !done {
+// Execute closes the book, and answers the end it closed at: a book closed before is not closed again, and one never
+// opened is kept missed, at the end of the first close of it.
+func (u *UseCase) Execute(ctx context.Context, command Command) (books.Ending, error) {
+	var ending books.Ending
+	err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
+		if err := u.books.Lock(ctx, command.Book); err != nil {
 			return err //nolint:wrapcheck // the store says what failed.
 		}
-		if err := u.outbox.Record(ctx, eventOf(closed)); err != nil {
-			return fmt.Errorf("failed to record book %s closed: %w", book.ID, err)
+		book, open, err := u.books.Find(ctx, command.Book)
+		if err != nil {
+			return err //nolint:wrapcheck // the store says what failed.
 		}
+		if !open {
+			ending, err = u.miss(ctx, command)
+			return err
+		}
+		if !book.Closed {
+			book = book.ClosedAt(command.EndsAt, command.Tiebreak)
+			if _, err := u.books.Close(ctx, book); err != nil {
+				return fmt.Errorf("failed to close book %s: %w", command.Book, err)
+			}
+		}
+		ending = book.Ending()
 		return nil
 	})
+	return ending, err //nolint:wrapcheck // each step named what failed.
+}
+
+func (u *UseCase) miss(ctx context.Context, command Command) (books.Ending, error) {
+	missed, found, err := u.books.Missed(ctx, command.Book)
 	if err != nil {
-		return false, err //nolint:wrapcheck // each step named what failed.
+		return books.Ending{}, err //nolint:wrapcheck // the store says what failed.
 	}
-	return done, nil
-}
-
-func (u *UseCase) tell(ctx context.Context, book books.BookID, event proto.Message) error {
-	return u.transactioner.InTx(ctx, func(ctx context.Context) error { //nolint:wrapcheck // the outbox names the event.
-		if err := u.outbox.Record(ctx, event); err != nil {
-			return fmt.Errorf("failed to tell book %s: %w", book, err)
+	if !found {
+		missed = books.NewMissedBook(command.Book, command.EndsAt)
+		if err := u.books.KeepMissed(ctx, missed); err != nil {
+			return books.Ending{}, fmt.Errorf("failed to keep book %s missed: %w", command.Book, err)
 		}
-		return nil
-	})
-}
-
-func eventOf(closed books.Book) *scoringv1.BookClosed {
-	return &scoringv1.BookClosed{BookId: string(closed.ID), EndedAt: timestamppb.New(closed.EndsAt)}
+	}
+	return missed.Ending(), nil
 }

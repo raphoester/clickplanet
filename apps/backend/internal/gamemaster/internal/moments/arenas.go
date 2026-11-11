@@ -154,16 +154,13 @@ type ArenaCommand struct {
 	Set    schedule.SetName
 }
 
-// ArenaKey is a command's identity: an open is sent once per process, a close again until planet answers it.
+// ArenaKey is a command's identity: a call is made until planet answers it, once per process.
 type ArenaKey struct {
 	Action ArenaAction
 	Arena  RoundID
 }
 
 func (c ArenaCommand) Key() ArenaKey { return ArenaKey{Action: c.Action, Arena: c.Arena} }
-
-// Closes is true for the command planet answers with a fact: it is sent again until the fact comes.
-func (a ArenaAction) Closes() bool { return a == CloseArena }
 
 // ArenasDueAt is every arena command whose time has come. An arena opens while its battle runs, once scoring answered
 // the round before it, scored on the map as it is or missed, and no arena battle before it waits for its map, until

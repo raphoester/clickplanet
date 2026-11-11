@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message antibot.v1.GetRuleSetNamesRequest
@@ -73,6 +73,82 @@ export class GetRuleSetNamesResponse extends Message<GetRuleSetNamesResponse> {
 
   static equals(a: GetRuleSetNamesResponse | PlainMessage<GetRuleSetNamesResponse> | undefined, b: GetRuleSetNamesResponse | PlainMessage<GetRuleSetNamesResponse> | undefined): boolean {
     return proto3.util.equals(GetRuleSetNamesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.PlayRuleSetRequest
+ */
+export class PlayRuleSetRequest extends Message<PlayRuleSetRequest> {
+  /**
+   * @generated from field: string rule_set = 1;
+   */
+  ruleSet = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp decided_at = 2;
+   */
+  decidedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PlayRuleSetRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.PlayRuleSetRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rule_set", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "decided_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayRuleSetRequest {
+    return new PlayRuleSetRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayRuleSetRequest {
+    return new PlayRuleSetRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayRuleSetRequest {
+    return new PlayRuleSetRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayRuleSetRequest | PlainMessage<PlayRuleSetRequest> | undefined, b: PlayRuleSetRequest | PlainMessage<PlayRuleSetRequest> | undefined): boolean {
+    return proto3.util.equals(PlayRuleSetRequest, a, b);
+  }
+}
+
+/**
+ * The antibot judges with the latest decision.
+ *
+ * @generated from message antibot.v1.PlayRuleSetResponse
+ */
+export class PlayRuleSetResponse extends Message<PlayRuleSetResponse> {
+  constructor(data?: PartialMessage<PlayRuleSetResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.PlayRuleSetResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlayRuleSetResponse {
+    return new PlayRuleSetResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlayRuleSetResponse {
+    return new PlayRuleSetResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlayRuleSetResponse {
+    return new PlayRuleSetResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlayRuleSetResponse | PlainMessage<PlayRuleSetResponse> | undefined, b: PlayRuleSetResponse | PlainMessage<PlayRuleSetResponse> | undefined): boolean {
+    return proto3.util.equals(PlayRuleSetResponse, a, b);
   }
 }
 

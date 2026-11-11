@@ -215,7 +215,7 @@ func TestPlanetHearsTheBansAgainUntilItHasHeardThem(t *testing.T) {
 
 	h.bans.err = nil
 	_, took, err = h.play("rush", finale)
-	require.NoError(t, err, "the command delivered again")
+	require.NoError(t, err, "the call made again")
 
 	assert.False(t, took)
 	assert.Equal(t, 3, h.bans.Times())

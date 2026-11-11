@@ -4,14 +4,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// Kept is what the gamemaster keeps of its commands to scoring: each round it opened, and what scoring answered to each
-// close.
+// Kept is what the gamemaster keeps of its calls to scoring: each round it opened, and what scoring answered to each
+// close; and each season whose map planet reset, by its book.
 type Kept struct {
 	Opened       []RoundID
 	Scored       []RoundID
 	MissedRounds []RoundID
 	Closed       []BookID
 	MissedBooks  []BookID
+	Reset        []BookID
 }
 
 // ArenasKept is what the gamemaster keeps of the arena battles: each battle judged, and each arena planet opened and
@@ -31,6 +32,7 @@ type Known struct {
 	settled *cpcolls.Set[RoundID]
 	// books are the books scoring closed or missed.
 	books  *cpcolls.Set[BookID]
+	reset  *cpcolls.Set[BookID]
 	opened *cpcolls.Set[RoundID]
 	closed *cpcolls.Set[RoundID]
 }
@@ -40,6 +42,7 @@ func NewKnown(kept Kept, arenas ArenasKept) Known {
 		modes:   map[RoundID]Mode{},
 		settled: cpcolls.NewSet(append(append([]RoundID{}, kept.Scored...), kept.MissedRounds...)...),
 		books:   cpcolls.NewSet(append(append([]BookID{}, kept.Closed...), kept.MissedBooks...)...),
+		reset:   cpcolls.NewSet(kept.Reset...),
 		opened:  cpcolls.NewSet(arenas.Opened...),
 		closed:  cpcolls.NewSet(arenas.Closed...),
 	}

@@ -16,16 +16,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/usecases/grant_points_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/grant_points_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/log_command"
-	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/commands/scoring_command_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/subscribers/log_subscriber"
 )
 
 var at = time.Date(2026, 10, 28, 20, 0, 0, 0, time.UTC)
 
-func setUp() (scoring_command_handler.Handler[*scoringv1.GrantPoints], *inmemory_grant_store.Store) {
+func setUp() (grant_points_handler.Dropping, *inmemory_grant_store.Store) {
 	store := inmemory_grant_store.New()
 	logger := slog.New(slog.DiscardHandler)
-	return scoring_command_handler.New(log_subscriber.New[*scoringv1.GrantPoints](
+	return grant_points_handler.NewDropping(log_subscriber.New[*scoringv1.GrantPoints](
 		grant_points_handler.New(log_command.New("grant_points", grant_points_usecase.New(store), logger)), logger,
 	)), store
 }

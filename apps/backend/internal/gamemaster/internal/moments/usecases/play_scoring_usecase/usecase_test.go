@@ -11,15 +11,20 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
+	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/arenas/inmemory_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/inmemory_moment_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/outbox_moment_events"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/moments/usecases/play_scoring_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -40,54 +45,41 @@ var (
 	rush   = schedule.EntryID(uuid.MustParse("0192f5a0-7c00-7000-8000-000000000031"))
 )
 
-type commanded struct {
-	t      *testing.T
-	kept   *inmemory_moment_store.Store
-	sent   []moments.Command
-	err    error
-	silent bool
+// scoring answers each call at once: a round it opened is scored at its end, one it never opened missed.
+type scoring struct {
+	opened  []moments.RoundID
+	asked   []moments.Command
+	down    error
+	refuses moments.Action
 }
 
-func (c *commanded) Send(ctx context.Context, command moments.Command) error {
-	if c.err != nil {
-		return c.err
+func (s *scoring) Ask(_ context.Context, command moments.Command) (moments.Answer, error) {
+	s.asked = append(s.asked, command)
+	if s.down != nil {
+		return moments.Answer{}, s.down
 	}
-	c.sent = append(c.sent, command)
-	if !c.silent {
-		c.answer(ctx, command)
+	if command.Action == s.refuses {
+		return moments.Answer{}, fmt.Errorf("%w: a bad id", moments.ErrRefused)
 	}
-	return nil
-}
-
-func (c *commanded) answer(ctx context.Context, command moments.Command) {
-	c.t.Helper()
-	kept, err := c.kept.Kept(ctx)
-	require.NoError(c.t, err)
-	var answered error
-	switch command.Action {
-	case moments.CloseRound:
-		if slices.Contains(kept.Opened, command.Round) {
-			_, answered = c.kept.KeepRound(ctx, moments.ScoredRound{Round: command.Round, Book: command.Book, EndedAt: command.At})
-		} else {
-			_, answered = c.kept.KeepMissedRound(ctx, moments.MissedRound{Round: command.Round, EndedAt: command.At})
-		}
-	case moments.CloseBook:
-		_, answered = c.kept.KeepBook(ctx, moments.ClosedBook{Book: command.Book, EndedAt: command.At})
-	case moments.OpenBook, moments.OpenRound:
+	if command.Action == moments.OpenRound {
+		s.opened = append(s.opened, command.Round)
 	}
-	require.NoError(c.t, answered)
+	return moments.Answer{
+		Missed: command.Action == moments.CloseRound && !slices.Contains(s.opened, command.Round), EndedAt: command.At,
+	}, nil
 }
 
 type harness struct {
-	t        *testing.T
-	clock    *cptime.FixedClock
-	seasons  *inmemory_season_store.Store
-	entries  *inmemory_entry_store.Store
-	opened   *inmemory_moment_store.Store
-	judged   *inmemory_arena_store.Store
-	commands *commanded
-	planner  moments.Planner
-	useCase  *play_scoring_usecase.UseCase
+	t       *testing.T
+	clock   *cptime.FixedClock
+	seasons *inmemory_season_store.Store
+	entries *inmemory_entry_store.Store
+	opened  *inmemory_moment_store.Store
+	judged  *inmemory_arena_store.Store
+	outbox  *cpatomic.FakeOutbox
+	scoring *scoring
+	planner moments.Planner
+	useCase *play_scoring_usecase.UseCase
 }
 
 // Season 0 runs from its origin to 31 Oct 23:00, and its finale, the Final Battle, is rush × 3 from 21:00 to 23:00.
@@ -96,7 +88,8 @@ func newHarness(t *testing.T, at time.Time) *harness {
 
 	h := &harness{
 		t: t, clock: cptime.NewFixedClock(at), seasons: inmemory_season_store.New(), entries: inmemory_entry_store.New(),
-		opened: inmemory_moment_store.New(), judged: inmemory_arena_store.New(),
+		opened: inmemory_moment_store.New(), judged: inmemory_arena_store.New(), outbox: &cpatomic.FakeOutbox{},
+		scoring: &scoring{},
 	}
 	require.NoError(t, h.seasons.Save(t.Context(), zero.Restore()))
 	h.judge(battle, moments.Plain)
@@ -124,9 +117,9 @@ func (h *harness) noFinale() {
 }
 
 func (h *harness) boot() {
-	h.commands = &commanded{t: h.t, kept: h.opened}
 	h.planner = moments.NewPlanner(h.seasons, h.entries, h.opened, h.judged, cutoff)
-	h.useCase = play_scoring_usecase.New(h.opened, h.commands, h.clock, time.Minute)
+	h.useCase = play_scoring_usecase.New(h.opened, h.scoring, outbox_moment_events.New(h.outbox),
+		cpatomic.FakeTransactioner{}, h.clock, time.Minute)
 }
 
 func (h *harness) plan() moments.Plan {
@@ -142,9 +135,32 @@ func (h *harness) at(at time.Time) {
 
 func (h *harness) execute() []moments.Command {
 	h.t.Helper()
-	sent, err := h.useCase.Execute(h.t.Context(), h.plan())
+	calls, err := h.useCase.Execute(h.t.Context(), h.plan())
 	require.NoError(h.t, err)
-	return sent
+	return commandsOf(calls)
+}
+
+// failing executes with scoring down, and answers what was asked.
+func (h *harness) failing() []moments.Command {
+	h.t.Helper()
+	down := errors.New("scoring is down")
+	h.scoring.down, h.scoring.asked = down, nil
+	defer func() { h.scoring.down = nil }()
+
+	calls, err := h.useCase.Execute(h.t.Context(), h.plan())
+	if len(h.scoring.asked) > 0 {
+		require.ErrorIs(h.t, err, down)
+	}
+	require.Empty(h.t, calls)
+	return h.scoring.asked
+}
+
+func commandsOf(calls []play_scoring_usecase.Call) []moments.Command {
+	commands := make([]moments.Command, 0, len(calls))
+	for _, call := range calls {
+		commands = append(commands, call.Command)
+	}
+	return commands
 }
 
 func dayRound(n int) moments.RoundID { return moments.RoundID(fmt.Sprintf("season-0/day-%d", n)) }
@@ -196,24 +212,22 @@ func TestABootAfterASeasonWhoseBookClosedSendsNothing(t *testing.T) {
 	assert.Empty(t, h.execute())
 }
 
-func TestACloseIsSentAgainEachMinuteUntilScoringAnswersIt(t *testing.T) {
+func TestACloseIsCalledAgainEachMinuteUntilScoringAnswersAndHoldsBackTheBook(t *testing.T) {
 	h := newHarness(t, seasonZeroEnds.Add(-time.Second))
 	h.execute()
-	h.commands.silent = true
-	closes := []moments.Command{
-		{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds},
-		{Action: moments.CloseBook, Book: book, Tiebreak: battle, At: seasonZeroEnds},
-	}
+	closeRound := moments.Command{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds}
 
 	h.at(seasonZeroEnds)
-	assert.Equal(t, closes, h.execute())
+	assert.Equal(t, []moments.Command{closeRound}, h.failing(), "the book is not closed before its round")
 	h.at(seasonZeroEnds.Add(59 * time.Second))
-	assert.Empty(t, h.execute())
+	assert.Empty(t, h.failing())
 	h.at(seasonZeroEnds.Add(time.Minute))
-	assert.Equal(t, closes, h.execute(), "no answer came: sent again, in order")
+	assert.Equal(t, []moments.Command{closeRound}, h.failing(), "no answer came: called again")
 
-	h.commands.answer(t.Context(), closes[0])
-	h.commands.answer(t.Context(), closes[1])
+	h.at(seasonZeroEnds.Add(2 * time.Minute))
+	assert.Equal(t, []moments.Command{
+		closeRound, {Action: moments.CloseBook, Book: book, Tiebreak: battle, At: seasonZeroEnds},
+	}, h.execute())
 	h.at(seasonZeroEnds.Add(5 * time.Minute))
 	assert.Empty(t, h.execute(), "scoring answered both")
 }
@@ -275,17 +289,15 @@ func TestADayThatOpenedRunsToASeasonEndMovedBeforeItsCutoff(t *testing.T) {
 	h.at(end.Add(-time.Second))
 	assert.Empty(t, h.execute(), "day 13 runs on")
 
-	h.commands.silent = true
 	h.at(end)
 	closes := []moments.Command{
 		{Action: moments.CloseRound, Book: book, Round: dayRound(13), At: end},
 		{Action: moments.CloseBook, Book: book, At: end},
 	}
-	assert.Equal(t, closes, h.execute(), "the day is cut at the season's end; with no finale, no round breaks a tie")
+	assert.Equal(t, closes[:1], h.failing(), "the day is cut at the season's end")
 
 	h.boot()
-	h.commands.silent = true
-	assert.Equal(t, closes, h.execute(), "a boot before scoring answered remembers the day opened")
+	assert.Equal(t, closes, h.execute(), "a boot before scoring answered remembers the day opened; with no finale, no round breaks a tie")
 }
 
 func TestABattleEntryRunningWhenTheSeasonEndMovesIsCutAtTheNewEndAndIsNoFinale(t *testing.T) {
@@ -304,23 +316,75 @@ func TestABattleEntryRunningWhenTheSeasonEndMovesIsCutAtTheNewEndAndIsNoFinale(t
 	}, h.execute())
 }
 
-func TestACommandRedisDidNotTakeIsSentAgainBeforeTheOnesAfterIt(t *testing.T) {
+func TestAnAnswerThatCannotBeKeptIsCalledAgainAMinuteLater(t *testing.T) {
 	h := newHarness(t, seasonZeroEnds.Add(-time.Second))
 	h.execute()
-	down := errors.New("redis is down")
-	h.commands.err = down
-	h.clock.Advance(time.Second)
+	h.at(seasonZeroEnds)
+	plan := h.plan()
+	down := errors.New("postgres is down")
+	h.opened.FailWith(down)
 
-	sent, err := h.useCase.Execute(t.Context(), h.plan())
+	calls, err := h.useCase.Execute(t.Context(), plan)
+
 	require.ErrorIs(t, err, down)
-	assert.Empty(t, sent)
-
-	h.commands.err = nil
-	h.clock.Advance(time.Second)
+	assert.Empty(t, calls)
+	h.opened.FailWith(nil)
+	h.at(seasonZeroEnds.Add(time.Minute))
 	assert.Equal(t, []moments.Command{
 		{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds},
 		{Action: moments.CloseBook, Book: book, Tiebreak: battle, At: seasonZeroEnds},
 	}, h.execute())
+}
+
+func TestARefusalForGoodIsNotCalledAgainAndHoldsNothingBack(t *testing.T) {
+	h := newHarness(t, seasonZeroEnds.Add(-time.Second))
+	h.execute()
+	h.scoring.refuses = moments.CloseRound
+
+	h.at(seasonZeroEnds)
+	calls, err := h.useCase.Execute(t.Context(), h.plan())
+
+	require.NoError(t, err)
+	require.Len(t, calls, 2)
+	require.ErrorIs(t, calls[0].Refusal, moments.ErrRefused)
+	assert.Equal(t, moments.CloseBook, calls[1].Command.Action)
+	h.at(seasonZeroEnds.Add(time.Hour))
+	assert.Empty(t, h.execute())
+}
+
+func TestTheRoundsScoredAndTheBookClosedAreToldOnceInTheGamesWords(t *testing.T) {
+	h := newHarness(t, seasonZeroEnds.Add(-time.Second))
+	h.execute()
+	before := len(h.outbox.Recorded())
+
+	h.at(seasonZeroEnds)
+	h.execute()
+	h.at(seasonZeroEnds.Add(time.Hour))
+	h.execute()
+
+	recorded := h.outbox.Recorded()[before:]
+	require.Len(t, recorded, 2)
+	assert.True(t, proto.Equal(&gamemasterv1.BattleEnded{
+		Season: 0, Number: 1, Times: 3, EndsSeason: true, RoundId: string(battle),
+		EndedAt: timestamppb.New(seasonZeroEnds),
+	}, recorded[0]), "%v", recorded[0])
+	ended, ok := recorded[1].(*gamemasterv1.SeasonEnded)
+	require.True(t, ok, "%T", recorded[1])
+	assert.Equal(t, string(book), ended.GetBookId())
+}
+
+func TestADayMissedIsKeptAndToldNot(t *testing.T) {
+	h := newHarness(t, dayEnds(1).Add(-time.Second))
+
+	h.at(dayEnds(1))
+	h.execute()
+
+	kept, err := h.opened.Kept(t.Context())
+	require.NoError(t, err)
+	assert.Contains(t, kept.MissedRounds, dayRound(1))
+	for _, event := range h.outbox.Recorded() {
+		assert.NotEqual(t, "gamemaster.v1.DayEnded", string(proto.MessageName(event)))
+	}
 }
 
 func TestNoSeasonStartedSendsNothing(t *testing.T) {

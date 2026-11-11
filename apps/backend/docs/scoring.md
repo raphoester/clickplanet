@@ -4,8 +4,8 @@
 of its rounds and grants and each player's takes; a round credits its book once it closes; a grant credits every book
 open at its time. Scoring knows no season, day, battle, finale,
 clock, calendar, cutoff or rule set, and never names the gamemaster. **The gamemaster owns time and the game's words**
-(see [The gamemaster](gamemaster.md)): it commands scoring over one command stream, and scoring tells what it scored as
-events. Missions grants points the same way, by a command, and scoring never learns the word mission. Planet never
+(see [The gamemaster](gamemaster.md)): it calls scoring's `InternalService`, and each call answers what scoring did.
+Missions grants points by a command on Redis, and scoring never learns the word mission. Planet never
 imports, calls or hears scoring: scoring asks planet what each country holds
 (`planet.v1.InternalService/GetTerritories`), when a round opens, when it closes and for an open round's live standings.
 
@@ -18,12 +18,14 @@ internal/scoring/internal/
   books/                          BookID, RoundID, GrantID (ParseBookID, ParseRoundID, ParseGrantID: 1 to 64 characters),
                                   Book (NewBook, Holds, ClosedAt, Table), Round (NewRound, Holds, ScoredAt, Results),
                                   Ranking (GainRanking, HeldAndGainRanking, RankingNamed), Grant (NewGrant), Scored, Result, Score, Placed (ScoresOf, TableOf), Take,
-                                  TakeMark (Uncounted), ErrRefused; the Books, Rounds, Grants and Takes ports and their
-                                  contract suites
-    postgres_book_store/          Books over books, closed_books, book_tiebreaks
+                                  TakeMark (Uncounted), MissedRound, MissedBook, Ending (what a close answers),
+                                  ErrRefused, ErrMissed; the Books, Rounds, Grants and Takes ports and their contract
+                                  suites
+    postgres_book_store/          Books over books, closed_books, book_tiebreaks, missed_books; Lock, an advisory lock
+                                  per book id for its transaction
     postgres_grant_store/         Grants over grants
     postgres_round_store/         Rounds and Takes over rounds, scored_rounds, round_results, round_takes,
-                                  round_players
+                                  round_players, missed_rounds; Lock, per round id
     inmemory_book_store/  inmemory_round_store/  inmemory_grant_store/   the same ports in maps, behind the testing tag
     rpc_planet_territories/       the map now, from planet.v1.InternalService/GetTerritories
     usecases/open_book_usecase/   open_round_usecase/   close_round_usecase/   close_book_usecase/
@@ -41,10 +43,8 @@ internal/scoring/internal/
                                   the Store port and its contract suite
     postgres_departure_store/  inmemory_departure_store/
     usecases/decide_departure_usecase/  forget_departure_usecase/
-  commands/scoring_command_handler/  Dispatcher (one case, one use case) and Handler (drops a command refused, of
-                                  either stream)
-  commands/grant_points_handler/  parses a GrantPoints for its use case
-  commands/log_command/           logs each command applied
+  commands/grant_points_handler/  parses a GrantPoints for its use case; Dropping (drops a grant refused, once logged)
+  commands/log_command/           logs each answer, and each refusal
   scoringv1controller/            ScoringService and InternalService (bags), the cache and session interceptors
     get_board_handler/board_query/          a book's top 10, of every flag or of one; View; Live for the stream
     get_my_tally_handler/my_tally_query/    the caller's tally in a book
@@ -53,6 +53,7 @@ internal/scoring/internal/
     get_table_handler/                      InternalService/GetTable, through scores_query
     get_round_players_handler/round_players_query/   InternalService/GetRoundPlayers: every account of a round
     get_rank_points_handler/                InternalService/GetRankPoints: books.RankPointsOf, nothing kept
+    open_book_handler/  open_round_handler/  close_round_handler/  close_book_handler/   the gamemaster's calls
     scoringread/                  Ranked: the SQL of who a board may rank, which the three queries share
     listen_for_events_handler/    the stream: a book's board and scores, the rounds asked, a heartbeat
       inprocess_feed/             Feed[K, V]: each key the streams follow, read once a period, sent when it changed
@@ -64,59 +65,68 @@ internal/scoring/internal/
   migrations/
 ```
 
-## The commands
+## The calls
 
-**`scoring.v1.ScoringCommand`**, one stream (`commands:scoring.v1.ScoringCommand`, group `handler`), its four cases
-handled in order: a round closed, then its book, is always scored in that order. `scoring_command_handler.Dispatcher`
-parses the ids and the times and hands each case to its use case, behind `log_command` (an Info line for each command
-that changed something), behind `log_subscriber` (an Error line for each one that failed or was refused). **A command
-refused (`books.ErrRefused`) is dropped** by `Handler`: delivered again, it would hold back every command after it on
-the one stream. Any other failure is delivered again.
+**The gamemaster's four calls, on scoring's `InternalService`** (2026-11-11; until then one ordered command stream,
+`commands:scoring.v1.ScoringCommand`, answered by `RoundScored`, `BookClosed`, `RoundMissed` and `BookMissed` through
+scoring's outbox, which went with it). Each handler parses the ids and the times (`InvalidArgument` for a bad one) and
+hands the call to its use case, behind `log_command` (an Info line for each answer, a Warn line for each refusal). **A
+refusal (`books.ErrRefused`) is `FailedPrecondition`**; any other failure is `Internal`, and the gamemaster calls again a
+minute later. The gamemaster makes no call before the ones ahead of it are answered, so a round's close always reaches
+scoring before its book's (see [The gamemaster as a reconciler](gamemaster-reconciler.md)).
 
-Every command is idempotent by its ids, checked by the use case on what the store found (`Find`), and once more by the
+Every call is idempotent by its ids, checked by the use case on what the store found (`Find`), and once more by the
 store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it):
 
-- **`OpenBook{book_id, starts_at}`**: a book kept is left as it is (its first start stays).
+- **`OpenBook{book_id, starts_at}`**: a book kept is left as it is (its first start stays). A book kept missed is
+  refused (`books.ErrMissed`).
 - **`OpenRound{round_id, book_id, times, starts_at, from_nothing, ranking}`**: a round kept is left as it is, its
-  ranking too. `times` is 1 to `books.MaxTimes` (10), and `ranking` is `RANKING_GAIN` or `RANKING_HELD_AND_GAIN` (see
-  [The rules](#the-rules)), or the command is refused. A round whose book is not open (never opened, or closed) is refused
-  (`open_round_usecase.ErrBookNotOpen`). Else `open_round_usecase` reads the map (`GetTerritories`) and keeps what each
-  country holds then with the round, in one transaction: its **start** (`books.Start`, `round_starts`). A failure to
-  read the map opens nothing and is tried again. **A round told `from_nothing`, or a book's first round, keeps no start,
-  reads no map and counts from nothing** (`books.CountsFromNothing`): a season after season 0 opens on a blank map,
-  and the gamemaster tells planet to wipe it on another stream, so the wipe can land after the round opened; an arena battle's
-  round opens once planet told its arena's blank map plays (see [Arena battles](arenas.md)).
-- **`CloseRound{round_id, ends_at}`**: a round scored is not scored again, but **`RoundScored` is recorded again** with
-  the end it was scored at, in a transaction of its own, at each close: the first may have been lost on its way to the
-  gamemaster, which waits for it (see [The gamemaster as a reconciler](gamemaster-reconciler.md#every-close-is-answered)).
-  **A round never opened is not scored, and
-  `close_round_usecase` records `scoring.v1.RoundMissed`** (round, end) in the outbox, at each such close: the
-  gamemaster closes a round until scoring answers it, so a close that cannot apply is answered too (see [The gamemaster
-  as a reconciler](gamemaster-reconciler.md)). Nothing is kept of it. Else `close_round_usecase` reads
-  the round's start and the map once (`GetTerritories`), places the countries by its ranking (`Round.Results`), keeps the results and records **`scoring.v1.RoundScored`**
-  (round, book, end) in the outbox, in one transaction. A failure to read the map
-  scores nothing and is tried again. Nothing freezes the map: a round closed late is scored from the map as it is then.
-- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book closed is not closed again, but **`BookClosed` is
-  recorded again** with the end it closed at, at each close. **A book never opened is not
-  closed, and `close_book_usecase` records `scoring.v1.BookMissed`** (book, end), at each such close. Else
-  `close_book_usecase` closes the book with its tiebreak round and records **`scoring.v1.BookClosed`** (book, end), in
-  one transaction. Its table is ranked at each read (`Book.Table`). Scoring ranks by
+  ranking too. `times` is 1 to `books.MaxTimes` (10) and `ranking` is `RANKING_GAIN` or `RANKING_HELD_AND_GAIN` (see
+  [The rules](#the-rules)), or the call is `InvalidArgument`. A round whose book is not open (never opened, or closed) is
+  refused (`open_round_usecase.ErrBookNotOpen`), and so is a round kept missed. Else `open_round_usecase` reads the map
+  (`GetTerritories`) and keeps what each country holds then with the round, in one transaction: its **start**
+  (`books.Start`, `round_starts`). A failure to read the map opens nothing, and the next call opens it. **A round told
+  `from_nothing`, or a book's first round, keeps no start, reads no map and counts from nothing**
+  (`books.CountsFromNothing`): a season after season 0 opens on a blank map, and the gamemaster asks planet to wipe it on
+  another runner, so the wipe can land after the round opened; an arena battle's round opens once planet answered its
+  arena's blank map plays (see [Arena battles](arenas.md)).
+- **`CloseRound{round_id, ends_at}`**: answers **`scored_at`**, the end the round was scored at, by this close or one
+  before. `close_round_usecase` reads the round's start and the map once (`GetTerritories`), places the countries by its
+  ranking (`Round.Results`) and keeps the results; a failure to read the map scores nothing, and the next call scores it.
+  Nothing freezes the map: a round closed late is scored from the map as it is then. **A round never opened is kept
+  missed** (`missed_rounds`, its end the first close's) **and answers `missed_at`**, at that close and every one after:
+  nothing scores it, and nothing waits on it.
+- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: answers **`closed_at`**, the end the book closed at, by this
+  close or one before; `close_book_usecase` closes the book with its tiebreak round. **A book never opened is kept
+  missed** (`missed_books`) **and answers `missed_at`**. Its table is ranked at each read (`Book.Table`). Scoring ranks by
   the tiebreak round it is given and never picks one: the gamemaster names its season's finale, or none when the season
   had no finale (see [The gamemaster](gamemaster.md#the-finale)).
 
+**No open lands after a close answered missed.** The gamemaster's call has a timeout, so an open whose caller gave up
+may still run when the close of the same round comes. So the open's "missed? then insert" and the close's "open? then
+keep it missed" each run in one transaction that first takes the same lock (`Rounds.Lock`, `Books.Lock`:
+`pg_advisory_xact_lock` on the kind and a hash of the id, held until the transaction ends): whichever comes second sees
+the first. A plain check on both sides would not do under READ COMMITTED: each could miss the other's row. The close
+reads the map and scores outside the lock, so planet is never called under it; two closes of one round both score it,
+and `Score`'s insert keeps one, which both answer.
+
 **`scoring.v1.GrantPoints{grant_id, country, points, granted_at}`** is a stream of its own
 (`commands:scoring.v1.GrantPoints`, group `handler`): missions sends one when a flag finishes its flag mission.
-`grant_points_handler` parses it for `grant_points_usecase`, behind `log_command` and `log_subscriber`, and the same
-`Handler` drops a refusal: an id that is not one, no country, no points or no time (`books.NewGrant`, `ErrEmptyGrant`).
+`grant_points_handler` parses it for `grant_points_usecase`, behind `log_command` and `log_subscriber`, and
+`Dropping` drops a refusal once it is logged: an id that is not one, no country, no points or no time
+(`books.NewGrant`, `ErrEmptyGrant`). Delivered again, it would hold back every grant after it on its stream.
 A grant is kept once per `grant_id` (`grants`, `ON CONFLICT DO NOTHING`); it needs no book open when it comes, since
 the books read the grants by time.
 
-`scoring_command_handler/season_end_test.go` plays season 0's end: day 24 closed at 21:00, the battle ×3 from 21:00 to
-23:00 as the tiebreak, then the book; the outbox holds the two `RoundScored` then `BookClosed`, and every command sent
-again scores and ranks nothing again and tells the same three facts again. It also pins a close of a round or a book
-never opened told missed at each close, a round and a book closed again told again with the end they closed at, a day
-ranked on the ground held and gained scored on both ranks, and a round with no ranking, or one scoring does not know,
-refused.
+`close_book_usecase`'s `TestTheLastDayThenTheFinalBattleThenTheSeasonAreScoredOnceInTheirOrder` plays season 0's
+end: day 24 closed at 21:00, the battle ×3 from 21:00 to 23:00 as the tiebreak, then the book; every call made again
+scores and ranks nothing again and answers the same. The use cases' tests also pin a close of a round or a book never
+opened kept missed and answered with the first close's end at each close, a round and a book closed again answered with
+the end they closed at, an open of a round or book kept missed refused, a map that cannot be read scored or opened by the
+next call, and a day ranked on the ground held and gained scored on both ranks. The handlers' tests pin each code: a bad
+id, no time, no ranking or times outside 1 to 10 `InvalidArgument`, a refusal `FailedPrecondition`. The postgres stores'
+tests pin the race under the lock: an open that waits for the close that holds the book finds it missed, and a close
+that waits for the open that holds the round finds it open.
 
 ## The rules
 
@@ -145,7 +155,7 @@ refused.
   while the book is open, or when the close named none). Countries level on all three share the rank.
 - **A grant counts in every book open at its time** (`Book.Table` keeps the grants it `Holds`): its points add to the
   country's, and it wins no round and gives no tiebreak points. A country with only grants is on the table. A grant
-  told after its book closed, at a time before the end, shows in the book's scores but not in its `BookClosed`.
+  told after its book closed, at a time before the end, shows in the book's scores, though its close answered before.
 - **A take counts in every book open at its time** (`Book.Holds`: from its start, and before its end once closed), and
   in every round of such a book open at its time (`Round.Holds`: from its start, and before its end once scored). A take
   told after its round or book closed still counts when it happened before the end. Every round counts its takes and
@@ -236,10 +246,10 @@ player anything.
 tiebreak has no row), `grants` (`grant_id`, `country`, `points`, `granted_at`, by `granted_at`), `rounds` (`round_id`,
 `book_id`, `times`, `ranking`, `starts_at`, `counted_takes_below`, `counted_takes_below_index`), `round_starts` (`round_id`,
 `country`, `tiles`: a country that held nothing has no row, and a round opened from nothing none), `scored_rounds`
-(`ended_at`), `round_results` (`rank`, `points`, `share`), `round_takes`, `round_players`, and the outbox
-(`outbox_event`: `scoring.v1.RoundScored`, `scoring.v1.BookClosed`, and `scoring.v1.RoundMissed`,
-`scoring.v1.BookMissed` from migration `20261110160000_missed`). An end is a table of its own, not a nullable
-column: an open book or round has none. The rules stay in Go; SQL keeps what they said.
+(`ended_at`), `round_results` (`rank`, `points`, `share`), `round_takes`, `round_players`, and `missed_rounds`
+(`round_id`, `ended_at`) and `missed_books` (`book_id`, `ended_at`), a close of one never opened (migration
+`20261111120000_missed_kept`, which dropped scoring's outbox, whose four events were the answers). An end is a table of
+its own, not a nullable column: an open book or round has none, and a missed one is none of the two. The rules stay in Go; SQL keeps what they said.
 
 **Migration `20261028130000_books` converted production** (only season 0 had run; any other season refuses it):
 
