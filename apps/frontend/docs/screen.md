@@ -57,13 +57,16 @@ that does not.
   panel away: the rail stays, with the flag, its rank and Change as a pill
   beside it, and any place opens the panel again. Folded or open is kept in
   `localStorage` (`clickplanet-menu-open`) from one visit to the next.
-- **What is centred at the top centres in the room right of the desktop menu.** The menu
+- **What is centred at the top centres on the globe and the dock, clear of the desktop menu.** The menu
   publishes its right edge, open or folded (`MENU_RIGHT`, `--menu-right`, through `useEdge`), and `index.css`
-  turns it into `--top-room` and `--top-centre`, which place the season and battle chips, the quiz, the bomb
-  news, "connection lost" and the battle's end. With no menu, on a phone, the room is the screen's width. The menu
-  is `clamp(340px, 40vw, 480px)` wide so the board shows the countries' names (see
+  turns it into `--top-centre` and `--top-room`, which place the season and battle chips, the quiz, the mission
+  progress line, the bomb news, "connection lost" and the battle's end. The centre is the screen's, unless that
+  leaves less than 240px (half the 440px quiz and its margins) right of the menu: then it is 240px right of the
+  menu, and never past the middle of the room right of it. With no menu, on a phone, it is the screen's centre.
+  The menu is `clamp(340px, 40vw, 480px)` wide so the board shows the countries' names (see
   [Season standings](season-standings.md)); a chip centred on the screen, 368px wide, left it at most 417px at
-  1440px wide (2026-11-11). The 40vw always leaves the chip its room right of the menu from 834px wide.
+  1440px wide (2026-11-11). Centred in the whole room right of the menu, the chips sat right of the globe on a
+  wide screen. The 40vw always leaves the chip its room right of the menu from 834px wide.
 - **You is not a place on a desktop.** It sits at the rail's foot and opens
   `account/ProfileModal`, the player's own card at up to 1200px wide (the
   screen less 64px), read at a glance:
