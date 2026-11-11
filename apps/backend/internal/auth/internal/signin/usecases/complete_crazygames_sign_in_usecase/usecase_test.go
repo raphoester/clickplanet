@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_recruitment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
@@ -47,7 +48,7 @@ func setUp(t *testing.T, providers func(*signin.FakeTokenProvider) signin.TokenP
 	}
 	f.crazyGames.Sign("nova's token", accounts.ClaimOf("cg-nova", "", false).WithName("Nova.42"))
 	f.crazyGames.Sign("vega's token", accounts.ClaimOf("cg-vega", "", false))
-	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
+	register := arrivals.NewRegister(f.arrivals, inmemory_recruitment_store.New(), &arrivals.SequentialIDs{})
 	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register,
 		grants.NewRegister(inmemory_grant_store.New(), &grants.SequentialIDs{}), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	f.useCase = complete_crazygames_sign_in_usecase.New(providers(f.crazyGames), admitter, cptime.NewFixedClock(start))

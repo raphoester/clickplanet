@@ -112,7 +112,8 @@ and says what is in it. Read the doc before you change its area.
   session a framed page carries in a header, operators, sign-out, deletion with its 30-day grace period and the purge,
   a sign-in that brings an account back, and pruning.
 - [Arrivals](docs/arrivals.md) — how each new account came: a player's link, the YouTube link, CrazyGames, or unknown,
-  and the referrer's host; kept by `auth` when it makes the account, anonymized when the account goes; the query.
+  and the referrer's host; the recruiter's account, in a table of its own (`auth.recruitments`); kept by `auth` when it
+  makes the account, anonymized when the recruit's or the recruiter's account goes; the queries.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's and the offers' facts about callers, judges them, and asks planet to
   refuse the ones it bans; a ring of accounts warned once before a ban for its turns; what survives a restart, and the
   parts that are easy to get wrong.
@@ -128,7 +129,7 @@ and says what is in it. Read the doc before you change its area.
   account saw; why each context keeps its own history.
 - [Player](docs/player.md) — who an account is: names (a slur or a Nazi reference refused however it is spelled) and
   guest codes, colors, the nameplates the page draws every name
-  from (`GetNameplates`), who is playing now, and an account
+  from (`GetNameplates`), the player that holds a name (`GetPlayerByName`, for a player's address), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
   an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,
   `GetAccounts`), so no game module but alerts hears or asks auth; the deploy that moved them to it.

@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useRef, useState} from "react";
 import {CapturedFrame} from "../viewer/capture.ts";
-import {ShareStats} from "../../domain/shareCard.ts";
+import {ShareAddress, ShareStats} from "../../domain/shareCard.ts";
 import {takePicture} from "./takePicture.ts";
 
 export type Shot =
@@ -10,6 +10,7 @@ export type Shot =
 export function useSharePicture(
     capture: (() => Promise<CapturedFrame>) | undefined,
     stats: ShareStats,
+    address: ShareAddress,
 ) {
     const [shot, setShot] = useState<Shot>()
     const [taking, setTaking] = useState(false)
@@ -28,7 +29,7 @@ export function useSharePicture(
 
         setTaking(true)
         try {
-            const file = await takePicture(capture, stats)
+            const file = await takePicture(capture, stats, address)
             shown.current = URL.createObjectURL(file)
             setShot({kind: "ready", file, url: shown.current})
         } catch (error) {

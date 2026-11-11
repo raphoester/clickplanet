@@ -45,7 +45,8 @@ export type SessionClientOptions = {
     refreshMarginMs?: number
     now?: () => number
     store?: TokenStore
-    landing?: Landing
+    // Settles once the name in a player's address is read, or at once.
+    landing?: Promise<Landing>
 }
 
 export class SessionClient implements SessionProvider {
@@ -57,7 +58,7 @@ export class SessionClient implements SessionProvider {
     private readonly refreshMarginMs: number
     private readonly now: () => number
     private readonly store: TokenStore
-    private readonly landing?: Landing
+    private readonly landing?: Promise<Landing>
 
     constructor(
         private readonly client: PromiseClient<typeof AuthService>,
@@ -147,7 +148,7 @@ export class SessionClient implements SessionProvider {
     private async createSession(generation: number): Promise<string> {
         try {
             const attestationToken = await this.attest()
-            const res = await this.client.createSession({attestationToken, landing: this.landing})
+            const res = await this.client.createSession({attestationToken, landing: await this.landing})
 
             if (generation === this.generation) {
                 this.current = {

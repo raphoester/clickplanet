@@ -6,6 +6,8 @@ import {
     cardSize,
     cropToAspect,
     fitInBox,
+    linkPlacement,
+    shareAddress,
     shareFileName,
     shareLabel,
     sharedCountry,
@@ -19,18 +21,40 @@ import {Race} from "../backends/standings.ts"
 import {Countries} from "./countries.ts"
 import {LeaderboardEntry} from "./leaderboard.ts"
 import {countryLines} from "./race.ts"
+import {recruiterNameOf} from "./landing.ts"
 
 const france = Countries.get("fr")!
 const japan = Countries.get("jp")!
 const entry = (code: string, tiles: number): LeaderboardEntry => ({country: Countries.get(code)!, tiles})
 
 describe("the share link", () => {
-    it("points at the country the player is holding, by the code the atlas uses", () => {
-        expect(shareUrl("fr")).toBe("https://clickplanet.lol/?f=fr&s=rc")
+    it("is the flag the player is holding, by the code the atlas uses, and its username", () => {
+        expect(shareUrl({code: "pl", name: "kutza"})).toBe("https://clickplanet.lol/pl/kutza")
+        expect(shareUrl({code: "gb-sct", name: "Nessie"})).toBe("https://clickplanet.lol/gb-sct/Nessie")
     })
 
-    it("drops the scheme where it is drawn into the image for a person to read", () => {
-        expect(shareLabel("jp")).toBe("clickplanet.lol/?f=jp")
+    it("is the flag alone for a guest, who has no username", () => {
+        expect(shareAddress("fr", undefined)).toEqual({code: "fr"})
+        expect(shareUrl(shareAddress("fr", undefined))).toBe("https://clickplanet.lol/fr")
+        expect(shareUrl(shareAddress("fr", "Ada"))).toBe("https://clickplanet.lol/fr/Ada")
+    })
+
+    it("writes each space of the name as a dash, keeps its case, and escapes what a link cannot carry", () => {
+        expect(shareUrl({code: "fr", name: "Ada Lovelace"})).toBe("https://clickplanet.lol/fr/Ada-Lovelace")
+        expect(shareUrl({code: "fr", name: "Émile Zola"})).toBe("https://clickplanet.lol/fr/%C3%89mile-Zola")
+        expect(shareUrl({code: "jp", name: "さくら"})).toBe("https://clickplanet.lol/jp/" + encodeURIComponent("さくら"))
+    })
+
+    it("drops the scheme and keeps the name's letters where a person reads it", () => {
+        expect(shareLabel({code: "jp"})).toBe("clickplanet.lol/jp")
+        expect(shareLabel({code: "fr", name: "Émile Zola"})).toBe("clickplanet.lol/fr/Émile-Zola")
+    })
+
+    it("is read back by the game as the flag and the name it was made of", () => {
+        const opened = new URL("https://clickplanet.lol/play?f=fr&s=rc&r=" + encodeURIComponent("Émile-Zola"))
+
+        expect(sharedCountry(opened)).toEqual(france)
+        expect(recruiterNameOf(opened)).toBe("Émile Zola")
     })
 
     it("names the file after the country, so a folder of them is readable", () => {
@@ -51,8 +75,8 @@ describe("the invite sent while the map is frozen", () => {
 describe("opening a share link", () => {
     const page = (path: string) => new URL(path, "https://clickplanet.lol")
 
-    it("reads back the country the link was made for", () => {
-        expect(sharedCountry(new URL(shareUrl("jp")))).toEqual(japan)
+    it("reads back the country of an old link", () => {
+        expect(sharedCountry(page("/?f=jp&s=rc"))).toEqual(japan)
     })
 
     it("reads a code retyped in capitals or with spaces", () => {
@@ -91,18 +115,32 @@ describe("what the card says", () => {
 
 describe("the text that rides with the image", () => {
     it("carries the standing and the link", () => {
-        expect(shareText({country: france, rank: 2, tiles: 9001}))
-            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/?f=fr&s=rc")
+        expect(shareText({country: france, rank: 2, tiles: 9001}, {code: "fr", name: "Ada Lovelace"}))
+            .toBe("France is #2 on ClickPlanet with 9,001 tiles. Come and take them. https://clickplanet.lol/fr/Ada-Lovelace")
     })
 
     it("invites rather than reports when there is no rank to quote", () => {
-        expect(shareText({country: japan, rank: null, tiles: 0}))
-            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/?f=jp&s=rc")
+        expect(shareText({country: japan, rank: null, tiles: 0}, {code: "jp"}))
+            .toBe("Japan holds nothing on ClickPlanet yet. Come and claim it. https://clickplanet.lol/jp")
     })
 
     it("offers no tiles to take from a country ranked with none", () => {
-        expect(shareText({country: france, rank: 2, tiles: 0}))
-            .toBe("France is #2 on ClickPlanet with no tiles. Come and claim it. https://clickplanet.lol/?f=fr&s=rc")
+        expect(shareText({country: france, rank: 2, tiles: 0}, {code: "fr"}))
+            .toBe("France is #2 on ClickPlanet with no tiles. Come and claim it. https://clickplanet.lol/fr")
+    })
+})
+
+describe("where the picture's link goes", () => {
+    it("sits beside the wordmark when it fits there", () => {
+        expect(linkPlacement(40, 41, 92)).toEqual({beside: true, scale: 1})
+    })
+
+    it("takes a line of its own under the masthead when it does not, at its size", () => {
+        expect(linkPlacement(60, 41, 92)).toEqual({beside: false, scale: 1})
+    })
+
+    it("shrinks only when even that line is too short for it", () => {
+        expect(linkPlacement(115, 41, 92)).toEqual({beside: false, scale: 0.8})
     })
 })
 

@@ -36,7 +36,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/admintokens/postgres_admin_token_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/postgres_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/postgres_recruitment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/usecases/anonymize_arrivals_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/usecases/anonymize_recruitments_usecase"
 	arrival_ids "github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
@@ -284,7 +286,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 	props.Runners.Add(attemptLimiter)
 	outbox := cpoutbox.New(db)
 	arrivalStore := postgres_arrival_store.New(db)
-	register := arrivals.NewRegister(arrivalStore, arrival_ids.Provider{})
+	recruitmentStore := postgres_recruitment_store.New(db)
+	register := arrivals.NewRegister(arrivalStore, recruitmentStore, arrival_ids.Provider{})
 	admitter := signin.NewAdmitter(db, store, outbox, register, grants.NewRegister(grantStore, grant_ids.Provider{}),
 		uuid_id_provider.Provider{}, random_token_generator.Generator{}, config.Sessions)
 	challenges := signin.NewChallenges(config.Email.Enabled, random_secret_generator.Generator{}, mail.codes, sealer, attemptLimiter)
@@ -298,6 +301,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		log_subscriber.New(account_deleted_subscriber.New(anonymize_arrivals_usecase.New(arrivalStore)), props.Logger))
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
+	}
+	recruiterDeletions, err := cpredis.Subscribe(ctx, streams, "auth-recruitments-accounts",
+		log_subscriber.New(account_deleted_subscriber.New(anonymize_recruitments_usecase.New(recruitmentStore)), props.Logger))
+	if err != nil {
+		return fmt.Errorf("failed to subscribe the recruitments to auth.v1.AccountDeleted: %w", err)
 	}
 
 	authService := authv1controller.AuthService{
@@ -337,7 +345,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		purge_deletions_usecase.NewRunner(config.Deletion,
 			log_purge_deletions.New(purge_deletions_usecase.New(config.Deletion, db, store, outbox, clock), props.Logger)),
 		prune_grants_usecase.NewRunner(log_prune_grants.New(prune_grants_usecase.New(grantStore, clock), props.Logger)),
-		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger), arrivalDeletions)))
+		cpredis.CloseAfter(streams, props.Logger, cpoutbox.NewRelay("auth-outbox", db, streams, props.Logger), arrivalDeletions, recruiterDeletions)))
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		path, handler := authv1connect.NewAuthServiceHandler(authService, options...)
 		return path, sessionheader.Carried(handler)

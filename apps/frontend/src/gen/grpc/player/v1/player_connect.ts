@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnnounceRequest, AnnounceResponse, GetNameplatesRequest, GetNameplatesResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
+import { AnnounceRequest, AnnounceResponse, GetNameplatesRequest, GetNameplatesResponse, GetPlayerByNameRequest, GetPlayerByNameResponse, GetPlayerRequest, GetPlayerResponse, GetProfileRequest, GetProfileResponse, LeaveRequest, LeaveResponse, ListenForEventsRequest, PlayerEvent, SetColorRequest, SetColorResponse, SetNameRequest, SetNameResponse } from "./player_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -87,6 +87,18 @@ export const PlayerService = {
       name: "GetNameplates",
       I: GetNameplatesRequest,
       O: GetNameplatesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The player that holds this username now, matched ignoring case as SetName keeps names unique. NotFound when none.
+     *
+     * @generated from rpc player.v1.PlayerService.GetPlayerByName
+     */
+    getPlayerByName: {
+      name: "GetPlayerByName",
+      I: GetPlayerByNameRequest,
+      O: GetPlayerByNameResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

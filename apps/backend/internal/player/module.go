@@ -37,6 +37,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_nameplates_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_by_name_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_by_name_handler/holder_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler"
@@ -236,8 +238,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		ListenForEventsHandler: listen_for_events_handler.New(
 			listen_for_events_usecase.New(visits, props.Server.StreamHeartbeat),
 		),
-		GetPlayerHandler:     get_player_handler.New(player_query.NewPostgresQuery(db, accounts)),
-		GetNameplatesHandler: get_nameplates_handler.New(playersQuery),
+		GetPlayerHandler:       get_player_handler.New(player_query.NewPostgresQuery(db, accounts)),
+		GetNameplatesHandler:   get_nameplates_handler.New(playersQuery),
+		GetPlayerByNameHandler: get_player_by_name_handler.New(holder_query.NewPostgresQuery(db)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return playerv1connect.NewPlayerServiceHandler(playerService, options...)

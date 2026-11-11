@@ -1,5 +1,5 @@
 import Modal from "../components/Modal.tsx";
-import {ShareStats, shareText, statsLine} from "../../domain/shareCard.ts";
+import {ShareAddress, ShareStats, shareText, statsLine} from "../../domain/shareCard.ts";
 import ShareActions from "./ShareActions.tsx";
 import {Shot} from "./useSharePicture.ts";
 import "./SharePreview.css"
@@ -7,14 +7,15 @@ import "./SharePreview.css"
 export type SharePreviewProps = {
     shot: Shot
     stats: ShareStats
+    address: ShareAddress
     onClose: () => void
 }
 
-export default function SharePreview({shot, stats, onClose}: SharePreviewProps) {
+export default function SharePreview({shot, stats, address, onClose}: SharePreviewProps) {
     return <Modal title="Your planet"
                   className="modal-picture"
                   footer={shot.kind === "ready"
-                      ? <ShareActions file={shot.file} text={shareText(stats)}/>
+                      ? <ShareActions file={shot.file} text={shareText(stats, address)}/>
                       : undefined}
                   onClose={onClose}>
         {shot.kind === "ready"

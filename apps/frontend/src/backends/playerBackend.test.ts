@@ -10,7 +10,7 @@ import {
     RosterEntry as RosterEntryPb,
 } from "../gen/grpc/player/v1/player_pb.ts"
 import {isValidUsername, NameColor, PlayerError, RenameTooSoonError, RosterEvent, usernameOf} from "./player.ts"
-import {ConnectPlayerBackend} from "./playerBackend.ts"
+import {ConnectPlayerBackend, nameHolder} from "./playerBackend.ts"
 import {SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts"
 
 const refusing = (code: Code) => vi.fn(async () => {
@@ -398,6 +398,25 @@ describe("ConnectPlayerBackend public card", () => {
 
     it("reports any other failure as it is", async () => {
         const error = await backendWith({getPlayer: refusing(Code.Internal)}).player("account-1").catch((e) => e)
+
+        expect(error).toBeInstanceOf(ConnectError)
+    })
+})
+
+describe("nameHolder", () => {
+    it("reads the account that holds a name", async () => {
+        const getPlayerByName = vi.fn(async () => ({player: new PlayerPb({accountId: "account-1", name: "Ada Lovelace"})}))
+
+        expect(await nameHolder({getPlayerByName} as never)("ada lovelace")).toBe("account-1")
+        expect(getPlayerByName).toHaveBeenCalledWith({name: "ada lovelace"})
+    })
+
+    it("answers undefined for a name nobody holds", async () => {
+        expect(await nameHolder({getPlayerByName: refusing(Code.NotFound)} as never)("ghost")).toBeUndefined()
+    })
+
+    it("reports any other failure as it is", async () => {
+        const error = await nameHolder({getPlayerByName: refusing(Code.Internal)} as never)("kutza").catch((e) => e)
 
         expect(error).toBeInstanceOf(ConnectError)
     })
