@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {capitalsOf} from "./capitals.ts"
-import {watersOf} from "./waters.ts"
+import {bridgesOf} from "./bridges.ts"
 
 describe("capitalsOf", () => {
     it("names each capital tile by its country", () => {
@@ -19,21 +19,23 @@ describe("capitalsOf", () => {
     })
 })
 
-describe("watersOf", () => {
-    it("knows each body's coast and the bodies each coast tile is on", () => {
-        const waters = watersOf({tiles: 30, bodies: [[1, 2, 3], [3, 4]]}, 30)
+describe("bridgesOf", () => {
+    it("knows the far end of each bridge on a tile", () => {
+        const bridges = bridgesOf({tiles: 30, bridges: [[1, 2], [2, 9]]}, 30)
 
-        expect(waters.coastOf(0)).toEqual([1, 2, 3])
-        expect(waters.bodiesOf(3)).toEqual([0, 1])
-        expect(waters.bodiesOf(5)).toEqual([])
+        expect(bridges.across(2)).toEqual([1, 9])
+        expect(bridges.across(9)).toEqual([2])
+        expect(bridges.across(5)).toEqual([])
+        expect(bridges.all).toEqual([[1, 2], [2, 9]])
     })
 
-    it("refuses waters written for another map", () => {
-        expect(() => watersOf({tiles: 31, bodies: []}, 30)).toThrow(/30 tiles/)
+    it("refuses bridges written for another map", () => {
+        expect(() => bridgesOf({tiles: 31, bridges: []}, 30)).toThrow(/30 tiles/)
     })
 
-    it("refuses a coast that is not a list of tiles", () => {
-        expect(() => watersOf({tiles: 30, bodies: [[1, 31]]}, 30)).toThrow(/water 0/)
-        expect(() => watersOf({tiles: 30, bodies: [3]}, 30)).toThrow(/water 0/)
+    it("refuses a bridge that is not two tiles", () => {
+        expect(() => bridgesOf({tiles: 30, bridges: [[1, 31]]}, 30)).toThrow(/bridge 0/)
+        expect(() => bridgesOf({tiles: 30, bridges: [[1]]}, 30)).toThrow(/bridge 0/)
+        expect(() => bridgesOf({tiles: 30, bridges: [3]}, 30)).toThrow(/bridge 0/)
     })
 })

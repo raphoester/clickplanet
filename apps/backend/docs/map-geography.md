@@ -103,10 +103,9 @@ nothing or refunds the bonus there is a rule, not a fact about the map.
 The operator tools read it — see [Manual bans](admin.md#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer) —
 and so does a bomb, for the ground it landed on — see [Announcements](chat.md#announcements).
 
-`clicks.Waters` is which bodies of water each coast tile touches, and each body's coast, from
-`generated/map/waters-<hash>.json`: the lattice's water vertices flood-filled, so a strait narrower than a cell cuts
-a sea in two (the Bosporus does). 342 bodies, 18,839 coast tiles, 385 of them on two; the ocean is one body with
-15,294. `clicks.Capitals` is each country's capital tile, from `generated/map/capitals-<hash>.json`: the tile of its
+`clicks.Bridges` is the far end of each bridge on a tile, from `generated/map/bridges-<hash>.json`: 582 crossings of
+the sea, each between two coast tiles (see [`/map/README.md`](../../../map/README.md#capitals-and-bridges)).
+`clicks.Capitals` is each country's capital tile, from `generated/map/capitals-<hash>.json`: the tile of its
 ground nearest its capital city. The boot refuses a capital off its own ground, and planet keeps only the capitals
 of the flags a player can play for (235: `hm`, `nc`, `pm` and `sh` have ground and no flag). Both are read only in an
 arena — see [The reach](reach.md).

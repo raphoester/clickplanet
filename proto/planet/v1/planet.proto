@@ -137,8 +137,8 @@ message ClickResponse {
 // freeze the map, or an arena's freeze holds it.
 message FrozenRefusal {}
 
-// The detail of the FailedPrecondition that Click answers in an arena, for a tile that touches none of the flag's land
-// and is on the coast of no water where the flag holds a coast.
+// The detail of the FailedPrecondition that Click answers while the reach plays, for a tile that touches none of the
+// flag's land and that no bridge from its land leads to.
 message ReachRefusal {}
 
 // The detail of the FailedPrecondition that DropBomb answers while the rules in force hold charges.bomb.off: the bomb
@@ -406,7 +406,7 @@ message GetChargeRulesResponse {
   // Enclose needs no charge and spends none.
   bool enclosures_unlimited = 10;
 
-  // A take lands only next to the flag's land or across a water where it holds a coast.
+  // A take lands only next to the flag's land or at the far end of a bridge from it.
   bool reach = 11;
 
   // A capital taken by another flag knocks its flag out.

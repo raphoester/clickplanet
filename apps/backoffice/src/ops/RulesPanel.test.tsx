@@ -187,7 +187,7 @@ describe("the game rules page", () => {
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
-        pick("Reach: a take lands only next to the flag's land or across its waters", "yes")
+        pick("Reach: a take lands only next to the flag's land or across a bridge", "yes")
         pick("Knock-out: a capital taken clears its flag", "yes")
         pick("No shield on a capital", "no")
         save()

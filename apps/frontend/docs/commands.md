@@ -67,6 +67,8 @@ fake's day: scoring scores today's round, its countries with a little luck, the
 fake gamemaster debriefs it and the next day runs, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call
 closes the next day, so the reveal plays again.
+`playReach()` plays the reach on the page: the bridges drawn and the front rung across them (see
+[The reach](reach.md)); `playReach(false)` stops it. The fake refuses no click out of reach.
 `startBattle(minutes = 120, description, times = 3)` plays a battle at once, under a
 new entry id: the mood, the halo, the chip, the start moment, and the battle's round
 at `times` in scoring, so the board's column is the battle's (see [Battles](battle.md)).

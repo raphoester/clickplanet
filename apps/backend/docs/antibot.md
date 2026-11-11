@@ -954,7 +954,7 @@ honest player flagged:
 
 **What a try tells.** <a id="what-a-try-tells"></a>A `ClickTried` names who (`scope`, `account_id`, `linked`), the tile, the flag, when, and **the outcome**: taken, struck, unchanged
 (a no-op), throttled, refused, another flag than the account plays for, out of reach (while the reach plays, a tile next to none
-of the flag's land and across none of its waters), invalid (an unknown flag, a tile off the map, two bonuses together),
+of the flag's land and across no bridge from it), invalid (an unknown flag, a tile off the map, two bonuses together),
 or failed. With it go **the flag the tile wore before** (`owner`, `click_usecase.Out.Owner`:
 what the click read right before it wrote; for a try the game answered with an error, the tile's owner now) and its
 position. The listener feeds the guard as far as the click went:

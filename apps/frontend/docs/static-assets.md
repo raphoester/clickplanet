@@ -22,11 +22,12 @@ cache entirely:
   backoffice's `npm run map` after it, and commit every copy**, or the two apps disagree about what a tile id
   means. It renumbers every tile, so it also writes the postgres migration that
   follows the owned ones across; see `/map/README.md`.
-- `/static/capitals-<hash>.json` and `/static/waters-<hash>.json` — each country's
-  capital tile, and each body of water's coast tiles. Fetched at runtime by
-  `capitals.ts` and `waters.ts` the first time a capitals' rule or the reach plays (see
-  [The capitals](capitals.md) and [The reach](reach.md)); URLs in `capitalsAsset.ts` and `watersAsset.ts`. Copies of
-  `/map` like the two above, written by the same `npm run map:generate`.
+- `/static/capitals-<hash>.json` and `/static/bridges-<hash>.json` — each country's
+  capital tile, and each bridge's two end tiles. Fetched at runtime by
+  `capitals.ts` and `bridges.ts` the first time a capitals' rule or the reach plays (see
+  [The capitals](capitals.md) and [The reach](reach.md)); URLs in `capitalsAsset.ts` and `bridgesAsset.ts`. Copies of
+  `/map` like the two above: the capitals written by the same `npm run map:generate`, the bridges by `npm run
+  bridges` after it.
 - `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
   tile lattice, with the two landmasses each run is between, fetched at runtime by
   `borderLines.ts`. URL in

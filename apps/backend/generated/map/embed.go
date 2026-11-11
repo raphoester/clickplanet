@@ -1,4 +1,4 @@
-// Package mapdata holds the tile coordinates, borders, capitals and waters blobs, copied from the monorepo-shared /map by
+// Package mapdata holds the tile coordinates, borders, capitals and bridges blobs, copied from the monorepo-shared /map by
 // `make map` — this app's half of that source, the way generated/proto is its half of /proto.
 //
 // The directory is `map` to mirror the source it comes from; the package cannot be, since map is
@@ -18,7 +18,7 @@ import (
 // Globbed because the file is content-addressed, which keeps `make map` a copy with no generated
 // constant beside it, and makes drift between the two apps visible in the name.
 //
-//go:embed coordinates-*.bin borders-*.bin capitals-*.json waters-*.json
+//go:embed coordinates-*.bin borders-*.bin capitals-*.json bridges-*.json
 var files embed.FS
 
 // Coordinates returns the blob and the name it is content-addressed under.
@@ -36,9 +36,9 @@ func Capitals() ([]byte, string, error) {
 	return read("capitals", "json")
 }
 
-// Waters returns each body of water's coast tiles and the name it is content-addressed under.
-func Waters() ([]byte, string, error) {
-	return read("waters", "json")
+// Bridges returns each crossing's two end tiles and the name it is content-addressed under.
+func Bridges() ([]byte, string, error) {
+	return read("bridges", "json")
 }
 
 func read(asset, extension string) ([]byte, string, error) {
