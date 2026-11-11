@@ -7,11 +7,11 @@ import (
 	"connectrpc.com/connect"
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 type Rules interface {
-	Play(ctx context.Context, choice rules.Choice) (rules.Snapshot, bool, error)
+	Play(ctx context.Context, choice cprules.Choice) (cprules.Snapshot[*antibotv1.Rules], bool, error)
 }
 
 func New(rules Rules) PlayRuleSetHandler {
@@ -26,11 +26,11 @@ func (h PlayRuleSetHandler) PlayRuleSet(
 	ctx context.Context,
 	req *connect.Request[antibotv1.PlayRuleSetRequest],
 ) (*connect.Response[antibotv1.PlayRuleSetResponse], error) {
-	_, _, err := h.rules.Play(ctx, rules.Choice{
-		Set: rules.SetName(req.Msg.GetRuleSet()), DecidedAt: req.Msg.GetDecidedAt().AsTime(),
+	_, _, err := h.rules.Play(ctx, cprules.Choice{
+		Set: cprules.SetName(req.Msg.GetRuleSet()), DecidedAt: req.Msg.GetDecidedAt().AsTime(),
 	})
 	switch {
-	case errors.Is(err, rules.ErrUnknownSet), errors.Is(err, rules.ErrInvalidSet):
+	case errors.Is(err, cprules.ErrUnknownSet), errors.Is(err, cprules.ErrInvalidSet):
 		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
 	case err != nil:
 		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.

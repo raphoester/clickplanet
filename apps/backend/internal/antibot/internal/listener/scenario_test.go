@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
@@ -20,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -43,7 +45,7 @@ func watch(t *testing.T) watched {
 	only.Churner.Enabled, only.Hopper.Enabled, only.Rotator.Enabled = proto.Bool(false), proto.Bool(false), proto.Bool(false)
 	set, err := kept.Restore(guard.Parts(), rules.Seeded())
 	require.NoError(t, err)
-	inForce := rules.NewInForce()
+	inForce := cprules.NewInForce[*antibotv1.Rules](cptime.SystemClock{})
 	inForce.Enforce(set)
 
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 2, 0, 0, 0, time.UTC))

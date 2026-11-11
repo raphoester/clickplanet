@@ -16,21 +16,20 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/play_rules_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var finale = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
 
-type restated struct{}
-
-func (restated) Restate(context.Context) error { return nil }
-
-func booted(t *testing.T, kept ...rules.Snapshot) (play_rule_set_handler.PlayRuleSetHandler, *rules.MemoryChoices, *rules.InForce) {
+func booted(
+	t *testing.T, kept ...cprules.Snapshot[*antibotv1.Rules],
+) (play_rule_set_handler.PlayRuleSetHandler, *cprules.MemoryChoices, *cprules.InForce[*antibotv1.Rules]) {
 	t.Helper()
 
-	choices, inForce := rules.NewMemoryChoices(), rules.NewInForce()
-	useCase := play_rules_usecase.New(rules.NewMemoryStore(guard.Parts(), append([]rules.Snapshot{rules.Seeded()}, kept...)...),
-		choices, inForce, restated{})
+	choices, inForce := cprules.NewMemoryChoices(), cprules.NewInForce[*antibotv1.Rules](cptime.SystemClock{})
+	sets := cprules.NewMemoryStore(guard.Parts(), append([]cprules.Snapshot[*antibotv1.Rules]{rules.Seeded()}, kept...)...)
+	useCase := cprules.NewPlayUseCase(sets, choices, inForce, restated)
 	_, _, err := useCase.Execute(t.Context())
 	require.NoError(t, err)
 	return play_rule_set_handler.New(useCase), choices, inForce
@@ -50,7 +49,7 @@ func TestTheSetNamedPlays(t *testing.T) {
 
 	require.NoError(t, play(t, handler, "rush", finale))
 
-	assert.Equal(t, rules.SetName("rush"), inForce.Name())
+	assert.Equal(t, cprules.SetName("rush"), inForce.Name())
 	kept, _, err := choices.Choice(t.Context())
 	require.NoError(t, err)
 	assert.True(t, finale.Equal(kept.DecidedAt))
@@ -60,11 +59,11 @@ func TestACallMadeAgainOrOutOfOrderChangesNothing(t *testing.T) {
 	handler, _, inForce := booted(t, rules.Named("rush", rules.AsIs))
 	later := finale.Add(2 * time.Hour)
 
-	require.NoError(t, play(t, handler, string(rules.Default), later))
+	require.NoError(t, play(t, handler, string(cprules.Default), later))
 	require.NoError(t, play(t, handler, "rush", finale))
-	require.NoError(t, play(t, handler, string(rules.Default), later))
+	require.NoError(t, play(t, handler, string(cprules.Default), later))
 
-	assert.Equal(t, rules.Default, inForce.Name())
+	assert.Equal(t, cprules.Default, inForce.Name())
 }
 
 func TestASetTheAntibotDoesNotKeepIsAFailedPrecondition(t *testing.T) {
@@ -73,8 +72,8 @@ func TestASetTheAntibotDoesNotKeepIsAFailedPrecondition(t *testing.T) {
 	err := play(t, handler, "rush", finale)
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
-	require.ErrorIs(t, err, rules.ErrUnknownSet)
-	assert.Equal(t, rules.Default, inForce.Name())
+	require.ErrorIs(t, err, cprules.ErrUnknownSet)
+	assert.Equal(t, cprules.Default, inForce.Name())
 }
 
 func TestASetThatCannotPlayIsAFailedPrecondition(t *testing.T) {
@@ -84,8 +83,8 @@ func TestASetThatCannotPlayIsAFailedPrecondition(t *testing.T) {
 	err := play(t, handler, "rush", finale)
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
-	assert.Equal(t, rules.Default, inForce.Name())
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
+	assert.Equal(t, cprules.Default, inForce.Name())
 }
 
 func TestAChoiceThatCannotBeKeptIsPassedOnForTheErrorNet(t *testing.T) {
@@ -95,3 +94,5 @@ func TestAChoiceThatCannotBeKeptIsPassedOnForTheErrorNet(t *testing.T) {
 
 	require.ErrorIs(t, play(t, handler, "rush", finale), down)
 }
+
+func restated(context.Context, cprules.SetName) error { return nil }

@@ -7,10 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 const chargesMove = "20261111200000"
@@ -83,7 +82,7 @@ func TestEachOfProductionsSetsKeepsItsWalletUnderCharges(t *testing.T) {
 
 	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
 
-	store := postgres_rule_set_store.New(db, parts.All())
+	store := cprules.NewPostgresStore(db, parts.All())
 	for name, charges := range theirCharges {
 		assert.JSONEq(t, charges, chargesOf(t, db, name), name)
 
@@ -92,7 +91,7 @@ func TestEachOfProductionsSetsKeepsItsWalletUnderCharges(t *testing.T) {
 			`SELECT rules -> 'bonuses' FROM rule_sets WHERE name = $1`, name).Scan(&bonuses))
 		assert.NotEmpty(t, bonuses, "%s keeps bonuses for the offers' module to copy", name)
 
-		_, err := store.Set(t.Context(), rules.SetName(name))
+		_, err := store.Set(t.Context(), cprules.SetName(name))
 		assert.NoError(t, err, "%s plays over default", name)
 	}
 }

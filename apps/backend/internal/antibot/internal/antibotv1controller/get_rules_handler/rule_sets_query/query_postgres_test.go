@@ -11,16 +11,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 func TestTheSetsComeDefaultFirstThenByNameWithTheirValues(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "antibot", migrations.FS)
-	store := postgres_rule_set_store.New(db, guard.Parts())
+	store := cprules.NewPostgresStore(db, guard.Parts())
 	rush := rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) })
-	for _, kept := range []rules.Snapshot{rush, rules.Named("calm", rules.AsIs)} {
+	for _, kept := range []cprules.Snapshot[*antibotv1.Rules]{rush, rules.Named("calm", rules.AsIs)} {
 		set, err := kept.Restore(guard.Parts(), rules.Seeded())
 		require.NoError(t, err)
 		require.NoError(t, store.Save(t.Context(), set))

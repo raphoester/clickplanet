@@ -13,6 +13,7 @@ import (
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 type stubSets struct {
@@ -22,9 +23,9 @@ type stubSets struct {
 
 func (s stubSets) Sets(context.Context) ([]*bonusesv1.RuleSet, error) { return s.sets, s.err }
 
-type playing rules.SetName
+type playing cprules.SetName
 
-func (p playing) Name() rules.SetName { return rules.SetName(p) }
+func (p playing) Name() cprules.SetName { return cprules.SetName(p) }
 
 func TestTheRulesAreEverySetKeptAndTheOnePlaying(t *testing.T) {
 	sets := []*bonusesv1.RuleSet{{Name: "default", Rules: rules.Seeded().Rules}, {Name: "rush"}}

@@ -2,10 +2,12 @@ package scraper
 
 import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var Part = rules.PartOf[Rules]{Key: "scraper", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetScraper()) }}
+var Part = cprules.PartOf[*antibotv1.Rules, Rules]{
+	Key: "scraper", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetScraper()) },
+}
 
 func RulesOf(m *antibotv1.ScraperRules) Rules {
 	return Rules{

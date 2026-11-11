@@ -5,67 +5,23 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
-	inForce := rules.NewInForce()
-	offers := rules.Reader(inForce, bonuses.Part)
+	inForce := cprules.NewInForce[*bonusesv1.Rules](cptime.SystemClock{})
+	offers := cprules.Reader(inForce, bonuses.Part)
 
-	for _, kept := range []rules.Snapshot{rules.Seeded(), rush()} {
+	for _, kept := range []cprules.Snapshot[*bonusesv1.Rules]{rules.Seeded(), rush()} {
 		inForce.Enforce(restored(t, kept))
 	}
 
-	assert.Equal(t, rules.SetName("rush"), inForce.Name())
+	assert.Equal(t, cprules.SetName("rush"), inForce.Name())
 	assert.Equal(t, 30, offers().Boxes.MaxChargesPerHour)
 	assert.Equal(t, time.Minute, offers().Boxes.MinInterval)
-}
-
-func TestEveryWatcherHearsOfEachSetEnforced(t *testing.T) {
-	inForce := rules.NewInForce()
-	first, leaveFirst := inForce.Watch()
-	defer leaveFirst()
-	second, leaveSecond := inForce.Watch()
-	defer leaveSecond()
-
-	inForce.Enforce(restored(t, rush()))
-
-	assert.True(t, (<-first).Is("rush"))
-	assert.True(t, (<-second).Is("rush"))
-}
-
-func TestAWatcherThatFellBehindHearsOnlyTheLatest(t *testing.T) {
-	inForce := rules.NewInForce()
-	watcher, leave := inForce.Watch()
-	defer leave()
-
-	inForce.Enforce(restored(t, rush()))
-	inForce.Enforce(restored(t, rules.Seeded()))
-
-	latest := (<-watcher).TakeSnapshot()
-	assert.Equal(t, rules.Default, latest.Name)
-	assert.True(t, proto.Equal(rules.Seeded().Rules, latest.Rules))
-	select {
-	case set := <-watcher:
-		require.Failf(t, "a second set waited", "%v", set.TakeSnapshot().Name)
-	default:
-	}
-}
-
-func TestAWatcherThatLeftHearsNothing(t *testing.T) {
-	inForce := rules.NewInForce()
-	watcher, leave := inForce.Watch()
-	leave()
-
-	inForce.Enforce(restored(t, rush()))
-
-	select {
-	case set := <-watcher:
-		require.Failf(t, "a watcher that left heard a set", "%v", set.TakeSnapshot().Name)
-	default:
-	}
 }

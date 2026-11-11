@@ -75,7 +75,7 @@ func TestEnforcementIsReadWhenABanIsTold(t *testing.T) {
 
 	book.Ban(bans.Caller{Scope: "1.2.3.4"}, time.Hour)
 	rules.Enforce = false
-	require.NoError(t, book.inner.Restate(t.Context()))
+	require.NoError(t, book.inner.Restate(t.Context(), "rush"))
 
 	assert.Equal(t, []bans.Told{
 		{Caller: bans.Caller{Scope: "1.2.3.4"}, Until: clock.Now().Add(time.Hour), At: clock.Now()},
@@ -105,10 +105,23 @@ func TestEveryRunningBanIsToldAgain(t *testing.T) {
 	accounts := bans.NewMemoryStore(bans.Record{Key: "guest", Offences: 2, ExpiresAt: clock.Now().Add(24 * time.Hour)})
 	book, told := toldBook(t, fixed(ladder()), clock, scopes, accounts)
 
-	require.NoError(t, book.inner.Restate(t.Context()))
+	require.NoError(t, book.inner.Restate(t.Context(), "rush"))
 
 	assert.Equal(t, []bans.Told{
 		{Caller: bans.Caller{Scope: "1.2.3.4"}, Until: clock.Now().Add(time.Hour), At: clock.Now()},
 		{Caller: bans.Caller{Account: "guest"}, Until: clock.Now().Add(24 * time.Hour), At: clock.Now()},
 	}, told.Told(), "a ban that ended is not told: the game refuses it no longer either way")
+}
+
+func TestARestatementThatFailsNamesTheSetItWasFor(t *testing.T) {
+	clock := newClock()
+	accounts := bans.NewMemoryStore(bans.Record{Key: "guest", Offences: 1, ExpiresAt: clock.Now().Add(time.Hour)})
+	accounts.FailWith(errors.New("postgres is down"))
+	book, told := toldBook(t, fixed(ladder()), clock, bans.NewMemoryStore(), accounts)
+
+	err := book.inner.Restate(t.Context(), "rush")
+
+	require.ErrorContains(t, err, `could not tell planet the running bans under the rule set "rush": `)
+	require.ErrorContains(t, err, "postgres is down")
+	assert.Empty(t, told.Told())
 }

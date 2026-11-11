@@ -10,15 +10,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 func TestTheNamesAreEverySetKeptByName(t *testing.T) {
 	db := cppg.StartTestServer(t).OpenSchema(t, "bonuses", migrations.FS)
 	rush, err := rules.Named("rush", rules.AsIs).Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
-	require.NoError(t, postgres_rule_set_store.New(db, parts.All()).Save(t.Context(), rush))
+	require.NoError(t, cprules.NewPostgresStore(db, parts.All()).Save(t.Context(), rush))
 
 	names, err := rule_set_names_query.NewPostgresQuery(db).Names(t.Context())
 

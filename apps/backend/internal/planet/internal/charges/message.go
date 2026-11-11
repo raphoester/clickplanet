@@ -5,11 +5,11 @@ import (
 	"fmt"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // Part is the wallet's rules in a set (charges).
-var Part = rules.PartOf[Rules]{Key: "charges", Read: func(m *planetv1.Rules) Rules {
+var Part = cprules.PartOf[*planetv1.Rules, Rules]{Key: "charges", Read: func(m *planetv1.Rules) Rules {
 	return RulesOf(m.GetCharges())
 }}
 

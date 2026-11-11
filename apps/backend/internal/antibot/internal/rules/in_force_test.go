@@ -13,14 +13,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
-	inForce := rules.NewInForce()
-	crowd := rules.Reader(inForce, cohort.Part)
-	suspects := rules.Reader(inForce, jury.Part)
+	inForce := cprules.NewInForce[*antibotv1.Rules](cptime.SystemClock{})
+	crowd := cprules.Reader(inForce, cohort.Part)
+	suspects := cprules.Reader(inForce, jury.Part)
 
-	for _, kept := range []rules.Snapshot{
+	for _, kept := range []cprules.Snapshot[*antibotv1.Rules]{
 		rules.Seeded(),
 		rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) }),
 	} {
@@ -29,7 +31,7 @@ func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
 		inForce.Enforce(set)
 	}
 
-	assert.Equal(t, rules.SetName("rush"), inForce.Name())
+	assert.Equal(t, cprules.SetName("rush"), inForce.Name())
 	assert.Equal(t, 50, crowd().CertainMembers)
 	assert.Equal(t, 2, suspects().MinSuspects)
 }

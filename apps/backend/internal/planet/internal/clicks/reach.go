@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 var ErrOutOfReach = errors.New("the tile touches none of the flag's land and is on the coast of none of its waters")
@@ -28,7 +28,9 @@ type Reaching bool
 
 func (Reaching) Validate() error { return nil }
 
-var ReachPart = rules.PartOf[Reaching]{Key: "reach", Read: func(m *planetv1.Rules) Reaching { return Reaching(m.GetReach()) }}
+var ReachPart = cprules.PartOf[*planetv1.Rules, Reaching]{
+	Key: "reach", Read: func(m *planetv1.Rules) Reaching { return Reaching(m.GetReach()) },
+}
 
 // Reach is where a flag's take lands while the rules in force hold it: on its own land, on a tile next to it, or on the
 // coast of a water where it holds a coast. Otherwise, everywhere.

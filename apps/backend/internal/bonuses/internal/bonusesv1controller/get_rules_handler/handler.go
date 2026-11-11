@@ -6,7 +6,7 @@ import (
 	"connectrpc.com/connect"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 type Sets interface {
@@ -14,7 +14,7 @@ type Sets interface {
 }
 
 type Playing interface {
-	Name() rules.SetName
+	Name() cprules.SetName
 }
 
 func New(sets Sets, playing Playing) GetRulesHandler {

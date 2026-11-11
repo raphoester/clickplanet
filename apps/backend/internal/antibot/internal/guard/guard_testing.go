@@ -5,17 +5,18 @@ package guard
 import (
 	"context"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func NewInMemory(
 	config Config,
-	inForce *rules.InForce,
+	inForce *cprules.InForce[*antibotv1.Rules],
 	clock cptime.Clock,
 	observer Observer,
 	scopeBans *bans.MemoryStore,
@@ -26,7 +27,7 @@ func NewInMemory(
 	evidences *evidence.MemoryPersistence,
 	heard ...evidence.Section,
 ) *Guard {
-	book := bans.NewBook(rules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
+	book := bans.NewBook(cprules.Reader(inForce, bans.Part), config.Evidence.WithDefaults().Retention, clock,
 		scopeBans, accountBans, cpatomic.FakeTransactioner{}, enforcer)
 	warner := warnings.NewBook(book, clock, warned, feed)
 

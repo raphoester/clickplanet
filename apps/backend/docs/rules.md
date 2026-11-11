@@ -14,8 +14,9 @@ Which set each plays is the schedule's (see [The gamemaster module](gamemaster.m
 (the user's rule, 2026-10-31). Until then a set held every value: a change to `default` reached no other set, and
 each rule added took a migration into every set. Every value of `planet.v1.Rules` is `optional`, so a set can hold a
 zero or a `false` of its own; nothing falls back to a default in Go or in SQL. Its snapshot is the wire's message:
-`rules.Snapshot{Name, Rules *planetv1.Rules}`, which the store keeps and the operator's calls carry.
-`Snapshot.Restore(parts, defaults)` is the one check.
+`cprules.Snapshot[*planetv1.Rules]{Name, Rules}`, which the store keeps and the operator's calls carry.
+`Snapshot.Restore(parts, defaults)` is the one check. The machinery is `cprules`, shared with the antibot and the offers
+(see [Shared](shared.md)); planet keeps its parts, its bounds and its fixtures in `rules`.
 
 - **What a set plays is default's values with its own written over them** (`cpproto.Overlay`). A message it holds is
   overlaid value by value. A list, a `Duration` and a message of lists only are one value each: a set that holds `toll`
@@ -26,7 +27,8 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - **Each part is read by the package that plays it.** `clicks` owns five parts, `clicks` (`Throttle`), `toll`
   (`TollSteps`), `frozen` (`Freeze`), `reach` (`Reaching`) and `capitals` (`CapitalRules`); `allegiances` owns
   `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its
-  `…Of(message)` (`message.go`) and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
+  `…Of(message)` (`message.go`) and a `Part` (`cprules.PartOf[*planetv1.Rules, R]{Key, Read}`). `cprules` names none
+  of them.
 - **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `bomb.rings`,
   `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`, `shield.held`, `.perTile`). Until 2026-11-11 those were the
   wallet's half of `bonuses` (`planet.v1.BonusRules`), whose other half a second part read for the offers
@@ -115,12 +117,13 @@ protojson writes a `planet.v1.Rules`: a value held is written, a zero too; a val
 value the set holds. About forty values and a list (the toll) would be forty columns and a child table. The proto
 message is already the wire's, so the store, the RPC and the page read one shape.
 
-- **The store answers sets, never snapshots** (`rules.Store`, the user's rule of 2026-10-26).
-  `postgres_rule_set_store` is built with the parts: `Set(name)` reads the set's document and default's and restores the
+- **The store answers sets, never snapshots** (`cprules.Store`, the user's rule of 2026-10-26).
+  `cprules.PostgresStore` is built with the parts: `Set(name)` reads the set's document and default's and restores the
   one over the other, so a kept set that cannot play is `ErrInvalidSet` with every reason, and a set with no `default`
   kept is `ErrUnknownSet`; `Names` lists the sets kept; `Save` writes a set's snapshot. The snapshot never leaves the
-  adapter. `rules.MemoryStore` is the fake (`Keep` puts in a snapshot as a hand edit in SQL would), and
-  `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
+  adapter. `cprules.MemoryStore` is the fake (`Keep` puts in a snapshot as a hand edit in SQL would), and
+  `cprules.StoreContractSuite` runs on both, the postgres one on planet's migrations with planet's values
+  (`rules/postgres_store_test.go`). A key the proto no longer has is ignored on read.
 - **A rule added later needs a migration** that writes its value into `default` (`jsonb_set`); every other set plays
   it from there. Without one, default reads the value as zero; where zero cannot play, no set restores, and the next
   boot is refused.
@@ -132,8 +135,8 @@ message is already the wire's, so the store, the RPC and the page read one shape
 
 ## The rules in force
 
-**Planet holds the set it plays in one `atomic.Pointer` (`rules.InForce`).** Each part is handed out by
-`rules.Reader(inForce, <package>.Part)`, a `func() R` that reads its part of the set in force each time it is called.
+**Planet holds the set it plays in one `atomic.Pointer` (`cprules.InForce`).** Each part is handed out by
+`cprules.Reader(inForce, <package>.Part)`, a `func() R` that reads its part of the set in force each time it is called.
 The readers call it where they use the rules, not when they are built: a set taken applies from the next use.
 
 - `clicks.ThrottlePart` — `clicks.Buckets` (the multipliers, `newAccountClicks`, `fastStart`), `try_click` (`ClickTried.tempo`),
@@ -147,21 +150,21 @@ The readers call it where they use the rules, not when they are built: a set tak
   bombs are off included), `charges.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`,
   `place_shield_usecase`, `clicks.Claiming` (a tile's most shields, for a fortify) and the rest of `GetChargeRules`.
 - `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
-  takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`rules.PartOf.Of(set)`).
+  takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`cprules.PartOf.Of(set)`).
 - `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetChargeRules.reach`.
 - `clicks.CapitalsPart` — `clicks.CapitalPlay` in the tile storage (a shield on a capital, a fortify, the knock-out, the
   standing) and `GetChargeRules` (`knock_out`, `capital_shields_fixed`).
-- **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
+- **`cprules.PlayUseCase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
   set the schedule chose last, and `default` until it chose one; then each `planet.v1.InternalService/PlayRuleSet` the
   schedule calls (`Play`, from `planetv1controller/play_rule_set_handler`); the same turn called again, with the same
   `decided_at`, is no newer and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). A missing or broken set at boot refuses the boot. Each time it reads the set to
   play from the store and enforces it when its values changed (`Set.Equal`), one play at a time under a lock. A failed
-  read, or a kept set that cannot play, keeps the rules in force, and `log_play_rules` logs it; each set taken is
+  read, or a kept set that cannot play, keeps the rules in force, and `cprules.LoggedPlay` logs it; each set taken is
   logged at Warn (`rules in force`, `set`, `rules`: every value it plays, as protojson). A save of `default` changes
   what the set in force plays when it leaves the value unset, so it is enforced again. A hand edit in SQL takes effect
   at the next play or boot.
-- **The choice is kept** in `planet.rule_set_choice` (`rules.Choice`: the set and when the schedule decided it, one
-  row, `postgres_choice_store`): a later decision overrules it, and an older one or one sent again changes nothing. A
+- **The choice is kept** in `planet.rule_set_choice` (`cprules.Choice`: the set and when the schedule decided it, one
+  row, `cprules.PostgresChoices`): a later decision overrules it, and an older one or one sent again changes nothing. A
   set planet keeps none of, or one that cannot play, is refused (`FailedPrecondition`) and the choice is not kept; the
   schedule calls again each minute.
 - `InForce.Enforce` also stamps when the set took over (`Since`) and wakes each `Watch()`er: every planet stream sends
@@ -221,19 +224,19 @@ not kept.
 
 - **`GetRules`** answers every set postgres keeps, `default` first, as kept (one that cannot play too, so it can be
   mended), and `playing`, the name of the set in force (`rule_sets_query` beside the name `InForce` holds).
-- **`SaveRuleSet{set}`** makes a set or replaces the values it holds: `save_rule_set_usecase` restores the snapshot the
+- **`SaveRuleSet{set}`** makes a set or replaces the values it holds: `cprules.SaveUseCase` restores the snapshot the
   call carries over the `default` kept, and hands the store the set. A set `Restore` refuses is `InvalidArgument`, with
   every reason. **A save of `default` is refused while another set cannot play over it**, each such set named with its
   reasons, so a battle's set never fails when the schedule picks it; the check reads every set in the save's
   transaction, so nothing is kept. A set that already could not play blocks a save of `default` until it is mended.
   **Then it plays the set chosen last again**
-  (`play_rules_usecase.Execute`, through `log_play_rules`): a save of the set in force takes over at once, and a save of
+  (`PlayUseCase.Execute`, through `LoggedPlay`): a save of the set in force takes over at once, and a save of
   another set changes nothing. A play that fails after the save is an error; the set stays kept and plays at the next
   play or boot.
-  `audit_save_rule_set` logs every save at Warn (`admin rule set saved` or `refused`, with the rules).
+  `cprules.AuditedSave` logs every save at Warn (`admin rule set saved` or `refused`, with the rules).
 
 The rules are pinned by each part's tests, `Set`'s (one refusal per impossible value), the store's contract suite and
-its migration tests, the limiter's policy tests, `Held`'s, the use cases', the
-handlers' and `InForce`'s; the e2e suite holds smoke tests only (see [Testing](testing.md)). Its stack migrates
+its migration tests, the limiter's policy tests, `Held`'s, the handlers', and `cprules`' own (the sets, the use cases,
+`InForce`); the e2e suite holds smoke tests only (see [Testing](testing.md)). Its stack migrates
 planet's schema first (`planet.Migrate`, behind the `testing` tag) and writes its own `clicks` into `default` before
 planet boots, since every test clicks from one address.

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/catcher"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/churner"
@@ -19,11 +20,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rotator"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/scraper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -38,7 +39,7 @@ type (
 	Reading     = detect.Reading
 )
 
-// The machine the antibot runs on; what it judges with is the rule set in force (rules.InForce).
+// The machine the antibot runs on; what it judges with is the rule set in force (cprules.InForce).
 type Config struct {
 	Jury     jury.Config
 	Evidence evidence.Config
@@ -100,8 +101,8 @@ type Observer struct {
 }
 
 // Parts are what a rule set holds: one per component the guard builds.
-func Parts() rules.Parts {
-	return rules.Parts{
+func Parts() cprules.Parts[*antibotv1.Rules] {
+	return cprules.Parts[*antibotv1.Rules]{
 		bans.Part, jury.Part, retaker.Part, sequencer.Part, metronome.Part, defender.Part,
 		catcher.Part, cohort.Part, scraper.Part, churner.Part, hopper.Part, rotator.Part,
 	}
@@ -110,7 +111,7 @@ func Parts() rules.Parts {
 // Every watchdog is built: one the rules turn off keeps watching, and the jury reads it as clear.
 func New(
 	config Config,
-	inForce *rules.InForce,
+	inForce *cprules.InForce[*antibotv1.Rules],
 	clock cptime.Clock,
 	observer Observer,
 	banner *bans.Book,
@@ -129,25 +130,25 @@ func New(
 		onScopeAccounts = func(int, string) {}
 	}
 
-	g.catcher = catcher.New(config.Catcher, rules.Reader(inForce, catcher.Part), clock)
-	g.scraper = scraper.New(config.Scraper, rules.Reader(inForce, scraper.Part), clock, orNothing(observer.OnMapReads))
-	g.rotator = rotator.New(config.Rotator, rules.Reader(inForce, rotator.Part), clock, orNothing(observer.OnRotationShare))
+	g.catcher = catcher.New(config.Catcher, cprules.Reader(inForce, catcher.Part), clock)
+	g.scraper = scraper.New(config.Scraper, cprules.Reader(inForce, scraper.Part), clock, orNothing(observer.OnMapReads))
+	g.rotator = rotator.New(config.Rotator, cprules.Reader(inForce, rotator.Part), clock, orNothing(observer.OnRotationShare))
 
 	watchdogs := []interface {
 		detect.Watchdog
 		evidence.Section
 		Run(ctx context.Context)
 	}{
-		retaker.New(config.Retaker, rules.Reader(inForce, retaker.Part), clock, observer.OnReaction),
-		sequencer.New(config.Sequencer, rules.Reader(inForce, sequencer.Part), clock),
-		metronome.New(config.Metronome, rules.Reader(inForce, metronome.Part), clock, orNothing(observer.OnGapSkew),
+		retaker.New(config.Retaker, cprules.Reader(inForce, retaker.Part), clock, observer.OnReaction),
+		sequencer.New(config.Sequencer, cprules.Reader(inForce, sequencer.Part), clock),
+		metronome.New(config.Metronome, cprules.Reader(inForce, metronome.Part), clock, orNothing(observer.OnGapSkew),
 			orNothing(observer.OnClockCoherence), orNothing(observer.OnBusyTime)),
-		defender.New(config.Defender, rules.Reader(inForce, defender.Part), clock, observer.OnRetakeShare),
+		defender.New(config.Defender, cprules.Reader(inForce, defender.Part), clock, observer.OnRetakeShare),
 		g.catcher,
-		cohort.New(config.Cohort, rules.Reader(inForce, cohort.Part), clock, observer.OnCohortScopes),
+		cohort.New(config.Cohort, cprules.Reader(inForce, cohort.Part), clock, observer.OnCohortScopes),
 		g.scraper,
-		churner.New(config.Churner, rules.Reader(inForce, churner.Part), clock, onScopeAccounts, orNothing(observer.OnRelayLinks)),
-		hopper.New(config.Hopper, rules.Reader(inForce, hopper.Part), clock, orNothing(observer.OnHopShare)),
+		churner.New(config.Churner, cprules.Reader(inForce, churner.Part), clock, onScopeAccounts, orNothing(observer.OnRelayLinks)),
+		hopper.New(config.Hopper, cprules.Reader(inForce, hopper.Part), clock, orNothing(observer.OnHopShare)),
 		g.rotator,
 	}
 
@@ -158,7 +159,7 @@ func New(
 		sections = append(sections, watchdog)
 	}
 
-	g.jury = jury.New(config.Jury, rules.Reader(inForce, jury.Part), banner, warner, g.rotator, clock, juryHooks(observer),
+	g.jury = jury.New(config.Jury, cprules.Reader(inForce, jury.Part), banner, warner, g.rotator, clock, juryHooks(observer),
 		g.watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
 
@@ -211,7 +212,7 @@ type Guard struct {
 	rotator   *rotator.Watchdog
 	runners   []func(context.Context)
 	watchdogs []detect.Watchdog
-	rules     *rules.InForce
+	rules     *cprules.InForce[*antibotv1.Rules]
 	onStart   func(Description)
 
 	onStateError func(error)
@@ -266,7 +267,7 @@ func (g *Guard) Load(ctx context.Context) error {
 
 // Evidence saved before a warning, then a crash, would ban the ring on the turns that earned it.
 func (g *Guard) forgetWarnedTurns(ctx context.Context) error {
-	window := rules.Reader(g.rules, rotator.Part)().Window
+	window := cprules.Reader(g.rules, rotator.Part)().Window
 
 	warned, err := g.warner.Since(ctx, g.clock.Now().Add(-window))
 	if err != nil {
@@ -372,7 +373,7 @@ func (h hearing) Run(ctx context.Context) {
 		g.onStart(Description{
 			Watchdogs:   on,
 			Rules:       string(g.rules.Name()),
-			MinSuspects: rules.Reader(g.rules, jury.Part)().MinSuspects,
+			MinSuspects: cprules.Reader(g.rules, jury.Part)().MinSuspects,
 			Enforcing:   g.banner.Enforcing(),
 		})
 	}

@@ -10,10 +10,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type fakeOffers struct {
@@ -44,11 +47,13 @@ func (s sink) Send(event listen_for_events_usecase.Event) error {
 	return nil
 }
 
-func listening(t *testing.T, caller bonuses.Caller) (*fakeOffers, *rules.InForce, sink, context.CancelFunc, chan error) {
+func listening(
+	t *testing.T, caller bonuses.Caller,
+) (*fakeOffers, *cprules.InForce[*bonusesv1.Rules], sink, context.CancelFunc, chan error) {
 	t.Helper()
 
 	offers := &fakeOffers{events: make(chan bonuses.Event, 4)}
-	inForce := rules.NewInForce()
+	inForce := cprules.NewInForce[*bonusesv1.Rules](cptime.SystemClock{})
 	frames := sink{events: make(chan listen_for_events_usecase.Event, 8)}
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -117,7 +122,7 @@ func (failingSink) Send(listen_for_events_usecase.Event) error { return errors.N
 func TestAStreamThatCannotBeWrittenEnds(t *testing.T) {
 	offers := &fakeOffers{events: make(chan bonuses.Event)}
 
-	err := listen_for_events_usecase.New(offers, rules.NewInForce(), time.Hour).
+	err := listen_for_events_usecase.New(offers, cprules.NewInForce[*bonusesv1.Rules](cptime.SystemClock{}), time.Hour).
 		Execute(t.Context(), bonuses.Caller{Scope: "1.2.3.4"}, failingSink{})
 
 	require.Error(t, err)

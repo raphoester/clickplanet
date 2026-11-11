@@ -14,14 +14,15 @@ import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 type stubUseCase struct {
-	in  rules.Snapshot
+	in  cprules.Snapshot[*antibotv1.Rules]
 	err error
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in rules.Snapshot) error {
+func (s *stubUseCase) Execute(_ context.Context, in cprules.Snapshot[*antibotv1.Rules]) error {
 	s.in = in
 	return s.err
 }
@@ -46,7 +47,7 @@ func TestTheSetReachesTheUseCaseAsWritten(t *testing.T) {
 }
 
 func TestASetThatCannotPlayIsAnInvalidArgumentThatSaysWhy(t *testing.T) {
-	useCase := &stubUseCase{err: fmt.Errorf("cannot keep it: %w: cohort.minMembers is 1", rules.ErrInvalidSet)}
+	useCase := &stubUseCase{err: fmt.Errorf("cannot keep it: %w: cohort.minMembers is 1", cprules.ErrInvalidSet)}
 
 	err := save(t, useCase)
 

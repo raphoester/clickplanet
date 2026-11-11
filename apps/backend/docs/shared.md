@@ -1,6 +1,6 @@
 # Shared (`internal/shared/`)
 
-Shared infrastructure: `cpbootstrap` (the composite layer), `cpredis` (the event bus over Redis Streams, which each module connects to on its own — see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)), `cpatomic` (the `Transactioner` and `Outbox` ports a use case takes — see [Transactions](transactions.md)), `cpoutbox` (the outbox a use case records in, inside its transaction, and its relay — see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)), `cpcountries`, `cpscripts` (the historic scripts chat and names refuse), `cpphrases` (a listed phrase found however it is spelled, for the chat's banned phrases and player's banned names), `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware), `cpprom` (Prometheus), `cptime`, `cpctx` (what a request carries: the caller's address, its account, and `Operator`, who calls an admin service, which auth's admin gate puts there and chat and player keep with what an operator did), `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres: a store reaches it only through `db.On(ctx)` — see [Transactions](transactions.md) and [Durability](durability.md)), `cpcolls` (collections), `cpzernio` (the client of the posting service), `cpanthropic` (the client of Anthropic's API), `cpproto` (`Overlay`: one proto message's values written over another's, which planet's and the antibot's rule sets play over `default` with).
+Shared infrastructure: `cpbootstrap` (the composite layer), `cpredis` (the event bus over Redis Streams, which each module connects to on its own — see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)), `cpatomic` (the `Transactioner` and `Outbox` ports a use case takes — see [Transactions](transactions.md)), `cpoutbox` (the outbox a use case records in, inside its transaction, and its relay — see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)), `cpcountries`, `cpscripts` (the historic scripts chat and names refuse), `cpphrases` (a listed phrase found however it is spelled, for the chat's banned phrases and player's banned names), `cpconfigs` (YAML + env config via koanf), `cphttpserver` (middleware), `cpprom` (Prometheus), `cptime`, `cpctx` (what a request carries: the caller's address, its account, and `Operator`, who calls an admin service, which auth's admin gate puts there and chat and player keep with what an operator did), `cpconnect`, `cpratelimit`, `cpipblock`, `cpipscope`, `cpsession`, `cpsessionverifier`, `cpsecrets`, `cppg` (postgres: a store reaches it only through `db.On(ctx)` — see [Transactions](transactions.md) and [Durability](durability.md)), `cpcolls` (collections), `cpzernio` (the client of the posting service), `cpanthropic` (the client of Anthropic's API), `cpproto` (`Overlay`: one proto message's values written over another's, which a `cprules` set plays over `default` with), `cprules` (named rule sets over a `default`, below).
 
 **Every package here is prefixed `cp`, and a new one must be.** A call site reads
 `cptime.SystemClock{}` or `cpctx.GetSourceIP(ctx)`, so the prefix says the
@@ -78,4 +78,23 @@ view it, or to download it under a name (`response-content-disposition`), and a 
 knows keys, not files**: the support module keeps its notes' files at the root (`s3_attachment_bucket`), the clips
 module its videos under `clips/videos/` (`s3_video_bucket`), the promo module its backgrounds under
 `promo/backgrounds/` (`s3_background_bucket`), each with its own config block, which may name the same bucket. Its tests run on a real S3 server, the Versity gateway in a container.
+`cprules` keeps a module's rules in named sets over a `default`, generic over the proto message a set holds
+(`planet.v1.Rules`, `antibot.v1.Rules`, `bonuses.v1.Rules`; see [Rules](rules.md), [The antibot's rules](antibot-rules.md)
+and [The offers' sets](bonuses.md#its-rule-sets)). **It passes the bar**: planet, the antibot and the offers import it,
+and it reads the same in any program that keeps named rule sets over a default, since it knows no rule: each module
+hands it its parts. Until 2026-11-11 each of the three kept a copy of it (the offers' copied from planet's that day).
+- **What it holds**: `Snapshot[M]` and `Set[M]` (`Restore`: default's values with the set's own written over them, every
+  part read and checked, every reason named by its path), `PartOf[M, R]` (`Key`, `Read`; `Root` for a part that names
+  each value by its whole path and takes no key before its reasons, the offers' one part; `InDefault`, what default
+  alone may not play, planet's `arena.on`) and `Reader`, `InForce[M]` (the set in force, `Since`, `Watch`), `Choice`,
+  `PostgresStore` and `PostgresChoices` (`rule_sets` and `rule_set_choice` in the schema the module's pool opens; a key
+  the message no longer has is dropped on read), `PlayUseCase` with an optional `Hook` (the antibot's
+  `bans.Book.Restate`, told each set taken until it hears one), `SaveUseCase`, and the `LoggedPlay` and `AuditedSave`
+  decorators, which log in each module's words (`PlayLog`, `SaveLog`, written in its `module.go`). Behind the `testing`
+  tag: `MemoryStore`, `MemoryChoices`, `StoreContractSuite` (run by each module on its own migrations, with its default
+  and two sets of its own values) and `ChoiceStoreContractSuite`.
+- **What stays in each module**: its parts and their one list, its fixtures (`rules.Seeded`, `Named`, `AsIs`), the
+  tests of its own values, its handlers and their queries, and its migrations.
+- Its own tests play sets of `planet.v1.Rules` with parts of their own, one of each kind.
+
 `cpcolls` holds the collections the standard library does not — today `Set[T]`. **A set is a `*cpcolls.Set`, never a map.** A `map[T]struct{}` or a `map[T]bool` written `m[k] = true` fails `make lint`: a ruleguard rule in `tools/ruleguard/rules.go`, run by gocritic, reports both everywhere but in `cpcolls` itself. A nil `*Set` reads as empty, like a nil map, so a lookup in a map of sets needs no `ok` check.

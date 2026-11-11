@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // tagged is a seed that says which set it was named by.
@@ -24,18 +25,18 @@ func (tagged) Tiles() []clicks.StartTile { return nil }
 
 type namedSeeds struct{}
 
-func (namedSeeds) SeedOf(set rules.Set) arenas.Seed {
+func (namedSeeds) SeedOf(set cprules.Set[*planetv1.Rules]) arenas.Seed {
 	return tagged{set: string(set.TakeSnapshot().Name)}
 }
 
 type failingSets struct{}
 
-func (failingSets) Set(context.Context, rules.SetName) (rules.Set, error) {
-	return rules.Set{}, errors.New("postgres is restarting")
+func (failingSets) Set(context.Context, cprules.SetName) (cprules.Set[*planetv1.Rules], error) {
+	return cprules.Set[*planetv1.Rules]{}, errors.New("postgres is restarting")
 }
 
 func TestAnArenaIsSetUpFromTheSetItIsOpenedFor(t *testing.T) {
-	sets := rules.NewMemoryStore(parts.All(), rules.Seeded(), rules.Named("siege", func(r *planetv1.Rules) {
+	sets := cprules.NewMemoryStore(parts.All(), rules.Seeded(), rules.Named("siege", func(r *planetv1.Rules) {
 		r.Arena = &planetv1.ArenaRules{On: new(true), Freeze: durationpb.New(5 * time.Second)}
 	}))
 
@@ -46,7 +47,7 @@ func TestAnArenaIsSetUpFromTheSetItIsOpenedFor(t *testing.T) {
 }
 
 func TestAnArenaOfASetThatCannotPlayIsRefused(t *testing.T) {
-	sets := rules.NewMemoryStore(parts.All(), rules.Seeded())
+	sets := cprules.NewMemoryStore(parts.All(), rules.Seeded())
 
 	_, err := arenas.NewSetups(sets, namedSeeds{}).Setup(t.Context(), "gone")
 

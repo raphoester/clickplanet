@@ -211,11 +211,11 @@ scoring](#calling-scoring)).
 
 ## Playing it
 
-Planet, the antibot and the offers do the same thing, each in its own `play_rules_usecase`:
+Planet, the antibot and the offers do the same thing, each with its own `cprules.PlayUseCase` (see [Shared](shared.md)):
 
-- **The latest decision wins** (`rules.Choice.Overrules`): a call decided at or before the one kept changes nothing, so
+- **The latest decision wins** (`cprules.Choice.Overrules`): a call decided at or before the one kept changes nothing, so
   a call made again, or an older one, is harmless, and answered as played.
-- **A newer one reads its set, keeps the choice, and enforces it** in the atomic pointer (`rules.InForce`). The choice
+- **A newer one reads its set, keeps the choice, and enforces it** in the atomic pointer (`cprules.InForce`). The choice
   is kept in each module's `rule_set_choice` (one row), in the module's own schema.
 - **At boot each module plays the choice it kept**, and `default` until it was told one. A kept choice whose set is
   missing or cannot play refuses the boot, as a broken `default` does.

@@ -16,8 +16,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -48,13 +48,15 @@ func (f addressedNotices) Attend(caller clicks.Caller) (<-chan notices.Event, fu
 
 type quietRules struct{}
 
-func (quietRules) Watch() (<-chan rules.Set, func()) {
+func (quietRules) Watch() (<-chan cprules.Set[*planetv1.Rules], func()) {
 	return nil, func() {}
 }
 
-type changingRules struct{ changes chan rules.Set }
+type changingRules struct {
+	changes chan cprules.Set[*planetv1.Rules]
+}
 
-func (c changingRules) Watch() (<-chan rules.Set, func()) {
+func (c changingRules) Watch() (<-chan cprules.Set[*planetv1.Rules], func()) {
 	return c.changes, func() {}
 }
 
@@ -407,8 +409,8 @@ func TestAStreamIsToldWhenItOpensEvenOneThatFails(t *testing.T) {
 }
 
 func TestAChangeOfRulesIsCarriedToTheSink(t *testing.T) {
-	changes := make(chan rules.Set, 1)
-	changes <- rules.Set{}
+	changes := make(chan cprules.Set[*planetv1.Rules], 1)
+	changes <- cprules.Set[*planetv1.Rules]{}
 
 	ctx, cancel := context.WithCancel(t.Context())
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}

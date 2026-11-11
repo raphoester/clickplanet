@@ -2,10 +2,12 @@ package cohort
 
 import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var Part = rules.PartOf[Rules]{Key: "cohort", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetCohort()) }}
+var Part = cprules.PartOf[*antibotv1.Rules, Rules]{
+	Key: "cohort", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetCohort()) },
+}
 
 func RulesOf(m *antibotv1.CohortRules) Rules {
 	return Rules{

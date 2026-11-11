@@ -10,13 +10,14 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // Seeded is the set the migrations keep as default: production's rules on 26 October 2026, and the rotator's certain level of 3 November.
-func Seeded() Snapshot {
+func Seeded() cprules.Snapshot[*antibotv1.Rules] {
 	d := durationpb.New
-	return Snapshot{
-		Name: Default,
+	return cprules.Snapshot[*antibotv1.Rules]{
+		Name: cprules.Default,
 		Rules: &antibotv1.Rules{
 			Bans: &antibotv1.BanRules{
 				Enforce:        proto.Bool(true),
@@ -113,7 +114,7 @@ func Seeded() Snapshot {
 	}
 }
 
-func Named(name SetName, change func(*antibotv1.Rules)) Snapshot {
+func Named(name cprules.SetName, change func(*antibotv1.Rules)) cprules.Snapshot[*antibotv1.Rules] {
 	kept := Seeded()
 	kept.Name = name
 	change(kept.Rules)

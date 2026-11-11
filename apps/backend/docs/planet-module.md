@@ -28,9 +28,8 @@ internal/planet/internal/
   allegiances/                    the flag each account plays for, and when it last changed it
     postgres_allegiance_store/
     log_allegiances/
-  rules/                          the rule sets, and the one the game plays
-    postgres_rule_set_store/
-    usecases/
+  rules/                          planet's own rule values: the bounds a part checks, the fixtures; the sets are cprules'
+    parts/                        the one list of the parts
   arenas/                         the shell of a fresh map an arena battle is fought on: when it opened and closed, its freeze,
                                   and the Seed contract it starts from; its map is the tile map's
     postgres_arena_store/
@@ -166,8 +165,8 @@ because it serves every concept over one Connect service. It only maps.
 | `resets/usecases/reset_map_usecase` | wipes the map once per reset (see [The map reset](map-reset.md)) | `Tiles`, `resets.Store` |
 | `arenas/usecases/open_arena_usecase` | reads the battle's set, saves the world's map and plays the arena's seeded one, once per arena (see [Arena battles](arenas.md)) | `Tiles`, `Setups`, `Arenas`, `InPlay` |
 | `arenas/usecases/close_arena_usecase` | deletes the arena's map and plays the world's again, once per arena | `Tiles`, `Arenas`, `InPlay` |
-| `rules/usecases/play_rules_usecase` | plays the set postgres keeps, at boot and when it changes; `Plays` | `Sets`, `Choices`, `Rules` |
-| `rules/usecases/save_rule_set_usecase` | the operator makes a set or replaces its values; never the one that plays | `Sets`, `Playing` |
+| `cprules.PlayUseCase` (shared, see [Shared](shared.md)) | plays the set postgres keeps, at boot and when it changes | `Store`, `Choices`, `Enforcer` |
+| `cprules.SaveUseCase` (shared) | the operator makes a set or replaces its values; never the one that plays | `Store`, `Replaying` |
 | `ledger/usecases/relay_ledger_usecase` | tells the other modules what the ledger flushed past its cursor, in ledger order: `TilesTaken` and `ShieldsStruck`, one per event in parts of `PartTiles` (4,096) at most, `BombLanded`, `Fortified` and `ShieldPlaced`, each with its position, each tile with its index in its event and a taken one with its point on the globe; a `Runner` | `Ledger`, `Cursor`, `Borders`, `Positions`, `Sender` |
 
 **The interfaces in that last column are declared by the package that calls

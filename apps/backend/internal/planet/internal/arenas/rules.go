@@ -6,7 +6,7 @@ import (
 	"time"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 const maxFreeze = 30 * time.Second
@@ -26,7 +26,7 @@ func (r Rules) Validate() error {
 	return nil
 }
 
-var Part = rules.PartOf[Rules]{
+var Part = cprules.PartOf[*planetv1.Rules, Rules]{
 	Key: "arena",
 	Read: func(m *planetv1.Rules) Rules {
 		return Rules{On: m.GetArena().GetOn(), Freeze: m.GetArena().GetFreeze().AsDuration()}

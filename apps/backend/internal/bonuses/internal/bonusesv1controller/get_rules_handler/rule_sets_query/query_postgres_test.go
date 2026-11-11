@@ -12,8 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 func TestTheSetsComeDefaultFirstThenByNameAsKept(t *testing.T) {
@@ -21,7 +21,7 @@ func TestTheSetsComeDefaultFirstThenByNameAsKept(t *testing.T) {
 	rush := rules.Named("rush", func(r *bonusesv1.Rules) { r.Spread.MaxPerBox = proto.Uint32(8) })
 	set, err := rush.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
-	require.NoError(t, postgres_rule_set_store.New(db, parts.All()).Save(t.Context(), set))
+	require.NoError(t, cprules.NewPostgresStore(db, parts.All()).Save(t.Context(), set))
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `
 		INSERT INTO rule_sets (name, rules)
 		SELECT 'calm', jsonb_set(rules, '{spread,maxPerBox}', '0') FROM rule_sets WHERE name = 'default'`)

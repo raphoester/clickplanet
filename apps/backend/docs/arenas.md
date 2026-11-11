@@ -122,7 +122,7 @@ map.
 
 **An arena's fresh map starts from a seed its rule set names** (`seed`, a `oneof` of patterns; the owner, 2026-11-10).
 The arena defines the contract and knows no pattern (`arenas.Seed`: `Tiles() []clicks.StartTile`; `arenas.Seeds`:
-`SeedOf(rules.Set) Seed`). The patterns are in `internal/planet/internal/seeds/`: `seeds.Part` reads the set's
+`SeedOf(cprules.Set) Seed`). The patterns are in `internal/planet/internal/seeds/`: `seeds.Part` reads the set's
 pattern, and `seeds.Catalog`, built with what the map gives (`seeds.Ground`: the capitals), lays it.
 
 - **`capitals {shields}`** (`seeds.Capitals`): each capital, held by its country, with `shields` shields (0 to 255,

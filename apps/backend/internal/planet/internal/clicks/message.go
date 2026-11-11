@@ -2,12 +2,16 @@ package clicks
 
 import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var ThrottlePart = rules.PartOf[Throttle]{Key: "clicks", Read: func(m *planetv1.Rules) Throttle { return ThrottleOf(m.GetClicks()) }}
+var ThrottlePart = cprules.PartOf[*planetv1.Rules, Throttle]{
+	Key: "clicks", Read: func(m *planetv1.Rules) Throttle { return ThrottleOf(m.GetClicks()) },
+}
 
-var TollPart = rules.PartOf[TollSteps]{Key: "toll", Read: func(m *planetv1.Rules) TollSteps { return TollOf(m.GetToll()) }}
+var TollPart = cprules.PartOf[*planetv1.Rules, TollSteps]{
+	Key: "toll", Read: func(m *planetv1.Rules) TollSteps { return TollOf(m.GetToll()) },
+}
 
 func ThrottleOf(m *planetv1.ClickRules) Throttle {
 	return Throttle{

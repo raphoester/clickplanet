@@ -9,11 +9,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -50,7 +52,7 @@ func TestTheLastFlushWaitsForWhatTheFeedsStillHandle(t *testing.T) {
 	seen := &witness{handled: handled}
 	set, err := rules.Seeded().Restore(guard.Parts(), rules.Seeded())
 	require.NoError(t, err)
-	inForce := rules.NewInForce()
+	inForce := cprules.NewInForce[*antibotv1.Rules](cptime.SystemClock{})
 	inForce.Enforce(set)
 	watchdogs := guard.NewInMemory(guard.Config{}, inForce, cptime.NewFixedClock(time.Now()), guard.Observer{},
 		bans.NewMemoryStore(), bans.NewMemoryStore(), &bans.MemoryEnforcer{}, warnings.NewMemoryStore(), &warnings.MemoryFeed{},

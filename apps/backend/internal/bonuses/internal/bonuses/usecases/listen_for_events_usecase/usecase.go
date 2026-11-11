@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
@@ -28,7 +29,7 @@ type Offers interface {
 }
 
 type RulesFeed interface {
-	Watch() (<-chan rules.Set, func())
+	Watch() (<-chan cprules.Set[*bonusesv1.Rules], func())
 }
 
 type Sink interface {
