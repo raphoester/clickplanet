@@ -165,7 +165,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `player-departures-requests`, `player-departures-restores` | each event names when it was decided; the departure keeps the latest (`departures.Departure.Decided`), so one told again, or a request heard after a later restore from the other stream, changes nothing |
 | `antibot-clicks`, `antibot-map-reads`, `antibot-streams`, `antibot-boxes-*` | planet tells each kind of fact at a later time than the one before (`facts.Log`), from one sender. The listener keeps the latest time it heard of each kind (`listener.Marks`), saved with the evidence as of the same moment, and skips a fact at or before it |
 | `commands:planet.v1.RefuseCaller`, `commands:planet.v1.AdmitCaller` (planet's `handler`) | each command names when it was decided; planet keeps the latest decision on each caller (`refusals.Refusal.Decided`), so a command sent again, or an older one from the other stream, changes nothing |
-| `commands:scoring.v1.ScoringCommand` (scoring's `handler`) | each command names its book or round: a book or round opened twice is one, a round closed twice is scored once, a book closed twice is ranked once, and a close of a round or book never opened scores nothing and is told missed again (`RoundMissed`, `BookMissed`), which the gamemaster keeps once |
+| `commands:scoring.v1.ScoringCommand` (scoring's `handler`) | each command names its book or round: a book or round opened twice is one, a round closed twice is scored once and a book closed twice ranked once, each told again (`RoundScored`, `BookClosed`), and a close of a round or book never opened scores nothing and is told missed again (`RoundMissed`, `BookMissed`); the gamemaster keeps each answer once |
 | `commands:planet.v1.PlayRuleSet`, `commands:antibot.v1.PlayRuleSet` (each module's `handler`) | each command names when it was decided; the module keeps the latest choice (`rules.Choice.Overrules`, `rule_set_choice`), so a command sent again, or an older one, changes nothing |
 | `commands:planet.v1.ResetMap` (`handler`) | planet keeps each reset id in `map_resets`, in the wipe's transaction, so a reset told again wipes nothing |
 | `chat-rooms` | ends the open streams of the room an account left; a second delivery finds none open |
@@ -177,7 +177,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `alerts-joins` | joins only an account not linked to that Discord user yet (`links.Link.Joins`); a second delivery finds the link the first kept, and names the user only if it does not wear its name yet. Auth keeps the grant for ten minutes and deletes nothing on a read, so a try again reads it again |
 | `chat-judge-reports` | the judge keeps a judgement per report (`chat.judgements`, in the transaction that acts on it): a report told again finds it and does nothing; many reports of one message are judged once, by the first that judged it |
 | `commands:support.v1.DecideReport` (support's `handler`) | the report's id is the command's: `SaveOnce` keeps a decision only for a report not decided yet, so one told again, or one the operator decided first, changes nothing |
-| `commands:planet.v1.ArenaCommand` (planet's `handler`) | planet keeps each arena by its id (`arenas`, `closed_arenas`): an arena opens once and never after it closed, and closes once |
+| `commands:planet.v1.ArenaCommand` (planet's `handler`) | planet keeps each arena by its id (`arenas`, `closed_arenas`): an arena opens once and never after it closed, and closes once, told again (`ArenaClosed`) at each close |
 | `gamemaster-arenas-opened` | the gamemaster keeps each arena opened once (`opened_arenas`) |
 | `gamemaster-arenas-closed` | the gamemaster keeps each arena closed once (`closed_arenas`) |
 | `gamemaster-rounds`, `gamemaster-books` | the gamemaster keeps each round scored and each book closed it heard (`scored_rounds`, `closed_books`, inserted once), and records its own event only for a new one |
@@ -200,11 +200,15 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
   at the gamemaster's next close, a minute later, so the outbox is not needed for loss; it is there so the answer is
   recorded in the order of scoring's other answers. `close_round_usecase` and `close_book_usecase` record each in a
   transaction of its own.
-- `scoring.v1.RoundScored` and `BookClosed`: the round is scored once and the book closed once, so a lost one is never sent again and the gamemaster never tells that day, battle or season ended. Scoring records each in the transaction that scores the round or closes the book, only when this call did it.
+- `scoring.v1.RoundScored` and `BookClosed`: the round is scored once and the book closed once, so the answer must be
+  recorded with what it tells. Scoring records each in the transaction that scores the round or closes the book, and
+  again, in a transaction of its own, at each close that finds it done: one the gamemaster never heard is told again a
+  minute later (see [The gamemaster as a reconciler](gamemaster-reconciler.md#every-close-is-answered)).
 - `planet.v1.ArenaOpened`: a lost one is an arena battle whose round never opens, so it scores nothing, since an arena
   opens once. Planet records it in the transaction that keeps the arena open, before its map plays (`Storage.Blank`).
-- `planet.v1.ArenaClosed`: a lost one is a day after an arena battle that never opens, since an arena closes once. Planet
-  records it in the transaction that closes the arena and deletes its map (planet's first outbox, `planet-outbox`).
+- `planet.v1.ArenaClosed`: the arena closes once, so the answer must be recorded with the close. Planet records it in
+  the transaction that closes the arena and deletes its map (planet's first outbox, `planet-outbox`), and again at each
+  close that finds it closed, so one the gamemaster never heard is told again a minute later.
 - `gamemaster.v1.DayEnded`, `BattleEnded` and `SeasonEnded`: the gamemaster records each in the transaction that keeps what it heard from scoring, only when it is new, so the chat announces each podium and champion once.
 - `gamemaster.v1.DayStarted`: the gamemaster records it in the transaction that keeps the day told (`told_days`), only when the day is new or its end moved, so missions keeps each day once.
 - `gamemaster.v1.SeasonStarted` and `BattleStarted`: the gamemaster records each in the same transaction, keeping the season and the battle told (`told_seasons`, `told_battles`), only when new, so the alerts ping each start once.

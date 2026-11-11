@@ -70,8 +70,9 @@ func TestAnArenaClosesOnceOpenedOrNot(t *testing.T) {
 	assert.True(t, closed, "an arena never opened closes too")
 	assert.Equal(t, arenas.Closing{ID: "battle", ClosedAt: now}, closing)
 
-	_, closed = arenas.Arena{ID: "battle", Closed: true}.Close(now)
+	closing, closed = arenas.Arena{ID: "battle", Closed: true, ClosedAt: ends}.Close(now)
 	assert.False(t, closed)
+	assert.Equal(t, arenas.Closing{ID: "battle", ClosedAt: ends}, closing, "a closed arena keeps the time it closed")
 }
 
 func TestAnArenaFreezesAfterItsMapPlaysAndBeforeTheBattleEnds(t *testing.T) {

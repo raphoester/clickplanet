@@ -24,15 +24,15 @@ type Store struct {
 func (s *Store) Find(ctx context.Context, id arenas.ID) (arenas.Arena, error) {
 	arena := arenas.Arena{ID: id}
 	var (
-		endsAt, openedAt sql.NullTime
-		freezeMs         sql.NullInt64
-		closed           bool
+		endsAt, openedAt, closedAt sql.NullTime
+		freezeMs                   sql.NullInt64
 	)
 	err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT a.ends_at, a.opened_at, a.freeze_ms, EXISTS (SELECT 1 FROM closed_arenas WHERE id = $1)
+		SELECT a.ends_at, a.opened_at, a.freeze_ms, c.closed_at
 		FROM (SELECT 1) AS one
 		LEFT JOIN arenas a ON a.id = $1
-	`, string(id)).Scan(&endsAt, &openedAt, &freezeMs, &closed)
+		LEFT JOIN closed_arenas c ON c.id = $1
+	`, string(id)).Scan(&endsAt, &openedAt, &freezeMs, &closedAt)
 	if err != nil {
 		return arenas.Arena{}, fmt.Errorf("failed to read arena %s: %w", id, err)
 	}
@@ -43,7 +43,9 @@ func (s *Store) Find(ctx context.Context, id arenas.ID) (arenas.Arena, error) {
 			Freeze: time.Duration(freezeMs.Int64) * time.Millisecond,
 		}
 	}
-	arena.Closed = closed
+	if closedAt.Valid {
+		arena.Closed, arena.ClosedAt = true, closedAt.Time.UTC()
+	}
 	return arena, nil
 }
 

@@ -86,14 +86,18 @@ store's insert (`ON CONFLICT DO NOTHING`, which answers whether this call did it
   reads no map and counts from nothing** (`books.CountsFromNothing`): a season after season 0 opens on a blank map,
   and the gamemaster tells planet to wipe it on another stream, so the wipe can land after the round opened; an arena battle's
   round opens once planet told its arena's blank map plays (see [Arena battles](arenas.md)).
-- **`CloseRound{round_id, ends_at}`**: a round scored is not scored again. **A round never opened is not scored, and
+- **`CloseRound{round_id, ends_at}`**: a round scored is not scored again, but **`RoundScored` is recorded again** with
+  the end it was scored at, in a transaction of its own, at each close: the first may have been lost on its way to the
+  gamemaster, which waits for it (see [The gamemaster as a reconciler](gamemaster-reconciler.md#every-close-is-answered)).
+  **A round never opened is not scored, and
   `close_round_usecase` records `scoring.v1.RoundMissed`** (round, end) in the outbox, at each such close: the
   gamemaster closes a round until scoring answers it, so a close that cannot apply is answered too (see [The gamemaster
   as a reconciler](gamemaster-reconciler.md)). Nothing is kept of it. Else `close_round_usecase` reads
   the round's start and the map once (`GetTerritories`), places the countries by its ranking (`Round.Results`), keeps the results and records **`scoring.v1.RoundScored`**
   (round, book, end) in the outbox, in one transaction. A failure to read the map
   scores nothing and is tried again. Nothing freezes the map: a round closed late is scored from the map as it is then.
-- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book closed is not closed again. **A book never opened is not
+- **`CloseBook{book_id, ends_at, tiebreak_round_id}`**: a book closed is not closed again, but **`BookClosed` is
+  recorded again** with the end it closed at, at each close. **A book never opened is not
   closed, and `close_book_usecase` records `scoring.v1.BookMissed`** (book, end), at each such close. Else
   `close_book_usecase` closes the book with its tiebreak round and records **`scoring.v1.BookClosed`** (book, end), in
   one transaction. Its table is ranked at each read (`Book.Table`). Scoring ranks by
@@ -109,9 +113,10 @@ the books read the grants by time.
 
 `scoring_command_handler/season_end_test.go` plays season 0's end: day 24 closed at 21:00, the battle ×3 from 21:00 to
 23:00 as the tiebreak, then the book; the outbox holds the two `RoundScored` then `BookClosed`, and every command sent
-again changes nothing. It also pins a close of a round or a book never opened told missed at each close, a round and
-a book closed twice told once, a day ranked on the ground held and gained scored on both ranks, and a round with no
-ranking, or one scoring does not know, refused.
+again scores and ranks nothing again and tells the same three facts again. It also pins a close of a round or a book
+never opened told missed at each close, a round and a book closed again told again with the end they closed at, a day
+ranked on the ground held and gained scored on both ranks, and a round with no ranking, or one scoring does not know,
+refused.
 
 ## The rules
 

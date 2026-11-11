@@ -27,6 +27,20 @@ season with no break could wipe the map before its Final Battle was scored.
 opened is not an answer to a close: it is the fact an arena battle's round waits for before it opens. **Every round
 of an answered book is answered**: scoring closes a book after its rounds, on the one stream.
 
+## Every close is answered
+
+**A receiver answers each close it hears, the first and every one after** (the user, 2026-11-11). The answer is the
+fact as it was kept: `RoundScored` with the end the round was scored at, `BookClosed` with the book's end, `ArenaClosed`
+with the time the arena closed (`closed_arenas.closed_at`). A close that does the work records its answer in the
+transaction that does it; a close that finds the work done records the answer again in a transaction of its own (planet:
+in `PutBack`'s, which then wipes nothing).
+
+Why: a subscriber whose handler fails `redis.maxDeliveries` times (8, about 4 minutes: postgres down, a bug) buries the
+event in `events:dead`. Before, a buried answer never came again: the gamemaster sent the close each minute for ever
+and what waited on it never happened. A lost `ArenaClosed` held every round, day, season and reset after it; a lost
+`BookClosed` held the next season's reset and its `SeasonEnded`; a lost `RoundScored` of an arena battle held its
+arena's close, and so the rest of its season. Now the next close, a minute later, brings the answer back.
+
 **Scoring tells a close it cannot apply**: a `CloseRound` of a round it never opened records `scoring.v1.RoundMissed`, and
 a `CloseBook` of a book it never opened `scoring.v1.BookMissed`, through its outbox, at each such close (see
 [Scoring](scoring.md#the-commands)). The gamemaster keeps each once (`gamemaster-rounds-missed`,
@@ -35,7 +49,8 @@ stream, after every command before it, so "never opened" is exact. A read of sco
 not chosen: it does not see a command still in the stream, and would load scoring's pool every second.
 
 **Each command is idempotent on its receiver**: a book, a round and an arena by its id, a reset by its id, a rule set by
-its `decided_at` (the latest decision wins). A missed round or book is told again at each close, and kept once.
+its `decided_at` (the latest decision wins). Every answer is told again at each close; the gamemaster keeps each once,
+and tells the players each end once.
 
 ## The two stalls
 
@@ -63,7 +78,8 @@ its `decided_at` (the latest decision wins). A missed round or book is told agai
 Per tick, on the gamemaster's pool of 2: the plan reads the seasons, the entries, then what scoring answered (one
 statement, `postgres_moment_store.Kept`) and the arena battles (one statement, `postgres_arena_store.ArenasKept`): 4
 reads, 6 before. With the starts' transaction (5 round trips) and the schedule's 2 reads, about 11 round trips a second.
-No command in a steady state; one `XADD` a minute for each close with no answer, and 2 a minute for the turn. No call
+No command in a steady state; one `XADD` a minute for each close with no answer, and its answer, and 2 a minute for the
+turn. A close sent again while its first answer is still on its way is answered twice and kept once. No call
 on the internal listener but the judgement, once per battle.
 
 ## Tests
@@ -77,4 +93,6 @@ again each minute with its decision time, and a set refused that plays once it i
 battle whose open Redis refused, with the server down to an hour after its end, and one whose open planet refuses at its
 end; `finalnight/no_break_test.go` plays
 season 1 right after the Final Battle, and a restart across that end, with scoring answering late. Scoring's
-`season_end_test.go` pins a close of a round or book never opened told missed at each close.
+`season_end_test.go` pins a close of a round or book never opened told missed at each close, and one closed already
+told again with the end it closed at; `close_arena_usecase`'s test an arena closed already told again with the time it
+closed.

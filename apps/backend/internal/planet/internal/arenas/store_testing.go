@@ -89,7 +89,7 @@ func (m *MemoryStore) Close(_ context.Context, closing Closing) error {
 		return m.Failing
 	}
 	arena := m.arenas[closing.ID]
-	arena.ID, arena.Closed = closing.ID, true
+	arena.ID, arena.Closed, arena.ClosedAt = closing.ID, true, closing.ClosedAt.UTC()
 	m.arenas[closing.ID] = arena
 	m.closed[closing.ID] = closing.ClosedAt
 	return nil

@@ -97,7 +97,7 @@ func closedAt(at time.Time) proto.Message {
 	return &planetv1.ArenaClosed{ArenaId: "battle", ClosedAt: timestamppb.New(at)}
 }
 
-func TestAnArenaClosedBringsTheMapFromBeforeItBackAndTellsItOnce(t *testing.T) {
+func TestAnArenaClosedBringsTheMapFromBeforeItBackAndIsToldAgainAtEachClose(t *testing.T) {
 	h := newHarness(t)
 	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: rules.Default})
 	require.NoError(t, err)
@@ -116,15 +116,18 @@ func TestAnArenaClosedBringsTheMapFromBeforeItBackAndTellsItOnce(t *testing.T) {
 	assert.Empty(t, h.owner(9))
 	assert.Equal(t, 4, h.tiles.Shields(1))
 	assert.False(t, bool(h.inPlay.Freeze()))
+	closing := h.clock.Now()
 	require.Len(t, h.outbox.Recorded(), 1)
-	assert.True(t, proto.Equal(closedAt(h.clock.Now()), h.outbox.Recorded()[0]))
+	assert.True(t, proto.Equal(closedAt(closing), h.outbox.Recorded()[0]))
 
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "pt"))
+	h.clock.Advance(time.Minute)
 	closed, err = h.useCase.Execute(t.Context(), "battle")
 	require.NoError(t, err)
 	assert.Equal(t, close_arena_usecase.Already, closed)
 	assert.Equal(t, "pt", h.owner(9), "a close told again changes nothing")
-	assert.Len(t, h.outbox.Recorded(), 1)
+	require.Len(t, h.outbox.Recorded(), 2)
+	assert.True(t, proto.Equal(closedAt(closing), h.outbox.Recorded()[1]), "told again as it closed")
 }
 
 func TestAnArenaNeverOpenedClosesAndIsToldWithTheMapLeftAsItIs(t *testing.T) {
