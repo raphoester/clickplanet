@@ -25,7 +25,7 @@ const float HIGHLIGHT_FLOOR = 0.35;
 const vec3 MISSION = vec3(0.784, 0.341, 0.298);
 const float MISSION_RING_PX = 2.5;
 
-// A capital still standing, in an arena: a crown on the top of the tile, over its flag and its shield.
+// A capital still standing: a crown on the top of the tile, drawn last, over its flag, its shield and every ring.
 const vec2 CROWN_AT = vec2(0.0, -0.34);
 const float CROWN_SIZE = 0.4;
 
@@ -75,9 +75,10 @@ vec4 shielded(vec4 colour, vec2 coordinates) {
 
 vec4 crowned(vec4 colour, vec2 coordinates, float shown) {
     vec2 at = (coordinates - CROWN_AT) / CROWN_SIZE;
-    if (max(abs(at.x), abs(at.y)) > 0.5) return colour;
+    // Sampled on every fragment: a texture read inside a branch has no gradient on the box's edge, and drew its frame.
     vec4 mark = shieldMark(shieldMost + 1.0, at);
-    float cover = mark.a * shown;
+    float inside = step(max(abs(at.x), abs(at.y)), 0.5);
+    float cover = mark.a * shown * inside;
     return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
 }
 
@@ -95,9 +96,6 @@ void main() {
     if (vShield > 0.5) colour = shielded(colour, coordinates);
 
     colour = scorched(colour, vScorch * shown);
-
-    float capital = marked(8.0) ? shown * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
-    if (capital > 0.0) colour = crowned(colour, coordinates, capital);
 
     float aimed = marked(4.0) ? shown * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
     if (aimed > 0.0) {
@@ -122,6 +120,9 @@ void main() {
 
     colour = steeled(colour, vFortify * shown);
     colour = heated(colour, vGlow * shown);
+
+    float capital = marked(8.0) ? shown * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
+    if (capital > 0.0) colour = crowned(colour, coordinates, capital);
 
     gl_FragColor = colour;
 }
