@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package bonuses.v1;
+
+import "planet/v1/planet.proto";
+
+// The boxes and quizzes the game offers a caller, and what each grants. What a box or a right answer grants is planet's
+// charges, in planet's words (planet.v1.BonusKind, planet.v1.ChargesHeld): the offers grant, planet holds and spends.
+service BonusService {
+  // A box offered to the caller, caught: planet keeps what fits the hand. NotFound for a box not offered to the caller,
+  // gone or caught already. FailedPrecondition with a FrozenRefusal while the offers or the map take no play.
+  rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
+
+  // Opens a quiz offered to the caller: its question, its choices, and the short clock that starts now. NotFound as
+  // ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
+  rpc OpenQuiz(OpenQuizRequest) returns (OpenQuizResponse);
+
+  // Answers a quiz opened: the right choice, and for a right answer in time what planet kept of its charge. NotFound as
+  // ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
+  rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
+
+  // The boxes and quizzes offered to the caller, every box caught and every quiz won by anyone, and each set the offers
+  // take. A heartbeat at once and every so often.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream BonusEvent);
+
+  // What the page shows of the rules the offers play.
+  rpc GetGrantRules(GetGrantRulesRequest) returns (GetGrantRulesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+// The detail of the FailedPrecondition that ClaimBonus, OpenQuiz and AnswerQuiz answer while the offers play a frozen
+// set, or while planet's map takes no play: the box or the quiz lapses.
+message FrozenRefusal {}
+
+message ClaimBonusRequest {
+  string token = 1;
+
+  string country_id = 2;
+}
+
+message ClaimBonusResponse {
+  planet.v1.BonusKind kind = 1;
+
+  // What planet kept: fewer than the box held when the hand's stack is full.
+  uint32 amount = 2;
+
+  // All the hand holds after.
+  planet.v1.ChargesHeld charges = 3;
+}
+
+message OpenQuizRequest {
+  string token = 1;
+}
+
+message OpenQuizResponse {
+  string question = 1;
+
+  repeated string choices = 2;
+
+  int64 deadline_unix_ms = 3;
+
+  double answer_seconds = 4;
+}
+
+message AnswerQuizRequest {
+  string token = 1;
+
+  uint32 choice = 2;
+
+  string country_id = 3;
+}
+
+message AnswerQuizResponse {
+  bool correct = 1;
+
+  uint32 correct_choice = 2;
+
+  planet.v1.BonusKind kind = 3;
+
+  // What planet kept.
+  uint32 amount = 4;
+
+  // All the hand holds after.
+  planet.v1.ChargesHeld charges = 5;
+}
+
+// Empty is every event.
+message ListenForEventsRequest {}
+
+message BonusEvent {
+  oneof event {
+    Heartbeat heartbeat = 1;
+
+    // Only to the caller it is offered to.
+    BonusOffered bonus_offered = 2;
+
+    // To every stream.
+    BonusTaken bonus_taken = 3;
+
+    // Only to the caller it is offered to.
+    QuizOffered quiz_offered = 4;
+
+    // The offers took another set: GetGrantRules answers anew.
+    RulesChanged rules_changed = 5;
+  }
+}
+
+message Heartbeat {}
+
+message RulesChanged {}
+
+message BonusOffered {
+  string token = 1;
+
+  uint32 seed = 2;
+
+  planet.v1.BonusKind kind = 3;
+
+  int64 expires_at_unix_ms = 4;
+}
+
+// A box caught, or a quiz won, by anyone.
+message BonusTaken {
+  string country_id = 1;
+
+  planet.v1.BonusKind kind = 2;
+
+  // The country the quiz won was about; empty for a box.
+  string quiz_subject_country_id = 3;
+}
+
+// Says nothing of the question: even its subject's flag can be the answer.
+message QuizOffered {
+  string token = 1;
+
+  int64 expires_at_unix_ms = 2;
+}
+
+message GetGrantRulesRequest {}
+
+message GetGrantRulesResponse {
+  // A guest's first sign-in earns a refill.
+  bool sign_in_refill = 1;
+}

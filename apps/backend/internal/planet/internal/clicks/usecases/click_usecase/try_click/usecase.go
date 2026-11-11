@@ -56,6 +56,8 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Outcome:   outcomeOf(out, err),
 		Owner:     out.Owner,
 		Tempo:     u.throttle().Tempo,
+		// The bank the click left: whoever hears the try reads a dry one off it.
+		Dry: out.Limited && out.Budget.Empty(),
 	}
 	if err != nil {
 		tried.Owner, _ = u.owners.Owner(in.TileID)

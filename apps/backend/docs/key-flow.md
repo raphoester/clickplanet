@@ -30,11 +30,10 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
       [props.Sessions: the key from auth.v1.InternalService, asked once per process
        then cpsession.Verifier: one signature check — this context holds no seed]
   → ClickService → click_handler
-  → try_click       (tells the try, whatever came of it: facts.Log, sent to Redis every 100ms; refuses nothing)
+  → try_click       (tells the try, whatever came of it, and the bank it left: facts.Log, sent to Redis every 100ms; refuses nothing)
   → refusal_click   (a refused caller is PermissionDenied, with a BanRefusal: when the refusal ends)
   → allegiance_click (a flag other than the one pledged, or none pledged, is refused, and spends nothing)
   → reach_click     (while the reach plays, a tile out of the flag's reach is FailedPrecondition with a ReachRefusal, and spends nothing)
-  → bonus_click     (an accepted click tells the bonus registry, with the bank the throttle left)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → prom_click      (counts)
   → enclose_click   (with Enclose and an enclosure held: a take that closes a pocket fills it)
@@ -46,6 +45,8 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → every subscriber: one per open ListenForEvents stream
 
   … the try, as planet.v1.ClickTried on Redis
+  → the offers' click_tried_subscriber (bonuses-clicks): a take, a strike or an unchanged tile marks the caller
+      playing; a dry one owes a newcomer its first quiz (see bonuses.md)
   → the antibot's listener (antibot-clicks): Attempted, Inspect, Committed, as far as the click went
   → a guilty caller's ban row, and a planet.v1.RefuseCaller in the same transaction (the antibot's outbox)
   → planet's refuse_caller_handler (commands:planet.v1.RefuseCaller): planet.refused_callers, read by refusal_click

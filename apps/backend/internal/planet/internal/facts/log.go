@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-// Fact is an alias, so a port that names the func type itself, as bonuses/box_facts does, is met by the log.
+// Fact is an alias, so a port that names the func type itself is met by the log.
 type Fact = func(at time.Time) proto.Message
 
 func NewLog(clock cptime.Clock) *Log {

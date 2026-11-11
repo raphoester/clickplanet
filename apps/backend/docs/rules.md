@@ -1,9 +1,11 @@
 # Rules: the game's rule sets (`planet.rule_sets`)
 
 **Every game rule is kept in postgres, not in the config**, and edited from the backoffice (Ops → Game rules). A game
-rule is what a player feels: how fast a bank refills, what a box holds, how big a bomb is. Until 2026-10-26 they were
-in the YAML, read once at boot, so a change was a deploy and a restart. The design is the antibot's (see
-[The antibot's rules](antibot-rules.md)); **a rule set holds planet's words only**: the antibot keeps its own sets.
+rule is what a player feels: how fast a bank refills, how many shields a hand holds, how big a bomb is. Until
+2026-10-26 they were in the YAML, read once at boot, so a change was a deploy and a restart. The design is the
+antibot's (see [The antibot's rules](antibot-rules.md)); **a rule set holds planet's words only**: the antibot keeps its
+own sets, and so do the offers since 2026-11-11 (when a box and a quiz come, and what each grants: see
+[The offers](bonuses.md#its-rule-sets)).
 Which set each plays is the schedule's (see [The gamemaster module](gamemaster.md)).
 
 ## A rule set
@@ -25,21 +27,22 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   (`TollSteps`), `frozen` (`Freeze`), `reach` (`Reaching`) and `capitals` (`CapitalRules`); `allegiances` owns
   `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its
   `…Of(message)` (`message.go`) and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
-- **`bonuses` is read in two halves** (see [Offers and the wallet](offers-and-wallet.md#the-rules-split)): the wallet's,
-  `charges.Rules` (`charges.Part`: `spread.clicks`, `bomb.rings`, `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`,
-  `shield.held`, `.perTile`), and the offers', `bonuses.Rules` (`parts.Grants`: the rest, and `bomb.off` too). Two parts
-  read one message, so each has a `Key` of its own and the wallet's sets `PartOf.Path` to `bonuses`: both name their
-  reasons `bonuses.…`, in the same words as before the cut. `parts.Grants` is declared in `rules/parts`, since
-  `bonuses` reads no package of planet's; its bounds (`positive`, `atLeast`…) are a copy of `rules`' own. The message
-  and the stored sets did not change. Only the order of several reasons at once did: the offers' come first.
+- **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `bomb.rings`,
+  `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`, `shield.held`, `.perTile`). Until 2026-11-11 those were the
+  wallet's half of `bonuses` (`planet.v1.BonusRules`), whose other half a second part read for the offers
+  (`parts.Grants`, see [Offers and the wallet](offers-and-wallet.md#the-rules-split)). The offers keep that half in rule
+  sets of their own now ([The offers](bonuses.md#its-rule-sets)); `Rules.bonuses` (3) is `reserved`, and the wallet's
+  reasons are named `charges.…`. Migration `20261111200000_charges` wrote each set's wallet values under `charges`, and
+  left `bonuses` in the stored sets, which planet reads no more, so the offers' own migration copies it whichever
+  module migrates first; a later release strips it. Its down removes `charges`: a set saved since loses its wallet values.
 - **`parts.All()` is the one list of parts** (`rules/parts`). A concept that reads the rules adds its field to
   `planet.v1.Rules`, its part, and one line there; nothing in `rules`, the store or the handlers changes.
 - **A part may refuse a value in `default` alone** (`PartOf.InDefault`): `arena.on`, which every set would play.
 - **`Restore` reads and validates every part of what the set plays**, and keeps each part's rules, so a read never
   converts again. It refuses a set any part refuses, with every reason, each named by its path as `planet.v1.Rules`
-  writes it: `clicks.burst is 0, under one click (1); bonuses.quiz.answerWindow is 0s, and must be above 0`. A value
+  writes it: `clicks.burst is 0, under one click (1); charges.spread.clicks is 0, and must be above 0`. A value
   neither the set nor `default` holds reads as zero, which its `Validate` refuses. A set's own value is checked against
-  default's too: a shortest box wait over default's longest is refused.
+  default's too, since what the set plays is checked whole.
 - **The name** is a lowercase letter, then up to 31 of a-z, 0-9, `-` and `_`.
 - **`default`** is seeded by migration `20261026210000_rule_sets` with production's values of that day, the ones
   `deploy/vps/backend.yaml` held. `TestTheMigrationSeedsDefaultWithProductionsRules` compares it with `rules.Seeded()`,
@@ -58,30 +61,19 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   migration `20261106120000_fast_start`). See [Rate limiting](rate-limiting.md)
 - `toll.steps` — rising `{share, slowdown}`: from `share` of the map, a country refills `slowdown` times slower (10%
   1.5×, 20% 2.5×, 30% 4×). No step is no toll. See [A big country refills slower](rate-limiting.md#a-big-country-refills-slower-clickstoll)
-- `bonuses.boxes.minInterval`, `maxInterval`, `maxChargesPerHour` — a box's wait and the hourly cap (4–8 min, 12).
-  Half the shorter of this `minInterval` and the quiz's is how far a box and a quiz keep apart (see [Quizzes](quizzes.md))
-- `bonuses.kinds.*` — what a box is drawn as: a weight per kind, `refill`, `spreadClicks`, `encloseClicks`, `bomb`,
-  `shields` (5, 3, 2, 1, 3). 0 is never offered, nor a bomb while `bonuses.bomb.off`; a set where no kind could be
-  offered cannot play
-- `bonuses.offerTtl` — how long a box flies; **it must outlast the flight the client draws**, or a box caught on its
-  last frame is refused (15 s)
-- `bonuses.missRetry` — a box missed brings the next one this soon, once (2 min)
-- `bonuses.activeWithin` — no box and no quiz for a caller that has not clicked for this long (2 min)
-- `bonuses.spread.clicks`, `.maxPerBox` — the spread pool and what one box adds at most (8, 4). See [Spread](spread.md)
-- `bonuses.bomb.rings` — the blast's radius in tile spacings (4). See [Bomb](bomb.md)
-- `bonuses.bomb.off` — no bomb: no box or quiz offers one, and a bomb held is not dropped (off). See [Bomb](bomb.md)
-- `bonuses.enclose.maxTiles`, `.held`, `.maxPerBox` — the biggest shape, the stack, a box's most (25, 3, 3). See
-  [Enclose](enclose.md)
-- `bonuses.enclose.unlimited` — a click with enclose on needs no charge and spends none (off). See
-  [Unlimited enclosures](enclose.md#unlimited-enclosures-bonusesencloseunlimited)
-- `bonuses.shield.held`, `.minPerBox`, `.maxPerBox`, `.perTile` — the stack, a box's least and most, and a tile's most
-  (30, 5, 20, 10; a tile keeps them in a byte, so 255 at most). See [Shields](shields.md)
-- `bonuses.welcome.within`, `.boxAfter` — how young an account is welcomed, and when its first box comes (10 min,
-  1 min); `0s` is off. See [A newcomer's first box and first quiz](welcome-bonus.md)
-- `bonuses.signInRefill` — a guest's first sign-in earns a refill (on). See
-  [A guest's first sign-in earns a refill](sign-in-refill.md)
-- `bonuses.quiz.enabled`, `minInterval`, `maxInterval`, `maxChargesPerHour`, `offerTtl`, `answerWindow`, `missRetry`,
-  `leaderBias` — the quizzes (on, 4–8 min, 12, 25 s, 8 s, 2 min, 1). See [Quizzes](quizzes.md)
+- `charges.spread.clicks` — the spread pool a hand holds (8). See [Spread](spread.md)
+- `charges.bomb.rings` — the blast's radius in tile spacings (4). See [Bomb](bomb.md)
+- `charges.bomb.off` — no bomb: a bomb held is not dropped, and no hand has room for one, so no box or quiz offers one
+  (off). See [Bomb](bomb.md)
+- `charges.enclose.maxTiles`, `.held` — the biggest shape and the stack (25, 3). See [Enclose](enclose.md)
+- `charges.enclose.unlimited` — a click with enclose on needs no charge and spends none (off). See
+  [Unlimited enclosures](enclose.md#unlimited-enclosures-chargesencloseunlimited)
+- `charges.shield.held`, `.perTile` — the stack and a tile's most (30, 10; a tile keeps them in a byte, so 255 at
+  most). See [Shields](shields.md)
+- **The offers' rules are not here since 2026-11-11**: a box's wait, its kinds and its flight, what a box or a right
+  answer grants, the welcome, the quizzes and the sign-in refill are the bonuses module's own sets (see
+  [Its rule sets](bonuses.md#its-rule-sets)). Until then they were `bonuses.*` here, and promo's cards still name them
+  so (`{bonuses.boxes.minInterval}`, see [Promo](promo.md))
 - `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)
 - `allegianceLocked` — no account changes its flag; a first flag is still taken (off; on in a battle's set). See
   [Allegiance](allegiance.md)
@@ -90,7 +82,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   long an arena takes no play after its map plays and before the battle ends, 0 to 30 s (8 s), read from the battle's
   set as its arena opens. See [Arena battles](arenas.md)
 - `seed` — how an arena's fresh map starts: one pattern of a `oneof`. `capitals {shields}`, each capital held by its
-  country with that many shields, past `bonuses.shield.perTile`, 0 to 255 (100). Until 2026-11-10 it was
+  country with that many shields, past `charges.shield.perTile`, 0 to 255 (100). Until 2026-11-10 it was
   `arena.capitalShields`. See [Seeds](arenas.md#seeds)
 - `reach` — a take lands only next to the flag's land or across its waters (off). See [The reach](reach.md)
 - `capitals.knockOut`, `capitals.fixedShields` — a capital taken by another flag knocks its flag out; no shield goes on a
@@ -99,19 +91,22 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 ## A frozen map
 
 **A set with `frozen` takes no play** (`clicks.Freeze`, part `frozen`): while it is in force,
-`planetv1controller.NewFreezeInterceptor` refuses Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and
-AnswerQuiz with `FailedPrecondition` and a `planet.v1.FrozenRefusal` detail (`clicks.ErrFrozen`), before any of them
-spends a click or a charge. The map still loads and streams; tile cards, the board and PledgeAllegiance go on, and so
+`planetv1controller.NewFreezeInterceptor` refuses Click, DropBomb, PlaceShield and UseRefill with `FailedPrecondition`
+and a `planet.v1.FrozenRefusal` detail (`clicks.ErrFrozen`), before any of them spends a click or a charge, and
+`InternalService/GetFreeze` answers frozen. The map still loads and streams; tile cards, the board and PledgeAllegiance go on, and so
 do the operator's tools. A freeze is played like any set: the schedule picks it (a plain entry over the break between
 two seasons, see [A freeze over the break](gamemaster.md#a-freeze-over-the-break-between-two-seasons)), so no
 operator call freezes the map at once.
 
 - **The client learns it from planet, the module that refuses**: `GetBudget` answers `ClickBudget.frozen` (only
   GetBudget sets it), and a set taking over sends `rules_changed`, so an open tab reads it again within a second.
-- **Boxes and quizzes are offered on a timer** to a caller who clicked within `bonuses.activeWithin`, so one may still
-  be offered in the first minutes of a freeze: claiming or answering it is refused, and it lapses.
-- **The antibot needs a set of the same name** for the entry to be scheduled (an empty one does: it judges with
-  default's).
+- **The offers refuse their own calls** (ClaimBonus, OpenQuiz, AnswerQuiz) with a `bonuses.v1.FrozenRefusal` while
+  their set is frozen, or while planet's `GetFreeze` answers frozen, one loopback call each: see
+  [The freeze](bonuses.md#the-freeze). Their set of the same name holds `frozen` too (copied from planet's on
+  2026-11-11), and a frozen offers' set offers nothing. A box or a quiz offered while planet alone is frozen is refused
+  when taken, and lapses. Until 2026-11-11 a frozen planet still offered boxes on their timer and refused the claims.
+- **The antibot and the offers need a set of the same name** for the entry to be scheduled (an empty one does: each
+  plays default's).
 
 ## Where it is kept
 
@@ -143,21 +138,19 @@ The readers call it where they use the rules, not when they are built: a set tak
 
 - `clicks.ThrottlePart` — `clicks.Buckets` (the multipliers, `newAccountClicks`, `fastStart`), `try_click` (`ClickTried.tempo`),
   and the click limiter: `cpratelimit.NewRuled` reads `Throttle.Policy(inForce.Since())`, its rate, bank and tempo.
-- `clicks.TollPart` — `clicks.Toll`: the price of each click, and `GetBonusRules.toll_steps`.
-- `clicks.FreezePart` — the freeze interceptor (`planetv1controller.NewFreezeInterceptor`) and `get_budget_usecase`.
+- `clicks.TollPart` — `clicks.Toll`: the price of each click, and `GetChargeRules.toll_steps`.
+- `clicks.FreezePart` — the freeze interceptor (`planetv1controller.NewFreezeInterceptor`), `get_budget_usecase` and
+  `InternalService/GetFreeze`, which the offers ask.
 - `allegiances.LockPart` — `allegiances.Book` (a pledge and a click for another flag) and `allegiance_query`
   (`Allegiance.locked`).
-- `parts.Grants` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean, no bomb
-  while bombs are off), what a box or a right answer grants (`amountOf`), `grant_sign_in_refill_usecase` and
-  `GetBonusRules.sign_in_refill`.
-- `charges.Part` — `charges.Charges` (the stacks, a grant capped at them, and the room the offers are told of),
-  `charges.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`, `place_shield_usecase`,
-  `clicks.Claiming` (a tile's most shields, for a fortify) and the rest of `GetBonusRules`.
+- `charges.Part` — `charges.Charges` (the stacks, a grant capped at them, and the room `GetRoom` answers, a bomb while
+  bombs are off included), `charges.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`,
+  `place_shield_usecase`, `clicks.Claiming` (a tile's most shields, for a fortify) and the rest of `GetChargeRules`.
 - `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
   takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`rules.PartOf.Of(set)`).
-- `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetBonusRules.reach`.
+- `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetChargeRules.reach`.
 - `clicks.CapitalsPart` — `clicks.CapitalPlay` in the tile storage (a shield on a capital, a fortify, the knock-out, the
-  standing) and `GetBonusRules` (`knock_out`, `capital_shields_fixed`).
+  standing) and `GetChargeRules` (`knock_out`, `capital_shields_fixed`).
 - **`play_rules_usecase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the
   set the schedule chose last, and `default` until it chose one; then each `planet.v1.InternalService/PlayRuleSet` the
   schedule calls (`Play`, from `planetv1controller/play_rule_set_handler`); the same turn called again, with the same
@@ -172,8 +165,9 @@ The readers call it where they use the rules, not when they are built: a set tak
   set planet keeps none of, or one that cannot play, is refused (`FailedPrecondition`) and the choice is not kept; the
   schedule calls again each minute.
 - `InForce.Enforce` also stamps when the set took over (`Since`) and wakes each `Watch()`er: every planet stream sends
-  `PlanetEvent.rules_changed`, and the web client reads `GetBudget` and `GetBonusRules` again, so an open tab shows a
-  new refill and new sizes with no reload. `GetBonusRules` is a GET no cache keeps for that reason.
+  `PlanetEvent.rules_changed`, and the web client reads `GetBudget` and `GetChargeRules` again, so an open tab shows a
+  new refill and new sizes with no reload. `GetChargeRules` is a GET no cache keeps for that reason. Until 2026-11-11 it
+  was `GetBonusRules`, and also said `sign_in_refill`, which the offers' `GetGrantRules` says now.
 
 ## What changes for what is already there
 
@@ -186,12 +180,12 @@ A value read where it is used applies from the next use. **A value that carries 
   next click.
 - **The toll** is set by each click: a new step slows a player from its next click.
 - **Charges held above a smaller stack** are kept: `Held.Granted` never takes from a stack, and a full or fuller stack
-  is offered no box of its kind.
+  has no room for its kind (`GetRoom`), so the offers grant none.
 - **Shields on a tile above a smaller `perTile`** stay: a placement is refused (`ErrTileFull`) and a fortify adds none
   until the tile is under it.
-- **A box or a quiz due later than the new longest wait** is brought in to a wait at the new pace, at the next sweep
+- **A box or a quiz due later than the new longest wait**, in the offers' sets, is brought in to a wait at the new pace, at the next sweep
   (the registry compares at each sweep, every second).
-- **Quizzes switched on**: each caller's next quiz is a whole wait away, so a wait long past is not a quiz for
+- **Quizzes switched on** (the offers' `quiz.enabled`): each caller's next quiz is a whole wait away, so a wait long past is not a quiz for
   everyone at once. **Switched off**: no quiz is asked; one asked already can still be opened and answered until it
   lapses. A newcomer is owed no welcome quiz while they are off.
 - **A box or a banner in flight** keeps the expiry it was given; **an account welcomed** keeps its welcome.
@@ -207,8 +201,9 @@ answers the names of the sets postgres keeps, so the gamemaster module refuses a
 ## The machine, in the YAML
 
 The config keeps the machine: addresses, `database`, `redis`, secrets, `gameMap.maxIndex`, `tilesStorage.*`,
-`ledger.*`, `ledgerStorage.*`, `vpnBlocklist.*`, `auth`, `rateLimiter.sweepInterval`, `bonus.forgetAfter` and
-`bonus.sweepInterval` (see [Configuration](configuration.md)). `TestEveryPlanetKeyIsOneTheConfigReads` decodes each
+`ledger.*`, `ledgerStorage.*`, `vpnBlocklist.*`, `auth` and `rateLimiter.sweepInterval` (see
+[Configuration](configuration.md)). The offers' `forgetAfter` and `sweepInterval` are the `bonuses:` block's since
+2026-11-11, when planet's top-level `bonus:` block went. `TestEveryPlanetKeyIsOneTheConfigReads` decodes each
 YAML file's planet keys with unused keys refused: a rule left in a file would be read by nothing.
 
 ## What another module asks
@@ -238,7 +233,7 @@ not kept.
   `audit_save_rule_set` logs every save at Warn (`admin rule set saved` or `refused`, with the rules).
 
 The rules are pinned by each part's tests, `Set`'s (one refusal per impossible value), the store's contract suite and
-its migration test, the limiter's policy tests, the registry's pace and quiz tests, `Held`'s, the use cases', the
+its migration tests, the limiter's policy tests, `Held`'s, the use cases', the
 handlers' and `InForce`'s; the e2e suite holds smoke tests only (see [Testing](testing.md)). Its stack migrates
 planet's schema first (`planet.Migrate`, behind the `testing` tag) and writes its own `clicks` into `default` before
 planet boots, since every test clicks from one address.

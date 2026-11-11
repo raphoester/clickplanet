@@ -72,6 +72,17 @@ const (
 	// InternalServiceGetRuleSetProcedure is the fully-qualified name of the InternalService's
 	// GetRuleSet RPC.
 	InternalServiceGetRuleSetProcedure = "/planet.v1.InternalService/GetRuleSet"
+	// InternalServiceGrantChargesProcedure is the fully-qualified name of the InternalService's
+	// GrantCharges RPC.
+	InternalServiceGrantChargesProcedure = "/planet.v1.InternalService/GrantCharges"
+	// InternalServiceGetRoomProcedure is the fully-qualified name of the InternalService's GetRoom RPC.
+	InternalServiceGetRoomProcedure = "/planet.v1.InternalService/GetRoom"
+	// InternalServiceGetChargesOfProcedure is the fully-qualified name of the InternalService's
+	// GetChargesOf RPC.
+	InternalServiceGetChargesOfProcedure = "/planet.v1.InternalService/GetChargesOf"
+	// InternalServiceGetFreezeProcedure is the fully-qualified name of the InternalService's GetFreeze
+	// RPC.
+	InternalServiceGetFreezeProcedure = "/planet.v1.InternalService/GetFreeze"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -113,6 +124,17 @@ type InternalServiceClient interface {
 	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
 	// a set postgres does not keep.
 	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
+	// Grants charges to an account at once, and answers what fit its stack and all it holds after. Planet grants each
+	// grant_id once: a call made again keeps nothing and answers the hand as it is. What does not fit is not granted.
+	// InvalidArgument for a bad id, an unknown kind or no amount.
+	GrantCharges(context.Context, *connect.Request[v1.InternalGrantChargesRequest]) (*connect.Response[v1.InternalGrantChargesResponse], error)
+	// For each account asked, the kinds of charge it has no room for: a full stack, and a bomb while the rules in force
+	// hold charges.bomb.off.
+	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
+	// All an account holds now.
+	GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error)
+	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
+	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -217,6 +239,34 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		grantCharges: connect.NewClient[v1.InternalGrantChargesRequest, v1.InternalGrantChargesResponse](
+			httpClient,
+			baseURL+InternalServiceGrantChargesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GrantCharges")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		getRoom: connect.NewClient[v1.GetRoomRequest, v1.GetRoomResponse](
+			httpClient,
+			baseURL+InternalServiceGetRoomProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetRoom")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getChargesOf: connect.NewClient[v1.GetChargesOfRequest, v1.GetChargesOfResponse](
+			httpClient,
+			baseURL+InternalServiceGetChargesOfProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetChargesOf")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getFreeze: connect.NewClient[v1.GetFreezeRequest, v1.GetFreezeResponse](
+			httpClient,
+			baseURL+InternalServiceGetFreezeProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetFreeze")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -235,6 +285,10 @@ type internalServiceClient struct {
 	getAllegianceOf   *connect.Client[v1.GetAllegianceOfRequest, v1.GetAllegianceOfResponse]
 	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
 	getRuleSet        *connect.Client[v1.GetRuleSetRequest, v1.GetRuleSetResponse]
+	grantCharges      *connect.Client[v1.InternalGrantChargesRequest, v1.InternalGrantChargesResponse]
+	getRoom           *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
+	getChargesOf      *connect.Client[v1.GetChargesOfRequest, v1.GetChargesOfResponse]
+	getFreeze         *connect.Client[v1.GetFreezeRequest, v1.GetFreezeResponse]
 }
 
 // PlayRuleSet calls planet.v1.InternalService.PlayRuleSet.
@@ -302,6 +356,26 @@ func (c *internalServiceClient) GetRuleSet(ctx context.Context, req *connect.Req
 	return c.getRuleSet.CallUnary(ctx, req)
 }
 
+// GrantCharges calls planet.v1.InternalService.GrantCharges.
+func (c *internalServiceClient) GrantCharges(ctx context.Context, req *connect.Request[v1.InternalGrantChargesRequest]) (*connect.Response[v1.InternalGrantChargesResponse], error) {
+	return c.grantCharges.CallUnary(ctx, req)
+}
+
+// GetRoom calls planet.v1.InternalService.GetRoom.
+func (c *internalServiceClient) GetRoom(ctx context.Context, req *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error) {
+	return c.getRoom.CallUnary(ctx, req)
+}
+
+// GetChargesOf calls planet.v1.InternalService.GetChargesOf.
+func (c *internalServiceClient) GetChargesOf(ctx context.Context, req *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error) {
+	return c.getChargesOf.CallUnary(ctx, req)
+}
+
+// GetFreeze calls planet.v1.InternalService.GetFreeze.
+func (c *internalServiceClient) GetFreeze(ctx context.Context, req *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error) {
+	return c.getFreeze.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	// Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a call made twice, or after a
@@ -341,6 +415,17 @@ type InternalServiceHandler interface {
 	// The values a set plays: default's, with the set's own written over them, for the promo module's cards. NotFound for
 	// a set postgres does not keep.
 	GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error)
+	// Grants charges to an account at once, and answers what fit its stack and all it holds after. Planet grants each
+	// grant_id once: a call made again keeps nothing and answers the hand as it is. What does not fit is not granted.
+	// InvalidArgument for a bad id, an unknown kind or no amount.
+	GrantCharges(context.Context, *connect.Request[v1.InternalGrantChargesRequest]) (*connect.Response[v1.InternalGrantChargesResponse], error)
+	// For each account asked, the kinds of charge it has no room for: a full stack, and a bomb while the rules in force
+	// hold charges.bomb.off.
+	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
+	// All an account holds now.
+	GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error)
+	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
+	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -441,6 +526,34 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGrantChargesHandler := connect.NewUnaryHandler(
+		InternalServiceGrantChargesProcedure,
+		svc.GrantCharges,
+		connect.WithSchema(internalServiceMethods.ByName("GrantCharges")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetRoomHandler := connect.NewUnaryHandler(
+		InternalServiceGetRoomProcedure,
+		svc.GetRoom,
+		connect.WithSchema(internalServiceMethods.ByName("GetRoom")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetChargesOfHandler := connect.NewUnaryHandler(
+		InternalServiceGetChargesOfProcedure,
+		svc.GetChargesOf,
+		connect.WithSchema(internalServiceMethods.ByName("GetChargesOf")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetFreezeHandler := connect.NewUnaryHandler(
+		InternalServiceGetFreezeProcedure,
+		svc.GetFreeze,
+		connect.WithSchema(internalServiceMethods.ByName("GetFreeze")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServicePlayRuleSetProcedure:
@@ -469,6 +582,14 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetRuleSetNamesHandler.ServeHTTP(w, r)
 		case InternalServiceGetRuleSetProcedure:
 			internalServiceGetRuleSetHandler.ServeHTTP(w, r)
+		case InternalServiceGrantChargesProcedure:
+			internalServiceGrantChargesHandler.ServeHTTP(w, r)
+		case InternalServiceGetRoomProcedure:
+			internalServiceGetRoomHandler.ServeHTTP(w, r)
+		case InternalServiceGetChargesOfProcedure:
+			internalServiceGetChargesOfHandler.ServeHTTP(w, r)
+		case InternalServiceGetFreezeProcedure:
+			internalServiceGetFreezeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -528,4 +649,20 @@ func (UnimplementedInternalServiceHandler) GetRuleSetNames(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) GetRuleSet(context.Context, *connect.Request[v1.GetRuleSetRequest]) (*connect.Response[v1.GetRuleSetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRuleSet is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GrantCharges(context.Context, *connect.Request[v1.InternalGrantChargesRequest]) (*connect.Response[v1.InternalGrantChargesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GrantCharges is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRoom is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetChargesOf is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetFreeze is not implemented"))
 }

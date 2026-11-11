@@ -7,7 +7,9 @@ caught box; a wrong one, and running out of time, cost nothing.
 `src/app/quiz/` is the whole of it — `quizStore.ts` holds the state and its
 verbs, `useQuizMaster.ts` links it to the backend, `Quiz.tsx` draws, `Quiz.css`
 styles — plus `domain/quiz.ts` for the shapes and the two pieces of arithmetic a
-countdown needs. The backend half is `QuizMaster` in `backends/backend.ts`.
+countdown needs. The backend half is `QuizMaster` in `backends/backend.ts`, which `PlanetBackend` implements against
+`bonuses.v1.BonusService`: the banner comes on the offers stream (`quiz_offered`), and `OpenQuiz` and `AnswerQuiz` are
+its calls (see [The offers stream](backends.md#the-offers-stream)).
 
 **The state is a [store](stores.md), `useQuiz`.** `Quiz` reads the state and
 calls `open` and `answer` itself. `PlayScreen` calls

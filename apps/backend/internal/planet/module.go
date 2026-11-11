@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -23,14 +22,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/close_arena_usecase/log_close_arena"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase/log_open_arena"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/box_facts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_sign_in_refill_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/postgres_charge_store"
@@ -52,7 +43,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/allegiance_click"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/bonus_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click/prom_enclose"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/prom_click"
@@ -92,8 +82,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/usecases/return_placements_usecase/log_return_placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/answer_quiz_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/close_arena_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
@@ -101,12 +89,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler/allegiance_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_of_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charge_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_of_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_country_sizes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_freeze_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_holdings_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_holdings_handler/holdings_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
@@ -120,6 +110,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler/history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_room_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler/rule_set_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler"
@@ -133,10 +124,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler/holder_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_arena_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/paint_random_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/play_rule_set_handler"
@@ -148,7 +139,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/log_refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
@@ -165,7 +155,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
@@ -182,9 +171,9 @@ const (
 	ledgerRelayInterval = time.Second
 	factsRelayInterval  = 100 * time.Millisecond
 
-	// How long the wallet knows an offer's payment by its token: past the 5s a claim pays in, and the 10 minutes the
-	// registry knows a spent token.
-	offerGrantsKept = 10 * time.Minute
+	// How long the wallet knows the id of a grant made at once and not for good: a caller that names its grants by what
+	// lives minutes (a box's token) calls again within them, or never.
+	briefGrantsKept = 10 * time.Minute
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -246,9 +235,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to read the arena open: %w", err)
 			}
 			inForce := rules.NewInForce(clock)
-			// Two halves of one message: the wallet's, which holds and spends the charges, and the offers', which grant them.
 			chargeRules := rules.Reader(inForce, charges.Part)
-			grantRules := rules.Reader(inForce, parts.Grants)
 			hands := charges.NewCharges(postgres_charge_store.New(db), chargeRules)
 			placementStore := postgres_placement_store.New(db)
 			escrow := placements.NewEscrow(db, hands, placementStore, uuid_id_provider.Provider{}, clock)
@@ -288,24 +275,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			reach := clicks.NewReach(rules.Reader(inForce, clicks.ReachPart), geography, waters, tilesStorage)
 			setups := arenas.NewSetups(ruleSets, seeds.NewCatalog(seeds.Ground{Capitals: capitals}))
 
-			bank, err := quizzes.Load(tilesStorage)
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to load the quiz bank: %w", err)
-			}
-			props.Logger.Info("quiz bank loaded",
-				slog.String("bank", bank.Version()),
-				slog.Int("questions", bank.Size()),
-				slog.Int("subjects", bank.Subjects()))
-
 			grantStore := postgres_grant_store.New(db)
-			// An offer's payment is named by its token, kept in memory as the offer is; the refill's, in charge_grants.
-			offersWallet := newWallet(hands, chargeRules,
-				pay_usecase.New(db, inmemory_grant_store.New(offerGrantsKept), hands, clock))
-			signInWallet := newWallet(hands, chargeRules, pay_usecase.New(db, grantStore, hands, clock))
-
-			registry := bonuses.New(config.Bonus, clock, offersWallet, grantRules, bank)
-			props.Runners.Add(registry)
 			board := notices.New()
 
 			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
@@ -314,14 +284,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to handle planet.v1.GrantCharges: %w", err)
 			}
-			newPlayers, err := cpredis.Subscribe(ctx, streams, "planet-charges-players",
-				log_subscriber.New(player_created_subscriber.New(
-					grant_sign_in_refill_usecase.New(signInWallet, grantRules)), props.Logger))
-			if err != nil {
-				closeStores()
-				return fmt.Errorf("failed to subscribe the charges to player.v1.PlayerCreated: %w", err)
-			}
-
 			deletions, err := cpredis.Subscribe(ctx, streams, "planet-ledger-forgotten",
 				log_subscriber.New(player_forgotten_subscriber.New(
 					anonymize_takes_usecase.New(takings, ledgerStore, tilesStorage)), props.Logger))
@@ -350,7 +312,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Not closers: closers run before the runners' last flush, and the relays' last send.
 			props.Runners.Add(cppg.CloseAfter(db, props.Logger, tilesStorage, takings,
-				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, newPlayers, refused, admitted,
+				cpredis.CloseAfter(streams, props.Logger, deletions, relay, grants, refused, admitted,
 					facts.NewRelay(told, streams, factsRelayInterval))))
 			props.Runners.Add(ledger.NewRetention(config.Ledger, takings, clock))
 
@@ -380,9 +342,6 @@ func NewModule(config Config) cpbootstrap.Module {
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
 			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
-
-			// Outside the throttle, so it reads the bank the click left.
-			clickUseCase = bonus_click.New(clickUseCase, registry)
 
 			// Outside the throttle, so a click out of the flag's reach in an arena spends nothing.
 			clickUseCase = reach_click.New(clickUseCase, reach)
@@ -432,6 +391,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				return err
 			}
 
+			freezing := func() clicks.Freeze { return freeze() || inPlay.Freeze() }
 			internalService := planetv1controller.InternalService{
 				PlayRuleSetHandler: play_rule_set_handler.New(playRules),
 				ResetMapHandler: reset_map_handler.New(
@@ -449,6 +409,13 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				GetRuleSetNamesHandler:   get_rule_set_names_handler.New(rule_set_names_query.NewPostgresQuery(db)),
 				GetRuleSetHandler:        get_rule_set_handler.New(rule_set_query.NewPostgresQuery(db)),
+				// A grant made at once is known by its id in memory for a while, or in charge_grants for good.
+				GrantChargesHandler: internal_grant_charges_handler.New(
+					pay_usecase.New(db, inmemory_grant_store.New(briefGrantsKept), hands, clock),
+					pay_usecase.New(db, grantStore, hands, clock)),
+				GetRoomHandler:      get_room_handler.New(hands, chargeRules),
+				GetChargesOfHandler: get_charges_of_handler.New(hands),
+				GetFreezeHandler:    get_freeze_handler.New(freezing),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)
@@ -468,7 +435,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			interceptors := []connect.Interceptor{
 				planetv1controller.NewCacheInterceptor(tilesStorage),
 				planetv1controller.NewVPNBlockInterceptor(blocklist, props.Metrics),
-				planetv1controller.NewFreezeInterceptor(func() clicks.Freeze { return freeze() || inPlay.Freeze() }),
+				planetv1controller.NewFreezeInterceptor(freezing),
 			}
 
 			if config.Auth.Enabled {
@@ -476,38 +443,6 @@ func NewModule(config Config) cpbootstrap.Module {
 					planetv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
 					planetv1controller.NewSessionReaderInterceptor(props.Sessions, clock))
 			}
-
-			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, offersWallet, streams, clock),
-				props.Metrics)
-
-			openQuiz := open_quiz_usecase.New(registry)
-			answerQuiz, quizCounters := prom_answer_quiz.New(
-				answer_quiz_usecase.New(registry, offersWallet, streams, clock),
-				props.Metrics)
-
-			boxes := box_facts.New(told)
-			registry.Observe(bonuses.Report{
-				Offered: counters.Offered.Inc,
-				Lapsed: func(scope string) {
-					counters.Lapsed.Inc()
-					boxes.Lapsed(scope)
-				},
-				Caught: func(scope string, after time.Duration) {
-					counters.Caught.Observe(after.Seconds())
-					boxes.Caught(scope, after)
-				},
-				Foreign: func(scope string) {
-					counters.Foreign.Inc()
-					boxes.Foreign(scope)
-				},
-
-				QuizOffered: quizCounters.Offered.Inc,
-				QuizLapsed:  func(string) { quizCounters.Lapsed.Inc() },
-				QuizAnswered: func(_ string, correct bool, after time.Duration) {
-					quizCounters.Answered.WithLabelValues(strconv.FormatBool(correct)).Observe(after.Seconds())
-				},
-			})
 
 			dropBomb := prom_drop_bomb.New(
 				refusal_drop_bomb.New(drop_bomb_usecase.New(hands, geography, writer, countries, bombing), refusing),
@@ -520,17 +455,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
 				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, board, inForce, told)),
-				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, board, inForce, told)),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(hands, limiter, pricer, buckets)),
 				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(hands)),
-				// The wallet's half, and of the offers' half signInRefill alone.
-				GetBonusRulesHandler: get_bonus_rules_handler.New(chargeRules, func() bool { return grantRules().SignInRefill },
-					bombing, pricer,
+				GetChargeRulesHandler: get_charge_rules_handler.New(chargeRules, bombing, pricer,
 					rules.Reader(inForce, clicks.ReachPart), rules.Reader(inForce, clicks.CapitalsPart)),
-				OpenQuizHandler:   open_quiz_handler.New(openQuiz),
-				AnswerQuizHandler: answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
 					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, chargeRules), escrow, writer),
 					refusing)),

@@ -51,7 +51,7 @@ const (
 	openAtLeast   = 1_000
 	raidAtLeast   = 300
 
-	// planet's bonuses.shield.perTile: a full tile.
+	// planet's charges.shield.perTile: a full tile.
 	wallShields = 10
 
 	fewestMissions = 4

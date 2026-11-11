@@ -21,7 +21,7 @@ type stubUseCase struct{ err error }
 
 func (s stubUseCase) Execute(context.Context, rules.Snapshot) error { return s.err }
 
-var saved = rules.Named("rush", func(r *planetv1.Rules) { r.Bonuses.Boxes.MaxChargesPerHour = proto.Uint32(30) })
+var saved = rules.Named("rush", func(r *planetv1.Rules) { r.Charges.Shield.Held = proto.Uint32(40) })
 
 func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
 	var logs bytes.Buffer
@@ -30,7 +30,7 @@ func TestEverySaveIsLoggedWithItsValues(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Contains(t, logs.String(), `level=WARN msg="admin rule set saved" set=rush rules=`)
-	assert.Contains(t, logs.String(), `\"maxChargesPerHour\":30`)
+	assert.Contains(t, logs.String(), `\"held\":40`)
 }
 
 func TestARefusedSaveIsLoggedWithWhyAndPassedOn(t *testing.T) {

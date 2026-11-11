@@ -10,9 +10,10 @@ import "planet/v1/planet.proto";
 message Rules {
   ClickRules clicks = 1;
   TollRules toll = 2;
-  BonusRules bonuses = 3;
-  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz are refused. The
-  // map still loads and streams.
+  reserved 3;
+  reserved "bonuses";
+  // The map takes no play: Click, DropBomb, PlaceShield and UseRefill are refused, and GetFreeze answers frozen. The map
+  // still loads and streams.
   optional bool frozen = 4;
   // No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
   // still taken.
@@ -23,6 +24,7 @@ message Rules {
   // A take of a flag lands only on its land, on a tile next to it, or on a coast of a water where it holds a coast.
   optional bool reach = 8;
   CapitalRules capitals = 9;
+  ChargeRules charges = 10;
 }
 
 // A battle played with on is an arena battle: it is fought on a fresh map, and the map from before comes back when it
@@ -42,7 +44,7 @@ message Seed {
   }
 }
 
-// Each country's capital, held by its country, with this many shields, past bonuses.shield.per_tile. 0 to 255.
+// Each country's capital, held by its country, with this many shields, past charges.shield.per_tile. 0 to 255.
 message CapitalSeed {
   optional uint32 shields = 1;
 }
@@ -79,49 +81,26 @@ message TollRules {
   repeated TollStep steps = 1;
 }
 
-message BonusRules {
-  BoxPace boxes = 1;
-  KindWeights kinds = 2;
-  google.protobuf.Duration offer_ttl = 3;
-  // A box missed brings the next one this soon, once.
-  google.protobuf.Duration miss_retry = 4;
-  // No box or quiz for a caller that has not clicked for this long.
-  google.protobuf.Duration active_within = 5;
-  SpreadRules spread = 6;
-  BombRules bomb = 7;
-  EncloseRules enclose = 8;
-  ShieldRules shield = 9;
-  WelcomeRules welcome = 10;
-  QuizRules quiz = 11;
-  // A guest's first sign-in earns a refill, once per account.
-  optional bool sign_in_refill = 12;
-}
-
-message BoxPace {
-  google.protobuf.Duration min_interval = 1;
-  google.protobuf.Duration max_interval = 2;
-  optional uint32 max_charges_per_hour = 3;
-}
-
-// What a box is drawn as: a kind's chance is its weight over the sum of the kinds it may be.
-message KindWeights {
-  optional double refill = 1;
-  optional double spread_clicks = 2;
-  optional double enclose_clicks = 3;
-  optional double bomb = 4;
-  optional double shields = 5;
+// The wallet's: how much of each charge a hand holds, and what each does when it is spent.
+message ChargeRules {
+  SpreadRules spread = 1;
+  BombRules bomb = 2;
+  EncloseRules enclose = 3;
+  ShieldRules shield = 4;
 }
 
 message SpreadRules {
   // The pool a hand holds at most.
   optional uint32 clicks = 1;
-  optional uint32 max_per_box = 2;
+  reserved 2;
+  reserved "max_per_box";
 }
 
 message BombRules {
   // The blast's radius, in tile spacings.
   optional double rings = 1;
-  // No bomb: no box or quiz offers one, and a bomb held is not dropped (DropBomb answers a BombRefusal).
+  // No bomb: a bomb held is not dropped (DropBomb answers a BombRefusal), and no hand has room for one (GetRoom), so
+  // no box or quiz offers one.
   optional bool off = 2;
 }
 
@@ -129,7 +108,8 @@ message EncloseRules {
   optional uint32 max_tiles = 1;
   // The stack a hand holds at most.
   optional uint32 held = 2;
-  optional uint32 max_per_box = 3;
+  reserved 3;
+  reserved "max_per_box";
   // A click with enclose on needs no charge and spends none.
   optional bool unlimited = 4;
 }
@@ -137,26 +117,8 @@ message EncloseRules {
 message ShieldRules {
   // The stack a hand holds at most.
   optional uint32 held = 1;
-  optional uint32 min_per_box = 2;
-  optional uint32 max_per_box = 3;
+  reserved 2, 3;
+  reserved "min_per_box", "max_per_box";
   // At most 255.
   optional uint32 per_tile = 4;
-}
-
-// An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is off.
-message WelcomeRules {
-  google.protobuf.Duration within = 1;
-  google.protobuf.Duration box_after = 2;
-}
-
-message QuizRules {
-  optional bool enabled = 1;
-  google.protobuf.Duration min_interval = 2;
-  google.protobuf.Duration max_interval = 3;
-  google.protobuf.Duration miss_retry = 4;
-  google.protobuf.Duration offer_ttl = 5;
-  google.protobuf.Duration answer_window = 6;
-  // How much a question leans to the countries that hold the most; 0 is a flat draw.
-  optional double leader_bias = 7;
-  optional uint32 max_charges_per_hour = 8;
 }

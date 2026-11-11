@@ -13,6 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	promov1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds"
@@ -28,9 +29,9 @@ import (
 var (
 	war    = backgrounds.BackgroundID{15: 1}
 	points = backgrounds.BackgroundID{15: 2}
-	urf    = &planetv1.Rules{
-		Clicks:  &planetv1.ClickRules{Tempo: proto.Float64(3)},
-		Bonuses: &planetv1.BonusRules{Boxes: &planetv1.BoxPace{MinInterval: durationpb.New(time.Minute)}},
+	urf    = placeholders.Played{
+		Planet: &planetv1.Rules{Clicks: &planetv1.ClickRules{Tempo: proto.Float64(3)}},
+		Offers: &bonusesv1.Rules{Boxes: &bonusesv1.BoxPace{MinInterval: durationpb.New(time.Minute)}},
 	}
 )
 
@@ -50,12 +51,12 @@ func (s scoring) Battle(_ context.Context, times uint32) (placeholders.Battle, e
 	return placeholders.Battle{Times: times, Points: s[times]}, nil
 }
 
-type planet map[string]*planetv1.Rules
+type planet map[string]placeholders.Played
 
-func (p planet) Played(_ context.Context, set string) (*planetv1.Rules, error) {
+func (p planet) Played(_ context.Context, set string) (placeholders.Played, error) {
 	played, ok := p[set]
 	if !ok {
-		return nil, fmt.Errorf("%w: %q", cards.ErrUnknownSet, set)
+		return placeholders.Played{}, fmt.Errorf("%w: %q", cards.ErrUnknownSet, set)
 	}
 	return played, nil
 }
@@ -144,7 +145,7 @@ func TestABattleTheScheduleDoesNotHoldIsNone(t *testing.T) {
 
 func TestACardThatDoesNotFillIsLeftOutAndLogged(t *testing.T) {
 	db := seeded(t, map[cards.SetName][]cards.Draft{"urf": {
-		{Background: war, Headline: "Bombs blast {bonuses.bomb.rings} rings"},
+		{Background: war, Headline: "Bombs blast {charges.bomb.rings} rings"},
 		{Background: points, Headline: "Clicks refill {clicks.tempo}× faster"},
 	}})
 	var log bytes.Buffer

@@ -3,6 +3,8 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
+import {GetRulesResponse as BonusesRules, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {Rules as OfferRules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {CardDraft, SaveCardsRequest} from "../gen/grpc/promo/v1/admin_pb.ts"
@@ -18,10 +20,12 @@ function putting() {
     })
 }
 
-// Planet keeps urf, which refills three times as fast, and urf has two cards.
+// Planet keeps urf, which refills three times as fast; the offers keep it, a box every minute at the soonest; and urf
+// has two cards.
 function withUrf(): FakeAdmin {
     const admin = new FakeAdmin()
     admin.rules.sets.push(new RuleSet({name: "urf", rules: Rules.fromJson({clicks: {tempo: 3}})}))
+    admin.bonusRules.sets.push(new BonusesRuleSet({name: "urf", rules: OfferRules.fromJson({boxes: {minInterval: "60s"}})}))
     admin.promo.decks.set("urf", [
         new CardDraft({backgroundId: "background-war", headline: "Clicks refill {clicks.tempo}× faster", line: "Every country at once."}),
         new CardDraft({backgroundId: "background-points", headline: "A box every {bonuses.boxes.minInterval}"}),
@@ -30,7 +34,7 @@ function withUrf(): FakeAdmin {
 }
 
 function show(admin: FakeAdmin, put: Put = putting()) {
-    return render(<PromoPage promo={admin.promo} planet={admin} put={put}/>)
+    return render(<PromoPage promo={admin.promo} planet={admin} bonuses={admin.bonuses} put={put}/>)
 }
 
 async function card(n: number): Promise<HTMLElement> {
@@ -82,7 +86,7 @@ describe("PromoPage", () => {
         const first = await card(1)
         expect(within(first).getByLabelText("Card 1 as players read it").textContent)
             .toBe("Clicks refill 3× faster" + "Every country at once.")
-        expect(within(await card(2)).getByLabelText("Card 2 as players read it").textContent).toBe("A box every 4 min")
+        expect(within(await card(2)).getByLabelText("Card 2 as players read it").textContent).toBe("A box every 1 min")
     })
 
     it("fills a card as it is written, and inserts a value where the cursor was", async () => {
@@ -91,11 +95,35 @@ describe("PromoPage", () => {
         const headline = within(first).getByLabelText(/^Headline/) as HTMLInputElement
 
         fireEvent.change(headline, {target: {value: "Bombs blast "}})
-        fireEvent.change(within(first).getByLabelText("Insert a value in Card 1"), {target: {value: "bonuses.bomb.rings"}})
+        fireEvent.change(within(first).getByLabelText("Insert a value in Card 1"), {target: {value: "charges.bomb.rings"}})
 
-        expect(headline.value).toBe("Bombs blast {bonuses.bomb.rings}")
+        expect(headline.value).toBe("Bombs blast {charges.bomb.rings}")
         expect(within(first).getByLabelText("Card 1 as players read it").textContent)
             .toBe("Bombs blast 4" + "Every country at once.")
+    })
+
+    it("fills a value of the offers from their set of the same name, default's where it holds none", async () => {
+        show(withUrf())
+        const first = await card(1)
+
+        fireEvent.change(within(first).getByLabelText(/^Headline/), {target: {value: "Answer within "}})
+        fireEvent.change(within(first).getByLabelText("Insert a value in Card 1"), {target: {value: "bonuses.quiz.offerTtl"}})
+
+        expect(within(first).getByLabelText("Card 1 as players read it").textContent)
+            .toBe("Answer within 25 s" + "Every country at once.")
+        expect(within(await card(2)).getByLabelText("Card 2 as players read it").textContent).toBe("A box every 1 min")
+    })
+
+    it("says a value of the offers a set plays nothing of, when the offers do not keep it", async () => {
+        const admin = withUrf()
+        admin.bonusRules = new BonusesRules({sets: [admin.bonusRules.sets[0]], playing: "default"})
+        show(admin)
+        const first = await card(1)
+
+        fireEvent.change(within(first).getByLabelText(/^Headline/), {target: {value: "A box every {bonuses.boxes.maxInterval}"}})
+
+        expect(within(first).getByRole("alert").textContent).toContain("The set plays no value at {bonuses.boxes.maxInterval}.")
+        expect(within(await card(2)).getByRole("alert").textContent).toContain("The set plays no value at {bonuses.boxes.minInterval}.")
     })
 
     it("fills a value of the battle as in the example battle, and says so", async () => {

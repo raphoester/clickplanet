@@ -42,12 +42,14 @@ src/
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
                     problems), fill.ts (a card's words filled as the server fills them)
-  ops/              Reconcile titles, Link Discord members (discordMembers.ts, its words), Game rules, Anti-bot rules (a
-                    form read off the proto), Mission rules (missionRules.ts, the four numbers), Rule schedule, Seasons, Timeline; cutoff.ts (the daily cutoff: when days
-                    end, a battle off it); rules.ts (a planet set in words and as the form edits it), antibotRules.ts
-                    (the antibot form's fields, read off the proto), overlay.ts (a set's JSON over default's),
-                    schedule.ts (the schedule's rows and what each module plays), seasons.ts (the seasons' rows and
-                    form), timeline.ts (the Timeline's lanes and instants)
+  ops/              Reconcile titles, Link Discord members (discordMembers.ts, its words), Game rules, Box & quiz rules,
+                    Anti-bot rules (a form read off the proto), Mission rules (missionRules.ts, the four numbers), Rule
+                    schedule, Seasons, Timeline; cutoff.ts (the daily cutoff: when days end, a battle off it); rules.ts
+                    (a planet set in words and as the form edits it), bonusRules.ts (the offers' set, the same way),
+                    RuleFields.tsx (the two forms' switch and value fields) over ruleValues.ts (a value as typed, sent
+                    and read), antibotRules.ts (the antibot form's fields, read off the proto), overlay.ts (a set's
+                    JSON over default's), schedule.ts (the schedule's rows and what each module plays), seasons.ts (the
+                    seasons' rows and form), timeline.ts (the Timeline's lanes and instants)
   gen/grpc/         generated from ../../proto, committed
   gen/map/          the tile coordinates, copied from ../../map, committed
 ```

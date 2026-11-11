@@ -5,7 +5,7 @@
 each country's capital (the backend's [Arena battles](../../backend/docs/arenas.md)); any set may play them on the world's
 map too.
 
-- **Where the page learns them.** `GetBonusRules.knock_out` and `capital_shields_fixed`, read into `BonusRules` and read
+- **Where the page learns them.** `GetChargeRules.knock_out` and `capital_shields_fixed`, read into `BonusRules` and read
   again on `rules_changed`. `globe.ts` follows them in `onRules` (`followCapitals`).
 - **What it reads then.** `static/capitals-<hash>.json`, once, the first time either rule plays (`capitals.ts`; URL in
   `capitalsAsset.ts`). It is a copy of [`/map`](../../../map/README.md). A file written for a map of another size is

@@ -1,7 +1,8 @@
-import {JsonValue} from "@bufbuild/protobuf"
+import {JsonObject, JsonValue} from "@bufbuild/protobuf"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {PromoAdmin} from "../clients.ts"
-import {GetRulesResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetRulesResponse as BonusesRules} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {CardDraft} from "../gen/grpc/promo/v1/admin_pb.ts"
 import {DEFAULT_SET} from "../ops/rules.ts"
 import {overlay} from "../ops/overlay.ts"
@@ -66,10 +67,22 @@ export function saveRefusalOf(err: unknown): string {
     return wordsOf(err)
 }
 
-// What each set plays, as planet plays it: default's values with the set's own over them.
-export function playedBySet(rules: GetRulesResponse): Map<string, JsonValue> {
-    const defaults = rules.sets.find(set => set.name === DEFAULT_SET)?.rules?.toJson() ?? {}
-    return new Map(rules.sets.map(set => [set.name, set.name === DEFAULT_SET ? defaults : overlay(defaults, set.rules?.toJson() ?? {})]))
+// The prefix a card names the offers' values by: `{bonuses.boxes.minInterval}` is bonuses.v1.Rules' boxes.minInterval.
+export const OFFERS = "bonuses"
+
+// What each set planet keeps plays, as the server fills a card: planet's values, and under `bonuses` the offers' for the
+// set of the same name, each default's with the set's own over them. A set the offers do not keep has no `bonuses`.
+export function playedBySet(planet: PlanetRules, offers: BonusesRules): Map<string, JsonValue> {
+    const theirs = playedOf(offers.sets)
+    return new Map([...playedOf(planet.sets)].map(([name, played]) => {
+        const offered = theirs.get(name)
+        return [name, offered === undefined ? played : {...(played as JsonObject), [OFFERS]: offered}]
+    }))
+}
+
+function playedOf(sets: {name: string, rules?: {toJson: () => JsonValue}}[]): Map<string, JsonValue> {
+    const defaults = sets.find(set => set.name === DEFAULT_SET)?.rules?.toJson() ?? {}
+    return new Map(sets.map(set => [set.name, set.name === DEFAULT_SET ? defaults : overlay(defaults, set.rules?.toJson() ?? {})]))
 }
 
 // What the server would refuse of a card, before it is sent.

@@ -16,9 +16,9 @@ Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3
 - an operator signs in on the admin listener and grants itself a bomb, which the game session alone cannot;
 - an operator bans a guest's account on `antibot.v1`, and planet refuses its click with a `BanRefusal` once the command
   came through the antibot's outbox and Redis; an unban on `antibot.v1` admits it again (`refusal_test.go`);
-- an operator adds a battle entry of the rule schedule on the console listener (the gamemaster module asks planet and
-  the antibot which sets they keep), both play its set once the gamemaster module commanded it over their command
-  streams, scoring opens the battle's round, and the game client reads the battle's kind and its end on the public listener, as a GET and as the first
+- an operator adds a battle entry of the rule schedule on the console listener (the gamemaster module asks planet,
+  the antibot and the offers which sets they keep), the three play its set once the gamemaster module called each
+  (`PlayRuleSet`), scoring opens the battle's round, and the game client reads the battle's kind and its end on the public listener, as a GET and as the first
   event of the stream (`schedule_test.go`);
 - a player reports a chat message, support tells `PlayerReported`, the chat's judge removes the message, and its
   outbox sends `DecideReport` back to support, which closes the report (`judge_test.go`);

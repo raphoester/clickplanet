@@ -45,7 +45,7 @@ tells closed from open — there is no second rule.
 **The use case only wires three objects together.** `charges.Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
 click closed. `charges.Charges` says whether the caller holds the charge, and
-the rule set's `bonuses.enclose`, read once per click, how big a shape may be and whether it costs a charge.
+the rule set's `charges.enclose`, read once per click, how big a shape may be and whether it costs a charge.
 `Annexer` spends the charge and hands the pocket's shape and inside to the encloser. `Execute` asks whether the
 charge is held (not while enclosures are unlimited), lets the rule write, and hands the pocket to the annexer.
 
@@ -73,14 +73,15 @@ frontend's [Charges](../../frontend/docs/charges.md)).
 `prom_enclose` wraps the encloser, so it counts exactly the clicks that closed shapes and the tiles they filled:
 `bonus_enclosures_total` and `bonus_enclosed_tiles_total`.
 
-## Unlimited enclosures (`bonuses.enclose.unlimited`)
+## Unlimited enclosures (`charges.enclose.unlimited`)
 
 **A rule set with `unlimited` makes enclose cost nothing**: a click sent with enclose on fills what it closes and
 needs no charge and spends none (the owner, 2026-11-05, for a battle). The switch is still the player's: the server
 reads `ClickRequest.enclose` as always, and the client turns it on by default while the rule plays (see the
 frontend's [Charges](../../frontend/docs/charges.md)). **The enclosures a player holds are not touched**, so they are
-there when the set stops playing; a battle that plays it sets `bonuses.kinds.encloseClicks` to 0, since a box of
-them would be worth nothing. `GetBonusRules.enclosures_unlimited` tells the client. `default` holds `false`
+there when the set stops playing; a battle that plays it sets the offers' `kinds.encloseClicks` to 0 in their set of
+the same name, since a box of them would be worth nothing. `GetChargeRules.enclosures_unlimited` tells the client.
+`default` holds `false`
 (migration `20261105120000_enclose_unlimited`).
 
 **How big a shape may be is `maxTiles`, apart from it.** Measured on the real map (2026-11-05, an M-series laptop):

@@ -1876,9 +1876,10 @@ To check it: `curl -sI https://media.clickplanet.lol/promo/does-not-exist` answe
 
 - **The pages load the backgrounds from that domain**, so the game's and the backoffice's Content-Security-Policy name
   `https://media.clickplanet.lol` in `img-src`.
-- **The promo module adds a pool of 2 connections**: postgres runs with `max_connections=42` since, 10 above the sum of
+- **The promo module added a pool of 2 connections**: postgres runs with `max_connections=42` since, 10 above the sum of
   the pools (`docker-compose.yaml`; `cmd/api` tests it). A deploy that changes it recreates the postgres container, a
-  few seconds without the database.
+  few seconds without the database. Since 2026-11-11 promo holds 1 and the bonuses module the other (its rule sets
+  alone), so `max_connections` stayed 42.
 
 ## Rollback
 

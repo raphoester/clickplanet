@@ -6,8 +6,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 )
 
-// Rules is the half of planet.v1.BonusRules the wallet reads: how many of each charge a hand holds, and what each does
-// when it is spent. What a box or a quiz grants is the other half, the offers' (bonuses.Rules).
+// Rules is what the wallet reads (planet.v1.ChargeRules): how many of each charge a hand holds, and what each does when
+// it is spent. What a box or a quiz grants is not planet's: whoever grants is told what a hand has no room for.
 type Rules struct {
 	Spread  SpreadRules
 	Bomb    BombRules
@@ -34,7 +34,7 @@ type SpreadRules struct {
 	Clicks int
 }
 
-// BombRules: Off, a bomb held is not dropped. The offers read bomb.off too, and offer none.
+// BombRules: Off, a bomb held is not dropped, and no hand has room for one, so none is granted.
 type BombRules struct {
 	Rings float64
 	Off   bool

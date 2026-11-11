@@ -8,7 +8,7 @@ world's map before and after it joins up (see [The ledger's readers](#the-ledger
 the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a battle plays on the fresh map is a knob
 of its own in its rule set, which plays on any map, the world's too: [the reach](reach.md), [the capitals' rules](capitals.md)
 (the knock-out and fixed capital shields). **Capital Siege is one rule set**: `arena.on`, the capitals seed, the reach,
-the knock-out and fixed capital shields, no bombs (`bonuses.bomb.off`), and urf's speed with bigger spread boxes (see
+the knock-out and fixed capital shields, no bombs (`charges.bomb.off`), and urf's speed with bigger spread boxes (see
 [Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
 used in another mode or on the world's map.
 
@@ -24,12 +24,12 @@ made again a minute later, and planet's swap goes on meanwhile:
 
 | when | who | what | waits for |
 |---|---|---|---|
-| T1 | play_schedule | the antibot's `PlayRuleSet` of the arena battle's set; planet keeps the set before | the clock |
+| T1 | play_schedule | the antibot's `PlayRuleSet` of the arena battle's set; planet and the offers keep the set before | the clock |
 | T1 | judge_battles | judges the battle once: `GetRuleSet(set).arena.on` → `battle_modes` | the clock |
 | T1 | play_scoring | `CloseRound` day K: scoring scores it on the real map → `scored_rounds` | the clock |
 | ~T1+1 s | play_arenas | `OpenArena{arena_id, ends_at, rule_set}` → `opened_arenas` | day K answered (`scored_rounds` or `missed_rounds`), no arena before it still open |
 | | planet | saves what changed to the world's map, keeps the arena, then plays the arena's empty map: new epoch, every stream cut | — |
-| ~T1+2 s | play_schedule | planet's `PlayRuleSet` of the battle's set, decided at T1 | the arena in `opened_arenas` |
+| ~T1+2 s | play_schedule | planet's `PlayRuleSet` of the battle's set, decided at T1, then the offers' | the arena in `opened_arenas` |
 | | play_scoring | `OpenRound` of the battle with `from_nothing`; its start is T1 | the arena in `opened_arenas` |
 | T2 | play_scoring | `CloseRound` of the battle: scoring scores it on the arena, from nothing → `scored_rounds` | the clock |
 | ~T2+1 s | play_arenas | `CloseArena{arena_id}` → `closed_arenas` | the battle answered (`scored_rounds` or `missed_rounds`) |
@@ -50,7 +50,8 @@ hands the judgement to the steps after the judge), and an arena battle's only on
 **The battle's set plays on planet only once its arena opened** (`Plan.SetWaits`, asked by `play_schedule_usecase`; the
 owner, 2026-11-10). A rule of the set plays on any map, so at T1 it would play 2 to 4 s on the world's map: a knock-out
 there would clear a real country's land. Until the arena opened the antibot alone is called; planet keeps the set before,
-and is called as soon as the arena is in `opened_arenas`, with the turn's decision time. Every battle's set waits for
+and is called as soon as the arena is in `opened_arenas`, with the turn's decision time. The offers wait with planet
+(2026-11-11), so a battle's boxes come with its map. Every battle's set waits for
 its judgement the same way, a plain battle's for about a second. The arena's start freeze covers the moment between
 the fresh map and the set: nobody plays the day's rules on it. A battle the plan has no round of (no season runs)
 waits for nothing. At T2 the next set plays at once: the end freeze holds the arena until its map is back.
@@ -105,12 +106,13 @@ map.
   answered by `ArenaOpened` and `ArenaClosed` through planet's outbox, which went with them.
 - **Neither writes a ledger event.** The ledger keeps the battle's takes as any other; its readers tell them apart by
   time (see [The ledger's readers](#the-ledgers-readers)).
-- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz,
-  AnswerQuiz) is refused with `FrozenRefusal` for the battle's `arena.freeze` after the map went blank and from it
+- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, and the offers'
+  ClaimBonus, OpenQuiz, AnswerQuiz) is refused with a `FrozenRefusal` for the battle's `arena.freeze` after the map went blank and from it
   before the battle's end until the map is back (`Opening.Freezes`, read through `InPlay`, an atomic pointer loaded at
   boot). The freeze is the opening's, read from the battle's set as it opened and kept in `planet.arenas.freeze_ms`, so
   a boot keeps it; `InPlay` reads no rules.
-  Only the freeze interceptor refuses: `GetBudget` does not say it, since a page that reads `frozen` locks its clicks
+  Only the freeze interceptors refuse: planet's, and the offers', which ask planet's `GetFreeze` on each claim,
+  opening and answer, since only planet knows an arena's freeze (see [The offers](bonuses.md#the-freeze)). `GetBudget` does not say it, since a page that reads `frozen` locks its clicks
   until it reads the budget again; a click refused shakes as a throttled one. The start's freeze also outlasts GetMap's
   5 s cache.
 - **A deleted account** (`anonymize_takes_usecase`) is taken off every map, in memory and then in postgres
@@ -124,7 +126,7 @@ The arena defines the contract and knows no pattern (`arenas.Seed`: `Tiles() []c
 pattern, and `seeds.Catalog`, built with what the map gives (`seeds.Ground`: the capitals), lays it.
 
 - **`capitals {shields}`** (`seeds.Capitals`): each capital, held by its country, with `shields` shields (0 to 255,
-  past `bonuses.shield.perTile`). `default` holds `shields` 100. The capitals are the map's (`clicks.Capitals`, from
+  past `charges.shield.perTile`). `default` holds `shields` 100. The capitals are the map's (`clicks.Capitals`, from
   `/map`'s `capitals-<hash>.json`): each country's tile nearest its capital city, picked by the map generator (see
   [`/map/README.md`](../../../map/README.md)). Planet keeps the 235 of the flags a player can play for; a region flag
   (England, Scotland, Wales, Brittany) has no ground, so no capital. No ledger event and no holder: no player took them.
@@ -143,7 +145,7 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 - **The reach** (`reach`): a take lands only next to the flag's land or across its waters. See [The reach](reach.md).
 - **The knock-out** (`capitals.knockOut`) and **fixed capital shields** (`capitals.fixedShields`): see
   [The capitals' rules](capitals.md).
-- **The page** learns them from `GetBonusRules` (`reach`, `knock_out`, `capital_shields_fixed`), read again on
+- **The page** learns them from `GetChargeRules` (`reach`, `knock_out`, `capital_shields_fixed`), read again on
   `rules_changed`: see the frontend's [The reach](../../frontend/docs/reach.md) and
   [The capitals](../../frontend/docs/capitals.md). No map read says whether the map is an arena's: `GetMapResponse.arena`
   went with slice 5 (field 6 reserved), as nobody read it.
@@ -152,8 +154,10 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 
 `capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, its toll, boxes and quizzes every
 30 to 60 s, its enclose, shield and welcome values, flags locked), plus `arena {on, freeze 8s}`, `seed.capitals.shields`
-100, `reach`, `capitals {knockOut, fixedShields}`, `bonuses.bomb.off`, and a faster spread: a pool of 50
-(`bonuses.spread.clicks`), up to 25 a box (`maxPerBox`), weighed 2 against 1 for refill, enclose and shields. Every
+100, `reach`, `capitals {knockOut, fixedShields}`, `charges.bomb.off`, and a faster spread: a pool of 50
+(`charges.spread.clicks`), up to 25 a box (the offers' `spread.maxPerBox`), weighed 2 against 1 for refill, enclose
+and shields. Since 2026-11-11 the boxes, the quizzes, the welcome and what a box grants are in the offers' set of the
+same name, which their migration copied from planet's (see [The offers](bonuses.md#where-the-sets-came-from)). Every
 value is edited on the backoffice. Its antibot set of the same name is still to make before it is scheduled.
 
 ## Gamemaster: the arena battles (`internal/gamemaster/internal/arenas/`)

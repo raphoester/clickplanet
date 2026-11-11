@@ -1,6 +1,6 @@
 package charges
 
-// Kind is a charge as the wallet holds it. The offers name theirs on their own (bonuses.Kind), with the same names:
+// Kind is a charge as the wallet holds it; planet.v1.BonusKind is its word on the wire, which whoever grants speaks:
 // they draw a kind and pay it, and the wallet decides how much of it fits.
 type Kind string
 

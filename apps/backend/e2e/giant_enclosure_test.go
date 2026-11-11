@@ -28,6 +28,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1/authv1connect"
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1/bonusesv1connect"
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -316,13 +318,18 @@ func TestGiantEnclosuresOnTheWholeStack(t *testing.T) {
 		Name: "unlimited-enclose",
 		Rules: &planetv1.Rules{
 			Clicks: &planetv1.ClickRules{Tempo: proto.Float64(3)},
-			Bonuses: &planetv1.BonusRules{
-				Kinds:   &planetv1.KindWeights{EncloseClicks: proto.Float64(0)},
+			Charges: &planetv1.ChargeRules{
 				Enclose: &planetv1.EncloseRules{MaxTiles: proto.Uint32(1_000_000), Unlimited: proto.Bool(true)},
 			},
 			AllegianceLocked: proto.Bool(true),
 		},
 	}}))
+	require.NoError(t, err)
+	_, err = bonusesv1connect.NewAdminServiceClient(fast, game.consoleURL).SaveRuleSet(ctx,
+		connect.NewRequest(&bonusesv1.SaveRuleSetRequest{Set: &bonusesv1.RuleSet{
+			Name:  "unlimited-enclose",
+			Rules: &bonusesv1.Rules{Kinds: &bonusesv1.KindWeights{EncloseClicks: proto.Float64(0)}},
+		}}))
 	require.NoError(t, err)
 	antibotRules, err := antibotAdmin.GetRules(ctx, connect.NewRequest(&antibotv1.GetRulesRequest{}))
 	require.NoError(t, err)
@@ -366,7 +373,7 @@ func TestGiantEnclosuresOnTheWholeStack(t *testing.T) {
 		assert.Equal(c, "unlimited-enclose", rules.Msg.GetPlaying())
 	}, 20*time.Second, 100*time.Millisecond, "the gamemaster commands the battle's set to planet")
 	bonusRules, err := planetv1connect.NewClickServiceClient(fast, game.baseURL).
-		GetBonusRules(ctx, connect.NewRequest(&planetv1.GetBonusRulesRequest{}))
+		GetChargeRules(ctx, connect.NewRequest(&planetv1.GetChargeRulesRequest{}))
 	require.NoError(t, err)
 	require.True(t, bonusRules.Msg.GetEnclosuresUnlimited(), "the client is told enclosures are free")
 	t.Logf("battle %s plays: enclose max_tiles=%d unlimited=%v", added.Msg.GetId(), bonusRules.Msg.GetEnclosureMaxTiles(),

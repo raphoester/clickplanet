@@ -2,8 +2,9 @@
 
 **Every player has four or five missions a day of its own, and each pays itself once done. Every flag has one more,
 which all its players do together, and which gives the flag season points** (see [The flag's mission](#the-flags-mission)).
-It reads planet's facts (`TilesTaken`, `BonusClaimed`, `QuizAnswered`, `BombLanded`, `ShieldPlaced`, `Fortified`,
-`ShieldsStruck`, `GetTerritories`, `GetCountrySizes`, `GetAllegianceOf`), the gamemaster's days (`DayStarted`), player's
+It reads planet's facts (`TilesTaken`, `BombLanded`, `ShieldPlaced`, `Fortified`, `ShieldsStruck`, `GetTerritories`,
+`GetCountrySizes`, `GetAllegianceOf`), the offers' (`BonusClaimed`, `QuizAnswered`, planet's until 2026-11-11), the
+gamemaster's days (`DayStarted`), player's
 word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands planet to grant a reward
 (`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet
 what each country holds: neither ever imports, calls or hears missions. It tells what it did (`MissionsPaid`,
@@ -94,7 +95,7 @@ internal/missions/internal/
     1,000 tiles or more are not the flag's (`openAtLeast`), seventeen countries on today's map (with none, the same
     for the flag). **Then one or two feats** (`draw.feats`), since a day has 4 or 5 missions (`fewestMissions`,
     `mostMissions`), each kind once at most, drawn evenly: catch 3 to 6 boxes, answer 2 to 4 quizzes right, bring 1 to
-    3 tiles to 10 shields (`wallShields`, planet's `bonuses.shield.perTile`), fortify 20 to 60 tiles, drop 1 or 2
+    3 tiles to 10 shields (`wallShields`, planet's `charges.shield.perTile`), fortify 20 to 60 tiles, drop 1 or 2
     bombs on a big ground (drawn as the third mission's is, so it may be the same), and take 40 to 80 tiles from a
     rival on a ground where it holds 300 tiles or more (`raidAtLeast`, the ground drawn evenly among every rival's).
     A world with no ground or no such rival leaves the bomb or the raid out. The goals are sized for a player who
@@ -128,9 +129,10 @@ internal/missions/internal/
     reaches an old client as nothing. The reward is a `oneof` too (`charges` today).
   - **A fact counts on every mission it fits, whatever flag it is for** (`Sheet.WithFact`): after a change of flag the
     day's rivals and grounds still count, and its tiles for the old flag stop. A change of flag gets no second set,
-    since an account has one day. The client never names the flag. **Progress is counted from planet's events**, one
-    subscriber each (`missions-progress` for `TilesTaken`, `missions-boxes`, `missions-answers`, `missions-bombs`,
-    `missions-shields`, `missions-fortifies`), all through `record_fact_usecase`, up to each goal, in one transaction
+    since an account has one day. The client never names the flag. **Progress is counted from planet's events and the
+    offers'**, one subscriber each (`missions-progress` for `TilesTaken`, `missions-boxes`, `missions-answers`,
+    `missions-bombs`, `missions-shields`, `missions-fortifies`; the boxes and the answers read what planet's streams of
+    them still held first, `cpredis.SubscribeMoved`), all through `record_fact_usecase`, up to each goal, in one transaction
     per day and account under `pg_advisory_xact_lock`, with nothing written once nothing changed. A wrong answer, and a
     bomb, a shield or a fortify with no account, is dropped by its subscriber. **The takes come in batches**
     (`cpredis.SubscribeBatch`: up to 100 ledger events, each with every tile it took): `tiles_taken_subscriber` hands

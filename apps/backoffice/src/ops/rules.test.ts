@@ -1,13 +1,9 @@
-import {Duration, JsonObject, JsonValue} from "@bufbuild/protobuf"
+import {JsonObject, JsonValue} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
-import {BoxPace, ClickRules, Rules} from "../gen/grpc/planet/v1/rules_pb.ts"
+import {ClickRules, Rules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {
-    boxesOf, changesOf, clicksOf, complete, copyOf, draftOf, GROUPS, playedOf, playOf, ruleSetOf, saveRuleSet, tempoOf,
-} from "./rules.ts"
-
-const minutes = (n: number) => new Duration({seconds: BigInt(n * 60)})
+import {changesOf, clicksOf, complete, copyOf, draftOf, GROUPS, playedOf, playOf, ruleSetOf, saveRuleSet, tempoOf} from "./rules.ts"
 
 const played = () => new FakeAdmin().rules.sets[0]
 
@@ -15,7 +11,7 @@ const rush = () => {
     const set = played().clone()
     set.name = "rush"
     set.rules!.clicks!.tempo = 3
-    set.rules!.bonuses!.boxes = new BoxPace({minInterval: minutes(1), maxInterval: minutes(2), maxChargesPerHour: 30})
+    set.rules!.charges!.bomb!.rings = 6
     return set
 }
 
@@ -33,22 +29,22 @@ describe("the rules", () => {
         expect(clicksOf(undefined)).toBe("—")
     })
 
-    it("says how often a box comes and the hourly cap", () => {
-        expect(boxesOf(rush().rules?.bonuses?.boxes)).toBe("Every 1 min to 2 min, 30 an hour at most")
-        expect(boxesOf(new BoxPace({minInterval: minutes(4), maxInterval: minutes(4), maxChargesPerHour: 12})))
-            .toBe("Every 4 min, 12 an hour at most")
-        expect(boxesOf(new BoxPace({
-            minInterval: new Duration({seconds: 90n}), maxInterval: minutes(2), maxChargesPerHour: 30,
-        }))).toBe("Every 90 s to 2 min, 30 an hour at most")
-        expect(boxesOf(undefined)).toBe("—")
-    })
-
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "bonuses.quiz.enabled", "bonuses.signInRefill", "bonuses.enclose.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "bonuses.bomb.off"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
         expect(values.filter(path => !edited.has(path))).toEqual([])
+    })
+
+    it("holds a hand's charges, and nothing of the boxes or quizzes", () => {
+        const paths = GROUPS.flatMap(group => group.fields.map(field => field.path))
+
+        expect(paths.filter(path => path.startsWith("charges."))).toEqual([
+            "charges.spread.clicks", "charges.bomb.rings", "charges.enclose.maxTiles", "charges.enclose.held",
+            "charges.shield.held", "charges.shield.perTile",
+        ])
+        expect(paths.filter(path => /box|quiz|kinds|welcome|offer/i.test(path))).toEqual([])
     })
 
     it("edits a set as it is, and sends back what was edited", () => {
@@ -56,35 +52,35 @@ describe("the rules", () => {
 
         expect(draft.name).toBe("rush")
         expect(draft.values["clicks.tempo"]).toBe("3")
-        expect(draft.values["bonuses.boxes.minInterval"]).toBe("60")
+        expect(draft.values["charges.bomb.rings"]).toBe("6")
         expect(draft.values["clicks.perSecond"]).toBe("0.2")
-        expect(draft.values["bonuses.kinds.bomb"]).toBe("1")
-        expect(draft.quiz).toBe(true)
+        expect(draft.values["charges.shield.held"]).toBe("30")
+        expect(draft.bombsOff).toBe(false)
         expect(draft.toll).toEqual([{share: "10", slowdown: "1.5"}, {share: "20", slowdown: "2.5"}, {share: "30", slowdown: "4"}])
         expect(ruleSetOf(draft).equals(rush())).toBe(true)
     })
 
-    it("sends a toll step added, a quiz switched off and a whole count", () => {
+    it("sends a toll step added, bombs switched off and a whole count", () => {
         const draft = draftOf(rush())
         draft.toll = [...draft.toll ?? [], {share: "45", slowdown: "6"}]
-        draft.quiz = false
-        draft.values["bonuses.shield.perTile"] = "12.4"
+        draft.bombsOff = true
+        draft.values["charges.shield.perTile"] = "12.4"
 
         const sent = ruleSetOf(draft).rules
 
         expect(sent?.toll?.steps.at(-1)?.share).toBeCloseTo(0.45)
         expect(sent?.toll?.steps.at(-1)?.slowdown).toBe(6)
-        expect(sent?.bonuses?.quiz?.enabled).toBe(false)
-        expect(sent?.bonuses?.shield?.perTile).toBe(12)
+        expect(sent?.charges?.bomb?.off).toBe(true)
+        expect(sent?.charges?.shield?.perTile).toBe(12)
     })
 
-    it("sends the refill at first sign-in switched off, and says it changed", () => {
+    it("sends bombs switched off, and says it changed", () => {
         const before = draftOf(played())
-        const after = {...before, signInRefill: false}
+        const after = {...before, bombsOff: true}
 
-        expect(before.signInRefill).toBe(true)
-        expect(ruleSetOf(after).rules?.bonuses?.signInRefill).toBe(false)
-        expect(changesOf(before, after)).toEqual([{label: "Refill at first sign-in", before: "yes", after: "no"}])
+        expect(before.bombsOff).toBe(false)
+        expect(ruleSetOf(after).rules?.charges?.bomb?.off).toBe(true)
+        expect(changesOf(before, after)).toEqual([{label: "Bombs off", before: "no", after: "yes"}])
     })
 
     it("sends unlimited enclosures switched on, and says it changed", () => {
@@ -92,7 +88,7 @@ describe("the rules", () => {
         const after = {...before, enclosuresUnlimited: true}
 
         expect(before.enclosuresUnlimited).toBe(false)
-        expect(ruleSetOf(after).rules?.bonuses?.enclose?.unlimited).toBe(true)
+        expect(ruleSetOf(after).rules?.charges?.enclose?.unlimited).toBe(true)
         expect(changesOf(before, after)).toEqual([{label: "Enclosures unlimited", before: "no", after: "yes"}])
     })
 
@@ -127,27 +123,27 @@ describe("the rules", () => {
         expect(draft.name).toBe("")
         expect(draft.values["clicks.tempo"]).toBe("3")
         expect(draft.frozen).toBe(true)
-        expect(draft.quiz).toBeUndefined()
+        expect(draft.bombsOff).toBeUndefined()
     })
 
     it("sends only the values a set holds, zeros and an empty toll included", () => {
         const draft = draftOf(new RuleSet({name: "quiet"}))
         draft.values["clicks.newAccountClicks"] = "0"
-        draft.quiz = false
+        draft.bombsOff = false
         draft.toll = []
 
-        expect(ruleSetOf(draft).rules?.toJson()).toEqual({clicks: {newAccountClicks: 0}, toll: {}, bonuses: {quiz: {enabled: false}}})
+        expect(ruleSetOf(draft).rules?.toJson()).toEqual({clicks: {newAccountClicks: 0}, toll: {}, charges: {bomb: {off: false}}})
     })
 
     it("plays default's values where a set holds none, and a toll it holds whole", () => {
-        const quiet = new RuleSet({name: "quiet", rules: Rules.fromJson({clicks: {tempo: 3}, bonuses: {quiz: {enabled: false}}, toll: {}})})
+        const quiet = new RuleSet({name: "quiet", rules: Rules.fromJson({clicks: {tempo: 3}, charges: {bomb: {off: true}}, toll: {}})})
 
         const rules = playedOf(quiet, played()).rules
 
         expect(rules?.clicks?.tempo).toBe(3)
         expect(rules?.clicks?.burst).toBe(60)
-        expect(rules?.bonuses?.quiz?.enabled).toBe(false)
-        expect(rules?.bonuses?.quiz?.maxChargesPerHour).toBe(12)
+        expect(rules?.charges?.bomb?.off).toBe(true)
+        expect(rules?.charges?.bomb?.rings).toBe(4)
         expect(rules?.toll?.steps).toEqual([])
         expect(playedOf(played(), played()).equals(played())).toBe(true)
     })
@@ -158,16 +154,16 @@ describe("the rules", () => {
         expect(complete(draft)).toBe(true)
         expect(complete({...draft, values: {...draft.values, "clicks.tempo": ""}})).toBe(true)
         expect(complete({...draftOf(played()), values: {...draftOf(played()).values, "clicks.tempo": ""}})).toBe(false)
-        expect(complete({...draft, values: {...draft.values, "bonuses.quiz.leaderBias": "a lot"}})).toBe(false)
+        expect(complete({...draft, values: {...draft.values, "charges.bomb.rings": "a lot"}})).toBe(false)
         expect(complete({...draft, toll: [{share: "10", slowdown: ""}]})).toBe(false)
     })
 
     it("says a value that follows default", () => {
         const before = draftOf(rush())
-        const after = {...before, values: {...before.values, "clicks.tempo": ""}, quiz: undefined, toll: undefined}
+        const after = {...before, values: {...before.values, "clicks.tempo": ""}, bombsOff: undefined, toll: undefined}
 
         expect(changesOf(before, after)).toEqual([
-            {label: "Quizzes on", before: "yes", after: "default"},
+            {label: "Bombs off", before: "no", after: "default"},
             {label: "Clicks · Refill, times as fast", before: "3", after: "default"},
             {label: "Toll", before: "10% ×1.5, 20% ×2.5, 30% ×4", after: "default"},
         ])

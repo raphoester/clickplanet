@@ -1,7 +1,8 @@
 # What a bomb does
 
-`claim_bonus_usecase` hands the bomb over with `Charges.Grant(holder, KindBomb)` and
-the client draws its aiming ring at `GetBonusRules.blast_radius`, the width of
+A box or a right answer hands the bomb over through planet's `InternalService/GrantCharges` (the offers', see
+[The offers](bonuses.md)), which runs `Charges.Grant(holder, KindBomb)`, and
+the client draws its aiming ring at `GetChargeRules.blast_radius`, the width of
 what it will clear. `DropBomb` spends it through `drop_bomb_usecase` with `Charges.Spend(holder, Held.AfterBomb)`.
 
 **The client names a point, never a tile.** The sea has no tiles, and whether an
@@ -12,7 +13,7 @@ screen draws a splash. That was a product decision: a bad aim costs the bomb.
 
 On land the tiles are `Geography.Within(centre, radius)`: every tile within
 `radius` of arc of the tile hit — a true circle, ~230 tiles inland, found by a
-straight scan (~0.5ms, once per bomb). The radius is the rule set's `bonuses.bomb.rings` × `Geography.Spacing()`, read at each drop (`charges.Bombing`, whose `Blast` decides land or sea),
+straight scan (~0.5ms, once per bomb). The radius is the rule set's `charges.bomb.rings` × `Geography.Spacing()`, read at each drop (`charges.Bombing`, whose `Blast` decides land or sea),
 the mean arc between touching tiles measured at boot (0.0040 rad on the
 260,503-tile map, so 0.032), rather than a number in the config that could drift
 from the map; the same radius goes to clients, so the ring they draw is the clear.
@@ -28,13 +29,15 @@ rest, under one lock: a shielded tile keeps its flag, is not in `cleared_tile_id
 and is listed in `struck` with the shields it kept (`Blast.Struck`, `Blast.Left`), so a
 client sets its shields at impact. See [Shields](shields.md).
 
-**No bomb while the rules in force hold `bonuses.bomb.off`** (Capital Siege slice 4; a knob of its own, on any map,
+**No bomb while the rules in force hold `charges.bomb.off`** (Capital Siege slice 4; a knob of its own, on any map,
 2026-11-10). `Bombing.Refuses` answers `ErrBombsOff`, and `drop_bomb_usecase` asks it first, before the country, the
 aim and the spend: the bomb stays held, and the drop is `FailedPrecondition` with a `planet.v1.BombRefusal` detail. A
-drop has no throttle, so no token is spent either. No box or quiz offers a bomb while it is off (`Rules.Offered`), and a
+drop has no throttle, so no token is spent either. No hand has room for a bomb while it is off (`Held.Full`, which
+`InternalService/GetRoom` answers), so no box or quiz offers one, and a
 bomb granted another way (a mission's pay, an operator's grant) is kept until a set plays bombs again. The page learns
-it from `GetBonusRules.bombs_off` and hides the bomb. A set that holds it off may weigh bombs anything: none is drawn,
-and a set whose only kind weighed above 0 is the bomb cannot play.
+it from `GetChargeRules.bombs_off` and hides the bomb. The offers' set may weigh bombs anything: none is drawn. Until
+2026-11-11 the offers read `bomb.off` themselves (`Rules.Offered`), and a set whose only kind weighed above 0 was the
+bomb could not play; now each of its slots finds no room and is lost.
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next
@@ -45,7 +48,7 @@ empties the tiles under one lock and publishes a single `clicks.Change{Blast}`
 on the same channel as the `clicks.Change{Update}` every `Set` sends. Two
 reasons it is not one `TileUpdate` per tile:
 
-- **Order.** A bonus event travels on the registry's channel, and two channels
+- **Order.** A notice travels on a channel of its own (planet's `notices`), and two channels
   merged by a `select` have no order between them. A tile retaken a moment after
   the blast could then reach a client *before* the blast and be blanked by it,
   with nothing to repair it until a reload. On one channel it cannot.
@@ -53,7 +56,7 @@ reasons it is not one `TileUpdate` per tile:
   the ground, which it can only do with the whole clear in one message. 217
   updates in a burst would also overflow a slow subscriber's buffer.
 
-`DropBomb` is session-gated like `Click` and `ClaimBonus` — it writes the map.
+`DropBomb` is session-gated like `Click` — it writes the map.
 It is not throttled: holding a bomb the server granted is the gate.
 **Every bomb that went off is told to the other modules** as `planet.v1.BombLanded`,
 by the ledger relay once the ledger flushed it, and the chat announces it — see

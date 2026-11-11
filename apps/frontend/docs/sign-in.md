@@ -169,7 +169,7 @@ A new account refills at the signed-in pace for its first 30 minutes (the
 backend's [Rate limiting](../../backend/docs/rate-limiting.md)), and from the
 click whose budget no longer says `fastStart` it refills at the guest pace.
 "Out of clicks" or "Keep this speed", then three lines: a full bank now
-(only while the server's `BonusRules.signInRefill` says so), clicks refill
+(only while the server's `BonusRules.signInRefill` says so, the offers' `GetGrantRules`), clicks refill
 `linkedMultiplier` times faster ("Keep this speed" while the fast start runs:
 the guest has that pace already), and the land on every device; then the
 sign-in buttons (`SignInButtons`, which `SignInPitchModal` uses too).

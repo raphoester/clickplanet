@@ -9,7 +9,6 @@ package planetv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -773,118 +772,6 @@ func (x *StruckTile) GetOwner() string {
 	return ""
 }
 
-type BonusClaimed struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	ClaimedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=claimed_at,json=claimedAt,proto3" json:"claimed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BonusClaimed) Reset() {
-	*x = BonusClaimed{}
-	mi := &file_planet_v1_events_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BonusClaimed) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BonusClaimed) ProtoMessage() {}
-
-func (x *BonusClaimed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BonusClaimed.ProtoReflect.Descriptor instead.
-func (*BonusClaimed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *BonusClaimed) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
-func (x *BonusClaimed) GetClaimedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ClaimedAt
-	}
-	return nil
-}
-
-type QuizAnswered struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Correct       bool                   `protobuf:"varint,2,opt,name=correct,proto3" json:"correct,omitempty"`
-	AnsweredAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=answered_at,json=answeredAt,proto3" json:"answered_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *QuizAnswered) Reset() {
-	*x = QuizAnswered{}
-	mi := &file_planet_v1_events_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *QuizAnswered) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*QuizAnswered) ProtoMessage() {}
-
-func (x *QuizAnswered) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use QuizAnswered.ProtoReflect.Descriptor instead.
-func (*QuizAnswered) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *QuizAnswered) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
-func (x *QuizAnswered) GetCorrect() bool {
-	if x != nil {
-		return x.Correct
-	}
-	return false
-}
-
-func (x *QuizAnswered) GetAnsweredAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.AnsweredAt
-	}
-	return nil
-}
-
 // Every click a caller tried, whatever came of it. The callers' facts are told in the order they ended, each at a
 // later time than the one before: a time names its fact.
 type ClickTried struct {
@@ -901,14 +788,16 @@ type ClickTried struct {
 	// Unset for a tile off the map.
 	Position *GlobePoint `protobuf:"bytes,10,opt,name=position,proto3" json:"position,omitempty"`
 	// How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
-	Tempo         float64 `protobuf:"fixed64,11,opt,name=tempo,proto3" json:"tempo,omitempty"`
+	Tempo float64 `protobuf:"fixed64,11,opt,name=tempo,proto3" json:"tempo,omitempty"`
+	// The click left the caller's bank empty: less than one click in it.
+	Dry           bool `protobuf:"varint,12,opt,name=dry,proto3" json:"dry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ClickTried) Reset() {
 	*x = ClickTried{}
-	mi := &file_planet_v1_events_proto_msgTypes[10]
+	mi := &file_planet_v1_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -920,7 +809,7 @@ func (x *ClickTried) String() string {
 func (*ClickTried) ProtoMessage() {}
 
 func (x *ClickTried) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[10]
+	mi := &file_planet_v1_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -933,7 +822,7 @@ func (x *ClickTried) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClickTried.ProtoReflect.Descriptor instead.
 func (*ClickTried) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{10}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ClickTried) GetScope() string {
@@ -1006,6 +895,13 @@ func (x *ClickTried) GetTempo() float64 {
 	return 0
 }
 
+func (x *ClickTried) GetDry() bool {
+	if x != nil {
+		return x.Dry
+	}
+	return false
+}
+
 type MapRead struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
@@ -1020,7 +916,7 @@ type MapRead struct {
 
 func (x *MapRead) Reset() {
 	*x = MapRead{}
-	mi := &file_planet_v1_events_proto_msgTypes[11]
+	mi := &file_planet_v1_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1032,7 +928,7 @@ func (x *MapRead) String() string {
 func (*MapRead) ProtoMessage() {}
 
 func (x *MapRead) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[11]
+	mi := &file_planet_v1_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1045,7 +941,7 @@ func (x *MapRead) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapRead.ProtoReflect.Descriptor instead.
 func (*MapRead) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{11}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MapRead) GetScope() string {
@@ -1086,7 +982,7 @@ type StreamOpened struct {
 
 func (x *StreamOpened) Reset() {
 	*x = StreamOpened{}
-	mi := &file_planet_v1_events_proto_msgTypes[12]
+	mi := &file_planet_v1_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1098,7 +994,7 @@ func (x *StreamOpened) String() string {
 func (*StreamOpened) ProtoMessage() {}
 
 func (x *StreamOpened) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[12]
+	mi := &file_planet_v1_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1111,7 +1007,7 @@ func (x *StreamOpened) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamOpened.ProtoReflect.Descriptor instead.
 func (*StreamOpened) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{12}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *StreamOpened) GetScope() string {
@@ -1124,172 +1020,6 @@ func (x *StreamOpened) GetScope() string {
 func (x *StreamOpened) GetOpenedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.OpenedAt
-	}
-	return nil
-}
-
-type BoxCaught struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Scope string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	// From the offer to the claim.
-	After         *durationpb.Duration   `protobuf:"bytes,2,opt,name=after,proto3" json:"after,omitempty"`
-	CaughtAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=caught_at,json=caughtAt,proto3" json:"caught_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BoxCaught) Reset() {
-	*x = BoxCaught{}
-	mi := &file_planet_v1_events_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BoxCaught) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BoxCaught) ProtoMessage() {}
-
-func (x *BoxCaught) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BoxCaught.ProtoReflect.Descriptor instead.
-func (*BoxCaught) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *BoxCaught) GetScope() string {
-	if x != nil {
-		return x.Scope
-	}
-	return ""
-}
-
-func (x *BoxCaught) GetAfter() *durationpb.Duration {
-	if x != nil {
-		return x.After
-	}
-	return nil
-}
-
-func (x *BoxCaught) GetCaughtAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.CaughtAt
-	}
-	return nil
-}
-
-type BoxLapsed struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	LapsedAt      *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=lapsed_at,json=lapsedAt,proto3" json:"lapsed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BoxLapsed) Reset() {
-	*x = BoxLapsed{}
-	mi := &file_planet_v1_events_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BoxLapsed) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BoxLapsed) ProtoMessage() {}
-
-func (x *BoxLapsed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BoxLapsed.ProtoReflect.Descriptor instead.
-func (*BoxLapsed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *BoxLapsed) GetScope() string {
-	if x != nil {
-		return x.Scope
-	}
-	return ""
-}
-
-func (x *BoxLapsed) GetLapsedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.LapsedAt
-	}
-	return nil
-}
-
-// A claim of a box offered to another scope, or to nobody the registry remembers.
-type ForeignBoxClaimed struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scope         string                 `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
-	ClaimedAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=claimed_at,json=claimedAt,proto3" json:"claimed_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ForeignBoxClaimed) Reset() {
-	*x = ForeignBoxClaimed{}
-	mi := &file_planet_v1_events_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ForeignBoxClaimed) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ForeignBoxClaimed) ProtoMessage() {}
-
-func (x *ForeignBoxClaimed) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ForeignBoxClaimed.ProtoReflect.Descriptor instead.
-func (*ForeignBoxClaimed) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *ForeignBoxClaimed) GetScope() string {
-	if x != nil {
-		return x.Scope
-	}
-	return ""
-}
-
-func (x *ForeignBoxClaimed) GetClaimedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ClaimedAt
 	}
 	return nil
 }
@@ -1309,7 +1039,7 @@ type AllegiancePledged struct {
 
 func (x *AllegiancePledged) Reset() {
 	*x = AllegiancePledged{}
-	mi := &file_planet_v1_events_proto_msgTypes[16]
+	mi := &file_planet_v1_events_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1321,7 +1051,7 @@ func (x *AllegiancePledged) String() string {
 func (*AllegiancePledged) ProtoMessage() {}
 
 func (x *AllegiancePledged) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_events_proto_msgTypes[16]
+	mi := &file_planet_v1_events_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1334,7 +1064,7 @@ func (x *AllegiancePledged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AllegiancePledged.ProtoReflect.Descriptor instead.
 func (*AllegiancePledged) Descriptor() ([]byte, []int) {
-	return file_planet_v1_events_proto_rawDescGZIP(), []int{16}
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *AllegiancePledged) GetAccountId() string {
@@ -1369,7 +1099,7 @@ var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xc4\x01\n" +
+	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xc4\x01\n" +
 	"\n" +
 	"TilesTaken\x12\x1d\n" +
 	"\n" +
@@ -1434,18 +1164,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"StruckTile\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x14\n" +
 	"\x05index\x18\x02 \x01(\rR\x05index\x12\x14\n" +
-	"\x05owner\x18\x03 \x01(\tR\x05owner\"h\n" +
-	"\fBonusClaimed\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x129\n" +
-	"\n" +
-	"claimed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt\"\x84\x01\n" +
-	"\fQuizAnswered\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
-	"\acorrect\x18\x02 \x01(\bR\acorrect\x12;\n" +
-	"\vanswered_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"answeredAt\"\xef\x02\n" +
+	"\x05owner\x18\x03 \x01(\tR\x05owner\"\x81\x03\n" +
 	"\n" +
 	"ClickTried\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
@@ -1459,7 +1178,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\x05owner\x18\t \x01(\tR\x05owner\x121\n" +
 	"\bposition\x18\n" +
 	" \x01(\v2\x15.planet.v1.GlobePointR\bposition\x12\x14\n" +
-	"\x05tempo\x18\v \x01(\x01R\x05tempoJ\x04\b\x04\x10\x05R\x12account_created_at\"\x81\x01\n" +
+	"\x05tempo\x18\v \x01(\x01R\x05tempo\x12\x10\n" +
+	"\x03dry\x18\f \x01(\bR\x03dryJ\x04\b\x04\x10\x05R\x12account_created_at\"\x81\x01\n" +
 	"\aMapRead\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x12\n" +
 	"\x04maps\x18\x02 \x01(\x01R\x04maps\x12\x17\n" +
@@ -1467,18 +1187,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\aread_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x06readAt\"]\n" +
 	"\fStreamOpened\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x127\n" +
-	"\topened_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bopenedAt\"\x8b\x01\n" +
-	"\tBoxCaught\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x12/\n" +
-	"\x05after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x05after\x127\n" +
-	"\tcaught_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bcaughtAt\"Z\n" +
-	"\tBoxLapsed\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x127\n" +
-	"\tlapsed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\blapsedAt\"d\n" +
-	"\x11ForeignBoxClaimed\x12\x14\n" +
-	"\x05scope\x18\x01 \x01(\tR\x05scope\x129\n" +
-	"\n" +
-	"claimed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt\"\xa3\x01\n" +
+	"\topened_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bopenedAt\"\xa3\x01\n" +
 	"\x11AllegiancePledged\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
@@ -1513,7 +1222,7 @@ func file_planet_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_planet_v1_events_proto_goTypes = []any{
 	(ClickOutcome)(0),             // 0: planet.v1.ClickOutcome
 	(*TilesTaken)(nil),            // 1: planet.v1.TilesTaken
@@ -1524,46 +1233,34 @@ var file_planet_v1_events_proto_goTypes = []any{
 	(*ShieldPlaced)(nil),          // 6: planet.v1.ShieldPlaced
 	(*ShieldsStruck)(nil),         // 7: planet.v1.ShieldsStruck
 	(*StruckTile)(nil),            // 8: planet.v1.StruckTile
-	(*BonusClaimed)(nil),          // 9: planet.v1.BonusClaimed
-	(*QuizAnswered)(nil),          // 10: planet.v1.QuizAnswered
-	(*ClickTried)(nil),            // 11: planet.v1.ClickTried
-	(*MapRead)(nil),               // 12: planet.v1.MapRead
-	(*StreamOpened)(nil),          // 13: planet.v1.StreamOpened
-	(*BoxCaught)(nil),             // 14: planet.v1.BoxCaught
-	(*BoxLapsed)(nil),             // 15: planet.v1.BoxLapsed
-	(*ForeignBoxClaimed)(nil),     // 16: planet.v1.ForeignBoxClaimed
-	(*AllegiancePledged)(nil),     // 17: planet.v1.AllegiancePledged
-	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
-	(*GlobePoint)(nil),            // 19: planet.v1.GlobePoint
-	(*durationpb.Duration)(nil),   // 20: google.protobuf.Duration
+	(*ClickTried)(nil),            // 9: planet.v1.ClickTried
+	(*MapRead)(nil),               // 10: planet.v1.MapRead
+	(*StreamOpened)(nil),          // 11: planet.v1.StreamOpened
+	(*AllegiancePledged)(nil),     // 12: planet.v1.AllegiancePledged
+	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*GlobePoint)(nil),            // 14: planet.v1.GlobePoint
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
-	18, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
+	13, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
 	2,  // 1: planet.v1.TilesTaken.tiles:type_name -> planet.v1.TakenTile
-	19, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
-	18, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	18, // 4: planet.v1.FlagKnockedOut.knocked_out_at:type_name -> google.protobuf.Timestamp
-	18, // 5: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
-	18, // 6: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
-	18, // 7: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
+	14, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
+	13, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	13, // 4: planet.v1.FlagKnockedOut.knocked_out_at:type_name -> google.protobuf.Timestamp
+	13, // 5: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	13, // 6: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
+	13, // 7: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
 	8,  // 8: planet.v1.ShieldsStruck.tiles:type_name -> planet.v1.StruckTile
-	18, // 9: planet.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	18, // 10: planet.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
-	18, // 11: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
-	0,  // 12: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
-	19, // 13: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
-	18, // 14: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
-	18, // 15: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
-	20, // 16: planet.v1.BoxCaught.after:type_name -> google.protobuf.Duration
-	18, // 17: planet.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
-	18, // 18: planet.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
-	18, // 19: planet.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	18, // 20: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	13, // 9: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
+	0,  // 10: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
+	14, // 11: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
+	13, // 12: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
+	13, // 13: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
+	13, // 14: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }
@@ -1578,7 +1275,7 @@ func file_planet_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_events_proto_rawDesc), len(file_planet_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/inmemory_stats_store"
@@ -39,8 +39,8 @@ func statsOf(t *testing.T, store *inmemory_stats_store.Store) stats.StatsSnapsho
 func TestEachClaimCountsOnTheStatsOfTheAccountThatCaughtTheBox(t *testing.T) {
 	handler, store := subscriber()
 
-	claimed := func(at time.Time) *planetv1.BonusClaimed {
-		return &planetv1.BonusClaimed{AccountId: account, ClaimedAt: timestamppb.New(at)}
+	claimed := func(at time.Time) *bonusesv1.BonusClaimed {
+		return &bonusesv1.BonusClaimed{AccountId: account, ClaimedAt: timestamppb.New(at)}
 	}
 
 	require.NoError(t, handler.Handle(t.Context(), claimed(at)))
@@ -53,5 +53,5 @@ func TestEachClaimCountsOnTheStatsOfTheAccountThatCaughtTheBox(t *testing.T) {
 func TestAClaimWithNoAccountIsRefused(t *testing.T) {
 	handler, _ := subscriber()
 
-	assert.ErrorIs(t, handler.Handle(t.Context(), &planetv1.BonusClaimed{}), accounts.ErrInvalidAccount)
+	assert.ErrorIs(t, handler.Handle(t.Context(), &bonusesv1.BonusClaimed{}), accounts.ErrInvalidAccount)
 }

@@ -182,3 +182,12 @@ func TestAGrantTakesNothingAway(t *testing.T) {
 	require.ErrorIs(t, Held{SpreadClicks: -1}.GrantError(), ErrNegativeGrant)
 	require.ErrorIs(t, Held{Shields: -1}.GrantError(), ErrNegativeGrant)
 }
+
+func TestNoHandHasRoomForABombWhileBombsAreOff(t *testing.T) {
+	off := TestRules()
+	off.Bomb.Off = true
+
+	assert.Equal(t, []Kind{KindBomb}, Held{}.Full(off), "an empty hand takes no bomb")
+	assert.Equal(t, []Kind{KindBomb}, Held{Bomb: true}.Full(off), "and one that holds one is full of them once")
+	assert.Empty(t, Held{}.Full(TestRules()))
+}

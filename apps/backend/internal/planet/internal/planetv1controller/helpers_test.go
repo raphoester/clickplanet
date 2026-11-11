@@ -11,7 +11,6 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
@@ -88,7 +87,7 @@ func clickServerWith(
 			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{}, facts.NewLog(cptime.SystemClock{}))),
 			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{},
+				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat,
 					noNotices{}, steadyRules{}, facts.NewLog(cptime.SystemClock{}))),
 		},
 		options...,
@@ -188,12 +187,6 @@ func errorNet() connect.Interceptor {
 type steadyRules struct{}
 
 func (steadyRules) Watch() (<-chan rules.Set, func()) {
-	return nil, func() {}
-}
-
-type noBoxes struct{}
-
-func (noBoxes) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
 	return nil, func() {}
 }
 

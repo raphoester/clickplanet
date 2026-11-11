@@ -185,7 +185,7 @@ func shieldPlacedOf(position ledger.Position, shielding ledger.Shielding) *plane
 		AccountId: shielding.Account,
 		TileId:    shielding.Tile,
 		Country:   shielding.Country,
-		Shields:   uint32(shielding.Shields), //nolint:gosec // a tile's shields, bounded by bonuses.shield.perTile.
+		Shields:   uint32(shielding.Shields), //nolint:gosec // a tile's shields, bounded by charges.shield.perTile.
 		PlacedAt:  timestamppb.New(shielding.At),
 		Position:  uint64(position),
 	}

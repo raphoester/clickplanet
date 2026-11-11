@@ -27,23 +27,11 @@ func Seeded() Snapshot {
 			Toll: &planetv1.TollRules{Steps: []*planetv1.TollStep{
 				{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4},
 			}},
-			Bonuses: &planetv1.BonusRules{
-				Boxes:        &planetv1.BoxPace{MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute), MaxChargesPerHour: n(12)},
-				Kinds:        &planetv1.KindWeights{Refill: f(5), SpreadClicks: f(3), EncloseClicks: f(2), Bomb: f(1), Shields: f(3)},
-				OfferTtl:     d(15 * time.Second),
-				MissRetry:    d(2 * time.Minute),
-				ActiveWithin: d(2 * time.Minute),
-				Spread:       &planetv1.SpreadRules{Clicks: n(8), MaxPerBox: n(4)},
-				Bomb:         &planetv1.BombRules{Rings: f(4), Off: on(false)},
-				Enclose:      &planetv1.EncloseRules{MaxTiles: n(25), Held: n(3), MaxPerBox: n(3), Unlimited: on(false)},
-				Shield:       &planetv1.ShieldRules{Held: n(30), MinPerBox: n(5), MaxPerBox: n(20), PerTile: n(10)},
-				Welcome:      &planetv1.WelcomeRules{Within: d(10 * time.Minute), BoxAfter: d(time.Minute)},
-				Quiz: &planetv1.QuizRules{
-					Enabled: on(true), MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute),
-					MissRetry: d(2 * time.Minute), OfferTtl: d(25 * time.Second), AnswerWindow: d(8 * time.Second),
-					LeaderBias: f(1), MaxChargesPerHour: n(12),
-				},
-				SignInRefill: on(true),
+			Charges: &planetv1.ChargeRules{
+				Spread:  &planetv1.SpreadRules{Clicks: n(8)},
+				Bomb:    &planetv1.BombRules{Rings: f(4), Off: on(false)},
+				Enclose: &planetv1.EncloseRules{MaxTiles: n(25), Held: n(3), Unlimited: on(false)},
+				Shield:  &planetv1.ShieldRules{Held: n(30), PerTile: n(10)},
 			},
 			Frozen:           on(false),
 			AllegianceLocked: on(false),

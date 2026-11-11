@@ -2,8 +2,9 @@
 
 **The game's meta: which rules play together, and when; every moment of the game, and what scoring counts in it.**
 Planet keeps its game rules in its sets (see [Rules](rules.md)), the antibot its bounds in its own (see [The antibot's
-rules](antibot-rules.md)). The gamemaster module never holds a rule: it picks which set each module plays, by name, so
-a set of planet and one of the antibot play as one. No module picks the set it plays: the gamemaster's schedule does,
+rules](antibot-rules.md)), and the offers when a box and a quiz come in theirs (see [The offers](bonuses.md#its-rule-sets),
+2026-11-11). The gamemaster module never holds a rule: it picks which set each module plays, by name, so a set of
+planet, one of the antibot and one of the offers play as one. No module picks the set it plays: the gamemaster's schedule does,
 and no operator call changes it at once (the user's rule, 2026-10-26: "there needs to be a schedule of overrides with
 a hierarchy … they have to use schedules and priority orders, always").
 
@@ -39,12 +40,13 @@ internal/gamemaster/
       uuid_id_provider/             a uuidv7 for each entry
       rpc_planet_rule_sets/         Keeper, from planet.v1.InternalService/GetRuleSetNames
       rpc_antibot_rule_sets/        Keeper, from antibot.v1.InternalService/GetRuleSetNames
-      rpc_rule_set_plays/           planet.v1 and antibot.v1 InternalService/PlayRuleSet
+      rpc_bonuses_rule_sets/        Keeper, from bonuses.v1.InternalService/GetRuleSetNames
+      rpc_rule_set_plays/           planet.v1, antibot.v1 and bonuses.v1 InternalService/PlayRuleSet
       usecases/add_entry_usecase/     audit_add_entry/
       usecases/edit_entry_usecase/    audit_edit_entry/
       usecases/delete_entry_usecase/  audit_delete_entry/
-      usecases/play_schedule_usecase/ the turn at now, called until both modules play it; a battle's set to planet once
-                                    its battle took its map; Runner (gamemaster-schedule)
+      usecases/play_schedule_usecase/ the turn at now, called until every module plays it; a battle's set to planet and
+                                    the offers once its battle took its map; Runner (gamemaster-schedule)
         log_play_schedule/          logs each turn told, and a failure
     season/                         Number, Origin, Draft, Season, Window, Calendar (Added, Edited, Deletable, With,
                                     Windows, RunningAt, NextAfter, Finales); Finale, Window.FinaleStartsAt;
@@ -160,7 +162,7 @@ even when it plays the set already playing, so it is called again.
 - **A battle fits between the season's days** (`Plan.Clashes`, `FailedPrecondition`; see [A battle and the
   days](#a-battle-and-the-days)): a new or edited entry is judged in the plan with it (`Planner.With`), in place of the
   one kept. A plain entry is never judged, and may overlap anything.
-- **A new or edited entry must name a set planet and the antibot both keep** (`schedule.Playable`): the module asks
+- **A new or edited entry must name a set planet, the antibot and the offers all keep** (`schedule.Playable`): the module asks
   each, in its own words, which sets it keeps (`GetRuleSetNames` on its internal service), and the refusal names each
   module that lacks it (`planet keeps no rule set of this name: "rush"`). **An antibot that is off** serves no route
   (`Unimplemented`): it judges with no set, so it lacks none. Scoring keeps no sets: a battle's times are the entry's.
@@ -174,8 +176,8 @@ the antibot turned on after the entry was saved), it is loud, not silent:
 
 - **The module refuses the call** (`FailedPrecondition`) and plays on with its set; its log and the gamemaster's say so
   at Error (`failed to play the rules`, `failed to play the schedule`).
-- **The backoffice warns** on each entry that has not ended and names a set a module lacks ("No set rush in planet or
-  the antibot."), from each module's `GetRules`, and says when a module does not play what the schedule plays.
+- **The backoffice warns** on each entry that has not ended and names a set a module lacks ("No set rush in planet,
+  the antibot or the offers."), from each module's `GetRules`, and says when a module does not play what the schedule plays.
 - **The fix is the set**: mend or make it. The schedule calls the turn again each minute while a module refuses it (see
   [Calling the turn](#calling-the-turn)), so the module plays it within a minute, with no new entry. Until 2026-11-10 the
   turn was sent only at a change, and the fix was an entry at a higher priority.
@@ -184,31 +186,32 @@ the antibot turned on after the entry was saved), it is loud, not silent:
 
 **`play_schedule_usecase` runs every second** (`gamemaster-schedule`): it reads the entries that end after now
 (`Store.Unended`) and takes the turn at now. **It calls the turn when it changes, and once at each boot**, when it
-remembers none: a module may have kept a stale set. **It calls until both modules play it**: a call with no answer, or a
+remembers none: a module may have kept a stale set. **It calls until every module plays it**: a call with no answer, or a
 set refused, is made again a minute later with the same `decided_at` (see [The gamemaster as a
-reconciler](gamemaster-reconciler.md)), so a module that refused its set plays it once the set is made. Once both
+reconciler](gamemaster-reconciler.md)), so a module that refused its set plays it once the set is made. Once all
 answered, the turn is not called again. `log_play_schedule` logs each turn a module played at Warn (`the schedule
 plays`, `set`, `entry`).
 
 **Planet plays a battle's set only once the battle took its map** (2026-11-10): while the battle is not judged, or is an
 arena battle whose arena planet has not answered opened (`Planner.SetWaits`, `Plan.SetWaits`), the antibot alone is
-called (`PlayAntibot`) and planet keeps the set before. Planet is called as soon as the wait ends, with the turn's
+called (`PlayAntibot`) and planet and the offers keep the set before: a battle's boxes come with its map. Planet is called as soon as the wait ends, with the turn's
 decision time, and that is logged as a turn played too. Only a battle's turn is asked, and only until planet played it.
 See [Arena battles](arenas.md#the-order).
 
 **Level-triggered, with nothing written.** The runner keeps the last turn, its decision time and which module played
 it in memory; a crash is followed by the boot's call. The clock decides, so no transaction holds the call.
 
-**`rpc_rule_set_plays` calls each module, in its words** (`Play`, the antibot then planet, or `PlayAntibot` alone while
-planet's set waits): `planet.v1.InternalService/PlayRuleSet{rule_set, decided_at}` and
-`antibot.v1.InternalService/PlayRuleSet{rule_set, decided_at}`, a minute at most each, since the antibot restates its
-bans under a new set. `decided_at` is the runner's now when the turn changed, or at the boot, and stays the same when
+**`rpc_rule_set_plays` calls each module, in its words** (`Play`, the antibot, then planet, then the offers, or
+`PlayAntibot` alone while planet's set waits): `planet.v1.InternalService/PlayRuleSet{rule_set, decided_at}`,
+`antibot.v1.InternalService/PlayRuleSet{rule_set, decided_at}` and `bonuses.v1.InternalService/PlayRuleSet{rule_set,
+decided_at}` (2026-11-11): a minute at most for the antibot's, since it restates its bans under a new set, and a minute
+for planet's and the offers' together. `decided_at` is the runner's now when the turn changed, or at the boot, and stays the same when
 the turn is called again. Scoring plays no rule set: a battle reaches it as a round (see [Calling
 scoring](#calling-scoring)).
 
 ## Playing it
 
-Planet and the antibot do the same thing, each in its own `play_rules_usecase`:
+Planet, the antibot and the offers do the same thing, each in its own `play_rules_usecase`:
 
 - **The latest decision wins** (`rules.Choice.Overrules`): a call decided at or before the one kept changes nothing, so
   a call made again, or an older one, is harmless, and answered as played.
@@ -289,7 +292,7 @@ times. Now the fact "ends season S" is the season's own.
 - **Its rules** (every reason found by `errors.Is`): a length above none and at most the season's, a set's name, a
   description of at most 300 characters and times 1 to 10 (`ErrInvalidSeason`); **once it started, the season's end
   and the finale stay** (`ErrFinaleStarted`, `FailedPrecondition`); a finale that is added, changed or moved starts
-  after now; **its set is one planet and the antibot keep** (`schedule.Playable`, `FailedPrecondition`); **it fits
+  after now; **its set is one planet, the antibot and the offers keep** (`schedule.Playable`, `FailedPrecondition`); **it fits
   between the days like any battle** (see [A battle and the days](#a-battle-and-the-days)): it starts at the season's
   last cutoff, or the season ends at a cutoff, and no battle overlaps it. It is judged on the season's add and edit with
   every battle that has not ended, and on every battle added or edited.
@@ -558,7 +561,8 @@ answered with the book held back, an answer that cannot be kept called again, a 
 Battle and the season's end each recorded once, a missed day told nobody, and nothing before any season.
 `play_schedule_usecase`'s test pins a finale's set played over its window and above an entry at the highest priority.
 `rpc_scoring_books`' test pins each command in scoring's words, each answer, and which codes are refusals for good;
-`rpc_rule_set_plays`' that the antibot alone leaves planet on its set.
+`rpc_rule_set_plays`' that every module plays the set, that the antibot alone leaves planet and the offers on theirs,
+and that the offers' refusal is the schedule's too.
 
 `tell_starts_usecase`'s test pins a season and a battle each told once as it starts, and not again on the next tick nor
 after a second boot; the Final Battle told with `ends_season`, no entry id and its number among the season's battles; a
@@ -575,9 +579,9 @@ test pins the feed (a stream gets the turn once read, another at once, each chan
 edited or deleted sent, a new debrief sent, a turn that holds not sent again, nothing read with nobody following, a
 failed read) and `listen_for_events_handler`'s the stream (the turn, the timeline then the debrief first, only the part
 that changed after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's
-test pins a call at boot and at each change, none once both modules played it, and a call with no answer made again a
+test pins a call at boot and at each change, none once every module played it, and a call with no answer made again a
 minute later with the turn's decision time. The smoke
-test `TestLastABattleOfTheScheduleIsPlayedByPlanetAndTheAntibotAndScoredByScoring` adds a battle entry that ends at
+test `TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndTheOffersAndScoredByScoring` adds a battle entry that ends at
 the next cutoff on the console listener, waits for the modules to play it and scoring to open its round, reads its kind
 and its end on the public listener, and opens the stream, whose first event is it. It runs last, by its name: its
 battle takes the rest of today, and the other smoke tests need a day. The suite's season 0 ends at 23:00, so its 2 h
@@ -588,8 +592,12 @@ finale starts at the cutoff.
 The map is frozen over a break the way any set plays (see [A frozen map](rules.md#a-frozen-map)):
 
 1. Ops → Game rules: Copy `default`, name it `frozen`, tick "Frozen: the map takes no play". Save.
-2. Ops → Anti-bot rules: Copy `default`, name it `frozen`. Save.
-3. Ops → Rule schedule: add a plain entry `frozen` from the season's end to the next season's start, priority 1. It
+2. Ops → Box & quiz rules: Copy `default`, name it `frozen`, tick "Frozen: no box or quiz is offered, caught or
+   answered". Save. Production's `frozen` came across frozen from planet's on 2026-11-11 (see
+   [The offers](bonuses.md#where-the-sets-came-from)). A set there not frozen still offers boxes and quizzes, and
+   refuses them when taken, through planet's freeze.
+3. Ops → Anti-bot rules: Copy `default`, name it `frozen`. Save.
+4. Ops → Rule schedule: add a plain entry `frozen` from the season's end to the next season's start, priority 1. It
    starts as the Final Battle ends, so it overlaps no finale.
 
 At the next season's start the freeze ends, the season opens its book and day 1, and **the map is reset** (see

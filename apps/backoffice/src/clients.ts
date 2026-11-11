@@ -1,10 +1,11 @@
 import {PromiseClient} from "@connectrpc/connect"
 import {
-    alertsAdmin, antibotAdmin, chatAdmin, clipsAdmin, gamemasterAdmin, missionsAdmin, planetAdmin, playerAdmin, progressionAdmin,
-    promoAdmin, publishingAdmin, supportAdmin,
+    alertsAdmin, antibotAdmin, bonusesAdmin, chatAdmin, clipsAdmin, gamemasterAdmin, missionsAdmin, planetAdmin, playerAdmin,
+    progressionAdmin, promoAdmin, publishingAdmin, supportAdmin,
 } from "./api.ts"
 import {AdminService as AlertsAdminService} from "./gen/grpc/alerts/v1/admin_connect.ts"
 import {AdminService as AntibotAdminService} from "./gen/grpc/antibot/v1/admin_connect.ts"
+import {AdminService as BonusesAdminService} from "./gen/grpc/bonuses/v1/admin_connect.ts"
 import {AdminService as ChatAdminService} from "./gen/grpc/chat/v1/admin_connect.ts"
 import {AdminService as ClipsAdminService} from "./gen/grpc/clips/v1/admin_connect.ts"
 import {AdminService as PlanetAdminService} from "./gen/grpc/planet/v1/admin_connect.ts"
@@ -23,6 +24,8 @@ export type ChatAdmin = Pick<
 >
 export type AntibotAdmin = PromiseClient<typeof AntibotAdminService>
 export type AlertsAdmin = PromiseClient<typeof AlertsAdminService>
+// The rule sets the boxes and quizzes are offered by.
+export type BonusesAdmin = PromiseClient<typeof BonusesAdminService>
 export type PlanetAdmin = PromiseClient<typeof PlanetAdminService>
 export type PlayerAdmin = PromiseClient<typeof PlayerAdminService>
 export type ProgressionAdmin = PromiseClient<typeof ProgressionAdminService>
@@ -44,13 +47,13 @@ export type PromoAdmin = Pick<
 >
 
 export type Clients = {
-    alerts: AlertsAdmin, antibot: AntibotAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin, progression: ProgressionAdmin,
-    gamemaster: GamemasterAdmin, missions: MissionsAdmin, support: SupportAdmin, clips: ClipsAdmin, promo: PromoAdmin,
-    publishing: PublishingAdmin,
+    alerts: AlertsAdmin, antibot: AntibotAdmin, bonuses: BonusesAdmin, chat: ChatAdmin, planet: PlanetAdmin, player: PlayerAdmin,
+    progression: ProgressionAdmin, gamemaster: GamemasterAdmin, missions: MissionsAdmin, support: SupportAdmin, clips: ClipsAdmin,
+    promo: PromoAdmin, publishing: PublishingAdmin,
 }
 
 export const CLIENTS: Clients = {
-    alerts: alertsAdmin, antibot: antibotAdmin, chat: chatAdmin, planet: planetAdmin, player: playerAdmin, progression: progressionAdmin,
-    gamemaster: gamemasterAdmin, missions: missionsAdmin, support: supportAdmin, clips: clipsAdmin, promo: promoAdmin,
-    publishing: publishingAdmin,
+    alerts: alertsAdmin, antibot: antibotAdmin, bonuses: bonusesAdmin, chat: chatAdmin, planet: planetAdmin, player: playerAdmin,
+    progression: progressionAdmin, gamemaster: gamemasterAdmin, missions: missionsAdmin, support: supportAdmin, clips: clipsAdmin,
+    promo: promoAdmin, publishing: publishingAdmin,
 }

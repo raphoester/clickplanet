@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
@@ -34,7 +34,7 @@ var (
 func TestABoxCaughtReachesTheMissionsAsABoxOfItsTime(t *testing.T) {
 	useCase := &recordingUseCase{}
 
-	require.NoError(t, bonus_claimed_subscriber.New(useCase).Handle(t.Context(), &planetv1.BonusClaimed{
+	require.NoError(t, bonus_claimed_subscriber.New(useCase).Handle(t.Context(), &bonusesv1.BonusClaimed{
 		AccountId: account, ClaimedAt: timestamppb.New(at),
 	}))
 
@@ -44,6 +44,6 @@ func TestABoxCaughtReachesTheMissionsAsABoxOfItsTime(t *testing.T) {
 func TestAClaimWithNoAccountOrNoTimeIsRefused(t *testing.T) {
 	subscriber := bonus_claimed_subscriber.New(&recordingUseCase{})
 
-	require.ErrorIs(t, subscriber.Handle(t.Context(), &planetv1.BonusClaimed{ClaimedAt: timestamppb.New(at)}), missions.ErrInvalidAccount)
-	assert.Error(t, subscriber.Handle(t.Context(), &planetv1.BonusClaimed{AccountId: account}))
+	require.ErrorIs(t, subscriber.Handle(t.Context(), &bonusesv1.BonusClaimed{ClaimedAt: timestamppb.New(at)}), missions.ErrInvalidAccount)
+	assert.Error(t, subscriber.Handle(t.Context(), &bonusesv1.BonusClaimed{AccountId: account}))
 }

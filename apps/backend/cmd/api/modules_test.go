@@ -116,3 +116,20 @@ func TestProgressionKnowsPlayerAndNotAuth(t *testing.T) {
 	assert.Contains(t, upstream, "player")
 	assert.NotContains(t, upstream, "auth", "auth is player's detail; progression verifies tokens with the verifier cpbootstrap hands it")
 }
+
+// The offers are downstream of planet, as missions is: they hear its clicks and pay through its wallet, and hear
+// player's new players. Planet never names them.
+func TestTheBonusesSpeakPlanetsAndPlayersLanguageAlone(t *testing.T) {
+	edges := moduleEdges(t)
+
+	assert.ElementsMatch(t, []string{"planet", "player"}, edges["bonuses"])
+	assert.NotContains(t, edges["planet"], "bonuses", "planet knows nothing of the offers")
+}
+
+func TestTheModulesThatPlayHearOrReadTheOffersSpeakTheirLanguage(t *testing.T) {
+	edges := moduleEdges(t)
+
+	for _, module := range []string{"gamemaster", "promo", "antibot", "missions", "progression"} {
+		assert.Contains(t, edges[module], "bonuses", module)
+	}
+}

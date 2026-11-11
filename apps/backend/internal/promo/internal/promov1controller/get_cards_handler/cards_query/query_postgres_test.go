@@ -26,15 +26,15 @@ var war = backgrounds.BackgroundID{15: 1}
 
 type planet struct {
 	names  []string
-	played map[string]*planetv1.Rules
+	played map[string]placeholders.Played
 }
 
 func (p planet) Names(context.Context) ([]string, error) { return p.names, nil }
 
-func (p planet) Played(_ context.Context, set string) (*planetv1.Rules, error) {
+func (p planet) Played(_ context.Context, set string) (placeholders.Played, error) {
 	played, ok := p.played[set]
 	if !ok {
-		return nil, fmt.Errorf("%w: %q", cards.ErrUnknownSet, set)
+		return placeholders.Played{}, fmt.Errorf("%w: %q", cards.ErrUnknownSet, set)
 	}
 	return played, nil
 }
@@ -56,16 +56,16 @@ func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T)
 	require.NoError(t, postgres_background_store.New(db).Keep(t.Context(), background))
 	deck, err := cards.NewDeck("urf", []cards.Draft{
 		{Background: war, Headline: "Clicks refill {clicks.tempo}× faster", Line: "Every country at once."},
-		{Background: war, Headline: "Bombs blast {bonuses.bomb.rings} rings"},
+		{Background: war, Headline: "Bombs blast {charges.bomb.rings} rings"},
 		{Background: war, Headline: "Triple points", Line: "1st place wins {battle.points.first} points"},
 	})
 	require.NoError(t, err)
 	require.NoError(t, postgres_card_store.New(db).Save(t.Context(), deck))
-	defaults := &planetv1.Rules{Clicks: &planetv1.ClickRules{Tempo: proto.Float64(1)}}
-	urf := &planetv1.Rules{Clicks: &planetv1.ClickRules{Tempo: proto.Float64(3)}}
+	defaults := placeholders.Played{Planet: &planetv1.Rules{Clicks: &planetv1.ClickRules{Tempo: proto.Float64(1)}}}
+	urf := placeholders.Played{Planet: &planetv1.Rules{Clicks: &planetv1.ClickRules{Tempo: proto.Float64(3)}}}
 
 	answer, err := cards_query.NewPostgresQuery(db,
-		planet{names: []string{"default", "urf"}, played: map[string]*planetv1.Rules{"default": defaults, "urf": urf}},
+		planet{names: []string{"default", "urf"}, played: map[string]placeholders.Played{"default": defaults, "urf": urf}},
 		scoring{},
 		backgrounds.NewMemoryBucket(),
 	).Cards(t.Context())
@@ -84,7 +84,7 @@ func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T)
 		},
 	}, urfCards[0]), "%v", urfCards[0])
 	assert.Nil(t, urfCards[1].GetFilled(), "the set plays no rings")
-	assert.Contains(t, urfCards[1].GetProblem(), "{bonuses.bomb.rings}")
+	assert.Contains(t, urfCards[1].GetProblem(), "{charges.bomb.rings}")
 	assert.Equal(t, "1st place wins 75 points", urfCards[2].GetFilled().GetLine(), "a set's cards read as in a ×3 battle")
 
 	assert.Len(t, answer.GetPlaceholders(), len(placeholders.RulePaths()))
@@ -108,7 +108,7 @@ func TestASetWhoseValuesPlanetWillNotTellSaysWhy(t *testing.T) {
 	require.NoError(t, postgres_card_store.New(db).Save(t.Context(), deck))
 
 	answer, err := cards_query.NewPostgresQuery(db,
-		planet{names: []string{"default", "urf"}, played: map[string]*planetv1.Rules{"default": {}}},
+		planet{names: []string{"default", "urf"}, played: map[string]placeholders.Played{"default": {Planet: &planetv1.Rules{}}}},
 		scoring{},
 		backgrounds.NewMemoryBucket(),
 	).Cards(t.Context())

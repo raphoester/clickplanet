@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -48,16 +49,16 @@ func (l *Listener) StreamOpened() cpredis.Handler[*planetv1.StreamOpened] {
 	return heard[*planetv1.StreamOpened]{listener: l, at: (*planetv1.StreamOpened).GetOpenedAt, tell: l.opened}
 }
 
-func (l *Listener) BoxCaught() cpredis.Handler[*planetv1.BoxCaught] {
-	return heard[*planetv1.BoxCaught]{listener: l, at: (*planetv1.BoxCaught).GetCaughtAt, tell: l.caught}
+func (l *Listener) BoxCaught() cpredis.Handler[*bonusesv1.BoxCaught] {
+	return heard[*bonusesv1.BoxCaught]{listener: l, at: (*bonusesv1.BoxCaught).GetCaughtAt, tell: l.caught}
 }
 
-func (l *Listener) BoxLapsed() cpredis.Handler[*planetv1.BoxLapsed] {
-	return heard[*planetv1.BoxLapsed]{listener: l, at: (*planetv1.BoxLapsed).GetLapsedAt, tell: l.lapsed}
+func (l *Listener) BoxLapsed() cpredis.Handler[*bonusesv1.BoxLapsed] {
+	return heard[*bonusesv1.BoxLapsed]{listener: l, at: (*bonusesv1.BoxLapsed).GetLapsedAt, tell: l.lapsed}
 }
 
-func (l *Listener) ForeignBoxClaimed() cpredis.Handler[*planetv1.ForeignBoxClaimed] {
-	return heard[*planetv1.ForeignBoxClaimed]{listener: l, at: (*planetv1.ForeignBoxClaimed).GetClaimedAt, tell: l.foreign}
+func (l *Listener) ForeignBoxClaimed() cpredis.Handler[*bonusesv1.ForeignBoxClaimed] {
+	return heard[*bonusesv1.ForeignBoxClaimed]{listener: l, at: (*bonusesv1.ForeignBoxClaimed).GetClaimedAt, tell: l.foreign}
 }
 
 func (l *Listener) tried(ctx context.Context, fact *planetv1.ClickTried) error {
@@ -111,17 +112,17 @@ func (l *Listener) opened(_ context.Context, fact *planetv1.StreamOpened) error 
 	return nil
 }
 
-func (l *Listener) caught(_ context.Context, fact *planetv1.BoxCaught) error {
+func (l *Listener) caught(_ context.Context, fact *bonusesv1.BoxCaught) error {
 	l.guard.Caught(fact.GetScope(), fact.GetAfter().AsDuration())
 	return nil
 }
 
-func (l *Listener) lapsed(_ context.Context, fact *planetv1.BoxLapsed) error {
+func (l *Listener) lapsed(_ context.Context, fact *bonusesv1.BoxLapsed) error {
 	l.guard.Missed(fact.GetScope())
 	return nil
 }
 
-func (l *Listener) foreign(_ context.Context, fact *planetv1.ForeignBoxClaimed) error {
+func (l *Listener) foreign(_ context.Context, fact *bonusesv1.ForeignBoxClaimed) error {
 	l.guard.Foreign(fact.GetScope())
 	return nil
 }

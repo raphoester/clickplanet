@@ -22,8 +22,6 @@ service ClickService {
 
   rpc ListenForEvents(ListenForEventsRequest) returns (stream PlanetEvent);
 
-  rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
-
   rpc DropBomb(DropBombRequest) returns (DropBombResponse);
 
   rpc UseRefill(UseRefillRequest) returns (UseRefillResponse);
@@ -31,13 +29,10 @@ service ClickService {
   // Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
   rpc GetCharges(GetChargesRequest) returns (GetChargesResponse);
 
-  rpc GetBonusRules(GetBonusRulesRequest) returns (GetBonusRulesResponse) {
+  // How much of each charge a hand holds and what each does, and the map's knobs the page shows.
+  rpc GetChargeRules(GetChargeRulesRequest) returns (GetChargeRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-
-  rpc OpenQuiz(OpenQuizRequest) returns (OpenQuizResponse);
-
-  rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
 
   rpc PlaceShield(PlaceShieldRequest) returns (PlaceShieldResponse);
 
@@ -138,15 +133,15 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, ClaimBonus, OpenQuiz and AnswerQuiz
-// answer while the rules in force freeze the map.
+// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield and UseRefill answer while the rules in force
+// freeze the map, or an arena's freeze holds it.
 message FrozenRefusal {}
 
 // The detail of the FailedPrecondition that Click answers in an arena, for a tile that touches none of the flag's land
 // and is on the coast of no water where the flag holds a coast.
 message ReachRefusal {}
 
-// The detail of the FailedPrecondition that DropBomb answers while the rules in force hold bonuses.bomb.off: the bomb
+// The detail of the FailedPrecondition that DropBomb answers while the rules in force hold charges.bomb.off: the bomb
 // stays held.
 message BombRefusal {}
 
@@ -245,21 +240,18 @@ message TileShields {
 message ListenForEventsRequest {}
 
 message PlanetEvent {
+  reserved 3, 4, 8;
+  reserved "bonus_offered", "bonus_taken", "quiz_offered";
+
   oneof event {
     TileUpdate tile_update = 1;
     Heartbeat heartbeat = 2;
-
-    BonusOffered bonus_offered = 3;
-
-    BonusTaken bonus_taken = 4;
 
     BombDropped bomb_dropped = 5;
 
     TilesEnclosed tiles_enclosed = 6;
 
     TilesSpread tiles_spread = 7;
-
-    QuizOffered quiz_offered = 8;
 
     LandmassFortified landmass_fortified = 9;
 
@@ -355,7 +347,7 @@ message Fortress {
   string country_id = 2;
 }
 
-// Every tile of the landmass gained one shield, up to GetBonusRules.tile_shields.
+// Every tile of the landmass gained one shield, up to GetChargeRules.tile_shields.
 message LandmassFortified {
   // An index into the borders blob's landmass table.
   uint32 landmass_id = 1;
@@ -387,9 +379,9 @@ message GetChargesResponse {
   ChargesHeld charges = 1;
 }
 
-message GetBonusRulesRequest {}
+message GetChargeRulesRequest {}
 
-message GetBonusRulesResponse {
+message GetChargeRulesResponse {
   double blast_radius = 1;
 
   uint32 enclosure_max_tiles = 2;
@@ -408,8 +400,8 @@ message GetBonusRulesResponse {
 
   uint32 tile_shields = 8;
 
-  // A guest's first sign-in earns a refill.
-  bool sign_in_refill = 9;
+  reserved 9;
+  reserved "sign_in_refill";
 
   // Enclose needs no charge and spends none.
   bool enclosures_unlimited = 10;
@@ -423,7 +415,7 @@ message GetBonusRulesResponse {
   // No shield goes on a capital.
   bool capital_shields_fixed = 13;
 
-  // No bomb is offered or dropped: the page hides the bomb.
+  // No bomb is dropped, and none is offered: the page hides the bomb.
   bool bombs_off = 14;
 }
 
@@ -432,6 +424,7 @@ message TollStep {
   double slowdown = 2;
 }
 
+// A kind of charge a hand holds: what a box, a quiz or a mission grants.
 enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
 
@@ -447,87 +440,6 @@ enum BonusKind {
   BONUS_KIND_ENCLOSE_CLICKS = 4;
 
   BONUS_KIND_SHIELDS = 6;
-}
-
-message BonusOffered {
-  string token = 1;
-
-  uint32 seed = 2;
-
-  BonusKind kind = 3;
-
-  reserved 4;
-  reserved "duration_seconds";
-
-  int64 expires_at_unix_ms = 5;
-}
-
-message BonusTaken {
-  string country_id = 1;
-
-  BonusKind kind = 2;
-
-  string quiz_subject_country_id = 3;
-}
-
-message ClaimBonusRequest {
-  string token = 1;
-
-  string country_id = 2;
-}
-
-message ClaimBonusResponse {
-  reserved 1, 3, 4, 5, 6;
-  reserved "budget", "duration_seconds", "blast_radius", "enclosures", "enclosure_max_tiles";
-
-  BonusKind kind = 2;
-
-  uint32 amount = 8;
-
-  ChargesHeld charges = 7;
-}
-
-message QuizOffered {
-  string token = 1;
-
-  int64 expires_at_unix_ms = 2;
-
-  reserved 3;
-  reserved "subject_country_id";
-}
-
-message OpenQuizRequest {
-  string token = 1;
-}
-
-message OpenQuizResponse {
-  string question = 1;
-
-  repeated string choices = 2;
-
-  int64 deadline_unix_ms = 3;
-
-  double answer_seconds = 4;
-}
-
-message AnswerQuizRequest {
-  string token = 1;
-
-  uint32 choice = 2;
-
-  string country_id = 3;
-}
-
-message AnswerQuizResponse {
-  bool correct = 1;
-
-  uint32 correct_choice = 2;
-
-  BonusKind kind = 3;
-
-  uint32 amount = 4;
-
-  ChargesHeld charges = 5;
 }
 
 message UseRefillRequest {

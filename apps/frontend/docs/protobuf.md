@@ -8,6 +8,9 @@ the whole `proto` directory, so a new package needs no config change; run
 
 - [`planet/v1/planet.proto`](../../../proto/planet/v1/planet.proto) — `ClickRequest`,
   `ClickBudget`, `GetMapResponse`, `TileUpdate`
+- [`bonuses/v1/bonuses.proto`](../../../proto/bonuses/v1/bonuses.proto) — the
+  boxes and quizzes offered (`BonusService`: `ClaimBonus`, `OpenQuiz`, `AnswerQuiz`, its
+  `ListenForEvents` and `GetGrantRules`); what they grant is `planet.v1`'s `BonusKind` and `ChargesHeld`
 - [`chat/v1/chat.proto`](../../../proto/chat/v1/chat.proto) — `ChatMessage`,
   `SendMessageRequest`, `GetHistoryResponse`
 - [`auth/v1/auth.proto`](../../../proto/auth/v1/auth.proto) — the mint, the

@@ -1,0 +1,103 @@
+package claim_bonus_handler_test
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"testing"
+
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/claim_bonus_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/claim_bonus_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/planetwords"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+)
+
+type stubUseCase struct {
+	out claim_bonus_usecase.Out
+	err error
+
+	in claim_bonus_usecase.In
+}
+
+func (s *stubUseCase) Execute(_ context.Context, in claim_bonus_usecase.In) (claim_bonus_usecase.Out, error) {
+	s.in = in
+	return s.out, s.err
+}
+
+func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*bonusesv1.ClaimBonusResponse, error) {
+	t.Helper()
+
+	res, err := claim_bonus_handler.New(useCase).ClaimBonus(t.Context(),
+		connect.NewRequest(&bonusesv1.ClaimBonusRequest{Token: "a-token", CountryId: "fr"}))
+	if err != nil {
+		return nil, fmt.Errorf("claim refused: %w", err)
+	}
+
+	return res.Msg, nil
+}
+
+func TestAClaimSaysTheKindAndWhatIsHeld(t *testing.T) {
+	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
+		Kind: bonuses.KindEncloseClicks, Amount: 2, Hand: bonuses.Hand{Bomb: true, Enclosures: 2, SpreadClicks: 4},
+	}})
+	require.NoError(t, err)
+
+	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, msg.GetKind())
+	assert.True(t, msg.GetCharges().GetBomb())
+	assert.Equal(t, uint32(2), msg.GetAmount())
+	assert.Equal(t, uint32(2), msg.GetCharges().GetEnclosures())
+	assert.Equal(t, uint32(4), msg.GetCharges().GetSpreadClicksLeft(), "the answer says everything held")
+}
+
+func TestTheTokenAndCountryReachTheUseCase(t *testing.T) {
+	useCase := &stubUseCase{}
+
+	_, err := claim(t, useCase)
+	require.NoError(t, err)
+
+	assert.Equal(t, "a-token", useCase.in.Token)
+	assert.Equal(t, "fr", useCase.in.CountryID)
+}
+
+func TestARefusedClaimIsNotFoundAndSaysNothingAboutWhy(t *testing.T) {
+	_, err := claim(t, &stubUseCase{err: fmt.Errorf("lapsed, or never yours: %w", claim_bonus_usecase.ErrNoSuchBonus)})
+
+	require.Error(t, err)
+	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	assert.Contains(t, err.Error(), claim_bonus_usecase.ErrNoSuchBonus.Error())
+	assert.NotContains(t, err.Error(), "lapsed")
+}
+
+func TestAFailedGrantIsLeftToTheErrorNet(t *testing.T) {
+	down := errors.New("postgres is down")
+
+	_, err := claim(t, &stubUseCase{err: down})
+
+	require.ErrorIs(t, err, down)
+	assert.NotEqual(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestEveryKindTheServerGrantsHasAWireName(t *testing.T) {
+	for _, kind := range bonuses.Kinds {
+		assert.NotEqualf(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, planetwords.Kind(kind),
+			"%s would reach the client as a box it cannot draw", kind)
+	}
+}
+
+func TestEveryKindHasItsOwnNameOnTheWire(t *testing.T) {
+	named := cpcolls.NewSet[planetv1.BonusKind]()
+	for _, kind := range bonuses.Kinds {
+		encoded := planetwords.Kind(kind)
+		assert.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, encoded, kind)
+		named.Add(encoded)
+	}
+
+	assert.Equal(t, len(bonuses.Kinds), named.Len())
+}

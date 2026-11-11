@@ -13,6 +13,7 @@ import {ClipStatsPage} from "./clips/ClipStatsPage.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
 import {RulesPanel} from "./ops/RulesPanel.tsx"
 import {AntibotRulesPanel} from "./ops/AntibotRulesPanel.tsx"
+import {BonusRulesPanel} from "./ops/BonusRulesPanel.tsx"
 import {MissionRulesPanel} from "./ops/MissionRulesPanel.tsx"
 import {DiscordMembersPanel} from "./ops/DiscordMembersPanel.tsx"
 import {SchedulePanel} from "./ops/SchedulePanel.tsx"
@@ -123,19 +124,24 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage publishing={CLIENTS.publishing}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
-                {page === "promo" && <PromoPage promo={CLIENTS.promo} planet={CLIENTS.planet}/>}
+                {page === "promo" && <PromoPage promo={CLIENTS.promo} planet={CLIENTS.planet} bonuses={CLIENTS.bonuses}/>}
                 {page === "titles" && <TitlesPanel progression={CLIENTS.progression}/>}
                 {page === "discord" && <DiscordMembersPanel alerts={CLIENTS.alerts}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
+                {page === "bonusRules" && <BonusRulesPanel bonuses={CLIENTS.bonuses}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
                 {page === "missionRules" && <MissionRulesPanel missions={CLIENTS.missions}/>}
                 {page === "schedule" && (
                     <SchedulePanel
                         gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet} antibot={CLIENTS.antibot}
+                        bonuses={CLIENTS.bonuses}
                     />
                 )}
                 {page === "seasons" && (
-                    <SeasonsPanel gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet} antibot={CLIENTS.antibot}/>
+                    <SeasonsPanel
+                        gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet} antibot={CLIENTS.antibot}
+                        bonuses={CLIENTS.bonuses}
+                    />
                 )}
                 {page === "timeline" && <TimelinePanel gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet}/>}
             </Page>

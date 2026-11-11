@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	promov1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders"
@@ -14,10 +13,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-// Planet is the sets planet keeps and the values each plays: cards/rpc_planet_rules.
+// Planet is the sets planet keeps and the values each plays: cards/rpc_rule_sets.
 type Planet interface {
 	Names(ctx context.Context) ([]string, error)
-	Played(ctx context.Context, set string) (*planetv1.Rules, error)
+	Played(ctx context.Context, set string) (placeholders.Played, error)
 }
 
 // Points is a battle's points by its times: placeholders/rpc_scoring_points.
@@ -96,7 +95,7 @@ func (q *PostgresQuery) Cards(ctx context.Context) (*promov1.GetCardsResponse, e
 	return out, nil
 }
 
-func examples(paths []string, played *planetv1.Rules, battle placeholders.Battle) []*promov1.Placeholder {
+func examples(paths []string, played placeholders.Played, battle placeholders.Battle) []*promov1.Placeholder {
 	out := make([]*promov1.Placeholder, 0, len(paths))
 	for _, path := range paths {
 		example, err := placeholders.Fill("{"+path+"}", played, battle)
@@ -108,7 +107,7 @@ func examples(paths []string, played *planetv1.Rules, battle placeholders.Battle
 	return out
 }
 
-func (q *PostgresQuery) filled(draft *promov1.CardDraft, played *planetv1.Rules, battle placeholders.Battle) (*promov1.TeaserCard, error) {
+func (q *PostgresQuery) filled(draft *promov1.CardDraft, played placeholders.Played, battle placeholders.Battle) (*promov1.TeaserCard, error) {
 	id, err := uuid.Parse(draft.GetBackgroundId())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read a background id: %w", err)

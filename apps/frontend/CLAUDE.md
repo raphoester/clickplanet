@@ -25,7 +25,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   `Backends` object `main.tsx` gives the page.
 - [`src/domain/`](docs/domain.md) — the logic worth testing: no GPU, no DOM, no React.
 - [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget; a frozen
-  map; connection health.
+  map; the offers stream beside planet's, for the boxes and quizzes; connection health.
 - [A server restart reloads the page](../../docs/reload-on-restart.md) — `restartInterceptor` reloads once the
   backend answers under a new boot; which answers it trusts.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at
@@ -55,7 +55,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The front, for a first visit](docs/front-guide.md) — a browser's first visit opens on its own country, flies to
   its flag's nearest fight once the tiles are read, and rings the tiles it can take, until it has taken 50.
 - [The reach](docs/reach.md) — a rule knob: the tiles the flag can take (next to its land, or across a water where it
-  holds a coast) ringed, a click elsewhere stopped with "Take a tile next to your land"; learnt from `GetBonusRules`.
+  holds a coast) ringed, a click elsewhere stopped with "Take a tile next to your land"; learnt from `GetChargeRules`.
 - [The capitals](docs/capitals.md) — two rule knobs: each capital still standing marked with a crown, no shield on a
   capital, a knock-out cleared in one event, and the out window that asks for a flag still in.
 - [Ghosts, for a quiet first visit](docs/ghosts.md) — while fewer than 7 play, a guided page sees fake raids near it,
