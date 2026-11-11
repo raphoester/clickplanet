@@ -19,7 +19,9 @@
   with planet's fields and numbers, so a payload planet told before 2026-11-11 reads as the new type; `rules.proto` is
   `bonuses.v1.Rules`, an offers' rule set, which postgres also keeps as protojson; `internal.proto` is `PlayRuleSet`,
   `GetRuleSetNames` and `GetRuleSet`, for the gamemaster and promo; and `admin.proto` the operator's `GetRules` and
-  `SaveRuleSet` (`bonuses.v1.AdminService`), which Claude calls as `bonuses_get_rules` and `bonuses_save_rule_set`
+  `SaveRuleSet` (`bonuses.v1.AdminService`), which Claude calls as `bonuses_get_rules` and `bonuses_save_rule_set`, and
+  `ListQuizQuestions`, every question of the bank with its prior, its rating and what its answers measured
+  (`bonuses_list_quiz_questions`)
 - `proto/chat/v1/chat.proto` — the live chat (`ChatService`). A message, a quote and a reaction carry account ids, never
   a name: the page names them with player's `GetNameplates`
 - `proto/auth/v1/auth.proto` — who a caller is (`AuthService`): the mint that gates `Click`, the identity token resumed from the cookie, the caller's account, sign-in with Google, Discord or an emailed code, sign-out and deletion

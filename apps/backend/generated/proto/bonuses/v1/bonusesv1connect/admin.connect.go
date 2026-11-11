@@ -38,6 +38,9 @@ const (
 	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
 	// RPC.
 	AdminServiceSaveRuleSetProcedure = "/bonuses.v1.AdminService/SaveRuleSet"
+	// AdminServiceListQuizQuestionsProcedure is the fully-qualified name of the AdminService's
+	// ListQuizQuestions RPC.
+	AdminServiceListQuizQuestionsProcedure = "/bonuses.v1.AdminService/ListQuizQuestions"
 )
 
 // AdminServiceClient is a client for the bonuses.v1.AdminService service.
@@ -48,6 +51,10 @@ type AdminServiceClient interface {
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once. A save of default is
 	// refused while another set could not play over it.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
+	// Every question of the quiz bank with how hard it is: its prior, its rating, the share of average players the rating
+	// predicts get it right, and how many answers moved it and how many of them were right. Sorted by the predicted or
+	// the measured share, hardest first unless asked, a page at a time. Each right answer is in it.
+	ListQuizQuestions(context.Context, *connect.Request[v1.ListQuizQuestionsRequest]) (*connect.Response[v1.ListQuizQuestionsResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the bonuses.v1.AdminService service. By default, it
@@ -74,13 +81,21 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
 			connect.WithClientOptions(opts...),
 		),
+		listQuizQuestions: connect.NewClient[v1.ListQuizQuestionsRequest, v1.ListQuizQuestionsResponse](
+			httpClient,
+			baseURL+AdminServiceListQuizQuestionsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ListQuizQuestions")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	getRules    *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
-	saveRuleSet *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
+	getRules          *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRuleSet       *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
+	listQuizQuestions *connect.Client[v1.ListQuizQuestionsRequest, v1.ListQuizQuestionsResponse]
 }
 
 // GetRules calls bonuses.v1.AdminService.GetRules.
@@ -93,6 +108,11 @@ func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Reque
 	return c.saveRuleSet.CallUnary(ctx, req)
 }
 
+// ListQuizQuestions calls bonuses.v1.AdminService.ListQuizQuestions.
+func (c *adminServiceClient) ListQuizQuestions(ctx context.Context, req *connect.Request[v1.ListQuizQuestionsRequest]) (*connect.Response[v1.ListQuizQuestionsResponse], error) {
+	return c.listQuizQuestions.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the bonuses.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Every rule set the offers keep, and the one they play now: when a box and a quiz come, what each may be and how
@@ -101,6 +121,10 @@ type AdminServiceHandler interface {
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once. A save of default is
 	// refused while another set could not play over it.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
+	// Every question of the quiz bank with how hard it is: its prior, its rating, the share of average players the rating
+	// predicts get it right, and how many answers moved it and how many of them were right. Sorted by the predicted or
+	// the measured share, hardest first unless asked, a page at a time. Each right answer is in it.
+	ListQuizQuestions(context.Context, *connect.Request[v1.ListQuizQuestionsRequest]) (*connect.Response[v1.ListQuizQuestionsResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -123,12 +147,21 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceListQuizQuestionsHandler := connect.NewUnaryHandler(
+		AdminServiceListQuizQuestionsProcedure,
+		svc.ListQuizQuestions,
+		connect.WithSchema(adminServiceMethods.ByName("ListQuizQuestions")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/bonuses.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceGetRulesProcedure:
 			adminServiceGetRulesHandler.ServeHTTP(w, r)
 		case AdminServiceSaveRuleSetProcedure:
 			adminServiceSaveRuleSetHandler.ServeHTTP(w, r)
+		case AdminServiceListQuizQuestionsProcedure:
+			adminServiceListQuizQuestionsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -144,4 +177,8 @@ func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Reque
 
 func (UnimplementedAdminServiceHandler) SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.AdminService.SaveRuleSet is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ListQuizQuestions(context.Context, *connect.Request[v1.ListQuizQuestionsRequest]) (*connect.Response[v1.ListQuizQuestionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.AdminService.ListQuizQuestions is not implemented"))
 }

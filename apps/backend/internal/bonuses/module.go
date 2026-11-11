@@ -34,6 +34,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rule_set_names_handler/rule_set_names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rules_handler/rule_sets_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/list_quiz_questions_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/list_quiz_questions_handler/quiz_questions_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/list_quiz_questions_handler/quiz_questions_query/inmemory_quiz_questions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/open_quiz_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/play_rule_set_handler"
@@ -206,6 +209,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		SaveRuleSetHandler: save_rule_set_handler.New(
 			cprules.NewAuditedSave(cprules.NewSaveUseCase(db, ruleSets, ruleParts, playRules), props.Logger,
 				cprules.SaveLog{Saved: "admin offer rule set saved", Refused: "admin offer rule set refused"})),
+		ListQuizQuestionsHandler: list_quiz_questions_handler.New(
+			quiz_questions_query.NewMemoryQuery(inmemory_quiz_questions.New(bank))),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return bonusesv1connect.NewAdminServiceHandler(admin, options...)

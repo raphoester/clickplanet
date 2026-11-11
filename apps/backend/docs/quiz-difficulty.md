@@ -161,6 +161,23 @@ of the offers' rule sets (`bonuses.v1.Rules.quiz`, played per set like every off
 before, and both cases of nothing to draw. **The operator switches it on from the backoffice** (Box & quiz rules, Quiz
 difficulty) or Claude's `bonuses_save_rule_set`, after a few weeks of answers; no set does yet.
 
+## The operator's list
+
+**`bonuses.v1.AdminService/ListQuizQuestions`** answers every question of the bank with how hard it is, and the connector
+makes it Claude's `bonuses_list_quiz_questions` with no code of its own ([Claude as a connector](connector.md)). No
+backoffice page reads it yet.
+
+- **Each question**: its id, text, right answer and subject; its prior (unset when the bank holds none: it started at
+  0.6); its rating; the share of average players the rating predicts get it right (`predicted_share`); how many
+  answers moved it and how many were right; and the share they measured (`measured_share`, unset with no answer).
+- **Sorted** by the predicted share (`order` unset or `QUIZ_QUESTION_ORDER_PREDICTED`) or the measured one
+  (`QUIZ_QUESTION_ORDER_MEASURED`, a question never answered last either way), the hardest first unless
+  `easiest_first`, then by id. **Filtered** by `min_answers`: 15 lists the questions the floor could judge.
+- **A page at a time**: `limit` (50 unless asked, 500 at most) from `offset`, and `total`, how many the filter keeps.
+- **It reads memory, never postgres** (`quiz_questions_query.MemoryQuery`, [Reads are queries](queries.md)): the bank
+  and the book the draw reads, through `inmemory_quiz_questions`, which the bank's seam test lets read the bank, answers
+  and all (`TestTheQuizzesAreTheOffersAlone`). The list is the admin listener's alone.
+
 ## What comes later
 
 - **Correcting the priors as a whole from the log**, after a few weeks of exploration: fit how far each kind of

@@ -38,6 +38,8 @@ import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
 import {
     GetRulesRequest as BonusesGetRulesRequest,
     GetRulesResponse as BonusesGetRulesResponse,
+    ListQuizQuestionsRequest,
+    ListQuizQuestionsResponse,
     RuleSet as BonusesRuleSet,
     SaveRuleSetRequest as BonusesSaveRuleSetRequest,
     SaveRuleSetResponse as BonusesSaveRuleSetResponse,
@@ -770,6 +772,11 @@ export class FakeBonuses implements BonusesAdmin {
             })
         }
         return answer
+    }
+
+    // No page reads it yet: Claude does, as bonuses_list_quiz_questions.
+    listQuizQuestions(request: PartialMessage<ListQuizQuestionsRequest>): Promise<ListQuizQuestionsResponse> {
+        return this.admin.answer("listQuizQuestions", request, new ListQuizQuestionsResponse())
     }
 }
 

@@ -121,6 +121,9 @@ func (b *Bank) Size() int { return len(b.all) }
 
 func (b *Bank) Subjects() int { return len(b.subjects) }
 
+// Questions is every question of the bank, in its order.
+func (b *Bank) Questions() []Question { return slices.Clone(b.all) }
+
 // Rating is how hard a question is now: what its answers moved it to, else its prior. A question the bank does not hold
 // is at FallbackPrior.
 func (b *Bank) Rating(question ratings.QuestionID) ratings.Rating {

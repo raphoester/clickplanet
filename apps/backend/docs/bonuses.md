@@ -51,7 +51,9 @@ nothing was in planet's. Its config is the `bonuses:` block: `database`, `redis`
   the offers keep none of or cannot play), `GetRuleSetNames` and `GetRuleSet` (default's values with the set's own over
   them; `NotFound`), for the gamemaster and promo.
 - **`AdminService`**: `GetRules` and `SaveRuleSet`, which the backoffice's Box & quiz rules page calls and Claude calls as
-  `bonuses_get_rules` and `bonuses_save_rule_set` ([Claude as a connector](connector.md)).
+  `bonuses_get_rules` and `bonuses_save_rule_set` ([Claude as a connector](connector.md)); and `ListQuizQuestions`,
+  every question of the bank with how hard it is, sorted and filtered a page at a time, which Claude calls as
+  `bonuses_list_quiz_questions` and no backoffice page reads yet ([The operator's list](quiz-difficulty.md#the-operators-list)).
 
 ## What it asks of planet, in planet's words
 

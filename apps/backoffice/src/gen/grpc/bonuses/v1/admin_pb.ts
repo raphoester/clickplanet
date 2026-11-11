@@ -8,6 +8,36 @@ import { Message, proto3 } from "@bufbuild/protobuf";
 import { Rules } from "./rules_pb.js";
 
 /**
+ * @generated from enum bonuses.v1.QuizQuestionOrder
+ */
+export enum QuizQuestionOrder {
+  /**
+   * @generated from enum value: QUIZ_QUESTION_ORDER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The share of average players its rating says get it right.
+   *
+   * @generated from enum value: QUIZ_QUESTION_ORDER_PREDICTED = 1;
+   */
+  PREDICTED = 1,
+
+  /**
+   * The share of its answers that were right. A question never answered comes last either way.
+   *
+   * @generated from enum value: QUIZ_QUESTION_ORDER_MEASURED = 2;
+   */
+  MEASURED = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(QuizQuestionOrder)
+proto3.util.setEnumType(QuizQuestionOrder, "bonuses.v1.QuizQuestionOrder", [
+  { no: 0, name: "QUIZ_QUESTION_ORDER_UNSPECIFIED" },
+  { no: 1, name: "QUIZ_QUESTION_ORDER_PREDICTED" },
+  { no: 2, name: "QUIZ_QUESTION_ORDER_MEASURED" },
+]);
+
+/**
  * @generated from message bonuses.v1.GetRulesRequest
  */
 export class GetRulesRequest extends Message<GetRulesRequest> {
@@ -193,6 +223,233 @@ export class SaveRuleSetResponse extends Message<SaveRuleSetResponse> {
 
   static equals(a: SaveRuleSetResponse | PlainMessage<SaveRuleSetResponse> | undefined, b: SaveRuleSetResponse | PlainMessage<SaveRuleSetResponse> | undefined): boolean {
     return proto3.util.equals(SaveRuleSetResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message bonuses.v1.ListQuizQuestionsRequest
+ */
+export class ListQuizQuestionsRequest extends Message<ListQuizQuestionsRequest> {
+  /**
+   * What the questions are sorted by. Unspecified is the predicted share.
+   *
+   * @generated from field: bonuses.v1.QuizQuestionOrder order = 1;
+   */
+  order = QuizQuestionOrder.UNSPECIFIED;
+
+  /**
+   * The highest share first. The lowest, the hardest, unless set.
+   *
+   * @generated from field: bool easiest_first = 2;
+   */
+  easiestFirst = false;
+
+  /**
+   * Only the questions answered at least this many times. 0 is every question, those never answered too.
+   *
+   * @generated from field: uint32 min_answers = 3;
+   */
+  minAnswers = 0;
+
+  /**
+   * 50 unless asked, 500 at most.
+   *
+   * @generated from field: uint32 limit = 4;
+   */
+  limit = 0;
+
+  /**
+   * How many of the sorted questions come before the page. 0 is the first page.
+   *
+   * @generated from field: uint32 offset = 5;
+   */
+  offset = 0;
+
+  constructor(data?: PartialMessage<ListQuizQuestionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.ListQuizQuestionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "order", kind: "enum", T: proto3.getEnumType(QuizQuestionOrder) },
+    { no: 2, name: "easiest_first", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "min_answers", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "offset", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListQuizQuestionsRequest {
+    return new ListQuizQuestionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListQuizQuestionsRequest {
+    return new ListQuizQuestionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListQuizQuestionsRequest {
+    return new ListQuizQuestionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListQuizQuestionsRequest | PlainMessage<ListQuizQuestionsRequest> | undefined, b: ListQuizQuestionsRequest | PlainMessage<ListQuizQuestionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListQuizQuestionsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message bonuses.v1.ListQuizQuestionsResponse
+ */
+export class ListQuizQuestionsResponse extends Message<ListQuizQuestionsResponse> {
+  /**
+   * In the order asked, then by id.
+   *
+   * @generated from field: repeated bonuses.v1.QuizQuestion questions = 1;
+   */
+  questions: QuizQuestion[] = [];
+
+  /**
+   * How many questions the filter keeps, over every page.
+   *
+   * @generated from field: uint32 total = 2;
+   */
+  total = 0;
+
+  constructor(data?: PartialMessage<ListQuizQuestionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.ListQuizQuestionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "questions", kind: "message", T: QuizQuestion, repeated: true },
+    { no: 2, name: "total", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListQuizQuestionsResponse {
+    return new ListQuizQuestionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListQuizQuestionsResponse {
+    return new ListQuizQuestionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListQuizQuestionsResponse {
+    return new ListQuizQuestionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListQuizQuestionsResponse | PlainMessage<ListQuizQuestionsResponse> | undefined, b: ListQuizQuestionsResponse | PlainMessage<ListQuizQuestionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListQuizQuestionsResponse, a, b);
+  }
+}
+
+/**
+ * A question of the bank, with how hard it is.
+ *
+ * @generated from message bonuses.v1.QuizQuestion
+ */
+export class QuizQuestion extends Message<QuizQuestion> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string text = 2;
+   */
+  text = "";
+
+  /**
+   * The right answer.
+   *
+   * @generated from field: string answer = 3;
+   */
+  answer = "";
+
+  /**
+   * The country it is about, ISO 3166-1 alpha-2 in lower case. Empty for none.
+   *
+   * @generated from field: string subject = 4;
+   */
+  subject = "";
+
+  /**
+   * The share of players the bank expects to get it right. Unset when the bank holds none: its rating started at 0.6.
+   *
+   * @generated from field: optional double prior = 5;
+   */
+  prior?: number;
+
+  /**
+   * How hard it is: 0 is the average question, higher is harder, from about -4.2 to 4.6.
+   *
+   * @generated from field: double rating = 6;
+   */
+  rating = 0;
+
+  /**
+   * The share of average players its rating says get it right.
+   *
+   * @generated from field: double predicted_share = 7;
+   */
+  predictedShare = 0;
+
+  /**
+   * How many answers moved its rating.
+   *
+   * @generated from field: uint32 answers = 8;
+   */
+  answers = 0;
+
+  /**
+   * How many of them were right.
+   *
+   * @generated from field: uint32 right = 9;
+   */
+  right = 0;
+
+  /**
+   * right / answers. Unset for a question never answered.
+   *
+   * @generated from field: optional double measured_share = 10;
+   */
+  measuredShare?: number;
+
+  constructor(data?: PartialMessage<QuizQuestion>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.QuizQuestion";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "answer", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "subject", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "prior", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 6, name: "rating", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 7, name: "predicted_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 8, name: "answers", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "right", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "measured_share", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizQuestion {
+    return new QuizQuestion().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizQuestion {
+    return new QuizQuestion().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizQuestion {
+    return new QuizQuestion().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: QuizQuestion | PlainMessage<QuizQuestion> | undefined, b: QuizQuestion | PlainMessage<QuizQuestion> | undefined): boolean {
+    return proto3.util.equals(QuizQuestion, a, b);
   }
 }
 
