@@ -5,12 +5,12 @@ import (
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context) (bonuses.Held, error)
+	Execute(ctx context.Context) (charges.Held, error)
 }
 
 func New(useCase UseCase) GetChargesHandler {

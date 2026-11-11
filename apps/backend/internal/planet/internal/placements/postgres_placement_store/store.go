@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
@@ -47,7 +47,7 @@ func (s *Store) Find(ctx context.Context, ids ...clicks.PlacementID) ([]placemen
 			return nil, fmt.Errorf("failed to read a placement: %w", err)
 		}
 		placement, err := placements.Snapshot{
-			ID: clicks.PlacementID(id), Holder: bonuses.Holder(account.String()), TakenAt: takenAt,
+			ID: clicks.PlacementID(id), Holder: charges.Holder(account.String()), TakenAt: takenAt,
 		}.Restore()
 		if err != nil {
 			return nil, fmt.Errorf("failed to restore placement %s: %w", id, err)

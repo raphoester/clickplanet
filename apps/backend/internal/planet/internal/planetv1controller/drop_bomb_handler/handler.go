@@ -6,8 +6,8 @@ import (
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetrefusal"
 )
@@ -45,8 +45,8 @@ func (h DropBombHandler) DropBomb(
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, drop_bomb_usecase.ErrNoBomb):
 		return nil, connect.NewError(connect.CodeNotFound, drop_bomb_usecase.ErrNoBomb)
-	case errors.Is(err, bonuses.ErrBombsOff):
-		refused := connect.NewError(connect.CodeFailedPrecondition, bonuses.ErrBombsOff)
+	case errors.Is(err, charges.ErrBombsOff):
+		refused := connect.NewError(connect.CodeFailedPrecondition, charges.ErrBombsOff)
 		if detail, detailErr := connect.NewErrorDetail(&planetv1.BombRefusal{}); detailErr == nil {
 			refused.AddDetail(detail)
 		}

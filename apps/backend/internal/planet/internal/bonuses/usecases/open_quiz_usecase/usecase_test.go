@@ -1,7 +1,6 @@
 package open_quiz_usecase_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -10,16 +9,11 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
 var deadline = time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC)
 
-func asPlayer(t *testing.T) context.Context {
-	t.Helper()
-
-	return cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
-}
+var guest = bonuses.Caller{Scope: "1.2.3.4", Account: "a-guest"}
 
 type fakeRegistry struct {
 	asked bonuses.Asked
@@ -43,7 +37,7 @@ func TestOpeningReadsTheQuestionAndTheClockItStarted(t *testing.T) {
 		Window:   5 * time.Second,
 	}}
 
-	out, err := open_quiz_usecase.New(registry).Execute(asPlayer(t), open_quiz_usecase.In{Token: "t"})
+	out, err := open_quiz_usecase.New(registry).Execute(t.Context(), open_quiz_usecase.In{Caller: guest, Token: "t"})
 	require.NoError(t, err)
 
 	assert.Equal(t, "What is the capital of Estonia?", out.Question)
@@ -56,7 +50,7 @@ func TestOpeningReadsTheQuestionAndTheClockItStarted(t *testing.T) {
 }
 
 func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
-	_, err := open_quiz_usecase.New(&fakeRegistry{}).Execute(asPlayer(t), open_quiz_usecase.In{Token: "t"})
+	_, err := open_quiz_usecase.New(&fakeRegistry{}).Execute(t.Context(), open_quiz_usecase.In{Caller: guest, Token: "t"})
 
 	require.ErrorIs(t, err, open_quiz_usecase.ErrNoSuchQuiz)
 }

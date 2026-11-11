@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -20,7 +20,7 @@ func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
 	inForce := rules.NewInForce(cptime.NewFixedClock(epoch))
 	throttle := rules.Reader(inForce, clicks.ThrottlePart)
 	toll := rules.Reader(inForce, clicks.TollPart)
-	game := rules.Reader(inForce, bonuses.Part)
+	game := rules.Reader(inForce, parts.Grants)
 
 	for _, kept := range []rules.Snapshot{rules.Seeded(), rush()} {
 		inForce.Enforce(restored(t, kept))

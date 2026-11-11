@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 )
 
 type Spreads interface {
-	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
+	Spend(ctx context.Context, holder charges.Holder, after func(charges.Held) (charges.Held, bool)) error
 }
 
 // Reach is the neighbours a spread of the flag takes: every one outside an arena.
@@ -24,7 +25,7 @@ type Spreader interface {
 }
 
 type Publisher interface {
-	PublishSpread(spread bonuses.Spread)
+	PublishSpread(spread notices.Spread)
 }
 
 func New(
@@ -57,8 +58,8 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		return out, err
 	}
 
-	if err := u.spreads.Spend(ctx, bonuses.HolderOf(clicks.PayerOf(ctx)), bonuses.Held.AfterSpreadClick); err != nil {
-		if errors.Is(err, bonuses.ErrNotHeld) {
+	if err := u.spreads.Spend(ctx, charges.HolderOf(clicks.PayerOf(ctx)), charges.Held.AfterSpreadClick); err != nil {
+		if errors.Is(err, charges.ErrNotHeld) {
 			return out, nil
 		}
 		return out, err
@@ -70,7 +71,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	// The neighbours are copied: Around hands back the map's own table.
-	u.publisher.PublishSpread(bonuses.Spread{
+	u.publisher.PublishSpread(notices.Spread{
 		CountryID:  in.CountryID,
 		Tile:       in.TileID,
 		Neighbours: append([]uint32(nil), neighbours...),

@@ -9,13 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
 )
 
-type stubUseCase bonuses.Held
+type stubUseCase charges.Held
 
-func (s stubUseCase) Execute(context.Context) (bonuses.Held, error) { return bonuses.Held(s), nil }
+func (s stubUseCase) Execute(context.Context) (charges.Held, error) { return charges.Held(s), nil }
 
 func TestTheChargesHeldAreAnswered(t *testing.T) {
 	res, err := get_charges_handler.New(stubUseCase{Bomb: true, SpreadClicks: 4}).

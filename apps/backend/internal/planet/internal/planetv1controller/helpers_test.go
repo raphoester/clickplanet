@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
@@ -88,7 +89,7 @@ func clickServerWith(
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{}, facts.NewLog(cptime.SystemClock{}))),
 			ListenForEventsHandler: listen_for_events_handler.New(
 				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat, noBoxes{},
-					steadyRules{}, facts.NewLog(cptime.SystemClock{}))),
+					noNotices{}, steadyRules{}, facts.NewLog(cptime.SystemClock{}))),
 		},
 		options...,
 	))
@@ -193,6 +194,12 @@ func (steadyRules) Watch() (<-chan rules.Set, func()) {
 type noBoxes struct{}
 
 func (noBoxes) Attend(bonuses.Entrant) (<-chan bonuses.Event, func()) {
+	return nil, func() {}
+}
+
+type noNotices struct{}
+
+func (noNotices) Attend(clicks.Caller) (<-chan notices.Event, func()) {
 	return nil, func() {}
 }
 

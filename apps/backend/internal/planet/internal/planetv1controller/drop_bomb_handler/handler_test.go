@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 )
@@ -56,7 +56,7 @@ func TestDroppingWithNoBombIsNotFound(t *testing.T) {
 }
 
 func TestADropWhileBombsAreOffIsAFailedPreconditionWithABombRefusal(t *testing.T) {
-	err := drop(t, &stubUseCase{err: bonuses.ErrBombsOff})
+	err := drop(t, &stubUseCase{err: charges.ErrBombsOff})
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 	var refused *connect.Error

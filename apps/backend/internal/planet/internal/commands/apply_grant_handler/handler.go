@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/apply_grant_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/apply_grant_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
@@ -29,7 +29,7 @@ type Handler struct {
 var _ cpredis.Handler[*planetv1.GrantCharges] = Handler{}
 
 func (h Handler) Handle(ctx context.Context, command *planetv1.GrantCharges) error {
-	grant, err := bonuses.GrantIDOf(command.GetGrantId())
+	grant, err := charges.GrantIDOf(command.GetGrantId())
 	if err != nil {
 		return err //nolint:wrapcheck // the sentinel says what is wrong.
 	}
@@ -46,18 +46,18 @@ func (h Handler) Handle(ctx context.Context, command *planetv1.GrantCharges) err
 	})
 }
 
-func kindOf(kind planetv1.BonusKind) (bonuses.Kind, error) {
+func kindOf(kind planetv1.BonusKind) (charges.Kind, error) {
 	switch kind {
 	case planetv1.BonusKind_BONUS_KIND_REFILL:
-		return bonuses.KindRefill, nil
+		return charges.KindRefill, nil
 	case planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS:
-		return bonuses.KindSpreadClicks, nil
+		return charges.KindSpreadClicks, nil
 	case planetv1.BonusKind_BONUS_KIND_BOMB:
-		return bonuses.KindBomb, nil
+		return charges.KindBomb, nil
 	case planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS:
-		return bonuses.KindEncloseClicks, nil
+		return charges.KindEncloseClicks, nil
 	case planetv1.BonusKind_BONUS_KIND_SHIELDS:
-		return bonuses.KindShields, nil
+		return charges.KindShields, nil
 	case planetv1.BonusKind_BONUS_KIND_UNSPECIFIED:
 	}
 

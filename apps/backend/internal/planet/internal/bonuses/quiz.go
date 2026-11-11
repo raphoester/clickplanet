@@ -1,7 +1,6 @@
 package bonuses
 
 import (
-	"context"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/quizzes"
@@ -121,29 +120,6 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	answered.Reward = Reward{Kind: quiz.kind, Amount: amountOf(quiz.kind, rules)}
 
 	return answered, true
-}
-
-// Switched off, no quiz is asked; one asked already can still be opened and answered until it lapses.
-func (r *Registry) sweepQuizzes(ctx context.Context, rules Rules, now time.Time) {
-	r.collectStaleQuizzes(rules, now)
-	if !rules.Quiz.Enabled {
-		return
-	}
-
-	for entrant, entry := range r.callers {
-		if !r.quizDue(entry, rules, now) {
-			continue
-		}
-
-		kinds := drawable(entry.owedQuiz, r.offerable(ctx, entry, rules, now))
-		entry.owedQuiz = ""
-		if kinds.Empty() {
-			entry.nextQuizAt = now.Add(quizWait(rules))
-			continue
-		}
-
-		r.offerQuiz(entrant, entry, rules, now, drawKind(kinds, rules.Kinds))
-	}
 }
 
 func (r *Registry) quizDue(entry *caller, rules Rules, now time.Time) bool {

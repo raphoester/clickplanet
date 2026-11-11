@@ -10,19 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/place_shield_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
 )
 
 type stubUseCase struct {
-	held bonuses.Held
+	held charges.Held
 	err  error
 	in   place_shield_usecase.In
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in place_shield_usecase.In) (bonuses.Held, error) {
+func (s *stubUseCase) Execute(_ context.Context, in place_shield_usecase.In) (charges.Held, error) {
 	s.in = in
 	return s.held, s.err
 }
@@ -40,7 +40,7 @@ func place(t *testing.T, useCase *stubUseCase) (*planetv1.PlaceShieldResponse, e
 }
 
 func TestAShieldPlacedAnswersWhatIsLeftInHand(t *testing.T) {
-	useCase := &stubUseCase{held: bonuses.Held{Shields: 4}}
+	useCase := &stubUseCase{held: charges.Held{Shields: 4}}
 
 	msg, err := place(t, useCase)
 	require.NoError(t, err)

@@ -10,8 +10,10 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 )
 
@@ -246,7 +248,7 @@ func TestASinkFramesASpreadClick(t *testing.T) {
 	stream := &recorder{}
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Spread: &bonuses.Spread{CountryID: "br", Tile: 100, Neighbours: []uint32{99, 101}},
+		Spread: &notices.Spread{CountryID: "br", Tile: 100, Neighbours: []uint32{99, 101}},
 	}))
 
 	spread := stream.sent[0].GetTilesSpread()
@@ -260,16 +262,16 @@ func TestASinkFramesEverythingAGrantLeftHeld(t *testing.T) {
 	stream := &recorder{}
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Granted: &bonuses.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4, Shields: 20},
+		Granted: &charges.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4, Shields: 20},
 	}))
 
-	charges := stream.sent[0].GetChargesGranted().GetCharges()
-	require.NotNil(t, charges)
-	assert.True(t, charges.GetBomb())
-	assert.False(t, charges.GetRefill())
-	assert.Equal(t, uint32(2), charges.GetEnclosures())
-	assert.Equal(t, uint32(4), charges.GetSpreadClicksLeft())
-	assert.Equal(t, uint32(20), charges.GetShields())
+	held := stream.sent[0].GetChargesGranted().GetCharges()
+	require.NotNil(t, held)
+	assert.True(t, held.GetBomb())
+	assert.False(t, held.GetRefill())
+	assert.Equal(t, uint32(2), held.GetEnclosures())
+	assert.Equal(t, uint32(4), held.GetSpreadClicksLeft())
+	assert.Equal(t, uint32(20), held.GetShields())
 }
 
 func TestAHeartbeatStillWinsOverEverything(t *testing.T) {

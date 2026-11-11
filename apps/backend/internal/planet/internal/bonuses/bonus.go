@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"slices"
 	"sync"
 	"time"
 
@@ -44,19 +45,11 @@ type Taken struct {
 	QuizSubject string
 }
 
-type Spread struct {
-	CountryID string
-	Tile      uint32
-
-	Neighbours []uint32
-}
-
+// Event is what the offers send down a caller's streams: a box or a quiz for it, and every catch for all.
 type Event struct {
-	Offer   *Offer
-	Quiz    *QuizOffer
-	Taken   *Taken
-	Spread  *Spread
-	Granted *Held
+	Offer *Offer
+	Quiz  *QuizOffer
+	Taken *Taken
 }
 
 type Reward struct {
@@ -65,13 +58,14 @@ type Reward struct {
 	Amount int
 }
 
+// Click is an accepted click, as the feed tells it: only what planet's ClickTried says of its caller, and two things more.
 type Click struct {
-	Entrant Entrant
-	Scope   string
-	Holder  Holder
+	Caller Caller
 
+	// Born is when the account was made, read from its id.
 	Born time.Time
 
+	// Dry is a click that left the bank empty: fewer than one click.
 	Dry bool
 }
 
@@ -85,7 +79,7 @@ type caller struct {
 	lastSeen    time.Time
 	lastClickAt time.Time
 
-	players map[Holder]time.Time
+	players map[Account]time.Time
 
 	outstanding string
 	misses      int
@@ -141,12 +135,12 @@ type Pace struct {
 }
 
 type Registry struct {
-	config   Config
-	rules    func() Rules
-	clock    cptime.Clock
-	report   Report
-	holdings Holdings
-	bank     Questions
+	config Config
+	rules  func() Rules
+	clock  cptime.Clock
+	report Report
+	room   Room
+	bank   Questions
 
 	mu            sync.Mutex
 	followedBoxes Pace
@@ -158,7 +152,7 @@ type Registry struct {
 
 	quizOffers map[string]*pendingQuiz
 
-	newcomers map[Holder]*newcomer
+	newcomers map[Account]*newcomer
 
 	nextID uint64
 }
@@ -180,11 +174,7 @@ const rememberSpent = 10 * time.Minute
 
 const eventBuffer = 32
 
-type Holdings interface {
-	Held(ctx context.Context, holder Holder) (Held, error)
-}
-
-func New(config Config, clock cptime.Clock, holdings Holdings, rules func() Rules, bank Questions) *Registry {
+func New(config Config, clock cptime.Clock, room Room, rules func() Rules, bank Questions) *Registry {
 	if clock == nil {
 		clock = cptime.SystemClock{}
 	}
@@ -195,7 +185,7 @@ func New(config Config, clock cptime.Clock, holdings Holdings, rules func() Rule
 		config:        config.withDefaults(),
 		rules:         rules,
 		clock:         clock,
-		holdings:      holdings,
+		room:          room,
 		bank:          bank,
 		followedBoxes: followed.Boxes,
 		followedQuiz:  followed.Quiz,
@@ -203,7 +193,7 @@ func New(config Config, clock cptime.Clock, holdings Holdings, rules func() Rule
 		offers:        make(map[string]*pending),
 		spent:         make(map[string]spentOffer),
 		quizOffers:    make(map[string]*pendingQuiz),
-		newcomers:     make(map[Holder]*newcomer),
+		newcomers:     make(map[Account]*newcomer),
 	}
 }
 
@@ -270,7 +260,7 @@ func (r *Registry) caller(entrant Entrant, rules Rules, now time.Time) *caller {
 
 	entry = &caller{
 		streams:     make(map[uint64]chan Event),
-		players:     make(map[Holder]time.Time),
+		players:     make(map[Account]time.Time),
 		nextOfferAt: now.Add(boxWait(rules)),
 		nextQuizAt:  now.Add(quizWait(rules)),
 		lastSeen:    now,
@@ -300,14 +290,14 @@ func (r *Registry) Clicked(click Click) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	entry := r.caller(click.Entrant, rules, now)
-	entry.scope = click.Scope
+	entry := r.caller(EntrantOf(click.Caller), rules, now)
+	entry.scope = click.Caller.Scope
 	entry.lastClickAt = now
-	if click.Holder == NoHolder {
+	if click.Caller.Account == NoAccount {
 		return
 	}
 
-	entry.players[click.Holder] = now
+	entry.players[click.Caller.Account] = now
 	r.welcome(entry, click, rules, now)
 }
 
@@ -359,20 +349,6 @@ func (r *Registry) Publish(taken Taken) {
 	r.broadcast(Event{Taken: &taken})
 }
 
-func (r *Registry) PublishSpread(spread Spread) {
-	r.broadcast(Event{Spread: &spread})
-}
-
-// A guest's streams share its address with others', so only a signed-in account hears what it holds.
-func (r *Registry) PublishGranted(holder Holder, held Held) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if entry, ok := r.callers[accountEntrant(string(holder))]; ok {
-		entry.send(Event{Granted: &held})
-	}
-}
-
 func (r *Registry) broadcast(event Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -398,34 +374,127 @@ func (r *Registry) Run(ctx context.Context) {
 	}
 }
 
+// sweep decides who is due under the lock, asks the wallet for their room outside it, then offers under it again to
+// whoever is due still: the room is a call out of the offers, and nothing else waits on the registry while it runs.
 func (r *Registry) sweep(ctx context.Context) {
 	now := r.clock.Now()
 	rules := r.rules()
 
+	due := r.dueCallers(rules, now)
+	r.ask(ctx, due)
+	r.offerDue(due, rules, now)
+}
+
+// dueOne is a caller found due, the accounts that played behind it then, and what the wallet said of their room.
+type dueOne struct {
+	entrant  Entrant
+	box      bool
+	quiz     bool
+	accounts []Account
+
+	full map[Account][]Kind
+	err  error
+}
+
+// dueCallers are the callers due a quiz or a box, once the registry is tidied under the same lock.
+func (r *Registry) dueCallers(rules Rules, now time.Time) []*dueOne {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	r.tidy(rules, now)
+
+	var due []*dueOne
+	for entrant, entry := range r.callers {
+		quiz := rules.Quiz.Enabled && r.quizDue(entry, rules, now)
+		box := r.due(entry, rules, now)
+		if quiz || box {
+			due = append(due, &dueOne{entrant: entrant, box: box, quiz: quiz, accounts: entry.playing(rules, now)})
+		}
+	}
+
+	return due
+}
+
+func (r *Registry) tidy(rules Rules, now time.Time) {
 	r.follow(rules, now)
 	r.collectMisses(rules, now)
 	r.forgetSpent(now)
-	r.sweepQuizzes(ctx, rules, now)
+	r.collectStaleQuizzes(rules, now)
 	r.forgetStale(now)
 	r.forgetNewcomers(now)
+}
 
-	for entrant, entry := range r.callers {
-		if !r.due(entry, rules, now) {
+// ask runs with the registry unlocked.
+func (r *Registry) ask(ctx context.Context, due []*dueOne) {
+	for _, one := range due {
+		if len(one.accounts) > 0 {
+			one.full, one.err = r.room.Full(ctx, one.accounts)
+		}
+	}
+}
+
+// offerDue offers the quizzes first, then the boxes, so a box due beside a quiz just offered waits for it.
+func (r *Registry) offerDue(due []*dueOne, rules Rules, now time.Time) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, one := range due {
+		entry, ok := r.callers[one.entrant]
+		if !one.quiz || !ok || !entry.playedBy(one.accounts, rules, now) || !r.quizDue(entry, rules, now) {
 			continue
 		}
 
-		kinds := drawable(entry.owedBox, r.offerable(ctx, entry, rules, now))
+		kinds := drawable(entry.owedQuiz, r.offerable(entry, one, rules, now))
+		entry.owedQuiz = ""
+		if kinds.Empty() {
+			entry.nextQuizAt = now.Add(quizWait(rules))
+			continue
+		}
+
+		r.offerQuiz(one.entrant, entry, rules, now, drawKind(kinds, rules.Kinds))
+	}
+
+	for _, one := range due {
+		entry, ok := r.callers[one.entrant]
+		if !one.box || !ok || !entry.playedBy(one.accounts, rules, now) || !r.due(entry, rules, now) {
+			continue
+		}
+
+		kinds := drawable(entry.owedBox, r.offerable(entry, one, rules, now))
 		entry.owedBox = ""
 		if kinds.Empty() {
 			entry.nextOfferAt = now.Add(boxWait(rules))
 			continue
 		}
 
-		r.offer(entrant, entry, rules, now, kinds)
+		r.offer(one.entrant, entry, rules, now, kinds)
 	}
+}
+
+// playing forgets the accounts that last clicked longer ago than activeWithin, and is the others.
+func (c *caller) playing(rules Rules, now time.Time) []Account {
+	accounts := make([]Account, 0, len(c.players))
+	for account, clicked := range c.players {
+		if now.Sub(clicked) > rules.ActiveWithin {
+			delete(c.players, account)
+			continue
+		}
+		accounts = append(accounts, account)
+	}
+
+	return accounts
+}
+
+// playedBy is true while every account playing behind the caller is one the wallet was asked of: one that clicked
+// first while the room was asked waits for the next sweep, rather than be offered on a room it was not counted in.
+func (c *caller) playedBy(asked []Account, rules Rules, now time.Time) bool {
+	for account, clicked := range c.players {
+		if now.Sub(clicked) <= rules.ActiveWithin && !slices.Contains(asked, account) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (r *Registry) due(entry *caller, rules Rules, now time.Time) bool {
@@ -441,29 +510,26 @@ func (r *Registry) due(entry *caller, rules Rules, now time.Time) bool {
 	return !near(entry.outstandingQuiz, entry.lastQuizAt, entry.owedBox, rules, now)
 }
 
-func (r *Registry) offerable(ctx context.Context, entry *caller, rules Rules, now time.Time) *cpcolls.Set[Kind] {
+// offerable leaves out every kind the wallet said an account playing behind the caller has no room for.
+func (r *Registry) offerable(entry *caller, one *dueOne, rules Rules, now time.Time) *cpcolls.Set[Kind] {
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 
-	held := cpcolls.NewSet[Kind]()
-	for holder, clicked := range entry.players {
-		if now.Sub(clicked) > rules.ActiveWithin {
-			delete(entry.players, holder)
-			continue
-		}
-		hand, err := r.holdings.Held(ctx, holder)
-		if err != nil {
-			// Offered nothing: the slot is lost, as an away player's.
-			return kinds
-		}
-		held.Add(hand.Full(rules)...)
-	}
-
-	if len(entry.players) == 0 || r.grantedWithinTheHour(entry, now) >= rules.Boxes.MaxChargesPerHour {
+	if one.err != nil {
+		// Offered nothing: the slot is lost, as an away player's.
 		return kinds
 	}
 
+	if len(one.accounts) == 0 || r.grantedWithinTheHour(entry, now) >= rules.Boxes.MaxChargesPerHour {
+		return kinds
+	}
+
+	full := cpcolls.NewSet[Kind]()
+	for _, account := range one.accounts {
+		full.Add(one.full[account]...)
+	}
+
 	for _, kind := range Kinds {
-		if rules.Offered(kind) && !held.Contains(kind) {
+		if rules.Offered(kind) && !full.Contains(kind) {
 			kinds.Add(kind)
 		}
 	}

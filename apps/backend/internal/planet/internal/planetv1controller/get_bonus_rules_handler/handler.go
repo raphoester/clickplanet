@@ -5,7 +5,7 @@ import (
 
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
@@ -17,18 +17,24 @@ type Blast interface {
 	Radius() float64
 }
 
+// New answers the wallet's half of the bonus rules, and of the offers' half only signInRefill, which tells the client
+// whether a sign-in fills the bank. In B it is GetChargeRules, and signInRefill is the offers' to answer.
 func New(
-	rules func() bonuses.Rules, blast Blast, toll Toll, reach func() clicks.Reaching, capitals func() clicks.CapitalRules,
+	rules func() charges.Rules, signInRefill func() bool, blast Blast, toll Toll, reach func() clicks.Reaching,
+	capitals func() clicks.CapitalRules,
 ) GetBonusRulesHandler {
-	return GetBonusRulesHandler{rules: rules, blast: blast, toll: toll, reach: reach, capitals: capitals}
+	return GetBonusRulesHandler{
+		rules: rules, signInRefill: signInRefill, blast: blast, toll: toll, reach: reach, capitals: capitals,
+	}
 }
 
 type GetBonusRulesHandler struct {
-	rules    func() bonuses.Rules
-	blast    Blast
-	toll     Toll
-	reach    func() clicks.Reaching
-	capitals func() clicks.CapitalRules
+	rules        func() charges.Rules
+	signInRefill func() bool
+	blast        Blast
+	toll         Toll
+	reach        func() clicks.Reaching
+	capitals     func() clicks.CapitalRules
 }
 
 func (h GetBonusRulesHandler) GetBonusRules(
@@ -45,7 +51,7 @@ func (h GetBonusRulesHandler) GetBonusRules(
 		TollSteps:         tollStepsOf(h.toll.Steps()),
 		Shields:           uint32(rules.Shield.Held),
 		TileShields:       uint32(rules.Shield.PerTile),
-		SignInRefill:      rules.SignInRefill,
+		SignInRefill:      h.signInRefill(),
 
 		EnclosuresUnlimited: rules.Enclose.Unlimited,
 

@@ -25,24 +25,27 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase/log_open_arena"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/box_facts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_charge_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/postgres_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/answer_quiz_usecase/prom_answer_quiz"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/apply_grant_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/prom_drop_bomb"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/drop_bomb_usecase/refusal_drop_bomb"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/get_charges_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase/audit_grant_charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_sign_in_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/place_shield_usecase/refusal_place_shield"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/use_refill_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/inmemory_grant_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/postgres_charge_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/postgres_grant_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/apply_grant_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase/prom_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase/refusal_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/get_charges_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/grant_charges_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/grant_charges_usecase/audit_grant_charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/pay_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/place_shield_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/place_shield_usecase/refusal_place_shield"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
@@ -82,6 +85,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/postgres_placement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/usecases/return_placements_usecase"
@@ -177,6 +181,10 @@ const (
 
 	ledgerRelayInterval = time.Second
 	factsRelayInterval  = 100 * time.Millisecond
+
+	// How long the wallet knows an offer's payment by its token: past the 5s a claim pays in, and the 10 minutes the
+	// registry knows a spent token.
+	offerGrantsKept = 10 * time.Minute
 )
 
 func NewModule(config Config) cpbootstrap.Module {
@@ -238,10 +246,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to read the arena open: %w", err)
 			}
 			inForce := rules.NewInForce(clock)
-			game := rules.Reader(inForce, bonuses.Part)
-			charges := bonuses.NewCharges(postgres_charge_store.New(db), game)
+			// Two halves of one message: the wallet's, which holds and spends the charges, and the offers', which grant them.
+			chargeRules := rules.Reader(inForce, charges.Part)
+			grantRules := rules.Reader(inForce, parts.Grants)
+			hands := charges.NewCharges(postgres_charge_store.New(db), chargeRules)
 			placementStore := postgres_placement_store.New(db)
-			escrow := placements.NewEscrow(db, charges, placementStore, uuid_id_provider.Provider{}, clock)
+			escrow := placements.NewEscrow(db, hands, placementStore, uuid_id_provider.Provider{}, clock)
 			// Before any request, and a failure only waits for the next boot: a row this boot made is a shield not flushed yet.
 			_, _ = log_return_placements.New(return_placements_usecase.New(placementStore, escrow), props.Logger).Execute(ctx)
 
@@ -288,19 +298,25 @@ func NewModule(config Config) cpbootstrap.Module {
 				slog.Int("questions", bank.Size()),
 				slog.Int("subjects", bank.Subjects()))
 
-			registry := bonuses.New(config.Bonus, clock, charges, game, bank)
-			props.Runners.Add(registry)
-
 			grantStore := postgres_grant_store.New(db)
+			// An offer's payment is named by its token, kept in memory as the offer is; the refill's, in charge_grants.
+			offersWallet := newWallet(hands, chargeRules,
+				pay_usecase.New(db, inmemory_grant_store.New(offerGrantsKept), hands, clock))
+			signInWallet := newWallet(hands, chargeRules, pay_usecase.New(db, grantStore, hands, clock))
+
+			registry := bonuses.New(config.Bonus, clock, offersWallet, grantRules, bank)
+			props.Runners.Add(registry)
+			board := notices.New()
+
 			grants, err := cpredis.Handle(ctx, streams, log_subscriber.New(apply_grant_handler.New(
-				apply_grant_usecase.New(db, grantStore, charges, registry, clock)), props.Logger))
+				apply_grant_usecase.New(db, grantStore, hands, board, clock)), props.Logger))
 			if err != nil {
 				closeStores()
 				return fmt.Errorf("failed to handle planet.v1.GrantCharges: %w", err)
 			}
 			newPlayers, err := cpredis.Subscribe(ctx, streams, "planet-charges-players",
 				log_subscriber.New(player_created_subscriber.New(
-					grant_sign_in_refill_usecase.New(db, grantStore, charges, game, clock)), props.Logger))
+					grant_sign_in_refill_usecase.New(signInWallet, grantRules)), props.Logger))
 			if err != nil {
 				closeStores()
 				return fmt.Errorf("failed to subscribe the charges to player.v1.PlayerCreated: %w", err)
@@ -349,17 +365,17 @@ func NewModule(config Config) cpbootstrap.Module {
 			flags := log_allegiances.New(book, props.Logger)
 
 			writer := ledger.NewRecording(tilesStorage,
-				clicks.NewClaiming(tilesStorage, func() int { return game().Shield.PerTile }), takings, clock)
+				clicks.NewClaiming(tilesStorage, func() int { return chargeRules().Shield.PerTile }), takings, clock)
 
-			bombing := bonuses.NewBombing(game, geography.Spacing())
+			bombing := charges.NewBombing(chargeRules, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
-			clickUseCase = spread_click.New(clickUseCase, charges, reach, writer, registry)
+			clickUseCase = spread_click.New(clickUseCase, hands, reach, writer, board)
 
-			clickUseCase = enclose_click.New(clickUseCase, charges,
-				bonuses.NewTerrain(geography, tilesStorage),
-				enclose_click.NewAnnexer(prom_enclose.New(writer, props.Metrics), charges),
-				game)
+			clickUseCase = enclose_click.New(clickUseCase, hands,
+				charges.NewTerrain(geography, tilesStorage),
+				enclose_click.NewAnnexer(prom_enclose.New(writer, props.Metrics), hands),
+				chargeRules)
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
@@ -400,7 +416,7 @@ func NewModule(config Config) cpbootstrap.Module {
 					paint_random_tiles_usecase.New(borders, geography, tilesStorage, countries, clicks.SystemRandom{}, pace),
 					props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
-					audit_grant_charges.New(grant_charges_usecase.New(charges, registry), props.Logger)),
+					audit_grant_charges.New(grant_charges_usecase.New(hands, board), props.Logger)),
 				ReleaseAllegianceHandler: release_allegiance_handler.New(audit_release.New(book, props.Logger), lock),
 				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(takings, resetStore, arenaStore, tilesStorage, clock)),
 				GetLedgerHandler:         getLedger,
@@ -462,12 +478,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			claimBonus, counters := prom_claim_bonus.New(
-				claim_bonus_usecase.New(registry, charges, streams, clock),
+				claim_bonus_usecase.New(registry, offersWallet, streams, clock),
 				props.Metrics)
 
 			openQuiz := open_quiz_usecase.New(registry)
 			answerQuiz, quizCounters := prom_answer_quiz.New(
-				answer_quiz_usecase.New(registry, charges, streams, clock),
+				answer_quiz_usecase.New(registry, offersWallet, streams, clock),
 				props.Metrics)
 
 			boxes := box_facts.New(told)
@@ -494,7 +510,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			})
 
 			dropBomb := prom_drop_bomb.New(
-				refusal_drop_bomb.New(drop_bomb_usecase.New(charges, geography, writer, countries, bombing), refusing),
+				refusal_drop_bomb.New(drop_bomb_usecase.New(hands, geography, writer, countries, bombing), refusing),
 				props.Metrics)
 
 			service := planetv1controller.ClickService{
@@ -504,17 +520,19 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
 				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, inForce, told)),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, registry, board, inForce, told)),
 				ClaimBonusHandler: claim_bonus_handler.New(claimBonus),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
-				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(charges, limiter, pricer, buckets)),
-				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(charges)),
-				GetBonusRulesHandler: get_bonus_rules_handler.New(game, bombing, pricer,
+				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(hands, limiter, pricer, buckets)),
+				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(hands)),
+				// The wallet's half, and of the offers' half signInRefill alone.
+				GetBonusRulesHandler: get_bonus_rules_handler.New(chargeRules, func() bool { return grantRules().SignInRefill },
+					bombing, pricer,
 					rules.Reader(inForce, clicks.ReachPart), rules.Reader(inForce, clicks.CapitalsPart)),
 				OpenQuizHandler:   open_quiz_handler.New(openQuiz),
 				AnswerQuizHandler: answer_quiz_handler.New(answerQuiz),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
-					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, game), escrow, writer),
+					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, chargeRules), escrow, writer),
 					refusing)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),

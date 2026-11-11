@@ -28,7 +28,9 @@ open), nor **less than `spacing` after the other was offered**: half the shorter
 - **A welcome keeps its own moment** ([A newcomer's first box and first quiz](welcome-bonus.md)): it waits for the
   other to be gone, not for `spacing`.
 
-**The schedule lives in `bonuses`, the content in `quizzes`.** A caller is one
+**The schedule lives in `bonuses`, the content in `quizzes`, and only the offers use the bank**
+(`TestTheQuizzesAreTheOffersAlone`; planet's module only loads it). A right answer is paid through the offers' wallet
+port like a box, named by the quiz's token. A caller is one
 thing — the streams it has open, when it last clicked, which accounts play
 behind it — and that bookkeeping should not exist twice, so `bonuses/quiz.go`
 hangs a second clock off the same `caller` and rides the same sweep. What is
@@ -85,7 +87,9 @@ the *same* `Share` the toll prices a click from — so there is no second
 leaderboard to keep in step, and the board it reads is the live one rather than a
 snapshot taken at boot. The floor of 1 keeps every country in the draw and the
 lean is capped, because a quiz that only ever asked about the top three would be
-four questions deep by the end of the week. **`leaderBias` 0 is a flat draw.**
+four questions deep by the end of the week. **`leaderBias` 0 is a flat draw.** The bank reads the board through its
+own port, `quizzes.Shares`, which planet's tile map answers today; once the offers are a module of their own, planet's
+`GetTerritories` will (see [Offers and the wallet](offers-and-wallet.md)).
 
 **The lean only reaches a question that names its subject** (`namesSubject` in
 the bank, worked out by the generator). "Sofia is the capital of which country?"

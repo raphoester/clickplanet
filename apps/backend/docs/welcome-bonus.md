@@ -7,8 +7,8 @@ the first box and quiz came 4-8 minutes in, so they never saw one.
 
 - **The first box is a spread, `bonuses.welcome.boxAfter` (1m) after the account was made.**
   The first click of a young account pulls its entrant's next box to then, if that is sooner,
-  and owes it the spread. The age is the account id's (`Payer.Created`), so it counts from the
-  account, not from the click, and a restart does not move it.
+  and owes it the spread. The age is the account id's (`Click.Born`, which `bonus_click` fills from
+  `Payer.Created`, read off the id), so it counts from the account, not from the click, and a restart does not move it.
 - **The first quiz comes the moment a young account's click empties its bank**, and a right
   answer is shields. `bonus_click` sits **outside** `throttle_click` so it reads the bank the
   click left: `Click.Dry` is `out.Limited && out.Budget.Empty()`, fewer than one click, which is
@@ -21,6 +21,9 @@ the first box and quiz came 4-8 minutes in, so they never saw one.
   ([A guest's first sign-in](sign-in-refill.md)): that needs a new identity, not a new account. **A welcome kind that cannot be
   offered** (weight 0 in `bonuses.kinds`, or a full stack) **gives no early offer**: the turn goes
   back to the ordinary window, never to another kind.
+- **A full stack is the wallet's to say**: the welcome kind is left out when the wallet's room says the account holds
+  as many as it may ([Offers and the wallet](offers-and-wallet.md#room)). An account whose first click lands while
+  the room is asked waits for the next sweep, so its welcome is not lost to that race.
 - **Once per account**: `Registry.newcomers` remembers each young account until it is no longer
   young, so neither a second click nor a second empty bank pulls anything forward again. It is
   memory only, so a restart can welcome an account a second time while it is still young.

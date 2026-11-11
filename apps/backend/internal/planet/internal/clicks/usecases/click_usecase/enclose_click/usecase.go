@@ -3,17 +3,17 @@ package enclose_click
 import (
 	"context"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
 
 type Enclosures interface {
-	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
+	Held(ctx context.Context, holder charges.Holder) (charges.Held, error)
 }
 
-func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain bonuses.Terrain, annexer Annexer,
-	rules func() bonuses.Rules,
+func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain charges.Terrain, annexer Annexer,
+	rules func() charges.Rules,
 ) *UseCase {
 	return &UseCase{implementation: implementation, enclosures: enclosures, terrain: terrain, annexer: annexer, rules: rules}
 }
@@ -21,9 +21,9 @@ func New(implementation click_usecase.IUseCase, enclosures Enclosures, terrain b
 type UseCase struct {
 	implementation click_usecase.IUseCase
 	enclosures     Enclosures
-	terrain        bonuses.Terrain
+	terrain        charges.Terrain
 	annexer        Annexer
-	rules          func() bonuses.Rules
+	rules          func() charges.Rules
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
@@ -32,7 +32,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	}
 
 	payer := clicks.PayerOf(ctx)
-	holder := bonuses.HolderOf(payer)
+	holder := charges.HolderOf(payer)
 	rules := u.rules().Enclose
 
 	armed, err := u.armed(ctx, holder, rules)
@@ -50,7 +50,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	return out, u.annexer.Annex(ctx, holder, in, pocket, rules)
 }
 
-func (u *UseCase) armed(ctx context.Context, holder bonuses.Holder, rules bonuses.EncloseRules) (bool, error) {
+func (u *UseCase) armed(ctx context.Context, holder charges.Holder, rules charges.EncloseRules) (bool, error) {
 	if rules.Unlimited {
 		return true, nil
 	}

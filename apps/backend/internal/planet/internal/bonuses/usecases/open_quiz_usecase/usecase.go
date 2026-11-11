@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 var ErrNoSuchQuiz = errors.New("no quiz to open")
@@ -16,7 +15,8 @@ type Registry interface {
 }
 
 type In struct {
-	Token string
+	Caller bonuses.Caller
+	Token  string
 }
 
 type Out struct {
@@ -37,8 +37,8 @@ type UseCase struct {
 	registry Registry
 }
 
-func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	asked, ok := u.registry.OpenQuiz(in.Token, bonuses.EntrantOf(clicks.PayerOf(ctx)))
+func (u *UseCase) Execute(_ context.Context, in In) (Out, error) {
+	asked, ok := u.registry.OpenQuiz(in.Token, bonuses.EntrantOf(in.Caller))
 	if !ok {
 		return Out{}, ErrNoSuchQuiz
 	}

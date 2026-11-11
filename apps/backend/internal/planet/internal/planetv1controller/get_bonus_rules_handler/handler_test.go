@@ -9,6 +9,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_bonus_rules_handler"
 )
@@ -29,17 +30,20 @@ func answered(t *testing.T, handler get_bonus_rules_handler.GetBonusRulesHandler
 	return res.Msg
 }
 
+func noRefill() bool { return false }
+
 func TestTheRulesAreThoseInForce(t *testing.T) {
-	rules := bonuses.TestRules()
-	inForce := func() bonuses.Rules { return rules }
-	handler := get_bonus_rules_handler.New(inForce, bonuses.NewBombing(inForce, 0.004), toll{}, noReach, noCapitalRule)
+	rules, grants := charges.TestRules(), bonuses.TestRules()
+	inForce := func() charges.Rules { return rules }
+	handler := get_bonus_rules_handler.New(inForce, func() bool { return grants.SignInRefill },
+		charges.NewBombing(inForce, 0.004), toll{}, noReach, noCapitalRule)
 
 	rules.Bomb.Rings = 5
-	rules.Enclose = bonuses.EncloseRules{MaxTiles: 40, Held: 4, MaxPerBox: 2, Unlimited: true}
+	rules.Enclose = charges.EncloseRules{MaxTiles: 40, Held: 4, Unlimited: true}
 	rules.Spread.Clicks = 9
 	rules.Shield.Held = 12
 	rules.Shield.PerTile = 20
-	rules.SignInRefill = true
+	grants.SignInRefill = true
 	rules.Bomb.Off = true
 	got := answered(t, handler)
 
@@ -57,7 +61,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
-	got := answered(t, get_bonus_rules_handler.New(bonuses.TestRules, bonuses.NewBombing(bonuses.TestRules, 0.004), steps,
+	got := answered(t, get_bonus_rules_handler.New(charges.TestRules, noRefill, charges.NewBombing(charges.TestRules, 0.004), steps,
 		noReach, noCapitalRule)).GetTollSteps()
 
 	require.Len(t, got, 3)
@@ -70,7 +74,7 @@ func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 func TestThePageIsToldTheReachAndTheCapitalRulesInForce(t *testing.T) {
 	reach := clicks.Reaching(false)
 	capitals := clicks.CapitalRules{}
-	handler := get_bonus_rules_handler.New(bonuses.TestRules, bonuses.NewBombing(bonuses.TestRules, 0.004), toll{},
+	handler := get_bonus_rules_handler.New(charges.TestRules, noRefill, charges.NewBombing(charges.TestRules, 0.004), toll{},
 		func() clicks.Reaching { return reach }, func() clicks.CapitalRules { return capitals })
 
 	off := answered(t, handler)

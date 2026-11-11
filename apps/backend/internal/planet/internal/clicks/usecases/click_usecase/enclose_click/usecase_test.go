@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/enclose_click"
@@ -129,7 +129,7 @@ func (e encloser) Enclose(ctx context.Context, enclosure clicks.Enclosure, insid
 	return nil
 }
 
-const caller bonuses.Holder = "a-player"
+const caller charges.Holder = "a-player"
 
 func played(t *testing.T) context.Context {
 	t.Helper()
@@ -141,9 +141,9 @@ type fixture struct {
 	grid      honeycomb
 	tiles     tiles
 	shields   shields
-	charges   *bonuses.MemoryStore
+	hands     *charges.MemoryStore
 	published *recorder
-	rules     *bonuses.Rules
+	rules     *charges.Rules
 	useCase   *enclose_click.UseCase
 }
 
@@ -152,21 +152,21 @@ func setup(charged bool, err error) fixture {
 		grid:      honeycomb{size: 12},
 		tiles:     tiles{},
 		shields:   shields{},
-		charges:   bonuses.NewMemoryStore(),
+		hands:     charges.NewMemoryStore(),
 		published: &recorder{},
 	}
 	if charged {
-		f.charges.Keep(caller, bonuses.Held{Enclosures: 1})
+		f.hands.Keep(caller, charges.Held{Enclosures: 1})
 	}
 
 	claiming := clicks.NewClaiming(board{tiles: f.tiles, shields: f.shields}, func() int { return 10 })
-	rules := bonuses.TestRules()
+	rules := charges.TestRules()
 	rules.Enclose.MaxTiles = 10
 	f.rules = &rules
-	inForce := func() bonuses.Rules { return rules }
-	charges := bonuses.NewCharges(f.charges, inForce)
-	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, charges,
-		bonuses.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming, recorder: f.published}, charges), inForce)
+	inForce := func() charges.Rules { return rules }
+	wallet := charges.NewCharges(f.hands, inForce)
+	f.useCase = enclose_click.New(rule{claiming: claiming, err: err}, wallet,
+		charges.NewTerrain(f.grid, f.tiles), enclose_click.NewAnnexer(encloser{claiming: claiming, recorder: f.published}, wallet), inForce)
 
 	return f
 }
@@ -200,7 +200,7 @@ func TestClosingARingTakesTheTileInsideIt(t *testing.T) {
 	assert.Equal(t, ring[0], enclosed.ClosingTile)
 	assert.Equal(t, []uint32{centre}, enclosed.Filled)
 	assert.ElementsMatch(t, ring, enclosed.Wall)
-	assert.Zero(t, f.charges.Kept(caller).Enclosures, "the charge is one shape, and this was it")
+	assert.Zero(t, f.hands.Kept(caller).Enclosures, "the charge is one shape, and this was it")
 }
 
 func TestAShapeTakesUnownedTilesAndEveryoneElsesAlike(t *testing.T) {
@@ -242,7 +242,7 @@ func TestAShieldedTileInsideAShapeLosesAShieldAndIsNotTaken(t *testing.T) {
 	assert.Equal(t, 1, f.shields[inner[0]])
 	assert.Equal(t, "fr", f.tiles[inner[1]])
 	require.Len(t, f.published.published, 1)
-	assert.Zero(t, f.charges.Kept(caller).Enclosures)
+	assert.Zero(t, f.hands.Kept(caller).Enclosures)
 }
 
 func TestAClickAShieldTookClosesNothing(t *testing.T) {
@@ -257,7 +257,7 @@ func TestAClickAShieldTookClosesNothing(t *testing.T) {
 	assert.Equal(t, "de", f.tiles[ring[0]])
 	assert.Empty(t, f.tiles[centre], "the tile inside was not taken")
 	assert.Empty(t, f.published.published)
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "a click that closes nothing keeps the charge")
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures, "a click that closes nothing keeps the charge")
 }
 
 func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
@@ -268,7 +268,7 @@ func TestATriangleHasNoInsideAndCostsNothing(t *testing.T) {
 	f.click(t, c)
 
 	assert.Empty(t, f.published.published)
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "a click that closes nothing keeps the charge")
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures, "a click that closes nothing keeps the charge")
 }
 
 func (f fixture) carve(closing uint32, hole []uint32) {
@@ -308,7 +308,7 @@ func TestAShapeBiggerThanTheLimitTakesNothingAndCostsNothing(t *testing.T) {
 
 	assert.Empty(t, f.published.published)
 	assert.Empty(t, f.tiles[f.grid.id(1, 5)], "nothing inside was taken")
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures)
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures)
 }
 
 func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
@@ -320,7 +320,7 @@ func TestAShapeOpenToTheEdgeOfTheLandIsNotClosed(t *testing.T) {
 
 	assert.Empty(t, f.published.published)
 	assert.Empty(t, f.tiles[hole[0]])
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures)
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures)
 }
 
 func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
@@ -337,7 +337,7 @@ func TestClickingTheOutlineOfAShapeAlreadyClosedTakesNothing(t *testing.T) {
 
 func TestOneClickClosingTwoShapesFillsBothForOneCharge(t *testing.T) {
 	f := setup(true, nil)
-	f.charges.Keep(caller, bonuses.Held{Enclosures: 2})
+	f.hands.Keep(caller, charges.Held{Enclosures: 2})
 	top, bottom := f.grid.id(5, 4), f.grid.id(4, 6)
 	f.carve(f.grid.id(5, 5), []uint32{top, bottom})
 
@@ -346,7 +346,7 @@ func TestOneClickClosingTwoShapesFillsBothForOneCharge(t *testing.T) {
 	assert.Equal(t, "fr", f.tiles[top])
 	assert.Equal(t, "fr", f.tiles[bottom])
 	require.Len(t, f.published.published, 1, "one click, one shape announced")
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "one click, one charge")
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures, "one click, one charge")
 
 	walls := cpcolls.NewSet(f.grid.ring(5, 4)...)
 	walls.Add(f.grid.ring(4, 6)...)
@@ -401,7 +401,7 @@ func TestARefusedClickClosesNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, f.tiles[centre])
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures)
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures)
 }
 
 func TestAClickWithEncloseSwitchedOffClosesNothingAndKeepsTheCharge(t *testing.T) {
@@ -415,7 +415,7 @@ func TestAClickWithEncloseSwitchedOffClosesNothingAndKeepsTheCharge(t *testing.T
 
 	assert.Equal(t, "de", f.tiles[centre])
 	assert.Empty(t, f.published.published)
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "the charge is used only when the player chooses")
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures, "the charge is used only when the player chooses")
 }
 
 func TestUnlimitedEnclosuresCloseAShapeWithNoCharge(t *testing.T) {
@@ -444,7 +444,7 @@ func TestUnlimitedEnclosuresSpendNoneOfTheChargesHeld(t *testing.T) {
 
 	assert.Equal(t, "fr", f.tiles[first])
 	assert.Equal(t, "fr", f.tiles[second])
-	assert.Equal(t, 1, f.charges.Kept(caller).Enclosures, "the charge held is still there after the battle")
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures, "the charge held is still there after the battle")
 }
 
 func TestUnlimitedEnclosuresWaitForEncloseSwitchedOn(t *testing.T) {

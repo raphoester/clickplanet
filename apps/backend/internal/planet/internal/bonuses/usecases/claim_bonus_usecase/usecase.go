@@ -10,7 +10,6 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -24,8 +23,9 @@ type Registry interface {
 	Publish(taken bonuses.Taken)
 }
 
-type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
+// Wallet pays what a box grants: it is planet's, which keeps what fits.
+type Wallet interface {
+	Pay(ctx context.Context, payment bonuses.Payment) (bonuses.Paid, error)
 }
 
 type Publisher interface {
@@ -33,6 +33,7 @@ type Publisher interface {
 }
 
 type In struct {
+	Caller    bonuses.Caller
 	Token     string
 	CountryID string
 }
@@ -40,26 +41,25 @@ type In struct {
 type Out struct {
 	Kind bonuses.Kind
 
+	// Amount is what the wallet kept.
 	Amount int
 
-	Held bonuses.Held
+	Hand bonuses.Hand
 }
 
-func New(registry Registry, charger Charger, events Publisher, clock cptime.Clock) *UseCase {
-	return &UseCase{registry: registry, charger: charger, events: events, clock: clock}
+func New(registry Registry, wallet Wallet, events Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{registry: registry, wallet: wallet, events: events, clock: clock}
 }
 
 type UseCase struct {
 	registry Registry
-	charger  Charger
+	wallet   Wallet
 	events   Publisher
 	clock    cptime.Clock
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	payer := clicks.PayerOf(ctx)
-
-	reward, ok := u.registry.Claim(in.Token, bonuses.EntrantOf(payer), payer.Scope)
+	reward, ok := u.registry.Claim(in.Token, bonuses.EntrantOf(in.Caller), in.Caller.Scope)
 	if !ok {
 		return Out{}, ErrNoSuchBonus
 	}
@@ -68,16 +68,17 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), grantTimeout)
 	defer cancel()
 
-	holder := bonuses.HolderOf(payer)
-	gain, err := u.charger.Grant(ctx, holder, reward.Kind, reward.Amount)
+	paid, err := u.wallet.Pay(ctx, bonuses.Payment{
+		Grant: bonuses.OfferGrantOf(in.Token), Account: in.Caller.Account, Kind: reward.Kind, Amount: reward.Amount,
+	})
 	if err != nil {
-		return Out{}, err
+		return Out{}, err //nolint:wrapcheck // the wallet named it.
 	}
 
 	u.registry.Publish(bonuses.Taken{CountryID: in.CountryID, Kind: reward.Kind})
-	if holder != bonuses.NoHolder {
-		u.events.Publish(&planetv1.BonusClaimed{AccountId: string(holder), ClaimedAt: timestamppb.New(u.clock.Now())})
+	if account := in.Caller.Account; account != bonuses.NoAccount {
+		u.events.Publish(&planetv1.BonusClaimed{AccountId: string(account), ClaimedAt: timestamppb.New(u.clock.Now())})
 	}
 
-	return Out{Kind: reward.Kind, Amount: gain.Count(reward.Kind), Held: gain.After}, nil
+	return Out{Kind: reward.Kind, Amount: paid.Kept, Hand: paid.Hand}, nil
 }

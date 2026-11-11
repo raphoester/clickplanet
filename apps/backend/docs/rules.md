@@ -22,9 +22,16 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   which the log lines print. `Set.Equal` compares what two sets play.
 
 - **Each part is read by the package that plays it.** `clicks` owns five parts, `clicks` (`Throttle`), `toll`
-  (`TollSteps`), `frozen` (`Freeze`), `reach` (`Reaching`) and `capitals` (`CapitalRules`); `bonuses` owns `bonuses`
-  (`Rules`), `allegiances` `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its `…Of(message)` (`message.go`)
-  and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
+  (`TollSteps`), `frozen` (`Freeze`), `reach` (`Reaching`) and `capitals` (`CapitalRules`); `allegiances` owns
+  `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its
+  `…Of(message)` (`message.go`) and a `Part` (`rules.PartOf[R]{Key, Read}`). The `rules` package names none of them.
+- **`bonuses` is read in two halves** (see [Offers and the wallet](offers-and-wallet.md#the-rules-split)): the wallet's,
+  `charges.Rules` (`charges.Part`: `spread.clicks`, `bomb.rings`, `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`,
+  `shield.held`, `.perTile`), and the offers', `bonuses.Rules` (`parts.Grants`: the rest, and `bomb.off` too). Two parts
+  read one message, so each has a `Key` of its own and the wallet's sets `PartOf.Path` to `bonuses`: both name their
+  reasons `bonuses.…`, in the same words as before the cut. `parts.Grants` is declared in `rules/parts`, since
+  `bonuses` reads no package of planet's; its bounds (`positive`, `atLeast`…) are a copy of `rules`' own. The message
+  and the stored sets did not change. Only the order of several reasons at once did: the offers' come first.
 - **`parts.All()` is the one list of parts** (`rules/parts`). A concept that reads the rules adds its field to
   `planet.v1.Rules`, its part, and one line there; nothing in `rules`, the store or the handlers changes.
 - **A part may refuse a value in `default` alone** (`PartOf.InDefault`): `arena.on`, which every set would play.
@@ -140,9 +147,12 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `clicks.FreezePart` — the freeze interceptor (`planetv1controller.NewFreezeInterceptor`) and `get_budget_usecase`.
 - `allegiances.LockPart` — `allegiances.Book` (a pledge and a click for another flag) and `allegiance_query`
   (`Allegiance.locked`).
-- `bonuses.Part` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean),
-  `bonuses.Charges` (the stacks), `bonuses.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`, `place_shield_usecase`,
-  `clicks.Claiming` (a tile's most shields, for a fortify) and `GetBonusRules`.
+- `parts.Grants` — the box registry (waits, kinds, flight, miss, activity, welcome, quizzes, the quiz lean, no bomb
+  while bombs are off), what a box or a right answer grants (`amountOf`), `grant_sign_in_refill_usecase` and
+  `GetBonusRules.sign_in_refill`.
+- `charges.Part` — `charges.Charges` (the stacks, a grant capped at them, and the room the offers are told of),
+  `charges.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`, `place_shield_usecase`,
+  `clicks.Claiming` (a tile's most shields, for a fortify) and the rest of `GetBonusRules`.
 - `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
   takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`rules.PartOf.Of(set)`).
 - `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetBonusRules.reach`.

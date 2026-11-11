@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/grant_charges_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 )
 
@@ -50,15 +50,15 @@ func TestEveryChargeAskedReachesTheUseCase(t *testing.T) {
 
 	assert.Equal(t, grant_charges_usecase.In{
 		Account: account,
-		Grant:   bonuses.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5},
+		Grant:   charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5},
 	}, useCase.in)
 }
 
 func TestTheAnswerSaysWhatWasHeldBeforeAndAfter(t *testing.T) {
 	useCase := &stubUseCase{out: grant_charges_usecase.Out{
 		Holder: account,
-		Before: bonuses.Held{SpreadClicks: 7},
-		After:  bonuses.Held{Bomb: true, SpreadClicks: 8},
+		Before: charges.Held{SpreadClicks: 7},
+		After:  charges.Held{Bomb: true, SpreadClicks: 8},
 	}}
 
 	res, err := grant(t, useCase, &planetv1.GrantChargesRequest{AccountId: account, Bomb: true, SpreadClicks: 4})
@@ -73,9 +73,9 @@ func TestTheAnswerSaysWhatWasHeldBeforeAndAfter(t *testing.T) {
 
 func TestErrorsMapToTheirCodes(t *testing.T) {
 	for err, code := range map[error]connect.Code{
-		fmt.Errorf("%w: %q", bonuses.ErrInvalidHolder, "bot"): connect.CodeInvalidArgument,
-		bonuses.ErrNothingToGrant:                             connect.CodeInvalidArgument,
-		bonuses.ErrNegativeGrant:                              connect.CodeInvalidArgument,
+		fmt.Errorf("%w: %q", charges.ErrInvalidHolder, "bot"): connect.CodeInvalidArgument,
+		charges.ErrNothingToGrant:                             connect.CodeInvalidArgument,
+		charges.ErrNegativeGrant:                              connect.CodeInvalidArgument,
 		errors.New("boom"):                                    connect.CodeUnknown,
 	} {
 		_, got := grant(t, &stubUseCase{err: err}, &planetv1.GrantChargesRequest{AccountId: "bot"})

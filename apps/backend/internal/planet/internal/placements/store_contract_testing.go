@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
@@ -24,13 +24,13 @@ func (s *StoreContractSuite) SetupTest() {
 }
 
 const (
-	contractAlice bonuses.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
-	contractBob   bonuses.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"
+	contractAlice charges.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
+	contractBob   charges.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"
 )
 
 var contractTakenAt = time.Date(2026, 11, 10, 21, 0, 3, 123456000, time.UTC)
 
-func (s *StoreContractSuite) placement(id byte, holder bonuses.Holder, after time.Duration) Placement {
+func (s *StoreContractSuite) placement(id byte, holder charges.Holder, after time.Duration) Placement {
 	placement, err := New(clicks.PlacementID{15: id}, holder, contractTakenAt.Add(after))
 	s.Require().NoError(err)
 	return placement

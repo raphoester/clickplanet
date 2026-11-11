@@ -8,9 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/spread_click"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
@@ -27,7 +28,7 @@ func (s stubClick) Execute(ctx context.Context, in click_usecase.In) (click_usec
 	return click_usecase.Out{}, s.storage.Set(ctx, in.TileID, in.CountryID)
 }
 
-const caller bonuses.Holder = "a-guest"
+const caller charges.Holder = "a-guest"
 
 func played(t *testing.T) context.Context {
 	t.Helper()
@@ -59,14 +60,14 @@ func (r *recordingStorage) Spread(_ context.Context, _ uint32, flag string, neig
 	return nil
 }
 
-type recordingPublisher struct{ spreads []bonuses.Spread }
+type recordingPublisher struct{ spreads []notices.Spread }
 
-func (r *recordingPublisher) PublishSpread(spread bonuses.Spread) {
+func (r *recordingPublisher) PublishSpread(spread notices.Spread) {
 	r.spreads = append(r.spreads, spread)
 }
 
-func charges(store *bonuses.MemoryStore) bonuses.Charges {
-	return bonuses.NewCharges(store, bonuses.TestRules)
+func wallet(store *charges.MemoryStore) charges.Charges {
+	return charges.NewCharges(store, charges.TestRules)
 }
 
 var honeycomb = stubNeighbours{
@@ -90,12 +91,12 @@ func setupWithPublisher(spreading bool, err error) (*spread_click.UseCase, *reco
 	return useCase, storage, publisher
 }
 
-func setupWithClicks(clicksLeft int, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, *bonuses.MemoryStore) {
+func setupWithClicks(clicksLeft int, err error) (*spread_click.UseCase, *recordingStorage, *recordingPublisher, *charges.MemoryStore) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
-	spreads := bonuses.NewMemoryStore()
-	spreads.Keep(caller, bonuses.Held{SpreadClicks: clicksLeft})
+	spreads := charges.NewMemoryStore()
+	spreads.Keep(caller, charges.Held{SpreadClicks: clicksLeft})
 	publisher := &recordingPublisher{}
-	useCase := spread_click.New(stubClick{storage: storage, err: err}, charges(spreads), honeycomb, storage, publisher)
+	useCase := spread_click.New(stubClick{storage: storage, err: err}, wallet(spreads), honeycomb, storage, publisher)
 
 	return useCase, storage, publisher, spreads
 }
@@ -178,7 +179,7 @@ func TestASpreadingClickIsAnnouncedWithTheTilesItTook(t *testing.T) {
 	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
-	assert.Equal(t, []bonuses.Spread{{
+	assert.Equal(t, []notices.Spread{{
 		CountryID:  "fr",
 		Tile:       100,
 		Neighbours: []uint32{90, 91, 99, 101, 109, 110},
@@ -238,10 +239,10 @@ func (a armReach) Around(flag string, _ uint32) []uint32 { return a[flag] }
 
 func TestASpreadTakesOnlyTheNeighboursInTheFlagsReach(t *testing.T) {
 	storage := &recordingStorage{tiles: map[uint32]string{}}
-	spreads := bonuses.NewMemoryStore()
-	spreads.Keep(caller, bonuses.Held{SpreadClicks: 1})
+	spreads := charges.NewMemoryStore()
+	spreads.Keep(caller, charges.Held{SpreadClicks: 1})
 	publisher := &recordingPublisher{}
-	useCase := spread_click.New(stubClick{storage: storage}, charges(spreads), armReach{"fr": {90, 91}}, storage, publisher)
+	useCase := spread_click.New(stubClick{storage: storage}, wallet(spreads), armReach{"fr": {90, 91}}, storage, publisher)
 
 	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 

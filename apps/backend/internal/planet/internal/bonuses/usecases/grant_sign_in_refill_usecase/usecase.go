@@ -2,49 +2,31 @@ package grant_sign_in_refill_usecase
 
 import (
 	"context"
-	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Grants interface {
-	Record(ctx context.Context, grant bonuses.GrantID, at time.Time) (bool, error)
+// Wallet pays the refill: it is planet's, and pays each grant once, so the refill's id makes it once per account.
+type Wallet interface {
+	Pay(ctx context.Context, payment bonuses.Payment) (bonuses.Paid, error)
 }
 
-type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
-}
-
-func New(
-	transactioner cpatomic.Transactioner, grants Grants, charger Charger, rules func() bonuses.Rules, clock cptime.Clock,
-) *UseCase {
-	return &UseCase{transactioner: transactioner, grants: grants, charger: charger, rules: rules, clock: clock}
+func New(wallet Wallet, rules func() bonuses.Rules) *UseCase {
+	return &UseCase{wallet: wallet, rules: rules}
 }
 
 type UseCase struct {
-	transactioner cpatomic.Transactioner
-	grants        Grants
-	charger       Charger
-	rules         func() bonuses.Rules
-	clock         cptime.Clock
+	wallet Wallet
+	rules  func() bonuses.Rules
 }
 
-func (u *UseCase) Execute(ctx context.Context, holder bonuses.Holder) error {
+func (u *UseCase) Execute(ctx context.Context, account bonuses.Account) error {
 	if !u.rules().SignInRefill {
 		return nil
 	}
 
-	return u.transactioner.InTx(ctx, func(ctx context.Context) error {
-		first, err := u.grants.Record(ctx, bonuses.SignInGrantOf(holder), u.clock.Now())
-		if err != nil {
-			return err //nolint:wrapcheck // the store named it.
-		}
-		if !first {
-			return nil
-		}
-		_, err = u.charger.Grant(ctx, holder, bonuses.KindRefill, 1)
-		return err //nolint:wrapcheck // the charger named it.
+	_, err := u.wallet.Pay(ctx, bonuses.Payment{
+		Grant: bonuses.SignInGrantOf(account), Account: account, Kind: bonuses.KindRefill, Amount: 1,
 	})
+	return err //nolint:wrapcheck // the wallet named it.
 }

@@ -43,7 +43,7 @@ func claim(t *testing.T, useCase claim_bonus_handler.UseCase) (*planetv1.ClaimBo
 
 func TestAClaimSaysTheKindAndWhatIsHeld(t *testing.T) {
 	msg, err := claim(t, &stubUseCase{out: claim_bonus_usecase.Out{
-		Kind: bonuses.KindEncloseClicks, Amount: 2, Held: bonuses.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4},
+		Kind: bonuses.KindEncloseClicks, Amount: 2, Hand: bonuses.Hand{Bomb: true, Enclosures: 2, SpreadClicks: 4},
 	}})
 	require.NoError(t, err)
 

@@ -5,16 +5,16 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Charges interface {
-	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
-	Return(ctx context.Context, holder bonuses.Holder, back func(bonuses.Held) bonuses.Held) error
-	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
+	Spend(ctx context.Context, holder charges.Holder, after func(charges.Held) (charges.Held, bool)) error
+	Return(ctx context.Context, holder charges.Holder, back func(charges.Held) charges.Held) error
+	Held(ctx context.Context, holder charges.Holder) (charges.Held, error)
 }
 
 func NewEscrow(transactioner cpatomic.Transactioner, charges Charges, store Store, ids IDProvider, clock cptime.Clock) Escrow {
@@ -31,16 +31,16 @@ type Escrow struct {
 }
 
 // Take answers what the hand holds once the shield left it.
-func (e Escrow) Take(ctx context.Context, holder bonuses.Holder) (bonuses.Held, clicks.PlacementID, error) {
+func (e Escrow) Take(ctx context.Context, holder charges.Holder) (charges.Held, clicks.PlacementID, error) {
 	id, err := e.ids.NewID()
 	if err != nil {
-		return bonuses.Held{}, clicks.PlacementID{}, fmt.Errorf("failed to name a placement: %w", err)
+		return charges.Held{}, clicks.PlacementID{}, fmt.Errorf("failed to name a placement: %w", err)
 	}
 
-	var held bonuses.Held
+	var held charges.Held
 	if err := e.transactioner.InTx(ctx, func(ctx context.Context) error {
-		if err := e.charges.Spend(ctx, holder, bonuses.Held.AfterShield); err != nil {
-			return err //nolint:wrapcheck // the charges name it, and the caller reads bonuses.ErrNotHeld.
+		if err := e.charges.Spend(ctx, holder, charges.Held.AfterShield); err != nil {
+			return err //nolint:wrapcheck // the charges name it, and the caller reads charges.ErrNotHeld.
 		}
 		placement, err := New(id, holder, e.clock.Now())
 		if err != nil {
@@ -52,7 +52,7 @@ func (e Escrow) Take(ctx context.Context, holder bonuses.Holder) (bonuses.Held, 
 		held, err = e.charges.Held(ctx, holder)
 		return err //nolint:wrapcheck // the charges name it.
 	}); err != nil {
-		return bonuses.Held{}, clicks.PlacementID{}, err //nolint:wrapcheck // each step names itself.
+		return charges.Held{}, clicks.PlacementID{}, err //nolint:wrapcheck // each step names itself.
 	}
 	return held, id, nil
 }
@@ -86,7 +86,7 @@ func (e Escrow) Return(ctx context.Context, ids ...clicks.PlacementID) error {
 				return err //nolint:wrapcheck // the store names it.
 			}
 			for _, placement := range found {
-				if err := e.charges.Return(ctx, placement.Holder(), bonuses.Held.WithShieldBack); err != nil {
+				if err := e.charges.Return(ctx, placement.Holder(), charges.Held.WithShieldBack); err != nil {
 					return err //nolint:wrapcheck // the charges name it.
 				}
 				if err := e.store.Save(ctx, placement.Ended()); err != nil {

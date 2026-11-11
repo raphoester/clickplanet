@@ -5,12 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/chargesheld"
 )
 
 func TestEveryChargeHeldGoesOut(t *testing.T) {
-	held := chargesheld.Encode(bonuses.Held{Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 9})
+	held := chargesheld.Encode(charges.Held{Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 9})
 
 	assert.True(t, held.GetBomb())
 	assert.Equal(t, uint32(2), held.GetEnclosures())
@@ -19,7 +19,7 @@ func TestEveryChargeHeldGoesOut(t *testing.T) {
 }
 
 func TestAnEmptyHandIsSaidToo(t *testing.T) {
-	held := chargesheld.Encode(bonuses.Held{})
+	held := chargesheld.Encode(charges.Held{})
 
 	assert.False(t, held.GetBomb())
 	assert.Zero(t, held.GetEnclosures())

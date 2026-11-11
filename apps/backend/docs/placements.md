@@ -20,7 +20,7 @@ Why not one step:
    in force once, and hands the map the most shields a tile may hold. `refusal_place_shield` refuses a refused caller
    before it, as `refusal_click` does a click.
 2. **The take** (`placements.Escrow.Take`): one transaction under the account's lock spends the shield
-   (`Held.AfterShield`) and keeps a placement. No shield held is `bonuses.ErrNotHeld`, and nothing is kept.
+   (`Held.AfterShield`) and keeps a placement. No shield held is `charges.ErrNotHeld`, and nothing is kept.
 3. **The map** (`Storage.Shield`, through `ledger.Recording`) checks the tile again under the tiles lock, adds the
    shield, sends the `TileUpdate`, and keeps the placement's id beside the tile's dirty bit. It answers the shields the
    tile holds, which the ledger's `shield` event records.

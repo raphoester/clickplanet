@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 )
@@ -15,7 +15,7 @@ type Encloser interface {
 }
 
 type Spender interface {
-	Spend(ctx context.Context, holder bonuses.Holder, after func(bonuses.Held) (bonuses.Held, bool)) error
+	Spend(ctx context.Context, holder charges.Holder, after func(charges.Held) (charges.Held, bool)) error
 }
 
 type Annexer struct {
@@ -27,15 +27,15 @@ func NewAnnexer(encloser Encloser, spender Spender) Annexer {
 	return Annexer{encloser: encloser, spender: spender}
 }
 
-func (a Annexer) Annex(ctx context.Context, holder bonuses.Holder, closing click_usecase.In, pocket bonuses.Pocket,
-	rules bonuses.EncloseRules,
+func (a Annexer) Annex(ctx context.Context, holder charges.Holder, closing click_usecase.In, pocket charges.Pocket,
+	rules charges.EncloseRules,
 ) error {
 	if pocket.Empty() {
 		return nil
 	}
 	if !rules.Unlimited {
-		if err := a.spender.Spend(ctx, holder, bonuses.Held.AfterEnclose); err != nil {
-			if errors.Is(err, bonuses.ErrNotHeld) {
+		if err := a.spender.Spend(ctx, holder, charges.Held.AfterEnclose); err != nil {
+			if errors.Is(err, charges.ErrNotHeld) {
 				return nil
 			}
 			return err

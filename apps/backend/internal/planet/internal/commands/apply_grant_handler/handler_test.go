@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/apply_grant_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/apply_grant_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
 )
 
@@ -25,19 +25,19 @@ func (u *recordingUseCase) Execute(_ context.Context, in apply_grant_usecase.In)
 const grant = "6f1c2a3e-0d4b-4e5f-8a9b-1c2d3e4f5a6b"
 
 func TestEachKindIsGrantedAsItsCharge(t *testing.T) {
-	for wire, kind := range map[planetv1.BonusKind]bonuses.Kind{
-		planetv1.BonusKind_BONUS_KIND_SHIELDS:        bonuses.KindShields,
-		planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS:  bonuses.KindSpreadClicks,
-		planetv1.BonusKind_BONUS_KIND_BOMB:           bonuses.KindBomb,
-		planetv1.BonusKind_BONUS_KIND_REFILL:         bonuses.KindRefill,
-		planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS: bonuses.KindEncloseClicks,
+	for wire, kind := range map[planetv1.BonusKind]charges.Kind{
+		planetv1.BonusKind_BONUS_KIND_SHIELDS:        charges.KindShields,
+		planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS:  charges.KindSpreadClicks,
+		planetv1.BonusKind_BONUS_KIND_BOMB:           charges.KindBomb,
+		planetv1.BonusKind_BONUS_KIND_REFILL:         charges.KindRefill,
+		planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS: charges.KindEncloseClicks,
 	} {
 		useCase := &recordingUseCase{}
 
 		require.NoError(t, apply_grant_handler.New(useCase).Handle(t.Context(),
 			&planetv1.GrantCharges{GrantId: grant, AccountId: "the-account", Kind: wire, Amount: 4}))
 
-		id, err := bonuses.GrantIDOf(grant)
+		id, err := charges.GrantIDOf(grant)
 		require.NoError(t, err)
 		assert.Equal(t, []apply_grant_usecase.In{{Grant: id, Account: "the-account", Kind: kind, Amount: 4}}, useCase.applied)
 	}
@@ -47,7 +47,7 @@ func TestACommandThatNamesNoGrantOrNoKindIsRefused(t *testing.T) {
 	useCase := &recordingUseCase{}
 
 	assert.ErrorIs(t, apply_grant_handler.New(useCase).Handle(t.Context(),
-		&planetv1.GrantCharges{GrantId: "nope", Kind: planetv1.BonusKind_BONUS_KIND_SHIELDS}), bonuses.ErrInvalidGrant)
+		&planetv1.GrantCharges{GrantId: "nope", Kind: planetv1.BonusKind_BONUS_KIND_SHIELDS}), charges.ErrInvalidGrant)
 	assert.ErrorIs(t, apply_grant_handler.New(useCase).Handle(t.Context(),
 		&planetv1.GrantCharges{GrantId: grant}), apply_grant_handler.ErrUnknownKind)
 	assert.Empty(t, useCase.applied)

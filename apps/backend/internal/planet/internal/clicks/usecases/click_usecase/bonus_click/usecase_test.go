@@ -65,7 +65,8 @@ func TestAClickSaysWhichAccountPlaysBehindTheScope(t *testing.T) {
 	_, err := bonus_click.New(stubClick{}, presence).Execute(ctx, click_usecase.In{})
 	require.NoError(t, err)
 
-	assert.Equal(t, []bonuses.Click{{Entrant: "1.2.3.4", Scope: "1.2.3.4", Holder: "a-guest", Born: born}}, presence.clicks)
+	assert.Equal(t, []bonuses.Click{{Caller: bonuses.Caller{Scope: "1.2.3.4", Account: "a-guest"}, Born: born}},
+		presence.clicks)
 }
 
 func TestALinkedAccountPlaysOnItsOwnSchedule(t *testing.T) {
@@ -76,9 +77,8 @@ func TestALinkedAccountPlaysOnItsOwnSchedule(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, presence.clicks, 1)
-	assert.Equal(t, bonuses.Entrant("account:a-player"), presence.clicks[0].Entrant)
-	assert.Equal(t, "1.2.3.4", presence.clicks[0].Scope)
-	assert.Equal(t, bonuses.Holder("a-player"), presence.clicks[0].Holder)
+	assert.Equal(t, bonuses.Caller{Scope: "1.2.3.4", Account: "a-player", Linked: true}, presence.clicks[0].Caller)
+	assert.Equal(t, bonuses.Entrant("account:a-player"), bonuses.EntrantOf(presence.clicks[0].Caller))
 }
 
 func TestAClickThatLeavesLessThanOneClickInTheBankIsDry(t *testing.T) {
@@ -101,5 +101,31 @@ func TestAClickThatLeavesLessThanOneClickInTheBankIsDry(t *testing.T) {
 			require.Len(t, presence.clicks, 1)
 			assert.Equal(t, tc.dry, presence.clicks[0].Dry)
 		})
+	}
+}
+
+// The offers hear exactly ClickTried's TAKEN, STRUCK and UNCHANGED: a try the throttle or the chain inside it refused or
+// failed is not heard, and the gates outside it (the refusal, the flag, the reach) never reach it.
+func TestOnlyATakeAStrikeOrAnUnchangedTileIsHeard(t *testing.T) {
+	for _, outcome := range []clicks.Outcome{clicks.Taken, clicks.Shielded, clicks.Unchanged} {
+		presence := &recordingPresence{}
+
+		_, err := bonus_click.New(stubClick{out: click_usecase.Out{Outcome: outcome}}, presence).
+			Execute(t.Context(), click_usecase.In{})
+		require.NoError(t, err)
+
+		assert.Len(t, presence.clicks, 1, outcome)
+	}
+
+	for _, refused := range []error{
+		clicks.ErrThrottled, clicks.ErrUnknownCountry, clicks.ErrTileOutOfRange, clicks.ErrBonusesTogether,
+		errors.New("the spread failed"),
+	} {
+		presence := &recordingPresence{}
+
+		_, err := bonus_click.New(stubClick{err: refused}, presence).Execute(t.Context(), click_usecase.In{})
+		require.ErrorIs(t, err, refused)
+
+		assert.Empty(t, presence.clicks, refused)
 	}
 }

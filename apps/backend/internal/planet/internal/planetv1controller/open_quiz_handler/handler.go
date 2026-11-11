@@ -6,6 +6,7 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses/usecases/open_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/offercaller"
 )
 
 type UseCase interface {
@@ -24,7 +25,7 @@ func (h OpenQuizHandler) OpenQuiz(
 	ctx context.Context,
 	req *connect.Request[planetv1.OpenQuizRequest],
 ) (*connect.Response[planetv1.OpenQuizResponse], error) {
-	out, err := h.useCase.Execute(ctx, open_quiz_usecase.In{Token: req.Msg.GetToken()})
+	out, err := h.useCase.Execute(ctx, open_quiz_usecase.In{Caller: offercaller.Of(ctx), Token: req.Msg.GetToken()})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, open_quiz_usecase.ErrNoSuchQuiz)
 	}

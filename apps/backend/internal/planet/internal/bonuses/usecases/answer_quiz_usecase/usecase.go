@@ -10,7 +10,6 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -23,9 +22,10 @@ type Registry interface {
 	Publish(taken bonuses.Taken)
 }
 
-type Charger interface {
-	Grant(ctx context.Context, holder bonuses.Holder, kind bonuses.Kind, amount int) (bonuses.Gain, error)
-	Held(ctx context.Context, holder bonuses.Holder) (bonuses.Held, error)
+// Wallet pays what a right answer grants, and answers the hand a wrong one leaves: it is planet's.
+type Wallet interface {
+	Pay(ctx context.Context, payment bonuses.Payment) (bonuses.Paid, error)
+	Hand(ctx context.Context, account bonuses.Account) (bonuses.Hand, error)
 }
 
 type Publisher interface {
@@ -33,6 +33,7 @@ type Publisher interface {
 }
 
 type In struct {
+	Caller    bonuses.Caller
 	Token     string
 	Choice    int
 	CountryID string
@@ -45,47 +46,51 @@ type Out struct {
 
 	Kind bonuses.Kind
 
+	// Amount is what the wallet kept.
 	Amount int
 
-	Held bonuses.Held
+	Hand bonuses.Hand
 }
 
-func New(registry Registry, charger Charger, events Publisher, clock cptime.Clock) *UseCase {
-	return &UseCase{registry: registry, charger: charger, events: events, clock: clock}
+func New(registry Registry, wallet Wallet, events Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{registry: registry, wallet: wallet, events: events, clock: clock}
 }
 
 type UseCase struct {
 	registry Registry
-	charger  Charger
+	wallet   Wallet
 	events   Publisher
 	clock    cptime.Clock
 }
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	payer := clicks.PayerOf(ctx)
-
-	answered, ok := u.registry.AnswerQuiz(in.Token, bonuses.EntrantOf(payer), in.Choice)
+	answered, ok := u.registry.AnswerQuiz(in.Token, bonuses.EntrantOf(in.Caller), in.Choice)
 	if !ok {
 		return Out{}, ErrNoSuchQuiz
 	}
 
-	holder := bonuses.HolderOf(payer)
+	account := in.Caller.Account
 	if !answered.Correct {
-		held, err := u.charger.Held(ctx, holder)
+		hand, err := u.wallet.Hand(ctx, account)
 		if err != nil {
-			return Out{}, err
+			return Out{}, err //nolint:wrapcheck // the wallet named it.
 		}
-		u.publishAnswer(holder, false)
-		return Out{CorrectChoice: answered.CorrectChoice, Held: held}, nil
+		u.publishAnswer(account, false)
+		return Out{CorrectChoice: answered.CorrectChoice, Hand: hand}, nil
 	}
 
 	// The quiz is spent: a caller who leaves now must still get the charge.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), grantTimeout)
 	defer cancel()
 
-	gain, err := u.charger.Grant(ctx, holder, answered.Reward.Kind, answered.Reward.Amount)
+	paid, err := u.wallet.Pay(ctx, bonuses.Payment{
+		Grant:   bonuses.OfferGrantOf(in.Token),
+		Account: account,
+		Kind:    answered.Reward.Kind,
+		Amount:  answered.Reward.Amount,
+	})
 	if err != nil {
-		return Out{}, err
+		return Out{}, err //nolint:wrapcheck // the wallet named it.
 	}
 
 	u.registry.Publish(bonuses.Taken{
@@ -93,22 +98,22 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		Kind:        answered.Reward.Kind,
 		QuizSubject: answered.Subject,
 	})
-	u.publishAnswer(holder, true)
+	u.publishAnswer(account, true)
 
 	return Out{
 		Correct:       true,
 		CorrectChoice: answered.CorrectChoice,
 		Kind:          answered.Reward.Kind,
-		Amount:        gain.Count(answered.Reward.Kind),
-		Held:          gain.After,
+		Amount:        paid.Kept,
+		Hand:          paid.Hand,
 	}, nil
 }
 
-func (u *UseCase) publishAnswer(holder bonuses.Holder, correct bool) {
-	if holder == bonuses.NoHolder {
+func (u *UseCase) publishAnswer(account bonuses.Account, correct bool) {
+	if account == bonuses.NoAccount {
 		return
 	}
 	u.events.Publish(&planetv1.QuizAnswered{
-		AccountId: string(holder), Correct: correct, AnsweredAt: timestamppb.New(u.clock.Now()),
+		AccountId: string(account), Correct: correct, AnsweredAt: timestamppb.New(u.clock.Now()),
 	})
 }

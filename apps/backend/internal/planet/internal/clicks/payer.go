@@ -93,6 +93,17 @@ type Payer struct {
 	Created time.Time
 }
 
+// Caller is who a payer is to a stream: the account a linked token names, or the scope every guest behind it shares.
+type Caller string
+
+func CallerOf(payer Payer) Caller {
+	if payer.Linked {
+		return Caller("account:" + payer.Account)
+	}
+
+	return Caller(payer.Scope)
+}
+
 func PayerOf(ctx context.Context) Payer {
 	return Payer{
 		Scope:   cpipscope.Of(cpctx.GetSourceIP(ctx)),

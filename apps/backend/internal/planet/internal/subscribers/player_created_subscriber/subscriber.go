@@ -10,7 +10,7 @@ import (
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, holder bonuses.Holder) error
+	Execute(ctx context.Context, account bonuses.Account) error
 }
 
 func New(useCase UseCase) Subscriber {
@@ -24,7 +24,7 @@ type Subscriber struct {
 var _ cpredis.Handler[*playerv1.PlayerCreated] = Subscriber{}
 
 func (s Subscriber) Handle(ctx context.Context, event *playerv1.PlayerCreated) error {
-	holder, err := bonuses.ParseHolder(event.GetAccountId())
+	account, err := bonuses.ParseAccount(event.GetAccountId())
 	if err != nil {
 		return err //nolint:wrapcheck // the id is the whole event: the sentinel already says what is wrong.
 	}
@@ -32,5 +32,5 @@ func (s Subscriber) Handle(ctx context.Context, event *playerv1.PlayerCreated) e
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)
 	defer cancel()
 
-	return s.useCase.Execute(ctx, holder) //nolint:wrapcheck // the use case named it.
+	return s.useCase.Execute(ctx, account) //nolint:wrapcheck // the use case named it.
 }
