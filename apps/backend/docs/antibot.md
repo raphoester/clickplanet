@@ -590,6 +590,8 @@ under 400ms and it makes 1,080 tries in 30 minutes.
 - **`cohort`'s `crowd` bound is the anti-bot's own** (`certainMembers`), never a rule set's: planet's rule sets hold
   planet's words only. A countdown makes people start on the second, a carrier's NAT can put six of them on one /24,
   and a fast tempo makes them pace alike, so a faster set may need a higher bound. `chain` and `lockstep` do not move.
+  A higher `certainMembers` alone does not keep a carrier's crowd: `chain` bans it first (see [A streamer's
+  chat](#a-streamers-chat)).
 - `tempo_test.go` pins all of it at production's bounds.
 
 **`defender`: what is clicked, not when.** The bots of 2026-09-14 retook from a
@@ -688,7 +690,8 @@ since a pool starts its tries together and the throttle only blurs that.
   they come back and a pool does not**, so a chain of fresh scopes is the pattern
   no crowd produces. The prefix is what separates it from a raid — waves of people
   answering one link start together too, but from all over, and
-  `TestARaidFromAllOverIsNeverCertain` pins that they never reach it.
+  `TestARaidFromAllOverIsNeverCertain` pins that they never reach it. A raid is not all from all over: a mobile
+  carrier puts part of it on one prefix, and that part reads `chain` (see [A streamer's chat](#a-streamers-chat)).
 - **`Certain` (`crowd`)** is `certainMembers` scopes in step in one group from one prefix.
 
 **How a finding reaches every member.** The jury asks per click of one scope, and
@@ -940,6 +943,41 @@ and every other watchdog read `clear`.
   cost of the rule. Two who pass it every few minutes rarely share four hours of slots.
 - The counter-move is to click with two accounts in the same seconds, which takes two
   hands or a script, and a script is what the other watchdogs read.
+
+## A streamer's chat
+
+**A streamer's chat that joins at once is banned in part by `cohort` and `churner` at `default`'s bounds, so the set
+`stream` turns both off for the stream** (2026-11-11). The game grows through small Twitch streamers (20 to 500
+viewers): the streamer says "go", and the chat opens the game in the same 30 seconds, new guests all, on one flag.
+Viewers on networks of their own read `lockstep` and nothing else. But a mobile carrier puts part of a country on a few
+prefixes, and those viewers are banned in the first minute:
+
+- **`chain` bans a carrier's /44 or /24.** Twelve viewers in one /44, or on twelve addresses of one /24, starting over
+  30 seconds make several pairs that start in the same five seconds, and three such groups are a chain. `crowd` bans
+  some first. `certainMembers` 50, the battle sets' bound, changes nothing: `chain` bans the same viewers.
+- **`lockstep` and `churn` ban a carrier's NAT address.** Ten guests born behind one IPv4 read `churn` at `suspect`, and
+  every viewer of the raid reads `lockstep`: two suspects. A guest's ban falls on its scope, so every viewer behind the
+  address is refused.
+- **`lockstep` and `relay` ban part of a carrier's /32.** A viewer that pauses in its first seconds reads as an account
+  that stopped, and a viewer of the same /32 that starts then reads as its relay. Of sixty in one /32, about one in ten
+  were banned.
+- **The set `stream` holds `cohort.enabled` false and `churner.enabled` false**, and judges with default's values for
+  the rest. Measured over raids of 160 to 300 viewers, nothing less kept every viewer: `certainMembers` 50 with
+  `certainCohorts` 10 still banned the NAT address and part of a /32; `cohort` off alone still banned 30 guests behind
+  one address (`churn` at `certain`) and part of a /32 of 100 (`relay` at `certain`). With both off, no viewer was
+  banned, up to 300 viewers with 100 in one /32, 40 in one /44 or one /24, or 30 behind one address.
+- **What it costs**: while it plays, a pool that rotates its scopes (`cohort`) and a phone that sheds its guest accounts
+  (`churner`) are free. The other watchdogs judge as on any day: a bot walking the tile ids in the middle of the raid is
+  banned in 5 minutes, on `stride` and `cadence`.
+- **The operator schedules it** for each stream, from before the "go" to an hour after the stream ends (see [Which set
+  plays](antibot-rules.md#which-set-plays)). A watchdog turned off keeps watching, so when `default` plays again,
+  `churner` counts the guests born in its last hour (`window`) and `cohort` the groups that started in its last 30
+  minutes (`chainWindow`): a viewer still playing then could be judged on the raid.
+- **A stream in a battle** plays the battle's set, not `stream`, so that set needs the same two values. The battle sets
+  of 2026-11-11 hold `certainMembers` 50 only, which does not stop `chain`.
+- `TestAStreamsChatOnOneCarrierIsBannedByTheDefaultSet` replays the raid at default's bounds (160 viewers: 60 in one
+  /32, 12 in one /44, 12 on one /24, 12 behind one address, the rest from all over), with production's throttle, and
+  `TestAStreamsChatPlaysFreeUnderTheStreamSet` the same raid under `stream`, with the bot in it.
 
 ## The parts that are easy to get wrong
 
