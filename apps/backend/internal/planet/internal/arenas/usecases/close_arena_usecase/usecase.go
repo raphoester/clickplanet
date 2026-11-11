@@ -65,16 +65,18 @@ func (u *UseCase) Execute(ctx context.Context, id arenas.ID) (Closed, error) {
 			return false, err //nolint:wrapcheck // the store names it.
 		}
 		closing, closes := arena.Close(u.clock.Now())
-		if !closes {
-			return false, nil
-		}
-		if err := u.kept.Close(ctx, closing); err != nil {
-			return false, err //nolint:wrapcheck // the store names it.
+		if closes {
+			if err := u.kept.Close(ctx, closing); err != nil {
+				return false, err //nolint:wrapcheck // the store names it.
+			}
 		}
 		if err := u.outbox.Record(ctx, &planetv1.ArenaClosed{
 			ArenaId: string(id), ClosedAt: timestamppb.New(closing.ClosedAt),
 		}); err != nil {
 			return false, err //nolint:wrapcheck // the outbox names it.
+		}
+		if !closes {
+			return false, nil
 		}
 		closed = Unopened
 		if arena.Opened {

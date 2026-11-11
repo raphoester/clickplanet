@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
@@ -46,10 +47,12 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		return false, err //nolint:wrapcheck // the store says what failed.
 	}
 	if !found {
-		return false, u.miss(ctx, command)
+		return false, u.tell(ctx, command.Round, &scoringv1.RoundMissed{
+			RoundId: string(command.Round), EndedAt: timestamppb.New(command.EndsAt),
+		})
 	}
 	if round.Scored {
-		return false, nil
+		return false, u.tell(ctx, command.Round, eventOf(round))
 	}
 	start, err := u.rounds.StartOf(ctx, command.Round)
 	if err != nil {
@@ -66,7 +69,7 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 		if done, err = u.rounds.Score(ctx, scored); err != nil || !done {
 			return err //nolint:wrapcheck // the store says what failed.
 		}
-		if err := u.outbox.Record(ctx, eventOf(scored)); err != nil {
+		if err := u.outbox.Record(ctx, eventOf(scored.Round)); err != nil {
 			return fmt.Errorf("failed to record round %s scored: %w", command.Round, err)
 		}
 		return nil
@@ -77,20 +80,19 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	return done, nil
 }
 
-func (u *UseCase) miss(ctx context.Context, command Command) error {
-	missed := &scoringv1.RoundMissed{RoundId: string(command.Round), EndedAt: timestamppb.New(command.EndsAt)}
+func (u *UseCase) tell(ctx context.Context, round books.RoundID, event proto.Message) error {
 	return u.transactioner.InTx(ctx, func(ctx context.Context) error { //nolint:wrapcheck // the outbox names the event.
-		if err := u.outbox.Record(ctx, missed); err != nil {
-			return fmt.Errorf("failed to record round %s missed: %w", command.Round, err)
+		if err := u.outbox.Record(ctx, event); err != nil {
+			return fmt.Errorf("failed to tell round %s: %w", round, err)
 		}
 		return nil
 	})
 }
 
-func eventOf(scored books.Scored) *scoringv1.RoundScored {
+func eventOf(scored books.Round) *scoringv1.RoundScored {
 	return &scoringv1.RoundScored{
-		RoundId: string(scored.Round.ID),
-		BookId:  string(scored.Round.Book),
-		EndedAt: timestamppb.New(scored.Round.EndsAt),
+		RoundId: string(scored.ID),
+		BookId:  string(scored.Book),
+		EndedAt: timestamppb.New(scored.EndsAt),
 	}
 }

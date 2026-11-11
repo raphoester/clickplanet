@@ -146,7 +146,7 @@ func TestTheLastDayThenTheFinalBattleThenTheSeasonAreScoredOnceInTheirOrder(t *t
 		closeBook("season-0", battle, utc(31, 23)),
 	)
 
-	assertRecorded(t, want, stack.outbox.Recorded())
+	assertRecorded(t, append(want, want...), stack.outbox.Recorded())
 	again, _, err := stack.books.Find(t.Context(), "season-0")
 	require.NoError(t, err)
 	assert.Equal(t, book, again)
@@ -257,20 +257,22 @@ func TestACloseOfARoundOrABookNeverOpenedIsToldMissedAtEachClose(t *testing.T) {
 	assert.False(t, found)
 }
 
-func TestARoundOrABookClosedTwiceIsToldOnce(t *testing.T) {
+func TestARoundOrABookClosedAgainIsToldAgainAsItClosed(t *testing.T) {
 	stack := newStack()
 	stack.territory.held = map[books.Country]uint32{"fr": 3}
-	for range 2 {
+	for _, at := range []time.Time{utc(8, 21), utc(8, 22)} {
 		require.NoError(t, stack.handler.Handle(t.Context(), openBook("season-1", utc(8, 0))))
 		require.NoError(t, stack.handler.Handle(t.Context(), openRound("season-1/day-1", "season-1", 1, utc(8, 0))))
-		require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-1/day-1", utc(8, 21))))
-		require.NoError(t, stack.handler.Handle(t.Context(), closeBook("season-1", "", utc(8, 21))))
+		require.NoError(t, stack.handler.Handle(t.Context(), closeRound("season-1/day-1", at)))
+		require.NoError(t, stack.handler.Handle(t.Context(), closeBook("season-1", "", at)))
 	}
 
-	recorded := stack.outbox.Recorded()
-	require.Len(t, recorded, 2)
-	assert.IsType(t, &scoringv1.RoundScored{}, recorded[0])
-	assert.IsType(t, &scoringv1.BookClosed{}, recorded[1])
+	scored := &scoringv1.RoundScored{RoundId: "season-1/day-1", BookId: "season-1", EndedAt: timestamppb.New(utc(8, 21))}
+	closed := &scoringv1.BookClosed{BookId: "season-1", EndedAt: timestamppb.New(utc(8, 21))}
+	assertRecorded(t, []proto.Message{scored, closed, scored, closed}, stack.outbox.Recorded())
+	round, _, err := stack.rounds.Find(t.Context(), "season-1/day-1")
+	require.NoError(t, err)
+	assert.Equal(t, utc(8, 21), round.EndsAt, "a close told again scores nothing again")
 }
 
 func assertRecorded(t *testing.T, want, recorded []proto.Message) {

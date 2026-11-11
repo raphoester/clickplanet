@@ -97,7 +97,9 @@ map.
   one transaction with the arena kept closed (`closed_arenas`) and `planet.v1.ArenaClosed` recorded in planet's outbox.
   Only after the commit does the world's map play again, read as the boot reads it (`Load`'s steps: every tile, every
   lock, each landmass settled), with a new epoch and every stream cut. **An arena that never opened closes too**, with
-  the map left as it is, and is told the same way, so day K+1 never waits for ever. One closed already changes nothing.
+  the map left as it is, and is told the same way, so day K+1 never waits for ever. One closed already changes nothing,
+  but `ArenaClosed` is recorded again with the time it closed (`Arena.ClosedAt`, from `closed_arenas`): the first may
+  have been lost on its way to the gamemaster, which waits for it.
   The world's map is never an arena's (`ParseID` refuses `world`, and `Blank` and `PutBack` refuse it).
 - **One ordered stream**: `commands:planet.v1.ArenaCommand`, a oneof of the two, like scoring's.
 - **Neither writes a ledger event.** The ledger keeps the battle's takes as any other.
@@ -212,7 +214,8 @@ HTTP; `click_handler` answers the `ReachRefusal`; `spread_click` takes only the 
 Slice 1:
 
 `arenas`' tests pin the id, an arena opened once and refused closed, ended or beside another, closed once whether it
-opened or not, and the freeze's two windows; `open_arena_usecase`'s `ArenaOpened` told once and never on a refusal; the arena part (default never plays in an arena, a freeze past 30 s
+opened or not and keeping the time it closed, and the freeze's two windows; `close_arena_usecase`'s `ArenaClosed` told
+again at each close with the time it closed, the map left as it is; `open_arena_usecase`'s `ArenaOpened` told once and never on a refusal; the arena part (default never plays in an arena, a freeze past 30 s
 refused); `StoreContractSuite` on memory and postgres. `inmemory_tile_storage`'s `arena_test.go` pins the world's map
 saved with the tiles not flushed yet, the arena's map saved apart, the world played again tile for tile with shields,
 holders and locks, the arena's rows deleted, a holder forgotten on the world while an arena plays, the new epoch and the
