@@ -87,27 +87,36 @@ With no book there are no boards. `app/standings/` draws it.
   on its own** (`GUIDE_MS`, 10s), once per browser: the store `useBoardGuide`
   (`boardGuideStore.ts`), which the board reads, in the `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
   inside, it mounts before the button's ref is set and has nothing to sit on.
-- **The desktop menu is `clamp(340px, 28vw, 420px)` wide** (`.menu`), every tab alike;
-  below about 1500px the board's six columns leave the country's name a few letters,
-  or only its flag at 1280px and under. On a phone the sheet is the screen's width; a long
-  country name ends in "…" before a column moves.
-- **The column heads sort the countries**: Tiles, Gained and Points (`Leaderboard`'s
+- **The desktop menu is `clamp(340px, 40vw, 480px)` wide** (`.menu`), every tab alike.
+  From 1200px wide the board's Country column is 157px: 95% of the countries' names show in full, "Netherlands"
+  and "Switzerland" too; at 1024px it is 87px, a short name ("Brazil"). It was `clamp(340px, 28vw, 420px)`, which
+  left a name a few letters below 1500px, or only its flag at 1280px and under; the owner asked for it wider on
+  2026-11-11. What sits at the top centres in the room right of it (see [The screen](screen.md)). On a phone the
+  sheet is the screen's width; a long country name ends in "…" before a column moves.
+- **The column heads sort the countries**: Tiles, Gained, Points and Today (`Leaderboard`'s
   `onOrder`, `aria-sort` on the head sorted by). Each has a small arrow before its word
   (`.leaderboard-sort`), faint, and in `--text` on the head sorted by; before the word
   so the word stays over its column's right-aligned numbers. Points first. A tap on a
-  head sorts by it and, as on any head, says what it means. Country and Today do not
-  sort: the board ranks by a number, not a name, and Today follows Tiles and Gained,
-  which a round scores. It replaced a switch of two pills, Season and Territory, on the heading's line, on
+  head sorts by it and, as on any head, says what it means. Country does not
+  sort: the board ranks by a number, not a name. Today did not sort until 2026-11-11. It replaced a switch of two pills, Season and Territory, on the heading's line, on
   2026-11-06: once a round scored the gain, a third order was one pill too many.
   Points ranks by the points of the days closed, then by tiles (`domain/race.ts`,
   `countryLines`), and lists a country with points that holds no ground; Gained ranks
-  the same countries by the tiles gained since the round opened, then by tiles. **Today's
+  the same countries by the tiles gained since the round opened, then by tiles. Today ranks them by their place in
+  the round that scores now, at its last read (`place`, the standing's rank), then by tiles; a country it did not
+  place comes after. **Ordered by Today, a day shows why**: under each Tiles and Gained number sits its rank among
+  the countries that hold ground (`ranks`, `RankNote`, "7th"), which the page counts from the live numbers as scoring
+  does (ties share a rank: 1, 1, 3), and the leader frame says it in words ("7th on tiles + 3rd on gained"). The owner
+  asked on 2026-11-11: Bulgaria, 7th on tiles and 3rd on gained, won a day over Brazil, 1st on tiles and 11th on
+  gained, and the board gave no rank to add. The ranks move with the tiles, the order and the points with the read
+  every 10s, so for a few seconds two close countries' ranks may not add up to their order. A battle places the gain
+  alone, so its order shows no ranks: Gained is the same order. **Today's
   points do not move the Points order**: when a day was won on its average, ranked
   by them, two countries at 0 points swapped against their tiles, which read as a bug
   (2026-10-08). Tiles is the map's order. The choice is kept per browser: the store
   `useCountryOrder` (`countryOrderStore.ts`), in the `clickplanet-country-order` key, which
   `PlayScreen` reads; before 2026-11-07 a reload put it back to Points. With no round
-  open, Gained falls back to Points; with no race, no head sorts and the board is
+  open, Gained and Today fall back to Points; with no race, no head sorts and the board is
   the order of Tiles (`shownOrder`). **The rank and the anthem follow the order picked**: the rank
   beside "playing for" and on the phone's status bar is the country's place in
   that order (`rankShown` in `Menu`, `rankOf` over `countryLines` in `PlayScreen`),

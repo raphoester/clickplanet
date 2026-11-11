@@ -85,7 +85,8 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    width: clamp(340px, 28vw, 420px);
+    /* 480px shows most countries' names on the board in full; under 1200px wide, 40vw leaves the globe room. */
+    width: clamp(340px, 40vw, 480px);
     box-sizing: border-box;
     max-height: var(--menu-room);
     min-height: 0;

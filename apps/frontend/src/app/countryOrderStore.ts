@@ -3,7 +3,7 @@ import {CountryOrder} from "../domain/race.ts"
 
 const COUNTRY_ORDER_STORAGE_KEY = "clickplanet-country-order"
 
-const ORDERS: readonly CountryOrder[] = ["points", "tiles", "gain"]
+const ORDERS: readonly CountryOrder[] = ["points", "tiles", "gain", "today"]
 
 type CountryOrderStore = {
     order: CountryOrder

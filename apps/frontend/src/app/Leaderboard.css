@@ -61,9 +61,10 @@
     width: 54px;
 }
 
+/* Its sort arrow sits in the gap before its word, as every head's does. */
 .leaderboard-table-today {
-    width: 40px;
-    padding-left: 5px;
+    width: 45px;
+    padding-left: 10px;
     text-align: left;
 }
 
@@ -166,6 +167,18 @@
 
 .leader-frame-tiles .leaderboard-map-share {
     min-width: 0;
+}
+
+/* Under the number it ranks, so it needs no word. */
+.leaderboard-rank-note {
+    display: block;
+    margin-top: 1px;
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    line-height: 1;
+    color: var(--text-muted);
+    text-shadow: none;
 }
 
 .leaderboard-table-rank {
@@ -345,6 +358,13 @@
 
 .leader-frame-tiles.leaderboard-tiles-down {
     color: var(--loss);
+}
+
+.leader-frame-ranks {
+    font-family: var(--font-text);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    color: var(--text-muted);
 }
 
 .leader-frame-map {

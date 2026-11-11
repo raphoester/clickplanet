@@ -4,7 +4,7 @@ import {Battle, battleEndsLine, battleLeft, battleNameOf} from "../../domain/bat
 import {playingOf} from "../../domain/battleTeaser.ts"
 import {countdownsOf, shortLeft} from "../../domain/seasonClock.ts"
 import {ChevronIcon, SwordsIcon} from "../components/icons.tsx"
-import {useBottomEdge} from "../components/useBottomEdge.ts"
+import {useEdge} from "../components/useEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
 import {useScreen} from "../hud/screenStore.ts"
@@ -26,7 +26,7 @@ export type BattleChipProps = {
 
 export default function BattleChip({battle, season, compact}: BattleChipProps) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
-    useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+    useEdge(compact ? null : chip, STATUS_BOTTOM, "bottom")
     const [hovered, setHovered] = useState(false)
     const open = useScreen((screen) => compact ? screen.sheet === "battle" : screen.popovers.battle)
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
