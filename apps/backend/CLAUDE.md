@@ -58,7 +58,8 @@ and says what is in it. Read the doc before you change its area.
   the `OpenArena` and `CloseArena` calls whose swap the caller cannot cut, the
   freeze, the gaps; the ledger's readers (replays, map history, clips, the holder card) skip it by time, so the world's
   map before and after joins up.
-- [The reach](docs/reach.md) — a knob: a take only next to the flag's land or across its waters, on any map.
+- [The reach](docs/reach.md) — a knob: a take only next to the flag's land or across a bridge from it, on any map; why
+  bridges and not the waters.
 - [The capitals' rules](docs/capitals.md) — two knobs: no shield on a capital, and the knock-out (a capital taken clears
   its flag's land in one event, the flags out kept with the tiles, the pick of a flag still in).
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get

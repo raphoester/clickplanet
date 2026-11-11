@@ -9,7 +9,6 @@ import {NATURAL_EARTH_TAG, naturalEarth} from "./map/naturalEarth.mjs"
 import {readBorders, readCoordinates} from "./map/blob.mjs"
 import {remap, remapLandmasses, remapSQL} from "./map/remap.mjs"
 import {latticeGround} from "./map/oracle.mjs"
-import {watersOf} from "./map/waters.mjs"
 import {bordersPath, staticBordersPath, writeBordersAsset, writeCoordinatesBinary, writeSharedJSON} from "./writeCoordinates.ts"
 
 const args = process.argv.slice(2)
@@ -84,12 +83,6 @@ const capitals = capitalsOf(places, countryShapes, {
 const capitalsFile = writeSharedJSON("capitals", {tiles: count, capitals})
 console.log(`wrote map/${capitalsFile.fileName}: ${Object.keys(capitals).length} capitals`)
 
-const bodies = watersOf(edges, tileOf)
-const watersFile = writeSharedJSON("waters", {tiles: count, bodies})
-const coast = new Set(bodies.flat())
-console.log(`wrote map/${watersFile.fileName}: ${bodies.length} bodies of water, ${coast.size} coast tiles,`
-    + ` the longest coast ${bodies[0]?.length ?? 0} tiles`)
-
 const before: string[] = []
 for (let t = 0; t < previous.count; t++) {
     before.push(keyOf(previous.positions[t * 3], previous.positions[t * 3 + 1], previous.positions[t * 3 + 2]))
@@ -125,6 +118,7 @@ if (remapAt) {
 console.log(`
 next:
   gameMap.maxIndex is now ${count} — update cmd/api/example.yaml and deploy/vps/backend.yaml
+  npm run bridges                  # the crossings, from the new tiles and capitals
   cd ../backend && make map        # copy the blobs, then commit every copy
   cd ../backoffice && npm run map  # copy the coordinates blob
   npm run borderLines              # traced from both blobs, stale until it is run

@@ -193,6 +193,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.unlimitEnclosures(on)
             return on ? "enclosures are unlimited: enclose is on, and spends nothing" : "enclosures are spent again"
         },
+        playReach: (on = true) => {
+            fake.playReach(on)
+            return on ? "the reach plays: the bridges are drawn and the front rung" : "the reach stops"
+        },
         lockFlags: () => {
             fake.lockFlags(true)
             return "the flags are locked: no change of country"

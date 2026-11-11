@@ -506,8 +506,8 @@ export class FrozenRefusal extends Message<FrozenRefusal> {
 }
 
 /**
- * The detail of the FailedPrecondition that Click answers in an arena, for a tile that touches none of the flag's land
- * and is on the coast of no water where the flag holds a coast.
+ * The detail of the FailedPrecondition that Click answers while the reach plays, for a tile that touches none of the
+ * flag's land and that no bridge from its land leads to.
  *
  * @generated from message planet.v1.ReachRefusal
  */
@@ -2163,7 +2163,7 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
   enclosuresUnlimited = false;
 
   /**
-   * A take lands only next to the flag's land or across a water where it holds a coast.
+   * A take lands only next to the flag's land or at the far end of a bridge from it.
    *
    * @generated from field: bool reach = 11;
    */

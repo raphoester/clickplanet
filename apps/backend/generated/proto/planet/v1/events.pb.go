@@ -39,7 +39,7 @@ const (
 	// An unknown flag, a tile off the map, or two bonuses together.
 	ClickOutcome_CLICK_OUTCOME_INVALID ClickOutcome = 7
 	ClickOutcome_CLICK_OUTCOME_FAILED  ClickOutcome = 8
-	// In an arena, a tile next to none of the flag's land and across none of its waters.
+	// While the reach plays, a tile next to none of the flag's land and at the far end of no bridge from it.
 	ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH ClickOutcome = 9
 )
 

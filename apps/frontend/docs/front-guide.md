@@ -17,7 +17,8 @@ the players who left in their first two minutes left after fewer than 30 clicks.
   (`flownZoomsOf`'s `most`). Not if the player took the globe first (`Pilot.cancel`), and not when the flag holds no
   tile: it stays on its country, and its first tile there makes a front.
 - **The front is lit** (`domain/front.ts`, `Front`): every tile the flag does not hold, enemy or free, that touches one
-  it holds. While the reach plays, every page lights it, and the coasts of the flag's waters too (see [The reach](reach.md)). A white ring beats on each, as the gold one does on a tile a flag misses to fortify (see
+  it holds. While the reach plays, every page lights it, and the far end of each bridge from the flag's land too (see [The
+reach](reach.md)). A white ring beats on each, as the gold one does on a tile a flag misses to fortify (see
   [Fortify](fortify.md)). It follows every change of owner (`touch`, in `applyChanges`), a ghost's tiles included, and
   the flag played (`follow`, in `setCountry`). It stays lit for the whole page, even once the count is reached.
 - **The map fights back** while fewer than 7 play: fake raids on the front, painted on this page only. See

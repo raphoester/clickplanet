@@ -3,13 +3,13 @@ import path from "node:path"
 
 import sharp from "sharp"
 
-import {readBorders, readCapitals, readCoordinates, readWaters, staticDir} from "./map/blob.mjs"
+import {readBorders, readBridges, readCapitals, readCoordinates, staticDir} from "./map/blob.mjs"
+import {bridgesOf, piecesApart} from "./map/bridges.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {DETAIL, keyOf, lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {latticeGround} from "./map/oracle.mjs"
 import {REGIONS} from "./map/seats.mjs"
-import {watersOf} from "./map/waters.mjs"
 
 const seaPixel = (r, g, b) => b > r + 18 && b > g + 8
 
@@ -54,7 +54,8 @@ async function main() {
         flagsWithNoGround: 0,
         groundWithNoCapital: 0,
         capitalsOffTheirGround: 0,
-        watersAstray: 0,
+        bridgesAstray: 0,
+        landNoBridgeReaches: 0,
     }
     const texture_ = {landButBlue: 0, blueButLand: 0}
     const seam = {land: 0, tiles: 0}
@@ -105,11 +106,13 @@ async function main() {
     for (let i = 0; i < vertices; i++) {
         tileOf[i] = tileAt.get(keyOf(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2])) ?? -1
     }
-    const drawn = watersOf(edges, tileOf)
-    const {bodies} = readWaters()
-    const kept = new Set(bodies.map((coast) => coast.join(",")))
-    faults.watersAstray = drawn.filter((coast) => !kept.has(coast.join(","))).length
-        + Math.max(0, bodies.length - drawn.length)
+    const crossings = {at: edges.at, to: edges.to, tileOf}
+    const drawn = bridgesOf({positions: tiles.positions, ...crossings, capitals}).bridges
+    const {bridges} = readBridges()
+    const kept = new Set(bridges.map((pair) => pair.join(",")))
+    faults.bridgesAstray = drawn.filter((pair) => !kept.has(pair.join(","))).length
+        + Math.max(0, bridges.length - drawn.length)
+    faults.landNoBridgeReaches = piecesApart(crossings, tiles.count, bridges)
 
     report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders, seated, groundless, lakes})
 
@@ -158,7 +161,8 @@ faults between the tile set and the ground oracle
   flags with no ground  ${faults.flagsWithNoGround}${groundless.length ? `  (${groundless.join(" ")})` : ""}
   ground with no capital ${faults.groundWithNoCapital}
   capitals off their ground ${faults.capitalsOffTheirGround}
-  waters astray from the lattice ${faults.watersAstray}
+  bridges astray from the generator ${faults.bridgesAstray}
+  land no bridge reaches ${faults.landNoBridgeReaches}
 
 lakes, sea on a country's ground where most of the cell is lake
   ${lakes} lattice vertices

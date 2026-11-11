@@ -58,7 +58,7 @@ export function writeBordersAsset(fileName: string): void {
     writeFileSync(join(viewerDir, "bordersAsset.ts"), assetModule("BORDERS_URL", fileName))
 }
 
-export function writeSharedJSON(kind: "capitals" | "waters", value: unknown): {fileName: string, byteLength: number} {
+export function writeSharedJSON(kind: "capitals" | "bridges", value: unknown): {fileName: string, byteLength: number} {
     const bytes = Buffer.from(`${JSON.stringify(value)}\n`)
     const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 8)
     const fileName = `${kind}-${hash}.json`

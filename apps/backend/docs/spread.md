@@ -41,4 +41,4 @@ events rather than a handful.
 
 **While the reach plays, a spread takes only the neighbours in the flag's reach** (`clicks.Reach.Around`, read after the clicked
 tile is written): a click that took its tile reaches every neighbour, and one a shield took reaches only those that
-touch other land of the flag or lie across one of its waters. See [The reach](reach.md).
+touch other land of the flag or lie across a bridge from it. See [The reach](reach.md).

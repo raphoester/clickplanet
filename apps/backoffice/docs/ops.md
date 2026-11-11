@@ -64,7 +64,7 @@ and quiz answered; see the backend's
 `allegianceLocked`, for a battle's set: see the backend's [Allegiance](../../backend/docs/allegiance.md)), "Arena: the battle is
 fought on a fresh map" (the set's `arena.on`, never shown on `default`, which the backend refuses it for: see the
 backend's [Arena battles](../../backend/docs/arenas.md)), "Reach: a take lands only next to the flag's land or across
-its waters" (`reach`: see the backend's [The reach](../../backend/docs/reach.md)), "Knock-out: a capital taken clears
+a bridge" (`reach`: see the backend's [The reach](../../backend/docs/reach.md)), "Knock-out: a capital taken clears
 its flag" and "No shield on a capital" (`capitals.knockOut`, `capitals.fixedShields`: see the backend's
 [The capitals' rules](../../backend/docs/capitals.md)): Clicks (the tempo with them), Charges (the set's `charges`, the
 wallet's: the spread clicks, the enclosures and the shields a hand holds, a bomb's rings, the tiles an enclose fills
