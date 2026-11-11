@@ -108,6 +108,9 @@ default's for the rest (`cpproto.Overlay`). `bonuses.v1.Rules`:
   quiz](welcome-bonus.md))
 - `quiz.enabled`, `minInterval`, `maxInterval`, `maxChargesPerHour`, `offerTtl`, `answerWindow`, `missRetry`,
   `leaderBias` — the quizzes
+- `quiz.width`, `target`, `floor`, `floorAfter`, `explore` — the draw weighed by how hard each question is, inside the
+  pool the lean picked; `width` 0 is off, and is default's ([How hard each quiz question is](quiz-difficulty.md#the-draw)).
+  Migration `20261111210100_quiz_draw` wrote them into default: 0.7, 0, 0.42, 15, 0.1
 - `signInRefill` — a guest's first sign-in earns a refill ([A guest's first sign-in earns a refill](sign-in-refill.md))
 - `frozen` — the offers take no play (below)
 

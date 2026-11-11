@@ -108,6 +108,10 @@ So each subject's questions are two pools: the named ones weigh the lean, the
 others weigh what they would on a flat draw. With no lean the draw is the same as
 before.
 
+**The draw can weigh each question by how hard it is**, inside the pool the lean picked, and never across subjects:
+the offers' `quiz.width` and its values ([The draw](quiz-difficulty.md#the-draw)). Its `width` 0, default's, is off,
+and the draw is the one above.
+
 **`quiz_offered` is one more case on the offers' stream** (`bonuses.v1.BonusEvent`; `PlanetEvent`'s 8 until
 2026-11-11, `reserved` now), addressed to one caller like `bonus_offered`, and carrying only the token and the expiry. A win is announced
 with the existing `bonus_taken`, which grew a `quiz_subject_country_id` rather

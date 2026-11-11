@@ -67,6 +67,19 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"quiz.answerWindow":                     func(r *bonusesv1.Rules) { r.Quiz.AnswerWindow = d(0) },
 		"quiz.leaderBias is -1":                 func(r *bonusesv1.Rules) { r.Quiz.LeaderBias = proto.Float64(-1) },
 		"quiz.leaderBias is NaN":                func(r *bonusesv1.Rules) { r.Quiz.LeaderBias = proto.Float64(math.NaN()) },
+		"quiz.target is 0.2, and a chance of a right answer is between 0.34 and 0.99": func(r *bonusesv1.Rules) {
+			r.Quiz.Target = proto.Float64(0.2)
+		},
+		"quiz.target is 1":   func(r *bonusesv1.Rules) { r.Quiz.Target = proto.Float64(1) },
+		"quiz.width is -1":   func(r *bonusesv1.Rules) { r.Quiz.Width = proto.Float64(-1) },
+		"quiz.width is +Inf": func(r *bonusesv1.Rules) { r.Quiz.Width = proto.Float64(math.Inf(1)) },
+		"quiz.floor is 1.5, and a share is between 0 and 1": func(r *bonusesv1.Rules) {
+			r.Quiz.Floor = proto.Float64(1.5)
+		},
+		"quiz.floor is 0.8, over quiz.target (0.7)": func(r *bonusesv1.Rules) { r.Quiz.Floor = proto.Float64(0.8) },
+		"quiz.floorAfter is 0, and must be above 0": func(r *bonusesv1.Rules) { r.Quiz.FloorAfter = proto.Uint32(0) },
+		"quiz.explore is -0.1":                      func(r *bonusesv1.Rules) { r.Quiz.Explore = proto.Float64(-0.1) },
+		"quiz.explore is 2":                         func(r *bonusesv1.Rules) { r.Quiz.Explore = proto.Float64(2) },
 	}
 	for reason, breaks := range broken {
 		t.Run(reason, func(t *testing.T) {
@@ -87,6 +100,24 @@ func TestASetIsCheckedOverDefault(t *testing.T) {
 
 	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "boxes.maxInterval is 8m0s, under boxes.minInterval (10m0s)")
+}
+
+func TestAFloorIsCheckedAgainstDefaultsTarget(t *testing.T) {
+	harsh := cprules.Snapshot[*bonusesv1.Rules]{Name: "harsh", Rules: &bonusesv1.Rules{
+		Quiz: &bonusesv1.QuizRules{Floor: proto.Float64(0.75)},
+	}}
+
+	_, err := harsh.Restore(parts.All(), rules.Seeded())
+
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
+	assert.Contains(t, err.Error(), "quiz.floor is 0.75, over quiz.target (0.7)")
+}
+
+func TestTheDifficultyWeightedDrawIsOffInDefault(t *testing.T) {
+	played := restored(t, rules.Seeded()).TakePlayedSnapshot().Rules.GetQuiz()
+
+	assert.Zero(t, played.GetWidth(), "width 0 is the draw of before; the operator switches it on")
+	assert.Equal(t, uint32(15), played.GetFloorAfter())
 }
 
 func TestDefaultPlaysOnlyWhatItHolds(t *testing.T) {
@@ -113,6 +144,9 @@ func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
 		r.Welcome = nil
 		r.Quiz.LeaderBias = proto.Float64(0)
 		r.Quiz.Enabled = proto.Bool(false)
+		r.Quiz.Width = proto.Float64(0)
+		r.Quiz.Floor = proto.Float64(0)
+		r.Quiz.Explore = proto.Float64(0)
 		r.Boxes.MaxInterval = r.Boxes.MinInterval
 		r.SignInRefill = nil
 		r.Frozen = nil

@@ -12,8 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-// Seeded is the set the first migration keeps as default on a database with no planet rules to copy: production's
-// default of 11 November 2026, the offers' half of planet's.
+// Seeded is the set the migrations keep as default on a database with no planet rules to copy: production's default of
+// 11 November 2026, the offers' half of planet's, with the difficulty-weighted draw's values, off.
 func Seeded() cprules.Snapshot[*bonusesv1.Rules] {
 	d := durationpb.New
 	f, n, on := proto.Float64, proto.Uint32, proto.Bool
@@ -33,6 +33,7 @@ func Seeded() cprules.Snapshot[*bonusesv1.Rules] {
 				Enabled: on(true), MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute),
 				MissRetry: d(2 * time.Minute), OfferTtl: d(25 * time.Second), AnswerWindow: d(8 * time.Second),
 				LeaderBias: f(1), MaxChargesPerHour: n(12),
+				Target: f(0.7), Width: f(0), Floor: f(0.42), FloorAfter: n(15), Explore: f(0.1),
 			},
 			SignInRefill: on(true),
 			Frozen:       on(false),

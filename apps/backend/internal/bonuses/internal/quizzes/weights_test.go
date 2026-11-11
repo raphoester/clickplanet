@@ -23,7 +23,7 @@ func subjectCounts(t *testing.T, lean float64, shares quizzes.Shares) map[string
 
 	counts := map[string]int{}
 	for range draws {
-		counts[bank.Draw(lean).Question.Subject]++
+		counts[bank.Draw(lean, quizzes.Fit{}).Question.Subject]++
 	}
 
 	return counts
@@ -37,7 +37,7 @@ func drawsWhere(t *testing.T, lean float64, shares quizzes.Shares, n int, match 
 
 	matched := 0
 	for range n {
-		if match(bank.Draw(lean).Question) {
+		if match(bank.Draw(lean, quizzes.Fit{}).Question) {
 			matched++
 		}
 	}
@@ -89,7 +89,7 @@ func TestTheDrawReadsTheBoardAsItIsNow(t *testing.T) {
 
 	before := 0
 	for range draws {
-		if bank.Draw(1).Question.Subject == "bg" {
+		if bank.Draw(1, quizzes.Fit{}).Question.Subject == "bg" {
 			before++
 		}
 	}
@@ -98,7 +98,7 @@ func TestTheDrawReadsTheBoardAsItIsNow(t *testing.T) {
 
 	after := 0
 	for range draws {
-		if bank.Draw(1).Question.Subject == "bg" {
+		if bank.Draw(1, quizzes.Fit{}).Question.Subject == "bg" {
 			after++
 		}
 	}

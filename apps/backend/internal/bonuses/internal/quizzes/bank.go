@@ -137,17 +137,34 @@ func (b *Bank) Rating(question ratings.QuestionID) ratings.Rating {
 	return ratings.PriorOf(chance)
 }
 
-func (b *Bank) Draw(lean float64) Round {
-	return b.round(b.question(lean))
+// Draw picks a subject leaning to the board, then a question of that subject's pool weighed by how hard it is.
+func (b *Bank) Draw(lean float64, fit Fit) Round {
+	return b.round(b.question(lean, fit))
 }
 
-func (b *Bank) question(lean float64) Question {
-	pool := b.pool(lean)
-	if len(pool) == 0 {
-		return b.all[index(len(b.all))]
-	}
+// A pool with nothing to draw (every question under the floor) is left out and the lean draws again among the rest;
+// with nothing to draw anywhere, the whole bank is drawn flat.
+func (b *Bank) question(lean float64, fit Fit) Question {
+	pools, weights := b.pools(lean)
+	for {
+		i, ok := drawn(weights)
+		if !ok {
+			return b.all[index(len(b.all))]
+		}
 
-	return pool[index(len(pool))]
+		pool := pools[i]
+		if !fit.on() {
+			if len(pool) == 0 {
+				return b.all[index(len(b.all))]
+			}
+			return pool[index(len(pool))]
+		}
+
+		if question, ok := b.fitted(pool, fit); ok {
+			return question
+		}
+		weights[i] = 0
+	}
 }
 
 func (b *Bank) round(question Question) Round {

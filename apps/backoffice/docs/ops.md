@@ -108,6 +108,11 @@ quizzes (`Every 4 min to 8 min, 12 won an hour at most`, or `Off`, `quizzesOf`).
 - **Quizzes**: "Quizzes on" (`quiz.enabled`), the shortest and longest wait, the quizzes won an hour at most, the
   banner's time, the time to answer, the next quiz after a miss, and the lean to the leaders (`quiz.leaderBias`, 0 a
   flat draw). See the backend's [Quizzes](../../backend/docs/quizzes.md).
+- **Quiz difficulty**: the draw weighed by how hard each question is, inside the subject the lean picked: the bell's
+  width (`quiz.width`, **0 is off**, the draw of before, and default's value), the share right it aims at
+  (`quiz.target`), the share right under which a question measured is never asked (`quiz.floor`) once that many answers
+  measured it (`quiz.floorAfter`), and the share of draws that ignore how hard a question is (`quiz.explore`). See the
+  backend's [How hard each quiz question is](../../backend/docs/quiz-difficulty.md#the-draw).
 
 **Anti-bot rules** (`AntibotRulesPanel`, `antibotRules.ts`) is `antibot.v1.AdminService/GetRules` and `SaveRuleSet`
 (the backend's [antibot rules](../../backend/docs/antibot-rules.md)): every set postgres keeps, `default` first, with

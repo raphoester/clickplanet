@@ -44,12 +44,36 @@ const (
 	wrongAnswer = "Riga"
 )
 
-func (fixedBank) Draw(float64) quizzes.Round {
+func (fixedBank) Draw(float64, quizzes.Fit) quizzes.Round {
 	return quizzes.Round{
 		Question: quizzes.Question{ID: "capital:ee", Subject: "ee", Text: "What is the capital of Estonia?"},
 		Options:  []string{wrongAnswer, rightAnswer, "Vilnius"},
 		Correct:  1,
 	}
+}
+
+// aimingBank keeps the fit each draw was asked for.
+type aimingBank struct {
+	fixedBank
+	fits []quizzes.Fit
+}
+
+func (b *aimingBank) Draw(lean float64, fit quizzes.Fit) quizzes.Round {
+	b.fits = append(b.fits, fit)
+	return b.fixedBank.Draw(lean, fit)
+}
+
+func TestTheDrawIsAskedForTheSetsFit(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	bank := &aimingBank{}
+	registry.bank = bank
+	fit := quizzes.Fit{Target: 0.7, Width: 1, Floor: 0.42, FloorAfter: 15, Explore: 0.1}
+	rulesOf(registry).Quiz.Fit = fit
+
+	_ = playing(t, registry, "scope-a")
+	waitOutQuiz(t, registry, clock)
+
+	assert.Equal(t, []quizzes.Fit{fit}, bank.fits)
 }
 
 func waitOutQuiz(t *testing.T, r *Registry, clock *cptime.FixedClock) {

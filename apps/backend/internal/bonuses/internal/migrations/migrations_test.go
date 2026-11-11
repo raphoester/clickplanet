@@ -52,13 +52,15 @@ var productionsPlanetSets = map[string]string{
 }
 
 // What each set holds of the offers once it came across: every value of the offers' half, and frozen; nothing of the
-// wallet's half (spread.clicks, bomb, enclose.maxTiles, held, unlimited, shield.held, perTile).
+// wallet's half (spread.clicks, bomb, enclose.maxTiles, held, unlimited, shield.held, perTile). Default holds the
+// difficulty-weighted draw's values too, off, which the next migration writes into it.
 var theirOffers = map[string]string{
 	"default": `{"boxes":{"minInterval":"240s","maxInterval":"480s","maxChargesPerHour":12},
 		"kinds":{"refill":5,"spreadClicks":3,"encloseClicks":2,"bomb":1,"shields":4},"offerTtl":"15s","missRetry":"120s",
 		"activeWithin":"120s","spread":{"maxPerBox":4},"enclose":{"maxPerBox":3},"shield":{"minPerBox":10,"maxPerBox":30},
 		"welcome":{"within":"600s","boxAfter":"60s"},"quiz":{"enabled":true,"minInterval":"240s","maxInterval":"480s",
-		"missRetry":"120s","offerTtl":"25s","answerWindow":"8s","leaderBias":1,"maxChargesPerHour":12},
+		"missRetry":"120s","offerTtl":"25s","answerWindow":"8s","leaderBias":1,"maxChargesPerHour":12,
+		"target":0.7,"width":0,"floor":0.42,"floorAfter":15,"explore":0.1},
 		"signInRefill":true,"frozen":false}`,
 	"bridge": `{"kinds":{"shields":3},"shield":{"minPerBox":5,"maxPerBox":20}}`,
 	"capital-siege": `{"boxes":{"minInterval":"30s","maxInterval":"60s","maxChargesPerHour":9999},

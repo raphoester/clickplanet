@@ -49,7 +49,7 @@ type Answered struct {
 const lateAnswers = 10 * time.Second
 
 type Questions interface {
-	Draw(lean float64) quizzes.Round
+	Draw(lean float64, fit quizzes.Fit) quizzes.Round
 }
 
 type pendingQuiz struct {
@@ -194,7 +194,7 @@ func (r *Registry) offerQuiz(entrant Entrant, entry *caller, rules Rules, now ti
 		return
 	}
 
-	round := r.bank.Draw(rules.Quiz.LeaderBias)
+	round := r.bank.Draw(rules.Quiz.LeaderBias, rules.Quiz.Fit)
 	offer := QuizOffer{Token: token, ExpiresAt: now.Add(rules.Quiz.OfferTTL)}
 
 	r.quizOffers[token] = &pendingQuiz{
