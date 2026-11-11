@@ -2,7 +2,8 @@ import "./Leaderboard.css"
 import {PointerEvent, ReactNode, useEffect, useId, useRef, useState} from "react";
 import {Country} from "../domain/countries.ts";
 import {LeaderboardEntry} from "../domain/leaderboard.ts";
-import {CountryLine, countryLines, CountryOrder, scoringNow, shownOrder} from "../domain/race.ts";
+import {CountryLine, countryLines, CountryOrder, Ranks, scoringNow, shownOrder} from "../domain/race.ts";
+import {ordinalOf} from "../domain/ordinal.ts";
 import {sharePercent} from "../domain/territory.ts";
 import {Figure, FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts";
 import {DELTA_HOLD_MS, NO_TILE_DELTAS, TileDelta, TileDeltas} from "../domain/tileDeltas.ts";
@@ -40,6 +41,8 @@ export default function Leaderboard(props: LeaderboardProps) {
     const gaining = scoringNow(race) !== undefined
     const gainFigure: Figure = battle ? "gainedBattle" : "gained"
     const order = shownOrder(race, props.order)
+    // A day places the sum of each country's two ranks: ordered by it, the board shows them.
+    const explained = order === "today" && !battle
     const [leader, ...rest] = countryLines(props.data, race, order)
     const [shown, setShown] = useState<Shown>()
     const [guiding, setGuiding] = useState(false)
@@ -82,11 +85,13 @@ export default function Leaderboard(props: LeaderboardProps) {
     const onOrder = race ? props.onOrder : undefined
     const sort = (by: CountryOrder): Sort | undefined => onOrder && {on: order === by, pick: () => onOrder(by)}
     const sorted = (by: CountryOrder) => onOrder && order === by ? "descending" : undefined
+    const sortToday = gaining ? sort("today") : undefined
 
     return <section className="leaderboard" aria-labelledby={titleId}>
         <h2 className="sr-only" id={titleId}>Leaderboard</h2>
 
         {leader && <LeaderFrame line={leader}
+                                ranks={explained ? leader.ranks : undefined}
                                 scored={race !== undefined}
                                 battle={battle !== undefined}
                                 gainFigure={gainFigure}
@@ -115,12 +120,13 @@ export default function Leaderboard(props: LeaderboardProps) {
                             aria-sort={sorted("points")}>
                             <Hint {...hint("points", "head")} sort={sort("points")}>Points</Hint>
                         </th>
-                        <th className="leaderboard-table-head leaderboard-table-today" scope="col">
+                        <th className="leaderboard-table-head leaderboard-table-today" scope="col"
+                            aria-sort={sorted("today")}>
                             {battle
-                                ? <Hint {...hint("battle", "head")} className="leaderboard-battle">
+                                ? <Hint {...hint("battle", "head")} sort={sortToday} className="leaderboard-battle">
                                     <SwordsIcon size={12}/><span className="sr-only">Battle</span> ×{battle.times}
                                 </Hint>
-                                : <Hint {...hint("today", "head")}>Today</Hint>}
+                                : <Hint {...hint("today", "head")} sort={sortToday}>Today</Hint>}
                         </th>
                     </>}
                 </tr>
@@ -140,9 +146,11 @@ export default function Leaderboard(props: LeaderboardProps) {
                         </td>
                         <td className={tilesClass(delta?.net)}>
                             <TileCount tiles={line.tiles} delta={delta}/> <MapShare tiles={line.tiles} tilesCount={props.tilesCount}/>
+                            {explained && line.ranks && <RankNote rank={line.ranks.tiles} on="tiles"/>}
                         </td>
                         {line.gain !== undefined && <td className="leaderboard-table-number leaderboard-table-gain">
                             <span className={gainClass(line.gain)}>{gained.format(line.gain)}</span>
+                            {explained && line.ranks && <RankNote rank={line.ranks.gain} on="gained"/>}
                         </td>}
                         {race && <>
                             <td className="leaderboard-table-number leaderboard-table-points">{count.format(line.points)}</td>
@@ -158,6 +166,7 @@ export default function Leaderboard(props: LeaderboardProps) {
 
 type LeaderFrameProps = {
     line: CountryLine
+    ranks?: Ranks
     scored: boolean
     battle: boolean
     gainFigure: Figure
@@ -168,7 +177,7 @@ type LeaderFrameProps = {
     hint: (figure: Figure) => HintProps
 }
 
-function LeaderFrame({line, scored, battle, gainFigure, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
+function LeaderFrame({line, ranks, scored, battle, gainFigure, tilesCount, delta, isPlayer, anthem, hint}: LeaderFrameProps) {
     const className = isPlayer ? "leader-frame panel-box leader-frame--you" : "leader-frame panel-box"
 
     return <section className={className}
@@ -190,6 +199,9 @@ function LeaderFrame({line, scored, battle, gainFigure, tilesCount, delta, isPla
                         {scored && <> <MapShare tiles={line.tiles} tilesCount={tilesCount}/></>}
                     </span>
                 </span>
+                {ranks && <span className="leader-frame-ranks">
+                    {ordinalOf(ranks.tiles)} on tiles + {ordinalOf(ranks.gain)} on gained
+                </span>}
             </span>
             {scored
                 ? <Hint {...hint("points")} className="leader-frame-share">
@@ -253,6 +265,12 @@ function Hint({figure, open, onShow, onHide, onLost, sort, className, children}:
 function Today({points, battle}: {points: number, battle: boolean}) {
     if (points <= 0) return null
     return <span className="leaderboard-today">+{points}<span className="sr-only">{battle ? " this battle" : " today"}</span></span>
+}
+
+function RankNote({rank, on}: {rank: number, on: string}) {
+    return <span className="leaderboard-rank-note">
+        {ordinalOf(rank)}<span className="sr-only"> on {on}</span>
+    </span>
 }
 
 function TileCount({tiles, delta}: {tiles: number, delta?: TileDelta}) {

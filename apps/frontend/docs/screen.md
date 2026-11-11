@@ -16,7 +16,7 @@ that does not.
 
 | Zone | Phone | Desktop |
 |---|---|---|
-| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays) | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top centre (`BattleChip` while a battle plays) |
+| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays) | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top, centred in the room right of the menu (`BattleChip` while a battle plays) |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
 | **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
@@ -57,6 +57,13 @@ that does not.
   panel away: the rail stays, with the flag, its rank and Change as a pill
   beside it, and any place opens the panel again. Folded or open is kept in
   `localStorage` (`clickplanet-menu-open`) from one visit to the next.
+- **What is centred at the top centres in the room right of the desktop menu.** The menu
+  publishes its right edge, open or folded (`MENU_RIGHT`, `--menu-right`, through `useEdge`), and `index.css`
+  turns it into `--top-room` and `--top-centre`, which place the season and battle chips, the quiz, the bomb
+  news, "connection lost" and the battle's end. With no menu, on a phone, the room is the screen's width. The menu
+  is `clamp(340px, 40vw, 480px)` wide so the board shows the countries' names (see
+  [Season standings](season-standings.md)); a chip centred on the screen, 368px wide, left it at most 417px at
+  1440px wide (2026-11-11). The 40vw always leaves the chip its room right of the menu from 834px wide.
 - **You is not a place on a desktop.** It sits at the rail's foot and opens
   `account/ProfileModal`, the player's own card at up to 1200px wide (the
   screen less 64px), read at a glance:

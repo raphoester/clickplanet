@@ -333,19 +333,65 @@ describe("Leaderboard with the season's race", () => {
         expect(screen.queryByRole("status")).toBeNull()
     })
 
-    const sortable = () => ["#", "Country", "Tiles", "Gained", "Points", "Today"].flatMap((name) => {
+    const sortable = () => ["#", "Country", "Tiles", "Gained", "Points", "Today", "Battle ×3"].flatMap((name) => {
         const head = screen.queryByRole("columnheader", {name})
         return head?.querySelector(".leaderboard-sort") ? [[name, head.getAttribute("aria-sort")]] : []
     })
 
-    it("sorts by the head picked among the tiles, the gain and the points, and says which", () => {
+    it("sorts by the head picked among the tiles, the gain, the points and today's, and says which", () => {
         const onOrder = vi.fn()
         render(<Leaderboard tilesCount={1000} data={MAP} order="points" onOrder={onOrder}/>)
 
-        expect(sortable()).toEqual([["Tiles", null], ["Gained", null], ["Points", "descending"]])
+        expect(sortable()).toEqual([["Tiles", null], ["Gained", null], ["Points", "descending"], ["Today", null]])
 
         fireEvent.click(screen.getByRole("button", {name: "Gained"}))
         expect(onOrder).toHaveBeenCalledWith("gain")
+        fireEvent.click(screen.getByRole("button", {name: "Today"}))
+        expect(onOrder).toHaveBeenCalledWith("today")
+    })
+
+    // Germany 1st on tiles + 1st on gained, Spain 3rd + 1st, France 2nd + 3rd.
+    const DAY: Race = {...RACE, today: {...RACE.today!, standings: [
+        {rank: 1, countryCode: "de", share: 0.5, points: 25},
+        {rank: 2, countryCode: "es", share: 0.1, points: 18},
+        {rank: 3, countryCode: "fr", share: 0.3, points: 15},
+    ]}}
+
+    it("ranks by today's places when ordered by today, with each country's rank under its tiles and its gain", () => {
+        useRace.setState({race: DAY})
+        render(<Leaderboard tilesCount={1000} data={MAP} order="today" onOrder={vi.fn()}/>)
+
+        expect(sortable()).toContainEqual(["Today", "descending"])
+        expect(leader()!.getAttribute("aria-label")).toBe("First: Germany")
+        expect(leader()!.querySelector(".leader-frame-ranks")!.textContent).toBe("1st on tiles + 1st on gained")
+        expect(cells()).toEqual([
+            ["2", "Spain", "100 10%3rd on tiles", "+1001st on gained", "0", "+18 today"],
+            ["3", "France", "300 30%2nd on tiles", "-103rd on gained", "43", "+15 today"],
+        ])
+    })
+
+    it("shows no ranks in another order", () => {
+        useRace.setState({race: DAY})
+        render(<Leaderboard tilesCount={1000} data={MAP} order="gain"/>)
+
+        expect(leader()!.querySelector(".leader-frame-ranks")).toBeNull()
+        expect(screen.queryAllByText(/on tiles|on gained/)).toEqual([])
+    })
+
+    it("ranks by the battle's places when ordered by today while a battle runs, with no ranks: it places the gain alone", () => {
+        useRace.setState({race: {...RACE, battle: {...DAY.today!, roundId: "entry-1", times: 3, standings: [
+            {rank: 1, countryCode: "es", share: 0.1, points: 75},
+            {rank: 2, countryCode: "de", share: 0.5, points: 54},
+        ]}}})
+        render(<Leaderboard tilesCount={1000} data={MAP} order="today" onOrder={vi.fn()}/>)
+
+        expect(sortable()).toContainEqual(["Battle ×3", "descending"])
+        expect(leader()!.getAttribute("aria-label")).toBe("First: Spain")
+        expect(leader()!.querySelector(".leader-frame-ranks")).toBeNull()
+        expect(cells()).toEqual([
+            ["2", "Germany", "500 50%", "+100", "0", "+54 this battle"],
+            ["3", "France", "300 30%", "-10", "43", ""],
+        ])
     })
 
     it("offers no gain to sort by while no round runs", () => {

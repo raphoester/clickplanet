@@ -1,13 +1,13 @@
 .season-chip {
     position: absolute;
     top: 16px;
-    left: 50%;
+    left: var(--top-centre);
     z-index: 128;
     transform: translateX(-50%);
     display: flex;
     flex-direction: column;
     width: 368px;
-    max-width: calc(100vw - 32px);
+    max-width: calc(var(--top-room) - 32px);
     padding: 4px;
     border-radius: var(--radius-l);
 }

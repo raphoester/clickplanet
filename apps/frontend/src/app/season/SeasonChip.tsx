@@ -7,7 +7,7 @@ import {countdownsOf, SeasonCountdown, shortLeft} from "../../domain/seasonClock
 import {BattleRulesButton, NextBattleDetails} from "../battle/NextBattle.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
-import {useBottomEdge} from "../components/useBottomEdge.ts"
+import {useEdge} from "../components/useEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
 import {useScreen} from "../hud/screenStore.ts"
@@ -27,7 +27,7 @@ export type SeasonChipProps = {
 
 export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compact}: SeasonChipProps) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
-    useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+    useEdge(compact ? null : chip, STATUS_BOTTOM, "bottom")
     const open = useScreen((screen) => compact ? screen.sheet === "season" : screen.popovers.season)
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
     const togglePopover = useScreen((screen) => screen.togglePopover)
@@ -74,7 +74,7 @@ export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compa
 
 export function ChampionChip({champion, compact}: {champion: Champion, compact: boolean}) {
     const [chip, setChip] = useState<HTMLElement | null>(null)
-    useBottomEdge(compact ? null : chip, STATUS_BOTTOM)
+    useEdge(compact ? null : chip, STATUS_BOTTOM, "bottom")
 
     const flags = champion.countryCodes.map((code) => <CountryFlag key={code} code={code}/>)
 

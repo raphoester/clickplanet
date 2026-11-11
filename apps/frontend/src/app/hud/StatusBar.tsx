@@ -1,7 +1,7 @@
 import {ReactNode, useState} from "react"
 import CountryFlag from "../components/CountryFlag.tsx"
 import HomeLogo from "../components/HomeLogo.tsx"
-import {useBottomEdge} from "../components/useBottomEdge.ts"
+import {useEdge} from "../components/useEdge.ts"
 import {useCountry} from "../countryStore.ts"
 import {useScreen} from "./screenStore.ts"
 import "./StatusBar.css"
@@ -16,7 +16,7 @@ export type StatusBarProps = {
 export default function StatusBar({rank, trailing}: StatusBarProps) {
     const country = useCountry((store) => store.country)
     const [bar, setBar] = useState<HTMLElement | null>(null)
-    useBottomEdge(bar, STATUS_BOTTOM)
+    useEdge(bar, STATUS_BOTTOM, "bottom")
     const boardOpen = useScreen((screen) => screen.sheet === "board")
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
 

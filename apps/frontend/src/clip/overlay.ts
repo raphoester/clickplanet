@@ -1,6 +1,7 @@
 import {Countries} from "../domain/countries.ts"
 import {NamedSide} from "../domain/clip/cast.ts"
 import {Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
+import {ordinalOf} from "../domain/ordinal.ts"
 import {regionOf} from "../domain/regions.ts"
 import {callUpWordsOf} from "./callUp.ts"
 
@@ -91,13 +92,6 @@ const SAID_WITH_THE = /^(UK|USA|UAE|Gambia|Middle East)$|(lands|ines|amas|ives|o
 
 export function said(name: string): string {
     return SAID_WITH_THE.test(name) ? `the ${name}` : name
-}
-
-// 1st, 2nd, 3rd, 4th, 11th, 21st.
-function ordinalOf(rank: number): string {
-    const teen = rank % 100 >= 11 && rank % 100 <= 13
-    const suffix = teen ? "th" : ["th", "st", "nd", "rd"][rank % 10] ?? "th"
-    return `${rank}${suffix}`
 }
 
 export function placeName(place: Place): string {

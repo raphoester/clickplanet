@@ -10,6 +10,7 @@ import Leaderboard from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import {useStanding} from "./knockout/standingStore.ts";
 import MenuPanel from "./components/MenuPanel.tsx";
+import {useEdge} from "./components/useEdge.ts";
 import HomeLogo from "./components/HomeLogo.tsx";
 import CountryFlag from "./components/CountryFlag.tsx";
 import {HideIcon, LockIcon, SettingsIcon, ShareIcon, SwapIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "./components/icons.tsx";
@@ -66,6 +67,9 @@ export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & O
 
 const OPEN_KEY = "clickplanet-menu-open"
 
+// Where the menu ends: what is centred at the top centres in the room right of it.
+export const MENU_RIGHT = "--menu-right"
+
 type Place = {id: MenuTab, label: string, title: string, icon: ReactNode, news?: number}
 
 export default function Menu(props: MenuProps) {
@@ -78,6 +82,8 @@ export default function Menu(props: MenuProps) {
     const [open, setOpen] = useMenuOpen()
     const [profileOpen, setProfileOpen] = useState(false)
     const picker = usePicker()
+    const [shell, setShell] = useState<HTMLElement | null>(null)
+    useEdge(shell, MENU_RIGHT, "right")
 
     const places: Place[] = [
         {id: "board", label: "Board", title: "Leaderboard", icon: <TrophyIcon/>},
@@ -105,7 +111,7 @@ export default function Menu(props: MenuProps) {
         picker.open()
     }
 
-    return <div className="menu-shell">
+    return <div ref={setShell} className="menu-shell">
         <nav className="menu-rail panel" aria-label="Places">
             <h1 className="sr-only">ClickPlanet</h1>
             <HomeLogo size={40} className="menu-rail-logo"/>
