@@ -14,6 +14,8 @@ map too.
   country holds it:
   - a gold crown on the top of the tile, over its flag and its shield badge, as a crest on a shield (the owner,
     2026-11-10: a ring in the middle read as a pink shield);
+  - drawn last, over every ring and flash of the tile: the front's white ring runs through the top of the tile, and a
+    crown under it read as a bug (the owner, 2026-11-11);
   - drawn like the shield badge, ink outline and drop, in the badge's own texture: the cell after the last count
     (`shieldMarks.ts`, `CROWN`; `CROWN_AT` and `CROWN_SIZE` in the display fragment shader);
   - on bit 8 of the pulse slot (`TileField.setCapitalMarks`);

@@ -34,7 +34,7 @@ const float HIGHLIGHT_FLOOR = 0.35;
 const vec3 MISSION = vec3(0.784, 0.341, 0.298);
 const float MISSION_RING_PX = 2.5;
 
-// A capital still standing, in an arena: a crown on the top of the tile, over its flag and its shield.
+// A capital still standing: a crown on the top of the tile, drawn last, over its flag, its shield and every ring.
 const vec2 CROWN_AT = vec2(0.0, -0.34);
 const float CROWN_SIZE = 0.4;
 
@@ -123,9 +123,6 @@ void main() {
     vec3 ember = mix(vec3(0.07, 0.02, 0.01), vec3(1.0, 0.32, 0.04), vScorch * vScorch);
     colour = mix(colour, vec4(ember, 0.95), vScorch * 0.9);
 
-    float capital = marked(8.0) ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
-    if (capital > 0.0) colour = crowned(colour, coordinates, capital);
-
     float aimed = marked(4.0) ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
     if (aimed > 0.0) {
         float pixel = 1.0 / vSpriteSize;
@@ -152,6 +149,9 @@ void main() {
 
     vec3 hot = mix(vec3(1.0, 0.42, 0.08), vec3(1.0, 0.96, 0.82), vGlow * vGlow);
     colour = mix(colour, vec4(hot, 1.0), vGlow);
+
+    float capital = marked(8.0) ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
+    if (capital > 0.0) colour = crowned(colour, coordinates, capital);
 
     gl_FragColor = colour;
 }
