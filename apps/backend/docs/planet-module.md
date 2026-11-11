@@ -46,6 +46,8 @@ internal/planet/internal/
     get_takes_by_country_handler/takes_query/   InternalService's one read, straight from ledger_events
     get_ledger_handler/changes_query/           AdminService/GetLedger, straight from ledger_events too
     get_tile_holder_handler/holder_query/       ClickService/GetTileHolder, the last take of one tile, from ledger_events
+    get_recent_map_history_handler/recent_history_query/  ClickService/GetRecentMapHistory: the map in memory rewound
+                                                over ledger_events from its head, kept until the next half hour
     get_landmass_handler/landmass_query/       ClickService/GetLandmass: the holders from the tiles, the last fortify from ledger_events
     get_holdings_handler/holdings_query/       ClickService/GetHoldings: what each flag holds, from the tile map's tally
   subscribers/                    the edge for events: player.v1.PlayerForgotten → anonymize_takes_usecase
@@ -61,7 +63,7 @@ internal/planet/internal/
   read, decided and written under one lock of the tiles, then its fortify, as an
   `Impact`; see [A claim is one lock](tile-claim.md)), `Pacing` (how an
   operator's bulk change is spread out), `Geography` and `Borders`.
-- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `Player`, `Tally`, `Runs`,
+- **`ledger/`** — every act of a player on the map, oldest first. Its root holds `Event` and its kinds (`Taking`, `Striking`, `Spreading`, `Enclosing`, `Bombing`, `Shielding`), `Entry`, `Scene`, `Footage`, `History`, `Rewind`, `Recent`, `Player`, `Tally`, `Runs`,
   the `Storage` port, `Recording` (the tile writer that records each act) and `Retention`. `FindPlayers`, `TopPlayers` and
   `RevertPlayer` live here: they are one moderation workflow — find, see the refusal, undo. The ban is the antibot's
   (`antibot.v1.AdminService`).
@@ -83,7 +85,11 @@ internal/planet/internal/
   is asked. The read stops at the first event at or after `until`, since positions follow time, and the map's resets
   (`map_resets`, which write no event) wipe it at their time. It is the world's map: an event made while an arena's
   played changes no frame and no hit (see [Arena battles](arenas.md#the-ledgers-readers)). What a reassign, a paint or a
-  revert wrote is not in it.
+  revert wrote is not in it. It names no account (`account_id` empty): a season's replay would carry one per change.
+  **`ClickService/GetRecentMapHistory` is the last 24 hours of it, public, with who made each change**
+  (`recent_history_query`, `ledger.Rewind`): rewound from the map in memory over the rows from the ledger's head, never
+  replayed from the reset, and built once per half hour for every caller. See [The map's last 24
+  hours](recent-map-history.md).
   **`ClickService/GetTileHolder(tile_id)` reads it there too** (`holder_query`): the last change `Taking.Replay`
   makes of the tile (a take, a tile a spread or an enclose took, a bomb's clear), as `{account_id, country_id,
   taken_at_unix_ms}`. A clear is no holder. **A take with no account still holds the tile**, with no `account_id`:
