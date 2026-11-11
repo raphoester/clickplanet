@@ -42,9 +42,9 @@ tells closed from open — there is no second rule.
 - **Why 25 tiles**: the wall around a 25-tile pocket costs about 20 clicks, so the
   reward matches the planning it took.
 
-**The use case only wires three objects together.** `bonuses.Terrain` is the map as
+**The use case only wires three objects together.** `charges.Terrain` is the map as
 the search sees it — who holds a tile, what touches it — and finds the pockets a
-click closed. `bonuses.Charges` says whether the caller holds the charge, and
+click closed. `charges.Charges` says whether the caller holds the charge, and
 the rule set's `bonuses.enclose`, read once per click, how big a shape may be and whether it costs a charge.
 `Annexer` spends the charge and hands the pocket's shape and inside to the encloser. `Execute` asks whether the
 charge is held (not while enclosures are unlimited), lets the rule write, and hands the pocket to the annexer.
@@ -67,7 +67,7 @@ behind is cut, see [The live streams](live-streams.md)), and one frame on the wi
 a `tile_update` and the shape again in `tiles_enclosed`, and a pocket of more than about 1,000 tiles would have cut
 every stream at once. One event per click, with every shape it closed in it, so the client counts one charge spent.
 **Each stream tells its own** `yours`: the change names who closed it (`Enclosure.By`), and the stream compares its
-entrant (`bonuses.EntrantOf`). The client applies the tiles at the version, then animates the shape (see the
+caller (`clicks.CallerOf`: the linked account, or the scope). The client applies the tiles at the version, then animates the shape (see the
 frontend's [Charges](../../frontend/docs/charges.md)).
 
 `prom_enclose` wraps the encloser, so it counts exactly the clicks that closed shapes and the tiles they filled:

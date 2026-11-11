@@ -91,6 +91,8 @@ and says what is in it. Read the doc before you change its area.
 - [A newcomer's first box and first quiz](docs/welcome-bonus.md) — a new account gets both early, once.
 - [A guest's first sign-in earns a refill](docs/sign-in-refill.md) — once per account, when player makes it a player
   (`PlayerCreated`); why nobody can farm it.
+- [Offers and the wallet](docs/offers-and-wallet.md) — the seam cut inside planet before the offers leave it: the
+  wallet (`charges`) and the offers (`bonuses`), the ports, what `Clicked` hears, the rules split, and what step B does.
 
 ## Who a caller is
 

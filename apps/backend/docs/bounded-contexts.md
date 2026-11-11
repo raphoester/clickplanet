@@ -44,9 +44,15 @@ planet, chat, scoring, support, missions, alerts and clips heard `AccountDeleted
 
 **A downstream module asks its upstream in the upstream's words.** `antibot` sends planet `RefuseCaller` and `AdmitCaller`, commands planet defines in its own proto package (`proto/planet/v1/commands.proto`) and consumes into its own table. Planet never hears the antibot's vocabulary: it tells what happened and is told whom to refuse. A command is an intent in the upstream's published language, not a fact, so it does not break the rule that facts flow from where they happen — see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened).
 
-Bonus boxes live inside `internal/planet/` rather than beside it: what they grant
-is click allowance, and what carries them is the planet stream. A context of
-their own would have to import both.
+**Bonus boxes and quizzes are being cut out of `internal/planet/`** into a `bonuses` module of their own, downstream
+of planet like `missions`, so that the quizzes' difficulty and the players' ratings do not grow the biggest module. They
+lived inside it because what they grant is planet's charges and what carries them is planet's stream, and a context of
+their own would have had to import both. The cut's rule: granting is the offers', holding and spending is planet's.
+Step A, done, cut the seam inside planet with nothing on the wire, in postgres or in the game changed: the wallet is
+`planet/internal/charges`, the offers `planet/internal/bonuses`, which imports no concept of planet's and reaches it
+through ports it declares (a room, a payment idempotent by an id it supplies, a hand), and the offers' rules are a half
+of their own. Step B moves `bonuses` out with `proto/bonuses/v1` and a stream of its own, and turns those ports into
+loopback calls to planet. See [Offers and the wallet](offers-and-wallet.md).
 
 **`internal/antibot/` was a domain library until 2026-10-26**, built by planet's click chain and called on every click: `planet` → `antibot` was the only module-to-module import. It is a module now, wired in `cmd/api` like the others, and no module imports another.
 

@@ -33,7 +33,7 @@ to the jury.
   owner), and every `GetMap` batch the shielded tiles in its range
   (`DenseBatch.Shields`, `GetMapResponse.shields`). So they ride the one channel
   the map does, in its order, and a client needs no read of its own.
-- **Placing one is `PlaceShield(tile, country)`** (`bonuses/usecases/place_shield_usecase`).
+- **Placing one is `PlaceShield(tile, country)`** (`charges/usecases/place_shield_usecase`).
   A tile not wearing the flag (`ErrNotYourTile`) and a full one (`ErrTileFull`) are
   `FailedPrecondition` and spend nothing; no shield held is `NotFound`; an unknown
   country or tile is `InvalidArgument`. A placement the tile refuses after the

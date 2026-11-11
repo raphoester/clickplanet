@@ -33,10 +33,10 @@ The spread click is spent either way, since the click was accepted.
 were taken and which lost a shield.
 
 **Then it tells the planet, with `tiles_spread`**: the tile clicked and the neighbours it took, after they are set,
-so every client can animate why seven tiles flipped. `Registry.PublishSpread`
-sends it to every caller.
+so every client can animate why seven tiles flipped. `notices.Board.PublishSpread`
+sends it to every stream open.
 
-A spread is one event per click, which is why a caller's bonus feed buffers 32
+A spread is one event per click, which is why a stream's notices buffer 32
 events rather than a handful.
 
 **While the reach plays, a spread takes only the neighbours in the flag's reach** (`clicks.Reach.Around`, read after the clicked

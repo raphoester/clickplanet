@@ -11,7 +11,7 @@ The response never repeats a tile id. `GetMapResponse` carries `start_tile_id`, 
 - `clicks/postgres_tile_store/` — that port, over the `planet.tiles` table. See [Durability](durability.md).
 - `ledger/inmemory_ledger_storage/` — the ledger, in memory, flushed through its own `Persistence` port.
 - `ledger/postgres_ledger_store/` — that port, over `planet.ledger_events`, `ledger_head`, `ledger_forgotten`, `ledger_forgotten_accounts` and `ledger_relayed`, and `AnonymizeTakes` for a deleted account.
-- `bonuses/postgres_charge_store/` — `bonuses.Store`, the charges each account holds, over `planet.charges`, with no copy in memory.
+- `charges/postgres_charge_store/` — `charges.Store`, the charges each account holds, over `planet.charges`, with no copy in memory.
 - `clicks.Board` (not an adapter) — validates tile IDs
 - country codes are validated by `shared/cpcountries`, which chat shares — see [The composite layer](composite-layer.md)
 

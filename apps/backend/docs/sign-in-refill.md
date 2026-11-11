@@ -8,8 +8,11 @@ at the moment it ran dry. The client asks a guest to sign in at that moment (the
 
 - **Planet hears player, not auth.** `player` publishes `player.v1.PlayerCreated` with the profile it makes
   ([Player](player.md)). Planet's `subscribers/player_created_subscriber` (group `planet-charges-players`) hears it and
-  runs `bonuses/usecases/grant_sign_in_refill_usecase`. So the game reads no sign-in of auth's for this.
-- **Once per account.** The grant's id comes from the account (`bonuses.SignInGrantOf`, a UUIDv5). It is kept in
+  runs `bonuses/usecases/grant_sign_in_refill_usecase`. So the game reads no sign-in of auth's for this. The refill is
+  a granting rule, so it is the offers'; it pays through their wallet port, as a box does
+  ([Offers and the wallet](offers-and-wallet.md#pay)).
+- **Once per account.** The grant's id comes from the account (`bonuses.SignInGrantOf`, a UUIDv5, the same id for an
+  account as before the cut, pinned by a test). The wallet's payment (`charges/usecases/pay_usecase`) keeps it in
   `charge_grants` in the transaction of the grant, as a `planet.v1.GrantCharges` id is. So an event told twice gives
   one refill. `player` makes a profile once per account.
 - **Who is a new player.** A guest that links its first identity keeps its account, and `player` names it: it earns
