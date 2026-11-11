@@ -5,8 +5,8 @@ a click spreads to could name any tiles it liked — that is why the spread wait
 for [Map geography](map-geography.md). The client paints the tile it clicked, as it
 always has, and the neighbours reach it over the stream like anyone else's.
 
-`claim_bonus_usecase` adds the box's clicks to the pool with
-`Charges.Grant(holder, KindSpreadClicks, amount)`. Each accepted click sent with
+A box or a right answer adds its clicks to the pool through planet's `InternalService/GrantCharges` (the offers', see
+[The offers](bonuses.md)), which runs `Charges.Grant(holder, KindSpreadClicks, amount)`. Each accepted click sent with
 spread on then spends one with `Charges.Spend(holder, Held.AfterSpreadClick)`, after the rule accepted
 it: a refused click spreads nothing and costs nothing, and a click with spread off
 never touches the pool.

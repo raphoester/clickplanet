@@ -21,10 +21,6 @@ internal/planet/internal/
     postgres_grant_store/
     inmemory_grant_store/
     usecases/
-  bonuses/                        the offers: the boxes and quizzes, their schedule, and what each grants; it imports
-                                  no concept of planet's, which answers its ports (internal/planet/wallet.go)
-    box_facts/
-    usecases/
   notices/                        a spread to every stream, a grant to the signed-in account's own
   placements/                     a shield between the hand it left and the map's flush, and the boot that gives it back
     postgres_placement_store/
@@ -40,7 +36,6 @@ internal/planet/internal/
     postgres_arena_store/
     usecases/
   seeds/                          the patterns a fresh map starts from (capitals), each an arenas.Seed
-  quizzes/                        the quiz bank, and how a round's question is drawn; the offers' alone
   resets/                         the map's resets, each applied once
     postgres_reset_store/
     usecases/
@@ -54,8 +49,7 @@ internal/planet/internal/
     get_tile_holder_handler/holder_query/       ClickService/GetTileHolder, the last take of one tile, from ledger_events
     get_landmass_handler/landmass_query/       ClickService/GetLandmass: the holders from the tiles, the last fortify from ledger_events
     get_holdings_handler/holdings_query/       ClickService/GetHoldings: what each flag holds, from the tile map's tally
-  subscribers/                    the edge for events: player.v1.PlayerForgotten → anonymize_takes_usecase,
-                                  player.v1.PlayerCreated → grant_sign_in_refill_usecase (the offers')
+  subscribers/                    the edge for events: player.v1.PlayerForgotten → anonymize_takes_usecase
   commands/                       the edge for commands: planet.v1.GrantCharges → apply_grant_usecase,
                                   planet.v1.RefuseCaller and AdmitCaller → refusals.Book
 ```
@@ -107,19 +101,20 @@ internal/planet/internal/
   sends in planet's words (`RefuseCaller`, `AdmitCaller`). `Book.Refusal(payer)` is what the click, the bomb and the
   shield are refused from. See [A ban is told](antibot.md#a-ban-is-told).
 - **`facts/`** — `Log` stamps each fact of a caller later than the one before and keeps it; `Relay` sends them every
-  100ms, in order, from one goroutine. What tells: `try_click`, `get_map_usecase`, `listen_for_events_usecase`,
-  `bonuses/box_facts` and `allegiances/allegiance_facts`. Planet does not know who listens. `Fact` is an alias of its
-  func type, so `box_facts`' own port is met by the log.
-- **`charges/`** — the wallet: `Held`, `Holder`, `Kind`, `Charges` and its `Store`, `GrantID`, and the wallet's half of
-  the rules (`charges.Rules`, `charges.Part`). Its root also holds the rules a charge plays by: `Terrain` and `Pocket`
+  100ms, in order, from one goroutine. What tells: `try_click`, `get_map_usecase`, `listen_for_events_usecase` and
+  `allegiances/allegiance_facts`. Planet does not know who listens. `Fact` is an alias of its func type, so a port that
+  names the func type itself is met by the log. The box facts went with the offers on 2026-11-11, told from their own
+  log.
+- **`charges/`** — the wallet: `Held`, `Holder`, `Kind` (and `KindOf`, `EncodeKind`: planet.v1's word for it),
+  `Charges` and its `Store`, `GrantID`, and the wallet's rules (`charges.Rules`, `charges.Part`, `charges.*` in a set).
+  It is what planet answers the offers on its `InternalService` (`GrantCharges`, `GetRoom`, `GetChargesOf`). Its root also holds the rules a charge plays by: `Terrain` and `Pocket`
   (what an enclose closes) and `Bombing` (where a bomb lands and what it clears). See [Charges](charges.md).
-- **`bonuses/`** — the offers: the box registry, the quizzes it asks, the welcome, the hourly caps, what a box or a
-  right answer grants, and the offers' half of the rules (`bonuses.Rules`, read by `parts.Grants`). **It imports no
-  concept of planet's** (`TestTheOffersImportNoConceptOfPlanets`): it declares its ports (`Room`, each use case's
-  `Wallet`, `box_facts.Facts`, `quizzes.Shares`) and planet answers them (`internal/planet/wallet.go`). It is on its
-  way to a module of its own: see [Offers and the wallet](offers-and-wallet.md).
+- **The offers** (the box registry, the quizzes and their bank, the welcome, the hourly caps, what a box or a right
+  answer grants) were `bonuses/` and `quizzes/` here until 2026-11-11, cut apart from the rest by step A
+  ([Offers and the wallet](offers-and-wallet.md)). They are the bonuses module now, which asks planet in its words:
+  see [The offers](bonuses.md).
 - **`notices/`** — what planet tells the streams open beside the map's changes: a spread to every one, all a
-  signed-in account holds after a grant to its own. `ListenForEvents` merges it with the offers' channel.
+  signed-in account holds after a grant to its own. `ListenForEvents` merges it with the tile feed.
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs
@@ -152,7 +147,7 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/get_map_usecase` | a range of the map as one dense batch, told as a `MapRead` | `Board`, `DenseMapReader`, `Facts` |
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader`, `Pricer` |
-| `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included, told as a `StreamOpened` | `UpdatesSubscriber`, `Offers`, `Notices`, `RulesFeed`, `Facts` |
+| `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included, told as a `StreamOpened` | `UpdatesSubscriber`, `Notices`, `RulesFeed`, `Facts` |
 | `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
 | `clicks/usecases/paint_random_tiles_usecase` | paints random tiles with a flag, starting on one country's ground or anywhere | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where, and whom planet refuses | `Ledger`, `Owners`, `Borders`, `Refusals`, `CountryChecker` |
@@ -160,16 +155,12 @@ because it serves every concept over one Connect service. It only maps.
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |
 | `ledger/usecases/anonymize_takes_usecase` | flushes the ledger, then takes a deleted account off every take postgres keeps, then forgets it as the holder of its tiles | `Ledger`, `Takes`, `Tiles` |
 | `ledger/usecases/replay_usecase` | the map as it was at a time, and every act on it since | `Ledger`, `Resets`, `MaxIndexReader`, `DenseMapReader`, `Clock` |
-| `bonuses/usecases/claim_bonus_usecase` | redeems a box, for the caller its handler names | `Registry`, `Wallet`, `Publisher` |
-| `bonuses/usecases/open_quiz_usecase` | shows the caller a quiz's question and starts its clock | `Registry` |
-| `bonuses/usecases/answer_quiz_usecase` | checks an answer and pays the charge of a right one | `Registry`, `Wallet`, `Publisher` |
-| `bonuses/usecases/grant_sign_in_refill_usecase` | pays a guest's first sign-in its refill, once per account | `Wallet` |
 | `charges/usecases/drop_bomb_usecase` | spends a bomb where it was aimed | `Bombs`, `Map`, `Clearer`, `CountryChecker` |
 | `charges/usecases/get_charges_usecase` | what the caller holds | `Charges` |
 | `charges/usecases/use_refill_usecase` | fills the caller's bank with its refill | `Refills`, `Bank`, `Pricer` |
 | `charges/usecases/grant_charges_usecase` | the operator gives an account charges | `Charger`, `Streams` |
 | `charges/usecases/apply_grant_usecase` | grants the charges of a `GrantCharges` command, once per grant | `Grants`, `Charger`, `Streams` |
-| `charges/usecases/pay_usecase` | pays what an offer granted, once per grant id, and answers what was kept and the hand after | `Grants`, `Charger` |
+| `charges/usecases/pay_usecase` | pays a grant another module makes at once (`InternalService/GrantCharges`, the offers'), once per grant id, and answers what was kept and the hand after | `Grants`, `Charger` |
 | `charges/usecases/place_shield_usecase` | spends a shield on a tile of the caller's flag | `Gate`, `Escrow`, `Tiles` |
 | `placements/usecases/return_placements_usecase` | at boot, gives back every shield a stop left between the hand and the map | `Placements`, `Escrow` |
 | `resets/usecases/reset_map_usecase` | wipes the map once per reset (see [The map reset](map-reset.md)) | `Tiles`, `resets.Store` |
@@ -188,11 +179,13 @@ these ports at once, which is why `module.go` hands it over several times.
 
 **`click_usecase` is the only one with an interface of its own (`IUseCase`)**,
 because the click chain decorates it, from the inside out — `spread_click`, `enclose_click`, `prom_click`,
-`throttle_click`, `bonus_click`, `reach_click`, `allegiance_click`, `refusal_click` and `try_click` (`module.go` builds it). The counting is a wrapper rather than a line inside the rule, so
+`throttle_click`, `reach_click`, `allegiance_click`, `refusal_click` and `try_click` (`module.go` builds it). The counting is a wrapper rather than a line inside the rule, so
 a process that does not want it leaves it out and the rule does not change.
 
 **`try_click` is outside every gate**, so a try the refusal, the allegiance or the throttle stopped is told too, with
-what stopped it (`ClickTried.outcome`). It changes nothing and refuses nothing: it observes, as `prom_click` counts.
-A gate in the chain would have to tell its own refusals, and three gates would tell one try.
+what stopped it (`ClickTried.outcome`), and the bank the click left (`dry`), which the offers read. It changes nothing
+and refuses nothing: it observes, as `prom_click` counts.
+A gate in the chain would have to tell its own refusals, and three gates would tell one try. Until 2026-11-11
+`bonus_click`, between the throttle and the reach, told the offers' registry in process.
 
 `Geography` is in the `clicks` root, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `embedded_geodesic_map` builds one and hands it over. See [Map geography](map-geography.md).

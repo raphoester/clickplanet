@@ -7,7 +7,7 @@ app's Docker build context is its own directory and neither can read the repo ro
 
 | app | copy | refreshed by |
 | --- | --- | --- |
-| backend | `apps/backend/generated/quiz/bank.json`, embedded | `make quiz` |
+| backend | `apps/backend/generated/quiz/bank.json`, embedded, read by the `bonuses` module alone (`apps/backend/internal/bonuses/internal/quizzes`) | `make quiz` |
 | frontend | **none, on purpose** | — |
 
 ```bash
@@ -28,7 +28,7 @@ This is the one thing shared here that is **not** shared with both apps, and the
 security model: the answer is in the file. A bank served to the page is a bank anyone can fetch with
 the network tab open, and every quiz would be free.
 
-So the bank is the server's. `OpenQuiz` hands the client one question and three choices, and
+So the bank is the server's. `OpenQuiz` (`bonuses.v1.BonusService`) hands the client one question and three choices, and
 **which of the three is right never leaves the server**. `AnswerQuiz` is what compares, and
 `OpenQuiz` is what starts the clock — see [`apps/backend/docs/quizzes.md`](../apps/backend/docs/quizzes.md).
 

@@ -28,7 +28,7 @@ reset after it.
 
 | What | Wanted | Known from | Call |
 |---|---|---|---|
-| planet's and the antibot's rule set | the turn's set; planet's a battle's only once the battle is judged and its arena opened | both answered the turn (in memory) | `planet.v1` and `antibot.v1` `InternalService/PlayRuleSet`, once a turn, again a minute after an error or a refusal |
+| planet's, the antibot's and the offers' rule set | the turn's set; planet's and the offers' a battle's only once the battle is judged and its arena opened | all three answered the turn (in memory) | `planet.v1`, `antibot.v1` and `bonuses.v1` `InternalService/PlayRuleSet`, once a turn, again a minute after an error or a refusal |
 | a scoring book | open while its season runs, closed once it ended | `closed_books`, `missed_books` | `scoring.v1.InternalService/OpenBook` until answered, `CloseBook` until answered |
 | a scoring round | open while it runs (judged, the map back, an arena battle's arena opened), scored once it ended | `scored_rounds`, `missed_rounds` | `OpenRound` until answered, `CloseRound` until answered |
 | a planet arena | open while its arena battle runs and scoring answered the round before it; closed once scoring answered the battle's round | `opened_arenas`, `closed_arenas` | `planet.v1.InternalService/OpenArena` until answered, `CloseArena` until answered |
@@ -49,9 +49,9 @@ opened is not an answer to a close: it is what an arena battle's round waits for
   open holds nothing back: its round is missed at its end. Planet refuses an arena past its end, closed already, or
   beside another; scoring refuses an open of a book not open, or of a round or book it answered missed. A close or a reset
   is refused only for a bad id or time.
-- **A rule set is called until both modules play it.** A set a module keeps none of is refused (`FailedPrecondition`),
+- **A rule set is called until every module plays it** (planet, the antibot and, since 2026-11-11, the offers). A set a module keeps none of is refused (`FailedPrecondition`),
   and called again each minute with the turn's decision time: it plays once the operator makes the set, with no new
-  entry. Planet and the antibot keep the latest decision by `decided_at`, so a call made again changes nothing.
+  entry. Each keeps the latest decision by `decided_at`, so a call made again changes nothing.
 
 ## A call cut by its timeout
 

@@ -6,14 +6,16 @@ at the moment it ran dry. The client asks a guest to sign in at that moment (the
 [Sign-in](../../frontend/docs/sign-in.md)). A sign-in takes about ten seconds, which gives a guest two clicks back at
 0.2/s. The refill gives a full bank instead.
 
-- **Planet hears player, not auth.** `player` publishes `player.v1.PlayerCreated` with the profile it makes
-  ([Player](player.md)). Planet's `subscribers/player_created_subscriber` (group `planet-charges-players`) hears it and
-  runs `bonuses/usecases/grant_sign_in_refill_usecase`. So the game reads no sign-in of auth's for this. The refill is
-  a granting rule, so it is the offers'; it pays through their wallet port, as a box does
-  ([Offers and the wallet](offers-and-wallet.md#pay)).
+- **The offers hear player, not auth.** `player` publishes `player.v1.PlayerCreated` with the profile it makes
+  ([Player](player.md)). The bonuses module's `subscribers/player_created_subscriber` hears it under group
+  `planet-charges-players`, planet's name, kept when the offers left planet (2026-11-11) so the group goes on where
+  planet's subscriber left the stream, and runs `bonuses/usecases/grant_sign_in_refill_usecase`. So the game reads no
+  sign-in of auth's for this. The refill is a granting rule, so it is the offers'; it pays through planet's
+  `InternalService/GrantCharges`, with `lasting` ([The offers](bonuses.md#the-sign-in-refill)).
 - **Once per account.** The grant's id comes from the account (`bonuses.SignInGrantOf`, a UUIDv5, the same id for an
-  account as before the cut, pinned by a test). The wallet's payment (`charges/usecases/pay_usecase`) keeps it in
-  `charge_grants` in the transaction of the grant, as a `planet.v1.GrantCharges` id is. So an event told twice gives
+  account as before the cut and the move, pinned by a test, so a refill planet granted before is not granted again).
+  Planet's payment (`charges/usecases/pay_usecase`, behind `GrantCharges` with `lasting`) keeps it in `charge_grants`
+  in the transaction of the grant, as a `planet.v1.GrantCharges` command's id is. So an event told twice gives
   one refill. `player` makes a profile once per account.
 - **Who is a new player.** A guest that links its first identity keeps its account, and `player` names it: it earns
   the refill. An account made at sign-in (a browser with no guest) is a new player too. An identity that already has
@@ -32,6 +34,7 @@ at the moment it ran dry. The client asks a guest to sign in at that moment (the
   scope's, never the guests' shared bank.
 - **The client spends it at once** after a guest's first link, so the meter shows a full bank when the guest is
   back. An account made at sign-in has a full bank already: its refill waits in the inventory.
-- **A rule: `bonuses.signInRefill`** ([Rules](rules.md)), on in every set since migration
-  `20261030120000_sign_in_refill`. Off, a new player earns nothing, and `GetBonusRules.sign_in_refill` tells the
-  client, which then promises no full bank. The rule in force when planet hears the event decides.
+- **A rule: the offers' `signInRefill`** ([Its rule sets](bonuses.md#its-rule-sets)), on in every set since planet's
+  migration `20261030120000_sign_in_refill`, and copied into the offers' sets on 2026-11-11. Off, a new player earns
+  nothing, and `bonuses.v1.BonusService/GetGrantRules` (`sign_in_refill`; `GetBonusRules` until 2026-11-11) tells the
+  client, which then promises no full bank. The rule in force when the offers hear the event decides.

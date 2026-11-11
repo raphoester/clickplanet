@@ -1,25 +1,25 @@
 # Bonus boxes
 
 A question-mark box flies past the planet every so often; whoever catches it
-gets one of five bonuses. Each box draws its kind from the rule set's `bonuses.kinds` (see [Rules](rules.md)), a weight
-per kind — a kind's chance is its weight over the sum of the weights, so the
+gets one of five bonuses. Each box draws its kind from the offers' rule set's `kinds` (see
+[Its rule sets](bonuses.md#its-rule-sets)), a weight per kind — a kind's chance is its weight over the sum of the weights, so the
 strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
   caller chooses, and gives the network's bucket as much. Up to one bank, 60 clicks. See [What a refill does to the bucket](refill.md).
-- **`spread_clicks`** — 1 to `bonuses.spread.maxPerBox` (4) clicks added to a pool
-  of at most `bonuses.spread.clicks` (8). While the player switches spread on, each
+- **`spread_clicks`** — 1 to the offers' `spread.maxPerBox` (4) clicks added to a pool
+  of at most planet's `charges.spread.clicks` (8). While the player switches spread on, each
   click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](spread.md).
-- **`bomb`** — a charge: one bomb, kept until it is dropped (never offered while `bonuses.bomb.off`). It
-  clears a circle of `bonuses.bomb.rings` tile spacings around where it lands,
+- **`bomb`** — a charge: one bomb, kept until it is dropped (never offered while planet's `charges.bomb.off`: no hand
+  has room for one). It clears a circle of `charges.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](bomb.md).
-- **`enclose_clicks`** — 1 to `bonuses.enclose.maxPerBox` (3) enclosures added to a
-  stack of at most `bonuses.enclose.held` (3). While the player switches enclose on,
+- **`enclose_clicks`** — 1 to the offers' `enclose.maxPerBox` (3) enclosures added to a
+  stack of at most `charges.enclose.held` (3). While the player switches enclose on,
   a click that closes shapes of its flag's tiles also takes the tiles
-  inside each, at most `bonuses.enclose.maxTiles` (25) a shape, and spends one.
+  inside each, at most `charges.enclose.maxTiles` (25) a shape, and spends one.
   See [What an enclose does to a click](enclose.md).
-- **`shields`** — `bonuses.shield.minPerBox` (5) to `bonuses.shield.maxPerBox` (20)
-  shields added to a stack of at most `bonuses.shield.held` (30). Each is placed on a tile the player's flag
+- **`shields`** — the offers' `shield.minPerBox` (5) to `shield.maxPerBox` (20)
+  shields added to a stack of at most `charges.shield.held` (30). Each is placed on a tile the player's flag
   holds and takes one foreign click there. See [Shields](shields.md).
 
 Every kind is a **charge**, worth about one bank, rather than a timer — see
@@ -29,9 +29,11 @@ clicks, maybe": nothing on a full bank, and a different amount for every
 country's pace. The refill is the same good, clicks, with the moment chosen by
 the player.
 
-Boxes are always on: there is no switch.
+Boxes are always on: there is no switch. They are the bonuses module's since 2026-11-11 (see
+[The offers](bonuses.md)); planet holds what they grant.
 
-**The waits and the hourly cap are the rule set's** (`bonuses.Pace`, see [Rules](rules.md)), not the config's: the registry reads them at each sweep, so a set taken reaches every caller within a second.
+**The waits and the hourly cap are the offers' rule set's** (`bonuses.Pace`, see
+[Its rule sets](bonuses.md#its-rule-sets)), not the config's: the registry reads them at each sweep, so a set taken reaches every caller within a second.
 
 **The server picks who gets one, and that is the whole design.** A box broadcast
 to everyone is caught by whichever client reacts fastest, and that is a script
@@ -51,7 +53,7 @@ ten players, one an hour at three hundred. What a player experiences must not
 depend on how many other people are online.
 
 That schedule is one `nextOfferAt` per caller and **one sweep for everybody**,
-not a timer each: `bonus.sweepInterval` walks the map the way the antibot sweeps
+not a timer each: `bonuses.offers.sweepInterval` walks the map the way the antibot sweeps
 already do.
 
 **The wait is drawn uniformly from `[minInterval, maxInterval]`.** The spread is
@@ -104,7 +106,7 @@ is what removes a stream; there is no context goroutine per connected client,
 because the fanout deliberately does not pay that cost.
 
 The stream and the claim must name the same entrant, so the client opens the
-stream with the token it clicks with and reopens it when that token changes
+offers' stream with the token it clicks with and reopens it, with planet's, when that token changes
 (`followSession` in the frontend's `planetBackend.ts`): signing in moves the
 stream to the account at the next click.
 
@@ -119,20 +121,21 @@ the way past.
 between "no such token" and "not yours" is exactly what a script guessing tokens
 would measure.
 
-**`ClaimBonus` is session-gated**, appended to `NewSessionInterceptor`'s
-procedure list: a bonus is only ever spent as clicks, and clicks need a session,
+**`ClaimBonus` is session-gated**, `Attested` on the offers' `NewSessionInterceptor`
+(`bonusesv1controller`, counted in `bonus_session_checks`), as it was on planet's: a bonus is only ever spent as clicks, and clicks need a session,
 so the box that grants them should not be the one way to widen an allowance
 without proving anything. It is deliberately **not** throttled — a claim is
 already gated on holding a token the server addressed to you, and spending a
 click token to collect a bonus is backwards.
 
-**Two new cases on `PlanetEvent`, not a second stream** — `bonus_offered`, which
+**Two cases on the offers' stream** (`bonuses.v1.BonusService/ListenForEvents`) — `bonus_offered`, which
 reaches one caller, and `bonus_taken`, which reaches everyone. The private reward
-with a public outcome is what keeps the spectacle without the scramble. A client
-too old to know either case reads an unset `oneof` and skips it, which is the
-whole reason the envelope exists.
+with a public outcome is what keeps the spectacle without the scramble. A client too old to know a case reads an unset
+`oneof` and skips it, which is the whole reason the envelope exists. Until 2026-11-11 they were two cases of
+`PlanetEvent` (3 and 4, `reserved` now); the offers' stream is their own since they left planet, opened beside
+planet's (see [The live streams](live-streams.md)).
 
-The catch is published **after** the charge is held, so a catch announced to the
+The catch is published **after** planet kept the charge (`GrantCharges` answered), so a catch announced to the
 planet that then failed to apply is the one lie this cannot tell. The same use case then
-tells the other modules who caught it, `planet.v1.BonusClaimed`, for the `Loot` titles;
-`answer_quiz_usecase` tells every answer as `planet.v1.QuizAnswered`, for `Quiz`.
+tells the other modules who caught it, `bonuses.v1.BonusClaimed`, for the `Loot` titles;
+`answer_quiz_usecase` tells every answer as `bonuses.v1.QuizAnswered`, for `Quiz`.

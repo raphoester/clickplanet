@@ -1,7 +1,7 @@
 # The promo module (`internal/promo/`)
 
 **What the game shows of a battle before it starts: a teaser of cards, each a background and words over it.** The
-cards are data, kept per rule set under the set's name, the way planet and the antibot keep their rules (the owner,
+cards are data, kept per rule set under the set's name, the way planet, the antibot and the offers keep their rules (the owner,
 2026-11-05: "game modes and battle kinds should be represented as data"). A battle that plays `urf` is teased with
 `urf`'s cards, whichever entry or season's finale plays it.
 
@@ -14,8 +14,8 @@ internal/promo/
                                     publishing's InternalService (see teasers-job.md)
     teaser_job/                     the teasers job's alone, which the server never builds (see teasers-job.md)
     migrations/                     backgrounds, cards
-    placeholders/                   RulePaths, BattlePaths, Battle, Check, Fill: `{path}` in a card's words, filled with
-                                    a value of planet.v1.Rules or of the battle
+    placeholders/                   RulePaths, BattlePaths, Battle, Played, Check, Fill: `{path}` in a card's words,
+                                    filled with a value of planet.v1.Rules, of bonuses.v1.Rules (`bonuses.…`) or of the battle
       rpc_scoring_points/           a battle's points by its times, from scoring.v1.InternalService
     backgrounds/                    BackgroundID, MediaType, File, Rules (FileError), Background (Keep, TakeSnapshot),
                                     BackgroundSnapshot (Restore); the IDProvider port; fakes behind the testing tag
@@ -30,7 +30,8 @@ internal/promo/
     cards/                          SetName, Draft, Card, Deck (NewDeck, TakeSnapshot), DeckSnapshot; fakes behind the
                                     testing tag
       postgres_card_store/          Save: a set's cards replaced, in a transaction
-      rpc_planet_rules/             the sets planet keeps and the values each plays, from planet.v1.InternalService
+      rpc_rule_sets/                the sets planet keeps and the values each plays, planet's and the offers', from
+                                    planet.v1.InternalService and bonuses.v1.InternalService
       usecases/save_cards_usecase/  checks the cards and that planet keeps the set, then replaces its cards
     promov1controller/              AdminService and PromoService (bags), NewCacheInterceptor
       promoread/                    Filled: a card as players read it
@@ -52,8 +53,12 @@ reason at once, `ErrInvalidCards`). **None is a set whose battles are not teased
 with no cards (the owner: "If there is no carousel let's just not tease anything").
 
 **Words name a rule's value with a placeholder**, `{path}`, the path of a field of `planet.v1.Rules` as protojson
-writes it: `Clicks refill {clicks.tempo}× faster`, `A box every {bonuses.boxes.minInterval}`
-(`placeholders.RulePaths`, `Check`). **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
+writes it, or of the offers' `bonuses.v1.Rules` under `bonuses.`: `Clicks refill {clicks.tempo}× faster`,
+`A box every {bonuses.boxes.minInterval}` (`placeholders.RulePaths`, `Check`). **`bonuses.` is where the offers'
+values sat in planet's rules** until they were a module of their own (2026-11-11), so a card written before reads as it
+did: `urf`'s `every {bonuses.boxes.minInterval} to {bonuses.boxes.maxInterval}` still reads `every 30 s to 1 min`. A
+`{bonuses.…}` reads the offers' set of the battle's name (`bonuses.v1.InternalService/GetRuleSet`), every other path
+planet's, the wallet's `charges.*` included; a set the offers keep none of fills no `{bonuses.…}` (`ErrNoValue`). **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
 message reads as no word in a sentence, and is refused. A brace that opens or closes no placeholder is refused too.
 
 **Words name the battle's points too** (`placeholders.BattlePaths`): `{battle.times}`, the battle's points' times (1
@@ -65,7 +70,7 @@ headline.
 
 **The values are read when a player reads the cards, never written into them** (`placeholders.Fill`): a number with
 no trailing zero (`3`, `0.2`), a duration in its largest whole unit (`1 h`, `2 min`, `90 s`, `500 ms`, `0 s`). A save
-of the set in planet, or of the battle's times in the schedule, shows on the next read, with no event and no lag. An earlier design rendered the words into the
+of the set in planet or in the offers, or of the battle's times in the schedule, shows on the next read, with no event and no lag. An earlier design rendered the words into the
 images and re-rendered them on each rule change; the owner dropped it as over-engineered (2026-11-05).
 
 **A set's cards are kept under its name**, and only for a set planet keeps (`save_cards_usecase` asks planet's
@@ -106,7 +111,8 @@ keeps the type and the size the bucket holds. **A JPEG, a PNG or a WebP of 2 MiB
 **`promo.v1.PromoService/GetTeaser(battle_id)`, on the public router, is a battle's cards as players read them**: the
 id the gamemaster's timeline names the battle by, its entry's id or `season-N/finale` for a season's finale. The query
 asks the gamemaster what the battle plays (`gamemaster.v1.InternalService/GetBattle`: its set and its times), reads the
-set's cards, asks planet what the set plays (`planet.v1.InternalService/GetRuleSet`) and scoring what each rank of a
+set's cards, asks planet and the offers what the set plays (`planet.v1` and `bonuses.v1` `InternalService/GetRuleSet`)
+and scoring what each rank of a
 round of those times scores (`scoring.v1.InternalService/GetRankPoints`), and fills them. It answers **no cards** for a
 set with none, and **NotFound** for a battle the schedule does not hold. Never the set's name.
 
@@ -155,12 +161,13 @@ closer, once the listeners shut down.
 
 ## Who it asks
 
-**Promo depends on planet, the gamemaster, scoring and publishing, and nothing depends on promo.** It asks publishing
+**Promo depends on planet, the offers, the gamemaster, scoring and publishing, and nothing depends on promo.** It asks publishing
 the posts that tease a battle (`ListPosts`, on each `ListDueTeasers` and `PostTeaser`), a teaser's slot (`PlanPost`
 with `by`) and the post (`SchedulePost`), on its `InternalService` (see [Battle teasers on TikTok and
 YouTube](teasers-job.md)). It asks planet the sets it
 keeps (`GetRuleSetNames`, on each `SaveCards` and `GetCards`) and the values one plays (`GetRuleSet`, on each teaser
-read and once per set with cards on each `GetCards`), the gamemaster what a battle plays (`GetBattle`, on each teaser
+read and once per set with cards on each `GetCards`), the offers what their set of that name plays (their
+`GetRuleSet`, beside each of planet's), the gamemaster what a battle plays (`GetBattle`, on each teaser
 read) and the battles to come (`GetTimeline`, on each `ListTeasers`), and scoring what each rank of a round of its times scores (`GetRankPoints`, on each teaser read with cards, and
 once for the example battle on each `GetCards`). The gamemaster stays unaware of promo: the client asks promo for a battle's cards when it shows the
 teaser, rather than the gamemaster's timeline carrying them every second.

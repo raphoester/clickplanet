@@ -80,7 +80,7 @@ number of the old `cost`, whose meaning it replaces.
   players of every flag, so it refills at its plain rate.
 - **The budget goes out as the bucket holds it**, in clicks, with the slowdown,
   the share and the next step of the country asked about so the client can say why.
-  The whole table goes out once per page load, in `GetBonusRules.toll_steps`.
+  The whole table goes out once per page load, in `GetChargeRules.toll_steps`.
 - **Bonuses compose with it.** A refill fills the bank to its size and leaves the
   pace alone. A spread is one click. A bomb is not throttled, and lowers the
   share of whoever it hits.

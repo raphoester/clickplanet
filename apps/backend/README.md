@@ -1,11 +1,11 @@
 # ClickPlanet — Backend
 
 The Go API of [clickplanet.lol](https://clickplanet.lol), a real-time multiplayer game where countries compete to own
-tiles on a 3D globe. One process holds fourteen modules; it needs postgres and Redis.
+tiles on a 3D globe. One process holds fifteen modules; it needs postgres and Redis.
 
 The docs are in [`docs/`](docs), indexed by [`CLAUDE.md`](CLAUDE.md). Start with
 [Commands](docs/commands.md), [Configuration](docs/configuration.md) and
-[Fourteen bounded contexts, one process](docs/bounded-contexts.md).
+[Fifteen bounded contexts, one process](docs/bounded-contexts.md).
 
 ```bash
 make test       # Docker for the postgres and Redis suites

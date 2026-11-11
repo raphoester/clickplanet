@@ -80,12 +80,13 @@ scoring's finales and planet's ledger for the fronts. Identity is heard by the w
 the clips and the page ask player who a player is, and planet hears player make one. Together they made three cycles,
 each through a part that is progression's now:
 
-- **player ⇄ planet**: player asked planet for the fronts and heard its takes; planet hears `player.v1.PlayerCreated`.
+- **player ⇄ planet**: player asked planet for the fronts and heard its takes; planet heard `player.v1.PlayerCreated`
+  (the offers hear it since 2026-11-11, see [The offers](bonuses.md)).
 - **player ⇄ scoring**: player asked scoring for a finale's table and fighters; scoring asks player who has a username.
 - **player ⇄ chat**: player heard `chat.v1.MessageSent`; the chat asks player who posts.
 
 **Split, identity is upstream of everything** (player hears auth alone), and progression is downstream: it speaks the
-languages of chat, gamemaster, missions, planet, player and scoring, and nothing but the browser and the operator speaks
+languages of bonuses, chat, gamemaster, missions, planet, player and scoring, and nothing but the browser and the operator speaks
 its own. `cmd/api/modules_test.go` pins it: a module depends on another when its code imports the other's proto
 package (it calls it, hears its events or sends it commands), `TestTheModulesDependOnEachOtherWithNoCycle`,
 `TestNothingButTheBrowserAndTheOperatorTalksToProgression`, and `TestProgressionKnowsPlayerAndNotAuth`.
@@ -169,12 +170,14 @@ reads player's tables (but once, at its first migration, below).
   streak, and a row made by a message alone has no `streak_last_day` (the column is nullable). It is not on the wire
   as a stat: the `Chatter` track's progress is where a player sees it. Counting started with that migration; messages
   sent before it are not replayed.
-- **What a player did with the bonuses comes from planet's events**, one counter each in `progression.stats` (player's
+- **What a player did with the bonuses comes from planet's events and the offers'**, one counter each in `progression.stats` (player's
   migration `20261025120000_title_tracks`): `bombs_dropped` from `planet.v1.BombLanded` (`player-stats-bombs`,
   `Stats.WithBomb`), `tiles_fortified` from `planet.v1.Fortified` (`player-stats-fortifies`), the landmass's whole size
   (`Stats.WithFortify`), so a 1-tile island taken back and forth is worth one tile each time, `bonuses_claimed` from
-  `planet.v1.BonusClaimed` (`player-stats-bonuses`), a caught box (`Stats.WithBonus`), and `right_answers` from
-  `planet.v1.QuizAnswered` when `correct` (`player-stats-quizzes`, `Stats.WithRightAnswer`). A bomb or a fortify with
+  `bonuses.v1.BonusClaimed` (`player-stats-bonuses`), a caught box (`Stats.WithBonus`), and `right_answers` from
+  `bonuses.v1.QuizAnswered` when `correct` (`player-stats-quizzes`, `Stats.WithRightAnswer`). Those two were planet's
+  until 2026-11-11: each group reads what planet's stream of it still held first (`cpredis.SubscribeMoved`, see
+  [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). A bomb or a fortify with
   no account counts for nobody. None is a take, so none touches the streak, and none is on the wire as a stat: each is
   a track's progress. Counting started with that migration. Bombs and fortifies before it were brought in once from
   planet's ledger, on 2026-10-25, by an operator call since removed; boxes and quizzes before it are nowhere.
@@ -409,7 +412,7 @@ happened](composite-layer.md#telling-other-modules-what-happened)):
 |---|---|---|
 | `player-stats` | `planet.v1.TilesTaken` | counts the takes, a batch at once |
 | `player-stats-messages` | `chat.v1.MessageSent` | counts the message |
-| `player-stats-bombs`, `player-stats-fortifies`, `player-stats-bonuses`, `player-stats-quizzes` | `planet.v1.BombLanded`, `Fortified`, `BonusClaimed`, `QuizAnswered` | counts the bomb, the tiles fortified, the box, the right answer |
+| `player-stats-bombs`, `player-stats-fortifies`, `player-stats-bonuses`, `player-stats-quizzes` | `planet.v1.BombLanded`, `Fortified`, `bonuses.v1.BonusClaimed`, `QuizAnswered` (planet's until 2026-11-11, read first) | counts the bomb, the tiles fortified, the box, the right answer |
 | `player-stats-missions` | `missions.v1.MissionsPaid` | keeps the missions paid in all |
 | `player-titles` | `progression.v1.StatsChanged` | grants the titles the stats now earn |
 | `player-finale-fights` | `gamemaster.v1.SeasonEnded` | records the finale's fights, then awards each fighter ([Season titles](season-titles.md)) |

@@ -59,7 +59,7 @@ writes or spends anything.
 ### Enclose at rest, while enclosures are unlimited
 
 **A rule set with unlimited enclosures** (the backend's
-[Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-bonusesencloseunlimited), for a battle)
+[Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-chargesencloseunlimited), for a battle)
 **makes enclose the switch at rest**: on whenever no other switch is on and the bomb is not aimed (`atRest`, applied
 by `switchTo` in `globe.ts` to every change). So it is on at load and when the set starts playing, and comes back
 when spread or shield goes off, runs out, or the bomb is dropped or put away. **The player can still turn it off**,

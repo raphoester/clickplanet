@@ -4,13 +4,15 @@ What is left after sessions. A player who solves Turnstile in a real browser and
 then runs a userscript holds a genuine session, and no address- or token-based
 check can tell them from a player. The signal that survives is **behavioural**.
 
-**It is a module of its own, and it listens to planet** (`internal/antibot/module.go`, `antibot.NewModule`, listed in
-`cmd/api`). Its root publishes `Config` and `NewModule` and nothing else; the watchdogs, the jury, the bans and the
+**It is a module of its own, and it listens to planet and the offers** (`internal/antibot/module.go`,
+`antibot.NewModule`, listed in `cmd/api`). Its root publishes `Config` and `NewModule` and nothing else; the watchdogs, the jury, the bans and the
 evidence are under `antibot/internal/`. Planet never imports it and never names it: it tells what callers did in its
-own words, and the antibot hears it, judges, and asks planet to refuse a caller in planet's words.
+own words, and the antibot hears it, judges, and asks planet to refuse a caller in planet's words. The box facts are the
+offers' since 2026-11-11 (the bonuses module, see [The offers](bonuses.md)), told in their words, with planet's fields.
 
 ```
-planet ─ ClickTried, MapRead, StreamOpened, BoxCaught, BoxLapsed, ForeignBoxClaimed ─▶ antibot (listener → guard)
+planet ─ ClickTried, MapRead, StreamOpened ──────────────────────────────────────────▶ antibot (listener → guard)
+bonuses ─ BoxCaught, BoxLapsed, ForeignBoxClaimed ───────────────────────────────────▶ antibot (listener → guard)
 planet ◀────────────── RefuseCaller, AdmitCaller (planet's commands, through the antibot's outbox) ── antibot (bans)
 ```
 
@@ -22,8 +24,10 @@ planet ◀────────────── RefuseCaller, AdmitCaller (
   `bans.enforce`) is that rule.
 - **Off, it is never built**: no subscriber, no route, no command. Planet then refuses nobody, since nothing tells it
   to, and `antibot.v1.AdminService` 404s.
-- **`listener`** is the antibot's edge for planet's facts: one subscriber per kind of fact (`antibot-clicks`,
-  `antibot-map-reads`, `antibot-streams`, `antibot-boxes-caught`, `antibot-boxes-lapsed`, `antibot-boxes-foreign`),
+- **`listener`** is the antibot's edge for planet's facts and the offers': one subscriber per kind of fact
+  (`antibot-clicks`, `antibot-map-reads`, `antibot-streams`, `antibot-boxes-caught`, `antibot-boxes-lapsed`,
+  `antibot-boxes-foreign`; the three box groups read what planet's streams of them still held first,
+  `cpredis.SubscribeMoved`),
   each turning a fact into the guard's words (`Attempted`, `Inspect`, `Committed`, `Caught`, `Missed`, `Foreign`,
   `Fetched`, `Listened`). See [What a try tells](#what-a-try-tells).
 - **`guard`** is what was the package's API before: the watchdogs, the jury and the ban book behind one facade, with
@@ -315,7 +319,9 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   watchdog empty; the others load. That is not a failed boot: a changed section
   shape after a deploy should cost one watchdog's windows, not the start.
 - **Each kind of fact is heard once, though Redis delivers it at least once.** Planet tells each kind in order, each
-  at a later time than the one before (`facts.Log`), so the time names the fact. The listener keeps the latest time it
+  at a later time than the one before (`facts.Log`), so the time names the fact; the offers tell the box facts the
+  same way, from a log of their own whose first time is past planet's last (one wall clock), so the move of 2026-11-11
+  skipped none. The listener keeps the latest time it
   heard of each kind (`listener.Marks`, the section `heard`) and skips a fact at or before it. The marks are saved with
   the evidence, **as of the same moment**: a flush holds the listener still while it encodes every section
   (`evidence.Holder`). So after a crash, what Redis gives back that the last flush had heard is skipped, and what it had
@@ -624,8 +630,9 @@ catches a lot.
 
 It is the one watchdog that does not read clicks. The registry reports each box
 through `bonuses.Report` — `Caught(scope, after)` from `Claim`, timed from the
-offer being sent, and `Lapsed(scope)` from the sweep — and planet tells them as facts (`BoxCaught`, `BoxLapsed`,
-through `bonuses/box_facts`), which the listener hands to the guard. The watchdog keeps the outcomes
+offer being sent, and `Lapsed(scope)` from the sweep — and the offers tell them as facts (`bonuses.v1.BoxCaught`,
+`BoxLapsed`, through `box_facts` and the bonuses module's own facts log and relay; planet's until 2026-11-11), which the
+listener hands to the guard. The watchdog keeps the outcomes
 and answers from them on the caller's next click, since the jury only asks on a
 click. The delay includes the round trip, which only makes a person look slower.
 `bonus_catch_seconds` is the same delay as a histogram, whether the antibot is on or not.

@@ -32,6 +32,7 @@ func (c Config) Validate() error {
 		c.Scoring.Validate(),
 		c.Gamemaster.Validate(),
 		c.Missions.Validate(),
+		c.Bonuses.Validate(),
 		c.Support.Validate(),
 		c.Clips.Validate(),
 		c.Alerts.Validate(),
@@ -52,6 +53,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: one switch and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
 - `progression.Config` — an incomplete `progression.database` or `progression.redis` block
+- `bonuses.Config` — an incomplete `bonuses.database` or `bonuses.redis` block
 - `support.Config` — an incomplete `support.database` block; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
 
 There is no struct-tag validation and therefore no validator dependency — a hook the config implements covers this app's needs.
@@ -59,7 +61,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 **Each module owns its own config struct** — `planet.Config`, `chat.Config`, `auth.Config`, … — and `cmd/api`'s `Config` is every module's plus `httpServer`. The planet keys stayed at the top level of the file rather than moving under a `planet:` section: `Config` squashes that struct (`koanf:",squash"`), so the file and every `deploy/` environment variable are unchanged.
 
 - `httpServer.bindAddress` — the encoding is negotiated per request, so there is no format setting.
-- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `antiBot.redis`, `chat.redis`, `player.redis`, `progression.redis`, `scoring.redis`, `support.redis`, `missions.redis`, `gamemaster.redis`, `alerts.redis`, `clips.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
+- `redis` — each module's own block (`redis` at the top level for planet, `auth.redis`, `antiBot.redis`, `chat.redis`, `player.redis`, `progression.redis`, `scoring.redis`, `support.redis`, `missions.redis`, `gamemaster.redis`, `bonuses.redis`, `alerts.redis`, `clips.redis`): the Redis it tells the others what happened through and hears them on (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)). **Every block names the same Redis**, or a module publishes where nobody listens; `TestEveryModuleOfProductionTalksToTheSameRedis` pins it for `deploy/vps/backend.yaml`. Each module connects on its own, and one that cannot reach Redis refuses the boot
 - `redis.address`, `redis.password` — production reads the password from `REDIS_PASSWORD`
 - `redis.maxLen` — the most entries one stream keeps (100k), for a stream whose subscriber stopped; the trim keeps them far fewer while every subscriber keeps up
 - `redis.publishTimeout` — how long a click or any other publish waits on Redis (500ms); past it the event is lost and counted
@@ -82,11 +84,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; a subscriber that falls that far behind is closed, never blocked on or skipped
 - **Every game rule is the rule set's, kept in postgres** (`planet.rule_sets`), not a key here: the refill, the bank
-  and the scope multipliers, the toll, the boxes, the charges, the welcome and the quizzes. See [Rules](rules.md)
+  and the scope multipliers, the toll and the charges. See [Rules](rules.md). The boxes, the welcome and the quizzes
+  are the offers' sets (`bonuses.rule_sets`): see [The offers](bonuses.md#its-rule-sets)
 - `rateLimiter.sweepInterval` — how often the click limiter forgets a bucket that is full (1m)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](vpn-blocklist.md)); disabled parses nothing and allocates nothing
-- `bonus.forgetAfter`, `bonus.sweepInterval` — how long a caller with no stream open is remembered (5m), and how often
-  the boxes and the quizzes are swept (1s)
 - `antiBot` — the antibot module's block (`antibot.Config`, beside `planet.Config` in `cmd/api`). It holds the machine only: **every bound the antibot judges with is a rule set in postgres**, edited from the backoffice (see [The antibot's rules](antibot-rules.md)). A rule left in the file is read by nothing, and `TestEveryAntibotKeyIsOneTheConfigReads` refuses it
 - `antiBot.enabled` — off builds no module: nothing is heard, nothing is refused, and `antibot.v1.AdminService` 404s
 - `antiBot.database` — the antibot's own `cppg.Config`, `schema: antibot`; required when `antiBot.enabled`. A failed connection, migration, rule set or load refuses the boot
@@ -94,7 +95,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `antiBot.jury.trackWindow`, `sweepInterval` — how long a silent caller is remembered, and how often the jury forgets and sets its gauges
 - `antiBot.evidence.saveInterval`, `retention` — how often every watchdog's evidence and the jury's record are written to `antibot.evidence` (1m, and on shutdown), and the oldest kept (72h) on load and in memory. Also how long `UnbanPlayer` holds the jury off. See [What survives a restart](antibot.md#what-survives-a-restart)
 - `antiBot.<watchdog>` — one block per watchdog (`retaker`, `sequencer`, `metronome`, `defender`, `catcher`, `cohort`, `scraper`, `churner`, `hopper`, `rotator`). Every watchdog is built: whether its reading counts is the rule `<watchdog>.enabled`
-- every watchdog takes `trackWindow` and `sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten. The retaker, the sequencer, the defender, the scraper and the hopper count their rule over `trackWindow`; the cohort keeps at least the rules' `chainWindow`, the churner `window` plus `relay.handoff`. The catcher's must hold `minCatches` boxes at the slowest box pace plus the planet rule set's `bonuses.offerTtl`
+- every watchdog takes `trackWindow` and `sweepInterval` — how far back its evidence counts, and how often what can no longer matter is forgotten. The retaker, the sequencer, the defender, the scraper and the hopper count their rule over `trackWindow`; the cohort keeps at least the rules' `chainWindow`, the churner `window` plus `relay.handoff`. The catcher's must hold `minCatches` boxes at the slowest box pace plus the offers' rule set's `offerTtl`
 - `antiBot.metronome.stamina.slice`, `antiBot.rotator.slot` — the length the evidence is counted in, saved with it: a section saved under another length is dropped on load
 - `antiBot.cohort.v4Bits`, `v6Bits`, `antiBot.churner.relay.v4Bits`, `v6Bits` — the wider prefix a scope or an account is indexed by when first seen (a /24 and a /44, a /24 and a /32). A prefix wider than an address refuses the boot (the cohort's)
 - `auth.enabled` — off registers nothing, so `auth.v1` 404s and clicks are judged on address alone
@@ -145,6 +146,12 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.renameRetention`, `player.pruneInterval` — how long an operator's rename is kept (`ListRenames`, default 90
   days), and how often the older ones are deleted (1h)
 - `progression.database.*` — the stats, the titles, the titles worn, the finales fought, the nameplates and the departures, same shape as `database`, schema `progression`; required. `progression.database.password` belongs in the environment. Its first migration moves four tables out of schema `player`, so its user must own them, as production's one user does (see [Progression](progression.md#the-tables-and-their-move))
+- `bonuses.database.*` — the offers' rule sets and the set they play, same shape as `database`, schema `bonuses`, one
+  connection in production; required. `bonuses.database.password` belongs in the environment. Nothing of a box or a
+  quiz is written: the offers are memory only. See [The offers](bonuses.md)
+- `bonuses.offers.forgetAfter`, `bonuses.offers.sweepInterval` — how long a caller with no stream open is remembered
+  (5m), and how often the boxes and the quizzes are swept (1s). Until 2026-11-11 they were planet's top-level
+  `bonus.forgetAfter` and `bonus.sweepInterval`
 - `missions.database.*` — the briefs, the sheets, the progress, the payments, the days, the flag missions and their rules, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
 - `scoring.database.*` — the standings and the rounds, same shape as `database`, schema `scoring`; required. `scoring.database.password` belongs in the environment
 - `gamemaster.dailyCutoff` — the time of day, UTC, every day of a season ends at, as a duration from midnight (`21h`); 0s
