@@ -65,3 +65,8 @@ func TestAnythingElseIsLeftToTheErrorNet(t *testing.T) {
 	require.ErrorIs(t, err, cause)
 	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }
+
+func TestARevertWhileAnArenaPlaysIsAFailedPrecondition(t *testing.T) {
+	_, err := revert(t, &stubUseCase{err: fmt.Errorf("%w: battle", revert_player_usecase.ErrArenaPlays)})
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}

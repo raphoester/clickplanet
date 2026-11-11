@@ -71,6 +71,37 @@ func (s *Store) Playing(ctx context.Context) (arenas.Arena, error) {
 	return arenas.Arena{ID: opening.ID, Opening: opening, Opened: true}, nil
 }
 
+func (s *Store) Stretches(ctx context.Context) ([]arenas.Stretch, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT a.id, a.opened_at, c.closed_at FROM arenas a
+		LEFT JOIN closed_arenas c ON c.id = a.id
+		ORDER BY a.opened_at, a.id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the arenas' stretches: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var stretches []arenas.Stretch
+	for rows.Next() {
+		var (
+			id       string
+			openedAt time.Time
+			closedAt sql.NullTime
+		)
+		if err := rows.Scan(&id, &openedAt, &closedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan an arena's stretch: %w", err)
+		}
+		stretches = append(stretches, arenas.Stretch{
+			ID: arenas.ID(id), OpenedAt: openedAt.UTC(), ClosedAt: closedAt.Time.UTC(), Closed: closedAt.Valid,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the arenas' stretches: %w", err)
+	}
+	return stretches, nil
+}
+
 func (s *Store) Open(ctx context.Context, opening arenas.Opening) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `INSERT INTO arenas (id, ends_at, opened_at, freeze_ms) VALUES ($1, $2, $3, $4)`,
 		string(opening.ID), opening.EndsAt, opening.OpenedAt, opening.Freeze.Milliseconds()); err != nil {

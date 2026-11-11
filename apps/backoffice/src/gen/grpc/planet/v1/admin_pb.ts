@@ -58,13 +58,15 @@ export class GetReplayRequest extends Message<GetReplayRequest> {
  */
 export class GetReplayResponse extends Message<GetReplayResponse> {
   /**
-   * The map as it was at `since`.
+   * The world's map as it was at `since`.
    *
    * @generated from field: planet.v1.GetMapResponse opening = 1;
    */
   opening?: GetMapResponse;
 
   /**
+   * What changed on the world's map: no take made on an arena's map.
+   *
    * @generated from field: repeated planet.v1.ReplayedEvent events = 2;
    */
   events: ReplayedEvent[] = [];
@@ -79,6 +81,14 @@ export class GetReplayResponse extends Message<GetReplayResponse> {
    */
   until?: Timestamp;
 
+  /**
+   * Each stretch of the window an arena's map played instead of the world's, whose takes are left out; the world's map
+   * came back as it was.
+   *
+   * @generated from field: repeated planet.v1.ReplayAside asides = 5;
+   */
+  asides: ReplayAside[] = [];
+
   constructor(data?: PartialMessage<GetReplayResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -91,6 +101,7 @@ export class GetReplayResponse extends Message<GetReplayResponse> {
     { no: 2, name: "events", kind: "message", T: ReplayedEvent, repeated: true },
     { no: 3, name: "since", kind: "message", T: Timestamp },
     { no: 4, name: "until", kind: "message", T: Timestamp },
+    { no: 5, name: "asides", kind: "message", T: ReplayAside, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetReplayResponse {
@@ -107,6 +118,51 @@ export class GetReplayResponse extends Message<GetReplayResponse> {
 
   static equals(a: GetReplayResponse | PlainMessage<GetReplayResponse> | undefined, b: GetReplayResponse | PlainMessage<GetReplayResponse> | undefined): boolean {
     return proto3.util.equals(GetReplayResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ReplayAside
+ */
+export class ReplayAside extends Message<ReplayAside> {
+  /**
+   * @generated from field: google.protobuf.Timestamp opened_at = 1;
+   */
+  openedAt?: Timestamp;
+
+  /**
+   * Unset while the arena still plays.
+   *
+   * @generated from field: google.protobuf.Timestamp closed_at = 2;
+   */
+  closedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ReplayAside>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ReplayAside";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "opened_at", kind: "message", T: Timestamp },
+    { no: 2, name: "closed_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReplayAside {
+    return new ReplayAside().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReplayAside {
+    return new ReplayAside().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReplayAside {
+    return new ReplayAside().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReplayAside | PlainMessage<ReplayAside> | undefined, b: ReplayAside | PlainMessage<ReplayAside> | undefined): boolean {
+    return proto3.util.equals(ReplayAside, a, b);
   }
 }
 

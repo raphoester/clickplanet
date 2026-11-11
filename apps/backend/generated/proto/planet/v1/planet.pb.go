@@ -980,8 +980,6 @@ type GetMapResponse struct {
 	Tiles       []byte                 `protobuf:"bytes,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	Shields     []*TileShields         `protobuf:"bytes,4,rep,name=shields,proto3" json:"shields,omitempty"`
 	Version     *MapVersion            `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
-	// The map is an arena's: a battle's blank map, which started with each country's capital.
-	Arena bool `protobuf:"varint,6,opt,name=arena,proto3" json:"arena,omitempty"`
 	// The flags the arena knocked out: each lost its capital to another flag.
 	KnockedOut    []string `protobuf:"bytes,7,rep,name=knocked_out,json=knockedOut,proto3" json:"knocked_out,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1051,13 +1049,6 @@ func (x *GetMapResponse) GetVersion() *MapVersion {
 		return x.Version
 	}
 	return nil
-}
-
-func (x *GetMapResponse) GetArena() bool {
-	if x != nil {
-		return x.Arena
-	}
-	return false
 }
 
 func (x *GetMapResponse) GetKnockedOut() []string {
@@ -4183,16 +4174,15 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\adensity\x18\x01 \x01(\rR\adensity\"S\n" +
 	"\rGetMapRequest\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x1e\n" +
-	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId\"\xfa\x01\n" +
+	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId\"\xf1\x01\n" +
 	"\x0eGetMapResponse\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
 	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
 	"\x05tiles\x18\x03 \x01(\fR\x05tiles\x120\n" +
 	"\ashields\x18\x04 \x03(\v2\x16.planet.v1.TileShieldsR\ashields\x12/\n" +
-	"\aversion\x18\x05 \x01(\v2\x15.planet.v1.MapVersionR\aversion\x12\x14\n" +
-	"\x05arena\x18\x06 \x01(\bR\x05arena\x12\x1f\n" +
+	"\aversion\x18\x05 \x01(\v2\x15.planet.v1.MapVersionR\aversion\x12\x1f\n" +
 	"\vknocked_out\x18\a \x03(\tR\n" +
-	"knockedOut\"4\n" +
+	"knockedOutJ\x04\b\x06\x10\aR\x05arena\"4\n" +
 	"\n" +
 	"MapVersion\x12\x14\n" +
 	"\x05epoch\x18\x01 \x01(\rR\x05epoch\x12\x10\n" +

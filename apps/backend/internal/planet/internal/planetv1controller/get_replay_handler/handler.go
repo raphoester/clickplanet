@@ -54,11 +54,20 @@ func (h GetReplayHandler) GetReplay(
 		events[i] = &planetv1.ReplayedEvent{At: timestamppb.New(scene.At), Event: eventOf(scene)}
 	}
 
+	asides := make([]*planetv1.ReplayAside, len(out.Asides))
+	for i, aside := range out.Asides {
+		asides[i] = &planetv1.ReplayAside{OpenedAt: timestamppb.New(aside.OpenedAt)}
+		if aside.Closed {
+			asides[i].ClosedAt = timestamppb.New(aside.ClosedAt)
+		}
+	}
+
 	return connect.NewResponse(&planetv1.GetReplayResponse{
 		Opening: planetmessage.Map(out.Opening),
 		Events:  events,
 		Since:   timestamppb.New(out.Since),
 		Until:   timestamppb.New(out.Until),
+		Asides:  asides,
 	}), nil
 }
 

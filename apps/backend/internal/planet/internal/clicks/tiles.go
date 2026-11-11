@@ -54,9 +54,7 @@ type DenseBatch struct {
 
 	Shields []TileShields
 
-	// The map is an arena's, not the world's.
-	Arena bool
-	// The flags the arena knocked out.
+	// The flags knocked out.
 	KnockedOut []string
 }
 

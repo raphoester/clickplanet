@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
@@ -12,6 +13,14 @@ import (
 type Ledger interface {
 	Replay(see func(ledger.Event)) ledger.Position
 	Forget(caller ledger.Caller, before ledger.Position)
+}
+
+// ErrArenaPlays is a revert asked while an arena's map plays: the world's waits aside, and Forget would hide its takes
+// the revert did not undo.
+var ErrArenaPlays = errors.New("a revert waits for the world's map: an arena's plays")
+
+type Arenas interface {
+	Stretches(ctx context.Context) ([]arenas.Stretch, error)
 }
 
 type Map interface {
@@ -33,13 +42,14 @@ type Out struct {
 	Restored int
 }
 
-func New(ledger Ledger, tiles Map, pace clicks.Pacing) *UseCase {
-	return &UseCase{ledger: ledger, tiles: tiles, pacing: pace}
+func New(ledger Ledger, tiles Map, arenas Arenas, pace clicks.Pacing) *UseCase {
+	return &UseCase{ledger: ledger, tiles: tiles, arenas: arenas, pacing: pace}
 }
 
 type UseCase struct {
 	ledger Ledger
 	tiles  Map
+	arenas Arenas
 	pacing clicks.Pacing
 }
 
@@ -52,7 +62,16 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, errors.New("revert batch must be positive")
 	}
 
-	runs := ledger.NewRuns(caller)
+	stretches, err := u.arenas.Stretches(ctx)
+	if err != nil {
+		return Out{}, fmt.Errorf("failed to read the arenas: %w", err)
+	}
+	maps := arenas.MapsOf(stretches)
+	if open, plays := maps.Open(); plays {
+		return Out{}, fmt.Errorf("%w: %s", ErrArenaPlays, open.ID)
+	}
+
+	runs := ledger.NewRuns(caller, maps.World())
 	end := u.ledger.Replay(runs.See)
 
 	restorations := runs.Restorations(u.tiles)

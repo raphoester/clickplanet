@@ -9,6 +9,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -16,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler/holder_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -68,7 +71,8 @@ func (s *testSuite) forget(caller ledger.Caller, events int) {
 }
 
 func (s *testSuite) holder(tile uint32) *planetv1.TileHolder {
-	answer, err := holder_query.NewPostgresQuery(s.db).TileHolder(s.T().Context(), tile)
+	answer, err := holder_query.NewPostgresQuery(s.db, postgres_arena_store.New(s.db), cptime.NewFixedClock(at.Add(24*time.Hour))).
+		TileHolder(s.T().Context(), tile)
 	s.Require().NoError(err)
 	return answer.GetHolder()
 }
@@ -212,4 +216,38 @@ func (s *testSuite) TestTheHolderIsTheLastTakeTheLedgerReplaysForEachTile() {
 			AccountId: taking.Account, CountryId: taking.Country, TakenAtUnixMs: taking.At.UnixMilli(),
 		}, s.holder(tile)), "tile %d: %v", tile, s.holder(tile))
 	}
+}
+
+func (s *testSuite) arena(id arenas.ID, openedAt, closedAt time.Time) {
+	ctx := s.T().Context()
+	kept := postgres_arena_store.New(s.db)
+	s.Require().NoError(kept.Open(ctx, arenas.Opening{ID: id, OpenedAt: openedAt, EndsAt: openedAt.Add(time.Hour)}))
+	if !closedAt.IsZero() {
+		s.Require().NoError(kept.Close(ctx, arenas.Closing{ID: id, ClosedAt: closedAt}))
+	}
+}
+
+func (s *testSuite) TestWhileAnArenaPlaysOnlyItsTakesHoldATile() {
+	s.arena("battle", at.Add(time.Hour), time.Time{})
+	s.record(
+		ledger.Taking{Tile: 7, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at},
+		ledger.Taking{Tile: 8, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at},
+		ledger.Taking{Tile: 8, Scope: "198.51.100.4", Account: bob, Country: "fr", At: at.Add(2 * time.Hour)},
+	)
+
+	s.Nil(s.holder(7), "a capital nobody took in the arena names nobody, whoever held it on the world's map")
+	s.Equal(bob, s.holder(8).GetAccountId())
+}
+
+func (s *testSuite) TestAfterAnArenaItsTakesHoldNoTile() {
+	closed := at.Add(2*time.Hour + 700*time.Millisecond)
+	s.arena("battle", at.Add(time.Hour), closed)
+	s.record(
+		ledger.Taking{Tile: 7, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at},
+		ledger.Taking{Tile: 7, Scope: "198.51.100.4", Account: bob, Country: "fr", At: at.Add(90 * time.Minute)},
+		ledger.Taking{Tile: 8, Scope: "198.51.100.4", Account: bob, Country: "fr", At: closed.Truncate(time.Second)},
+	)
+
+	s.Equal(ada, s.holder(7).GetAccountId(), "the world's take, not the arena's")
+	s.Equal(bob, s.holder(8).GetAccountId(), "a world take in the second the arena closed")
 }

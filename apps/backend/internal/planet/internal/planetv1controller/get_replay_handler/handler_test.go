@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
@@ -133,4 +134,23 @@ func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 	assert.Equal(t, uint32(2), enclosure.GetStruck()[0].GetShields())
 	assert.Empty(t, enclosure.GetWallTileIds(), "the ledger keeps no wall")
 	assert.Nil(t, enclosure.GetVersion(), "a replay is not the live map: no version")
+}
+
+func TestTheStretchesAnArenaPlayedAreAnswered(t *testing.T) {
+	closedAt := at.Add(40 * time.Minute)
+	useCase := &stubUseCase{out: replay_usecase.Out{Since: at, Until: at.Add(time.Hour), Asides: []arenas.Stretch{
+		{ID: "battle", OpenedAt: at.Add(10 * time.Minute), ClosedAt: closedAt, Closed: true},
+		{ID: "next", OpenedAt: at.Add(50 * time.Minute)},
+	}}}
+
+	res, err := get_replay_handler.New(useCase).GetReplay(t.Context(), connect.NewRequest(&planetv1.GetReplayRequest{
+		Since: timestamppb.New(at),
+	}))
+	require.NoError(t, err)
+
+	asides := res.Msg.GetAsides()
+	require.Len(t, asides, 2)
+	assert.Equal(t, at.Add(10*time.Minute), asides[0].GetOpenedAt().AsTime())
+	assert.Equal(t, closedAt, asides[0].GetClosedAt().AsTime())
+	assert.Nil(t, asides[1].GetClosedAt(), "an arena that still plays has no close")
 }

@@ -185,8 +185,8 @@ message GetMapResponse {
 
   MapVersion version = 5;
 
-  // The map is an arena's: a battle's blank map, which started with each country's capital.
-  bool arena = 6;
+  reserved 6;
+  reserved "arena";
 
   // The flags the arena knocked out: each lost its capital to another flag.
   repeated string knocked_out = 7;

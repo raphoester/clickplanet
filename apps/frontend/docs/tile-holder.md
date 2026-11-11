@@ -60,7 +60,9 @@ tap never is, and the bomb's hold-to-drop is already one.
 - **The card names a player only while the tile wears the flag of its last take**
   (`holderShown`): the ledger is a second behind, and an operator's write keeps no
   take, so a tile that changed hands since names nobody rather than the wrong
-  player.
+  player. The take is of the map on screen: in an arena only the arena's, so a
+  capital nobody took there says "No record of who took this tile."; after it,
+  the world's again (the backend's [Arena battles](../../backend/docs/arenas.md#the-ledgers-readers)).
 - **A card always opens; when it cannot name a player, it says why**
   (`HolderErrorCard`, `HolderError` in the store), over the tile's flag and its
   country: "No record of who took this tile." when no take of the tile's flag

@@ -3,7 +3,9 @@ package holder_query
 import (
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -37,7 +39,9 @@ func TestTheHolderOfOneTileIsFoundThroughTheIndexes(t *testing.T) {
 func explain(t *testing.T, db *cppg.Postgres, tile uint32) string {
 	t.Helper()
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+lastChange, tile)
+	gaps := []time.Time{time.Now().Add(-time.Hour)}
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+lastChange, tile, time.Time{},
+		pq.Array(gaps), pq.Array([]time.Time{time.Now().Add(-30 * time.Minute)}))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 

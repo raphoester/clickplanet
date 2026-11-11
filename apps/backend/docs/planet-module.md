@@ -83,7 +83,9 @@ internal/planet/internal/
   share one), so a replay plays each change at its time. The map at each step, the first frame every tile held at `since`, each next one the tiles whose
   owner changed, and each tile's changes and shield hits in the window, by `Event.Replay` and `Event.Strikes`, so no kind
   is asked. The read stops at the first event at or after `until`, since positions follow time, and the map's resets
-  (`map_resets`, which write no event) wipe it at their time. What a reassign, a paint or a revert wrote is not in it.
+  (`map_resets`, which write no event) wipe it at their time. It is the world's map: an event made while an arena's
+  played changes no frame and no hit (see [Arena battles](arenas.md#the-ledgers-readers)). What a reassign, a paint or a
+  revert wrote is not in it.
   **`ClickService/GetTileHolder(tile_id)` reads it there too** (`holder_query`): the last change `Taking.Replay`
   makes of the tile (a take, a tile a spread or an enclose took, a bomb's clear), as `{account_id, country_id,
   taken_at_unix_ms}`. A clear is no holder. **A take with no account still holds the tile**, with no `account_id`:
@@ -91,7 +93,8 @@ internal/planet/internal/
   client names the account with `player.v1.PlayerService/GetPlayer`, as the admin page joins `TopPlayers`. **It skips
   the events a revert forgot** (`forgotten`, see [Durability](durability.md)), as memory replays none of them, so a
   tile a revert gave back names the take it went back to. Until 2026-11-10 it named the reverted take, of another
-  flag, and the card showed nothing. A reassign, a paint or a revert writes no event, and the last second is not
+  flag, and the card showed nothing. **It reads the takes of the map that plays**: while an arena plays only its own,
+  after it none of its (see [Arena battles](arenas.md#the-ledgers-readers)). A reassign, a paint or a revert writes no event, and the last second is not
   flushed yet, so the client names the holder only while the tile still wears its `country_id`. A parity test runs
   every kind through both.
 - **`refusals/`** — the callers planet refuses, each a scope or an account (`Caller`), until when, and when that was

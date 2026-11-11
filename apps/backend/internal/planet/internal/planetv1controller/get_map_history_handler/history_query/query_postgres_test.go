@@ -10,6 +10,8 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -67,7 +69,7 @@ func (s *testSuite) TestTheHistoryReplaysTheLedgerFromItsFirstEventIntoAFrameEac
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "jp", At: until},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db).History(s.T().Context(), since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_arena_store.New(s.db)).History(s.T().Context(), since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -93,7 +95,7 @@ func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWin
 	_, err = s.db.On(ctx).ExecContext(ctx, `INSERT INTO map_resets (id, at) VALUES ('season-1', $1)`, since.Add(-time.Hour))
 	s.Require().NoError(err)
 
-	history, err := history_query.NewPostgresQuery(s.db).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_arena_store.New(s.db)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -104,4 +106,30 @@ func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWin
 		},
 		Hits: []*planetv1.TileHits{},
 	}, history), "%v", history)
+}
+
+func (s *testSuite) TestTheWorldsMapStandsStillOverAnArenaAndJoinsUpAfterIt() {
+	ctx := s.T().Context()
+	kept := postgres_arena_store.New(s.db)
+	opened, closed := since.Add(20*time.Minute+400*time.Millisecond), since.Add(80*time.Minute+600*time.Millisecond)
+	s.Require().NoError(kept.Open(ctx, arenas.Opening{ID: "battle", OpenedAt: opened, EndsAt: closed.Add(-3 * time.Second)}))
+	s.Require().NoError(kept.Close(ctx, arenas.Closing{ID: "battle", ClosedAt: closed}))
+	s.record(
+		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(10 * time.Minute)},
+		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "br", At: since.Add(30 * time.Minute)},
+		ledger.Taking{Tile: 2, Scope: "203.0.113.7", Country: "br", At: since.Add(40 * time.Minute)},
+		ledger.Taking{Tile: 3, Scope: "203.0.113.7", Country: "de", At: closed.Truncate(time.Second)},
+	)
+
+	history, err := history_query.NewPostgresQuery(s.db, kept).History(ctx, since, until, time.Hour)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: []*planetv1.MapFrame{
+			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{}},
+			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr", SecondsIntoStep: 600}}},
+			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{{Tile: 3, CountryId: "de", SecondsIntoStep: 1200}}},
+		},
+		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 3, Hits: 1}},
+	}, history), "the battle's takes are on no frame and no hit: %v", history)
 }

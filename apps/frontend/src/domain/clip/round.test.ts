@@ -14,25 +14,36 @@ describe("a day of the season", () => {
     it("is told from its winner, the next places on its podium beside it, by the run whose window holds its cutoff", () => {
         const run = {since: Date.parse("2026-10-17T12:17:00Z"), until: Date.parse("2026-10-18T00:17:00Z")}
 
-        expect(roundStoryOf(day, run.since, run.until)).toEqual({
+        expect(roundStoryOf(day, run.since, run.until, [])).toEqual({
             kind: "round", attacker: "fr", rival: undefined, victims: ["pw", "dz"], place: {region: "the world"}, day,
         })
     })
 
     it("is no story of a run that does not see its cutoff: the next one, twelve hours on, told it already", () => {
-        expect(roundStoryOf(day, Date.parse("2026-10-18T00:17:00Z"), Date.parse("2026-10-18T12:17:00Z"))).toBeUndefined()
-        expect(roundStoryOf(day, CUTOFF, CUTOFF + 3_600_000)).toBeUndefined()
+        expect(roundStoryOf(day, Date.parse("2026-10-18T00:17:00Z"), Date.parse("2026-10-18T12:17:00Z"), [])).toBeUndefined()
+        expect(roundStoryOf(day, CUTOFF, CUTOFF + 3_600_000, [])).toBeUndefined()
     })
 
     it("is no story with nobody on its podium, or with no race", () => {
-        expect(roundStoryOf({...day, podium: []}, CUTOFF - 1, CUTOFF)).toBeUndefined()
-        expect(roundStoryOf(undefined, CUTOFF - 1, CUTOFF)).toBeUndefined()
+        expect(roundStoryOf({...day, podium: []}, CUTOFF - 1, CUTOFF, [])).toBeUndefined()
+        expect(roundStoryOf(undefined, CUTOFF - 1, CUTOFF, [])).toBeUndefined()
     })
 
     it("is a story of its own: a flag winning day 5 then day 6 is two stories, told beside what the flag did", () => {
-        const told = roundStoryOf(day, CUTOFF - 1, CUTOFF)!
+        const told = roundStoryOf(day, CUTOFF - 1, CUTOFF, [])!
 
         expect(storyKeyOf(told, () => "Europe")).toEqual({flag: "fr", continent: "the world", angle: "round", round: "1.5"})
         expect(storyKeyOf({...told, day: {...day, number: 6}}, () => "Europe").round).toBe("1.6")
+    })
+
+    it("is no story when an arena's map played as it ended: the replay holds none of its fighting", () => {
+        const battle = {...day, own: true}
+        const opened = CUTOFF - 3_600_000
+
+        expect(roundStoryOf(battle, CUTOFF - 1, CUTOFF, [{openedAt: opened, closedAt: CUTOFF + 3_000}])).toBeUndefined()
+        expect(roundStoryOf(battle, CUTOFF - 1, CUTOFF, [{openedAt: opened, closedAt: undefined}])).toBeUndefined()
+        expect(roundStoryOf(day, CUTOFF - 1, CUTOFF, [{openedAt: CUTOFF + 3_000, closedAt: CUTOFF + 7_200_000}]))
+            .toBeDefined()
+        expect(roundStoryOf(day, CUTOFF - 1, CUTOFF, [{openedAt: opened - 7_200_000, closedAt: opened}])).toBeDefined()
     })
 })

@@ -114,21 +114,6 @@ func (s *testSuite) TestAFortifyLeavesACapitalWhoseShieldsAreFixedAsItIs() {
 	s.Zero(storage.Shields(island[0]))
 }
 
-func (s *testSuite) TestTheMapSaysWhetherItIsAnArenas() {
-	ctx := context.Background()
-	storage := s.withCapitals(inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
-
-	world, err := storage.StateBatchDense(1, 100)
-	s.Require().NoError(err)
-	_, err = storage.Blank(ctx, battle, noStart, keeps(true))
-	s.Require().NoError(err)
-	arena, err := storage.StateBatchDense(1, 100)
-	s.Require().NoError(err)
-
-	s.False(world.Arena)
-	s.True(arena.Arena)
-}
-
 func (s *testSuite) TestHoldsAnySaysWhetherAFlagHoldsOneOfTheTiles() {
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{5: "fr"}))
 	s.Require().NoError(storage.Load(context.Background(), clicks.World))

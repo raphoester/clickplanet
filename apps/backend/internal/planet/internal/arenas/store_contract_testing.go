@@ -81,3 +81,26 @@ func (s *StoreContractSuite) TestAnArenaNeverOpenedCloses() {
 
 	s.Equal(Arena{ID: "battle", Closed: true}, s.find("battle"))
 }
+
+func (s *StoreContractSuite) TestTheStretchesAreEachArenaThatOpenedByOpen() {
+	ctx := s.T().Context()
+	later := s.opening("later")
+	later.OpenedAt = contractOpenedAt.Add(time.Hour)
+	s.Require().NoError(s.store.Open(ctx, later))
+	s.Require().NoError(s.store.Open(ctx, s.opening("battle")))
+	closedAt := contractEndsAt.Add(3*time.Second + 400*time.Millisecond)
+	s.Require().NoError(s.store.Close(ctx, Closing{ID: "battle", ClosedAt: closedAt}))
+	s.Require().NoError(s.store.Close(ctx, Closing{ID: "never", ClosedAt: contractEndsAt}))
+
+	stretches, err := s.store.Stretches(ctx)
+	s.Require().NoError(err)
+
+	s.Require().Len(stretches, 2, "an arena that never opened played no stretch")
+	s.Equal(ID("battle"), stretches[0].ID)
+	s.True(contractOpenedAt.Equal(stretches[0].OpenedAt))
+	s.True(stretches[0].Closed)
+	s.True(closedAt.Equal(stretches[0].ClosedAt))
+	s.Equal(ID("later"), stretches[1].ID)
+	s.True(later.OpenedAt.Equal(stretches[1].OpenedAt))
+	s.False(stretches[1].Closed, "an arena still open has no close yet")
+}

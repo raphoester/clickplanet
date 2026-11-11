@@ -408,7 +408,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			getTerritories := get_territories_handler.New(
 				territories_query.NewMemoryQuery(tilesStorage, borders, config.GameMap.MaxIndex))
-			getLedger := get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock))
+			getLedger := get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock, arenaStore))
 			adminService := planetv1controller.AdminService{
 				ReassignCountryHandler: reassign_country_handler.New(audit_reassign.New(
 					reassign_country_usecase.New(tilesStorage, countries, pace), props.Logger)),
@@ -416,14 +416,14 @@ func NewModule(config Config) cpbootstrap.Module {
 					find_players_usecase.New(takings, tilesStorage, borders, refusalBook, countries)),
 				TopPlayersHandler: top_players_handler.New(top_players_usecase.New(takings, tilesStorage, refusalBook)),
 				RevertPlayerHandler: revert_player_handler.New(
-					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, pace), props.Logger)),
+					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, arenaStore, pace), props.Logger)),
 				PaintRandomTilesHandler: paint_random_tiles_handler.New(audit_paint_random.New(
 					paint_random_tiles_usecase.New(borders, geography, tilesStorage, countries, clicks.SystemRandom{}, pace),
 					props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(charges, registry), props.Logger)),
 				ReleaseAllegianceHandler: release_allegiance_handler.New(audit_release.New(book, props.Logger), lock),
-				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(takings, resetStore, tilesChecker, tilesStorage, clock)),
+				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(takings, resetStore, arenaStore, tilesStorage, clock)),
 				GetLedgerHandler:         getLedger,
 				GetTerritoriesHandler:    getTerritories,
 				GetRulesHandler:          get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
@@ -440,7 +440,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			internalService := planetv1controller.InternalService{
 				GetLedgerHandler:         getLedger,
 				GetLedgerTotalsHandler:   get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
-				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db)),
+				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, arenaStore)),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),
@@ -531,9 +531,9 @@ func NewModule(config Config) cpbootstrap.Module {
 					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, game), escrow, writer),
 					refusing)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
-				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db)),
+				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),
 				GetLandmassHandler: get_landmass_handler.New(borders,
-					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage))),
+					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage), arenaStore, clock)),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

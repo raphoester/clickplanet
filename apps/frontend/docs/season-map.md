@@ -8,7 +8,8 @@ View on each ended plaque, opens it (`ARCHIVE_PATH`).
 - **The history is the gamemaster's `GetSeasonReplay`** (`TurnBackend.seasonReplay`): the map every 30 minutes over
   the season, or every 10 seconds over its Final Battle, and each tile's changes and shield hits (see the backend's
   [The gamemaster](../../backend/docs/gamemaster.md)). Its first read after a deploy replays planet's whole ledger, so
-  the client allows it 5 minutes and shows "Rebuilding the map…".
+  the client allows it 5 minutes and shows "Rebuilding the map…". It is the world's map: over an arena battle it
+  stands still and no tile heats (see the backend's [Arena battles](../../backend/docs/arenas.md#the-ledgers-readers)).
 - **`MapReel` (`domain/mapHistory.ts`) gives any frame's map**: a copy of the owners every 32 frames, a `Uint16Array`
   of country indexes, so a seek back costs a copy and a few frames.
 - **Replay**: the ordinary globe, fed by `HistoryBackend` (`backends/historyBackend.ts`), which hands over the tiles

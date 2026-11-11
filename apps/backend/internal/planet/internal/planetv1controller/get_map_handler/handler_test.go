@@ -64,13 +64,12 @@ func TestGetMapMapsTheBatch(t *testing.T) {
 	assert.Equal(t, uint32(4), res.Msg.GetShields()[0].GetShields())
 }
 
-func TestGetMapSaysTheArenaAndTheFlagsItKnockedOut(t *testing.T) {
-	useCase := &stubUseCase{batch: clicks.DenseBatch{Arena: true, KnockedOut: []string{"de", "fr"}}}
+func TestGetMapSaysTheFlagsKnockedOut(t *testing.T) {
+	useCase := &stubUseCase{batch: clicks.DenseBatch{KnockedOut: []string{"de", "fr"}}}
 
 	res, err := getMap(t, useCase, &planetv1.GetMapRequest{})
 
 	require.NoError(t, err)
-	assert.True(t, res.Msg.GetArena())
 	assert.Equal(t, []string{"de", "fr"}, res.Msg.GetKnockedOut())
 }
 

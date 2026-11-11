@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -38,7 +39,7 @@ func (b *board) take(tile uint32, scope, country string) {
 }
 
 func (b *board) restorations(scope string) []clicks.Restoration {
-	runs := ledger.NewRuns(ledger.Caller{Scope: scope})
+	runs := ledger.NewRuns(ledger.Caller{Scope: scope}, arenas.Played{})
 	for _, event := range b.events {
 		runs.See(event)
 	}
@@ -299,7 +300,7 @@ func TestRunsCountEveryTileTheScopeTookHeldOrNot(t *testing.T) {
 	b.take(2, "B", "il")
 	b.take(1, "A", "fr")
 
-	runs := ledger.NewRuns(ledger.Caller{Scope: "A"})
+	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, arenas.Played{})
 	for _, event := range b.events {
 		runs.See(event)
 	}
@@ -931,7 +932,7 @@ func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {
 	)
 	b.owners[7], b.owners[8] = "fr", "ps"
 
-	runs := ledger.NewRuns(ledger.Caller{Account: "guest"})
+	runs := ledger.NewRuns(ledger.Caller{Account: "guest"}, arenas.Played{})
 	for _, event := range b.events {
 		runs.See(event)
 	}
@@ -967,4 +968,20 @@ func TestAnAccountIDIsAUUIDThatIsNotNil(t *testing.T) {
 		_, err := ledger.AccountIDOf(value)
 		assert.ErrorIs(t, err, ledger.ErrInvalidAccount, value)
 	}
+}
+
+func TestAnArenaTakeNeitherBreaksNorMakesARunOnTheWorldsMap(t *testing.T) {
+	opened, closed := start.Add(10*time.Minute), start.Add(40*time.Minute)
+	world := arenas.MapsOf([]arenas.Stretch{{ID: "battle", OpenedAt: opened, ClosedAt: closed, Closed: true}}).World()
+	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, world)
+	for _, event := range []ledger.Event{
+		ledger.Taking{Tile: 7, Scope: "A", Country: "ps", Previous: "il", At: start.Add(time.Minute)},
+		ledger.Taking{Tile: 7, Scope: "B", Country: "de", Previous: "", At: opened.Add(time.Minute)},
+		ledger.Taking{Tile: 8, Scope: "A", Country: "ps", Previous: "", At: opened.Add(2 * time.Minute)},
+	} {
+		runs.See(event)
+	}
+
+	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: "il"}}, runs.Restorations(owners{7: "ps", 8: "ps"}),
+		"tile 8 is the world's Palestine: the arena take of it is no run to undo")
 }

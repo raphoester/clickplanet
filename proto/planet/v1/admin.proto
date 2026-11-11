@@ -43,8 +43,8 @@ service AdminService {
   // one each, the rest stack. before and after say what fit. The player sees them at its next page load.
   rpc GrantCharges(GrantChargesRequest) returns (GrantChargesResponse);
 
-  // The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
-  // connector does not offer it.
+  // The world's map as it was at since, and every act on it until until, for the clip generator; the acts on an arena's
+  // map are left out. Megabytes for a day, so the connector does not offer it.
   rpc GetReplay(GetReplayRequest) returns (GetReplayResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -79,11 +79,21 @@ message GetReplayRequest {
 }
 
 message GetReplayResponse {
-  // The map as it was at `since`.
+  // The world's map as it was at `since`.
   GetMapResponse opening = 1;
+  // What changed on the world's map: no take made on an arena's map.
   repeated ReplayedEvent events = 2;
   google.protobuf.Timestamp since = 3;
   google.protobuf.Timestamp until = 4;
+  // Each stretch of the window an arena's map played instead of the world's, whose takes are left out; the world's map
+  // came back as it was.
+  repeated ReplayAside asides = 5;
+}
+
+message ReplayAside {
+  google.protobuf.Timestamp opened_at = 1;
+  // Unset while the arena still plays.
+  google.protobuf.Timestamp closed_at = 2;
 }
 
 message ReplayedEvent {

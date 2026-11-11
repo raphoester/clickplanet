@@ -17,7 +17,9 @@ clips edit -findings <findings.json> [-count 2] [-prompt]
 
 - **`fetch` saves a replay**: it asks the production backend's operator tool for one
   ([`GetReplay`](admin.md#getreplay)), over SSH, and writes the answer as it came. `CLICKPLANET_SSH` stands in for `-ssh`.
-  With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back.
+  With no `-hours` it is 72: the ledger keeps that much in memory, and a replay cannot reach further back. The replay,
+  the cast and the history are the world's map: an arena battle is skipped, and the replay lists its stretch in
+  `asides` (see [Arena battles](arenas.md#the-ledgers-readers)).
   **With `-season` it saves the gamemaster's turn too** ([`GetTurn`](gamemaster.md)): the timeline, whose battle
   that `ends_season` is the finale the generator calls each country that can still win up to, in its own language,
   "POLSKA: 14 PUNKTÓW STRATY", and the last debrief, the moment scoring scored last (a day, a battle or the season's

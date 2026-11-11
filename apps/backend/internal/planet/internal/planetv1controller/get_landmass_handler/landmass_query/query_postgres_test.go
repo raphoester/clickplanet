@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -70,7 +72,8 @@ func (s *testSuite) take(account string, tile uint32, flag string) {
 }
 
 func (s *testSuite) landmass(landmass clicks.LandmassID) *planetv1.GetLandmassResponse {
-	answer, err := landmass_query.NewPostgresQuery(s.db, inmemory_tile_holders.New(s.tiles)).Landmass(s.T().Context(), landmass)
+	answer, err := landmass_query.NewPostgresQuery(s.db, inmemory_tile_holders.New(s.tiles), postgres_arena_store.New(s.db),
+		cptime.NewFixedClock(at.Add(24*time.Hour))).Landmass(s.T().Context(), landmass)
 	s.Require().NoError(err)
 	return answer
 }
@@ -114,4 +117,17 @@ func (s *testSuite) TestTheHoldersAreTheTilesOfTheLandmassTheirTakesHold() {
 	s.Require().Len(holders, 2)
 	s.True(proto.Equal(&planetv1.LandmassHolder{AccountId: ada, CountryId: "fr", Tiles: 2}, holders[0]))
 	s.True(proto.Equal(&planetv1.LandmassHolder{AccountId: bob, CountryId: "de", Tiles: 1}, holders[1]))
+}
+
+func (s *testSuite) TestTheLastFortifyIsOfTheMapThatPlays() {
+	ctx := s.T().Context()
+	kept := postgres_arena_store.New(s.db)
+	s.Require().NoError(kept.Open(ctx, arenas.Opening{ID: "battle", OpenedAt: at.Add(10 * time.Minute), EndsAt: at.Add(time.Hour)}))
+	s.record(fortify(1, ada, "fr", 0), fortify(1, bob, "br", 20))
+
+	s.Equal(bob, s.landmass(1).GetLastFortification().GetAccountId(), "while the arena plays, its own fortify")
+
+	s.Require().NoError(kept.Close(ctx, arenas.Closing{ID: "battle", ClosedAt: at.Add(time.Hour + 3*time.Second)}))
+
+	s.Equal(ada, s.landmass(1).GetLastFortification().GetAccountId(), "once it closed, the world's")
 }

@@ -95,8 +95,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * The map as it was at since, and every act on it until until, for the clip generator. Megabytes for a day, so the
-     * connector does not offer it.
+     * The world's map as it was at since, and every act on it until until, for the clip generator; the acts on an arena's
+     * map are left out. Megabytes for a day, so the connector does not offer it.
      *
      * @generated from rpc planet.v1.AdminService.GetReplay
      */

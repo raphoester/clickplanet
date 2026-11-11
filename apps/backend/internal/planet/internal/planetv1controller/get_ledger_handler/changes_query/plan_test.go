@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,7 +26,9 @@ func TestAPageIsFoundFromTheHeadByThePrimaryKeyAndSortedOnlyWithinEachEvent(t *t
 		require.NoError(t, err)
 	}
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+changes, time.Now().Add(-time.Hour), time.Now(), 0, PageEvents)
+	arena := []time.Time{time.Now().Add(-30 * time.Minute)}
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+changes, time.Now().Add(-time.Hour), time.Now(), 0, PageEvents,
+		pq.Array(arena), pq.Array([]time.Time{time.Now().Add(-10 * time.Minute)}))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string
