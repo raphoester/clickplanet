@@ -8,10 +8,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/postgres_rule_set_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // Production's planet rule sets on 11 November 2026, as planet.v1.AdminService/GetRules answered them.
@@ -89,7 +88,7 @@ func TestEachOfProductionsSetsComesAcrossWithItsOffersAndFrozen(t *testing.T) {
 
 	db := server.OpenSchema(t, "bonuses", migrations.FS)
 
-	store := postgres_rule_set_store.New(db, parts.All())
+	store := cprules.NewPostgresStore(db, parts.All())
 	names, err := store.Names(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, names, len(productionsPlanetSets))
@@ -99,7 +98,7 @@ func TestEachOfProductionsSetsComesAcrossWithItsOffersAndFrozen(t *testing.T) {
 			`SELECT rules FROM rule_sets WHERE name = $1`, name).Scan(&kept))
 		assert.JSONEq(t, offers, kept, name)
 
-		_, err := store.Set(t.Context(), rules.SetName(name))
+		_, err := store.Set(t.Context(), cprules.SetName(name))
 		assert.NoError(t, err, "%s plays over default", name)
 	}
 }

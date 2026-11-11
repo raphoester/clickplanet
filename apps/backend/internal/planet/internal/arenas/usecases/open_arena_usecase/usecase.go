@@ -6,7 +6,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -15,7 +15,7 @@ type Tiles interface {
 }
 
 type Setups interface {
-	Setup(ctx context.Context, set rules.SetName) (arenas.Setup, error)
+	Setup(ctx context.Context, set cprules.SetName) (arenas.Setup, error)
 }
 
 type Arenas interface {
@@ -32,7 +32,7 @@ type InPlay interface {
 type Command struct {
 	Arena  arenas.ID
 	EndsAt time.Time
-	Set    rules.SetName
+	Set    cprules.SetName
 }
 
 type Executor interface {

@@ -13,6 +13,7 @@ import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 func TestTheSeededSetPlays(t *testing.T) {
@@ -45,19 +46,12 @@ func TestADefaultIsRefusedWhenAnyValueCannotBeJudgedWith(t *testing.T) {
 		"rotator.window is 0s":                 func(r *antibotv1.Rules) { r.Rotator = nil },
 	} {
 		t.Run(reason, func(t *testing.T) {
-			_, err := rules.Named(rules.Default, change).Restore(guard.Parts(), rules.Seeded())
+			_, err := rules.Named(cprules.Default, change).Restore(guard.Parts(), rules.Seeded())
 
-			require.ErrorIs(t, err, rules.ErrInvalidSet)
+			require.ErrorIs(t, err, cprules.ErrInvalidSet)
 			assert.Contains(t, err.Error(), reason)
 		})
 	}
-}
-
-func TestANameOutsideThePatternIsRefused(t *testing.T) {
-	_, err := rules.Named("Rush", rules.AsIs).Restore(guard.Parts(), rules.Seeded())
-
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
-	assert.Contains(t, err.Error(), "a name is a lowercase letter")
 }
 
 func TestARefusalSaysEveryValueItRefuses(t *testing.T) {
@@ -66,37 +60,21 @@ func TestARefusalSaysEveryValueItRefuses(t *testing.T) {
 		r.Rotator.MinSeconds = proto.Uint32(0)
 	}).Restore(guard.Parts(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "retaker.minReactions is 0, and must be above 0; rotator.minSeconds is 0")
 }
 
-func TestASetJudgesWithDefaultsValueWhereItHoldsNone(t *testing.T) {
-	crowd := rules.Snapshot{Name: "rush", Rules: &antibotv1.Rules{
-		Cohort: &antibotv1.CohortRules{CertainMembers: proto.Uint32(50)},
-		Bans:   &antibotv1.BanRules{Enforce: proto.Bool(false)},
-	}}
-
-	set, err := crowd.Restore(guard.Parts(), rules.Seeded())
-	require.NoError(t, err)
-
-	assert.True(t, proto.Equal(crowd.Rules, set.TakeSnapshot().Rules))
-	assert.True(t, proto.Equal(rules.Named("rush", func(r *antibotv1.Rules) {
-		r.Cohort.CertainMembers = proto.Uint32(50)
-		r.Bans.Enforce = proto.Bool(false)
-	}).Rules, set.TakePlayedSnapshot().Rules))
-}
-
 func TestASetIsCheckedOverDefault(t *testing.T) {
-	_, err := rules.Snapshot{Name: "rush", Rules: &antibotv1.Rules{
+	_, err := cprules.Snapshot[*antibotv1.Rules]{Name: "rush", Rules: &antibotv1.Rules{
 		Cohort: &antibotv1.CohortRules{CertainMembers: proto.Uint32(1)},
 	}}.Restore(guard.Parts(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "cohort.certainMembers is 1, under")
 }
 
 func TestAZeroThatNeverReadsIsARuleOfItsOwn(t *testing.T) {
-	_, err := rules.Named(rules.Default, func(r *antibotv1.Rules) {
+	_, err := rules.Named(cprules.Default, func(r *antibotv1.Rules) {
 		r.Retaker.MinTiles = proto.Uint32(0)
 		r.Defender.MinShare = proto.Float64(0)
 		r.Rotator.MinSlots = proto.Uint32(0)
@@ -106,36 +84,4 @@ func TestAZeroThatNeverReadsIsARuleOfItsOwn(t *testing.T) {
 	}).Restore(guard.Parts(), rules.Seeded())
 
 	assert.NoError(t, err)
-}
-
-func TestTwoSetsAreEqualWhenTheyJudgeAlike(t *testing.T) {
-	restore := func(change func(*antibotv1.Rules)) rules.Set {
-		t.Helper()
-		set, err := rules.Named("rush", change).Restore(guard.Parts(), rules.Seeded())
-		require.NoError(t, err)
-		return set
-	}
-
-	same := restore(func(r *antibotv1.Rules) { r.Metronome.Clock.MinCoherence = proto.Float64(0.5) })
-
-	assert.True(t, same.Equal(restore(func(r *antibotv1.Rules) { r.Metronome.Clock.MinCoherence = proto.Float64(0.5) })),
-		"a bound behind a pointer is compared by its value")
-	assert.False(t, same.Equal(restore(func(r *antibotv1.Rules) { r.Metronome.Clock.MinCoherence = proto.Float64(0.6) })))
-	assert.False(t, same.Equal(restore(rules.AsIs)))
-
-	sparse, err := rules.Snapshot{Name: "rush", Rules: &antibotv1.Rules{
-		Metronome: &antibotv1.MetronomeRules{Clock: &antibotv1.ClockRules{MinCoherence: proto.Float64(0.5)}},
-	}}.Restore(guard.Parts(), rules.Seeded())
-	require.NoError(t, err)
-	assert.True(t, same.Equal(sparse), "a set that holds less judges alike")
-}
-
-func TestASetKeepsNothingOfTheSnapshotItWasRestoredFrom(t *testing.T) {
-	kept := rules.Named("rush", rules.AsIs)
-	set, err := kept.Restore(guard.Parts(), rules.Seeded())
-	require.NoError(t, err)
-
-	kept.Rules.Cohort.CertainMembers = proto.Uint32(50)
-
-	assert.Equal(t, uint32(6), set.TakeSnapshot().Rules.GetCohort().GetCertainMembers())
 }

@@ -6,7 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // RulesOf reads a set's values: the offers keep rule sets of their own (bonuses.rule_sets).
@@ -57,4 +57,4 @@ func duration(d *durationpb.Duration) time.Duration {
 }
 
 // Part is the offers' rules in a set: every value of it.
-var Part = rules.PartOf[Rules]{Key: "offers", Read: RulesOf}
+var Part = cprules.PartOf[*bonusesv1.Rules, Rules]{Key: "offers", Read: RulesOf}

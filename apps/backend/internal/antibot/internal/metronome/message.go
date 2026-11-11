@@ -2,10 +2,12 @@ package metronome
 
 import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var Part = rules.PartOf[Rules]{Key: "metronome", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetMetronome()) }}
+var Part = cprules.PartOf[*antibotv1.Rules, Rules]{
+	Key: "metronome", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetMetronome()) },
+}
 
 func RulesOf(m *antibotv1.MetronomeRules) Rules {
 	shape, clock, stamina := m.GetShape(), m.GetClock(), m.GetStamina()

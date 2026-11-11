@@ -13,8 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
@@ -47,7 +47,7 @@ type Notices interface {
 }
 
 type RulesFeed interface {
-	Watch() (<-chan rules.Set, func())
+	Watch() (<-chan cprules.Set[*planetv1.Rules], func())
 }
 
 type Sink interface {

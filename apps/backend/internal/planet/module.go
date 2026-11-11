@@ -11,6 +11,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/allegiance_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/audit_release"
@@ -145,14 +146,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/postgres_reset_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/usecases/reset_map_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/usecases/reset_map_usecase/log_reset_map"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_choice_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/postgres_rule_set_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/play_rules_usecase/log_play_rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
@@ -162,6 +156,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -234,15 +229,15 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to read the arena open: %w", err)
 			}
-			inForce := rules.NewInForce(clock)
-			chargeRules := rules.Reader(inForce, charges.Part)
+			inForce := cprules.NewInForce[*planetv1.Rules](clock)
+			chargeRules := cprules.Reader(inForce, charges.Part)
 			hands := charges.NewCharges(postgres_charge_store.New(db), chargeRules)
 			placementStore := postgres_placement_store.New(db)
 			escrow := placements.NewEscrow(db, hands, placementStore, uuid_id_provider.Provider{}, clock)
 			// Before any request, and a failure only waits for the next boot: a row this boot made is a shield not flushed yet.
 			_, _ = log_return_placements.New(return_placements_usecase.New(placementStore, escrow), props.Logger).Execute(ctx)
 
-			capitalPlay := clicks.NewCapitalPlay(capitals, rules.Reader(inForce, clicks.CapitalsPart))
+			capitalPlay := clicks.NewCapitalPlay(capitals, cprules.Reader(inForce, clicks.CapitalsPart))
 			tilesStorage := inmemory_tile_storage.New(borders, capitalPlay, config.TilesStorage, postgres_tile_store.New(db), db,
 				escrow, clock, props.Logger)
 			if err := tilesStorage.Load(ctx, playing.Played()); err != nil {
@@ -258,21 +253,22 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			ruleParts := parts.All()
-			ruleSets := postgres_rule_set_store.New(db, ruleParts)
-			play := play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce)
-			playRules := log_play_rules.New(play, props.Logger)
+			ruleSets := cprules.NewPostgresStore(db, ruleParts)
+			play := cprules.NewPlayUseCase(ruleSets, cprules.NewPostgresChoices(db), inForce, nil)
+			playRules := cprules.NewLoggedPlay(play, props.Logger,
+				cprules.PlayLog{Taken: "rules in force", Failed: "failed to play the rules"})
 			if _, _, err := playRules.Execute(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to play the rules postgres keeps: %w", err)
 			}
 			resetStore := postgres_reset_store.New(db)
-			throttle := rules.Reader(inForce, clicks.ThrottlePart)
-			freeze := rules.Reader(inForce, clicks.FreezePart)
-			lock := rules.Reader(inForce, allegiances.LockPart)
+			throttle := cprules.Reader(inForce, clicks.ThrottlePart)
+			freeze := cprules.Reader(inForce, clicks.FreezePart)
+			lock := cprules.Reader(inForce, allegiances.LockPart)
 
 			inPlay := arenas.NewInPlay(clock)
 			inPlay.Resume(playing)
-			reach := clicks.NewReach(rules.Reader(inForce, clicks.ReachPart), geography, waters, tilesStorage)
+			reach := clicks.NewReach(cprules.Reader(inForce, clicks.ReachPart), geography, waters, tilesStorage)
 			setups := arenas.NewSetups(ruleSets, seeds.NewCatalog(seeds.Ground{Capitals: capitals}))
 
 			grantStore := postgres_grant_store.New(db)
@@ -321,7 +317,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			props.Runners.Add(limiter)
 			buckets := clicks.NewBuckets(throttle, clock)
 
-			pricer := clicks.NewToll(rules.Reader(inForce, clicks.TollPart), tilesStorage)
+			pricer := clicks.NewToll(cprules.Reader(inForce, clicks.TollPart), tilesStorage)
 
 			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, tilesStorage, clock, allegiance_facts.New(told))
 			flags := log_allegiances.New(book, props.Logger)
@@ -382,7 +378,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTerritoriesHandler:    getTerritories,
 				GetRulesHandler:          get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(
-					audit_save_rule_set.New(save_rule_set_usecase.New(db, ruleSets, ruleParts, playRules), props.Logger)),
+					cprules.NewAuditedSave(cprules.NewSaveUseCase(db, ruleSets, ruleParts, playRules), props.Logger,
+						cprules.SaveLog{Saved: "admin rule set saved", Refused: "admin rule set refused"})),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -460,7 +457,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(hands, limiter, pricer, buckets)),
 				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(hands)),
 				GetChargeRulesHandler: get_charge_rules_handler.New(chargeRules, bombing, pricer,
-					rules.Reader(inForce, clicks.ReachPart), rules.Reader(inForce, clicks.CapitalsPart)),
+					cprules.Reader(inForce, clicks.ReachPart), cprules.Reader(inForce, clicks.CapitalsPart)),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
 					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, chargeRules), escrow, writer),
 					refusing)),

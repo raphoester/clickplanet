@@ -10,7 +10,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 type UseCase interface {
@@ -40,7 +40,7 @@ func (h OpenArenaHandler) OpenArena(
 	}
 	// A caller that gives up never stops the swap of the map halfway.
 	_, err = h.useCase.Execute(context.WithoutCancel(ctx), open_arena_usecase.Command{
-		Arena: id, EndsAt: req.Msg.GetEndsAt().AsTime(), Set: rules.SetName(req.Msg.GetRuleSet()),
+		Arena: id, EndsAt: req.Msg.GetEndsAt().AsTime(), Set: cprules.SetName(req.Msg.GetRuleSet()),
 	})
 	switch {
 	case errors.Is(err, arenas.ErrRefused):

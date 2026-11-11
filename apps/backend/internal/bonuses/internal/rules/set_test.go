@@ -13,21 +13,16 @@ import (
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-func quicker(r *bonusesv1.Rules) {
-	r.Boxes = &bonusesv1.BoxPace{
+func rush() cprules.Snapshot[*bonusesv1.Rules] {
+	return cprules.Snapshot[*bonusesv1.Rules]{Name: "rush", Rules: &bonusesv1.Rules{Boxes: &bonusesv1.BoxPace{
 		MinInterval: durationpb.New(time.Minute), MaxInterval: durationpb.New(2 * time.Minute), MaxChargesPerHour: proto.Uint32(30),
-	}
+	}}}
 }
 
-func rush() rules.Snapshot {
-	kept := rules.Snapshot{Name: "rush", Rules: &bonusesv1.Rules{}}
-	quicker(kept.Rules)
-	return kept
-}
-
-func restored(t *testing.T, snapshot rules.Snapshot) rules.Set {
+func restored(t *testing.T, snapshot cprules.Snapshot[*bonusesv1.Rules]) cprules.Set[*bonusesv1.Rules] {
 	t.Helper()
 
 	set, err := snapshot.Restore(parts.All(), rules.Seeded())
@@ -35,33 +30,8 @@ func restored(t *testing.T, snapshot rules.Snapshot) rules.Set {
 	return set
 }
 
-func TestASetIsWhatItWasMadeOf(t *testing.T) {
-	set := restored(t, rush())
-
-	kept := set.TakeSnapshot()
-	assert.Equal(t, rules.SetName("rush"), kept.Name)
-	assert.True(t, proto.Equal(rush().Rules, kept.Rules))
-}
-
-func TestASetKeepsNothingItsSnapshotsShare(t *testing.T) {
-	snapshot := rush()
-	set := restored(t, snapshot)
-
-	snapshot.Rules.Boxes.MaxChargesPerHour = proto.Uint32(9)
-	set.TakeSnapshot().Rules.Boxes.MaxChargesPerHour = proto.Uint32(99)
-	set.TakePlayedSnapshot().Rules.Shield.MaxPerBox = proto.Uint32(99)
-
-	assert.True(t, set.Equal(restored(t, rush())))
-}
-
-func TestASetPlaysDefaultsValueWhereItHoldsNone(t *testing.T) {
-	played := restored(t, rush()).TakePlayedSnapshot()
-
-	assert.True(t, proto.Equal(rules.Named("rush", quicker).Rules, played.Rules), "%v", played.Rules)
-}
-
 func TestAZeroASetHoldsIsPlayed(t *testing.T) {
-	quiet := rules.Snapshot{Name: "quiet", Rules: &bonusesv1.Rules{
+	quiet := cprules.Snapshot[*bonusesv1.Rules]{Name: "quiet", Rules: &bonusesv1.Rules{
 		Quiz:         &bonusesv1.QuizRules{Enabled: proto.Bool(false)},
 		SignInRefill: proto.Bool(false),
 	}}
@@ -69,13 +39,6 @@ func TestAZeroASetHoldsIsPlayed(t *testing.T) {
 	played := restored(t, quiet).TakePlayedSnapshot().Rules
 	assert.False(t, played.GetQuiz().GetEnabled())
 	assert.False(t, played.GetSignInRefill())
-}
-
-func TestTwoSetsAreEqualWhenTheyPlayAlikeUnderOneName(t *testing.T) {
-	assert.True(t, restored(t, rush()).Equal(restored(t, rush())))
-	assert.True(t, restored(t, rush()).Equal(restored(t, rules.Named("rush", quicker))))
-	assert.False(t, restored(t, rush()).Equal(restored(t, rules.Named("rush", rules.AsIs))))
-	assert.False(t, restored(t, rush()).Equal(restored(t, rules.Snapshot{Name: "calm", Rules: rush().Rules})))
 }
 
 func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
@@ -107,52 +70,45 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 	}
 	for reason, breaks := range broken {
 		t.Run(reason, func(t *testing.T) {
-			_, err := rules.Named(rules.Default, breaks).Restore(parts.All(), rules.Seeded())
+			_, err := rules.Named(cprules.Default, breaks).Restore(parts.All(), rules.Seeded())
 
-			require.ErrorIs(t, err, rules.ErrInvalidSet)
+			require.ErrorIs(t, err, cprules.ErrInvalidSet)
 			assert.Contains(t, err.Error(), reason)
 		})
 	}
 }
 
 func TestASetIsCheckedOverDefault(t *testing.T) {
-	slower := rules.Snapshot{Name: "slower", Rules: &bonusesv1.Rules{
+	slower := cprules.Snapshot[*bonusesv1.Rules]{Name: "slower", Rules: &bonusesv1.Rules{
 		Boxes: &bonusesv1.BoxPace{MinInterval: durationpb.New(10 * time.Minute)},
 	}}
 
 	_, err := slower.Restore(parts.All(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "boxes.maxInterval is 8m0s, under boxes.minInterval (10m0s)")
 }
 
 func TestDefaultPlaysOnlyWhatItHolds(t *testing.T) {
-	_, err := rules.Named(rules.Default, func(r *bonusesv1.Rules) { r.Boxes = nil }).Restore(parts.All(), rules.Seeded())
+	_, err := rules.Named(cprules.Default, func(r *bonusesv1.Rules) { r.Boxes = nil }).Restore(parts.All(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "boxes.minInterval is 0s")
 }
 
 func TestEveryReasonIsSaid(t *testing.T) {
-	_, err := rules.Named(rules.Default, func(r *bonusesv1.Rules) {
+	_, err := rules.Named(cprules.Default, func(r *bonusesv1.Rules) {
 		r.Spread.MaxPerBox = proto.Uint32(0)
 		r.Quiz.AnswerWindow = nil
 	}).Restore(parts.All(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "spread.maxPerBox is 0")
 	assert.Contains(t, err.Error(), "quiz.answerWindow is 0s")
 }
 
-func TestANameThatIsNotALowercaseWordIsRefused(t *testing.T) {
-	for _, name := range []rules.SetName{"", "Rush", "a234567890123456789012345678901234"} {
-		_, err := rules.Named(name, rules.AsIs).Restore(parts.All(), rules.Seeded())
-		require.ErrorIs(t, err, rules.ErrInvalidSet, name)
-	}
-}
-
 func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
-	set := rules.Named(rules.Default, func(r *bonusesv1.Rules) {
+	set := rules.Named(cprules.Default, func(r *bonusesv1.Rules) {
 		r.Kinds.Bomb = proto.Float64(0)
 		r.Welcome = nil
 		r.Quiz.LeaderBias = proto.Float64(0)

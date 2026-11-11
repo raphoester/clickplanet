@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1/bonusesv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/box_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/rpc_planet_wallet"
@@ -42,20 +43,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes/rpc_planet_shares"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/postgres_choice_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/postgres_rule_set_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/usecases/play_rules_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/usecases/play_rules_usecase/log_play_rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/usecases/save_rule_set_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/usecases/save_rule_set_usecase/audit_save_rule_set"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/click_tried_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -107,14 +102,15 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	ruleParts := parts.All()
-	ruleSets := postgres_rule_set_store.New(db, ruleParts)
-	inForce := rules.NewInForce()
-	playRules := log_play_rules.New(play_rules_usecase.New(ruleSets, postgres_choice_store.New(db), inForce), props.Logger)
+	ruleSets := cprules.NewPostgresStore(db, ruleParts)
+	inForce := cprules.NewInForce[*bonusesv1.Rules](clock)
+	playRules := cprules.NewLoggedPlay(cprules.NewPlayUseCase(ruleSets, cprules.NewPostgresChoices(db), inForce, nil),
+		props.Logger, cprules.PlayLog{Taken: "offer rules in force", Failed: "failed to play the rules"})
 	if _, _, err := playRules.Execute(ctx); err != nil {
 		closeStores()
 		return fmt.Errorf("failed to play the offers' rules postgres keeps: %w", err)
 	}
-	offerRules := rules.Reader(inForce, bonuses.Part)
+	offerRules := cprules.Reader(inForce, bonuses.Part)
 
 	shares := rpc_planet_shares.New(planet, sharesInterval)
 	bank, err := quizzes.Load(shares)
@@ -183,7 +179,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	admin := bonusesv1controller.AdminService{
 		GetRulesHandler: get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 		SaveRuleSetHandler: save_rule_set_handler.New(
-			audit_save_rule_set.New(save_rule_set_usecase.New(db, ruleSets, ruleParts, playRules), props.Logger)),
+			cprules.NewAuditedSave(cprules.NewSaveUseCase(db, ruleSets, ruleParts, playRules), props.Logger,
+				cprules.SaveLog{Saved: "admin offer rule set saved", Refused: "admin offer rule set refused"})),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return bonusesv1connect.NewAdminServiceHandler(admin, options...)

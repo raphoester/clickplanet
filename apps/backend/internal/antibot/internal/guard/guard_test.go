@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -30,7 +31,7 @@ type stack struct {
 	clock   *cptime.FixedClock
 	config  guard.Config
 	set     *antibotv1.Rules
-	inForce *rules.InForce
+	inForce *cprules.InForce[*antibotv1.Rules]
 	stop    func()
 
 	bans           *bans.MemoryStore
@@ -67,7 +68,7 @@ func newStack(t *testing.T, options ...option) *stack {
 		warned:      warnings.NewMemoryStore(),
 		feed:        &warnings.MemoryFeed{},
 		evidence:    evidence.NewMemoryPersistence(),
-		inForce:     rules.NewInForce(),
+		inForce:     cprules.NewInForce[*antibotv1.Rules](cptime.SystemClock{}),
 	}
 
 	config := guard.Config{}
@@ -106,7 +107,7 @@ func newStack(t *testing.T, options ...option) *stack {
 
 func (s *stack) play(kept *antibotv1.Rules) {
 	s.t.Helper()
-	set, err := rules.Snapshot{Name: rules.Default, Rules: kept}.Restore(guard.Parts(), rules.Seeded())
+	set, err := cprules.Snapshot[*antibotv1.Rules]{Name: cprules.Default, Rules: kept}.Restore(guard.Parts(), rules.Seeded())
 	require.NoError(s.t, err)
 	s.inForce.Enforce(set)
 }

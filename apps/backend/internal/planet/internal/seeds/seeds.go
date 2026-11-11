@@ -8,7 +8,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // Pattern is the seed a rule set names, with its numbers.
@@ -23,7 +23,7 @@ type Ground struct {
 	Capitals *clicks.Capitals
 }
 
-var Part = rules.PartOf[Pattern]{
+var Part = cprules.PartOf[*planetv1.Rules, Pattern]{
 	Key: "seed",
 	Read: func(m *planetv1.Rules) Pattern {
 		switch pattern := m.GetSeed().GetPattern().(type) {
@@ -47,7 +47,7 @@ func NewCatalog(ground Ground) Catalog {
 	return Catalog{ground: ground}
 }
 
-func (c Catalog) SeedOf(set rules.Set) arenas.Seed {
+func (c Catalog) SeedOf(set cprules.Set[*planetv1.Rules]) arenas.Seed {
 	return Part.Of(set).Seed(c.ground)
 }
 

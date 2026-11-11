@@ -2,7 +2,7 @@ package clicks
 
 import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // CapitalRules is what a rule set says of the capitals. KnockOut: a take of a flag's capital by another flag clears
@@ -15,7 +15,7 @@ type CapitalRules struct {
 
 func (CapitalRules) Validate() error { return nil }
 
-var CapitalsPart = rules.PartOf[CapitalRules]{
+var CapitalsPart = cprules.PartOf[*planetv1.Rules, CapitalRules]{
 	Key: "capitals",
 	Read: func(m *planetv1.Rules) CapitalRules {
 		return CapitalRules{KnockOut: m.GetCapitals().GetKnockOut(), FixedShields: m.GetCapitals().GetFixedShields()}

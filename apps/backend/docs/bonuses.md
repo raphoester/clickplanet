@@ -16,7 +16,7 @@ knows nothing of it. **It depends on planet and player alone**: `cmd/api/modules
 |---|---|
 | `internal/bonuses` | the registry (`bonus.go`, `quiz.go`, `welcome.go`, `entrant.go`), the ports it asks planet through (`wallet.go`), the box facts (`box_facts`), its rules (`rules.go`, `message.go`) and the use cases `claim_bonus`, `open_quiz`, `answer_quiz`, `grant_sign_in_refill` and `listen_for_events`, moved from `planet/internal/bonuses` as they were |
 | `internal/quizzes` | the bank and its draw, moved from `planet/internal/quizzes`; it embeds `generated/quiz/bank.json` ([The quiz bank](../../../docs/quiz-bank.md)) |
-| `internal/rules` | its rule sets: snapshots, sets, parts, the set in force, the choice, their postgres stores and the play and save use cases, the same machinery as planet's and the antibot's |
+| `internal/rules` | the list of its parts (`parts.All()`) and its fixtures (`rules.Seeded()`); the machinery of its rule sets (snapshots, sets, the set in force, the choice, their postgres stores, the play and save use cases) is `cprules`, shared with planet and the antibot ([Shared](shared.md)) |
 | `internal/facts` | its own facts log and relay, for the box facts |
 | `internal/planetwords` | planet's words for a kind of charge and a hand (`planet.v1.BonusKind`, `ChargesHeld`) |
 | `internal/subscribers` | the clicks heard from planet, the new players heard from player |
@@ -173,6 +173,6 @@ account (`SignInGrantOf`, the same id as before, so a grant planet made before t
 
 The registry's own (pace, apart, welcome, quizzes, the room's sweep, the frozen set, a click heard late), the use cases',
 the handlers', the stream's and its sink's, `planetwords`' (`TestTheOffersAndTheWalletNameTheSameKinds`), the wallet's
-and the shares' adapters, the subscribers' (`TestOnlyATakeAStrikeOrAnUnchangedTileIsHeard`), the rules package's, the
-stores' (postgres), the migration's, and `TestTheQuizzesAreTheOffersAlone`, which lets no package of the module but the
+and the shares' adapters, the subscribers' (`TestOnlyATakeAStrikeOrAnUnchangedTileIsHeard`), the rules package's (its values,
+and `cprules`' contract suites on its migrations), the migration's, and `TestTheQuizzesAreTheOffersAlone`, which lets no package of the module but the
 offers and `module.go` import the bank.

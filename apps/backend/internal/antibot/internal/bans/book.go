@@ -2,9 +2,11 @@ package bans
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -138,11 +140,17 @@ func (b *Book) Flagged(ctx context.Context) (int, error) {
 
 func (b *Book) Enforcing() bool { return b.scopes.Enforcing() }
 
-func (b *Book) Restate(ctx context.Context) error {
-	if err := b.scopes.Restate(ctx); err != nil {
-		return err
+// Restate tells planet every running ban again, under the rule set just taken: one that stops enforcing admits them.
+// It is the play use case's hook (cprules.Hook).
+func (b *Book) Restate(ctx context.Context, under cprules.SetName) error {
+	err := b.scopes.Restate(ctx)
+	if err == nil {
+		err = b.accounts.Restate(ctx)
 	}
-	return b.accounts.Restate(ctx)
+	if err != nil {
+		return fmt.Errorf("could not tell planet the running bans under the rule set %q: %w", under, err)
+	}
+	return nil
 }
 
 type target struct {

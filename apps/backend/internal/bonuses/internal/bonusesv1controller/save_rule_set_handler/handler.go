@@ -7,11 +7,11 @@ import (
 	"connectrpc.com/connect"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, in rules.Snapshot) error
+	Execute(ctx context.Context, in cprules.Snapshot[*bonusesv1.Rules]) error
 }
 
 func New(useCase UseCase) SaveRuleSetHandler {
@@ -27,12 +27,14 @@ func (h SaveRuleSetHandler) SaveRuleSet(
 	req *connect.Request[bonusesv1.SaveRuleSetRequest],
 ) (*connect.Response[bonusesv1.SaveRuleSetResponse], error) {
 	set := req.Msg.GetSet()
-	err := h.useCase.Execute(ctx, rules.Snapshot{Name: rules.SetName(set.GetName()), Rules: set.GetRules()})
+	err := h.useCase.Execute(ctx, cprules.Snapshot[*bonusesv1.Rules]{
+		Name: cprules.SetName(set.GetName()), Rules: set.GetRules(),
+	})
 
 	switch {
 	case err == nil:
 		return connect.NewResponse(&bonusesv1.SaveRuleSetResponse{}), nil
-	case errors.Is(err, rules.ErrInvalidSet):
+	case errors.Is(err, cprules.ErrInvalidSet):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	default:
 		return nil, err

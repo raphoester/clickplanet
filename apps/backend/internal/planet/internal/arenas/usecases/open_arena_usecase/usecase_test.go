@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -47,7 +48,7 @@ func newHarness(t *testing.T) harness {
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept := arenas.NewMemoryStore()
 	inPlay := arenas.NewInPlay(clock)
-	sets := rules.NewMemoryStore(parts.All(), rules.Seeded(), rules.Named(battleSet, func(r *planetv1.Rules) {
+	sets := cprules.NewMemoryStore(parts.All(), rules.Seeded(), rules.Named(battleSet, func(r *planetv1.Rules) {
 		r.Arena = &planetv1.ArenaRules{On: new(true), Freeze: durationpb.New(6 * time.Second)}
 		r.Seed = &planetv1.Seed{Pattern: &planetv1.Seed_Capitals{Capitals: &planetv1.CapitalSeed{Shields: new(uint32(40))}}}
 	}))
@@ -58,7 +59,7 @@ func newHarness(t *testing.T) harness {
 	}
 }
 
-const battleSet rules.SetName = "siege"
+const battleSet cprules.SetName = "siege"
 
 func command(endsAt time.Time) open_arena_usecase.Command {
 	return open_arena_usecase.Command{Arena: "battle", EndsAt: endsAt, Set: battleSet}

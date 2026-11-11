@@ -10,8 +10,9 @@ Battle the operator needs a looser crowd for one evening, from the page.
 **`default` holds every value; every other set holds only the values it changes, and judges with default's for the
 rest** (2026-10-31, as planet's: see [Rules](rules.md#a-rule-set)). Every value of `antibot.v1.Rules` is `optional`,
 so a set can hold a zero or an `enabled: false` of its own. Its snapshot is the wire's message:
-`rules.Snapshot{Name, Rules *antibotv1.Rules}`, which postgres keeps as a document and the operator's calls carry.
-`Snapshot.Restore(parts, defaults)` is the one check.
+`cprules.Snapshot[*antibotv1.Rules]{Name, Rules}`, which postgres keeps as a document and the operator's calls carry.
+`Snapshot.Restore(parts, defaults)` is the one check. The machinery is `cprules`, shared with planet and the offers (see
+[Shared](shared.md)); the antibot's `rules` package keeps its fixtures (`rules.Seeded()`) and the tests of its values.
 
 - **What a set judges with is default's values with its own written over them** (`cpproto.Overlay`), value by value.
   `bans.banDurations` is one value, held when it has a step: a set with none plays default's ladder. `default` plays
@@ -20,10 +21,10 @@ so a set can hold a zero or an `enabled: false` of its own. Its snapshot is the 
   unset a bound `default` holds.
 
 - **Each part is read by the package that judges with it.** A watchdog, the jury and the ban book each own their
-  `Rules`, its `Validate`, its `RulesOf(*antibotv1.XRules)` and a `Part` (`rules.PartOf[Rules]{Key, Read}`) that takes
-  it out of the set's message. The `rules` package names none of them.
+  `Rules`, its `Validate`, its `RulesOf(*antibotv1.XRules)` and a `Part` (`cprules.PartOf[*antibotv1.Rules, Rules]{Key,
+  Read}`) that takes it out of the set's message. `cprules` names none of them.
 - **`guard.Parts()` is the one list of parts**, beside the code that builds every watchdog. A new watchdog adds its
-  field to `antibot.v1.Rules`, its package, and one line there; nothing in `rules`, the store or the handlers changes.
+  field to `antibot.v1.Rules`, its package, and one line there; nothing in `cprules`, the store or the handlers changes.
 - **`Restore` reads and validates every part of what the set judges with**, and keeps each part's `Rules`, so a read
   never converts again. It refuses a set any part refuses, with every reason, each named by its path as
   `antibot.v1.Rules` writes it: `cohort.certainMembers is 1, under minMembers (2); rotator.maxShare is 0, and must be
@@ -89,12 +90,13 @@ protojson writes an `antibot.v1.Rules`: a value held is written, a zero too; a v
 in a dozen parts would be a column each, and a migration for every rule added. The proto message is already the
 wire's, so the store, the RPC and the page read one shape.
 
-- **The store answers sets, never snapshots** (`rules.Store`: `Set(ctx, name) (Set, error)`, `Names(ctx)`, `Save(ctx, Set)`).
-  `postgres_rule_set_store` is built with `guard.Parts()`: it finds a set and `default` by name and restores the one
+- **The store answers sets, never snapshots** (`cprules.Store`: `Set(ctx, name) (Set, error)`, `Names(ctx)`, `Save(ctx, Set)`).
+  `cprules.PostgresStore` is built with `guard.Parts()`: it finds a set and `default` by name and restores the one
   over the other, lists the names kept (`Names`), and upserts a set's snapshot. The snapshot never leaves the store. A
   set kept that cannot play, after a hand edit in SQL or a rule added with no migration, is an error that wraps
-  `rules.ErrInvalidSet` and names the set. `rules.MemoryStore` is the fake (its `Keep` writes a set that cannot play),
-  and `rules.StoreContractSuite` runs on both. A key the proto no longer has is ignored on read.
+  `cprules.ErrInvalidSet` and names the set. `cprules.MemoryStore` is the fake (its `Keep` writes a set that cannot
+  play), and `cprules.StoreContractSuite` runs on both, the postgres one on the antibot's migrations with its values
+  (`rules/postgres_store_test.go`). A key the proto no longer has is ignored on read.
 - **A rule added later needs a migration** that writes its value into `default` (`jsonb_set`); every other set judges
   with it from there. Without one, default reads the value as zero; where zero cannot be judged with, no set restores,
   the antibot keeps the rules in force, and the next boot is refused.
@@ -105,30 +107,31 @@ wire's, so the store, the RPC and the page read one shape.
 
 ## The rules in force
 
-**The antibot holds the set it plays in one `atomic.Pointer` (`rules.InForce`).** Each watchdog, the jury and the ban
-book are built with `rules.Reader(inForce, <package>.Part)`, a `func() Rules` that reads their part of the set in force
+**The antibot holds the set it plays in one `atomic.Pointer` (`cprules.InForce`).** Each watchdog, the jury and the ban
+book are built with `cprules.Reader(inForce, <package>.Part)`, a `func() Rules` that reads their part of the set in force
 each time it is called. They call it when they judge, not when they are built: a set taken applies from the next click.
 `TestASetTakenJudgesFromTheNextClick` pins it through the guard. A watchdog reads its rules once per call, so one
 judgement sees one set.
 
-- **`play_rules_usecase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
+- **`cprules.PlayUseCase` plays when something changes, never on a timer**: at boot (`Execute`) the set the schedule
   chose last, and `default` until it chose one; then each `antibot.v1.InternalService/PlayRuleSet` the schedule calls
   (`Play`, from `antibotv1controller/play_rule_set_handler`); the same turn called again, with the same `decided_at`, is
   no newer and changes nothing (see [The gamemaster as a reconciler](gamemaster-reconciler.md)). After each save, `Execute` plays the set chosen last again (see [The
   operator](#the-operator)), so a save of the set in force takes over at once. Each time it reads the set to play from the store, which restores it, and enforces it when its
   values changed (`Set.Equal`), one play at a time under a lock. A missing set at boot refuses the boot. A failed read,
-  or a kept set that cannot play, keeps the rules in force; the caller gets the error and `log_play_rules` logs it.
+  or a kept set that cannot play, keeps the rules in force; the caller gets the error and `cprules.LoggedPlay` logs it.
   Until 2026-10-26 a runner read postgres every second; with the schedule and the operator's saves as the only things
   that change the rules in force, a push is enough, and a hand edit in SQL takes effect at the next play or boot.
-- **The choice is kept** in `antibot.rule_set_choice` (`rules.Choice`, one row, `postgres_choice_store`): a later
+- **The choice is kept** in `antibot.rule_set_choice` (`cprules.Choice`, one row, `cprules.PostgresChoices`): a later
   decision overrules it, and an older one or one sent again changes nothing. A set the antibot keeps none of is
   refused (`FailedPrecondition`): the rules in force stay, the choice is not kept, and the schedule calls again each
   minute.
-- **Each set taken tells planet every running ban again** (`bans.Book.Restate`), under the set's `bans.enforce`: a set
-  that stops enforcing admits the banned callers at once, and one that enforces refuses them again. The first take is at
+- **Each set taken tells planet every running ban again** (`bans.Book.Restate`, the play use case's `cprules.Hook`;
+  planet and the offers play with none), under the set's `bans.enforce`: a set that stops enforcing admits the banned
+  callers at once, and one that enforces refuses them again. The first take is at
   boot, before the antibot hears anything, so the bans running at a deploy reach planet's table as before. A failed
   restatement fails the call, and is tried again at the next play: the schedule's call a minute later, or the next boot.
-- **`log_play_rules` logs each set taken** at Warn (`antibot rules in force`, `set`, `rules` as protojson), and each
+- **`cprules.LoggedPlay` logs each set taken** at Warn (`antibot rules in force`, `set`, `rules` as protojson), and each
   failure or refusal at Error, and the start line (`antibot enabled`) names the set and the watchdogs on.
 
 ## A watchdog turned off
@@ -181,10 +184,10 @@ in a file would be read by nothing.
   holds: it reads the documents, not the store, which refuses a set that cannot play.
 - **`SaveRuleSet{set}`** makes a set or replaces the values it holds, checked over the `default` kept. A set `Restore`
   refuses is `InvalidArgument`, with every reason. A save of `default` is refused while another set cannot judge over
-  it, each such set named, in one transaction (see [Rules](rules.md#the-operator)). `audit_save_rule_set` logs every
+  it, each such set named, in one transaction (see [Rules](rules.md#the-operator)). `cprules.AuditedSave` logs every
   save at Warn (`admin antibot rule set saved` or `refused`, with the rules).
 - **No operator call picks the set in force.** What plays is the schedule, with its priorities; an operator never
   overrides it, here or anywhere (the user's rule, 2026-10-26). **A save of the set in force takes over at once**
-  (2026-10-28): `SaveRuleSet` keeps the set, then `play_rules_usecase.Execute` plays the set chosen last again, under
+  (2026-10-28): `SaveRuleSet` keeps the set, then `PlayUseCase.Execute` plays the set chosen last again, under
   the lock the schedule's plays take, and enforces the new values. A play that fails after the save is an error; the
   set stays kept.

@@ -13,26 +13,17 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-func quicker(r *planetv1.Rules) {
-	if r.Clicks == nil {
-		r.Clicks = &planetv1.ClickRules{}
-	}
-	if r.Charges == nil {
-		r.Charges = &planetv1.ChargeRules{}
-	}
-	r.Clicks.Tempo = proto.Float64(3)
-	r.Charges.Spread = &planetv1.SpreadRules{Clicks: proto.Uint32(30)}
+func rush() cprules.Snapshot[*planetv1.Rules] {
+	return cprules.Snapshot[*planetv1.Rules]{Name: "rush", Rules: &planetv1.Rules{
+		Clicks:  &planetv1.ClickRules{Tempo: proto.Float64(3)},
+		Charges: &planetv1.ChargeRules{Spread: &planetv1.SpreadRules{Clicks: proto.Uint32(30)}},
+	}}
 }
 
-func rush() rules.Snapshot {
-	kept := rules.Snapshot{Name: "rush", Rules: &planetv1.Rules{}}
-	quicker(kept.Rules)
-	return kept
-}
-
-func restored(t *testing.T, snapshot rules.Snapshot) rules.Set {
+func restored(t *testing.T, snapshot cprules.Snapshot[*planetv1.Rules]) cprules.Set[*planetv1.Rules] {
 	t.Helper()
 
 	set, err := snapshot.Restore(parts.All(), rules.Seeded())
@@ -40,33 +31,8 @@ func restored(t *testing.T, snapshot rules.Snapshot) rules.Set {
 	return set
 }
 
-func TestASetIsWhatItWasMadeOf(t *testing.T) {
-	set := restored(t, rush())
-
-	kept := set.TakeSnapshot()
-	assert.Equal(t, rules.SetName("rush"), kept.Name)
-	assert.True(t, proto.Equal(rush().Rules, kept.Rules))
-}
-
-func TestASetKeepsNothingItsSnapshotsShare(t *testing.T) {
-	snapshot := rush()
-	set := restored(t, snapshot)
-
-	snapshot.Rules.Clicks.Tempo = proto.Float64(9)
-	set.TakeSnapshot().Rules.Clicks.Tempo = proto.Float64(99)
-	set.TakePlayedSnapshot().Rules.Charges.Shield.PerTile = proto.Uint32(99)
-
-	assert.True(t, set.Equal(restored(t, rush())))
-}
-
-func TestASetPlaysDefaultsValueWhereItHoldsNone(t *testing.T) {
-	played := restored(t, rush()).TakePlayedSnapshot()
-
-	assert.True(t, proto.Equal(rules.Named("rush", quicker).Rules, played.Rules), "%v", played.Rules)
-}
-
 func TestAZeroASetHoldsIsPlayed(t *testing.T) {
-	quiet := rules.Snapshot{Name: "quiet", Rules: &planetv1.Rules{
+	quiet := cprules.Snapshot[*planetv1.Rules]{Name: "quiet", Rules: &planetv1.Rules{
 		Charges: &planetv1.ChargeRules{Bomb: &planetv1.BombRules{Off: proto.Bool(false)}},
 		Toll:    &planetv1.TollRules{},
 	}}
@@ -74,13 +40,6 @@ func TestAZeroASetHoldsIsPlayed(t *testing.T) {
 	played := restored(t, quiet).TakePlayedSnapshot().Rules
 	assert.False(t, played.GetCharges().GetBomb().GetOff())
 	assert.Empty(t, played.GetToll().GetSteps())
-}
-
-func TestTwoSetsAreEqualWhenTheyPlayAlikeUnderOneName(t *testing.T) {
-	assert.True(t, restored(t, rush()).Equal(restored(t, rush())))
-	assert.True(t, restored(t, rush()).Equal(restored(t, rules.Named("rush", quicker))))
-	assert.False(t, restored(t, rush()).Equal(restored(t, rules.Named("rush", rules.AsIs))))
-	assert.False(t, restored(t, rush()).Equal(restored(t, rules.Snapshot{Name: "calm", Rules: rush().Rules})))
 }
 
 func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
@@ -111,52 +70,45 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 	}
 	for reason, breaks := range broken {
 		t.Run(reason, func(t *testing.T) {
-			_, err := rules.Named(rules.Default, breaks).Restore(parts.All(), rules.Seeded())
+			_, err := rules.Named(cprules.Default, breaks).Restore(parts.All(), rules.Seeded())
 
-			require.ErrorIs(t, err, rules.ErrInvalidSet)
+			require.ErrorIs(t, err, cprules.ErrInvalidSet)
 			assert.Contains(t, err.Error(), reason)
 		})
 	}
 }
 
 func TestASetIsCheckedOverDefault(t *testing.T) {
-	slower := rules.Snapshot{Name: "slower", Rules: &planetv1.Rules{
+	slower := cprules.Snapshot[*planetv1.Rules]{Name: "slower", Rules: &planetv1.Rules{
 		Clicks: &planetv1.ClickRules{NewAccountClicks: proto.Float64(100)},
 	}}
 
 	_, err := slower.Restore(parts.All(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "clicks.newAccountClicks is 100")
 }
 
 func TestDefaultPlaysOnlyWhatItHolds(t *testing.T) {
-	_, err := rules.Named(rules.Default, func(r *planetv1.Rules) { r.Clicks = nil }).Restore(parts.All(), rules.Seeded())
+	_, err := rules.Named(cprules.Default, func(r *planetv1.Rules) { r.Clicks = nil }).Restore(parts.All(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "clicks.tempo is 0")
 }
 
 func TestEveryReasonIsSaid(t *testing.T) {
-	_, err := rules.Named(rules.Default, func(r *planetv1.Rules) {
+	_, err := rules.Named(cprules.Default, func(r *planetv1.Rules) {
 		r.Clicks.Burst = proto.Uint32(0)
 		r.Charges.Enclose.Held = nil
 	}).Restore(parts.All(), rules.Seeded())
 
-	require.ErrorIs(t, err, rules.ErrInvalidSet)
+	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "clicks.burst is 0")
 	assert.Contains(t, err.Error(), "charges.enclose.held is 0")
 }
 
-func TestANameThatIsNotALowercaseWordIsRefused(t *testing.T) {
-	for _, name := range []rules.SetName{"", "Rush", "a234567890123456789012345678901234"} {
-		_, err := rules.Named(name, rules.AsIs).Restore(parts.All(), rules.Seeded())
-		require.ErrorIs(t, err, rules.ErrInvalidSet, name)
-	}
-}
-
 func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
-	set := rules.Named(rules.Default, func(r *planetv1.Rules) {
+	set := rules.Named(cprules.Default, func(r *planetv1.Rules) {
 		r.Toll = nil
 		r.Clicks.NewAccountClicks = proto.Float64(0)
 		r.Charges.Shield.PerTile = proto.Uint32(255)

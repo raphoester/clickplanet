@@ -2,10 +2,12 @@ package catcher
 
 import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var Part = rules.PartOf[Rules]{Key: "catcher", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetCatcher()) }}
+var Part = cprules.PartOf[*antibotv1.Rules, Rules]{
+	Key: "catcher", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetCatcher()) },
+}
 
 func RulesOf(m *antibotv1.CatcherRules) Rules {
 	return Rules{

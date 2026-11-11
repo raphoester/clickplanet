@@ -2,10 +2,12 @@ package churner
 
 import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var Part = rules.PartOf[Rules]{Key: "churner", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetChurner()) }}
+var Part = cprules.PartOf[*antibotv1.Rules, Rules]{
+	Key: "churner", Read: func(m *antibotv1.Rules) Rules { return RulesOf(m.GetChurner()) },
+}
 
 func RulesOf(m *antibotv1.ChurnerRules) Rules {
 	return Rules{

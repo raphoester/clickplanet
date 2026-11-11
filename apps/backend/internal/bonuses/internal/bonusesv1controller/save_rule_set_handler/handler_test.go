@@ -13,14 +13,15 @@ import (
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 type stubUseCase struct {
 	err   error
-	asked []rules.Snapshot
+	asked []cprules.Snapshot[*bonusesv1.Rules]
 }
 
-func (s *stubUseCase) Execute(_ context.Context, in rules.Snapshot) error {
+func (s *stubUseCase) Execute(_ context.Context, in cprules.Snapshot[*bonusesv1.Rules]) error {
 	s.asked = append(s.asked, in)
 	return s.err
 }
@@ -42,12 +43,12 @@ func TestTheSetIsSavedAsSent(t *testing.T) {
 	require.NoError(t, save(t, useCase))
 
 	require.Len(t, useCase.asked, 1)
-	assert.Equal(t, rules.SetName("rush"), useCase.asked[0].Name)
+	assert.Equal(t, cprules.SetName("rush"), useCase.asked[0].Name)
 	assert.True(t, proto.Equal(rush.Rules, useCase.asked[0].Rules))
 }
 
 func TestASetThatCannotPlayIsAnInvalidArgument(t *testing.T) {
-	err := save(t, &stubUseCase{err: rules.ErrInvalidSet})
+	err := save(t, &stubUseCase{err: cprules.ErrInvalidSet})
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

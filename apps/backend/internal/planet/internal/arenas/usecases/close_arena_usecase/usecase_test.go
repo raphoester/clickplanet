@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -47,7 +48,7 @@ func newHarness(t *testing.T) harness {
 	require.NoError(t, tiles.Load(t.Context(), clicks.World))
 	kept := arenas.NewMemoryStore()
 	inPlay := arenas.NewInPlay(clock)
-	setups := arenas.NewSetups(rules.NewMemoryStore(parts.All(), rules.Seeded()),
+	setups := arenas.NewSetups(cprules.NewMemoryStore(parts.All(), rules.Seeded()),
 		seeds.NewCatalog(seeds.Ground{Capitals: clicks.NewCapitals(map[string]uint32{})}))
 	return harness{
 		tiles: tiles, stored: stored, kept: kept, inPlay: inPlay, clock: clock,
@@ -71,7 +72,7 @@ func (h harness) closedAt(t *testing.T) time.Time {
 
 func TestAnArenaClosedBringsTheMapFromBeforeItBackOnce(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: rules.Default})
+	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: cprules.Default})
 	require.NoError(t, err)
 	require.NoError(t, h.tiles.Set(t.Context(), 1, "it"))
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "it"))
@@ -110,13 +111,13 @@ func TestAnArenaNeverOpenedClosesWithTheMapLeftAsItIs(t *testing.T) {
 	assert.Equal(t, close_arena_usecase.Unopened, closed)
 	assert.Equal(t, "it", h.owner(9))
 	assert.Equal(t, "fr", h.owner(1))
-	_, err = h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: rules.Default})
+	_, err = h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: cprules.Default})
 	require.ErrorIs(t, err, arenas.ErrRefused, "an arena closed never opens")
 }
 
 func TestAnArenaThatCannotCloseLeavesTheMap(t *testing.T) {
 	h := newHarness(t)
-	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: rules.Default})
+	_, err := h.opening.Execute(t.Context(), open_arena_usecase.Command{Arena: "battle", EndsAt: ends, Set: cprules.Default})
 	require.NoError(t, err)
 	require.NoError(t, h.tiles.Set(t.Context(), 9, "it"))
 	down := errors.New("postgres is down")

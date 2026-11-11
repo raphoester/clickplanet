@@ -9,15 +9,16 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // Seeded is the set the migrations keep as default: production's rules on 26 October 2026, the sign-in refill and the
 // fast start.
-func Seeded() Snapshot {
+func Seeded() cprules.Snapshot[*planetv1.Rules] {
 	d := durationpb.New
 	f, n, on := proto.Float64, proto.Uint32, proto.Bool
-	return Snapshot{
-		Name: Default,
+	return cprules.Snapshot[*planetv1.Rules]{
+		Name: cprules.Default,
 		Rules: &planetv1.Rules{
 			Clicks: &planetv1.ClickRules{
 				Tempo: f(1), PerSecond: f(0.2), Burst: n(60),
@@ -43,7 +44,7 @@ func Seeded() Snapshot {
 	}
 }
 
-func Named(name SetName, change func(*planetv1.Rules)) Snapshot {
+func Named(name cprules.SetName, change func(*planetv1.Rules)) cprules.Snapshot[*planetv1.Rules] {
 	kept := Seeded()
 	kept.Name = name
 	change(kept.Rules)
