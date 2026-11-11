@@ -16,7 +16,7 @@ import {
     WIDTH,
 } from "./borderLines.ts"
 import {EARTH_RADIUS} from "./sphere.ts"
-import {displayPointSize, flagPaint, tileSpacing} from "./pointSize.ts"
+import {flagPaint, tilePointSize, tileSpacing} from "./pointSize.ts"
 import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
 
 function blobOf(runs: number[][], sides: number[] = runs.flatMap(() => [0, 1])): ArrayBuffer {
@@ -112,7 +112,7 @@ describe("outlineSegments", () => {
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
             if (flagPaint(zoom, 900, "split") > 0) continue
             const clearance = share * tileSpacing(zoom, 900) - WIDTH / 2
-            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(displayPointSize(zoom, 900, "split") / 2)
+            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(tilePointSize(zoom, 900) / 2)
         }
     })
 

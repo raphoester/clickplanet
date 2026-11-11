@@ -130,6 +130,7 @@ describe("a refused click, from the paint to the rollback", () => {
         const field = new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, {
             positions: new Float32Array(size * 3),
             size,
+            cells: {words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => i)},
         }, PLAIN)
         const ownership = new TileOwnership(size)
 

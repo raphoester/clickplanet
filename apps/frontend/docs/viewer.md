@@ -15,8 +15,8 @@
   **it samples rather than follows**. See [Sampling the
   leaderboard](leaderboard-sampling.md).
 - `tileField.ts` — owns both point clouds and the per-tile values that change at
-  runtime (flag, hover, shields, pulse), in one of two layouts. Mutates them in place
-  and reports only the changed ranges. Do not replace these attributes: doing so
+  runtime (flag, hover, shields, pulse), in one of two layouts, and `tileData`, each tile's flag and landmass for
+  the territory layer. Mutates them in place and reports only the changed ranges. Do not replace these attributes: doing so
   makes the renderer rebuild the whole GPU buffer instead of patching it. See [What
   a tile costs on the GPU](tile-layout.md).
 - `gpuPicking.ts` — `GpuPicker`. Persistent 1×1 render target and scene;
@@ -43,8 +43,10 @@
   ended, which left OrbitControls in a pinch. See [A finger iOS took for its swipe back](stray-fingers.md).
 - `atlas.ts` / `atlasAsset.ts` — country code → sprite region, and the generated
   atlas URL and size.
+- `territoryLayer.ts` — the zoomed-out view's flags, painted pixel by pixel on a sphere under the tiles: each pixel
+  finds its tile's cell. See [The zoomed-out view](zoomed-out-view.md).
 - `borderField.ts` / `bordersAsset.ts` — the zoomed-out view: tile → landmass,
-  who holds how much of each, and the per-landmass table the vertex shader reads.
+  who holds how much of each, and the per-landmass table the territory layer reads.
   See [The zoomed-out view](zoomed-out-view.md).
 - `slotRanking.ts` / `flagSlots.ts` — the flags holding the biggest landmasses,
   drawn from their SVGs instead of the atlas: which eight, and the cells they are
@@ -115,6 +117,8 @@
   frame after the ground. See [The light](light.md).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper globe are on:
   the HD graphics setting, unless the URL names them. See [HD graphics](hd-graphics.md).
-- `shaders/` — GLSL for the display, picking, earth, air, star, enclosure and glint passes.
+- `shaders/` — GLSL for the display, territory, picking, earth, air, star, enclosure and glint passes.
+  `tileEffects.glsl` holds a bomb's and a fortify wave's effect on a tile, read by the tiles and the territory layer;
+  `effectColours.glsl` the colours they paint.
   `light.glsl` is not a pass but the light's direction the air and the earth share, pulled in with
   `#include ../light.glsl;` (vite-plugin-glsl's own include, not three's).

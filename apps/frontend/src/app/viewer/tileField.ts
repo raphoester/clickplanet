@@ -5,7 +5,7 @@ import {regions} from "./atlas.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {disposeMaterial} from "./scene.ts";
 import {integerToColor} from "./pickingColors.ts";
-import type {PointGeometryData} from "./coordinatesBinary.ts";
+import type {TileGeometry} from "./points.ts";
 import type {Graphics} from "./graphics.ts";
 
 import displayVertex from "./shaders/display/vertex.glsl"
@@ -14,6 +14,9 @@ import pickerVertex from "./shaders/picker/vertex.glsl"
 import pickerFragment from "./shaders/picker/fragment.glsl"
 
 const MAX_INDIVIDUAL_RANGES = 64
+
+// Must match TILE_COLUMNS in shaders/territory/fragment.glsl.
+export const TILE_COLUMNS = 512
 
 const UNOWNED = 0
 
@@ -42,20 +45,34 @@ export class TileField {
     readonly displayPoints: THREE.Points
     readonly pickingPoints: THREE.Points
     readonly size: number
+    // Each tile's flag and landmass at its cell's texel, for the territory layer.
+    readonly tileData: THREE.DataTexture
+    readonly flagRectangles: THREE.DataTexture
 
     private readonly compact: boolean
     private readonly slots: Slots
+    private readonly texels: Uint32Array
+    private readonly tileValues: Uint16Array
+    private readonly tileSource: THREE.DataTexture
+    private changedRows: {from: number, to: number} | undefined
     private hovered: number | undefined
 
     constructor(
         uniforms: {[uniform: string]: THREE.IUniform},
         pickingUniforms: {[uniform: string]: THREE.IUniform},
-        data: PointGeometryData,
+        data: TileGeometry,
         graphics: Pick<Graphics, "compact">,
     ) {
-        const {positions, size} = data
+        const {positions, size, cells} = data
         this.size = size
         this.compact = graphics.compact
+        this.texels = cells.texels
+        this.flagRectangles = flagRectangles()
+
+        const rows = Math.ceil(size / TILE_COLUMNS)
+        this.tileValues = new Uint16Array(TILE_COLUMNS * rows * 2)
+        this.tileData = tileTexture(this.tileValues, rows)
+        this.tileSource = tileTexture(this.tileValues, rows)
 
         const position = new THREE.BufferAttribute(positions, 3)
         const {slots, attributes} = this.compact ? compactLayout(size) : plainLayout(size)
@@ -74,7 +91,7 @@ export class TileField {
         this.displayPoints = new THREE.Points(displayGeometry, new THREE.ShaderMaterial({
             transparent: true,
             defines,
-            uniforms: this.compact ? {...uniforms, flagRectangles: {value: flagRectangles()}} : uniforms,
+            uniforms: this.compact ? {...uniforms, flagRectangles: {value: this.flagRectangles}} : uniforms,
             vertexShader: displayVertex,
             fragmentShader: displayFragment,
         }))
@@ -103,6 +120,13 @@ export class TileField {
         this.patch(this.slots.flag, tiles, (values, at, i) => {
             if (this.compact) values[at] = flags[i]
             else values.set(RECTANGLES.subarray(flags[i] * RECTANGLE, (flags[i] + 1) * RECTANGLE), at)
+        })
+
+        tiles.forEach((tile, i) => {
+            const texel = this.texels[tile - 1]
+            this.tileValues[texel * 2] = flags[i]
+            const row = Math.floor(texel / TILE_COLUMNS)
+            this.changedRows = {from: Math.min(row, this.changedRows?.from ?? row), to: Math.max(row, this.changedRows?.to ?? row)}
         })
     }
 
@@ -135,6 +159,22 @@ export class TileField {
         // The flags may share this buffer: with their ranges pending, a bare needsUpdate would upload only those.
         attribute.addUpdateRange(0, values.length)
         attribute.needsUpdate = true
+
+        for (let i = 0; i < this.size; i++) this.tileValues[this.texels[i] * 2 + 1] = assignment[i]
+        this.tileData.needsUpdate = true
+    }
+
+    // Sends the rows of tileData whose tiles changed hands, rather than the whole texture.
+    uploadTiles(renderer: THREE.WebGLRenderer) {
+        if (!this.changedRows) return
+        const {from, to} = this.changedRows
+        this.changedRows = undefined
+        renderer.copyTextureToTexture(
+            this.tileSource,
+            this.tileData,
+            new THREE.Box2(new THREE.Vector2(0, from), new THREE.Vector2(TILE_COLUMNS, to + 1)),
+            new THREE.Vector2(0, from),
+        )
     }
 
     setHover(tile: number | undefined): boolean {
@@ -154,6 +194,8 @@ export class TileField {
             points.geometry.dispose()
             disposeMaterial(points.material as THREE.Material)
         }
+        this.tileData.dispose()
+        this.flagRectangles.dispose()
     }
 
     private mark(tiles: readonly number[], bit: number, on: boolean) {
@@ -223,6 +265,13 @@ function compactLayout(size: number): Layout {
 
 function flagRectangles(): THREE.DataTexture {
     const texture = new THREE.DataTexture(RECTANGLES, RECTANGLES.length / RECTANGLE, 1, THREE.RGBAFormat, THREE.FloatType)
+    texture.needsUpdate = true
+    return texture
+}
+
+function tileTexture(values: Uint16Array, rows: number): THREE.DataTexture {
+    const texture = new THREE.DataTexture(values, TILE_COLUMNS, rows, THREE.RGIntegerFormat, THREE.UnsignedShortType)
+    texture.internalFormat = "RG16UI"
     texture.needsUpdate = true
     return texture
 }
