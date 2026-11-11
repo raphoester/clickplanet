@@ -43,10 +43,17 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes/rpc_planet_shares"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings/postgres_rating_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings/usecases/record_answer_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings/usecases/record_answer_usecase/log_record_answer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings/usecases/record_answer_usecase/prom_record_answer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/click_tried_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/player_created_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -112,8 +119,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	offerRules := cprules.Reader(inForce, bonuses.Part)
 
+	// The ratings answers moved, read once: the draw reads them in memory, over each question's prior.
+	ratingStore := postgres_rating_store.New(db)
+	rated, err := ratingStore.Ratings(ctx)
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to read the quiz questions' ratings: %w", err)
+	}
+	book := ratings.NewBook(rated)
+
 	shares := rpc_planet_shares.New(planet, sharesInterval)
-	bank, err := quizzes.Load(shares)
+	bank, err := quizzes.Load(shares, book)
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to load the quiz bank: %w", err)
@@ -121,7 +137,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	props.Logger.Info("quiz bank loaded",
 		slog.String("bank", bank.Version()),
 		slog.Int("questions", bank.Size()),
-		slog.Int("subjects", bank.Subjects()))
+		slog.Int("subjects", bank.Subjects()),
+		slog.Int("rated", len(rated)))
+	answers := log_record_answer.New(prom_record_answer.New(
+		record_answer_usecase.New(db, ratingStore, bank, book), props.Metrics), props.Logger)
 
 	// An offer's payment is named by its token, which planet knows in memory as the offer is; the refill's, for good.
 	offersWallet := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForAWhile)
@@ -129,7 +148,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	registry := bonuses.New(config.Offers, clock, offersWallet, offerRules, bank)
 	told := facts.NewLog(clock)
-	taken := take(registry, offersWallet, streams, told, clock, props)
+	taken := take(registry, offersWallet, answers, streams, told, clock, props)
 
 	clicks, err := cpredis.Subscribe(ctx, streams, "bonuses-clicks",
 		log_subscriber.New(click_tried_subscriber.New(registry), props.Logger))
@@ -145,12 +164,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the sign-in refill to player.v1.PlayerCreated: %w", err)
 	}
+	forgotten, err := cpredis.Subscribe(ctx, streams, "bonuses-answers-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_account_usecase.New(ratingStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the quiz answers to player.v1.PlayerForgotten: %w", err)
+	}
 
 	props.Runners.Add(registry)
 	props.Runners.Add(shares)
 	// Not closers: the subscribers and the relay's last send outlive the server.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		clicks, newPlayers, facts.NewRelay(told, streams, factsRelayInterval))))
+		clicks, newPlayers, forgotten, facts.NewRelay(told, streams, factsRelayInterval))))
 
 	freeze := rpc_planet_freeze.New(planet)
 	service := bonusesv1controller.BonusService{
@@ -211,11 +236,12 @@ type taking struct {
 // take builds the claim and the answer, counts the offers, and tells the antibot each box caught, lapsed or claimed
 // by another scope.
 func take(
-	registry *bonuses.Registry, wallet rpc_planet_wallet.Wallet, streams *cpredis.Streams, told *facts.Log,
-	clock cptime.Clock, props cpbootstrap.Props,
+	registry *bonuses.Registry, wallet rpc_planet_wallet.Wallet, answers answer_quiz_usecase.Answers,
+	streams *cpredis.Streams, told *facts.Log, clock cptime.Clock, props cpbootstrap.Props,
 ) taking {
 	claim, counters := prom_claim_bonus.New(claim_bonus_usecase.New(registry, wallet, streams, clock), props.Metrics)
-	answer, quizCounters := prom_answer_quiz.New(answer_quiz_usecase.New(registry, wallet, streams, clock), props.Metrics)
+	answer, quizCounters := prom_answer_quiz.New(
+		answer_quiz_usecase.New(registry, wallet, answers, streams, clock), props.Metrics)
 
 	boxes := box_facts.New(told)
 	registry.Observe(bonuses.Report{

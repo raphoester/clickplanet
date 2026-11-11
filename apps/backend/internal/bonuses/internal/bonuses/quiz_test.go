@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -320,8 +321,94 @@ func TestAQuestionOpenedAndLeftLapsesAtItsDeadline(t *testing.T) {
 	clock.Advance(answerIn + time.Second)
 	registry.sweep(t.Context())
 
-	_, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
-	assert.False(t, ok, "the sweep took it: there is nothing left to answer")
+	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
+	require.True(t, ok, "an answer a moment late is still counted")
+	assert.True(t, answered.Late, "the sweep took it: to the player there is nothing left to answer")
+	assert.False(t, answered.Correct, "it came past the deadline")
+	assert.Zero(t, answered.Reward)
+}
+
+func TestAnAnswerSaysItsQuestionAndHowLongAfterTheOpeningItLanded(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	offer, asked := takeQuiz(t, registry, clock, "scope-a")
+
+	clock.Advance(2 * time.Second)
+
+	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, wrongAnswer))
+	require.True(t, ok)
+	assert.Equal(t, ratings.QuestionID("capital:ee"), answered.Question)
+	assert.Equal(t, 2*time.Second, answered.After, "from the opening, not from the banner")
+	assert.False(t, answered.TimedOut)
+	assert.False(t, answered.Late)
+}
+
+func TestAChoicePastTheThreeIsThePagesTimeout(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	offer, asked := takeQuiz(t, registry, clock, "scope-a")
+
+	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", len(asked.Options))
+	require.True(t, ok)
+	assert.True(t, answered.TimedOut)
+	assert.False(t, answered.Correct)
+}
+
+func TestALateAnswerIsCountedOnceAndChangesNoSchedule(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	offer, asked := takeQuiz(t, registry, clock, "scope-a")
+
+	clock.Advance(answerIn + time.Second)
+	registry.sweep(t.Context())
+	missed := *registry.callers["scope-a"]
+
+	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", len(asked.Options))
+	require.True(t, ok)
+	assert.True(t, answered.Late)
+	assert.True(t, answered.TimedOut, "the page's timeout, which reached the server after the sweep")
+	assert.Equal(t, answerIn+time.Second, answered.After)
+
+	assert.Equal(t, 1, registry.callers["scope-a"].quizMisses, "it lapsed: a miss, as before")
+	assert.Equal(t, missed.nextQuizAt, registry.callers["scope-a"].nextQuizAt, "the next quiz comes as it would have")
+
+	_, ok = registry.AnswerQuiz(offer.Token, "scope-a", 0)
+	assert.False(t, ok, "counted once")
+}
+
+func TestAnAnswerLongAfterTheDeadlineIsNotCounted(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	offer, _ := takeQuiz(t, registry, clock, "scope-a")
+
+	clock.Advance(answerIn + time.Second)
+	registry.sweep(t.Context())
+	clock.Advance(lateAnswers)
+	registry.sweep(t.Context())
+
+	_, ok := registry.AnswerQuiz(offer.Token, "scope-a", 0)
+	assert.False(t, ok, "a page that comes back this late was left, and a question left is not an answer")
+	assert.Empty(t, registry.lapsedQuizzes, "nothing is kept of it")
+}
+
+func TestABannerNeverOpenedIsNeverAnswered(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	events := playing(t, registry, "scope-a")
+	waitOutQuiz(t, registry, clock)
+	offer := quizOffered(t, events)
+	require.NotNil(t, offer)
+
+	letTheBannerLapse(t, registry, clock)
+
+	_, ok := registry.AnswerQuiz(offer.Token, "scope-a", 3)
+	assert.False(t, ok, "the player never saw the question")
+}
+
+func TestALateAnswerIsOnlyItsOwnCallers(t *testing.T) {
+	registry, clock := newQuizzingRegistry(t)
+	offer, _ := takeQuiz(t, registry, clock, "scope-a")
+
+	clock.Advance(answerIn + time.Second)
+	registry.sweep(t.Context())
+
+	_, ok := registry.AnswerQuiz(offer.Token, "scope-b", 3)
+	assert.False(t, ok)
 }
 
 func TestQuizzesAndBoxesRunOnSeparateClocks(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 func loaded(t *testing.T) *quizzes.Bank {
 	t.Helper()
 
-	bank, err := quizzes.Load(nil)
+	bank, err := quizzes.Load(nil, nil)
 	require.NoError(t, err)
 
 	return bank

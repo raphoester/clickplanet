@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 )
 
 // Must say nothing about the question: even its subject's flag can be the answer.
@@ -31,7 +32,21 @@ type Answered struct {
 	Reward Reward
 
 	Subject string
+
+	// What the ratings count of it: the question, whether the page's clock ran out (a choice past the three), and how
+	// long after the opening it landed.
+	Question ratings.QuestionID
+	TimedOut bool
+	After    time.Duration
+
+	// Late is an answer to a question opened and lapsed a moment before, which the page's timeout sent over a slow
+	// network or a clock behind the server's. To the player it is a quiz gone, as before; the ratings count it wrong.
+	Late bool
 }
+
+// An answer lands at most this long after its question lapsed to be counted, late: the page's timeout reaches the
+// server a trip after the deadline, and after the sweep that collected it on a slow network or a clock behind ours.
+const lateAnswers = 10 * time.Second
 
 type Questions interface {
 	Draw(lean float64) quizzes.Round
@@ -46,6 +61,7 @@ type pendingQuiz struct {
 
 	expiresAt time.Time
 
+	openedAt time.Time
 	deadline time.Time
 }
 
@@ -64,6 +80,7 @@ func (r *Registry) OpenQuiz(token string, entrant Entrant) (Asked, bool) {
 	}
 
 	if !quiz.opened() {
+		quiz.openedAt = now
 		quiz.deadline = now.Add(window)
 	}
 
@@ -83,7 +100,10 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	defer r.mu.Unlock()
 
 	quiz, ok := r.quizOffers[token]
-	if !ok || quiz.entrant != entrant {
+	if !ok {
+		return r.answerLate(token, entrant, choice, now)
+	}
+	if quiz.entrant != entrant {
 		return Answered{}, false
 	}
 
@@ -104,6 +124,9 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 		CorrectChoice: quiz.round.Correct,
 		Subject:       quiz.round.Question.Subject,
 		Correct:       !now.After(quiz.deadline) && quiz.round.Correctly(choice),
+		Question:      quiz.round.Question.ID,
+		TimedOut:      quiz.timedOut(choice),
+		After:         now.Sub(quiz.openedAt),
 	}
 
 	if r.report.QuizAnswered != nil {
@@ -120,6 +143,31 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	answered.Reward = Reward{Kind: quiz.kind, Amount: amountOf(quiz.kind, rules)}
 
 	return answered, true
+}
+
+// answerLate counts an answer to a question opened and lapsed less than lateAnswers ago, once: the quiz is gone, and the
+// answer is wrong and only counted.
+func (r *Registry) answerLate(token string, entrant Entrant, choice int, now time.Time) (Answered, bool) {
+	quiz, ok := r.lapsedQuizzes[token]
+	if !ok || quiz.entrant != entrant || now.After(quiz.deadline.Add(lateAnswers)) {
+		return Answered{}, false
+	}
+
+	delete(r.lapsedQuizzes, token)
+
+	return Answered{
+		CorrectChoice: quiz.round.Correct,
+		Subject:       quiz.round.Question.Subject,
+		Question:      quiz.round.Question.ID,
+		TimedOut:      quiz.timedOut(choice),
+		After:         now.Sub(quiz.openedAt),
+		Late:          true,
+	}, true
+}
+
+// timedOut is the page's own timeout: a choice past the three it was shown.
+func (p *pendingQuiz) timedOut(choice int) bool {
+	return choice < 0 || choice >= len(p.round.Options)
 }
 
 func (r *Registry) quizDue(entry *caller, rules Rules, now time.Time) bool {
@@ -167,6 +215,12 @@ func (r *Registry) offerQuiz(entrant Entrant, entry *caller, rules Rules, now ti
 }
 
 func (r *Registry) collectStaleQuizzes(rules Rules, now time.Time) {
+	for token, quiz := range r.lapsedQuizzes {
+		if now.After(quiz.deadline.Add(lateAnswers)) {
+			delete(r.lapsedQuizzes, token)
+		}
+	}
+
 	for token, quiz := range r.quizOffers {
 		gone := now.After(quiz.expiresAt)
 		if quiz.opened() {
@@ -177,6 +231,9 @@ func (r *Registry) collectStaleQuizzes(rules Rules, now time.Time) {
 		}
 
 		delete(r.quizOffers, token)
+		if quiz.opened() {
+			r.lapsedQuizzes[token] = quiz
+		}
 
 		entry, ok := r.callers[quiz.entrant]
 		if !ok || entry.outstandingQuiz != token {

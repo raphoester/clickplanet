@@ -18,7 +18,7 @@ const draws = 30000
 func subjectCounts(t *testing.T, lean float64, shares quizzes.Shares) map[string]int {
 	t.Helper()
 
-	bank, err := quizzes.Load(shares)
+	bank, err := quizzes.Load(shares, nil)
 	require.NoError(t, err)
 
 	counts := map[string]int{}
@@ -32,7 +32,7 @@ func subjectCounts(t *testing.T, lean float64, shares quizzes.Shares) map[string
 func drawsWhere(t *testing.T, lean float64, shares quizzes.Shares, n int, match func(quizzes.Question) bool) int {
 	t.Helper()
 
-	bank, err := quizzes.Load(shares)
+	bank, err := quizzes.Load(shares, nil)
 	require.NoError(t, err)
 
 	matched := 0
@@ -84,7 +84,7 @@ func TestNoBoardIsAFlatDraw(t *testing.T) {
 
 func TestTheDrawReadsTheBoardAsItIsNow(t *testing.T) {
 	live := board{}
-	bank, err := quizzes.Load(live)
+	bank, err := quizzes.Load(live, nil)
 	require.NoError(t, err)
 
 	before := 0

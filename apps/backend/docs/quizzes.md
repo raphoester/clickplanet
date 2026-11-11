@@ -72,6 +72,12 @@ Everything below exists to make whatever it is set to real:
   the quiz is offered (`Bank.Draw`). The same question is not the same three choices twice, so "press the
   second one for Estonia" is worth nothing.
 
+**Every answer is counted for its question's rating** ([How hard each quiz question is](quiz-difficulty.md)): right,
+wrong, the page's timeout, and an answer past the deadline, a caller's with no account too. A banner never opened and a
+question opened and left are not. Nothing of it reaches the page: no difficulty is on the banner, the question or the
+answer. **An answer that lands up to 10 s after its opened question lapsed** is counted wrong, and still answered
+`NotFound`, as before: the page's own timeout often reaches the server a trip after the deadline.
+
 **A wrong answer is not a failed call.** It resolves, grants nothing, and says
 **which choice was right** — that is the only thing the feature gives back when
 it gives nothing else, and the bank is generated public data, so there is nothing

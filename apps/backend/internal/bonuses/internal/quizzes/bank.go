@@ -10,15 +10,22 @@ import (
 	"slices"
 
 	quizdata "github.com/raphoester/clickplanet.lol-backend/generated/quiz"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 )
+
+// Rated is the rating of each question its answers moved (ratings.Book): one no answer moved is at its prior.
+type Rated interface {
+	Rated(question ratings.QuestionID) (ratings.Rating, bool)
+}
 
 type Bank struct {
 	version string
 
 	shares Shares
+	rated  Rated
 
-	all []Question
+	all  []Question
+	byID map[ratings.QuestionID]int
 
 	subjects  []string
 	bySubject map[string]about
@@ -43,9 +50,12 @@ func (a about) with(question Question) about {
 	return a
 }
 
-func Load(shares Shares) (*Bank, error) {
-	blob := quizdata.Bank()
+func Load(shares Shares, rated Rated) (*Bank, error) {
+	return read(quizdata.Bank(), shares, rated)
+}
 
+// A field the build does not know, such as one the generator added since, is read past: a bank of a later build loads.
+func read(blob []byte, shares Shares, rated Rated) (*Bank, error) {
 	var file struct {
 		Format    int        `json:"format"`
 		Questions []Question `json:"questions"`
@@ -64,19 +74,20 @@ func Load(shares Shares) (*Bank, error) {
 	bank := &Bank{
 		version:   versionOf(blob),
 		shares:    shares,
+		rated:     rated,
 		all:       file.Questions,
+		byID:      make(map[ratings.QuestionID]int, len(file.Questions)),
 		bySubject: make(map[string]about),
 	}
 
-	seen := cpcolls.NewSetWithCapacity[string](len(file.Questions))
-	for _, question := range file.Questions {
+	for i, question := range file.Questions {
 		if err := question.Validate(); err != nil {
 			return nil, fmt.Errorf("%s: %w", source, err)
 		}
-		if seen.Contains(question.ID) {
+		if _, seen := bank.byID[question.ID]; seen {
 			return nil, fmt.Errorf("%s: two questions are called %q", source, question.ID)
 		}
-		seen.Add(question.ID)
+		bank.byID[question.ID] = i
 
 		if question.Subject == "" {
 			bank.anywhere = append(bank.anywhere, question)
@@ -109,6 +120,22 @@ func (b *Bank) Version() string { return b.version }
 func (b *Bank) Size() int { return len(b.all) }
 
 func (b *Bank) Subjects() int { return len(b.subjects) }
+
+// Rating is how hard a question is now: what its answers moved it to, else its prior. A question the bank does not hold
+// is at FallbackPrior.
+func (b *Bank) Rating(question ratings.QuestionID) ratings.Rating {
+	if b.rated != nil {
+		if rating, ok := b.rated.Rated(question); ok {
+			return rating
+		}
+	}
+
+	chance := FallbackPrior
+	if i, ok := b.byID[question]; ok {
+		chance = b.all[i].startingChance()
+	}
+	return ratings.PriorOf(chance)
+}
 
 func (b *Bank) Draw(lean float64) Round {
 	return b.round(b.question(lean))
