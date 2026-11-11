@@ -13,7 +13,7 @@ after a reload can be aimed. The pieces:
 timeline every screen agrees on, `domain/holdToDrop.ts` the gesture,
 `viewer/blasts.ts` the drawing, and `news/BombNews.tsx` the line at the top.
 
-**No bomb while the rules hold `bombsOff`** (`GetBonusRules.bombs_off`, the backend's `bonuses.bomb.off`): the
+**No bomb while the rules hold `bombsOff`** (`GetChargeRules.bombs_off`, the backend's `charges.bomb.off`): the
 inventory shows no bomb slot, held or not, an aimed bomb is put away as the rules arrive, and `arm` does nothing. A
 drop the server refuses then (a page and the server racing) answers a `BombRefusal`, read as `BombRefusedError`: the
 bomb is given back, and nothing is said. A bomb held comes back with the slot once a set plays bombs again.

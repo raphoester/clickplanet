@@ -4,7 +4,7 @@
 backend's [The reach](../../backend/docs/reach.md)). Capital Siege plays it on its fresh map; any set may play it on
 the world's map too. The page rings what the player can take and stops a click elsewhere.
 
-- **Where the page learns it.** `GetBonusRules.reach`, read into `BonusRules.reach` and read again on `rules_changed`.
+- **Where the page learns it.** `GetChargeRules.reach`, read into `BonusRules.reach` and read again on `rules_changed`.
   `globe.ts` follows it in `onRules` (`followReach`).
 - **What it reads then.** `static/waters-<hash>.json`, once, the first time the reach plays (`waters.ts`; URL in
   `watersAsset.ts`). It is a copy of [`/map`](../../../map/README.md). A file written for a map of another size is

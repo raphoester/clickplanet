@@ -4,6 +4,7 @@ import './tokens.css'
 import './index.css'
 
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
+import {newBonusServiceClient} from "./backends/bonusesBackend.ts"
 import {NoSession, SessionProvider} from "./backends/session.ts"
 import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient} from "./backends/chatBackend.ts"
@@ -330,7 +331,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         gifs: gifsOf(new FakeGifs()),
     })
 } else {
-    const backend = new PlanetBackend(newClickServiceClient(config), 100, session)
+    const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config))
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const turn = new ConnectTurnBackend(newGamemasterServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))

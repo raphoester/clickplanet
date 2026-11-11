@@ -31,7 +31,10 @@ clip](clip-appearances.md). `alerts.ts` is whether the player is in the game's D
 `antibot.ts` is the warning before a ban for playing several accounts: `WarningsListener` (the antibot's stream, opened
 with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`.
 `antibotBackend.ts` implements them against `antibot.v1.AntibotService`, and `FakeAntibotBackend` in fake mode (see
-[Data flow](data-flow.md)).
+[Data flow](data-flow.md)). `bonusesBackend.ts` is the offers' wire: the `bonuses.v1.BonusService` client and what its
+stream carries, read (`offerOf`, `quizOf`, `catchOf`, `grantRulesChanged`). `PlanetBackend` holds that client and opens
+its stream, since what a box or a quiz grants is planet's charges, which it holds (see [The offers
+stream](#the-offers-stream)).
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
 `retryingAtOnce`, `NO_TIMEOUT`, and `openStream`, which follows a
@@ -41,8 +44,8 @@ knows nothing about what it carries, so each context keeps its own mapping —
 both a few lines over it.
 
 **One stream per API, carrying an envelope.** `ClickService.ListenForEvents`
-sends `PlanetEvent` and `ChatService.ListenForEvents` sends `ChatEvent`, each a
-`oneof`. `updateOf` and `messageOf` unwrap the case each context cares about and
+sends `PlanetEvent`, `BonusService.ListenForEvents` sends `BonusEvent` and `ChatService.ListenForEvents` sends
+`ChatEvent`, each a `oneof`. `updateOf` and `messageOf` unwrap the case each context cares about and
 **return undefined for everything else** — heartbeats, and any case this build
 does not know, which reads as an unset `oneof`. That is what lets the backend
 add an event type without a second stream and without breaking a deployed
@@ -77,7 +80,8 @@ the meantime is gone. So `openStream` calls `onResumed` on the first message of
 a connection when an earlier one had been live, and the chat reads its history
 again there. The planet's first message on each connection is a heartbeat with
 the map's version, which `listenForOpenings` hands the globe (see below), and on a resumed one the planet reads
-`GetBudget` and `GetBonusRules` again, since a `rulesChanged` may have fallen in the gap. The roster and the board need
+`GetBudget` and `GetChargeRules` again, since a `rulesChanged` may have fallen in the gap; a resumed offers stream
+reads `GetGrantRules` again for the same reason. The roster and the board need
 nothing: each connection starts with the whole of it. Two more things find a
 gap sooner:
 
@@ -99,8 +103,8 @@ call, every live feed would die ten seconds in and reconnect forever. Anything
 active one is wired in `main.tsx`. Both expose `close()`, and both implement the
 fourth contract in `clickBudget.ts` — see [The click budget](#the-click-budget).
 
-`planetBackend.ts` talks to the API through the generated Connect client
-(`src/gen/grpc/planet/v1/planet_connect.ts`). No gRPC is involved — Connect is
+`planetBackend.ts` talks to the API through the generated Connect clients
+(`src/gen/grpc/planet/v1/planet_connect.ts`, and `bonuses/v1/bonuses_connect.ts` for the offers). No gRPC is involved — Connect is
 an ordinary HTTP POST, or a GET for reads.
 
 **Two transport options are load-bearing and both default to `false`:**
@@ -199,7 +203,7 @@ detail** on a refused one, which is the reading that matters most, and
 `GetBudget` again when the planet stream says the rules changed
 (`rulesChanged`) or comes back after a gap: the server can change the whole game's refill at once (the
 backend's [Rules](../../backend/docs/rules.md)), and only a reading says by how much.
-The same event reads `GetBonusRules` again (see [Charges](charges.md)). **`GetBudget`
+The same event reads `GetChargeRules` again (see [Charges](charges.md)). **`GetBudget`
 carries the token already held** (`SessionProvider.identity()`, never a mint):
 without it the server reads the bucket of an address with no account, which is
 never spent and always full, and the next click contradicts it. It also subtracts its own clicks in
@@ -282,7 +286,36 @@ the server accepted went out under a token the stream was not opened with — th
 first click of a page load, and the first one after a sign-in or a sign-out. The
 hourly re-mint for the same account reopens it too: telling the two apart would
 mean reading the token, which is the server's business. A refused call reopens
-nothing.
+nothing. The offers stream follows the same token the same way (below).
+
+## The offers stream
+
+**The boxes and the quizzes come on a stream of their own, beside the planet's**:
+`bonuses.v1.BonusService/ListenForEvents`, which sends `BonusEvent` (the backend's
+[Offers and the wallet](../../backend/docs/offers-and-wallet.md)). `PlanetBackend` opens it at construction, through
+`openStream` as the planet's: the same backoff, the same silence limit and wakes, and the clean end of a server
+restart opens it again 500 ms later.
+
+- **It carries the token held, never a mint** (`heldIdentity()`), and the server reads it only as it opens. **A box or a
+  quiz goes only to a caller with this stream open**, to the account it names (the backend's
+  [Bonus boxes](../../backend/docs/bonus-boxes.md)). So `followSession` reopens it beside the planet's when an accepted
+  click, claim, quiz or bomb went out under a token it was not opened with, and so does the identity the cookie
+  resumes at load (`followOffers`): a signed-in account's stream hears the boxes as that account. **Each stream keeps
+  the token it opened with**, since either can reconnect alone and read a newer one.
+- **What it carries goes where the planet's offers went**: `bonus_offered` to `BonusHandlers.onOffered` (the globe's
+  flying box), `bonus_taken` to `onTaken`, `quiz_offered` to `listenForQuizzes` (the quiz store). Nothing above
+  `PlanetBackend` knows there are two streams.
+- **Its `rules_changed` reads `GetGrantRules`** (a GET, as `GetChargeRules`), and so does a resumed connection: whether a
+  guest's first sign-in earns a refill is the offers' rule. `PlanetBackend` tells it as `BonusRules.signInRefill`, with
+  planet's rules, through `onRules`: again when it changes, and nothing before planet's are read.
+- **`ClaimBonus`, `OpenQuiz` and `AnswerQuiz` go to `BonusService`**, with a click token as before: minted, and minted
+  again after an `unauthenticated` for the claim and the quiz's opening. What they grant is planet's charges in planet's
+  words (`planet.v1.BonusKind`, `ChargesHeld`), which `PlanetBackend` holds. `asBonusError` reads their refusals as
+  before; a claim refused while the offers or the map take no play (`FailedPrecondition` with `bonuses.v1.FrozenRefusal`)
+  is a failed claim.
+- **The fakes have no such stream**: `FakeBackend` and `ReplayBackend` implement `BonusListener` and `QuizMaster`
+  themselves, and a replay holds no offer. A `PlanetBackend` built with no offers client, as in a test of the map,
+  opens none and claims nothing.
 
 ## Connection health
 

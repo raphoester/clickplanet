@@ -8,7 +8,8 @@ a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
 30 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 5
 to 20 shields, capped at the size; the reward it announces
 is what was kept (`+2 spread clicks`), which is what the server answers in
-`ClaimBonusResponse.amount`.
+`ClaimBonusResponse.amount`. The boxes and the quizzes are the offers' (`bonuses.v1.BonusService`, on a stream of its
+own: see [The offers stream](backends.md#the-offers-stream)); the charges they grant are planet's.
 
 **`PlanetBackend` holds `Charges` (`domain/bonus.ts`), and only a grant pushes them.**
 It reads `GetCharges` at load, with the token in hand and never a fresh one, again
@@ -16,7 +17,7 @@ when a click goes out under a new token (`followSession`), and when its stream c
 back after a gap: the charges are the account's. A grant from outside the player's
 own clicks (a mission paid, an operator's) comes on the planet stream of a signed-in
 account as `charges_granted`, all it holds now (`grantedOf`), and replaces them with
-no read. `ClaimBonusResponse.charges` replaces them on a claim, and
+no read. `ClaimBonusResponse.charges` (and `AnswerQuizResponse.charges`) replaces them on a claim, and
 `UseRefillResponse.charges` on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
@@ -28,12 +29,14 @@ none (a ban refusal gives it back too); a shield is taken off the same way. The 
 reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` puts it in the bonus store (`useBonus`, see
 [Stores](stores.md)), which the inventory reads.
 
-**The sizes are rules**: `GetBonusRules` (a GET no cache keeps) answers the
+**The sizes are rules**: `GetChargeRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size, how many can stand on one tile
 (`tileShields`) and whether enclosures are unlimited (`enclosuresUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
-new set in force (the backend's [Rules](../../backend/docs/rules.md)).
+new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the offers' rule,
+from `BonusService/GetGrantRules`, read at load and on the offers stream's own `rulesChanged` and comeback, and told
+with planet's.
 
 ## Off by default, one at a time
 
