@@ -19,7 +19,8 @@ import {CAPITALS_URL} from "./capitalsAsset.ts";
 import {WATERS_URL} from "./watersAsset.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
 import {loadWaters} from "./waters.ts";
-import {displayPointSize, flagPaint, flownZoomsOf, inOrbit, pickPointSize} from "./pointSize.ts";
+import {flagPaint, flownZoomsOf, inOrbit, pickPointSize, tilePointSize} from "./pointSize.ts";
+import {createTerritoryLayer} from "./territoryLayer.ts";
 import {regions} from "./atlas.ts";
 import {SlotRanking} from "./slotRanking.ts";
 import {FlagSlots} from "./flagSlots.ts";
@@ -352,7 +353,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const slots = new FlagSlots(invalidate)
 
     const uniforms: Uniforms = {
-        pointSize: {value: displayPointSize(camera.zoom, layoutViewport().height, mapView) * renderer.getPixelRatio()},
+        pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
         landmassData: {value: null},
@@ -388,6 +389,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const sphere = innerSphere()
     const picker = new GpuPicker(renderer, field.pickingPoints, sphere);
+    const territoryLayer = createTerritoryLayer({
+        sphere,
+        cells: geometryData.cells,
+        tileData: field.tileData,
+        flagRectangles: field.flagRectangles,
+        uniforms,
+    })
+    scene.add(territoryLayer)
     const clock = new MapClock()
     const tiles = new MapTiles(field.size, TILES_PER_BATCH, clock)
     const ownership = tiles.ownership
@@ -1442,6 +1451,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
         outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView)
+        territoryLayer.visible = uniforms.flagPaint.value > 0
+        field.uploadTiles(renderer)
 
         const peeked = armed ? undefined : peek.tick(seconds)
         if (peeked !== undefined) peekAt(peeked)
@@ -1682,7 +1693,7 @@ function startAnimation(
 
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();
-        uniforms.pointSize.value = displayPointSize(camera.zoom, height, mapView()) * ratio;
+        uniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
         pickingUniforms.pointSize.value = pickPointSize(camera.zoom, height) * ratio;
         uniforms.pixelRatio.value = ratio;
 

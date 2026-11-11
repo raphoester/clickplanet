@@ -1,6 +1,5 @@
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
-uniform sampler2D slotTexture;
 uniform float flagPaint;
 uniform float pixelRatio;
 uniform float shieldMost;
@@ -9,11 +8,6 @@ uniform vec2 shieldCells;
 uniform float time;
 
 flat in vec4 vRegionVector;
-flat in vec2 vFlagUV;
-flat in vec4 vFlagStep;
-flat in vec4 vFlagFrame;
-flat in float vFlagShare;
-flat in float vSlotted;
 flat in float vSpriteSize;
 flat in float vShield;
 flat in float vPulse;
@@ -23,9 +17,6 @@ varying float vHover;
 varying float vGlow;
 varying float vScorch;
 varying float vFortify;
-
-const float SQUARE_UNTIL = 3.0;
-const float ROUND_FROM = 6.0;
 
 const float HIGHLIGHT_LIFT = 0.2;
 const float HIGHLIGHT_FLOOR = 0.35;
@@ -43,6 +34,7 @@ bool marked(float bit) {
 }
 
 #include ../flagFrame.glsl;
+#include ../effectColours.glsl;
 
 vec2 atlasUVof(vec4 region, vec2 uv) {
     return frameUVof(atlasFrameOf(region), uv);
@@ -91,42 +83,23 @@ vec4 crowned(vec4 colour, vec2 coordinates, float shown) {
 
 void main() {
     vec2 coordinates = gl_PointCoord - vec2(0.5);
-    // A disc a few pixels wide is drawn square: round, the discs left holes between them on the painted flag.
-    float square = 1.0 - smoothstep(SQUARE_UNTIL, ROUND_FROM, vSpriteSize);
-    if (mix(length(coordinates), max(abs(coordinates.x), abs(coordinates.y)), square) > 0.5) discard;
+    if (length(coordinates) > 0.5) discard;
 
-    vec4 own = flagPaint < 1.0 ? ownColour() : vec4(0.0);
+    // The territory layer under the tiles paints the flags and the effects as the tiles fade out.
+    float shown = 1.0 - flagPaint;
+    vec4 colour = shown > 0.0 ? ownColour() : vec4(0.0);
+    colour.a *= shown;
 
-    vec4 painted = vec4(own.rgb, 0.0);
-    if (vFlagFrame.z > 0.0) {
-        // gl_PointCoord runs down and the flag frame runs up; the frame itself needs no flip.
-        vec2 screen = vec2(coordinates.x, -coordinates.y) * vSpriteSize;
-        vec2 uv = vFlagUV + vFlagStep.xy * screen.x + vFlagStep.zw * screen.y;
-
-        // Explicit gradients: the frame is flat across the sprite, so texture() picks the top mip.
-        vec2 at = frameUVof(vFlagFrame, uv);
-        vec2 across = vFlagStep.xy * vFlagFrame.zw;
-        vec2 upward = vFlagStep.zw * vFlagFrame.zw;
-        vec3 flag = vSlotted > 0.5
-            ? textureGrad(slotTexture, at, across, upward).rgb
-            : textureGrad(atlasTexture, at, across, upward).rgb;
-
-        painted = vec4(flag, vFlagShare);
-    }
-
-    vec4 colour = mix(own, painted, flagPaint);
-
-    if (vHighlit > 0.5) colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));
+    if (vHighlit > 0.5) colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR * shown));
 
     if (vShield > 0.5) colour = shielded(colour, coordinates);
 
-    vec3 ember = mix(vec3(0.07, 0.02, 0.01), vec3(1.0, 0.32, 0.04), vScorch * vScorch);
-    colour = mix(colour, vec4(ember, 0.95), vScorch * 0.9);
+    colour = scorched(colour, vScorch * shown);
 
-    float capital = marked(8.0) ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
+    float capital = marked(8.0) ? shown * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
     if (capital > 0.0) colour = crowned(colour, coordinates, capital);
 
-    float aimed = marked(4.0) ? (1.0 - flagPaint) * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
+    float aimed = marked(4.0) ? shown * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
     if (aimed > 0.0) {
         float pixel = 1.0 / vSpriteSize;
         float inner = 0.5 - pixel - max(MISSION_RING_PX * pixelRatio * pixel, 0.06);
@@ -147,11 +120,8 @@ void main() {
         colour.a = max(colour.a, ring * (0.6 + 0.4 * beat));
     }
 
-    vec3 steel = mix(vec3(0.55, 0.72, 0.95), vec3(0.96, 0.99, 1.0), vFortify * vFortify);
-    colour = mix(colour, vec4(steel, 1.0), vFortify * 0.85);
-
-    vec3 hot = mix(vec3(1.0, 0.42, 0.08), vec3(1.0, 0.96, 0.82), vGlow * vGlow);
-    colour = mix(colour, vec4(hot, 1.0), vGlow);
+    colour = steeled(colour, vFortify * shown);
+    colour = heated(colour, vGlow * shown);
 
     gl_FragColor = colour;
 }

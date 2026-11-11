@@ -1,7 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {
     coarseHandover,
-    displayPointSize,
     flagPaint,
     flownZoomsOf,
     inOrbit,
@@ -88,30 +87,16 @@ describe("coarseHandover", () => {
     })
 })
 
+describe("a tile's disc", () => {
+    // Two neighbours are 0.78 of the median spacing apart at the lattice's 1st percentile, 0.73 at its tightest.
+    it("stays off its neighbours' but round the lattice's 12 corners", () => {
+        everyView((zoom, height) => {
+            expect(tilePointSize(zoom, height) / tileSpacing(zoom, height), `zoom ${zoom} at ${height}px`).toBeLessThan(0.78)
+        })
+    })
+})
+
 describe("the handover from the painted flag to the tiles", () => {
-    it("undoes the widening exactly when the flag stops being painted", () => {
-        everyView((zoom, height) => {
-            const widened = displayPointSize(zoom, height, "split") > tilePointSize(zoom, height) + 1e-9
-            expect(widened, `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "split") > 0)
-        })
-    })
-
-    it("covers the ground whenever the flag alone is on screen", () => {
-        everyView((zoom, height) => {
-            if (flagPaint(zoom, height, "split") < 1) return
-            const spacing = 1.98 * zoom * (height / 1000)
-            expect(displayPointSize(zoom, height, "split") / spacing, `zoom ${zoom} at ${height}px`)
-                .toBeGreaterThanOrEqual(1.155 * 1.11)
-        })
-    })
-
-    it("never draws a disc smaller than the tile it stands for", () => {
-        everyView((zoom, height) => {
-            expect(displayPointSize(zoom, height, "split"), `zoom ${zoom} at ${height}px`)
-                .toBeGreaterThanOrEqual(tilePointSize(zoom, height))
-        })
-    })
-
     it("hands over while a tile is still too small to read a flag in", () => {
         everyView((zoom, height) => {
             const tile = tilePointSize(zoom, height)
@@ -181,17 +166,4 @@ describe("the map that shows every tile", () => {
         })
     })
 
-    it("draws each tile at its own size, at every zoom", () => {
-        everyView((zoom, height) => {
-            expect(displayPointSize(zoom, height, "tiles"), `zoom ${zoom} at ${height}px`)
-                .toBe(tilePointSize(zoom, height))
-        })
-    })
-
-    it("is the same picture as the flags once they have handed over", () => {
-        everyView((zoom, height) => {
-            if (flagPaint(zoom, height, "split") > 0) return
-            expect(displayPointSize(zoom, height, "tiles")).toBe(displayPointSize(zoom, height, "split"))
-        })
-    })
 })
