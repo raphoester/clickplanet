@@ -75,9 +75,10 @@ vec4 shielded(vec4 colour, vec2 coordinates) {
 
 vec4 crowned(vec4 colour, vec2 coordinates, float shown) {
     vec2 at = (coordinates - CROWN_AT) / CROWN_SIZE;
-    if (max(abs(at.x), abs(at.y)) > 0.5) return colour;
+    // Sampled on every fragment: a texture read inside a branch has no gradient on the box's edge, and drew its frame.
     vec4 mark = shieldMark(shieldMost + 1.0, at);
-    float cover = mark.a * shown;
+    float inside = step(max(abs(at.x), abs(at.y)), 0.5);
+    float cover = mark.a * shown * inside;
     return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
 }
 
