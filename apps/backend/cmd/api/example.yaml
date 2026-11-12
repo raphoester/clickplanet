@@ -396,11 +396,21 @@ alerts:
     alertsChannelId: ""
     battlesChannelId: ""
 
-# The squad that flags the swastikas players paint on the map: it hears planet's takes, looks every minute at what each
-# player painted in the last hour, and lists what it flagged (vandalsquad.v1.AdminService/ListGraffiti). It reverts and
-# bans nobody.
+# The squad that flags the swastikas players paint on the map: every minute it reads in planet's ledger what each player
+# painted in the last hour, keeps what it flagged in postgres, and lists it (vandalsquad.v1.AdminService/ListGraffiti).
+# It reverts and bans nobody.
 vandalSquad:
   enabled: false
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: vandalsquad
+    pool:
+      maxOpenConns: 1
   redis:
     address: localhost:6379
     password: ""

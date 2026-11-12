@@ -176,10 +176,10 @@ and says what is in it. Read the doc before you change its area.
   when its flag is attacked, with a link that opens the globe on the attack, and `@everyone` when a battle or a season
   starts; the operator's unlink; `LinkMembers`, which links the players in the server no sign-in linked and names
   every member; off by default.
-- [The vandal squad](docs/vandalsquad.md) — what players paint on the map: each player's takes of the last hour, the
-  tiles it still holds split into drawings once a minute, each read as a swastika by rules taken from real ones (and
-  the samples they are tested on), only one that shows on another flag's ground flagged, at Warn and in
-  `ListGraffiti`; no revert, ban or push yet.
+- [The vandal squad](docs/vandalsquad.md) — what players paint on the map: each player's takes of the last hour, read
+  in planet's ledger once a minute, the tiles it still holds split into drawings, each read as a swastika by rules taken
+  from real ones (and the samples they are tested on), only one that shows on another flag's ground flagged, at Warn
+  and in `ListGraffiti`, kept in postgres; no revert, ban or push yet.
 - [Clip videos](docs/clip-videos.md) — the videos the operator posts by hand: uploaded and downloaded on the backoffice,
   the files in the bucket under `clips/videos/`, a row each in `clips.videos`.
 - [The players a clip names](docs/clip-appearances.md) — a run's cast, numbers and names and never an account; who

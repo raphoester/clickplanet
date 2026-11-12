@@ -9,7 +9,7 @@ import (
 )
 
 type Query interface {
-	Graffiti() *vandalsquadv1.ListGraffitiResponse
+	Graffiti(ctx context.Context) (*vandalsquadv1.ListGraffitiResponse, error)
 }
 
 func New(query Query) ListGraffitiHandler {
@@ -21,8 +21,12 @@ type ListGraffitiHandler struct {
 }
 
 func (h ListGraffitiHandler) ListGraffiti(
-	_ context.Context,
+	ctx context.Context,
 	_ *connect.Request[vandalsquadv1.ListGraffitiRequest],
 ) (*connect.Response[vandalsquadv1.ListGraffitiResponse], error) {
-	return connect.NewResponse(h.query.Graffiti()), nil
+	graffiti, err := h.query.Graffiti(ctx)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // the error net answers it.
+	}
+	return connect.NewResponse(graffiti), nil
 }

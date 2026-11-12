@@ -74,7 +74,7 @@ export const InternalService = {
       idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * AdminService/GetLedger, for the clips module's cast: who took which tile.
+     * AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
      *
      * @generated from rpc planet.v1.InternalService.GetLedger
      */

@@ -43,7 +43,7 @@ service InternalService {
     option idempotency_level = IDEMPOTENT;
   }
 
-  // AdminService/GetLedger, for the clips module's cast: who took which tile.
+  // AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
   rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }

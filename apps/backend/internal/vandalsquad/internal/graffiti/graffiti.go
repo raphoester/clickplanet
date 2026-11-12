@@ -1,96 +1,144 @@
 package graffiti
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"slices"
-	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 )
 
-type Kind int
+type ID uuid.UUID
 
-const (
-	Swastika Kind = iota + 1
+type Kind string
+
+const Swastika Kind = "swastika"
+
+func (k Kind) known() bool {
+	switch k {
+	case Swastika:
+		return true
+	default:
+		return false
+	}
+}
+
+var (
+	ErrInvalidGraffiti = errors.New("the graffiti is invalid")
+	ErrInvalidAccount  = errors.New("not an account id")
 )
 
-// A drawing on the map the squad flagged: who painted it, with which flag, and where.
-type Graffiti struct {
+func AccountIDOf(value string) (cpsession.AccountID, error) {
+	id, err := uuid.Parse(value)
+	if err != nil || id == uuid.Nil {
+		return cpsession.NoAccount, fmt.Errorf("%w: %q", ErrInvalidAccount, value)
+	}
+	return cpsession.AccountID(id), nil
+}
+
+type Sighting struct {
 	Account cpsession.AccountID
 	Flag    string
 	Kind    Kind
-	Tiles   []drawings.TileID
-	// When the squad first saw it, and when it last did.
-	FlaggedAt time.Time
-	SeenAt    time.Time
-	// The page opened on it.
-	Link string
+	Drawing drawings.Drawing
+	At      time.Time
 }
 
-// One drawing seen again: the same player's paint of the same flag, on some of the same tiles.
-func (g Graffiti) sameAs(other Graffiti) bool {
-	if g.Account != other.Account || g.Flag != other.Flag || g.Kind != other.Kind {
+type Graffiti struct {
+	id        ID
+	account   cpsession.AccountID
+	flag      string
+	kind      Kind
+	tiles     []drawings.TileID
+	flaggedAt time.Time
+	seenAt    time.Time
+	link      string
+}
+
+// A graffiti whose painter was forgotten is never seen again.
+func (g Graffiti) shows(seen Sighting) bool {
+	if g.account == cpsession.NoAccount || g.account != seen.Account || g.flag != seen.Flag || g.kind != seen.Kind {
 		return false
 	}
-	for _, tile := range g.Tiles {
-		if slices.Contains(other.Tiles, tile) {
+	for _, tile := range seen.Drawing.IDs() {
+		if slices.Contains(g.tiles, tile) {
 			return true
 		}
 	}
 	return false
 }
 
-// The graffiti flagged since the server started, newest first, capacity at most: a restart forgets them, and the log
-// keeps a line of each.
-type Book struct {
-	capacity int
-
-	mu      sync.Mutex
-	entries []Graffiti
+func (g Graffiti) seenAgain(seen Sighting, link string) Graffiti {
+	g.tiles = seen.Drawing.IDs()
+	g.seenAt = seen.At
+	g.link = link
+	return g
 }
 
-func NewBook(capacity int) *Book {
-	return &Book{capacity: capacity}
+func (g Graffiti) Anonymized() Graffiti {
+	g.account = cpsession.NoAccount
+	return g
 }
 
-// Whether the drawing was flagged already.
-func (b *Book) Flagged(graffiti Graffiti) bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return slices.ContainsFunc(b.entries, graffiti.sameAs)
-}
-
-// A drawing flagged already keeps its first flagging and takes the tiles and the link it was seen with now; a new one
-// goes first, and the oldest goes once the book is full.
-func (b *Book) Keep(graffiti Graffiti) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if i := slices.IndexFunc(b.entries, graffiti.sameAs); i >= 0 {
-		graffiti.FlaggedAt = b.entries[i].FlaggedAt
-		b.entries[i] = graffiti
-		return
+func AllAnonymized(painted []Graffiti) []Graffiti {
+	anonymized := make([]Graffiti, 0, len(painted))
+	for _, graffiti := range painted {
+		anonymized = append(anonymized, graffiti.Anonymized())
 	}
-	b.entries = slices.Insert(b.entries, 0, graffiti)
-	if len(b.entries) > b.capacity {
-		b.entries = b.entries[:b.capacity]
+	return anonymized
+}
+
+func (g Graffiti) TakeSnapshot() Snapshot {
+	return Snapshot{
+		ID: g.id, Account: g.account, Flag: g.flag, Kind: g.kind, Tiles: slices.Clone(g.tiles),
+		FlaggedAt: g.flaggedAt, SeenAt: g.seenAt, Link: g.link,
 	}
 }
 
-func (b *Book) Entries() []Graffiti {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return slices.Clone(b.entries)
+type Snapshot struct {
+	ID ID
+	// NoAccount once the painter's account is forgotten.
+	Account   cpsession.AccountID
+	Flag      string
+	Kind      Kind
+	Tiles     []drawings.TileID
+	FlaggedAt time.Time
+	SeenAt    time.Time
+	Link      string
 }
 
-func (k Kind) String() string {
-	switch k {
-	case Swastika:
-		return "swastika"
-	default:
-		return "unknown"
+func (s Snapshot) Restore() (Graffiti, error) {
+	switch {
+	case s.ID == ID{}:
+		return Graffiti{}, fmt.Errorf("%w: no id", ErrInvalidGraffiti)
+	case s.Flag == "":
+		return Graffiti{}, fmt.Errorf("%w: no flag", ErrInvalidGraffiti)
+	case !s.Kind.known():
+		return Graffiti{}, fmt.Errorf("%w: no kind %q", ErrInvalidGraffiti, string(s.Kind))
+	case len(s.Tiles) == 0:
+		return Graffiti{}, fmt.Errorf("%w: no tile", ErrInvalidGraffiti)
+	case s.FlaggedAt.IsZero():
+		return Graffiti{}, fmt.Errorf("%w: never flagged", ErrInvalidGraffiti)
+	case s.SeenAt.Before(s.FlaggedAt):
+		return Graffiti{}, fmt.Errorf("%w: seen before it was flagged", ErrInvalidGraffiti)
+	case s.Link == "":
+		return Graffiti{}, fmt.Errorf("%w: no link", ErrInvalidGraffiti)
 	}
+
+	return Graffiti{
+		id: s.ID, account: s.Account, flag: s.Flag, kind: s.Kind, tiles: slices.Clone(s.Tiles),
+		flaggedAt: s.FlaggedAt, seenAt: s.SeenAt, link: s.Link,
+	}, nil
+}
+
+type Storage interface {
+	// All of them, or none.
+	Save(ctx context.Context, graffiti ...Graffiti) error
+	// The graffiti an account painted, first flagged first.
+	PaintedBy(ctx context.Context, account cpsession.AccountID) ([]Graffiti, error)
 }

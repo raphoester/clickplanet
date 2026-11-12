@@ -6,6 +6,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/graffiti"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/paint"
@@ -15,22 +16,17 @@ import (
 // A painting smaller than the smallest swastika players drew is no drawing worth reading.
 const leastTiles = 12
 
-type Window interface {
-	Paintings(least int) []paint.Painting
-	Forget()
-}
-
-// The map as planet holds it now, one tile per id asked, in the order asked.
-type Map interface {
+type Planet interface {
+	Takes(ctx context.Context, since, until time.Time) ([]paint.Take, error)
+	// One tile per id asked, in the order asked.
 	Tiles(ctx context.Context, ids []drawings.TileID) ([]drawings.MapTile, error)
 }
 
-type Book interface {
-	Flagged(graffiti graffiti.Graffiti) bool
-	Keep(graffiti graffiti.Graffiti)
+type Graffiti interface {
+	PaintedBy(ctx context.Context, account cpsession.AccountID) ([]graffiti.Graffiti, error)
+	Save(ctx context.Context, graffiti ...graffiti.Graffiti) error
 }
 
-// Told of each drawing the first time it is flagged.
 type Reporter interface {
 	Report(ctx context.Context, graffiti graffiti.Graffiti)
 }
@@ -39,33 +35,30 @@ type Clock interface {
 	Now() time.Time
 }
 
-func New(window Window, planet Map, book Book, reporter Reporter, clock Clock, page string) *UseCase {
-	return &UseCase{window: window, planet: planet, book: book, reporter: reporter, clock: clock, page: page}
+func New(planet Planet, kept Graffiti, reporter Reporter, clock Clock, patrol graffiti.Patrol) *UseCase {
+	return &UseCase{planet: planet, graffiti: kept, reporter: reporter, clock: clock, patrol: patrol}
 }
 
 type UseCase struct {
-	window   Window
-	planet   Map
-	book     Book
+	planet   Planet
+	graffiti Graffiti
 	reporter Reporter
 	clock    Clock
-	page     string
+	patrol   graffiti.Patrol
 }
 
-type sighting struct {
-	painting paint.Painting
-	drawing  drawings.Drawing
-}
-
-// One look at what each player painted in the window: the tiles it still holds, split into drawings, each read, and
-// each swastika that shows on the map flagged.
+// One look at what each player painted lately: the tiles it still holds, split into drawings, each read, and each
+// swastika that shows on the map flagged.
 func (u *UseCase) Execute(ctx context.Context) error {
-	u.window.Forget()
-	paintings := u.window.Paintings(leastTiles)
+	now := u.clock.Now()
+	takes, err := u.planet.Takes(ctx, u.patrol.Since(now), now)
+	if err != nil {
+		return fmt.Errorf("failed to read what players painted: %w", err)
+	}
+	paintings := paint.PaintingsOf(takes, leastTiles)
 	if len(paintings) == 0 {
 		return nil
 	}
-	now := u.clock.Now()
 
 	var painted []drawings.TileID
 	for _, painting := range paintings {
@@ -80,19 +73,14 @@ func (u *UseCase) Execute(ctx context.Context) error {
 		onMap[tile.ID] = tile
 	}
 
-	var sightings []sighting
+	var sightings []graffiti.Sighting
 	var rims []drawings.TileID
 	for _, painting := range paintings {
-		var held []drawings.Tile
-		for _, id := range painting.Tiles {
-			// A tile taken since, cleared by a bomb or reverted is no longer the player's drawing.
-			if tile, ok := onMap[id]; ok && tile.Holder == painting.Account && tile.Flag == painting.Flag {
-				held = append(held, tile.Tile)
-			}
-		}
-		for _, drawing := range drawings.Split(held) {
+		for _, drawing := range drawings.Split(painting.Held(onMap)) {
 			if _, ok := swastikas.ReadingOf(drawing); ok {
-				sightings = append(sightings, sighting{painting: painting, drawing: drawing})
+				sightings = append(sightings, graffiti.Sighting{
+					Account: painting.Account, Flag: painting.Flag, Kind: graffiti.Swastika, Drawing: drawing, At: now,
+				})
 				rims = append(rims, drawing.Rim()...)
 			}
 		}
@@ -111,39 +99,38 @@ func (u *UseCase) Execute(ctx context.Context) error {
 	}
 
 	for _, seen := range sightings {
-		u.note(ctx, seen, flags, now)
+		if err := u.note(ctx, seen, flags); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (u *UseCase) note(ctx context.Context, seen sighting, flags map[drawings.TileID]string, now time.Time) {
-	rim := seen.drawing.Rim()
+func (u *UseCase) note(ctx context.Context, seen graffiti.Sighting, flags map[drawings.TileID]string) error {
+	rim := seen.Drawing.Rim()
 	aroundFlags := make([]string, len(rim))
 	for i, id := range rim {
 		aroundFlags[i] = flags[id]
 	}
-	if !drawings.Visible(seen.painting.Flag, aroundFlags) {
-		return
+	if !drawings.Visible(seen.Flag, aroundFlags) {
+		return nil
 	}
 
-	tiles := seen.drawing.Tiles()
-	points := make([]drawings.Point, len(tiles))
-	for i, tile := range tiles {
-		points[i] = tile.Point
+	painted, err := u.graffiti.PaintedBy(ctx, seen.Account)
+	if err != nil {
+		return fmt.Errorf("failed to read the graffiti its painter has: %w", err)
 	}
-	flagged := graffiti.Graffiti{
-		Account:   seen.painting.Account,
-		Flag:      seen.painting.Flag,
-		Kind:      graffiti.Swastika,
-		Tiles:     seen.drawing.IDs(),
-		FlaggedAt: now,
-		SeenAt:    now,
-		Link:      graffiti.LinkOf(u.page, points),
+	noted, fresh, err := u.patrol.Note(painted, seen)
+	if err != nil {
+		return err //nolint:wrapcheck // the patrol named it.
 	}
-	if !u.book.Flagged(flagged) {
-		u.reporter.Report(ctx, flagged)
+	if err := u.graffiti.Save(ctx, noted); err != nil {
+		return fmt.Errorf("failed to keep a graffiti: %w", err)
 	}
-	u.book.Keep(flagged)
+	if fresh {
+		u.reporter.Report(ctx, noted)
+	}
+	return nil
 }
 
 func unique(ids []drawings.TileID) []drawings.TileID {

@@ -315,8 +315,9 @@ support:
     dbName: clickplanet
     sslMode: disable
     schema: support
+    # One since the vandal squad took the other (2026-11-12), so the sum below max_connections did not grow.
     pool:
-      maxOpenConns: 2
+      maxOpenConns: 1
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
@@ -397,6 +398,16 @@ alerts:
 # vandalsquad.v1.AdminService/ListGraffiti. It reverts and bans nobody. See apps/backend/docs/vandalsquad.md.
 vandalSquad:
   enabled: true
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: vandalsquad
+    pool:
+      maxOpenConns: 1
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD

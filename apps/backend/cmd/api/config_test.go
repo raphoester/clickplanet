@@ -556,6 +556,7 @@ func TestTheVandalSquadPatrolsProduction(t *testing.T) {
 
 	require.True(t, config.VandalSquad.Enabled)
 	require.NoError(t, config.VandalSquad.Validate())
+	assert.Equal(t, "vandalsquad", config.VandalSquad.Database.Schema)
 }
 
 func TestTheExampleConfigReachesTheVandalSquadOff(t *testing.T) {
@@ -566,6 +567,7 @@ func TestTheExampleConfigReachesTheVandalSquadOff(t *testing.T) {
 	assert.Equal(t, time.Hour, config.VandalSquad.Window)
 	assert.Equal(t, time.Minute, config.VandalSquad.Interval)
 	assert.Equal(t, "https://clickplanet.lol/play", config.VandalSquad.GameURL)
+	assert.Equal(t, "vandalsquad", config.VandalSquad.Database.Schema)
 	config.VandalSquad.Enabled = true
 	require.NoError(t, config.VandalSquad.Validate())
 }

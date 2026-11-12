@@ -17,11 +17,12 @@ type Reporter struct {
 }
 
 func (r Reporter) Report(ctx context.Context, flagged graffiti.Graffiti) {
+	seen := flagged.TakeSnapshot()
 	r.logger.WarnContext(ctx, "graffiti flagged",
-		slog.String("kind", flagged.Kind.String()),
-		slog.String("account", flagged.Account.String()),
-		slog.String("flag", flagged.Flag),
-		slog.Int("tiles", len(flagged.Tiles)),
-		slog.String("link", flagged.Link),
+		slog.String("kind", string(seen.Kind)),
+		slog.String("account", seen.Account.String()),
+		slog.String("flag", seen.Flag),
+		slog.Int("tiles", len(seen.Tiles)),
+		slog.String("link", seen.Link),
 	)
 }

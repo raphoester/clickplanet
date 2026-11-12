@@ -1,51 +1,70 @@
 # The vandal squad (`internal/vandalsquad/`)
 
-**It flags the swastikas players paint on the map, and acts on none.** Every minute it looks at what each player
-painted in the last hour, splits the tiles each still holds into drawings, and lists each one that reads as a
-swastika, with a Warn line in the log. Reverting and banning stay the operator's: `planet_revert_player`,
+**It flags the swastikas players paint on the map, and acts on none.** Every minute it reads in planet's ledger what
+each player painted in the last hour, splits the tiles each still holds into drawings, and keeps each one that reads
+as a swastika, with a Warn line in the log. Reverting and banning stay the operator's: `planet_revert_player`,
 `antibot_ban_player`.
 
 ```
-planet ── TilesTaken (account, flag, time, tiles) ────────────▶ vandalsquad: each player's takes of the last hour
+planet ◀─ InternalService/GetLedger(the last hour) → the takes ──────────── vandalsquad: what each player painted
 planet ◀─ InternalService/GetTiles(ids) → flag, holder, point, neighbours ── vandalsquad: what is on the map now
-                                                                  └─▶ a swastika that shows → Warn line + ListGraffiti
+                                     └─▶ a swastika that shows → Warn line + the graffiti table → ListGraffiti
+player ── PlayerForgotten ──────────────────────────────────────────────▶ vandalsquad: the painter is blanked
 ```
 
 ```
 internal/vandalsquad/internal/
-  paint/                        Take, Painting, Window: each player's latest take of each tile in the window, in memory
+  paint/                        Take, Painting: each player's latest take of each tile, by flag (PaintingsOf), and
+                                the tiles of it the player still holds (Held)
   drawings/                     TileID, Point, Tile, MapTile, Drawing (Links, Flats, Rim), Split, Visible
   swastikas/                    ReadingOf: whether a drawing reads as a swastika; testdata/drawings.json, the real ones
-  graffiti/                     Graffiti, Kind, Book (in memory, newest first), LinkOf
-    usecases/patrol_usecase/    UseCase: one look at the window; Runner, a look every interval
-    rpc_planet_map/             Map, from planet.v1.InternalService/GetTiles, 10,000 tiles a call
+  graffiti/                     Graffiti (Snapshot, Anonymized), Sighting, Patrol (Since, Note), Storage, LinkOf
+    usecases/patrol_usecase/    UseCase: one patrol; Runner, a patrol every interval
+    usecases/anonymize_graffiti_usecase/   a forgotten account's graffiti, kept as nobody's
+    rpc_planet/                 Planet: Takes from GetLedger, page after page; Tiles from GetTiles, 10,000 a call
+    postgres_graffiti_store/    the graffiti table; inmemory_graffiti_storage/, the tests' (testing tag)
     log_graffiti/               Reporter: the "graffiti flagged" line, at Warn
   subscribers/
-    tiles_taken_subscriber/     planet.v1.TilesTaken → each tile into the window (group vandalsquad-takes)
-    log_subscriber/             logs an event the window refused
+    player_forgotten_subscriber/   player.v1.PlayerForgotten → anonymize (group vandalsquad-graffiti-forgotten)
+    log_subscriber/             logs an event it refused
+  migrations/                   the vandalsquad schema
   vandalsquadv1controller/      AdminService (bag)
-    list_graffiti_handler/graffiti_query/   MemoryQuery: ListGraffitiResponse from the book
+    list_graffiti_handler/graffiti_query/   PostgresQuery: the 500 newest graffiti
 ```
 
 ## A patrol
 
-- **The window keeps each player's latest take of each tile for an hour** (`window`), from planet's `TilesTaken`,
-  which planet tells once for each act on the map, with every tile it took. A take that comes twice or late is kept once, and one older than
-  the window is not kept: a new group reads the stream from its start (see [The composite layer](composite-layer.md)),
-  so the first boot hears what the stream still holds and keeps the last hour of it.
-- **Every minute** (`interval`, the first at boot), the patrol asks planet, for every tile of every painting of 12
-  tiles or more (one player, one flag), its flag and the account whose take holds it now
-  (`planet.v1.InternalService/GetTiles`). **A tile taken since, cleared by a bomb or reverted is no longer the
-  player's drawing**: only the tiles it still holds for that flag are read.
+- **Every minute** (`interval`, the first at boot), the patrol reads planet's ledger over the last hour (`window`,
+  `planet.v1.InternalService/GetLedger`), about 8,000 events, one page (190,000 a day measured 2026-11-10). A change
+  is a take when an account made it and it gave the tile a new flag: a shield struck or raised and a bomb's clear are
+  not. **Each player's latest take of a tile counts**, so a tile it took again for another flag is painted with that
+  one. Nothing is kept between patrols, so a restart loses nothing: the next patrol reads the same hour.
+- For every tile of every painting of 12 tiles or more (one player, one flag), it asks planet the tile's flag and the
+  account whose take holds it now (`planet.v1.InternalService/GetTiles`). **A tile taken since, cleared by a bomb or
+  reverted is no longer the player's drawing**: only the tiles it still holds for that flag are read.
 - They are **split into drawings, the tiles that touch each other** (`drawings.Split`), and each is read
   (`swastikas.ReadingOf`). For each one that reads as a swastika, the patrol asks planet the flags of the tiles around
   it, and keeps it only when it **shows** (`drawings.Visible`): when at most half of the tiles touching it wear its
   flag. Players painting over a swastika on their own ground leave fresh tiles of its very shape; around them is
   their own flag, around the original another's. On the drawings of 2026-11-06 the originals had none of their flag
   around them and the paint-overs 57 to 100%.
-- **A graffiti seen again is one graffiti**: the same player, flag and kind on some of the same tiles keeps its
-  first flagging and takes its latest tiles, link and sighting. It is told once (the Warn line `graffiti flagged`,
-  with the account, the flag, the tiles and the link) and listed every time.
+- **A graffiti seen again is one graffiti** (`Patrol.Note`): the same player, flag and kind on some of the same tiles
+  keeps its first flagging and takes its latest tiles, link and sighting. The patrol reads the painter's graffiti,
+  notes the sighting, and saves it. It is told once, after it is saved (the Warn line `graffiti flagged`, with the
+  account, the flag, the tiles and the link), and listed every time. A save that fails ends the patrol; the next one
+  sees the drawing again and tells it then.
+
+## What it keeps
+
+**The graffiti, in postgres, for good** (`vandalsquad.graffiti`): its id, its painter's account, its flag, its kind
+(the enum `graffiti_kind`), its tiles, when it was first flagged and last seen, and its link. A row is upserted whole
+(`Storage.Save`); the store finds a painter's graffiti (`PaintedBy`) and nothing else. `ListGraffiti` reads the 500
+newest, newest first, with no domain object in between (see [Reads are queries](queries.md)).
+
+**A forgotten player's graffiti stays, as nobody's.** On `player.v1.PlayerForgotten` the account is blanked
+(`Graffiti.Anonymized`, the column NULL): the drawing, its flag, its tiles and its link stay, as the support notes
+keep their text (see [Support](support.md)). A graffiti with no painter is never seen again: the same drawing, still
+on the map, is flagged anew under the account that holds it.
 
 ## What reads as a swastika
 
@@ -92,14 +111,16 @@ there, with its reason**, and the tests say which rule it breaks.
   revert is the operator's, and its own step.
 - **No text.** "HEIL HITLER" is letters; reading them needs a model, which the squad does not call.
 - **No swastika in strokes two tiles wide or more**: none was ever painted, so none is in the samples.
-- **Nothing survives a restart**: the window and the book are memory. The stream gives back the last hour.
+- **Nothing painted during an arena battle**: the ledger's read leaves out what was played on an arena's map.
 - **A drawing painted over more than the window, or by several players, is seen in part or not at all.**
 
 ## Configuration
 
-`vandalSquad` (see [Configuration](configuration.md)): `enabled`, `redis` (planet's), `gameUrl` (the page a link
-opens, `https://clickplanet.lol/play`), `window` (1h) and `interval` (1m, at most the window). It asks planet over the
-internal listener and keeps nothing in postgres. Off, it is never built, and `vandalsquad.v1.AdminService` 404s.
+`vandalSquad` (see [Configuration](configuration.md)): `enabled`, `database` (schema `vandalsquad`, one connection in
+production), `redis` (planet's, for `PlayerForgotten`), `gameUrl` (the page a link opens,
+`https://clickplanet.lol/play`), `window` (1h, at most the 72h the ledger reads at once) and `interval` (1m, at most
+the window). It asks planet over the internal listener. Off, it is never built, and `vandalsquad.v1.AdminService`
+404s.
 
 `vandalsquad.v1.AdminService/ListGraffiti` is on the admin listener, so the connector offers it as
 `vandalsquad_list_graffiti` (see [Claude as a connector](connector.md)).

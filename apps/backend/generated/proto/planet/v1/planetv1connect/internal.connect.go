@@ -110,7 +110,7 @@ type InternalServiceClient interface {
 	// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
 	// left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
 	CloseArena(context.Context, *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error)
-	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	// AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
@@ -418,7 +418,7 @@ type InternalServiceHandler interface {
 	// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
 	// left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
 	CloseArena(context.Context, *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error)
-	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	// AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
