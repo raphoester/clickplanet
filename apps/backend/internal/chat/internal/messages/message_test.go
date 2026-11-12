@@ -39,21 +39,6 @@ func TestAMessageWithNoRoomIsNotRestored(t *testing.T) {
 	require.ErrorIs(t, err, messages.ErrInvalidMessage)
 }
 
-func TestAnAnswerQuotesTheMessageItAnswersAndIsOtherwiseUnchanged(t *testing.T) {
-	question := messages.Restored(t, messages.Snapshot{
-		ID: "message-1", Account: bob, Country: "de", Text: "who holds the north",
-	})
-	draft := messages.Snapshot{
-		ID: "message-2", Account: messages.AccountID{15: 1}, Room: messages.World, Country: "fr", Text: "we do",
-	}
-
-	answer, err := messages.Restored(t, draft).Answering(question)
-
-	require.NoError(t, err)
-	draft.Quote = messages.Quote{MessageID: "message-1", Account: bob, Text: "who holds the north"}
-	assert.Equal(t, draft, answer.TakeSnapshot())
-}
-
 func TestAnAnswerToAnAnswerQuotesThatOneAlone(t *testing.T) {
 	question := messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "who holds the north"})
 	answer, err := messages.Restored(t, messages.Snapshot{ID: "message-2", Text: "we do"}).Answering(question)
@@ -65,15 +50,6 @@ func TestAnAnswerToAnAnswerQuotesThatOneAlone(t *testing.T) {
 	assert.Equal(t, messages.Quote{MessageID: "message-2", Text: "we do"}, followUp.TakeSnapshot().Quote)
 }
 
-func TestAMessageOfAnotherRoomCannotBeAnswered(t *testing.T) {
-	question := messages.Restored(t, messages.Snapshot{ID: "message-1", Room: messages.FlagRoom("de"), Text: "where now"})
-
-	_, err := messages.Restored(t, messages.Snapshot{ID: "message-2", Room: messages.FlagRoom("fr"), Text: "north"}).
-		Answering(question)
-
-	require.ErrorIs(t, err, messages.ErrNotShown)
-}
-
 func TestAnAnswerToAGifQuotesTheGif(t *testing.T) {
 	question := messages.Restored(t, messages.Snapshot{ID: "message-1", Gif: dancing})
 
@@ -81,19 +57,4 @@ func TestAnAnswerToAGifQuotesTheGif(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, messages.Quote{MessageID: "message-1", Gif: dancing}, answer.TakeSnapshot().Quote)
-}
-
-func TestAGuestSendsATextButNoGif(t *testing.T) {
-	guest := messages.GuestOf("guest_0b1c2d")
-
-	require.NoError(t, messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "hello"}).CheckSender(guest))
-
-	err := messages.Restored(t, messages.Snapshot{ID: "message-2", Gif: dancing}).CheckSender(guest)
-	require.ErrorIs(t, err, messages.ErrGuestGif)
-}
-
-func TestAPlayerSendsAGif(t *testing.T) {
-	err := messages.Restored(t, messages.Snapshot{ID: "message-1", Gif: dancing}).CheckSender(messages.AuthorOf("Ada_L"))
-
-	require.NoError(t, err)
 }

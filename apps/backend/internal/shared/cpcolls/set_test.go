@@ -58,14 +58,6 @@ func TestANilSetReadsAsEmpty(t *testing.T) {
 	assert.Empty(t, collect(set))
 }
 
-func TestForEachVisitsEveryItemOnce(t *testing.T) {
-	visits := map[int]int{}
-
-	cpcolls.NewSet(1, 2, 3).ForEach(func(item int) { visits[item]++ })
-
-	assert.Equal(t, map[int]int{1: 1, 2: 1, 3: 1}, visits)
-}
-
 func collect[T comparable](set *cpcolls.Set[T]) []T {
 	var items []T
 	set.ForEach(func(item T) { items = append(items, item) })

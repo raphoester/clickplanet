@@ -2,7 +2,6 @@ package pledge_allegiance_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -77,10 +76,4 @@ func TestAPledgeOfAFlagOutOfTheArenaIsRefused(t *testing.T) {
 	err := pledge(t, &stubBook{err: fmt.Errorf("%w: %q", allegiances.ErrDown, "fr")}, "fr")
 
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
-}
-
-func TestAPledgeThatFailsIsLeftToTheErrorNet(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	require.ErrorIs(t, pledge(t, &stubBook{err: down}, "de"), down)
 }

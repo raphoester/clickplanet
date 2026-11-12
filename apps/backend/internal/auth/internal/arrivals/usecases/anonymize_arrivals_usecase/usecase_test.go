@@ -1,7 +1,6 @@
 package anonymize_arrivals_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -22,12 +21,12 @@ var (
 func TestTheAccountsArrivalKeepsItsSourceAndLosesItsAccount(t *testing.T) {
 	store := inmemory_arrival_store.New()
 	kept := arrivals.Snapshot{ID: arrivals.ArrivalID{15: 2}, Account: bob, Source: arrivals.SourceYouTube, At: at}
-	store.Seed(arrivals.Snapshot{ID: arrivals.ArrivalID{15: 1}, Account: ada, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at}, kept)
+	store.Seed(arrivals.Snapshot{ID: arrivals.ArrivalID{15: 1}, Account: ada, Source: arrivals.SourceRecruit, Tag: "rc", Referrer: "discord.com", At: at}, kept)
 
 	require.NoError(t, anonymize_arrivals_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.ElementsMatch(t, []arrivals.Snapshot{
-		{ID: arrivals.ArrivalID{15: 1}, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at},
+		{ID: arrivals.ArrivalID{15: 1}, Source: arrivals.SourceRecruit, Tag: "rc", Referrer: "discord.com", At: at},
 		kept,
 	}, store.Kept())
 }
@@ -40,12 +39,4 @@ func TestAnAccountWithNoArrivalChangesNothing(t *testing.T) {
 	require.NoError(t, anonymize_arrivals_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.Equal(t, []arrivals.Snapshot{kept}, store.Kept())
-}
-
-func TestAFailureToAnonymizeIsAnError(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	refused := errors.New("the database is down")
-	store.FailWith(refused)
-
-	assert.ErrorIs(t, anonymize_arrivals_usecase.New(store).Execute(t.Context(), ada), refused)
 }

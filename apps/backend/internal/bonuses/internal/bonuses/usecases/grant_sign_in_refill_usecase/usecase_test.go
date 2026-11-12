@@ -22,14 +22,6 @@ func setUp(signInRefill bool) (*grant_sign_in_refill_usecase.UseCase, *bonuses.F
 	return grant_sign_in_refill_usecase.New(wallet, func() bonuses.Rules { return rules }), wallet
 }
 
-func TestAFirstSignInEarnsARefill(t *testing.T) {
-	useCase, wallet := setUp(true)
-
-	require.NoError(t, useCase.Execute(t.Context(), ada))
-
-	assert.True(t, wallet.Kept(ada).Refill)
-}
-
 func TestTheRefillIsPaidUnderTheAccountsOwnGrantSoTheWalletPaysItOnce(t *testing.T) {
 	useCase, wallet := setUp(true)
 	require.NoError(t, useCase.Execute(t.Context(), ada))

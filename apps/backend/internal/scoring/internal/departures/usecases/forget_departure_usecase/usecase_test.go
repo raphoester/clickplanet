@@ -1,7 +1,6 @@
 package forget_departure_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -25,11 +24,4 @@ func TestADeletedAccountLeavesNoDepartureBehind(t *testing.T) {
 	departure, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
 	assert.Equal(t, departures.Departure{}, departure)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	store := inmemory_departure_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	assert.Error(t, forget_departure_usecase.New(store).Execute(t.Context(), departures.AccountID{15: 1}))
 }

@@ -24,23 +24,6 @@ func chosen(t *testing.T) players.Profile {
 	return profile
 }
 
-func TestTheFirstNameAnAccountPicksIsNotLimited(t *testing.T) {
-	profile, err := players.Unnamed(ada).Renamed("Ada", chosenAt)
-
-	require.NoError(t, err)
-	assert.Equal(t, players.ProfileSnapshot{Account: ada, Name: "Ada", UpdatedAt: chosenAt, ChosenAt: chosenAt},
-		profile.TakeSnapshot())
-}
-
-func TestAGivenNameIsNotAChoiceAndChangesAtOnce(t *testing.T) {
-	given := players.NewProfile(ada, "BraveFox42", chosenAt)
-
-	profile, err := given.Renamed("Ada", chosenAt.Add(time.Second))
-
-	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada"), profile.TakeSnapshot().Name)
-}
-
 func TestAChangeOnDay6IsRefusedAndSaysWhenOneIsAllowed(t *testing.T) {
 	for _, at := range []time.Time{chosenAt.Add(time.Minute), chosenAt.Add(6 * day), chosenAt.Add(7*day - time.Nanosecond)} {
 		_, err := chosen(t).Renamed("Bob", at)

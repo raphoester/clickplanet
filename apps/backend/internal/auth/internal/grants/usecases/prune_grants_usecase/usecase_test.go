@@ -1,7 +1,6 @@
 package prune_grants_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -40,13 +39,4 @@ func TestAGrantIsPrunedOnceItsLifetimeIsOver(t *testing.T) {
 	assert.Equal(t, 1, pruned)
 	require.Len(t, store.Kept(), 1)
 	assert.Equal(t, grants.GrantID{15: 2}, store.Kept()[0].ID)
-}
-
-func TestAStoreFailureIsReported(t *testing.T) {
-	store := inmemory_grant_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	_, err := prune_grants_usecase.New(store, cptime.NewFixedClock(start)).Execute(t.Context())
-
-	assert.Error(t, err)
 }

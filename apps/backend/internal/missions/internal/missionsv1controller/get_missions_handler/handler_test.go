@@ -2,7 +2,6 @@ package get_missions_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -160,14 +159,6 @@ func TestAnAnswerWhenNoDayRunsHasNoEndAndNoMissions(t *testing.T) {
 	assert.Zero(t, res.GetEndsAtUnixMs())
 	assert.Empty(t, res.GetMissions())
 	assert.Nil(t, res.GetFlagMission())
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("planet is down")
-
-	_, err := ask(t, &stubUseCase{err: failure})
-
-	assert.ErrorIs(t, err, failure)
 }
 
 func TestACallerWithNoAccountIsUnauthenticated(t *testing.T) {

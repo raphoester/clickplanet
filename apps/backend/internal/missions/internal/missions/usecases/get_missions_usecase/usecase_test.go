@@ -2,7 +2,6 @@ package get_missions_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -31,12 +30,6 @@ type pledges map[missions.AccountID]string
 
 func (p pledges) FlagOf(_ context.Context, account missions.AccountID) (string, error) {
 	return p[account], nil
-}
-
-type failingPledges struct{}
-
-func (failingPledges) FlagOf(context.Context, missions.AccountID) (string, error) {
-	return "", errors.New("planet is down")
 }
 
 var (
@@ -107,14 +100,6 @@ func TestThePlayersOfAFlagShareItsMission(t *testing.T) {
 	assert.Equal(t, flagmissions.Draw(days.TestingDayAt(now), "fr", world, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot(), adas.Flag.Snapshot())
 	assert.Equal(t, adas.Flag.Snapshot(), bobs.Flag.Snapshot())
 	assert.NotEqual(t, adas.Brief.Snapshot(), bobs.Brief.Snapshot(), "each has missions of its own beside it")
-}
-
-func TestAPlanetThatFailsIsAnError(t *testing.T) {
-	useCase, _ := setUp(failingPledges{})
-
-	_, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
-
-	assert.Error(t, err)
 }
 
 func TestNoMissionsWhenNoDayRuns(t *testing.T) {

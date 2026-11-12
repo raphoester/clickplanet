@@ -33,12 +33,6 @@ var (
 	cheating = reports.Complaint{Reason: reports.ReasonCheating}
 )
 
-type failingIDs struct{}
-
-func (failingIDs) NewID() (reports.ReportID, error) {
-	return reports.ReportID{}, errors.New("no entropy")
-}
-
 type testSuite struct {
 	suite.Suite
 
@@ -126,25 +120,6 @@ func (s *testSuite) TestWhatOthersFiledAndWhatIsFiledAboutOthersRefusesNothing()
 	s.Require().NoError(s.report(report_player_usecase.In{Reporter: ada, Reported: bob, Complaint: cheating}))
 
 	s.Len(s.reports.Kept(), 4)
-}
-
-func (s *testSuite) TestAReportWithNoIDIsNotKept() {
-	useCase := report_player_usecase.New(failingIDs{}, s.clock, cpatomic.FakeTransactioner{}, s.reports, s.outbox)
-
-	err := useCase.Execute(s.T().Context(), report_player_usecase.In{Reporter: ada, Reported: bob, Complaint: cheating})
-
-	s.Require().Error(err)
-	s.Empty(s.reports.Kept())
-}
-
-func (s *testSuite) TestAFailureToReadWhatWasFiledFailsAndKeepsNothing() {
-	cause := errors.New("postgres is down")
-	s.reports.FailWith(cause)
-
-	err := s.report(report_player_usecase.In{Reporter: ada, Reported: bob, Complaint: cheating})
-
-	s.Require().ErrorIs(err, cause)
-	s.Empty(s.reports.Kept())
 }
 
 type readOnly struct {

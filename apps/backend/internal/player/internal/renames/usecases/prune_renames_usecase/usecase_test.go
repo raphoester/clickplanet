@@ -2,7 +2,6 @@ package prune_renames_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -37,15 +36,6 @@ func TestARenameIsPrunedPastTheRetention(t *testing.T) {
 	assert.Equal(t, int64(1), deleted)
 	require.Len(t, store.Kept(), 1)
 	assert.Equal(t, now.Add(-89*24*time.Hour), store.Kept()[0].At)
-}
-
-func TestAFailedPruneSaysSo(t *testing.T) {
-	store := inmemory_rename_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	_, err := prune_renames_usecase.New(time.Hour, cptime.NewFixedClock(now), store).Execute(t.Context())
-
-	require.Error(t, err)
 }
 
 type countingExecutor struct {

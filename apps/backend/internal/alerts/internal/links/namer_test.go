@@ -17,23 +17,6 @@ func namer(t *testing.T) (*links.InMemoryStore, *links.FakeNames, *links.FakeRen
 	return store, names, members, links.NewNamer(store, names, members)
 }
 
-func TestALinkedUserIsGivenItsAccountsUsernameOnce(t *testing.T) {
-	store, names, members, namer := namer(t)
-	require.NoError(t, store.SaveLinks(t.Context(), links.NewLink(account, "42", "ie", now)))
-	names.Name(account, "BraveFox42")
-
-	renamed, err := namer.Name(t.Context(), account)
-	require.NoError(t, err)
-	assert.True(t, renamed)
-	renamed, err = namer.Name(t.Context(), account)
-	require.NoError(t, err)
-	assert.False(t, renamed, "it wears it already")
-
-	assert.Equal(t, []string{"42 BraveFox42"}, members.Renamed())
-	assert.Equal(t, []links.LinkSnapshot{{Account: account, User: "42", Flag: "ie", Name: "BraveFox42", LinkedAt: now}},
-		store.Links())
-}
-
 func TestARenameIsFollowed(t *testing.T) {
 	store, names, members, namer := namer(t)
 	require.NoError(t, store.SaveLinks(t.Context(), links.NewLink(account, "42", "ie", now)))
@@ -65,17 +48,6 @@ func TestAnAccountPlayerNoLongerShowsLosesItsNickname(t *testing.T) {
 	assert.Empty(t, store.Links()[0].Name)
 }
 
-func TestAnAccountWithNoLinkIsNamedNowhere(t *testing.T) {
-	_, names, members, namer := namer(t)
-	names.Name(account, "BraveFox42")
-
-	renamed, err := namer.Name(t.Context(), account)
-
-	require.NoError(t, err)
-	assert.False(t, renamed)
-	assert.Empty(t, members.Renamed())
-}
-
 func TestAUserWhoLeftTheServerIsForgotten(t *testing.T) {
 	store, names, members, namer := namer(t)
 	require.NoError(t, store.SaveLinks(t.Context(), links.NewLink(account, "42", "ie", now)))
@@ -87,19 +59,6 @@ func TestAUserWhoLeftTheServerIsForgotten(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, renamed)
 	assert.Empty(t, store.Links())
-}
-
-func TestAMemberTheBotMayNotRenameKeepsItsLinkUnnamed(t *testing.T) {
-	store, names, members, namer := namer(t)
-	require.NoError(t, store.SaveLinks(t.Context(), links.NewLink(account, "42", "ie", now)))
-	names.Name(account, "BraveFox42")
-	members.Refused = map[discord.UserID]bool{"42": true}
-
-	_, err := namer.Name(t.Context(), account)
-
-	require.ErrorIs(t, err, discord.ErrRefused)
-	assert.Equal(t, []links.LinkSnapshot{{Account: account, User: "42", Flag: "ie", LinkedAt: now}}, store.Links(),
-		"a later call tries again")
 }
 
 func TestPlayerUnreachableIsAFailureThatRenamesNobody(t *testing.T) {

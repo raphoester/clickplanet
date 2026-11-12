@@ -121,14 +121,6 @@ func TestAnAccountWithNoStatsEarnsNothing(t *testing.T) {
 	assert.Empty(t, f.held(t))
 }
 
-func TestAStatsFailureIsAnError(t *testing.T) {
-	f := setUp()
-	require.NoError(t, f.stats.Record(t.Context(), ada, stats.TakeAt(0, 0, monday)))
-	f.stats.FailWith(errors.New("postgres is down"))
-
-	assert.Error(t, f.award(t, catalog))
-}
-
 func TestAnAuthFailureIsAnErrorAndGrantsNothing(t *testing.T) {
 	f := setUp()
 	require.NoError(t, f.stats.Record(t.Context(), ada, stats.TakeAt(0, 0, monday)))

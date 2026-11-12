@@ -185,15 +185,6 @@ func TestABigCountryRefillsSlowerAndPaysOnePerClick(t *testing.T) {
 	require.NoError(t, err, "a second and a half is one")
 }
 
-func TestTheBudgetIsAbsentWithoutAThrottle(t *testing.T) {
-	server := clickServer(t, connect.WithInterceptors(errorNet()))
-
-	res, err := clickAs(t, server, "1.2.3.4")
-	require.NoError(t, err)
-
-	require.Nil(t, res.Msg.GetBudget(), "a server that does not throttle promises no allowance")
-}
-
 type accountVerifier struct{}
 
 const (

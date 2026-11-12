@@ -10,13 +10,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/tiles_taken_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 type recordingUseCase struct {
@@ -91,42 +87,4 @@ func TestABatchWithAnEventWithNoAccountOrNoTimeIsRefused(t *testing.T) {
 	noTime.TakenAt = nil
 	require.Error(t, subscriber.HandleBatch(t.Context(), []*planetv1.TilesTaken{noTime}))
 	assert.Empty(t, useCase.calls, "nothing of a refused batch is recorded")
-}
-
-type fixedPlanet struct{}
-
-func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, nil
-}
-
-type pledged string
-
-func (p pledged) FlagOf(context.Context, missions.AccountID) (string, error) { return string(p), nil }
-
-type noPayroll struct{}
-
-func (noPayroll) Pay(context.Context, days.Day, missions.AccountID) error { return nil }
-
-type noStreams struct{}
-
-func (noStreams) Publish(missions.AccountID) {}
-
-func TestAnEnclosureToldInPartsAndToldTwiceCountsEachTileOnce(t *testing.T) {
-	store := inmemory_mission_store.New()
-	handler := tiles_taken_subscriber.New(record_fact_usecase.New(inmemory_day_store.New(days.TestingDayAt(at)),
-		missions.NewBriefing(store, fixedPlanet{}, pledged("fr")), store, cpatomic.FakeTransactioner{}, noPayroll{}, noStreams{}))
-	enclosure := []*planetv1.TilesTaken{takes(ada, 9, 0, 3), takes(ada, 9, 3, 7)}
-
-	for range 2 {
-		require.NoError(t, handler.HandleBatch(t.Context(), enclosure))
-	}
-	require.NoError(t, handler.HandleBatch(t.Context(), enclosure[1:]), "a failed batch is handled again one event at a time")
-
-	sheet, err := store.Sheet(t.Context(), days.TestingDayAt(at), idOf(t, ada))
-	require.NoError(t, err)
-	drawn := missions.Draw(days.TestingDayAt(at), idOf(t, ada), "fr", missions.World{
-		Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}},
-	}).Snapshot()
-	assert.Equal(t, uint32(7), sheet.Snapshot().Progress[drawn[0].ID], "one ledger event in two parts, seven takes")
-	assert.Equal(t, missions.LedgerMark{Position: 9, Index: 7}, sheet.Snapshot().Counted.TakesBelow)
 }

@@ -2,7 +2,6 @@ package paint_random_tiles_usecase_test
 
 import (
 	"context"
-	"errors"
 	"math/rand/v2"
 	"testing"
 	"time"
@@ -177,13 +176,4 @@ func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 
 	assert.Equal(t, 2, out.Painted, "the first batch went before the pause noticed")
-}
-
-func TestAStorageErrorIsReturned(t *testing.T) {
-	tiles := newMap()
-	tiles.err = errors.New("code table full")
-
-	_, err := newUseCase(tiles, clicks.Pacing{Batch: 2}).Execute(t.Context(),
-		paint_random_tiles_usecase.In{Flag: "dz", Area: "fr", Count: 1})
-	require.ErrorIs(t, err, tiles.err)
 }

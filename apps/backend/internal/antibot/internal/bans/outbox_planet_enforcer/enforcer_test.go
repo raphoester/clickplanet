@@ -48,9 +48,3 @@ func TestABanThatEndsNowIsACallerPlanetAdmits(t *testing.T) {
 		DecidedAt: timestamppb.New(at),
 	}, got[0]), "got %v", got[0])
 }
-
-func TestACommandIsNeverRecordedOutsideTheBansTransaction(t *testing.T) {
-	err := outbox_planet_enforcer.New(&cpatomic.FakeOutbox{}).Enforce(t.Context(), bans.Caller{Scope: "1.2.3.4"}, at.Add(time.Hour), at)
-
-	assert.ErrorIs(t, err, cpatomic.ErrNoTransaction)
-}

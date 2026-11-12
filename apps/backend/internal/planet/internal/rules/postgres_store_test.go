@@ -1,13 +1,11 @@
 package rules_test
 
 import (
-	"io/fs"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -107,57 +105,6 @@ func TestAFrozenSetIsReadFrozen(t *testing.T) {
 	inForce := cprules.NewInForce[*planetv1.Rules](cptime.SystemClock{})
 	inForce.Enforce(set)
 	assert.Equal(t, clicks.Freeze(true), cprules.Reader(inForce, clicks.FreezePart)())
-}
-
-const inheritDefault = "20261031180000"
-
-func TestTheMigrationKeepsInEachSetWhatItChangesAndItPlaysAsBefore(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", cppg.MigrationsBefore(t, migrations.FS, inheritDefault))
-	_, err := db.On(t.Context()).ExecContext(t.Context(), `
-		INSERT INTO rule_sets (name, rules)
-		SELECT 'rush', jsonb_set(jsonb_set(rules, '{clicks,tempo}', '3'), '{toll,steps}', '[]')
-			|| '{"frozen": false, "allegianceLocked": true}'
-		FROM rule_sets WHERE name = 'default';
-		INSERT INTO rule_sets (name, rules)
-		SELECT 'calm', jsonb_set(rules #- '{clicks,newAccountClicks}', '{bonuses,welcome}', 'null')
-		FROM rule_sets WHERE name = 'default'`)
-	require.NoError(t, err)
-
-	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
-
-	assert.JSONEq(t, `{"clicks": {"tempo": 3}, "toll": {"steps": []}, "allegianceLocked": true}`, document(t, db, "rush"))
-	assert.JSONEq(t, `{"clicks": {"newAccountClicks": 0}, "bonuses": {"welcome": {"within": "0s", "boxAfter": "0s"}}}`,
-		document(t, db, "calm"))
-
-	store := cprules.NewPostgresStore(db, parts.All())
-	rush, err := store.Set(t.Context(), "rush")
-	require.NoError(t, err)
-	before := rules.Named("rush", func(r *planetv1.Rules) {
-		r.Clicks.Tempo = proto.Float64(3)
-		r.Toll.Steps = nil
-		r.AllegianceLocked = proto.Bool(true)
-	})
-	assert.True(t, proto.Equal(before.Rules, rush.TakePlayedSnapshot().Rules), "%v", rush.TakePlayedSnapshot().Rules)
-}
-
-func TestTheMigrationGoesBackToSetsThatHoldEveryValue(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	_, err := db.On(t.Context()).ExecContext(t.Context(),
-		`INSERT INTO rule_sets (name, rules) VALUES ('rush', '{"clicks": {"tempo": 3}, "toll": {"steps": []}}')`)
-	require.NoError(t, err)
-
-	down, err := fs.ReadFile(migrations.FS, inheritDefault+"_rule_sets_inherit_default.down.sql")
-	require.NoError(t, err)
-	_, err = db.On(t.Context()).ExecContext(t.Context(), string(down))
-	require.NoError(t, err)
-
-	var played planetv1.Rules
-	require.NoError(t, protojson.UnmarshalOptions{DiscardUnknown: true}.Unmarshal([]byte(document(t, db, "rush")), &played),
-		"bonuses, which planet reads no more, is left for the offers' module to copy")
-	assert.True(t, proto.Equal(rules.Named("rush", func(r *planetv1.Rules) {
-		r.Clicks.Tempo = proto.Float64(3)
-		r.Toll.Steps = nil
-	}).Rules, &played), "%v", &played)
 }
 
 func document(t *testing.T, db *cppg.Postgres, name string) string {

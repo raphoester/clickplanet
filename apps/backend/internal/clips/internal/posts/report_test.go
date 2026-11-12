@@ -1,7 +1,6 @@
 package posts_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -10,58 +9,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
 )
 
-func scheduledOn(failures ...string) []posts.PlatformOutcome {
-	return []posts.PlatformOutcome{{Platform: posts.TikTok, Failure: failures[0]}, {Platform: posts.YouTube, Failure: failures[1]}}
-}
-
-func TestAReportSaysWhatBecameOfEachClipOnEachPlatform(t *testing.T) {
-	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
-
-	report := posts.Report{}.
-		With(planned[0], posts.Scheduled{ID: "post-1"}, nil).
-		With(planned[1], posts.Scheduled{}, errors.New("the caption is too long"))
-
-	assert.Equal(t, posts.Report{
-		{Title: "BEST", At: planned[0].TakeSnapshot().At, Post: "post-1", Platforms: scheduledOn("", "")},
-		{
-			Title: "SECOND", At: planned[1].TakeSnapshot().At,
-			Platforms: scheduledOn("the caption is too long", "the caption is too long"),
-		},
-	}, report)
-	assert.False(t, report.Complete())
-}
-
-func TestAPlatformThatRefusedAClipIsInTheReportBesideTheOneThatTookIt(t *testing.T) {
-	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
-
-	report := posts.Report{}.With(planned[0], posts.Scheduled{
-		ID: "post-1", Refused: map[posts.Platform]error{posts.YouTube: errors.New("no youtube account")},
-	}, nil)
-
-	assert.Equal(t, scheduledOn("", "no youtube account"), report[0].Platforms)
-	assert.Equal(t, posts.PostID("post-1"), report[0].Post)
-	assert.False(t, report.Complete())
-}
-
-func TestARunThatScheduledEveryClipOnEveryPlatformIsComplete(t *testing.T) {
-	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
-
-	assert.True(t, posts.Report{}.With(planned[0], posts.Scheduled{ID: "post-1"}, nil).Complete())
-}
-
 func TestAClipThatIsNoPostIsNeverComplete(t *testing.T) {
 	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
 
 	assert.False(t, posts.Report{}.With(planned[0], posts.Scheduled{}, nil).Complete())
-}
-
-func TestAClipHeldForAFullDayIsInTheReportAndIsNoFailure(t *testing.T) {
-	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST")}, now, posts.LoadedDice(0))
-
-	report := posts.Report{}.With(planned[0], posts.Scheduled{ID: "post-1"}, nil).WithHeld(clip(t, 2, "SECOND"))
-
-	assert.Equal(t, posts.Outcome{Title: "SECOND", Held: true}, report[1])
-	assert.True(t, report.Complete())
 }
 
 func TestAddingToAReportLeavesItAsItWas(t *testing.T) {

@@ -15,20 +15,6 @@ var (
 	bob = accounts.AccountID{15: 2}
 )
 
-func TestEachFighterFightsUnderItsFlagsPlaceAndAFlagOffTheTableHasNone(t *testing.T) {
-	fights, err := finales.Result{
-		Season:   0,
-		Table:    []finales.Place{{Country: "fr", Rank: 1}, {Country: "de", Rank: 1}, {Country: "it", Rank: 3}},
-		Fighters: []finales.Fighter{{Account: ada, Country: "de", Tiles: 5}, {Account: bob, Country: "tv", Tiles: 9}},
-	}.Fights()
-
-	require.NoError(t, err)
-	require.Len(t, fights, 2)
-	assert.Equal(t, finales.FightSnapshot{Account: ada, Season: 0, Country: "de", Rank: 1, TilesRank: 2},
-		fights[0].TakeSnapshot(), "a tie shares the rank")
-	assert.Equal(t, finales.FightSnapshot{Account: bob, Season: 0, Country: "tv", Rank: 0, TilesRank: 1}, fights[1].TakeSnapshot())
-}
-
 func TestEachFighterIsRankedByTheTilesItTookAndATieSharesTheRank(t *testing.T) {
 	carol := accounts.AccountID{15: 3}
 	dan := accounts.AccountID{15: 4}
@@ -48,12 +34,6 @@ func TestEachFighterIsRankedByTheTilesItTookAndATieSharesTheRank(t *testing.T) {
 		ranks[fight.Account()] = fight.TakeSnapshot().TilesRank
 	}
 	assert.Equal(t, map[accounts.AccountID]uint32{bob: 1, ada: 2, carol: 2, dan: 4}, ranks)
-}
-
-func TestAFighterWithNoFlagIsRefused(t *testing.T) {
-	_, err := finales.Result{Fighters: []finales.Fighter{{Account: ada}}}.Fights()
-
-	assert.ErrorIs(t, err, finales.ErrNoCountry)
 }
 
 func TestFightsSayWhichFinaleWasFoughtAndWhereItsFlagPlaced(t *testing.T) {

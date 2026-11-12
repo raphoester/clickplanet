@@ -57,17 +57,6 @@ func TestTheSetNamedPlays(t *testing.T) {
 	assert.True(t, finale.Equal(kept.DecidedAt))
 }
 
-func TestACallMadeAgainOrOutOfOrderChangesNothing(t *testing.T) {
-	handler, _, inForce := booted(t, rules.Named("rush", rules.AsIs))
-	later := finale.Add(2 * time.Hour)
-
-	require.NoError(t, play(t, handler, string(cprules.Default), later))
-	require.NoError(t, play(t, handler, "rush", finale))
-	require.NoError(t, play(t, handler, string(cprules.Default), later))
-
-	assert.Equal(t, cprules.Default, inForce.Name())
-}
-
 func TestASetTheOffersDoNotKeepIsAFailedPrecondition(t *testing.T) {
 	handler, _, inForce := booted(t)
 

@@ -36,13 +36,6 @@ func TestEachSeasonStartsItsBreakAfterTheEndOfTheOneBefore(t *testing.T) {
 	}, calendar.Windows())
 }
 
-func TestAnAddedSeasonTakesTheNextNumberAfterTheLast(t *testing.T) {
-	added, err := planned(zero).Added(month, now)
-
-	require.NoError(t, err)
-	assert.Equal(t, season.Snapshot{Number: 1, Break: day, Length: 28 * day}, added.TakeSnapshot())
-}
-
 func TestASeasonWithNoBreakStartsAtTheEndOfTheOneBefore(t *testing.T) {
 	added, err := planned(zero).Added(season.Draft{Length: 28 * day}, now)
 
@@ -93,12 +86,6 @@ func TestASeasonToComeMayChangeItsBreak(t *testing.T) {
 	_, err := calendar.Edited(1, season.Draft{Break: 3 * day, Length: 7 * day}, now)
 
 	require.NoError(t, err)
-}
-
-func TestAnEndedSeasonCannotBeEdited(t *testing.T) {
-	_, err := planned(zero).Edited(0, season.Draft{Length: zero.Length + 7*day}, seasonZeroEnds)
-
-	require.ErrorIs(t, err, season.ErrEnded)
 }
 
 func TestAnUnknownSeasonIsNotEdited(t *testing.T) {

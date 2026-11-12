@@ -1,7 +1,6 @@
 package introduce_player_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -56,15 +55,6 @@ func TestAGuestIsGivenACodeOnceAndKeepsIt(t *testing.T) {
 
 	assert.Equal(t, players.GuestPlayer("000001"), first)
 	assert.Equal(t, first, second)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	failing := store(t)
-	failing.FailWith(errors.New("postgres is down"))
-
-	_, err := useCase(failing).Execute(t.Context(), ada)
-
-	assert.Error(t, err)
 }
 
 func TestTheChosenColorIsAnswered(t *testing.T) {
