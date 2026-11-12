@@ -79,7 +79,7 @@ func (q *PostgresQuery) RecentHistory(ctx context.Context) (*planetv1.MapHistory
 
 // The events from the head on keep their order by the primary key; taken_at has no index.
 const events = `
-	SELECT kind, tile, COALESCE(account::text, ''), country, previous, taken_at, payload
+	SELECT kind, tile, country, previous, taken_at, payload
 	FROM ledger_events
 	WHERE position >= $1 AND taken_at >= $2 AND NOT forgotten
 	ORDER BY position
@@ -152,7 +152,7 @@ func (q *PostgresQuery) replay(ctx context.Context, since time.Time, rewind *led
 
 	for rows.Next() {
 		var entry ledger.Entry
-		if err := rows.Scan(&entry.Kind, &entry.Tile, &entry.Account, &entry.Country, &entry.Previous, &entry.At,
+		if err := rows.Scan(&entry.Kind, &entry.Tile, &entry.Country, &entry.Previous, &entry.At,
 			&entry.Payload); err != nil {
 			return fmt.Errorf("failed to scan an event: %w", err)
 		}

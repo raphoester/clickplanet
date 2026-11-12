@@ -1,13 +1,12 @@
 import {OwnershipsGetter} from "./backend.ts"
-import {RecentHistory} from "../domain/video/story.ts"
+import {MapHistory} from "../domain/mapHistory.ts"
 import {fakeHistoryOf} from "./fakeHistory.ts"
-import {FAKE_TAKERS} from "./fakeAccounts.ts"
 import {RecentHistorySource} from "./recentHistory.ts"
 
 const STEP_MS = 30 * 60_000
 const FRAMES = 49
 
-// A made-up 24 hours ending on the fake map, each change made by one of the fake takers.
+// A made-up 24 hours ending on the fake map.
 export class FakeRecentHistory implements RecentHistorySource {
     constructor(
         private readonly map: OwnershipsGetter,
@@ -16,19 +15,12 @@ export class FakeRecentHistory implements RecentHistorySource {
     ) {
     }
 
-    public async recentHistory(): Promise<RecentHistory> {
+    public async recentHistory(): Promise<MapHistory> {
         const final = new Map<number, string>()
         await this.map.getOwnerships([{start: 1, end: await this.tiles()}], ({bindings}) => {
             bindings.forEach((owner, tile) => final.set(tile, owner))
         })
         const until = Math.floor(this.now() / STEP_MS) * STEP_MS
-        const {frames, hits} = fakeHistoryOf(final, until - 48 * STEP_MS, until, FRAMES)
-        return {
-            frames: frames.map((frame, k) => ({
-                ...frame,
-                accounts: Array.from(frame.tiles, (tile) => k === 0 ? "" : FAKE_TAKERS[tile % FAKE_TAKERS.length]),
-            })),
-            hits,
-        }
+        return fakeHistoryOf(final, until - 48 * STEP_MS, until, FRAMES)
     }
 }

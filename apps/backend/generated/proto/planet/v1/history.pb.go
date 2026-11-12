@@ -137,11 +137,8 @@ type TileOwner struct {
 	// When the tile went to this owner, its last change of the step: whole seconds after the frame before. 0 in the first
 	// frame. A replay plays each change at its time, so an enclosure's tiles land together, as they did.
 	SecondsIntoStep uint32 `protobuf:"varint,3,opt,name=seconds_into_step,json=secondsIntoStep,proto3" json:"seconds_into_step,omitempty"`
-	// The account whose act made the change. Empty in the first frame, for an act no account made or a deleted account's,
-	// and in every frame of GetMapHistory, whose season replays would carry one per change.
-	AccountId     string `protobuf:"bytes,4,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TileOwner) Reset() {
@@ -193,13 +190,6 @@ func (x *TileOwner) GetSecondsIntoStep() uint32 {
 		return x.SecondsIntoStep
 	}
 	return 0
-}
-
-func (x *TileOwner) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
 }
 
 type TileHits struct {
@@ -265,14 +255,13 @@ const file_planet_v1_history_proto_rawDesc = "" +
 	"\x04hits\x18\x02 \x03(\v2\x13.planet.v1.TileHitsR\x04hits\"d\n" +
 	"\bMapFrame\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
-	"\x06owners\x18\x02 \x03(\v2\x14.planet.v1.TileOwnerR\x06owners\"\x89\x01\n" +
+	"\x06owners\x18\x02 \x03(\v2\x14.planet.v1.TileOwnerR\x06owners\"|\n" +
 	"\tTileOwner\x12\x12\n" +
 	"\x04tile\x18\x01 \x01(\rR\x04tile\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12*\n" +
-	"\x11seconds_into_step\x18\x03 \x01(\rR\x0fsecondsIntoStep\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x04 \x01(\tR\taccountId\"2\n" +
+	"\x11seconds_into_step\x18\x03 \x01(\rR\x0fsecondsIntoStepJ\x04\b\x04\x10\x05R\n" +
+	"account_id\"2\n" +
 	"\bTileHits\x12\x12\n" +
 	"\x04tile\x18\x01 \x01(\rR\x04tile\x12\x12\n" +
 	"\x04hits\x18\x02 \x01(\rR\x04hitsB\xb4\x01\n" +

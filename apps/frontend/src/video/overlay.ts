@@ -57,7 +57,7 @@ export function lookOfThePage(): Look {
 
 // Every display word in one face: Luckiest Guy draws Latin-1 alone, so one name in another script sets them all in Rubik.
 export function displayFontOf(job: VideoJob, look: Look): (size: number) => string {
-    const said = [job.headline, job.cast.maker ?? "", ...job.cast.allies]
+    const said = [job.headline, job.maker ?? ""]
     return said.every((text) => DISPLAY_FONT_DRAWS.test(text))
         ? (size) => `${size}px ${look.display}`
         : (size) => `900 ${size}px ${look.text}`
@@ -218,10 +218,9 @@ export function createOverlay(context: CanvasRenderingContext2D, job: VideoJob, 
         context.fill()
     }
 
-    // The end card: the flag, the maker, its allies, and the address big.
+    // The end card: the flag, the maker, and the address big.
     const nameRoom = width - 2 * SAFE_SIDE * u
-    const makerSize = job.cast.maker === undefined ? 0 : fitted(job.cast.maker, display, 46 * u, nameRoom)
-    const allySize = 30 * u
+    const makerSize = job.maker === undefined ? 0 : fitted(job.maker, display, 46 * u, nameRoom)
     const addressFont = (size: number) => `800 ${size}px ${look.text}`
     const addressSize = fitted(job.address, addressFont, 32 * u, nameRoom)
     const drawEnd = (over: number) => {
@@ -241,17 +240,11 @@ export function createOverlay(context: CanvasRenderingContext2D, job: VideoJob, 
 
         context.textAlign = "center"
         context.textBaseline = "alphabetic"
-        if (job.cast.maker !== undefined) {
+        if (job.maker !== undefined) {
             context.font = display(makerSize)
             y += makerSize
-            outlined(job.cast.maker, width / 2, y, look.gold, 6 * u)
+            outlined(job.maker, width / 2, y, look.gold, 6 * u)
             y += 14 * u
-        }
-        for (const ally of job.cast.allies) {
-            const size = fitted(ally, display, allySize, nameRoom)
-            context.font = display(size)
-            y += size * 1.2
-            outlined(ally, width / 2, y, look.white, 4 * u)
         }
         context.font = addressFont(addressSize)
         y += 18 * u + addressSize

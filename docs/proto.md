@@ -6,8 +6,8 @@
   ledger's acts of each kind in a window, which the internal `GetLedgerTotals` answers and the gamemaster relays, and
   `history.proto` is `MapHistory`, the map every step of a window, when in the step each tile changed, and each tile's hits, which the internal
   `GetMapHistory` answers and the gamemaster relays as `GetSeasonReplay`, and which `ClickService/GetRecentMapHistory`
-  answers for the last 24 hours, every 30 minutes, with the account that made each change (`TileOwner.account_id`,
-  empty in `GetMapHistory`'s). `rules.proto` is `planet.v1.Rules`, a rule set
+  answers for the last 24 hours, every 30 minutes (`TileOwner.account_id`, the account that made each change, is
+  `reserved` since 2026-11-12: nothing read it once the player's video named the maker alone). `rules.proto` is `planet.v1.Rules`, a rule set
   as postgres keeps it: the wallet's values are `charges` (`ChargeRules`), what the page reads of them `GetChargeRules`.
   Until 2026-11-11 they were half of `bonuses` (`BonusRules`, field 3 `reserved` now) and the page read `GetBonusRules`;
   the offers' half, `ClaimBonus`, `OpenQuiz`, `AnswerQuiz`, the stream's boxes and quizzes (`PlanetEvent` 3, 4 and 8,

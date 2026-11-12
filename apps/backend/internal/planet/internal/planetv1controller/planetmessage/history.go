@@ -19,7 +19,7 @@ func MapHistory(frames []ledger.Frame, hits map[uint32]uint32) *planetv1.MapHist
 		for _, tile := range slices.Sorted(maps.Keys(frame.Owners)) {
 			owner := frame.Owners[tile]
 			shown.Owners = append(shown.Owners, &planetv1.TileOwner{
-				Tile: tile, CountryId: owner.Country, SecondsIntoStep: secondsInto(frames, i, owner), AccountId: owner.Account,
+				Tile: tile, CountryId: owner.Country, SecondsIntoStep: secondsInto(frames, i, owner),
 			})
 		}
 		answer.Frames = append(answer.Frames, shown)

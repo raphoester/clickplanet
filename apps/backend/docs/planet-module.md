@@ -85,8 +85,8 @@ internal/planet/internal/
   is asked. The read stops at the first event at or after `until`, since positions follow time, and the map's resets
   (`map_resets`, which write no event) wipe it at their time. It is the world's map: an event made while an arena's
   played changes no frame and no hit (see [Arena battles](arenas.md#the-ledgers-readers)). What a reassign, a paint or a
-  revert wrote is not in it. It names no account (`account_id` empty): a season's replay would carry one per change.
-  **`ClickService/GetRecentMapHistory` is the last 24 hours of it, public, with who made each change**
+  revert wrote is not in it.
+  **`ClickService/GetRecentMapHistory` is the last 24 hours of it, public**
   (`recent_history_query`, `ledger.Rewind`): rewound from the map in memory over the rows from the ledger's head, never
   replayed from the reset, and built once per half hour for every caller. See [The map's last 24
   hours](recent-map-history.md).
