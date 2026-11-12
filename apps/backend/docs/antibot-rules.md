@@ -155,9 +155,9 @@ on its own, so planet never hears of a crowd, and the antibot never follows plan
   `cohort.certainMembers` 50 makes the crowd bound 50 for the evening, and judges with default's for the rest. It must
   be saved before 21:00: an antibot with no `rush` refuses the call and keeps `default`. A save of `rush` while it
   plays takes over at once.
-- **For a stream**, an entry plays `stream` from before the streamer's "go" to an hour after the stream ends. The
-  antibot's `stream` holds `cohort.enabled` false and `churner.enabled` false; planet's and the offers' hold nothing,
-  so they play default's values. See [A streamer's chat](antibot.md#a-streamers-chat).
+- **A stream needs no entry.** Since 2026-11-12 `default` holds `cohort.enabled` false and `churner.enabled` false,
+  and no other set turns them on, so every hour, battles too, keeps a streamer's chat. See
+  [A streamer's chat](antibot.md#a-streamers-chat).
 
 ## The machine, in the YAML
 

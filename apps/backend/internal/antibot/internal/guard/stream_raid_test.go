@@ -18,7 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-func atProduction(config *guard.Config, set *antibotv1.Rules) {
+func atSeededDefault(config *guard.Config, set *antibotv1.Rules) {
 	proto.Reset(set)
 	proto.Merge(set, rules.Seeded().Rules)
 
@@ -28,8 +28,8 @@ func atProduction(config *guard.Config, set *antibotv1.Rules) {
 	config.Cohort.TrackWindow = 30 * time.Minute
 }
 
-// Production's set `stream` over default.
-func streamSet(_ *guard.Config, set *antibotv1.Rules) {
+// Production's default since 2026-11-12.
+func cohortAndChurnerOff(_ *guard.Config, set *antibotv1.Rules) {
 	set.Cohort.Enabled = proto.Bool(false)
 	set.Churner.Enabled = proto.Bool(false)
 }
@@ -237,8 +237,8 @@ func (s *stack) rulesThatBanned(network network, viewers []*viewer) []string {
 // "Go!": 160 new guests of one flag inside 30 seconds, some put close together by one mobile carrier.
 var streamChat = map[network]int{allOver: 64, carrierV32: 60, carrierV44: 12, carrierV24: 12, carrierNAT: 12}
 
-func TestAStreamsChatOnOneCarrierIsBannedByTheDefaultSet(t *testing.T) {
-	s := newStack(t, atProduction)
+func TestAStreamsChatOnOneCarrierIsBannedByCohortAndChurner(t *testing.T) {
+	s := newStack(t, atSeededDefault)
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(40, 1))
@@ -260,8 +260,8 @@ func TestAStreamsChatOnOneCarrierIsBannedByTheDefaultSet(t *testing.T) {
 	assert.ElementsMatch(t, []string{"lockstep", "relay"}, s.rulesThatBanned(carrierV32, viewers))
 }
 
-func TestAStreamsChatPlaysFreeUnderTheStreamSet(t *testing.T) {
-	s := newStack(t, atProduction, streamSet)
+func TestAStreamsChatPlaysFreeWithCohortAndChurnerOff(t *testing.T) {
+	s := newStack(t, atSeededDefault, cohortAndChurnerOff)
 
 	//nolint:gosec // seeded test PRNG
 	r := rand.New(rand.NewPCG(40, 1))
