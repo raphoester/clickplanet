@@ -2,26 +2,15 @@ package cps3_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
-)
-
-const (
-	image      = "ghcr.io/versity/versitygw:v1.8.0"
-	port       = "7070"
-	bucketName = "media"
-	keyID      = "the-key-id"
-	secret     = "the-secret-key"
 )
 
 var video = []byte("an mp4 of the season")
@@ -37,29 +26,8 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	ctx, cancel := context.WithTimeout(s.T().Context(), 3*time.Minute)
-	defer cancel()
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        image,
-			ExposedPorts: []string{port + "/tcp"},
-			// A directory under the root is a bucket: no client is needed to make one.
-			Entrypoint: []string{"sh", "-c", "mkdir -p /data/" + bucketName +
-				" && exec versitygw --access " + keyID + " --secret " + secret + " --port :" + port + " posix /data"},
-			WaitingFor: wait.ForListeningPort(port + "/tcp").WithStartupTimeout(time.Minute),
-		},
-		Started: true,
-	})
-	testcontainers.CleanupContainer(s.T(), container)
-	s.Require().NoError(err, "failed to start the test bucket")
-
-	endpoint, err := container.PortEndpoint(ctx, port, "http")
-	s.Require().NoError(err)
-
-	s.bucket, err = cps3.New(cps3.Config{
-		Endpoint: endpoint, Region: "us-east-1", Name: bucketName, AccessKeyID: keyID, SecretAccessKey: secret,
-	}, cptime.SystemClock{}, http.DefaultClient)
+	var err error
+	s.bucket, err = cps3.New(cps3.StartTestServer(s.T(), "media").Config(), cptime.SystemClock{}, http.DefaultClient)
 	s.Require().NoError(err)
 }
 
