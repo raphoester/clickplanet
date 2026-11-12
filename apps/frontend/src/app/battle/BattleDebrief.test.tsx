@@ -57,7 +57,7 @@ const user = () => userEvent.setup({advanceTimers: vi.advanceTimersByTime})
 const after = (seconds: number) => act(() => vi.advanceTimersByTime(seconds * 1000))
 
 const renderDebrief = (props: Partial<Parameters<typeof BattleDebrief>[0]> = {}) =>
-    render(<BattleDebrief screen="over" closed={FINAL_BATTLE} description="" countryCode="fr" more={true} play={vi.fn()}
+    render(<BattleDebrief screen="over" closed={FINAL_BATTLE} countryCode="fr" more={true} play={vi.fn()}
                           onClose={vi.fn()} {...props}/>)
 
 describe("BattleDebrief", () => {
@@ -73,15 +73,6 @@ describe("BattleDebrief", () => {
         renderDebrief({closed: {...FINAL_BATTLE, finale: false}})
 
         expect(screen.getByRole("dialog", {name: "Battle finished!"})).toBeDefined()
-    })
-
-    it("keeps the words of the battle the page saw, and says none it did not", () => {
-        renderDebrief({description: "Triple points. A bonus box every minute."})
-        expect(screen.getByText("Triple points. A bonus box every minute.")).toBeDefined()
-        cleanup()
-
-        renderDebrief()
-        expect(screen.queryByText(/bonus box/)).toBeNull()
     })
 
     it("goes on once settled, and nothing closes it before", async () => {

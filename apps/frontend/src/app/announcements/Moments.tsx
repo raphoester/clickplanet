@@ -2,7 +2,6 @@ import {useEffect} from "react"
 import {ClipsBackend} from "../../backends/clips.ts"
 import {announcementKeyOf} from "../../domain/announcements.ts"
 import {nextBattleOf} from "../../domain/battle.ts"
-import {briefDescriptionOf} from "../../domain/battleBrief.ts"
 import {revealFollowed} from "../../domain/roundReveal.ts"
 import BattleDebrief from "../battle/BattleDebrief.tsx"
 import BattleReveal from "../battle/BattleReveal.tsx"
@@ -119,7 +118,6 @@ export default function Moments(props: MomentsProps) {
             return <BattleDebrief key={key}
                                   screen={current.kind}
                                   closed={current.closed}
-                                  description={briefDescriptionOf(seenBattle, current.closed)}
                                   countryCode={countryCode}
                                   accountId={props.accountId}
                                   more={revealFollowed(current, seenBattle)}
