@@ -4,6 +4,8 @@ import type {Bridge} from "../../domain/bridges.ts"
 const BASE = 1.003
 // Radians between two dots: about 38 km.
 const STEP = 0.006
+// Gaps on the shortest arc, so a bridge over a strait still reads as a dotted line.
+const MIN_GAPS = 8
 // How high a bridge's middle rises, as a share of the angle it spans, so a long crossing arches over the sea.
 const LIFT = 0.18
 const MAX_LIFT = 0.12
@@ -16,7 +18,7 @@ export function arcPoints(from: ArrayLike<number>, to: ArrayLike<number>, step =
     const a = new THREE.Vector3(from[0], from[1], from[2]).normalize()
     const b = new THREE.Vector3(to[0], to[1], to[2]).normalize()
     const angle = a.angleTo(b)
-    const dots = Math.max(2, Math.ceil(angle / step))
+    const dots = Math.max(MIN_GAPS, Math.ceil(angle / step))
     const lift = Math.min(MAX_LIFT, LIFT * angle)
     const points = new Float32Array((dots + 1) * 3)
     const at = new THREE.Vector3()

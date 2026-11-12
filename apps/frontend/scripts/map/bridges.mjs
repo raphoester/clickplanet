@@ -32,16 +32,21 @@ export const LANES = {
 }
 
 /**
- * Every bridge of the map: the stepping stones, which join two pieces of land when no third piece is nearer to both
- * (so every piece is joined, and a strait or an island chain is crossed where it is narrowest), and the sea lanes.
+ * Every bridge of the map, in three kinds:
+ * - the stepping stones join two pieces of land when no third piece is nearer to both, so every piece is joined and a
+ *   strait or an island chain is crossed where it is narrowest;
+ * - the sea lanes, placed by hand;
+ * - the second ways: while one bridge alone holds some land to the rest, the shortest other crossing between its two
+ *   sides is added, smallest side first, so no bridge's loss cuts any land off and every island group has two ways in.
+ *   A second bridge between the same two pieces lands `APART_KM` from the first on one side at least: another beach.
  * A piece is land that touches, whatever its countries. A bridge lands on a coast tile, and on a capital only when its
  * piece has no other coast.
  * @param {{positions: ArrayLike<number>, at: Uint32Array, to: Uint32Array, tileOf: Int32Array,
  *   capitals: Record<string, number>}} map the tiles' positions (x, y, z per tile), the lattice's edges by vertex, each
  *   vertex's tile index or -1 at sea, and each country's capital as a wire id
  * @param {typeof LANES} lanes
- * @returns {{bridges: [number, number][], pieces: number, stones: number, lanes: number}} each bridge's ends as wire
- *   ids, the smaller first, in order
+ * @returns {{bridges: [number, number][], pieces: number, stones: number, lanes: number, seconds: number}} each
+ *   bridge's ends as wire ids, the smaller first, in order
  */
 export function bridgesOf({positions, at, to, tileOf, capitals}, lanes = LANES) {
     const tiles = positions.length / 3
@@ -53,9 +58,62 @@ export function bridgesOf({positions, at, to, tileOf, capitals}, lanes = LANES) 
     for (let t = 0; t < tiles; t++) if (coast[t] && capital.has(t) && shores[pieceOf[t]].length === 0) shores[pieceOf[t]].push(t)
     const ends = shores.flat()
 
-    const closest = new Float64Array(pieces * pieces).fill(-2)
+    const first = closestCrossings(positions, ends, pieceOf, pieces)
+    const second = closestCrossings(positions, ends, pieceOf, pieces, first)
+
+    const graph = new Crossings(pieceOf)
+    const gap = (a, b) => a === b ? -Infinity : -first.along[a < b ? a * pieces + b : b * pieces + a]
+    for (let a = 0; a < pieces; a++) {
+        for (let b = a + 1; b < pieces; b++) {
+            let nearer = false
+            for (let c = 0; c < pieces && !nearer; c++) {
+                if (c !== a && c !== b && Math.max(gap(a, c), gap(b, c)) < gap(a, b)) nearer = true
+            }
+            if (!nearer) graph.add(first.from[a * pieces + b], first.onto[a * pieces + b])
+        }
+    }
+    const stones = graph.size
+
+    const landings = []
+    for (let t = 0; t < tiles; t++) if (coast[t] && !capital.has(t)) landings.push(t)
+    for (const [name, [start, end]] of Object.entries(lanes)) {
+        const a = snap(positions, landings, start, name)
+        const b = snap(positions, landings, end, name)
+        if (a === b) throw new Error(`${name}: both ends snap to tile ${a + 1}`)
+        graph.add(a, b)
+    }
+    const laid = graph.size
+
+    for (const side of graph.lonelySides(pieces)) {
+        let best
+        for (const p of side) {
+            for (let q = 0; q < pieces; q++) {
+                if (side.has(q)) continue
+                const k = p < q ? p * pieces + q : q * pieces + p
+                for (const pick of [first, second]) {
+                    if (pick.along[k] <= -2 || graph.has(pick.from[k], pick.onto[k])) continue
+                    if (!best || pick.along[k] > best.along) best = {along: pick.along[k], a: pick.from[k], b: pick.onto[k]}
+                    break
+                }
+            }
+        }
+        if (best) graph.add(best.a, best.b)
+    }
+
+    return {bridges: graph.sorted(), pieces, stones, lanes: laid - stones, seconds: graph.size - laid}
+}
+
+// A second bridge between the same two pieces lands this far from the first on one side at least.
+export const APART_KM = 250
+
+// Each pair of pieces' nearest coast tiles; with `besides`, its nearest pair landing APART_KM from that one.
+function closestCrossings(positions, ends, pieceOf, pieces, besides) {
+    const along = new Float64Array(pieces * pieces).fill(-2)
     const from = new Int32Array(pieces * pieces)
     const onto = new Int32Array(pieces * pieces)
+    const far = Math.cos(APART_KM / EARTH_KM)
+    const dot = (a, b) => positions[a * 3] * positions[b * 3] + positions[a * 3 + 1] * positions[b * 3 + 1]
+        + positions[a * 3 + 2] * positions[b * 3 + 2]
     for (let i = 0; i < ends.length; i++) {
         const a = ends[i]
         const pa = pieceOf[a]
@@ -64,45 +122,121 @@ export function bridgesOf({positions, at, to, tileOf, capitals}, lanes = LANES) 
             const b = ends[j]
             const pb = pieceOf[b]
             if (pa === pb) continue
-            const along = ax * positions[b * 3] + ay * positions[b * 3 + 1] + az * positions[b * 3 + 2]
+            const d = ax * positions[b * 3] + ay * positions[b * 3 + 1] + az * positions[b * 3 + 2]
             const k = pa < pb ? pa * pieces + pb : pb * pieces + pa
-            if (along > closest[k]) {
-                closest[k] = along
+            if (d <= along[k]) continue
+            if (besides) {
+                if (besides.along[k] <= -2) continue
+                const [low, high] = pa < pb ? [a, b] : [b, a]
+                if (dot(low, besides.from[k]) > far && dot(high, besides.onto[k]) > far) continue
+            }
+            along[k] = d
+            if (pa < pb) {
                 from[k] = a
                 onto[k] = b
+            } else {
+                from[k] = b
+                onto[k] = a
             }
         }
     }
+    return {along, from, onto}
+}
 
-    const apart = (a, b) => a === b ? -Infinity : -closest[a < b ? a * pieces + b : b * pieces + a]
-    const bridges = new Map()
-    const add = (a, b) => {
-        const pair = a < b ? [a + 1, b + 1] : [b + 1, a + 1]
-        bridges.set(`${pair[0]},${pair[1]}`, pair)
+// The bridges laid so far, between pieces of land.
+class Crossings {
+    constructor(pieceOf) {
+        this.pieceOf = pieceOf
+        this.pairs = new Map()
     }
-    for (let a = 0; a < pieces; a++) {
-        for (let b = a + 1; b < pieces; b++) {
-            const gap = apart(a, b)
-            let nearer = false
-            for (let c = 0; c < pieces && !nearer; c++) {
-                if (c !== a && c !== b && Math.max(apart(a, c), apart(b, c)) < gap) nearer = true
-            }
-            if (!nearer) add(from[a * pieces + b], onto[a * pieces + b])
+
+    get size() {
+        return this.pairs.size
+    }
+
+    has(a, b) {
+        return this.pairs.has(a < b ? `${a},${b}` : `${b},${a}`)
+    }
+
+    add(a, b) {
+        const pair = a < b ? [a, b] : [b, a]
+        this.pairs.set(`${pair[0]},${pair[1]}`, pair)
+    }
+
+    sorted() {
+        return [...this.pairs.values()].map(([a, b]) => [a + 1, b + 1]).sort((x, y) => x[0] - y[0] || x[1] - y[1])
+    }
+
+    // Each time it is asked, the smallest side some single bridge alone holds to the rest, until none is left.
+    * lonelySides(pieces) {
+        for (;;) {
+            const side = this.smallestCutOff(pieces)
+            if (!side) return
+            const before = this.size
+            yield side
+            if (this.size === before) return
         }
     }
-    const stones = bridges.size
 
-    const landings = []
-    for (let t = 0; t < tiles; t++) if (coast[t] && !capital.has(t)) landings.push(t)
-    for (const [name, [start, end]] of Object.entries(lanes)) {
-        const a = snap(positions, landings, start, name)
-        const b = snap(positions, landings, end, name)
-        if (a === b) throw new Error(`${name}: both ends snap to tile ${a + 1}`)
-        add(a, b)
+    smallestCutOff(pieces) {
+        const edges = [...this.pairs.values()].map(([a, b]) => [this.pieceOf[a], this.pieceOf[b]])
+        const around = Array.from({length: pieces}, () => [])
+        edges.forEach(([p, q], e) => {
+            if (p === q) return
+            around[p].push([q, e])
+            around[q].push([p, e])
+        })
+        const order = new Int32Array(pieces).fill(-1)
+        const low = new Int32Array(pieces)
+        const size = new Int32Array(pieces)
+        let count = 0
+        let smallest
+        const visit = (root) => {
+            const stack = [[root, -1, 0]]
+            order[root] = low[root] = count++
+            size[root] = 1
+            while (stack.length > 0) {
+                const top = stack[stack.length - 1]
+                const [u, via] = top
+                if (top[2] < around[u].length) {
+                    const [w, e] = around[u][top[2]++]
+                    if (e === via) continue
+                    if (order[w] < 0) {
+                        order[w] = low[w] = count++
+                        size[w] = 1
+                        stack.push([w, e, 0])
+                    } else low[u] = Math.min(low[u], order[w])
+                    continue
+                }
+                stack.pop()
+                if (stack.length === 0) continue
+                const parent = stack[stack.length - 1][0]
+                low[parent] = Math.min(low[parent], low[u])
+                size[parent] += size[u]
+                if (low[u] > order[parent]) {
+                    const cut = Math.min(size[u], pieces - size[u])
+                    if (!smallest || cut < smallest.cut) smallest = {cut, below: u, parent}
+                }
+            }
+        }
+        visit(0)
+        if (!smallest) return undefined
+        const below = new Set([smallest.below])
+        const queue = [smallest.below]
+        while (queue.length > 0) {
+            const u = queue.pop()
+            for (const [w] of around[u]) {
+                if (below.has(w) || (u === smallest.below && w === smallest.parent)) continue
+                if (w === smallest.parent) continue
+                below.add(w)
+                queue.push(w)
+            }
+        }
+        if (below.size <= pieces - below.size) return below
+        const rest = new Set()
+        for (let p = 0; p < pieces; p++) if (!below.has(p)) rest.add(p)
+        return rest
     }
-
-    const sorted = [...bridges.values()].sort((x, y) => x[0] - y[0] || x[1] - y[1])
-    return {bridges: sorted, pieces, stones, lanes: Object.keys(lanes).length}
 }
 
 /**
