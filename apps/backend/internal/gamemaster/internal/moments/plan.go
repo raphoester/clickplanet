@@ -92,7 +92,7 @@ type round struct {
 
 func (r round) ranking() Ranking {
 	if r.battle {
-		return RankedByGain
+		return RankedByFighters
 	}
 	return RankedByHeldAndGain
 }

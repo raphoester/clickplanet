@@ -44,7 +44,7 @@ next arena (`ArenasDueAt`). **Each wait is on the answer to a close, and every c
 as a reconciler](gamemaster-reconciler.md)): a round scoring never opened is answered missed, and an arena planet never
 opened closes all the same, so nothing waits for ever. A battle's round opens only once the battle is judged, in the same tick (`Plan.Judged`
 hands the judgement to the steps after the judge), and an arena battle's only once planet answered its arena opened
-(`opened_arenas`): it counts from nothing, so its gain is the tiles held on the arena when it ends. A plan built with no arena battles (the zero
+(`opened_arenas`): it counts from nothing, and it places only the countries whose players fought in it, by the tiles held on the arena when it ends and the tiles taken ([Scoring](scoring.md#the-rules)). A plan built with no arena battles (the zero
 `Arenas`, as `turn_query` builds it) waits for nothing.
 
 **The battle's set plays on planet only once its arena opened** (`Plan.SetWaits`, asked by `play_schedule_usecase`; the

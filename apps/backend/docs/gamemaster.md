@@ -386,8 +386,9 @@ action and ids) in memory, and each close's answer in postgres.
 - `OpenRound{round_id, book_id, times, starts_at, from_nothing, ranking}` while a day (times 1) or a battle (the entry's
   times) runs; `CloseRound{round_id, ends_at}` once it ended. **The plan names how scoring places the round's countries**
   (`Command.Ranking`): a day on its rank on the ground held plus its rank on the ground gained
-  (`RankedByHeldAndGain`), so holding ground pays; a battle, the finale and an arena battle included, on the gain alone
-  (`RankedByGain`), since a battle is there to shuffle the cards (the owner, 2026-11-10; see
+  (`RankedByHeldAndGain`), so holding ground pays; a battle, the finale and an arena battle included, on the countries
+  whose players fought in it, by the ground held and the tiles taken (`RankedByFighters`, from 2026-11-12): a country
+  that held its capital and never fought scores nothing, and one eliminated after fighting still scores (see
   [Scoring](scoring.md#the-rules)). `rpc_scoring_books` says it in scoring's words, `scoring.v1.Ranking`, and an open
   with no ranking it knows is an error that calls nothing.
 - **An open is only called while what it opens has not ended**: a round that already ended is never opened, since

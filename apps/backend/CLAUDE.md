@@ -151,7 +151,7 @@ and says what is in it. Read the doc before you change its area.
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells
   `SeasonEnded`; Season 0 Top 1-3, its best players, given once by hand.
 - [Scoring](docs/scoring.md) — a points accountant: books, rounds and grants by the ids it is given, opened and closed
-  by the gamemaster's calls (a round or book never opened answered missed, and kept so no open lands after), each round placed by its ranking: a battle on the tiles each country gained, a day on that rank plus its rank on the tiles held; no season, day, battle or clock; who a
+  by the gamemaster's calls (a round or book never opened answered missed, and kept so no open lands after), each round placed by its ranking: a battle on the countries that fought, by the tiles held and the tiles taken, a day on that rank plus its rank on the tiles held; no season, day, battle or clock; who a
   board may rank, kept from player's events.
 - [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that calls planet, the antibot
   and the offers, the seasons, days and battles it opens and closes in scoring's books, the map swaps on a runner of their own, each season's finale (the Final

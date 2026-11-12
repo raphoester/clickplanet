@@ -63,9 +63,9 @@ func TestEachCommandIsOneCallInScoringsWords(t *testing.T) {
 			&scoringv1.OpenBookRequest{BookId: "season-0", StartsAt: at},
 		},
 		{
-			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 2, At: finale, FromNothing: true, Ranking: moments.RankedByGain},
+			moments.Command{Action: moments.OpenRound, Book: "season-0", Round: entry, Times: 2, At: finale, FromNothing: true, Ranking: moments.RankedByFighters},
 			&scoringv1.OpenRoundRequest{
-				RoundId: entry, BookId: "season-0", Times: 2, StartsAt: at, FromNothing: true, Ranking: scoringv1.Ranking_RANKING_GAIN,
+				RoundId: entry, BookId: "season-0", Times: 2, StartsAt: at, FromNothing: true, Ranking: scoringv1.Ranking_RANKING_FIGHTERS,
 			},
 		},
 		{

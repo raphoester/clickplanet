@@ -39,8 +39,39 @@ func TestADayWhenNobodyGainedRanksTheGroundHeld(t *testing.T) {
 	}, results)
 }
 
+var fightersBattle = books.Round{ID: "battle", Book: "season-1", Times: 1, Ranking: books.FightersRanking{}, StartsAt: utc(15, 21)}
+
+func TestACountryThatNeverFoughtScoresNothingHoldingItsCapital(t *testing.T) {
+	end := books.Snapshot{Tiles: 3, Held: map[books.Country]uint32{"fr": 1, "de": 1, "it": 1}, Fights: map[books.Country]uint32{"fr": 2}}
+
+	assert.Equal(t, []books.Result{
+		{Country: "fr", Rank: 1, Points: 25, Share: 1.0 / 3},
+	}, fightersBattle.Results(books.Start{}, end))
+}
+
+func TestAnEliminatedFighterScoresByWhatItsPlayersTook(t *testing.T) {
+	end := books.Snapshot{Tiles: 5, Held: map[books.Country]uint32{"fr": 5, "de": 0}, Fights: map[books.Country]uint32{"fr": 5, "de": 4}}
+
+	assert.Equal(t, []books.Result{
+		{Country: "fr", Rank: 1, Points: 25, Share: 1},
+		{Country: "de", Rank: 2, Points: 18, Share: 0},
+	}, fightersBattle.Results(books.Start{}, end))
+}
+
+func TestTheTakesRankBreaksATieOfTheSumOfFighters(t *testing.T) {
+	// fr holds more and took less; de took more and holds less: both sum to 3, the takes' rank breaks the tie.
+	end := books.Snapshot{Tiles: 10, Held: map[books.Country]uint32{"fr": 6, "de": 2}, Fights: map[books.Country]uint32{"fr": 2, "de": 9}}
+
+	results := fightersBattle.Results(books.Start{}, end)
+
+	assert.Equal(t, []books.Result{
+		{Country: "de", Rank: 1, Points: 25, Share: 0.2},
+		{Country: "fr", Rank: 2, Points: 18, Share: 0.6},
+	}, results)
+}
+
 func TestARankingIsFoundByItsName(t *testing.T) {
-	for _, ranking := range []books.Ranking{books.GainRanking{}, books.HeldAndGainRanking{}} {
+	for _, ranking := range []books.Ranking{books.GainRanking{}, books.HeldAndGainRanking{}, books.FightersRanking{}} {
 		found, err := books.RankingNamed(ranking.Name())
 		require.NoError(t, err)
 		assert.Equal(t, ranking, found)

@@ -20,12 +20,21 @@ type Scored struct {
 
 var points = []uint32{25, 18, 15, 12, 10, 8, 6, 4, 2, 1}
 
-// Results places the countries holding tiles at the end by the round's ranking; a shared place shares its points.
+// Results places the countries by the round's ranking: those holding tiles at the end, or, for a fighting ranking, those
+// whose players took a tile in the round, eliminated ones included. A shared place shares its points.
 func (r Round) Results(start Start, end Snapshot) []Result {
 	held, gains := map[Country]int64{}, map[Country]int64{}
-	for country, tiles := range end.Held {
-		if tiles > 0 {
-			held[country], gains[country] = int64(tiles), int64(tiles)-int64(start[country])
+	if r.Ranking.fighting() {
+		for country, taken := range end.Fights {
+			if taken > 0 {
+				held[country], gains[country] = int64(end.Held[country]), int64(taken)
+			}
+		}
+	} else {
+		for country, tiles := range end.Held {
+			if tiles > 0 {
+				held[country], gains[country] = int64(tiles), int64(tiles)-int64(start[country])
+			}
 		}
 	}
 	heldRanks, gainRanks := ranksOf(held), ranksOf(gains)
