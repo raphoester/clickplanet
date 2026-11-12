@@ -30,6 +30,13 @@ export class TileShields {
         return this.inRange(tile) ? this.counts[tile] : 0
     }
 
+    // The most shields any tile holds.
+    public most(): number {
+        let most = 0
+        for (let tile = 1; tile <= this.size; tile++) if (this.counts[tile] > most) most = this.counts[tile]
+        return most
+    }
+
     public set(tile: number, shields: number, changes: ShieldChange[]): void {
         if (!this.inRange(tile)) return
         const was = this.counts[tile]
