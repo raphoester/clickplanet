@@ -69,7 +69,7 @@ the box then spins in as the bonus won.
 It draws no countdown of its own either, because it is free to ignore, and it
 goes away by itself.
 
-**The countdown bar starts at what is actually left, not at full.** The five
+**The countdown bar starts at what is actually left, not at full.** The
 seconds are the server's and they began when it answered, so a slow round trip
 has already spent some of them; a bar that started full would promise time the
 player does not have. From there it is **one CSS animation on `transform`** to
@@ -87,6 +87,22 @@ decoration.
 reads it as wrong, which it is, and answers with the right one — so a question
 nobody managed to answer still says what it was. There is no other way to learn
 it.
+
+**Leaving the page ends the question** (`leaving` in `Quiz.tsx`, the store's `forfeit`). Players said in the chat
+(2026-11-12) that they answered with their phone's assistant: on a Samsung, a long press on the home button draws
+Gemini or Circle to Search over the page, which reads the question off the screen and says the answer, inside the 8 s.
+Anything that does that has to take the page's place, so while a question is open, the window losing the focus (an
+assistant or screen search over the page, another app, a click outside the browser) or the tab being hidden answers it
+at once as out of time: the token is spent before the answer can be read off the other window. The focus moving inside
+the page (the chat's field) does not count: an element's own blur never reaches the window's listener, and the
+listener checks the target is not an element. The result says "You left the quiz", and **its timer waits for the
+player to be back** (`whenBack`: the page's next focus or press), so it is still there to read. A pick made before the
+focus left stands.
+
+- **It is a client's rule, not the server's.** A page that is changed, or a second phone held up to the screen, goes
+  round it. It stops the press-and-hold on the same phone, which is what the chat said they did. The server sees a
+  forfeit as the page's timeout, and the rating counts it the same way.
+- **An honest player loses a question to a call or a tab switch**, which costs nothing, as a timeout does.
 
 **The result says which one was right whether or not that was the one pressed.**
 A wrong answer costs nothing, so the only thing left to give back is the answer.

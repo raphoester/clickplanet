@@ -681,6 +681,7 @@
   "quiz.correct": "Benar!",
   "quiz.notQuite": "Kurang tepat",
   "quiz.outOfTime": "Waktu habis",
+  "quiz.left": "Kamu meninggalkan kuis",
   "quiz.inventoryFull": "Inventarismu udah penuh",
   "quiz.theAnswer": "{choice}<hidden>, jawabannya</hidden>",
   "quiz.yourPick": "{choice}<hidden>, pilihanmu</hidden>",

@@ -681,6 +681,7 @@
   "quiz.correct": "Richtig!",
   "quiz.notQuite": "Nicht ganz",
   "quiz.outOfTime": "Zeit um",
+  "quiz.left": "Du hast das Quiz verlassen",
   "quiz.inventoryFull": "Dein Inventar ist schon voll",
   "quiz.theAnswer": "{choice}<hidden>, die richtige Antwort</hidden>",
   "quiz.yourPick": "{choice}<hidden>, deine Wahl</hidden>",

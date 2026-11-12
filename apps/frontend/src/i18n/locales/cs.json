@@ -681,6 +681,7 @@
   "quiz.correct": "Správně!",
   "quiz.notQuite": "Vedle",
   "quiz.outOfTime": "Čas vypršel",
+  "quiz.left": "Kvíz opuštěn",
   "quiz.inventoryFull": "Inventář máš už plný",
   "quiz.theAnswer": "{choice}<hidden>, správná odpověď</hidden>",
   "quiz.yourPick": "{choice}<hidden>, tvoje volba</hidden>",
