@@ -41,7 +41,10 @@ type Landing struct {
 	Referrer string
 }
 
-const maxHostLength = 253
+const (
+	maxHostLength = 253
+	maxTagLength  = 32
+)
 
 var ErrInvalidArrival = errors.New("the arrival is invalid")
 
@@ -49,6 +52,7 @@ type Arrival struct {
 	id       ArrivalID
 	account  AccountID
 	source   Source
+	tag      string
 	referrer string
 	at       time.Time
 }
@@ -57,14 +61,15 @@ func NewArrival(id ArrivalID, account AccountID, landing Landing, at time.Time) 
 	if account == (AccountID{}) {
 		return Arrival{}, fmt.Errorf("%w: no account", ErrInvalidArrival)
 	}
+	tag := tagOf(landing.Tag)
 	return Snapshot{
-		ID: id, Account: account, Source: sourceOf(landing.Tag), Referrer: hostOf(landing.Referrer), At: at,
+		ID: id, Account: account, Source: sourceOf(tag), Tag: tag, Referrer: hostOf(landing.Referrer), At: at,
 	}.Restore()
 }
 
 // A tag nobody posted is no source: anybody can type one.
 func sourceOf(tag string) Source {
-	switch strings.ToLower(strings.TrimSpace(tag)) {
+	switch tag {
 	case recruitTag:
 		return SourceRecruit
 	case youtubeTag:
@@ -74,6 +79,20 @@ func sourceOf(tag string) Source {
 	default:
 		return SourceUnknown
 	}
+}
+
+// A short plain word, as a streamer's name: anything longer or with other signs is "".
+func tagOf(tag string) string {
+	kept := strings.ToLower(strings.TrimSpace(tag))
+	if len(kept) > maxTagLength {
+		return ""
+	}
+	for _, r := range kept {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '_' && r != '-' {
+			return ""
+		}
+	}
+	return kept
 }
 
 // A host name and nothing else: a path, a query, a port or a whole address is "".
@@ -90,7 +109,7 @@ func hostOf(referrer string) string {
 	return host
 }
 
-// The arrival with nothing that says whose it was: the source, the referrer and the time stay.
+// The arrival with nothing that says whose it was: the source, the tag, the referrer and the time stay.
 func (a Arrival) Anonymized() Arrival {
 	a.account = AccountID{}
 	return a
@@ -105,7 +124,7 @@ func AllAnonymized(kept []Arrival) []Arrival {
 }
 
 func (a Arrival) TakeSnapshot() Snapshot {
-	return Snapshot{ID: a.id, Account: a.account, Source: a.source, Referrer: a.referrer, At: a.at}
+	return Snapshot{ID: a.id, Account: a.account, Source: a.source, Tag: a.tag, Referrer: a.referrer, At: a.at}
 }
 
 type Snapshot struct {
@@ -113,6 +132,7 @@ type Snapshot struct {
 	// Zero once the arrival is anonymized.
 	Account AccountID
 	Source  Source
+	Tag     string
 	// The host the browser came from, "" for none.
 	Referrer string
 	At       time.Time
@@ -127,7 +147,7 @@ func (s Snapshot) Restore() (Arrival, error) {
 	case s.At.IsZero():
 		return Arrival{}, fmt.Errorf("%w: no time", ErrInvalidArrival)
 	}
-	return Arrival{id: s.ID, account: s.Account, source: s.Source, referrer: s.Referrer, at: s.At}, nil
+	return Arrival{id: s.ID, account: s.Account, source: s.Source, tag: s.Tag, referrer: s.Referrer, at: s.At}, nil
 }
 
 // A store finds arrivals and saves them. It holds no rule: what changes an arrival is a method of Arrival.
