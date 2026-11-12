@@ -40,7 +40,7 @@ import WelcomeBackModal from "../account/WelcomeBackModal.tsx";
 import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
-import {shareStats} from "../../domain/shareCard.ts";
+import {shareAddress, shareStats} from "../../domain/shareCard.ts";
 import {Countries, Country} from "../../domain/countries.ts";
 import {Shot} from "../../domain/clip/camera.ts";
 import {useAllegiance} from "../useAllegiance.ts";
@@ -343,7 +343,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, crazyGames.silenced)
 
     const stats = shareStats(lines, countryState)
-    const {shot, taking, take, discard} = useSharePicture(capture, stats)
+    const address = shareAddress(countryState.code, username)
+    const {shot, taking, take, discard} = useSharePicture(capture, stats, address)
 
     const openPitch = guest ? () => {
         closeSheet()
@@ -401,6 +402,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         clips: backends.clips,
     }
     const share = {
+        address,
         onTakePicture: () => {
             closeSheet()
             take()
@@ -435,7 +437,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         {ready && compact && <StatusBar rank={rankOf(lines, countryState)}
                                         trailing={<ScheduleChip compact/>}/>}
 
-        {ready && <ClickBudgetMeter frozen={mood === "frozen" ? {nextSeason: seasons.next, country: countryState} : undefined}
+        {ready && <ClickBudgetMeter frozen={mood === "frozen" ? {nextSeason: seasons.next, country: countryState, address} : undefined}
                                     invite={invite}
                                     discord={discord}
                                     onSignIn={openPitch}
@@ -493,6 +495,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         {shot && <SharePreview shot={shot}
                                stats={stats}
+                               address={address}
                                onClose={discard}/>}
 
         {pitchOpen && guest && linkedMultiplier && <SignInPitchModal

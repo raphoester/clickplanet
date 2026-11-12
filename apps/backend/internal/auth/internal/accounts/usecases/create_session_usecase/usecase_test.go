@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/usecases/create_session_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_recruitment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -35,6 +36,7 @@ func (refusingAttester) Attest(context.Context, string, string) error {
 type fixture struct {
 	sessions *inmemory_account_store.Store
 	arrivals *inmemory_arrival_store.Store
+	recruits *inmemory_recruitment_store.Store
 	signer   *cpsession.Signer
 	verifier *cpsession.Verifier
 	clock    *cptime.FixedClock
@@ -52,6 +54,7 @@ func setUp(t *testing.T) fixture {
 	return fixture{
 		sessions: inmemory_account_store.New(),
 		arrivals: inmemory_arrival_store.New(),
+		recruits: inmemory_recruitment_store.New(),
 		signer:   signer,
 		verifier: verifier,
 		clock:    cptime.NewFixedClock(start),
@@ -63,7 +66,7 @@ func (f fixture) useCase(attester attestation.Attester) *create_session_usecase.
 	guests := accounts.NewGuests(f.sessions, &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return create_session_usecase.New(attester, accounts.NewResumer(f.sessions, lifetime),
 		arrivals.NewGuests(cpatomic.FakeTransactioner{}, guests,
-			arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})),
+			arrivals.NewRegister(f.arrivals, f.recruits, &arrivals.SequentialIDs{})),
 		f.signer, f.clock)
 }
 
@@ -229,18 +232,21 @@ func TestOnlyTheMintThatStartsAGuestKeepsWhereItCameFrom(t *testing.T) {
 	f := setUp(t)
 	useCase := f.useCase(open_attester.New())
 
+	recruiter := accounts.AccountID{15: 0x77}
 	first, err := useCase.Execute(t.Context(), create_session_usecase.In{
-		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Tag: "rc", Referrer: "discord.com"},
+		AttestationToken: "widget", IP: ip, Landing: arrivals.Landing{Tag: "rc", Referrer: "discord.com", Recruiter: recruiter},
 	})
 	require.NoError(t, err)
 	_, err = useCase.Execute(t.Context(), create_session_usecase.In{
-		AttestationToken: "widget", IP: ip, CookieHeader: "cp_sid=token-1", Landing: arrivals.Landing{Tag: "yt"},
+		AttestationToken: "widget", IP: ip, CookieHeader: "cp_sid=token-1",
+		Landing: arrivals.Landing{Tag: "rc", Recruiter: accounts.AccountID{15: 0x78}},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, []arrivals.Snapshot{{
 		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: f.accountIn(t, first), Source: arrivals.SourceRecruit, Referrer: "discord.com", At: start,
 	}}, f.arrivals.Kept())
+	assert.Equal(t, []arrivals.RecruitmentSnapshot{{Arrival: arrivals.ArrivalID{0: 0xa, 15: 1}, Recruiter: recruiter}}, f.recruits.Kept())
 }
 
 func TestARefusedAttestationKeepsNoArrival(t *testing.T) {

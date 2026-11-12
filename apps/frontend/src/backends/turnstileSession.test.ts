@@ -9,6 +9,7 @@ import {
 } from "./turnstileSession.ts"
 import {newClickServiceClient} from "./planetBackend.ts"
 import {SessionUnavailableError} from "./session.ts"
+import {Landing} from "../domain/landing.ts"
 
 const HOUR_MS = 60 * 60 * 1000
 
@@ -80,11 +81,32 @@ describe("SessionClient", () => {
         const createSession = vi.fn(minting("session-1"))
 
         const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {
-            now: clock, landing: {tag: "yt", referrer: "www.google.com"},
+            now: clock, landing: Promise.resolve({tag: "yt", referrer: "www.google.com"}),
         })
         await client.token()
 
         expect(createSession).toHaveBeenCalledWith({attestationToken: "widget-token", landing: {tag: "yt", referrer: "www.google.com"}})
+    })
+
+    it("waits for the recruiter's name to be read before the mint that may make the account", async () => {
+        const createSession = vi.fn(minting("session-1"))
+        let read: (landing: Landing) => void = () => {}
+        const landing = new Promise<Landing>((resolve) => {
+            read = resolve
+        })
+
+        const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {now: clock, landing})
+        const token = client.token()
+        await Promise.resolve()
+        expect(createSession).not.toHaveBeenCalled()
+
+        read({tag: "rc", referrer: "", recruiterAccountId: "0193f2a4-7c1e-7000-8000-00000000ada0"})
+        await token
+
+        expect(createSession).toHaveBeenCalledWith({
+            attestationToken: "widget-token",
+            landing: {tag: "rc", referrer: "", recruiterAccountId: "0193f2a4-7c1e-7000-8000-00000000ada0"},
+        })
     })
 
     it("mints again once the token is inside the refresh margin", async () => {
