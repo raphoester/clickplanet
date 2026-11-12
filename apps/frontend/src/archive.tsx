@@ -11,6 +11,10 @@ import {FakeTurnBackend, SEASON_ZERO} from "./backends/fakeTurnBackend.ts"
 import {TurnBackend} from "./backends/turn.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
+import {languageInterceptor} from "./backends/language.ts"
+import {speakChosenLanguage} from "./i18n/start.ts"
+
+const speaking = speakChosenLanguage()
 
 const borders = loadBorders(BORDERS_URL)
 const geometry = () => Promise.all([loadPointGeometryData(), borders]).then(([{positions}, {assignment, codes}]) => ({
@@ -19,7 +23,11 @@ const geometry = () => Promise.all([loadPointGeometryData(), borders]).then(([{p
 
 function turnBackend(): TurnBackend {
     if (!(import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND)) {
-        return new ConnectTurnBackend(newGamemasterServiceClient({baseUrl: API_BASE_URL, timeoutMs: 10_000}))
+        return new ConnectTurnBackend(newGamemasterServiceClient({
+            baseUrl: API_BASE_URL,
+            timeoutMs: 10_000,
+            interceptors: [languageInterceptor(speaking.then((translator) => translator.language))],
+        }))
     }
     const fake = new FakeTurnBackend(undefined, Date.now, [SEASON_ZERO])
     fake.replayOn(() => borders.then(({assignment, codes}) => new Map(
@@ -28,8 +36,9 @@ function turnBackend(): TurnBackend {
     return fake
 }
 
-createRoot(document.getElementById("root")!).render(
+const turn = turnBackend()
+void speaking.then(() => createRoot(document.getElementById("root")!).render(
     <StrictMode>
-        <SeasonMap turn={turnBackend()} geometry={geometry}/>
+        <SeasonMap turn={turn} geometry={geometry}/>
     </StrictMode>,
-)
+))

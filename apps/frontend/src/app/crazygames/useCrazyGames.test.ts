@@ -24,6 +24,7 @@ function fakePage() {
         settings: () => ({chat: true, audio: true}),
         listenForSettings: () => () => undefined,
         started: vi.fn(),
+        locale: async () => undefined,
     }
     return {page, invite: (flag: Country) => invites.forEach((listener) => listener(flag)), invites}
 }

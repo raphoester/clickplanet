@@ -132,7 +132,7 @@ async function make(job: VideoJob, progress: (share: number) => void): Promise<{
         bonusListener: backend,
         bomber: backend,
         container: stage,
-        country: Countries.get(story.flag) ?? {code: story.flag, name: story.flag},
+        country: Countries.get(story.flag) ?? {code: story.flag},
         mapView: "split",
         rendering: "sharp",
         director: () => camera(played),

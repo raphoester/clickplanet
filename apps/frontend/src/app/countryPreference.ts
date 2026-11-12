@@ -3,7 +3,7 @@ import {countryFromTimeZone} from "./visitorCountry.ts";
 
 export const COUNTRY_STORAGE_KEY = 'clickplanet-country'
 
-export const FALLBACK_COUNTRY: Country = Countries.get("fr") ?? {code: "fr", name: "France"}
+export const FALLBACK_COUNTRY: Country = Countries.get("fr") ?? {code: "fr"}
 
 export function parseStoredCountry(raw: string | null | undefined): Country | undefined {
     if (!raw) return undefined

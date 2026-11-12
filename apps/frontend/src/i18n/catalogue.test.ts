@@ -1,0 +1,63 @@
+import {describe, expect, it} from "vitest"
+import {LANGUAGES, SOURCE_LANGUAGE} from "./languages.ts"
+import {parseMessage, pluralsOf, Slot, slotsOf} from "./message.ts"
+import {ENGLISH, OWN_COUNTRY_NAMES} from "./translator.ts"
+
+const FILES = import.meta.glob<Record<string, unknown>>("./locales/*.json", {eager: true, import: "default"})
+
+const linesOf = (language: string) => FILES[`./locales/${language}.json`]
+
+// A count may be a plain number where a language has one form for every count.
+const kindOf = (slot: Slot) => slot === "count" ? "value" : slot
+
+describe("the catalogue", () => {
+    it("has a file for each language and none for another", () => {
+        expect(Object.keys(FILES).sort()).toEqual(LANGUAGES.map((language) => `./locales/${language}.json`).sort())
+    })
+
+    it("names in English each flag it names itself", () => {
+        for (const code of OWN_COUNTRY_NAMES) expect(ENGLISH).toHaveProperty(`country.${code}`)
+    })
+
+    for (const language of LANGUAGES) {
+        describe(language, () => {
+            const lines = linesOf(language)
+            const cardinals = new Intl.PluralRules(language).resolvedOptions().pluralCategories
+            const ordinals = new Intl.PluralRules(language, {type: "ordinal"}).resolvedOptions().pluralCategories
+
+            it("holds every English key and no other", () => {
+                const keys = Object.keys(lines)
+                expect(keys.filter((key) => !(key in ENGLISH)), "keys English no longer has").toEqual([])
+                expect(Object.keys(ENGLISH).filter((key) => !(key in lines)), "keys missing").toEqual([])
+            })
+
+            it("holds lines that read, with English's slots and every plural form the language needs", () => {
+                const problems: string[] = []
+                for (const [key, english] of Object.entries(ENGLISH)) {
+                    const line = lines[key]
+                    if (typeof line !== "string") {
+                        problems.push(`${key}: not a line`)
+                        continue
+                    }
+                    let nodes
+                    try {
+                        nodes = parseMessage(line)
+                    } catch (e) {
+                        problems.push(`${key}: ${(e as Error).message}`)
+                        continue
+                    }
+                    if (language === SOURCE_LANGUAGE) parseMessage(english)
+                    const want = [...slotsOf(parseMessage(english))].map(([name, slot]) => `${name}:${kindOf(slot)}`).sort()
+                    const have = [...slotsOf(nodes)].map(([name, slot]) => `${name}:${kindOf(slot)}`).sort()
+                    if (want.join() !== have.join()) problems.push(`${key}: slots ${have.join(" ")} where English has ${want.join(" ")}`)
+                    for (const plural of pluralsOf(nodes)) {
+                        const needed = plural.ordinal ? ordinals : cardinals
+                        const missing = needed.filter((category) => !plural.selectors.includes(category))
+                        if (missing.length) problems.push(`${key}: {${plural.name}} lacks ${missing.join(", ")}`)
+                    }
+                }
+                expect(problems).toEqual([])
+            })
+        })
+    }
+})

@@ -14,6 +14,7 @@ import {pageContextOf} from "../support/pageContext.ts";
 import {NO_GRAPHICS} from "../viewer/graphicsReport.ts";
 import {ON_CRAZYGAMES} from "../../platform.ts";
 import {useDisplaySettings} from "./displaySettingsStore.ts";
+import LanguagePicker from "./LanguagePicker.tsx";
 import "./SettingsPlace.css"
 
 export type SettingsPlaceProps = {
@@ -38,6 +39,9 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
 
     return <div className="settings">
         <ul className="switch-list panel-box">
+            <li className="settings-choices">
+                <LanguagePicker/>
+            </li>
             <li className="settings-choices">
                 <Choices label="Country flags"
                          options={MAP_VIEWS}

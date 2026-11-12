@@ -8,6 +8,7 @@ type FakeOverrides = {
     token?: () => Promise<string>
     prompt?: () => Promise<unknown>
     inviteParams?: InviteParams
+    locale?: string
 }
 
 function fakeSdk(overrides: FakeOverrides = {}) {
@@ -23,6 +24,7 @@ function fakeSdk(overrides: FakeOverrides = {}) {
             showAuthPrompt: vi.fn(overrides.prompt ?? (async () => ({username: "Nova"}))),
             addAuthListener: (listener: (user: unknown) => void) => authListeners.add(listener),
             removeAuthListener: (listener: (user: unknown) => void) => authListeners.delete(listener),
+            systemInfo: {locale: overrides.locale ?? "en-US"},
         },
         game: {
             settings: {disableChat: false, muteAudio: false} as Sdk["game"]["settings"],
@@ -51,6 +53,11 @@ function fakeSdk(overrides: FakeOverrides = {}) {
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe("connectCrazyGames", () => {
+    it("tells the locale CrazyGames shows its site in, and none with no SDK", async () => {
+        expect(await connectCrazyGames(async () => fakeSdk({locale: "pl-PL"}).sdk).locale()).toBe("pl-PL")
+        expect(await connectCrazyGames(() => Promise.reject(new Error("blocked"))).locale()).toBeUndefined()
+    })
+
     it("asks for the in-game token, and a guest has none", async () => {
         const signedIn = fakeSdk()
         expect(await connectCrazyGames(async () => signedIn.sdk).user.token()).toBe("the-jwt")

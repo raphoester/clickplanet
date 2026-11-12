@@ -18,6 +18,7 @@ export type Sdk = {
         showAuthPrompt(): Promise<unknown>
         addAuthListener(listener: (user: unknown) => void): void
         removeAuthListener(listener: (user: unknown) => void): void
+        systemInfo?: {locale?: string}
     }
     game: {
         settings: SdkSettings
@@ -161,5 +162,6 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
             sdk?.game.loadingStop()
             sdk?.game.gameplayStart()
         }),
+        locale: async () => (await ready)?.user.systemInfo?.locale || undefined,
     }
 }
