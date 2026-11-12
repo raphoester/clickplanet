@@ -43,7 +43,7 @@ service InternalService {
     option idempotency_level = IDEMPOTENT;
   }
 
-  // AdminService/GetLedger, for the clips module's cast: who took which tile.
+  // AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
   rpc GetLedger(GetLedgerRequest) returns (GetLedgerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -109,6 +109,33 @@ service InternalService {
   rpc GetFreeze(GetFreezeRequest) returns (GetFreezeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
+  // the tiles it touches, for the vandal squad's look at what a player painted. InvalidArgument for a tile off the map,
+  // or for more than 20,000 asked at once.
+  rpc GetTiles(GetTilesRequest) returns (GetTilesResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message GetTilesRequest {
+  repeated uint32 tile_ids = 1;
+}
+
+// One per tile asked, in the order asked.
+message GetTilesResponse {
+  repeated MapTile tiles = 1;
+}
+
+message MapTile {
+  uint32 tile_id = 1;
+  // Empty for a tile nobody owns.
+  string country_id = 2;
+  // Empty when no player's take holds the tile: a bomb's clear, a revert or another operator's write.
+  string holder_account_id = 3;
+  GlobePoint point = 4;
+  // In the order the map keeps them; none for a one-tile island.
+  repeated uint32 neighbours = 5;
 }
 
 message GetMapHistoryRequest {
