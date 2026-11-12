@@ -82,7 +82,7 @@ export type BonusRules = {
     toll: readonly TollStep[]
     signInRefill: boolean
     enclosuresUnlimited: boolean
-    // A take lands only next to the flag's land or at the far end of a bridge from it.
+    // A take lands only next to the flag's land or across a water where it holds a coast.
     reach: boolean
     // A capital taken by another flag knocks its flag out.
     knockOut: boolean
@@ -90,8 +90,6 @@ export type BonusRules = {
     capitalShieldsFixed: boolean
     // No bomb is offered or dropped: the page hides the bomb.
     bombsOff: boolean
-    // The shields each capital starts an arena with, 0 when the set lays no capital.
-    capitalShields: number
 }
 
 export function describeReward(reward: BonusReward): {

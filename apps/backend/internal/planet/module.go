@@ -457,8 +457,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(hands, limiter, pricer, buckets)),
 				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(hands)),
 				GetChargeRulesHandler: get_charge_rules_handler.New(chargeRules, bombing, pricer,
-					cprules.Reader(inForce, clicks.ReachPart), cprules.Reader(inForce, clicks.CapitalsPart),
-					cprules.Reader(inForce, seeds.Part)),
+					cprules.Reader(inForce, clicks.ReachPart), cprules.Reader(inForce, clicks.CapitalsPart)),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
 					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, chargeRules), escrow, writer),
 					refusing)),

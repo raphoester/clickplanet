@@ -11,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charge_rules_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 )
 
 type toll []clicks.TollStep
@@ -21,8 +20,6 @@ func (t toll) Steps() []clicks.TollStep { return t }
 func noReach() clicks.Reaching { return false }
 
 func noCapitalRule() clicks.CapitalRules { return clicks.CapitalRules{} }
-
-func noCapitalSeed() seeds.Pattern { return seeds.Capitals{} }
 
 func answered(t *testing.T, handler get_charge_rules_handler.GetChargeRulesHandler) *planetv1.GetChargeRulesResponse {
 	t.Helper()
@@ -35,7 +32,7 @@ func answered(t *testing.T, handler get_charge_rules_handler.GetChargeRulesHandl
 func TestTheRulesAreThoseInForce(t *testing.T) {
 	rules := charges.TestRules()
 	inForce := func() charges.Rules { return rules }
-	handler := get_charge_rules_handler.New(inForce, charges.NewBombing(inForce, 0.004), toll{}, noReach, noCapitalRule, noCapitalSeed)
+	handler := get_charge_rules_handler.New(inForce, charges.NewBombing(inForce, 0.004), toll{}, noReach, noCapitalRule)
 
 	rules.Bomb.Rings = 5
 	rules.Enclose = charges.EncloseRules{MaxTiles: 40, Held: 4, Unlimited: true}
@@ -59,7 +56,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
 	got := answered(t, get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, 0.004), steps,
-		noReach, noCapitalRule, noCapitalSeed)).GetTollSteps()
+		noReach, noCapitalRule)).GetTollSteps()
 
 	require.Len(t, got, 3)
 	for i, step := range steps {
@@ -72,7 +69,7 @@ func TestThePageIsToldTheReachAndTheCapitalRulesInForce(t *testing.T) {
 	reach := clicks.Reaching(false)
 	capitals := clicks.CapitalRules{}
 	handler := get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, 0.004), toll{},
-		func() clicks.Reaching { return reach }, func() clicks.CapitalRules { return capitals }, noCapitalSeed)
+		func() clicks.Reaching { return reach }, func() clicks.CapitalRules { return capitals })
 
 	off := answered(t, handler)
 	reach, capitals = true, clicks.CapitalRules{KnockOut: true, FixedShields: true}
@@ -82,14 +79,4 @@ func TestThePageIsToldTheReachAndTheCapitalRulesInForce(t *testing.T) {
 	assert.True(t, on.GetReach())
 	assert.True(t, on.GetKnockOut())
 	assert.True(t, on.GetCapitalShieldsFixed())
-}
-
-func TestThePageIsToldTheShieldsEachCapitalStartsWith(t *testing.T) {
-	seed := seeds.Pattern(seeds.Capitals{})
-	handler := get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, 0.004), toll{},
-		noReach, noCapitalRule, func() seeds.Pattern { return seed })
-
-	assert.Zero(t, answered(t, handler).GetCapitalShields())
-	seed = seeds.Capitals{Shields: 100}
-	assert.Equal(t, uint32(100), answered(t, handler).GetCapitalShields())
 }

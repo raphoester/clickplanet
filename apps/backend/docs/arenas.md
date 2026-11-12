@@ -145,8 +145,7 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 - **The reach** (`reach`): a take lands only next to the flag's land or across a bridge from it. See [The reach](reach.md).
 - **The knock-out** (`capitals.knockOut`) and **fixed capital shields** (`capitals.fixedShields`): see
   [The capitals' rules](capitals.md).
-- **The page** learns them from `GetChargeRules` (`reach`, `knock_out`, `capital_shields_fixed`, and `capital_shields`,
-  the seed's shields of each capital, `seeds.Pattern.CapitalShields`), read again on
+- **The page** learns them from `GetChargeRules` (`reach`, `knock_out`, `capital_shields_fixed`), read again on
   `rules_changed`: see the frontend's [The reach](../../frontend/docs/reach.md) and
   [The capitals](../../frontend/docs/capitals.md). No map read says whether the map is an arena's: `GetMapResponse.arena`
   went with slice 5 (field 6 reserved), as nobody read it.

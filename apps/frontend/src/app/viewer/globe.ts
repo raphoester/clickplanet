@@ -545,9 +545,33 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
+    // The badges count up to the most a tile holds on the map: `tileShields`, or what a seed laid past it, as a capital's
+    // 100 in an arena. The sheet grows to it, by tens, and falls back to `tileShields` once no tile holds more: a hit
+    // redraws it only when it crosses one of those.
+    const drawMarks = (most: number) => {
+        if (most === uniforms.shieldMost.value) return
+        uniforms.shieldMost.value = most
+        uniforms.shieldMarks.value.dispose()
+        uniforms.shieldMarks.value = drawShieldMarks(most, invalidate)
+        uniforms.shieldCells.value = shieldCellsOf(most)
+    }
+    const marksFor = (held: number) => held <= tileShieldsMost() ? tileShieldsMost() : Math.ceil(held / 10) * 10
+    const fitMarks = (changes: readonly ShieldChange[]) => {
+        const floor = tileShieldsMost()
+        let highest = 0
+        let fell = false
+        for (const {shields, was} of changes) {
+            highest = Math.max(highest, shields)
+            if (was > floor && shields <= floor) fell = true
+        }
+        if (highest > uniforms.shieldMost.value) drawMarks(marksFor(highest))
+        else if (fell && uniforms.shieldMost.value > floor) drawMarks(marksFor(shielded.most()))
+    }
+
     const showShields = (changes: ShieldChange[]) => {
         if (changes.length === 0) return
         field.setShields(changes)
+        fitMarks(changes)
         markMissions(missionMarks.touch(changes.map(({tile}) => tile)))
         invalidate()
     }
@@ -746,9 +770,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let reach: Front | undefined
 
     const capitalRules = (read: BonusRules | undefined) => (read?.knockOut || read?.capitalShieldsFixed) ?? false
-    // The badges count up to a tile's most, and up to a capital's start while the capitals' rules play: 100 shields
-    // read 100, and each hit on a capital shows.
-    const marksMost = (read: BonusRules) => Math.max(read.tileShields, capitalRules(read) ? read.capitalShields : 0)
     const tileShieldsMost = () => rules && rules.tileShields > 0 ? rules.tileShields : SHIELD_MOST_UNTIL_READ
     const fixedCapitals = () => rules?.capitalShieldsFixed ? capitals : undefined
 
@@ -929,13 +950,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 encloseSwitchedOff = false
                 switchTo(switchesHeld({...switches, enclose: false}, charges, read.enclosuresUnlimited))
             }
-            const most = marksMost(read)
-            if (most > 0 && most !== uniforms.shieldMost.value) {
-                uniforms.shieldMost.value = most
-                uniforms.shieldMarks.value.dispose()
-                uniforms.shieldMarks.value = drawShieldMarks(most, invalidate)
-                uniforms.shieldCells.value = shieldCellsOf(most)
-            }
+            drawMarks(marksFor(shielded.most()))
             followRules(read)
             if (read.bombsOff) disarm()
             invalidate()

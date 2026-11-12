@@ -5,8 +5,8 @@
 each country's capital (the backend's [Arena battles](../../backend/docs/arenas.md)); any set may play them on the world's
 map too.
 
-- **Where the page learns them.** `GetChargeRules.knock_out`, `capital_shields_fixed` and `capital_shields` (the shields
-  each capital starts an arena with), read into `BonusRules` and read again on `rules_changed`. `globe.ts` follows them in `onRules` (`followCapitals`).
+- **Where the page learns them.** `GetChargeRules.knock_out` and `capital_shields_fixed`, read into `BonusRules` and read
+  again on `rules_changed`. `globe.ts` follows them in `onRules` (`followCapitals`).
 - **What it reads then.** `static/capitals-<hash>.json`, once, the first time either rule plays (`capitals.ts`; URL in
   `capitalsAsset.ts`). It is a copy of [`/map`](../../../map/README.md). A file written for a map of another size is
   refused.
@@ -23,11 +23,13 @@ map too.
   - shown from 10 px across, as the mission ring, never under the painted flags.
 
 - **A capital's badge counts every shield it holds** (the owner, 2026-11-12: its 100 shields read 10, the most a tile
-  holds, so its first 90 hits changed nothing on screen). While either rule plays, the badges count up to
-  `capitalShields` when it is above `tileShields` (`marksMost` in `globe.ts`): 100 reads 100, 83 reads 83. The sheet of
-  counts (`shieldMarks.ts`) is laid out square and drawn in 64 px cells past 16 cells, so a capital's 100 weigh about
-  1.8 MB on the GPU and the 255 a seed may hold stay under 4096 px. Fortify still raises a tile to `tileShields`. A
-  set whose seed lays capitals with no capitals' rule still reads `tileShields` at most.
+  holds, so its first 90 hits changed nothing on screen). The page shows the count the server sends: the sheet of
+  badges (`shieldMarks.ts`) holds a count up to the most a tile holds on the map (`TileShields.most`), `tileShields`
+  at least, by tens past it (`fitMarks` in `globe.ts`). It grows when an update brings a bigger count, as a capital's
+  100 in an arena, and falls back to `tileShields` once a big stack fell and no tile holds more, as when the world's
+  map plays again. A hit redraws it only when it crosses one of those. Past 16 cells the sheet is laid out square in
+  64 px cells: a capital's 100 weigh about 1.8 MB on the GPU, and 255 stay under 4096 px. Fortify still raises a tile
+  to `tileShields`. No rule names a capital's shields but the seed's.
 - **No shield on a capital**, while `capitalShieldsFixed`:
   - The shield switch on a capital sends nothing, and the slot says "No shield on a capital" (`placementOf` answers
     `"capital"`).

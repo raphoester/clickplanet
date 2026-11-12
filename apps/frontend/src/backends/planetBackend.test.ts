@@ -1882,11 +1882,11 @@ describe("the rules", () => {
         return seen
     }
 
-    it("reads the toll, the sizes of the charges, the sign-in refill, unlimited enclosures, the reach and the capitals' rules and shields", async () => {
+    it("reads the toll, the sizes of the charges, the sign-in refill, unlimited enclosures, the reach and the capitals' rules", async () => {
         const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], enclosuresUnlimited: true,
-            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, capitalShields: 100,
+            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true,
         }))
         const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
         const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), offersWith({getGrantRules}))
@@ -1896,7 +1896,7 @@ describe("the rules", () => {
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
-            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, capitalShields: 100,
+            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true,
         }))
         backend.close()
     })
