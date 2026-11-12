@@ -1,6 +1,7 @@
 import {Boards, MySeason, Standing} from "../../backends/standings.ts"
 import {Countries} from "../../domain/countries.ts"
 import {boardWith} from "../../domain/standings.ts"
+import {t, translator} from "../../i18n/page.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import RankCoin from "../components/RankCoin.tsx"
@@ -52,7 +53,7 @@ function ownLine(caller: Caller, mine: MySeason | undefined): Standing | undefin
 }
 
 function rankedAmong(countryCode: string): string {
-    return countryCode === "" ? "Players" : Countries.get(countryCode)?.name ?? countryCode
+    return countryCode === "" ? t("standings.players") : translator().country(countryCode)
 }
 
 function withRank(mine: MySeason | undefined, rank: number | undefined): MySeason | undefined {
@@ -67,14 +68,14 @@ type StandingsTableProps = {
 }
 
 function StandingsTable({label, standings, accountId, own}: StandingsTableProps) {
-    if (standings.length === 0 && !own) return <p className="standings-empty">Nobody yet.</p>
+    if (standings.length === 0 && !own) return <p className="standings-empty">{t("standings.nobodyYet")}</p>
 
     return <table className="leaderboard-table standings-table" aria-label={label}>
         <thead>
         <tr>
-            <th className="leaderboard-table-head leaderboard-table-rank" scope="col">#</th>
-            <th className="leaderboard-table-head" scope="col">Player</th>
-            <th className="leaderboard-table-head leaderboard-table-number" scope="col">Tiles</th>
+            <th className="leaderboard-table-head leaderboard-table-rank" scope="col">{t("standings.rankColumn")}</th>
+            <th className="leaderboard-table-head" scope="col">{t("standings.player")}</th>
+            <th className="leaderboard-table-head leaderboard-table-number" scope="col">{t("standings.tiles")}</th>
         </tr>
         </thead>
         <tbody>
@@ -98,6 +99,7 @@ type StandingRowProps = {
 
 function StandingRow({standing, you}: StandingRowProps) {
     const country = Countries.get(standing.countryCode)
+    const countryName = translator().country(standing.countryCode)
     const nameplate = useNameplate(standing.accountId)
     const style = authorStyle(paintOf(nameplate))
     const name = useWordFilter().masked(nameOf(nameplate))
@@ -109,7 +111,7 @@ function StandingRow({standing, you}: StandingRowProps) {
         <td className="leaderboard-entry-index"><RankCoin rank={standing.rank} you={you}/></td>
         <td className="standings-player">
             <span className="standings-who">
-                {country && <span className="standings-flag" role="img" aria-label={country.name} title={country.name}>
+                {country && <span className="standings-flag" role="img" aria-label={countryName} title={countryName}>
                     <CountryFlag code={country.code}/>
                 </span>}
                 {player
@@ -126,6 +128,6 @@ function StandingRow({standing, you}: StandingRowProps) {
                 <WornTitle accountId={standing.accountId} size={18}/>
             </span>
         </td>
-        <td className="leaderboard-table-number">{standing.tiles}</td>
+        <td className="leaderboard-table-number">{translator().number(standing.tiles)}</td>
     </tr>
 }

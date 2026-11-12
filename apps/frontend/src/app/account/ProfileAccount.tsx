@@ -1,12 +1,13 @@
 import {useId, useState} from "react"
-import {PROVIDER_NAMES, Provider} from "../../backends/account.ts"
+import {Provider} from "../../backends/account.ts"
 import {ClipsNameBackend} from "../../backends/clips.ts"
 import ClipsSwitch from "../clips/ClipsSwitch.tsx"
 import {CheckIcon} from "../components/icons.tsx"
 import {AccountState, AccountStore} from "./accountStore.ts"
-import {messageOf} from "./authMessages.ts"
+import {messageOf, providerName} from "./authMessages.ts"
 import {ColorPicker, UsernameForm} from "./AccountPanel.tsx"
 import EmailSignIn from "./EmailSignIn.tsx"
+import {t} from "../../i18n/page.ts"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
 
@@ -18,7 +19,7 @@ export type ProfileAccountProps = {
 }
 
 // "email" reads inside a sentence ("Signed in with Google and email"); as a chip of its own it is a name.
-const chipName = (provider: Provider) => provider === "email" ? "Email" : PROVIDER_NAMES[provider]
+const chipName = (provider: Provider) => provider === "email" ? t("account.emailChip") : providerName(provider)
 
 // The account beside a signed-in player's own card: the same settings as the phone's Account tab, made short.
 // The providers are chips, a link is a dashed chip, the email form opens on its chip, and leaving is a row of
@@ -42,13 +43,13 @@ export default function ProfileAccount({state, store, clips, onDelete}: ProfileA
     }
 
     return <section className="panel-box profile-account" aria-labelledby={titleId} aria-busy={busy}>
-        <h3 className="profile-section-title" id={titleId}>Account</h3>
+        <h3 className="profile-section-title" id={titleId}>{t("account.title")}</h3>
 
         <UsernameForm key={state.username ?? ""} state={state} store={store}/>
         {state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
 
         <div className="profile-providers">
-            <span className="menu-label" id={providersId}>Signed in with</span>
+            <span className="menu-label" id={providersId}>{t("account.signedInWithLabel")}</span>
             <ul className="profile-provider-chips" aria-labelledby={providersId}>
                 {linked.map((provider) => <li key={provider} className="profile-provider-chip">
                     <CheckIcon size={14}/>{chipName(provider)}
@@ -56,7 +57,7 @@ export default function ProfileAccount({state, store, clips, onDelete}: ProfileA
                 {toLink.map((provider) => <li key={provider}>
                     <button type="button"
                             className="profile-provider-chip profile-provider-chip--link"
-                            aria-label={`Link ${PROVIDER_NAMES[provider]}`}
+                            aria-label={t("account.link", {provider: providerName(provider)})}
                             aria-expanded={provider === "email" ? linkingEmail : undefined}
                             disabled={busy}
                             onClick={() => link(provider)}>
@@ -74,16 +75,16 @@ export default function ProfileAccount({state, store, clips, onDelete}: ProfileA
         <div className="profile-account-foot">
             {leavable && <>
                 <button type="button" className="account-text-button" disabled={busy} onClick={() => void store.signOut()}>
-                    Sign out
+                    {t("account.signOut")}
                 </button>
                 <button type="button" className="account-text-button" disabled={busy} onClick={() => void store.signOutEverywhere()}>
-                    Sign out everywhere
+                    {t("account.signOutEverywhere")}
                 </button>
             </>}
             <button type="button" className="account-text-button account-delete" disabled={busy} onClick={onDelete}>
-                Delete account
+                {t("account.delete")}
             </button>
-            <a className="profile-account-legal" href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+            <a className="profile-account-legal" href="/privacy" target="_blank" rel="noopener noreferrer">{t("account.privacyPolicy")}</a>
         </div>
     </section>
 }

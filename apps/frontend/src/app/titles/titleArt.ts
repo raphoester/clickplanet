@@ -1,4 +1,6 @@
 import {PlayerTitle, TitleTrack} from "../../backends/progression.ts"
+import {Key} from "../../i18n/translator.ts"
+import {t, translator} from "../../i18n/page.ts"
 
 export type Metal = "bronze" | "silver" | "gold" | "platinum" | "prism" | "holo" | "pumpkin"
 
@@ -110,7 +112,7 @@ export function ribbonOf(title: PlayerTitle): string {
 export const OG = "og"
 
 export function rankLine(title: PlayerTitle): string | undefined {
-    return title.rank && `Rank ${title.rank.number} of ${title.rank.count} · ${title.rank.trackName}`
+    return title.rank && t("title.rank", {rank: title.rank.number, count: title.rank.count, track: title.rank.trackName})
 }
 
 export function filledOf(track: TitleTrack): number {
@@ -128,48 +130,22 @@ export function filledOf(track: TitleTrack): number {
     return (reached + within) / (steps.length - 1)
 }
 
-const TRACK_UNITS: Partial<Record<string, {step: (n: string) => string, left: (n: string, next: string, progress: string) => string}>> = {
-    conquest: {
-        step: (n) => `${n} tiles`,
-        left: (n, next) => `${n} tiles to ${next}`,
-    },
-    devotion: {
-        step: (n) => `${n} days in a row`,
-        left: (n, next, progress) => `Day ${progress} · ${n} more to ${next}`,
-    },
-    chatter: {
-        step: (n) => `${n} messages`,
-        left: (n, next) => `${n} messages to ${next}`,
-    },
-    defense: {
-        step: (n) => `${n} fortified tiles`,
-        left: (n, next) => `${n} fortified tiles to ${next}`,
-    },
-    bombs: {
-        step: (n) => `${n} ${n === "1" ? "bomb" : "bombs"}`,
-        left: (n, next) => `${n} ${n === "1" ? "bomb" : "bombs"} to ${next}`,
-    },
-    loot: {
-        step: (n) => `${n} boxes`,
-        left: (n, next) => `${n} ${n === "1" ? "box" : "boxes"} to ${next}`,
-    },
-    quiz: {
-        step: (n) => `${n} right answers`,
-        left: (n, next) => `${n} ${n === "1" ? "right answer" : "right answers"} to ${next}`,
-    },
-    missions: {
-        step: (n) => `${n} ${n === "1" ? "mission" : "missions"}`,
-        left: (n, next) => `${n} ${n === "1" ? "mission" : "missions"} to ${next}`,
-    },
+const TRACK_LINES: Partial<Record<string, {step: Key, left: Key}>> = {
+    conquest: {step: "title.tiles", left: "title.tilesTo"},
+    devotion: {step: "title.daysInARow", left: "title.dayMoreTo"},
+    chatter: {step: "title.messages", left: "title.messagesTo"},
+    defense: {step: "title.fortifiedTiles", left: "title.fortifiedTilesTo"},
+    bombs: {step: "title.bombs", left: "title.bombsTo"},
+    loot: {step: "title.boxes", left: "title.boxesTo"},
+    quiz: {step: "title.rightAnswers", left: "title.rightAnswersTo"},
+    missions: {step: "title.missions", left: "title.missionsTo"},
 }
 
-const count = new Intl.NumberFormat()
-
 export function stepLabel(trackId: string, threshold: number): string {
-    return TRACK_UNITS[trackId]?.step(count.format(threshold)) ?? count.format(threshold)
+    const lines = TRACK_LINES[trackId]
+    return lines ? t(lines.step, {count: threshold}) : translator().number(threshold)
 }
 
 export function leftLabel(trackId: string, remaining: number, next: string, progress: number): string {
-    return TRACK_UNITS[trackId]?.left(count.format(remaining), next, count.format(progress))
-        ?? `${count.format(remaining)} to ${next}`
+    return t(TRACK_LINES[trackId]?.left ?? "title.countTo", {count: remaining, next, day: progress})
 }

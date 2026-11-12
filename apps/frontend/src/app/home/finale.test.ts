@@ -2,6 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import home from "../../../index.html?raw"
 import {FakeTurnBackend, SEASON_ZERO} from "../../backends/fakeTurnBackend.ts"
+import {dayAndTimeRange} from "../season/dates.ts"
 import {finaleShown} from "./finale.ts"
 
 const SECOND = 1000
@@ -51,7 +52,7 @@ describe("the Final Battle on the home page", () => {
         stop = follow()
 
         expect(panel().hidden).toBe(false)
-        expect(field("when")).toMatch(/^\w{3} \d{1,2} \w{3} · \d\d:\d\d – \d\d:\d\d$/)
+        expect(field("when")).toBe(dayAndTimeRange(SEASON_ZERO.endsAt - 2 * HOUR, SEASON_ZERO.endsAt))
         expect(field("length")).toBe("2 hours")
         expect(field("times")).toBe("3")
         expect(hidden("times-row")).toBe(false)

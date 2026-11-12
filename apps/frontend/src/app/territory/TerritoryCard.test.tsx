@@ -184,7 +184,7 @@ describe("TerritoryCard", () => {
     it("says who fortified it last and when, under the flag that did", () => {
         show(SICILY, {players: PLAYERS})
 
-        expect(screen.getByText("Mateus").closest("p")?.textContent).toBe("Mateus3 hours ago")
+        expect(screen.getByText("Mateus").closest("p")?.textContent).toBe("Mateus3 hr. ago")
     })
 
     it("names nobody under a lock a fortify did not set", () => {

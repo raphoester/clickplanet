@@ -4,15 +4,16 @@ import {
     SupportRejectedError,
     SupportReportedAlreadyError,
 } from "../../backends/support.ts"
+import {Key} from "../../i18n/translator.ts"
 
 export type SendFailure = "rate-limited" | "rejected" | "no-session" | "reported-already" | "failed"
 
-export const SEND_FAILURES: Record<SendFailure, string> = {
-    "rate-limited": "You sent too many. Try again later.",
-    "rejected": "That was refused.",
-    "no-session": "Could not start a session. Try again in a moment.",
-    "reported-already": "You already reported this player today.",
-    "failed": "It could not be sent. Try again.",
+export const SEND_FAILURES: Record<SendFailure, Key> = {
+    "rate-limited": "support.failure.rateLimited",
+    "rejected": "support.failure.rejected",
+    "no-session": "support.failure.noSession",
+    "reported-already": "support.failure.reportedAlready",
+    "failed": "support.failure.failed",
 }
 
 export function sendFailureOf(e: unknown): SendFailure {

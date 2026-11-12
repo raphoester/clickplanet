@@ -11,14 +11,17 @@ import CountryFlag from "./CountryFlag.tsx"
 import RecruitButton from "../share/RecruitButton.tsx"
 import InviteButton from "../share/InviteButton.tsx"
 import {Country} from "../../domain/countries.ts"
-import {breakHeadline, ShareAddress} from "../../domain/shareCard.ts"
+import {ShareAddress} from "../../domain/shareCard.ts"
+import {breakHeadline} from "../share/shareLines.ts"
 import DiscordButton from "../alerts/DiscordButton.tsx"
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
 import {InviteLink} from "../../backends/crazyGames.ts"
 import {useScreen} from "../hud/screenStore.ts"
-import {heldLine} from "../../domain/allegiance.ts"
+import {heldLine} from "../heldLine.ts"
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
 import {useClickBudget} from "../clicks/clickBudgetStore.ts"
+import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
 import "./ClickBudgetMeter.css"
 
 export type ClickBudgetMeterProps = {
@@ -35,8 +38,6 @@ export type ClickBudgetMeterProps = {
 const MAX_PIPS = 12
 
 const LOW_WATER = 3
-
-const OUT_OF_REACH = "Take a tile next to your land"
 
 const COUNTDOWN_FROM_S = 1.5
 
@@ -143,12 +144,12 @@ export default function ClickBudgetMeter({
                                     invite={invite}
                                     className="button button-mini button-secondary click-budget-invite"
                                     icon={<CountryFlag code={frozen.country.code}/>}
-                                    label="Invite"/>
+                                    label={t("play.invite")}/>
                     : <RecruitButton address={frozen.address}
                                      text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
                                      className="button button-mini button-secondary click-budget-invite"
                                      icon={<CountryFlag code={frozen.country.code}/>}
-                                     label="Invite"/>}
+                                     label={t("play.invite")}/>}
                 <DiscordButton offer={discord} className="button button-mini click-budget-discord">
                     <DiscordIcon size={20}/>
                     {!compact && <span aria-hidden="true">Discord</span>}
@@ -178,11 +179,13 @@ export default function ClickBudgetMeter({
                 aria-valuemin={0}
                 aria-valuenow={whole}
                 aria-valuemax={budget.capacity}
-                aria-label="Clicks left before the server slows you down"
+                aria-label={t("clicks.meter")}
                 style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
                 <div className="click-budget-count">
-                    <span ref={count} className="click-budget-number">{whole}</span>
-                    <span className="click-budget-unit">left</span>
+                    {rich("clicks.left", {
+                        count: <span ref={count} className="click-budget-number">{whole}</span>,
+                        unit: (words) => <span className="click-budget-unit">{words}</span>,
+                    })}
                 </div>
 
                 {pips > 0
@@ -200,15 +203,15 @@ export default function ClickBudgetMeter({
             <div className="click-budget-line">
                 {slowdown && <span className="chip click-budget-toll"
                                    role="img"
-                                   aria-label={`Refills ${factor(slowdown)}× slower`}>
+                                   aria-label={t("clicks.refillsSlower", {factor: factor(slowdown)})}>
                     <HourglassIcon/>
-                    <span aria-hidden="true">{compact ? `${factor(slowdown)}×` : `${factor(slowdown)}× slower`}</span>
+                    <span aria-hidden="true">{t(compact ? "clicks.factor" : "clicks.slower", {factor: factor(slowdown)})}</span>
                 </span>}
                 {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
                 {budget.sharedWith && <span className="click-budget-shared"
                                             role="img"
-                                            aria-label={SHARED_WITH[budget.sharedWith]}
-                                            title={SHARED_WITH[budget.sharedWith]}>
+                                            aria-label={t(SHARED_WITH[budget.sharedWith])}
+                                            title={t(SHARED_WITH[budget.sharedWith])}>
                     <UsersIcon size={15}/>
                 </span>}
                 {offer && <button type="button"
@@ -221,7 +224,7 @@ export default function ClickBudgetMeter({
 
             {popover && <button type="button"
                                 className="click-budget-open"
-                                aria-label="Your clicks"
+                                aria-label={t("clicks.yours")}
                                 aria-expanded={open}
                                 onClick={toggleOpen}/>}
         </div>
@@ -230,7 +233,7 @@ export default function ClickBudgetMeter({
 
         {lockedOut && <Bubble key={lockedOut.id} anchor={root}>{heldLine(lockedOut.allegiance, Date.now())}</Bubble>}
 
-        {outOfReach && !lockedOut && <Bubble key={`reach-${outOfReach.id}`} anchor={root}>{OUT_OF_REACH}</Bubble>}
+        {outOfReach && !lockedOut && <Bubble key={`reach-${outOfReach.id}`} anchor={root}>{t("clicks.outOfReach")}</Bubble>}
 
         {open && !compact && popover && <Popover onClose={toggleOpen}>{popover}</Popover>}
     </div>
@@ -247,7 +250,8 @@ function slow(budget: ClickBudget): boolean {
 
 function waitText(budget: ClickBudget, at: number): string {
     const left = secondsToOneMore(budget, at)
-    return left === undefined ? "" : `+1 in ${Math.ceil(left)}s`
+    if (left === undefined) return ""
+    return t("clicks.nextIn", {time: translator().number(Math.ceil(left), {style: "unit", unit: "second", unitDisplay: "narrow"})})
 }
 
 export function BoltIcon() {
@@ -260,9 +264,12 @@ export function BoltIcon() {
 function FrozenLines({nextSeason}: {nextSeason?: {number: number, startsAt: number}}) {
     const now = useNow()
     return <span className="click-budget-frozen-lines">
-        <span className="click-budget-frozen-head">The map is frozen</span>
+        <span className="click-budget-frozen-head">{t("clicks.mapFrozen")}</span>
         {nextSeason && nextSeason.startsAt > now && <span className="click-budget-frozen-next">
-            Season {nextSeason.number} starts in <span role="timer">{timeLeftTo(nextSeason.startsAt, now)}</span>
+            {rich("clicks.seasonStartsIn", {
+                season: nextSeason.number,
+                time: <span role="timer">{translator().countdown(timeLeftTo(nextSeason.startsAt, now))}</span>,
+            })}
         </span>}
     </span>
 }

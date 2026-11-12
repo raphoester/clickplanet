@@ -1,8 +1,10 @@
 import {BattleToCome} from "../../backends/turn.ts"
-import {battleWhenLine, teaserKeyOf} from "../../domain/battleTeaser.ts"
+import {teaserKeyOf} from "../../domain/battleTeaser.ts"
+import {t} from "../../i18n/page.ts"
 import {useAnnouncements} from "../announcements/announcementsStore.ts"
 import {SwordsIcon} from "../components/icons.tsx"
 import {useNow} from "../season/useNow.ts"
+import {battleWhenLine} from "./battleLines.ts"
 import {useBattleCards} from "./teaserCardsStore.ts"
 import "./Battle.css"
 
@@ -10,14 +12,13 @@ import "./Battle.css"
 // words, and its rules a press away.
 export function NextBattleDetails({battle}: {battle: BattleToCome}) {
     const now = useNow()
-    const worth = battle.times > 1 ? ` · Points ×${battle.times}` : ""
 
     return <div className="finale-details next-battle-details">
         <p className="finale-details-head">
             <SwordsIcon/>
-            <span className="finale-details-name">Next battle</span>
+            <span className="finale-details-name">{t("battle.next")}</span>
         </p>
-        <p className="finale-details-when">{battleWhenLine(battle, now)}{worth}</p>
+        <p className="finale-details-when">{battleWhenLine(battle, now)}</p>
         {battle.description && <p className="finale-details-words">{battle.description}</p>}
         <BattleRulesButton battle={battle}/>
     </div>
@@ -33,6 +34,6 @@ export function BattleRulesButton({battle}: {battle: BattleToCome | undefined}) 
     return <button type="button"
                    className="button button-mini button-action battle-rules-button"
                    onClick={() => announce({kind: "teaser", battle, cards, asked: true})}>
-        See the rules
+        {t("battle.seeTheRules")}
     </button>
 }

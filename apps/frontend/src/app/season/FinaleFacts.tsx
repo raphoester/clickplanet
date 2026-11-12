@@ -1,7 +1,9 @@
 import {ReactNode} from "react"
-import {Finale, finaleLengthLine, finaleWhenLine} from "../../domain/battle.ts"
+import {Finale, finaleMinutes} from "../../domain/battle.ts"
+import {t, translator} from "../../i18n/page.ts"
 import {SwordsIcon} from "../components/icons.tsx"
 import SwordsArt from "../components/SwordsArt.tsx"
+import {dayAndTimeRange} from "./dates.ts"
 import {Fact, TrophyArt} from "./SeasonFacts.tsx"
 
 // The season's Final Battle, from the schedule: when, how long, what it is worth, and the operator's words. `children`
@@ -10,9 +12,9 @@ export function FinaleDetails({finale, children}: {finale: Finale, children?: Re
     return <div className="finale-details">
         <p className="finale-details-head">
             <SwordsIcon/>
-            <span className="finale-details-name">The Final Battle</span>
+            <span className="finale-details-name">{t("finale.title")}</span>
         </p>
-        <p className="finale-details-when">{finaleWhenLine(finale)}</p>
+        <p className="finale-details-when">{dayAndTimeRange(finale.startsAt, finale.endsAt)}</p>
         <FinaleFacts finale={finale}/>
         {children}
     </div>
@@ -23,12 +25,12 @@ export function FinaleFacts({finale}: {finale: Finale}) {
         {finale.description && <p className="finale-details-words">{finale.description}</p>}
         <ul className="season-facts">
             <Fact art={<HourglassArt/>}
-                  name={`${finaleLengthLine(finale)} of war`}
-                  text="The end of the season, with every country fighting at once."/>
+                  name={t("finale.lengthOfWar", {length: translator().length(finaleMinutes(finale))})}
+                  text={t("finale.lengthRule")}/>
             {finale.times > 1 && <Fact art={<span className="season-fact-art"><SwordsArt/></span>}
-                                       name={`Points ×${finale.times}`}
-                                       text={`The countries that gain the most ground during it score the points of ${finale.times} days.`}/>}
-            <Fact art={<TrophyArt/>} name="The last word" text="Nothing scores after it. It crowns the season's champion."/>
+                                       name={t("battle.pointsTimes", {times: finale.times})}
+                                       text={t("finale.timesRule", {times: finale.times})}/>}
+            <Fact art={<TrophyArt/>} name={t("finale.lastWord")} text={t("finale.lastWordRule")}/>
         </ul>
     </>
 }

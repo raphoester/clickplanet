@@ -1,24 +1,25 @@
 import {NameColor} from "../backends/player.ts"
 
+export type PickedColor = Exclude<NameColor, NameColor.UNSPECIFIED>
+
 export type NameColorChoice = {
-    color: NameColor
-    label: string
+    color: PickedColor
     hue: number
 }
 
 export const NAME_COLORS: readonly NameColorChoice[] = [
-    {color: NameColor.RED, label: "Red", hue: 0},
-    {color: NameColor.ORANGE, label: "Orange", hue: 28},
-    {color: NameColor.YELLOW, label: "Yellow", hue: 52},
-    {color: NameColor.LIME, label: "Lime", hue: 80},
-    {color: NameColor.GREEN, label: "Green", hue: 125},
-    {color: NameColor.TEAL, label: "Teal", hue: 165},
-    {color: NameColor.CYAN, label: "Cyan", hue: 190},
-    {color: NameColor.BLUE, label: "Blue", hue: 215},
-    {color: NameColor.INDIGO, label: "Indigo", hue: 240},
-    {color: NameColor.VIOLET, label: "Violet", hue: 270},
-    {color: NameColor.MAGENTA, label: "Magenta", hue: 300},
-    {color: NameColor.PINK, label: "Pink", hue: 330},
+    {color: NameColor.RED, hue: 0},
+    {color: NameColor.ORANGE, hue: 28},
+    {color: NameColor.YELLOW, hue: 52},
+    {color: NameColor.LIME, hue: 80},
+    {color: NameColor.GREEN, hue: 125},
+    {color: NameColor.TEAL, hue: 165},
+    {color: NameColor.CYAN, hue: 190},
+    {color: NameColor.BLUE, hue: 215},
+    {color: NameColor.INDIGO, hue: 240},
+    {color: NameColor.VIOLET, hue: 270},
+    {color: NameColor.MAGENTA, hue: 300},
+    {color: NameColor.PINK, hue: 330},
 ]
 
 export function hueOf(color: NameColor | undefined): number | undefined {

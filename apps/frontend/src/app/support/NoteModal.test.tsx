@@ -235,7 +235,7 @@ describe("NoteModal's files", () => {
 
     it.each([
         ["a file that is not a photo or a video", [new File(["x"], "notes.txt", {type: "text/plain"})], "notes.txt is not a photo or a video."],
-        ["a file that is too big", [new File([new Uint8Array(1001)], "long.mp4", {type: "video/mp4"})], "long.mp4 is over 1000 B."],
+        ["a file that is too big", [new File([new Uint8Array(1001)], "long.mp4", {type: "video/mp4"})], "long.mp4 is over 1,000 B."],
         ["one file too many", [screenshot, screenshot, screenshot, screenshot], "3 files at most."],
     ])("refuses %s and says why", async (_, picked, notice) => {
         const {files} = bucket()

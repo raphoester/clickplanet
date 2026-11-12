@@ -6,8 +6,15 @@ import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {FilmIcon, PlayIcon, TikTokIcon, YouTubeIcon} from "../components/icons.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
+import {Key} from "../../i18n/translator.ts"
+import {t} from "../../i18n/page.ts"
 import "../titles/TitleUnlocked.css"
 import "./ClipNotice.css"
+
+const WATCH_ON: Record<Platform, Key> = {
+    tiktok: "clip.watchOnTikTok",
+    youtube: "clip.watchOnYouTube",
+}
 
 export type ClipNoticeProps = {
     appearance: Appearance
@@ -45,7 +52,7 @@ export default function ClipNotice({appearance, play, onMakeVideo, onClose}: Cli
              tabIndex={-1}
              style={timing}>
             <div className="title-reveal-stage">
-                <h2 id={headId} className="title-reveal-head clip-notice-head">You are in a clip!</h2>
+                <h2 id={headId} className="title-reveal-head clip-notice-head">{t("clip.inAClip")}</h2>
                 <div className="title-reveal-medal">
                     <div className="title-reveal-rays" aria-hidden="true"/>
                     <div className="title-reveal-wave" aria-hidden="true"/>
@@ -63,16 +70,16 @@ export default function ClipNotice({appearance, play, onMakeVideo, onClose}: Cli
                                                    rel="noopener noreferrer"
                                                    onClick={onClose}>
                             <PlatformIcon platform={link.platform}/>
-                            {link.label}
+                            {t(WATCH_ON[link.platform])}
                         </a>)}
                         {onMakeVideo && <button type="button" className="button button-secondary" onClick={() => {
                             onClose()
                             onMakeVideo()
                         }}>
                             <FilmIcon size={22}/>
-                            Make yours
+                            {t("clip.makeYours")}
                         </button>}
-                        <button type="button" className="button" onClick={onClose}>Close</button>
+                        <button type="button" className="button" onClick={onClose}>{t("common.close")}</button>
                     </>}
                 </div>
             </div>

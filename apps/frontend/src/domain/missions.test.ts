@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {DayMissions, FlagMission, Mission} from "../backends/missions.ts"
-import {awardOf, newlyDoneFlagMission, newlyPaid, orderOf, parseSeenMissions, reachedOf, seenNow, timeLeft, unseen} from "./missions.ts"
+import {awardOf, newlyDoneFlagMission, newlyPaid, parseSeenMissions, reachedOf, seenNow, timeLeft, unseen} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
     id: "bank",
@@ -9,24 +9,6 @@ const mission = (overrides: Partial<Mission> = {}): Mission => ({
     done: false,
     paid: false,
     ...overrides,
-})
-
-describe("orderOf", () => {
-    it("says how many tiles to take and how they relate to the country named after it", () => {
-        expect(orderOf({kind: "takeFor", country: "fr", goal: 60, taken: 0})).toBe("Take 60 tiles for")
-        expect(orderOf({kind: "takeFrom", country: "dz", goal: 40, taken: 0})).toBe("Take 40 tiles from")
-        expect(orderOf({kind: "takeIn", country: "br", goal: 200, taken: 0})).toBe("Take 200 tiles in")
-        expect(orderOf({kind: "takeFromIn", country: "dz", ground: "br", goal: 60, taken: 0})).toBe("Take 60 tiles from")
-    })
-
-    it("says what the other kinds ask, one or many", () => {
-        expect(orderOf({kind: "catchBoxes", goal: 4, reached: 0})).toBe("Catch 4 boxes")
-        expect(orderOf({kind: "answerQuizzes", goal: 1, reached: 0})).toBe("Answer a quiz right")
-        expect(orderOf({kind: "bombIn", country: "br", goal: 1, reached: 0})).toBe("Drop a bomb on")
-        expect(orderOf({kind: "bombIn", country: "br", goal: 2, reached: 0})).toBe("Drop 2 bombs on")
-        expect(orderOf({kind: "shieldTiles", shields: 10, goal: 2, reached: 0})).toBe("Put 10 shields on 2 tiles")
-        expect(orderOf({kind: "fortifyTiles", goal: 40, reached: 0})).toBe("Fortify 40 tiles")
-    })
 })
 
 describe("reachedOf", () => {
@@ -116,10 +98,9 @@ describe("awardOf", () => {
 describe("timeLeft", () => {
     const now = Date.UTC(2026, 9, 26, 12, 0)
 
-    it("reads hours and minutes, then minutes alone", () => {
-        expect(timeLeft(Date.UTC(2026, 9, 26, 21, 0), now)).toBe("9h 00m")
-        expect(timeLeft(Date.UTC(2026, 9, 26, 12, 5, 30), now)).toBe("6m")
-        expect(timeLeft(Date.UTC(2026, 9, 26, 13, 59, 30), now)).toBe("2h 00m")
-        expect(timeLeft(now - 1, now)).toBe("0m")
+    it("is the time left in the day, none once it ended", () => {
+        expect(timeLeft(Date.UTC(2026, 9, 26, 21, 0), now)).toEqual({days: 0, hours: 9, minutes: 0, seconds: 0})
+        expect(timeLeft(Date.UTC(2026, 9, 26, 12, 5, 30), now)).toEqual({days: 0, hours: 0, minutes: 5, seconds: 30})
+        expect(timeLeft(now - 1, now)).toEqual({days: 0, hours: 0, minutes: 0, seconds: 0})
     })
 })

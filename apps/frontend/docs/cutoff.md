@@ -37,7 +37,7 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
   no table it stops on the podium.
 - **The finale ends on the champion**, a third stage: `ROUND_REVEAL.hold`
   (2.4s) after the table settled, or on Next, the head becomes "Germany wins
-  Season 0" (`winsLine`) over a trophy, rays, a flash and the flag, and the
+  Season 0" (`winsLine`, `app/season/seasonLines.ts`) over a trophy, rays, a flash and the flag, and the
   `title` sound plays again. The champion is every country ranked 1st in
   `closed.after` (`championOf` in `domain/champion.ts`), so countries level on
   everything win together. A day that is not the finale has no third stage.

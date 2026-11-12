@@ -3,6 +3,7 @@ import {GifChoice, GifQuery, GifSearch} from "../../backends/gifs.ts";
 import {CloseIcon, LockIcon} from "../components/icons.tsx";
 import {useEscape} from "../components/useDialog.ts";
 import {useGifSearch} from "./useGifSearch.ts";
+import {t} from "../../i18n/page.ts";
 import "./GifPicker.css"
 
 export type GifOffer = {
@@ -22,12 +23,12 @@ export type GifPickerProps = {
 export default function GifPicker({offer, onPick, onClose}: GifPickerProps) {
     useEscape(onClose)
 
-    return <div className="gif-picker" role="group" aria-label="GIFs">
+    return <div className="gif-picker" role="group" aria-label={t("chat.gifs")}>
         {offer.onSignIn
             ? <div className="gif-picker-locked">
                 <span className="gif-picker-lock"><LockIcon size={18}/></span>
                 <button type="button" className="button button-mini button-action" onClick={offer.onSignIn}>
-                    Sign in to send GIFs
+                    {t("gif.signIn")}
                 </button>
                 <Close onClose={onClose}/>
             </div>
@@ -63,8 +64,8 @@ function Search({offer, onPick, onClose}: GifPickerProps) {
                    type="search"
                    value={typed}
                    autoComplete="off"
-                   aria-label="Search KLIPY"
-                   placeholder="Search KLIPY"
+                   aria-label={t("gif.search")}
+                   placeholder={t("gif.search")}
                    enterKeyHint="search"
                    onKeyDown={stayOnEnter}
                    onChange={e => setTyped(e.target.value)}/>
@@ -75,7 +76,7 @@ function Search({offer, onPick, onClose}: GifPickerProps) {
             {found.choices.map(choice => <button type="button"
                                                  key={choice.slug}
                                                  className="gif-picker-choice"
-                                                 aria-label={choice.title || "GIF"}
+                                                 aria-label={choice.title || t("chat.gif")}
                                                  title={choice.title}
                                                  onClick={() => onPick(choice, found.query)}>
                 <img src={choice.gif.url} alt="" loading="lazy" decoding="async"/>
@@ -83,11 +84,11 @@ function Search({offer, onPick, onClose}: GifPickerProps) {
             <div ref={end} className="gif-picker-end" aria-hidden="true"/>
         </div>
 
-        {found.status === 'loading' && <p className="gif-picker-note">Loading…</p>}
-        {found.status === 'ready' && found.choices.length === 0 && <p className="gif-picker-note">No GIF found</p>}
+        {found.status === 'loading' && <p className="gif-picker-note">{t("common.loading")}</p>}
+        {found.status === 'ready' && found.choices.length === 0 && <p className="gif-picker-note">{t("gif.none")}</p>}
         {found.status === 'failed' && <p className="gif-picker-note" role="alert">
-            The GIFs could not be loaded.{" "}
-            <button type="button" className="gif-picker-retry" onClick={found.retry}>Try again</button>
+            {t("gif.failed")}{" "}
+            <button type="button" className="gif-picker-retry" onClick={found.retry}>{t("common.retry")}</button>
         </p>}
     </>
 }
@@ -95,8 +96,8 @@ function Search({offer, onPick, onClose}: GifPickerProps) {
 function Close({onClose}: {onClose: () => void}) {
     return <button type="button"
                    className="gif-picker-close"
-                   aria-label="Close the GIFs"
-                   title="Close the GIFs"
+                   aria-label={t("gif.close")}
+                   title={t("gif.close")}
                    onClick={onClose}>
         <CloseIcon size={14}/>
     </button>

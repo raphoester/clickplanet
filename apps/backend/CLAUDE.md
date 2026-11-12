@@ -10,7 +10,8 @@ and says what is in it. Read the doc before you change its area.
 
 - [Commands](docs/commands.md) — `make test` (Docker for the postgres and Redis tests), `-race`, `make deadcode`,
   `make lint`, `make tidy`, `make check-format`, `go run ./cmd/api`, `make proto`, the vendoring targets (`quiz`,
-  `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make dBuild`, `cmd/clips` and `cmd/teasers`.
+  `map`, `moderation`, `vpn-lists`, `disposable-domains`, `historic-scripts`, `zernio`), `make translate`, `make dBuild`,
+  `cmd/clips` and `cmd/teasers`.
 - [Configuration](docs/configuration.md) — `cpconfigs` loads YAML and environment with koanf; the full schema.
 - [Testing](docs/testing.md) — testify; which suites need Docker (postgres, S3, Redis); `e2e/` holds smoke tests
   only, rules go in lower tests; the `testing` tag.
@@ -210,5 +211,9 @@ and says what is in it. Read the doc before you change its area.
 - [Battle teasers on TikTok and YouTube](docs/teasers-job.md) — promo decides and posts, `cmd/teasers` only renders:
   every 6 hours, each battle starting within 36 hours posted by an hour before it through publishing's
   `InternalService`, a carousel of its cards on TikTok and a slideshow on YouTube; no battle teased twice.
+- [The page's translator](docs/translate.md) — `cmd/translate`, `make translate`: the game page's English lines and
+  landmass names sent to Claude with the glossary and each line's context, only when new or changed (a fingerprint of
+  the English per line), a hand fix kept; Natural Earth's names as the places' reference; built for the quiz and the
+  titles next.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
   publishing module, over ssh; the model editor, the stats and the experiments it ran.

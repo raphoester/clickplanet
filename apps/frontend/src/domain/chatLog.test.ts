@@ -14,7 +14,6 @@ import {
     unreadSince,
     unseenAfter,
     withRemoved,
-    wordsOf,
 } from "./chatLog.ts"
 import type {ChatAnnouncement, ChatMessage} from "../backends/chat.ts"
 import {Reaction} from "../gen/grpc/chat/v1/chat_pb.ts"
@@ -81,11 +80,6 @@ describe("addMessages", () => {
 const dancing = {url: "https://static.klipy.com/ii/a/sm.webp", width: 220, height: 124}
 
 describe("a GIF", () => {
-    it("is said as GIF where only words fit", () => {
-        expect(wordsOf({...message("a", 1), text: "", gif: dancing})).toBe("GIF")
-        expect(wordsOf(message("a", 1))).toBe("message a")
-    })
-
     it("goes into the quote of a reply to it", () => {
         expect(quoteOf({...message("a", 1), text: "", gif: dancing}).gif).toEqual(dancing)
     })

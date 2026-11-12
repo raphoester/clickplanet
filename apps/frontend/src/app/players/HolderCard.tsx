@@ -1,7 +1,5 @@
 import {DayMissions} from "../../backends/missions.ts"
-import {Countries} from "../../domain/countries.ts"
 import {missionsOnTile} from "../../domain/missionTargets.ts"
-import {agoOf} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
@@ -11,6 +9,7 @@ import Streak from "../badges/Streak.tsx"
 import WornTitle from "../badges/WornTitle.tsx"
 import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
+import {t, translator} from "../../i18n/page.ts"
 import {usePlayerCard} from "./playerCardStore.ts"
 import {HolderShown} from "./tileHolderStore.ts"
 import "./PlayerCard.css"
@@ -29,7 +28,7 @@ export type HolderCardProps = {
 
 export default function HolderCard({holder, missions, now = Date.now(), onHold, onClose}: HolderCardProps) {
     const {line, playsFor, mine, takenAt, point, touch} = holder
-    const country = Countries.get(line.countryCode)?.name ?? line.countryCode
+    const country = translator().country(line.countryCode)
     const name = useWordFilter().masked(line.name)
     const openPlayer = usePlayerCard((card) => card.open)
 
@@ -58,9 +57,9 @@ export default function HolderCard({holder, missions, now = Date.now(), onHold, 
                     {line.admin && <AdminCrown/>}
                     <Streak accountId={line.accountId}/>
                 </span>
-                {playsFor.length > 0 && <span className="holder-card-flags" role="group" aria-label="Fought for">
+                {playsFor.length > 0 && <span className="holder-card-flags" role="group" aria-label={t("player.foughtFor")}>
                     {playsFor.slice(0, FLAGS_SHOWN).map(({countryCode}) => {
-                        const name = Countries.get(countryCode)?.name ?? countryCode
+                        const name = translator().country(countryCode)
                         return <span key={countryCode} role="img" aria-label={name} title={name}><CountryFlag code={countryCode}/></span>
                     })}
                 </span>}
@@ -69,7 +68,7 @@ export default function HolderCard({holder, missions, now = Date.now(), onHold, 
         {missions && <MissionsHere missions={missionsOnTile(missions, holder.tile)}/>}
         <p className="pointer-card-foot holder-card-take">
             <CountryFlag code={line.countryCode}/>
-            {mine ? "You took it" : "Took it"} for {country} {agoOf(takenAt, now)}
+            {t(mine ? "holder.youTookIt" : "holder.tookIt", {country, ago: translator().ago(takenAt, now)})}
         </p>
     </PointerCard>
 }

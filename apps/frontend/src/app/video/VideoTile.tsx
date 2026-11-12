@@ -1,4 +1,5 @@
 import {FilmIcon} from "../components/icons.tsx"
+import {t} from "../../i18n/page.ts"
 import "./VideoTile.css"
 
 export type VideoTileProps = {
@@ -9,7 +10,7 @@ export type VideoTileProps = {
 export default function VideoTile({dot, onMake}: VideoTileProps) {
     return <button type="button" className="panel-box menu-tile video-tile" onClick={onMake}>
         <FilmIcon size={22}/>
-        <span>Make my video</span>
+        <span>{t("video.make")}</span>
         {dot && <span className="video-dot" aria-hidden="true"/>}
     </button>
 }

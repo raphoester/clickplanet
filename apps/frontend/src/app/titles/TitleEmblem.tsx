@@ -1,6 +1,7 @@
 import {ReactNode, useId} from "react"
 import {PlayerTitle} from "../../backends/progression.ts"
 import {BANDS, enamelOf, METALS, metalOf, ribbonOf, seasonOf} from "./titleArt.ts"
+import {t} from "../../i18n/page.ts"
 
 const INK = "var(--ink)"
 const LIGHT = "var(--text)"
@@ -397,7 +398,7 @@ function Scroll({season, color}: {season: string, color: string}) {
         <path d={SCROLL} style={{fill: INK}} transform="translate(0 3)"/>
         <Shape d={SCROLL} color={color}/>
         <text x="49" y="87.5" textAnchor="end" fontSize="15" strokeWidth="4" strokeLinejoin="round"
-              style={{...LETTERING, fill: CREAM}}>S</text>
+              style={{...LETTERING, fill: CREAM}}>{t("title.seasonLetter")}</text>
         <text textAnchor="start" fontSize="15" strokeWidth="4" strokeLinejoin="round" style={{...LETTERING, fill: CREAM}}
               transform="translate(50 87.5) scale(0.72 1)">{season}</text>
     </>

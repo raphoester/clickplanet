@@ -16,8 +16,6 @@ export type ShareStats = {
     tiles: number
 }
 
-const grouped = new Intl.NumberFormat("en-US")
-
 export function shareStats(leaderboard: readonly LeaderboardEntry[], country: Country): ShareStats {
     const index = leaderboard.findIndex((entry) => entry.country.code === country.code)
     if (index === -1) return {country, rank: null, tiles: 0}
@@ -65,33 +63,6 @@ export function withoutSharedFlag(url: URL): URL {
 
 export function shareFileName(code: string): string {
     return `clickplanet-${code}.png`
-}
-
-export function statsLine(stats: ShareStats): string {
-    if (stats.rank === null) return "NO TILES YET"
-
-    return `RANK #${stats.rank} · ${tilesHeld(stats.tiles).toUpperCase()}`
-}
-
-export function shareText(stats: ShareStats, address: ShareAddress): string {
-    return `${shareHeadline(stats)} ${shareUrl(address)}`
-}
-
-export function breakHeadline(country: Country, nextSeason?: number): string {
-    const join = `Play for ${country.name} on ClickPlanet!`
-    return nextSeason === undefined ? join : `Season ${nextSeason} starts on a blank map. ${join}`
-}
-
-export function shareHeadline({country, rank, tiles}: ShareStats): string {
-    if (rank === null) return `${country.name} holds nothing on ClickPlanet yet. Come and claim it.`
-
-    return `${country.name} is #${rank} on ClickPlanet with ${tilesHeld(tiles)}. ` +
-        (tiles === 0 ? "Come and claim it." : "Come and take them.")
-}
-
-function tilesHeld(tiles: number): string {
-    if (tiles === 0) return "no tiles"
-    return `${grouped.format(tiles)} ${tiles === 1 ? "tile" : "tiles"}`
 }
 
 const MIN_ASPECT = 9 / 16

@@ -8,7 +8,6 @@ import {playersOf, useTerritoryPlayers} from "./territoryPlayersStore.ts"
 import {LandmassState} from "../../backends/backend.ts"
 import {NameColor, PlayerInfo} from "../../backends/player.ts"
 import {Territory} from "../../domain/territory.ts"
-import {DELETED_ACCOUNT} from "../players/tileHolder.ts"
 import {Countries} from "../../domain/countries.ts"
 import {useCountry} from "../countryStore.ts"
 
@@ -83,7 +82,7 @@ describe("TerritoryCardPlace", () => {
         render(place({shown: shownOf(12), reader, players: players()}))
 
         await waitFor(() => expect(read(12)).toBeDefined())
-        expect(read(12)!.fortifier?.line.name).toBe(DELETED_ACCOUNT)
+        expect(read(12)!.fortifier?.line.name).toBe("Deleted account")
     })
 
     it("says nothing about another territory than the one asked", async () => {

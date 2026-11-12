@@ -13,7 +13,6 @@ export function readDue(lastReadAt: number | undefined, now: number): boolean {
 
 export type WatchLink = {
     platform: Platform
-    label: string
     url: string
 }
 
@@ -29,9 +28,9 @@ export function watchLinksOf(appearance: Appearance): WatchLink[] {
 function watchLinkOf({platform, url}: ClipLink): WatchLink {
     switch (platform) {
         case "tiktok":
-            return {platform, label: "Watch on TikTok", url: url || TIKTOK_PROFILE}
+            return {platform, url: url || TIKTOK_PROFILE}
         case "youtube":
-            return {platform, label: "Watch on YouTube", url: url || YOUTUBE_CHANNEL}
+            return {platform, url: url || YOUTUBE_CHANNEL}
     }
 }
 

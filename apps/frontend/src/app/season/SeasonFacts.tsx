@@ -1,13 +1,12 @@
 import {ReactNode} from "react"
+import {t} from "../../i18n/page.ts"
 
 // What a season is, the same every day: no battle is promised here, since the schedule decides them.
 export default function SeasonFacts() {
     return <ul className="season-facts">
-        <Fact art={<GroundArt/>}
-              name="Win the day"
-              text="When a day ends, the countries that hold the most ground and gained the most that day score points."/>
-        <Fact art={<TrophyArt/>} name="Win" text="The winning country gets a trophy in the Hall of Fame."/>
-        <Fact art={<MedalArt/>} name="Titles" text="Every signed-in player gets a title, and one more if their country wins."/>
+        <Fact art={<GroundArt/>} name={t("season.winTheDay")} text={t("season.winTheDayRule")}/>
+        <Fact art={<TrophyArt/>} name={t("season.win")} text={t("season.winRule")}/>
+        <Fact art={<MedalArt/>} name={t("season.titles")} text={t("season.titlesRule")}/>
     </ul>
 }
 

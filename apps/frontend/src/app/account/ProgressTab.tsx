@@ -14,6 +14,7 @@ import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useOwnTakes} from "../clicks/useAcceptedClicks.ts"
 import {AccountStore} from "./accountStore.ts"
 import {useFronts, useTitles} from "./useProgress.ts"
+import {t} from "../../i18n/page.ts"
 
 export type ProgressTabProps = {
     store: AccountStore
@@ -29,8 +30,8 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
     const [wearing, setWearing] = useState<string>()
     const labelId = useId()
 
-    if (titles.kind === "loading") return <p className="account-text" role="status">Loading…</p>
-    if (titles.kind === "failed") return <p className="account-failure" role="alert">Your titles could not be loaded.</p>
+    if (titles.kind === "loading") return <p className="account-text" role="status">{t("common.loading")}</p>
+    if (titles.kind === "failed") return <p className="account-failure" role="alert">{t("profile.titlesFailed")}</p>
 
     const {worn, wearable, tracks} = titles.dashboard
     const wear = (id: string) => {
@@ -42,7 +43,7 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
 
     const titlesBody = <>
         {wearable.length > 0 && <div className="account-wear">
-            <span className="menu-label" id={labelId}>Wear a title</span>
+            <span className="menu-label" id={labelId}>{t("profile.wearTitle")}</span>
             <div className="account-wear-options" role="radiogroup" aria-labelledby={labelId}>
                 {wearable.map((title) => {
                     const checked = title.id === worn?.id
@@ -70,7 +71,7 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
 
         {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
 
-        <Fold title="Titles" startOpen>{titlesBody}</Fold>
+        <Fold title={t("profile.titles")} startOpen>{titlesBody}</Fold>
 
         {fronts && <FrontFolds {...fronts}/>}
     </div>

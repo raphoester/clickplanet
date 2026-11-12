@@ -1,5 +1,4 @@
 import {CSSProperties, FormEvent, useId, useState} from "react"
-import {PROVIDER_NAMES} from "../../backends/account.ts"
 import {
     isValidUsername,
     MAX_USERNAME_LENGTH,
@@ -9,9 +8,9 @@ import {
     usernameOf,
 } from "../../backends/player.ts"
 import {AccountState, AccountStore} from "./accountStore.ts"
-import {colorMessageOf, messageOf, providerList, usernameMessageOf} from "./authMessages.ts"
+import {colorMessageOf, messageOf, providerList, providerName, usernameMessageOf} from "./authMessages.ts"
 import {factor} from "../../domain/clickPrice.ts"
-import {NAME_COLORS} from "../../domain/authorColor.ts"
+import {NAME_COLORS, PickedColor} from "../../domain/authorColor.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import ProviderButton from "./ProviderButton.tsx"
@@ -20,6 +19,8 @@ import ProgressTab from "./ProgressTab.tsx"
 import ClipsSwitch from "../clips/ClipsSwitch.tsx"
 import {ClipsNameBackend} from "../../backends/clips.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {t, translator} from "../../i18n/page.ts"
+import {Key} from "../../i18n/translator.ts"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -58,9 +59,9 @@ export default function AccountPanel(props: AccountPanelProps) {
         {name && <p className="account-who" style={authorStyle({color: props.state.color, guest: false})}>
             {words.masked(name)}
         </p>}
-        <div className="account-tabs" role="tablist" aria-label="Account">
-            {tabButton("progress", "Progress")}
-            {tabButton("settings", "Account")}
+        <div className="account-tabs" role="tablist" aria-label={t("account.title")}>
+            {tabButton("progress", t("account.progressTab"))}
+            {tabButton("settings", t("account.title"))}
         </div>
         <div role="tabpanel" id={`${tabsId}-panel`} aria-labelledby={`${tabsId}-${tab}`}>
             {tab === "progress"
@@ -87,10 +88,10 @@ export function AccountSettings({state, store, onDelete, linkedMultiplier, clips
         {linked.length === 0
             ? <p className="account-text">
                 {linkedMultiplier
-                    ? `Sign in to click ${factor(linkedMultiplier)}× faster and keep your stats on every device.`
-                    : "Sign in to keep your stats on every device."} You do not need an account to play.
+                    ? t("account.signInFaster", {times: factor(linkedMultiplier)})
+                    : t("account.signInStats")}
             </p>
-            : <p className="account-text">Signed in with {providerList(linked)}.</p>}
+            : <p className="account-text">{t("account.signedInWith", {providers: providerList(linked)})}</p>}
 
         {linked.length > 0 && <UsernameForm key={state.username ?? ""} state={state} store={store}/>}
         {linked.length > 0 && state.username !== undefined && <ColorPicker name={state.username} state={state} store={store}/>}
@@ -98,7 +99,7 @@ export function AccountSettings({state, store, onDelete, linkedMultiplier, clips
 
         {buttons.map((provider) => <ProviderButton key={provider}
                                                    provider={provider}
-                                                   label={`${linked.length === 0 ? "Sign in with" : "Link"} ${PROVIDER_NAMES[provider]}`}
+                                                   label={t(linked.length === 0 ? "account.signInWith" : "account.link", {provider: providerName(provider)})}
                                                    disabled={busy}
                                                    onClick={() => void (linked.length > 0 && provider !== "crazygames" ? store.link(provider) : store.signIn(provider))}/>)}
 
@@ -109,13 +110,13 @@ export function AccountSettings({state, store, onDelete, linkedMultiplier, clips
                     className="button account-button"
                     disabled={busy}
                     onClick={() => void store.signOut()}>
-                Sign out
+                {t("account.signOut")}
             </button>
             <button type="button"
                     className="button account-button"
                     disabled={busy}
                     onClick={() => void store.signOutEverywhere()}>
-                Sign out everywhere
+                {t("account.signOutEverywhere")}
             </button>
         </>}
         {linked.length > 0 && <>
@@ -123,14 +124,14 @@ export function AccountSettings({state, store, onDelete, linkedMultiplier, clips
                     className="button account-button account-delete"
                     disabled={busy}
                     onClick={onDelete}>
-                Delete account
+                {t("account.delete")}
             </button>
         </>}
 
         {state.failure && <p className="account-failure" role="alert">{messageOf(state.failure)}</p>}
 
         <p className="account-legal">
-            <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy policy</a>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer">{t("account.privacyPolicy")}</a>
         </p>
     </div>
 }
@@ -138,7 +139,7 @@ export function AccountSettings({state, store, onDelete, linkedMultiplier, clips
 // maxLength counts UTF-16 units; the username rule counts code points.
 const MAX_INPUT_LENGTH = MAX_USERNAME_LENGTH * 2
 
-const renameDate = new Intl.DateTimeFormat(undefined, {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"})
+const RENAME_DATE: Intl.DateTimeFormatOptions = {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"}
 
 export function UsernameForm({state, store}: {state: Ready, store: AccountStore}) {
     const current = state.username ?? ""
@@ -159,8 +160,8 @@ export function UsernameForm({state, store}: {state: Ready, store: AccountStore}
 
     return <form className="account-name" onSubmit={submit} aria-busy={state.naming === true}>
         <div className="account-name-head">
-            <label className="menu-label" htmlFor={inputId}>Username</label>
-            <span className="menu-label account-name-current">{current || "none yet"}</span>
+            <label className="menu-label" htmlFor={inputId}>{t("username.label")}</label>
+            <span className="menu-label account-name-current">{current || t("username.noneYet")}</span>
         </div>
         <div className="account-name-row">
             <input id={inputId}
@@ -170,23 +171,38 @@ export function UsernameForm({state, store}: {state: Ready, store: AccountStore}
                    autoCapitalize="off"
                    spellCheck={false}
                    maxLength={MAX_INPUT_LENGTH}
-                   placeholder="Pick a username"
+                   placeholder={t("username.placeholder")}
                    aria-describedby={hintId}
                    disabled={waiting !== undefined}
                    onChange={(e) => setDraft(e.target.value)}/>
             <button type="submit"
                     className="button button-mini button-secondary account-name-save"
                     disabled={!canSave}>
-                Save
+                {t("common.save")}
             </button>
         </div>
         <p className="account-name-hint" id={hintId}>
             {waiting === undefined
-                ? `${MIN_USERNAME_LENGTH}–${MAX_USERNAME_LENGTH} letters, digits, spaces or _. Shown in the chat.`
-                : `You can change it on ${renameDate.format(waiting)}.`}
+                ? t("username.rule", {min: MIN_USERNAME_LENGTH, max: MAX_USERNAME_LENGTH})
+                : t("username.changeOn", {date: translator().dateTime(waiting, RENAME_DATE)})}
         </p>
         {failure && <p className="account-failure" role="alert">{usernameMessageOf(failure)}</p>}
     </form>
+}
+
+const COLOR_NAMES: Record<PickedColor, Key> = {
+    [NameColor.RED]: "color.red",
+    [NameColor.ORANGE]: "color.orange",
+    [NameColor.YELLOW]: "color.yellow",
+    [NameColor.LIME]: "color.lime",
+    [NameColor.GREEN]: "color.green",
+    [NameColor.TEAL]: "color.teal",
+    [NameColor.CYAN]: "color.cyan",
+    [NameColor.BLUE]: "color.blue",
+    [NameColor.INDIGO]: "color.indigo",
+    [NameColor.VIOLET]: "color.violet",
+    [NameColor.MAGENTA]: "color.magenta",
+    [NameColor.PINK]: "color.pink",
 }
 
 export function ColorPicker({name, state, store}: {name: string, state: Ready, store: AccountStore}) {
@@ -195,8 +211,9 @@ export function ColorPicker({name, state, store}: {name: string, state: Ready, s
     const chosen = state.color
     const blocked = state.busy !== undefined || state.naming === true
 
-    const swatch = (color: NameColor, label: string, hue: number) => {
+    const swatch = (color: PickedColor, hue: number) => {
         const selected = color === chosen
+        const label = t(COLOR_NAMES[color])
         return <button key={color}
                        type="button"
                        className="account-color-swatch"
@@ -212,15 +229,15 @@ export function ColorPicker({name, state, store}: {name: string, state: Ready, s
 
     return <div className="account-color" aria-busy={state.coloring === true}>
         <div className="account-name-head">
-            <span className="menu-label" id={labelId}>Name color</span>
+            <span className="menu-label" id={labelId}>{t("account.nameColor")}</span>
             <span className="menu-label account-color-preview" style={authorStyle({color: chosen, guest: false})}>
                 {words.masked(name)}
             </span>
         </div>
         <div className="account-color-swatches" role="group" aria-labelledby={labelId}>
-            {NAME_COLORS.map((choice) => swatch(choice.color, choice.label, choice.hue))}
+            {NAME_COLORS.map((choice) => swatch(choice.color, choice.hue))}
         </div>
-        <p className="account-name-hint">Everyone sees it in the chat and the player list. Grey until you pick one.</p>
+        <p className="account-name-hint">{t("account.nameColorHint")}</p>
         {state.colorFailure && <p className="account-failure" role="alert">{colorMessageOf(state.colorFailure)}</p>}
     </div>
 }

@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {Season} from "../backends/season.ts"
 import {ClosedRound, Score} from "../backends/standings.ts"
-import {championNames, championOf, reigningChampionOf, winsLine} from "./champion.ts"
+import {championOf, reigningChampionOf} from "./champion.ts"
 
 const score = (rank: number, countryCode: string, points: number): Score => ({rank, countryCode, points, roundsWon: 0})
 
@@ -50,16 +50,5 @@ describe("reigningChampionOf", () => {
 
     it("steps down once the next season is on", () => {
         expect(reigningChampionOf(SEASON_ONE, FINALE)).toBeUndefined()
-    })
-})
-
-describe("winsLine", () => {
-    it("names the champion and its season", () => {
-        expect(winsLine({season: 0, countryCodes: ["de"]})).toBe("Germany wins Season 0")
-    })
-
-    it("names champions together", () => {
-        expect(winsLine({season: 2, countryCodes: ["de", "fr", "es"]})).toBe("Germany, France and Spain win Season 2")
-        expect(championNames({season: 2, countryCodes: ["de", "fr"]})).toBe("Germany and France")
     })
 })

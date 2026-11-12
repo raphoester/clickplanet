@@ -6,6 +6,7 @@ import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleEmblem from "./TitleEmblem.tsx"
 import {METALS, metalOf, rankLine, ribbonOf} from "./titleArt.ts"
+import {t} from "../../i18n/page.ts"
 import "./Titles.css"
 import "./TitleUnlocked.css"
 
@@ -75,7 +76,7 @@ export default function TitleUnlocked({title, play, onWear, onClose}: TitleUnloc
              tabIndex={-1}
              style={timing}>
             <div className="title-reveal-stage">
-                <h2 id={headId} className="title-reveal-head">New title!</h2>
+                <h2 id={headId} className="title-reveal-head">{t("title.newTitle")}</h2>
                 <div className="title-reveal-medal">
                     <div className="title-reveal-rays" aria-hidden="true"/>
                     <div className="title-reveal-wave" aria-hidden="true"/>
@@ -98,9 +99,9 @@ export default function TitleUnlocked({title, play, onWear, onClose}: TitleUnloc
                 {line && <p className="title-reveal-rank">{line}</p>}
                 <div className="title-reveal-actions">
                     {ready && <>
-                        <button type="button" className="button" onClick={onClose}>Close</button>
+                        <button type="button" className="button" onClick={onClose}>{t("common.close")}</button>
                         <button type="button" className="button button-gold title-wear-button" disabled={wearing} onClick={wear}>
-                            Wear it
+                            {t("title.wear")}
                         </button>
                     </>}
                 </div>

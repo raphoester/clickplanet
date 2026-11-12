@@ -2,7 +2,6 @@ import {useCallback, useEffect, useId, useRef, useState} from "react"
 import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import {PlayerTitle} from "../../backends/progression.ts"
 import {PlayerReporter} from "../../backends/support.ts"
-import {Countries} from "../../domain/countries.ts"
 import {useBadge, useBadges} from "../badges/badgesStore.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
@@ -10,7 +9,6 @@ import Bubble, {BUBBLE_MS} from "../components/Bubble.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {StatTile, StatTiles} from "../components/StatTiles.tsx"
-import {days} from "../days.ts"
 import ReportPlayerModal from "../support/ReportPlayerModal.tsx"
 import OgStamp from "../titles/OgStamp.tsx"
 import TitleBanner from "../titles/TitleBanner.tsx"
@@ -20,12 +18,10 @@ import {truncate} from "../truncate.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
 import PlayerFronts from "./PlayerFronts.tsx"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
+import {t, translator} from "../../i18n/page.ts"
 import "./PlayerCard.css"
 
 const NAME_MAX_LENGTH = 24
-
-const day = new Intl.DateTimeFormat(undefined, {dateStyle: "medium"})
-const count = new Intl.NumberFormat()
 
 export type PlayerCardProps = {
     player: PlayerLine
@@ -40,7 +36,7 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
     const state = usePlayerInfo(backend, player)
     const badge = useBadge(player.accountId)
     const words = useWordFilter()
-    const country = Countries.get(player.countryCode)?.name ?? player.countryCode
+    const country = translator().country(player.countryCode)
 
     const admin = player.admin || (state.kind === "ready" && state.info.admin)
     const color = state.kind === "ready" ? state.info.color : player.color
@@ -65,7 +61,7 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
     const report = reporter && player.accountId !== "" && <button type="button"
                                                                   className="player-card-report"
                                                                   onClick={() => setReporting(true)}>
-        Report
+        {t("player.report")}
     </button>
 
     return <Modal title={title} className={`player-card${frame}`} footer={report} onClose={onClose}>
@@ -76,9 +72,9 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
             <span className="player-card-country-name">{country}</span>
         </div>
 
-        {state.kind === "loading" && <p className="player-card-note" role="status">Loading…</p>}
-        {state.kind === "missing" && <p className="player-card-note">This player is gone.</p>}
-        {state.kind === "failed" && <p className="player-card-note">The stats could not be loaded.</p>}
+        {state.kind === "loading" && <p className="player-card-note" role="status">{t("common.loading")}</p>}
+        {state.kind === "missing" && <p className="player-card-note">{t("player.gone")}</p>}
+        {state.kind === "failed" && <p className="player-card-note">{t("player.statsFailed")}</p>}
         {worn && <TitleBanner title={worn}/>}
         {info && <PlayerTitles titles={info.titles}/>}
         {info && <PlayerStats info={info}/>}
@@ -89,7 +85,7 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
 function PlayerTitles({titles}: {titles: PlayerTitle[]}) {
     if (titles.length === 0) return null
 
-    return <ul className="player-card-titles" aria-label="Titles">
+    return <ul className="player-card-titles" aria-label={t("player.titles")}>
         {titles.map((title) => <li key={title.id}><HeldTitle title={title}/></li>)}
     </ul>
 }
@@ -131,9 +127,10 @@ function HeldTitle({title}: {title: PlayerTitle}) {
 
 export function PlayerStats({info}: {info: PlayerInfo}) {
     return <StatTiles>
-        <StatTile label="Tiles taken" value={count.format(info.tilesTaken)}/>
-        <StatTile label="Streak" value={days(info.streakCurrent)}/>
-        <StatTile label="Best streak" value={days(info.streakBest)}/>
-        {info.createdAt !== undefined && <StatTile label="Playing since" value={day.format(info.createdAt)}/>}
+        <StatTile label={t("player.tilesTaken")} value={translator().number(info.tilesTaken)}/>
+        <StatTile label={t("player.streak")} value={t("common.days", {count: info.streakCurrent})}/>
+        <StatTile label={t("player.bestStreak")} value={t("common.days", {count: info.streakBest})}/>
+        {info.createdAt !== undefined && <StatTile label={t("player.playingSince")}
+                                                   value={translator().dateTime(info.createdAt, {dateStyle: "medium"})}/>}
     </StatTiles>
 }

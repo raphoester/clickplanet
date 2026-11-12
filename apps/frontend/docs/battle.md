@@ -43,9 +43,9 @@ or a season scoring scored). A battle has a look.
   needs no read of its own: the stream sends the next turn within a second.
 - `domain/battle.ts` — `battleOf(turn)`, the `Battle` a battle turn is (nothing for
   a plain turn or a battle with no end), its key (its `entryId`), its clock
-  (`battleLeft`, `timeLeftTo` from the season clock, stopped at zero), and
-  `battleEndsLine`, "Ends at 23:00" in the player's time, with the weekday when the
-  end is not today.
+  (`battleLeft`, the `Countdown` of `timeLeftTo` from the season clock, stopped at zero), and
+  `endsToday`, whether it ends on the day of now in the player's time. `app/battle/battleLines.ts` words them:
+  `battleEndsLine`, "Ends at 23:00", with the weekday when the end is not today.
 
 ## The battles to come
 
@@ -90,10 +90,10 @@ tease anything"). The Final Battle's own teaser, once per browser in the two day
   none, one the schedule no longer holds, a server without promo and a read that failed all answer none, and nothing
   is kept: cards written later show on the next page.
 - **The screen** is the start moment's look, with the battle mood and the tape along the top: "Battle" ("Final
-  Battle" for the season's finale, `battleNameOf`), "Starts in" and its clock to the second ("Ends in" for a battle
-  that plays, `teaserClockLine`), when it plays in the player's time with its points' times (`battleWhenLine`: "Today
-  · 22:00 – 23:00 · Points ×2"), the operator's words on the entry, then the cards, and "To the globe" once it
-  settled (`TITLE_REVEAL.ready`).
+  Battle" for the season's finale, `battleName`), "Starts in" and its clock to the second ("Ends in" for a battle
+  that plays, `teaserClockLine` from the facts of `teaserClockOf`), when it plays in the player's time with its
+  points' times (`battleWhenLine`, from the day of `battleDayOf`: "Today · 22:00 – 23:00 · Points ×2"), the
+  operator's words on the entry, then the cards, and "To the globe" once it settled (`TITLE_REVEAL.ready`).
 - **The cards** (`TeaserCarousel`) are 3:4 portraits, as tall as the screen leaves room for, one shown at a time,
   the words on a band of shade along the top. **On a wide screen** (1024px and wider, in landscape) the screen's words
   and its button go beside the cards, so a card takes the screen's height (600px wide at most) and its words grow with
@@ -168,8 +168,7 @@ compact tag ("Final") and the sheet's clock, from the turn's `endsSeason`.
 ## The start moment, and the end
 
 **The start plays once per battle per browser** (`BattleReveal`, `useBattleReveal`):
-the title unlock's slam, "Battle!" ("Final Battle!" for the season's finale,
-`battleNameOf`), a disc of crossed swords in the battle's
+the title unlock's slam, "Battle!" ("Final Battle!" for the season's finale), a disc of crossed swords in the battle's
 colour, the description and when it ends, then "To the globe" once it settled
 (`TITLE_REVEAL.ready`). Close keeps the battle's key in `clickplanet-battle-seen`,
 so a reload does not play it again; a player who arrives mid-battle sees it, since
@@ -205,7 +204,7 @@ screen and the rays in `--war`.
 - **The screens** (`debriefScreensOf`), each its own announcement, so each closes on
   its button and the next one starts:
   1. `over` — "Battle finished!", or "Final Battle finished!" for the round that ended
-     the season (`battleFinishedLine`), over the swords disc, and the fanfare. No rules
+     the season, over the swords disc, and the fanfare. No rules
      text: the battle's words stay on its teaser and chip, not here.
   2. `points` — "Points won": each country that scored (`pointsRowsOf`, the first
      `POINTS_SHOWN` (10) and the player's under them), its rank, its points before the

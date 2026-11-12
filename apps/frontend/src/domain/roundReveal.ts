@@ -9,19 +9,6 @@ const PODIUM = 3
 
 export const ROUND_REVEAL = {podium: 3.4, slide: 0.7, settle: 1.6, hold: 2.4, champion: 2.2} as const
 
-export function roundOverLine(round: {number: number, finale: boolean, own: boolean}): string {
-    if (!round.own) return `Day ${round.number} is over!`
-    return round.finale ? "The Final Battle is over!" : "The battle is over!"
-}
-
-export function battleFinishedLine(round: {finale: boolean}): string {
-    return round.finale ? "Final Battle finished!" : "Battle finished!"
-}
-
-export function seasonOverLine(season: number): string {
-    return `Season ${season} is over!`
-}
-
 const MEDALS = ["🥇", "🥈", "🥉"] as const
 
 export function medalOf(rank: number): string {

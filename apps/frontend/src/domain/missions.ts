@@ -1,34 +1,6 @@
 import {DayMissions, FlagMission, FlagMissionOrder, Mission, MissionOrder, MissionReward} from "../backends/missions.ts"
 import {BonusReward, BonusRules} from "./bonus.ts"
-
-// What an order asks, up to the country named after it, if any.
-export function orderOf(order: MissionOrder | FlagMissionOrder): string {
-    switch (order.kind) {
-        case "takeFor":
-            return `Take ${order.goal} tiles for`
-        case "takeFrom":
-        case "takeFromIn":
-            return `Take ${order.goal} tiles from`
-        case "takeIn":
-            return `Take ${order.goal} tiles in`
-        case "bombIn":
-            return `Drop ${counted(order.goal, "a bomb", "bombs")} on`
-        case "shieldTiles":
-            return `Put ${order.shields} shields on ${counted(order.goal, "a tile", "tiles")}`
-        case "catchBoxes":
-            return `Catch ${counted(order.goal, "a box", "boxes")}`
-        case "answerQuizzes":
-            return `Answer ${counted(order.goal, "a quiz", "quizzes")} right`
-        case "fortifyTiles":
-            return `Fortify ${counted(order.goal, "a tile", "tiles")}`
-        case "breakShields":
-            return `Break ${order.goal} shields of`
-    }
-}
-
-function counted(count: number, one: string, many: string): string {
-    return count === 1 ? one : `${count} ${many}`
-}
+import {Countdown, countdownTo} from "./seasonClock.ts"
 
 export function reachedOf(order: MissionOrder | FlagMissionOrder): number {
     switch (order.kind) {
@@ -115,13 +87,6 @@ export function awardOf(reward: MissionReward, rules: Pick<BonusRules, "blastRad
     }
 }
 
-const MINUTE_MS = 60_000
-const HOUR_MS = 60 * MINUTE_MS
-
-export function timeLeft(endsAt: number, now: number): string {
-    const left = Math.max(0, endsAt - now)
-    const hours = Math.floor(left / HOUR_MS)
-    const minutes = Math.ceil(left % HOUR_MS / MINUTE_MS)
-    if (minutes === 60) return `${hours + 1}h 00m`
-    return hours > 0 ? `${hours}h ${String(minutes).padStart(2, "0")}m` : `${minutes}m`
+export function timeLeft(endsAt: number, now: number): Countdown {
+    return countdownTo(Math.max(endsAt, now), now)
 }

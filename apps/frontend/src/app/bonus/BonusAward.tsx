@@ -1,6 +1,8 @@
 import {ReactNode, useEffect, useRef} from 'react'
-import {BonusReward, describeReward} from '../../domain/bonus.ts'
+import {BonusReward} from '../../domain/bonus.ts'
 import {isFirstWin} from '../../domain/bonusGuide.ts'
+import {t} from '../../i18n/page.ts'
+import {describeReward} from './describeReward.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import {useBonus} from './bonusStore.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
@@ -65,7 +67,7 @@ function KeptAward({reward, onDone}: AwardProps) {
     useEscape(onDone)
 
     return <AwardCard reward={reward} kept>
-        <button type="button" className="button button-gold bonus-award-done" onClick={onDone}>Got it</button>
+        <button type="button" className="button button-gold bonus-award-done" onClick={onDone}>{t("bonus.gotIt")}</button>
     </AwardCard>
 }
 

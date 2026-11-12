@@ -4,7 +4,7 @@ import {act, cleanup, render, screen, waitFor, within} from "@testing-library/re
 import userEvent from "@testing-library/user-event"
 import {StrictMode} from "react"
 import HolderCardPlace from "./HolderCardPlace.tsx"
-import {DELETED_ACCOUNT, LEAVE_GRACE_MS} from "./tileHolder.ts"
+import {LEAVE_GRACE_MS} from "./tileHolder.ts"
 import {useTileHolder} from "./tileHolderStore.ts"
 import {TileHolder} from "../../backends/backend.ts"
 import {NameColor, PlayerInfo, PlayerLine} from "../../backends/player.ts"
@@ -99,9 +99,9 @@ describe("HolderCardPlace", () => {
         render(<HolderCardPlace holders={holdersOf(ANAS_TILE)} players={playersOf(undefined)} pointing={POINTING}/>)
 
         await waitFor(() => expect(shown()).toMatchObject({
-            line: {accountId: "", name: DELETED_ACCOUNT, countryCode: "fr"}, playsFor: [], takenAt: 1_000,
+            line: {accountId: "", name: "Deleted account", countryCode: "fr"}, playsFor: [], takenAt: 1_000,
         }))
-        expect(screen.getByRole("region", {name: DELETED_ACCOUNT}).textContent).toContain("Took it for France")
+        expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it for France")
     })
 
     it("shows a take whose account was deleted as a deleted account, and reads no card", async () => {
@@ -110,7 +110,7 @@ describe("HolderCardPlace", () => {
         render(<HolderCardPlace holders={holdersOf({...ANAS_TILE, accountId: ""})} players={players} pointing={POINTING}/>)
 
         await waitFor(() => expect(shown()).toEqual({
-            line: {accountId: "", name: DELETED_ACCOUNT, countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED},
+            line: {accountId: "", name: "Deleted account", countryCode: "fr", guest: false, admin: false, color: NameColor.UNSPECIFIED},
             tile: {owner: "fr", ground: "fr", shields: 0}, playsFor: [], mine: false, takenAt: 1_000, point: PEEK.point, touch: false, id: 1,
         }))
         expect(players.playerInfo).not.toHaveBeenCalled()

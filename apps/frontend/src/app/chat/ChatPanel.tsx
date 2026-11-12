@@ -1,7 +1,6 @@
 import {ReactNode, useCallback, useEffect, useId, useRef, useState} from "react";
 import {ChatBackend, ChatMessage, Gif, OutgoingMessage} from "../../backends/chat.ts";
 import {GifChoice, GifQuery, GifSearch} from "../../backends/gifs.ts";
-import {wordsOf} from "../../domain/chatLog.ts";
 import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
 import {ChevronIcon} from "../components/icons.tsx";
@@ -29,6 +28,8 @@ import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
 import {useChat} from "./chatStore.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
+import {t, translator} from "../../i18n/page.ts";
+import {wordsOf} from "./wordsOf.ts";
 import "./ChatPanel.css"
 
 export type FlagRoom = {
@@ -148,18 +149,18 @@ export default function ChatPanel(props: ChatPanelProps) {
         return sent
     }
 
-    const tabs = (online !== undefined || flagCountry) && <div className="chat-tabs" role="tablist" aria-label="Chat">
-        <RoomTab on={shown === "world"} name={flagCountry ? "World" : "Chat"} unread={world.unread}
+    const tabs = (online !== undefined || flagCountry) && <div className="chat-tabs" role="tablist" aria-label={t("chat.title")}>
+        <RoomTab on={shown === "world"} name={flagCountry ? t("chat.world") : t("chat.title")} unread={world.unread}
                  onClick={() => choose("world")}/>
-        {flagCountry && <RoomTab on={shown === "flag"} name={flagCountry.name} flag={flagCountry.code}
+        {flagCountry && <RoomTab on={shown === "flag"} name={translator().country(flagCountry.code)} flag={flagCountry.code}
                                  unread={flag.unread} locked={locked} onClick={() => choose("flag")}/>}
         {online !== undefined && <button type="button"
                                          role="tab"
                                          aria-selected={shown === "online"}
-                                         aria-label={online === 1 ? "1 player online" : `${online} players online`}
+                                         aria-label={t("chat.playersOnline", {count: online})}
                                          className={shown === "online" ? "chat-tab chat-tab--on" : "chat-tab"}
                                          onClick={() => choose("online")}>
-            Online · {online}
+            {t("chat.online", {count: online})}
         </button>}
     </div>
 
@@ -168,7 +169,7 @@ export default function ChatPanel(props: ChatPanelProps) {
         : shown === "flag" && flagCountry && onSignIn
         ? <LockedRoom country={flagCountry} unread={flag.unread} onSignIn={onSignIn}/>
         : <>
-            <DiscordBar discord={props.discord} flagName={props.country.name}/>
+            <DiscordBar discord={props.discord} flagName={translator().country(props.country.code)}/>
 
             <ChatLog key={shown === "flag" ? `flag-${flagRoom?.country.code}` : "world"}
                      messages={room.messages}
@@ -205,8 +206,8 @@ export default function ChatPanel(props: ChatPanelProps) {
 
     if (props.compact) {
         if (isOpen) {
-            return <Sheet title="Live chat"
-                          head={tabs ?? <span className="chat-sheet-title">Chat</span>}
+            return <Sheet title={t("chat.liveChat")}
+                          head={tabs ?? <span className="chat-sheet-title">{t("chat.title")}</span>}
                           className="chat-sheet"
                           onClose={() => setOpen(false)}>
                 {body}
@@ -222,21 +223,21 @@ export default function ChatPanel(props: ChatPanelProps) {
     )
     const waiting = !isOpen && unread > 0
 
-    return <section ref={panel} className={panelClass(isOpen, waiting)} aria-label="Live chat">
+    return <section ref={panel} className={panelClass(isOpen, waiting)} aria-label={t("chat.liveChat")}>
         {isOpen && RESIZE_EDGES.map(edge =>
             <div key={edge}
                  className={`chat-resize chat-resize-${edge}`}
                  aria-hidden="true"
-                 title="Drag to resize, double-click to reset"
+                 title={t("chat.resize")}
                  onPointerDown={event => startResize(edge, event)}
                  onDoubleClick={resetSize}/>)}
 
         {isOpen
             ? <div className="chat-header chat-header-open">
-                {tabs ?? <span className="chat-header-title">Chat</span>}
+                {tabs ?? <span className="chat-header-title">{t("chat.title")}</span>}
                 <button type="button"
                         className="icon-button chat-fold"
-                        aria-label="Fold the chat"
+                        aria-label={t("chat.fold")}
                         aria-expanded={true}
                         aria-controls={bodyId}
                         onClick={() => setOpen(false)}>
@@ -248,7 +249,7 @@ export default function ChatPanel(props: ChatPanelProps) {
                       aria-expanded={false}
                       onClick={() => setOpen(true)}>
                 <span className="chat-header-row">
-                    <span className="chat-header-title">Chat</span>
+                    <span className="chat-header-title">{t("chat.title")}</span>
                     {waiting &&
                         <span className="chip chat-badge"
                               key={unread}
@@ -275,7 +276,7 @@ function ChatToast({message, onOpen}: {message: ChatMessage, onOpen: () => void}
     return <button type="button"
                    className="chat-toast"
                    style={authorStyle(paintOf(nameplate))}
-                   aria-label={`Open the chat: ${name}, ${words.masked(wordsOf(message))}`}
+                   aria-label={t("chat.openWith", {player: name, message: words.masked(wordsOf(message))})}
                    onClick={onOpen}>
         <span className="chat-toast-author" aria-hidden="true">{truncate(name, PEEK_AUTHOR_MAX_LENGTH)}</span>
         <span className="chat-toast-text" aria-hidden="true">{truncate(words.masked(wordsOf(message)), PEEK_TEXT_MAX_LENGTH)}</span>
@@ -307,7 +308,7 @@ function RoomTab({on, name, flag, unread, locked, onClick}: RoomTabProps) {
     return <button type="button"
                    role="tab"
                    aria-selected={on}
-                   aria-label={missed ? `${name}, ${newMessages(unread)}` : name}
+                   aria-label={missed ? t("chat.roomUnread", {room: name, count: unread}) : name}
                    title={flag && name}
                    className={["chat-tab", on && "chat-tab--on", flag && "chat-tab--flag"].filter(Boolean).join(" ")}
                    onClick={onClick}>
@@ -322,7 +323,7 @@ function newest(...messages: (ChatMessage | undefined)[]): ChatMessage | undefin
 }
 
 function badgeCount(unread: number): string {
-    return unread > UNREAD_CAP ? `${UNREAD_CAP}+` : `${unread}`
+    return unread > UNREAD_CAP ? `${translator().number(UNREAD_CAP)}+` : translator().number(unread)
 }
 
 function panelClass(isOpen: boolean, waiting: boolean): string {

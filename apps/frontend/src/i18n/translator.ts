@@ -31,6 +31,8 @@ const DAY_S = 24 * HOUR_S
 export class Translator {
     private readonly parsed = new Map<string, Node[]>()
     private readonly formats = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>()
+    private readonly countries = new Map<string, string>()
+    private readonly displayNames = new Map<"short" | "long", Intl.DisplayNames>()
     private readonly cardinals: Intl.PluralRules
     private readonly ordinals: Intl.PluralRules
     private readonly numbers: Intl.NumberFormat
@@ -93,21 +95,37 @@ export class Translator {
     }
 
     country(code: string): string {
+        const known = this.countries.get(code)
+        if (known !== undefined) return known
+        const name = this.countryNameOf(code)
+        this.countries.set(code, name)
+        return name
+    }
+
+    private countryNameOf(code: string): string {
         if (OWN_COUNTRY_NAMES.has(code)) return this.t(`country.${code}` as Key)
         const region = code.toUpperCase()
-        const named = (style: "short" | "long") => {
+        const named = (names: Intl.DisplayNames) => {
             try {
-                const name = new Intl.DisplayNames([this.locale], {type: "region", style, fallback: "none"}).of(region)
+                const name = names.of(region)
                 return name === region ? undefined : name
             } catch {
                 return undefined
             }
         }
-        const short = named("short")
+        const short = named(this.regionNames("short"))
         if (short !== undefined && !ABBREVIATED.test(short) && !TWO_PLACES.test(short)) return short
-        const long = named("long")
+        const long = named(this.regionNames("long"))
         if (long === undefined) return region
         return TWO_PLACES.test(long) ? long.replace(/\s*\([^)]*\)/g, "") : long
+    }
+
+    private regionNames(style: "short" | "long"): Intl.DisplayNames {
+        const known = this.displayNames.get(style)
+        if (known) return known
+        const names = new Intl.DisplayNames([this.locale], {type: "region", style, fallback: "none"})
+        this.displayNames.set(style, names)
+        return names
     }
 
     // A country's main landmass is named after the country.

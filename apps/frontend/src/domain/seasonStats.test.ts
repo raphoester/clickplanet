@@ -50,20 +50,20 @@ describe("battleFlagRowsOf", () => {
 describe("bigNumbersOf", () => {
     it("tells the ledger's totals, the season's days, the flags that scored and the Final Battle's clicks", () => {
         expect(bigNumbersOf(SEASON, TOTALS, [score(1, "de", 3), score(2, "fr", 1)], FINALE)).toEqual([
-            {label: "Clicks", value: 900},
-            {label: "Players", value: 70},
-            {label: "Days", value: 24},
-            {label: "Bombs dropped", value: 12},
-            {label: "Shields placed", value: 30},
-            {label: "Shield hits", value: 40},
-            {label: "Lands fortified", value: 5},
-            {label: "Flags that scored", value: 2},
-            {label: "Final Battle clicks", value: 750},
+            {kind: "clicks", value: 900},
+            {kind: "players", value: 70},
+            {kind: "days", value: 24},
+            {kind: "bombs", value: 12},
+            {kind: "shields", value: 30},
+            {kind: "shieldHits", value: 40},
+            {kind: "fortifies", value: 5},
+            {kind: "flagsScored", value: 2},
+            {kind: "finaleClicks", value: 750},
         ])
     })
 
     it("leaves out what was not read", () => {
-        expect(bigNumbersOf(SEASON, undefined, undefined, undefined)).toEqual([{label: "Days", value: 24}])
+        expect(bigNumbersOf(SEASON, undefined, undefined, undefined)).toEqual([{kind: "days", value: 24}])
     })
 })
 

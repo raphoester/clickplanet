@@ -1,8 +1,10 @@
 import {Mission} from "../../backends/missions.ts"
-import {BonusRules, describeReward} from "../../domain/bonus.ts"
+import {BonusRules} from "../../domain/bonus.ts"
 import {awardOf} from "../../domain/missions.ts"
+import {t} from "../../i18n/page.ts"
 import BonusIcon from "../components/BonusIcon.tsx"
 import {usePassing} from "../bonus/BonusAward.tsx"
+import {describeReward} from "../bonus/describeReward.ts"
 import {useBonus} from "../bonus/bonusStore.ts"
 import {useMissions} from "./missionsStore.ts"
 import {partsOf} from "./orderParts.tsx"
@@ -31,7 +33,7 @@ function Card({missions, rules, onDone}: CardProps) {
         <div className="bonus-award-card panel">
             <span className="bonus-award-box" aria-hidden="true"><BonusIcon kind={first.reward.kind}/></span>
             <strong className="bonus-award-title">
-                {missions.length === 1 ? "Mission done" : `${missions.length} missions done`}
+                {t("mission.missionsDone", {count: missions.length})}
             </strong>
             <ul className="missions-done">
                 {missions.map((mission) => <li key={mission.id} className="missions-done-row">

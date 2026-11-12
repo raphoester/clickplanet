@@ -1,6 +1,5 @@
 import {Season} from "../backends/season.ts"
 import {ClosedRound} from "../backends/standings.ts"
-import {Countries} from "./countries.ts"
 
 export type Champion = {
     season: number
@@ -17,13 +16,4 @@ export function reigningChampionOf(season: Season | undefined, closed: ClosedRou
     const champion = championOf(closed)
     if (!champion || (season && season.number > champion.season)) return undefined
     return champion
-}
-
-export function championNames(champion: Champion): string {
-    const names = champion.countryCodes.map((code) => Countries.get(code)?.name ?? code)
-    return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0]
-}
-
-export function winsLine(champion: Champion): string {
-    return `${championNames(champion)} ${champion.countryCodes.length > 1 ? "win" : "wins"} Season ${champion.season}`
 }

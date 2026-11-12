@@ -1,6 +1,7 @@
 import Modal from "./Modal.tsx";
-import {describeEnd} from "../../domain/endTime.ts";
+import {describeEnd} from "../endTime.ts";
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts";
+import {t} from "../../i18n/page.ts";
 import "./BannedModal.css"
 
 export const GAME_RULES = "/terms#play-fair"
@@ -11,12 +12,12 @@ export default function BannedModal() {
     if (until === undefined) return null
 
     return <Modal
-        title="Clicks paused"
-        footer={<button type="button" className="button button-action" onClick={dismiss}>Got it</button>}
+        title={t("ban.title")}
+        footer={<button type="button" className="button button-action" onClick={dismiss}>{t("dialog.gotIt")}</button>}
         onClose={dismiss}>
         <div className="banned-text">
-            <p>Clicks from your account or network are paused until {describeEnd(until, Date.now())}.</p>
-            <p><a href={GAME_RULES} target="_blank" rel="noopener noreferrer">Read the game rules</a></p>
+            <p>{t("ban.pausedUntil", {time: describeEnd(until, Date.now())})}</p>
+            <p><a href={GAME_RULES} target="_blank" rel="noopener noreferrer">{t("dialog.readRules")}</a></p>
         </div>
     </Modal>
 }

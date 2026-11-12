@@ -4,6 +4,7 @@ import {cardPlacement} from "../../domain/cardPlacement.ts"
 import {Point} from "../../domain/tilePeek.ts"
 import {CloseIcon} from "./icons.tsx"
 import {useEscape} from "./useDialog.ts"
+import {t} from "../../i18n/page.ts"
 import "./PointerCard.css"
 
 const CLICK_AFTER_TAP_MS = 600
@@ -56,7 +57,7 @@ export default function PointerCard({point, touch, label, className, style, shap
                  aria-label={label}
                  onPointerEnter={() => onHold(true)}
                  onPointerLeave={() => onHold(false)}>
-            <button type="button" className="pointer-card-close" aria-label="Close" onClick={onClose}>
+            <button type="button" className="pointer-card-close" aria-label={t("common.close")} onClick={onClose}>
                 <CloseIcon size={14}/>
             </button>
             {children}

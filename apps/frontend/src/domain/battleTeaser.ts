@@ -1,6 +1,6 @@
 import {BattleToCome, Turn} from "../backends/turn.ts"
-import {battleOf, partsOf} from "./battle.ts"
-import {timeLeftTo} from "./seasonClock.ts"
+import {battleOf, sameDay} from "./battle.ts"
+import {Countdown, timeLeftTo} from "./seasonClock.ts"
 
 const HOUR = 60 * 60_000
 
@@ -56,30 +56,21 @@ export function playingOf(turn: Turn | undefined): BattleToCome | undefined {
     return {entryId, roundId, description, times, endsSeason, startsAt: battle.since, endsAt: battle.endsAt}
 }
 
-// "Starts in 2h 05m 12s" before the battle, "Ends in 42m 10s" while it plays.
-export function teaserClockLine(battle: BattleToCome, now: number): string {
+export type TeaserClock = {
+    to: "start" | "end"
+    countdown: Countdown
+}
+
+export function teaserClockOf(battle: BattleToCome, now: number): TeaserClock {
     return battle.startsAt > now
-        ? `Starts in ${timeLeftTo(battle.startsAt, now)}`
-        : `Ends in ${timeLeftTo(battle.endsAt, now)}`
+        ? {to: "start", countdown: timeLeftTo(battle.startsAt, now)}
+        : {to: "end", countdown: timeLeftTo(battle.endsAt, now)}
 }
 
-// "Today · 22:00 – 23:00", "Tomorrow · 22:00 – 23:00" or "Sat 7 Nov · 22:00 – 23:00", in the player's time.
-export function battleWhenLine(battle: BattleToCome, now: number, timeZone?: string): string {
-    return `${dayWordOf(battle.startsAt, now, timeZone)} · ${clockOf(battle.startsAt, timeZone)} – ${clockOf(battle.endsAt, timeZone)}`
-}
+export type BattleDay = "today" | "tomorrow" | "later"
 
-function clockOf(ms: number, timeZone?: string): string {
-    const part = partsOf(ms, timeZone)
-    return `${part("hour")}:${part("minute")}`
-}
-
-function dayWordOf(ms: number, now: number, timeZone?: string): string {
-    const day = partsOf(ms, timeZone)
-    const sameDay = (other: number) => {
-        const it = partsOf(other, timeZone)
-        return it("day") === day("day") && it("month") === day("month")
-    }
-    if (sameDay(now)) return "Today"
-    if (sameDay(now + 24 * HOUR)) return "Tomorrow"
-    return `${day("weekday")} ${day("day")} ${day("month")}`
+export function battleDayOf(battle: BattleToCome, now: number): BattleDay {
+    if (sameDay(battle.startsAt, now)) return "today"
+    if (sameDay(battle.startsAt, now + 24 * HOUR)) return "tomorrow"
+    return "later"
 }

@@ -5,11 +5,17 @@ export const BLAST_TIMELINE = {fall: 0.8, shock: 1.2, scorch: 5} as const
 
 export const IMPACT_DELAY = BLAST_TIMELINE.fall
 
-export function describeBlast(drop: {tile?: number, cleared: number}, land?: string): string {
-    if (drop.tile === undefined) return "bombed the ocean"
-    if (land) return `bombed ${land}`
-    if (drop.cleared === 0) return "bombed empty land"
-    return `bombed ${drop.cleared} ${drop.cleared === 1 ? "tile" : "tiles"}`
+export type Blast =
+    | {kind: "ocean"}
+    | {kind: "land", land: string}
+    | {kind: "empty"}
+    | {kind: "tiles", count: number}
+
+export function blastOf(drop: {tile?: number, cleared: number}, land?: string): Blast {
+    if (drop.tile === undefined) return {kind: "ocean"}
+    if (land) return {kind: "land", land}
+    if (drop.cleared === 0) return {kind: "empty"}
+    return {kind: "tiles", count: drop.cleared}
 }
 
 export function blastOver(elapsed: number): boolean {

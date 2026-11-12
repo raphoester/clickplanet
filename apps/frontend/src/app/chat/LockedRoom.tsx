@@ -1,4 +1,6 @@
 import {Country} from "../../domain/countries.ts"
+import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {LockIcon} from "../components/icons.tsx"
 import {newMessages} from "./newMessages.ts"
@@ -19,9 +21,11 @@ export default function LockedRoom({country, unread, onSignIn}: LockedRoomProps)
 
         <div className="chat-locked-card panel-box">
             <span className="chat-locked-lock"><LockIcon size={22}/></span>
-            <p className="chat-locked-title"><CountryFlag code={country.code}/> {country.name} team chat</p>
+            <p className="chat-locked-title">
+                {rich("chat.lockedRoom.title", {country: <><CountryFlag code={country.code}/> {translator().country(country.code)}</>})}
+            </p>
             {unread > 0 && <p className="chat-locked-count">{newMessages(unread)}</p>}
-            <button type="button" className="button button-action" onClick={onSignIn}>Sign in to join</button>
+            <button type="button" className="button button-action" onClick={onSignIn}>{t("chat.lockedRoom.signIn")}</button>
         </div>
     </div>
 }

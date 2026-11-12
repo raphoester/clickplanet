@@ -3,6 +3,7 @@ import {InviteLink} from "../../backends/crazyGames.ts";
 import {CopyIcon} from "../components/icons.tsx";
 import {copyLink, LinkOutcome} from "./deliverShare.ts";
 import {DeliveryState, useDelivery} from "./useDelivery.ts";
+import {t} from "../../i18n/page.ts";
 
 export type InviteButtonProps = {
     flag: string
@@ -35,10 +36,10 @@ function stateLabel(state: InviteState, label: string): string {
         case "idle":
             return label
         case "working":
-            return "One sec…"
+            return t("share.working")
         case "failed":
-            return "Try again"
+            return t("common.retry")
         case "done":
-            return "Copied!"
+            return t("common.copied")
     }
 }

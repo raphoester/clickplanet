@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react"
 import {ClipsNameBackend} from "../../backends/clips.ts"
 import Switch from "../components/Switch.tsx"
+import {t} from "../../i18n/page.ts"
 
 export default function ClipsSwitch({clips}: {clips: ClipsNameBackend}) {
     const [shown, setShown] = useState<boolean>()
@@ -38,8 +39,8 @@ export default function ClipsSwitch({clips}: {clips: ClipsNameBackend}) {
 
     return <div className="account-clips" aria-busy={saving}>
         <div className="panel-box">
-            <Switch label="Show my name in clips" checked={shown} disabled={saving} onChange={(on) => void save(on)}/>
+            <Switch label={t("clip.showMyName")} checked={shown} disabled={saving} onChange={(on) => void save(on)}/>
         </div>
-        {failed && <p className="account-failure" role="alert">Something went wrong. Try again.</p>}
+        {failed && <p className="account-failure" role="alert">{t("clip.switchFailed")}</p>}
     </div>
 }

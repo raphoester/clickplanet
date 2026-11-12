@@ -2,6 +2,7 @@ import {useState} from "react";
 import {CopyIcon, DownloadIcon, ShareIcon} from "../components/icons.tsx";
 import {deliveriesOffered, deliverShare, ShareDelivery, ShareOutcome} from "./deliverShare.ts";
 import {DeliveryState, useDelivery} from "./useDelivery.ts";
+import {t} from "../../i18n/page.ts";
 import "./ShareActions.css"
 
 export type ShareActionsProps = {
@@ -45,9 +46,9 @@ function label(delivery: ShareDelivery, state: ShareState): string {
     if (state.kind !== "idle" && state.delivery === delivery) {
         switch (state.kind) {
             case "working":
-                return "One sec…"
+                return t("share.working")
             case "failed":
-                return "Try again"
+                return t("common.retry")
             case "done":
                 return outcomeLabel(state.outcome)
         }
@@ -59,21 +60,21 @@ function label(delivery: ShareDelivery, state: ShareState): string {
 function resting(delivery: ShareDelivery): string {
     switch (delivery) {
         case "sheet":
-            return "Share"
+            return t("common.share")
         case "copy":
-            return "Copy"
+            return t("common.copy")
         case "download":
-            return "Save"
+            return t("share.download")
     }
 }
 
 function outcomeLabel(outcome: Exclude<ShareOutcome, "cancelled">): string {
     switch (outcome) {
         case "shared":
-            return "Shared!"
+            return t("share.shared")
         case "copied":
-            return "Copied!"
+            return t("common.copied")
         case "downloaded":
-            return "Saved!"
+            return t("share.downloaded")
     }
 }

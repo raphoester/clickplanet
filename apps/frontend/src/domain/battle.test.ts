@@ -3,14 +3,13 @@ import {Turn} from "../backends/turn.ts"
 import {
     Battle,
     battleDue,
-    battleEndsLine,
     battleKeyOf,
     battleLeft,
     battleOf,
-    finaleLengthLine,
+    endsToday,
+    finaleMinutes,
     finaleNear,
     finaleOf,
-    finaleWhenLine,
     nextBattleOf,
 } from "./battle.ts"
 
@@ -77,12 +76,6 @@ describe("finaleOf", () => {
         expect(finaleOf([finale], plain, finale.endsAt)).toBeUndefined()
     })
 
-    it("says when it plays, in the player's time", () => {
-        const found = finaleOf([finale], plain, now)!
-        expect(finaleWhenLine(found, "UTC")).toBe("Sat 31 Oct · 22:30 – 00:30")
-        expect(finaleWhenLine(found, "Europe/Sofia")).toBe("Sun 1 Nov · 00:30 – 02:30")
-    })
-
     it("is near in the two days before its start, and no longer once it plays", () => {
         const at = (startsAt: number) => finaleOf([{...finale, startsAt, endsAt: startsAt + 2 * HOUR}], plain, now)
         expect(finaleNear(at(now + 48 * HOUR), now)).toBe(true)
@@ -91,11 +84,10 @@ describe("finaleOf", () => {
         expect(finaleNear(undefined, now)).toBe(false)
     })
 
-    it("says how long it lasts", () => {
-        const lasting = (minutes: number) => finaleLengthLine({...finaleOf([finale], plain, now)!, endsAt: finale.startsAt + minutes * MINUTE})
-        expect(lasting(120)).toBe("2 hours")
-        expect(lasting(60)).toBe("1 hour")
-        expect(lasting(90)).toBe("90 minutes")
+    it("lasts its minutes", () => {
+        const lasting = (minutes: number) => finaleMinutes({...finaleOf([finale], plain, now)!, endsAt: finale.startsAt + minutes * MINUTE})
+        expect(lasting(120)).toBe(120)
+        expect(lasting(90)).toBe(90)
     })
 })
 
@@ -114,16 +106,17 @@ describe("the battle's key", () => {
 
 describe("the battle's clock", () => {
     it("counts down to the end", () => {
-        expect(battleLeft(battle, now)).toBe("2h 00m 00s")
-        expect(battleLeft(battle, now + HOUR + 36 * MINUTE + 55 * SECOND)).toBe("23m 05s")
+        expect(battleLeft(battle, now)).toEqual({days: 0, hours: 2, minutes: 0, seconds: 0})
+        expect(battleLeft(battle, now + HOUR + 36 * MINUTE + 55 * SECOND)).toEqual({days: 0, hours: 0, minutes: 23, seconds: 5})
     })
 
     it("stops at zero", () => {
-        expect(battleLeft(battle, battle.endsAt + MINUTE)).toBe("00m 00s")
+        expect(battleLeft(battle, battle.endsAt + MINUTE)).toEqual({days: 0, hours: 0, minutes: 0, seconds: 0})
     })
 
-    it("says when the battle ends, in the player's time", () => {
-        expect(battleEndsLine(battle, now, "UTC")).toBe("Ends at 23:30")
-        expect(battleEndsLine(battle, now, "Europe/Sofia")).toBe("Ends Sun at 01:30")
+    it("ends today or on a later day, in the player's time", () => {
+        const at = (hour: number) => new Date(2026, 9, 31, hour).getTime()
+        expect(endsToday({...battle, endsAt: at(23)}, at(21))).toBe(true)
+        expect(endsToday({...battle, endsAt: at(25)}, at(21))).toBe(false)
     })
 })

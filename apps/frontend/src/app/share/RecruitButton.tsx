@@ -3,6 +3,7 @@ import {ShareAddress, shareUrl} from "../../domain/shareCard.ts";
 import {CopyIcon, ShareIcon} from "../components/icons.tsx";
 import {deliverLink, LinkDelivery, linkDeliveryOffered, LinkOutcome} from "./deliverShare.ts";
 import {DeliveryState, useDelivery} from "./useDelivery.ts";
+import {t} from "../../i18n/page.ts";
 
 export type RecruitButtonProps = {
     address: ShareAddress
@@ -41,9 +42,9 @@ function stateLabel(delivery: LinkDelivery, state: LinkState): string {
         case "idle":
             return resting(delivery)
         case "working":
-            return "One sec…"
+            return t("share.working")
         case "failed":
-            return "Try again"
+            return t("common.retry")
         case "done":
             return outcomeLabel(state.outcome)
     }
@@ -52,17 +53,17 @@ function stateLabel(delivery: LinkDelivery, state: LinkState): string {
 function resting(delivery: LinkDelivery): string {
     switch (delivery) {
         case "sheet":
-            return "Share link"
+            return t("share.shareLink")
         case "copy":
-            return "Copy link"
+            return t("share.copyLink")
     }
 }
 
 function outcomeLabel(outcome: Exclude<LinkOutcome, "cancelled">): string {
     switch (outcome) {
         case "shared":
-            return "Shared!"
+            return t("share.shared")
         case "copied":
-            return "Copied!"
+            return t("common.copied")
     }
 }

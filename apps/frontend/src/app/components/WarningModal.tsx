@@ -4,6 +4,7 @@ import HoldButton from "./HoldButton.tsx";
 import {GAME_RULES} from "./BannedModal.tsx";
 import {useWarning} from "../warning/warningStore.ts";
 import {WarningAcknowledger} from "../../backends/antibot.ts";
+import {t} from "../../i18n/page.ts";
 import "./BannedModal.css"
 
 export const ACKNOWLEDGE_HOLD_MS = 2_000
@@ -22,11 +23,11 @@ export default function WarningModal({warnings}: {warnings: WarningAcknowledger}
     }
 
     return <Modal
-        title="One account per player"
-        footer={<HoldButton label="Hold to confirm" holdMs={ACKNOWLEDGE_HOLD_MS} disabled={sending} onHeld={acknowledge}/>}>
+        title={t("warning.title")}
+        footer={<HoldButton label={t("warning.holdToConfirm")} holdMs={ACKNOWLEDGE_HOLD_MS} disabled={sending} onHeld={acknowledge}/>}>
         <div className="banned-text">
-            <p>You played several accounts to get more clicks. Keep to one account, or your accounts will be paused.</p>
-            <p><a href={GAME_RULES} target="_blank" rel="noopener noreferrer">Read the game rules</a></p>
+            <p>{t("warning.severalAccounts")}</p>
+            <p><a href={GAME_RULES} target="_blank" rel="noopener noreferrer">{t("dialog.readRules")}</a></p>
         </div>
     </Modal>
 }

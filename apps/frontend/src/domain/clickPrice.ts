@@ -2,31 +2,32 @@ import {ClickPrice} from "../backends/clickBudget.ts"
 
 const NEAR_NEXT_STEP = 0.8
 
-export function describePrice(price: ClickPrice | undefined, countryName: string): {headline: string, detail: string} | undefined {
+export type PriceStep = NonNullable<ClickPrice["next"]>
+
+export type PriceNote =
+    | {kind: "slower", slowdown: number, next?: PriceStep}
+    | {kind: "nearing", next: PriceStep}
+
+export function priceNote(price: ClickPrice | undefined): PriceNote | undefined {
     if (!price) return undefined
 
-    const headline = `${countryName} holds ${percent(price.share)} of the map`
     const next = price.next
 
-    if (price.slowdown > 1) {
-        const then = next ? ` · ${factor(next.slowdown)}× at ${percent(next.share)}` : ""
-        return {headline, detail: `Refills ${factor(price.slowdown)}× slower${then}`}
-    }
+    if (price.slowdown > 1) return {kind: "slower", slowdown: price.slowdown, next}
 
-    if (next && price.share >= next.share * NEAR_NEXT_STEP) {
-        return {headline, detail: `Refills ${factor(next.slowdown)}× slower at ${percent(next.share)}`}
-    }
+    if (next && price.share >= next.share * NEAR_NEXT_STEP) return {kind: "nearing", next}
 
     return undefined
 }
 
-export function factor(value: number): string {
-    return `${Math.round(value * 100) / 100}`
+export function factor(value: number): number {
+    return Math.round(value * 100) / 100
 }
 
-export function percent(share: number): string {
+// Rounded down, so a step is never claimed early: whole percents from 10%, tenths under.
+export function shareShown(share: number): number {
     const value = share * 100
-    if (value >= 10) return `${Math.floor(value)}%`
+    if (value >= 10) return Math.floor(value) / 100
 
-    return `${Math.floor(value * 10) / 10}%`
+    return Math.floor(value * 10) / 1000
 }

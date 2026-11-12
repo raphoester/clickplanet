@@ -39,6 +39,10 @@ make moderation
 # Refresh the embedded tile coordinates blob from the shared /map, then commit it
 make map
 
+# Translate the game page's new or changed English lines (and landmass names) with Claude, then commit the files it
+# writes in ../frontend/src/i18n (see translate.md). ARGS="-plan" says what would be sent and asks nothing
+ANTHROPIC_API_KEY=... make translate [ARGS="-languages fr,de -model claude-sonnet-5-5"]
+
 # Refresh the vendored VPN/datacenter ranges from upstream, then commit them
 make vpn-lists
 

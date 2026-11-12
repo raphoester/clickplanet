@@ -1,5 +1,6 @@
 import {PointerEvent, useCallback, useEffect, useRef, useState} from "react"
 import {TeaserCard} from "../../backends/promo.ts"
+import {t} from "../../i18n/page.ts"
 import {ChevronIcon} from "../components/icons.tsx"
 
 // A card a few seconds: long enough to read a headline and its line.
@@ -60,7 +61,7 @@ export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards:
     }
 
     return (
-        <section className="teaser-carousel" aria-roledescription="carousel" aria-label="What the battle holds">
+        <section className="teaser-carousel" aria-roledescription="carousel" aria-label={t("battle.cards")}>
             <div className="teaser-track"
                  onPointerDown={down}
                  onPointerMove={move}
@@ -74,7 +75,7 @@ export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards:
                             key={i}
                             className="teaser-card"
                             aria-roledescription="slide"
-                            aria-label={`${i + 1} of ${cards.length}`}
+                            aria-label={t("battle.cardPosition", {index: i + 1, count: cards.length})}
                             aria-hidden={i !== shown}
                         >
                             <img src={card.backgroundUrl} alt="" loading={i === 0 ? "eager" : "lazy"} draggable={false}/>
@@ -88,9 +89,9 @@ export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards:
             </div>
             {many && (
                 <>
-                    <button type="button" className="teaser-arrow teaser-arrow--previous" aria-label="Previous card"
+                    <button type="button" className="teaser-arrow teaser-arrow--previous" aria-label={t("battle.previousCard")}
                             onClick={() => step(-1)}><ChevronIcon size={22}/></button>
-                    <button type="button" className="teaser-arrow teaser-arrow--next" aria-label="Next card"
+                    <button type="button" className="teaser-arrow teaser-arrow--next" aria-label={t("battle.nextCard")}
                             onClick={() => step(1)}><ChevronIcon size={22}/></button>
                     <div className="teaser-dots">
                         {cards.map((_, i) => (
@@ -98,7 +99,7 @@ export default function TeaserCarousel({cards, turnMs = TEASER_TURN_MS}: {cards:
                                 key={i}
                                 type="button"
                                 className="teaser-dot"
-                                aria-label={`Card ${i + 1} of ${cards.length}`}
+                                aria-label={t("battle.cardNumber", {index: i + 1, count: cards.length})}
                                 aria-current={i === shown}
                                 onClick={() => {
                                     setTouched(true)

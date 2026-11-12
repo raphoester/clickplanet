@@ -1,3 +1,4 @@
+import {t} from '../../i18n/page.ts'
 import './BuyMeACoffee.css'
 
 export type BuyMeACoffeeProps = {
@@ -12,6 +13,6 @@ export default function BuyMeACoffee({onOpen}: BuyMeACoffeeProps) {
         className="button button-gold button-coffee"
         onClick={onOpen}
     >
-        Buy me a coffee
+        {t("menu.buyMeACoffee")}
     </a>
 };

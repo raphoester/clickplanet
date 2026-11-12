@@ -4,6 +4,7 @@ import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/
 import {Race} from "../backends/standings.ts"
 import Leaderboard from "./Leaderboard.tsx"
 import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
+import {t} from "../i18n/page.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
 import {useRace} from "./standings/raceStore.ts"
 import {Countries} from "../domain/countries.ts"
@@ -132,7 +133,7 @@ describe("Leaderboard", () => {
 
         fireEvent.pointerDown(head, {pointerType: "touch"})
         fireEvent.click(head)
-        expect(screen.getByRole("status").textContent).toBe(FIGURES.tiles)
+        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.tiles))
 
         act(() => vi.advanceTimersByTime(TAP_HINT_MS - 1))
         expect(screen.getByRole("status")).toBeDefined()
@@ -168,7 +169,7 @@ describe("Leaderboard", () => {
         fireEvent.click(head)
         act(() => vi.advanceTimersByTime(10 * TAP_HINT_MS))
 
-        expect(screen.getByRole("status").textContent).toBe(FIGURES.tiles)
+        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.tiles))
     })
 
     it("says what a column means while a mouse is over its head, and stops when it leaves", () => {
@@ -176,7 +177,7 @@ describe("Leaderboard", () => {
         const head = screen.getByRole("button", {name: "Tiles"})
 
         fireEvent.pointerEnter(head, {pointerType: "mouse"})
-        expect(screen.getByRole("status").textContent).toBe(FIGURES.tiles)
+        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.tiles))
 
         fireEvent.pointerLeave(head, {pointerType: "mouse"})
         expect(screen.queryByRole("status")).toBeNull()
@@ -311,7 +312,7 @@ describe("Leaderboard with the season's race", () => {
         useBoardGuide.setState({guided: false})
         render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
-        expect(screen.getByRole("status").textContent).toBe(FIGURES.points)
+        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.points))
         expect(useBoardGuide.getState().guided).toBe(true)
         expect(localStorage.getItem("clickplanet-board-guide")).toBe("points")
     })

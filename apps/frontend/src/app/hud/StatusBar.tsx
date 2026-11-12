@@ -4,6 +4,7 @@ import HomeLogo from "../components/HomeLogo.tsx"
 import {useEdge} from "../components/useEdge.ts"
 import {useCountry} from "../countryStore.ts"
 import {useScreen} from "./screenStore.ts"
+import {t, translator} from "../../i18n/page.ts"
 import "./StatusBar.css"
 
 export const STATUS_BOTTOM = "--status-bottom"
@@ -20,19 +21,19 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
     const boardOpen = useScreen((screen) => screen.sheet === "board")
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
 
-    const ranked = rank === null ? "no rank yet" : `rank ${rank}`
+    const name = translator().country(country.code)
 
     return <header ref={setBar} className="status-bar panel">
         <HomeLogo size={34} className="status-bar-logo"/>
 
         <button type="button"
                 className="status-bar-country"
-                aria-label={`${country.name}, ${ranked}. Leaderboard`}
+                aria-label={rank === null ? t("hud.countryNoRank", {country: name}) : t("hud.countryRank", {country: name, rank})}
                 aria-expanded={boardOpen}
                 onClick={() => toggleSheet("board")}>
             <CountryFlag code={country.code}/>
-            <span className="status-bar-name">{country.name}</span>
-            <span className="panel-box status-bar-rank" aria-hidden="true">{rank === null ? "—" : `#${rank}`}</span>
+            <span className="status-bar-name">{name}</span>
+            <span className="panel-box status-bar-rank" aria-hidden="true">{rank === null ? "—" : t("board.rankNumber", {rank})}</span>
         </button>
 
         {trailing}

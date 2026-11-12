@@ -2,6 +2,7 @@ import {ShareAddress, ShareStats} from "../../domain/shareCard.ts";
 import {CameraIcon} from "../components/icons.tsx";
 import VideoTile, {VideoTileProps} from "../video/VideoTile.tsx";
 import RecruitLink from "./RecruitLink.tsx";
+import {t} from "../../i18n/page.ts";
 import "./SharePlace.css"
 
 export type SharePlaceProps = {
@@ -22,7 +23,7 @@ export default function SharePlace({stats, address, onTakePicture, taking, video
                                   disabled={taking}
                                   onClick={onTakePicture}>
             <CameraIcon size={22}/>
-            <span>Take a picture</span>
+            <span>{t("share.takePicture")}</span>
         </button>}
         <RecruitLink stats={stats} address={address}/>
     </div>

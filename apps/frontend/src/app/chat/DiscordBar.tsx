@@ -3,6 +3,7 @@ import {pingFailureOf, pingHintOf, pingNameOf} from "../alerts/alertsMessages.ts
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
 import {usePing} from "../alerts/usePing.ts"
 import {useDiscordBar} from "./useDiscordBar.ts"
+import {t} from "../../i18n/page.ts"
 
 export type DiscordBarProps = {
     discord?: DiscordOffer
@@ -27,11 +28,11 @@ export default function DiscordBar({discord, flagName}: DiscordBarProps) {
                  rel="noopener noreferrer"
                  className="button button-mini chat-discord-join">
                 <DiscordIcon size={20}/>
-                <span className="chat-discord-label">Open Discord</span>
+                <span className="chat-discord-label">{t("chat.discord.open")}</span>
             </a>}
         <button type="button"
                 className="chat-discord-close"
-                aria-label="Hide Discord"
+                aria-label={t("chat.discord.hide")}
                 onClick={hide}>
             <CloseIcon size={16}/>
         </button>
@@ -42,7 +43,7 @@ export default function DiscordBar({discord, flagName}: DiscordBarProps) {
 // it shows.
 function ConnectButton({connect, flagName}: {connect: () => Promise<void>, flagName?: string}) {
     const ping = usePing(connect)
-    const label = ping.failure ? pingFailureOf(ping.failure) : "Join Discord"
+    const label = ping.failure ? pingFailureOf(ping.failure) : t("chat.discord.join")
 
     return <button type="button"
                    className="button button-mini chat-discord-join"

@@ -4,7 +4,7 @@ import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx";
-import Choices, {Choice} from "../components/Choices.tsx";
+import Choices from "../components/Choices.tsx";
 import {InfoIcon, MailIcon} from "../components/icons.tsx";
 import Modal from "../components/Modal.tsx";
 import Switch from "../components/Switch.tsx";
@@ -15,6 +15,8 @@ import {NO_GRAPHICS} from "../viewer/graphicsReport.ts";
 import {ON_CRAZYGAMES} from "../../platform.ts";
 import {useDisplaySettings} from "./displaySettingsStore.ts";
 import LanguagePicker from "./LanguagePicker.tsx";
+import {t} from "../../i18n/page.ts";
+import {Key} from "../../i18n/translator.ts";
 import "./SettingsPlace.css"
 
 export type SettingsPlaceProps = {
@@ -26,10 +28,10 @@ export type SettingsPlaceProps = {
 
 const pageAlone = () => pageContextOf(window, NO_GRAPHICS, false)
 
-const MAP_VIEWS: Choice<MapView>[] = [
-    {value: "big", label: "Big"},
-    {value: "split", label: "Split"},
-    {value: "tiles", label: "Off"},
+const MAP_VIEWS: {value: MapView, label: Key}[] = [
+    {value: "big", label: "settings.mapViewBig"},
+    {value: "split", label: "settings.mapViewSplit"},
+    {value: "tiles", label: "settings.mapViewOff"},
 ]
 
 export default function SettingsPlace({sound, support, pageContext = pageAlone, discord}: SettingsPlaceProps) {
@@ -43,13 +45,13 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
                 <LanguagePicker/>
             </li>
             <li className="settings-choices">
-                <Choices label="Country flags"
-                         options={MAP_VIEWS}
+                <Choices label={t("settings.countryFlags")}
+                         options={MAP_VIEWS.map(({value, label}) => ({value, label: t(label)}))}
                          picked={display.mapView}
                          onPick={display.setMapView}/>
             </li>
             <li>
-                <Switch label="HD graphics"
+                <Switch label={t("settings.hdGraphics")}
                         checked={display.rendering === "sharp"}
                         onChange={(on) => display.setRendering(on ? "sharp" : "soft")}/>
             </li>
@@ -61,17 +63,17 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
                     className="panel-box menu-tile"
                     onClick={() => setOpen("feedback")}>
                 <MailIcon size={22}/>
-                <span>Feedback</span>
+                <span>{t("settings.feedback")}</span>
             </button>
             <button type="button"
                     className="panel-box menu-tile"
                     onClick={() => setOpen("about")}>
                 <InfoIcon size={22}/>
-                <span>About</span>
+                <span>{t("settings.about")}</span>
             </button>
         </div>
 
-        {open === "about" && <Modal title="About ClickPlanet"
+        {open === "about" && <Modal title={t("settings.aboutTitle")}
                                     footer={ON_CRAZYGAMES ? undefined : <BuyMeACoffee/>}
                                     onClose={close}>
             <About discord={discord}/>

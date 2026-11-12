@@ -1,4 +1,5 @@
 import {ON_CRAZYGAMES} from "../../platform.ts"
+import {t} from "../../i18n/page.ts"
 import "./HomeLogo.css"
 
 // The logo leads back to the home page: to /#home, the one address of it that does not send a returning player
@@ -11,5 +12,5 @@ export default function HomeLogo({size, className}: {size: number, className?: s
                       height={size}/>
     if (ON_CRAZYGAMES) return logo
 
-    return <a href="/#home" className="home-logo" aria-label="ClickPlanet home page" title="Home page">{logo}</a>
+    return <a href="/#home" className="home-logo" aria-label={t("menu.logoHome")} title={t("menu.homePage")}>{logo}</a>
 }

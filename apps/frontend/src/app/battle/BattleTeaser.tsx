@@ -2,12 +2,12 @@ import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {TeaserCard} from "../../backends/promo.ts"
 import {BattleToCome} from "../../backends/turn.ts"
-import {battleNameOf} from "../../domain/battle.ts"
-import {battleWhenLine, teaserClockLine} from "../../domain/battleTeaser.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
+import {t} from "../../i18n/page.ts"
 import {useModalDialog} from "../components/useDialog.ts"
 import {useNow} from "../season/useNow.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
+import {battleName, battleWhenLine, teaserClockLine} from "./battleLines.ts"
 import TeaserCarousel from "./TeaserCarousel.tsx"
 import "../titles/TitleUnlocked.css"
 import "./Battle.css"
@@ -41,7 +41,6 @@ export default function BattleTeaser({battle, cards, asked = false, play, onClos
     })
 
     const timing = {"--impact": `${TITLE_REVEAL.impact * 1000}ms`} as CSSProperties
-    const worth = battle.times > 1 ? ` · Points ×${battle.times}` : ""
 
     return createPortal(
         <div ref={dialog}
@@ -53,15 +52,15 @@ export default function BattleTeaser({battle, cards, asked = false, play, onClos
              tabIndex={-1}
              style={timing}>
             <div className="title-reveal-stage">
-                <h2 id={headId} className="title-reveal-head">{battleNameOf(battle)}</h2>
+                <h2 id={headId} className="title-reveal-head">{battleName(battle)}</h2>
                 <p className="battle-brief-times battle-teaser-left" role="timer">
                     <span>{teaserClockLine(battle, now)}</span>
                 </p>
-                <p className="title-reveal-rank battle-teaser-when">{battleWhenLine(battle, now)}{worth}</p>
+                <p className="title-reveal-rank battle-teaser-when">{battleWhenLine(battle, now)}</p>
                 {battle.description !== "" && <p className="battle-brief-text battle-teaser-words">{battle.description}</p>}
                 <TeaserCarousel cards={cards}/>
                 <div className="title-reveal-actions">
-                    {ready && <button type="button" className="button" onClick={onClose}>To the globe</button>}
+                    {ready && <button type="button" className="button" onClick={onClose}>{t("battle.toTheGlobe")}</button>}
                 </div>
             </div>
             {!asked && <div className="title-reveal-flash" aria-hidden="true"/>}

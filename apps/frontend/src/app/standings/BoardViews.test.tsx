@@ -149,12 +149,12 @@ describe("BoardViews", () => {
         expect(screen.queryByText("the countries")).toBeNull()
         expect(backend.listenForStandings).toHaveBeenLastCalledWith("", expect.any(Function))
         expect(screen.getByRole("table", {name: "Players"})).toBeDefined()
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "kiran_07", "1512"], ["2", "Mateus", "1512"]])
+        expect(cells()).toEqual([["1", "Ana", "1,840"], ["2", "kiran_07", "1,512"], ["2", "Mateus", "1,512"]])
 
         await pick(user, "Players", "France")
         expect(backend.listenForStandings).toHaveBeenLastCalledWith("fr", expect.any(Function))
         expect(screen.getByRole("table", {name: "Players, France"})).toBeDefined()
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"]])
+        expect(cells()).toEqual([["1", "Ana", "1,840"], ["2", "Bastien", "402"]])
     })
 
     it("moves another player's row as soon as the stream sends a new board", async () => {
@@ -176,7 +176,7 @@ describe("BoardViews", () => {
             standing(3, "kiran_07", "in", 1512),
         ]))
 
-        expect(cells()).toEqual([["1", "Mateus", "1900"], ["2", "Ana", "1840"], ["3", "kiran_07", "1512"]])
+        expect(cells()).toEqual([["1", "Mateus", "1,900"], ["2", "Ana", "1,840"], ["3", "kiran_07", "1,512"]])
     })
 
     it("follows the country played for", async () => {
@@ -247,7 +247,7 @@ describe("BoardViews", () => {
         const marked = rows().filter((row) => row.getAttribute("aria-current") === "true")
         expect(marked).toHaveLength(1)
         expect(marked[0].querySelector(".coin-you")!.textContent).toBe("4")
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "kiran_07", "1512"], ["2", "Mateus", "1512"], ["4", "Mateus", "20"]])
+        expect(cells()).toEqual([["1", "Ana", "1,840"], ["2", "kiran_07", "1,512"], ["2", "Mateus", "1,512"], ["4", "Mateus", "20"]])
     })
 
     it("marks nothing for a guest", async () => {
@@ -287,14 +287,14 @@ describe("BoardViews", () => {
         const mine = season({countryCode: "fr", tiles: 12, rank: 42}, {fr: {countryCode: "fr", tiles: 12, rank: 3}})
         await shown({backend: backendOf(mine), caller: ZED, view: "country"})
 
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"], ["3", "Zed", "12"]])
+        expect(cells()).toEqual([["1", "Ana", "1,840"], ["2", "Bastien", "402"], ["3", "Zed", "12"]])
     })
 
     it("lists the caller on the board of a country it took tiles for, though another flag is its main one", async () => {
         const mine = season({countryCode: "bg", tiles: 74, rank: 1}, {fr: {countryCode: "fr", tiles: 3, rank: 3}})
         await shown({backend: backendOf(mine), caller: ZED, view: "country"})
 
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Bastien", "402"], ["3", "Zed", "3"]])
+        expect(cells()).toEqual([["1", "Ana", "1,840"], ["2", "Bastien", "402"], ["3", "Zed", "3"]])
         expect(within(rows()[2]).getByRole("img", {name: "France"})).toBeDefined()
         expect(screen.queryByRole("img", {name: "Bulgaria"})).toBeNull()
     })
@@ -316,8 +316,8 @@ describe("BoardViews", () => {
 
         await act(() => clicks.record({country: "br", took: true}))
 
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Mateus", "1513"], ["3", "kiran_07", "1512"]])
-        expect(stats()).toEqual([["Tiles", "1513"], ["Players", "#2"]])
+        expect(cells()).toEqual([["1", "Ana", "1,840"], ["2", "Mateus", "1,513"], ["3", "kiran_07", "1,512"]])
+        expect(stats()).toEqual([["Tiles", "1,513"], ["Players", "#2"]])
     })
 
     it("counts each tile the caller takes for the country shown into its row there, and no other", async () => {
@@ -330,7 +330,7 @@ describe("BoardViews", () => {
         await act(() => clicks.record({country: "fr", took: true}))
         await act(() => clicks.record({country: "bg", took: true}))
 
-        expect(cells()).toEqual([["1", "Ana", "1840"], ["2", "Zed", "403"], ["3", "Bastien", "402"]])
+        expect(cells()).toEqual([["1", "Ana", "1,840"], ["2", "Zed", "403"], ["3", "Bastien", "402"]])
         expect(stats()).toEqual([["Tiles", "403"], ["France", "#2"]])
     })
 

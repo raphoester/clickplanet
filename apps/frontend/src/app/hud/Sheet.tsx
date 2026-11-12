@@ -2,6 +2,7 @@ import {ReactNode, useEffect, useId, useRef} from "react"
 import {CloseIcon} from "../components/icons.tsx"
 import ScrollArea from "../components/ScrollArea.tsx"
 import {useEscape} from "../components/useDialog.ts"
+import {t} from "../../i18n/page.ts"
 import "./Sheet.css"
 
 export type SheetProps = {
@@ -36,7 +37,7 @@ export default function Sheet(props: SheetProps) {
                 {props.head}
                 <button type="button"
                         className="icon-button sheet-close"
-                        aria-label="Close"
+                        aria-label={t("common.close")}
                         onClick={props.onClose}>
                     <CloseIcon/>
                 </button>

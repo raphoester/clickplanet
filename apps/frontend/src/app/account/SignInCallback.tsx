@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from "react"
 import {AuthFailure, failureOf, Provider} from "../../backends/account.ts"
 import {SignInCallback as Callback} from "../../domain/signInCallback.ts"
 import {messageOf, retryOf} from "./authMessages.ts"
+import {t} from "../../i18n/page.ts"
 import "./Account.css"
 
 export type SignInCallbackProps = {
@@ -50,15 +51,15 @@ export default function SignInCallback(props: SignInCallbackProps) {
     }, [])
 
     const back = <button type="button" className="button" onClick={props.onDone}>
-        Back to the game
+        {t("signIn.backToGame")}
     </button>
 
     if (props.callback.kind === "declined") {
-        return <CallbackCard title="You did not sign in">
-            <p>You can play without an account.</p>
+        return <CallbackCard title={t("signIn.declined")}>
+            <p>{t("signIn.playWithout")}</p>
             <div className="sign-in-callback-actions">
                 {props.startAgain && <button type="button" className="button button-action" onClick={() => void startAgain()}>
-                    Try again
+                    {t("common.retry")}
                 </button>}
                 {back}
             </div>
@@ -66,26 +67,26 @@ export default function SignInCallback(props: SignInCallbackProps) {
     }
 
     if (props.callback.kind === "invalid") {
-        return <CallbackCard title="This sign-in link is not complete">
-            <p>Start the sign-in again from the menu.</p>
+        return <CallbackCard title={t("signIn.linkIncomplete")}>
+            <p>{t("signIn.startFromMenu")}</p>
             <div className="sign-in-callback-actions">{back}</div>
         </CallbackCard>
     }
 
     if (step.kind === "working") {
-        return <CallbackCard title="Signing you in…" working/>
+        return <CallbackCard title={t("signIn.working")} working/>
     }
 
     const retry = retryOf(step.failure)
     const notLinked = step.failure === "linkedElsewhere" || step.failure === "alreadyLinked"
-    return <CallbackCard title={notLinked ? "Not linked" : "Sign-in did not work"}>
+    return <CallbackCard title={t(notLinked ? "signIn.notLinked" : "signIn.failed")}>
         <p role="alert">{messageOf(step.failure, props.provider)}</p>
         <div className="sign-in-callback-actions">
             {retry === "complete" && <button type="button" className="button button-action" onClick={() => void complete()}>
-                Try again
+                {t("common.retry")}
             </button>}
             {retry === "start" && props.startAgain && <button type="button" className="button button-action" onClick={() => void startAgain()}>
-                Try again
+                {t("common.retry")}
             </button>}
             {back}
         </div>

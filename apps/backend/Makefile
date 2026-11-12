@@ -1,4 +1,4 @@
-.PHONY: proto map quiz moderation test lint lint-ci tidy check-format check-quiz check-moderation check-migrations setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
+.PHONY: proto map quiz translate moderation test lint lint-ci tidy check-format check-quiz check-moderation check-migrations setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -63,6 +63,11 @@ dBuild:
 # bash -o pipefail, not .SHELLFLAGS: macOS ships GNU Make 3.81.
 test:
 	@bash -o pipefail -c "go test -v -trimpath -tags $(TEST_TAG) ./... | grep -v 'no test files'"
+
+# Brings the game page's catalogues up to its English: only new or changed lines go to Claude (ANTHROPIC_API_KEY).
+# See docs/translate.md; ARGS takes the command's flags, e.g. make translate ARGS="-plan".
+translate:
+	@go run ./cmd/translate $(ARGS)
 
 DEADCODE := go run golang.org/x/tools/cmd/deadcode@v0.50.0
 

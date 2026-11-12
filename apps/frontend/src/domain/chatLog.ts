@@ -1,4 +1,4 @@
-import type {ChatAnnouncement, ChatMessage, ChatQuote, Gif} from "../backends/chat.ts";
+import type {ChatAnnouncement, ChatMessage, ChatQuote} from "../backends/chat.ts";
 
 export const CHAT_LOG_LIMIT = 200
 
@@ -121,13 +121,6 @@ export function quoteOf(message: ChatMessage): ChatQuote {
         text: message.text,
         gif: message.gif,
     }
-}
-
-export const GIF_LINE = "GIF"
-
-// What a line that has room for words alone says of a message or a quote.
-export function wordsOf(said: {text: string, gif?: Gif}): string {
-    return said.gif ? GIF_LINE : said.text
 }
 
 export const GROUP_WINDOW_MS = 4 * 60_000

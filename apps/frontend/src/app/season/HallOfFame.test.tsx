@@ -5,6 +5,7 @@ import {Season, SeasonTotals} from "../../backends/season.ts"
 import {Round, Score, Standing} from "../../backends/standings.ts"
 import {NameColor} from "../../backends/player.ts"
 import {useBadges} from "../badges/badgesStore.ts"
+import {seasonSpan} from "./dates.ts"
 import HallOfFame, {HallOfFameButton} from "./HallOfFame.tsx"
 import {useNameplates} from "../nameplates/nameplatesStore.ts"
 
@@ -55,7 +56,7 @@ describe("HallOfFame", () => {
 
         expect(plaques().map((plaque) => within(plaque).getByText(/^Season \d$/).textContent))
             .toEqual(["Season 0", "Season 1", "Season 2"])
-        expect(within(plaques()[0]).getByText("8 Oct – 31 Oct 2026")).toBeDefined()
+        expect(within(plaques()[0]).getByText(seasonSpan(SEASON_ZERO).replace(/\s+/g, " "))).toBeDefined()
         expect(within(plaques()[2]).getByText("?")).toBeDefined()
         expect(within(plaques()[2]).queryByRole("button", {name: "View"})).toBeNull()
         expect(within(plaques()[0]).getByRole("link", {name: "Map"}).getAttribute("href")).toBe("/archive")

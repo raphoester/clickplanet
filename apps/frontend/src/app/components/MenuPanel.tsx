@@ -2,6 +2,7 @@ import {ReactNode, useEffect, useId, useRef} from "react";
 import {BackIcon} from "./icons.tsx";
 import ScrollArea from "./ScrollArea.tsx";
 import {useEscape} from "./useDialog.ts";
+import {t} from "../../i18n/page.ts";
 import "./MenuPanel.css"
 
 export type MenuPanelProps = {
@@ -24,7 +25,7 @@ export default function MenuPanel(props: MenuPanelProps) {
         <div className="menu-panel-header">
             <button type="button"
                     className="icon-button"
-                    aria-label="Back"
+                    aria-label={t("common.back")}
                     onClick={props.onClose}>
                 <BackIcon/>
             </button>

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {BLAST_TIMELINE, blastOver, describeBlast, nearestTile, tilesWithin} from "./blast.ts"
+import {BLAST_TIMELINE, blastOf, blastOver, nearestTile, tilesWithin} from "./blast.ts"
 
 const POSITIONS = new Float32Array([
     1, 0, 0,
@@ -44,18 +44,18 @@ describe("nearestTile", () => {
     })
 })
 
-describe("describeBlast", () => {
+describe("blastOf", () => {
     it("says how much a bomb took, and owns up to a miss", () => {
-        expect(describeBlast({tile: 7, cleared: 3})).toBe("bombed 3 tiles")
-        expect(describeBlast({tile: 7, cleared: 1})).toBe("bombed 1 tile")
-        expect(describeBlast({tile: 7, cleared: 0})).toBe("bombed empty land")
-        expect(describeBlast({tile: undefined, cleared: 0})).toBe("bombed the ocean")
+        expect(blastOf({tile: 7, cleared: 3})).toEqual({kind: "tiles", count: 3})
+        expect(blastOf({tile: 7, cleared: 1})).toEqual({kind: "tiles", count: 1})
+        expect(blastOf({tile: 7, cleared: 0})).toEqual({kind: "empty"})
+        expect(blastOf({tile: undefined, cleared: 0})).toEqual({kind: "ocean"})
     })
 
     it("names the country whose ground was hit", () => {
-        expect(describeBlast({tile: 7, cleared: 3}, "Germany")).toBe("bombed Germany")
-        expect(describeBlast({tile: 7, cleared: 0}, "Germany")).toBe("bombed Germany")
-        expect(describeBlast({tile: undefined, cleared: 0}, "Germany")).toBe("bombed the ocean")
+        expect(blastOf({tile: 7, cleared: 3}, "Germany")).toEqual({kind: "land", land: "Germany"})
+        expect(blastOf({tile: 7, cleared: 0}, "Germany")).toEqual({kind: "land", land: "Germany"})
+        expect(blastOf({tile: undefined, cleared: 0}, "Germany")).toEqual({kind: "ocean"})
     })
 })
 

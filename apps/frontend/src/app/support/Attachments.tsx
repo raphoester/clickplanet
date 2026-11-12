@@ -1,7 +1,9 @@
 import {useEffect, useRef, useState} from "react"
 import {AttachmentRules} from "../../backends/support.ts"
-import {isPhoto, sizeLine} from "../../domain/attachments.ts"
+import {isPhoto} from "../../domain/attachments.ts"
+import {t, translator} from "../../i18n/page.ts"
 import {CheckIcon, ClipIcon, CloseIcon, FilmIcon} from "../components/icons.tsx"
+import {sizeLine} from "./attachmentLines.ts"
 
 export type Going = {
     place: number
@@ -22,14 +24,14 @@ export function AttachmentPicker({rules, files, disabled, uploaded, going, onPic
     const input = useRef<HTMLInputElement>(null)
 
     return <div className="support-files">
-        {files.length > 0 && <ul className="support-file-list" aria-label="Attached files">
+        {files.length > 0 && <ul className="support-file-list" aria-label={t("support.attachedFiles")}>
             {files.map((file, place) => <li key={place} className="panel-box support-file">
                 <FileThumb file={file}/>
                 <span className="support-file-name">{file.name}</span>
                 <FileMark file={file} uploaded={uploaded(file)} going={going?.place === place ? going.fraction : undefined}/>
                 <button type="button"
                         className="support-file-remove"
-                        aria-label={`Remove ${file.name}`}
+                        aria-label={t("support.removeFile", {file: file.name})}
                         disabled={disabled}
                         onClick={() => onRemove(place)}>
                     <CloseIcon size={14}/>
@@ -51,7 +53,7 @@ export function AttachmentPicker({rules, files, disabled, uploaded, going, onPic
                 disabled={disabled || files.length >= rules.maxPerNote}
                 onClick={() => input.current?.click()}>
             <ClipIcon/>
-            Add photos or videos
+            {t("support.addFiles")}
         </button>
     </div>
 }
@@ -60,10 +62,10 @@ function FileMark({file, uploaded, going}: {file: File, uploaded: boolean, going
     if (going !== undefined) {
         const percent = Math.round(going * 100)
         return <>
-            <span className="menu-label support-file-mark">{percent}%</span>
+            <span className="menu-label support-file-mark">{translator().number(percent / 100, {style: "percent"})}</span>
             <span className="support-file-track"
                   role="progressbar"
-                  aria-label={`Uploading ${file.name}`}
+                  aria-label={t("support.uploadingFile", {file: file.name})}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={percent}>
@@ -71,7 +73,7 @@ function FileMark({file, uploaded, going}: {file: File, uploaded: boolean, going
             </span>
         </>
     }
-    if (uploaded) return <span className="support-file-mark support-file-done" role="img" aria-label="Uploaded"><CheckIcon/></span>
+    if (uploaded) return <span className="support-file-mark support-file-done" role="img" aria-label={t("support.uploaded")}><CheckIcon/></span>
     return <span className="menu-label support-file-mark">{sizeLine(file.size)}</span>
 }
 

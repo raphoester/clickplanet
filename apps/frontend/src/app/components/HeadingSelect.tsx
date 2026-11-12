@@ -1,5 +1,6 @@
 import {KeyboardEvent, ReactNode, useEffect, useId, useLayoutEffect, useRef, useState} from "react"
 import {ChevronIcon} from "./icons.tsx"
+import {t} from "../../i18n/page.ts"
 import "./HeadingSelect.css"
 
 export type HeadingChoice<T extends string> = {
@@ -119,7 +120,7 @@ export default function HeadingSelect<T extends string>({label, choices, value, 
         <button ref={button}
                 type="button"
                 className="menu-section-title heading-select-button"
-                aria-label={`${label}: ${current.name}`}
+                aria-label={t("menu.choice", {label, choice: current.name})}
                 aria-haspopup="listbox"
                 aria-expanded={open}
                 aria-controls={open ? `${id}-list` : undefined}

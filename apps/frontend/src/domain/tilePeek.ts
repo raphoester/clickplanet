@@ -93,19 +93,3 @@ export function holderShown(holder: TileHolder | undefined, peek: Peek): TileHol
     if (!holder || holder.countryCode !== peek.countryCode) return undefined
     return holder
 }
-
-const MINUTE_MS = 60_000
-const HOUR_MS = 60 * MINUTE_MS
-const DAY_MS = 24 * HOUR_MS
-
-export function agoOf(at: number, now: number): string {
-    const since = Math.max(0, now - at)
-    if (since < MINUTE_MS) return "just now"
-    if (since < HOUR_MS) return `${Math.floor(since / MINUTE_MS)} min ago`
-    if (since < DAY_MS) return plural(Math.floor(since / HOUR_MS), "hour")
-    return plural(Math.floor(since / DAY_MS), "day")
-}
-
-function plural(count: number, unit: string): string {
-    return `${count} ${unit}${count === 1 ? "" : "s"} ago`
-}

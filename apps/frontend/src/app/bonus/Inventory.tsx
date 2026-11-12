@@ -1,6 +1,7 @@
 import {PointerEvent, useEffect, useId, useRef, useState} from 'react'
 import {BonusNotice, BonusRules, ChargeKind, Charges, slotOf, Switches} from '../../domain/bonus.ts'
 import {BonusGuide, isLearning, isNew} from '../../domain/bonusGuide.ts'
+import {t, translator} from '../../i18n/page.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
 import {useBonus} from './bonusStore.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
@@ -11,8 +12,6 @@ export const NOTICE_MS = 3500
 export const NOT_ENCLOSED_MS = 5000
 
 const STATE_CLEARANCE_PX = 20
-
-const EMPTY_HINT = "Catch a ? box or win a quiz to get one"
 
 export type InventoryProps = {
     onToggle?: (name: keyof Switches) => void
@@ -66,7 +65,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
     }
 
     const active = bombArmed || switches.spread || switches.enclose || switches.shield
-    const max = rules?.enclosureMaxTiles?.toLocaleString("en")
+    const max = rules?.enclosureMaxTiles
     const unlimited = rules?.enclosuresUnlimited ?? false
 
     const slot = (kind: ChargeKind) => ({
@@ -75,66 +74,64 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
         said: said?.kind === kind ? said : undefined,
         onHint: (text: string) => setSaid((now) => now?.ms !== undefined ? now : {kind, text}),
         onUnhint: () => unsay(kind),
-        onEmpty: () => say(kind, EMPTY_HINT),
+        onEmpty: () => say(kind, t("inventory.empty")),
     })
 
-    return <section className={active ? "inventory inventory--active" : "inventory"} aria-label="Inventory">
+    return <section className={active ? "inventory inventory--active" : "inventory"} aria-label={t("inventory.label")}>
         <div className="inventory-slots">
             <Slot {...slot("refill")}
-                  name="Refill"
+                  name={t("bonus.refill")}
                   held={charges.refill}
-                  hint="Fill your clicks to full"
+                  hint={t("inventory.refill.hint")}
                   onPress={onUseRefill && (() => {
                       markUsed("refill")
                       if (onUseRefill()) setSaid(undefined)
-                      else say("refill", "Your clicks are already full", NOTICE_MS, "Full")
+                      else say("refill", t("inventory.refill.alreadyFull"), NOTICE_MS, t("inventory.state.full"))
                   })}/>
             {!rules?.bombsOff && <Slot {...slot("bomb")}
-                  name="Bomb"
+                  name={t("bonus.bomb")}
                   held={charges.bomb}
                   on={bombArmed}
-                  state={bombArmed ? "Aim" : undefined}
-                  hint={bombArmed ? "Put the bomb away (Esc)" : "Aim the bomb, then hold on the planet to drop it"}
+                  state={bombArmed ? t("inventory.state.aim") : undefined}
+                  hint={bombArmed ? t("inventory.bomb.putAway") : t("inventory.bomb.hint")}
                   onPress={onToggleBomb && (() => {
-                      pressed("bomb", !bombArmed, "Hold your finger still on the planet to drop it")
+                      pressed("bomb", !bombArmed, t("inventory.bomb.learn"))
                       onToggleBomb()
                   })}/>}
             <Slot {...slot("spreadClicks")}
-                  name="Spread"
+                  name={t("bonus.spread")}
                   held={charges.spreadClicksLeft > 0}
                   count={countOf(charges.spreadClicksLeft, rules?.spreadClicks)}
                   on={switches.spread}
-                  state={switches.spread ? "On" : undefined}
-                  hint={switches.spread ? "Switch spread off" : "Switch spread on: each click also takes the tiles around it"}
+                  state={switches.spread ? t("inventory.state.on") : undefined}
+                  hint={switches.spread ? t("inventory.spread.off") : t("bonus.spread.switchOn")}
                   onPress={onToggle && (() => {
-                      pressed("spreadClicks", !switches.spread, "Each click now also takes the tiles around it")
+                      pressed("spreadClicks", !switches.spread, t("inventory.spread.learn"))
                       onToggle("spread")
                   })}/>
             <Slot {...slot("encloseClicks")}
-                  name="Enclose"
+                  name={t("bonus.enclose")}
                   held={unlimited || charges.enclosures > 0}
                   count={unlimited ? "∞" : countOf(charges.enclosures, rules?.enclosures)}
                   endless={unlimited}
                   on={switches.enclose}
-                  state={switches.enclose ? "On" : undefined}
-                  hint={switches.enclose
-                      ? "Switch enclose off"
-                      : "Switch enclose on: close a shape of your tiles to take the tiles inside"}
+                  state={switches.enclose ? t("inventory.state.on") : undefined}
+                  hint={switches.enclose ? t("inventory.enclose.off") : t("inventory.enclose.hint")}
                   onPress={onToggle && (() => {
                       pressed("encloseClicks", !switches.enclose, max
-                          ? `Tap your tiles in a ring. The inside becomes yours, up to ${max} tiles`
-                          : "Tap your tiles in a ring. The inside becomes yours")
+                          ? t("inventory.enclose.learnUpTo", {max})
+                          : t("inventory.enclose.learn"))
                       onToggle("enclose")
                   })}/>
             <Slot {...slot("shields")}
-                  name="Shield"
+                  name={t("bonus.shield")}
                   held={charges.shields > 0}
                   count={countOf(charges.shields, rules?.shields)}
                   on={switches.shield}
-                  state={switches.shield ? "On" : undefined}
-                  hint={switches.shield ? "Switch shield off" : "Switch shield on, then tap your tiles to shield them"}
+                  state={switches.shield ? t("inventory.state.on") : undefined}
+                  hint={switches.shield ? t("inventory.shield.off") : t("inventory.shield.hint")}
                   onPress={onToggleShield && (() => {
-                      pressed("shields", !switches.shield, "Tap one of your tiles to shield it")
+                      pressed("shields", !switches.shield, t("inventory.shield.learn"))
                       onToggleShield()
                   })}/>
         </div>
@@ -144,17 +141,17 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
 function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Said, "kind"> {
     switch (notice) {
         case "shieldFull":
-            return {text: "That tile holds all the shields it can", chip: "Full", ms: NOTICE_MS}
+            return {text: t("inventory.notice.shieldFull"), chip: t("inventory.state.full"), ms: NOTICE_MS}
         case "shieldCapital":
-            return {text: "No shield on a capital", ms: NOTICE_MS}
+            return {text: t("inventory.notice.shieldCapital"), ms: NOTICE_MS}
         case "shieldTaken":
-            return {text: "Tile taken. Tap it again to shield it", ms: NOTICE_MS}
+            return {text: t("inventory.notice.shieldTaken"), ms: NOTICE_MS}
         case "shieldNotYours":
-            return {text: "Shields go on your own tiles", ms: NOTICE_MS}
+            return {text: t("inventory.notice.shieldNotYours"), ms: NOTICE_MS}
         case "nothingEnclosed": {
-            const max = rules?.enclosureMaxTiles?.toLocaleString("en")
+            const max = rules?.enclosureMaxTiles
             return {
-                text: max ? `Shape is not closed or is too big (${max} tiles max)` : "Shape is not closed or is too big",
+                text: max ? t("inventory.notice.notEnclosedMax", {max}) : t("inventory.notice.notEnclosed"),
                 ms: NOT_ENCLOSED_MS,
             }
         }
@@ -183,7 +180,7 @@ function Slot({kind, name, held, count, endless, on, state, hint, guide, said, o
     const described = useId()
     const usable = held && onPress !== undefined
     const fresh = usable && !endless && isNew(guide, kind)
-    const shownState = said?.chip ?? state ?? (fresh ? "New" : undefined)
+    const shownState = said?.chip ?? state ?? (fresh ? t("inventory.state.new") : undefined)
 
     const className = [
         "inventory-slot",
@@ -194,8 +191,8 @@ function Slot({kind, name, held, count, endless, on, state, hint, guide, said, o
         fresh && !state && "inventory-slot--new",
     ].filter(Boolean).join(" ")
 
-    const label = [name, count, shownState].filter(Boolean).join(", ")
-    const description = held ? hint : EMPTY_HINT
+    const label = labelOf(name, count, shownState)
+    const description = held ? hint : t("inventory.empty")
 
     const mouse = (event: PointerEvent) => event.pointerType === "mouse"
 
@@ -220,6 +217,13 @@ function Slot({kind, name, held, count, endless, on, state, hint, guide, said, o
     </button>
 }
 
+function labelOf(name: string, count: string | undefined, state: string | undefined): string {
+    if (count && state) return t("inventory.slot.countAndState", {name, count, state})
+    if (count) return t("inventory.slot.count", {name, count})
+    if (state) return t("inventory.slot.state", {name, state})
+    return name
+}
+
 function amountOf(charges: Charges, kind: ChargeKind): number {
     switch (kind) {
         case "refill":
@@ -236,5 +240,5 @@ function amountOf(charges: Charges, kind: ChargeKind): number {
 }
 
 function countOf(held: number, most: number | undefined): string {
-    return most ? `${held}/${most}` : String(held)
+    return most ? t("inventory.heldOfMost", {held, most}) : translator().number(held)
 }
