@@ -10,6 +10,11 @@ newcomer's page only. The newcomer must not notice it: every reading on the page
   length from the roster's store (`onlineCount`) and passes it to `useGlobe` (`crowd`), which hands it to
   `Globe.setCrowd`; no list yet means no raid. Never in orbit, never on a frozen map. When the room fills, the
   raids stop and the ghost tiles stay until they end.
+- **Never during a battle** (the owner, 2026-11-12): a battle's rules are the game, and a raid would break them, as
+  Swiss ghosts taking French tiles next to Paris on a Capital Siege map, where Switzerland reaches nothing.
+  `PlayScreen` passes the battle that runs (`battle`, from the schedule's store) to `useGlobe`, which hands it to
+  `Globe.setBattle`: no raid starts while it runs, and every ghost tile goes back to the server's flag at once,
+  the ones a reload paints from storage too.
 - **A raid** (`domain/ghostArmy.ts`, `GhostArmy`): within what the screen shows (70% of its shorter half around its
   middle, `GHOSTS_SIGHT`), it lands on a tile of the player's flag that touches a tile of another flag or a free one,
   3 times in 4 when there is one, else on the edge of another flag. It plays the flag next door, else the nearest

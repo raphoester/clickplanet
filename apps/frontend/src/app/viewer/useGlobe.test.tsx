@@ -27,16 +27,17 @@ const backends = () => ({
 function fakeGlobe(): Globe & {
     setCountry: ReturnType<typeof vi.fn>,
     setCrowd: ReturnType<typeof vi.fn>,
+    setBattle: ReturnType<typeof vi.fn>,
     capture: ReturnType<typeof vi.fn>,
     graphics: ReturnType<typeof vi.fn>,
     dispose: ReturnType<typeof vi.fn>,
 } {
-    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
+    return {tilesCount: 257_948, tilesRead: Promise.resolve(), setCountry: vi.fn(), setCrowd: vi.fn(), setBattle: vi.fn(), takeReward: vi.fn(), setArmed: vi.fn(), setSwitch: vi.fn(), setClickHue: vi.fn(), setMapView: vi.fn(), setHalo: vi.fn(), territoryOf: vi.fn(), showTerritory: vi.fn(), flyToLastLoss: vi.fn(), setMissions: vi.fn(), flyToMission: vi.fn(), capture: vi.fn(), graphics: vi.fn(), dispose: vi.fn()}
 }
 
 function Harness(props: {country: typeof FRANCE, backends: ReturnType<typeof backends>, onResult: (r: unknown) => void}) {
     const container = useRef<HTMLDivElement>(null)
-    props.onResult(useGlobe({container, ...props.backends, country: props.country, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"}))
+    props.onResult(useGlobe({container, ...props.backends, country: props.country, battle: false, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"}))
     return <div ref={container}/>
 }
 
@@ -174,7 +175,7 @@ describe("useGlobe", () => {
 
         function Hued(props: {hue: number | undefined}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: props.hue, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, battle: false, clickHue: props.hue, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -194,7 +195,7 @@ describe("useGlobe", () => {
 
         function Crowded(props: {crowd: number | undefined}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, crowd: props.crowd, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, crowd: props.crowd, battle: false, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -207,6 +208,26 @@ describe("useGlobe", () => {
         expect(createGlobe).toHaveBeenCalledTimes(1)
     })
 
+    it("tells the running globe a battle runs, and when it ends, without a rebuild", async () => {
+        const globe = fakeGlobe()
+        createGlobe.mockResolvedValue(globe)
+        const deps = backends()
+
+        function Battling(props: {battle: boolean}) {
+            const container = useRef<HTMLDivElement>(null)
+            useGlobe({container, ...deps, country: FRANCE, battle: props.battle, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
+            return <div ref={container}/>
+        }
+
+        const view = render(<Battling battle={true}/>)
+        await waitFor(() => expect(globe.setBattle).toHaveBeenCalledWith(true))
+
+        await act(async () => {view.rerender(<Battling battle={false}/>)})
+
+        expect(globe.setBattle).toHaveBeenLastCalledWith(false)
+        expect(createGlobe).toHaveBeenCalledTimes(1)
+    })
+
     it("builds the globe in the chosen map view, and pushes every change of it", async () => {
         const globe = fakeGlobe()
         createGlobe.mockResolvedValue(globe)
@@ -214,7 +235,7 @@ describe("useGlobe", () => {
 
         function Viewed(props: {view: MapView}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: props.view, halo: "calm", missions: [], rendering: "sharp"})
+            useGlobe({container, ...deps, country: FRANCE, battle: false, clickHue: undefined, mapView: props.view, halo: "calm", missions: [], rendering: "sharp"})
             return <div ref={container}/>
         }
 
@@ -234,7 +255,7 @@ describe("useGlobe", () => {
 
         function Rendered(props: {rendering: Rendering}) {
             const container = useRef<HTMLDivElement>(null)
-            useGlobe({container, ...deps, country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: props.rendering})
+            useGlobe({container, ...deps, country: FRANCE, battle: false, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: props.rendering})
             return <div ref={container}/>
         }
 
@@ -368,7 +389,7 @@ describe("useGlobe", () => {
         createGlobe.mockResolvedValue(fakeGlobe())
 
         function NoContainer() {
-            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
+            useGlobe({container: createRef<HTMLDivElement>(), ...backends(), country: FRANCE, battle: false, clickHue: undefined, mapView: "split", halo: "calm", missions: [], rendering: "sharp"})
             return null
         }
         render(<NoContainer/>)
