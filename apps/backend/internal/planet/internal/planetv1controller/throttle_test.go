@@ -59,7 +59,7 @@ func clickAs(t *testing.T, server *httptest.Server, ip string) (*connect.Respons
 
 type farAway struct{}
 
-func (farAway) Refuses(string, uint32) error { return clicks.ErrOutOfReach }
+func (farAway) Refuses(string, uint32, int) error { return clicks.ErrOutOfReach }
 
 func TestAClickOutOfReachSpendsNoToken(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))

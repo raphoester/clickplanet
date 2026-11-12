@@ -37,42 +37,111 @@ func reach(t *testing.T, owners board, on bool) clicks.Reach {
 func TestWithTheReachAFlagTakesNextToItsLand(t *testing.T) {
 	r := reach(t, board{1: "fr"}, true)
 
-	require.NoError(t, r.Refuses("fr", 2))
-	require.NoError(t, r.Refuses("fr", 1), "its own tile")
-	require.ErrorIs(t, r.Refuses("fr", 3), clicks.ErrOutOfReach)
-	require.ErrorIs(t, r.Refuses("de", 2), clicks.ErrOutOfReach, "a flag with no land reaches nothing")
+	require.NoError(t, r.Refuses("fr", 2, 0))
+	require.NoError(t, r.Refuses("fr", 1, 0), "its own tile")
+	require.ErrorIs(t, r.Refuses("fr", 3, 0), clicks.ErrOutOfReach)
+	require.ErrorIs(t, r.Refuses("de", 2, 0), clicks.ErrOutOfReach, "a flag with no land reaches nothing")
 }
 
 func TestWithTheReachAFlagCrossesABridgeFromItsLand(t *testing.T) {
 	r := reach(t, board{1: "fr"}, true)
 
-	require.NoError(t, r.Refuses("fr", 6), "the far end of a bridge from its land")
-	require.ErrorIs(t, r.Refuses("fr", 9), clicks.ErrOutOfReach, "an island no bridge from its land leads to")
-	require.ErrorIs(t, r.Refuses("de", 6), clicks.ErrOutOfReach, "a bridge from land it does not hold")
+	require.NoError(t, r.Refuses("fr", 6, 0), "the far end of a bridge from its land")
+	require.ErrorIs(t, r.Refuses("fr", 9, 0), clicks.ErrOutOfReach, "an island no bridge from its land leads to")
+	require.ErrorIs(t, r.Refuses("de", 6, 0), clicks.ErrOutOfReach, "a bridge from land it does not hold")
 }
 
 func TestWithTheReachABridgeLeadsBothWays(t *testing.T) {
 	r := reach(t, board{6: "fr"}, true)
 
-	require.NoError(t, r.Refuses("fr", 1))
+	require.NoError(t, r.Refuses("fr", 1, 0))
 }
 
 func TestWithoutTheReachEveryTileIsInReach(t *testing.T) {
 	r := reach(t, board{1: "fr"}, false)
 
-	require.NoError(t, r.Refuses("fr", 3))
-	require.NoError(t, r.Refuses("de", 9))
-	assert.Equal(t, []uint32{2, 4}, r.Around("fr", 3), "the map's own neighbours")
+	require.NoError(t, r.Refuses("fr", 3, 0))
+	require.NoError(t, r.Refuses("de", 9, 0))
+	assert.Equal(t, []uint32{2, 4}, r.Around("fr", 3, 1), "the map's own neighbours")
 }
 
 func TestASpreadReachesPastTheTileItTook(t *testing.T) {
 	r := reach(t, board{1: "fr", 2: "fr"}, true)
 
-	assert.Equal(t, []uint32{1, 3}, r.Around("fr", 2))
+	assert.Equal(t, []uint32{1, 3}, r.Around("fr", 2, 1))
 }
 
 func TestASpreadFromAStruckTileTakesOnlyWhatTouchesOtherLand(t *testing.T) {
 	r := reach(t, board{1: "fr", 2: "de"}, true)
 
-	assert.Equal(t, []uint32{1}, r.Around("fr", 2), "3 touches only de's tile and fr's nothing")
+	assert.Equal(t, []uint32{1}, r.Around("fr", 2, 1), "3 touches only de's tile and fr's nothing")
+}
+
+func TestAClickThatSpreadsIsInReachWhenAnyTileOfItsDiscIs(t *testing.T) {
+	r := reach(t, board{1: "fr"}, true)
+
+	require.ErrorIs(t, r.Refuses("fr", 3, 0), clicks.ErrOutOfReach, "two tiles out, a plain click")
+	require.NoError(t, r.Refuses("fr", 3, 1), "its disc holds 2, next to the land")
+	require.ErrorIs(t, r.Refuses("fr", 4, 1), clicks.ErrOutOfReach, "its disc is 3 alone")
+	require.NoError(t, r.Refuses("fr", 4, 2))
+	require.ErrorIs(t, r.Refuses("de", 3, 2), clicks.ErrOutOfReach, "a flag with no land reaches nothing")
+}
+
+func TestAWideSpreadFromATileTakenTakesItsWholeDisc(t *testing.T) {
+	r := reach(t, board{1: "fr", 2: "fr"}, true)
+
+	assert.Equal(t, []uint32{1, 3, 4}, r.Around("fr", 2, 2), "4 is out of reach, and the spread takes 3 on the way")
+}
+
+func TestAWideSpreadFromAStruckTileTakesOnlyTheTilesOfItsDiscInReach(t *testing.T) {
+	r := reach(t, board{1: "fr", 3: "de"}, true)
+
+	assert.Equal(t, []uint32{2, 1}, r.Around("fr", 3, 2), "4 touches only de's tile")
+}
+
+func TestWithoutTheReachASpreadTakesItsWholeDisc(t *testing.T) {
+	r := reach(t, board{}, false)
+
+	assert.Equal(t, []uint32{2, 4, 1}, r.Around("fr", 3, 2))
+}
+
+type hexGrid struct{}
+
+func (hexGrid) Neighbours(id uint32) []uint32 {
+	q, r := int(id-1)%9, int(id-1)/9
+	var neighbours []uint32
+	for _, step := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, -1}, {-1, 1}} {
+		nq, nr := q+step[0], r+step[1]
+		if nq >= 0 && nq < 9 && nr >= 0 && nr < 9 {
+			neighbours = append(neighbours, uint32(1+nq+9*nr))
+		}
+	}
+	return neighbours
+}
+
+func TestADiscIsEveryTileWithinItsRingsNearestFirst(t *testing.T) {
+	const centre = 1 + 4 + 9*4
+
+	for rings, size := range map[int]int{0: 0, 1: 6, 2: 18, 3: 36} {
+		disc := clicks.Disc(hexGrid{}, centre, rings)
+
+		assert.Len(t, disc, size, "%d rings", rings)
+		assert.NotContains(t, disc, uint32(centre))
+		if rings > 0 {
+			assert.ElementsMatch(t, hexGrid{}.Neighbours(centre), disc[:6], "the first ring first")
+		}
+	}
+}
+
+func TestADiscStopsAtTheEdgeOfTheLand(t *testing.T) {
+	assert.Equal(t, []uint32{2, 3, 4}, clicks.Disc(landRow, 1, 5))
+	assert.Empty(t, clicks.Disc(landRow, 6, 2), "an island")
+}
+
+func TestASpreadNeverHandsBackTheMapsOwnTable(t *testing.T) {
+	r := reach(t, board{}, false)
+
+	r.Around("fr", 3, 1)[0] = 0
+
+	assert.Equal(t, []uint32{2, 4}, landRow[3])
 }

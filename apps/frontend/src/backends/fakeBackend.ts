@@ -79,7 +79,8 @@ const BOMB_RADIUS = 0.032
 
 const SEA_REACH = 0.004
 
-const SPREAD_REACH = 0.0052
+// A ring of tiles is 0.004 wide on the globe of radius 1.
+const SPREAD_RING = 0.004
 
 const QUIZ_EVERY_MS = 30_000
 const QUIZ_OFFER_TTL_MS = 25_000
@@ -111,6 +112,8 @@ const RULES: BonusRules = {
     knockOut: false,
     capitalShieldsFixed: false,
     bombsOff: false,
+    spreadRings: 1,
+    spreadUnlimited: false,
 }
 
 export type FakeBackendOptions = {
@@ -264,6 +267,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private announceBonusClick(tileId: number, countryId: string) {
+        if (this.rules.spreadUnlimited) {
+            void this.botSpread(tileId, countryId)
+            return
+        }
         if (this.charges.spreadClicksLeft > 0) {
             this.hold({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             void this.botSpread(tileId, countryId)
@@ -336,7 +343,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (!this.tilePositions) return
         const positions = await this.loadPositions()
 
-        const spread = tilesWithin(positions, tile, SPREAD_REACH).filter(id => id !== tile)
+        const reach = (this.rules.spreadRings + 0.3) * SPREAD_RING
+        const spread = tilesWithin(positions, tile, reach).filter(id => id !== tile)
         this.applyClick(tile, countryId)
         spread.forEach(id => this.applyClick(id, countryId, false))
         this.bonusCallbacks.forEach(handlers => handlers.onSpread({countryId, tile, spread}))
@@ -452,6 +460,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public unlimitEnclosures(on: boolean): void {
         this.rules = {...this.rules, enclosuresUnlimited: on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public unlimitSpreads(on: boolean, rings: number): void {
+        this.rules = {...this.rules, spreadUnlimited: on, spreadRings: rings}
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 

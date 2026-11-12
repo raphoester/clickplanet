@@ -67,9 +67,11 @@ backend's [Arena battles](../../backend/docs/arenas.md)), "Reach: a take lands o
 a bridge" (`reach`: see the backend's [The reach](../../backend/docs/reach.md)), "Knock-out: a capital taken clears
 its flag" and "No shield on a capital" (`capitals.knockOut`, `capitals.fixedShields`: see the backend's
 [The capitals' rules](../../backend/docs/capitals.md)): Clicks (the tempo with them), Charges (the set's `charges`, the
-wallet's: the spread clicks, the enclosures and the shields a hand holds, a bomb's rings, the tiles an enclose fills
-and the shields a tile takes; with "Enclosures unlimited: enclose spends no charge", `charges.enclose.unlimited`: see
-the backend's [Unlimited enclosures](../../backend/docs/enclose.md), and "Bombs off: no box offers one, and none is
+wallet's: the spread clicks, the enclosures and the shields a hand holds, a spread's rings (1 to 3), a bomb's rings,
+the tiles an enclose fills and the shields a tile takes; with "Enclosures unlimited: enclose spends no charge",
+`charges.enclose.unlimited`: see the backend's [Unlimited enclosures](../../backend/docs/enclose.md), "Spread
+unlimited: spread spends no charge", `charges.spread.unlimited`: see the backend's
+[Spread](../../backend/docs/spread.md), and "Bombs off: no box offers one, and none is
 dropped", `charges.bomb.off`: no hand has room for a bomb then, so the offers offer none; see the backend's
 [Bomb](../../backend/docs/bomb.md)), Arena (`arena.freeze`, how long an arena takes no play after its
 fresh map plays and before the battle ends, and `seed.capitals.shields`, the shields each capital starts with in the

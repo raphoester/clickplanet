@@ -28,6 +28,8 @@ its own.
   offers never read one.
 - **A rule set may make enclosures unlimited** (`charges.enclose.unlimited`): enclose then spends no charge, and
   the stack held is left as it is. See [Unlimited enclosures](enclose.md#unlimited-enclosures-chargesencloseunlimited).
+- **A rule set may make spreads unlimited** (`charges.spread.unlimited`): spread then spends no charge, and the pool
+  held is left as it is. See [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited).
 - **How much fits.** A refill and a bomb are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
   stack to the rule set's `charges.enclose.held` (3), spread clicks pool to `charges.spread.clicks`
@@ -47,8 +49,8 @@ its own.
   [The offers](bonuses.md#what-it-asks-of-planet-in-planets-words)).
 - **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
   the player switched on for this click, and `click_usecase.In` carries them.
-  `spread_click` spends a spread click only with `Spread`, `enclose_click` an
-  enclosure only with `Enclose`. **Both at once is refused** by the rule itself
+  `spread_click` spends a spread click only with `Spread` (before the click, given back if it is refused: see
+  [Spread](spread.md)), `enclose_click` an enclosure only with `Enclose`. **Both at once is refused** by the rule itself
   (`clicks.ErrBonusesTogether`, answered `InvalidArgument`) before anything is
   written or spent: a spread's tiles and an enclose's pocket would each take what
   the other decides. The client keeps one on at a time too, and aiming the bomb
@@ -77,8 +79,8 @@ its own.
   account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`,
   `shields`). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
   runs one transaction under `pg_advisory_xact_lock` on the account. An empty hand
-  is no row. A failing database fails the call; a spread click fails with its tile
-  taken. A deleted account's row stays until something removes it. The offers'
+  is no row. A failing database fails the call; a spread click fails before its tile
+  is written. A deleted account's row stays until something removes it. The offers'
   state (schedules, offers, the hourly caps) is memory only, in the bonuses module, so
   a restart gives everyone a fresh schedule.
 - **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
@@ -96,14 +98,15 @@ its own.
   `bonuses.v1.ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a
   shield placed. After that the client follows
   its own calls: a drop spends the bomb, an accepted click sent with spread on a
-  spread click, its own `tiles_enclosed` (`yours`) an enclosure. A charge spent in another
+  spread click (not while spreads are unlimited), its own `tiles_enclosed` (`yours`) an enclosure. A charge spent in another
   tab shows until the next read. **`Click` answers nothing about them.** It was so
   a shadow-banned caller could not tell its clicks were dropped; a ban is told now
   (see [A ban is told](antibot.md#a-ban-is-told)), so the answer could carry them.
   `planetv1controller/chargesheld` encodes the message planet answers, `GrantCharges` and `GetChargesOf` included,
   which the offers answer on in planet's words (`planet.v1.ChargesHeld`, through `planetwords`).
 - **How big a charge is, is a rule, not state.** `GetChargeRules` (`GetBonusRules` until 2026-11-11) answers the
-  blast radius, the enclose's `maxTiles`, the spread pool's size and the
+  blast radius, the enclose's `maxTiles`, the spread pool's size, its rings and whether it is unlimited
+  (`spread_rings`, `spread_unlimited`), and the
   enclosure stack's size, how many shields a player holds and a tile takes
   (`shields`, `tile_shields`), and every step of the toll (`toll_steps`, from
   `clicks.Toll.Steps`), all read from the rule set in force (see [Rules](rules.md)), so the client can show the

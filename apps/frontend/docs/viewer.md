@@ -87,7 +87,8 @@
   moves only the depth, never the place on screen.
 - `clickEffects.ts` — the same, for every click made with spread on
   (`tilesSpread`: a green burst, a spark popping onto each tile around it in
-  turn, two rings). It reuses the enclosure's shaders, with normal rather than
+  turn, the near ring before the far one, two rings). A spread of many rings throws its sparks closer together, so the
+  last lands in `SPREAD_THROW_WINDOW` (0.3 s) and 36 sparks land as soon as 6 did. It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
   lot, so at most `MAX_PLAYING` run at once.
 - `clickGlints.ts` — **every other click glints on its tile**: this player's at

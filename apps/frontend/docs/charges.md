@@ -21,7 +21,7 @@ no read. `ClaimBonusResponse.charges` (and `AnswerQuizResponse.charges`) replace
 `UseRefillResponse.charges` on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
-click off, this player's own `tilesEnclosed` takes an enclosure off (not while enclosures are unlimited; the event
+click off (not while spreads are unlimited), this player's own `tilesEnclosed` takes an enclosure off (not while enclosures are unlimited; the event
 also brings the tiles it took, see [Viewer](viewer.md)), and a drop
 takes the bomb off at once and gives it back unless the server says it holds
 none (a ban refusal gives it back too); a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
@@ -32,7 +32,8 @@ reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` puts it in t
 **The sizes are rules**: `GetChargeRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size, how many can stand on one tile
-(`tileShields`) and whether enclosures are unlimited (`enclosuresUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
+(`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`), how far a spread reaches (`spreadRings`) and
+whether spreads are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
 new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the offers' rule,
 from `BonusService/GetGrantRules`, read at load and on the offers stream's own `rulesChanged` and comeback, and told
@@ -41,7 +42,7 @@ with planet's.
 ## Off by default, one at a time
 
 **Nothing is used until the player says so.** Spread, enclose and shield are
-switches (`Switches`), off at load and never turned on by the client, but for enclose while enclosures are
+switches (`Switches`), off at load and never turned on by the client, but for spread or enclose while it is
 unlimited (below). Every click carries
 them: `TileClicker.clickTile(tile, country, switches)` sends
 `ClickRequest.spread` and `enclose`, and the server spends a charge only when its
@@ -56,17 +57,19 @@ and `useGlobe`'s `toggleSwitch` and `toggleBomb` ask the globe for the other sta
 server refuses a click with both switches on (`INVALID_ARGUMENT`), before it
 writes or spends anything.
 
-### Enclose at rest, while enclosures are unlimited
+### A switch at rest, while spreads or enclosures are unlimited
 
-**A rule set with unlimited enclosures** (the backend's
+**A rule set with unlimited spreads or enclosures** (the backend's
+[Unlimited spreads](../../backend/docs/spread.md#unlimited-spreads-chargesspreadunlimited) and
 [Unlimited enclosures](../../backend/docs/enclose.md#unlimited-enclosures-chargesencloseunlimited), for a battle)
-**makes enclose the switch at rest**: on whenever no other switch is on and the bomb is not aimed (`atRest`, applied
-by `switchTo` in `globe.ts` to every change). So it is on at load and when the set starts playing, and comes back
-when spread or shield goes off, runs out, or the bomb is dropped or put away. **The player can still turn it off**,
-and it stays off until they turn it on again (`encloseSwitchedOff`), or until the set stops or starts again. When the
-set stops, enclose goes off, so a click never spends one of the enclosures held by surprise. Turning spread or shield
-on, or aiming the bomb, turns it off, as ever. No enclosure is needed (`switchesHeld`), and no "Shape is not closed"
-bubble is said: nearly every click would say it.
+**makes that switch the one at rest**, spread first when both are (`restingSwitch`): on whenever no other switch is on
+and the bomb is not aimed (`atRest`, applied by `switchTo` in `globe.ts` to every change). So it is on at load and when
+the set starts playing, and comes back when the other switch or shield goes off, runs out, or the bomb is dropped or
+put away. **The player can still turn it off**, and it stays off until they turn it on again (`restSwitchedOff`), or
+until the set changes again. When the set stops, the switch goes off, so a click never spends a spread click or an
+enclosure held by surprise. Turning another switch on, or aiming the bomb, turns it off, as ever. No charge is needed
+(`switchesHeld`). No "Shape is not closed" bubble is said while enclosures are unlimited: nearly every click would say
+it. While spread is on, the reach's ring is wider (see [The reach](reach.md)).
 
 ## The inventory
 
@@ -89,9 +92,9 @@ its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
   `aria-pressed`.
-- **Enclose, while enclosures are unlimited**, counts `∞`, is never empty and never "New" (the game gave it, not a
-  box), and while on, a dashed outline runs round the slot without end (`.inventory-loop`, still under
-  `prefers-reduced-motion`): a loop that keeps closing.
+- **Enclose, while enclosures are unlimited**, and **Spread, while spreads are unlimited**, count `∞`, are never empty
+  and never "New" (the game gave it, not a box), and while on, a dashed outline runs round the slot without end
+  (`.inventory-loop`, still under `prefers-reduced-motion`): a loop that keeps closing.
 
 **A slot speaks in a bubble, never a `title`.** Most of the players who came from
 TikTok play on a phone, where a `title` never shows, and they asked in the chat

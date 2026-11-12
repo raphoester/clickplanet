@@ -148,6 +148,9 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                             <SwitchField label="Enclosures unlimited: enclose spends no charge" on={draft.enclosuresUnlimited}
                                          defaults={defaults?.enclosuresUnlimited} inherits={defaults !== undefined}
                                          onChange={enclosuresUnlimited => change({enclosuresUnlimited})}/>
+                            <SwitchField label="Spread unlimited: spread spends no charge" on={draft.spreadUnlimited}
+                                         defaults={defaults?.spreadUnlimited} inherits={defaults !== undefined}
+                                         onChange={spreadUnlimited => change({spreadUnlimited})}/>
                             <SwitchField label="Bombs off: no box offers one, and none is dropped" on={draft.bombsOff}
                                          defaults={defaults?.bombsOff} inherits={defaults !== undefined}
                                          onChange={bombsOff => change({bombsOff})}/>

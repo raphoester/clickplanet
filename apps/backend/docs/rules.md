@@ -29,7 +29,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its
   `…Of(message)` (`message.go`) and a `Part` (`cprules.PartOf[*planetv1.Rules, R]{Key, Read}`). `cprules` names none
   of them.
-- **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `bomb.rings`,
+- **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `.rings`, `.unlimited`, `bomb.rings`,
   `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`, `shield.held`, `.perTile`). Until 2026-11-11 those were the
   wallet's half of `bonuses` (`planet.v1.BonusRules`), whose other half a second part read for the offers
   (`parts.Grants`, see [Offers and the wallet](offers-and-wallet.md#the-rules-split)). The offers keep that half in rule
@@ -64,6 +64,11 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `toll.steps` — rising `{share, slowdown}`: from `share` of the map, a country refills `slowdown` times slower (10%
   1.5×, 20% 2.5×, 30% 4×). No step is no toll. See [A big country refills slower](rate-limiting.md#a-big-country-refills-slower-clickstoll)
 - `charges.spread.clicks` — the spread pool a hand holds (8). See [Spread](spread.md)
+- `charges.spread.rings` — how far a spread reaches: every tile within this many steps of the tile clicked, 1 to 3 (1:
+  7 tiles; 2: 19; 3: 37). While the reach plays, it widens a spreading click's reach as far. See
+  [The disc](spread.md#the-disc-chargesspreadrings)
+- `charges.spread.unlimited` — a click with spread on needs no charge and spends none (off). See
+  [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited)
 - `charges.bomb.rings` — the blast's radius in tile spacings (4). See [Bomb](bomb.md)
 - `charges.bomb.off` — no bomb: a bomb held is not dropped, and no hand has room for one, so no box or quiz offers one
   (off). See [Bomb](bomb.md)
@@ -151,7 +156,8 @@ The readers call it where they use the rules, not when they are built: a set tak
   `place_shield_usecase`, `clicks.Claiming` (a tile's most shields, for a fortify) and the rest of `GetChargeRules`.
 - `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
   takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`cprules.PartOf.Of(set)`).
-- `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetChargeRules.reach`.
+- `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetChargeRules.reach`. The spread's rings
+  are `charges.Part`'s, taken by `spread_click` and handed to the reach with the click.
 - `clicks.CapitalsPart` — `clicks.CapitalPlay` in the tile storage (a shield on a capital, a fortify, the knock-out, the
   standing) and `GetChargeRules` (`knock_out`, `capital_shields_fixed`).
 - **`cprules.PlayUseCase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the

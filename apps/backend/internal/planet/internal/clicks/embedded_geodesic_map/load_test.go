@@ -133,3 +133,21 @@ func landmassSizes(g *clicks.Geography) []int {
 	slices.SortFunc(sizes, func(a, b int) int { return b - a })
 	return sizes
 }
+
+func TestASpreadOnTheShippedMapTakes7Or19Or37TilesAwayFromTheCoasts(t *testing.T) {
+	full := map[int]int{1: 6, 2: 18, 3: 36}
+	fullDiscs := map[int]int{}
+	for tile := uint32(1); tile <= tiles; tile += 997 {
+		for rings, size := range full {
+			disc := clicks.Disc(geography, tile, rings)
+			require.LessOrEqual(t, len(disc), size, "tile %d, %d rings", tile, rings)
+			if len(disc) == size {
+				fullDiscs[rings]++
+			}
+		}
+	}
+
+	for rings := range full {
+		assert.Greater(t, fullDiscs[rings], 100, "%d rings: most land tiles are inland", rings)
+	}
+}

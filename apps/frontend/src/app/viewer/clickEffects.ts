@@ -11,6 +11,7 @@ const TILE_SPACING = 0.004
 
 export const SPREAD_THROW_FROM = 0.04
 export const SPREAD_THROW_STAGGER = 0.035
+export const SPREAD_THROW_WINDOW = 0.3
 export const SPREAD_TRAVEL_SECONDS = 0.2
 export const SPREAD_LIFETIME_SECONDS = 1.2
 
@@ -63,18 +64,21 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
     const centre = at(positions, spread.tile)
     const {east, north} = groundFrame(centre)
 
-    const around = spread.spread
-        .map((tile) => {
-            const p = at(positions, tile)
-            return {p, angle: Math.atan2(p.dot(north), p.dot(east))}
-        })
-        .sort((a, b) => a.angle - b.angle)
+    const landing = spread.spread.map((tile) => {
+        const p = at(positions, tile)
+        return {p, angle: Math.atan2(p.dot(north), p.dot(east)), distance: p.distanceTo(centre)}
+    })
+    const nearest = Math.min(...landing.map(({distance}) => distance))
+    const around = landing
+        .map((tile) => ({...tile, ring: Math.round(tile.distance / nearest)}))
+        .sort((a, b) => a.ring - b.ring || a.angle - b.angle)
+    const stagger = Math.min(SPREAD_THROW_STAGGER, SPREAD_THROW_WINDOW / Math.max(1, around.length - 1))
 
     const sparks: Spark[] = [{from: centre, to: centre, start: 0, travel: 0, role: "burst"}]
     around.forEach(({p}, i) => sparks.push({
         from: centre,
         to: p,
-        start: SPREAD_THROW_FROM + i * SPREAD_THROW_STAGGER,
+        start: SPREAD_THROW_FROM + i * stagger,
         travel: SPREAD_TRAVEL_SECONDS,
         role: "landing",
     }))

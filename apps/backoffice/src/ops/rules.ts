@@ -39,6 +39,7 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
     ]},
     {title: "Charges", fields: [
         {path: "charges.spread.clicks", label: "Spread clicks held", kind: "whole"},
+        {path: "charges.spread.rings", label: "Spread rings, 1 to 3", kind: "whole"},
         {path: "charges.bomb.rings", label: "Bomb rings", kind: "number"},
         {path: "charges.enclose.maxTiles", label: "Enclose tiles, at most", kind: "whole"},
         {path: "charges.enclose.held", label: "Enclosures held", kind: "whole"},
@@ -59,8 +60,8 @@ export type TollStep = {share: string, slowdown: string}
 // A set as the form edits it: every value as typed. Outside default, "" and undefined are default's value.
 export type Draft = {
     name: string, values: Record<string, string>, frozen?: boolean, allegianceLocked?: boolean, arena?: boolean,
-    enclosuresUnlimited?: boolean, toll?: TollStep[], reach?: boolean, knockOut?: boolean, fixedShields?: boolean,
-    bombsOff?: boolean
+    enclosuresUnlimited?: boolean, spreadUnlimited?: boolean, toll?: TollStep[], reach?: boolean, knockOut?: boolean,
+    fixedShields?: boolean, bombsOff?: boolean
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -71,6 +72,7 @@ export function draftOf(set: RuleSet): Draft {
         name: set.name,
         values: Object.fromEntries(FIELDS.map(field => [field.path, typedOf(valueAt(json, field.path))])),
         enclosuresUnlimited: rules.charges?.enclose?.unlimited,
+        spreadUnlimited: rules.charges?.spread?.unlimited,
         bombsOff: rules.charges?.bomb?.off,
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
@@ -113,6 +115,7 @@ export const SWITCHES = [
     {key: "knockOut", label: "Knock-out"},
     {key: "fixedShields", label: "No shield on a capital"},
     {key: "enclosuresUnlimited", label: "Enclosures unlimited"},
+    {key: "spreadUnlimited", label: "Spread unlimited"},
     {key: "bombsOff", label: "Bombs off"},
 ] as const
 
@@ -147,7 +150,8 @@ export function ruleSetOf(draft: Draft): RuleSet {
     const switches = {
         "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "arena.on": draft.arena, "reach": draft.reach,
         "capitals.knockOut": draft.knockOut, "capitals.fixedShields": draft.fixedShields,
-        "charges.enclose.unlimited": draft.enclosuresUnlimited, "charges.bomb.off": draft.bombsOff,
+        "charges.enclose.unlimited": draft.enclosuresUnlimited, "charges.spread.unlimited": draft.spreadUnlimited,
+        "charges.bomb.off": draft.bombsOff,
     }
     for (const [path, on] of Object.entries(switches)) {
         if (on !== undefined) put(json, path, on)

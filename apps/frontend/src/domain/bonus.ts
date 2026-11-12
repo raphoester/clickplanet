@@ -44,17 +44,30 @@ export function switched(switches: Switches, name: keyof Switches, on: boolean):
     return on ? {...ALL_OFF, [name]: true} : {...switches, [name]: false}
 }
 
-export function switchesHeld(switches: Switches, charges: Charges, enclosuresUnlimited: boolean): Switches {
-    const spread = switches.spread && charges.spreadClicksLeft > 0
-    const enclose = switches.enclose && (enclosuresUnlimited || charges.enclosures > 0)
+export type Unlimited = Pick<BonusRules, "spreadUnlimited" | "enclosuresUnlimited">
+
+export function switchesHeld(switches: Switches, charges: Charges, unlimited: Unlimited | undefined): Switches {
+    const spread = switches.spread && (!!unlimited?.spreadUnlimited || charges.spreadClicksLeft > 0)
+    const enclose = switches.enclose && (!!unlimited?.enclosuresUnlimited || charges.enclosures > 0)
     const shield = switches.shield && charges.shields > 0
     if (spread === switches.spread && enclose === switches.enclose && shield === switches.shield) return switches
     return {spread, enclose, shield}
 }
 
-export function atRest(switches: Switches, encloseAtRest: boolean): Switches {
-    if (!encloseAtRest || switches.spread || switches.enclose || switches.shield) return switches
-    return {...switches, enclose: true}
+// The switch on while no other is: an unlimited one, spread before enclose.
+export function restingSwitch(unlimited: Unlimited | undefined): "spread" | "enclose" | undefined {
+    if (unlimited?.spreadUnlimited) return "spread"
+    if (unlimited?.enclosuresUnlimited) return "enclose"
+    return undefined
+}
+
+export function atRest(switches: Switches, resting: keyof Switches | undefined): Switches {
+    if (!resting || switches.spread || switches.enclose || switches.shield) return switches
+    return {...switches, [resting]: true}
+}
+
+export function ringsOf(switches: Switches, rules: BonusRules | undefined): number {
+    return switches.spread ? rules?.spreadRings ?? 1 : 0
 }
 
 export function sameSwitches(a: Switches, b: Switches): boolean {
@@ -90,4 +103,7 @@ export type BonusRules = {
     capitalShieldsFixed: boolean
     // No bomb is offered or dropped: the page hides the bomb.
     bombsOff: boolean
+    // A spread takes every tile within this many steps of the tile clicked, and widens the reach as far.
+    spreadRings: number
+    spreadUnlimited: boolean
 }

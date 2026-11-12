@@ -20,17 +20,27 @@ Capital Siege plays it on its fresh map (see [Arena battles](arenas.md)), and an
 - **A click** out of reach is refused by `reach_click`, outside the throttle as `allegiance_click` is, so it spends no
   token: `FailedPrecondition` with a `ReachRefusal` detail (`clicks.ErrOutOfReach`), told to the antibot as
   `CLICK_OUTCOME_OUT_OF_REACH` (an attempt, not inspected).
-- **A spread** takes only the neighbours in reach (`Reach.Around`), read after the clicked tile is written; it never
-  crosses a bridge. Without the reach, `Around` is the map's own table.
+- **A click that will spread is in reach when any tile of its disc is** (the owner, 2026-11-12, no knob of its own: it
+  follows the reach and spread): the tile clicked and every tile within `charges.spread.rings` steps of it
+  (`Reach.Refuses(flag, tile, rings)`, one `HoldsAny` over the disc, its neighbours and its bridges' far ends). Then the
+  spread fills the gap, and the front moves `2·rings+1` tiles deep: a click 2 tiles out with 1 ring, 3 tiles out with
+  2. "Will spread" is decided before the check: `spread_click` takes the spread first and hands `In.Rings` in, and a
+  click with none held is checked as a plain one. So no click lands outside the plain reach unless its spread happens
+  (see [Spread](spread.md#a-spread-is-taken-before-the-click-and-given-back-on-a-refusal)).
+- **A spread** takes its whole disc once the tile clicked is the flag's, and only the tiles of its disc in reach when a
+  shield kept it (`Reach.Around`), read after the clicked tile is written; the disc is a walk on the land and never
+  crosses a bridge. Without the reach, `Around` is the whole disc.
 - **An enclosure** needs no check: its pocket is walled by the flag's own tiles alone, see [Enclose](enclose.md).
 - **A bomb** takes no tile for the bomber, so the reach does not touch it.
 - **The page** learns it from `GetChargeRules.reach`, draws the bridges and rings what the flag can take: see the
   frontend's [The reach](../../frontend/docs/reach.md).
 
 Tests: `clicks`' `reach_test.go` pins a take next to the land, across a bridge both ways, refused to an island no bridge
-from the land leads to, every tile in reach without the rule, and a spread past the tile taken or from a struck one;
+from the land leads to, every tile in reach without the rule, a spread past the tile taken or from a struck one, a click
+that spreads in reach by its disc, and a wide spread's disc;
 `bridges_test.go` the far ends and a bridge off the map; `reach_click` refuses before the inner click;
 `throttle_test.go` keeps the token of three clicks out of reach over HTTP; `click_handler` answers the `ReachRefusal`;
-`spread_click` takes only the neighbours in reach; `get_charge_rules_handler` tells the page. The shipped bridges are
+`spread_click` takes only the neighbours in reach, and with the real reach takes a centre 2 tiles out with spread,
+refuses it without, and settles two clicks racing for the last spread click; `get_charge_rules_handler` tells the page. The shipped bridges are
 pinned in `embedded_geodesic_map`'s `bridges_test.go`: every end on a coast, every tile reached over land and bridges,
 the Faroes to Iceland, Iceland to Greenland and Hawaii to California.

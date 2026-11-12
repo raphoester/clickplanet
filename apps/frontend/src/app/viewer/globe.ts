@@ -69,7 +69,7 @@ import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
 import {createClickGlints} from "./clickGlints.ts";
-import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
+import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, restingSwitch, ringsOf, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {canClick, ClickBudget, ClickBudgetSource, now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -79,7 +79,7 @@ import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
 import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
 import {pointOf} from "../../domain/clip/geometry.ts";
-import {Front, FrontChanges} from "../../domain/front.ts";
+import {Front, FrontChanges, remembered} from "../../domain/front.ts";
 import {CapitalMarks} from "../../domain/capitalMarks.ts";
 import {Standing, standingOf} from "../../domain/standing.ts";
 import {acrossBridges, type Bridges} from "../../domain/bridges.ts";
@@ -621,14 +621,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let armed: {radius: number} | undefined
 
-    let encloseSwitchedOff = false
+    let restSwitchedOff = false
 
     const enclosuresUnlimited = () => rules?.enclosuresUnlimited ?? false
 
     const switchTo = (next: Switches) => {
-        const settled = atRest(next, enclosuresUnlimited() && !encloseSwitchedOff && !armed)
+        const settled = atRest(next, restSwitchedOff || armed ? undefined : restingSwitch(rules))
         if (sameSwitches(settled, switches)) return
         switches = settled
+        widenReach()
         onSwitchesChange(settled)
     }
 
@@ -787,9 +788,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
+    const widenReach = () => {
+        if (reach) lightFront(reach.widen(ringsOf(switches, rules)))
+    }
+
     const playReach = (bridges: Bridges) => {
         if (front) lightFront(front.drop())
-        reach = new Front(acrossBridges(neighbourhood(), bridges), shownOwnerOf, geometryData.positions)
+        const land = remembered(neighbourhood(), field.size)
+        reach = new Front(acrossBridges(land, bridges), shownOwnerOf, geometryData.positions, land)
+        reach.widen(ringsOf(switches, rules))
         front = reach
         lightFront(reach.follow(country.code))
         arcs = createBridgeArcs(bridges.all, geometryData.positions)
@@ -903,7 +910,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const takeCharges = (held: Charges) => {
         charges = held
         if (!held.bomb) disarm()
-        switchTo(switchesHeld(switches, held, enclosuresUnlimited()))
+        switchTo(switchesHeld(switches, held, rules))
         onCharges(held)
     }
 
@@ -947,12 +954,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         onCharges: (held) => takeCharges(held),
         onRules: (read) => {
-            const unlimitedChanged = read.enclosuresUnlimited !== enclosuresUnlimited()
+            const spreadChanged = read.spreadUnlimited !== (rules?.spreadUnlimited ?? false)
+            const encloseChanged = read.enclosuresUnlimited !== enclosuresUnlimited()
             rules = read
-            if (unlimitedChanged) {
-                encloseSwitchedOff = false
-                switchTo(switchesHeld({...switches, enclose: false}, charges, read.enclosuresUnlimited))
+            if (spreadChanged || encloseChanged) {
+                restSwitchedOff = false
+                const held = {...switches, spread: switches.spread && !spreadChanged, enclose: switches.enclose && !encloseChanged}
+                switchTo(switchesHeld(held, charges, read))
             }
+            widenReach()
             drawMarks(marksFor(shielded.most()))
             followRules(read)
             if (read.bombsOff) disarm()
@@ -1564,8 +1574,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         takeReward,
         setArmed: (on: boolean) => on ? arm() : putAway(),
         setSwitch: (name: keyof Switches, on: boolean) => {
-            if (name === "enclose") encloseSwitchedOff = !on
-            const next = switchesHeld(switched(switches, name, on), charges, enclosuresUnlimited())
+            if (name === restingSwitch(rules)) restSwitchedOff = !on
+            const next = switchesHeld(switched(switches, name, on), charges, rules)
             if (next[name]) disarm()
             switchTo(next)
         },

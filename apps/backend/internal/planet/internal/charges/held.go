@@ -186,6 +186,13 @@ func (h Held) AfterShield() (Held, bool) {
 	return h, true
 }
 
+// WithSpreadClickBack undoes AfterSpreadClick: the same click comes back, so no pool size applies.
+func (h Held) WithSpreadClickBack() Held {
+	h.SpreadClicks++
+
+	return h
+}
+
 // WithShieldBack undoes AfterShield: the same shield comes back, so no stack size applies.
 func (h Held) WithShieldBack() Held {
 	h.Shields++

@@ -67,6 +67,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
     const active = bombArmed || switches.spread || switches.enclose || switches.shield
     const max = rules?.enclosureMaxTiles
     const unlimited = rules?.enclosuresUnlimited ?? false
+    const spreadUnlimited = rules?.spreadUnlimited ?? false
 
     const slot = (kind: ChargeKind) => ({
         kind,
@@ -100,8 +101,9 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
                   })}/>}
             <Slot {...slot("spreadClicks")}
                   name={t("bonus.spread")}
-                  held={charges.spreadClicksLeft > 0}
-                  count={countOf(charges.spreadClicksLeft, rules?.spreadClicks)}
+                  held={spreadUnlimited || charges.spreadClicksLeft > 0}
+                  count={spreadUnlimited ? "∞" : countOf(charges.spreadClicksLeft, rules?.spreadClicks)}
+                  endless={spreadUnlimited}
                   on={switches.spread}
                   state={switches.spread ? t("inventory.state.on") : undefined}
                   hint={switches.spread ? t("inventory.spread.off") : t("bonus.spread.switchOn")}

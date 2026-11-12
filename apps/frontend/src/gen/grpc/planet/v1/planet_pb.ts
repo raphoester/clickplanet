@@ -2259,6 +2259,21 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   bombsOff = false;
 
+  /**
+   * A spread takes every tile within this many steps of the tile clicked; while the reach plays, a click that spreads
+   * is in reach when any of them is.
+   *
+   * @generated from field: uint32 spread_rings = 15;
+   */
+  spreadRings = 0;
+
+  /**
+   * Spread needs no charge and spends none.
+   *
+   * @generated from field: bool spread_unlimited = 16;
+   */
+  spreadUnlimited = false;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2279,6 +2294,8 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 12, name: "knock_out", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 13, name: "capital_shields_fixed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 14, name: "bombs_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 15, name: "spread_rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 16, name: "spread_unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {

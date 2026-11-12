@@ -205,7 +205,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             )
             this.anchorBudget(res.budget, countryId)
             this.followSession(token)
-            if (spread && this.charges.spreadClicksLeft > 0) {
+            if (spread && !this.rules?.spreadUnlimited && this.charges.spreadClicksLeft > 0) {
                 this.holdCharges({...this.charges, spreadClicksLeft: this.charges.spreadClicksLeft - 1})
             }
         } catch (e) {
@@ -539,6 +539,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 knockOut: res.knockOut,
                 capitalShieldsFixed: res.capitalShieldsFixed,
                 bombsOff: res.bombsOff,
+                spreadRings: res.spreadRings,
+                spreadUnlimited: res.spreadUnlimited,
             }
             this.holdRules(rules)
         } catch (e) {

@@ -592,7 +592,11 @@ func (x *ChargeRules) GetShield() *ShieldRules {
 type SpreadRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The pool a hand holds at most.
-	Clicks        *uint32 `protobuf:"varint,1,opt,name=clicks,proto3,oneof" json:"clicks,omitempty"`
+	Clicks *uint32 `protobuf:"varint,1,opt,name=clicks,proto3,oneof" json:"clicks,omitempty"`
+	// How far a spread reaches: every tile within this many steps of the tile clicked. 1 to 3.
+	Rings *uint32 `protobuf:"varint,3,opt,name=rings,proto3,oneof" json:"rings,omitempty"`
+	// A click with spread on needs no charge and spends none.
+	Unlimited     *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -632,6 +636,20 @@ func (x *SpreadRules) GetClicks() uint32 {
 		return *x.Clicks
 	}
 	return 0
+}
+
+func (x *SpreadRules) GetRings() uint32 {
+	if x != nil && x.Rings != nil {
+		return *x.Rings
+	}
+	return 0
+}
+
+func (x *SpreadRules) GetUnlimited() bool {
+	if x != nil && x.Unlimited != nil {
+		return *x.Unlimited
+	}
+	return false
 }
 
 type BombRules struct {
@@ -869,10 +887,15 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x06spread\x18\x01 \x01(\v2\x16.planet.v1.SpreadRulesR\x06spread\x12(\n" +
 	"\x04bomb\x18\x02 \x01(\v2\x14.planet.v1.BombRulesR\x04bomb\x121\n" +
 	"\aenclose\x18\x03 \x01(\v2\x17.planet.v1.EncloseRulesR\aenclose\x12.\n" +
-	"\x06shield\x18\x04 \x01(\v2\x16.planet.v1.ShieldRulesR\x06shield\"H\n" +
+	"\x06shield\x18\x04 \x01(\v2\x16.planet.v1.ShieldRulesR\x06shield\"\x9e\x01\n" +
 	"\vSpreadRules\x12\x1b\n" +
-	"\x06clicks\x18\x01 \x01(\rH\x00R\x06clicks\x88\x01\x01B\t\n" +
-	"\a_clicksJ\x04\b\x02\x10\x03R\vmax_per_box\"O\n" +
+	"\x06clicks\x18\x01 \x01(\rH\x00R\x06clicks\x88\x01\x01\x12\x19\n" +
+	"\x05rings\x18\x03 \x01(\rH\x01R\x05rings\x88\x01\x01\x12!\n" +
+	"\tunlimited\x18\x04 \x01(\bH\x02R\tunlimited\x88\x01\x01B\t\n" +
+	"\a_clicksB\b\n" +
+	"\x06_ringsB\f\n" +
+	"\n" +
+	"_unlimitedJ\x04\b\x02\x10\x03R\vmax_per_box\"O\n" +
 	"\tBombRules\x12\x19\n" +
 	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01\x12\x15\n" +
 	"\x03off\x18\x02 \x01(\bH\x01R\x03off\x88\x01\x01B\b\n" +

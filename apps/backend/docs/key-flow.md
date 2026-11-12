@@ -33,11 +33,13 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → try_click       (tells the try, whatever came of it, and the bank it left: facts.Log, sent to Redis every 100ms; refuses nothing)
   → refusal_click   (a refused caller is PermissionDenied, with a BanRefusal: when the refusal ends)
   → allegiance_click (a flag other than the one pledged, or none pledged, is refused, and spends nothing)
-  → reach_click     (while the reach plays, a tile out of the flag's reach is FailedPrecondition with a ReachRefusal, and spends nothing)
+  → spread_click    (with Spread: takes a spread click and the rings first, gives it back if the click is refused,
+                     then claims the disc too; while the reach plays, the whole disc of a tile taken, else those in reach)
+  → reach_click     (while the reach plays, a tile out of the flag's reach, or a spreading click whose disc is, is
+                     FailedPrecondition with a ReachRefusal, and spends nothing)
   → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
   → prom_click      (counts)
   → enclose_click   (with Enclose and an enclosure held: a take that closes a pocket fills it)
-  → spread_click    (with Spread: spends a spread click and claims the neighbours too, while the reach plays those in reach)
   → clicks/usecases/click_usecase (validates tile ID + country)
   → ledger.Recording.Click() [records a take or a strike]
   → clicks.Claiming.Click() → MemoryTileStorage.Claim [one write lock: read the tile, clicks.Tile.Claimed decides

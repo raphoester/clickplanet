@@ -231,6 +231,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.unlimitEnclosures(on)
             return on ? "enclosures are unlimited: enclose is on, and spends nothing" : "enclosures are spent again"
         },
+        unlimitSpreads: (on = true, rings = 2) => {
+            fake.unlimitSpreads(on, on ? rings : 1)
+            return on ? `spreads are unlimited: spread is on, reaches ${rings} rings and spends nothing` : "spreads are spent again"
+        },
         playReach: (on = true) => {
             fake.playReach(on)
             return on ? "the reach plays: the bridges are drawn and the front rung" : "the reach stops"

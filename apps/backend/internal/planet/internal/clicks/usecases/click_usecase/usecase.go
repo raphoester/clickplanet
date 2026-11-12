@@ -25,6 +25,9 @@ type In struct {
 
 	Spread  bool
 	Enclose bool
+
+	// Set by spread_click once the spread is taken: 0, the click spreads nothing.
+	Rings int
 }
 
 type Out struct {
