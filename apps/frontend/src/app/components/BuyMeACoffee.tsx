@@ -1,11 +1,16 @@
 import './BuyMeACoffee.css'
 
-export default function BuyMeACoffee() {
+export type BuyMeACoffeeProps = {
+    onOpen?: () => void
+}
+
+export default function BuyMeACoffee({onOpen}: BuyMeACoffeeProps) {
     return <a
         href="https://buymeacoffee.com/raphoester"
         target="_blank"
         rel="noopener noreferrer"
         className="button button-gold button-coffee"
+        onClick={onOpen}
     >
         Buy me a coffee
     </a>

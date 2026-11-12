@@ -25,6 +25,7 @@ export type Teaser = {battle: BattleToCome, cards: readonly TeaserCard[]}
 
 export type BattleTeaserState = {
     teaser?: Teaser
+    teased: Teased | null
     dismiss: (battle: BattleToCome) => void
 }
 
@@ -58,5 +59,5 @@ export function useBattleTeaser(
         setTeased(kept)
     }, [])
 
-    return {teaser: due && cards !== undefined && cards.length > 0 ? {battle, cards} : undefined, dismiss}
+    return {teaser: due && cards !== undefined && cards.length > 0 ? {battle, cards} : undefined, teased, dismiss}
 }

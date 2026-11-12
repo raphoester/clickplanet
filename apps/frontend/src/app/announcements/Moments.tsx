@@ -14,6 +14,10 @@ import {useSeenBattle} from "../battle/useSeenBattle.ts"
 import ClipNotice from "../clips/ClipNotice.tsx"
 import {useClipNotice} from "../clips/useClipNotice.ts"
 import FlagMissionDone from "../missions/FlagMissionDone.tsx"
+import AskNudge from "../nudges/AskNudge.tsx"
+import {useAsk} from "../nudges/useAsk.ts"
+import {useNudgeLane} from "../nudges/useNudgeLane.ts"
+import {ON_CRAZYGAMES} from "../../platform.ts"
 import RoundReveal from "../season/RoundReveal.tsx"
 import {useRoundReveal} from "../season/useRoundReveal.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
@@ -59,6 +63,8 @@ export default function Moments(props: MomentsProps) {
     const battleReveal = useBattleReveal(battle, closed)
     const battleTeaser = useBattleTeaser(nextBattleOf(battles, now), now, props.guided, props.listenForClicks)
     const clipNotice = useClipNotice(props.clips, props.clipsAccount)
+    const asks = useAsk({guided: props.guided, battlePlays: battle !== undefined, onCrazyGames: ON_CRAZYGAMES}, battleTeaser.teased, now)
+    const laneOpen = useNudgeLane(props.shown)
 
     useEffect(() => {
         for (const due of reveal.due) announce(due)
@@ -67,11 +73,15 @@ export default function Moments(props: MomentsProps) {
         if (battleReveal.battle) announce({kind: "battle", battle: battleReveal.battle})
     }, [announce, battleReveal.battle])
     useEffect(() => {
-        if (battleTeaser.teaser) announce({kind: "teaser", ...battleTeaser.teaser})
-    }, [announce, battleTeaser.teaser])
-    useEffect(() => {
         if (clipNotice.appearance) announce({kind: "clip", appearance: clipNotice.appearance})
     }, [announce, clipNotice.appearance])
+
+    const nudgeDue = laneOpen && current === undefined
+    useEffect(() => {
+        if (!nudgeDue) return
+        if (battleTeaser.teaser) announce({kind: "teaser", ...battleTeaser.teaser})
+        else if (asks.ask) announce({kind: "ask", ask: asks.ask})
+    }, [announce, nudgeDue, battleTeaser.teaser, asks.ask])
 
     const video = props.video
     const videoMoment = props.shown && video !== undefined && current !== undefined && (current.kind === "clip" || current.kind === "video"
@@ -157,5 +167,16 @@ export default function Moments(props: MomentsProps) {
                                     country={current.country}
                                     play={props.play}
                                     onClose={dismiss}/>
+        case "ask":
+            return <AskNudge key={key}
+                             ask={current.ask}
+                             onOpen={() => {
+                                 asks.open(current.ask)
+                                 dismiss()
+                             }}
+                             onClose={() => {
+                                 asks.close(current.ask)
+                                 dismiss()
+                             }}/>
     }
 }

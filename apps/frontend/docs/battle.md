@@ -73,11 +73,15 @@ on the backoffice's Promo page and the backend's promo module fills with the val
 [Promo](../../backend/docs/promo.md)). **No cards, no teaser** (the owner: "If there is no carousel let's just not
 tease anything"). The Final Battle's own teaser, once per browser in the two days before it, is gone (2026-11-05).
 
+- **It is a nudge, not a moment** (the owner, 2026-11-12: "i really want people to remember that theres gonna be a
+  battle"): it comes back on a clock, first in the nudge lane, before any ask (see [Nudges](nudges.md)).
 - **When** (`battleTeaserDue`): the next battle (`nextBattleOf`), **within the 24 hours before it starts**
-  (`BATTLE_TEASER_WITHIN_MS`), as a page opens and again **at most every 6 hours** (`BATTLE_TEASER_EVERY_MS`): Close
-  keeps the battle's key and the time in `clickplanet-battle-teased`. A player who comes back in the evening hears of
-  it again, one who reloads does not. **A first visit plays first** (`guided`, the front guide's): it waits for 30
-  clicks on the page (`TEASER_AFTER_CLICKS`), half the start bank, before a full screen talks of a battle.
+  (`BATTLE_TEASER_WITHIN_MS`), as a page opens, again **at most every 3 hours** (`BATTLE_TEASER_EVERY_MS`), and **once
+  more in its last hour** (`BATTLE_TEASER_LAST_CALL_MS`) when the last tell came before that hour: Close keeps the
+  battle's key and the time in `clickplanet-battle-teased`. A player who comes back in the evening hears of it again,
+  one who reloads does not. Until 2026-11-12 it was every 6 hours, with no last call. **A first visit plays first**
+  (`guided`, the front guide's): it waits for 30 clicks on the page (`TEASER_AFTER_CLICKS`), half the start bank,
+  before a full screen talks of a battle.
 - **Its key** (`teaserKeyOf`) is the battle's entry id, or `season-N/finale` for a season's finale, which has no
   entry: the id the timeline names it by, and the one `promo.v1.PromoService/GetTeaser` takes.
 - **Its cards are asked once due** (`PromoBackend.teaser`, `ConnectPromoBackend`: a cached GET, a minute in
@@ -120,7 +124,7 @@ than a day away, or one that already played its teaser, had no rules anywhere.
   no slam, no shake and no flash; the screen fades in whole, and "To the globe" and Escape close it at once. It is the
   same screen as the teaser that comes on its own, so a player knows it, and it costs no new modal.
 - **Closing it counts as told**: the battle's key and the time go to `clickplanet-battle-teased`, so the teaser does
-  not come on its own in the next 6 hours. A battle that started keeps no mark (`dismiss` skips it): it is never
+  not come on its own in the next 3 hours, before its last hour. A battle that started keeps no mark (`dismiss` skips it): it is never
   teased again, and its mark would only hide the next battle's.
 
 ## The look
@@ -229,9 +233,11 @@ screen and the rays in `--war`.
 and the store `useAnnouncements` (`app/announcements/announcementsStore.ts`, see [Stores](stores.md)) keep the
 queue: a title unlocked, a battle's start, a battle's teaser, a day closed (the cutoff's reveal), a battle's
 three debrief screens, the season's results, a clip that names the player (see
-[In a clip](clip-appearances.md)), the flag's mission done (see [Missions](missions.md)).
+[In a clip](clip-appearances.md)), the flag's mission done (see [Missions](missions.md)), an ask (see
+[Nudges](nudges.md)).
 `app/announcements/Moments.tsx` runs the hooks that say what is due (`useRoundReveal`, `useBattleReveal`,
-`useBattleTeaser`, `useClipNotice`) and announces each; `PlayScreen` announces the title and the flag's mission.
+`useClipNotice`) and announces each; `PlayScreen` announces the title and the flag's mission. The nudges (the teaser,
+`useBattleTeaser`, and the asks, `useAsk`) go in only when the queue is empty (see [Nudges](nudges.md)).
 `Moments` shows the head of the queue once the map is loaded, tells the hook it came from when the player closes
 it, and the next starts. An
 announcement is queued once, by its key. So a round that closes while the player

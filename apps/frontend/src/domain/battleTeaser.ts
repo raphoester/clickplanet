@@ -6,10 +6,11 @@ const HOUR = 60 * 60_000
 
 export const BATTLE_TEASED_STORAGE_KEY = "clickplanet-battle-teased"
 
-// A battle is teased in the day before it starts, as a page opens, and again once a few hours passed: a player who
-// comes back in the evening hears of it again, one who reloads does not.
+// A battle is teased in the day before it starts, again once a few hours passed, and once more in its last hour: a
+// player who comes back in the evening hears of it again, one who reloads does not.
 const BATTLE_TEASER_WITHIN_MS = 24 * HOUR
-export const BATTLE_TEASER_EVERY_MS = 6 * HOUR
+export const BATTLE_TEASER_EVERY_MS = 3 * HOUR
+export const BATTLE_TEASER_LAST_CALL_MS = HOUR
 
 // A newcomer plays before a full screen talks of a battle: half the start bank, before it runs dry.
 export const TEASER_AFTER_CLICKS = 30
@@ -38,11 +39,13 @@ export function teasedOf(kept: string | null): Teased | null {
 }
 
 // The next battle, Final Battle included, while it starts within a day and this browser was not told of it in the last
-// hours. Whether it has cards is promo's to say: a battle with none is not teased.
+// hours or in its last hour. Whether it has cards is promo's to say: a battle with none is not teased.
 export function battleTeaserDue(battle: BattleToCome | undefined, teased: Teased | null, now: number, ready: boolean): battle is BattleToCome {
     if (!battle || teaserKeyOf(battle) === "" || !ready) return false
     if (battle.startsAt <= now || battle.startsAt - now > BATTLE_TEASER_WITHIN_MS) return false
-    return teased?.key !== teaserKeyOf(battle) || now - teased.at >= BATTLE_TEASER_EVERY_MS
+    if (teased?.key !== teaserKeyOf(battle) || now - teased.at >= BATTLE_TEASER_EVERY_MS) return true
+    const lastCall = battle.startsAt - BATTLE_TEASER_LAST_CALL_MS
+    return now >= lastCall && teased.at < lastCall
 }
 
 // The battle that plays, as its teaser shows it: a player asks for its rules while it plays too.
