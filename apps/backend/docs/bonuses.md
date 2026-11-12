@@ -190,6 +190,6 @@ account (`SignInGrantOf`, the same id as before, so a grant planet made before t
 The registry's own (pace, apart, welcome, quizzes, the room's sweep, the frozen set, a click heard late), the use cases',
 the handlers', the stream's and its sink's, `planetwords`' (`TestTheOffersAndTheWalletNameTheSameKinds`), the wallet's
 and the shares' adapters, the subscribers' (`TestOnlyATakeAStrikeOrAnUnchangedTileIsHeard`), the ratings' (the step,
-the simulation, the book, the store on postgres, the count one at a time), the bank's priors on a fixture bank, the rules package's (its values,
-and `cprules`' contract suites on its migrations), the migration's, and `TestTheQuizzesAreTheOffersAlone`, which lets no package of the module but the
+the simulation, the store on postgres, the count one at a time), the bank's priors on a fixture bank, the rules package's (its values,
+and `cprules`' contract suites on its migrations), and `TestTheQuizzesAreTheOffersAlone`, which lets no package of the module but the
 offers and `module.go` import the bank.

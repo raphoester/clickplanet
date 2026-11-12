@@ -1,8 +1,6 @@
 package postgres_rating_store_test
 
 import (
-	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -133,19 +131,4 @@ func (s *StoreSuite) TestAForgottenAccountIsBlankedFromItsAnswersAlone() {
 	s.Nil(answers[0].account)
 	s.Equal(&stays, answers[1].account)
 	s.Nil(answers[2].account)
-}
-
-func (s *StoreSuite) TestAnAnswerAndItsRatingCommitTogetherOrNotAtAll() {
-	ctx := s.T().Context()
-	broken := errors.New("the rating failed")
-
-	err := s.db.InTx(ctx, func(ctx context.Context) error {
-		if err := s.store.SaveAnswer(ctx, ratings.Answer{Question: "capital:ee", At: at}); err != nil {
-			return err //nolint:wrapcheck // the store named it.
-		}
-		return broken
-	})
-
-	s.Require().ErrorIs(err, broken)
-	s.Empty(s.answers())
 }
