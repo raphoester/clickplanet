@@ -38,6 +38,8 @@ import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
 import {
     GetRulesRequest as BonusesGetRulesRequest,
     GetRulesResponse as BonusesGetRulesResponse,
+    ListQuizQuestionsRequest,
+    ListQuizQuestionsResponse,
     RuleSet as BonusesRuleSet,
     SaveRuleSetRequest as BonusesSaveRuleSetRequest,
     SaveRuleSetResponse as BonusesSaveRuleSetResponse,
@@ -391,6 +393,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         quiz: {
             enabled: true, minInterval: "240s", maxInterval: "480s", missRetry: "120s", offerTtl: "25s",
             answerWindow: "8s", leaderBias: 1, maxChargesPerHour: 12,
+            target: 0.7, width: 0, floor: 0.42, floorAfter: 15, explore: 0.1,
         },
         signInRefill: true,
         frozen: false,
@@ -769,6 +772,11 @@ export class FakeBonuses implements BonusesAdmin {
             })
         }
         return answer
+    }
+
+    // No page reads it yet: Claude does, as bonuses_list_quiz_questions.
+    listQuizQuestions(request: PartialMessage<ListQuizQuestionsRequest>): Promise<ListQuizQuestionsResponse> {
+        return this.admin.answer("listQuizQuestions", request, new ListQuizQuestionsResponse())
     }
 }
 

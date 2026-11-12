@@ -15,15 +15,18 @@ knows nothing of it. **It depends on planet and player alone**: `cmd/api/modules
 | package | what |
 |---|---|
 | `internal/bonuses` | the registry (`bonus.go`, `quiz.go`, `welcome.go`, `entrant.go`), the ports it asks planet through (`wallet.go`), the box facts (`box_facts`), its rules (`rules.go`, `message.go`) and the use cases `claim_bonus`, `open_quiz`, `answer_quiz`, `grant_sign_in_refill` and `listen_for_events`, moved from `planet/internal/bonuses` as they were |
-| `internal/quizzes` | the bank and its draw, moved from `planet/internal/quizzes`; it embeds `generated/quiz/bank.json` ([The quiz bank](../../../docs/quiz-bank.md)) |
+| `internal/quizzes` | the bank and its draw, moved from `planet/internal/quizzes`; it embeds `generated/quiz/bank.json` ([The quiz bank](../../../docs/quiz-bank.md)), and answers each question's rating over its prior |
+| `internal/ratings` | how hard each question is ([How hard each quiz question is](quiz-difficulty.md)): the rating and its step, the copy in memory (`Book`), the answer log's store, and the use cases `record_answer` and `forget_account` |
 | `internal/rules` | the list of its parts (`parts.All()`) and its fixtures (`rules.Seeded()`); the machinery of its rule sets (snapshots, sets, the set in force, the choice, their postgres stores, the play and save use cases) is `cprules`, shared with planet and the antibot ([Shared](shared.md)) |
 | `internal/facts` | its own facts log and relay, for the box facts |
 | `internal/planetwords` | planet's words for a kind of charge and a hand (`planet.v1.BonusKind`, `ChargesHeld`) |
-| `internal/subscribers` | the clicks heard from planet, the new players heard from player |
+| `internal/subscribers` | the clicks heard from planet, the new players and the forgotten accounts heard from player |
 | `internal/bonusesv1controller` | the handlers, the session interceptor and reader, the freeze interceptor |
 
-Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`); nothing of a box or a quiz is written
-there, as nothing was in planet's. Its config is the `bonuses:` block: `database`, `redis`, and `offers.forgetAfter`
+Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`, and since step C the quiz answers
+counted and each question's rating, `bonuses.quiz_answers` and `bonuses.quiz_questions`: see
+[How hard each quiz question is](quiz-difficulty.md)); nothing of a box or of an offer in flight is written there, as
+nothing was in planet's. Its config is the `bonuses:` block: `database`, `redis`, and `offers.forgetAfter`
 (5 min, a caller with no stream open is forgotten) and `offers.sweepInterval` (1 s), which were planet's top-level
 `bonus:` block.
 
@@ -48,7 +51,9 @@ there, as nothing was in planet's. Its config is the `bonuses:` block: `database
   the offers keep none of or cannot play), `GetRuleSetNames` and `GetRuleSet` (default's values with the set's own over
   them; `NotFound`), for the gamemaster and promo.
 - **`AdminService`**: `GetRules` and `SaveRuleSet`, which the backoffice's Box & quiz rules page calls and Claude calls as
-  `bonuses_get_rules` and `bonuses_save_rule_set` ([Claude as a connector](connector.md)).
+  `bonuses_get_rules` and `bonuses_save_rule_set` ([Claude as a connector](connector.md)); and `ListQuizQuestions`,
+  every question of the bank with how hard it is, sorted and filtered a page at a time, which Claude calls as
+  `bonuses_list_quiz_questions` and no backoffice page reads yet ([The operator's list](quiz-difficulty.md#the-operators-list)).
 
 ## What it asks of planet, in planet's words
 
@@ -105,6 +110,9 @@ default's for the rest (`cpproto.Overlay`). `bonuses.v1.Rules`:
   quiz](welcome-bonus.md))
 - `quiz.enabled`, `minInterval`, `maxInterval`, `maxChargesPerHour`, `offerTtl`, `answerWindow`, `missRetry`,
   `leaderBias` — the quizzes
+- `quiz.width`, `target`, `floor`, `floorAfter`, `explore` — the draw weighed by how hard each question is, inside the
+  pool the lean picked; `width` 0 is off, and is default's ([How hard each quiz question is](quiz-difficulty.md#the-draw)).
+  Migration `20261111210100_quiz_draw` wrote them into default: 0.7, 0, 0.42, 15, 0.1
 - `signInRefill` — a guest's first sign-in earns a refill ([A guest's first sign-in earns a refill](sign-in-refill.md))
 - `frozen` — the offers take no play (below)
 
@@ -159,7 +167,16 @@ moved with them, and the VPN blocklist never applied to them. The box or the qui
   `cpredis.SubscribeMoved` (see [Telling other modules what happened](composite-layer.md#telling-other-modules-what-happened)).
 - **Every metric kept its name**: `bonus_claims_total`, `bonus_offers_total`, `quiz_answers_total` and the rest are
   registered by the same decorators. New: `bonus_session_checks`, the session verdicts of the three calls, which
-  `click_session_checks` no longer counts.
+  `click_session_checks` no longer counts, and `quiz_answers_recorded_total{outcome}`, each answer counted for its
+  question's rating, `recorded` or `failed` ([How hard each quiz question is](quiz-difficulty.md)).
+- **Every answer counted is a row of `quiz_answers`**, a caller's with no account too, written with its question's rating
+  in one transaction; the copy in memory moves after the commit. A failed count costs the player nothing.
+
+## A forgotten account
+
+`player_forgotten_subscriber` hears `player.v1.PlayerForgotten` under group **`bonuses-answers-forgotten`** and blanks
+the account's id on every answer it gave (`forget_account_usecase`), as planet takes it off its takes. The answers stay,
+and so do the ratings they moved. Nothing else the offers keep names an account for longer than a process lives.
 
 ## The sign-in refill
 
@@ -172,6 +189,7 @@ account (`SignInGrantOf`, the same id as before, so a grant planet made before t
 
 The registry's own (pace, apart, welcome, quizzes, the room's sweep, the frozen set, a click heard late), the use cases',
 the handlers', the stream's and its sink's, `planetwords`' (`TestTheOffersAndTheWalletNameTheSameKinds`), the wallet's
-and the shares' adapters, the subscribers' (`TestOnlyATakeAStrikeOrAnUnchangedTileIsHeard`), the rules package's (its values,
-and `cprules`' contract suites on its migrations), the migration's, and `TestTheQuizzesAreTheOffersAlone`, which lets no package of the module but the
+and the shares' adapters, the subscribers' (`TestOnlyATakeAStrikeOrAnUnchangedTileIsHeard`), the ratings' (the step,
+the simulation, the store on postgres, the count one at a time), the bank's priors on a fixture bank, the rules package's (its values,
+and `cprules`' contract suites on its migrations), and `TestTheQuizzesAreTheOffersAlone`, which lets no package of the module but the
 offers and `module.go` import the bank.

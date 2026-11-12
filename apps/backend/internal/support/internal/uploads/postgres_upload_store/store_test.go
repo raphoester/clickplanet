@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
@@ -25,7 +26,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
 	store := postgres_upload_store.New(s.db)
 	s.NewStorage = func() uploads.Storage { return store }
 	s.Send = func(_ uploads.Storage, ids ...notes.AttachmentID) { s.send(ids...) }

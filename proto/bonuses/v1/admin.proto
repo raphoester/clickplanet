@@ -16,6 +16,13 @@ service AdminService {
   // Makes a set, or replaces its values. A save of the set that plays now takes over at once. A save of default is
   // refused while another set could not play over it.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
+
+  // Every question of the quiz bank with how hard it is: its prior, its rating, the share of average players the rating
+  // predicts get it right, and how many answers moved it and how many of them were right. Sorted by the predicted or
+  // the measured share, hardest first unless asked, a page at a time. Each right answer is in it.
+  rpc ListQuizQuestions(ListQuizQuestionsRequest) returns (ListQuizQuestionsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message GetRulesRequest {}
@@ -37,3 +44,53 @@ message SaveRuleSetRequest {
 }
 
 message SaveRuleSetResponse {}
+
+message ListQuizQuestionsRequest {
+  // What the questions are sorted by. Unspecified is the predicted share.
+  QuizQuestionOrder order = 1;
+  // The highest share first. The lowest, the hardest, unless set.
+  bool easiest_first = 2;
+  // Only the questions answered at least this many times. 0 is every question, those never answered too.
+  uint32 min_answers = 3;
+  // 50 unless asked, 500 at most.
+  uint32 limit = 4;
+  // How many of the sorted questions come before the page. 0 is the first page.
+  uint32 offset = 5;
+}
+
+enum QuizQuestionOrder {
+  QUIZ_QUESTION_ORDER_UNSPECIFIED = 0;
+  // The share of average players its rating says get it right.
+  QUIZ_QUESTION_ORDER_PREDICTED = 1;
+  // The share of its answers that were right. A question never answered comes last either way.
+  QUIZ_QUESTION_ORDER_MEASURED = 2;
+}
+
+message ListQuizQuestionsResponse {
+  // In the order asked, then by id.
+  repeated QuizQuestion questions = 1;
+  // How many questions the filter keeps, over every page.
+  uint32 total = 2;
+}
+
+// A question of the bank, with how hard it is.
+message QuizQuestion {
+  string id = 1;
+  string text = 2;
+  // The right answer.
+  string answer = 3;
+  // The country it is about, ISO 3166-1 alpha-2 in lower case. Empty for none.
+  string subject = 4;
+  // The share of players the bank expects to get it right. Unset when the bank holds none: its rating started at 0.6.
+  optional double prior = 5;
+  // How hard it is: 0 is the average question, higher is harder, from about -4.2 to 4.6.
+  double rating = 6;
+  // The share of average players its rating says get it right.
+  double predicted_share = 7;
+  // How many answers moved its rating.
+  uint32 answers = 8;
+  // How many of them were right.
+  uint32 right = 9;
+  // right / answers. Unset for a question never answered.
+  optional double measured_share = 10;
+}

@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing/internal/stats/postgres_snapshot_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 // The store keeps, and the two queries read what it kept: one suite, one container.
@@ -25,7 +26,7 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	server    *cppg.TestServer
+	server    *cppgtest.Server
 	db        *cppg.Postgres
 	store     *postgres_snapshot_store.Store
 	rows      *rows_query.PostgresQuery
@@ -33,7 +34,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.server = cppg.StartTestServer(s.T())
+	s.server = cppgtest.StartServer(s.T())
 	s.db = s.server.OpenSchema(s.T(), "publishing", migrations.FS)
 	s.store = postgres_snapshot_store.New(s.db)
 	s.rows = rows_query.NewPostgresQuery(s.db)
@@ -185,9 +186,9 @@ var clipsTables = fstest.MapFS{"20261025090000_snapshots.up.sql": {Data: []byte(
 `)}}
 
 func (s *testSuite) TestTheClipsModulesSnapshotsAreCopiedOnceAndLeftThere() {
-	server := cppg.StartTestServer(s.T())
-	clips := server.OpenSchema(s.T(), "clips", clipsTables)
-	publishing := server.OpenSchema(s.T(), "publishing", migrations.FS)
+	database := s.server.CreateDatabase(s.T())
+	clips := database.OpenSchema(s.T(), "clips", clipsTables)
+	publishing := database.OpenSchema(s.T(), "publishing", migrations.FS)
 
 	summaries, err := snapshots_query.NewPostgresQuery(publishing).Snapshots(s.T().Context(), time.Time{}, time.Time{}, 0)
 	s.Require().NoError(err)

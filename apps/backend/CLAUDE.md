@@ -18,6 +18,8 @@ and says what is in it. Read the doc before you change its area.
   off on purpose.
 - [Git hooks](docs/git-hooks.md) — what the repo's hooks run for this app.
 - [Protobuf](docs/protobuf.md) — the contracts in the shared `/proto`, generated into `generated/proto`.
+- [Migrations](docs/migrations.md) — a module's golang-migrate files and their UTC-time versions; what golang-migrate
+  skips or refuses at boot; `make check-migrations` and the deploy's check against the revision the VPS runs.
 
 ## How the code is shaped
 
@@ -96,6 +98,9 @@ and says what is in it. Read the doc before you change its area.
   each charge does to a click or to the bucket.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, the bank's lean on planet's board, and the charge a
   right answer gives (the bonuses module's).
+- [How hard each quiz question is](docs/quiz-difficulty.md) — a rating per question, moved by every answer counted
+  (`P = 1/3 + 2/3·σ(s − d)`, a running mean then a 1/200 step), from the bank's prior; the answer log and the totals in
+  postgres, the copy in memory the draw reads; what counts (a late answer too), and what comes later.
 - [A newcomer's first box and first quiz](docs/welcome-bonus.md) — a new account gets both early, once; the dry click
   the offers hear from planet's `ClickTried`.
 - [A guest's first sign-in earns a refill](docs/sign-in-refill.md) — once per account, when player makes it a player

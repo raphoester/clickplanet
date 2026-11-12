@@ -10,12 +10,16 @@ import (
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var ErrNoSuchQuiz = errors.New("no quiz to answer")
 
-const grantTimeout = 5 * time.Second
+const (
+	grantTimeout = 5 * time.Second
+	countTimeout = 5 * time.Second
+)
 
 type Registry interface {
 	AnswerQuiz(token string, entrant bonuses.Entrant, choice int) (bonuses.Answered, bool)
@@ -30,6 +34,11 @@ type Wallet interface {
 
 type Publisher interface {
 	Publish(events ...proto.Message)
+}
+
+// Answers counts each answer for its question's rating (ratings' record_answer_usecase).
+type Answers interface {
+	Execute(ctx context.Context, answer ratings.Answer) error
 }
 
 type In struct {
@@ -52,13 +61,14 @@ type Out struct {
 	Hand bonuses.Hand
 }
 
-func New(registry Registry, wallet Wallet, events Publisher, clock cptime.Clock) *UseCase {
-	return &UseCase{registry: registry, wallet: wallet, events: events, clock: clock}
+func New(registry Registry, wallet Wallet, answers Answers, events Publisher, clock cptime.Clock) *UseCase {
+	return &UseCase{registry: registry, wallet: wallet, answers: answers, events: events, clock: clock}
 }
 
 type UseCase struct {
 	registry Registry
 	wallet   Wallet
+	answers  Answers
 	events   Publisher
 	clock    cptime.Clock
 }
@@ -66,6 +76,11 @@ type UseCase struct {
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	answered, ok := u.registry.AnswerQuiz(in.Token, bonuses.EntrantOf(in.Caller), in.Choice)
 	if !ok {
+		return Out{}, ErrNoSuchQuiz
+	}
+
+	u.count(ctx, in.Caller.Account, answered)
+	if answered.Late {
 		return Out{}, ErrNoSuchQuiz
 	}
 
@@ -107,6 +122,28 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		Amount:        paid.Kept,
 		Hand:          paid.Hand,
 	}, nil
+}
+
+// count logs the answer and moves its question's rating, for a caller with no account too. The answer is spent, so a
+// caller who leaves now is still counted. A count that fails is logged and counted by its decorators, and the player's
+// answer stands without it.
+func (u *UseCase) count(ctx context.Context, account bonuses.Account, answered bonuses.Answered) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), countTimeout)
+	defer cancel()
+
+	answerer, err := ratings.AccountIDOf(string(account))
+	if err != nil {
+		answerer = ratings.NoAccount
+	}
+
+	_ = u.answers.Execute(ctx, ratings.Answer{
+		Question: answered.Question,
+		Account:  answerer,
+		Correct:  answered.Correct,
+		TimedOut: answered.TimedOut,
+		After:    answered.After,
+		At:       u.clock.Now(),
+	})
 }
 
 func (u *UseCase) publishAnswer(account bonuses.Account, correct bool) {

@@ -156,6 +156,9 @@ type Registry struct {
 
 	quizOffers map[string]*pendingQuiz
 
+	// Each question opened and lapsed, until lateAnswers past its deadline: an answer that lands then is counted, late.
+	lapsedQuizzes map[string]*pendingQuiz
+
 	newcomers map[Account]*newcomer
 
 	nextID uint64
@@ -197,6 +200,7 @@ func New(config Config, clock cptime.Clock, room Room, rules func() Rules, bank 
 		offers:        make(map[string]*pending),
 		spent:         make(map[string]spentOffer),
 		quizOffers:    make(map[string]*pendingQuiz),
+		lapsedQuizzes: make(map[string]*pendingQuiz),
 		newcomers:     make(map[Account]*newcomer),
 	}
 }

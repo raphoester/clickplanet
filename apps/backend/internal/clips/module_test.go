@@ -18,7 +18,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis/cpredistest"
 )
 
 func listen(t *testing.T) net.Listener {
@@ -31,7 +32,7 @@ func listen(t *testing.T) net.Listener {
 
 func TestTheModuleServesItsOperatorAndThePlayersOnceTheServerRuns(t *testing.T) {
 	config := clips.ModuleConfig{
-		Database: cppg.StartTestServer(t).ConfigFor("clips"), Redis: cpredis.StartTestServer(t).Config(),
+		Database: cppgtest.StartServer(t).ConfigFor("clips"), Redis: cpredistest.StartServer(t).Config(),
 		Judge: clips.NameJudgeConfig{Anthropic: cpanthropic.Config{APIKey: "a-test-key", BaseURL: "http://127.0.0.1:1"}},
 	}
 	public, console, internal := listen(t), listen(t), listen(t)

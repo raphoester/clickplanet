@@ -13,13 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestThePostgresStoreKeepsTheContract(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "bonuses", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "bonuses", migrations.FS)
 
 	suite.Run(t, &cprules.StoreContractSuite[*bonusesv1.Rules]{
 		NewStore: func() cprules.Store[*bonusesv1.Rules] {
@@ -39,7 +38,7 @@ func TestThePostgresStoreKeepsTheContract(t *testing.T) {
 
 // With no planet schema to copy from, the migration seeds production's default.
 func TestTheMigrationSeedsDefaultWithProductionsRules(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "bonuses", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "bonuses", migrations.FS)
 
 	set, err := cprules.NewPostgresStore(db, parts.All()).Set(t.Context(), cprules.Default)
 	require.NoError(t, err)
@@ -48,7 +47,7 @@ func TestTheMigrationSeedsDefaultWithProductionsRules(t *testing.T) {
 }
 
 func TestAFrozenSetIsReadFrozen(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "bonuses", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "bonuses", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `INSERT INTO rule_sets (name, rules) VALUES ('frozen', '{"frozen": true}')`)
 	require.NoError(t, err)
 

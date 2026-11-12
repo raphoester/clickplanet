@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/removals/postgres_removal_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -24,7 +25,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "chat", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "chat", migrations.FS)
 	s.store = postgres_removal_store.New(s.db)
 }
 

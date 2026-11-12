@@ -10,11 +10,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/postgres_reset_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestAResetIsKeptOnceAndReadByTime(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "planet", migrations.FS)
 	store := postgres_reset_store.New(db)
 	at := time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC)
 	one, err := resets.New("season-1", at)

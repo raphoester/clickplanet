@@ -1,4 +1,4 @@
-package recent_history_query
+package recent_history_query_test
 
 import (
 	"strings"
@@ -9,11 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
 )
 
 func TestTheDayIsReadFromTheHeadByThePrimaryKeyAndNotTheWholeLedger(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	for _, statement := range []string{
 		`INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
 		SELECT n, 'take'::ledger_event_kind, n % 260503 + 1, '203.0.113.7', 'fr', 'de', now() - (200000 - n) * interval '1 second'
@@ -24,7 +24,7 @@ func TestTheDayIsReadFromTheHeadByThePrimaryKeyAndNotTheWholeLedger(t *testing.T
 		require.NoError(t, err)
 	}
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+events, 150000, time.Now().Add(-10*time.Hour))
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+recent_history_query.Events, 150000, time.Now().Add(-10*time.Hour))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRulesRequest, GetRulesResponse, SaveRuleSetRequest, SaveRuleSetResponse } from "./admin_pb.js";
+import { GetRulesRequest, GetRulesResponse, ListQuizQuestionsRequest, ListQuizQuestionsResponse, SaveRuleSetRequest, SaveRuleSetResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -39,6 +39,20 @@ export const AdminService = {
       I: SaveRuleSetRequest,
       O: SaveRuleSetResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Every question of the quiz bank with how hard it is: its prior, its rating, the share of average players the rating
+     * predicts get it right, and how many answers moved it and how many of them were right. Sorted by the predicted or
+     * the measured share, hardest first unless asked, a page at a time. Each right answer is in it.
+     *
+     * @generated from rpc bonuses.v1.AdminService.ListQuizQuestions
+     */
+    listQuizQuestions: {
+      name: "ListQuizQuestions",
+      I: ListQuizQuestionsRequest,
+      O: ListQuizQuestionsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

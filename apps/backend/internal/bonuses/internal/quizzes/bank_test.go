@@ -13,7 +13,7 @@ import (
 func loaded(t *testing.T) *quizzes.Bank {
 	t.Helper()
 
-	bank, err := quizzes.Load(nil)
+	bank, err := quizzes.Load(nil, nil)
 	require.NoError(t, err)
 
 	return bank
@@ -31,7 +31,7 @@ func TestADrawIsThreeChoicesWithOneOfThemRight(t *testing.T) {
 	bank := loaded(t)
 
 	for range 200 {
-		round := bank.Draw(0)
+		round := bank.Draw(0, quizzes.Fit{})
 
 		require.Len(t, round.Options, quizzes.Choices)
 		require.InDelta(t, 0, round.Correct, float64(quizzes.Choices-1))
@@ -46,9 +46,9 @@ func TestADrawIsThreeChoicesWithOneOfThemRight(t *testing.T) {
 func TestTheSameQuestionIsNotAlwaysTheSameThreeChoices(t *testing.T) {
 	bank := loaded(t)
 
-	first := bank.Draw(0)
+	first := bank.Draw(0, quizzes.Fit{})
 	for range 5000 {
-		again := bank.Draw(0)
+		again := bank.Draw(0, quizzes.Fit{})
 		if again.Question.ID != first.Question.ID {
 			continue
 		}

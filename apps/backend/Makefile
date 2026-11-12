@@ -1,4 +1,4 @@
-.PHONY: proto map quiz moderation test lint lint-ci tidy check-format check-quiz check-moderation setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
+.PHONY: proto map quiz moderation test lint lint-ci tidy check-format check-quiz check-moderation check-migrations setup-tools deadcode dBuild vpn-lists disposable-domains historic-scripts zernio zernio-spec metrics
 
 TEST_TAG := testing
 
@@ -52,6 +52,10 @@ check-moderation:
 		echo "$(MODERATION_ASSET_DIR)/moderation.md is not $(MODERATION_DOC). Run 'make moderation'." >&2; \
 		exit 1; \
 	}
+
+# BASE=<git revision>: also check against a database that ran every migration of that revision (docs/migrations.md).
+check-migrations:
+	@go run ./cmd/migrationcheck $(if $(BASE),-base $(BASE))
 
 dBuild:
 	@docker build -t clickplanet-back:local .

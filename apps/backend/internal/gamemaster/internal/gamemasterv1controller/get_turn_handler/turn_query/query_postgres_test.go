@@ -20,8 +20,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/postgres_season_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 var (
 	finale     = time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC)
@@ -66,7 +71,7 @@ func turnAt(t *testing.T, db cppg.Conn, at time.Time) *gamemasterv1.Turn {
 }
 
 func TestWhileABattleRunsTheTurnIsItsIdItsKindItsWordsItsEndAndItsRound(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
 	answer := turnAt(t, db, earlyAt.Add(time.Minute))
@@ -78,7 +83,7 @@ func TestWhileABattleRunsTheTurnIsItsIdItsKindItsWordsItsEndAndItsRound(t *testi
 }
 
 func TestWhileTheFinalePlaysTheTurnIsTheSeasonsAboveAnyEntry(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	save(t, db, schedule.EntrySnapshot{
 		ID: schedule.EntryID(uuid.UUID{15: 2}), Set: "quiet", Kind: schedule.Plain, Description: "Fewer bans.",
 		StartsAt: finale.Add(-time.Hour), EndsAt: battleEnds.Add(time.Hour), Priority: 9, MadeAt: madeAt,
@@ -93,7 +98,7 @@ func TestWhileTheFinalePlaysTheTurnIsTheSeasonsAboveAnyEntry(t *testing.T) {
 }
 
 func TestWithNoEntryRunningTheTurnIsPlainSinceTheLastEnd(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
 	answer := turnAt(t, db, earlyEnds)
@@ -104,7 +109,7 @@ func TestWithNoEntryRunningTheTurnIsPlainSinceTheLastEnd(t *testing.T) {
 }
 
 func TestBeforeAnyEntryTheTurnIsPlainWithNoSince(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
 	answer := turnAt(t, db, earlyAt.Add(-time.Minute))
@@ -113,7 +118,7 @@ func TestBeforeAnyEntryTheTurnIsPlainWithNoSince(t *testing.T) {
 }
 
 func TestTheTimelineIsTheBattlesToComeInThePlayersWordsTheFinaleAmongThem(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 	save(t, db, schedule.EntrySnapshot{
 		ID: schedule.EntryID(uuid.UUID{15: 2}), Set: "quiet", Kind: schedule.Plain, Description: "Fewer bans.",
@@ -135,7 +140,7 @@ func TestTheTimelineIsTheBattlesToComeInThePlayersWordsTheFinaleAmongThem(t *tes
 }
 
 func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 
 	assert.Len(t, nowAt(t, db, earlyAt).GetTimeline().GetBattles(), 1, "the finale is still to come")
@@ -143,7 +148,7 @@ func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
 }
 
 func TestTheTimelineCarriesTheRunningSeasonAndTheNextOne(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	require.NoError(t, postgres_season_store.New(db).Save(t.Context(), season.Snapshot{
 		Number: 1, Break: time.Hour, Length: 30 * 24 * time.Hour,
 	}.Restore()))
@@ -164,7 +169,7 @@ func TestTheTimelineCarriesTheRunningSeasonAndTheNextOne(t *testing.T) {
 }
 
 func TestTodayIsTheDayInProgressAndNoneFromTheLastCutoffToTheSeasonsEnd(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 
 	assert.True(t, proto.Equal(&gamemasterv1.Day{
 		Number: 1, StartsAt: timestamppb.New(season.Origin), EndsAt: timestamppb.New(season.Origin.Add(21 * time.Hour)),
@@ -175,7 +180,7 @@ func TestTodayIsTheDayInProgressAndNoneFromTheLastCutoffToTheSeasonsEnd(t *testi
 }
 
 func TestTheDebriefIsTheLastMomentScoringScoredAndNoneBeforeAny(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)
 	store := postgres_moment_store.New(db)
 

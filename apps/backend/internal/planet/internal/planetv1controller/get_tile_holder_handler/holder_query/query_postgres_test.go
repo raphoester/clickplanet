@@ -40,7 +40,7 @@ const (
 var at = time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
+	s.db = server.CreateDatabase(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
 	s.store = postgres_ledger_store.New(s.db)
 }
 

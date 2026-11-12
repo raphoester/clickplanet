@@ -12,12 +12,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler/rule_set_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestASetPlaysItsOwnValuesOverDefaults(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	rush, err := cprules.Snapshot[*planetv1.Rules]{Name: "rush", Rules: &planetv1.Rules{
 		Clicks: &planetv1.ClickRules{Tempo: proto.Float64(3)},
 	}}.Restore(parts.All(), rules.Seeded())
@@ -34,7 +38,7 @@ func TestASetPlaysItsOwnValuesOverDefaults(t *testing.T) {
 }
 
 func TestDefaultPlaysAlone(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 
 	played, err := rule_set_query.NewPostgresQuery(db).Played(t.Context(), "default")
 
@@ -43,7 +47,7 @@ func TestDefaultPlaysAlone(t *testing.T) {
 }
 
 func TestASetNotKeptIsNone(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 
 	_, err := rule_set_query.NewPostgresQuery(db).Played(t.Context(), "rush")
 

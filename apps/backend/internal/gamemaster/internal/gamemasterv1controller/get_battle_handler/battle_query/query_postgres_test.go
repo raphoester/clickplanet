@@ -12,8 +12,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/postgres_entry_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 var (
 	starts = time.Date(2026, 11, 5, 20, 0, 0, 0, time.UTC)
@@ -23,7 +27,7 @@ var (
 
 func seeded(t *testing.T) *battle_query.PostgresQuery {
 	t.Helper()
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	store := postgres_entry_store.New(db)
 	for _, entry := range []schedule.EntrySnapshot{
 		{ID: urf, Set: "urf", Kind: schedule.Battle, StartsAt: starts, EndsAt: starts.Add(time.Hour), Priority: 1, Times: 2, MadeAt: starts},

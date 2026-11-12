@@ -14,13 +14,14 @@ import (
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/answer_quiz_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var now = time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC)
 
-var guest = bonuses.Caller{Scope: "1.2.3.4", Account: "a-guest"}
+var guest = bonuses.Caller{Scope: "1.2.3.4", Account: "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"}
 
 func answerOf(token string, choice int, country string) answer_quiz_usecase.In {
 	return answer_quiz_usecase.In{Caller: guest, Token: token, Choice: choice, CountryID: country}
@@ -45,11 +46,33 @@ func (f *fakeRegistry) Publish(taken bonuses.Taken) {
 	f.published = append(f.published, taken)
 }
 
+// counted is every answer the ratings were given, with whether the caller had left by then.
+type counted struct {
+	answers []ratings.Answer
+	gone    []error
+	err     error
+}
+
+func (c *counted) Execute(ctx context.Context, answer ratings.Answer) error {
+	c.answers = append(c.answers, answer)
+	c.gone = append(c.gone, ctx.Err())
+	return c.err
+}
+
 func newUseCase(answered bonuses.Answered, known bool) (*answer_quiz_usecase.UseCase, *fakeRegistry, *bonuses.FakeWallet) {
+	useCase, registry, wallet, _ := newCountedUseCase(answered, known)
+	return useCase, registry, wallet
+}
+
+func newCountedUseCase(
+	answered bonuses.Answered, known bool,
+) (*answer_quiz_usecase.UseCase, *fakeRegistry, *bonuses.FakeWallet, *counted) {
 	registry := &fakeRegistry{answered: answered, known: known}
 	wallet := bonuses.NewFakeWallet()
+	answers := &counted{}
 
-	return answer_quiz_usecase.New(registry, wallet, cpredis.NewRecordedEvents(), cptime.NewFixedClock(now)), registry, wallet
+	return answer_quiz_usecase.New(registry, wallet, answers, cpredis.NewRecordedEvents(), cptime.NewFixedClock(now)),
+		registry, wallet, answers
 }
 
 func rightFor(kind bonuses.Kind, amount int) bonuses.Answered {
@@ -105,7 +128,7 @@ func TestEveryAnswerIsToldToTheOtherModulesRightOrWrong(t *testing.T) {
 		registry := &fakeRegistry{answered: bonuses.Answered{Correct: correct, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1}}, known: true}
 		wallet := bonuses.NewFakeWallet()
 
-		_, err := answer_quiz_usecase.New(registry, wallet, events, cptime.NewFixedClock(now)).
+		_, err := answer_quiz_usecase.New(registry, wallet, &counted{}, events, cptime.NewFixedClock(now)).
 			Execute(t.Context(), answerOf("t", 0, ""))
 		require.NoError(t, err)
 
@@ -154,11 +177,98 @@ func TestAFailedGrantIsNotARefusalAndIsToldToNobody(t *testing.T) {
 	wallet.FailWith(errors.New("postgres is down"))
 	events := cpredis.NewRecordedEvents()
 
-	_, err := answer_quiz_usecase.New(registry, wallet, events, cptime.NewFixedClock(now)).
+	_, err := answer_quiz_usecase.New(registry, wallet, &counted{}, events, cptime.NewFixedClock(now)).
 		Execute(t.Context(), answerOf("t", 0, ""))
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, answer_quiz_usecase.ErrNoSuchQuiz)
 	assert.Empty(t, registry.published)
 	assert.Empty(t, events.Published())
+}
+
+func TestEveryAnswerIsCountedForItsQuestionRightOrWrong(t *testing.T) {
+	for _, correct := range []bool{true, false} {
+		useCase, _, _, answers := newCountedUseCase(bonuses.Answered{
+			Correct: correct, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1},
+			Question: "capital:ee", After: 3 * time.Second,
+		}, true)
+
+		_, err := useCase.Execute(t.Context(), answerOf("t", 0, ""))
+		require.NoError(t, err)
+
+		account, err := ratings.AccountIDOf(string(guest.Account))
+		require.NoError(t, err)
+		assert.Equal(t, []ratings.Answer{{
+			Question: "capital:ee", Account: account, Correct: correct, After: 3 * time.Second, At: now,
+		}}, answers.answers, "correct: %v", correct)
+	}
+}
+
+func TestATimeoutIsCountedWrongAndTimedOut(t *testing.T) {
+	useCase, _, _, answers := newCountedUseCase(bonuses.Answered{Question: "capital:ee", TimedOut: true}, true)
+
+	out, err := useCase.Execute(t.Context(), answerOf("t", 3, ""))
+	require.NoError(t, err)
+
+	assert.False(t, out.Correct)
+	require.Len(t, answers.answers, 1)
+	assert.True(t, answers.answers[0].TimedOut)
+	assert.False(t, answers.answers[0].Correct)
+}
+
+func TestACallerWithNoAccountIsCountedWithNone(t *testing.T) {
+	registry := &fakeRegistry{answered: bonuses.Answered{Question: "capital:ee"}, known: true}
+	answers := &counted{}
+	useCase := answer_quiz_usecase.New(registry, bonuses.NewFakeWallet(), answers, cpredis.NewRecordedEvents(),
+		cptime.NewFixedClock(now))
+
+	_, err := useCase.Execute(t.Context(), answer_quiz_usecase.In{Caller: bonuses.Caller{Scope: "1.2.3.4"}, Token: "t"})
+	require.NoError(t, err)
+
+	require.Len(t, answers.answers, 1)
+	assert.Equal(t, ratings.NoAccount, answers.answers[0].Account, "the question counts it; nobody is named")
+}
+
+func TestALateAnswerIsCountedAndTheQuizIsStillGone(t *testing.T) {
+	useCase, registry, wallet, answers := newCountedUseCase(bonuses.Answered{
+		Question: "capital:ee", TimedOut: true, Late: true, CorrectChoice: 2,
+	}, true)
+
+	_, err := useCase.Execute(t.Context(), answerOf("t", 3, ""))
+
+	require.ErrorIs(t, err, answer_quiz_usecase.ErrNoSuchQuiz, "to the player the quiz lapsed, as it did before")
+	require.Len(t, answers.answers, 1)
+	assert.False(t, answers.answers[0].Correct)
+	assert.Empty(t, registry.published)
+	assert.Empty(t, wallet.Payments())
+}
+
+func TestAQuizNotFoundIsNotCounted(t *testing.T) {
+	useCase, _, _, answers := newCountedUseCase(bonuses.Answered{}, false)
+
+	_, err := useCase.Execute(t.Context(), answerOf("t", 0, ""))
+
+	require.ErrorIs(t, err, answer_quiz_usecase.ErrNoSuchQuiz)
+	assert.Empty(t, answers.answers)
+}
+
+func TestAnAnswerIsCountedWhenTheCallerLeavesAfterIt(t *testing.T) {
+	useCase, _, _, answers := newCountedUseCase(bonuses.Answered{Question: "capital:ee"}, true)
+	ctx, leave := context.WithCancel(t.Context())
+	leave()
+
+	_, _ = useCase.Execute(ctx, answerOf("t", 0, ""))
+
+	assert.Equal(t, []error{nil}, answers.gone, "the count runs on a context the caller's leaving does not end")
+}
+
+func TestACountThatFailsCostsThePlayerNothing(t *testing.T) {
+	useCase, _, store, answers := newCountedUseCase(rightFor(bonuses.KindBomb, 1), true)
+	answers.err = errors.New("postgres is down")
+
+	out, err := useCase.Execute(t.Context(), answerOf("t", 0, ""))
+
+	require.NoError(t, err)
+	assert.True(t, out.Correct)
+	assert.Equal(t, bonuses.Hand{Bomb: true}, store.Kept(guest.Account))
 }

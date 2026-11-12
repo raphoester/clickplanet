@@ -14,7 +14,11 @@ import (
 
 const quizBank = "github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
 
-// The quiz bank holds the answers: only the offers, and the module that loads it, may read it.
+// The operator's list of the questions (bonuses.v1.AdminService/ListQuizQuestions), on the admin listener alone, shows
+// each right answer on purpose.
+const operatorsList = "../../internal/bonusesv1controller/list_quiz_questions_handler/quiz_questions_query/inmemory_quiz_questions/"
+
+// The quiz bank holds the answers: only the offers, the module that loads it and the operator's list may read it.
 func TestTheQuizzesAreTheOffersAlone(t *testing.T) {
 	require.NoError(t, filepath.WalkDir("../..", func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() || !strings.HasSuffix(path, ".go") {
@@ -25,7 +29,7 @@ func TestTheQuizzesAreTheOffersAlone(t *testing.T) {
 			return err //nolint:wrapcheck // the test reads it.
 		}
 		offers := strings.HasPrefix(path, "../../internal/bonuses/") || strings.HasPrefix(path, "../../internal/quizzes/") ||
-			path == "../../module.go"
+			path == "../../module.go" || strings.HasPrefix(path, operatorsList)
 		for _, imported := range file.Imports {
 			assert.False(t, strings.Trim(imported.Path.Value, `"`) == quizBank && !offers, "%s imports the quiz bank", path)
 		}

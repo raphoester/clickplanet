@@ -15,10 +15,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_round_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestThePostgresStoreKeepsTheRoundsAsTheContractSays(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "scoring", migrations.FS)
 
 	suite.Run(t, &books.RoundsContractSuite{NewStores: func() (books.Books, books.Rounds) {
 		require.NoError(t, db.Purge(t.Context()))
@@ -27,7 +32,7 @@ func TestThePostgresStoreKeepsTheRoundsAsTheContractSays(t *testing.T) {
 }
 
 func TestThePostgresStoreCountsTheTakesAsTheContractSays(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "scoring", migrations.FS)
 	store := postgres_round_store.New(db)
 
 	suite.Run(t, &books.TakesContractSuite{
@@ -40,7 +45,7 @@ func TestThePostgresStoreCountsTheTakesAsTheContractSays(t *testing.T) {
 }
 
 func TestACloseWaitsForTheOpenThatHoldsTheRoundAndFindsItOpen(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "scoring", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "scoring", migrations.FS)
 	ctx := t.Context()
 	start := time.Date(2026, 11, 8, 21, 0, 0, 0, time.UTC)
 	_, err := postgres_book_store.New(db).Open(ctx, books.NewBook("season-1", start))
