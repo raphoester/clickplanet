@@ -46,6 +46,8 @@ export type UseGlobeOptions = {
     country: Country
     // The players online, when known: the ghosts of a first visit raid only while few play.
     crowd?: number
+    // A battle runs: its rules are the game, and no ghost raids.
+    battle: boolean
     clickHue: number | undefined
     mapView: MapView
     halo: Halo
@@ -56,7 +58,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, clickHue, mapView, halo, missions, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -79,6 +81,7 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const initialCountry = useRef(country)
     const latestCrowd = useRef(crowd)
+    const latestBattle = useRef(battle)
     const latestClickHue = useRef(clickHue)
     const latestMapView = useRef(mapView)
     const latestHalo = useRef(halo)
@@ -154,6 +157,7 @@ export function useGlobe(options: UseGlobeOptions) {
 
             globeRef.current = globe
             globe.setCrowd(latestCrowd.current)
+            globe.setBattle(latestBattle.current)
             globe.setClickHue(latestClickHue.current)
             globe.setMapView(latestMapView.current)
             globe.setHalo(latestHalo.current)
@@ -192,6 +196,11 @@ export function useGlobe(options: UseGlobeOptions) {
         latestCrowd.current = crowd
         globeRef.current?.setCrowd(crowd)
     }, [crowd])
+
+    useEffect(() => {
+        latestBattle.current = battle
+        globeRef.current?.setBattle(battle)
+    }, [battle])
 
     useEffect(() => {
         latestClickHue.current = clickHue

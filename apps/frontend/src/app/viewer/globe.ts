@@ -258,6 +258,8 @@ export type Globe = {
     readonly tilesRead: Promise<void>
     setCountry(country: Country): void
     setCrowd(count: number | undefined): void
+    // A battle runs: no ghost raid, and the ghost tiles go back.
+    setBattle(on: boolean): void
     setMapView(view: MapView): void
     setHalo(halo: Halo): void
     takeReward(claimed: ClaimedBonus): void
@@ -411,6 +413,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let country: Country = initialCountry;
     let crowd: number | undefined
+    let inBattle = false
 
     const bonusBox = createBonusBox()
     scene.add(bonusBox.object)
@@ -1470,7 +1473,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             publishBoard(true)
         }
 
-        if (!army || crowd === undefined || crowd >= GHOSTS_BELOW || orbiting()) return
+        if (!army || inBattle || crowd === undefined || crowd >= GHOSTS_BELOW || orbiting()) return
         const sight = ghostSight()
         const take = sight && army.march(now, sight)
         if (take) ghostTook(take)
@@ -1543,6 +1546,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         setCrowd: (count: number | undefined) => {
             crowd = count
+        },
+        setBattle: (on: boolean) => {
+            inBattle = on
+            if (on) releaseGhosts(ghosts.snapshot().map(({tile}) => tile))
         },
         setMapView: (view: MapView) => {
             if (view === mapView) return

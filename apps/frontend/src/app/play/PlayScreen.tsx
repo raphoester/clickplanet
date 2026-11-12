@@ -317,6 +317,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         onClickAccepted: accepted.record,
         country: countryState,
         crowd,
+        battle: battle !== undefined,
         clickHue: hueOf(color),
         mapView,
         halo: haloOf(battle),
