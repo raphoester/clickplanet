@@ -1,10 +1,21 @@
 import {CapturedFrame} from "../viewer/capture.ts";
 import {regions} from "../viewer/atlas.ts";
 import {ATLAS_URL} from "../viewer/atlasAsset.ts";
-import {cardLayout, Crop, fitInBox, shareLabel, ShareStats, statsLine} from "../../domain/shareCard.ts";
+import {
+    cardLayout,
+    Crop,
+    fitInBox,
+    linkPlacement,
+    ShareAddress,
+    shareLabel,
+    ShareStats,
+    statsLine,
+} from "../../domain/shareCard.ts";
 import {TITLE_CAP_HEIGHT} from "../titleFont.ts";
 
 const LOGO_URL = "/static/logo.svg"
+
+const WORDMARK = "ClickPlanet"
 
 type Look = {
     display: string
@@ -15,7 +26,7 @@ type Look = {
     soft: string
 }
 
-export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Promise<Blob> {
+export async function drawShareCard(frame: CapturedFrame, stats: ShareStats, address: ShareAddress): Promise<Blob> {
     const {crop, ...size} = cardLayout(frame.width, frame.height)
 
     const canvas = document.createElement("canvas")
@@ -36,7 +47,7 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats): Pr
         fontsReady(look),
     ])
 
-    drawMasthead(context, size, stats, logo, look)
+    drawMasthead(context, size, address, logo, look)
     drawBadge(context, size, stats, atlas, look)
 
     return encode(canvas)
@@ -78,7 +89,7 @@ function drawGlobe(
 function drawMasthead(
     context: CanvasRenderingContext2D,
     size: {width: number, height: number},
-    stats: ShareStats,
+    address: ShareAddress,
     logo: HTMLImageElement,
     look: Look,
 ) {
@@ -92,18 +103,27 @@ function drawMasthead(
     context.textBaseline = "alphabetic"
 
     const nameSize = 5 * unit
+    const nameLeft = margin + logoSize + 1.6 * unit
     context.textAlign = "left"
     context.font = `${nameSize}px ${look.display}`
-    outlinedText(context, "ClickPlanet",
-        margin + logoSize + 1.6 * unit, capCentred(context, middle, nameSize),
-        0.7 * unit, look)
+    const nameRight = nameLeft + context.measureText(WORDMARK).width
+    outlinedText(context, WORDMARK, nameLeft, capCentred(context, middle, nameSize), 0.7 * unit, look)
 
+    const link = shareLabel(address)
     const linkSize = 3.2 * unit
-    context.textAlign = "right"
     context.font = `600 ${linkSize}px ${look.text}`
-    outlinedText(context, shareLabel(stats.country.code),
-        size.width - margin, capCentred(context, middle, linkSize),
-        0.5 * unit, look)
+    const placement = linkPlacement(context.measureText(link).width,
+        size.width - margin - nameRight - 3 * unit, size.width - margin * 2)
+    if (placement.beside) {
+        context.textAlign = "right"
+        outlinedText(context, link, size.width - margin, capCentred(context, middle, linkSize), 0.5 * unit, look)
+        return
+    }
+
+    const fitted = linkSize * placement.scale
+    context.textAlign = "left"
+    context.font = `600 ${fitted}px ${look.text}`
+    outlinedText(context, link, margin, margin + logoSize + 3 * unit + capHeight(context, fitted), 0.5 * unit, look)
 }
 
 function drawBadge(

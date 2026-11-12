@@ -178,6 +178,7 @@ export default function Menu(props: MenuProps) {
                             {shown.id === "board" && <BoardPlace {...props} hallOfFame={undefined} headless={props.standings !== undefined}/>}
                             {shown.id === "missions" && props.missions && <MissionsPlace {...props.missions}/>}
                             {shown.id === "share" && <SharePlace stats={shareStats(linesShown(props, race), props.country)}
+                                                                 address={props.address}
                                                                  onTakePicture={props.onTakePicture}
                                                                  taking={props.taking}/>}
                             {shown.id === "invite" && props.invite && <InviteFriends invite={props.invite}/>}

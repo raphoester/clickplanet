@@ -17,7 +17,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   and its fade; a modal's padding; how to debug a mobile layout.
 - [Protocol Buffers](docs/protobuf.md) — types from the shared `/proto`, generated into `src/gen/grpc`.
 - [Static assets](docs/static-assets.md) — the content-addressed files in `static/`, and how each is made.
-- [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes.
+- [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes; a flag's address,
+  `clickplanet.lol/<flag>/<name>`, which the home page's first script opens on the game.
 
 ## Architecture
 
@@ -36,8 +37,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Sessions](docs/sessions.md) — the click token the backend gates `Click` on.
 - [Sign-in](docs/sign-in.md) — optional sign-in with Google, Discord or an emailed code; usernames; deleting an account,
   and the welcome back when a sign-in within 30 days brings it back.
-- [Arrivals](docs/arrivals.md) — the first page's `?s=` and referrer host, kept and sent with the calls that make
-  an account.
+- [Arrivals](docs/arrivals.md) — the first page's `?s=`, referrer host and recruiter's account (the name in a
+  player's address, read with `GetPlayerByName`), kept and sent with the calls that make an account.
 - [CrazyGames](docs/crazygames.md) — the same build on `crazygames.clickplanet.lol`: CrazyGames' sign-in alone, the
   session in a header, a deleted account the next start does not bring back, its settings, the world as one room
   with invites, no ad, and its word list masked in the chat and the names.
@@ -94,7 +95,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   rival's tiles ringed in red), the progress line, a mission paid, and the fake.
 - [Quizzes](docs/quizzes.md), [Bombs](docs/bombs.md), [Shields](docs/shields.md), [Fortify](docs/fortify.md) —
   each bonus on the client.
-- [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link.
+- [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link; every share carries the
+  player's address, `clickplanet.lol/<flag>/<name>`, or the flag alone for a guest.
 - [Clips](docs/clips.md) — `npm run clip`: a replay played back as a short video, and what it hands to the
   backend's clips job.
 - [Battle teasers, as posts](docs/teasers.md) — `npm run teaser`: a battle's cards in a frame that says when it

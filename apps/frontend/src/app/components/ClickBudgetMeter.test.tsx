@@ -44,7 +44,7 @@ const tokens = () => meter().style.getPropertyValue("--click-budget-tokens")
 
 describe("ClickBudgetMeter", () => {
     it("says the map is frozen in place of the clicks, and when the next season starts", () => {
-        render(budgeted(reading(), <ClickBudgetMeter frozen={{nextSeason: {number: 1, startsAt: Date.now() + 2 * 3600_000}, country: FRANCE}}/>))
+        render(budgeted(reading(), <ClickBudgetMeter frozen={{nextSeason: {number: 1, startsAt: Date.now() + 2 * 3600_000}, country: FRANCE, address: {code: "fr"}}}/>))
 
         expect(screen.queryByRole("meter")).toBeNull()
         expect(screen.getByRole("status").textContent).toContain("The map is frozen")
@@ -53,25 +53,27 @@ describe("ClickBudgetMeter", () => {
     })
 
     it("says the map is frozen with no countdown when no season is planned", () => {
-        render(budgeted(reading(), <ClickBudgetMeter frozen={{country: FRANCE}}/>))
+        render(budgeted(reading(), <ClickBudgetMeter frozen={{country: FRANCE, address: {code: "fr"}}}/>))
 
         expect(screen.getByRole("status").textContent).toBe("The map is frozen")
     })
 
     it("invites friends to the flag played on a frozen map, with the next season in the text", async () => {
         deliver.mockResolvedValue("copied")
-        render(<ClickBudgetMeter frozen={{nextSeason: {number: 1, startsAt: Date.now() + 3600_000}, country: FRANCE}}/>)
+        render(<ClickBudgetMeter frozen={{
+            nextSeason: {number: 1, startsAt: Date.now() + 3600_000}, country: FRANCE, address: {code: "fr", name: "Ada Lovelace"},
+        }}/>)
 
         fireEvent.click(screen.getByRole("button", {name: "Invite"}))
 
-        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/?f=fr&s=rc",
+        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/fr/Ada-Lovelace",
             "Season 1 starts on a blank map. Play for France on ClickPlanet!")
         expect(await screen.findByRole("button", {name: "Copied!"})).toBeTruthy()
     })
 
     it("invites with CrazyGames' link on a frozen map there", async () => {
         const invite = vi.fn(async (flag: string) => `https://www.crazygames.com/game/clickplanet?czy_invite=true&f=${flag}`)
-        render(<ClickBudgetMeter frozen={{country: FRANCE}} invite={invite}/>)
+        render(<ClickBudgetMeter frozen={{country: FRANCE, address: {code: "fr"}}} invite={invite}/>)
 
         fireEvent.click(screen.getByRole("button", {name: "Invite"}))
 
@@ -80,11 +82,11 @@ describe("ClickBudgetMeter", () => {
     })
 
     it("offers the Discord the game offers on a frozen map, and none when it offers nothing", () => {
-        const {unmount} = render(<ClickBudgetMeter frozen={{country: FRANCE}} discord={{serverUrl: "https://discord.com/channels/1/2"}} compact/>)
+        const {unmount} = render(<ClickBudgetMeter frozen={{country: FRANCE, address: {code: "fr"}}} discord={{serverUrl: "https://discord.com/channels/1/2"}} compact/>)
         expect(screen.getByRole("link", {name: "Open Discord"}).getAttribute("href")).toBe("https://discord.com/channels/1/2")
 
         unmount()
-        render(<ClickBudgetMeter frozen={{country: FRANCE}} discord={{}} compact/>)
+        render(<ClickBudgetMeter frozen={{country: FRANCE, address: {code: "fr"}}} discord={{}} compact/>)
         expect(screen.queryByRole("link", {name: "Open Discord"})).toBeNull()
         expect(screen.queryByRole("button", {name: "Join Discord"})).toBeNull()
     })

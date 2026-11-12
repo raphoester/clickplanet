@@ -1,11 +1,11 @@
 import {ReactNode, useState} from "react";
-import {shareUrl} from "../../domain/shareCard.ts";
+import {ShareAddress, shareUrl} from "../../domain/shareCard.ts";
 import {CopyIcon, ShareIcon} from "../components/icons.tsx";
 import {deliverLink, LinkDelivery, linkDeliveryOffered, LinkOutcome} from "./deliverShare.ts";
 import {DeliveryState, useDelivery} from "./useDelivery.ts";
 
 export type RecruitButtonProps = {
-    code: string
+    address: ShareAddress
     text: string
     className: string
     icon?: ReactNode
@@ -14,9 +14,9 @@ export type RecruitButtonProps = {
 
 type LinkState = DeliveryState<LinkDelivery, LinkOutcome>
 
-export default function RecruitButton({code, text, className, icon, label}: RecruitButtonProps) {
+export default function RecruitButton({address, text, className, icon, label}: RecruitButtonProps) {
     const [delivery] = useState(linkDeliveryOffered)
-    const {state, run} = useDelivery((offered: LinkDelivery) => deliverLink(offered, shareUrl(code), text))
+    const {state, run} = useDelivery((offered: LinkDelivery) => deliverLink(offered, shareUrl(address), text))
 
     return <button type="button"
                    className={className}

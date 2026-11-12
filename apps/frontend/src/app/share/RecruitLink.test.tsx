@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, waitFor} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import {Countries} from "../../domain/countries.ts"
-import {ShareStats} from "../../domain/shareCard.ts"
+import {ShareAddress, ShareStats} from "../../domain/shareCard.ts"
 import RecruitLink from "./RecruitLink.tsx"
 import type {LinkDelivery} from "./deliverShare.ts"
 
@@ -21,9 +21,9 @@ const FRANCE: ShareStats = {country: Countries.get("fr")!, rank: 2, tiles: 1500}
 const JAPAN: ShareStats = {country: Countries.get("jp")!, rank: 1, tiles: 9000}
 const button = (name: string) => screen.getByRole("button", {name}) as HTMLButtonElement
 
-function setup(delivery: LinkDelivery = "copy") {
+function setup(delivery: LinkDelivery = "copy", address: ShareAddress = {code: "fr"}) {
     offered.mockReturnValue(delivery)
-    const view = render(<RecruitLink stats={FRANCE}/>)
+    const view = render(<RecruitLink stats={FRANCE} address={address}/>)
     return {...view, user: userEvent.setup()}
 }
 
@@ -38,29 +38,35 @@ afterEach(() => {
 })
 
 describe("RecruitLink", () => {
-    it("names the country played and shows its link", () => {
+    it("names the country played and shows a guest's link, the flag alone", () => {
         setup()
 
         expect(screen.getByText("Recruit for France")).toBeDefined()
-        expect(screen.getByText("clickplanet.lol/?f=fr")).toBeDefined()
+        expect(screen.getByText("clickplanet.lol/fr")).toBeDefined()
+    })
+
+    it("shows a player's link with its name", () => {
+        setup("copy", {code: "fr", name: "Ada Lovelace"})
+
+        expect(screen.getByText("clickplanet.lol/fr/Ada-Lovelace")).toBeDefined()
     })
 
     it("follows the country when the player changes it", () => {
         const {rerender} = setup()
 
-        rerender(<RecruitLink stats={JAPAN}/>)
+        rerender(<RecruitLink stats={JAPAN} address={{code: "jp"}}/>)
 
         expect(screen.getByText("Recruit for Japan")).toBeDefined()
-        expect(screen.getByText("clickplanet.lol/?f=jp")).toBeDefined()
+        expect(screen.getByText("clickplanet.lol/jp")).toBeDefined()
     })
 
     it("copies the link, and says so on the button", async () => {
-        const {user} = setup("copy")
+        const {user} = setup("copy", {code: "fr", name: "Ada Lovelace"})
         deliver.mockResolvedValue("copied")
 
         await user.click(button("Copy link"))
 
-        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/?f=fr&s=rc",
+        expect(deliver).toHaveBeenCalledWith("copy", "https://clickplanet.lol/fr/Ada-Lovelace",
             "France is #2 on ClickPlanet with 1,500 tiles. Come and take them.")
         await waitFor(() => expect(button("Copied!")).toBeDefined())
     })

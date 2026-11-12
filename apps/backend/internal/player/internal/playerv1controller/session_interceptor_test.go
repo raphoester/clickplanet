@@ -104,6 +104,7 @@ func TestAnyonesPlayerAndTheNameplatesNeedNoToken(t *testing.T) {
 	for _, procedure := range []string{
 		playerv1connect.PlayerServiceGetPlayerProcedure,
 		playerv1connect.PlayerServiceGetNameplatesProcedure,
+		playerv1connect.PlayerServiceGetPlayerByNameProcedure,
 	} {
 		for _, token := range []string{"", "forged"} {
 			_, ran, err := run(t, procedure, token)

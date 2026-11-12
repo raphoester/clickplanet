@@ -11,7 +11,7 @@ import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient}
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {loadBorders} from "./app/viewer/borderField.ts"
 import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
-import {chatterNameplateOf, FakeChatBackend} from "./backends/fakeChatBackend.ts"
+import {chatterNamed, chatterNameplateOf, FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakeGifs} from "./backends/fakeGifs.ts"
 import {GifSearch} from "./backends/gifs.ts"
 import {KlipyGifs} from "./backends/klipyGifs.ts"
@@ -35,7 +35,12 @@ import type {Globe} from "./app/viewer/globe.ts"
 import App from "./app/App.tsx"
 import type {Backends} from "./app/play/PlayScreen.tsx"
 import {ConnectAccountBackend} from "./backends/accountBackend.ts"
-import {ConnectPlayerBackend, newKeepalivePlayerServiceClient, newPlayerServiceClient} from "./backends/playerBackend.ts"
+import {
+    ConnectPlayerBackend,
+    nameHolder,
+    newKeepalivePlayerServiceClient,
+    newPlayerServiceClient,
+} from "./backends/playerBackend.ts"
 import {ConnectProgressionBackend, newProgressionServiceClient} from "./backends/progressionBackend.ts"
 import {PlayerCards} from "./backends/playerCards.ts"
 import {ConnectMissionsBackend, newMissionServiceClient} from "./backends/missionsBackend.ts"
@@ -53,8 +58,17 @@ import {linkedShot, withoutLinkedShot} from "./domain/linkedShot.ts"
 import {discordJoinAsked, withoutDiscordJoin} from "./domain/discordJoin.ts"
 import {enterFrontGuide} from "./app/frontGuide.ts"
 import {useCountry} from "./app/countryStore.ts"
-import {firstLanding, landingOf, SOURCE_TAG_PARAM, withoutLanding} from "./domain/landing.ts"
-import {localLandingStore} from "./backends/landingStore.ts"
+import {
+    firstLanding,
+    Landing,
+    landingOf,
+    RECRUITER_PARAM,
+    recruiterNameOf,
+    Recruiters,
+    SOURCE_TAG_PARAM,
+    withoutLanding,
+} from "./domain/landing.ts"
+import {handedReferrer, localLandingStore} from "./backends/landingStore.ts"
 import {localLeaverStore} from "./backends/leaverStore.ts"
 import {ON_CRAZYGAMES} from "./platform.ts"
 import {connectCrazyGames} from "./backends/crazyGamesSdk.ts"
@@ -82,10 +96,11 @@ const joinDiscord = discordJoinAsked(page)
 const guided = enterFrontGuide()
 const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
 const words: Promise<WordFilter> = ON_CRAZYGAMES ? crazyGamesWords(CRAZYGAMES_WORDS_URL) : Promise.resolve(NO_FILTER)
-const seen = landingOf(page, document.referrer)
-const landing = crazyGames ? crazyGamesLanding(seen) : firstLanding(localLandingStore(), seen)
+const seen = landingOf(page, handedReferrer() ?? document.referrer)
+const recruiterName = recruiterNameOf(page)
 // CrazyGames' frame puts an invite's flag on this address as a plain ?f=, and its SDK reads it after this runs.
-if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM) || shot || joinDiscord)) {
+if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams.has(SOURCE_TAG_PARAM)
+    || page.searchParams.has(RECRUITER_PARAM) || shot || joinDiscord)) {
     window.history.replaceState(null, "", withoutDiscordJoin(withoutLinkedShot(withoutLanding(withoutSharedFlag(page)))))
 }
 
@@ -97,6 +112,19 @@ const config = {
     timeoutMs: 10_000,
     interceptors: [connectionInterceptor(connection), restartInterceptor(new Restarts(() => window.location.reload()))],
 }
+
+const holder: Recruiters = import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND
+    ? chatterNamed
+    : nameHolder(newPlayerServiceClient(config))
+const landing: Promise<Landing> = crazyGames
+    ? Promise.resolve(crazyGamesLanding(seen))
+    : firstLanding(localLandingStore(), seen, recruiterName === undefined ? undefined : {
+        name: recruiterName,
+        accountOf: (name) => holder(name).catch((e) => {
+            console.error("could not read who holds the name in the address", e)
+            return undefined
+        }),
+    })
 
 const sitekey = import.meta.env.VITE_TURNSTILE_SITEKEY
 const klipyKey: string | undefined = import.meta.env.VITE_KLIPY_KEY

@@ -1,10 +1,14 @@
 import {Countries, Country} from "./countries.ts";
 import {LeaderboardEntry} from "./leaderboard.ts";
-import {RECRUIT_TAG, SOURCE_TAG_PARAM} from "./landing.ts";
 
 const SHARE_ORIGIN = "https://clickplanet.lol"
 
 export const SHARE_FLAG_PARAM = "f"
+
+export type ShareAddress = {
+    code: string
+    name?: string
+}
 
 export type ShareStats = {
     country: Country
@@ -21,12 +25,18 @@ export function shareStats(leaderboard: readonly LeaderboardEntry[], country: Co
     return {country, rank: index + 1, tiles: leaderboard[index].tiles}
 }
 
-export function shareUrl(code: string): string {
-    return `${flagUrl(code)}&${SOURCE_TAG_PARAM}=${RECRUIT_TAG}`
+// Every share's address is made here: the name it carries is the player's username, and none for a guest.
+export function shareAddress(code: string, username: string | undefined): ShareAddress {
+    return username ? {code, name: username} : {code}
 }
 
-function flagUrl(code: string): string {
-    return `${SHARE_ORIGIN}/?${SHARE_FLAG_PARAM}=${encodeURIComponent(code)}`
+export function shareUrl(address: ShareAddress): string {
+    return `${SHARE_ORIGIN}/${pathOf(address).map(encodeURIComponent).join("/")}`
+}
+
+function pathOf({code, name}: ShareAddress): string[] {
+    // A username holds no "-": each of its spaces is one, since a space would end the link in a message.
+    return name ? [code, name.replaceAll(" ", "-")] : [code]
 }
 
 export function sharedCountry(url: URL): Country | undefined {
@@ -34,9 +44,16 @@ export function sharedCountry(url: URL): Country | undefined {
     return code ? Countries.get(code.trim().toLowerCase()) : undefined
 }
 
-// Without the tag: it is drawn into the picture, and a longer one meets the logo on a portrait card.
-export function shareLabel(code: string): string {
-    return flagUrl(code).replace(/^https?:\/\//, "")
+// As a person reads and retypes it: no scheme, and the name in its own letters.
+export function shareLabel(address: ShareAddress): string {
+    return [SHARE_ORIGIN.replace(/^https?:\/\//, ""), ...pathOf(address)].join("/")
+}
+
+export type LinkPlacement = {beside: boolean, scale: number}
+
+export function linkPlacement(link: number, beside: number, line: number): LinkPlacement {
+    if (link <= beside) return {beside: true, scale: 1}
+    return {beside: false, scale: Math.min(1, line / link)}
 }
 
 export function withoutSharedFlag(url: URL): URL {
@@ -55,8 +72,8 @@ export function statsLine(stats: ShareStats): string {
     return `RANK #${stats.rank} · ${tilesHeld(stats.tiles).toUpperCase()}`
 }
 
-export function shareText(stats: ShareStats): string {
-    return `${shareHeadline(stats)} ${shareUrl(stats.country.code)}`
+export function shareText(stats: ShareStats, address: ShareAddress): string {
+    return `${shareHeadline(stats)} ${shareUrl(address)}`
 }
 
 export function breakHeadline(country: Country, nextSeason?: number): string {

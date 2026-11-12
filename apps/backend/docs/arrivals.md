@@ -1,13 +1,13 @@
 # Arrivals (`internal/auth/internal/arrivals/`)
 
-**Every account auth makes keeps how it came: a player's link, the YouTube link, CrazyGames, or unknown, and the host
-the browser came from.** The frontend is a Cloudflare Worker, Caddy sees only API calls, Cloudflare's free analytics see
+**Every account auth makes keeps how it came: a player's link, the YouTube link, CrazyGames, or unknown, the host the
+browser came from, and, for a player's address with a name, the account of the player who sent it.** The frontend is a Cloudflare Worker, Caddy sees only API calls, Cloudflare's free analytics see
 no query string and TikTok sends no referrer. So the server records it when it makes the account, from what the
 browser says its first page was.
 
-- **The browser sends its landing** (`auth.v1.Landing`): the `?s=` of the first page of the site it opened and the
-  host of the page before it, kept in local storage from then on (see the frontend's
-  [Arrivals](../../frontend/docs/arrivals.md)). It goes with every call that can make an account: `CreateSession`,
+- **The browser sends its landing** (`auth.v1.Landing`): the `?s=` of the first page of the site it opened, the
+  host of the page before it, and `recruiter_account_id` (proto `optional`) when that page was a player's address with
+  a name, kept in local storage from then on (see the frontend's [Arrivals](../../frontend/docs/arrivals.md)). It goes with every call that can make an account: `CreateSession`,
   `CompleteSignIn`, `CompleteEmailSignIn` and `CompleteCrazyGamesSignIn`.
 - **Only a call that makes an account keeps it.** `arrivals.Guests` starts the guest and records its arrival in one
   transaction, for `CreateSession`; `signin.Admitter` records it in the sign-in's transaction when the outcome is
@@ -20,11 +20,22 @@ browser says its first page was.
 - **The tag itself is kept too** (`tagOf`), lower case, for every source: a link made for one streamer
   (`?f=pl&s=2poko2`, since 2026-11-11) is `unknown` and its tag names the stream. Only a short plain word is kept:
   32 at most, letters, digits, `_` and `-`; anything else is `""`, so a typed tag cannot carry a sentence or a script.
-- **What counts as a recruit**: the first page had `?s=rc`. No recruiter is kept. `shareUrl` in
-  `src/domain/shareCard.ts` adds it to every link a player sends: the recruit link (`RecruitLink`), the frozen map's
-  Invite (`RecruitButton`) and the text that rides with a picture (`shareText`). **The picture's own words have no
-  tag** (`shareLabel`): a longer one meets the logo on a portrait card, so a link typed from a picture is `unknown`.
-  The home page carries the query to `/play`.
+- **What counts as a recruit**: the first page was a flag's address, `clickplanet.lol/<flag>` or
+  `clickplanet.lol/<flag>/<name>`, whose first script opens the game with `?s=rc` (see the frontend's [Pages and
+  routes](../../frontend/docs/routes.md)), or an old link with `?s=rc`. Every share a player makes is such an address
+  (`shareUrl` in `src/domain/shareCard.ts`): the recruit link, the frozen map's Invite, the text that rides with a
+  picture and the words drawn into it, so a link typed from a picture is a recruit too. An old `?f=` link with no tag
+  is `unknown`, as before.
+- **The recruiter is an account, never a name.** Auth asks no module, and player depends on auth, so the browser
+  reads the name in the address into the account that holds it with player's public `GetPlayerByName` (see
+  [Player](player.md)), and sends that account in the landing. `landingmessage.LandingOf` reads it: an id that is not
+  an account is no recruiter and fails no call, since anybody can type an address. A guest's address has no name, and
+  keeps no recruiter, nor does a name nobody holds.
+- **Only a recruit has a recruiter** (`Arrival.Recruitment`): a landing of another source that names one keeps none.
+  **It has a table of its own, `auth.recruitments`** (`arrival_id`, the arrival's id as its key, and `recruiter_id`,
+  `NULL` once anonymized; migration `20261111120000_recruitments`), so no other arrival has a recruiter column to leave
+  empty. `arrivals.Register` saves it after the arrival, in the same transaction, through its own store
+  (`arrivals.Recruitments`, `postgres_recruitment_store`).
 - **The referrer is a host and nothing else** (`hostOf`): lower case, letters, digits, dots and hyphens, 253 at
   most; anything else, a path or a port included, is `""`. The browser sends only the host, and the server checks
   again. It is kept for every source, `""` when the browser sent none: an in-app browser, a typed address, and the
@@ -41,6 +52,10 @@ browser says its first page was.
   hears its own `auth.v1.AccountDeleted` (consumer group `auth-arrivals-accounts`), and
   `anonymize_arrivals_usecase` blanks the account (`Arrival.Anonymized`) and keeps the source, the tag, the referrer
   and the time. A deleted account and a guest pruned after 90 days idle go the same way, so a day's count never shrinks.
+- **A recruitment outlives both accounts.** The recruit's account goes with its arrival's: the recruitment names it
+  only through the arrival, which names nobody once anonymized. The recruiter's goes on its own group,
+  `auth-recruitments-accounts`: `anonymize_recruitments_usecase` blanks the recruiter of each recruitment it made
+  (`Recruitment.Anonymized`) and keeps the row, so the arrival still counts as one a player brought.
 - **What it gets wrong**: a second account made in the same browser (after a sign-out, or a guest whose cookie
   lapsed) gets the first page's landing too. A browser that first opened the game before this shipped keeps the
   landing of its first page after it.
@@ -75,8 +90,21 @@ ORDER BY a.day, a.source;
 ```
 
 Add `r.referrer` to the inner select and to `GROUP BY` to split each source by the host it came from, or `r.tag` to
-split it by link: one row per streamer's link. The `EXISTS` reads one account's
-ledger rows through `ledger_events_account_kind`, so it stays cheap at 25 new accounts a day.
+split it by link: one row per streamer's link. The `EXISTS` reads one account's ledger rows through
+`ledger_events_account_kind`, so it stays cheap at 25 new accounts a day.
+
+Who brought the most new accounts in the last 14 days:
+
+```sql
+SELECT p.recruiter_id, count(*) AS recruits
+FROM auth.recruitments p
+JOIN auth.arrivals r ON r.id = p.arrival_id
+WHERE p.recruiter_id IS NOT NULL AND r.arrived_at > now() - interval '14 days'
+GROUP BY p.recruiter_id
+ORDER BY recruits DESC;
+```
+
+A recruit with no row in `auth.recruitments` came by a flag's address with no name, or by an old link.
 
 No backoffice screen reads it yet. When one does, it gets the raw arrivals and counts them itself (see
 [Reads are queries](queries.md)).

@@ -35,10 +35,12 @@ const (
 	crazyGamesTag = "cg"
 )
 
-// What the browser's first page said, as the client sent it: its ?s= and the host it came from.
+// What the browser's first page said, as the client sent it: its ?s=, the host it came from, and the account that held
+// the name in the player's address it came by.
 type Landing struct {
-	Tag      string
-	Referrer string
+	Tag       string
+	Referrer  string
+	Recruiter AccountID
 }
 
 const (
@@ -107,6 +109,14 @@ func hostOf(referrer string) string {
 		}
 	}
 	return host
+}
+
+// A recruit's arrival keeps who recruited it; another arrival has no recruiter, whatever its landing said.
+func (a Arrival) Recruitment(recruiter AccountID) (Recruitment, bool) {
+	if a.source != SourceRecruit || recruiter == (AccountID{}) {
+		return Recruitment{}, false
+	}
+	return Recruitment{arrival: a.id, recruiter: recruiter}, true
 }
 
 // The arrival with nothing that says whose it was: the source, the tag, the referrer and the time stay.
