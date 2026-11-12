@@ -2,7 +2,6 @@ package s3_attachment_bucket_test
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"net/http"
 	"testing"
@@ -10,21 +9,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
-)
-
-const (
-	image      = "ghcr.io/versity/versitygw:v1.8.0"
-	port       = "7070"
-	bucketName = "notes"
-	keyID      = "the-key-id"
-	secret     = "the-secret-key"
 )
 
 var lifetimes = s3_attachment_bucket.Lifetimes{Upload: 30 * time.Minute, View: time.Hour}
@@ -46,29 +35,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	ctx, cancel := context.WithTimeout(s.T().Context(), 3*time.Minute)
-	defer cancel()
-
-	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        image,
-			ExposedPorts: []string{port + "/tcp"},
-			// A directory under the root is a bucket: no client is needed to make one.
-			Entrypoint: []string{"sh", "-c", "mkdir -p /data/" + bucketName +
-				" && exec versitygw --access " + keyID + " --secret " + secret + " --port :" + port + " posix /data"},
-			WaitingFor: wait.ForListeningPort(port + "/tcp").WithStartupTimeout(time.Minute),
-		},
-		Started: true,
-	})
-	testcontainers.CleanupContainer(s.T(), container)
-	s.Require().NoError(err, "failed to start the test bucket")
-
-	endpoint, err := container.PortEndpoint(ctx, port, "http")
-	s.Require().NoError(err)
-
-	s.config = cps3.Config{
-		Endpoint: endpoint, Region: "us-east-1", Name: bucketName, AccessKeyID: keyID, SecretAccessKey: secret,
-	}
+	s.config = cps3.StartTestServer(s.T(), "notes").Config()
 	s.bucket = s.bucketOf(s.config, cptime.SystemClock{})
 }
 

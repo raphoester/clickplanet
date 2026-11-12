@@ -9,7 +9,8 @@ Capital Siege plays it on its fresh map (see [Arena battles](arenas.md)), and an
   from `/map`'s `bridges-<hash>.json`). The board answers through `Storage.HoldsAny`, under one read lock. A flag with
   no land reaches nothing.
 - **The bridges** are the map's, both ways: stepping stones that join every piece of land where the sea is narrowest,
-  and sea lanes placed by hand (see [`/map/README.md`](../../../map/README.md#capitals-and-bridges)). Each end is one
+  sea lanes placed by hand, and second ways so that no single bridge holds any land to the rest: every island group
+  has two ways in at least (see [`/map/README.md`](../../../map/README.md#capitals-and-bridges)). Each end is one
   coast tile: a flag that holds and shields the end of a bridge holds the crossing.
 - **Why bridges** (the owner, 2026-11-11): until then a take crossed any body of water where the flag held a coast, and
   the ocean was one body. A flag on any coast reached every coast on Earth, so 130 of the 239 capitals (Dublin, Rome,
