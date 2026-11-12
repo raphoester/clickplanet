@@ -255,6 +255,22 @@ func (s *testSuite) TestAHolderIsFlushedWithItsTileAndReadBackAtBoot() {
 	s.Equal([]clicks.Holding{{Account: ana, Flag: "fr", Tiles: 1}}, booted.HoldingsOf(1))
 }
 
+func (s *testSuite) TestEachTileAskedIsReadWithItsFlagAndItsHolderInTheOrderAsked() {
+	ana := cpsession.AccountID(uuid.New())
+	storage := s.newStorage(inmemory_tile_storage.Config{})
+	s.Require().NoError(storage.Click(cpctx.AddAccountToContext(context.Background(), ana.String()), island[0], "fr"))
+	s.Require().NoError(storage.Set(context.Background(), island[1], "de"))
+
+	s.Equal([]clicks.TileHold{
+		{Tile: island[2], Holder: cpsession.NoAccount},
+		{Tile: island[0], Flag: "fr", Holder: ana},
+		{Tile: island[1], Flag: "de", Holder: cpsession.NoAccount},
+		{Tile: 0, Holder: cpsession.NoAccount},
+		{Tile: maxIndex + 1, Holder: cpsession.NoAccount},
+	}, storage.HoldsOf([]uint32{island[2], island[0], island[1], 0, maxIndex + 1}),
+		"an operator's write holds nobody, and a tile off the map is nobody's")
+}
+
 func (s *testSuite) TestAForgottenHolderIsFlushedAsNobody() {
 	ana := cpsession.AccountID(uuid.New())
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})

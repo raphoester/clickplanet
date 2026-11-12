@@ -25,6 +25,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
+	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad"
 )
 
 type Config struct {
@@ -52,6 +53,8 @@ type Config struct {
 	Promo promo.Config
 	// The game's posts on its own TikTok and YouTube: the calendar they keep, and the posting service.
 	Publishing publishing.Config
+	// The squad that flags the swastikas players paint on the map.
+	VandalSquad vandalsquad.Config
 }
 
 func main() {
@@ -101,6 +104,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		alerts.NewModule(config.Alerts),
 		promo.NewModule(config.Promo),
 		publishing.NewModule(config.Publishing),
+		vandalsquad.NewModule(config.VandalSquad),
 		mcp.NewModule(config.MCP),
 	}
 }
@@ -132,6 +136,7 @@ func (c Config) Validate() error {
 		c.Alerts.Validate(),
 		c.Promo.Validate(),
 		c.Publishing.Validate(),
+		c.VandalSquad.Validate(),
 		c.MCP.Validate(),
 	)
 }

@@ -5,10 +5,153 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { Allegiance, BonusKind, ChargesHeld, GlobePoint } from "./planet_pb.js";
 import { MapHistory } from "./history_pb.js";
 import { LedgerTotals } from "./totals_pb.js";
-import { Allegiance, BonusKind, ChargesHeld } from "./planet_pb.js";
 import { Rules } from "./rules_pb.js";
+
+/**
+ * @generated from message planet.v1.GetTilesRequest
+ */
+export class GetTilesRequest extends Message<GetTilesRequest> {
+  /**
+   * @generated from field: repeated uint32 tile_ids = 1;
+   */
+  tileIds: number[] = [];
+
+  constructor(data?: PartialMessage<GetTilesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTilesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTilesRequest {
+    return new GetTilesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTilesRequest {
+    return new GetTilesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTilesRequest {
+    return new GetTilesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTilesRequest | PlainMessage<GetTilesRequest> | undefined, b: GetTilesRequest | PlainMessage<GetTilesRequest> | undefined): boolean {
+    return proto3.util.equals(GetTilesRequest, a, b);
+  }
+}
+
+/**
+ * One per tile asked, in the order asked.
+ *
+ * @generated from message planet.v1.GetTilesResponse
+ */
+export class GetTilesResponse extends Message<GetTilesResponse> {
+  /**
+   * @generated from field: repeated planet.v1.MapTile tiles = 1;
+   */
+  tiles: MapTile[] = [];
+
+  constructor(data?: PartialMessage<GetTilesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetTilesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tiles", kind: "message", T: MapTile, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTilesResponse {
+    return new GetTilesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetTilesResponse {
+    return new GetTilesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetTilesResponse {
+    return new GetTilesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetTilesResponse | PlainMessage<GetTilesResponse> | undefined, b: GetTilesResponse | PlainMessage<GetTilesResponse> | undefined): boolean {
+    return proto3.util.equals(GetTilesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.MapTile
+ */
+export class MapTile extends Message<MapTile> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * Empty for a tile nobody owns.
+   *
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * Empty when no player's take holds the tile: a bomb's clear, a revert or another operator's write.
+   *
+   * @generated from field: string holder_account_id = 3;
+   */
+  holderAccountId = "";
+
+  /**
+   * @generated from field: planet.v1.GlobePoint point = 4;
+   */
+  point?: GlobePoint;
+
+  /**
+   * In the order the map keeps them; none for a one-tile island.
+   *
+   * @generated from field: repeated uint32 neighbours = 5;
+   */
+  neighbours: number[] = [];
+
+  constructor(data?: PartialMessage<MapTile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MapTile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "holder_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "point", kind: "message", T: GlobePoint },
+    { no: 5, name: "neighbours", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MapTile {
+    return new MapTile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MapTile {
+    return new MapTile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MapTile {
+    return new MapTile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MapTile | PlainMessage<MapTile> | undefined, b: MapTile | PlainMessage<MapTile> | undefined): boolean {
+    return proto3.util.equals(MapTile, a, b);
+  }
+}
 
 /**
  * @generated from message planet.v1.GetMapHistoryRequest
