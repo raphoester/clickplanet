@@ -238,7 +238,6 @@ player anything.
 - **Migration `20261106130000_players` filled both once from `player.profiles` and `player.departures`**, when they
   exist: the only time scoring reads player's tables. A new group reads its stream from the start, so a
   `PlayerCreated` or a decision still in the stream is heard again, which changes nothing.
-  `TestThePlayersAndTheDeparturesStartFromPlayers` pins it.
 
 ## Kept
 
@@ -260,7 +259,6 @@ its own, not a nullable column: an open book or round has none, and a missed one
   day in progress stayed open: the gamemaster's `OpenRound` for it changes nothing, and its `CloseRound` scores it.
 - `rule_sets`, `rule_set_choice` and `own_rounds` were dropped. Pending outbox rows of the old kinds were deleted, and
   the enum's values renamed. The unmerged migration `20261028120000_seasons` was deleted: it never shipped.
-- `migrations_test.go` seeds the old schema and checks the ids, the results, the contributions and the open day.
 
 ## The reads
 

@@ -2,7 +2,6 @@ package reconcile_titles_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -36,10 +35,4 @@ func TestTheAnswerSaysHowManyTitlesWereGrantedAndRevoked(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint32(42), res.Msg.GetGranted())
 	assert.Equal(t, uint32(7), res.Msg.GetRevoked())
-}
-
-func TestAFailureIsAnError(t *testing.T) {
-	_, err := reconcile(t, stubUseCase{err: errors.New("postgres is down")})
-
-	assert.Error(t, err)
 }

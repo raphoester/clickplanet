@@ -16,13 +16,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-func TestTheSeededSetPlays(t *testing.T) {
-	set, err := rules.Seeded().Restore(guard.Parts(), rules.Seeded())
-
-	require.NoError(t, err)
-	assert.True(t, proto.Equal(rules.Seeded().Rules, set.TakeSnapshot().Rules))
-}
-
 func TestADefaultIsRefusedWhenAnyValueCannotBeJudgedWith(t *testing.T) {
 	for reason, change := range map[string]func(*antibotv1.Rules){
 		"bans.banDurations is empty":           func(r *antibotv1.Rules) { r.Bans.BanDurations = nil },

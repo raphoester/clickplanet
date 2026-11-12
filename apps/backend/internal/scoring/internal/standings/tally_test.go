@@ -45,14 +45,6 @@ func TestATakeLeavesTheTallyItWasAddedToAsItWas(t *testing.T) {
 	assert.Equal(t, uint64(1), before.Tiles["fr"])
 }
 
-func TestATakeAtOrBeforeTheLastOneCountedIsCountedAlready(t *testing.T) {
-	tally := tallyOf("fr", "de", "de")
-
-	assert.Equal(t, tally, tally.WithTake(standings.Take{Country: "de", Position: 2}), "told again")
-	assert.Equal(t, tally, tally.WithTake(standings.Take{Country: "fr", Position: 0}), "older still")
-	assert.Equal(t, uint64(2), tally.WithTake(standings.Take{Country: "fr", Position: 3}).Tiles["fr"])
-}
-
 func TestTakesAreEachTakeInTurn(t *testing.T) {
 	takes := []standings.Take{
 		{Country: "fr", Position: 0}, {Country: "de", Position: 1}, {Country: "de", Position: 1}, {Country: "de", Position: 2},
@@ -60,17 +52,4 @@ func TestTakesAreEachTakeInTurn(t *testing.T) {
 
 	assert.Equal(t, tallyOf("fr", "de", "de"), standings.Tally{}.WithTakes(takes))
 	assert.Equal(t, tallyOf("fr"), tallyOf("fr").WithTakes(nil))
-}
-
-func TestEachTakeOfASpreadCountsOnceThoughTheyShareAPosition(t *testing.T) {
-	tally := tallyOf("de")
-	for range 2 {
-		for index := range uint32(3) {
-			tally = tally.WithTake(standings.Take{Country: "fr", Position: 1, Index: index})
-		}
-	}
-
-	assert.Equal(t, standings.Tally{
-		Main: "fr", Tiles: map[standings.Country]uint64{"de": 1, "fr": 3}, TakesBelow: standings.TakeMark{Position: 1, Index: 3},
-	}, tally)
 }

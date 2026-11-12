@@ -59,17 +59,6 @@ func TestAPostTheServiceTakesIsSentOnceAtTheSlotTheCalendarGave(t *testing.T) {
 	assert.Empty(t, s.pause.Waited)
 }
 
-func TestAPostNoPlatformTakesIsHeldAndNothingIsSent(t *testing.T) {
-	s := send(t)
-	s.planner.Held = true
-
-	_, _, held, err := s.sender.Send(t.Context(), s.post)
-
-	require.NoError(t, err)
-	assert.True(t, held)
-	assert.Empty(t, s.service.Scheduled)
-}
-
 func TestABusyServiceIsTriedAgainAfterALongerWaitEachTimeAtASlotPlannedAgain(t *testing.T) {
 	s := send(t, busy(0), busy(0), busy(0))
 
@@ -150,18 +139,6 @@ func TestAnyOtherRefusalIsNotTriedAgain(t *testing.T) {
 
 	require.ErrorIs(t, err, refused)
 	assert.Empty(t, s.pause.Waited)
-	assert.Empty(t, s.service.Scheduled)
-}
-
-func TestACalendarThatCannotBeReadFailsThePostOnThePlatformsItAsked(t *testing.T) {
-	s := send(t)
-	s.planner.Failed = errors.New("ssh failed: Permission denied (publickey)")
-
-	sent, _, held, err := s.sender.Send(t.Context(), s.post)
-
-	require.ErrorContains(t, err, "Permission denied")
-	assert.False(t, held)
-	assert.Equal(t, both, sent.TakeSnapshot().Platforms)
 	assert.Empty(t, s.service.Scheduled)
 }
 

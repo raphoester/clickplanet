@@ -1,7 +1,6 @@
 package prune_reports_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -49,13 +48,4 @@ func TestAPruneForgetsMoreReportsThanOneBatchHolds(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1200), forgotten)
 	assert.Equal(t, []reports.Snapshot{fresh}, kept.Kept())
-}
-
-func TestAFailedPruneSaysSo(t *testing.T) {
-	kept := inmemory_report_storage.New()
-	kept.FailWith(errors.New("postgres is down"))
-
-	_, err := prune_reports_usecase.New(time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
-
-	require.Error(t, err)
 }

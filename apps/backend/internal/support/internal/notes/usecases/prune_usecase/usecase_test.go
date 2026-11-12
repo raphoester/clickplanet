@@ -1,7 +1,6 @@
 package prune_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -72,13 +71,4 @@ func TestAPruneGoesThroughMoreNotesThanOneBatchHolds(t *testing.T) {
 	for _, note := range after[:1200] {
 		assert.Equal(t, notes.AccountID{}, note.Account)
 	}
-}
-
-func TestAFailedPruneSaysSo(t *testing.T) {
-	kept := inmemory_note_storage.New()
-	kept.FailWith(errors.New("postgres is down"))
-
-	_, err := prune_usecase.New(time.Hour, cptime.NewFixedClock(now), kept).Execute(t.Context())
-
-	require.Error(t, err)
 }

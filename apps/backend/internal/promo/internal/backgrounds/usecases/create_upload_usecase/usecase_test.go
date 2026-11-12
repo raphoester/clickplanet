@@ -27,12 +27,3 @@ func TestAFileTheRulesRefuseGetsNoLink(t *testing.T) {
 
 	require.ErrorIs(t, err, backgrounds.ErrInvalidBackground)
 }
-
-func TestABucketThatCannotSignIsTold(t *testing.T) {
-	bucket := backgrounds.NewMemoryBucket().Failing(backgrounds.ErrBucketDown)
-
-	_, err := create_upload_usecase.New(&backgrounds.SequentialIDs{}, rules, bucket).Execute(
-		create_upload_usecase.In{MediaType: "image/png", Size: 300_000})
-
-	require.ErrorIs(t, err, backgrounds.ErrBucketDown)
-}

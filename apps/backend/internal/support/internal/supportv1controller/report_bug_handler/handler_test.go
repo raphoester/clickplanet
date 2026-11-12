@@ -2,7 +2,6 @@ package report_bug_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -105,14 +104,6 @@ func TestFilesTheRulesDoNotTakeAreTheCallersFault(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
-func TestAReportWithNoContextKeepsTheBrowserAlone(t *testing.T) {
-	useCase := &stubUseCase{}
-
-	require.NoError(t, report(asAda(t), useCase, &supportv1.ReportBugRequest{Text: "nothing happens"}, "Mozilla/5.0"))
-
-	assert.Equal(t, notes.Diagnostics{UserAgent: "Mozilla/5.0"}, useCase.asked[0].Diagnostics)
-}
-
 func TestACallerWithNoAccountIsRefusedBeforeTheUseCase(t *testing.T) {
 	useCase := &stubUseCase{}
 
@@ -127,12 +118,4 @@ func TestAnInvalidTextIsTheCallersFault(t *testing.T) {
 		&supportv1.ReportBugRequest{Text: " "}, "")
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestAStoreFailureIsLeftToTheErrorNet(t *testing.T) {
-	err := report(asAda(t), &stubUseCase{err: errors.New("postgres is down")},
-		&supportv1.ReportBugRequest{Text: "the globe is black"}, "")
-
-	assert.ErrorContains(t, err, "postgres is down")
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

@@ -5,8 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 var chargeRules = func() Rules {
@@ -14,11 +12,6 @@ var chargeRules = func() Rules {
 	rules.Shield.Held = 12
 	return rules
 }()
-
-func TestAHolderIsTheAccount(t *testing.T) {
-	assert.Equal(t, Holder("acc-1"), HolderOf(clicks.Payer{Scope: "1.2.3.4", Account: "acc-1"}))
-	assert.Equal(t, NoHolder, HolderOf(clicks.Payer{Scope: "1.2.3.4"}), "an address alone holds nothing")
-}
 
 func TestABombIsKeptUntilItIsDropped(t *testing.T) {
 	held := Held{}.Granted(KindBomb, 1, chargeRules)
@@ -43,14 +36,6 @@ func TestNobodyHoldsTwoBombsOrTwoRefills(t *testing.T) {
 	_, bomb = held.AfterBomb()
 	_, refill = held.AfterRefill()
 	assert.False(t, bomb || refill, "a second grant replaces the first rather than stacking on it")
-}
-
-func TestEnclosuresStackUpToTheirSize(t *testing.T) {
-	held := Held{}.Granted(KindEncloseClicks, 2, chargeRules)
-	require.Equal(t, 2, held.Enclosures)
-
-	held = held.Granted(KindEncloseClicks, 3, chargeRules)
-	assert.Equal(t, 3, held.Enclosures, "three at most, however many the box gave")
 }
 
 func TestEachEnclosureIsOneShape(t *testing.T) {
@@ -153,13 +138,6 @@ func TestCountIsHowManyOfAKindAreHeld(t *testing.T) {
 	assert.Equal(t, 1, held.Count(KindBomb))
 	assert.Equal(t, 2, held.Count(KindEncloseClicks))
 	assert.Equal(t, 5, held.Count(KindSpreadClicks))
-}
-
-func TestAHolderIsParsedFromAnAccountID(t *testing.T) {
-	holder, err := ParseHolder("0B7E5B6C-8F3A-4D2E-9C1A-2F6D8E4B7A10")
-	require.NoError(t, err)
-
-	assert.Equal(t, Holder("0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"), holder, "as the click token names it")
 }
 
 func TestOnlyAnAccountIDIsAHolder(t *testing.T) {

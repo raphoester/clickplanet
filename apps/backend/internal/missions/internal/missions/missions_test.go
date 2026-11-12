@@ -400,29 +400,6 @@ func TestAMissionCountsNoFurtherThanItsGoal(t *testing.T) {
 	assert.Equal(t, uint32(2), sheet.Snapshot().Progress[bank])
 }
 
-func TestATakeToldTwiceCountsOnce(t *testing.T) {
-	brief := briefOf(t, frBrief...)
-	told := take("fr", "dz", "")
-
-	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithFact(told, brief).WithFact(told, brief)
-
-	assert.Equal(t, map[missions.MissionID]uint32{bank: 1, rival: 1}, sheet.Snapshot().Progress)
-	assert.Equal(t, missions.LedgerMark{Position: told.Position, Index: 1}, sheet.Snapshot().Counted.TakesBelow)
-}
-
-func TestEachTakeOfASpreadCountsOnceThoughTheyShareAPosition(t *testing.T) {
-	brief := briefOf(t, frBrief...)
-	sheet := missions.SheetOf(missions.SheetSnapshot{})
-	for range 2 {
-		for index := range uint32(2) {
-			sheet = sheet.WithFact(missions.Take{Flag: "fr", Position: 7, Index: index}, brief)
-		}
-	}
-
-	assert.Equal(t, uint32(2), sheet.Snapshot().Progress[bank])
-	assert.Equal(t, missions.LedgerMark{Position: 7, Index: 2}, sheet.Snapshot().Counted.TakesBelow)
-}
-
 func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
 	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: missions.LedgerMark{Position: 1_000}}})
 

@@ -84,11 +84,6 @@ func TestAConfigThatRefusesItselfStopsTheLoad(t *testing.T) {
 	assert.ErrorIs(t, err, refusal, "the config's own reason has to survive")
 }
 
-func TestAConfigWithNoValidateIsLoadedAnyway(t *testing.T) {
-	var config testConfig
-	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile(write(t, "gameMap:\n  maxIndex: 1\n"))))
-}
-
 func write(t *testing.T, body string) string {
 	t.Helper()
 

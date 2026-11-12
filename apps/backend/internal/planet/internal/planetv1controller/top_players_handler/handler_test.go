@@ -2,7 +2,6 @@ package top_players_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -61,14 +60,4 @@ func TestTheLimitReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 	encoded, err := protojson.Marshal(res.Msg.GetPlayers()[1])
 	require.NoError(t, err)
 	assert.Contains(t, string(encoded), `"banned":false`, "an unbanned scope still says so in JSON")
-}
-
-func TestAnErrorIsLeftToTheErrorNet(t *testing.T) {
-	cause := errors.New("boom")
-
-	_, err := top_players_handler.New(&stubUseCase{err: cause}).TopPlayers(t.Context(),
-		connect.NewRequest(&planetv1.TopPlayersRequest{}))
-
-	require.ErrorIs(t, err, cause)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

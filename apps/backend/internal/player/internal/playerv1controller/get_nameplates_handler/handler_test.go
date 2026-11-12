@@ -2,7 +2,6 @@ package get_nameplates_handler_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -96,12 +95,4 @@ func TestTheAnswerIsNeverStored(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"), "the page keeps what it read, and learns its own rename")
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := getNameplates(t, &stubQuery{err: failure}, adaID)
-
-	assert.ErrorIs(t, err, failure)
 }

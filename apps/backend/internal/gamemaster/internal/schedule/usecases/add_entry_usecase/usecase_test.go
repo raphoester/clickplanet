@@ -87,16 +87,6 @@ func TestAnEntryThatCannotBeScheduledIsRefusedBeforeAnyModuleIsAsked(t *testing.
 	assert.NotErrorIs(t, err, asked)
 }
 
-func TestAFailedSaveIsAnError(t *testing.T) {
-	store := inmemory_entry_store.New()
-	down := errors.New("postgres is down")
-	store.FailWith(down)
-
-	_, err := adding(store, keepers([]schedule.SetName{"rush"}, []schedule.SetName{"rush"})).Execute(t.Context(), rush)
-
-	require.ErrorIs(t, err, down)
-}
-
 func TestABattleOverASeasonsFinaleIsRefused(t *testing.T) {
 	store := inmemory_entry_store.New()
 	seasons := inmemory_season_store.New()

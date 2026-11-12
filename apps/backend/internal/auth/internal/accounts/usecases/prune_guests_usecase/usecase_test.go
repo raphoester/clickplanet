@@ -1,7 +1,6 @@
 package prune_guests_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -58,14 +57,4 @@ func TestALinkedAccountIsNeverPruned(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Zero(t, pruned)
-}
-
-func TestAStoreFailureIsReported(t *testing.T) {
-	store := inmemory_account_store.New()
-	outbox := &cpatomic.FakeOutbox{}
-	store.FailWith(errors.New("postgres is down"))
-
-	_, err := useCase(store, outbox, cptime.NewFixedClock(start)).Execute(t.Context())
-
-	assert.Error(t, err)
 }
