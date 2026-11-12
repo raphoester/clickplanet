@@ -7,11 +7,11 @@ play it on the world's map too. The page draws the bridges, rings what the playe
 - **Where the page learns it.** `GetChargeRules.reach`, read into `BonusRules.reach` and read again on `rules_changed`.
   `globe.ts` follows it in `onRules` (`followReach`).
 - **What it reads then.** `static/bridges-<hash>.json`, once, the first time the reach plays (`bridges.ts`; URL in
-  `bridgesAsset.ts`). It is a copy of [`/map`](../../../map/README.md#capitals-and-bridges): 582 bridges, each between
+  `bridgesAsset.ts`). It is a copy of [`/map`](../../../map/README.md#capitals-and-bridges): 744 bridges, each between
   two coast tiles. A file written for a map of another size is refused.
-- **The bridges, drawn** (`bridgeArcs.ts`): each a dotted arc from one end to the other, one dot about every 38 km, a
-  round dot of 3.5 CSS pixels at every zoom, pale blue. An arc rises over the sea as far as it is long, up to 0.12 of
-  the globe's radius, so a crossing of an ocean reads as a voyage and one of a strait as a hop. All 582 are drawn while
+- **The bridges, drawn** (`bridgeArcs.ts`): each a dotted arc from one end to the other, one dot about every 38 km and 9 at
+  least, so a bridge over a strait still reads as a line, a round dot of 3.5 CSS pixels at every zoom, pale blue. An arc rises over the sea as far as it is long, up to 0.12 of
+  the globe's radius, so a crossing of an ocean reads as a voyage and one of a strait as a hop. All 744 are drawn while
   the reach plays, the far side hidden by the globe, and none once it stops.
 - **What the player can take** (`domain/front.ts`, a `Front` on an adjacency `acrossBridges`, `domain/bridges.ts`):
   every tile it does not hold that touches its land, the far end of a bridge counted as a tile it touches. It is the

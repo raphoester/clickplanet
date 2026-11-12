@@ -17,6 +17,9 @@ browser says its first page was.
   `crazygames`, anything else is `unknown`, since anybody can type a tag. The CrazyGames page sends `cg` on every
   call, whatever its link said. **Auth knows no flag**: `?f=` is the game's, and the client keeps
   it to itself.
+- **The tag itself is kept too** (`tagOf`), lower case, for every source: a link made for one streamer
+  (`?f=pl&s=2poko2`, since 2026-11-11) is `unknown` and its tag names the stream. Only a short plain word is kept:
+  32 at most, letters, digits, `_` and `-`; anything else is `""`, so a typed tag cannot carry a sentence or a script.
 - **What counts as a recruit**: the first page was a flag's address, `clickplanet.lol/<flag>` or
   `clickplanet.lol/<flag>/<name>`, whose first script opens the game with `?s=rc` (see the frontend's [Pages and
   routes](../../frontend/docs/routes.md)), or an old link with `?s=rc`. Every share a player makes is such an address
@@ -42,12 +45,13 @@ browser says its first page was.
 - **The YouTube link** is `https://clickplanet.lol/?s=yt`: the channel page's link, set by hand in YouTube Studio,
   and the description of every clip the clips job posts (`youtubeSite`, see [The clips job](clips-job.md)).
 - **One table, `auth.arrivals`**: `id`, `account_id` (`NULL` once anonymized), `source` (the enum `arrival_source`:
-  `recruit`, `youtube`, `unknown`, and `crazygames` since `20261031120000_crazygames`), `referrer`, `arrived_at`.
+  `recruit`, `youtube`, `unknown`, and `crazygames` since `20261031120000_crazygames`), `tag` (since
+  `20261111140000_arrival_tag`; `''` on the rows made before it), `referrer`, `arrived_at`.
   Migration `20261030120000_arrivals`. Accounts made before it have no row.
 - **An arrival outlives its account.** It is its own concept with its own store, not a column of `accounts`: auth
   hears its own `auth.v1.AccountDeleted` (consumer group `auth-arrivals-accounts`), and
-  `anonymize_arrivals_usecase` blanks the account (`Arrival.Anonymized`) and keeps the source, the referrer and the
-  time. A deleted account and a guest pruned after 90 days idle go the same way, so a day's count never shrinks.
+  `anonymize_arrivals_usecase` blanks the account (`Arrival.Anonymized`) and keeps the source, the tag, the referrer
+  and the time. A deleted account and a guest pruned after 90 days idle go the same way, so a day's count never shrinks.
 - **A recruitment outlives both accounts.** The recruit's account goes with its arrival's: the recruitment names it
   only through the arrival, which names nobody once anonymized. The recruiter's goes on its own group,
   `auth-recruitments-accounts`: `anonymize_recruitments_usecase` blanks the recruiter of each recruitment it made
@@ -85,7 +89,9 @@ GROUP BY a.day, a.source
 ORDER BY a.day, a.source;
 ```
 
-Add `r.referrer` to the inner select and to `GROUP BY` to split each source by the host it came from.
+Add `r.referrer` to the inner select and to `GROUP BY` to split each source by the host it came from, or `r.tag` to
+split it by link: one row per streamer's link. The `EXISTS` reads one account's ledger rows through
+`ledger_events_account_kind`, so it stays cheap at 25 new accounts a day.
 
 Who brought the most new accounts in the last 14 days:
 
@@ -98,8 +104,7 @@ GROUP BY p.recruiter_id
 ORDER BY recruits DESC;
 ```
 
-A recruit with no row in `auth.recruitments` came by a flag's address with no name, or by an old link. The `EXISTS` reads one account's
-ledger rows through `ledger_events_account_kind`, so it stays cheap at 25 new accounts a day.
+A recruit with no row in `auth.recruitments` came by a flag's address with no name, or by an old link.
 
 No backoffice screen reads it yet. When one does, it gets the raw arrivals and counts them itself (see
 [Reads are queries](queries.md)).

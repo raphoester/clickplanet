@@ -29,18 +29,40 @@ func TestTheTagSaysWhereTheAccountCameFrom(t *testing.T) {
 	for name, tc := range map[string]struct {
 		tag    string
 		source arrivals.Source
+		kept   string
 	}{
-		"a player's link":     {tag: "rc", source: arrivals.SourceRecruit},
-		"the YouTube link":    {tag: " YT ", source: arrivals.SourceYouTube},
-		"the CrazyGames page": {tag: "cg", source: arrivals.SourceCrazyGames},
-		"no tag":              {tag: "", source: arrivals.SourceUnknown},
-		"a tag nobody posted": {tag: "tiktok", source: arrivals.SourceUnknown},
+		"a player's link":     {tag: "rc", source: arrivals.SourceRecruit, kept: "rc"},
+		"the YouTube link":    {tag: " YT ", source: arrivals.SourceYouTube, kept: "yt"},
+		"the CrazyGames page": {tag: "cg", source: arrivals.SourceCrazyGames, kept: "cg"},
+		"no tag":              {tag: "", source: arrivals.SourceUnknown, kept: ""},
+		"a streamer's link":   {tag: "2poko2", source: arrivals.SourceUnknown, kept: "2poko2"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tc.tag}, at)
 
 			require.NoError(t, err)
-			assert.Equal(t, arrivals.Snapshot{ID: id, Account: ada, Source: tc.source, At: at}, arrival.TakeSnapshot())
+			assert.Equal(t, arrivals.Snapshot{ID: id, Account: ada, Source: tc.source, Tag: tc.kept, At: at},
+				arrival.TakeSnapshot())
+		})
+	}
+}
+
+func TestOnlyAShortPlainWordIsKeptOfTheTag(t *testing.T) {
+	for tag, kept := range map[string]string{
+		"MrPeter_PT":            "mrpeter_pt",
+		" pl-stream ":           "pl-stream",
+		"a b":                   "",
+		"<script>":              "",
+		"émile":                 "",
+		strings.Repeat("a", 32): strings.Repeat("a", 32),
+		strings.Repeat("a", 33): "",
+	} {
+		t.Run(tag, func(t *testing.T) {
+			arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tag}, at)
+
+			require.NoError(t, err)
+			assert.Equal(t, kept, arrival.TakeSnapshot().Tag)
+			assert.Equal(t, arrivals.SourceUnknown, arrival.TakeSnapshot().Source)
 		})
 	}
 }
@@ -93,7 +115,7 @@ func TestARecruitKeepsItsRecruiterWithItsArrival(t *testing.T) {
 	require.NoError(t, register.Record(t.Context(), ada, arrivals.Landing{Tag: "rc", Recruiter: bob}, at))
 
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: ada, Source: arrivals.SourceRecruit, At: at,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: ada, Source: arrivals.SourceRecruit, Tag: "rc", At: at,
 	}}, store.Kept())
 	assert.Equal(t, []arrivals.RecruitmentSnapshot{{Arrival: arrivals.ArrivalID{0: 0xa, 15: 1}, Recruiter: bob}}, recruitments.Kept())
 }
