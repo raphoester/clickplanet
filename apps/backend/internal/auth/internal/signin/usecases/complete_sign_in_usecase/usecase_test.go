@@ -479,7 +479,7 @@ func TestAnAccountASignInMakesKeepsWhereTheBrowserCameFrom(t *testing.T) {
 
 	require.Equal(t, accounts.Created, out.Outcome())
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceRecruit, Referrer: "discord.com", At: start,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceRecruit, Tag: "rc", Referrer: "discord.com", At: start,
 	}}, f.arrivals.Kept())
 }
 

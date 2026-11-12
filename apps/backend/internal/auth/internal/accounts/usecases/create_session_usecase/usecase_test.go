@@ -239,7 +239,7 @@ func TestOnlyTheMintThatStartsAGuestKeepsWhereItCameFrom(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: f.accountIn(t, first), Source: arrivals.SourceRecruit, Referrer: "discord.com", At: start,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: f.accountIn(t, first), Source: arrivals.SourceRecruit, Tag: "rc", Referrer: "discord.com", At: start,
 	}}, f.arrivals.Kept())
 }
 
