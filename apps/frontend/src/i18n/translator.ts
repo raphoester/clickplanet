@@ -1,5 +1,6 @@
 import en from "./locales/en.json"
 import landmassNames from "../../static/landmassNames.json"
+import englishCountries from "./countries/en.json"
 import {Language, SOURCE_LANGUAGE} from "./languages.ts"
 import {formatMessage, MissingValueError, Node, parseMessage, Speech, Value} from "./message.ts"
 import type {Countdown} from "../domain/seasonClock.ts"
@@ -13,13 +14,16 @@ export const ENGLISH: Lines = en
 // Natural Earth's names of the landmasses that are not a country's main one, by id, as `npm run landmassNames` writes them.
 export const ENGLISH_LANDMASSES: Lines = landmassNames.names
 
+// Each flag's country inside a sentence, keyed `in.<code>`: "in {flag} the United States".
+export const ENGLISH_COUNTRIES: Lines = englishCountries
+
 export type Values = Readonly<Record<string, string | number>>
 
 export type RichValues<T> = Readonly<Record<string, Value<T>>>
 
 // The flags ISO has no code for, and the codes CLDR names in a way that reads badly on a board ("Congo - Kinshasa",
-// "Saint-Martin (partie néerlandaise)"): each has its own line, `country.<code>`.
-export const OWN_COUNTRY_NAMES: ReadonlySet<string> = new Set(["xb", "xk", "gb-eng", "gb-sct", "gb-wls", "cd", "cg", "sx"])
+// "Saint-Martin (partie néerlandaise)", "État de la Cité du Vatican"): each has its own line, `country.<code>`.
+export const OWN_COUNTRY_NAMES: ReadonlySet<string> = new Set(["xb", "xk", "gb-eng", "gb-sct", "gb-wls", "cd", "cg", "sx", "va"])
 
 const COUNTDOWN_UNITS = ["day", "hour", "minute", "second"] as const
 
@@ -32,6 +36,7 @@ export class Translator {
     private readonly parsed = new Map<string, Node[]>()
     private readonly formats = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>()
     private readonly countries = new Map<string, string>()
+    private readonly countriesIn = new Map<string, Node[]>()
     private readonly displayNames = new Map<"short" | "long", Intl.DisplayNames>()
     private readonly cardinals: Intl.PluralRules
     private readonly ordinals: Intl.PluralRules
@@ -44,6 +49,7 @@ export class Translator {
         private readonly lines: Lines,
         readonly locale: string = language,
         private readonly landmasses: Lines = ENGLISH_LANDMASSES,
+        private readonly countryLines: Lines = ENGLISH_COUNTRIES,
     ) {
         this.cardinals = new Intl.PluralRules(locale)
         this.ordinals = new Intl.PluralRules(locale, {type: "ordinal"})
@@ -128,6 +134,25 @@ export class Translator {
         return names
     }
 
+    // "en {flag} Argentine", "au {flag} Brésil", "w {flag} Argentynie": "in" a country, as the language says it inside
+    // a sentence, with its flag where the flag goes.
+    countryIn<T>(code: string, flag: T): (string | T)[] {
+        return formatMessage(this.countryInNodesOf(code), {flag}, this.speech)
+    }
+
+    countryInText(code: string): string {
+        return this.countryIn(code, "").join("").replace(/\s+/g, " ").trim()
+    }
+
+    private countryInNodesOf(code: string): Node[] {
+        const known = this.countriesIn.get(code)
+        if (known) return known
+        const key = `in.${code}`
+        const nodes = parseMessage(this.countryLines[key] ?? ENGLISH_COUNTRIES[key] ?? `{flag} ${this.country(code)}`)
+        this.countriesIn.set(code, nodes)
+        return nodes
+    }
+
     // A country's main landmass is named after the country.
     landmass(landmass: number, ground: string | undefined): string {
         const id = String(landmass)
@@ -201,4 +226,4 @@ const ABBREVIATED = /^[A-Z]{2,3}$|\./u
 // "Congo - Kinshasa", "Myanmar (Birmanie)": one name that says two.
 const TWO_PLACES = /\(| [-–] /u
 
-export const ENGLISH_TRANSLATOR = new Translator(SOURCE_LANGUAGE, ENGLISH, SOURCE_LANGUAGE, ENGLISH_LANDMASSES)
+export const ENGLISH_TRANSLATOR = new Translator(SOURCE_LANGUAGE, ENGLISH, SOURCE_LANGUAGE, ENGLISH_LANDMASSES, ENGLISH_COUNTRIES)

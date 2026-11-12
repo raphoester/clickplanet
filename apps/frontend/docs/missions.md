@@ -9,8 +9,9 @@ itself, with nothing to press.
 
 - **A place of its own**: the Missions tab (phone) and menu tab (desktop), `app/missions/MissionsPlace.tsx`.
   Each row is its order's own parts (`partsOf`, `app/missions/orderParts.tsx`): one line per kind, with the flag
-  and the name of each country it names in its slots ("Take 40 tiles from 🇫🇷 France", "Drop 2 bombs on…",
-  "Catch 4 boxes"), and a bar
+  and the name of each country it names in its slots ("Take 40 tiles from 🇫🇷 France", "Catch 4 boxes"); a place
+  is "in" the country as the language says it ("Drop 2 bombs in 🇧🇷 Brazil", "au 🇧🇷 Brésil", see
+  [Translation](i18n.md#a-country-inside-a-sentence)), and a bar
   with how far it went (`reachedOf`) over its goal, its reward in its bonus color, and
   **Done** once the backend says so (`done`: the client does not decide it). A guest sees
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its

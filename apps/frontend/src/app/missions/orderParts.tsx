@@ -1,4 +1,4 @@
-import {ReactNode} from "react"
+import {Fragment, ReactNode} from "react"
 import {FlagMissionOrder, MissionOrder} from "../../backends/missions.ts"
 import {reachedOf} from "../../domain/missions.ts"
 import {t, translator} from "../../i18n/page.ts"
@@ -27,14 +27,14 @@ const ORDER_LINES: Record<Order["kind"], Key> = {
 }
 
 export function partsOf(order: Order): OrderParts {
-    return {line: rich(ORDER_LINES[order.kind], slotsOf(order, countryOf)), progress: progressOf(order)}
+    return {line: rich(ORDER_LINES[order.kind], slotsOf(order, countryOf, countryInOf)), progress: progressOf(order)}
 }
 
 export function orderText(order: Order): string {
-    return t(ORDER_LINES[order.kind], slotsOf(order, (code) => translator().country(code)))
+    return t(ORDER_LINES[order.kind], slotsOf(order, (code) => translator().country(code), (code) => translator().countryInText(code)))
 }
 
-function slotsOf<T>(order: Order, country: (code: string) => T): Record<string, T | number> {
+function slotsOf<T>(order: Order, country: (code: string) => T, countryIn: (code: string) => T): Record<string, T | number> {
     switch (order.kind) {
         case "takeFor":
         case "takeFrom":
@@ -42,9 +42,9 @@ function slotsOf<T>(order: Order, country: (code: string) => T): Record<string, 
             return {goal: order.goal, flag: country(order.country)}
         case "takeIn":
         case "bombIn":
-            return {goal: order.goal, place: country(order.country)}
+            return {goal: order.goal, where: countryIn(order.country)}
         case "takeFromIn":
-            return {goal: order.goal, flag: country(order.country), place: country(order.ground)}
+            return {goal: order.goal, flag: country(order.country), where: countryIn(order.ground)}
         case "shieldTiles":
             return {goal: order.goal, shields: order.shields}
         case "catchBoxes":
@@ -56,6 +56,11 @@ function slotsOf<T>(order: Order, country: (code: string) => T): Record<string, 
 
 export function countryOf(code: string): ReactNode {
     return <><CountryFlag code={code}/> {translator().country(code)}</>
+}
+
+// "en 🇦🇷 Argentine": "in" the country, as the page's language says it.
+export function countryInOf(code: string): ReactNode {
+    return translator().countryIn<ReactNode>(code, <CountryFlag code={code}/>).map((part, i) => <Fragment key={i}>{part}</Fragment>)
 }
 
 function progressOf(order: Order): ReactNode {

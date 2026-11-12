@@ -19,7 +19,7 @@
     align-items: center;
     gap: var(--space-1);
     flex-shrink: 0;
-    width: 76px;
+    min-width: 76px;
     box-sizing: border-box;
     max-height: var(--menu-room);
     padding: var(--space-2);
@@ -44,9 +44,9 @@
     align-items: center;
     justify-content: center;
     gap: 3px;
-    width: 58px;
+    min-width: 58px;
     min-height: 56px;
-    padding: var(--space-1) 0;
+    padding: var(--space-1) 2px;
     border: none;
     border-radius: var(--radius-m);
     background: none;
@@ -218,10 +218,12 @@
     padding: 0;
 }
 
+/* "Tu joues pour" goes above the name when both do not fit beside the button. */
 .menu-playing--slim .menu-playing-what {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: var(--space-2);
+    gap: 0 var(--space-2);
 }
 
 .menu-playing--slim .menu-label {

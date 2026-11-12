@@ -76,7 +76,7 @@ describe("MissionsPlace", () => {
         )))
 
         expect(screen.getByText(/Take 60 tiles from/).textContent).toMatch(/Algeria in .*Brazil/)
-        expect(screen.getByText(/Drop 2 bombs on/).textContent).toContain("Brazil")
+        expect(screen.getByText(/Drop 2 bombs in/).textContent).toContain("Brazil")
         expect(screen.getByText("Catch 4 boxes")).toBeDefined()
         expect(screen.getByText("3/4")).toBeDefined()
     })

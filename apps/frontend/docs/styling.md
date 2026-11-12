@@ -58,6 +58,24 @@ distance. Its scrollbar sits in that padding, so the text has as much room on
 the right as on the left. The panel is 376px wide: a 328px column of text. A `Modal` given no `onClose` has no ×,
 and Escape and the backdrop leave it open: the warning before an alt ban is one.
 
+## Words in nine languages
+
+**A box that holds a word is as wide as the word**, never a fixed width: the page speaks nine languages, and
+German, Polish and Brazilian Portuguese run up to 30% longer than English ("Classement", "Compartilhar",
+"Doładowanie"). Found by measuring every panel in every language at 360px, 390px and 1280px wide (Nov 2026).
+
+- **A row of tabs or slots** sizes each to its word and shares the room left: the phone's tab bar (`flex: 1 1
+  auto`), the desktop rail (`min-width`). The dock has a fixed width, so a bonus slot keeps its 72px and only a
+  longer name widens its own slot (the name carries the side padding); making every slot as wide as the widest
+  pushed them over the clicks left.
+- **A chip or a line that must stay one line** is never narrower than its words (`min-width: min-content`, the
+  season chip).
+- **A line that may get long** wraps only when it does not fit (`text-wrap: balance`): a hero line ("Nouveau
+  titre !"), a news line with two long country names, the quiz banner. A label goes above its value when both do
+  not fit beside a button (the phone's "Tu joues pour").
+- **A fixed column** (the board's numbers) keeps its width, and its head is a short word: the head's note in
+  `notes.json` says so to the translator.
+
 ## Debugging mobile layout
 
 **Do not check mobile by resizing the browser window.** macOS enforces a minimum

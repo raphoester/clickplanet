@@ -7,6 +7,8 @@
     display: flex;
     flex-direction: column;
     width: 368px;
+    /* Never narrower than its head: "A temporada acaba em 3 dias 04 h 57 min 29 s" on one line. */
+    min-width: min-content;
     max-width: calc(var(--top-room) - 32px);
     padding: 4px;
     border-radius: var(--radius-l);
@@ -166,8 +168,10 @@
     gap: var(--space-1);
 }
 
+/* A long countdown ("3 dias 04 h 57 min 29 s") goes on a second line between its units. */
 .season-details-countdown .season-chip-left {
     font-size: var(--display-xl);
+    white-space: normal;
 }
 
 .season-details-facts {

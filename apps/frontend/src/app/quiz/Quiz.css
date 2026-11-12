@@ -94,7 +94,7 @@
     font-weight: 500;
     font-size: var(--text-s);
     color: var(--text-soft);
-    white-space: nowrap;
+    text-wrap: balance;
 }
 
 .quiz-banner-go {

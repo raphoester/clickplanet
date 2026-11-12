@@ -29,6 +29,9 @@ func page(t *testing.T, french string) string {
 	write("src/i18n/landmasses/fr.json", `{"264": "Corse"}`)
 	write("src/app/Chat.tsx", `t("chat.send")`)
 	write("static/landmassNames.json", `{"borders": "b.bin", "names": {"264": "Corsica"}}`)
+	write("static/countries/countries.json", `{"ar": "Argentina"}`)
+	write("src/i18n/countries/en.json", `{"in.ar": "in {flag} Argentina"}`)
+	write("src/i18n/countries/fr.json", `{"in.ar": "en {flag} Argentine"}`)
 	for _, layer := range []string{
 		"ne_10m_geography_regions_polys", "ne_10m_geography_regions_points", "ne_10m_admin_0_map_subunits",
 		"ne_50m_admin_0_map_subunits", "ne_10m_admin_1_states_provinces",
@@ -46,7 +49,9 @@ func TestThePlanSaysWhatWouldBeSentAndAsksNothing(t *testing.T) {
 
 	assert.Equal(t, "lines fr: 1 to send, 0 kept, 1 written by hand, 0 no longer in English\n"+
 		"  chat.title: \"Chat\"\n"+
-		"landmasses fr: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n", out.String())
+		"landmasses fr: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n"+
+		"countries en: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n"+
+		"countries fr: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n", out.String())
 }
 
 func TestLinesToSendNeedAKey(t *testing.T) {
@@ -70,5 +75,8 @@ func TestLinesWrittenByHandAreFingerprintedWithNoKey(t *testing.T) {
 	landmasses, err := os.ReadFile(filepath.Join(dir, "src/i18n/fingerprints/landmasses/fr.json")) //nolint:gosec // the test's own folder.
 	require.NoError(t, err)
 	assert.Contains(t, string(landmasses), `"264"`)
+	countries, err := os.ReadFile(filepath.Join(dir, "src/i18n/fingerprints/countries/en.json")) //nolint:gosec // the test's own folder.
+	require.NoError(t, err)
+	assert.JSONEq(t, fmt.Sprintf(`{"in.ar": %q}`, translation.FingerprintOf("in {flag} Argentina")), string(countries))
 	assert.Contains(t, out.String(), "lines fr: 0 translated, 0 kept, 2 written by hand")
 }

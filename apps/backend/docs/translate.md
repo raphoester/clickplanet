@@ -12,8 +12,9 @@ make translate ARGS="-languages fr,de -model claude-opus-5-5"
 
 ## What it sends
 
-- **Two catalogues**: the page's lines (`src/i18n/locales/en.json` → `locales/<lang>.json`), and the names of the
-  landmasses that are not a country's main one (`static/landmassNames.json` → `landmasses/<lang>.json`).
+- **Three catalogues**: the page's lines (`src/i18n/locales/en.json` → `locales/<lang>.json`), the names of the
+  landmasses that are not a country's main one (`static/landmassNames.json` → `landmasses/<lang>.json`), and "in"
+  each flag's country as a sentence says it (`static/countries/countries.json` → `countries/<lang>.json`, below).
 - **The languages are the files**: each `locales/<lang>.json` beside `en.json`. A new language is an empty `{}` file
   named after its tag, then a run, then the page's `LANGUAGES` (`src/i18n/languages.ts`).
 - **Only a line that is new, or whose English changed, is sent.** Beside each language's file,
@@ -52,11 +53,20 @@ line carries the ones every place of that English name agrees on, as the referen
 instructions tell it to drop the kind of division the English does not name, write a name and not an adjective, use
 Brazil's spelling, and keep a trailing number ("Ionian Islands 2").
 
+## A country inside a sentence
+
+`country_source` makes a line `in.<code>` for each flag of `countries.json`: its English is "in {flag} <name>", its
+context asks for the preposition, the article and the case the language gives that country ("au {flag} Brésil", "w
+{flag} Argentynie", "{flag} Arjantin'de"), and `instructions.md` says the same with examples. **It is the one
+catalogue written in English too** ("in the {flag} United States"), since the English is the flag's name and not a
+phrase: `-languages en` runs it alone. Its fingerprints are in `fingerprints/countries/<lang>.json`. The page's side
+is in [Translation](../../frontend/docs/i18n.md#a-country-inside-a-sentence).
+
 ## Built for what comes next
 
 The quiz (7,196 questions) and the titles are next. The packages take any keyed lines with a context, not the page's
 files: `translation` plans and checks, `claude_translator` asks, `catalogue_files` reads and writes a catalogue. A new
-source is a package beside `page_source` and `landmass_source`, and a catalogue in `page_catalogues` or a job of its
+source is a package beside `page_source`, `landmass_source` and `country_source`, and a catalogue in `page_catalogues` or a job of its
 own.
 
 ## Code
