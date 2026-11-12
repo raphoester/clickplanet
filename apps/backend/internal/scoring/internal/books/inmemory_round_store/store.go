@@ -127,6 +127,20 @@ func (s *Store) ScoredIn(_ context.Context, book books.BookID) ([]books.Scored, 
 	return scored, nil
 }
 
+// Fights is the tiles each country took in the round, as Count counted them.
+func (s *Store) Fights(_ context.Context, id books.RoundID) (map[books.Country]uint32, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	fights := map[books.Country]uint32{}
+	if at, found := s.rounds[id]; found {
+		for country, tiles := range at.countries {
+			fights[country] = uint32(tiles) //nolint:gosec // a country takes a map's tiles at most.
+		}
+	}
+	return fights, nil
+}
+
 func (s *Store) Lock(context.Context, books.RoundID) error {
 	return nil
 }

@@ -66,9 +66,12 @@ func (r Round) ScoredAt(endsAt time.Time, start Start, end Snapshot) Scored {
 	return Scored{Round: r, Results: r.Results(start, end)}
 }
 
+// Snapshot is the map at a round's end: the tiles each country holds, and the tiles each took during the round (Fights),
+// which only a fighting ranking reads.
 type Snapshot struct {
-	Tiles uint32
-	Held  map[Country]uint32
+	Tiles  uint32
+	Held   map[Country]uint32
+	Fights map[Country]uint32
 }
 
 // Start is the tiles each country held when a round opened; an empty one counts from nothing.

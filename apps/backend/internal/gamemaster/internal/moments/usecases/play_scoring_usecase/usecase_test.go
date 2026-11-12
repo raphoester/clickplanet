@@ -191,7 +191,7 @@ func TestTheFinalBattleNightIsCommandedInOrderAndOnce(t *testing.T) {
 	assert.Equal(t, map[time.Time][]moments.Command{
 		finale: {
 			closeDay(24),
-			{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale, Ranking: moments.RankedByGain},
+			{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale, Ranking: moments.RankedByFighters},
 		},
 		seasonZeroEnds: {
 			{Action: moments.CloseRound, Book: book, Round: battle, At: seasonZeroEnds},
@@ -267,7 +267,7 @@ func TestAMovedSeasonEndMovesItsBookItsDaysAndItsFinale(t *testing.T) {
 	require.Len(t, sent, 8, "the days 25 to 31 close")
 	assert.Equal(t, []moments.Command{
 		closeDay(31),
-		{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale.Add(7 * day), Ranking: moments.RankedByGain},
+		{Action: moments.OpenRound, Book: book, Round: battle, Times: 3, At: finale.Add(7 * day), Ranking: moments.RankedByFighters},
 	}, sent[6:])
 
 	h.at(seasonZeroEnds.Add(7 * day))

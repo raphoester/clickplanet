@@ -55,7 +55,7 @@ func TestABattleOpensOnceItIsJudged(t *testing.T) {
 	h.judge(arenaRound, moments.Plain)
 	h.at(arenaStarts.Add(time.Second))
 	assert.Equal(t, []moments.Command{
-		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, Ranking: moments.RankedByGain},
+		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, Ranking: moments.RankedByFighters},
 	}, h.execute())
 }
 
@@ -71,7 +71,7 @@ func TestAnArenaBattleCountsFromNothingOnceItsArenaOpenedAndTheDayAfterItWaitsFo
 	h.arenaOpened()
 	h.at(arenaStarts.Add(5 * time.Second))
 	assert.Equal(t, []moments.Command{
-		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, FromNothing: true, Ranking: moments.RankedByGain},
+		{Action: moments.OpenRound, Book: book, Round: arenaRound, Times: 2, At: arenaStarts, FromNothing: true, Ranking: moments.RankedByFighters},
 	}, h.execute())
 
 	h.at(arenaEnds)

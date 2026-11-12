@@ -45,12 +45,14 @@ type Command struct {
 }
 
 // Ranking is how scoring places an OpenRound's countries: a day on the ground they hold and the ground they gained, so
-// holding ground pays; a battle, which shuffles the cards, on the ground gained alone.
+// holding ground pays; a battle on the ground it holds at its end and the tiles its players took, only the countries
+// that fought placed, so a country that never fought scores nothing.
 type Ranking string
 
 const (
 	RankedByGain        Ranking = "gain"
 	RankedByHeldAndGain Ranking = "held and gain"
+	RankedByFighters    Ranking = "fighters"
 )
 
 // Key is a command's identity: a call is made until scoring answers it, once per process.

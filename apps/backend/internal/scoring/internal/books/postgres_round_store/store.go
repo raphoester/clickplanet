@@ -157,6 +157,31 @@ func (s *Store) StartOf(ctx context.Context, id books.RoundID) (books.Start, err
 	return start, nil
 }
 
+// Fights is the tiles each country's players took in the round, as the takes counted them.
+func (s *Store) Fights(ctx context.Context, id books.RoundID) (map[books.Country]uint32, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT country, tiles FROM round_takes WHERE round_id = $1`, string(id))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the tiles taken in the round: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	fights := map[books.Country]uint32{}
+	for rows.Next() {
+		var (
+			country string
+			tiles   int64
+		)
+		if err := rows.Scan(&country, &tiles); err != nil {
+			return nil, fmt.Errorf("failed to read the tiles a country took in the round: %w", err)
+		}
+		fights[books.Country(country)] = uint32(tiles) //nolint:gosec // a country takes a map's tiles at most.
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the tiles taken in the round: %w", err)
+	}
+	return fights, nil
+}
+
 func applied(result sql.Result, failure string) (bool, error) {
 	affected, err := result.RowsAffected()
 	if err != nil {

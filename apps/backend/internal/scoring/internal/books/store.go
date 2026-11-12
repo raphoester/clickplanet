@@ -26,6 +26,8 @@ type Rounds interface {
 	Open(ctx context.Context, round Round, start Start) (bool, error)
 	// StartOf is what each country held when the round opened: empty for one opened before starts were kept.
 	StartOf(ctx context.Context, id RoundID) (Start, error)
+	// Fights is the tiles each country's players took during the round, none for a country that took none.
+	Fights(ctx context.Context, id RoundID) (map[Country]uint32, error)
 	// Score answers whether this call scored the round: one scored before is left as it is.
 	Score(ctx context.Context, scored Scored) (bool, error)
 	// ScoredIn is every round of the book scored, in the order they ended.

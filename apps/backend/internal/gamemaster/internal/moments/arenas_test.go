@@ -65,7 +65,7 @@ func TestAnArenaBattlesRoundOpensFromNothingOnceItsArenaOpenedAndItsArenaOpensNo
 	judged := []moments.Judgement{{Round: first, Mode: moments.Arena}}
 	scored := moments.Kept{Scored: []moments.RoundID{"season-0/day-23"}}
 	now := firstStarts.Add(5 * time.Second)
-	open := moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, FromNothing: true, Ranking: moments.RankedByGain}
+	open := moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, FromNothing: true, Ranking: moments.RankedByFighters}
 
 	waiting := backToBack(moments.NewKnown(scored, moments.ArenasKept{Judged: judged}))
 	opened := backToBack(moments.NewKnown(scored, moments.ArenasKept{Judged: judged, Opened: []moments.RoundID{first}}))
@@ -132,7 +132,7 @@ func TestAPlanThatKnowsNoArenaOpensEveryRoundOnTime(t *testing.T) {
 	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, firstStarts, secondStarts))
 
 	assert.Contains(t, plan.DueAt(firstStarts),
-		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, Ranking: moments.RankedByGain})
+		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, Ranking: moments.RankedByFighters})
 }
 
 func TestAPlanJudgedOpensTheBattleAsAPlanReadAfterTheJudgementWasKept(t *testing.T) {

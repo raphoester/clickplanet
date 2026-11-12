@@ -16,6 +16,7 @@ type Territory interface {
 type Rounds interface {
 	Find(ctx context.Context, id books.RoundID) (books.Round, bool, error)
 	StartOf(ctx context.Context, id books.RoundID) (books.Start, error)
+	Fights(ctx context.Context, id books.RoundID) (map[books.Country]uint32, error)
 	Score(ctx context.Context, scored books.Scored) (bool, error)
 	Lock(ctx context.Context, id books.RoundID) error
 	Missed(ctx context.Context, id books.RoundID) (books.MissedRound, bool, error)
@@ -89,6 +90,9 @@ func (u *UseCase) score(ctx context.Context, round books.Round, endsAt time.Time
 	snapshot, err := u.territory.Snapshot(ctx)
 	if err != nil {
 		return books.Round{}, fmt.Errorf("failed to read the map to score round %s: %w", round.ID, err)
+	}
+	if snapshot.Fights, err = u.rounds.Fights(ctx, round.ID); err != nil {
+		return books.Round{}, fmt.Errorf("failed to read the tiles taken in round %s: %w", round.ID, err)
 	}
 	scored := round.ScoredAt(endsAt, start, snapshot)
 	done, err := u.rounds.Score(ctx, scored)

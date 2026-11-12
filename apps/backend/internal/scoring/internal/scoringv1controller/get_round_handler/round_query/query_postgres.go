@@ -108,7 +108,7 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 		})
 	} else {
 		group.Go(func() (err error) {
-			shown.Standings, err = q.live(ctx, books.Round{ID: id, Times: shown.GetTimes(), Ranking: ranking}, start)
+			shown.Standings, err = q.live(ctx, books.Round{ID: id, Times: shown.GetTimes(), Ranking: ranking}, start, id)
 			return err
 		})
 	}
@@ -118,13 +118,16 @@ func (q *PostgresQuery) Live(ctx context.Context, id books.RoundID) (*scoringv1.
 	return shown, true, nil
 }
 
-func (q *PostgresQuery) live(ctx context.Context, round books.Round, start books.Start) ([]*scoringv1.RoundStanding, error) {
-	held, err := q.territory.Snapshot(ctx)
+func (q *PostgresQuery) live(ctx context.Context, round books.Round, start books.Start, id books.RoundID) ([]*scoringv1.RoundStanding, error) {
+	now, err := q.territory.Snapshot(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read what each country holds now: %w", err)
 	}
+	if now.Fights, err = q.fights(ctx, id); err != nil {
+		return nil, err
+	}
 	standings := []*scoringv1.RoundStanding{}
-	for _, result := range round.Results(start, held) {
+	for _, result := range round.Results(start, now) {
 		standings = append(standings, &scoringv1.RoundStanding{
 			Rank:      result.Rank,
 			CountryId: string(result.Country),
@@ -196,6 +199,19 @@ func (q *PostgresQuery) results(ctx context.Context, id books.RoundID) ([]*scori
 		return nil, fmt.Errorf("failed to read the round's results: %w", err)
 	}
 	return standings, nil
+}
+
+// fights is the tiles each country's players took in the round, for a fighting ranking's standings.
+func (q *PostgresQuery) fights(ctx context.Context, id books.RoundID) (map[books.Country]uint32, error) {
+	takes, err := q.takes(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	fights := make(map[books.Country]uint32, len(takes))
+	for _, taken := range takes {
+		fights[books.Country(taken.GetCountryId())] = uint32(taken.GetTiles()) //nolint:gosec // a country takes a map's tiles at most.
+	}
+	return fights, nil
 }
 
 func (q *PostgresQuery) takes(ctx context.Context, id books.RoundID) ([]*scoringv1.RoundTakes, error) {

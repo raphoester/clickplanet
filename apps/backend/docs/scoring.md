@@ -136,7 +136,14 @@ that waits for the open that holds the round finds it open.
   top 10 places score 25, 18, 15, 12, 10, 8, 6, 4, 2, 1, times the round's `times`. The gamemaster names the ranking
   of each round it opens; the round keeps it (`rounds.ranking`, the enum `round_ranking`), and a ranking is an object
   with its rule (`books.GainRanking`, `books.HeldAndGainRanking`; `RankingNamed` reads one back):
-  - **`GainRanking`, a battle's: the gain's rank alone, and only a gain scores**: a country that kept its ground, or
+  - **`FightersRanking`, a battle's** (2026-11-12): only the countries whose players took a tile in the round are placed
+    (`round_takes`, read as `Rounds.Fights` and kept in `Snapshot.Fights`), eliminated ones included. They are placed by
+    the sum of their ranks on the tiles each holds at the end and on the tiles its players took in the round, the takes'
+    rank breaking a tie, and every one placed scores. A battle counts from nothing, so the ground held is the ground won.
+    Before this, a battle was `GainRanking`, which placed every country holding a tile: a capital that survived untouched
+    scored by its 1-tile hold, and an eliminated country (no tile) scored nothing. The gamemaster ranks every battle this
+    way from 2026-11-12; a round opened before keeps its stored ranking.
+  - **`GainRanking`, the old battle rule: the gain's rank alone, and only a gain scores**: a country that kept its ground, or
     lost some, scores nothing even in the top 10, so a round where nobody gained scores nobody. A battle shuffles the
     cards, so holding ground pays nothing there; a win is worth the same at +100 tiles as at +10,000 (the owner,
     2026-11-06, after Ireland won every day of season 1 by holding the most). Every day from 2026-11-06 to 2026-11-10

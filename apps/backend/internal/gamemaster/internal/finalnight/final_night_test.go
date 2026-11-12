@@ -139,7 +139,7 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 		},
 		finaleStarts: {
 			{Action: moments.CloseRound, Book: book, Round: "season-0/day-24", At: finaleStarts},
-			{Action: moments.OpenRound, Book: book, Round: "season-0/finale", Times: 3, At: finaleStarts, Ranking: moments.RankedByGain},
+			{Action: moments.OpenRound, Book: book, Round: "season-0/finale", Times: 3, At: finaleStarts, Ranking: moments.RankedByFighters},
 		},
 		seasonEnds: {
 			{Action: moments.CloseRound, Book: book, Round: "season-0/finale", At: seasonEnds},
