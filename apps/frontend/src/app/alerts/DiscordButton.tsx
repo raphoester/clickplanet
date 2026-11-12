@@ -2,6 +2,7 @@ import {ReactNode} from "react"
 import {pingFailureOf} from "./alertsMessages.ts"
 import {DiscordOffer} from "./useDiscordAlerts.ts"
 import {usePing} from "./usePing.ts"
+import {t} from "../../i18n/page.ts"
 
 export type DiscordButtonProps = {
     offer?: DiscordOffer
@@ -18,7 +19,7 @@ export default function DiscordButton({offer, className, children}: DiscordButto
               target="_blank"
               rel="noopener noreferrer"
               className={className}
-              aria-label="Open Discord">
+              aria-label={t("discord.open")}>
         {children}
     </a>
 }
@@ -28,7 +29,7 @@ function JoinButton({connect, className, children}: {connect: () => Promise<void
 
     return <button type="button"
                    className={className}
-                   aria-label={ping.failure ? pingFailureOf(ping.failure) : "Join Discord"}
+                   aria-label={ping.failure ? pingFailureOf(ping.failure) : t("discord.join")}
                    aria-busy={ping.busy}
                    disabled={ping.busy}
                    onClick={ping.press}>

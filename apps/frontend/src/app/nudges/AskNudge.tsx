@@ -4,6 +4,7 @@ import {TIKTOK_HANDLE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from "../../links.ts"
 import BuyMeACoffee from "../components/BuyMeACoffee.tsx"
 import {TikTokIcon, YouTubeIcon} from "../components/icons.tsx"
 import Modal from "../components/Modal.tsx"
+import {t} from "../../i18n/page.ts"
 import "./AskNudge.css"
 
 export type AskNudgeProps = {
@@ -15,30 +16,30 @@ export type AskNudgeProps = {
 export default function AskNudge({ask, onOpen, onClose}: AskNudgeProps) {
     switch (ask) {
         case "coffee":
-            return <Modal title="Like ClickPlanet?" footer={<BuyMeACoffee onOpen={onOpen}/>} onClose={onClose}>
+            return <Modal title={t("nudge.coffee.title")} footer={<BuyMeACoffee onOpen={onOpen}/>} onClose={onClose}>
                 <div className="center-align">
-                    <img alt="ClickPlanet logo"
+                    <img alt={t("nudge.coffee.logo")}
                          src="/static/logo.svg"
                          width="64px"
                          height="auto"/>
                 </div>
                 <div className="ask-nudge-text">
-                    <p>It's free and open source.</p>
-                    <p>The servers cost money. Each coffee helps pay for them.</p>
+                    <p>{t("nudge.coffee.free")}</p>
+                    <p>{t("nudge.coffee.servers")}</p>
                 </div>
             </Modal>
         case "tiktok":
-            return <Follow title="ClickPlanet on TikTok"
+            return <Follow title={t("nudge.tiktok.title")}
                            icon={<TikTokIcon size={48}/>}
                            href={TIKTOK_PROFILE}
-                           action={`Follow ${TIKTOK_HANDLE}`}
+                           action={t("nudge.tiktok.follow", {handle: TIKTOK_HANDLE})}
                            onOpen={onOpen}
                            onClose={onClose}/>
         case "youtube":
-            return <Follow title="ClickPlanet on YouTube"
+            return <Follow title={t("nudge.youtube.title")}
                            icon={<YouTubeIcon size={48}/>}
                            href={YOUTUBE_CHANNEL}
-                           action="Subscribe"
+                           action={t("nudge.youtube.subscribe")}
                            onOpen={onOpen}
                            onClose={onClose}/>
     }
@@ -64,8 +65,8 @@ function Follow({title, icon, href, action, onOpen, onClose}: FollowProps) {
     return <Modal title={title} footer={link} onClose={onClose}>
         <div className="center-align ask-nudge-icon">{icon}</div>
         <div className="ask-nudge-text">
-            <p>The biggest wars of the day, in short videos.</p>
-            <p>Your flag could be in the next one.</p>
+            <p>{t("nudge.follow.videos")}</p>
+            <p>{t("nudge.follow.yourFlag")}</p>
         </div>
     </Modal>
 }

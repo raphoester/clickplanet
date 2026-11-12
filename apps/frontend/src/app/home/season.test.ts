@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import home from "../../../index.html?raw"
-import {endsLine} from "../../domain/seasonClock.ts"
+import {dayAndTime} from "../season/dates.ts"
 import {seasonShown} from "./season.ts"
 
 const SECOND = 1000
@@ -46,7 +46,7 @@ describe("the season on the home page", () => {
 
         expect(shown().every((element) => !element.hidden)).toBe(true)
         expect(text("season-number")).toBe("1")
-        expect(text("season-ends")).toBe(endsLine(season))
+        expect(text("season-ends")).toBe(dayAndTime(season.endsAt))
         expect(text("season-left")).toBe("25d 03h 07m 09s")
         expect(countdown()).toEqual(["25", "03", "07", "09"])
 

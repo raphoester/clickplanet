@@ -1,31 +1,30 @@
-import {Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
+import {Fragment, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FlagMissionAnnouncement,
-    FortifyAnnouncement, KnockOutAnnouncement, MuteAnnouncement, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
-import {landmassName} from "../../domain/landmassNames.ts";
-import {Countries} from "../../domain/countries.ts";
+    FortifyAnnouncement, KnockOutAnnouncement, MuteAnnouncement, MuteKind, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import Streak from "../badges/Streak.tsx";
 import WornTitle from "../badges/WornTitle.tsx";
 import {ChevronIcon, ReplyIcon, ReportIcon} from "../components/icons.tsx";
-import {ChatLogEntry, GIF_LINE, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
+import {ChatLogEntry, interleave, newestAt, startsGroup} from "../../domain/chatLog.ts";
 import {fitted} from "../../domain/gifs.ts";
 import {messageParts} from "../../domain/chatLinks.ts";
-import {describeBlast} from "../../domain/blast.ts";
-import {winsLine} from "../../domain/champion.ts";
-import {describeMute} from "../../domain/mute.ts";
-import {medalOf, roundOverLine} from "../../domain/roundReveal.ts";
+import {muteLengthOf, MuteUnit} from "../../domain/mute.ts";
+import {medalOf} from "../../domain/roundReveal.ts";
 import {truncate} from "../truncate.ts";
 import {authorStyle, quoteStyle} from "./authorStyle.ts";
 import {lineOf, nameOf, paintOf} from "../nameplates/nameplate.ts";
 import {useNameplate} from "../nameplates/nameplatesStore.ts";
 import {Nameplate} from "../../backends/nameplates.ts";
-import QuoteLine, {REMOVED_TEXT} from "./QuoteLine.tsx";
+import QuoteLine from "./QuoteLine.tsx";
 import ReactionBar, {AddReactionButton} from "./ReactionBar.tsx";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {usePlayerCard} from "../players/playerCardStore.ts";
 import {useChat} from "./chatStore.ts";
 import {partsOf} from "../missions/orderParts.tsx";
+import {t, translator} from "../../i18n/page.ts";
+import {rich} from "../../i18n/rich.tsx";
+import {Key} from "../../i18n/translator.ts";
 
 export type ChatLogProps = {
     messages: ChatMessage[]
@@ -45,7 +44,24 @@ const AUTHOR_MAX_LENGTH = 16
 
 const GIF_BOX = {width: 200, height: 200}
 
-const clock = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"})
+const CLOCK: Intl.DateTimeFormatOptions = {hour: "2-digit", minute: "2-digit"}
+
+const MUTE_LINES: Record<MuteKind, Record<MuteUnit, Key>> = {
+    chat: {
+        week: "mute.chat.week",
+        day: "mute.chat.day",
+        hour: "mute.chat.hour",
+        minute: "mute.chat.minute",
+        second: "mute.chat.second",
+    },
+    gifs: {
+        week: "mute.gifs.week",
+        day: "mute.gifs.day",
+        hour: "mute.gifs.hour",
+        minute: "mute.gifs.minute",
+        second: "mute.gifs.second",
+    },
+}
 
 const PINNED_SLACK_PX = 40
 
@@ -163,13 +179,13 @@ export default function ChatLog(props: ChatLogProps) {
 
     if (props.loading) {
         return <div className="chat-log chat-log-empty">
-            <p>Loading the chat…</p>
+            <p>{t("chat.loading")}</p>
         </div>
     }
 
     if (props.messages.length === 0 && announcements.length === 0) {
         return <div className="chat-log chat-log-empty">
-            <p>Nobody has said anything yet. Go on.</p>
+            <p>{t("chat.empty")}</p>
         </div>
     }
 
@@ -180,7 +196,7 @@ export default function ChatLog(props: ChatLogProps) {
                     const unseen = unseenAfter != null && atOf(entry) > unseenAfter
                         && (index === 0 || atOf(entries[index - 1]) <= unseenAfter)
                     return <Fragment key={entry.kind === "message" ? entry.message.id : entry.announcement.id}>
-                        {unseen && <li className="chat-unseen" role="separator">Unread</li>}
+                        {unseen && <li className="chat-unseen" role="separator">{t("chat.unread")}</li>}
                         {entry.kind === "announcement"
                             ? <AnnouncementLine announcement={entry.announcement}/>
                             : <MessageLine message={entry.message}
@@ -200,7 +216,7 @@ export default function ChatLog(props: ChatLogProps) {
         </div>
 
         {behind && <button type="button" className="chat-jump" onClick={jumpToLatest}>
-            New messages
+            {t("chat.seeNewMessages")}
             <ChevronIcon size={14}/>
         </button>}
     </div>
@@ -256,7 +272,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
             <Streak accountId={message.authorAccountId}/>
             <time className="chat-message-time"
                   dateTime={new Date(message.sentAt).toISOString()}>
-                {clock.format(message.sentAt)}
+                {clockOf(message.sentAt)}
             </time>
         </div>}
 
@@ -264,12 +280,12 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
 
         <div className="chat-message-line">
             {message.removed
-                ? <p className="chat-message-text chat-removed">{REMOVED_TEXT}</p>
+                ? <p className="chat-message-text chat-removed">{t("chat.removed")}</p>
                 : message.gif
                 ? <img className="chat-message-gif"
                        src={message.gif.url}
                        {...fitted(message.gif, GIF_BOX)}
-                       alt={GIF_LINE}
+                       alt={t("chat.gif")}
                        loading="lazy"
                        decoding="async"/>
                 : <p className="chat-message-text">
@@ -282,19 +298,19 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
                                                  setPicking={pick(message.id)}/>}
             {props.onReply && <button type="button"
                                       className="chat-reply-add"
-                                      aria-label={`Reply to ${name}`}
-                                      title="Reply"
+                                      aria-label={t("chat.replyTo", {player: name})}
+                                      title={t("chat.reply")}
                                       onClick={() => props.onReply?.(message)}>
                 <ReplyIcon/>
             </button>}
             {onReport && (props.reported
-                ? <span className="chat-report-add chat-report-done" role="img" aria-label="Reported" title="Reported">
+                ? <span className="chat-report-add chat-report-done" role="img" aria-label={t("chat.reported")} title={t("chat.reported")}>
                     <ReportIcon/>
                 </span>
                 : <button type="button"
                           className="chat-report-add"
-                          aria-label={`Report this message from ${name}`}
-                          title="Report"
+                          aria-label={t("chat.reportMessageFrom", {player: name})}
+                          title={t("chat.report")}
                           onClick={() => onReport(message)}>
                     <ReportIcon/>
                 </button>)}
@@ -310,7 +326,7 @@ function MessageLine({message, previous, flashing, spotlit, picking, pick, jumpT
 
 function Quote({quote, jumpTo}: {quote: ChatQuote, jumpTo?: (id: string) => void}) {
     const style = quoteStyle(paintOf(useNameplate(quote.authorAccountId)))
-    const line = <QuoteLine quote={quote} lead="In reply to"/>
+    const line = <QuoteLine quote={quote} lead="inReplyTo"/>
 
     return jumpTo
         ? <button type="button"
@@ -346,11 +362,12 @@ function KnockOutLine({announcement}: {announcement: KnockOutAnnouncement}) {
         <span className="chat-announcement-icon" aria-hidden="true">👑</span>
         <CountryFlag code={announcement.by}/>
         <span className="chat-announcement-text">
-            <strong>{countryName(announcement.by)}</strong> knocked out <strong>{countryName(announcement.country)}</strong>
+            {rich("announcement.knockedOut", {
+                winner: <strong>{countryName(announcement.by)}</strong>,
+                loser: <strong>{countryName(announcement.country)}</strong>,
+            })}
         </span>
-        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-            {clock.format(announcement.announcedAt)}
-        </time>
+        <AnnouncedAt at={announcement.announcedAt}/>
     </li>
 }
 
@@ -360,13 +377,18 @@ function FlagMissionLine({announcement}: {announcement: FlagMissionAnnouncement}
         <span className="chat-announcement-icon" aria-hidden="true">🎯</span>
         <CountryFlag code={announcement.country}/>
         <span className="chat-announcement-text">
-            <strong>{countryName(announcement.country)}</strong> completed its flag mission
-            {announcement.order && <>: {partsOf(announcement.order).line}</>}
-            {" "}(+{announcement.points} season {announcement.points === 1 ? "point" : "points"})
+            {announcement.order
+                ? rich("announcement.flagMissionOrder", {
+                    country: <strong>{countryName(announcement.country)}</strong>,
+                    order: partsOf(announcement.order).line,
+                    points: announcement.points,
+                })
+                : rich("announcement.flagMission", {
+                    country: <strong>{countryName(announcement.country)}</strong>,
+                    points: announcement.points,
+                })}
         </span>
-        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-            {clock.format(announcement.announcedAt)}
-        </time>
+        <AnnouncedAt at={announcement.announcedAt}/>
     </li>
 }
 
@@ -375,11 +397,13 @@ function ChampionLine({announcement}: {announcement: ChampionAnnouncement}) {
         <span className="chat-announcement-icon" aria-hidden="true">🏆</span>
         {announcement.countries.map((code) => <CountryFlag key={code} code={code}/>)}
         <strong className="chat-announcement-text">
-            {winsLine({season: announcement.season, countryCodes: announcement.countries})}
+            {t("announcement.champion", {
+                countries: translator().list(announcement.countries.map(countryName)),
+                count: announcement.countries.length,
+                season: announcement.season,
+            })}
         </strong>
-        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-            {clock.format(announcement.announcedAt)}
-        </time>
+        <AnnouncedAt at={announcement.announcedAt}/>
     </li>
 }
 
@@ -388,11 +412,12 @@ function FortifyLine({announcement}: {announcement: FortifyAnnouncement}) {
         <span className="chat-announcement-icon" aria-hidden="true">🛡️</span>
         <CountryFlag code={announcement.country}/>
         <span className="chat-announcement-text">
-            <strong>{countryName(announcement.country)}</strong> fortified {landmassName(announcement.landmass, announcement.ground)}
+            {rich("announcement.fortified", {
+                country: <strong>{countryName(announcement.country)}</strong>,
+                landmass: translator().landmass(announcement.landmass, announcement.ground),
+            })}
         </span>
-        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-            {clock.format(announcement.announcedAt)}
-        </time>
+        <AnnouncedAt at={announcement.announcedAt}/>
     </li>
 }
 
@@ -400,18 +425,16 @@ function RoundLine({announcement}: {announcement: RoundAnnouncement}) {
     return <li className="chat-announcement chat-announcement-round" data-at={announcement.announcedAt}>
         <span className="chat-round-head">
             <span className="chat-announcement-icon" aria-hidden="true">{announcement.own ? "⚔️" : "🏁"}</span>
-            <strong>{roundOverLine(announcement)}</strong>
-            {announcement.own && announcement.times > 1 && <span className="chat-round-times">×{announcement.times}</span>}
-            <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-                {clock.format(announcement.announcedAt)}
-            </time>
+            <strong>{roundOverOf(announcement)}</strong>
+            {announcement.own && announcement.times > 1 && <span className="chat-round-times">×{translator().number(announcement.times)}</span>}
+            <AnnouncedAt at={announcement.announcedAt}/>
         </span>
         {announcement.podium.length > 0 && <ol className="chat-round-podium">
             {announcement.podium.map((place) => <li key={place.country} className="chat-round-place">
                 <span aria-hidden="true">{medalOf(place.rank)}</span>
                 <CountryFlag code={place.country}/>
                 <span className="chat-round-country">{countryName(place.country)}</span>
-                <span className="chat-round-points">+{place.points}</span>
+                <span className="chat-round-points">{translator().number(place.points, {signDisplay: "always"})}</span>
             </li>)}
         </ol>}
     </li>
@@ -419,34 +442,54 @@ function RoundLine({announcement}: {announcement: RoundAnnouncement}) {
 
 function MuteLine({announcement}: {announcement: MuteAnnouncement}) {
     const words = useWordFilter()
+    const length = muteLengthOf(announcement.seconds)
 
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">🔇</span>
         <span className="chat-announcement-text">
-            <strong>{words.masked(announcement.name)}</strong> {describeMute(announcement.seconds, announcement.muteKind)}
+            {rich(MUTE_LINES[announcement.muteKind][length.unit], {
+                player: <strong>{words.masked(announcement.name)}</strong>,
+                count: length.count,
+            })}
         </span>
-        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-            {clock.format(announcement.announcedAt)}
-        </time>
+        <AnnouncedAt at={announcement.announcedAt}/>
     </li>
 }
 
 function BombLine({announcement}: {announcement: BombAnnouncement}) {
-    const bomber = countryName(announcement.country)
-    const ground = announcement.ground === undefined ? undefined : landmassName(announcement.landmass ?? 0, announcement.ground)
-
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">
             {announcement.tile === undefined ? "🌊" : "💥"}
         </span>
         <CountryFlag code={announcement.country}/>
         <span className="chat-announcement-text">
-            <strong>{bomber}</strong> {describeBlast(announcement, ground)}
+            {bombLineOf(announcement, <strong>{countryName(announcement.country)}</strong>)}
         </span>
-        <time className="chat-announcement-time" dateTime={new Date(announcement.announcedAt).toISOString()}>
-            {clock.format(announcement.announcedAt)}
-        </time>
+        <AnnouncedAt at={announcement.announcedAt}/>
     </li>
+}
+
+function bombLineOf(announcement: BombAnnouncement, country: ReactNode): ReactNode {
+    if (announcement.tile === undefined) return rich("announcement.bombedOcean", {country})
+    const landmass = announcement.ground === undefined ? "" : translator().landmass(announcement.landmass ?? 0, announcement.ground)
+    if (landmass) return rich("announcement.bombedLand", {country, landmass})
+    if (announcement.cleared === 0) return rich("announcement.bombedEmptyLand", {country})
+    return rich("announcement.bombedTiles", {country, count: announcement.cleared})
+}
+
+function roundOverOf(round: RoundAnnouncement): string {
+    if (!round.own) return t("announcement.dayOver", {day: round.number})
+    return round.finale ? t("announcement.finalBattleOver") : t("announcement.battleOver")
+}
+
+function AnnouncedAt({at}: {at: number}) {
+    return <time className="chat-announcement-time" dateTime={new Date(at).toISOString()}>
+        {clockOf(at)}
+    </time>
+}
+
+function clockOf(at: number): string {
+    return translator().dateTime(at, CLOCK)
 }
 
 function messageClass(
@@ -491,5 +534,5 @@ function lastShownAt(element: HTMLElement): number | undefined {
 }
 
 function countryName(code: string): string {
-    return Countries.get(code)?.name ?? code
+    return translator().country(code)
 }

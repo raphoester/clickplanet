@@ -1,10 +1,12 @@
 import {FormEvent, ReactNode, useEffect, useId, useRef, useState} from "react"
 import {countRunes} from "../../backends/chat.ts"
 import {AttachmentRulesReader, AttachmentUploader, MAX_NOTE_LENGTH, NO_ATTACHMENTS} from "../../backends/support.ts"
-import {Refusal, refusalLine, withPicked} from "../../domain/attachments.ts"
+import {Refusal, withPicked} from "../../domain/attachments.ts"
+import {t} from "../../i18n/page.ts"
 import Modal from "../components/Modal.tsx"
 import {AttachmentPicker, Going} from "./Attachments.tsx"
 import {SendFailure, sendFailureOf, SEND_FAILURES} from "./sendFailure.ts"
+import {refusalLine} from "./attachmentLines.ts"
 import "./Support.css"
 
 export type NoteFiles = AttachmentRulesReader & AttachmentUploader
@@ -128,9 +130,9 @@ export default function NoteModal(props: NoteModalProps) {
 
     if (state.kind === "sent") {
         return <Modal title={props.title}
-                      footer={<button type="button" className="button support-wide" onClick={props.onClose}>Close</button>}
+                      footer={<button type="button" className="button support-wide" onClick={props.onClose}>{t("common.close")}</button>}
                       onClose={props.onClose}>
-            <p className="support-sent" role="status">Sent. Thank you!</p>
+            <p className="support-sent" role="status">{t("support.sent")}</p>
         </Modal>
     }
 
@@ -140,7 +142,7 @@ export default function NoteModal(props: NoteModalProps) {
                                   form={formId}
                                   className="button button-action support-wide"
                                   disabled={!canSend}>
-                      {state.kind === "uploading" ? `Uploading ${state.going.place + 1} of ${files.length}…` : "Send"}
+                      {state.kind === "uploading" ? t("support.uploadingCount", {place: state.going.place + 1, count: files.length}) : t("common.send")}
                   </button>}
                   onClose={props.onClose}>
         <form id={formId} ref={form} className="support-form" onSubmit={submit} aria-busy={busy}>
@@ -176,9 +178,9 @@ export default function NoteModal(props: NoteModalProps) {
                                                        }}/>}
             {refusal && <p className="support-notice" role="alert">{refusalLine(refusal)}</p>}
             {state.kind === "writing" && state.notUploaded &&
-                <p className="support-notice" role="alert">{state.notUploaded} could not be uploaded. Try again.</p>}
+                <p className="support-notice" role="alert">{t("support.notUploaded", {file: state.notUploaded})}</p>}
             {state.kind === "writing" && state.failure &&
-                <p className="support-notice" role="alert">{SEND_FAILURES[state.failure]}</p>}
+                <p className="support-notice" role="alert">{t(SEND_FAILURES[state.failure])}</p>}
         </form>
     </Modal>
 }

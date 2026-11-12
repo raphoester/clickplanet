@@ -118,8 +118,8 @@ the pick. See the backend's [Support](../../backend/docs/support.md) for where t
   bucket refuses the file. It is not a Connect call, so it has no token, no
   retry and no `connectionInterceptor`.
 - `domain/attachments.ts` — `withPicked`, what the rules take of the files just
-  picked, and the first refusal as one line (`refusalLine`): too many, too big,
-  not a photo or a video. `sizeLine` writes a size.
+  picked, and the first refusal. `app/support/attachmentLines.ts` words it as one line (`refusalLine`): too many,
+  too big, not a photo or a video; `sizeLine` writes a size.
 - `app/support/Attachments.tsx` — `AttachmentPicker` (the button, a hidden file
   input with the server's types as `accept`, the list with a thumbnail, the size
   and a remove button), each with its bar while it goes up and a tick once it

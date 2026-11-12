@@ -1,7 +1,9 @@
 import Modal from "../components/Modal.tsx";
-import {ShareAddress, ShareStats, shareText, statsLine} from "../../domain/shareCard.ts";
+import {ShareAddress, ShareStats} from "../../domain/shareCard.ts";
+import {t} from "../../i18n/page.ts";
 import ShareActions from "./ShareActions.tsx";
 import {Shot} from "./useSharePicture.ts";
+import {pictureAlt, shareText} from "./shareLines.ts";
 import "./SharePreview.css"
 
 export type SharePreviewProps = {
@@ -12,7 +14,7 @@ export type SharePreviewProps = {
 }
 
 export default function SharePreview({shot, stats, address, onClose}: SharePreviewProps) {
-    return <Modal title="Your planet"
+    return <Modal title={t("share.pictureTitle")}
                   className="modal-picture"
                   footer={shot.kind === "ready"
                       ? <ShareActions file={shot.file} text={shareText(stats, address)}/>
@@ -21,11 +23,7 @@ export default function SharePreview({shot, stats, address, onClose}: SharePrevi
         {shot.kind === "ready"
             ? <img className="share-picture"
                    src={shot.url}
-                   alt={`${stats.country.name} on the globe as you have it framed — ${statsLine(stats).toLowerCase()}`}/>
-            : <p className="share-picture-failed">
-                The picture could not be drawn. Reload the page and try again — if it
-                keeps happening, the browser may have dropped the globe’s graphics
-                context.
-            </p>}
+                   alt={pictureAlt(stats)}/>
+            : <p className="share-picture-failed">{t("share.pictureFailed")}</p>}
     </Modal>
 }

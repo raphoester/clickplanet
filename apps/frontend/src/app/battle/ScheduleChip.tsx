@@ -1,5 +1,6 @@
 import {finaleOf, nextBattleOf} from "../../domain/battle.ts"
 import {reigningChampionOf} from "../../domain/champion.ts"
+import {t} from "../../i18n/page.ts"
 import Sheet from "../hud/Sheet.tsx"
 import SeasonChip, {ChampionChip, SeasonDetails} from "../season/SeasonChip.tsx"
 import {useNow} from "../season/useNow.ts"
@@ -24,7 +25,7 @@ export function SeasonSheet({onClose}: {onClose: () => void}) {
     const clocks = useClocks()
 
     if (!season) return null
-    return <Sheet title={`Season ${season.number}`} onClose={onClose}>
+    return <Sheet title={t("season.name", {season: season.number})} onClose={onClose}>
         <SeasonDetails season={season} {...clocks}/>
     </Sheet>
 }
@@ -34,7 +35,7 @@ export function BattleSheet({onClose}: {onClose: () => void}) {
     const season = useSchedule(runningSeason)
 
     if (!battle) return null
-    return <Sheet title="Battle" onClose={onClose}>
+    return <Sheet title={t("battle.name")} onClose={onClose}>
         <BattleDetails battle={battle} season={season}/>
     </Sheet>
 }

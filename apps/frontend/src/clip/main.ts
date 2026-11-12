@@ -526,7 +526,7 @@ async function choose(): Promise<Chosen> {
             bonusListener: backend,
             bomber: backend,
             container: stage,
-            country: Countries.get(story.attacker) ?? {code: story.attacker, name: story.attacker},
+            country: Countries.get(story.attacker) ?? {code: story.attacker},
             mapView: "split",
             rendering: "sharp",
             director: () => camera(played),

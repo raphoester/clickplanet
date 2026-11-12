@@ -6,7 +6,7 @@ export type News =
     | {kind: "bomb", drop: BombDrop, land: string | undefined, id: number}
     | {kind: "fortify", fortified: Fortified, id: number}
     | {kind: "attack", id: number}
-    | {kind: "welcome", line: string, id: number}
+    | {kind: "welcome", recruiter: string, flagName: string, id: number}
 
 type NewsStore = {
     // The last news of each kind, the newest last.
@@ -14,7 +14,7 @@ type NewsStore = {
     tellBomb: (drop: BombDrop, land: string | undefined) => void
     tellFortified: (fortified: Fortified) => void
     tellAttack: () => void
-    tellWelcome: (line: string) => void
+    tellWelcome: (recruiter: string, flagName: string) => void
     dismiss: (news: News) => void
 }
 
@@ -33,7 +33,7 @@ export const useNews = create<NewsStore>()((set) => {
             if (fortified.news) tell({kind: "fortify", fortified, id: ++tellings})
         },
         tellAttack: () => tell({kind: "attack", id: ++tellings}),
-        tellWelcome: (line) => tell({kind: "welcome", line, id: ++tellings}),
+        tellWelcome: (recruiter, flagName) => tell({kind: "welcome", recruiter, flagName, id: ++tellings}),
         dismiss: (news) => set(({told}) => ({told: told.filter((was) => was !== news)})),
     }
 })

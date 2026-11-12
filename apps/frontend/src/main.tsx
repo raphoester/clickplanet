@@ -86,6 +86,8 @@ import {FakeAntibotBackend} from "./backends/fakeAntibotBackend.ts"
 import {ConnectRecentHistory} from "./backends/recentHistory.ts"
 import {FakeRecentHistory} from "./backends/fakeRecentHistory.ts"
 import {FakeShownNames} from "./backends/fakeShownNames.ts"
+import {languageInterceptor} from "./backends/language.ts"
+import {speakChosenLanguage} from "./i18n/start.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -99,6 +101,7 @@ const joinDiscord = discordJoinAsked(page)
 const guided = enterFrontGuide()
 const crazyGames = ON_CRAZYGAMES ? connectCrazyGames() : undefined
 const words: Promise<WordFilter> = ON_CRAZYGAMES ? crazyGamesWords(CRAZYGAMES_WORDS_URL) : Promise.resolve(NO_FILTER)
+const speaking = speakChosenLanguage(crazyGames?.locale())
 const seen = landingOf(page, handedReferrer() ?? document.referrer)
 const recruiterName = recruiterNameOf(page)
 // CrazyGames' frame puts an invite's flag on this address as a plain ?f=, and its SDK reads it after this runs.
@@ -113,7 +116,11 @@ followBrowser(connection, window)
 const config = {
     baseUrl: API_BASE_URL,
     timeoutMs: 10_000,
-    interceptors: [connectionInterceptor(connection), restartInterceptor(new Restarts(() => window.location.reload()))],
+    interceptors: [
+        connectionInterceptor(connection),
+        restartInterceptor(new Restarts(() => window.location.reload())),
+        languageInterceptor(speaking.then((translator) => translator.language)),
+    ],
 }
 
 const holder: Recruiters = import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND
@@ -163,7 +170,7 @@ function followCrazyGames(page: CrazyGamesPage | undefined, account: AccountStor
 }
 
 function start(backends: Backends) {
-    void words.then((filter) => root.render(
+    void Promise.all([words, speaking]).then(([filter]) => root.render(
         <StrictMode>
             <SignInGate callback={callback} account={backends.account}>
                 <App linkedShot={shot}

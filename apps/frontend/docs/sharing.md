@@ -38,7 +38,7 @@ links still open the game on their flag. CrazyGames' Invite is unchanged.
 
 - **A phone gets its share sheet, a desktop a copy** (`linkDeliveryOffered`,
   `deliverLink` in `deliverShare.ts`). The sheet takes the link and the sentence
-  apart (`shareHeadline`), so no target shows the link twice; a copy is the link
+  apart (`shareHeadline`, `app/share/shareLines.ts`), so no target shows the link twice; a copy is the link
   alone. A sheet that fails copies; a sheet the player closed does nothing.
 - **A refused clipboard falls back to copying a selection**
   (`document.execCommand`): an in-app browser, which is where a link from
@@ -51,7 +51,7 @@ links still open the game on their flag. CrazyGames' Invite is unchanged.
   buttons: working, done for 2.5s, failed, and a closed sheet is no outcome.
 - **The button is `RecruitButton.tsx`**, so the frozen dock sends the same address
   (see [A frozen map](backends.md#a-frozen-map)): there it is "Invite" with the
-  flag, and the sentence is `breakHeadline`, the next season on a blank map.
+  flag, and the sentence is `breakHeadline` (`app/share/shareLines.ts`), the next season on a blank map.
 - **On CrazyGames, Invite takes Share's place** (`InviteFriends.tsx`,
   `InviteButton.tsx`): Share's links lead off CrazyGames. See
   [CrazyGames](crazygames.md#multiplayer).

@@ -255,8 +255,7 @@ the log has dropped the message it answers; its author is named by the nameplate
 ## Removed messages
 
 **An operator can remove a message** (the back office, on a report). It keeps its
-place and its author, and reads "This message has been deleted" (`REMOVED_TEXT`
-in `QuoteLine.tsx`), in italics. So does the quote of every reply to it.
+place and its author, and reads "This message has been deleted" (`chat.removed`), in italics. So does the quote of every reply to it.
 
 - **The server never sends the text again**: the history answers `removed` with
   no text and no reactions, on the message and on a quote.
@@ -290,7 +289,7 @@ and leaves what was typed in the box. Escape or the cross closes it.
   with no `VITE_KLIPY_KEY` at build: no button.
 - **In the log a GIF is an image** in the balloon's outline and corners, at its size fitted in 200×200
   (`fitted`, `domain/gifs.ts`), so its line holds its place before it loads. Where only words fit (a quote, the
-  peek, the toast, a report) it reads "GIF" (`wordsOf`, `domain/chatLog.ts`). A removed GIF is a removed message:
+  peek, the toast, a report) it reads "GIF" (`wordsOf`, `app/chat/wordsOf.ts`). A removed GIF is a removed message:
   `withRemoved` drops it from the message and every quote.
 - **In a short panel the grid gives way, never the log**: the log keeps its 120 px and the grid shrinks to one row.
 - In fake mode `FakeGifs` draws coloured SVGs; "nothing" finds nothing and "fail" fails.
@@ -361,15 +360,13 @@ and in that flag's room, and `knock_out`, every flag an arena knocked out
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not
   know, or a payload that is not the kind's, is dropped, so the server can ship
   a new kind first.
-- **The payload is values, the client writes the sentence**: a bomb line is
-  `describeBlast`, the same words as `BombNews`, so the chat and the news line
-  never disagree. Both name the landmass with `landmassName`, as a fortify line
-  does, not the country it belongs to: a bomb on Tasmania says "Tasmania", not
-  "Australia". A bomb told before the payload had a `landmass` names the
-  country. A mute line is the name and `describeMute` of its seconds and its kind
-  (`domain/mute.ts`): "has been muted for one hour", "90 minutes", "2 days", and for a
-  mute of the GIFs (the payload's `kind`, `muteKind` here) "may not post GIFs for one
-  day". A line with no kind, kept before kinds, is the whole chat's.
+- **The payload is values, the client writes the sentence**, one catalogue line per case (see
+  [Translation](i18n.md)), with the names in slots. A bomb line says what `BombNews` says. Both name the landmass with
+  `translator().landmass`, as a fortify line does, not the country it belongs to: a bomb on Tasmania says
+  "Tasmania", not "Australia". A bomb told before the payload had a `landmass` names the country. A mute line is the
+  name and the length of its seconds (`muteLengthOf`, `domain/mute.ts`: the largest whole unit) and its kind: "has
+  been muted for one hour", "90 minutes", "2 days", and for a mute of the GIFs (the payload's `kind`, `muteKind`
+  here) "may not post GIFs for one day". A line with no kind, kept before kinds, is the whole chat's.
 - **Kept apart from the messages** (`useRoomLog`'s `announcements`,
   `addAnnouncements`) and put in one list only to draw (`interleave`, by time).
   So a burst of bombs never pushes a message out of the log, and the sound and
@@ -383,7 +380,7 @@ and in that flag's room, and `knock_out`, every flag an arena knocked out
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.
 - **A round is a gold card** (`RoundLine`, `.chat-announcement-round`): "Day 5
-  is over!" (`roundOverLine`, the words of the reveal), the time, then one place
+  is over!" (the reveal's words, lines of its own), the time, then one place
   per podium country: its medal, its flag, its name and the points it won. **A
   battle's round of its own is told as the battle's, never as a day**: ⚔️ for 🏁,
   "The battle is over!" or "The Final Battle is over!", and its times in a war chip
@@ -394,8 +391,8 @@ and in that flag's room, and `knock_out`, every flag an arena knocked out
   with no country, or with a rank or points under 1, is dropped. Its time is the
   round's end.
 - **A champion is a gold line** (`ChampionLine`, `.chat-announcement-champion`):
-  🏆, the flag of each champion and "Germany wins Season 0" (`winsLine`, the
-  words of the reveal). The payload is `{season, countries}`; a champion with
+  🏆, the flag of each champion and "Germany wins Season 0" (the
+  reveal's words, a line of its own). The payload is `{season, countries}`; a champion with
   no country is dropped. Its time is the season's end. The server keeps one a
   season, so it shows once.
 - **A flag mission is a plain line** (`FlagMissionLine`): 🎯, the flag, "France

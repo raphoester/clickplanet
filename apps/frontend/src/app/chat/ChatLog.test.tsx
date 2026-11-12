@@ -2,7 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {ChatMessage, FlagMissionAnnouncement, KnockOutAnnouncement} from "../../backends/chat.ts"
+import {BombAnnouncement, ChatMessage, FlagMissionAnnouncement, KnockOutAnnouncement} from "../../backends/chat.ts"
 import {quoteOf} from "../../domain/chatLog.ts"
 import ChatLog from "./ChatLog.tsx"
 import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
@@ -45,7 +45,7 @@ describe("ChatLog's flag mission line", () => {
         render(<ChatLog loading={false} messages={[]} announcements={[done]}/>)
 
         const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
-        expect(line.textContent).toBe("France completed its flag mission: Take 3000 tiles in  Brazil (+6 season points)")
+        expect(line.textContent).toMatch(/^France completed its flag mission: Take 3,000 tiles in\s+Brazil \(\+6 season points\)$/)
     })
 
     it("says only that it was done for a kind this build does not know", () => {
@@ -63,6 +63,26 @@ describe("ChatLog's knock-out line", () => {
 
         const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
         expect(line.textContent).toBe("Germany knocked out France")
+    })
+})
+
+describe("ChatLog's bomb line", () => {
+    const bomb: BombAnnouncement = {kind: "bomb", id: "a1", announcedAt: Date.UTC(2026, 10, 11, 20), country: "fr", tile: 42, cleared: 3}
+    const lineOf = (announcement: BombAnnouncement) => {
+        render(<ChatLog loading={false} messages={[]} announcements={[announcement]}/>)
+        return screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false).textContent
+    }
+
+    it("counts the tiles a bomb cleared where no land is named", () => {
+        expect(lineOf(bomb)).toBe("France bombed 3 tiles")
+    })
+
+    it("says one tile alone", () => {
+        expect(lineOf({...bomb, cleared: 1})).toBe("France bombed 1 tile")
+    })
+
+    it("says a bomb that cleared nothing fell on empty land", () => {
+        expect(lineOf({...bomb, cleared: 0})).toBe("France bombed empty land")
     })
 })
 

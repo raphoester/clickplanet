@@ -24,7 +24,7 @@ import {MissionTarget} from '../../domain/missionTargets.ts';
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
     | {state: 'ready'}
-    | {state: 'failed', message: string}
+    | {state: 'failed'}
 
 export type UseGlobeOptions = {
     container: React.RefObject<HTMLElement>
@@ -169,7 +169,7 @@ export function useGlobe(options: UseGlobeOptions) {
         }).catch((error) => {
             if (cancelled) return
             console.error("Failed to initialize the globe", error)
-            setStatus({state: 'failed', message: messageOf(error)})
+            setStatus({state: 'failed'})
         })
 
         return () => {
@@ -256,8 +256,4 @@ export function useGlobe(options: UseGlobeOptions) {
         flyToLastLoss,
         flyToMission,
     }
-}
-
-function messageOf(error: unknown): string {
-    return error instanceof Error ? error.message : String(error)
 }

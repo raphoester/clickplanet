@@ -1,28 +1,18 @@
 import {describe, expect, it} from "vitest"
-import {describeMute, muteLength} from "./mute.ts"
+import {muteLengthOf} from "./mute.ts"
 
-describe("describeMute", () => {
-    it("says one hour for the usual mute", () => {
-        expect(describeMute(3600)).toBe("has been muted for one hour")
-    })
-
-    it("says the GIFs alone for a mute of the GIFs", () => {
-        expect(describeMute(86400, "gifs")).toBe("may not post GIFs for one day")
-    })
-})
-
-describe("muteLength", () => {
+describe("muteLengthOf", () => {
     it.each([
-        [3600, "one hour"],
-        [7200, "2 hours"],
-        [5400, "90 minutes"],
-        [60, "one minute"],
-        [45, "45 seconds"],
-        [86400, "one day"],
-        [3 * 86400, "3 days"],
-        [7 * 86400, "one week"],
-        [90061, "90061 seconds"],
-    ])("reads %i seconds as %s", (seconds, words) => {
-        expect(muteLength(seconds)).toBe(words)
+        [3600, "hour", 1],
+        [7200, "hour", 2],
+        [5400, "minute", 90],
+        [60, "minute", 1],
+        [45, "second", 45],
+        [86400, "day", 1],
+        [3 * 86400, "day", 3],
+        [7 * 86400, "week", 1],
+        [90061, "second", 90061],
+    ])("reads %i seconds as %s × %i", (seconds, unit, count) => {
+        expect(muteLengthOf(seconds)).toEqual({unit, count})
     })
 })

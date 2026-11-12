@@ -255,8 +255,8 @@ selected country's slowdown beside it (`ClickBudget.price`): `useClickBudgetFeed
 puts each reading in the click budget store (`useClickBudget`, see [Stores](stores.md)) and
 calls `priceFor(country)` whenever the selected country changes, and
 `PlanetBackend` keeps the count of every reading but only the price of one for
-that country. The meter only explains the price (`domain/clickPrice.ts`): it
-says nothing at the plain rate unless the country is within 80% of the first step.
+that country. The meter only explains the price (`priceNote` in `domain/clickPrice.ts`, which `ClicksPanel`
+words): it says nothing at the plain rate unless the country is within 80% of the first step.
 
 A server that reports nothing — no throttle, or one too old for the call —
 leaves the counter hidden rather than showing a made-up allowance, so this ships

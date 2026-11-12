@@ -4,7 +4,7 @@ import {GifChoice, GifQuery} from "../../backends/gifs.ts";
 import {quoteOf} from "../../domain/chatLog.ts";
 import {paintOf} from "../nameplates/nameplate.ts";
 import {useNameplate} from "../nameplates/nameplatesStore.ts";
-import {describeEnd} from "../../domain/endTime.ts";
+import {describeEnd} from "../endTime.ts";
 import {CloseIcon} from "../components/icons.tsx";
 import {useEscape} from "../components/useDialog.ts";
 import {quoteStyle} from "./authorStyle.ts";
@@ -12,6 +12,8 @@ import GifPicker, {GifOffer} from "./GifPicker.tsx";
 import QuoteLine from "./QuoteLine.tsx";
 import {ChatSendFailure} from "./useRoomLog.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
+import {t, translator} from "../../i18n/page.ts";
+import {Key} from "../../i18n/translator.ts";
 
 export type ChatComposerProps = {
     username?: string
@@ -27,15 +29,15 @@ export type ChatComposerProps = {
 
 const COUNTER_SHOWS_FROM = MAX_TEXT_LENGTH - 40
 
-const FAILURES: Record<ChatSendFailure, string> = {
-    'rate-limited': "You're sending messages too fast. Give it a few seconds.",
-    'blocked': "This connection is not allowed to post.",
-    'muted': "You are muted.",
-    'gifs-muted': "You may not post GIFs for now.",
-    'rejected': "That message was refused.",
-    'gone': "The message you replied to is gone.",
-    'no-session': "Could not start a session to chat. Try again in a moment.",
-    'failed': "The message could not be sent. Try again.",
+const FAILURES: Record<ChatSendFailure, Key> = {
+    'rate-limited': "chat.failure.rateLimited",
+    'blocked': "chat.failure.blocked",
+    'muted': "chat.failure.muted",
+    'gifs-muted': "chat.failure.gifsMuted",
+    'rejected': "chat.failure.rejected",
+    'gone': "chat.failure.gone",
+    'no-session': "chat.failure.noSession",
+    'failed': "chat.failure.failed",
 }
 
 export default function ChatComposer(props: ChatComposerProps) {
@@ -92,36 +94,38 @@ export default function ChatComposer(props: ChatComposerProps) {
                       rows={1}
                       value={text}
                       autoComplete="off"
-                      aria-label="Message"
-                      placeholder="Say something"
+                      aria-label={t("chat.composer.message")}
+                      placeholder={t("chat.composer.placeholder")}
                       enterKeyHint="send"
                       onKeyDown={sendOnEnter}
                       onChange={e => setText(e.target.value.replace(/[\r\n]+/g, " "))}/>
             {props.gifs && <button type="button"
                                    className="button button-mini button-secondary chat-gif"
-                                   aria-label="GIFs"
+                                   aria-label={t("chat.gifs")}
                                    aria-expanded={picking}
                                    onClick={() => setPicking(open => !open)}>
-                GIF
+                {t("chat.gif")}
             </button>}
             <button type="submit"
                     className="button button-mini button-action chat-send"
                     disabled={length === 0 || length > MAX_TEXT_LENGTH}>
-                Send
+                {t("common.send")}
             </button>
         </div>
 
         <div className="chat-composer-foot">
             {props.username !== undefined
-                ? <span className="menu-label chat-identity" title="Change it in the account menu">
-                    as {words.masked(props.username)}
+                ? <span className="menu-label chat-identity" title={t("chat.composer.renameHint")}>
+                    {t("chat.composer.as", {player: words.masked(props.username)})}
                 </span>
-                : <span className="menu-label chat-identity" title="Sign in to pick a username">
-                    as {props.guestName === undefined ? "a guest" : words.masked(props.guestName)}
+                : <span className="menu-label chat-identity" title={t("chat.composer.pickNameHint")}>
+                    {props.guestName === undefined
+                        ? t("chat.composer.asGuest")
+                        : t("chat.composer.as", {player: words.masked(props.guestName)})}
                 </span>}
             {length >= COUNTER_SHOWS_FROM &&
                 <span className={length > MAX_TEXT_LENGTH ? "menu-label chat-counter-over" : "menu-label"}>
-                    {MAX_TEXT_LENGTH - length}
+                    {translator().number(MAX_TEXT_LENGTH - length)}
                 </span>}
         </div>
 
@@ -135,11 +139,11 @@ function Replying({to, onCancel}: {to: ChatMessage, onCancel: () => void}) {
     const painted = paintOf(useNameplate(quote.authorAccountId))
 
     return <div className="chat-replying" style={quoteStyle(painted)}>
-        <span className="chat-replying-quote"><QuoteLine quote={quote} lead="Replying to"/></span>
+        <span className="chat-replying-quote"><QuoteLine quote={quote} lead="replyingTo"/></span>
         <button type="button"
                 className="chat-replying-cancel"
-                aria-label="Cancel the reply"
-                title="Cancel the reply"
+                aria-label={t("chat.composer.cancelReply")}
+                title={t("chat.composer.cancelReply")}
                 onClick={onCancel}>
             <CloseIcon size={14}/>
         </button>
@@ -147,10 +151,10 @@ function Replying({to, onCancel}: {to: ChatMessage, onCancel: () => void}) {
 }
 
 function noticeOf(failure: ChatSendFailure, mutedUntil: number | undefined): string {
-    if (mutedUntil === undefined) return FAILURES[failure]
+    if (mutedUntil === undefined) return t(FAILURES[failure])
 
-    const until = describeEnd(mutedUntil, Date.now())
-    if (failure === 'muted') return `You are muted until ${until}.`
-    if (failure === 'gifs-muted') return `You may not post GIFs until ${until}.`
-    return FAILURES[failure]
+    const time = describeEnd(mutedUntil, Date.now())
+    if (failure === 'muted') return t("chat.failure.mutedUntil", {time})
+    if (failure === 'gifs-muted') return t("chat.failure.gifsMutedUntil", {time})
+    return t(FAILURES[failure])
 }

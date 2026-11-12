@@ -140,6 +140,7 @@ import {useShownName} from "../video/useShownName.ts";
 import {useVideo} from "../video/videoStore.ts";
 import VideoMaker from "../video/VideoMaker.tsx";
 import {useWelcomeLine} from "../news/useWelcomeLine.ts";
+import {t, translator} from "../../i18n/page.ts";
 import "./PlayScreen.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -350,7 +351,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const onVideoMoment = useCallback(() => {
         if (videoStory) lightVideoDots("moment", dayOf(Date.now()), movedShare(videoStory))
     }, [videoStory, lightVideoDots])
-    useWelcomeLine(backends.shownNames, backends.landings, status.state === 'ready', countryState.name)
+    useWelcomeLine(backends.shownNames, backends.landings, status.state === 'ready', translator().country(countryState.code))
     const dryTaps = useRefusedClicks((refused) => refused.dryTaps)
 
     const spendRefill = () => {
@@ -510,24 +511,24 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         {ready && compact && <>
             {sheet === "board" && <BoardSheet {...board} onClose={closeSheet}/>}
-            {sheet === "missions" && <Sheet title="Missions" onClose={closeSheet}>
+            {sheet === "missions" && <Sheet title={t("play.missions")} onClose={closeSheet}>
                 <MissionsPlace {...missions}/>
             </Sheet>}
             {sheet === "you" && account.kind === 'ready' && <Sheet title={youLabel(linked)} onClose={closeSheet}>
                 <YouPlace {...you}/>
             </Sheet>}
-            {sheet === "share" && <Sheet title="Share" onClose={closeSheet}>
+            {sheet === "share" && <Sheet title={t("common.share")} onClose={closeSheet}>
                 <SharePlace stats={stats} {...share}/>
             </Sheet>}
-            {sheet === "invite" && invite && <Sheet title="Invite" onClose={closeSheet}>
+            {sheet === "invite" && invite && <Sheet title={t("play.invite")} onClose={closeSheet}>
                 <InviteFriends invite={invite}/>
             </Sheet>}
-            {sheet === "settings" && <Sheet title="Settings" onClose={closeSheet}>
+            {sheet === "settings" && <Sheet title={t("play.settings")} onClose={closeSheet}>
                 <SettingsPlace {...settings}/>
             </Sheet>}
             {sheet === "season" && <SeasonSheet onClose={closeSheet}/>}
             {sheet === "battle" && <BattleSheet onClose={closeSheet}/>}
-            {sheet === "clicks" && <Sheet title="Your clicks" onClose={closeSheet}>{clicks}</Sheet>}
+            {sheet === "clicks" && <Sheet title={t("clicks.yours")} onClose={closeSheet}>{clicks}</Sheet>}
 
             <TabBar chat={crazyGames.chat}
                     invite={invite !== undefined}
@@ -635,8 +636,8 @@ function StatusCard({status}: {status: GlobeStatus}) {
             {status.state === 'loading'
                 ? <LoadingCard territories={status.territories}/>
                 : status.state === 'failed' && <>
-                    <h3>The globe could not be loaded</h3>
-                    <p>{status.message}</p>
+                    <h3>{t("play.globeFailed")}</h3>
+                    <p>{t("play.globeFailedReload")}</p>
                 </>}
         </div>
     </div>
@@ -646,10 +647,10 @@ function LoadingCard({territories}: {territories: number | undefined}) {
     const percent = Math.round((territories ?? 0) * 100)
     return <>
         <div className="viewer-status-spinner"/>
-        <h3>{territories === undefined ? "Loading the planet…" : "Loading territories…"}</h3>
+        <h3>{territories === undefined ? t("play.loadingPlanet") : t("play.loadingTerritories")}</h3>
         <div className="viewer-status-progress"
              role="progressbar"
-             aria-label="Territories loaded"
+             aria-label={t("play.territoriesLoaded")}
              aria-valuemin={0}
              aria-valuemax={100}
              aria-valuenow={percent}>

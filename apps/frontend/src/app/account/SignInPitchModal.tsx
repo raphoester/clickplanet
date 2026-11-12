@@ -4,6 +4,9 @@ import {MIN_STREAK_SHOWN} from "../../domain/streak.ts"
 import Modal from "../components/Modal.tsx"
 import {AccountState, AccountStore} from "./accountStore.ts"
 import SignInButtons from "./SignInButtons.tsx"
+import {t} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
+import {Key, Values} from "../../i18n/translator.ts"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -17,36 +20,20 @@ export type SignInPitchModalProps = {
 
 export default function SignInPitchModal({state, store, multiplier, onClose}: SignInPitchModalProps) {
     const busy = state.busy !== undefined
-    const times = `${factor(multiplier)}×`
+    const perk = (key: Key, values: Values = {}) =>
+        <li>{rich(key, {...values, strong: (children) => <strong>{children}</strong>})}</li>
 
-    return <Modal title="Sign in and stand out" onClose={onClose}>
+    return <Modal title={t("signIn.pitchTitle")} onClose={onClose}>
         <div className="account-panel sign-in-pitch" aria-busy={busy}>
             <ul className="sign-in-pitch-perks">
-                <li>
-                    <strong>Click {times} faster.</strong> Your clicks refill {times} as fast, in a bank of
-                    your own. Guests on one network share one bank.
-                </li>
-                <li>
-                    <strong>Your name.</strong> Pick a username. The chat and the player list show it in
-                    place of {GUEST_PREFIX}….
-                </li>
-                <li>
-                    <strong>Your team chat.</strong> Talk with the other players of your flag.
-                </li>
-                <li>
-                    <strong>Your color.</strong> Choose the color of your name. Everyone sees it. Guests
-                    are grey.
-                </li>
-                <li>
-                    <strong>Your place on the board.</strong> Players with a name are listed first among
-                    the players online.
-                </li>
-                <li>
-                    <strong>Your streak flame.</strong> Play {MIN_STREAK_SHOWN} days in a row and a flame
-                    shows beside your name. Your stats follow you on every device.
-                </li>
+                {perk("signIn.pitchFaster", {times: factor(multiplier)})}
+                {perk("signIn.pitchName", {guest: GUEST_PREFIX})}
+                {perk("signIn.pitchTeamChat")}
+                {perk("signIn.pitchColor")}
+                {perk("signIn.pitchBoard")}
+                {perk("signIn.pitchStreak", {count: MIN_STREAK_SHOWN})}
             </ul>
-            <p className="account-text sign-in-pitch-small">It is free. You do not need an account to play.</p>
+            <p className="account-text sign-in-pitch-small">{t("signIn.pitchFree")}</p>
 
             <SignInButtons state={state} store={store}/>
         </div>

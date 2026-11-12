@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {BattleToCome, PLAIN_TURN, Turn} from "../backends/turn.ts"
-import {BATTLE_TEASER_EVERY_MS, BATTLE_TEASER_LAST_CALL_MS, battleTeaserDue, battleWhenLine, playingOf, teasedOf, teaserClockLine, teaserKeyOf} from "./battleTeaser.ts"
+import {BATTLE_TEASER_EVERY_MS, BATTLE_TEASER_LAST_CALL_MS, battleDayOf, battleTeaserDue, playingOf, teasedOf, teaserClockOf, teaserKeyOf} from "./battleTeaser.ts"
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -66,17 +66,12 @@ describe("teasedOf", () => {
     })
 })
 
-describe("battleWhenLine", () => {
-    it("says the day and the hours in the player's time", () => {
-        expect(battleWhenLine(battle, now, "Europe/Sofia")).toBe("Today · 22:00 – 23:00")
-        expect(battleWhenLine(battle, now, "UTC")).toBe("Today · 20:00 – 21:00")
-        expect(battleWhenLine(battle, now - 12 * HOUR, "Europe/Sofia")).toBe("Tomorrow · 22:00 – 23:00")
-        expect(battleWhenLine(battle, now - 48 * HOUR, "Europe/Sofia")).toBe("Thu 5 Nov · 22:00 – 23:00")
-    })
-
-    it("counts the day where the player is", () => {
-        expect(battleWhenLine(battle, Date.UTC(2026, 10, 5, 23), "America/Los_Angeles")).toBe("Today · 12:00 – 13:00")
-        expect(battleWhenLine(battle, Date.UTC(2026, 10, 4, 23), "Asia/Tokyo")).toBe("Tomorrow · 05:00 – 06:00")
+describe("battleDayOf", () => {
+    it("is the day it starts on, from now, in the player's time", () => {
+        const evening = {...battle, startsAt: new Date(2026, 10, 5, 22).getTime(), endsAt: new Date(2026, 10, 5, 23).getTime()}
+        expect(battleDayOf(evening, new Date(2026, 10, 5, 10).getTime())).toBe("today")
+        expect(battleDayOf(evening, new Date(2026, 10, 4, 23).getTime())).toBe("tomorrow")
+        expect(battleDayOf(evening, new Date(2026, 10, 3, 22).getTime())).toBe("later")
     })
 })
 
@@ -101,10 +96,10 @@ describe("playingOf", () => {
     })
 })
 
-describe("teaserClockLine", () => {
+describe("teaserClockOf", () => {
     it("counts to the start before the battle, to its end while it plays", () => {
-        expect(teaserClockLine(battle, now)).toBe("Starts in 12h 00m 00s")
-        expect(teaserClockLine(battle, battle.startsAt)).toBe("Ends in 1h 00m 00s")
-        expect(teaserClockLine(battle, battle.startsAt + 18 * MINUTE)).toBe("Ends in 42m 00s")
+        expect(teaserClockOf(battle, now)).toEqual({to: "start", countdown: {days: 0, hours: 12, minutes: 0, seconds: 0}})
+        expect(teaserClockOf(battle, battle.startsAt)).toEqual({to: "end", countdown: {days: 0, hours: 1, minutes: 0, seconds: 0}})
+        expect(teaserClockOf(battle, battle.startsAt + 18 * MINUTE)).toEqual({to: "end", countdown: {days: 0, hours: 0, minutes: 42, seconds: 0}})
     })
 })

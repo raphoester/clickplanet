@@ -2,6 +2,7 @@ import {CSSProperties, useId, useState} from "react"
 import {TitleTrack} from "../../backends/progression.ts"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import {filledOf, leftLabel, stepLabel} from "../titles/titleArt.ts"
+import {t} from "../../i18n/page.ts"
 
 const RANK_MEDAL = 48
 
@@ -12,7 +13,7 @@ export default function ProfileTracks({tracks}: {tracks: TitleTrack[]}) {
     const panelId = `${tabsId}-ranks`
 
     return <div className="profile-tracks">
-        <div className="profile-track-tabs" role="tablist" aria-label="Title tracks" aria-orientation="vertical">
+        <div className="profile-track-tabs" role="tablist" aria-label={t("profile.titleTracks")} aria-orientation="vertical">
             {tracks.map((track) => <TrackTab key={track.id}
                                              track={track}
                                              id={`${tabsId}-${track.id}`}
@@ -48,8 +49,8 @@ function TrackTab({track, id, panelId, selected, onSelect}: TrackTabProps) {
                    onClick={onSelect}>
         <TitleEmblem title={(current ?? track.steps[0]).title} size={44} locked={!current} ribbon={!!current}/>
         <span className="profile-track-what">
-            <span className="menu-label">{track.name} · rank {earned.length} of {track.steps.length}</span>
-            <span className="profile-track-rank">{current?.title.name ?? "No rank yet"}</span>
+            <span className="menu-label">{t("profile.trackRank", {track: track.name, rank: earned.length, ranks: track.steps.length})}</span>
+            <span className="profile-track-rank">{current?.title.name ?? t("profile.noRank")}</span>
             <span className="profile-track-bar" aria-hidden="true">
                 <span className="profile-track-bar-filled" style={{width: `${filled * 100}%`}}/>
             </span>
@@ -67,7 +68,7 @@ function TrackRanks({track, id, tabId}: {track: TitleTrack, id: string, tabId: s
             <span className="profile-track-left">
                 {nextStep
                     ? leftLabel(track.id, Math.max(0, nextStep.threshold - track.progress), nextStep.title.name, track.progress)
-                    : "Every rank earned"}
+                    : t("profile.everyRank")}
             </span>
         </div>
         <div className="profile-ranks-path" style={{"--rank-medal": `${RANK_MEDAL}px`} as CSSProperties}>

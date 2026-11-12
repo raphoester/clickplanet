@@ -1,7 +1,9 @@
 import {useState} from "react"
 import {FeedbackBackend, PageContext} from "../../backends/support.ts"
-import Choices, {Choice} from "../components/Choices.tsx"
+import Choices from "../components/Choices.tsx"
 import NoteModal from "./NoteModal.tsx"
+import {Key} from "../../i18n/translator.ts"
+import {t} from "../../i18n/page.ts"
 
 export type FeedbackModalProps = {
     support: FeedbackBackend
@@ -11,19 +13,19 @@ export type FeedbackModalProps = {
 
 type Kind = "idea" | "bug"
 
-type Writing = {label: string, placeholder: string}
+type Writing = {label: Key, placeholder?: Key}
 
-const KINDS: Choice<Kind>[] = [
-    {value: "idea", label: "An idea"},
-    {value: "bug", label: "A bug"},
+const KINDS: {value: Kind, label: Key}[] = [
+    {value: "idea", label: "feedback.idea"},
+    {value: "bug", label: "feedback.bug"},
 ]
 
 const WRITING: Record<Kind, Writing> = {
-    idea: {label: "Your idea", placeholder: "What should the game have?"},
-    bug: {label: "What happened", placeholder: "What did you do, and what went wrong?"},
+    idea: {label: "feedback.ideaLabel", placeholder: "feedback.ideaPlaceholder"},
+    bug: {label: "feedback.bugLabel", placeholder: "feedback.bugPlaceholder"},
 }
 
-const UNPICKED: Writing = {label: "Your message", placeholder: ""}
+const UNPICKED: Writing = {label: "feedback.messageLabel"}
 
 export default function FeedbackModal({support, pageContext, onClose}: FeedbackModalProps) {
     const [kind, setKind] = useState<Kind>()
@@ -40,10 +42,10 @@ export default function FeedbackModal({support, pageContext, onClose}: FeedbackM
         }
     }
 
-    return <NoteModal title="Send feedback"
-                      label={writing.label}
-                      placeholder={writing.placeholder}
-                      asked={<Choices label="It is" options={KINDS} picked={kind} onPick={setKind}/>}
+    return <NoteModal title={t("feedback.title")}
+                      label={t(writing.label)}
+                      placeholder={writing.placeholder === undefined ? "" : t(writing.placeholder)}
+                      asked={<Choices label={t("feedback.kind")} options={KINDS.map(({value, label}) => ({value, label: t(label)}))} picked={kind} onPick={setKind}/>}
                       ready={kind !== undefined}
                       files={support}
                       onSend={send}

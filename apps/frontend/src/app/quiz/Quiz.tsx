@@ -1,7 +1,10 @@
-import {CSSProperties, useEffect, useRef, useState} from 'react'
-import {BonusReward, describeReward} from '../../domain/bonus.ts'
+import {CSSProperties, ReactNode, useEffect, useRef, useState} from 'react'
+import {BonusReward} from '../../domain/bonus.ts'
 import {QuizOutcome, QuizQuestion, secondsLeft, timeLeft, untilNextSecond} from '../../domain/quiz.ts'
 import {now as budgetNow} from '../../backends/clickBudget.ts'
+import {t, translator} from '../../i18n/page.ts'
+import {rich} from '../../i18n/rich.tsx'
+import {describeReward} from '../bonus/describeReward.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import {CloseIcon, PlayIcon} from '../components/icons.tsx'
 import {useQuiz} from './quizStore.ts'
@@ -50,13 +53,13 @@ function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
             className="quiz-banner panel"
             onClick={onOpen}
             disabled={working}
-            aria-label="Answer a question for a bonus"
+            aria-label={t("quiz.banner.label")}
         >
             <span className="quiz-banner-shine" aria-hidden="true"/>
             <PrizeReel/>
             <span className="quiz-banner-words">
-                <strong className="quiz-banner-title">Quiz!</strong>
-                <span className="quiz-banner-detail">Answer right, win a bonus</span>
+                <strong className="quiz-banner-title">{t("quiz.banner.title")}</strong>
+                <span className="quiz-banner-detail">{t("quiz.banner.detail")}</span>
             </span>
             <span className="quiz-banner-go" aria-hidden="true"><PlayIcon size={16}/></span>
             <Sparkle place={1}/>
@@ -95,14 +98,14 @@ function Question({question, onAnswer}: {question: QuizQuestion, onAnswer: (choi
     if (picked !== undefined) card.push("quiz-card--picked")
     else if (seconds <= HURRY_S) card.push("quiz-card--hurry")
 
-    return <div className="quiz quiz--asking" role="dialog" aria-label="Quiz">
+    return <div className="quiz quiz--asking" role="dialog" aria-label={t("quiz.label")}>
         <div className={card.join(" ")}>
             <div className="quiz-head">
                 <PrizeReel/>
                 <div className="quiz-clock" aria-hidden="true">
                     <div className="quiz-clock-bar" style={clock}/>
                 </div>
-                <span key={seconds} className="quiz-seconds" aria-hidden="true">{seconds}</span>
+                <span key={seconds} className="quiz-seconds" aria-hidden="true">{translator().number(seconds)}</span>
             </div>
 
             <p className="quiz-question">{question.text}</p>
@@ -140,13 +143,13 @@ function Result({question, outcome, chosen, onClose}: {
                 {won && <PrizeWon kind={won.kind}/>}
                 <div className="quiz-verdict-words">
                     <p className="quiz-verdict">
-                        {outcome.correct ? "Correct!" : chosen === undefined ? "Out of time" : "Not quite"}
+                        {t(outcome.correct ? "quiz.correct" : chosen === undefined ? "quiz.outOfTime" : "quiz.notQuite")}
                     </p>
                     {won && reward && <p className={`quiz-reward quiz-kind--${won.kind}`}>{reward.title}</p>}
                     {reward?.detail && <p className="quiz-reward-detail">{reward.detail}</p>}
-                    {outcome.correct && !reward && <p className="quiz-reward-detail">Your inventory is already full</p>}
+                    {outcome.correct && !reward && <p className="quiz-reward-detail">{t("quiz.inventoryFull")}</p>}
                 </div>
-                <button type="button" className="icon-button quiz-close" aria-label="Close" onClick={onClose}>
+                <button type="button" className="icon-button quiz-close" aria-label={t("common.close")} onClick={onClose}>
                     <CloseIcon/>
                 </button>
             </div>
@@ -160,14 +163,25 @@ function Result({question, outcome, chosen, onClose}: {
                         <span className="quiz-choice-key" aria-hidden="true">
                             {mark === "right" ? <CheckMark/> : mark === "wrong" ? <CrossMark/> : KEYS[index]}
                         </span>
-                        <span className="quiz-choice-text">{choice}</span>
-                        {mark === "right" && <span className="sr-only">, the answer</span>}
-                        {mark === "wrong" && <span className="sr-only">, your pick</span>}
+                        {choiceLine(mark, choice)}
                     </li>
                 })}
             </ol>
         </div>
     </div>
+}
+
+function choiceLine(mark: "right" | "wrong" | "other", choice: string): ReactNode {
+    const text = <span className="quiz-choice-text">{choice}</span>
+    const hidden = (words: ReactNode[]) => <span className="sr-only">{words}</span>
+    switch (mark) {
+        case "right":
+            return rich("quiz.theAnswer", {choice: text, hidden})
+        case "wrong":
+            return rich("quiz.yourPick", {choice: text, hidden})
+        case "other":
+            return text
+    }
 }
 
 function PrizeReel() {

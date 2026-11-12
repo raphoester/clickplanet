@@ -1,10 +1,12 @@
 import {CSSProperties, useEffect, useState} from "react"
 import {BookStep} from "../../backends/standings.ts"
-import {Countries} from "../../domain/countries.ts"
 import {headsOf, RaceMeasure, raceOf} from "../../domain/seasonStats.ts"
+import {Key} from "../../i18n/translator.ts"
+import {t, translator} from "../../i18n/page.ts"
 import Bubble from "../components/Bubble.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {PlayIcon} from "../components/icons.tsx"
+import {dayAndTime} from "./dates.ts"
 import "./RaceChart.css"
 
 const DURATION_MS = 1000
@@ -13,6 +15,9 @@ const HEIGHT = 280
 const PAD = {left: 8, right: 44, top: 14, bottom: 8}
 // The least room between two flags at the lines' ends, so none hides another.
 const HEAD_GAP = 17
+
+const MEASURES: [RaceMeasure, Key][] = [["points", "race.points"], ["share", "race.mapShare"]]
+const SHARE: Intl.NumberFormatOptions = {style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1}
 
 type Pointed = {countryCode: string, step: number, anchor: HTMLElement}
 
@@ -23,7 +28,7 @@ export default function RaceChart({steps, active}: {steps: BookStep[], active: b
     const [pointed, setPointed] = useState<Pointed>()
     const progress = useProgress(active, `${measure}:${replays}`)
     const {lines, most} = raceOf(steps, measure)
-    if (steps.length === 0) return <p className="season-stats-none">No round scored</p>
+    if (steps.length === 0) return <p className="season-stats-none">{t("race.noRound")}</p>
 
     const at = progress * (steps.length - 1)
     const x = (i: number) => PAD.left + (steps.length > 1 ? i / (steps.length - 1) : 1) * (WIDTH - PAD.left - PAD.right)
@@ -36,16 +41,16 @@ export default function RaceChart({steps, active}: {steps: BookStep[], active: b
 
     return <div className="race">
         <div className="race-bar">
-            <div className="race-switch" role="radiogroup" aria-label="Measure">
-                {([["points", "Points"], ["share", "Map share"]] as const).map(([value, name]) => <button key={value}
-                                                                                                        type="button"
-                                                                                                        role="radio"
-                                                                                                        aria-checked={measure === value}
-                                                                                                        className={measure === value ? "race-choice race-choice--on" : "race-choice"}
-                                                                                                        onClick={() => setMeasure(value)}>{name}</button>)}
+            <div className="race-switch" role="radiogroup" aria-label={t("race.measure")}>
+                {MEASURES.map(([value, name]) => <button key={value}
+                                                         type="button"
+                                                         role="radio"
+                                                         aria-checked={measure === value}
+                                                         className={measure === value ? "race-choice race-choice--on" : "race-choice"}
+                                                         onClick={() => setMeasure(value)}>{t(name)}</button>)}
             </div>
-            <span className="race-day">{whenLine(steps[Math.min(steps.length - 1, Math.round(at))].endedAt)}</span>
-            <button type="button" className="icon-button race-replay" aria-label="Play again" onClick={() => setReplays((n) => n + 1)}>
+            <span className="race-day">{dayAndTime(steps[Math.min(steps.length - 1, Math.round(at))].endedAt)}</span>
+            <button type="button" className="icon-button race-replay" aria-label={t("race.playAgain")} onClick={() => setReplays((n) => n + 1)}>
                 <PlayIcon size={16}/>
             </button>
         </div>
@@ -93,7 +98,7 @@ export default function RaceChart({steps, active}: {steps: BookStep[], active: b
                                             onMouseLeave={() => setFocus(undefined)}>
                 <span className="race-key-rank">{rank + 1}</span>
                 <span className="race-key-flag"><CountryFlag code={line.countryCode}/></span>
-                <span className="race-key-name">{nameOf(line.countryCode)}</span>
+                <span className="race-key-name">{translator().country(line.countryCode)}</span>
                 <span className="race-key-value">{shortValue(line.value, measure)}</span>
             </li>)}
         </ol>
@@ -108,39 +113,42 @@ export default function RaceChart({steps, active}: {steps: BookStep[], active: b
 
 function PointBubble({countryCode, step, measure, value, gain}: {countryCode: string, step: BookStep, measure: RaceMeasure, value: number, gain: number}) {
     return <span className="race-bubble">
-        <span className="race-bubble-who"><CountryFlag code={countryCode}/>{nameOf(countryCode)}</span>
-        <span>{whenLine(step.endedAt)}</span>
-        <span className="race-bubble-value">{valueLine(value, measure)}{measure === "points" && gain > 0 ? ` (+${gain})` : ""}</span>
+        <span className="race-bubble-who"><CountryFlag code={countryCode}/>{translator().country(countryCode)}</span>
+        <span>{dayAndTime(step.endedAt)}</span>
+        <span className="race-bubble-value">{valueLine(value, gain, measure)}</span>
     </span>
 }
 
-function pointLine(code: string, at: number, value: number, gain: number, measure: RaceMeasure): string {
-    return `${nameOf(code)}, ${whenLine(at)}: ${valueLine(value, measure)}${measure === "points" && gain > 0 ? `, +${gain}` : ""}`
+function valueLine(value: number, gain: number, measure: RaceMeasure): string {
+    switch (measure) {
+        case "points":
+            return gain > 0
+                ? t("race.pointsGained", {points: Math.round(value), gain})
+                : t("common.points", {count: Math.round(value)})
+        case "share":
+            return t("race.shareOfMap", {share: translator().number(value, SHARE)})
+    }
 }
 
-function valueLine(value: number, measure: RaceMeasure): string {
-    return measure === "points" ? `${Math.round(value)} points` : `${(value * 100).toFixed(1)}% of the map`
+function pointLine(code: string, at: number, value: number, gain: number, measure: RaceMeasure): string {
+    const country = translator().country(code)
+    const when = dayAndTime(at)
+    switch (measure) {
+        case "points":
+            return gain > 0
+                ? t("race.pointAtPointsGained", {country, when, points: Math.round(value), gain})
+                : t("race.pointAtPoints", {country, when, points: Math.round(value)})
+        case "share":
+            return t("race.pointAtShare", {country, when, share: translator().number(value, SHARE)})
+    }
 }
 
 function shortValue(value: number, measure: RaceMeasure): string {
-    return measure === "points" ? `${Math.round(value)}` : `${(value * 100).toFixed(1)}%`
+    return measure === "points" ? translator().number(Math.round(value)) : translator().number(value, SHARE)
 }
 
 function gainOf(values: number[], step: number): number {
     return step > 0 ? values[step] - values[step - 1] : values[step] ?? 0
-}
-
-function nameOf(code: string): string {
-    return Countries.get(code)?.name ?? code
-}
-
-// "Sat 31 Oct, 23:00", in the player's time.
-function whenLine(at: number): string {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-    }).formatToParts(at)
-    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
-    return `${part("weekday")} ${part("day")} ${part("month")}, ${part("hour")}:${part("minute")}`
 }
 
 // The line from its first round to a fractional one, the last point between two rounds.

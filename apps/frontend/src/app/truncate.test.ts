@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {truncate} from "./truncate.ts"
 import {Countries} from "../domain/countries.ts"
+import {translator} from "../i18n/page.ts"
 
 describe("truncate", () => {
     it("leaves a short string alone", () => {
@@ -30,10 +31,13 @@ describe("truncate", () => {
         expect(result).not.toContain("�")
     })
 
-    it("keeps every real country name intact at the leaderboard's width", () => {
-        const mangled = Array.from(Countries.values())
-            .filter(c => truncate(c.name, 18) !== c.name)
-            .map(c => c.name)
+    it("keeps a real country name whole at the leaderboard's width, or its start and the ellipsis", () => {
+        const mangled = Array.from(Countries.keys())
+            .map(code => translator().country(code))
+            .filter(name => {
+                const cut = truncate(name, 18)
+                return cut !== name && !(cut.endsWith("…") && name.startsWith(cut.slice(0, -1)))
+            })
         expect(mangled).toEqual([])
     })
 })

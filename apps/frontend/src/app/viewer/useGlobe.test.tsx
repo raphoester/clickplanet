@@ -119,7 +119,7 @@ describe("useGlobe", () => {
         createGlobe.mockRejectedValue(new Error("WebGL unavailable"))
 
         renderHook()
-        await waitFor(() => expect(latest.status).toEqual({state: 'failed', message: "WebGL unavailable"}))
+        await waitFor(() => expect(latest.status).toEqual({state: 'failed'}))
     })
 
     it("hands the globe the listener for the clicks the server accepts", async () => {

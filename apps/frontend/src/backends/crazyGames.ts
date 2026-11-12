@@ -11,6 +11,9 @@ export interface CrazyGamesPage {
 
     // The game is playable: the load is over and the gameplay starts. It never pauses.
     started(): void
+
+    // The language CrazyGames shows its site in ("en-US"), when its SDK says.
+    locale(): Promise<string | undefined>
 }
 
 export interface CrazyGamesUser {

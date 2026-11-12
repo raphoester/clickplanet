@@ -1,6 +1,6 @@
 import {NamedSide} from "../domain/clip/cast.ts"
 import {Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
-import {ordinalOf} from "../domain/ordinal.ts"
+import {ordinalOf} from "./ordinal.ts"
 import {regionOf} from "../domain/regions.ts"
 import {callUpWordsOf} from "./callUp.ts"
 import {DISPLAY_FONT_DRAWS, nameOf, said} from "./names.ts"

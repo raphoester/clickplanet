@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {messageOf, retryOf, usernameMessageOf} from "./authMessages.ts"
+import {messageOf, providerList, retryOf, usernameMessageOf} from "./authMessages.ts"
 
 describe("messageOf", () => {
     it("tells the player to wait when the budget is spent", () => {
@@ -16,6 +16,16 @@ describe("messageOf", () => {
     it("names the service that refused", () => {
         expect(messageOf("refused", "discord")).toMatch(/^Discord /)
         expect(messageOf("refused")).toMatch(/^The service /)
+    })
+
+    it("names no service it does not know", () => {
+        expect(messageOf("linkedElsewhere")).toMatch(/^This account is already used /)
+    })
+})
+
+describe("providerList", () => {
+    it("names the brands, and the email as a word", () => {
+        expect(providerList(["google", "email"])).toBe("Google and email")
     })
 })
 

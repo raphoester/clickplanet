@@ -3,12 +3,13 @@ import {ReplayLandmasses} from "../../backends/replayBackend.ts"
 import {HistoryBackend} from "../../backends/historyBackend.ts"
 import {Season} from "../../backends/season.ts"
 import {TurnBackend} from "../../backends/turn.ts"
-import {Countries} from "../../domain/countries.ts"
 import {LeaderboardEntry} from "../../domain/leaderboard.ts"
 import {MapHistory, MapReel} from "../../domain/mapHistory.ts"
 import {createGlobe} from "../viewer/globe.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {PauseIcon, PlayIcon} from "../components/icons.tsx"
+import {t, translator} from "../../i18n/page.ts"
+import {dayAndTime} from "../season/dates.ts"
 import {drawHeat, lookOfThePage} from "./heatmap.ts"
 import "./SeasonMap.css"
 
@@ -62,19 +63,21 @@ export default function SeasonMap({turn, geometry}: SeasonMapProps) {
 
     return <div className="season-map">
         <header className="panel season-map-head">
-            <a className="button button-mini button-secondary" href="/play">Back to the game</a>
+            <a className="button button-mini button-secondary" href="/play">{t("archive.backToGame")}</a>
             {ended && ended.length > 1 && season !== undefined
-                ? <Switch label="Season" value={String(season)} onChange={(value) => setPicked(Number(value))}
-                          choices={ended.map((kept) => [String(kept.number), `Season ${kept.number}`])}/>
-                : <h1 className="season-map-title">{season === undefined ? "Archive" : `Season ${season}`}</h1>}
-            <Switch label="Window" value={part} onChange={setPart} choices={[["season", "Season"], ["finale", "Final Battle"]]}/>
-            <Switch label="View" value={view} onChange={setView} choices={[["replay", "Replay"], ["heat", "Heatmap"]]}/>
+                ? <Switch label={t("archive.seasonPicker")} value={String(season)} onChange={(value) => setPicked(Number(value))}
+                          choices={ended.map((kept) => [String(kept.number), t("season.name", {season: kept.number})])}/>
+                : <h1 className="season-map-title">{season === undefined ? t("archive.title") : t("season.name", {season})}</h1>}
+            <Switch label={t("archive.window")} value={part} onChange={setPart}
+                    choices={[["season", t("archive.wholeSeason")], ["finale", t("finale.name")]]}/>
+            <Switch label={t("archive.view")} value={view} onChange={setView}
+                    choices={[["replay", t("archive.replay")], ["heat", t("archive.heatmap")]]}/>
         </header>
 
         <div className="season-map-stage">
-            {ended?.length === 0 && <p className="season-map-note">No season has ended yet</p>}
-            {loading && <p className="season-map-note">Rebuilding the map…</p>}
-            {season !== undefined && !loading && !history && <p className="season-map-note">No replay for this season</p>}
+            {ended?.length === 0 && <p className="season-map-note">{t("archive.noSeasonEnded")}</p>}
+            {loading && <p className="season-map-note">{t("archive.rebuilding")}</p>}
+            {season !== undefined && !loading && !history && <p className="season-map-note">{t("archive.noReplay")}</p>}
             {reel && geometryRead && view === "replay" && <Replay key={key} reel={reel} landmasses={geometryRead.landmasses}/>}
             {history && geometryRead && view === "heat" && <Heat key={key} positions={geometryRead.positions} hits={history.hits}/>}
         </div>
@@ -131,7 +134,7 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
             ownershipsGetter: shown,
             updatesListener: shown,
             container,
-            country: {code: "", name: ""},
+            country: {code: ""},
             mapView: "split",
             rendering: "sharp",
             onLeaderboardChange: (entries) => setLeaders(entries.slice(0, 5)),
@@ -168,18 +171,18 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
 
     return <>
         <div ref={stage} className="season-map-globe"/>
-        <ol className="panel season-map-leaders" aria-label="Most tiles held">
+        <ol className="panel season-map-leaders" aria-label={t("archive.mostTiles")}>
             {leaders.map((entry, i) => <li key={entry.country.code} className="season-map-leader">
                 <span className="season-map-rank">{i + 1}</span>
                 <CountryFlag code={entry.country.code}/>
-                <span className="season-map-leader-name">{Countries.get(entry.country.code)?.name ?? entry.country.code}</span>
-                <span className="season-map-leader-tiles">{entry.tiles.toLocaleString("en-US")}</span>
+                <span className="season-map-leader-name">{translator().country(entry.country.code)}</span>
+                <span className="season-map-leader-tiles">{translator().number(entry.tiles)}</span>
             </li>)}
         </ol>
         <footer className="panel season-map-controls">
             <button type="button"
                     className="icon-button"
-                    aria-label={playing ? "Pause" : "Play"}
+                    aria-label={t(playing ? "archive.pause" : "archive.play")}
                     onClick={() => {
                         if (!playing && frame >= last) setFrame(0)
                         setPlaying(!playing)
@@ -191,12 +194,12 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
                    min={0}
                    max={last}
                    value={frame}
-                   aria-label="Time"
+                   aria-label={t("archive.time")}
                    onChange={(e) => {
                        setPlaying(false)
                        setFrame(Number(e.target.value))
                    }}/>
-            <span className="season-map-time">{timeLine(reel.atOf(frame))}</span>
+            <span className="season-map-time">{dayAndTime(reel.atOf(frame))}</span>
         </footer>
     </>
 }
@@ -241,7 +244,7 @@ function Heat({positions, hits}: {positions: Float32Array, hits: ReadonlyMap<num
     const drag = useDrag(scroller)
 
     return <div ref={scroller} className="season-map-heat" onScroll={wrap} {...drag}
-                role="img" aria-label="Where the tiles were fought over">
+                role="img" aria-label={t("archive.heat")}>
         {copies.map((copy, i) => <canvas key={i} ref={copy} width={HEAT_WIDTH} height={HEAT_HEIGHT}/>)}
     </div>
 }
@@ -260,13 +263,4 @@ function useDrag(scroller: React.RefObject<HTMLDivElement>) {
             from.current = undefined
         },
     }
-}
-
-// "Sat 31 Oct · 21:34", in the player's time.
-function timeLine(at: number): string {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-    }).formatToParts(at)
-    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
-    return `${part("weekday")} ${part("day")} ${part("month")} · ${part("hour")}:${part("minute")}`
 }

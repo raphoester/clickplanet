@@ -10,7 +10,6 @@ import {ChevronIcon} from "../components/icons.tsx"
 import {authorStyle} from "../chat/authorStyle.ts"
 import {REACTION_IMAGES} from "../chat/reactionsAsset.ts"
 import {useWordFilter} from "../crazygames/wordFilter.ts"
-import {days} from "../days.ts"
 import {FrontList} from "../players/PlayerFronts.tsx"
 import {usePlayerInfo} from "../players/usePlayerInfo.ts"
 import {useOwnStreak} from "../badges/badgesStore.ts"
@@ -26,6 +25,7 @@ import ProfileAccount from "./ProfileAccount.tsx"
 import ProfileTracks from "./ProfileTracks.tsx"
 import {useFronts, useTitles} from "./useProgress.ts"
 import DeleteAccountModal from "./DeleteAccountModal.tsx"
+import {t, translator} from "../../i18n/page.ts"
 import "./ProfileModal.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -33,8 +33,7 @@ type Ready = Extract<AccountState, {kind: "ready"}>
 const FIRE = REACTION_IMAGES.get(Reaction.FIRE)?.url
 const FRONTS_SHOWN = 3
 
-const day = new Intl.DateTimeFormat(undefined, {dateStyle: "medium"})
-const count = new Intl.NumberFormat()
+const DAY: Intl.DateTimeFormatOptions = {dateStyle: "medium"}
 
 export type ProfileModalProps = YouPlaceProps & {
     country?: Country
@@ -107,7 +106,7 @@ function Profile({account, store, country, stats, listenForClicks, aside}: Profi
             <div className="profile-hero-who">
                 {dashboard?.worn && <WornTitle title={dashboard.worn}/>}
                 {country && <span className="profile-hero-country">
-                    <CountryFlag code={country.code}/>Plays for {country.name}
+                    <CountryFlag code={country.code}/>{t("profile.playsFor", {country: translator().country(country.code)})}
                 </span>}
             </div>
             {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
@@ -115,13 +114,13 @@ function Profile({account, store, country, stats, listenForClicks, aside}: Profi
 
         <div className="profile-columns">
             <div className="profile-main">
-                {titles.kind === "loading" && <p className="account-text" role="status">Loading…</p>}
-                {titles.kind === "failed" && <p className="account-failure" role="alert">Your titles could not be loaded.</p>}
+                {titles.kind === "loading" && <p className="account-text" role="status">{t("common.loading")}</p>}
+                {titles.kind === "failed" && <p className="account-failure" role="alert">{t("profile.titlesFailed")}</p>}
                 {dashboard && <Medals worn={dashboard.worn} wearable={dashboard.wearable} store={store} onWorn={reread}/>}
                 {dashboard && dashboard.tracks.length > 0 && <ProfileTracks tracks={dashboard.tracks}/>}
                 {fronts && (fronts.playsFor.length > 0 || fronts.playsAgainst.length > 0) && <div className="profile-fronts">
-                    <Front title="Fought for" countries={fronts.playsFor}/>
-                    <Front title="Fought against" countries={fronts.playsAgainst}/>
+                    <Front title={t("profile.foughtFor")} countries={fronts.playsFor}/>
+                    <Front title={t("profile.foughtAgainst")} countries={fronts.playsAgainst}/>
                 </div>}
             </div>
             {aside}
@@ -133,7 +132,7 @@ function WornTitle({title}: {title: PlayerTitle}) {
     return <>
         <span className="profile-hero-title">{title.name}</span>
         {title.rank && <span className="profile-hero-rank">
-            {title.rank.trackName}, rank {title.rank.number} of {title.rank.count}
+            {t("profile.wornRank", {track: title.rank.trackName, rank: title.rank.number, ranks: title.rank.count})}
         </span>}
     </>
 }
@@ -146,10 +145,10 @@ function OwnStats({backend, accountId, listenForClicks}: {backend: PlayerInfoBac
 
     const info = state.info
     return <dl className="profile-stats">
-        <Stat label="Tiles taken" value={count.format(info.tilesTaken + takenCount(takes))}/>
-        <Stat label="Streak" value={days(info.streakCurrent)} flame/>
-        <Stat label="Best streak" value={days(info.streakBest)} flame faded/>
-        {info.createdAt !== undefined && <Stat label="Playing since" value={day.format(info.createdAt)}/>}
+        <Stat label={t("profile.tilesTaken")} value={translator().number(info.tilesTaken + takenCount(takes))}/>
+        <Stat label={t("profile.streak")} value={t("common.days", {count: info.streakCurrent})} flame/>
+        <Stat label={t("profile.bestStreak")} value={t("common.days", {count: info.streakBest})} flame faded/>
+        {info.createdAt !== undefined && <Stat label={t("profile.playingSince")} value={translator().dateTime(info.createdAt, DAY)}/>}
     </dl>
 }
 
@@ -181,12 +180,12 @@ function Medals({worn, wearable, store, onWorn}: {worn?: PlayerTitle, wearable: 
 
     return <section className="profile-section" aria-labelledby={titleId}>
         <div className="profile-section-head">
-            <h3 className="profile-section-title" id={titleId}>Titles</h3>
-            {wearable.length > 0 && <span className="menu-label">Press a medal to wear it</span>}
+            <h3 className="profile-section-title" id={titleId}>{t("profile.titles")}</h3>
+            {wearable.length > 0 && <span className="menu-label">{t("profile.pressMedal")}</span>}
         </div>
         {wearable.length === 0
-            ? <p className="account-text">No title yet: the tracks below say how to earn one.</p>
-            : <div className="profile-medals" role="radiogroup" aria-label="Wear a title">
+            ? <p className="account-text">{t("profile.noTitle")}</p>
+            : <div className="profile-medals" role="radiogroup" aria-label={t("profile.wearTitle")}>
                 {wearable.map((title) => {
                     const checked = title.id === worn?.id
                     return <button key={title.id}
@@ -200,7 +199,7 @@ function Medals({worn, wearable, store, onWorn}: {worn?: PlayerTitle, wearable: 
                                    onClick={() => {
                                        if (!checked) wear(title.id)
                                    }}>
-                        {checked && <span className="chip profile-medal-worn" aria-hidden="true">Worn</span>}
+                        {checked && <span className="chip profile-medal-worn" aria-hidden="true">{t("profile.worn")}</span>}
                         <TitleEmblem title={title} size={76} ribbon/>
                         <span className="profile-medal-name">{title.name}</span>
                     </button>
@@ -218,14 +217,14 @@ function Front({title, countries}: {title: string, countries: CountryTiles[]}) {
     return <section className="panel-box profile-front" aria-labelledby={headingId}>
         <div className="profile-section-head">
             <h3 className="profile-front-title" id={headingId}>{title}</h3>
-            <span className="menu-label">{countries.length === 1 ? "1 country" : `${countries.length} countries`}</span>
+            <span className="menu-label">{t("profile.countries", {count: countries.length})}</span>
         </div>
         <FrontList countries={shown}/>
         {countries.length > FRONTS_SHOWN && <button type="button"
                                                     className="account-text-button profile-more"
                                                     aria-expanded={all}
                                                     onClick={() => setAll((was) => !was)}>
-            {all ? "Show fewer" : `See all ${countries.length}`}<ChevronIcon size={14}/>
+            {all ? t("profile.showFewer") : t("profile.seeAll", {count: countries.length})}<ChevronIcon size={14}/>
         </button>}
     </section>
 }

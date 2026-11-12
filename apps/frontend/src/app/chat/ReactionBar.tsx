@@ -5,8 +5,11 @@ import {whoReacted} from "../../domain/reactions.ts";
 import {AddReactionIcon} from "../components/icons.tsx";
 import {truncate} from "../truncate.ts";
 import {REACTION_IMAGES} from "./reactionsAsset.ts";
+import {reactionLabelOf} from "./reactionLabel.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {useNameplates} from "../nameplates/nameplatesStore.ts";
+import {t} from "../../i18n/page.ts";
+import {Key} from "../../i18n/translator.ts";
 
 const OWNER = "data-reactions-for"
 
@@ -59,15 +62,15 @@ export default function ReactionBar({messageId, reactions, onReact, picking, set
                                                 onReact={onReact && (on => react(count.reaction, on))}/>)}
         </div>}
 
-        {open && <div className="panel chat-reaction-picker" role="group" aria-label="Reactions">
+        {open && <div className="panel chat-reaction-picker" role="group" aria-label={t("reaction.picker")}>
             {[...REACTION_IMAGES].map(([reaction, image]) => {
                 const mine = reactions.some(count => count.reaction === reaction && count.mine)
                 return <button type="button"
                                key={reaction}
                                className="chat-reaction-choice"
                                aria-pressed={mine}
-                               aria-label={image.label}
-                               title={image.label}
+                               aria-label={t(reactionLabelOf(reaction))}
+                               title={t(reactionLabelOf(reaction))}
                                onClick={() => react(reaction, !mine)}>
                     <img src={image.url} alt="" width={24} height={24} draggable={false}/>
                 </button>
@@ -120,7 +123,7 @@ function ReactionChip({count, onReact}: ReactionChipProps) {
                 ref={chip}
                 className={count.mine ? "chip chat-reaction chat-reaction-mine" : "chip chat-reaction"}
                 aria-pressed={count.mine}
-                aria-label={`${image.label}: ${count.count}`}
+                aria-label={t("reaction.count", {reaction: t(reactionLabelOf(count.reaction)), count: count.count})}
                 aria-describedby={at ? described : undefined}
                 disabled={!onReact}
                 onPointerEnter={show}
@@ -131,7 +134,7 @@ function ReactionChip({count, onReact}: ReactionChipProps) {
             <img src={image.url} alt="" width={16} height={16} draggable={false}/>
             <span className="chat-reaction-count">{count.count}</span>
         </button>
-        {at && <ReactionWho id={described} at={at} count={count} label={image.label}/>}
+        {at && <ReactionWho id={described} at={at} count={count} label={reactionLabelOf(count.reaction)}/>}
     </>
 }
 
@@ -154,7 +157,7 @@ type ReactionWhoProps = {
     id: string
     at: Anchor
     count: ReactionCount
-    label: string
+    label: Key
 }
 
 function ReactionWho({id, at, count, label}: ReactionWhoProps) {
@@ -169,7 +172,7 @@ function ReactionWho({id, at, count, label}: ReactionWhoProps) {
              role="tooltip"
              className={at.above ? "panel chat-reaction-who chat-reaction-who-above" : "panel chat-reaction-who"}
              style={{left: `${at.left}px`, top: `${at.top}px`, maxWidth: `${WHO_MAX_WIDTH_PX}px`}}>
-            <span className="chat-reaction-who-label">{label}</span>
+            <span className="chat-reaction-who-label">{t(label)}</span>
             <ul className="chat-reaction-who-names">
                 {names.map((name, index) => <li key={`${index}-${name}`}>{truncate(words.masked(name), WHO_MAX_LENGTH)}</li>)}
                 {more > 0 && <li className="chat-reaction-who-more">{restOf(names.length, more)}</li>}
@@ -179,8 +182,7 @@ function ReactionWho({id, at, count, label}: ReactionWhoProps) {
 }
 
 function restOf(named: number, more: number): string {
-    if (named > 0) return `and ${more} more`
-    return more === 1 ? "1 player" : `${more} players`
+    return named > 0 ? t("reaction.andMore", {count: more}) : t("reaction.players", {count: more})
 }
 
 export type AddReactionButtonProps = {
@@ -192,9 +194,9 @@ export type AddReactionButtonProps = {
 export function AddReactionButton({messageId, picking, setPicking}: AddReactionButtonProps) {
     return <button type="button"
                    className={picking ? "chat-reaction-add chat-reaction-add-open" : "chat-reaction-add"}
-                   aria-label="Add a reaction"
+                   aria-label={t("reaction.add")}
                    aria-expanded={picking}
-                   title="Add a reaction"
+                   title={t("reaction.add")}
                    onClick={() => setPicking(!picking)}
                    {...{[OWNER]: messageId}}>
         <AddReactionIcon/>

@@ -12,38 +12,29 @@ export type Countdown = {
     seconds: number
 }
 
+export type CountdownKind = "today" | "battle" | "final" | "season"
+
 export type SeasonCountdown = {
-    label: string
-    tag: string
-    left: string
-    endsSeason?: boolean
+    kind: CountdownKind
+    countdown: Countdown
 }
 
 // The day's end while a day runs, the next battle's start, then the season's end. None once the season ended.
 export function countdownsOf(season: Season, now: number, battle?: BattleToCome, dayEndsAt?: number): SeasonCountdown[] {
     if (now >= season.endsAt) return []
 
-    const ends = {label: "Season ends in", tag: "Season", left: timeLeft(countdownTo(season.endsAt, now))}
-    const battles = battle && battle.startsAt > now
-        ? [battle.endsSeason
-            ? {label: "Final Battle in", tag: "Final", left: timeLeft(countdownTo(battle.startsAt, now)), endsSeason: true}
-            : {label: "Next battle in", tag: "Battle", left: timeLeft(countdownTo(battle.startsAt, now))}]
+    const ends: SeasonCountdown = {kind: "season", countdown: countdownTo(season.endsAt, now)}
+    const battles: SeasonCountdown[] = battle && battle.startsAt > now
+        ? [{kind: battle.endsSeason ? "final" : "battle", countdown: countdownTo(battle.startsAt, now)}]
         : []
     if (dayEndsAt === undefined || dayEndsAt <= now || dayEndsAt >= season.endsAt) return [...battles, ends]
-    return [{label: "Today ends in", tag: "Today", left: timeLeft(countdownTo(dayEndsAt, now))}, ...battles, ends]
-}
-
-export type EndClock = {
-    left: string
-    countdown: Countdown
+    return [{kind: "today", countdown: countdownTo(dayEndsAt, now)}, ...battles, ends]
 }
 
 // The time left in the season. None once it ended.
-export function endClock(season: Season, now: number): EndClock | undefined {
+export function endClock(season: Season, now: number): Countdown | undefined {
     if (now >= season.endsAt) return undefined
-
-    const countdown = countdownTo(season.endsAt, now)
-    return {left: timeLeft(countdown), countdown}
+    return countdownTo(season.endsAt, now)
 }
 
 export function countdownTo(at: number, now: number): Countdown {
@@ -56,53 +47,6 @@ export function countdownTo(at: number, now: number): Countdown {
     }
 }
 
-function timeLeft({days, hours, minutes, seconds}: Countdown): string {
-    const minutesAndSeconds = `${twoDigits(minutes)}m ${twoDigits(seconds)}s`
-    if (days > 0) return `${days}d ${twoDigits(hours)}h ${minutesAndSeconds}`
-    if (hours > 0) return `${hours}h ${minutesAndSeconds}`
-    return minutesAndSeconds
-}
-
-export function timeLeftTo(at: number, now: number): string {
-    return timeLeft(countdownTo(Math.max(at, now), now))
-}
-
-export function shortLeft(left: string): string {
-    return left.split(" ").slice(0, 2).join(" ")
-}
-
-export function twoDigits(n: number): string {
-    return String(n).padStart(2, "0")
-}
-
-// "Sat 31 Oct · 23:00", in the player's time.
-export function endsLine(season: Season, timeZone?: string): string {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-        timeZone,
-    }).formatToParts(season.endsAt)
-    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
-
-    return `${part("weekday")} ${part("day")} ${part("month")} · ${part("hour")}:${part("minute")}`
-}
-
-// "8 Oct – 31 Oct 2026", in the player's time.
-export function spanLine(season: Season, timeZone?: string): string {
-    const start = dateOf(season.startsAt, timeZone)
-    const end = dateOf(season.endsAt, timeZone)
-    const from = start.year === end.year ? `${start.day} ${start.month}` : `${start.day} ${start.month} ${start.year}`
-
-    return `${from} – ${end.day} ${end.month} ${end.year}`
-}
-
-function dateOf(ms: number, timeZone?: string): {day: string, month: string, year: string} {
-    const parts = new Intl.DateTimeFormat("en-GB", {day: "numeric", month: "short", year: "numeric", timeZone}).formatToParts(ms)
-    const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? ""
-
-    return {day: part("day"), month: part("month"), year: part("year")}
+export function timeLeftTo(at: number, now: number): Countdown {
+    return countdownTo(Math.max(at, now), now)
 }

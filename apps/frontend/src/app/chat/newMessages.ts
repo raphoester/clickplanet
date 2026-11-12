@@ -1,3 +1,5 @@
+import {t} from "../../i18n/page.ts"
+
 export function newMessages(unread: number): string {
-    return unread === 1 ? "1 new message" : `${unread} new messages`
+    return t("chat.newMessages", {count: unread})
 }

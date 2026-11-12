@@ -1,8 +1,9 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {FlagMission} from "../../backends/missions.ts"
-import {Countries} from "../../domain/countries.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
+import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
@@ -44,18 +45,16 @@ export default function FlagMissionDone({mission, country, play, onClose}: FlagM
              tabIndex={-1}
              style={timing}>
             <div className="title-reveal-stage">
-                <h2 id={headId} className="title-reveal-head flag-mission-done-head">Congratulations!</h2>
+                <h2 id={headId} className="title-reveal-head flag-mission-done-head">{t("mission.flagDone.congratulations")}</h2>
                 <div className="flag-mission-done-flag">
                     <div className="title-reveal-rays flag-mission-done-rays" aria-hidden="true"/>
                     <span className="flag-mission-done-art"><CountryFlag code={country}/></span>
                 </div>
-                <p id={nameId} className="flag-mission-done-country">{Countries.get(country)?.name ?? country}</p>
-                <p className="flag-mission-done-points">
-                    +{mission.points} season {mission.points === 1 ? "point" : "points"}
-                </p>
-                <p className="title-reveal-rank">Flag mission done: {partsOf(mission.order).line}</p>
+                <p id={nameId} className="flag-mission-done-country">{translator().country(country)}</p>
+                <p className="flag-mission-done-points">{t("mission.flagDone.points", {points: mission.points})}</p>
+                <p className="title-reveal-rank">{rich("mission.flagDone.order", {order: partsOf(mission.order).line})}</p>
                 <div className="title-reveal-actions flag-mission-done-actions">
-                    {ready && <button type="button" className="button button-gold" onClick={onClose}>Close</button>}
+                    {ready && <button type="button" className="button button-gold" onClick={onClose}>{t("common.close")}</button>}
                 </div>
             </div>
             <div className="title-reveal-flash" aria-hidden="true"/>

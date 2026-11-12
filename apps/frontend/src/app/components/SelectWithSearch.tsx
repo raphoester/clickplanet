@@ -2,6 +2,7 @@ import {KeyboardEvent, useEffect, useRef, useState} from "react";
 import {matchesSearch, type Value, visibleOptions} from "./visibleOptions.ts";
 import {SearchIcon} from "./icons.tsx";
 import CountryFlag from "./CountryFlag.tsx";
+import {t} from "../../i18n/page.ts";
 import "./SelectWithSearch.css"
 
 type SelectWithSearchProps = {
@@ -84,7 +85,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
             <SearchIcon/>
             <input
                 type="text"
-                placeholder="Search a country"
+                placeholder={t("picker.search")}
                 value={search}
                 onChange={(event) => handleSearchChange(event.target.value)}
                 onKeyDown={handleSearchKeyDown}
@@ -96,7 +97,7 @@ export default function SelectWithSearch(props: SelectWithSearchProps) {
             ref={listRef}
             role="listbox"
             tabIndex={0}
-            aria-label="Country"
+            aria-label={t("picker.country")}
             aria-activedescendant={activeOption && `country-option-${activeOption.code}`}
             onKeyDown={handleListKeyDown}
             className="input-select">

@@ -2,7 +2,6 @@ import {describe, expect, it} from "vitest"
 import {ClosedRound, RoundStanding, Score} from "../backends/standings.ts"
 import {Battle} from "./battle.ts"
 import {
-    battleFinishedLine,
     medalOf,
     moveOf,
     podiumOf,
@@ -11,7 +10,6 @@ import {
     revealKeyOf,
     revealRowsOf,
     revealsDue,
-    roundOverLine,
     tablePodiumOf,
     wonTheDay,
 } from "./roundReveal.ts"
@@ -160,28 +158,12 @@ describe("revealRowsOf", () => {
     })
 })
 
-describe("roundOverLine", () => {
-    it("names the day, the battle, or the Final Battle", () => {
-        expect(roundOverLine({number: 5, finale: false, own: false})).toBe("Day 5 is over!")
-        expect(roundOverLine({number: 23, finale: true, own: false})).toBe("Day 23 is over!")
-        expect(roundOverLine({number: 1, finale: false, own: true})).toBe("The battle is over!")
-        expect(roundOverLine({number: 2, finale: true, own: true})).toBe("The Final Battle is over!")
-    })
-})
-
 describe("revealFollowed", () => {
     it("is true until the last screen", () => {
         expect(revealFollowed({kind: "over", closed: BATTLE})).toBe(true)
         expect(revealFollowed({kind: "players", closed: BATTLE})).toBe(false)
         expect(revealFollowed({kind: "players", closed: FINAL_BATTLE})).toBe(true)
         expect(revealFollowed({kind: "results", closed: FINAL_BATTLE})).toBe(false)
-    })
-})
-
-describe("battleFinishedLine", () => {
-    it("names the battle, or the Final Battle", () => {
-        expect(battleFinishedLine({finale: false})).toBe("Battle finished!")
-        expect(battleFinishedLine({finale: true})).toBe("Final Battle finished!")
     })
 })
 

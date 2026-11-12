@@ -1,6 +1,8 @@
-import {ShareAddress, shareHeadline, shareLabel, ShareStats} from "../../domain/shareCard.ts";
+import {ShareAddress, shareLabel, ShareStats} from "../../domain/shareCard.ts";
+import {t, translator} from "../../i18n/page.ts";
 import CountryFlag from "../components/CountryFlag.tsx";
 import RecruitButton from "./RecruitButton.tsx";
+import {shareHeadline} from "./shareLines.ts";
 import "./RecruitLink.css"
 
 export type RecruitLinkProps = {
@@ -14,7 +16,7 @@ export default function RecruitLink({stats, address}: RecruitLinkProps) {
     return <div className="panel-box recruit">
         <span className="recruit-title">
             <CountryFlag code={code}/>
-            <span className="recruit-country">Recruit for {stats.country.name}</span>
+            <span className="recruit-country">{t("recruit.title", {country: translator().country(code)})}</span>
         </span>
         <span className="recruit-link">{shareLabel(address)}</span>
         <RecruitButton address={address}

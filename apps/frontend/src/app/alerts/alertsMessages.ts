@@ -1,21 +1,22 @@
 import {AuthFailure} from "../../backends/account.ts"
+import {t} from "../../i18n/page.ts"
 
 export function pingNameOf(flagName: string | undefined): string {
-    return flagName ? `Join Discord and get pinged when ${flagName} is attacked` : "Join Discord and get pinged"
+    return flagName ? t("discord.pingName", {flag: flagName}) : t("discord.pingNameAnyFlag")
 }
 
 export function pingHintOf(flagName: string | undefined): string {
-    return flagName ? `Get pinged when ${flagName} is attacked` : "Get pinged for every battle"
+    return flagName ? t("discord.pingHint", {flag: flagName}) : t("discord.pingHintAnyFlag")
 }
 
 // What the button says once Discord's sign-in could not start.
 export function pingFailureOf(failure: AuthFailure): string {
     switch (failure) {
         case "tooManyTries":
-            return "Wait a minute"
+            return t("discord.failure.wait")
         case "off":
         case "notOffered":
-            return "Not available"
+            return t("discord.failure.notAvailable")
         case "startAgain":
         case "refused":
         case "notSignedIn":
@@ -27,6 +28,6 @@ export function pingFailureOf(failure: AuthFailure): string {
         case "wrongCode":
         case "newCode":
         case "failed":
-            return "Try again"
+            return t("common.retry")
     }
 }

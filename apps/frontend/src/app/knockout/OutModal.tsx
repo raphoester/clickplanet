@@ -1,6 +1,7 @@
 import {useMemo, useState} from "react"
 import {Countries, Country} from "../../domain/countries.ts"
 import {stands} from "../../domain/standing.ts"
+import {t, translator} from "../../i18n/page.ts"
 import Modal from "../components/Modal.tsx"
 import SelectWithSearch from "../components/SelectWithSearch.tsx"
 import {useStanding} from "./standingStore.ts"
@@ -20,7 +21,10 @@ export default function OutModal({flag, onPick}: OutModalProps) {
     const [sending, setSending] = useState(false)
     const [failed, setFailed] = useState(false)
     const stillIn = useMemo(
-        () => Array.from(Countries.values()).filter((country) => standing !== undefined && stands(standing, country.code)),
+        () => Array.from(Countries.keys())
+            .filter((code) => standing !== undefined && stands(standing, code))
+            .map((code) => ({code, name: translator().country(code)}))
+            .sort((a, b) => translator().compare(a.name, b.name)),
         [standing],
     )
 
@@ -40,12 +44,13 @@ export default function OutModal({flag, onPick}: OutModalProps) {
         }
     }
 
-    return <Modal title={standing.out.has(flag.code) ? `${flag.name} is out` : `${flag.name} has no capital`}
+    const country = translator().country(flag.code)
+    return <Modal title={t(standing.out.has(flag.code) ? "knockout.isOut" : "knockout.noCapital", {country})}
                   onClose={() => watch(flag.code)}>
-        <p className="country-picker-rule">Pick a flag that is still in.</p>
-        {failed && <p className="country-picker-failed" role="alert">Could not change your flag. Try again.</p>}
+        <p className="country-picker-rule">{t("knockout.pickStillIn")}</p>
+        {failed && <p className="country-picker-failed" role="alert">{t("knockout.pickFailed")}</p>}
         <div className="country-picker-list" aria-busy={sending || undefined}>
-            <SelectWithSearch values={stillIn} onChange={(country) => void pick(country)}/>
+            <SelectWithSearch values={stillIn} onChange={(value) => void pick(Countries.get(value.code) ?? {code: value.code})}/>
         </div>
     </Modal>
 }

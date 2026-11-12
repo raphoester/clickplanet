@@ -1,5 +1,5 @@
 import {BattleToCome, Turn} from "../backends/turn.ts"
-import {timeLeftTo} from "./seasonClock.ts"
+import {Countdown, timeLeftTo} from "./seasonClock.ts"
 
 export const BATTLE_SEEN_STORAGE_KEY = "clickplanet-battle-seen"
 export const BATTLE_OVER_MS = 5000
@@ -21,11 +21,6 @@ export function battleOf(turn: Turn | undefined): Battle | undefined {
         entryId: turn.entryId, since: turn.since ?? 0, endsAt: turn.endsAt, description: turn.description, roundId: turn.roundId,
         endsSeason: turn.endsSeason,
     }
-}
-
-// What the players call a battle: the season's finale is its final battle.
-export function battleNameOf(battle: {endsSeason?: boolean}): string {
-    return battle.endsSeason ? "Final Battle" : "Battle"
 }
 
 // The server's list is of its read: a battle whose start passed since is no longer to come.
@@ -60,18 +55,8 @@ export function finaleNear(finale: Finale | undefined, now: number): finale is F
     return finale !== undefined && !finale.live && finale.startsAt - now <= FINALE_NEAR_MS
 }
 
-// "Sat 31 Oct · 21:00 – 23:00", in the player's time.
-export function finaleWhenLine(finale: Finale, timeZone?: string): string {
-    const start = partsOf(finale.startsAt, timeZone)
-    const end = partsOf(finale.endsAt, timeZone)
-    return `${start("weekday")} ${start("day")} ${start("month")} · ${start("hour")}:${start("minute")} – ${end("hour")}:${end("minute")}`
-}
-
-// "2 hours", "1 hour", or "90 minutes" when it is not whole hours.
-export function finaleLengthLine(finale: Finale): string {
-    const minutes = Math.round((finale.endsAt - finale.startsAt) / 60_000)
-    if (minutes % 60 !== 0) return `${minutes} minutes`
-    return minutes === 60 ? "1 hour" : `${minutes / 60} hours`
+export function finaleMinutes(finale: Finale): number {
+    return Math.round((finale.endsAt - finale.startsAt) / 60_000)
 }
 
 // A season's finale has no entry: its round names it.
@@ -83,28 +68,17 @@ export function battleDue(battle: Battle | undefined, seen: string | null): batt
     return battle !== undefined && battleKeyOf(battle) !== seen
 }
 
-export function battleLeft(battle: Battle, now: number): string {
+export function battleLeft(battle: Battle, now: number): Countdown {
     return timeLeftTo(battle.endsAt, now)
 }
 
-export function battleEndsLine(battle: Battle, now: number, timeZone?: string): string {
-    const end = partsOf(battle.endsAt, timeZone)
-    const today = partsOf(now, timeZone)
-    const time = `${end("hour")}:${end("minute")}`
-    const sameDay = end("day") === today("day") && end("month") === today("month")
-    return sameDay ? `Ends at ${time}` : `Ends ${end("weekday")} at ${time}`
+export function endsToday(battle: Battle, now: number): boolean {
+    return sameDay(battle.endsAt, now)
 }
 
-export function partsOf(ms: number, timeZone?: string): (type: Intl.DateTimeFormatPartTypes) => string {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hourCycle: "h23",
-        timeZone,
-    }).formatToParts(ms)
-
-    return (type) => parts.find((p) => p.type === type)?.value ?? ""
+// In the player's time zone.
+export function sameDay(a: number, b: number): boolean {
+    const x = new Date(a)
+    const y = new Date(b)
+    return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate()
 }

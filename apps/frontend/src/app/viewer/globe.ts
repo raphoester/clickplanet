@@ -91,7 +91,7 @@ import {saveGhostTakes, savedGhostTakes} from "./ghostStore.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
-import {landmassName} from "../../domain/landmassNames.ts";
+import {translator} from "../../i18n/page.ts";
 import {Fortified, isNews} from "../../domain/fortify.ts";
 import {FortifyTargets} from "../../domain/fortifyTargets.ts";
 import {createFortifyWaves, FortifyUniforms, fortifyUniforms} from "./fortifyWaves.ts";
@@ -1018,7 +1018,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
         playSound("bomb", {volume: own ? 1 : DISTANT_BOMB_VOLUME, onWater: drop.tile === undefined})
         const landmass = landmassOf(drop.tile)
-        onBombDropped(drop, landmass === undefined ? undefined : landmassName(landmass, borders.codes[landmass]))
+        onBombDropped(drop, landmass === undefined ? undefined : translator().landmass(landmass, borders.codes[landmass]))
     })
 
     const placeShield = (tile: number) => {
@@ -1426,7 +1426,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const own = fortification.countryId === country.code
         const news = isNews(fortification, members.length, country.code)
         if (news) playSound("fortify", {volume: own ? 1 : DISTANT_BOMB_VOLUME})
-        onFortified({fortification, name: landmassName(fortification.landmass, borders.codes[fortification.landmass]), tiles: members.length, news})
+        onFortified({fortification, name: translator().landmass(fortification.landmass, borders.codes[fortification.landmass]), tiles: members.length, news})
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
     })
 
@@ -1572,7 +1572,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setClickHue: (hue: number | undefined) => plainClicks.setOwnHue(hue),
         territoryOf: (landmass: number) => ({
             landmass,
-            name: landmassName(landmass, borders.codes[landmass]),
+            name: translator().landmass(landmass, borders.codes[landmass]),
             ground: borders.codes[landmass] || undefined,
             size: territories.sizeOf(landmass),
             holdings: rankHoldings(holdings.holdingsOf(landmass)),

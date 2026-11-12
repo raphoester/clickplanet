@@ -2,6 +2,7 @@ import {InviteLink} from "../../backends/crazyGames.ts";
 import CountryFlag from "../components/CountryFlag.tsx";
 import InviteButton from "./InviteButton.tsx";
 import {useCountry} from "../countryStore.ts";
+import {t, translator} from "../../i18n/page.ts";
 import "./RecruitLink.css"
 
 export type InviteFriendsProps = {
@@ -13,11 +14,11 @@ export default function InviteFriends({invite}: InviteFriendsProps) {
     return <div className="panel-box recruit">
         <span className="recruit-title">
             <CountryFlag code={country.code}/>
-            <span className="recruit-country">Recruit for {country.name}</span>
+            <span className="recruit-country">{t("recruit.title", {country: translator().country(country.code)})}</span>
         </span>
         <InviteButton flag={country.code}
                       invite={invite}
                       className="button button-secondary recruit-send"
-                      label="Invite friends"/>
+                      label={t("invite.friends")}/>
     </div>
 }

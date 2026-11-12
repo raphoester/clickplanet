@@ -1,5 +1,8 @@
 # `src/domain/` — the logic worth testing
 
+**No words and no locale**: a domain function returns facts (a kind, a number, a `Countdown`), and `app/` words
+them in the page's language. See [Translation](i18n.md).
+
 - `holdings.ts` — `Holdings`, what each flag holds of the map and of each
   landmass, as the server counts it: every count on screen comes from it. Each
   row takes only a newer version. See [The counts are the server's](counts.md).
@@ -50,9 +53,8 @@
 - `streak.ts` — `streakShown`: a flame is drawn from a streak of 3 days. Every
   player of today has 1, so a short run would mean nothing.
 - `shareCard.ts` — everything about a shared image that is decided before a
-  pixel is drawn: the `?f=<code>` link, the text that rides with it, the line
-  under the flag, and the size the card comes out at. See [Sharing the
-  globe](sharing.md).
+  pixel is drawn: the `?f=<code>` link and the size the card comes out at. Its words (the text that rides with it,
+  the line under the flag) are `app/share/shareLines.ts`'. See [Sharing the globe](sharing.md).
 - `shields.ts` — `TileShields`, how many shields stand on each tile, and
   `outcomeOf` and `placementOf`, what this player's click does to a tile. See
   [Shields](shields.md).

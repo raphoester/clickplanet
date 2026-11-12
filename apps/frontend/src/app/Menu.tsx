@@ -5,7 +5,7 @@ import {countryLines, CountryOrder, shownOrder} from "../domain/race.ts";
 import {NO_TILE_DELTAS, TileDeltas} from "../domain/tileDeltas.ts";
 import {Race} from "../backends/standings.ts";
 import {Allegiance, Lock, lockOf, minutesLeftOf} from "../domain/allegiance.ts";
-import {describeEnd} from "../domain/endTime.ts";
+import {describeEnd} from "./endTime.ts";
 import Leaderboard from "./Leaderboard.tsx";
 import CountryPicker from "./CountryPicker.tsx";
 import {useStanding} from "./knockout/standingStore.ts";
@@ -36,6 +36,7 @@ import {useNow} from "./season/useNow.ts"
 import {HallOfFameButton, HallOfFameSeasons} from "./season/HallOfFame.tsx"
 import {MenuTab, useScreen} from "./hud/screenStore.ts"
 import {useRace} from "./standings/raceStore.ts"
+import {t, translator} from "../i18n/page.ts"
 import "./Menu.css"
 
 export type BoardPlaceProps = {
@@ -71,7 +72,7 @@ const OPEN_KEY = "clickplanet-menu-open"
 // Where the menu ends: what is centred at the top centres in the room right of it.
 export const MENU_RIGHT = "--menu-right"
 
-type Place = {id: MenuTab, label: string, title: string, icon: ReactNode, news?: number, dot?: boolean}
+type Place = {id: MenuTab, label: string, title: string, icon: ReactNode, news?: number, newsName?: string, dot?: boolean}
 
 export default function Menu(props: MenuProps) {
     const tab = useScreen((screen) => screen.menuTab)
@@ -87,12 +88,19 @@ export default function Menu(props: MenuProps) {
     useEdge(shell, MENU_RIGHT, "right")
 
     const places: Place[] = [
-        {id: "board", label: "Board", title: "Leaderboard", icon: <TrophyIcon/>},
-        ...props.missions ? [{id: "missions" as const, label: "Missions", title: "Missions", icon: <TargetIcon/>, news: props.missionsNews}] : [],
+        {id: "board", label: t("menu.board"), title: t("board.leaderboard"), icon: <TrophyIcon/>},
+        ...props.missions ? [{
+            id: "missions" as const,
+            label: t("menu.missions"),
+            title: t("menu.missions"),
+            icon: <TargetIcon/>,
+            news: props.missionsNews,
+            newsName: props.missionsNews ? t("menu.missionsNews", {count: props.missionsNews}) : undefined,
+        }] : [],
         props.invite
-            ? {id: "invite", label: "Invite", title: "Invite friends", icon: <UsersIcon/>}
-            : {id: "share", label: "Share", title: "Share", icon: <ShareIcon size={22}/>, dot: props.video?.dot},
-        {id: "settings", label: "Settings", title: "Settings", icon: <SettingsIcon/>},
+            ? {id: "invite", label: t("menu.invite"), title: t("menu.inviteFriends"), icon: <UsersIcon/>}
+            : {id: "share", label: t("menu.share"), title: t("menu.share"), icon: <ShareIcon size={22}/>, dot: props.video?.dot},
+        {id: "settings", label: t("menu.settings"), title: t("menu.settings"), icon: <SettingsIcon/>},
     ]
     const shown = places.find((p) => p.id === tab) ?? places[0]
     const linked = account.kind === "ready" && account.me.linked.length > 0
@@ -113,10 +121,10 @@ export default function Menu(props: MenuProps) {
     }
 
     return <div ref={setShell} className="menu-shell">
-        <nav className="menu-rail panel" aria-label="Places">
+        <nav className="menu-rail panel" aria-label={t("menu.places")}>
             <h1 className="sr-only">ClickPlanet</h1>
             <HomeLogo size={40} className="menu-rail-logo"/>
-            <div className="menu-rail-tabs" role="tablist" aria-label="Menu" aria-orientation="vertical">
+            <div className="menu-rail-tabs" role="tablist" aria-label={t("menu.menu")} aria-orientation="vertical">
                 {places.map((p) => <button key={p.id}
                                            type="button"
                                            role="tab"
@@ -124,7 +132,7 @@ export default function Menu(props: MenuProps) {
                                            aria-selected={open && shown.id === p.id}
                                            aria-controls={open ? panelId : undefined}
                                            className={open && shown.id === p.id ? "menu-rail-item menu-rail-item--on" : "menu-rail-item"}
-                                           aria-label={p.news ? `${p.label}, ${p.news} new` : undefined}
+                                           aria-label={p.newsName}
                                            onClick={() => pickPlace(p.id)}>
                     {p.icon}
                     <span className="menu-rail-label">{p.label}</span>
@@ -144,7 +152,7 @@ export default function Menu(props: MenuProps) {
         {open
             ? <aside className="menu panel" id={panelId} aria-label={shown.title}>
                 {picker.picking
-                    ? <MenuPanel title="Change country" onClose={picker.close}>
+                    ? <MenuPanel title={t("picker.changeCountry")} onClose={picker.close}>
                         <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={async (country) => {
                             await props.setCountry(country)
                             picker.close()
@@ -160,7 +168,7 @@ export default function Menu(props: MenuProps) {
                             {shown.id === "board" && props.hallOfFame && <HallOfFameButton {...props.hallOfFame} icon/>}
                             <button type="button"
                                     className="icon-button menu-hide"
-                                    aria-label="Hide the panel"
+                                    aria-label={t("menu.hidePanel")}
                                     aria-expanded={true}
                                     aria-controls={panelId}
                                     onClick={() => setOpen(false)}>
@@ -264,12 +272,12 @@ function PlayingFor({country, allegiance, rank, changeRef, onChange, slim, pill}
             : "menu-playing panel-box"
     return <div className={className}>
         <div className="menu-playing-what">
-            <span className="menu-label">{slim || pill ? "Playing for" : "You’re playing for"}</span>
+            <span className="menu-label">{slim || pill ? t("menu.playingFor") : t("menu.youArePlayingFor")}</span>
             <span className="menu-playing-name">
                 <CountryFlag code={country.code}/>
-                <span className="menu-playing-country">{country.name}</span>
-                <span className="menu-rank-value" aria-label={rank === null ? "No rank yet" : `Rank ${rank}`}>
-                    {rank === null ? "—" : `#${rank}`}
+                <span className="menu-playing-country">{translator().country(country.code)}</span>
+                <span className="menu-rank-value" aria-label={rank === null ? t("menu.noRankYet") : t("menu.rank", {rank})}>
+                    {rank === null ? "—" : t("board.rankNumber", {rank})}
                 </span>
             </span>
         </div>
@@ -289,7 +297,7 @@ function ChangeButton({allegiance, changeRef, onChange}: Pick<PlayingForProps, "
                    aria-label={lock === undefined ? undefined : lockedChangeLabelOf(lock, now)}
                    onClick={onChange}>
         {lock === undefined
-            ? <><SwapIcon/><span>Change</span></>
+            ? <><SwapIcon/><span>{t("menu.change")}</span></>
             : <><LockIcon/><span>{lockedChangeTextOf(lock, now)}</span></>}
     </button>
 }
@@ -297,18 +305,18 @@ function ChangeButton({allegiance, changeRef, onChange}: Pick<PlayingForProps, "
 function lockedChangeLabelOf(lock: Lock, now: number): string {
     switch (lock.kind) {
         case "rules":
-            return "Change country, locked for now"
+            return t("menu.changeLocked")
         case "wait":
-            return `Change country, next change at ${describeEnd(lock.until, now)}`
+            return t("menu.changeAt", {time: describeEnd(lock.until, now)})
     }
 }
 
 function lockedChangeTextOf(lock: Lock, now: number): string {
     switch (lock.kind) {
         case "rules":
-            return "Locked"
+            return t("menu.locked")
         case "wait":
-            return `${minutesLeftOf(lock.until, now)} min`
+            return t("menu.minutesLeft", {minutes: minutesLeftOf(lock.until, now)})
     }
 }
 
@@ -346,9 +354,9 @@ export function BoardSheet({onClose, ...props}: BoardPlaceProps & {onClose: () =
         ? <BoardHeading view={standings.view} onView={standings.onView} country={props.country}/>
         : undefined
 
-    return <Sheet title="Leaderboard" head={head} className="board-sheet" onClose={onClose}>
+    return <Sheet title={t("board.leaderboard")} head={head} className="board-sheet" onClose={onClose}>
         {picker.picking
-            ? <MenuPanel title="Change country" onClose={picker.close}>
+            ? <MenuPanel title={t("picker.changeCountry")} onClose={picker.close}>
                 <CountryPicker country={props.country} allegiance={props.allegiance} setCountry={async (country) => {
                     await props.setCountry(country)
                     picker.close()

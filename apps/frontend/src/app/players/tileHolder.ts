@@ -1,13 +1,12 @@
 import {NameColor, PlayerInfo, PlayerLine} from "../../backends/player.ts"
+import {t} from "../../i18n/page.ts"
 
 export const LEAVE_GRACE_MS = 300
-
-export const DELETED_ACCOUNT = "Deleted account"
 
 export function deletedLineOf(countryCode: string): PlayerLine {
     return {
         accountId: "",
-        name: DELETED_ACCOUNT,
+        name: t("player.deletedAccount"),
         countryCode,
         guest: false,
         admin: false,

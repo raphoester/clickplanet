@@ -39,23 +39,34 @@ export function battleFlagRowsOf(round: Round): BattleFlagRow[] {
         .map((row) => ({...row, tiles: tiles.get(row.countryCode) ?? 0}))
 }
 
-export type BigNumber = {label: string, value: number}
+export type BigNumberKind =
+    | "clicks"
+    | "players"
+    | "days"
+    | "bombs"
+    | "shields"
+    | "shieldHits"
+    | "fortifies"
+    | "flagsScored"
+    | "finaleClicks"
+
+export type BigNumber = {kind: BigNumberKind, value: number}
 
 // What the season's reads hold: a read not there yet, or that failed, leaves its numbers out.
 export function bigNumbersOf(season: Season, totals: SeasonTotals | undefined, table: Score[] | undefined, finale: Round | undefined): BigNumber[] {
     const numbers: BigNumber[] = []
-    if (totals) numbers.push({label: "Clicks", value: totals.takes}, {label: "Players", value: totals.players})
-    numbers.push({label: "Days", value: Math.round((season.endsAt - season.startsAt) / DAY_MS)})
+    if (totals) numbers.push({kind: "clicks", value: totals.takes}, {kind: "players", value: totals.players})
+    numbers.push({kind: "days", value: Math.round((season.endsAt - season.startsAt) / DAY_MS)})
     if (totals) {
         numbers.push(
-            {label: "Bombs dropped", value: totals.bombs},
-            {label: "Shields placed", value: totals.shields},
-            {label: "Shield hits", value: totals.strikes},
-            {label: "Lands fortified", value: totals.fortifies},
+            {kind: "bombs", value: totals.bombs},
+            {kind: "shields", value: totals.shields},
+            {kind: "shieldHits", value: totals.strikes},
+            {kind: "fortifies", value: totals.fortifies},
         )
     }
-    if (table) numbers.push({label: "Flags that scored", value: table.length})
-    if (finale) numbers.push({label: "Final Battle clicks", value: finale.takes.reduce((sum, takes) => sum + takes.tiles, 0)})
+    if (table) numbers.push({kind: "flagsScored", value: table.length})
+    if (finale) numbers.push({kind: "finaleClicks", value: finale.takes.reduce((sum, takes) => sum + takes.tiles, 0)})
     return numbers
 }
 

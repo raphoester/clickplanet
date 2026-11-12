@@ -1,21 +1,28 @@
 import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
-import {Battle, battleEndsLine, battleLeft, battleNameOf} from "../../domain/battle.ts"
+import {Battle, battleLeft} from "../../domain/battle.ts"
 import {playingOf} from "../../domain/battleTeaser.ts"
-import {countdownsOf, shortLeft} from "../../domain/seasonClock.ts"
+import {countdownsOf} from "../../domain/seasonClock.ts"
+import {t, translator} from "../../i18n/page.ts"
 import {ChevronIcon, SwordsIcon} from "../components/icons.tsx"
 import {useEdge} from "../components/useEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
 import {useScreen} from "../hud/screenStore.ts"
+import {COUNTDOWN_WORDS} from "../season/countdownWords.ts"
 import {useNow} from "../season/useNow.ts"
+import {battleEndsLine, battleName} from "./battleLines.ts"
 import {BattleRulesButton} from "./NextBattle.tsx"
 import {useSchedule} from "./scheduleStore.ts"
 import "../season/Season.css"
 import "./Battle.css"
 
 function labelOf(battle: Battle): string {
-    return `${battleNameOf(battle)} ends in`
+    return t(battle.endsSeason ? "finale.endsIn" : "battle.endsIn")
+}
+
+function lineOf(battle: Battle, left: string): string {
+    return t(battle.endsSeason ? "finale.endsInTime" : "battle.endsInTime", {time: left})
 }
 
 export type BattleChipProps = {
@@ -35,7 +42,7 @@ export default function BattleChip({battle, season, compact}: BattleChipProps) {
 
     const now = useNow()
     const left = battleLeft(battle, now)
-    const name = `${labelOf(battle)} ${left}`
+    const name = lineOf(battle, translator().countdown(left))
 
     if (compact) {
         return <button type="button"
@@ -46,8 +53,8 @@ export default function BattleChip({battle, season, compact}: BattleChipProps) {
             <SwordsIcon/>
             <span className="season-chip-faces" aria-hidden="true">
                 <span className="season-chip-face">
-                    <span className="season-chip-tag">{battle.endsSeason ? "Final" : "Battle"}</span>
-                    <span className="season-chip-left">{shortLeft(left)}</span>
+                    <span className="season-chip-tag">{t(battle.endsSeason ? "finale.tag" : "battle.tag")}</span>
+                    <span className="season-chip-left">{translator().countdown(left, 2)}</span>
                 </span>
             </span>
         </button>
@@ -57,7 +64,7 @@ export default function BattleChip({battle, season, compact}: BattleChipProps) {
 
     return <section ref={setChip}
                     className="panel season-chip battle-chip"
-                    aria-label={battleNameOf(battle)}
+                    aria-label={battleName(battle)}
                     onPointerEnter={() => setHovered(true)}
                     onPointerLeave={() => setHovered(false)}>
         <button type="button"
@@ -69,7 +76,7 @@ export default function BattleChip({battle, season, compact}: BattleChipProps) {
             <span className="season-chip-faces" aria-hidden="true">
                 <span className="season-chip-face">
                     <span className="season-chip-label">{labelOf(battle)}</span>
-                    <span className="season-chip-left">{left}</span>
+                    <span className="season-chip-left">{translator().countdown(left)}</span>
                 </span>
             </span>
             <span className="season-chip-chevron"><ChevronIcon size={16}/></span>
@@ -101,9 +108,9 @@ export function BattleFacts({battle, season, now}: {battle: Battle, season?: Sea
         {battle.description && <p className="battle-facts-text">{battle.description}</p>}
         <p className="battle-facts-when">{battleEndsLine(battle, now)}</p>
         <BattleRulesButton battle={playingOf(turn)}/>
-        {countdowns.map((countdown) => <p key={countdown.label} className="battle-facts-season">
-            <span className="menu-label">{countdown.label}</span>
-            <span className="battle-facts-left">{countdown.left}</span>
+        {countdowns.map((countdown) => <p key={countdown.kind} className="battle-facts-season">
+            <span className="menu-label">{t(COUNTDOWN_WORDS[countdown.kind].label)}</span>
+            <span className="battle-facts-left">{translator().countdown(countdown.countdown)}</span>
         </p>)}
     </div>
 }
@@ -116,7 +123,7 @@ export function BattleDetails({battle, season}: {battle: Battle, season?: Season
         <div className="panel-box season-details-countdowns">
             <div className="season-details-countdown">
                 <span id={label} className="menu-label">{labelOf(battle)}</span>
-                <span className="season-chip-left battle-chip-left" role="timer" aria-labelledby={label}>{battleLeft(battle, now)}</span>
+                <span className="season-chip-left battle-chip-left" role="timer" aria-labelledby={label}>{translator().countdown(battleLeft(battle, now))}</span>
             </div>
         </div>
         <div className="panel-box season-details-facts"><BattleFacts battle={battle} season={season} now={now}/></div>

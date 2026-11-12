@@ -54,6 +54,6 @@ function Line({news, flag, connect, goThere, onDone}: {news: Told, flag: string,
         case "attack":
             return <UnderAttack key={news.id} flag={flag} connect={connect} goThere={goThere} onDone={onDone}/>
         case "welcome":
-            return <WelcomeNews key={news.id} line={news.line} onDone={onDone}/>
+            return <WelcomeNews key={news.id} recruiter={news.recruiter} flagName={news.flagName} onDone={onDone}/>
     }
 }

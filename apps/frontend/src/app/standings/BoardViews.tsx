@@ -1,6 +1,7 @@
 import {ReactNode} from "react"
 import {Boards} from "../../backends/standings.ts"
 import {Country} from "../../domain/countries.ts"
+import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import HeadingSelect, {HeadingChoice} from "../components/HeadingSelect.tsx"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
@@ -30,18 +31,19 @@ export type BoardHeadingProps = Pick<BoardStandings, "view" | "onView"> & {
 }
 
 export function BoardHeading({view, onView, country}: BoardHeadingProps) {
+    const name = translator().country(country.code)
     const choices: HeadingChoice<BoardView>[] = [
-        {value: "countries", name: "Countries", label: <span>Countries</span>},
-        {value: "players", name: "Players", label: <span>Players</span>},
+        {value: "countries", name: t("standings.countries"), label: <span>{t("standings.countries")}</span>},
+        {value: "players", name: t("standings.players"), label: <span>{t("standings.players")}</span>},
         {
             value: "country",
-            name: country.name,
-            label: <span><CountryFlag code={country.code}/>{country.name}</span>,
+            name,
+            label: <span><CountryFlag code={country.code}/>{name}</span>,
         },
     ]
 
     return <div className="board-heading">
-        <HeadingSelect label="Leaderboard" choices={choices} value={view} onChange={onView}/>
+        <HeadingSelect label={t("standings.leaderboard")} choices={choices} value={view} onChange={onView}/>
     </div>
 }
 
@@ -53,7 +55,9 @@ export default function BoardViews(props: BoardViewsProps) {
         {(props.view === "players" || props.view === "country") &&
             <PlayerStandings backend={props.backend}
                              countryCode={props.view === "country" ? props.country.code : ""}
-                             label={props.view === "country" ? `Players, ${props.country.name}` : "Players"}
+                             label={props.view === "country"
+                                 ? t("standings.playersOf", {country: translator().country(props.country.code)})
+                                 : t("standings.players")}
                              caller={props.caller}
                              listenForClicks={props.listenForClicks}
                              onSignIn={props.onSignIn}/>}

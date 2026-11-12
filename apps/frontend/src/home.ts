@@ -8,6 +8,12 @@ import {battleCommands, FakeTurnBackend, seasonRunningAt} from "./backends/fakeT
 import {API_BASE_URL} from "./backends/transport.ts"
 import {TurnBackend} from "./backends/turn.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
+import {speak} from "./i18n/page.ts"
+import {localeOf} from "./i18n/load.ts"
+import {ENGLISH, Translator} from "./i18n/translator.ts"
+
+// The home page is English until it has its own languages, in the browser's own English for its dates.
+speak(new Translator("en", ENGLISH, localeOf("en", navigator.languages ?? [navigator.language])))
 
 const fake = import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND
 const turns: TurnBackend = fake

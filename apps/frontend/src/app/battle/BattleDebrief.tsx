@@ -3,8 +3,7 @@ import PlayerName from "../nameplates/PlayerName.tsx"
 import {createPortal} from "react-dom"
 import {ClosedRound, Standing} from "../../backends/standings.ts"
 import {BATTLE_DEBRIEF, DebriefScreen, PointsRow, pointsRowsOf} from "../../domain/battleBrief.ts"
-import {Countries} from "../../domain/countries.ts"
-import {battleFinishedLine} from "../../domain/roundReveal.ts"
+import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {SwordsIcon} from "../components/icons.tsx"
 import SwordsArt from "../components/SwordsArt.tsx"
@@ -55,7 +54,7 @@ export default function BattleDebrief({screen, closed, countryCode, accountId, m
 
                 <div className="title-reveal-actions round-reveal-actions">
                     {ready && <button type="button" className={more ? "button" : "button button-gold"} onClick={onClose}>
-                        {more ? "Next" : "To the globe"}
+                        {more ? t("common.next") : t("battle.toTheGlobe")}
                     </button>}
                 </div>
             </div>
@@ -67,7 +66,7 @@ export default function BattleDebrief({screen, closed, countryCode, accountId, m
 
 function Over({headId, closed}: {headId: string, closed: ClosedRound}) {
     return <>
-        <h2 id={headId} className="title-reveal-head round-reveal-head">{battleFinishedLine(closed)}</h2>
+        <h2 id={headId} className="title-reveal-head round-reveal-head">{t(closed.finale ? "finale.finished" : "battle.finished")}</h2>
         <div className="title-reveal-medal">
             <div className="title-reveal-rays" aria-hidden="true"/>
             <div className="title-reveal-wave" aria-hidden="true"/>
@@ -80,21 +79,21 @@ function Over({headId, closed}: {headId: string, closed: ClosedRound}) {
 
 function Points({headId, closed, rows}: {headId: string, closed: ClosedRound, rows: PointsRow[]}) {
     return <>
-        <h2 id={headId} className="title-reveal-head round-reveal-head">Points won</h2>
+        <h2 id={headId} className="title-reveal-head round-reveal-head">{t("battle.pointsWon")}</h2>
         {closed.times > 1 && <p className="battle-brief-times">
             <SwordsIcon size={20}/>
-            <span>Points ×{closed.times}</span>
+            <span>{t("battle.pointsTimes", {times: closed.times})}</span>
         </p>}
-        <ol className="battle-brief-list" aria-label="Points won">
+        <ol className="battle-brief-list" aria-label={t("battle.pointsWon")}>
             {rows.map((row, i) => <li key={row.countryCode}
                                       className={row.mine ? "battle-brief-row battle-brief-row-mine" : "battle-brief-row"}
                                       style={{"--share": row.width, "--enter": i} as CSSProperties}
                                       aria-current={row.mine ? "true" : undefined}>
                 <span className="round-reveal-rank">{row.rank}</span>
                 <CountryFlag code={row.countryCode}/>
-                <span className="battle-brief-name">{nameOf(row.countryCode)}</span>
-                {closed.times > 1 && <span className="battle-brief-times-of">{row.won} ×{closed.times}</span>}
-                <span className="battle-brief-tiles">{row.points}</span>
+                <span className="battle-brief-name">{translator().country(row.countryCode)}</span>
+                {closed.times > 1 && <span className="battle-brief-times-of">{t("battle.wonTimes", {points: row.won, times: closed.times})}</span>}
+                <span className="battle-brief-tiles">{translator().number(row.points)}</span>
             </li>)}
         </ol>
     </>
@@ -103,8 +102,8 @@ function Points({headId, closed, rows}: {headId: string, closed: ClosedRound, ro
 function Players({headId, players, accountId}: {headId: string, players: Standing[], accountId?: string}) {
 
     return <>
-        <h2 id={headId} className="title-reveal-head round-reveal-head">Top players</h2>
-        <ol className="battle-brief-list" aria-label="Top players">
+        <h2 id={headId} className="title-reveal-head round-reveal-head">{t("standings.topPlayers")}</h2>
+        <ol className="battle-brief-list" aria-label={t("standings.topPlayers")}>
             {players.map((player, i) => {
                 const you = player.accountId === accountId
                 return <li key={player.accountId}
@@ -112,18 +111,14 @@ function Players({headId, players, accountId}: {headId: string, players: Standin
                            style={{"--enter": i} as CSSProperties}
                            aria-current={you ? "true" : undefined}>
                     <span className="round-reveal-rank">{player.rank}</span>
-                    <span className="battle-brief-flag" role="img" aria-label={nameOf(player.countryCode)}>
+                    <span className="battle-brief-flag" role="img" aria-label={translator().country(player.countryCode)}>
                         <CountryFlag code={player.countryCode}/>
                     </span>
                     <PlayerName accountId={player.accountId} className="battle-brief-name battle-brief-player"/>
                     <WornTitle accountId={player.accountId} size={18}/>
-                    <span className="battle-brief-tiles">{player.tiles}</span>
+                    <span className="battle-brief-tiles">{translator().number(player.tiles)}</span>
                 </li>
             })}
         </ol>
     </>
-}
-
-function nameOf(code: string): string {
-    return Countries.get(code)?.name ?? code
 }

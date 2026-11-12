@@ -91,10 +91,10 @@ describe("SeasonChip", () => {
         vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR})
         const {container} = render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact={false}/>)
 
-        const name = "Today ends in 12h 00m 00s, Season ends in 27d 14h 00m 00s"
+        const name = "Today ends in 12h 00m 00s and Season ends in 27d 14h 00m 00s"
         expect(screen.getByRole("button", {name})).toBeDefined()
         turn()
-        expect(screen.getByRole("button", {name: "Today ends in 11h 59m 54s, Season ends in 27d 13h 59m 54s"})).toBeDefined()
+        expect(screen.getByRole("button", {name: "Today ends in 11h 59m 54s and Season ends in 27d 13h 59m 54s"})).toBeDefined()
 
         expect(screen.queryByRole("timer")).toBeNull()
         expect(container.querySelector("[aria-live]")).toBeNull()
@@ -169,7 +169,7 @@ describe("SeasonChip", () => {
             opened()
 
             expect(screen.getByText("Next battle")).toBeDefined()
-            expect(screen.getByText(/^Tomorrow · \d\d:\d\d – \d\d:\d\d · Points ×3$/)).toBeDefined()
+            expect(screen.getByText(/^Tomorrow · \d\d?:\d\d.+ · Points ×3$/)).toBeDefined()
             expect(screen.getByText("Clicks refill 3× faster.")).toBeDefined()
             expect(battleTeased()).toBeNull()
         })
@@ -266,7 +266,7 @@ describe("SeasonChip", () => {
             vi.useFakeTimers({now: endsAt - 27 * DAY - 14 * HOUR - 5 * MINUTE})
             render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} compact/>)
 
-            const chip = screen.getByRole("button", {name: "Today ends in 12h 05m 00s, Season ends in 27d 14h 05m 00s"})
+            const chip = screen.getByRole("button", {name: "Today ends in 12h 05m 00s and Season ends in 27d 14h 05m 00s"})
             expect(chip.getAttribute("aria-expanded")).toBe("false")
             expect(shownFace()).toEqual(["Today", "12h 05m"])
 

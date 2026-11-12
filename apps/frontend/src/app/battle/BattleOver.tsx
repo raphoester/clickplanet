@@ -1,5 +1,6 @@
 import {useEffect, useRef, useState} from "react"
 import {BATTLE_OVER_MS} from "../../domain/battle.ts"
+import {t} from "../../i18n/page.ts"
 import {SwordsIcon} from "../components/icons.tsx"
 import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import "./Battle.css"
@@ -30,8 +31,8 @@ export default function BattleOver({awaiting, onDone}: BattleOverProps) {
         <div className="battle-over-line panel">
             <SwordsIcon/>
             <span className="battle-over-text">
-                <strong>The battle is over</strong>
-                {awaiting && <span className="battle-over-coming">The results are coming</span>}
+                <strong>{t("battle.overNotice")}</strong>
+                {awaiting && <span className="battle-over-coming">{t("battle.resultsComing")}</span>}
             </span>
         </div>
     </div>

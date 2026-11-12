@@ -91,36 +91,3 @@ export type BonusRules = {
     // No bomb is offered or dropped: the page hides the bomb.
     bombsOff: boolean
 }
-
-export function describeReward(reward: BonusReward): {
-    title: string
-    detail?: string
-} {
-    switch (reward.kind) {
-        case "refill":
-            return {
-                title: "Refill",
-                detail: "Fills your clicks to full, when you choose",
-            }
-        case "spreadClicks":
-            return {
-                title: reward.clicks === 1 ? "+1 spread click" : `+${reward.clicks} spread clicks`,
-                detail: "Switch spread on: each click also takes the tiles around it",
-            }
-        case "bomb":
-            return {
-                title: "Bomb",
-                detail: "Resets the tiles in an area. Aim it from your inventory",
-            }
-        case "encloseClicks":
-            return {
-                title: reward.shapes === 1 ? "+1 enclosure" : `+${reward.shapes} enclosures`,
-                detail: `Switch enclose on, then close a shape of up to ${reward.maxTiles} tiles to take the tiles inside`,
-            }
-        case "shields":
-            return {
-                title: reward.shields === 1 ? "+1 shield" : `+${reward.shields} shields`,
-                detail: "Switch shield on, then tap your tiles. Each shield stops one enemy click",
-            }
-    }
-}

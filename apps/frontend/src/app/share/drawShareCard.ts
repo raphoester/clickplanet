@@ -9,9 +9,10 @@ import {
     ShareAddress,
     shareLabel,
     ShareStats,
-    statsLine,
 } from "../../domain/shareCard.ts";
+import {translator} from "../../i18n/page.ts";
 import {TITLE_CAP_HEIGHT} from "../titleFont.ts";
+import {statsLine} from "./shareLines.ts";
 
 const LOGO_URL = "/static/logo.svg"
 
@@ -44,7 +45,7 @@ export async function drawShareCard(frame: CapturedFrame, stats: ShareStats, add
     const [atlas, logo] = await Promise.all([
         loadImage(ATLAS_URL),
         loadImage(LOGO_URL),
-        fontsReady(look),
+        fontsReady(look, translator().country(stats.country.code) + statsLine(stats)),
     ])
 
     drawMasthead(context, size, address, logo, look)
@@ -141,6 +142,7 @@ function drawBadge(
     const labelSize = 3 * unit
 
     const region = regions.get(stats.country.code)
+    const name = translator().country(stats.country.code)
     const flag = region
         ? fitInBox(region, {width: 9 * unit, height: 6 * unit})
         : {width: 0, height: 0}
@@ -150,12 +152,12 @@ function drawBadge(
     const flagRun = flag.width > 0 ? flag.width + gap : 0
     const room = size.width - margin * 2 - padding * 2 - flagRun
     context.font = `${nameSize}px ${look.display}`
-    const natural = context.measureText(stats.country.name).width
+    const natural = context.measureText(name).width
     if (natural > room) {
         nameSize *= room / natural
         context.font = `${nameSize}px ${look.display}`
     }
-    const nameWidth = context.measureText(stats.country.name).width
+    const nameWidth = context.measureText(name).width
     const nameCap = capHeight(context, nameSize)
 
     const label = statsLine(stats)
@@ -182,7 +184,7 @@ function drawBadge(
     context.fillStyle = look.white
     context.textBaseline = "alphabetic"
     context.font = `${nameSize}px ${look.display}`
-    context.fillText(stats.country.name,
+    context.fillText(name,
         left + padding + flagRun, capCentred(context, middle, nameSize))
 
     clearShadow(context)
@@ -284,9 +286,10 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     return loading
 }
 
-async function fontsReady(look: Look): Promise<void> {
+// A face's Latin Extended letters ("Ł", "ř") are a subset of their own, loaded only for a text that has them.
+async function fontsReady(look: Look, text: string): Promise<void> {
     await Promise.all([`16px ${look.display}`, `600 16px ${look.text}`]
-        .map((font) => document.fonts?.load(font)))
+        .map((font) => document.fonts?.load(font, text)))
     await document.fonts?.ready
 }
 

@@ -1,0 +1,194 @@
+{
+  "terms": [
+    {
+      "en": "tile",
+      "means": "one cell of the globe; a click takes it for your flag",
+      "fr": "case", "de": "Feld", "tr": "kare", "pt-BR": "casa", "pl": "pole", "id": "petak", "es": "casilla", "cs": "pole"
+    },
+    {
+      "en": "flag",
+      "means": "the country a player plays for, and its team; also the flag drawn on the tiles",
+      "fr": "drapeau", "de": "Flagge", "tr": "bayrak", "pt-BR": "bandeira", "pl": "flaga", "id": "bendera", "es": "bandera", "cs": "vlajka"
+    },
+    {
+      "en": "click",
+      "means": "one take of a tile; a player holds a bank of clicks that refills over time",
+      "fr": "clic", "de": "Klick", "tr": "tık", "pt-BR": "clique", "pl": "klik", "id": "klik", "es": "clic", "cs": "klik"
+    },
+    {
+      "en": "take (a tile)",
+      "means": "to click a tile and make it your flag's",
+      "fr": "prendre", "de": "erobern", "tr": "almak", "pt-BR": "tomar", "pl": "zająć", "id": "merebut", "es": "tomar", "cs": "obsadit"
+    },
+    {
+      "en": "shield",
+      "means": "a charge put on one of your tiles; each shield stops one enemy click",
+      "fr": "bouclier", "de": "Schild", "tr": "kalkan", "pt-BR": "escudo", "pl": "tarcza", "id": "perisai", "es": "escudo", "cs": "štít"
+    },
+    {
+      "en": "fortify",
+      "means": "a take that makes a landmass all yours gives each of its tiles a shield",
+      "fr": "fortifier", "de": "befestigen", "tr": "tahkim etmek", "pt-BR": "fortificar", "pl": "ufortyfikować", "id": "membentengi", "es": "fortificar", "cs": "opevnit"
+    },
+    {
+      "en": "enclose, enclosure",
+      "means": "a bonus: close a shape with your tiles to take every tile inside it",
+      "fr": "encercler, encerclement", "de": "einkreisen, Einkreisung", "tr": "kuşatmak, kuşatma", "pt-BR": "cercar, cerco", "pl": "okrążyć, okrążenie", "id": "mengepung, kepungan", "es": "cercar, cerco", "cs": "obklíčit, obklíčení"
+    },
+    {
+      "en": "bomb",
+      "means": "a bonus dropped on an area: it resets the tiles there to no flag",
+      "fr": "bombe", "de": "Bombe", "tr": "bomba", "pt-BR": "bomba", "pl": "bomba", "id": "bom", "es": "bomba", "cs": "bomba"
+    },
+    {
+      "en": "spread",
+      "means": "a bonus: while it is on, each click also takes the tiles around it",
+      "fr": "propagation", "de": "Streuung", "tr": "yayılım", "pt-BR": "espalhamento", "pl": "rozrzut", "id": "sebaran", "es": "expansión", "cs": "rozptyl"
+    },
+    {
+      "en": "refill",
+      "means": "a bonus that fills your clicks to full, when you choose",
+      "fr": "recharge", "de": "Aufladung", "tr": "dolum", "pt-BR": "recarga", "pl": "doładowanie", "id": "isi ulang", "es": "recarga", "cs": "dobití"
+    },
+    {
+      "en": "box",
+      "means": "a bonus box that flies round the globe; catch it to get a bonus",
+      "fr": "caisse", "de": "Kiste", "tr": "kutu", "pt-BR": "caixa", "pl": "skrzynka", "id": "kotak", "es": "caja", "cs": "bedna"
+    },
+    {
+      "en": "quiz",
+      "means": "a short question with a few seconds to answer; a right answer gives a bonus",
+      "fr": "quiz", "de": "Quiz", "tr": "quiz", "pt-BR": "quiz", "pl": "quiz", "id": "kuis", "es": "quiz", "cs": "kvíz"
+    },
+    {
+      "en": "bonus",
+      "means": "refill, spread, bomb, enclose or shields, held until used",
+      "fr": "bonus", "de": "Bonus", "tr": "bonus", "pt-BR": "bônus", "pl": "bonus", "id": "bonus", "es": "bonus", "cs": "bonus"
+    },
+    {
+      "en": "inventory",
+      "means": "the bonuses a player holds",
+      "fr": "inventaire", "de": "Inventar", "tr": "envanter", "pt-BR": "inventário", "pl": "ekwipunek", "id": "inventaris", "es": "inventario", "cs": "inventář"
+    },
+    {
+      "en": "season",
+      "means": "weeks of play scored day by day, ending with the Final Battle",
+      "fr": "saison", "de": "Saison", "tr": "sezon", "pt-BR": "temporada", "pl": "sezon", "id": "musim", "es": "temporada", "cs": "sezóna"
+    },
+    {
+      "en": "battle",
+      "means": "a timed event with its own rules, scored on the tiles each flag gains",
+      "fr": "bataille", "de": "Schlacht", "tr": "savaş", "pt-BR": "batalha", "pl": "bitwa", "id": "pertempuran", "es": "batalla", "cs": "bitva"
+    },
+    {
+      "en": "Final Battle",
+      "means": "the last battle of a season, worth the most points; a name, capitalized as a name",
+      "fr": "Bataille finale", "de": "Finale Schlacht", "tr": "Final Savaşı", "pt-BR": "Batalha Final", "pl": "Bitwa Finałowa", "id": "Pertempuran Final", "es": "Batalla Final", "cs": "Finální bitva"
+    },
+    {
+      "en": "round",
+      "means": "a day or a battle, as the season's points are given for it",
+      "fr": "manche", "de": "Runde", "tr": "tur", "pt-BR": "rodada", "pl": "runda", "id": "babak", "es": "ronda", "cs": "kolo"
+    },
+    {
+      "en": "points",
+      "means": "what a flag wins in the season's table for its place in a day or a battle",
+      "fr": "points", "de": "Punkte", "tr": "puan", "pt-BR": "pontos", "pl": "punkty", "id": "poin", "es": "puntos", "cs": "body"
+    },
+    {
+      "en": "mission",
+      "means": "a daily task (take tiles, catch boxes…) that pays a bonus",
+      "fr": "mission", "de": "Mission", "tr": "görev", "pt-BR": "missão", "pl": "misja", "id": "misi", "es": "misión", "cs": "mise"
+    },
+    {
+      "en": "flag mission",
+      "means": "one shared daily task for everyone playing a flag, worth season points",
+      "fr": "mission du drapeau", "de": "Flaggenmission", "tr": "bayrak görevi", "pt-BR": "missão da bandeira", "pl": "misja flagi", "id": "misi bendera", "es": "misión de bandera", "cs": "mise vlajky"
+    },
+    {
+      "en": "title",
+      "means": "a rank a player earns on a track (a medal with a name), and may wear",
+      "fr": "titre", "de": "Titel", "tr": "unvan", "pt-BR": "título", "pl": "tytuł", "id": "gelar", "es": "título", "cs": "titul"
+    },
+    {
+      "en": "streak",
+      "means": "days played in a row",
+      "fr": "série", "de": "Serie", "tr": "seri", "pt-BR": "sequência", "pl": "seria", "id": "beruntun", "es": "racha", "cs": "série"
+    },
+    {
+      "en": "front",
+      "means": "where a flag's land touches another's, the place to fight",
+      "fr": "front", "de": "Front", "tr": "cephe", "pt-BR": "front", "pl": "front", "id": "garis depan", "es": "frente", "cs": "fronta"
+    },
+    {
+      "en": "capital",
+      "means": "a country's capital tile; taking it knocks its flag out in some battles",
+      "fr": "capitale", "de": "Hauptstadt", "tr": "başkent", "pt-BR": "capital", "pl": "stolica", "id": "ibu kota", "es": "capital", "cs": "hlavní město"
+    },
+    {
+      "en": "knock out",
+      "means": "a flag whose capital is taken is out of the battle, its land cleared",
+      "fr": "éliminer", "de": "ausschalten", "tr": "elemek", "pt-BR": "eliminar", "pl": "wyeliminować", "id": "menyingkirkan", "es": "eliminar", "cs": "vyřadit"
+    },
+    {
+      "en": "landmass",
+      "means": "an island or a region of a country, drawn as one territory",
+      "fr": "territoire", "de": "Gebiet", "tr": "bölge", "pt-BR": "território", "pl": "terytorium", "id": "wilayah", "es": "territorio", "cs": "území"
+    },
+    {
+      "en": "board",
+      "means": "the leaderboard of flags by tiles held",
+      "fr": "classement", "de": "Rangliste", "tr": "sıralama", "pt-BR": "ranking", "pl": "ranking", "id": "papan peringkat", "es": "clasificación", "cs": "žebříček"
+    },
+    {
+      "en": "standings",
+      "means": "the season's table: flags or players by points",
+      "fr": "classement", "de": "Tabelle", "tr": "puan durumu", "pt-BR": "classificação", "pl": "tabela", "id": "klasemen", "es": "clasificación", "cs": "tabulka"
+    },
+    {
+      "en": "Hall of Fame",
+      "means": "the past seasons' winners",
+      "fr": "Panthéon", "de": "Ruhmeshalle", "tr": "Şöhretler Salonu", "pt-BR": "Hall da Fama", "pl": "Galeria Sław", "id": "Hall of Fame", "es": "Salón de la Fama", "cs": "Síň slávy"
+    },
+    {
+      "en": "guest",
+      "means": "a player who has not signed in",
+      "fr": "invité", "de": "Gast", "tr": "misafir", "pt-BR": "convidado", "pl": "gość", "id": "tamu", "es": "invitado", "cs": "host"
+    },
+    {
+      "en": "sign in",
+      "means": "to log in with Google, Discord or an emailed code",
+      "fr": "se connecter", "de": "anmelden", "tr": "giriş yap", "pt-BR": "entrar", "pl": "zaloguj się", "id": "masuk", "es": "iniciar sesión", "cs": "přihlásit se"
+    },
+    {
+      "en": "username",
+      "means": "the name a signed-in player picks",
+      "fr": "pseudo", "de": "Benutzername", "tr": "kullanıcı adı", "pt-BR": "nome de usuário", "pl": "nazwa gracza", "id": "nama pengguna", "es": "nombre de usuario", "cs": "přezdívka"
+    },
+    {
+      "en": "chat",
+      "means": "the live chat: the World room and each flag's room",
+      "fr": "chat", "de": "Chat", "tr": "sohbet", "pt-BR": "chat", "pl": "czat", "id": "obrolan", "es": "chat", "cs": "chat"
+    },
+    {
+      "en": "World (chat room)",
+      "means": "the chat room every player shares",
+      "fr": "Monde", "de": "Welt", "tr": "Dünya", "pt-BR": "Mundo", "pl": "Świat", "id": "Dunia", "es": "Mundo", "cs": "Svět"
+    },
+    {
+      "en": "slowdown",
+      "means": "a big flag's clicks refill slower",
+      "fr": "ralentissement", "de": "Verlangsamung", "tr": "yavaşlama", "pt-BR": "lentidão", "pl": "spowolnienie", "id": "perlambatan", "es": "ralentización", "cs": "zpomalení"
+    },
+    {
+      "en": "frozen (map)",
+      "means": "the map takes no clicks, between two seasons",
+      "fr": "gelée", "de": "eingefroren", "tr": "donduruldu", "pt-BR": "congelado", "pl": "zamrożona", "id": "dibekukan", "es": "congelado", "cs": "zmrazená"
+    },
+    {
+      "en": "recruit",
+      "means": "to bring a friend to play for your flag with your link",
+      "fr": "recruter", "de": "anwerben", "tr": "davet etmek", "pt-BR": "recrutar", "pl": "zwerbować", "id": "merekrut", "es": "reclutar", "cs": "naverbovat"
+    }
+  ]
+}

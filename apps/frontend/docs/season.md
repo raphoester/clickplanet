@@ -11,19 +11,20 @@ counts points**, by the ids the gamemaster names: the season's `bookId` and the
 rounds' `roundId` (see [Season standings](season-standings.md)).
 `scoringBackend.ts` makes the `ScoringService` client.
 
-- `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: the time left to
-  today's cutoff to the second (`13h 05m 12s`, `52m 10s`), to the next battle's
+- `domain/seasonClock.ts` — `countdownsOf`, the chip's faces: each a kind (`today`, `battle`, `final`, `season`) and
+  its `Countdown`, the time left to today's cutoff to the second, to the next battle's
   start when one is to come, and to the season's end. **Today's end is the
   gamemaster's**: `Timeline.today.ends_at`, the daily cutoff. With no day
   running (after the season's last cutoff), or a day that
   ends with the season, there is one face, the season's. After the season, none. `endClock` is the season's
-  countdown unit by unit, for the home page, and `endsLine` its end in the
-  player's own time zone ("Sat 31 Oct · 23:00").
+  `Countdown`, for the home page. `app/season/countdownWords.ts` names each kind's label, sentence and phone tag;
+  `translator().countdown` writes the time (`13h 05m 12s`, `52m 10s`), and `app/season/dates.ts` the dates, in the
+  page's language and the player's time zone.
 - **The next battle is the schedule's** (see [Battles](battle.md#the-battles-to-come)):
   an operator may move or delete it, and the stream says so within a second.
 - `domain/champion.ts` — `championOf`, the countries ranked 1st once the Final
   Battle or the season was debriefed, `reigningChampionOf`, that champion while no newer season is current,
-  and `winsLine`, "Germany wins Season 0", for the reveal, the chip and the chat.
+  and `winsLine` (`app/season/seasonLines.ts`), "Germany wins Season 0", for the reveal and the chip.
 - `runningSeason` (`app/battle/scheduleStore.ts`) — the timeline's current season, which `useScheduleFeed` drops at
   its end on this clock (a page open across it goes back to no season).
 - `app/season/` — `SeasonChip`, `ChampionChip`, `SeasonDetails`,
@@ -109,8 +110,8 @@ no battle is to come; an edit of the schedule moves it at once. The page's text 
 **The home page tells the Final Battle in a panel of its own**, under the season's, in `#season`.
 `app/home/finale.ts` (`finaleShown`) shows it while the season's finale is to come or plays (`finaleOf`, see
 [Battles](battle.md#the-battles-to-come)), and hides it with none: the schedule decides the finale, so the page
-promises none. It writes only the schedule's facts: when it plays in the player's time (`finaleWhenLine`, "Sat 31
-Oct · 21:00 – 23:00"), how long ("2 hours of war", `finaleLengthLine`), its points' times ("Points ×3", the row
+promises none. It writes only the schedule's facts: when it plays in the player's time (`dayAndTimeRange`, "Sat 31
+Oct, 21:00 – 23:00"), how long ("2 hours", `finaleMinutes`), its points' times ("Points ×3", the row
 hidden at ×1), and the operator's words in a box (hidden when empty). Its clock counts to the start ("Starts in"),
 then, live (`data-live`), to the end ("Live now · ends in"), and the panel's ember glow pulses. "The last word" says
 what is always true of a finale: nothing scores after it, and the champion is crowned. The panel wears the battle

@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {countdownsOf, endClock, endsLine, spanLine} from "./seasonClock.ts"
+import {countdownsOf, endClock, timeLeftTo} from "./seasonClock.ts"
 
 const SECOND = 1000
 const MINUTE = 60 * SECOND
@@ -15,25 +15,25 @@ const day = {number: 21, startsAt: lastDayEndsAt - 4 * DAY, endsAt: lastDayEndsA
 describe("countdownsOf", () => {
     it("counts down to today's end and to the season's", () => {
         expect(countdownsOf(season, day.endsAt - (13 * HOUR + 5 * MINUTE + 20 * SECOND), undefined, day.endsAt)).toEqual([
-            {label: "Today ends in", tag: "Today", left: "13h 05m 20s"},
-            {label: "Season ends in", tag: "Season", left: "3d 15h 05m 20s"},
+            {kind: "today", countdown: {days: 0, hours: 13, minutes: 5, seconds: 20}},
+            {kind: "season", countdown: {days: 3, hours: 15, minutes: 5, seconds: 20}},
         ])
     })
 
     it("counts the season alone with no day running", () => {
-        expect(countdownsOf(season, lastDayEndsAt)).toEqual([{label: "Season ends in", tag: "Season", left: "2h 00m 00s"}])
-        expect(countdownsOf(season, lastDayEndsAt, undefined, lastDayEndsAt).map((c) => c.label)).toEqual(["Season ends in"])
+        expect(countdownsOf(season, lastDayEndsAt)).toEqual([{kind: "season", countdown: {days: 0, hours: 2, minutes: 0, seconds: 0}}])
+        expect(countdownsOf(season, lastDayEndsAt, undefined, lastDayEndsAt).map((c) => c.kind)).toEqual(["season"])
         expect(countdownsOf(season, endsAt - (12 * MINUTE + 5 * SECOND))).toEqual([
-            {label: "Season ends in", tag: "Season", left: "12m 05s"},
+            {kind: "season", countdown: {days: 0, hours: 0, minutes: 12, seconds: 5}},
         ])
     })
 
     it("counts a day that ends with the season once", () => {
-        expect(countdownsOf(season, endsAt - 3 * HOUR, undefined, endsAt)).toEqual([{label: "Season ends in", tag: "Season", left: "3h 00m 00s"}])
+        expect(countdownsOf(season, endsAt - 3 * HOUR, undefined, endsAt)).toEqual([{kind: "season", countdown: {days: 0, hours: 3, minutes: 0, seconds: 0}}])
     })
 
     it("rounds a part second up, so it reads 00m 01s until the end", () => {
-        expect(countdownsOf(season, endsAt - 300)[0].left).toBe("00m 01s")
+        expect(countdownsOf(season, endsAt - 300)[0].countdown).toEqual({days: 0, hours: 0, minutes: 0, seconds: 1})
     })
 
     it("is empty once the season is over", () => {
@@ -46,33 +46,30 @@ describe("countdownsOf", () => {
 
     it("counts down to the next battle between today's end and the season's", () => {
         expect(countdownsOf(season, lastDayEndsAt - DAY - 3 * HOUR, raid, lastDayEndsAt - DAY)).toEqual([
-            {label: "Today ends in", tag: "Today", left: "3h 00m 00s"},
-            {label: "Next battle in", tag: "Battle", left: "4h 00m 00s"},
-            {label: "Season ends in", tag: "Season", left: "1d 05h 00m 00s"},
+            {kind: "today", countdown: {days: 0, hours: 3, minutes: 0, seconds: 0}},
+            {kind: "battle", countdown: {days: 0, hours: 4, minutes: 0, seconds: 0}},
+            {kind: "season", countdown: {days: 1, hours: 5, minutes: 0, seconds: 0}},
         ])
     })
 
     it("names the season's finale the final battle", () => {
         expect(countdownsOf(season, lastDayEndsAt - DAY - 3 * HOUR, battle, lastDayEndsAt - DAY)).toEqual([
-            {label: "Today ends in", tag: "Today", left: "3h 00m 00s"},
-            {label: "Final Battle in", tag: "Final", left: "1d 03h 00m 00s", endsSeason: true},
-            {label: "Season ends in", tag: "Season", left: "1d 05h 00m 00s"},
+            {kind: "today", countdown: {days: 0, hours: 3, minutes: 0, seconds: 0}},
+            {kind: "final", countdown: {days: 1, hours: 3, minutes: 0, seconds: 0}},
+            {kind: "season", countdown: {days: 1, hours: 5, minutes: 0, seconds: 0}},
         ])
     })
 
     it("drops the battle once it starts", () => {
-        expect(countdownsOf(season, battle.startsAt - SECOND, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Today", "Final", "Season"])
-        expect(countdownsOf(season, battle.startsAt, battle, lastDayEndsAt).map((c) => c.tag)).toEqual(["Season"])
+        expect(countdownsOf(season, battle.startsAt - SECOND, battle, lastDayEndsAt).map((c) => c.kind)).toEqual(["today", "final", "season"])
+        expect(countdownsOf(season, battle.startsAt, battle, lastDayEndsAt).map((c) => c.kind)).toEqual(["season"])
     })
 })
 
 describe("endClock", () => {
     it("counts down to the end of the season, unit by unit", () => {
-        expect(endClock(season, endsAt - (25 * DAY + 3 * HOUR + 7 * MINUTE + 9 * SECOND))).toEqual({
-            left: "25d 03h 07m 09s",
-            countdown: {days: 25, hours: 3, minutes: 7, seconds: 9},
-        })
-        expect(endClock(season, endsAt - 300)?.countdown).toEqual({days: 0, hours: 0, minutes: 0, seconds: 1})
+        expect(endClock(season, endsAt - (25 * DAY + 3 * HOUR + 7 * MINUTE + 9 * SECOND))).toEqual({days: 25, hours: 3, minutes: 7, seconds: 9})
+        expect(endClock(season, endsAt - 300)).toEqual({days: 0, hours: 0, minutes: 0, seconds: 1})
     })
 
     it("is gone once the season is over", () => {
@@ -80,22 +77,9 @@ describe("endClock", () => {
     })
 })
 
-describe("endsLine", () => {
-    it("says when the season ends in the player's own time", () => {
-        expect(endsLine(season, "Europe/Paris")).toBe("Sun 1 Nov · 00:00")
-        expect(endsLine(season, "UTC")).toBe("Sat 31 Oct · 23:00")
-        expect(endsLine(season, "America/New_York")).toBe("Sat 31 Oct · 19:00")
-    })
-})
-
-describe("spanLine", () => {
-    it("says the season's first and last dates in the player's own time", () => {
-        expect(spanLine(season, "UTC")).toBe("3 Oct – 31 Oct 2026")
-        expect(spanLine(season, "Europe/Paris")).toBe("3 Oct – 1 Nov 2026")
-    })
-
-    it("says both years when the season runs into a new one", () => {
-        expect(spanLine({...season, startsAt: Date.UTC(2026, 11, 20), endsAt: Date.UTC(2027, 0, 17)}, "UTC"))
-            .toBe("20 Dec 2026 – 17 Jan 2027")
+describe("timeLeftTo", () => {
+    it("counts down to a moment, and stops at zero", () => {
+        expect(timeLeftTo(endsAt, endsAt - (HOUR + 2 * SECOND))).toEqual({days: 0, hours: 1, minutes: 0, seconds: 2})
+        expect(timeLeftTo(endsAt, endsAt + MINUTE)).toEqual({days: 0, hours: 0, minutes: 0, seconds: 0})
     })
 })

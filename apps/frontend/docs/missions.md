@@ -8,8 +8,9 @@ for a charge drawn with the day (shields, spread clicks, a bomb or enclosures). 
 itself, with nothing to press.
 
 - **A place of its own**: the Missions tab (phone) and menu tab (desktop), `app/missions/MissionsPlace.tsx`.
-  Each row is its order's own parts (`partsOf`): its words (`orderOf`, one case per kind: "Take 40 tiles
-  from", "Drop 2 bombs on", "Catch 4 boxes"), then the flag and the name of each country it names, and a bar
+  Each row is its order's own parts (`partsOf`, `app/missions/orderParts.tsx`): one line per kind, with the flag
+  and the name of each country it names in its slots ("Take 40 tiles from 🇫🇷 France", "Drop 2 bombs on…",
+  "Catch 4 boxes"), and a bar
   with how far it went (`reachedOf`) over its goal, its reward in its bonus color, and
   **Done** once the backend says so (`done`: the client does not decide it). A guest sees
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its

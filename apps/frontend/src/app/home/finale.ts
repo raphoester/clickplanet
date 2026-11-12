@@ -1,7 +1,9 @@
 import {BattleToCome, PLAIN_TURN, Turn} from "../../backends/turn.ts"
-import {finaleLengthLine, finaleOf, finaleWhenLine} from "../../domain/battle.ts"
-import {Countdown, countdownTo, twoDigits} from "../../domain/seasonClock.ts"
-import {write} from "./season.ts"
+import {finaleMinutes, finaleOf} from "../../domain/battle.ts"
+import {Countdown, countdownTo} from "../../domain/seasonClock.ts"
+import {translator} from "../../i18n/page.ts"
+import {dayAndTimeRange} from "../season/dates.ts"
+import {twoDigits, write} from "./season.ts"
 
 const TICK_MS = 1000
 const UNITS: (keyof Countdown)[] = ["days", "hours", "minutes", "seconds"]
@@ -27,8 +29,8 @@ export function finaleShown(root: ParentNode): FinaleShown {
         for (const panel of panels) panel.toggleAttribute("data-live", finale.live)
         const countdown = countdownTo(finale.live ? finale.endsAt : finale.startsAt, now)
         for (const unit of UNITS) write(root, `finale-${unit}`, twoDigits(countdown[unit]))
-        write(root, "finale-when", finaleWhenLine(finale))
-        write(root, "finale-length", finaleLengthLine(finale))
+        write(root, "finale-when", dayAndTimeRange(finale.startsAt, finale.endsAt))
+        write(root, "finale-length", translator().length(finaleMinutes(finale)))
         write(root, "finale-times", String(finale.times))
         write(root, "finale-words", finale.description)
         showIf(root, "finale-times-row", finale.times > 1)

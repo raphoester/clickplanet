@@ -3,6 +3,7 @@ import {createPortal} from "react-dom";
 import {CloseIcon} from "./icons.tsx";
 import ScrollArea from "./ScrollArea.tsx";
 import {useModalDialog} from "./useDialog.ts";
+import {t} from "../../i18n/page.ts";
 import "./Modal.css"
 
 export type ModalProps = {
@@ -42,7 +43,7 @@ export default function Modal(props: ModalProps) {
                     <h2 id={titleId}>{props.title}</h2>
                     {props.onClose && <button type="button"
                             className="icon-button"
-                            aria-label="Close"
+                            aria-label={t("common.close")}
                             onClick={props.onClose}>
                         <CloseIcon/>
                     </button>}

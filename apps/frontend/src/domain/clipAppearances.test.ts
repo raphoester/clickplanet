@@ -31,8 +31,8 @@ describe("watchLinksOf", () => {
             {platform: "tiktok", url: "https://www.tiktok.com/@clickplanetlol/video/1"},
             {platform: "youtube", url: "https://www.youtube.com/shorts/abc"},
         ]))).toEqual([
-            {platform: "tiktok", label: "Watch on TikTok", url: "https://www.tiktok.com/@clickplanetlol/video/1"},
-            {platform: "youtube", label: "Watch on YouTube", url: "https://www.youtube.com/shorts/abc"},
+            {platform: "tiktok", url: "https://www.tiktok.com/@clickplanetlol/video/1"},
+            {platform: "youtube", url: "https://www.youtube.com/shorts/abc"},
         ])
     })
 

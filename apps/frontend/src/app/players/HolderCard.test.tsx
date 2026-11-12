@@ -3,7 +3,6 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import HolderCard from "./HolderCard.tsx"
 import {usePlayerCard} from "./playerCardStore.ts"
-import {DELETED_ACCOUNT} from "./tileHolder.ts"
 import {HolderShown} from "./tileHolderStore.ts"
 import {NameColor, PlayerLine} from "../../backends/player.ts"
 import {useBadges} from "../badges/badgesStore.ts"
@@ -52,7 +51,7 @@ describe("HolderCard", () => {
         expect(card.textContent).toContain("BraveFox42")
         expect(screen.getByRole("img", {name: "Warlord"})).toBeTruthy()
         expect(card.textContent).not.toContain("Warlord")
-        expect(screen.getByText(/Took it for France 3 min ago/)).toBeTruthy()
+        expect(screen.getByText(/Took it for France 3 min\. ago/)).toBeTruthy()
         expect(card.style.left).toBe("316px")
         expect(card.style.top).toBe("216px")
     })
@@ -60,7 +59,7 @@ describe("HolderCard", () => {
     it("says the player took the tile itself when it is its own", () => {
         show(FOX, {holder: {...shown(FOX), mine: true}})
 
-        expect(screen.getByText(/You took it for France 3 min ago/)).toBeTruthy()
+        expect(screen.getByText(/You took it for France 3 min\. ago/)).toBeTruthy()
     })
 
     it("shows the first flags the player fought for", () => {
@@ -83,16 +82,16 @@ describe("HolderCard", () => {
     it("shows a guest by its guest name alone, with no profile to open", () => {
         show(GUEST)
 
-        expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it for Germany 3 min ago")
+        expect(screen.getByRole("region", {name: "guest_91aa3d"}).textContent).toContain("Took it for Germany 3 min. ago")
         expect(screen.queryByRole("button", {name: "guest_91aa3d"})).toBeNull()
         expect(screen.queryByRole("group", {name: "Fought for"})).toBeNull()
     })
 
     it("shows a deleted account by that alone, with no profile to open", () => {
-        const deleted: PlayerLine = {...GUEST, accountId: "", name: DELETED_ACCOUNT, countryCode: "tr", guest: false}
+        const deleted: PlayerLine = {...GUEST, accountId: "", name: "Deleted account", countryCode: "tr", guest: false}
         render(<HolderCard holder={{...shown(deleted), playsFor: []}} now={NOW} onHold={() => {}} onClose={() => {}}/>)
 
-        expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it for Turkey 3 min ago")
+        expect(screen.getByRole("region", {name: "Deleted account"}).textContent).toContain("Took it for Türkiye 3 min. ago")
         expect(screen.queryByRole("button", {name: "Deleted account"})).toBeNull()
     })
 

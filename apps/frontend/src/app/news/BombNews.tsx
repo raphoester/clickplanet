@@ -1,8 +1,9 @@
-import {useEffect, useRef} from 'react'
+import {ReactNode, useEffect, useRef} from 'react'
 import {BombDrop} from '../../backends/backend.ts'
-import {Countries} from '../../domain/countries.ts'
 import CountryFlag from '../components/CountryFlag.tsx'
-import {describeBlast} from '../../domain/blast.ts'
+import {Blast, blastOf} from '../../domain/blast.ts'
+import {translator} from '../../i18n/page.ts'
+import {rich} from '../../i18n/rich.tsx'
 import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import './BombNews.css'
 
@@ -16,7 +17,6 @@ export type BombNewsProps = {
 }
 
 export default function BombNews({drop, land, onDone}: BombNewsProps) {
-    const name = Countries.get(drop.countryId)?.name ?? drop.countryId
     const lowered = useQuiz(quizShown)
 
     const done = useRef(onDone)
@@ -33,7 +33,20 @@ export default function BombNews({drop, land, onDone}: BombNewsProps) {
         <div className="bomb-news-line panel">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>
-            <span><strong>{name}</strong> {describeBlast({tile: drop.tile, cleared: drop.cleared.length}, land)}</span>
+            <span>{bombLine(blastOf({tile: drop.tile, cleared: drop.cleared.length}, land), <strong>{translator().country(drop.countryId)}</strong>)}</span>
         </div>
     </div>
+}
+
+function bombLine(blast: Blast, flag: ReactNode): ReactNode {
+    switch (blast.kind) {
+        case "ocean":
+            return rich("news.bomb.ocean", {flag})
+        case "land":
+            return rich("news.bomb.land", {flag, land: blast.land})
+        case "empty":
+            return rich("news.bomb.empty", {flag})
+        case "tiles":
+            return rich("news.bomb.tiles", {flag, count: blast.count})
+    }
 }

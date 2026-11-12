@@ -1,4 +1,8 @@
-const UNITS: [name: string, seconds: number][] = [
+export type MuteUnit = "week" | "day" | "hour" | "minute" | "second"
+
+export type MuteLength = {unit: MuteUnit, count: number}
+
+const UNITS: [unit: MuteUnit, seconds: number][] = [
     ["week", 7 * 24 * 3600],
     ["day", 24 * 3600],
     ["hour", 3600],
@@ -6,15 +10,8 @@ const UNITS: [name: string, seconds: number][] = [
     ["second", 1],
 ]
 
-import {MuteKind} from "../backends/chat.ts"
-
-export function describeMute(seconds: number, kind: MuteKind = 'chat'): string {
-    if (kind === 'gifs') return `may not post GIFs for ${muteLength(seconds)}`
-    return `has been muted for ${muteLength(seconds)}`
-}
-
-export function muteLength(seconds: number): string {
+// In the largest unit that counts it whole.
+export function muteLengthOf(seconds: number): MuteLength {
     const [unit, size] = UNITS.find(([, size]) => seconds >= size && seconds % size === 0) ?? ["second", 1]
-    const count = Math.round(seconds / size)
-    return count === 1 ? `one ${unit}` : `${count} ${unit}s`
+    return {unit, count: Math.round(seconds / size)}
 }

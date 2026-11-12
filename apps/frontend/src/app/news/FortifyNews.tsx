@@ -1,9 +1,10 @@
 import {useEffect, useRef} from 'react'
-import {Countries} from '../../domain/countries.ts'
 import {Fortified} from '../../domain/fortify.ts'
 import CountryFlag from '../components/CountryFlag.tsx'
 import BonusIcon from '../components/BonusIcon.tsx'
 import {quizShown, useQuiz} from '../quiz/quizStore.ts'
+import {t, translator} from '../../i18n/page.ts'
+import {rich} from '../../i18n/rich.tsx'
 import './BombNews.css'
 import './FortifyNews.css'
 
@@ -17,7 +18,6 @@ export type FortifyNewsProps = {
 export default function FortifyNews({fortified, onDone}: FortifyNewsProps) {
     const {fortification, name, tiles} = fortified
     const lowered = useQuiz(quizShown)
-    const country = Countries.get(fortification.countryId)?.name ?? fortification.countryId
 
     const done = useRef(onDone)
     useEffect(() => {
@@ -33,8 +33,8 @@ export default function FortifyNews({fortified, onDone}: FortifyNewsProps) {
         <div className="bomb-news-line fortify-news-line panel">
             <span className="fortify-news-shield"><BonusIcon kind="shields"/></span>
             <CountryFlag code={fortification.countryId}/>
-            <span><strong>{country}</strong> fortified <strong>{name}</strong></span>
-            <span className="fortify-news-tiles">+1 shield on {tiles.toLocaleString("en-US")} {tiles === 1 ? "tile" : "tiles"}</span>
+            <span>{rich("news.fortified", {flag: <strong>{translator().country(fortification.countryId)}</strong>, territory: <strong>{name}</strong>})}</span>
+            <span className="fortify-news-tiles">{t("news.fortifyShields", {tiles})}</span>
         </div>
     </div>
 }

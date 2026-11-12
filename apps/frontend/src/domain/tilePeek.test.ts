@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {agoOf, holderShown, TilePeek} from "./tilePeek.ts"
+import {holderShown, TilePeek} from "./tilePeek.ts"
 
 const RULES = {restSeconds: 0.5, holdSeconds: 0.5, tolerancePx: 12}
 
@@ -84,22 +84,5 @@ describe("holderShown", () => {
     it("is nobody for a tile that changed hands since its last take was kept", () => {
         expect(holderShown(holder, {...peek, countryCode: "de"})).toBeUndefined()
         expect(holderShown(undefined, peek)).toBeUndefined()
-    })
-})
-
-describe("agoOf", () => {
-    const now = 1_761_393_600_000
-
-    it("says how long ago, in the largest whole unit", () => {
-        expect(agoOf(now - 20_000, now)).toBe("just now")
-        expect(agoOf(now - 3 * 60_000 - 59_000, now)).toBe("3 min ago")
-        expect(agoOf(now - 60 * 60_000, now)).toBe("1 hour ago")
-        expect(agoOf(now - 5 * 60 * 60_000, now)).toBe("5 hours ago")
-        expect(agoOf(now - 24 * 60 * 60_000, now)).toBe("1 day ago")
-        expect(agoOf(now - 40 * 24 * 60 * 60_000, now)).toBe("40 days ago")
-    })
-
-    it("reads a take stamped ahead of this clock as just now", () => {
-        expect(agoOf(now + 5_000, now)).toBe("just now")
     })
 })

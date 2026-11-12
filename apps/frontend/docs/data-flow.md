@@ -41,7 +41,7 @@
    refusal does not clear on its own — the player has to change network — so the
    next click raises it again.
 
-   **`BannedModal` says until when** (`describeEnd`, the chat mute's words: the
+   **`BannedModal` says until when** (`describeEnd`, `app/endTime.ts`, the chat mute's words: the
    time under 20 hours, then the day, and the year when it is not this one), and
    links the terms' "Play fair" section in a new tab (`GAME_RULES`,
    `/terms#play-fair`). It gives no reason, on purpose: the server sends none.

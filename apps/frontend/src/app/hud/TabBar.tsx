@@ -3,6 +3,7 @@ import {ChatIcon, SettingsIcon, ShareIcon, TargetIcon, TrophyIcon, UserIcon, Use
 import {useScreen} from "./screenStore.ts"
 import {useChat} from "../chat/chatStore.ts"
 import {VideoDot} from "../video/VideoTile.tsx"
+import {t} from "../../i18n/page.ts"
 import "./TabBar.css"
 
 export type Tab = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings"
@@ -34,19 +35,19 @@ export default function TabBar({chat, you, missions, invite, videoDot}: TabBarPr
             {extra}
         </button>
 
-    return <nav className="tab-bar panel" aria-label="Game">
-        {tab("board", "Board", <TrophyIcon/>)}
-        {missions !== undefined && tab("missions", "Missions", <TargetIcon/>,
+    return <nav className="tab-bar panel" aria-label={t("hud.game")}>
+        {tab("board", t("menu.board"), <TrophyIcon/>)}
+        {missions !== undefined && tab("missions", t("menu.missions"), <TargetIcon/>,
             missions > 0 && <span className="chip tab-bar-badge" key={missions} aria-hidden="true">{missions}</span>,
-            missions === 0 ? undefined : missions === 1 ? "Missions, 1 new" : `Missions, ${missions} new`)}
-        {chat && tab("chat", "Chat", <ChatIcon/>,
+            missions === 0 ? undefined : t("menu.missionsNews", {count: missions}))}
+        {chat && tab("chat", t("menu.chat"), <ChatIcon/>,
             unread > 0 && <span className="chip tab-bar-badge" key={unread} aria-hidden="true">
-                {unread > UNREAD_CAP ? `${UNREAD_CAP}+` : unread}
+                {unread > UNREAD_CAP ? t("hud.overCap", {count: UNREAD_CAP}) : unread}
             </span>,
-            unread === 0 ? undefined : unread === 1 ? "Chat, 1 new message" : `Chat, ${unread} new messages`)}
-        {you && tab("you", you === "guest" ? "Sign in" : "You", <UserIcon/>,
+            unread === 0 ? undefined : t("menu.chatNews", {count: unread}))}
+        {you && tab("you", you === "guest" ? t("common.signIn") : t("menu.you"), <UserIcon/>,
             you === "guest" && <span className="tab-bar-dot" aria-hidden="true"/>)}
-        {invite ? tab("invite", "Invite", <UsersIcon/>) : tab("share", "Share", <ShareIcon size={22}/>, videoDot && <VideoDot/>)}
-        {tab("settings", "Settings", <SettingsIcon/>)}
+        {invite ? tab("invite", t("menu.invite"), <UsersIcon/>) : tab("share", t("menu.share"), <ShareIcon size={22}/>, videoDot && <VideoDot/>)}
+        {tab("settings", t("menu.settings"), <SettingsIcon/>)}
     </nav>
 }

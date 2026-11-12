@@ -8,7 +8,7 @@ than the others (720px): it is the one place that shows every season.
 - **One plaque per season, in a carousel**: a row that scrolls sideways and snaps on each plaque, oldest first, and
   opened scrolled to its end, on the newest. While they all fit, the plaques stand centred.
 - **An ended season's plaque is its winner**: its number, its first and last dates in the player's time
-  (`spanLine`, "8 Oct – 31 Oct 2026"), and the winner's flag, large, its name for a screen reader. The winner is every
+  (`seasonSpan` in `app/season/dates.ts`, "3–31 Oct 2026" in British English), and the winner's flag, large, its name for a screen reader. The winner is every
   country first in the book's table from scoring (`GetScores`, ranked with the finale as the tiebreak, see the
   backend's [Scoring](../../backend/docs/scoring.md); `firstsOf`): countries level on everything show their flags side
   by side. A book nobody scored in says "No winner". View and Map sit under it (see [A season's map](season-map.md)).
@@ -39,7 +39,8 @@ Previous, Next, a dot per slide and the arrow keys move between them.
    points (×times in the head) and the tiles their players took (`takes`, which the debrief no longer shows).
 5. **Final Battle, top players**: the round's ten best players, as the debrief's last screen.
 6. **In numbers**: the season's clicks (the hero), players, days, bombs dropped, shields placed, shield hits, lands
-   fortified, the flags that scored and the Final Battle's clicks (`bigNumbersOf`). The ledger's totals are the
+   fortified, the flags that scored and the Final Battle's clicks (`bigNumbersOf`, each a kind and a value, named in
+   `SeasonStats`). The ledger's totals are the
    gamemaster's `GetSeasonTotals` (`TurnBackend.seasonTotals`, 60 s, since its first read scans the ledger).
 
 - **A season with no finale has no Final Battle slides** (`slidesOf`).

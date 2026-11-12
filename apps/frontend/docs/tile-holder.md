@@ -51,7 +51,7 @@ tap never is, and the bomb's hold-to-drop is already one.
   token. A new peek aborts the last one. The lines it builds (`playerLineOf`,
   `deletedLineOf`) and `LEAVE_GRACE_MS` are in `app/players/tileHolder.ts`, which the
   territory card shares.
-- **A take with no account is a deleted account** (`DELETED_ACCOUNT`): the ledger
+- **A take with no account is a deleted account** (`deletedLineOf`): the ledger
   keeps a deleted account's takes with no account, so the card says "Deleted
   account", the flag and when, with a name that opens nothing, and asks for no card.
   **So is a take whose account `GetPlayer` does not know** (`NotFound`): an account

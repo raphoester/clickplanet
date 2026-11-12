@@ -1,6 +1,8 @@
 import {FormEvent, useId, useState} from "react"
 import {CODE_LENGTH, Intent} from "../../backends/account.ts"
 import {AccountState, AccountStore, PendingCode} from "./accountStore.ts"
+import {t} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
 import "./Account.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -26,7 +28,7 @@ function AddressForm({state, store, intent}: EmailSignInProps) {
     const inputId = useId()
     const canSend = state.busy === undefined && looksLikeAnAddress(address)
     const besideButtons = state.offered.some((p) => p !== "email" && !state.me.linked.includes(p))
-    const label = intent === "link" ? "Link an email" : besideButtons ? "Or with your email" : "With your email"
+    const label = t(intent === "link" ? "signIn.linkEmail" : besideButtons ? "signIn.orWithEmail" : "signIn.withEmail")
 
     const submit = (event: FormEvent) => {
         event.preventDefault()
@@ -43,14 +45,14 @@ function AddressForm({state, store, intent}: EmailSignInProps) {
                    autoComplete="email"
                    autoCapitalize="off"
                    spellCheck={false}
-                   placeholder="you@example.com"
+                   placeholder={t("signIn.emailPlaceholder")}
                    value={address}
                    onChange={(e) => setAddress(e.target.value)}/>
             <button type="submit" className="button button-mini button-action account-name-save" disabled={!canSend}>
-                Send code
+                {t("signIn.sendCode")}
             </button>
         </div>
-        <p className="account-name-hint">We email you a code. No password.</p>
+        <p className="account-name-hint">{t("signIn.noPassword")}</p>
     </form>
 }
 
@@ -67,9 +69,9 @@ function CodeForm({state, store, code}: {state: Ready, store: AccountStore, code
     }
 
     return <form className="account-name account-email" onSubmit={submit} aria-busy={state.busy === "checkCode"}>
-        <label className="menu-label" htmlFor={inputId}>Code</label>
+        <label className="menu-label" htmlFor={inputId}>{t("signIn.code")}</label>
         <p className="account-name-hint">
-            We sent a code to <strong className="account-email-address">{code.address}</strong>. It works for 10 minutes.
+            {rich("signIn.codeSent", {address: <strong className="account-email-address">{code.address}</strong>})}
         </p>
         <div className="account-name-row">
             <input id={inputId}
@@ -81,16 +83,16 @@ function CodeForm({state, store, code}: {state: Ready, store: AccountStore, code
                    value={draft}
                    onChange={(e) => setDraft(e.target.value)}/>
             <button type="submit" className="button button-mini button-action account-name-save" disabled={!canCheck}>
-                {code.intent === "link" ? "Link" : "Sign in"}
+                {t(code.intent === "link" ? "signIn.link" : "common.signIn")}
             </button>
         </div>
         <div className="account-email-actions">
             <button type="button" className="account-text-button" disabled={busy}
                     onClick={() => void store.sendCode(code.address, code.intent)}>
-                Send a new code
+                {t("signIn.newCode")}
             </button>
             <button type="button" className="account-text-button" disabled={busy} onClick={() => store.cancelCode()}>
-                Use another address
+                {t("signIn.otherAddress")}
             </button>
         </div>
     </form>

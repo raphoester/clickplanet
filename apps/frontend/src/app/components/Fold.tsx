@@ -1,5 +1,6 @@
 import {ReactNode, useId, useState} from "react"
 import {ChevronIcon} from "./icons.tsx"
+import {t} from "../../i18n/page.ts"
 import "./Fold.css"
 
 export type FoldProps = {
@@ -20,7 +21,7 @@ export default function Fold({title, summary, summaryLabel, startOpen = false, c
             <button type="button"
                     className="panel-box fold-bar"
                     aria-expanded={open}
-                    aria-label={summaryLabel && `${title}, ${summaryLabel}`}
+                    aria-label={summaryLabel && t("menu.foldSummary", {title, summary: summaryLabel})}
                     aria-controls={open ? bodyId : undefined}
                     onClick={() => setOpen((was) => !was)}>
                 <span className="fold-title" id={titleId}>{title}</span>

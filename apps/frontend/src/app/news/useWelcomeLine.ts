@@ -1,7 +1,6 @@
 import {useEffect} from "react"
 import {ShownNamesBackend} from "../../backends/clips.ts"
 import {LandingStore} from "../../domain/landing.ts"
-import {welcomeLineOf} from "../../domain/video/welcome.ts"
 import {useNews} from "./newsStore.ts"
 
 const WELCOMED_KEY = "clickplanet-recruit-welcomed"
@@ -22,8 +21,9 @@ function keepWelcomed() {
     }
 }
 
-// A newcomer who came by a player's address is told who called it, once, when the map is up.
-export function useWelcomeLine(names: ShownNamesBackend, landings: LandingStore, ready: boolean, flag: string) {
+// A newcomer who came by a player's address is told who called it, once, when the map is up: the recruiter's name only
+// as the clips let a video show it.
+export function useWelcomeLine(names: ShownNamesBackend, landings: LandingStore, ready: boolean, flagName: string) {
     const tellWelcome = useNews((news) => news.tellWelcome)
 
     useEffect(() => {
@@ -35,13 +35,13 @@ export function useWelcomeLine(names: ShownNamesBackend, landings: LandingStore,
             (shown) => {
                 if (!live) return
                 keepWelcomed()
-                const line = welcomeLineOf(recruiter, shown, flag)
-                if (line !== undefined) tellWelcome(line)
+                const name = shown.get(recruiter)
+                if (name !== undefined) tellWelcome(name, flagName)
             },
             (e) => console.error("could not read the name of who called you", e),
         )
         return () => {
             live = false
         }
-    }, [names, landings, ready, flag, tellWelcome])
+    }, [names, landings, ready, flagName, tellWelcome])
 }

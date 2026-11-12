@@ -1,5 +1,7 @@
 import {Season} from "../../backends/season.ts"
-import {Countdown, endClock, endsLine, twoDigits} from "../../domain/seasonClock.ts"
+import {Countdown, endClock} from "../../domain/seasonClock.ts"
+import {translator} from "../../i18n/page.ts"
+import {dayAndTime} from "../season/dates.ts"
 import {Shown} from "./battle.ts"
 
 const TICK_MS = 1000
@@ -18,14 +20,14 @@ export function seasonShown(root: ParentNode): Shown<Season | undefined> {
             for (const element of shown) element.hidden = !clock
             if (!season || !clock) return false
 
-            write(root, "season-left", clock.left)
-            for (const unit of UNITS) write(root, `countdown-${unit}`, twoDigits(clock.countdown[unit]))
+            write(root, "season-left", translator().countdown(clock))
+            for (const unit of UNITS) write(root, `countdown-${unit}`, twoDigits(clock[unit]))
             return true
         }
 
         if (season) {
             write(root, "season-number", String(season.number))
-            write(root, "season-ends", endsLine(season))
+            write(root, "season-ends", dayAndTime(season.endsAt))
         }
         if (!tick()) return
         timer = setInterval(() => {
@@ -33,6 +35,10 @@ export function seasonShown(root: ParentNode): Shown<Season | undefined> {
         }, TICK_MS)
     }
     return {show, stop}
+}
+
+export function twoDigits(n: number): string {
+    return translator().number(n, {minimumIntegerDigits: 2})
 }
 
 export function write(root: ParentNode, field: string, text: string) {

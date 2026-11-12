@@ -1,11 +1,14 @@
+import {translator} from "../../i18n/page.ts"
+
 export type Value = {
     code: string,
     name: string
 }
 
 export function matchesSearch(value: Value, search: string): boolean {
-    const term = search.trim().toLowerCase()
-    return term === "" || value.name.toLowerCase().includes(term)
+    const locale = translator().locale
+    const term = search.trim().toLocaleLowerCase(locale)
+    return term === "" || value.name.toLocaleLowerCase(locale).includes(term)
 }
 
 export function visibleOptions(values: Value[], selected: Value | undefined, search: string): Value[] {

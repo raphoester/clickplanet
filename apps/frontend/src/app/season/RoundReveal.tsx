@@ -1,22 +1,14 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {ClosedRound, RoundStanding} from "../../backends/standings.ts"
-import {Champion, championOf, winsLine} from "../../domain/champion.ts"
-import {Countries} from "../../domain/countries.ts"
-import {
-    Move,
-    moveOf,
-    podiumOf,
-    RevealRow,
-    revealRowsOf,
-    ROUND_REVEAL,
-    roundOverLine,
-    seasonOverLine,
-} from "../../domain/roundReveal.ts"
+import {Champion, championOf} from "../../domain/champion.ts"
+import {Move, moveOf, podiumOf, RevealRow, revealRowsOf, ROUND_REVEAL} from "../../domain/roundReveal.ts"
+import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import "../titles/TitleUnlocked.css"
+import {roundOverLine, winsLine} from "./seasonLines.ts"
 import "./RoundReveal.css"
 
 const COUNT_STEPS = 24
@@ -91,21 +83,23 @@ export default function RoundReveal({closed, results = false, countryCode, play,
              style={{"--steps": podium.length} as CSSProperties}>
             <div className="round-reveal-stage">
                 <h2 id={headId} className="title-reveal-head round-reveal-head">
-                    {stage === "champion" && champion ? winsLine(champion) : results ? seasonOverLine(closed.season) : roundOverLine({...closed, own: closed.moment !== "day"})}
+                    {stage === "champion" && champion
+                        ? winsLine(champion)
+                        : results ? t("round.seasonOver", {season: closed.season}) : roundOverLine({...closed, own: closed.moment !== "day"})}
                 </h2>
 
                 {stage === "podium" && <Podium podium={podium}/>}
-                {stage === "table" && <Table label={results ? "Final table" : `Season ${closed.season}`} rows={rows} moved={moved}/>}
+                {stage === "table" && <Table label={results ? t("season.finalTable") : t("season.name", {season: closed.season})} rows={rows} moved={moved}/>}
                 {stage === "champion" && champion && <Crowned champion={champion}/>}
 
                 <div className="title-reveal-actions round-reveal-actions">
                     {!ready && stage !== last &&
-                        <button type="button" className="button" onClick={() => setStage(stage === "podium" ? "table" : "champion")}>Next</button>}
+                        <button type="button" className="button" onClick={() => setStage(stage === "podium" ? "table" : "champion")}>{t("common.next")}</button>}
                     {ready && onMakeVideo && <button type="button" className="button button-action" onClick={() => {
                         onClose()
                         onMakeVideo()
-                    }}>Make my video</button>}
-                    {ready && <button type="button" className="button button-gold" onClick={onClose}>Close</button>}
+                    }}>{t("round.makeMyVideo")}</button>}
+                    {ready && <button type="button" className="button button-gold" onClick={onClose}>{t("common.close")}</button>}
                 </div>
             </div>
             {stage === "podium" && <div className="title-reveal-flash round-reveal-flash" aria-hidden="true"/>}
@@ -125,9 +119,9 @@ export function Podium({podium}: {podium: RoundStanding[]}) {
                                      style={{"--rise": podium.length - 1 - podium.indexOf(standing)} as CSSProperties}>
             {standing === first && <div className="title-reveal-rays round-reveal-rays" aria-hidden="true"/>}
             <span className="round-reveal-flag"><CountryFlag code={standing.countryCode}/></span>
-            <span className="round-reveal-country">{nameOf(standing.countryCode)}</span>
-            <span className="round-reveal-gain">+{standing.points}</span>
-            <span className="round-reveal-block" aria-label={`Rank ${standing.rank}`}>
+            <span className="round-reveal-country">{translator().country(standing.countryCode)}</span>
+            <span className="round-reveal-gain">{gainOf(standing.points)}</span>
+            <span className="round-reveal-block" aria-label={t("standings.rank", {rank: standing.rank})}>
                 <span aria-hidden="true">{standing.rank}</span>
             </span>
         </li>)}
@@ -155,8 +149,8 @@ function Table({label, rows, moved}: {label: string, rows: RevealRow[], moved: b
                            style={{"--slot": moved ? row.to : row.from, "--enter": row.from} as CSSProperties}>
                     <span className="round-reveal-rank">{moved ? row.after.rank : row.before?.rank ?? "–"}</span>
                     <CountryFlag code={row.countryCode}/>
-                    <span className="round-reveal-name">{nameOf(row.countryCode)}</span>
-                    {moved && row.gained > 0 && <span className="round-reveal-gained">+{row.gained}</span>}
+                    <span className="round-reveal-name">{translator().country(row.countryCode)}</span>
+                    {moved && row.gained > 0 && <span className="round-reveal-gained">{gainOf(row.gained)}</span>}
                     <span className="round-reveal-points">
                         <CountUp from={row.before?.points ?? 0} to={row.after.points} run={moved}/>
                     </span>
@@ -170,13 +164,13 @@ function Table({label, rows, moved}: {label: string, rows: RevealRow[], moved: b
 function MoveMark({move}: {move: Move}) {
     switch (move.kind) {
         case "up":
-            return <span className="round-reveal-up" aria-label={`Up ${move.by}`}>▲{move.by}</span>
+            return <span className="round-reveal-up" aria-label={t("round.movedUp", {places: move.by})}>▲{translator().number(move.by)}</span>
         case "down":
-            return <span className="round-reveal-down" aria-label={`Down ${move.by}`}>▼{move.by}</span>
+            return <span className="round-reveal-down" aria-label={t("round.movedDown", {places: move.by})}>▼{translator().number(move.by)}</span>
         case "new":
-            return <span className="round-reveal-new">New</span>
+            return <span className="round-reveal-new">{t("round.newInTable")}</span>
         case "same":
-            return <span className="round-reveal-same" aria-label="Same rank">–</span>
+            return <span className="round-reveal-same" aria-label={t("round.sameRank")}>–</span>
     }
 }
 
@@ -194,7 +188,7 @@ function CountUp({from, to, run}: {from: number, to: number, run: boolean}) {
         return () => clearInterval(timer)
     }, [from, to, run])
 
-    return <>{value}</>
+    return <>{translator().number(value)}</>
 }
 
 function eased(k: number): number {
@@ -210,6 +204,6 @@ function rowClass(row: RevealRow, move: Move, moved: boolean): string {
     ].filter(Boolean).join(" ")
 }
 
-function nameOf(code: string): string {
-    return Countries.get(code)?.name ?? code
+function gainOf(points: number): string {
+    return translator().number(points, {signDisplay: "always"})
 }

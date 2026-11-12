@@ -29,28 +29,6 @@ export function withPicked(chosen: File[], picked: File[], rules: AttachmentRule
     return {files, refusal}
 }
 
-export function refusalLine(refusal: Refusal): string {
-    switch (refusal.reason) {
-        case "too-many":
-            return `${refusal.most} files at most.`
-        case "too-big":
-            return `${refusal.name} is over ${sizeLine(refusal.mostBytes)}.`
-        case "not-media":
-            return `${refusal.name} is not a photo or a video.`
-    }
-}
-
-const KB = 1024
-const MB = 1024 * KB
-
-export function sizeLine(bytes: number): string {
-    if (bytes < KB) return `${bytes} B`
-    if (bytes < MB) return `${Math.round(bytes / KB)} KB`
-
-    const megabytes = bytes / MB
-    return megabytes < 10 ? `${Math.round(megabytes * 10) / 10} MB` : `${Math.round(megabytes)} MB`
-}
-
 export function isPhoto(file: Blob): boolean {
     return file.type.startsWith("image/")
 }

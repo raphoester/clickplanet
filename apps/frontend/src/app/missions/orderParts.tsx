@@ -1,41 +1,64 @@
 import {ReactNode} from "react"
 import {FlagMissionOrder, MissionOrder} from "../../backends/missions.ts"
-import {Countries} from "../../domain/countries.ts"
-import {orderOf, reachedOf} from "../../domain/missions.ts"
+import {reachedOf} from "../../domain/missions.ts"
+import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
+import {Key} from "../../i18n/translator.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
+
+type Order = MissionOrder | FlagMissionOrder
 
 export type OrderParts = {
     line: ReactNode
     progress: ReactNode
 }
 
-export function partsOf(order: MissionOrder | FlagMissionOrder): OrderParts {
-    return {line: lineOf(order), progress: progressOf(order)}
+const ORDER_LINES: Record<Order["kind"], Key> = {
+    takeFor: "mission.order.takeFor",
+    takeFrom: "mission.order.takeFrom",
+    takeIn: "mission.order.takeIn",
+    takeFromIn: "mission.order.takeFromIn",
+    bombIn: "mission.order.bombIn",
+    shieldTiles: "mission.order.shieldTiles",
+    catchBoxes: "mission.order.catchBoxes",
+    answerQuizzes: "mission.order.answerQuizzes",
+    fortifyTiles: "mission.order.fortifyTiles",
+    breakShields: "mission.order.breakShields",
 }
 
-function lineOf(order: MissionOrder | FlagMissionOrder): ReactNode {
+export function partsOf(order: Order): OrderParts {
+    return {line: rich(ORDER_LINES[order.kind], slotsOf(order, countryOf)), progress: progressOf(order)}
+}
+
+export function orderText(order: Order): string {
+    return t(ORDER_LINES[order.kind], slotsOf(order, (code) => translator().country(code)))
+}
+
+function slotsOf<T>(order: Order, country: (code: string) => T): Record<string, T | number> {
     switch (order.kind) {
         case "takeFor":
         case "takeFrom":
+        case "breakShields":
+            return {goal: order.goal, flag: country(order.country)}
         case "takeIn":
         case "bombIn":
-        case "breakShields":
-            return <>{orderOf(order)} {countryOf(order.country)}</>
+            return {goal: order.goal, place: country(order.country)}
         case "takeFromIn":
-            return <>{orderOf(order)} {countryOf(order.country)} in {countryOf(order.ground)}</>
+            return {goal: order.goal, flag: country(order.country), place: country(order.ground)}
         case "shieldTiles":
+            return {goal: order.goal, shields: order.shields}
         case "catchBoxes":
         case "answerQuizzes":
         case "fortifyTiles":
-            return orderOf(order)
+            return {goal: order.goal}
     }
 }
 
-function countryOf(code: string): ReactNode {
-    return <><CountryFlag code={code}/> {Countries.get(code)?.name ?? code}</>
+export function countryOf(code: string): ReactNode {
+    return <><CountryFlag code={code}/> {translator().country(code)}</>
 }
 
-function progressOf(order: MissionOrder | FlagMissionOrder): ReactNode {
+function progressOf(order: Order): ReactNode {
     const reached = reachedOf(order)
 
     return <>
@@ -44,9 +67,9 @@ function progressOf(order: MissionOrder | FlagMissionOrder): ReactNode {
              aria-valuemin={0}
              aria-valuemax={order.goal}
              aria-valuenow={reached}
-             aria-label={orderOf(order)}>
+             aria-label={orderText(order)}>
             <div className="mission-bar-filled" style={{width: `${reached / order.goal * 100}%`}}/>
         </div>
-        <span className="mission-count">{reached}/{order.goal}</span>
+        <span className="mission-count">{t("mission.reachedOfGoal", {reached, goal: order.goal})}</span>
     </>
 }

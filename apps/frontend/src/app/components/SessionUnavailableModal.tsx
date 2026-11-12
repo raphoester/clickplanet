@@ -1,5 +1,7 @@
 import Modal from "./Modal.tsx";
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts";
+import {t} from "../../i18n/page.ts";
+import {rich} from "../../i18n/rich.tsx";
 import "./SessionUnavailableModal.css"
 
 export default function SessionUnavailableModal() {
@@ -8,16 +10,13 @@ export default function SessionUnavailableModal() {
     if (!unavailable) return null
 
     return <Modal
-        title="Couldn't verify your browser"
-        footer={<button type="button" className="button button-action" onClick={dismiss}>Got it</button>}
+        title={t("dialog.browserCheckTitle")}
+        footer={<button type="button" className="button button-action" onClick={dismiss}>{t("dialog.gotIt")}</button>}
         onClose={dismiss}>
         <div className="session-unavailable-text">
-            <h3>That click didn't go through 🤖</h3>
-            <p>Before you can paint, the game asks your browser to prove it's a browser. That
-                check didn't complete, so the server turned the click down.</p>
-            <p>Reloading the page usually fixes it. If it keeps happening, an ad blocker or a
-                privacy extension is probably blocking <code>challenges.cloudflare.com</code> —
-                allow it for this site and try again.</p>
+            <h3>{t("dialog.browserCheckHead")}</h3>
+            <p>{t("dialog.browserCheckWhy")}</p>
+            <p>{rich("dialog.browserCheckFix", {host: <code>challenges.cloudflare.com</code>})}</p>
         </div>
     </Modal>
 }

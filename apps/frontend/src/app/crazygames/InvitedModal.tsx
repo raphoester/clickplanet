@@ -1,11 +1,12 @@
 import {useState} from "react"
 import {AllegianceLockedError} from "../../backends/backend.ts"
 import {Allegiance, Lock, lockOf} from "../../domain/allegiance.ts"
-import {Countries, Country} from "../../domain/countries.ts"
-import {describeEnd} from "../../domain/endTime.ts"
-import {LOCKED_RULE} from "../CountryPicker.tsx"
+import {Country} from "../../domain/countries.ts"
+import {describeEnd} from "../endTime.ts"
+import {LOCKED_LINE} from "../CountryPicker.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
+import {t, translator} from "../../i18n/page.ts"
 import "./InvitedModal.css"
 
 export type InvitedModalProps = {
@@ -20,7 +21,8 @@ export default function InvitedModal({friend, held, onSwitch, onClose}: InvitedM
     const [failed, setFailed] = useState(false)
     const now = Date.now()
     const lock = lockOf(held, now)
-    const kept = Countries.get(held.countryId)?.name ?? held.countryId.toUpperCase()
+    const friendName = translator().country(friend.code)
+    const kept = translator().country(held.countryId)
 
     const switchFlag = async () => {
         setSending(true)
@@ -40,23 +42,23 @@ export default function InvitedModal({friend, held, onSwitch, onClose}: InvitedM
         }
     }
 
-    return <Modal title="Your friend's flag"
+    return <Modal title={t("crazyGames.friendsFlag")}
                   onClose={onClose}
                   footer={<div className="invited-actions">
                       <button type="button" className="button button-action" disabled={lock !== undefined || sending} onClick={() => void switchFlag()}>
-                          Play for {friend.name}
+                          {t("crazyGames.playFor", {country: friendName})}
                       </button>
                       <button type="button" className="button button-secondary" disabled={sending} onClick={onClose}>
-                          Keep {kept}
+                          {t("crazyGames.keep", {country: kept})}
                       </button>
                   </div>}>
         <div className="invited">
             <p className="invited-friend">
                 <CountryFlag code={friend.code}/>
-                <span>Your friend plays for {friend.name}.</span>
+                <span>{t("crazyGames.friendPlaysFor", {country: friendName})}</span>
             </p>
             {lock && <p>{lockLineOf(lock, now)}</p>}
-            {failed && <p role="alert">Could not change your flag. Try again.</p>}
+            {failed && <p role="alert">{t("crazyGames.switchFailed")}</p>}
         </div>
     </Modal>
 }
@@ -64,8 +66,8 @@ export default function InvitedModal({friend, held, onSwitch, onClose}: InvitedM
 function lockLineOf(lock: Lock, now: number): string {
     switch (lock.kind) {
         case "rules":
-            return LOCKED_RULE
+            return t(LOCKED_LINE)
         case "wait":
-            return `You can switch at ${describeEnd(lock.until, now)}.`
+            return t("crazyGames.switchAt", {time: describeEnd(lock.until, now)})
     }
 }

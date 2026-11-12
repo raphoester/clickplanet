@@ -1,9 +1,7 @@
 import {DayMissions} from "../../backends/missions.ts"
 import {PlayerLine} from "../../backends/player.ts"
-import {Countries} from "../../domain/countries.ts"
 import {missionsOnTerritory} from "../../domain/missionTargets.ts"
 import {freeTilesOf, sharePercent} from "../../domain/territory.ts"
-import {agoOf} from "../../domain/tilePeek.ts"
 import {authorStyle} from "../chat/authorStyle.ts"
 import AdminCrown from "../components/AdminCrown.tsx"
 import BonusIcon from "../components/BonusIcon.tsx"
@@ -18,13 +16,13 @@ import {useWordFilter} from "../crazygames/wordFilter.ts"
 import {usePlayerCard} from "../players/playerCardStore.ts"
 import {TerritoryShown} from "./useTerritoryCard.ts"
 import {TerritoryPlayers} from "./territoryPlayersStore.ts"
+import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
 import "./TerritoryCard.css"
 
 const FLAGS_SHOWN = 5
 
 const NAME_MAX_LENGTH = 18
-
-const count = new Intl.NumberFormat()
 
 export type TerritoryCardProps = {
     shown: TerritoryShown
@@ -63,36 +61,36 @@ export default function TerritoryCard({shown, flag, players, missions, now = Dat
                 <span className="territory-card-name-text" title={name}>{name}</span>
             </h3>
             <p className="territory-card-size">
-                {tilesOf(size)}{free > 0 && `, ${count.format(free)} free`}
+                {free > 0 ? t("territory.sizeFree", {tiles: size, free}) : t("common.tiles", {count: size})}
             </p>
         </header>
         {listed.length > 0 && <ol className="territory-card-holdings">
             {listed.map(({flag: holder, tiles}, at) => {
-                const country = countryName(holder)
+                const country = translator().country(holder)
                 return <li key={holder} className="territory-card-holding">
                     <span className="territory-card-line">
                         <RankCoin rank={at + 1} you={holder === flag}/>
                         <CountryFlag code={holder}/>
                         <span className="territory-card-country" title={country}>{country}</span>
-                        <span className="territory-card-tiles">{count.format(tiles)}</span>
+                        <span className="territory-card-tiles">{translator().number(tiles)}</span>
                     </span>
                     <span className="territory-card-share">
                         <span className="territory-card-bar" aria-hidden="true">
                             <span className="territory-card-bar-filled" style={{width: `${tiles / size * 100}%`}}/>
                         </span>
-                        <span className="territory-card-percent">{sharePercent(tiles, size)}%</span>
+                        <span className="territory-card-percent">{t("board.mapShare", {share: sharePercent(tiles, size)})}</span>
                     </span>
                 </li>
             })}
         </ol>}
-        {more > 0 && <p className="territory-card-more">+{more} more {more === 1 ? "flag" : "flags"}</p>}
+        {more > 0 && <p className="territory-card-more">{t("territory.moreFlags", {count: more})}</p>}
         {top.length > 0 && <section className="territory-card-players" aria-labelledby={`territory-players-${shown.id}`}>
-            <h4 id={`territory-players-${shown.id}`} className="territory-card-heading">Top players</h4>
+            <h4 id={`territory-players-${shown.id}`} className="territory-card-heading">{t("territory.topPlayers")}</h4>
             <ol className="territory-card-player-list">
                 {top.map(({line, tiles}) => <li key={`${line.accountId}:${line.countryCode}`} className="territory-card-player" style={authorStyle(line)}>
                     <CountryFlag code={line.countryCode}/>
                     <PlayerName line={line} onOpen={onOpen}/>
-                    <span className="territory-card-tiles">{count.format(tiles)}</span>
+                    <span className="territory-card-tiles">{translator().number(tiles)}</span>
                 </li>)}
             </ol>
         </section>}
@@ -101,15 +99,15 @@ export default function TerritoryCard({shown, flag, players, missions, now = Dat
             <p className="territory-card-fortify-line">
                 <span className="territory-card-shield"><BonusIcon kind="shields"/></span>
                 {fortifiedBy
-                    ? <span>Fortified by <CountryFlag code={fortifiedBy}/>{countryName(fortifiedBy)}</span>
-                    : <span>Never fortified</span>}
+                    ? <span>{rich("territory.fortifiedBy", {flag: <CountryFlag code={fortifiedBy}/>, country: translator().country(fortifiedBy)})}</span>
+                    : <span>{t("territory.neverFortified")}</span>}
             </p>
             {fortifier && <p className="territory-card-fortify-line territory-card-fortifier" style={authorStyle(fortifier.line)}>
                 <PlayerName line={fortifier.line} onOpen={onOpen}/>
-                <span className="territory-card-ago">{agoOf(fortifier.at, now)}</span>
+                <span className="territory-card-ago">{translator().ago(fortifier.at, now)}</span>
             </p>}
             {target && <p className="territory-card-fortify-line territory-card-target">
-                <Flag code={target.flag}/> {tilesOf(target.missing)} to fortify
+                {rich("territory.toFortify", {flag: <Flag code={target.flag}/>, missing: target.missing})}
             </p>}
         </div>
     </PointerCard>
@@ -130,14 +128,6 @@ function PlayerName({line, onOpen}: {line: PlayerLine, onOpen: (player: PlayerLi
 }
 
 function Flag({code}: {code: string}) {
-    const name = countryName(code)
+    const name = translator().country(code)
     return <span role="img" aria-label={name} title={name}><CountryFlag code={code}/></span>
-}
-
-function countryName(code: string): string {
-    return Countries.get(code)?.name ?? code
-}
-
-function tilesOf(tiles: number): string {
-    return `${count.format(tiles)} ${tiles === 1 ? "tile" : "tiles"}`
 }

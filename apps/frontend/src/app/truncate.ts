@@ -1,3 +1,5 @@
+import {translator} from "../i18n/page.ts"
+
 export function truncate(text: string, max: number): string {
     const units = segment(text)
     if (units.length <= max) return text
@@ -5,11 +7,11 @@ export function truncate(text: string, max: number): string {
     return units.slice(0, max).join("").trimEnd() + "…"
 }
 
-const segmenter = typeof Intl !== "undefined" && "Segmenter" in Intl
-    ? new Intl.Segmenter(undefined, {granularity: "grapheme"})
-    : undefined
+let segmenter: {locale: string, graphemes: Intl.Segmenter} | undefined
 
 function segment(text: string): string[] {
-    if (!segmenter) return Array.from(text)
-    return Array.from(segmenter.segment(text), s => s.segment)
+    if (typeof Intl === "undefined" || !("Segmenter" in Intl)) return Array.from(text)
+    const locale = translator().locale
+    if (segmenter?.locale !== locale) segmenter = {locale, graphemes: new Intl.Segmenter(locale, {granularity: "grapheme"})}
+    return Array.from(segmenter.graphemes.segment(text), s => s.segment)
 }

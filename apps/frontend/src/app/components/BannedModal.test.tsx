@@ -4,7 +4,7 @@ import {act, cleanup, render, screen} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import BannedModal, {GAME_RULES} from "./BannedModal.tsx"
 import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
-import {describeEnd} from "../../domain/endTime.ts"
+import {describeEnd} from "../endTime.ts"
 import terms from "../../../terms.html?raw"
 
 afterEach(() => {

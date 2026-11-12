@@ -1,5 +1,5 @@
 import {Score} from "../../backends/standings.ts"
-import {Countries} from "../../domain/countries.ts"
+import {t, translator} from "../../i18n/page.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import "./Podium.css"
 
@@ -11,8 +11,8 @@ export default function Podium({places}: {places: Score[]}) {
     return <ol className="podium">
         {shown.map((place) => <li key={place.countryCode} className={`podium-step podium-step-${Math.min(place.rank, 3)}`}>
             <span className="podium-flag"><CountryFlag code={place.countryCode}/></span>
-            <span className="podium-country">{Countries.get(place.countryCode)?.name ?? place.countryCode}</span>
-            <span className="podium-block" aria-label={`Rank ${place.rank}`}>
+            <span className="podium-country">{translator().country(place.countryCode)}</span>
+            <span className="podium-block" aria-label={t("standings.rank", {rank: place.rank})}>
                 <span aria-hidden="true">{place.rank}</span>
             </span>
         </li>)}

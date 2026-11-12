@@ -2,8 +2,9 @@ import {useId, useState} from "react"
 import {Season} from "../../backends/season.ts"
 import {BattleToCome} from "../../backends/turn.ts"
 import {Finale, finaleNear} from "../../domain/battle.ts"
-import {Champion, championNames, winsLine} from "../../domain/champion.ts"
-import {countdownsOf, SeasonCountdown, shortLeft} from "../../domain/seasonClock.ts"
+import {Champion} from "../../domain/champion.ts"
+import {countdownsOf, SeasonCountdown} from "../../domain/seasonClock.ts"
+import {t, translator} from "../../i18n/page.ts"
 import {BattleRulesButton, NextBattleDetails} from "../battle/NextBattle.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {ChevronIcon, ClockIcon} from "../components/icons.tsx"
@@ -11,8 +12,10 @@ import {useEdge} from "../components/useEdge.ts"
 import {useEscape} from "../components/useDialog.ts"
 import {STATUS_BOTTOM} from "../hud/StatusBar.tsx"
 import {useScreen} from "../hud/screenStore.ts"
+import {COUNTDOWN_WORDS} from "./countdownWords.ts"
 import {FinaleDetails} from "./FinaleFacts.tsx"
 import SeasonFacts from "./SeasonFacts.tsx"
+import {championNames, winsLine} from "./seasonLines.ts"
 import {useNow} from "./useNow.ts"
 import {useRotation} from "./useRotation.ts"
 import "./Season.css"
@@ -39,7 +42,7 @@ export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compa
 
     if (countdowns.length === 0) return null
 
-    const name = countdowns.map((countdown) => `${countdown.label} ${countdown.left}`).join(", ")
+    const name = translator().list(countdowns.map(lineOf))
     const near = finaleNear(finale, now) ? " season-chip--final" : ""
     const className = `season-chip ${compact ? "season-chip--compact" : "panel"}${near}`
 
@@ -57,7 +60,7 @@ export default function SeasonChip({season, nextBattle, finale, dayEndsAt, compa
 
     return <section ref={setChip}
                     className={className}
-                    aria-label={`Season ${season.number}`}
+                    aria-label={t("season.name", {season: season.number})}
                     {...holds}>
         <button type="button"
                 className="season-chip-head"
@@ -88,7 +91,7 @@ export function ChampionChip({champion, compact}: {champion: Champion, compact: 
     return <section ref={setChip} className="panel season-chip season-chip--champion" aria-label={winsLine(champion)}>
         <div className="season-chip-head" aria-hidden="true">
             <span className="season-chip-trophy">🏆</span>
-            <span className="season-chip-label">Season {champion.season} champion</span>
+            <span className="season-chip-label">{t("season.championOf", {season: champion.season})}</span>
             <span className="season-chip-left">{flags}<span className="season-chip-name">{championNames(champion)}</span></span>
         </div>
     </section>
@@ -98,18 +101,18 @@ function Faces({countdowns, shown, compact}: {countdowns: SeasonCountdown[], sho
     const tagged = compact && countdowns.length > 1
 
     return <span className="season-chip-faces" aria-hidden="true">
-        {countdowns.map((countdown, i) => <span key={countdown.label}
+        {countdowns.map((countdown, i) => <span key={countdown.kind}
                                                 className={faceClassOf(countdown, i === shown)}>
             {compact
-                ? tagged && <span className="season-chip-tag">{countdown.tag}</span>
-                : <span className="season-chip-label">{countdown.label}</span>}
-            <span className="season-chip-left">{compact ? shortLeft(countdown.left) : countdown.left}</span>
+                ? tagged && <span className="season-chip-tag">{t(COUNTDOWN_WORDS[countdown.kind].tag)}</span>
+                : <span className="season-chip-label">{t(COUNTDOWN_WORDS[countdown.kind].label)}</span>}
+            <span className="season-chip-left">{translator().countdown(countdown.countdown, compact ? 2 : undefined)}</span>
         </span>)}
     </span>
 }
 
 function faceClassOf(countdown: SeasonCountdown, shown: boolean): string {
-    const final = countdown.endsSeason ? " season-chip-face--final" : ""
+    const final = countdown.kind === "final" ? " season-chip-face--final" : ""
     return `season-chip-face${final}${shown ? "" : " season-chip-face--away"}`
 }
 
@@ -140,7 +143,7 @@ export function SeasonDetails({season, nextBattle, finale, dayEndsAt}: SeasonDet
 
     return <>
         <div className="panel-box season-details-countdowns">
-            {countdowns.map((countdown) => <DetailsCountdown key={countdown.label} countdown={countdown}/>)}
+            {countdowns.map((countdown) => <DetailsCountdown key={countdown.kind} countdown={countdown}/>)}
         </div>
         {nextBattle && !nextBattle.endsSeason && <div className="panel-box season-details-facts">
             <NextBattleDetails battle={nextBattle}/>
@@ -155,8 +158,12 @@ export function SeasonDetails({season, nextBattle, finale, dayEndsAt}: SeasonDet
 function DetailsCountdown({countdown}: {countdown: SeasonCountdown}) {
     const label = useId()
 
-    return <div className={countdown.endsSeason ? "season-details-countdown season-chip-face--final" : "season-details-countdown"}>
-        <span id={label} className="menu-label">{countdown.label}</span>
-        <span className="season-chip-left" role="timer" aria-labelledby={label}>{countdown.left}</span>
+    return <div className={countdown.kind === "final" ? "season-details-countdown season-chip-face--final" : "season-details-countdown"}>
+        <span id={label} className="menu-label">{t(COUNTDOWN_WORDS[countdown.kind].label)}</span>
+        <span className="season-chip-left" role="timer" aria-labelledby={label}>{translator().countdown(countdown.countdown)}</span>
     </div>
+}
+
+function lineOf(countdown: SeasonCountdown): string {
+    return t(COUNTDOWN_WORDS[countdown.kind].line, {time: translator().countdown(countdown.countdown)})
 }
