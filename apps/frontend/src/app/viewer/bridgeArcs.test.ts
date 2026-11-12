@@ -21,8 +21,8 @@ describe("arcPoints", () => {
         expect(radius(points, middle)).toBeGreaterThan(1.1)
     })
 
-    it("puts more dots on a longer crossing, and three on a short one", () => {
-        expect(arcPoints([1, 0, 0], [1, 0, 0.001]).length / 3).toBe(3)
+    it("puts more dots on a longer crossing, and nine on a short one", () => {
+        expect(arcPoints([1, 0, 0], [1, 0, 0.001]).length / 3).toBe(9)
         expect(arcPoints([1, 0, 0], [0, 0, 1]).length).toBeGreaterThan(arcPoints([1, 0, 0], [1, 0, 0.5]).length)
     })
 })
