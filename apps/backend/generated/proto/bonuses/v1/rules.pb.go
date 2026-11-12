@@ -506,8 +506,21 @@ type QuizRules struct {
 	// How much a question leans to the countries that hold the most; 0 is a flat draw.
 	LeaderBias        *float64 `protobuf:"fixed64,7,opt,name=leader_bias,json=leaderBias,proto3,oneof" json:"leader_bias,omitempty"`
 	MaxChargesPerHour *uint32  `protobuf:"varint,8,opt,name=max_charges_per_hour,json=maxChargesPerHour,proto3,oneof" json:"max_charges_per_hour,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// The difficulty-weighted draw, inside the subject's questions the lean picked. The chance of a right answer, for an
+	// average player, it aims at: 0.34 to 0.99.
+	Target *float64 `protobuf:"fixed64,9,opt,name=target,proto3,oneof" json:"target,omitempty"`
+	// How wide the bell around target is, on the rating scale: a question this far from target weighs 0.61 of one on it,
+	// twice as far 0.14. 0 is off, the draw of before: no question weighs more for how hard it is, and none is left out.
+	Width *float64 `protobuf:"fixed64,10,opt,name=width,proto3,oneof" json:"width,omitempty"`
+	// A question whose rating says fewer than this share of average players get it right, once floor_after answers moved
+	// it, is never drawn. A prior alone never leaves a question out. At most target.
+	Floor      *float64 `protobuf:"fixed64,11,opt,name=floor,proto3,oneof" json:"floor,omitempty"`
+	FloorAfter *uint32  `protobuf:"varint,12,opt,name=floor_after,json=floorAfter,proto3,oneof" json:"floor_after,omitempty"`
+	// The share of draws that ignore how hard a question is, so every question keeps being asked; never one under the
+	// floor. 0 to 1.
+	Explore       *float64 `protobuf:"fixed64,13,opt,name=explore,proto3,oneof" json:"explore,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *QuizRules) Reset() {
@@ -596,6 +609,41 @@ func (x *QuizRules) GetMaxChargesPerHour() uint32 {
 	return 0
 }
 
+func (x *QuizRules) GetTarget() float64 {
+	if x != nil && x.Target != nil {
+		return *x.Target
+	}
+	return 0
+}
+
+func (x *QuizRules) GetWidth() float64 {
+	if x != nil && x.Width != nil {
+		return *x.Width
+	}
+	return 0
+}
+
+func (x *QuizRules) GetFloor() float64 {
+	if x != nil && x.Floor != nil {
+		return *x.Floor
+	}
+	return 0
+}
+
+func (x *QuizRules) GetFloorAfter() uint32 {
+	if x != nil && x.FloorAfter != nil {
+		return *x.FloorAfter
+	}
+	return 0
+}
+
+func (x *QuizRules) GetExplore() float64 {
+	if x != nil && x.Explore != nil {
+		return *x.Explore
+	}
+	return 0
+}
+
 var File_bonuses_v1_rules_proto protoreflect.FileDescriptor
 
 const file_bonuses_v1_rules_proto_rawDesc = "" +
@@ -649,7 +697,7 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\f_max_per_box\"y\n" +
 	"\fWelcomeRules\x121\n" +
 	"\x06within\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06within\x126\n" +
-	"\tbox_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bboxAfter\"\xe9\x03\n" +
+	"\tbox_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bboxAfter\"\xbc\x05\n" +
 	"\tQuizRules\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12<\n" +
 	"\fmin_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
@@ -660,11 +708,24 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\ranswer_window\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\fanswerWindow\x12$\n" +
 	"\vleader_bias\x18\a \x01(\x01H\x01R\n" +
 	"leaderBias\x88\x01\x01\x124\n" +
-	"\x14max_charges_per_hour\x18\b \x01(\rH\x02R\x11maxChargesPerHour\x88\x01\x01B\n" +
+	"\x14max_charges_per_hour\x18\b \x01(\rH\x02R\x11maxChargesPerHour\x88\x01\x01\x12\x1b\n" +
+	"\x06target\x18\t \x01(\x01H\x03R\x06target\x88\x01\x01\x12\x19\n" +
+	"\x05width\x18\n" +
+	" \x01(\x01H\x04R\x05width\x88\x01\x01\x12\x19\n" +
+	"\x05floor\x18\v \x01(\x01H\x05R\x05floor\x88\x01\x01\x12$\n" +
+	"\vfloor_after\x18\f \x01(\rH\x06R\n" +
+	"floorAfter\x88\x01\x01\x12\x1d\n" +
+	"\aexplore\x18\r \x01(\x01H\aR\aexplore\x88\x01\x01B\n" +
 	"\n" +
 	"\b_enabledB\x0e\n" +
 	"\f_leader_biasB\x17\n" +
-	"\x15_max_charges_per_hourB\xb9\x01\n" +
+	"\x15_max_charges_per_hourB\t\n" +
+	"\a_targetB\b\n" +
+	"\x06_widthB\b\n" +
+	"\x06_floorB\x0e\n" +
+	"\f_floor_afterB\n" +
+	"\n" +
+	"\b_exploreB\xb9\x01\n" +
 	"\x0ecom.bonuses.v1B\n" +
 	"RulesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1;bonusesv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Bonuses.V1\xca\x02\n" +

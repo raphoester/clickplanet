@@ -191,6 +191,20 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	require.Equal(t, leaving.account(), s.game.noteOf(t, "a bug before leaving").GetAccountId())
 
 	account := leaving.account()
+	// No quiz comes within a test: the answer it gave is written as the offers write one.
+	bonuses := s.game.schema(t, "bonuses")
+	_, err := bonuses.On(t.Context()).ExecContext(t.Context(), `
+		INSERT INTO quiz_answers (question_id, account_id, correct, timed_out, answer_ms, answered_at)
+		VALUES ('capital:ee', $1, true, false, 2500, now())`, account)
+	require.NoError(t, err)
+	answerer := func() *string {
+		var kept *string
+		require.NoError(t, bonuses.On(t.Context()).QueryRowContext(t.Context(),
+			`SELECT account_id::text FROM quiz_answers WHERE question_id = 'capital:ee' AND answer_ms = 2500`).Scan(&kept))
+		return kept
+	}
+	require.Equal(t, &account, answerer())
+
 	watcher := s.game.newPlayer(t)
 	card, err := watcher.playerCard(account)
 	require.NoError(t, err)
@@ -218,6 +232,7 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 		require.NoError(c, err)
 		assert.Equal(c, "es", holder.Msg.GetHolder().GetCountryId(), "planet keeps the take")
 		assert.Empty(c, holder.Msg.GetHolder().GetAccountId(), "and names no account")
+		assert.Nil(c, answerer(), "the offers keep the quiz answer and name no account")
 	}, deletionGrace+5*time.Second, 20*time.Millisecond, "the purge deletes it once the grace period ends, auth's outbox tells player, and player's every module")
 }
 

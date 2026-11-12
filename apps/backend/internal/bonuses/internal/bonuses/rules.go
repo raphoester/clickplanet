@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 )
 
 // Rules is what the offers play (bonuses.v1.Rules): when a box or a quiz comes, what it may be and how much it grants.
@@ -87,7 +90,21 @@ func (q QuizRules) validate() error {
 		positive("quiz.offerTtl", q.OfferTTL),
 		positive("quiz.answerWindow", q.AnswerWindow),
 		notNegative("quiz.leaderBias", q.LeaderBias), finite("quiz.leaderBias", q.LeaderBias),
+		chance("quiz.target", q.Fit.Target),
+		notNegative("quiz.width", q.Fit.Width), finite("quiz.width", q.Fit.Width),
+		share("quiz.floor", q.Fit.Floor), atMost("quiz.floor", q.Fit.Floor, "quiz.target", q.Fit.Target),
+		positive("quiz.floorAfter", q.Fit.FloorAfter),
+		share("quiz.explore", q.Fit.Explore),
 	)
+}
+
+// chance is a chance of a right answer a rating can stand for.
+func chance(name string, value float64) error {
+	if value >= ratings.MinChance && value <= ratings.MaxChance {
+		return nil
+	}
+	return fmt.Errorf("%s is %v, and a chance of a right answer is between %v and %v", name, value,
+		ratings.MinChance, ratings.MaxChance)
 }
 
 type SpreadRules struct {
@@ -128,6 +145,9 @@ type QuizRules struct {
 	LeaderBias float64
 
 	MaxChargesPerHour int
+
+	// Fit weighs the draw inside the subject the lean picked by how hard each question is; its Width 0 is off.
+	Fit quizzes.Fit
 }
 
 // ErrFrozen refuses a claim, an opening and an answer while the offers play a frozen set or planet's map takes no play.

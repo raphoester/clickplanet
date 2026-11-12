@@ -21,6 +21,57 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type QuizQuestionOrder int32
+
+const (
+	QuizQuestionOrder_QUIZ_QUESTION_ORDER_UNSPECIFIED QuizQuestionOrder = 0
+	// The share of average players its rating says get it right.
+	QuizQuestionOrder_QUIZ_QUESTION_ORDER_PREDICTED QuizQuestionOrder = 1
+	// The share of its answers that were right. A question never answered comes last either way.
+	QuizQuestionOrder_QUIZ_QUESTION_ORDER_MEASURED QuizQuestionOrder = 2
+)
+
+// Enum value maps for QuizQuestionOrder.
+var (
+	QuizQuestionOrder_name = map[int32]string{
+		0: "QUIZ_QUESTION_ORDER_UNSPECIFIED",
+		1: "QUIZ_QUESTION_ORDER_PREDICTED",
+		2: "QUIZ_QUESTION_ORDER_MEASURED",
+	}
+	QuizQuestionOrder_value = map[string]int32{
+		"QUIZ_QUESTION_ORDER_UNSPECIFIED": 0,
+		"QUIZ_QUESTION_ORDER_PREDICTED":   1,
+		"QUIZ_QUESTION_ORDER_MEASURED":    2,
+	}
+)
+
+func (x QuizQuestionOrder) Enum() *QuizQuestionOrder {
+	p := new(QuizQuestionOrder)
+	*p = x
+	return p
+}
+
+func (x QuizQuestionOrder) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (QuizQuestionOrder) Descriptor() protoreflect.EnumDescriptor {
+	return file_bonuses_v1_admin_proto_enumTypes[0].Descriptor()
+}
+
+func (QuizQuestionOrder) Type() protoreflect.EnumType {
+	return &file_bonuses_v1_admin_proto_enumTypes[0]
+}
+
+func (x QuizQuestionOrder) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use QuizQuestionOrder.Descriptor instead.
+func (QuizQuestionOrder) EnumDescriptor() ([]byte, []int) {
+	return file_bonuses_v1_admin_proto_rawDescGZIP(), []int{0}
+}
+
 type GetRulesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -243,6 +294,266 @@ func (*SaveRuleSetResponse) Descriptor() ([]byte, []int) {
 	return file_bonuses_v1_admin_proto_rawDescGZIP(), []int{4}
 }
 
+type ListQuizQuestionsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What the questions are sorted by. Unspecified is the predicted share.
+	Order QuizQuestionOrder `protobuf:"varint,1,opt,name=order,proto3,enum=bonuses.v1.QuizQuestionOrder" json:"order,omitempty"`
+	// The highest share first. The lowest, the hardest, unless set.
+	EasiestFirst bool `protobuf:"varint,2,opt,name=easiest_first,json=easiestFirst,proto3" json:"easiest_first,omitempty"`
+	// Only the questions answered at least this many times. 0 is every question, those never answered too.
+	MinAnswers uint32 `protobuf:"varint,3,opt,name=min_answers,json=minAnswers,proto3" json:"min_answers,omitempty"`
+	// 50 unless asked, 500 at most.
+	Limit uint32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	// How many of the sorted questions come before the page. 0 is the first page.
+	Offset        uint32 `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListQuizQuestionsRequest) Reset() {
+	*x = ListQuizQuestionsRequest{}
+	mi := &file_bonuses_v1_admin_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListQuizQuestionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListQuizQuestionsRequest) ProtoMessage() {}
+
+func (x *ListQuizQuestionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bonuses_v1_admin_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListQuizQuestionsRequest.ProtoReflect.Descriptor instead.
+func (*ListQuizQuestionsRequest) Descriptor() ([]byte, []int) {
+	return file_bonuses_v1_admin_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListQuizQuestionsRequest) GetOrder() QuizQuestionOrder {
+	if x != nil {
+		return x.Order
+	}
+	return QuizQuestionOrder_QUIZ_QUESTION_ORDER_UNSPECIFIED
+}
+
+func (x *ListQuizQuestionsRequest) GetEasiestFirst() bool {
+	if x != nil {
+		return x.EasiestFirst
+	}
+	return false
+}
+
+func (x *ListQuizQuestionsRequest) GetMinAnswers() uint32 {
+	if x != nil {
+		return x.MinAnswers
+	}
+	return 0
+}
+
+func (x *ListQuizQuestionsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListQuizQuestionsRequest) GetOffset() uint32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
+type ListQuizQuestionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// In the order asked, then by id.
+	Questions []*QuizQuestion `protobuf:"bytes,1,rep,name=questions,proto3" json:"questions,omitempty"`
+	// How many questions the filter keeps, over every page.
+	Total         uint32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListQuizQuestionsResponse) Reset() {
+	*x = ListQuizQuestionsResponse{}
+	mi := &file_bonuses_v1_admin_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListQuizQuestionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListQuizQuestionsResponse) ProtoMessage() {}
+
+func (x *ListQuizQuestionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bonuses_v1_admin_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListQuizQuestionsResponse.ProtoReflect.Descriptor instead.
+func (*ListQuizQuestionsResponse) Descriptor() ([]byte, []int) {
+	return file_bonuses_v1_admin_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListQuizQuestionsResponse) GetQuestions() []*QuizQuestion {
+	if x != nil {
+		return x.Questions
+	}
+	return nil
+}
+
+func (x *ListQuizQuestionsResponse) GetTotal() uint32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+// A question of the bank, with how hard it is.
+type QuizQuestion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Text  string                 `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
+	// The right answer.
+	Answer string `protobuf:"bytes,3,opt,name=answer,proto3" json:"answer,omitempty"`
+	// The country it is about, ISO 3166-1 alpha-2 in lower case. Empty for none.
+	Subject string `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
+	// The share of players the bank expects to get it right. Unset when the bank holds none: its rating started at 0.6.
+	Prior *float64 `protobuf:"fixed64,5,opt,name=prior,proto3,oneof" json:"prior,omitempty"`
+	// How hard it is: 0 is the average question, higher is harder, from about -4.2 to 4.6.
+	Rating float64 `protobuf:"fixed64,6,opt,name=rating,proto3" json:"rating,omitempty"`
+	// The share of average players its rating says get it right.
+	PredictedShare float64 `protobuf:"fixed64,7,opt,name=predicted_share,json=predictedShare,proto3" json:"predicted_share,omitempty"`
+	// How many answers moved its rating.
+	Answers uint32 `protobuf:"varint,8,opt,name=answers,proto3" json:"answers,omitempty"`
+	// How many of them were right.
+	Right uint32 `protobuf:"varint,9,opt,name=right,proto3" json:"right,omitempty"`
+	// right / answers. Unset for a question never answered.
+	MeasuredShare *float64 `protobuf:"fixed64,10,opt,name=measured_share,json=measuredShare,proto3,oneof" json:"measured_share,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QuizQuestion) Reset() {
+	*x = QuizQuestion{}
+	mi := &file_bonuses_v1_admin_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QuizQuestion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QuizQuestion) ProtoMessage() {}
+
+func (x *QuizQuestion) ProtoReflect() protoreflect.Message {
+	mi := &file_bonuses_v1_admin_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QuizQuestion.ProtoReflect.Descriptor instead.
+func (*QuizQuestion) Descriptor() ([]byte, []int) {
+	return file_bonuses_v1_admin_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *QuizQuestion) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *QuizQuestion) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+func (x *QuizQuestion) GetAnswer() string {
+	if x != nil {
+		return x.Answer
+	}
+	return ""
+}
+
+func (x *QuizQuestion) GetSubject() string {
+	if x != nil {
+		return x.Subject
+	}
+	return ""
+}
+
+func (x *QuizQuestion) GetPrior() float64 {
+	if x != nil && x.Prior != nil {
+		return *x.Prior
+	}
+	return 0
+}
+
+func (x *QuizQuestion) GetRating() float64 {
+	if x != nil {
+		return x.Rating
+	}
+	return 0
+}
+
+func (x *QuizQuestion) GetPredictedShare() float64 {
+	if x != nil {
+		return x.PredictedShare
+	}
+	return 0
+}
+
+func (x *QuizQuestion) GetAnswers() uint32 {
+	if x != nil {
+		return x.Answers
+	}
+	return 0
+}
+
+func (x *QuizQuestion) GetRight() uint32 {
+	if x != nil {
+		return x.Right
+	}
+	return 0
+}
+
+func (x *QuizQuestion) GetMeasuredShare() float64 {
+	if x != nil && x.MeasuredShare != nil {
+		return *x.MeasuredShare
+	}
+	return 0
+}
+
 var File_bonuses_v1_admin_proto protoreflect.FileDescriptor
 
 const file_bonuses_v1_admin_proto_rawDesc = "" +
@@ -258,10 +569,39 @@ const file_bonuses_v1_admin_proto_rawDesc = "" +
 	"\x05rules\x18\x02 \x01(\v2\x11.bonuses.v1.RulesR\x05rules\";\n" +
 	"\x12SaveRuleSetRequest\x12%\n" +
 	"\x03set\x18\x01 \x01(\v2\x13.bonuses.v1.RuleSetR\x03set\"\x15\n" +
-	"\x13SaveRuleSetResponse2\xaa\x01\n" +
+	"\x13SaveRuleSetResponse\"\xc3\x01\n" +
+	"\x18ListQuizQuestionsRequest\x123\n" +
+	"\x05order\x18\x01 \x01(\x0e2\x1d.bonuses.v1.QuizQuestionOrderR\x05order\x12#\n" +
+	"\reasiest_first\x18\x02 \x01(\bR\feasiestFirst\x12\x1f\n" +
+	"\vmin_answers\x18\x03 \x01(\rR\n" +
+	"minAnswers\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\rR\x05limit\x12\x16\n" +
+	"\x06offset\x18\x05 \x01(\rR\x06offset\"i\n" +
+	"\x19ListQuizQuestionsResponse\x126\n" +
+	"\tquestions\x18\x01 \x03(\v2\x18.bonuses.v1.QuizQuestionR\tquestions\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"\xb9\x02\n" +
+	"\fQuizQuestion\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04text\x18\x02 \x01(\tR\x04text\x12\x16\n" +
+	"\x06answer\x18\x03 \x01(\tR\x06answer\x12\x18\n" +
+	"\asubject\x18\x04 \x01(\tR\asubject\x12\x19\n" +
+	"\x05prior\x18\x05 \x01(\x01H\x00R\x05prior\x88\x01\x01\x12\x16\n" +
+	"\x06rating\x18\x06 \x01(\x01R\x06rating\x12'\n" +
+	"\x0fpredicted_share\x18\a \x01(\x01R\x0epredictedShare\x12\x18\n" +
+	"\aanswers\x18\b \x01(\rR\aanswers\x12\x14\n" +
+	"\x05right\x18\t \x01(\rR\x05right\x12*\n" +
+	"\x0emeasured_share\x18\n" +
+	" \x01(\x01H\x01R\rmeasuredShare\x88\x01\x01B\b\n" +
+	"\x06_priorB\x11\n" +
+	"\x0f_measured_share*}\n" +
+	"\x11QuizQuestionOrder\x12#\n" +
+	"\x1fQUIZ_QUESTION_ORDER_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dQUIZ_QUESTION_ORDER_PREDICTED\x10\x01\x12 \n" +
+	"\x1cQUIZ_QUESTION_ORDER_MEASURED\x10\x022\x91\x02\n" +
 	"\fAdminService\x12J\n" +
 	"\bGetRules\x12\x1b.bonuses.v1.GetRulesRequest\x1a\x1c.bonuses.v1.GetRulesResponse\"\x03\x90\x02\x01\x12N\n" +
-	"\vSaveRuleSet\x12\x1e.bonuses.v1.SaveRuleSetRequest\x1a\x1f.bonuses.v1.SaveRuleSetResponseB\xb9\x01\n" +
+	"\vSaveRuleSet\x12\x1e.bonuses.v1.SaveRuleSetRequest\x1a\x1f.bonuses.v1.SaveRuleSetResponse\x12e\n" +
+	"\x11ListQuizQuestions\x12$.bonuses.v1.ListQuizQuestionsRequest\x1a%.bonuses.v1.ListQuizQuestionsResponse\"\x03\x90\x02\x01B\xb9\x01\n" +
 	"\x0ecom.bonuses.v1B\n" +
 	"AdminProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1;bonusesv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Bonuses.V1\xca\x02\n" +
@@ -279,28 +619,37 @@ func file_bonuses_v1_admin_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_admin_proto_rawDescData
 }
 
-var file_bonuses_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_bonuses_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_bonuses_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_bonuses_v1_admin_proto_goTypes = []any{
-	(*GetRulesRequest)(nil),     // 0: bonuses.v1.GetRulesRequest
-	(*GetRulesResponse)(nil),    // 1: bonuses.v1.GetRulesResponse
-	(*RuleSet)(nil),             // 2: bonuses.v1.RuleSet
-	(*SaveRuleSetRequest)(nil),  // 3: bonuses.v1.SaveRuleSetRequest
-	(*SaveRuleSetResponse)(nil), // 4: bonuses.v1.SaveRuleSetResponse
-	(*Rules)(nil),               // 5: bonuses.v1.Rules
+	(QuizQuestionOrder)(0),            // 0: bonuses.v1.QuizQuestionOrder
+	(*GetRulesRequest)(nil),           // 1: bonuses.v1.GetRulesRequest
+	(*GetRulesResponse)(nil),          // 2: bonuses.v1.GetRulesResponse
+	(*RuleSet)(nil),                   // 3: bonuses.v1.RuleSet
+	(*SaveRuleSetRequest)(nil),        // 4: bonuses.v1.SaveRuleSetRequest
+	(*SaveRuleSetResponse)(nil),       // 5: bonuses.v1.SaveRuleSetResponse
+	(*ListQuizQuestionsRequest)(nil),  // 6: bonuses.v1.ListQuizQuestionsRequest
+	(*ListQuizQuestionsResponse)(nil), // 7: bonuses.v1.ListQuizQuestionsResponse
+	(*QuizQuestion)(nil),              // 8: bonuses.v1.QuizQuestion
+	(*Rules)(nil),                     // 9: bonuses.v1.Rules
 }
 var file_bonuses_v1_admin_proto_depIdxs = []int32{
-	2, // 0: bonuses.v1.GetRulesResponse.sets:type_name -> bonuses.v1.RuleSet
-	5, // 1: bonuses.v1.RuleSet.rules:type_name -> bonuses.v1.Rules
-	2, // 2: bonuses.v1.SaveRuleSetRequest.set:type_name -> bonuses.v1.RuleSet
-	0, // 3: bonuses.v1.AdminService.GetRules:input_type -> bonuses.v1.GetRulesRequest
-	3, // 4: bonuses.v1.AdminService.SaveRuleSet:input_type -> bonuses.v1.SaveRuleSetRequest
-	1, // 5: bonuses.v1.AdminService.GetRules:output_type -> bonuses.v1.GetRulesResponse
-	4, // 6: bonuses.v1.AdminService.SaveRuleSet:output_type -> bonuses.v1.SaveRuleSetResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 0: bonuses.v1.GetRulesResponse.sets:type_name -> bonuses.v1.RuleSet
+	9, // 1: bonuses.v1.RuleSet.rules:type_name -> bonuses.v1.Rules
+	3, // 2: bonuses.v1.SaveRuleSetRequest.set:type_name -> bonuses.v1.RuleSet
+	0, // 3: bonuses.v1.ListQuizQuestionsRequest.order:type_name -> bonuses.v1.QuizQuestionOrder
+	8, // 4: bonuses.v1.ListQuizQuestionsResponse.questions:type_name -> bonuses.v1.QuizQuestion
+	1, // 5: bonuses.v1.AdminService.GetRules:input_type -> bonuses.v1.GetRulesRequest
+	4, // 6: bonuses.v1.AdminService.SaveRuleSet:input_type -> bonuses.v1.SaveRuleSetRequest
+	6, // 7: bonuses.v1.AdminService.ListQuizQuestions:input_type -> bonuses.v1.ListQuizQuestionsRequest
+	2, // 8: bonuses.v1.AdminService.GetRules:output_type -> bonuses.v1.GetRulesResponse
+	5, // 9: bonuses.v1.AdminService.SaveRuleSet:output_type -> bonuses.v1.SaveRuleSetResponse
+	7, // 10: bonuses.v1.AdminService.ListQuizQuestions:output_type -> bonuses.v1.ListQuizQuestionsResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_admin_proto_init() }
@@ -309,18 +658,20 @@ func file_bonuses_v1_admin_proto_init() {
 		return
 	}
 	file_bonuses_v1_rules_proto_init()
+	file_bonuses_v1_admin_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_admin_proto_rawDesc), len(file_bonuses_v1_admin_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      1,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_bonuses_v1_admin_proto_goTypes,
 		DependencyIndexes: file_bonuses_v1_admin_proto_depIdxs,
+		EnumInfos:         file_bonuses_v1_admin_proto_enumTypes,
 		MessageInfos:      file_bonuses_v1_admin_proto_msgTypes,
 	}.Build()
 	File_bonuses_v1_admin_proto = out.File

@@ -447,6 +447,43 @@ export class QuizRules extends Message<QuizRules> {
    */
   maxChargesPerHour?: number;
 
+  /**
+   * The difficulty-weighted draw, inside the subject's questions the lean picked. The chance of a right answer, for an
+   * average player, it aims at: 0.34 to 0.99.
+   *
+   * @generated from field: optional double target = 9;
+   */
+  target?: number;
+
+  /**
+   * How wide the bell around target is, on the rating scale: a question this far from target weighs 0.61 of one on it,
+   * twice as far 0.14. 0 is off, the draw of before: no question weighs more for how hard it is, and none is left out.
+   *
+   * @generated from field: optional double width = 10;
+   */
+  width?: number;
+
+  /**
+   * A question whose rating says fewer than this share of average players get it right, once floor_after answers moved
+   * it, is never drawn. A prior alone never leaves a question out. At most target.
+   *
+   * @generated from field: optional double floor = 11;
+   */
+  floor?: number;
+
+  /**
+   * @generated from field: optional uint32 floor_after = 12;
+   */
+  floorAfter?: number;
+
+  /**
+   * The share of draws that ignore how hard a question is, so every question keeps being asked; never one under the
+   * floor. 0 to 1.
+   *
+   * @generated from field: optional double explore = 13;
+   */
+  explore?: number;
+
   constructor(data?: PartialMessage<QuizRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -463,6 +500,11 @@ export class QuizRules extends Message<QuizRules> {
     { no: 6, name: "answer_window", kind: "message", T: Duration },
     { no: 7, name: "leader_bias", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 8, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 9, name: "target", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 10, name: "width", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 11, name: "floor", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 12, name: "floor_after", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 13, name: "explore", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizRules {

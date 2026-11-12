@@ -57,6 +57,17 @@ export const GROUPS: {title: string, switches: Switch[], fields: Field[]}[] = [
             {path: "quiz.leaderBias", label: "Lean to the leaders", kind: "number"},
         ],
     },
+    {
+        title: "Quiz difficulty",
+        switches: [],
+        fields: [
+            {path: "quiz.width", label: "Bell width, 0 is off", kind: "number"},
+            {path: "quiz.target", label: "Share right aimed at", kind: "number"},
+            {path: "quiz.floor", label: "Never asked under, share right", kind: "number"},
+            {path: "quiz.floorAfter", label: "Floor after, answers", kind: "whole"},
+            {path: "quiz.explore", label: "Draws that ignore it, share", kind: "number"},
+        ],
+    },
 ]
 
 const FIELDS = GROUPS.flatMap(group => group.fields)
