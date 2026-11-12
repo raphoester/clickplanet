@@ -3,9 +3,11 @@ import {LANGUAGES, SOURCE_LANGUAGE} from "./languages.ts"
 import {parseMessage, pluralsOf, Slot, slotsOf} from "./message.ts"
 import {ENGLISH, ENGLISH_LANDMASSES, OWN_COUNTRY_NAMES} from "./translator.ts"
 import NOTES from "./notes.json"
+import FLAGS from "../../static/countries/countries.json"
 
 const FILES = import.meta.glob<Record<string, unknown>>("./locales/*.json", {eager: true, import: "default"})
 const LANDMASS_FILES = import.meta.glob<Record<string, unknown>>("./landmasses/*.json", {eager: true, import: "default"})
+const COUNTRY_FILES = import.meta.glob<Record<string, unknown>>("./countries/*.json", {eager: true, import: "default"})
 
 const linesOf = (language: string) => FILES[`./locales/${language}.json`]
 
@@ -35,6 +37,22 @@ describe("the catalogue", () => {
                 const names = LANDMASS_FILES[`./landmasses/${language}.json`] ?? {}
                 expect(Object.keys(names).filter((id) => !(id in ENGLISH_LANDMASSES)), "ids English no longer has").toEqual([])
                 expect(Object.keys(ENGLISH_LANDMASSES).filter((id) => typeof names[id] !== "string" || !names[id]), "names missing").toEqual([])
+            })
+
+            it("says \"in\" each flag's country, with the flag's picture in it, and no other", () => {
+                const phrases = COUNTRY_FILES[`./countries/${language}.json`] ?? {}
+                const keys = Object.keys(FLAGS).map((code) => `in.${code}`)
+                expect(Object.keys(phrases).filter((key) => !keys.includes(key)), "flags the game no longer has").toEqual([])
+                const problems = keys.filter((key) => {
+                    const phrase = phrases[key]
+                    if (typeof phrase !== "string") return true
+                    try {
+                        return [...slotsOf(parseMessage(phrase)).keys()].join() !== "flag"
+                    } catch {
+                        return true
+                    }
+                })
+                expect(problems, "missing, or not one {flag}").toEqual([])
             })
 
             it("holds every English key and no other", () => {

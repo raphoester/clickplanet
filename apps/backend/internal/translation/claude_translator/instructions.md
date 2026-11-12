@@ -53,3 +53,12 @@ language keeps as it is. When the context gives Natural Earth's names, take the 
 reference, but drop a word for the kind of division the English does not have ("Gespanschaft", "Kabupaten",
 "Région", "Province of"), write it as a name (capitalized, not an adjective), and use Brazil's spelling for Brazilian
 Portuguese. A trailing number tells two places of one name apart: keep it as it is.
+
+## A country inside a sentence
+
+A line keyed `in.<code>` is how the language says "in" that country inside a sentence ("Take 5 tiles in
+Argentina"), and it is written for English too. Give the preposition, the article and the case the name takes there,
+as a native speaker says it: "in the United States", "en Argentine", "au Brésil", "aux États-Unis", "à Cuba", "na
+Argentina", "no Brasil", "in der Schweiz", "im Iran", "w Argentynie", "na Węgrzech", "v Argentině", "Arjantin'de".
+Use the short name a player knows ("Vatican", "Bosnia"), not the state's official one. Keep `{flag}`, the flag's
+picture, right before the name.

@@ -143,6 +143,20 @@ describe("a landmass's name", () => {
     })
 })
 
+describe("a country inside a sentence", () => {
+    it("takes the preposition, article and case its language gives it, with the flag before the name", () => {
+        const fr = new Translator("fr", {}, "fr", {}, {"in.ar": "en {flag} Argentine", "in.br": "au {flag} Brésil"})
+
+        const flag = {code: "br"}
+        expect(fr.countryIn("br", flag)).toEqual(["au ", flag, " Brésil"])
+        expect(fr.countryInText("ar")).toBe("en Argentine")
+    })
+
+    it("is English where the language's file has none yet", () => {
+        expect(new Translator("fr", {}, "fr", {}, {}).countryInText("us")).toBe("in the United States")
+    })
+})
+
 describe("a region's name", () => {
     it("is its line", () => {
         expect(new Translator("en", {}).region("Middle East")).toBe("Middle East")

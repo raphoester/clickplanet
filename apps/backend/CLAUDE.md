@@ -211,9 +211,9 @@ and says what is in it. Read the doc before you change its area.
 - [Battle teasers on TikTok and YouTube](docs/teasers-job.md) — promo decides and posts, `cmd/teasers` only renders:
   every 6 hours, each battle starting within 36 hours posted by an hour before it through publishing's
   `InternalService`, a carousel of its cards on TikTok and a slideshow on YouTube; no battle teased twice.
-- [The page's translator](docs/translate.md) — `cmd/translate`, `make translate`: the game page's English lines and
-  landmass names sent to Claude with the glossary and each line's context, only when new or changed (a fingerprint of
-  the English per line), a hand fix kept; Natural Earth's names as the places' reference; built for the quiz and the
-  titles next.
+- [The page's translator](docs/translate.md) — `cmd/translate`, `make translate`: the game page's English lines,
+  landmass names and "in" each flag's country (written for English too) sent to Claude with the glossary and each
+  line's context, only when new or changed (a fingerprint of the English per line), a hand fix kept; Natural Earth's
+  names as the places' reference; built for the quiz and the titles next.
 - [The clips job](docs/clips-job.md) — `cmd/clips`: every 2 hours, picks the best clips and posts them through the
   publishing module, over ssh; the model editor, the stats and the experiments it ran.

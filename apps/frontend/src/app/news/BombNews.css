@@ -4,6 +4,8 @@
     left: var(--top-centre);
     z-index: 150;
     transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(var(--top-room) - 32px);
     pointer-events: none;
 }
 
@@ -18,7 +20,8 @@
     padding: var(--space-2) var(--space-4);
     color: var(--text-soft);
     font-size: var(--text-m);
-    white-space: nowrap;
+    /* One line, unless two long names do not fit the screen: "Îles Vierges britanniques a bombardé Libéria". */
+    text-wrap: balance;
     animation: bomb-news 4s ease-out forwards;
 }
 

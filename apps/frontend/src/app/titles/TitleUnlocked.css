@@ -44,7 +44,8 @@
     padding-top: 0.08em;
     font-size: clamp(var(--display-l), min(14vw, 11vh), var(--display-hero));
     line-height: 1;
-    white-space: nowrap;
+    /* One line, unless the language's words are wider than the phone: "Nouveau titre !". */
+    text-wrap: balance;
     color: var(--text);
     text-shadow: var(--text-outline-l);
     rotate: -4deg;

@@ -15,8 +15,9 @@ import (
 const usage = `usage:
   translate [-page ../frontend] [-model claude-sonnet-5-5] [-languages fr,de] [-plan]
 
-Brings the game page's catalogues up to its English (src/i18n/locales/en.json, and the landmass names of
-static/landmassNames.json): in each language it has a file for, only the lines that are new, or whose English changed
+Brings the game page's catalogues up to its English (src/i18n/locales/en.json, the landmass names of
+static/landmassNames.json, and "in" each flag of static/countries/countries.json, which English gets too): in each
+language it has a file for, only the lines that are new, or whose English changed
 since they were translated, are sent to Claude (ANTHROPIC_API_KEY), with the glossary and each line's context. A line
 written by hand, with no fingerprint, is kept and fingerprinted. -plan says what would be sent and asks nothing. A new
 language is an empty "{}" file named after its tag in src/i18n/locales.`

@@ -7,7 +7,7 @@ import {rich} from "../../i18n/rich.tsx"
 import BonusIcon from "../components/BonusIcon.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {quizShown, useQuiz} from "../quiz/quizStore.ts"
-import {countryOf, orderText} from "./orderParts.tsx"
+import {countryInOf, countryOf, orderText} from "./orderParts.tsx"
 import "../news/BombNews.css"
 import "./Missions.css"
 
@@ -37,9 +37,9 @@ function lineOf(order: MissionOrder | FlagMissionOrder): ReactNode {
         case "takeFrom":
             return rich("mission.progress.takeFrom", {flag: countryOf(order.country)})
         case "takeIn":
-            return rich("mission.progress.takeIn", {place: countryOf(order.country)})
+            return rich("mission.progress.takeIn", {where: countryInOf(order.country)})
         case "takeFromIn":
-            return rich("mission.progress.takeFromIn", {flag: <CountryFlag code={order.country}/>, place: countryOf(order.ground)})
+            return rich("mission.progress.takeFromIn", {flag: <CountryFlag code={order.country}/>, where: countryInOf(order.ground)})
         case "bombIn":
             return <><BonusIcon kind="bomb"/> {countryOf(order.country)}</>
         case "breakShields":

@@ -17,7 +17,8 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    width: 72px;
+    /* A name wider than the slot widens its own slot alone ("Encerclement"): the dock keeps its width. */
+    min-width: 72px;
     min-height: 64px;
     padding: 6px 0 5px;
     color: var(--text-soft);
@@ -121,6 +122,7 @@
 }
 
 .inventory-name {
+    padding: 0 var(--space-1);
     font-weight: 600;
     font-size: var(--text-xs);
     line-height: 1.2;
@@ -151,6 +153,7 @@
 
     .inventory-slot {
         width: 48px;
+        min-width: 0;
         min-height: 48px;
         padding: 0;
     }

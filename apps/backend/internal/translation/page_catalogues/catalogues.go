@@ -1,5 +1,5 @@
-// Package page_catalogues brings the game page's catalogues up to their English: its lines, and the names of its
-// landmasses, in every language it has a file for.
+// Package page_catalogues brings the game page's catalogues up to their English: its lines, the names of its
+// landmasses, and each flag's country inside a sentence, in every language it has a file for.
 package page_catalogues
 
 import (
@@ -15,6 +15,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/catalogue_files"
+	"github.com/raphoester/clickplanet.lol-backend/internal/translation/country_source"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/landmass_source"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/natural_earth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/page_source"
@@ -25,14 +26,19 @@ type Name string
 const (
 	Lines      Name = "lines"
 	Landmasses Name = "landmasses"
+	Countries  Name = "countries"
 )
 
-// One catalogue: its English in order, and where each language's translations go.
+// The page's own language: its lines are the source, but a country inside a sentence is written for it too.
+const English translation.Language = "en"
+
+// One catalogue: its English in order, where each language's translations go, and the languages it is written in.
 type Catalogue struct {
-	Name   Name
-	Source []translation.Line
-	Order  []translation.Key
-	Place  catalogue_files.Place
+	Name      Name
+	Source    []translation.Line
+	Order     []translation.Key
+	Place     catalogue_files.Place
+	Languages []translation.Language
 }
 
 type Work struct {
@@ -63,13 +69,14 @@ func Load(ctx context.Context, page string, languages []translation.Language) (W
 		return Work{}, fmt.Errorf("failed to list the languages: %w", err)
 	}
 	if len(languages) == 0 {
-		languages = found
+		languages = append([]translation.Language{English}, found...)
 	}
 	for _, language := range languages {
-		if !slices.Contains(found, language) {
+		if language != English && !slices.Contains(found, language) {
 			return Work{}, fmt.Errorf("%w: %s (the page has %v)", ErrUnknownLanguage, language, found)
 		}
 	}
+	translated := slices.DeleteFunc(slices.Clone(languages), func(language translation.Language) bool { return language == English })
 	pageLines, pageOrder, err := page_source.Read(page_source.Files{
 		English: lines.English,
 		Notes:   filepath.Join(i18n, "notes.json"),
@@ -86,18 +93,26 @@ func Load(ctx context.Context, page string, languages []translation.Language) (W
 	if err != nil {
 		return Work{}, fmt.Errorf("failed to read the landmass names: %w", err)
 	}
+	countryLines, countryOrder, err := country_source.Read(filepath.Join(page, "static", "countries", "countries.json"))
+	if err != nil {
+		return Work{}, fmt.Errorf("failed to read the flags: %w", err)
+	}
 	work := Work{
 		Catalogues: []Catalogue{
-			{Name: Lines, Source: pageLines, Order: pageOrder, Place: lines},
-			{Name: Landmasses, Source: landmassLines, Order: landmassOrder, Place: catalogue_files.Place{
+			{Name: Lines, Source: pageLines, Order: pageOrder, Place: lines, Languages: translated},
+			{Name: Landmasses, Source: landmassLines, Order: landmassOrder, Languages: translated, Place: catalogue_files.Place{
 				Lines:        filepath.Join(i18n, "landmasses"),
 				Fingerprints: filepath.Join(i18n, "fingerprints", "landmasses"),
+			}},
+			{Name: Countries, Source: countryLines, Order: countryOrder, Languages: languages, Place: catalogue_files.Place{
+				Lines:        filepath.Join(i18n, "countries"),
+				Fingerprints: filepath.Join(i18n, "fingerprints", "countries"),
 			}},
 		},
 		Plans: map[Name][]translation.Plan{},
 	}
 	for _, catalogue := range work.Catalogues {
-		for _, language := range languages {
+		for _, language := range catalogue.Languages {
 			current, err := catalogue.Place.Catalogue(language)
 			if err != nil {
 				return Work{}, fmt.Errorf("failed to read the %s %s: %w", language, catalogue.Name, err)
