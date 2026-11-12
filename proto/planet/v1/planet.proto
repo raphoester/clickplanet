@@ -417,6 +417,10 @@ message GetChargeRulesResponse {
 
   // No bomb is dropped, and none is offered: the page hides the bomb.
   bool bombs_off = 14;
+
+  // The shields each capital starts an arena with, 0 when the set lays no capital: while the capitals' rules play, the
+  // page's shield badges count up to them.
+  uint32 capital_shields = 15;
 }
 
 message TollStep {

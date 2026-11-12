@@ -17,6 +17,8 @@ func (c Capitals) Validate() error {
 	return rules.AtMost("capitals.shields", c.Shields, "what a tile keeps", math.MaxUint8) //nolint:wrapcheck // the bound names the value.
 }
 
+func (c Capitals) CapitalShields() int { return c.Shields }
+
 func (c Capitals) Seed(ground Ground) arenas.Seed {
 	return capitalSeed{capitals: ground.Capitals, shields: c.Shields}
 }

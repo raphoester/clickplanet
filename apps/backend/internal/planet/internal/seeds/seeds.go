@@ -16,6 +16,8 @@ type Pattern interface {
 	Validate() error
 	// Seed is the pattern laid on the ground of this map.
 	Seed(ground Ground) arenas.Seed
+	// CapitalShields is the shields each capital starts with; 0 for a pattern that lays no capital.
+	CapitalShields() int
 }
 
 // Ground is what the map gives a pattern to seed from.
@@ -58,12 +60,16 @@ func (none) Validate() error { return errors.New("pattern: none is named") }
 
 func (none) Seed(Ground) arenas.Seed { return blank{} }
 
+func (none) CapitalShields() int { return 0 }
+
 // A pattern of a build after this one.
 type unknown struct{}
 
 func (unknown) Validate() error { return errors.New("pattern: this build knows no such pattern") }
 
 func (unknown) Seed(Ground) arenas.Seed { return blank{} }
+
+func (unknown) CapitalShields() int { return 0 }
 
 type blank struct{}
 

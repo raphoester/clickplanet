@@ -1,6 +1,8 @@
 import * as THREE from "three"
 
 const CELL = 128
+// A capital's 100 counts in 128 px cells would weigh 7 MB on a phone's GPU: a sheet past 16 cells draws them at 64.
+const SMALL_CELL = 64
 const COLUMNS = 4
 
 const SHIELD = {
@@ -30,15 +32,18 @@ type Look = {
 
 // The plain shield, each count up to the most, then the crown of a capital still standing.
 export function shieldCellsOf(most: number): THREE.Vector2 {
-    return new THREE.Vector2(COLUMNS, Math.ceil((Math.max(1, most) + 2) / COLUMNS))
+    const cells = Math.max(1, most) + 2
+    const columns = Math.max(COLUMNS, Math.ceil(Math.sqrt(cells)))
+    return new THREE.Vector2(columns, Math.ceil(cells / columns))
 }
 
 export function drawShieldMarks(most: number, onRedrawn: () => void): THREE.CanvasTexture {
     const cells = shieldCellsOf(most)
+    const size = cells.x * cells.y > 16 ? SMALL_CELL : CELL
 
     const canvas = document.createElement("canvas")
-    canvas.width = cells.x * CELL
-    canvas.height = cells.y * CELL
+    canvas.width = cells.x * size
+    canvas.height = cells.y * size
 
     const context = canvas.getContext("2d")
     if (!context) throw new Error("failed to get a 2d context for the shield marks")
@@ -50,14 +55,16 @@ export function drawShieldMarks(most: number, onRedrawn: () => void): THREE.Canv
         context.clearRect(0, 0, canvas.width, canvas.height)
         for (let count = 0; count <= most; count++) {
             context.save()
-            context.translate((count % COLUMNS) * CELL, Math.floor(count / COLUMNS) * CELL)
+            context.translate((count % cells.x) * size, Math.floor(count / cells.x) * size)
+            context.scale(size / CELL, size / CELL)
             drawShield(context, look)
             if (count > 0) drawCount(context, count, look)
             context.restore()
         }
         const crown = most + 1
         context.save()
-        context.translate((crown % COLUMNS) * CELL, Math.floor(crown / COLUMNS) * CELL)
+        context.translate((crown % cells.x) * size, Math.floor(crown / cells.x) * size)
+        context.scale(size / CELL, size / CELL)
         drawMetal(context, new Path2D(CROWN), look.gold, look.goldLight, look)
         context.restore()
         texture.needsUpdate = true

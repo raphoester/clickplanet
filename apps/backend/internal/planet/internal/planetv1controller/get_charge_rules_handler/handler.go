@@ -7,6 +7,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 )
 
 type Toll interface {
@@ -21,8 +22,9 @@ type Blast interface {
 // shows: the toll, the reach and the capitals.
 func New(
 	rules func() charges.Rules, blast Blast, toll Toll, reach func() clicks.Reaching, capitals func() clicks.CapitalRules,
+	seed func() seeds.Pattern,
 ) GetChargeRulesHandler {
-	return GetChargeRulesHandler{rules: rules, blast: blast, toll: toll, reach: reach, capitals: capitals}
+	return GetChargeRulesHandler{rules: rules, blast: blast, toll: toll, reach: reach, capitals: capitals, seed: seed}
 }
 
 type GetChargeRulesHandler struct {
@@ -31,6 +33,7 @@ type GetChargeRulesHandler struct {
 	toll     Toll
 	reach    func() clicks.Reaching
 	capitals func() clicks.CapitalRules
+	seed     func() seeds.Pattern
 }
 
 func (h GetChargeRulesHandler) GetChargeRules(
@@ -54,6 +57,7 @@ func (h GetChargeRulesHandler) GetChargeRules(
 		KnockOut:            capitals.KnockOut,
 		CapitalShieldsFixed: capitals.FixedShields,
 		BombsOff:            rules.Bomb.Off,
+		CapitalShields:      uint32(h.seed().CapitalShields()), //nolint:gosec // a pattern's shields are at most 255.
 	}), nil
 }
 

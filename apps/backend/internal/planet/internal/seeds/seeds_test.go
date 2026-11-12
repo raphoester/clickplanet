@@ -60,3 +60,9 @@ func TestADefaultThatNamesNoPatternCannotPlay(t *testing.T) {
 	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.ErrorContains(t, err, "seed.pattern: none is named")
 }
+
+func TestThePatternSaysTheShieldsEachCapitalStartsWith(t *testing.T) {
+	shields := uint32(40)
+	assert.Equal(t, 40, seeds.Part.Of(battle(t, &planetv1.Rules{Seed: capitalsSeed(&shields)})).CapitalShields())
+	assert.Equal(t, 0, seeds.Part.Read(&planetv1.Rules{}).CapitalShields(), "a set that names no pattern lays no capital")
+}

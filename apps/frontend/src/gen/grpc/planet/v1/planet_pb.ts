@@ -2190,6 +2190,14 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   bombsOff = false;
 
+  /**
+   * The shields each capital starts an arena with, 0 when the set lays no capital: while the capitals' rules play, the
+   * page's shield badges count up to them.
+   *
+   * @generated from field: uint32 capital_shields = 15;
+   */
+  capitalShields = 0;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2210,6 +2218,7 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 12, name: "knock_out", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 13, name: "capital_shields_fixed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 14, name: "bombs_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 15, name: "capital_shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {

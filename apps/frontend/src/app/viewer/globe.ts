@@ -746,6 +746,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let reach: Front | undefined
 
     const capitalRules = (read: BonusRules | undefined) => (read?.knockOut || read?.capitalShieldsFixed) ?? false
+    // The badges count up to a tile's most, and up to a capital's start while the capitals' rules play: 100 shields
+    // read 100, and each hit on a capital shows.
+    const marksMost = (read: BonusRules) => Math.max(read.tileShields, capitalRules(read) ? read.capitalShields : 0)
+    const tileShieldsMost = () => rules && rules.tileShields > 0 ? rules.tileShields : SHIELD_MOST_UNTIL_READ
     const fixedCapitals = () => rules?.capitalShieldsFixed ? capitals : undefined
 
     const publishStanding = () => {
@@ -925,11 +929,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 encloseSwitchedOff = false
                 switchTo(switchesHeld({...switches, enclose: false}, charges, read.enclosuresUnlimited))
             }
-            if (read.tileShields > 0 && read.tileShields !== uniforms.shieldMost.value) {
-                uniforms.shieldMost.value = read.tileShields
+            const most = marksMost(read)
+            if (most > 0 && most !== uniforms.shieldMost.value) {
+                uniforms.shieldMost.value = most
                 uniforms.shieldMarks.value.dispose()
-                uniforms.shieldMarks.value = drawShieldMarks(read.tileShields, invalidate)
-                uniforms.shieldCells.value = shieldCellsOf(read.tileShields)
+                uniforms.shieldMarks.value = drawShieldMarks(most, invalidate)
+                uniforms.shieldCells.value = shieldCellsOf(most)
             }
             followRules(read)
             if (read.bombsOff) disarm()
@@ -1395,7 +1400,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         releaseGhosts(members)
         const fixed = fixedCapitals()
         const shielding = fixed ? members.filter((tile) => !fixed.has(tile)) : members
-        const raised = tiles.applyFortification(shielding, fortification.countryId, uniforms.shieldMost.value, fortification.version)
+        const raised = tiles.applyFortification(shielding, fortification.countryId, tileShieldsMost(), fortification.version)
         markMissions(missionMarks.touch(raised.map(({tile}) => tile)))
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
         else waves.start(fortification.landmass, members, fortification.tile, performance.now() / 1000)
