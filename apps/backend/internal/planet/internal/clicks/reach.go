@@ -8,15 +8,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var ErrOutOfReach = errors.New("the tile touches none of the flag's land and is on the coast of none of its waters")
+var ErrOutOfReach = errors.New("the tile touches none of the flag's land and no bridge leads to it from its land")
 
 type Neighbourhood interface {
 	Neighbours(id uint32) []uint32
 }
 
-type Shores interface {
-	BodiesOf(tile uint32) []BodyID
-	CoastOf(body BodyID) []uint32
+type Crossings interface {
+	Across(tile uint32) []uint32
 }
 
 type Holdings interface {
@@ -32,17 +31,17 @@ var ReachPart = cprules.PartOf[*planetv1.Rules, Reaching]{
 	Key: "reach", Read: func(m *planetv1.Rules) Reaching { return Reaching(m.GetReach()) },
 }
 
-// Reach is where a flag's take lands while the rules in force hold it: on its own land, on a tile next to it, or on the
-// coast of a water where it holds a coast. Otherwise, everywhere.
+// Reach is where a flag's take lands while the rules in force hold it: on its own land, on a tile next to it, or at the
+// end of a bridge whose other end it holds. Otherwise, everywhere.
 type Reach struct {
 	on         func() Reaching
 	neighbours Neighbourhood
-	waters     Shores
+	bridges    Crossings
 	held       Holdings
 }
 
-func NewReach(on func() Reaching, neighbours Neighbourhood, waters Shores, held Holdings) Reach {
-	return Reach{on: on, neighbours: neighbours, waters: waters, held: held}
+func NewReach(on func() Reaching, neighbours Neighbourhood, bridges Crossings, held Holdings) Reach {
+	return Reach{on: on, neighbours: neighbours, bridges: bridges, held: held}
 }
 
 func (r Reach) Refuses(flag string, tile uint32) error {
@@ -72,14 +71,7 @@ func (r Reach) Around(flag string, tile uint32) []uint32 {
 }
 
 func (r Reach) reaches(flag string, tile uint32) bool {
-	if r.held.HoldsAny(flag, []uint32{tile}) || r.held.HoldsAny(flag, r.neighbours.Neighbours(tile)) {
-		return true
-	}
-	for _, body := range r.waters.BodiesOf(tile) {
-		if r.held.HoldsAny(flag, r.waters.CoastOf(body)) {
-			return true
-		}
-	}
-
-	return false
+	return r.held.HoldsAny(flag, []uint32{tile}) ||
+		r.held.HoldsAny(flag, r.neighbours.Neighbours(tile)) ||
+		r.held.HoldsAny(flag, r.bridges.Across(tile))
 }

@@ -86,7 +86,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `seed` — how an arena's fresh map starts: one pattern of a `oneof`. `capitals {shields}`, each capital held by its
   country with that many shields, past `charges.shield.perTile`, 0 to 255 (100). Until 2026-11-10 it was
   `arena.capitalShields`. See [Seeds](arenas.md#seeds)
-- `reach` — a take lands only next to the flag's land or across its waters (off). See [The reach](reach.md)
+- `reach` — a take lands only next to the flag's land or across a bridge from it (off). See [The reach](reach.md)
 - `capitals.knockOut`, `capitals.fixedShields` — a capital taken by another flag knocks its flag out; no shield goes on a
   capital (off, off). See [The capitals' rules](capitals.md)
 

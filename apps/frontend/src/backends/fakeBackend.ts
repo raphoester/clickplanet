@@ -455,6 +455,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 
+    // The page's side of the reach alone: the bridges drawn and the front rung. The fake refuses no click out of it.
+    public playReach(on: boolean): void {
+        this.rules = {...this.rules, reach: on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
     public setTempo(tempo: number): void {
         this.refill()
         this.tempo = tempo

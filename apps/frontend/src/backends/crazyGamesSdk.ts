@@ -70,6 +70,7 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
     let current: Sdk | undefined
     void ready.then((sdk) => current = sdk)
     let openingInviteTold = false
+    let reported: {flag: string, link: string} | undefined
 
     return {
         user: {
@@ -108,8 +109,12 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
         },
         room: {
             report: (flag) => void ready.then((sdk) => {
+                if (!sdk) return
+                const params = inviteParamsOf(flag)
                 try {
-                    sdk?.game.updateRoom({roomId: WORLD_ROOM, isJoinable: true, inviteParams: inviteParamsOf(flag)})
+                    sdk.game.updateRoom({roomId: WORLD_ROOM, isJoinable: true, inviteParams: params})
+                    // CrazyGames' QA tool sees an invite link only when the page makes one while it watches.
+                    reported = {flag, link: sdk.game.inviteLink(params)}
                 } catch (e) {
                     console.error("CrazyGames took no room", e)
                 }
@@ -133,7 +138,10 @@ export function connectCrazyGames(load: () => Promise<Sdk> = loadScript): CrazyG
                     current?.game.removeJoinRoomListener(heard)
                 }
             },
-            inviteLink: async (flag) => (await ready)?.game.inviteLink(inviteParamsOf(flag)),
+            inviteLink: async (flag) => {
+                const sdk = await ready
+                return reported?.flag === flag ? reported.link : sdk?.game.inviteLink(inviteParamsOf(flag))
+            },
         },
         settings: () => current ? settingsOf(current.game.settings) : DEFAULT_CRAZYGAMES_SETTINGS,
         listenForSettings: (listener) => {

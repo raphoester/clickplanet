@@ -88,7 +88,8 @@ Instant multiplayer needs nothing: there is no lobby, `/play` is the shared worl
   and the SDK reads the invite from that address after `main.tsx` runs. So on the CrazyGames page `main.tsx` keeps
   `?f=` and `?s=` in the address; it only reads `?f=` as the flag shown at load, as a share link does.
 - **Invite friends** copies `inviteLink({f: <flag shown>})`, a link to the game on CrazyGames (`InviteFriends`,
-  `InviteButton`). The Invite tab of the menu and of the phone's tab bar takes Share's place, and the frozen
+  `InviteButton`). The page makes that link at each room report and copies it at the press: CrazyGames' QA tool
+  counts an invite link only when the page makes one while it watches, and nobody presses Invite there. The Invite tab of the menu and of the phone's tab bar takes Share's place, and the frozen
   map's Invite copies the same link. `Menu`, `TabBar` and `ClickBudgetMeter` show it when they get `invite`,
   which only the CrazyGames page has.
 

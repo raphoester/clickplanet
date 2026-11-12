@@ -16,9 +16,10 @@ import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import {BORDERS_URL} from "./bordersAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
 import {CAPITALS_URL} from "./capitalsAsset.ts";
-import {WATERS_URL} from "./watersAsset.ts";
+import {BRIDGES_URL} from "./bridgesAsset.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
-import {loadWaters} from "./waters.ts";
+import {loadBridges} from "./bridges.ts";
+import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
 import {flagPaint, flownZoomsOf, inOrbit, pickPointSize, tilePointSize} from "./pointSize.ts";
 import {createTerritoryLayer} from "./territoryLayer.ts";
 import {regions} from "./atlas.ts";
@@ -81,7 +82,7 @@ import {pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges} from "../../domain/front.ts";
 import {CapitalMarks} from "../../domain/capitalMarks.ts";
 import {Standing, standingOf} from "../../domain/standing.ts";
-import type {Waters} from "../../domain/waters.ts";
+import {acrossBridges, type Bridges} from "../../domain/bridges.ts";
 import {MissionGround, MissionMarks, MissionTarget, groundsOf, nearestPlayable} from "../../domain/missionTargets.ts";
 import {Neighbours} from "../../domain/neighbours.ts";
 import {GhostTake, Ghosts} from "../../domain/ghosts.ts";
@@ -734,10 +735,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (nearest !== undefined) flyDown(nearest)
     }
 
-    // The reach and the capitals rules, each followed as the rules in force say: the reach rings what the flag can take,
-    // across its waters; the capitals rules mark each capital still standing and keep shields off a fixed one.
+    // The reach and the capitals rules, each followed as the rules in force say: the reach draws the bridges and rings
+    // what the flag can take, across them too; the capitals rules mark each capital still standing and keep shields off
+    // a fixed one.
     let capitalsFile: Promise<Capitals> | undefined
-    let watersFile: Promise<Waters> | undefined
+    let bridgesFile: Promise<Bridges> | undefined
+    let arcs: BridgeArcs | undefined
     let capitals: Capitals | undefined
     let capitalMarks: CapitalMarks | undefined
     let reach: Front | undefined
@@ -756,16 +759,28 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const playReach = (waters: Waters) => {
+    const playReach = (bridges: Bridges) => {
         if (front) lightFront(front.drop())
-        reach = new Front(neighbourhood(), shownOwnerOf, geometryData.positions, waters)
+        reach = new Front(acrossBridges(neighbourhood(), bridges), shownOwnerOf, geometryData.positions)
         front = reach
         lightFront(reach.follow(country.code))
+        arcs = createBridgeArcs(bridges.all, geometryData.positions)
+        scene.add(arcs.object)
+        invalidate()
+    }
+
+    const dropArcs = () => {
+        if (!arcs) return
+        scene.remove(arcs.object)
+        arcs.dispose()
+        arcs = undefined
+        invalidate()
     }
 
     const leaveReach = () => {
         if (!reach) return
         lightFront(reach.drop())
+        dropArcs()
         reach = undefined
         front = showFront && loaded ? new Front(neighbourhood(), shownOwnerOf, geometryData.positions) : undefined
         if (front) lightFront(front.follow(country.code))
@@ -776,12 +791,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             leaveReach()
             return
         }
-        watersFile ??= loadWaters(WATERS_URL, field.size, lifetime.signal)
-        watersFile.then((waters) => {
-            if (rules?.reach && !reach && !lifetime.signal.aborted) playReach(waters)
+        bridgesFile ??= loadBridges(BRIDGES_URL, field.size, lifetime.signal)
+        bridgesFile.then((bridges) => {
+            if (rules?.reach && !reach && !lifetime.signal.aborted) playReach(bridges)
         }, (e) => {
-            watersFile = undefined
-            if (!lifetime.signal.aborted) console.error("could not read the map's waters", e)
+            bridgesFile = undefined
+            if (!lifetime.signal.aborted) console.error("could not read the map's bridges", e)
         })
     }
 
@@ -1599,6 +1614,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             enclosures.dispose()
             bonusClicks.dispose()
             plainClicks.dispose()
+            dropArcs()
 
             cleanup()
         }

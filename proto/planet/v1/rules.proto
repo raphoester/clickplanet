@@ -21,7 +21,7 @@ message Rules {
   ArenaRules arena = 6;
   // How an arena's fresh map starts.
   Seed seed = 7;
-  // A take of a flag lands only on its land, on a tile next to it, or on a coast of a water where it holds a coast.
+  // A take of a flag lands only on its land, on a tile next to it, or at the far end of a bridge from it.
   optional bool reach = 8;
   CapitalRules capitals = 9;
   ChargeRules charges = 10;

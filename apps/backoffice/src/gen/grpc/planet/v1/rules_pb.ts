@@ -53,7 +53,7 @@ export class Rules extends Message<Rules> {
   seed?: Seed;
 
   /**
-   * A take of a flag lands only on its land, on a tile next to it, or on a coast of a water where it holds a coast.
+   * A take of a flag lands only on its land, on a tile next to it, or at the far end of a bridge from it.
    *
    * @generated from field: optional bool reach = 8;
    */
