@@ -3,7 +3,7 @@
 **A player makes an 8 s video of its flag's day in its own browser, and posts it.** The video shows the player's
 address, which brings a viewer into the game on that flag and keeps who recruited them (see [Arrivals](arrivals.md)).
 It is a 2-week test (from 2026-11): do players post videos that bring new players? No event, call or log counts a
-video made, shared or saved. There is no reward.
+video made, shared or saved. There is no reward in the game (see [Delivery](#delivery) for the reposts).
 
 ## Who can make one
 
@@ -83,6 +83,12 @@ judged within seconds.
 After the video is made the player taps again, which `navigator.share` needs (`videoDeliveriesOffered`): a phone that
 shares files gets Share, an iPhone Share and Save (TikTok is often missing from its sheet), a computer Save. A guest
 also gets "Sign in to put your name on it".
+
+**Under the video: "Tag @clickplanetlol on TikTok. We repost the best."** The handle is `TIKTOK_HANDLE` in
+`links.ts`, selected whole by a press. The operator reposts by hand with TikTok's Repost button: the video stays the
+player's, and a repost is the one thing a player gets for posting. Never download and upload a player's video again:
+TikTok takes it for unoriginal content and keeps it off the For You feed. Nothing reads the tags: no API lists a
+TikTok account's mentions for the posting tool. The line is not in the shared text, which goes to every app.
 
 ## Welcome line
 
