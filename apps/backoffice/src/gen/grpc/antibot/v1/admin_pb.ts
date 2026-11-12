@@ -423,6 +423,106 @@ export class UnbanPlayerResponse extends Message<UnbanPlayerResponse> {
 }
 
 /**
+ * @generated from message antibot.v1.WarnPlayerRequest
+ */
+export class WarnPlayerRequest extends Message<WarnPlayerRequest> {
+  /**
+   * A warning is an account's: an address has none.
+   *
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  constructor(data?: PartialMessage<WarnPlayerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.WarnPlayerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WarnPlayerRequest {
+    return new WarnPlayerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WarnPlayerRequest {
+    return new WarnPlayerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WarnPlayerRequest {
+    return new WarnPlayerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: WarnPlayerRequest | PlainMessage<WarnPlayerRequest> | undefined, b: WarnPlayerRequest | PlainMessage<WarnPlayerRequest> | undefined): boolean {
+    return proto3.util.equals(WarnPlayerRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.WarnPlayerResponse
+ */
+export class WarnPlayerResponse extends Message<WarnPlayerResponse> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * When the account was warned: now, or at its first warning when already_warned.
+   *
+   * @generated from field: google.protobuf.Timestamp warned_at = 2;
+   */
+  warnedAt?: Timestamp;
+
+  /**
+   * The account was warned before, and this call changed nothing.
+   *
+   * @generated from field: bool already_warned = 3;
+   */
+  alreadyWarned = false;
+
+  /**
+   * When the account acknowledged its warning. Unset while it has not.
+   *
+   * @generated from field: google.protobuf.Timestamp acknowledged_at = 4;
+   */
+  acknowledgedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<WarnPlayerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.WarnPlayerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "warned_at", kind: "message", T: Timestamp },
+    { no: 3, name: "already_warned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 4, name: "acknowledged_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WarnPlayerResponse {
+    return new WarnPlayerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WarnPlayerResponse {
+    return new WarnPlayerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WarnPlayerResponse {
+    return new WarnPlayerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: WarnPlayerResponse | PlainMessage<WarnPlayerResponse> | undefined, b: WarnPlayerResponse | PlainMessage<WarnPlayerResponse> | undefined): boolean {
+    return proto3.util.equals(WarnPlayerResponse, a, b);
+  }
+}
+
+/**
  * @generated from message antibot.v1.InspectPlayerRequest
  */
 export class InspectPlayerRequest extends Message<InspectPlayerRequest> {

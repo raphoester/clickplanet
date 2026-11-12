@@ -34,6 +34,7 @@ type (
 	Report   = detect.Report
 	Sentence = bans.Sentence
 	Pardon   = bans.Pardon
+	Warning  = warnings.Warning
 
 	Examination = detect.Examination
 	Reading     = detect.Reading
@@ -297,6 +298,19 @@ func (g *Guard) LastSentence(ctx context.Context, scope, account string) (Senten
 
 func (g *Guard) Pardon(ctx context.Context, scope, account string) (Pardon, bool, error) {
 	return g.banner.Pardon(ctx, bans.Caller{Scope: scope, Account: account}) //nolint:wrapcheck // the banner already named what failed.
+}
+
+// False gave none: the account was warned before, or the bans are not enforced.
+func (g *Guard) Warn(ctx context.Context, account string) (Warning, bool, error) {
+	warned, err := g.jury.Warn(ctx, []string{account})
+	if err != nil || len(warned) == 0 {
+		return Warning{}, false, err //nolint:wrapcheck // the warner already named what failed.
+	}
+	return warned[0], true, nil
+}
+
+func (g *Guard) Warning(ctx context.Context, account string) (Warning, bool, error) {
+	return g.warner.Warning(ctx, account) //nolint:wrapcheck // the warner already named what failed.
 }
 
 // An account is read on the scope of its latest click the jury heard.

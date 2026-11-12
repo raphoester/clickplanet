@@ -141,7 +141,7 @@ describe("ban", () => {
         admin.refuse("banPlayer", Code.Unimplemented)
 
         const err = await ban(admin.antibot, account, LADDER).catch((e: unknown) => e)
-        expect(refusalOf("ban", err)).toBe("The antibot is off on this server, so it cannot ban, unban or inspect.")
+        expect(refusalOf("ban", err)).toBe("The antibot is off on this server, so it cannot ban, unban, warn or inspect.")
     })
 })
 
@@ -188,7 +188,7 @@ describe("inspect", () => {
         admin.refuse("inspectPlayer", Code.Unimplemented)
 
         const err = await inspect(admin.antibot, account).catch((e: unknown) => e)
-        expect(refusalOf("inspect", err)).toBe("The antibot is off on this server, so it cannot ban, unban or inspect.")
+        expect(refusalOf("inspect", err)).toBe("The antibot is off on this server, so it cannot ban, unban, warn or inspect.")
     })
 })
 

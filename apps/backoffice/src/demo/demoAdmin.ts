@@ -10,6 +10,8 @@ import {
     InspectPlayerResponse,
     UnbanPlayerRequest,
     UnbanPlayerResponse,
+    WarnPlayerRequest,
+    WarnPlayerResponse,
     WatchdogReading,
 } from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {
@@ -643,6 +645,15 @@ export class DemoAdmin extends FakeAdmin {
                 row.bannedUntil = undefined
             }
             return this.answer("unbanPlayer", request, new UnbanPlayerResponse({offence, bannedUntil: until, pardonedUntil}))
+        },
+        warnPlayer: (request: PartialMessage<WarnPlayerRequest>) => {
+            const inspection = this.inspectionOf(request)
+            const already = inspection.warnedAt !== undefined
+            if (!already) inspection.warnedAt = at(Date.now())
+            return this.answer("warnPlayer", request, new WarnPlayerResponse({
+                accountId: request.accountId, warnedAt: inspection.warnedAt, alreadyWarned: already,
+                acknowledgedAt: inspection.warningAcknowledgedAt,
+            }))
         },
         getRules: this.antibot.getRules.bind(this.antibot),
         saveRuleSet: this.antibot.saveRuleSet.bind(this.antibot),

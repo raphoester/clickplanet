@@ -17,7 +17,7 @@ import {GrantPanel} from "./GrantPanel.tsx"
 import {historyOf, Moderated} from "./history.ts"
 import {HistoryPanel} from "./HistoryPanel.tsx"
 import {Inspection} from "./InspectPanel.tsx"
-import {BanAction, MuteAction, UnbanAction, UnmuteAction} from "./Moderation.tsx"
+import {BanAction, MuteAction, UnbanAction, UnmuteAction, WarnAction} from "./Moderation.tsx"
 import {NamePanel} from "./NamePanel.tsx"
 import {PlayerName} from "./PlayerName.tsx"
 import {PlayerStats} from "./PlayerStats.tsx"
@@ -32,7 +32,7 @@ type Props = {
     onOpen: (opened: Opened) => void
 }
 
-type Tool = "ban" | "unban" | "mute" | "unmute" | "revert" | "charges" | "flag" | "name" | "discord"
+type Tool = "ban" | "unban" | "warn" | "mute" | "unmute" | "revert" | "charges" | "flag" | "name" | "discord"
 
 // One player, by account or by address: who it is and where it stands, the tools that take it, then what the game
 // and the antibot keep about it, and what it said.
@@ -148,7 +148,10 @@ function Tools({clients, caller, who, onBanned, onMuted, onRenamed}: ToolsProps)
     const tools: {key: Tool, label: string}[] = [
         {key: "ban", label: "Ban"},
         {key: "unban", label: "Unban"},
-        ...(isAccount(caller) ? [{key: "mute" as const, label: "Mute"}, {key: "unmute" as const, label: "Unmute"}] : []),
+        ...(isAccount(caller) ? [
+            {key: "warn" as const, label: "Warn"},
+            {key: "mute" as const, label: "Mute"}, {key: "unmute" as const, label: "Unmute"},
+        ] : []),
         {key: "revert", label: "Revert"},
         ...(isAccount(caller) ? [
             {key: "charges" as const, label: "Charges"}, {key: "flag" as const, label: "Flag"},
@@ -182,6 +185,9 @@ function Tools({clients, caller, who, onBanned, onMuted, onRenamed}: ToolsProps)
                     </>
                 )}
                 {tool === "unban" && <UnbanAction antibot={clients.antibot} caller={caller} who={who} onDone={onBanned}/>}
+                {tool === "warn" && isAccount(caller) && (
+                    <WarnAction antibot={clients.antibot} accountId={caller.accountId} who={who} onDone={onBanned}/>
+                )}
                 {tool === "mute" && isAccount(caller) && (
                     <MuteAction chat={clients.chat} accountId={caller.accountId} who={who} onDone={onMuted}/>
                 )}

@@ -6,7 +6,7 @@ import "antibot/v1/rules.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-// The operator's bans and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
+// The operator's bans and warnings, and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
 // its gate. Never the public router. Each message reads on the wire as the planet.v1 one of the same name, which
 // served these calls until the antibot was a module of its own.
 service AdminService {
@@ -20,6 +20,15 @@ service AdminService {
   // still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
   // banned is banned on its account and its scope: two calls. NotFound when no offence is left.
   rpc UnbanPlayer(UnbanPlayerRequest) returns (UnbanPlayerResponse);
+
+  // Warns one account that a player plays one account, as the jury warns a ring of accounts it reads taking turns. The
+  // player's page shows "One account per player" at once, or when it next opens, until the player holds to confirm.
+  // Nothing is refused: from then on, a ring with this account in it is banned on a suspect reading of turns (about
+  // two hours of turns), where a ring never warned needs a certain one (about four) and gets a warning first. Its
+  // turns before the warning never ban. An account is warned once, ever: a second call changes nothing and answers
+  // the first warning with already_warned. Only the account named is warned, not the accounts it plays with; ban an
+  // alt you know of with BanPlayer. FailedPrecondition when the rule bans.enforce is off: then nobody is warned.
+  rpc WarnPlayer(WarnPlayerRequest) returns (WarnPlayerResponse);
 
   // What the antibot holds on one caller now, and how close it is to a ban: any running ban, the account's warning,
   // each watchdog's level and evidence, the suspects against how many make a ban, and whether the jury would ban on a
@@ -88,6 +97,21 @@ message UnbanPlayerResponse {
   uint32 offence = 3;
   google.protobuf.Timestamp banned_until = 4;
   google.protobuf.Timestamp pardoned_until = 5;
+}
+
+message WarnPlayerRequest {
+  // A warning is an account's: an address has none.
+  string account_id = 1;
+}
+
+message WarnPlayerResponse {
+  string account_id = 1;
+  // When the account was warned: now, or at its first warning when already_warned.
+  google.protobuf.Timestamp warned_at = 2;
+  // The account was warned before, and this call changed nothing.
+  bool already_warned = 3;
+  // When the account acknowledged its warning. Unset while it has not.
+  google.protobuf.Timestamp acknowledged_at = 4;
 }
 
 message InspectPlayerRequest {

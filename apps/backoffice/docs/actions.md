@@ -13,9 +13,9 @@
   back** (`ConfirmAction` with `disabled`).
 - **The refusals in plain words** (`wordsOf` in `refusal.ts`, and each section's `refusalOf` over it, which says
   what its `not_found`, `failed_precondition` and `unimplemented` mean): `not_found` is a message or a report no longer
-  kept, or no ban left to lift; `unimplemented` is the antibot off (no ban, unban or inspection) or the Discord pings
-  off; `failed_precondition` is a bucket off or a file not in it; `invalid_argument`
-  quotes the server (an unknown country, a grant of nothing); `deadline_exceeded` says the call may have done part
+  kept, or no ban left to lift; `unimplemented` is the antibot off (no ban, unban, warning or inspection) or the Discord
+  pings off; `failed_precondition` is a bucket off or a file not in it, or a warning while the bans are not enforced;
+  `invalid_argument` quotes the server (an unknown country, a grant of nothing); `deadline_exceeded` says the call may have done part
   of its work; a session that ended says to sign in again. **A time the server quotes is in the operator's own time**
   (`localized`): each UTC stamp (`2026-11-28T15:00:00Z`) and each time of day in UTC (`21:00 UTC`, on the day of the
   first stamp), so no refusal asks the operator to convert.

@@ -199,11 +199,9 @@ func (j *Jury) judgeTurns(
 }
 
 func (j *Jury) warn(ctx context.Context, click detect.Click, report detect.Report, accounts []string) error {
-	warned, err := j.warner.Warn(ctx, accounts)
+	warned, err := j.Warn(ctx, accounts)
 
 	for _, warning := range warned {
-		j.turns.ForgetTurns(warning.Account, warning.At)
-
 		if j.hooks.OnWarn == nil {
 			continue
 		}
@@ -216,6 +214,14 @@ func (j *Jury) warn(ctx context.Context, click detect.Click, report detect.Repor
 	}
 
 	return err //nolint:wrapcheck // the warner already named what failed.
+}
+
+func (j *Jury) Warn(ctx context.Context, accounts []string) ([]warnings.Warning, error) {
+	warned, err := j.warner.Warn(ctx, accounts)
+	for _, warning := range warned {
+		j.turns.ForgetTurns(warning.Account, warning.At)
+	}
+	return warned, err //nolint:wrapcheck // the warner already named what failed.
 }
 
 func accountsOf(convicts []bans.Caller) []string {

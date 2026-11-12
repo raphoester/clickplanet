@@ -38,6 +38,8 @@ const (
 	// AdminServiceUnbanPlayerProcedure is the fully-qualified name of the AdminService's UnbanPlayer
 	// RPC.
 	AdminServiceUnbanPlayerProcedure = "/antibot.v1.AdminService/UnbanPlayer"
+	// AdminServiceWarnPlayerProcedure is the fully-qualified name of the AdminService's WarnPlayer RPC.
+	AdminServiceWarnPlayerProcedure = "/antibot.v1.AdminService/WarnPlayer"
 	// AdminServiceInspectPlayerProcedure is the fully-qualified name of the AdminService's
 	// InspectPlayer RPC.
 	AdminServiceInspectPlayerProcedure = "/antibot.v1.AdminService/InspectPlayer"
@@ -59,6 +61,14 @@ type AdminServiceClient interface {
 	// still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
 	// banned is banned on its account and its scope: two calls. NotFound when no offence is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
+	// Warns one account that a player plays one account, as the jury warns a ring of accounts it reads taking turns. The
+	// player's page shows "One account per player" at once, or when it next opens, until the player holds to confirm.
+	// Nothing is refused: from then on, a ring with this account in it is banned on a suspect reading of turns (about
+	// two hours of turns), where a ring never warned needs a certain one (about four) and gets a warning first. Its
+	// turns before the warning never ban. An account is warned once, ever: a second call changes nothing and answers
+	// the first warning with already_warned. Only the account named is warned, not the accounts it plays with; ban an
+	// alt you know of with BanPlayer. FailedPrecondition when the rule bans.enforce is off: then nobody is warned.
+	WarnPlayer(context.Context, *connect.Request[v1.WarnPlayerRequest]) (*connect.Response[v1.WarnPlayerResponse], error)
 	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, the account's warning,
 	// each watchdog's level and evidence, the suspects against how many make a ban, and whether the jury would ban on a
 	// click now. An account is read on the scope of its latest take.
@@ -92,6 +102,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("UnbanPlayer")),
 			connect.WithClientOptions(opts...),
 		),
+		warnPlayer: connect.NewClient[v1.WarnPlayerRequest, v1.WarnPlayerResponse](
+			httpClient,
+			baseURL+AdminServiceWarnPlayerProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("WarnPlayer")),
+			connect.WithClientOptions(opts...),
+		),
 		inspectPlayer: connect.NewClient[v1.InspectPlayerRequest, v1.InspectPlayerResponse](
 			httpClient,
 			baseURL+AdminServiceInspectPlayerProcedure,
@@ -119,6 +135,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	banPlayer     *connect.Client[v1.BanPlayerRequest, v1.BanPlayerResponse]
 	unbanPlayer   *connect.Client[v1.UnbanPlayerRequest, v1.UnbanPlayerResponse]
+	warnPlayer    *connect.Client[v1.WarnPlayerRequest, v1.WarnPlayerResponse]
 	inspectPlayer *connect.Client[v1.InspectPlayerRequest, v1.InspectPlayerResponse]
 	getRules      *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
 	saveRuleSet   *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
@@ -132,6 +149,11 @@ func (c *adminServiceClient) BanPlayer(ctx context.Context, req *connect.Request
 // UnbanPlayer calls antibot.v1.AdminService.UnbanPlayer.
 func (c *adminServiceClient) UnbanPlayer(ctx context.Context, req *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
 	return c.unbanPlayer.CallUnary(ctx, req)
+}
+
+// WarnPlayer calls antibot.v1.AdminService.WarnPlayer.
+func (c *adminServiceClient) WarnPlayer(ctx context.Context, req *connect.Request[v1.WarnPlayerRequest]) (*connect.Response[v1.WarnPlayerResponse], error) {
+	return c.warnPlayer.CallUnary(ctx, req)
 }
 
 // InspectPlayer calls antibot.v1.AdminService.InspectPlayer.
@@ -160,6 +182,14 @@ type AdminServiceHandler interface {
 	// still reads certain bans the caller again on its next click, so fix the rule that misfired first. A guest the jury
 	// banned is banned on its account and its scope: two calls. NotFound when no offence is left.
 	UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error)
+	// Warns one account that a player plays one account, as the jury warns a ring of accounts it reads taking turns. The
+	// player's page shows "One account per player" at once, or when it next opens, until the player holds to confirm.
+	// Nothing is refused: from then on, a ring with this account in it is banned on a suspect reading of turns (about
+	// two hours of turns), where a ring never warned needs a certain one (about four) and gets a warning first. Its
+	// turns before the warning never ban. An account is warned once, ever: a second call changes nothing and answers
+	// the first warning with already_warned. Only the account named is warned, not the accounts it plays with; ban an
+	// alt you know of with BanPlayer. FailedPrecondition when the rule bans.enforce is off: then nobody is warned.
+	WarnPlayer(context.Context, *connect.Request[v1.WarnPlayerRequest]) (*connect.Response[v1.WarnPlayerResponse], error)
 	// What the antibot holds on one caller now, and how close it is to a ban: any running ban, the account's warning,
 	// each watchdog's level and evidence, the suspects against how many make a ban, and whether the jury would ban on a
 	// click now. An account is read on the scope of its latest take.
@@ -189,6 +219,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("UnbanPlayer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceWarnPlayerHandler := connect.NewUnaryHandler(
+		AdminServiceWarnPlayerProcedure,
+		svc.WarnPlayer,
+		connect.WithSchema(adminServiceMethods.ByName("WarnPlayer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceInspectPlayerHandler := connect.NewUnaryHandler(
 		AdminServiceInspectPlayerProcedure,
 		svc.InspectPlayer,
@@ -215,6 +251,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceBanPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceUnbanPlayerProcedure:
 			adminServiceUnbanPlayerHandler.ServeHTTP(w, r)
+		case AdminServiceWarnPlayerProcedure:
+			adminServiceWarnPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceInspectPlayerProcedure:
 			adminServiceInspectPlayerHandler.ServeHTTP(w, r)
 		case AdminServiceGetRulesProcedure:
@@ -236,6 +274,10 @@ func (UnimplementedAdminServiceHandler) BanPlayer(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) UnbanPlayer(context.Context, *connect.Request[v1.UnbanPlayerRequest]) (*connect.Response[v1.UnbanPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.UnbanPlayer is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) WarnPlayer(context.Context, *connect.Request[v1.WarnPlayerRequest]) (*connect.Response[v1.WarnPlayerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AdminService.WarnPlayer is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) InspectPlayer(context.Context, *connect.Request[v1.InspectPlayerRequest]) (*connect.Response[v1.InspectPlayerResponse], error) {
