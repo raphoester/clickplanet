@@ -1,7 +1,6 @@
 package set_raid_mode_usecase_test
 
 import (
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -108,13 +107,4 @@ func (s *testSuite) TestAReasonTooLongIsRefused() {
 	_, _, err := s.set(time.Hour, strings.Repeat("a", moderation.MaxReasonLength+1))
 
 	s.Require().ErrorIs(err, moderation.ErrInvalidReason)
-}
-
-func (s *testSuite) TestAFailureToKeepFails() {
-	cause := errors.New("postgres is down")
-	s.store.FailWith(cause)
-
-	_, _, err := s.set(time.Hour, "")
-
-	s.Require().ErrorIs(err, cause)
 }

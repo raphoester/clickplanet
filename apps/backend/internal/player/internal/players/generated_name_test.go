@@ -1,7 +1,6 @@
 package players_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -119,13 +118,4 @@ func TestAssignDrawsTenTimesAtMost(t *testing.T) {
 	assert.Equal(t, 10, names.Drawn())
 	_, err = store.Profile(t.Context(), players.AccountID{15: 2})
 	require.ErrorIs(t, err, players.ErrNoProfile)
-}
-
-func TestAssigningANameFailsWhenTheStoreDoes(t *testing.T) {
-	store := inmemory_player_store.New()
-	store.FailWith(errors.New("boom"))
-
-	_, err := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42")).
-		Assign(t.Context(), players.AccountID{15: 1}, "", namedAt)
-	require.Error(t, err)
 }

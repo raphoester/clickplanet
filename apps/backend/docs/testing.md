@@ -1,5 +1,12 @@
 # Testing
 
+**Three levels, and nothing else.** An e2e smoke test (below) shows that the modules are wired. A use case's test,
+over in-memory fakes, pins each rule. An adapter's test runs on the real thing, and a store's is the contract suite it
+shares with its fake, so the fake stays true. So there is no test of a domain rule that a use case's test already
+pins, of a handler or use case that passes an error on unchanged, of a fake outside its contract suite, or of a
+migration's conversion of the rows: a migration runs once in production and never changes after, and every store
+test runs all the migrations on an empty schema. November 2026 deleted about 350 tests that broke this rule.
+
 Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3_attachment_bucket`'s and `cps3`'s, which start an S3 server (see [Support](support.md)), `cpoutbox`'s, and `cpredis`'s, which start a `redis:7.4-alpine` with `cpredis.StartTestServer(t)` (behind the tag; its `Config()` is the `redis` block to boot with, retrying every 50ms); nothing else does: a suite starts one `postgres:16-alpine` container in `SetupSuite` with `cppg.StartTestServer(t)` (behind the `testing` tag), opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)`, and empties it in `SetupTest` with `Purge`. The container stops when the suite ends. There is no container shared across packages: `go test` runs each package as its own process, up to `-p` (GOMAXPROCS) at once. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
 **`e2e/` holds smoke tests, and nothing else.** They check that the main happy paths work and that the modules are wired together: the boot, the four listeners, the calls over the internal listener and the events over Redis. A rule, an edge case, a refusal or an error code is pinned lower down: a use case with fakes, a store's contract suite, a query's postgres suite or a handler test. Each lower test runs in milliseconds and names the rule it breaks; an e2e test costs a stack and says only that something, somewhere, went wrong. In October 2026 the package had grown to 107 tests that took six minutes of every `make test`; each was mapped to the lower tests that pin what it checked, the missing ones were written, and seven were kept. Each module or path between modules added since has one more.

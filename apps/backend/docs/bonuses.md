@@ -140,8 +140,7 @@ Production held six planet sets, each with an offers' half under `bonuses`: `def
 `frozen`** from `planet.rule_sets` into `bonuses.rule_sets`, under the same name, so the `frozen` set is frozen here
 too; on a database with no planet schema it seeds production's default instead. Planet's migration of the same release
 keeps `bonuses` in its sets (it reads it no more) and adds `charges`, so the copy reads it whichever module migrates
-first; a later release strips it. `migrations_test.go` runs production's six sets of 2026-11-11 through the copy and
-checks each comes across value for value and plays over default; the `urf` set keeps boxes every 30 s to 1 min.
+first; a later release strips it.
 
 ## The freeze
 

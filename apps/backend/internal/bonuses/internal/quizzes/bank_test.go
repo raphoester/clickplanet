@@ -75,7 +75,3 @@ func TestAnAnswerThatIsAlsoOneOfTheWrongOnesRefusesTheBoot(t *testing.T) {
 		ID: "x", Text: "?", Answer: "a", Wrong: []string{"a", "b"},
 	}.Validate())
 }
-
-func TestTheShippedBankHasNoQuestionThatCannotBeAsked(t *testing.T) {
-	assert.NotNil(t, loaded(t))
-}

@@ -2,7 +2,6 @@ package get_timeline_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -36,12 +35,4 @@ func TestTheTimelineIsTheBattlesThePlayersSeeComing(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(&gamemasterv1.GetTimelineResponse{Battles: battles}, answer.Msg))
-}
-
-func TestATurnThatCannotBeReadIsAnError(t *testing.T) {
-	broken := errors.New("the schedule cannot be read")
-
-	_, err := get_timeline_handler.New(turn{err: broken}).GetTimeline(t.Context(), connect.NewRequest(&gamemasterv1.GetTimelineRequest{}))
-
-	require.ErrorIs(t, err, broken)
 }

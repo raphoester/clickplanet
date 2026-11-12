@@ -58,13 +58,3 @@ func TestABackendThatDoesNotAnswerTheMapKeepsNothing(t *testing.T) {
 	require.ErrorIs(t, err, unserved)
 	assert.Empty(t, store.SavedHistories)
 }
-
-func TestAMapThatCannotBeKeptIsAnError(t *testing.T) {
-	full := errors.New("the disk is full")
-	_, store, usecase := fetching()
-	store.FailWith(full)
-
-	_, err := usecase.Execute(t.Context(), running, until)
-
-	require.ErrorIs(t, err, full)
-}

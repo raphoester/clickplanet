@@ -2,7 +2,6 @@ package report_player_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -121,11 +120,4 @@ func TestTheRefusalsHaveTheirCodes(t *testing.T) {
 
 		assert.Equal(t, want, connect.CodeOf(err), "%v", refusal)
 	}
-}
-
-func TestAFailureIsLeftToTheErrorNet(t *testing.T) {
-	err := report(asAda(t), &stubUseCase{err: errors.New("postgres is down")}, &supportv1.ReportPlayerRequest{AccountId: bob.String()})
-
-	assert.ErrorContains(t, err, "postgres is down")
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

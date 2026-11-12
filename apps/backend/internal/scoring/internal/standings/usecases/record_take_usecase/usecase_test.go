@@ -2,7 +2,6 @@ package record_take_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -104,15 +103,4 @@ func TestABatchReadsTheBooksOnceAndWritesOncePerBookAndAccount(t *testing.T) {
 			Main: "de", Tiles: map[standings.Country]uint64{"de": 1}, TakesBelow: standings.TakeMark{Position: 2, Index: 1},
 		}, spy.Tally(book, bob))
 	}
-}
-
-func TestAFailureToCountIsAnError(t *testing.T) {
-	store := inmemory_contribution_store.New()
-	refused := errors.New("the database is down")
-	store.FailWith(refused)
-
-	err := record_take_usecase.New(twoBooks(t), store).Execute(t.Context(),
-		[]standings.Take{{Account: ada, Country: "fr", At: seasonZeroEnds.Add(-time.Hour)}})
-
-	assert.ErrorIs(t, err, refused)
 }

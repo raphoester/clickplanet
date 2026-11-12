@@ -31,10 +31,6 @@ var (
 	}
 )
 
-type failingIDs struct{}
-
-func (failingIDs) NewID() (notes.NoteID, error) { return notes.NoteID{}, errors.New("no entropy") }
-
 type testSuite struct {
 	suite.Suite
 
@@ -115,21 +111,4 @@ func (s *testSuite) TestAnInvalidTextIsRefusedAndNothingIsKept() {
 
 	s.Require().ErrorIs(err, notes.ErrInvalidText)
 	s.Empty(s.notes.Kept())
-}
-
-func (s *testSuite) TestABugReportWithNoIDIsNotKept() {
-	err := s.build(failingIDs{}).Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "the globe is black"})
-
-	s.Require().Error(err)
-	s.NotErrorIs(err, notes.ErrInvalidText)
-	s.Empty(s.notes.Kept())
-}
-
-func (s *testSuite) TestABugReportThatCannotBeKeptFails() {
-	cause := errors.New("postgres is down")
-	s.notes.FailWith(cause)
-
-	err := s.useCase.Execute(s.T().Context(), report_bug_usecase.In{Account: ada, Text: "the globe is black"})
-
-	s.Require().ErrorIs(err, cause)
 }

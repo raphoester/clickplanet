@@ -2,7 +2,6 @@ package admin_sign_out_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -44,10 +43,4 @@ func TestSigningOutClearsTheAdminCookieAlone(t *testing.T) {
 	assert.Equal(t, []string{"cp_sid=game-token; cp_admin=admin-token"}, useCase.asked)
 	assert.Equal(t, []string{adminsignin.ExpiredCookie()}, res.Header().Values("Set-Cookie"), "cp_sid is not touched")
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
-}
-
-func TestAFailureIsAnError(t *testing.T) {
-	_, err := signOut(&stubUseCase{err: errors.New("postgres is down")})
-
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

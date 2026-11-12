@@ -1,7 +1,6 @@
 package players_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -65,12 +64,4 @@ func TestAssignGivesUpOnAGeneratorThatRepeatsItself(t *testing.T) {
 	require.ErrorIs(t, err, players.ErrNoFreeGuestCode)
 	_, err = store.GuestCode(t.Context(), players.AccountID{15: 2})
 	require.ErrorIs(t, err, players.ErrNoGuestCode)
-}
-
-func TestAssignFailsWhenTheStoreDoes(t *testing.T) {
-	store := inmemory_player_store.New()
-	store.FailWith(errors.New("boom"))
-	codes := players.NewGuestCodes(store, &players.SequentialCodes{})
-
-	require.Error(t, codes.Assign(t.Context(), players.AccountID{15: 1}))
 }

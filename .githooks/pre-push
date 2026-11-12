@@ -6,8 +6,33 @@ _norm="$(dirname "$0")/_normalize-hooks-path.sh"
 
 cd "$(git rev-parse --show-toplevel)"
 
-# Drain the pushed refs on stdin, or git sees a broken pipe.
-cat > /dev/null || true
+# Read every pushed ref on stdin, or git sees a broken pipe.
+PUSHED=$(cat || true)
+
+# What the backend's checks read: its code, the shared files it copies, and the deploy files its tests load.
+BACKEND_INPUTS=(apps/backend proto quiz docs/moderation.md deploy)
+
+# True when a pushed commit changes a backend input, and when the hook cannot tell.
+touches_backend() {
+    local local_sha remote_sha base
+    while read -r _ local_sha _ remote_sha; do
+        if [ -z "$local_sha" ] || [[ "$local_sha" =~ ^0+$ ]]; then
+            continue
+        fi
+        if [[ "$remote_sha" =~ ^0+$ ]]; then
+            base=$(git merge-base origin/main "$local_sha" 2>/dev/null) || return 0
+        else
+            base=$remote_sha
+        fi
+        git diff --quiet "$base" "$local_sha" -- "${BACKEND_INPUTS[@]}" 2>/dev/null || return 0
+    done <<< "$PUSHED"
+    return 1
+}
+
+if ! touches_backend; then
+    echo "pre-push: no backend input changed, backend checks skipped."
+    exit 0
+fi
 
 LOGDIR=$(mktemp -d)
 trap 'rm -rf "$LOGDIR"' EXIT

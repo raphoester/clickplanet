@@ -68,14 +68,6 @@ func TestAnArrivalNeedsAnAccount(t *testing.T) {
 	assert.ErrorIs(t, err, arrivals.ErrInvalidArrival)
 }
 
-func TestAnAnonymizedArrivalKeepsAllButTheAccount(t *testing.T) {
-	arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: "rc", Referrer: "discord.com"}, at)
-	require.NoError(t, err)
-
-	assert.Equal(t, arrivals.Snapshot{ID: id, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at},
-		arrival.Anonymized().TakeSnapshot())
-}
-
 func TestASnapshotRestoresOnlyWhatIsWhole(t *testing.T) {
 	whole := arrivals.Snapshot{ID: id, Account: ada, Source: arrivals.SourceUnknown, At: at}
 	for name, broken := range map[string]func(arrivals.Snapshot) arrivals.Snapshot{
@@ -91,36 +83,10 @@ func TestASnapshotRestoresOnlyWhatIsWhole(t *testing.T) {
 	}
 }
 
-func TestTheRegisterKeepsTheArrivalOfANewAccount(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	register := arrivals.NewRegister(store, &arrivals.SequentialIDs{})
-
-	require.NoError(t, register.Record(t.Context(), ada, arrivals.Landing{Tag: "rc"}, at))
-
-	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: ada, Source: arrivals.SourceRecruit, At: at,
-	}}, store.Kept())
-}
-
 type failingGuests struct{}
 
 func (failingGuests) Start(context.Context, time.Time) (accounts.Entry, error) {
 	return accounts.Entry{}, errors.New("postgres is down")
-}
-
-func TestAGuestStartsWithItsArrival(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	lifetime := accounts.Lifetime{}.WithDefaults()
-	guests := arrivals.NewGuests(cpatomic.FakeTransactioner{},
-		accounts.NewGuests(inmemory_account_store.New(), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime),
-		arrivals.NewRegister(store, &arrivals.SequentialIDs{}))
-
-	entry, err := guests.Start(t.Context(), arrivals.Landing{Tag: "yt"}, at)
-
-	require.NoError(t, err)
-	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: entry.Account(), Source: arrivals.SourceYouTube, At: at,
-	}}, store.Kept())
 }
 
 func TestAGuestThatCouldNotStartHasNoArrival(t *testing.T) {

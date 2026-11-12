@@ -38,16 +38,6 @@ func TestFightersAreNumberedByTilesTakenFromAnotherFlag(t *testing.T) {
 		cast.TakeSnapshot().Fighters, "filling empty ground and a shield on its own tile are no fight")
 }
 
-func TestAPlayerWithNoNameToShowIsNoFighter(t *testing.T) {
-	ada, bob := account(t, "01"), account(t, "02")
-	takes := []casts.Take{take(ada, 1, "fr", "de"), take(bob, 2, "de", "fr"), take(bob, 3, "de", "fr")}
-
-	cast := casts.CastOf(casts.CastID{1}, at, casts.Window{}, takes, map[casts.AccountID]string{ada: "Ada"})
-
-	assert.Equal(t, []casts.FighterSnapshot{{Number: 1, Account: ada, Name: "Ada"}}, cast.TakeSnapshot().Fighters)
-	assert.Equal(t, []casts.NumberedTake{{At: at, Tile: 1, Country: "fr", Previous: "de", Fighter: 1}}, cast.Numbered(takes))
-}
-
 func TestATieIsOrderedByName(t *testing.T) {
 	ada, bob := account(t, "01"), account(t, "02")
 	takes := []casts.Take{take(bob, 1, "fr", "de"), take(ada, 2, "de", "fr")}
@@ -68,15 +58,6 @@ func TestNumbersNameTheirAccounts(t *testing.T) {
 
 	_, err = cast.AccountsOf([]casts.Number{3})
 	assert.ErrorIs(t, err, casts.ErrUnknownFighter)
-}
-
-func TestAFighterWhoseAccountIsGoneNamesNoOne(t *testing.T) {
-	ada := account(t, "01")
-	cast := casts.CastSnapshot{ID: casts.CastID{1}, Fighters: []casts.FighterSnapshot{{Number: 1}, {Number: 2, Account: ada, Name: "Ada"}}}.Restore()
-
-	accounts, err := cast.AccountsOf([]casts.Number{1, 2})
-	require.NoError(t, err)
-	assert.Equal(t, []casts.AccountID{ada}, accounts)
 }
 
 func TestAWindowIsAtMost72HoursAndAZeroUntilIsNow(t *testing.T) {

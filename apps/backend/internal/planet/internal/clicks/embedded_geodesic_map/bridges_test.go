@@ -25,8 +25,8 @@ func TestTheShippedBridgesLandOnCoastsAndJoinEveryPieceOfLand(t *testing.T) {
 
 	_, asset, err := mapdata.Bridges()
 	require.NoError(t, err)
-	assert.Equal(t, "bridges-f06b9129.json", asset)
-	assert.Equal(t, 582, bridges.Count(), "565 stepping stones and 17 sea lanes")
+	assert.Equal(t, "bridges-4b74bbe0.json", asset)
+	assert.Equal(t, 744, bridges.Count(), "565 stepping stones, 17 sea lanes and 162 second ways")
 
 	for tile := uint32(1); tile <= tiles; tile++ {
 		if len(bridges.Across(tile)) > 0 {

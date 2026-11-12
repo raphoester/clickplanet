@@ -170,11 +170,6 @@ func TestBlocklistInterceptor(t *testing.T) {
 	})
 }
 
-func TestABareAddressIsRejectedAtStartup(t *testing.T) {
-	_, err := cpipblock.NewDenyList([]string{"9.9.9.9"})
-	require.Error(t, err, "entries are prefixes; a single address needs /32")
-}
-
 func blocklistOf(t *testing.T, prefixes []string) SenderBlocklist {
 	t.Helper()
 

@@ -10,31 +10,19 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
 
-var sentAt = time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+var (
+	ada    = notes.AccountID{15: 1}
+	sentAt = time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)
+)
 
 func valid() notes.Snapshot {
 	return notes.Snapshot{ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode", At: sentAt}
-}
-
-func TestASuggestionIsANoteOfThatKindWithItsTextCleaned(t *testing.T) {
-	note, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "  a night mode\tplease  ", notes.Diagnostics{}, sentAt)
-
-	require.NoError(t, err)
-	assert.Equal(t, notes.Snapshot{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindSuggestion, Account: ada, Text: "a night mode please", At: sentAt,
-	}, note.TakeSnapshot())
 }
 
 func TestASuggestionNeedsTheAccountThatSendsIt(t *testing.T) {
 	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, notes.AccountID{}, "a night mode", notes.Diagnostics{}, sentAt)
 
 	require.ErrorIs(t, err, notes.ErrInvalidNote)
-}
-
-func TestASuggestionWithAnInvalidTextCannotBeBuilt(t *testing.T) {
-	_, err := notes.NewSuggestion(notes.NoteID{15: 1}, ada, "   ", notes.Diagnostics{}, sentAt)
-
-	require.ErrorIs(t, err, notes.ErrInvalidText)
 }
 
 func TestASnapshotRestoresTheNoteItWasTakenFrom(t *testing.T) {
@@ -85,23 +73,6 @@ func TestAnAnonymizedNoteKeepsItsTextAndNothingSaysWhoSentIt(t *testing.T) {
 	assert.Equal(t, want, anonymized.TakeSnapshot())
 	assert.Equal(t, valid(), note.TakeSnapshot(), "the note it was made from is left as it was")
 	assert.Equal(t, anonymized, anonymized.Anonymized(), "twice is once")
-}
-
-func TestAnAnonymizedNoteKeepsItsFiles(t *testing.T) {
-	carrying := valid()
-	carrying.Attachments = []notes.Attachment{
-		{ID: notes.AttachmentID{15: 1}, MediaType: notes.MediaPNG, Size: 400},
-		{ID: notes.AttachmentID{15: 2}, MediaType: notes.MediaMP4, Size: 9000},
-	}
-	note, err := carrying.Restore()
-	require.NoError(t, err)
-
-	anonymized := note.Anonymized()
-
-	want := carrying
-	want.Account = notes.AccountID{}
-	assert.Equal(t, want, anonymized.TakeSnapshot())
-	assert.Equal(t, carrying, note.TakeSnapshot(), "the note it was made from keeps its sender")
 }
 
 func TestAnAnonymizedNoteIsRestoredAsItWasKept(t *testing.T) {

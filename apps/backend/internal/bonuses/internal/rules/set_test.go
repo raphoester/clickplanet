@@ -155,8 +155,3 @@ func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
 	_, err := set.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
 }
-
-func TestTheSetSeededIsOneThatPlays(t *testing.T) {
-	_, err := rules.Seeded().Restore(parts.All(), rules.Seeded())
-	require.NoError(t, err)
-}

@@ -1,7 +1,6 @@
 package anonymize_notes_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -45,14 +44,6 @@ func TestAnAccountThatSentNothingChangesNothing(t *testing.T) {
 	require.NoError(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.Equal(t, []notes.Snapshot{kept}, store.Kept())
-}
-
-func TestAFailureToAnonymizeIsAnError(t *testing.T) {
-	store := inmemory_note_storage.New()
-	refused := errors.New("the database is down")
-	store.FailWith(refused)
-
-	assert.ErrorIs(t, anonymize_notes_usecase.New(store).Execute(t.Context(), ada), refused)
 }
 
 func TestANoteKeepsItsFilesWhenItLosesItsSender(t *testing.T) {

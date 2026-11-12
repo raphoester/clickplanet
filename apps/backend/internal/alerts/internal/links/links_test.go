@@ -9,52 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/links"
-	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 )
 
 var (
 	now     = time.Date(2026, 11, 2, 18, 0, 0, 0, time.UTC)
 	account = links.AccountID(uuid.MustParse("01a19416-ad77-72b3-8c34-8bbbaec97d8b"))
 )
-
-func TestALinkFollowsTheFlagItsPlayerPledged(t *testing.T) {
-	link := links.NewLink(account, "42", "", now)
-
-	move, moved := link.Follow("ie")
-	require.True(t, moved)
-	assert.Equal(t, links.Move{User: "42", From: "", To: "ie"}, move)
-
-	_, moved = link.Follow("ie")
-	assert.False(t, moved)
-
-	move, moved = link.Follow("gb")
-	require.True(t, moved)
-	assert.Equal(t, links.Move{User: "42", From: "ie", To: "gb"}, move)
-	assert.Equal(t, nations.Flag("gb"), link.TakeSnapshot().Flag)
-}
-
-func TestAForgottenLinkTakesItsFlagsRoleOffTheUser(t *testing.T) {
-	link := links.NewLink(account, "42", "ie", now)
-
-	assert.Equal(t, links.Move{User: "42", From: "ie"}, link.Forget())
-	assert.True(t, link.TakeSnapshot().Forgotten)
-}
-
-func TestALinkGivesItsUserTheAccountsUsername(t *testing.T) {
-	link := links.NewLink(account, "42", "ie", now)
-
-	nickname, renamed := link.Rename("BraveFox42")
-	require.True(t, renamed)
-	assert.Equal(t, links.Nickname{User: "42", Name: "BraveFox42"}, nickname)
-	assert.Equal(t, links.Name("BraveFox42"), link.TakeSnapshot().Name)
-
-	_, renamed = link.Rename("BraveFox42")
-	assert.False(t, renamed, "the user wears it already")
-
-	nickname, renamed = link.Rename("")
-	require.True(t, renamed)
-	assert.Equal(t, links.Nickname{User: "42"}, nickname, "no name takes the nickname off")
-}
 
 func TestANewLinkGaveNoNameYet(t *testing.T) {
 	link := links.NewLink(account, "42", "ie", now)

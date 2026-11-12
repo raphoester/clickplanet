@@ -1,7 +1,6 @@
 package forget_fights_usecase_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,11 +23,4 @@ func TestADeletedAccountLosesItsFights(t *testing.T) {
 	found, err := store.Fights(t.Context(), []accounts.AccountID{{15: 1}})
 	require.NoError(t, err)
 	assert.Empty(t, found)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	store := inmemory_fight_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	assert.Error(t, forget_fights_usecase.New(store).Execute(t.Context(), accounts.AccountID{15: 1}))
 }
