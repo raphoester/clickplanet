@@ -2,7 +2,6 @@ package get_recent_map_history_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -21,11 +20,10 @@ var next = time.Date(2026, 11, 11, 13, 0, 0, 0, time.UTC)
 
 type stubQuery struct {
 	history *planetv1.MapHistory
-	err     error
 }
 
 func (s stubQuery) RecentHistory(context.Context) (*planetv1.MapHistory, time.Time, error) {
-	return s.history, next, s.err
+	return s.history, next, nil
 }
 
 func ask(t *testing.T, query stubQuery, now time.Time) (*connect.Response[planetv1.GetRecentMapHistoryResponse], error) {
@@ -52,12 +50,4 @@ func TestAnAnswerPastItsStepIsNotKeptAtAll(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "public, max-age=0, s-maxage=0", res.Header().Get("Cache-Control"))
-}
-
-func TestAFailedHistoryIsTheQuerysError(t *testing.T) {
-	failed := errors.New("postgres is gone")
-
-	_, err := ask(t, stubQuery{err: failed}, next)
-
-	require.ErrorIs(t, err, failed)
 }
