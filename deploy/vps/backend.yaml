@@ -393,6 +393,14 @@ alerts:
     alertsChannelId: "1566864909709607044"
     battlesChannelId: "1566864959739011324"
 
+# The squad that flags the swastikas players paint on the map, at Warn in the log and in
+# vandalsquad.v1.AdminService/ListGraffiti. It reverts and bans nobody. See apps/backend/docs/vandalsquad.md.
+vandalSquad:
+  enabled: true
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+
 # A battle's teaser: each rule set's cards, over the backgrounds the operator uploads on the backoffice's Promo page.
 # Same bucket and key as the support files, under promo/backgrounds/; Cloudflare serves that prefix alone on
 # media.clickplanet.lol. See deploy/vps/README.md, "Battle teasers".

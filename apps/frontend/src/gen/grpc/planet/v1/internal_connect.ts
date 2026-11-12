@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetChargesOfRequest, GetChargesOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
+import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetChargesOfRequest, GetChargesOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 
@@ -223,6 +223,20 @@ export const InternalService = {
       name: "GetFreeze",
       I: GetFreezeRequest,
       O: GetFreezeResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
+     * the tiles it touches, for the vandal squad's look at what a player painted. InvalidArgument for a tile off the map,
+     * or for more than 20,000 asked at once.
+     *
+     * @generated from rpc planet.v1.InternalService.GetTiles
+     */
+    getTiles: {
+      name: "GetTiles",
+      I: GetTilesRequest,
+      O: GetTilesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

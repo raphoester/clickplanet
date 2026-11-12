@@ -4,7 +4,7 @@
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`, `GetMessage`, `ListMessages`, `ListModeration`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `AdminService/GetRoster`, `ListRenames`), progression
 (`GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
-(`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
+(`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`, `GetTiles`), vandalsquad (`AdminService/ListGraffiti`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), missions (`AdminService/ListFlagDays`,
 `AdminService/GetMissionTotals`, `AdminService/GetRules`), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
