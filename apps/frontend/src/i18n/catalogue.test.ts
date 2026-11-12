@@ -1,9 +1,11 @@
 import {describe, expect, it} from "vitest"
 import {LANGUAGES, SOURCE_LANGUAGE} from "./languages.ts"
 import {parseMessage, pluralsOf, Slot, slotsOf} from "./message.ts"
-import {ENGLISH, OWN_COUNTRY_NAMES} from "./translator.ts"
+import {ENGLISH, ENGLISH_LANDMASSES, OWN_COUNTRY_NAMES} from "./translator.ts"
+import NOTES from "./notes.json"
 
 const FILES = import.meta.glob<Record<string, unknown>>("./locales/*.json", {eager: true, import: "default"})
+const LANDMASS_FILES = import.meta.glob<Record<string, unknown>>("./landmasses/*.json", {eager: true, import: "default"})
 
 const linesOf = (language: string) => FILES[`./locales/${language}.json`]
 
@@ -15,6 +17,10 @@ describe("the catalogue", () => {
         expect(Object.keys(FILES).sort()).toEqual(LANGUAGES.map((language) => `./locales/${language}.json`).sort())
     })
 
+    it("holds notes only for lines English has", () => {
+        expect(Object.keys(NOTES).filter((key) => !(key in ENGLISH))).toEqual([])
+    })
+
     it("names in English each flag it names itself", () => {
         for (const code of OWN_COUNTRY_NAMES) expect(ENGLISH).toHaveProperty(`country.${code}`)
     })
@@ -24,6 +30,12 @@ describe("the catalogue", () => {
             const lines = linesOf(language)
             const cardinals = new Intl.PluralRules(language).resolvedOptions().pluralCategories
             const ordinals = new Intl.PluralRules(language, {type: "ordinal"}).resolvedOptions().pluralCategories
+
+            if (language !== SOURCE_LANGUAGE) it("names every landmass English names, and no other", () => {
+                const names = LANDMASS_FILES[`./landmasses/${language}.json`] ?? {}
+                expect(Object.keys(names).filter((id) => !(id in ENGLISH_LANDMASSES)), "ids English no longer has").toEqual([])
+                expect(Object.keys(ENGLISH_LANDMASSES).filter((id) => typeof names[id] !== "string" || !names[id]), "names missing").toEqual([])
+            })
 
             it("holds every English key and no other", () => {
                 const keys = Object.keys(lines)

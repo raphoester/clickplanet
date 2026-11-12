@@ -380,7 +380,7 @@ and in that flag's room, and `knock_out`, every flag an arena knocked out
   the bomber's flag and the time. It ends the run above it, so the next message
   says again who is talking.
 - **A round is a gold card** (`RoundLine`, `.chat-announcement-round`): "Day 5
-  is over!" (`roundOverLine`, the words of the reveal), the time, then one place
+  is over!" (the reveal's words, lines of its own), the time, then one place
   per podium country: its medal, its flag, its name and the points it won. **A
   battle's round of its own is told as the battle's, never as a day**: ⚔️ for 🏁,
   "The battle is over!" or "The Final Battle is over!", and its times in a war chip
@@ -391,8 +391,8 @@ and in that flag's room, and `knock_out`, every flag an arena knocked out
   with no country, or with a rank or points under 1, is dropped. Its time is the
   round's end.
 - **A champion is a gold line** (`ChampionLine`, `.chat-announcement-champion`):
-  🏆, the flag of each champion and "Germany wins Season 0" (`winsLine`, the
-  words of the reveal). The payload is `{season, countries}`; a champion with
+  🏆, the flag of each champion and "Germany wins Season 0" (the
+  reveal's words, a line of its own). The payload is `{season, countries}`; a champion with
   no country is dropped. Its time is the season's end. The server keeps one a
   season, so it shows once.
 - **A flag mission is a plain line** (`FlagMissionLine`): 🎯, the flag, "France
