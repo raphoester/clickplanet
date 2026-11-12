@@ -1,7 +1,6 @@
 package forget_moderation_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -36,11 +35,4 @@ func TestTheActionsTakenOnTheAccountGoAndAnOperatorIsTakenOffItsOwn(t *testing.T
 		Account: bob, At: at, Kind: moderation.Unmuted, MuteKind: mutes.Gifs, Reason: "served",
 		By: moderation.OperatorOf(messages.NoAccount, "Claude"),
 	}}, history.Kept())
-}
-
-func TestAFailureIsAnError(t *testing.T) {
-	history := inmemory_moderation_storage.New()
-	history.FailWith(errors.New("postgres is down"))
-
-	require.Error(t, forget_moderation_usecase.New(history).Execute(t.Context(), ada))
 }

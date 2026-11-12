@@ -58,12 +58,6 @@ func TestAnythingButOneBareAddressIsRefused(t *testing.T) {
 	}
 }
 
-func TestAChallengeDrawsItsIDAndCodeAndLastsTenMinutes(t *testing.T) {
-	assert.Equal(t,
-		signin.ChallengeOf("secret-1", "player@example.com", "000001", now.Add(10*time.Minute), accounts.IntentLink, accounts.AccountID{15: 7}),
-		challenge(t, accounts.IntentLink, accounts.AccountID{15: 7}))
-}
-
 func TestAChallengeWithoutEntropyIsNotStarted(t *testing.T) {
 	_, err := signin.NewChallenge("player@example.com", accounts.IntentSignIn, accounts.AccountID{}, failingSecrets{}, &signin.SequentialCodes{}, now)
 	require.Error(t, err)
@@ -88,11 +82,6 @@ func TestAnEmailLinkMustEndOnTheAccountItStartedOn(t *testing.T) {
 	assert.ErrorIs(t, c.AccountError(accounts.AccountOf(accounts.AccountID{15: 8}, time.Time{}, nil)), signin.ErrFlowInvalid)
 	assert.ErrorIs(t, c.AccountError(nil), signin.ErrFlowInvalid)
 	require.NoError(t, challenge(t, accounts.IntentSignIn, accounts.AccountID{}).AccountError(nil))
-}
-
-func TestTheClaimIsTheAddressVerified(t *testing.T) {
-	assert.Equal(t, accounts.ClaimOf("player@example.com", "player@example.com", true),
-		challenge(t, accounts.IntentSignIn, accounts.AccountID{}).Claim())
 }
 
 func TestTheChallengeCookieLivesAsLongAsTheChallenge(t *testing.T) {

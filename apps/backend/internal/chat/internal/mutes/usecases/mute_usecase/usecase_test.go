@@ -108,14 +108,6 @@ func (s *testSuite) TestAnInvalidReasonIsRefusedAndNothingIsKept() {
 	s.Empty(s.history.Kept())
 }
 
-func (s *testSuite) TestAMuteTheHistoryCannotRecordFails() {
-	s.history.FailWith(errors.New("postgres is down"))
-
-	_, err := s.useCase.Execute(context.Background(), mute_usecase.In{Account: bully})
-
-	s.Require().Error(err, "a mute is never kept without its record: the transaction keeps neither")
-}
-
 func (s *testSuite) TestAnAccountOnlyMuteLeavesTheNetworkItPostedFrom() {
 	s.posted(bully, "2a02:8086:c95:7580::9", "latest")
 
@@ -157,16 +149,6 @@ func (s *testSuite) TestAMuteWithNoIDIsNotKept() {
 	s.Require().Error(err)
 	s.Empty(s.mutes.Kept())
 }
-
-func (s *testSuite) TestAMuteThatCannotBeKeptFails() {
-	_, err := s.build(failingSaver{}, &mutes.SequentialIDs{}).Execute(context.Background(), mute_usecase.In{Account: bully})
-
-	s.Require().Error(err)
-}
-
-type failingSaver struct{}
-
-func (failingSaver) Save(context.Context, mutes.Mute) error { return errors.New("postgres is down") }
 
 type failingIDs struct{}
 

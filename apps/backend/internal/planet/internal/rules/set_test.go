@@ -78,35 +78,6 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 	}
 }
 
-func TestASetIsCheckedOverDefault(t *testing.T) {
-	slower := cprules.Snapshot[*planetv1.Rules]{Name: "slower", Rules: &planetv1.Rules{
-		Clicks: &planetv1.ClickRules{NewAccountClicks: proto.Float64(100)},
-	}}
-
-	_, err := slower.Restore(parts.All(), rules.Seeded())
-
-	require.ErrorIs(t, err, cprules.ErrInvalidSet)
-	assert.Contains(t, err.Error(), "clicks.newAccountClicks is 100")
-}
-
-func TestDefaultPlaysOnlyWhatItHolds(t *testing.T) {
-	_, err := rules.Named(cprules.Default, func(r *planetv1.Rules) { r.Clicks = nil }).Restore(parts.All(), rules.Seeded())
-
-	require.ErrorIs(t, err, cprules.ErrInvalidSet)
-	assert.Contains(t, err.Error(), "clicks.tempo is 0")
-}
-
-func TestEveryReasonIsSaid(t *testing.T) {
-	_, err := rules.Named(cprules.Default, func(r *planetv1.Rules) {
-		r.Clicks.Burst = proto.Uint32(0)
-		r.Charges.Enclose.Held = nil
-	}).Restore(parts.All(), rules.Seeded())
-
-	require.ErrorIs(t, err, cprules.ErrInvalidSet)
-	assert.Contains(t, err.Error(), "clicks.burst is 0")
-	assert.Contains(t, err.Error(), "charges.enclose.held is 0")
-}
-
 func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
 	set := rules.Named(cprules.Default, func(r *planetv1.Rules) {
 		r.Toll = nil

@@ -53,6 +53,11 @@ visit, or the next time the chat is opened, and never under a player who is
 reading. **Nothing is sent to Discord before a click**, as the privacy page
 says: it asks Discord for no member count.
 
+**In the phone's sheet the log gives way, never the composer**: its minimum is 0 there, since with the keyboard up
+the sheet is short and a log held at 96px ran out of its shell and under the reply line. **While the field has the
+focus the Discord bar is hidden** (`.chat-sheet:has(.chat-input:focus)`), to leave the log some lines over the
+keyboard. The bar with the arrows and the check mark over the keyboard is Safari's own form bar: no page can hide it.
+
 **The open panel has one left edge, 12px in**: the tabs, the Discord bar, the
 messages and the composer all start there, on a desktop (`.chat`'s 8px and the
 head's 4px) and in the phone's sheet (whose head is set to 12px, against 16px

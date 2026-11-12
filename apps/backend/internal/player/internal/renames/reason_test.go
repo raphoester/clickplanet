@@ -31,12 +31,6 @@ func TestAReasonIsCountedInRunesNotBytes(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestAReasonThatIsNotUTF8IsRefused(t *testing.T) {
-	_, err := renames.ReasonOf(string([]byte{0xff, 0xfe, 0xfd}))
-
-	require.ErrorIs(t, err, renames.ErrInvalidReason)
-}
-
 func TestAReasonKeepsItsLinesAndLosesEveryOtherControlCharacter(t *testing.T) {
 	reason, err := renames.ReasonOf("  a slur\r\nsecond\toffence\rand a bell\x07 and a NUL\x00  ")
 

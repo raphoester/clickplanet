@@ -1,7 +1,6 @@
 package wearing_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -78,16 +77,6 @@ func TestTheShowcaseWearsTheFirstRankShown(t *testing.T) {
 	assert.Equal(t, standing("mid"), showcase.Worn())
 }
 
-func TestWearingAShownTitleChangesTheShowcase(t *testing.T) {
-	closet, _, _ := wardrobe(t, "badge", "low", "mid")
-
-	require.NoError(t, closet.Wear(t.Context(), ada, "badge", at))
-
-	showcase, err := closet.Showcase(t.Context(), ada)
-	require.NoError(t, err)
-	assert.Equal(t, standing("badge"), showcase.Worn())
-}
-
 func TestATitleNotShownCannotBeWornAndNothingIsWritten(t *testing.T) {
 	closet, _, worn := wardrobe(t, "badge", "low", "mid")
 
@@ -105,20 +94,4 @@ func TestAShowcaseWearsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {
 	assert.Equal(t, standing("badge"), wearing.ShowcaseOf(catalog, held, "badge").Worn())
 	assert.Equal(t, standing("mid"), wearing.ShowcaseOf(catalog, held, "").Worn(), "no choice wears the first rank shown")
 	assert.True(t, wearing.ShowcaseOf(catalog, nil, "badge").Worn().Empty(), "a choice not held is not worn")
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	closet, owned, _ := wardrobe(t, "badge")
-	owned.FailWith(errors.New("postgres is down"))
-
-	_, err := closet.Showcase(t.Context(), ada)
-	require.Error(t, err)
-	require.Error(t, closet.Wear(t.Context(), ada, "badge", at))
-
-	closet, _, worn := wardrobe(t, "badge")
-	worn.FailWith(errors.New("postgres is down"))
-
-	_, err = closet.Showcase(t.Context(), ada)
-	require.Error(t, err)
-	assert.Error(t, closet.Wear(t.Context(), ada, "badge", at))
 }

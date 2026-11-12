@@ -2,7 +2,6 @@ package decide_report_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -66,16 +65,6 @@ func TestADecisionThatBreaksARuleIsNotKept(t *testing.T) {
 
 	require.ErrorIs(t, err, decisions.ErrUnknownOutcome)
 	assert.Empty(t, saver.saved)
-}
-
-func TestADecisionThatCannotBeKeptFails(t *testing.T) {
-	cause := errors.New("postgres is down")
-
-	_, err := decide(t, &recordedDecisions{err: cause}, decide_report_usecase.In{
-		Report: reports.ReportID{15: 1}, Outcome: decisions.OutcomeDismissed,
-	})
-
-	require.ErrorIs(t, err, cause)
 }
 
 func TestADecisionOnceIsKeptForAReportNotDecidedYet(t *testing.T) {

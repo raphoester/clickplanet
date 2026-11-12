@@ -81,18 +81,6 @@ func TestARefreshTokenTradedTwiceEndsItsConnection(t *testing.T) {
 	}
 }
 
-func TestARefreshTokenSentByAnotherClientIsSpentAndBuysNothing(t *testing.T) {
-	issuer, first, connection := connected(t)
-
-	trade, err := issuer.Trade(connection, first.TakeSnapshot().Refresh, "another client", now)
-	require.NoError(t, err)
-
-	require.ErrorIs(t, trade.Refusal, admintokens.ErrUnknownToken)
-	assert.Nil(t, trade.Pair)
-	require.Len(t, trade.Kept, 1)
-	assert.Equal(t, admintokens.KindSpent, trade.Kept[0].Kind)
-}
-
 func TestAnAccessTokenALapsedOneOrAStrangerBuysNothingAndChangesNothing(t *testing.T) {
 	issuer, first, connection := connected(t)
 

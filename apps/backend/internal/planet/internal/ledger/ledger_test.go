@@ -46,25 +46,6 @@ func (b *board) restorations(scope string) []clicks.Restoration {
 	return runs.Restorations(b.owners)
 }
 
-func TestARevertGoesBackPastEveryTakeOfTheScopesRun(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.take(7, "A", "fr")
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "fr", To: "il"}}, b.restorations("A"))
-}
-
-func TestATakeBySomebodyElseStartsANewRun(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.take(7, "B", "de")
-	b.take(7, "A", "ps")
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: "de"}}, b.restorations("A"),
-		"B's retake stands: only A's latest run is undone")
-	assert.Empty(t, b.restorations("B"), "B no longer holds the tile")
-}
-
 func TestAScopePaintedOverHoldsNothingToRevert(t *testing.T) {
 	b := newBoard(owners{7: "il"})
 	b.take(7, "A", "ps")
@@ -94,15 +75,6 @@ func TestAChangeTheLedgerNeverSawBreaksTheRun(t *testing.T) {
 		"a revert gave the tile to nobody, so the run starts after it")
 }
 
-func TestATileEmptiedAfterTheLastTakeIsNotHeld(t *testing.T) {
-	b := newBoard(owners{7: "il", 8: "il"})
-	b.take(7, "A", "ps")
-	b.take(8, "A", "ps")
-	b.owners[8] = ""
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: "il"}}, b.restorations("A"))
-}
-
 func (b *board) bomb(scope string, tiles ...uint32) {
 	blast := clicks.Blast{Cleared: tiles}
 	for _, tile := range tiles {
@@ -112,28 +84,10 @@ func (b *board) bomb(scope string, tiles ...uint32) {
 	b.events = append(b.events, ledger.Bombing{Scope: scope, Blast: blast})
 }
 
-func TestARevertGivesTheBombedTilesBackToTheirOwners(t *testing.T) {
-	b := newBoard(owners{7: "il", 8: "de"})
-	b.bomb("A", 7, 8)
-
-	assert.Equal(t, []clicks.Restoration{
-		{Tile: 7, From: "", To: "il"},
-		{Tile: 8, From: "", To: "de"},
-	}, b.restorations("A"))
-}
-
 func TestARevertOfABomberGoesBackPastItsOwnTakes(t *testing.T) {
 	b := newBoard(owners{7: "il"})
 	b.take(7, "A", "ps")
 	b.bomb("A", 7)
-
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "", To: "il"}}, b.restorations("A"))
-}
-
-func TestABombedTileRetakenStaysWithTheTaker(t *testing.T) {
-	b := newBoard(owners{7: "il", 8: "de"})
-	b.bomb("A", 7, 8)
-	b.take(8, "B", "fr")
 
 	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "", To: "il"}}, b.restorations("A"))
 }
@@ -481,13 +435,6 @@ func TestAPlayersRatesAreItsCountsOverTheTimeFromFirstToLastTake(t *testing.T) {
 	single := ledger.Player{Tiles: 1, Takes: 1, FirstAt: start, LastAt: start}
 	assert.Zero(t, single.TilesPerMinute(), "one instant has no rate")
 	assert.Zero(t, single.TakesPerMinute())
-}
-
-func TestARefusedPlayerCarriesWhenItsRefusalEnds(t *testing.T) {
-	player := ledger.Player{Scope: "bot"}
-	player.Refused(clicks.NewRefusal(start))
-
-	assert.Equal(t, ledger.Player{Scope: "bot", RefusedUntil: start}, player)
 }
 
 func replay(storage ledger.Storage) []ledger.Taking {

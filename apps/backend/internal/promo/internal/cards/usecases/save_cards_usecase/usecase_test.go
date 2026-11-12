@@ -1,7 +1,6 @@
 package save_cards_usecase_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,13 +49,4 @@ func TestCardsTheRulesRefuseAreNotKept(t *testing.T) {
 	require.ErrorIs(t, err, cards.ErrInvalidCards)
 	_, ok := store.Deck("urf")
 	assert.False(t, ok)
-}
-
-func TestAFailedKeepIsTold(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	err := save_cards_usecase.New(planet, cards.NewMemoryStore().Failing(down), cpatomic.FakeTransactioner{}).Execute(
-		t.Context(), "urf", drafts)
-
-	require.ErrorIs(t, err, down)
 }

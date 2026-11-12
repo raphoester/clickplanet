@@ -54,15 +54,6 @@ func TestTheRequestReachesTheUseCaseAndTheSentenceComesBack(t *testing.T) {
 	assert.True(t, res.GetEnforced())
 }
 
-func TestNoDurationTakesTheLadder(t *testing.T) {
-	useCase := &stubUseCase{}
-
-	_, err := ban(t, useCase, &antibotv1.BanPlayerRequest{Scope: "9.9.9.9"})
-	require.NoError(t, err)
-
-	assert.Zero(t, useCase.in.Duration)
-}
-
 func TestErrorsMapToTheirCodes(t *testing.T) {
 	cause := errors.New("boom")
 

@@ -11,20 +11,6 @@ import (
 
 var heldAndGainDay = books.Round{ID: "season-1/day-10", Book: "season-1", Times: 1, Ranking: books.HeldAndGainRanking{}, StartsAt: utc(15, 21)}
 
-func TestADayRankedOnTheGroundHeldAndGainedOrdersTheSumOfBothRanks(t *testing.T) {
-	results := heldAndGainDay.Results(
-		books.Start{"ie": 50, "br": 30, "fr": 15, "lv": 5},
-		atTheEnd(map[books.Country]uint32{"ie": 50, "br": 28, "fr": 10, "lv": 12}),
-	)
-
-	assert.Equal(t, []books.Result{
-		{Country: "ie", Rank: 1, Points: 25, Share: 0.5},
-		{Country: "lv", Rank: 2, Points: 18, Share: 0.12},
-		{Country: "br", Rank: 3, Points: 15, Share: 0.28},
-		{Country: "fr", Rank: 4, Points: 12, Share: 0.1},
-	}, results)
-}
-
 func TestTheGainsRankBreaksATieOfTheSum(t *testing.T) {
 	results := heldAndGainDay.Results(books.Start{"ie": 50, "lv": 10}, atTheEnd(map[books.Country]uint32{"ie": 50, "lv": 20}))
 

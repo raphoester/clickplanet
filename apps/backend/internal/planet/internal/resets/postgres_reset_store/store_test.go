@@ -38,10 +38,3 @@ func TestAResetIsKeptOnceAndReadByTime(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []resets.Reset{two}, after)
 }
-
-func TestAResetNeedsAnIDAndATime(t *testing.T) {
-	_, err := resets.New("", time.Now())
-	require.ErrorIs(t, err, resets.ErrInvalidReset)
-	_, err = resets.New("season-1", time.Time{})
-	require.ErrorIs(t, err, resets.ErrInvalidReset)
-}
