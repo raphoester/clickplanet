@@ -33,9 +33,11 @@ browser says its first page was.
   keeps no recruiter, nor does a name nobody holds.
 - **Only a recruit has a recruiter** (`Arrival.Recruitment`): a landing of another source that names one keeps none.
   **It has a table of its own, `auth.recruitments`** (`arrival_id`, the arrival's id as its key, and `recruiter_id`,
-  `NULL` once anonymized; migration `20261111120000_recruitments`), so no other arrival has a recruiter column to leave
+  `NULL` once anonymized; migration `20261112110331_recruitments`), so no other arrival has a recruiter column to leave
   empty. `arrivals.Register` saves it after the arrival, in the same transaction, through its own store
-  (`arrivals.Recruitments`, `postgres_recruitment_store`).
+  (`arrivals.Recruitments`, `postgres_recruitment_store`). The migration was `20261111120000_recruitments`: it merged
+  after `20261111140000_arrival_tag` had deployed, so production skipped it. The table was made by hand there on
+  2026-11-12, then the migration moved to a later version, idempotent.
 - **The referrer is a host and nothing else** (`hostOf`): lower case, letters, digits, dots and hyphens, 253 at
   most; anything else, a path or a port included, is `""`. The browser sends only the host, and the server checks
   again. It is kept for every source, `""` when the browser sent none: an in-app browser, a typed address, and the
