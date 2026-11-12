@@ -126,7 +126,14 @@ bridges` from the tiles and the capitals written. Both are read only by the rule
     that is no capital, within 150 km or the generator stops. 17, for the crossings the stones do not make: the North
     and South Atlantic, Hawaii to California and Japan, the Tasman, the monsoon, Gibraltar. The points are pinned, like
     the seats: moving one moves a bridge.
+  - **Second ways**, generated after both (the owner, 2026-11-11: "each group of islands has two ways of being
+    joined, so there are several fronts to defend on each mainland"): while one bridge alone holds some land to the
+    rest, the shortest other crossing between its two sides is added, the smallest side first. A second bridge between
+    the same two pieces lands 250 km (`APART_KM`) from the first on one side at least, so it is another beach. 162 of
+    them: no single bridge's loss cuts any land off, so every island has two bridges at least (Great Britain 8, Ireland
+    3, Sicily 3, Cyprus 2 to two beaches of the mainland, Tasmania 3), and Afro-Eurasia 128.
 
+  744 bridges in all.
   Until 2026-11-11 the reach crossed `waters-<hash>.json`, each body of water's coast: the ocean was one body, so a
   flag on any coast reached every coast on Earth, and 130 of the 239 capitals were in reach of every flag at the start.
 
