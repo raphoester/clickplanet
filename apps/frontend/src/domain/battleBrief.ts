@@ -40,12 +40,6 @@ export function pointsRowsOf(closed: ClosedRound, countryCode: string, shown = P
         }))
 }
 
-// The battle's words, when the page saw this battle play.
-export function briefDescriptionOf(seen: Battle | undefined, closed: ClosedRound): string {
-    if (!seen || seen.roundId !== closed.roundId) return ""
-    return seen.description
-}
-
 // The battle ended and the gamemaster has not debriefed its round yet: its debrief is on the way.
 export function briefAwaited(over: Battle, debrief: Debrief | undefined): boolean {
     return over.roundId !== "" && debriefRoundOf(debrief) !== over.roundId

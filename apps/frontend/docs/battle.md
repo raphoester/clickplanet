@@ -205,9 +205,8 @@ screen and the rays in `--war`.
 - **The screens** (`debriefScreensOf`), each its own announcement, so each closes on
   its button and the next one starts:
   1. `over` — "Battle finished!", or "Final Battle finished!" for the round that ended
-     the season (`battleFinishedLine`), over the swords disc, with the battle's words
-     when the page saw it play (`briefDescriptionOf`, by its round), and the
-     fanfare.
+     the season (`battleFinishedLine`), over the swords disc, and the fanfare. No rules
+     text: the battle's words stay on its teaser and chip, not here.
   2. `points` — "Points won": each country that scored (`pointsRowsOf`, the first
      `POINTS_SHOWN` (10) and the player's under them), its rank, its points before the
      times and ×times ("25 ×3"), and the total, drawn as a bar against the best; "Points

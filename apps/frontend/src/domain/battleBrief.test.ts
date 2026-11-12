@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import {ClosedRound, Standing} from "../backends/standings.ts"
 import {Debrief} from "../backends/turn.ts"
 import {Battle} from "./battle.ts"
-import {briefAwaited, briefDescriptionOf, dayBriefAwaited, debriefedFor, debriefScreensOf, pointsRowsOf} from "./battleBrief.ts"
+import {briefAwaited, dayBriefAwaited, debriefedFor, debriefScreensOf, pointsRowsOf} from "./battleBrief.ts"
 
 const STARTED_AT = Date.UTC(2026, 9, 31, 21)
 const ENDED_AT = Date.UTC(2026, 9, 31, 23)
@@ -72,16 +72,6 @@ describe("pointsRowsOf", () => {
     })
 })
 
-describe("briefDescriptionOf", () => {
-    it("is the words of the battle the page saw play", () => {
-        expect(briefDescriptionOf(battle, BATTLE_ROUND)).toBe("Triple points.")
-    })
-
-    it("is none for another battle, or when the page saw none", () => {
-        expect(briefDescriptionOf(another, BATTLE_ROUND)).toBe("")
-        expect(briefDescriptionOf(undefined, BATTLE_ROUND)).toBe("")
-    })
-})
 
 describe("briefAwaited", () => {
     const ended = (roundId: string, endsSeason = true): Debrief =>

@@ -18,7 +18,6 @@ import "./Battle.css"
 export type BattleDebriefProps = {
     screen: DebriefScreen
     closed: ClosedRound
-    description: string
     countryCode: string
     accountId?: string
     // Another screen follows this one.
@@ -27,7 +26,7 @@ export type BattleDebriefProps = {
     onClose: () => void
 }
 
-export default function BattleDebrief({screen, closed, description, countryCode, accountId, more, play, onClose}: BattleDebriefProps) {
+export default function BattleDebrief({screen, closed, countryCode, accountId, more, play, onClose}: BattleDebriefProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
     const [ready, setReady] = useState(false)
@@ -50,7 +49,7 @@ export default function BattleDebrief({screen, closed, description, countryCode,
              aria-labelledby={headId}
              tabIndex={-1}>
             <div className="round-reveal-stage battle-brief-stage">
-                {screen === "over" && <Over headId={headId} closed={closed} description={description}/>}
+                {screen === "over" && <Over headId={headId} closed={closed}/>}
                 {screen === "points" && <Points headId={headId} closed={closed} rows={pointsRowsOf(closed, countryCode)}/>}
                 {screen === "players" && <Players headId={headId} players={closed.players} accountId={accountId}/>}
 
@@ -66,7 +65,7 @@ export default function BattleDebrief({screen, closed, description, countryCode,
     )
 }
 
-function Over({headId, closed, description}: {headId: string, closed: ClosedRound, description: string}) {
+function Over({headId, closed}: {headId: string, closed: ClosedRound}) {
     return <>
         <h2 id={headId} className="title-reveal-head round-reveal-head">{battleFinishedLine(closed)}</h2>
         <div className="title-reveal-medal">
@@ -76,7 +75,6 @@ function Over({headId, closed, description}: {headId: string, closed: ClosedRoun
                 <span className="battle-reveal-disc" aria-hidden="true"><SwordsArt/></span>
             </span>
         </div>
-        {description && <p className="battle-brief-text">{description}</p>}
     </>
 }
 
