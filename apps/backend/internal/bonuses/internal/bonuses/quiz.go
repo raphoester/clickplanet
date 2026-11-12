@@ -25,7 +25,7 @@ type Asked struct {
 }
 
 type Answered struct {
-	Correct bool
+	Outcome ratings.Outcome
 
 	CorrectChoice int
 
@@ -33,10 +33,8 @@ type Answered struct {
 
 	Subject string
 
-	// What the ratings count of it: the question, whether the page's clock ran out (a choice past the three), and how
-	// long after the opening it landed.
+	// What the ratings count of it besides its outcome: the question, and how long after the opening it landed.
 	Question ratings.QuestionID
-	TimedOut bool
 	After    time.Duration
 
 	// Late is an answer to a question opened and lapsed a moment before, which the page's timeout sent over a slow
@@ -123,17 +121,16 @@ func (r *Registry) AnswerQuiz(token string, entrant Entrant, choice int) (Answer
 	answered := Answered{
 		CorrectChoice: quiz.round.Correct,
 		Subject:       quiz.round.Question.Subject,
-		Correct:       !now.After(quiz.deadline) && quiz.round.Correctly(choice),
+		Outcome:       quiz.outcome(choice, now),
 		Question:      quiz.round.Question.ID,
-		TimedOut:      quiz.timedOut(choice),
 		After:         now.Sub(quiz.openedAt),
 	}
 
 	if r.report.QuizAnswered != nil {
-		r.report.QuizAnswered(quiz.scope, answered.Correct, now.Sub(quiz.offeredAt))
+		r.report.QuizAnswered(quiz.scope, answered.Outcome == ratings.Right, now.Sub(quiz.offeredAt))
 	}
 
-	if !answered.Correct {
+	if answered.Outcome != ratings.Right {
 		return answered, true
 	}
 
@@ -158,16 +155,22 @@ func (r *Registry) answerLate(token string, entrant Entrant, choice int, now tim
 	return Answered{
 		CorrectChoice: quiz.round.Correct,
 		Subject:       quiz.round.Question.Subject,
+		Outcome:       quiz.outcome(choice, now),
 		Question:      quiz.round.Question.ID,
-		TimedOut:      quiz.timedOut(choice),
 		After:         now.Sub(quiz.openedAt),
 		Late:          true,
 	}, true
 }
 
-// timedOut is the page's own timeout: a choice past the three it was shown.
-func (p *pendingQuiz) timedOut(choice int) bool {
-	return choice < 0 || choice >= len(p.round.Options)
+// The page's own timeout is a choice past the three it was shown.
+func (p *pendingQuiz) outcome(choice int, now time.Time) ratings.Outcome {
+	if choice < 0 || choice >= len(p.round.Options) {
+		return ratings.TimedOut
+	}
+	if now.After(p.deadline) || !p.round.Correctly(choice) {
+		return ratings.Wrong
+	}
+	return ratings.Right
 }
 
 func (r *Registry) quizDue(entry *caller, rules Rules, now time.Time) bool {

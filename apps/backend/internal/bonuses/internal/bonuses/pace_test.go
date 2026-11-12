@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -125,7 +126,7 @@ func TestQuizzesSwitchedOffAskNoMoreAndLetTheOneAskedBeAnswered(t *testing.T) {
 	require.True(t, opened)
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", 1)
 	require.True(t, ok)
-	assert.True(t, answered.Correct)
+	assert.Equal(t, ratings.Right, answered.Outcome)
 
 	clock.Advance(time.Hour)
 	clicked(registry, "scope-a")

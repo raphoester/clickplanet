@@ -57,10 +57,10 @@ the error away (to 0.07, measured) and 400 take it under 0.035 (0.02, measured).
 
 | counts | how |
 |---|---|
-| an opened question answered right or wrong | `AnswerQuiz` in time |
-| a timeout the page sends: a choice past the three | wrong, `timed_out` |
-| an answer that lands past the deadline | wrong |
-| an answer that lands after the sweep took its question, up to 10 s past the deadline | wrong, as a late answer (below) |
+| an opened question answered right or wrong | `AnswerQuiz` in time: `right` or `wrong` |
+| a timeout the page sends: a choice past the three | `timed_out`, which the rating counts as wrong |
+| an answer that lands past the deadline | `wrong`, even the right choice |
+| an answer that lands after the sweep took its question, up to 10 s past the deadline | `wrong` or `timed_out`, as a late answer (below) |
 
 | does not count | why |
 |---|---|
@@ -99,7 +99,8 @@ ratings' `record_answer_usecase` (`prom_record_answer` counts `quiz_answers_reco
 ## The tables (schema `bonuses`)
 
 - **`quiz_answers`**, one row per counted answer, never edited: `question_id`, `account_id` (null for a caller with
-  none, or once forgotten), `correct`, `timed_out`, `answer_ms` (from the opening), `answered_at`. **It is the source of
+  none, or once forgotten), `outcome` (enum `quiz_answer_outcome`: `right`, `wrong` or `timed_out`), `answer_ms` (from
+  the opening), `answered_at`. **It is the source of
   truth**: kept so the ratings can be recomputed with a better model, the players' among them. Never pruned: a thousand
   rows a day.
 - **`quiz_questions`**, one row per question answered at least once: `question_id`, `rating`, `answers`,

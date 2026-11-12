@@ -85,7 +85,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	account := in.Caller.Account
-	if !answered.Correct {
+	if answered.Outcome != ratings.Right {
 		hand, err := u.wallet.Hand(ctx, account)
 		if err != nil {
 			return Out{}, err //nolint:wrapcheck // the wallet named it.
@@ -139,8 +139,7 @@ func (u *UseCase) count(ctx context.Context, account bonuses.Account, answered b
 	_ = u.answers.Execute(ctx, ratings.Answer{
 		Question: answered.Question,
 		Account:  answerer,
-		Correct:  answered.Correct,
-		TimedOut: answered.TimedOut,
+		Outcome:  answered.Outcome,
 		After:    answered.After,
 		At:       u.clock.Now(),
 	})

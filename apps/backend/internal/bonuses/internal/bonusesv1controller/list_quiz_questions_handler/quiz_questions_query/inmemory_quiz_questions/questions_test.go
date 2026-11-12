@@ -21,7 +21,7 @@ const fixture = `{"format": 1, "questions": [
 ]}`
 
 func TestEachQuestionIsListedWithItsRatingAndWhatItsAnswersMeasured(t *testing.T) {
-	moved := ratings.PriorOf(0.45).Answered(true).Answered(false).Answered(false).Answered(true)
+	moved := ratings.PriorOf(0.45).Answered(ratings.Right).Answered(ratings.Wrong).Answered(ratings.Wrong).Answered(ratings.Right)
 	bank, err := quizzes.LoadFixture([]byte(fixture), nil,
 		ratings.NewBook(map[ratings.QuestionID]ratings.Rating{"capital:ee": moved}))
 	require.NoError(t, err)

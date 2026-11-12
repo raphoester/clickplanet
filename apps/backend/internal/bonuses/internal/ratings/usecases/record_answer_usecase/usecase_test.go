@@ -68,12 +68,12 @@ func newUseCase(kept *store) (*record_answer_usecase.UseCase, *ratings.Book) {
 func TestAnAnswerIsLoggedAndMovesItsQuestionFromItsPrior(t *testing.T) {
 	kept := &store{}
 	useCase, book := newUseCase(kept)
-	answer := ratings.Answer{Question: "capital:ee", Correct: true, After: 2 * time.Second, At: at}
+	answer := ratings.Answer{Question: "capital:ee", Outcome: ratings.Right, After: 2 * time.Second, At: at}
 
 	require.NoError(t, useCase.Execute(t.Context(), answer))
 
 	assert.Equal(t, []ratings.Answer{answer}, kept.answers)
-	want := ratings.PriorOf(0.6).Answered(true)
+	want := ratings.PriorOf(0.6).Answered(ratings.Right)
 	assert.Equal(t, want, kept.ratings["capital:ee"])
 	rated, ok := book.Rated("capital:ee")
 	require.True(t, ok)
@@ -84,11 +84,11 @@ func TestTheNextAnswerMovesTheRatingTheLastOneLeft(t *testing.T) {
 	kept := &store{}
 	useCase, book := newUseCase(kept)
 
-	require.NoError(t, useCase.Execute(t.Context(), ratings.Answer{Question: "capital:ee", Correct: true, At: at}))
-	require.NoError(t, useCase.Execute(t.Context(), ratings.Answer{Question: "capital:ee", At: at}))
+	require.NoError(t, useCase.Execute(t.Context(), ratings.Answer{Question: "capital:ee", Outcome: ratings.Right, At: at}))
+	require.NoError(t, useCase.Execute(t.Context(), ratings.Answer{Question: "capital:ee", Outcome: ratings.Wrong, At: at}))
 
 	rated, _ := book.Rated("capital:ee")
-	assert.Equal(t, ratings.PriorOf(0.6).Answered(true).Answered(false), rated)
+	assert.Equal(t, ratings.PriorOf(0.6).Answered(ratings.Right).Answered(ratings.Wrong), rated)
 	assert.Equal(t, 2, rated.Answers())
 	assert.Equal(t, 1, rated.Right())
 }
@@ -97,7 +97,7 @@ func TestAnAnswerThatDoesNotCommitMovesNothingInMemory(t *testing.T) {
 	down := errors.New("postgres is down")
 	useCase, book := newUseCase(&store{fail: down})
 
-	err := useCase.Execute(t.Context(), ratings.Answer{Question: "capital:ee", Correct: true, At: at})
+	err := useCase.Execute(t.Context(), ratings.Answer{Question: "capital:ee", Outcome: ratings.Right, At: at})
 
 	require.ErrorIs(t, err, down)
 	_, ok := book.Rated("capital:ee")
@@ -115,7 +115,7 @@ func TestAnswersAtOnceAreEachCounted(t *testing.T) {
 			if i%2 == 1 {
 				question = "capital:lv"
 			}
-			assert.NoError(t, useCase.Execute(t.Context(), ratings.Answer{Question: question, Correct: i%3 == 0, At: at}))
+			assert.NoError(t, useCase.Execute(t.Context(), ratings.Answer{Question: question, Outcome: []ratings.Outcome{ratings.Right, ratings.Wrong, ratings.TimedOut}[i%3], At: at}))
 		})
 	}
 	wait.Wait()

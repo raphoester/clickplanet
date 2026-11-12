@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 )
 
 const sharedAddress = "1.2.3.4"
@@ -128,6 +130,6 @@ func TestTwoLinkedAccountsBehindOneAddressAreEachAskedTheirOwnQuiz(t *testing.T)
 
 	herAnswer, _ := registry.AnswerQuiz(herQuiz.Token, entrantOf(alice), indexOf(herAsked.Options, rightAnswer))
 	hisAnswer, _ := registry.AnswerQuiz(hisQuiz.Token, entrantOf(bob), indexOf(hisAsked.Options, rightAnswer))
-	assert.True(t, herAnswer.Correct)
-	assert.True(t, hisAnswer.Correct)
+	assert.Equal(t, ratings.Right, herAnswer.Outcome)
+	assert.Equal(t, ratings.Right, hisAnswer.Outcome)
 }

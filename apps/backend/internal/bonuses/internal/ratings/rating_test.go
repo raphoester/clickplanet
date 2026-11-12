@@ -21,10 +21,17 @@ func seeded(a, b uint64) *rand.Rand {
 	return rand.New(rand.NewPCG(a, b)) //nolint:gosec // a test draw, not a secret.
 }
 
+func outcomeOf(right bool) ratings.Outcome {
+	if right {
+		return ratings.Right
+	}
+	return ratings.Wrong
+}
+
 // answeredBy is a rating after n answers by average players who get it right with the chance given.
 func answeredBy(rating ratings.Rating, chance float64, n int, draws *rand.Rand) ratings.Rating {
 	for range n {
-		rating = rating.Answered(draws.Float64() < chance)
+		rating = rating.Answered(outcomeOf(draws.Float64() < chance))
 	}
 	return rating
 }
@@ -56,11 +63,17 @@ func TestAPriorAtEitherEndStaysFinite(t *testing.T) {
 func TestARightAnswerMakesAQuestionEasierAndAWrongOneHarder(t *testing.T) {
 	prior := ratings.PriorOf(0.6)
 
-	assert.Less(t, prior.Answered(true).Level(), prior.Level())
-	assert.Greater(t, prior.Answered(false).Level(), prior.Level())
-	assert.Equal(t, 1, prior.Answered(true).Answers())
-	assert.Equal(t, 1, prior.Answered(true).Right())
-	assert.Equal(t, 0, prior.Answered(false).Right())
+	assert.Less(t, prior.Answered(ratings.Right).Level(), prior.Level())
+	assert.Greater(t, prior.Answered(ratings.Wrong).Level(), prior.Level())
+	assert.Equal(t, 1, prior.Answered(ratings.Right).Answers())
+	assert.Equal(t, 1, prior.Answered(ratings.Right).Right())
+	assert.Equal(t, 0, prior.Answered(ratings.Wrong).Right())
+}
+
+func TestATimeoutMovesARatingAsAWrongAnswerDoes(t *testing.T) {
+	prior := ratings.PriorOf(0.6)
+
+	assert.Equal(t, prior.Answered(ratings.Wrong), prior.Answered(ratings.TimedOut))
 }
 
 // The prior is worth ten answers, and each answer weighs 1/(n + 10): the chance is the running mean of the answers with
@@ -75,7 +88,7 @@ func TestTheChanceIsARunningMeanOfTheAnswersWithThePriorCountedTenTimes(t *testi
 		if correct {
 			right++
 		}
-		rating = rating.Answered(correct)
+		rating = rating.Answered(outcomeOf(correct))
 
 		require.InDelta(t, (10*0.6+float64(right))/float64(10+n), rating.Chance(), 1e-9, "after %d answers", n)
 		require.Equal(t, n, rating.Answers())
@@ -86,14 +99,14 @@ func TestTheChanceIsARunningMeanOfTheAnswersWithThePriorCountedTenTimes(t *testi
 func TestPastTheFloorEachAnswerWeighsOneTwoHundredth(t *testing.T) {
 	rating := ratings.RatingOf(ratings.LevelOf(0.5), 1000, 500)
 
-	assert.InDelta(t, 0.5+0.5/200, rating.Answered(true).Chance(), 1e-12)
-	assert.InDelta(t, 0.5-0.5/200, rating.Answered(false).Chance(), 1e-12)
+	assert.InDelta(t, 0.5+0.5/200, rating.Answered(ratings.Right).Chance(), 1e-12)
+	assert.InDelta(t, 0.5-0.5/200, rating.Answered(ratings.Wrong).Chance(), 1e-12)
 }
 
 func TestAnswersNeverPushARatingPastEitherEnd(t *testing.T) {
 	sure, hopeless := ratings.PriorOf(0.6), ratings.PriorOf(0.6)
 	for range 2000 {
-		sure, hopeless = sure.Answered(true), hopeless.Answered(false)
+		sure, hopeless = sure.Answered(ratings.Right), hopeless.Answered(ratings.Wrong)
 	}
 
 	assert.InDelta(t, ratings.MaxChance, sure.Chance(), 1e-9)
