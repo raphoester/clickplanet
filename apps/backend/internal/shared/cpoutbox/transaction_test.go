@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 var notesMigrations = fstest.MapFS{
@@ -38,10 +39,10 @@ func (n notes) Save(ctx context.Context, names ...string) error {
 	})
 }
 
-func open(t *testing.T, server *cppg.TestServer, schema string) (*cppg.Postgres, notes, cpatomic.Outbox) {
+func open(t *testing.T, database cppgtest.Database, schema string) (*cppg.Postgres, notes, cpatomic.Outbox) {
 	t.Helper()
 
-	db := server.OpenSchema(t, schema, notesMigrations)
+	db := database.OpenSchema(t, schema, notesMigrations)
 	return db, notes{db: db}, cpoutbox.New(db)
 }
 
@@ -54,7 +55,7 @@ func count(t *testing.T, db cppg.Conn, table string) int {
 }
 
 func TestAWriteAndItsEventCommitTogether(t *testing.T) {
-	db, store, outbox := open(t, cppg.StartTestServer(t), "together")
+	db, store, outbox := open(t, server.CreateDatabase(t), "together")
 
 	require.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error {
 		if err := store.Save(ctx, "a", "b"); err != nil {
@@ -68,7 +69,7 @@ func TestAWriteAndItsEventCommitTogether(t *testing.T) {
 }
 
 func TestAFailedTransactionKeepsNeitherTheWriteNorTheEvent(t *testing.T) {
-	db, store, outbox := open(t, cppg.StartTestServer(t), "failed")
+	db, store, outbox := open(t, server.CreateDatabase(t), "failed")
 
 	require.Error(t, db.InTx(t.Context(), func(ctx context.Context) error {
 		if err := outbox.Record(ctx, wrapperspb.String("saved")); err != nil {
@@ -85,7 +86,7 @@ func TestAFailedTransactionKeepsNeitherTheWriteNorTheEvent(t *testing.T) {
 }
 
 func TestAPanicKeepsNothing(t *testing.T) {
-	db, store, outbox := open(t, cppg.StartTestServer(t), "panicked")
+	db, store, outbox := open(t, server.CreateDatabase(t), "panicked")
 
 	assert.Panics(t, func() {
 		_ = db.InTx(t.Context(), func(ctx context.Context) error {
@@ -100,16 +101,16 @@ func TestAPanicKeepsNothing(t *testing.T) {
 }
 
 func TestAnEventIsNeverRecordedOutsideATransaction(t *testing.T) {
-	db, _, outbox := open(t, cppg.StartTestServer(t), "outside")
+	db, _, outbox := open(t, server.CreateDatabase(t), "outside")
 
 	require.ErrorIs(t, outbox.Record(t.Context(), wrapperspb.String("alone")), cppg.ErrNoTransaction)
 	assert.Zero(t, count(t, db, "outbox"))
 }
 
 func TestATransactionOfOneDatabaseNeverReachesAnother(t *testing.T) {
-	server := cppg.StartTestServer(t)
-	auth, _, _ := open(t, server, "auth")
-	scoring, scoringNotes, scoringOutbox := open(t, server, "scoring")
+	database := server.CreateDatabase(t)
+	auth, _, _ := open(t, database, "auth")
+	scoring, scoringNotes, scoringOutbox := open(t, database, "scoring")
 
 	require.Error(t, auth.InTx(t.Context(), func(ctx context.Context) error {
 		if err := scoringNotes.Save(ctx, "a"); err != nil {
@@ -123,7 +124,7 @@ func TestATransactionOfOneDatabaseNeverReachesAnother(t *testing.T) {
 }
 
 func TestAWriteOnTheOuterContextIsNotInTheTransaction(t *testing.T) {
-	db, store, outbox := open(t, cppg.StartTestServer(t), "outer")
+	db, store, outbox := open(t, server.CreateDatabase(t), "outer")
 	outer := t.Context()
 
 	require.Error(t, db.InTx(outer, func(ctx context.Context) error {

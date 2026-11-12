@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3/cps3test"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/s3_attachment_bucket"
@@ -35,7 +36,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.config = cps3.StartTestServer(s.T(), "notes").Config()
+	s.config = cps3test.StartServer(s.T(), "notes").Config()
 	s.bucket = s.bucketOf(s.config, cptime.SystemClock{})
 }
 

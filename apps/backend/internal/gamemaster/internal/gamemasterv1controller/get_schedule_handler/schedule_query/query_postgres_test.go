@@ -16,9 +16,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/postgres_entry_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 var (
 	finale     = time.Date(2026, 10, 30, 21, 0, 0, 0, time.UTC)
@@ -44,7 +48,7 @@ func keep(t *testing.T, store *postgres_entry_store.Store, entries ...schedule.E
 }
 
 func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	keep(t, postgres_entry_store.New(db),
 		schedule.EntrySnapshot{
 			ID: calm, Set: "calm", Kind: schedule.Plain, StartsAt: finale.Add(10 * time.Minute), EndsAt: finale.Add(30 * time.Minute),
@@ -81,7 +85,7 @@ func TestEveryEntryIsListedByStartWithWhatPlaysNow(t *testing.T) {
 }
 
 func TestWhileASeasonsFinalePlaysItNamesTheSeasonAndNoEntry(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	keep(t, postgres_entry_store.New(db), schedule.EntrySnapshot{
 		ID: calm, Set: "calm", Kind: schedule.Plain, StartsAt: finale, EndsAt: seasonEnds.Add(time.Hour), Priority: 9, MadeAt: madeAt,
 	})
@@ -96,7 +100,7 @@ func TestWhileASeasonsFinalePlaysItNamesTheSeasonAndNoEntry(t *testing.T) {
 }
 
 func TestWithNoEntryRunningDefaultPlaysAndNamesNone(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	keep(t, postgres_entry_store.New(db),
 		schedule.EntrySnapshot{
 			ID: rush, Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: battleEnds, Priority: 1, Times: 3, MadeAt: madeAt,

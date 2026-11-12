@@ -10,11 +10,11 @@ import (
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestEveryEventPlayerTellsHasAPlaceInItsOutbox(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "player", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "player", migrations.FS)
 	account := "00000000-0000-0000-0000-000000000001"
 
 	for _, event := range []proto.Message{

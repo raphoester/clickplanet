@@ -1,4 +1,4 @@
-package landmass_query
+package landmass_query_test
 
 import (
 	"strings"
@@ -10,11 +10,16 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account, payload)
 		SELECT n,
@@ -26,7 +31,7 @@ func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)
 	require.NoError(t, err)
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+lastFortify, 42, time.Time{},
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+landmass_query.LastFortify, 42, time.Time{},
 		pq.Array([]time.Time{time.Now().Add(-time.Hour)}), pq.Array([]time.Time{time.Now().Add(-30 * time.Minute)}))
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()

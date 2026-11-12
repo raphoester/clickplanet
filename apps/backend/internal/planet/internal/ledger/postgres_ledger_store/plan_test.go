@@ -1,4 +1,4 @@
-package postgres_ledger_store
+package postgres_ledger_store_test
 
 import (
 	"strings"
@@ -8,12 +8,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestAMarkForgetsItsCallersEventsWithoutReadingTheWholeLedger(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account)
 		SELECT n, 'take', n % 260503 + 1, CASE WHEN n < 150000 THEN NULL ELSE '203.0.113.' || (n % 250) END,
@@ -23,8 +29,8 @@ func TestAMarkForgetsItsCallersEventsWithoutReadingTheWholeLedger(t *testing.T) 
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)
 	require.NoError(t, err)
 
-	scopes := explain(t, db, forgetScopesEvents, pq.Array([]string{"203.0.113.7"}), pq.Array([]int64{200000}), 150000)
-	accounts := explain(t, db, forgetAccountsEvents,
+	scopes := explain(t, db, postgres_ledger_store.ForgetScopesEvents, pq.Array([]string{"203.0.113.7"}), pq.Array([]int64{200000}), 150000)
+	accounts := explain(t, db, postgres_ledger_store.ForgetAccountsEvents,
 		pq.Array([]string{"0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"}), pq.Array([]int64{200000}))
 
 	assert.Contains(t, scopes, "ledger_events_pkey", scopes)

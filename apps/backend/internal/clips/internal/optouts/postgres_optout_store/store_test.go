@@ -10,11 +10,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/postgres_optout_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestAPlayerKeptOutIsFoundAmongOthersUntilForgotten(t *testing.T) {
-	store := postgres_optout_store.New(cppg.StartTestServer(t).OpenSchema(t, "clips", migrations.FS))
+	store := postgres_optout_store.New(cppgtest.StartServer(t).OpenSchema(t, "clips", migrations.FS))
 	ada, bob := optouts.AccountID(uuid.New()), optouts.AccountID(uuid.New())
 
 	require.NoError(t, store.Keep(t.Context(), ada))

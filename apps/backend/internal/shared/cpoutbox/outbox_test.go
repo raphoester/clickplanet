@@ -16,7 +16,12 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 var migrations = fstest.MapFS{
 	"1_outbox.up.sql": &fstest.MapFile{Data: []byte(`
@@ -63,7 +68,7 @@ func TestOutbox(t *testing.T) {
 }
 
 func (s *OutboxSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "outbox", migrations)
+	s.db = server.CreateDatabase(s.T()).OpenSchema(s.T(), "outbox", migrations)
 }
 
 func (s *OutboxSuite) SetupTest() {
@@ -159,7 +164,7 @@ func (s *OutboxSuite) TestTheShutdownSendsWhatIsLeft() {
 }
 
 func TestAnEventTheOutboxTypeDoesNotHoldIsRefusedWithTheWrite(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "outbox", migrations)
+	db := server.CreateDatabase(t).OpenSchema(t, "outbox", migrations)
 
 	assert.Error(t, db.InTx(t.Context(), func(ctx context.Context) error {
 		return cpoutbox.New(db).Record(ctx, wrapperspb.Int64(7))
