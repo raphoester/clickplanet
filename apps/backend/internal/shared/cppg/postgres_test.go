@@ -13,7 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 func TestThePasswordStaysOutOfAPrintedConfig(t *testing.T) {
 	config := struct{ Database cppg.Config }{cppg.Config{Host: "postgres", Password: "hunter2"}}
@@ -48,9 +53,9 @@ func TestEachSchemaHoldsItsOwnTablesAndMigrationHistory(t *testing.T) {
 	}
 	ctx := t.Context()
 
-	server := cppg.StartTestServer(t)
-	first := server.OpenSchema(t, "first", migrations)
-	second := server.OpenSchema(t, "second", migrations)
+	database := server.CreateDatabase(t)
+	first := database.OpenSchema(t, "first", migrations)
+	second := database.OpenSchema(t, "second", migrations)
 
 	_, err := first.On(ctx).ExecContext(ctx, `INSERT INTO things VALUES (1)`)
 	require.NoError(t, err)
@@ -81,7 +86,7 @@ func (r countingRunner) Run(ctx context.Context) {
 }
 
 func TestCloseAfterClosesThePoolOnceEveryRunnerStopped(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "closing", fstest.MapFS{
+	db := server.CreateDatabase(t).OpenSchema(t, "closing", fstest.MapFS{
 		"1_create_things.up.sql":   {Data: []byte(`CREATE TABLE things (id integer PRIMARY KEY)`)},
 		"1_create_things.down.sql": {Data: []byte(`DROP TABLE things`)},
 	})
@@ -100,7 +105,7 @@ func TestCloseAfterClosesThePoolOnceEveryRunnerStopped(t *testing.T) {
 }
 
 func TestAPoolKeepsEveryConnectionItOpened(t *testing.T) {
-	config := cppg.StartTestServer(t).ConfigFor("pooled")
+	config := server.CreateDatabase(t).ConfigFor("pooled")
 	most := 4
 	config.Pool.MaxOpenConns = &most
 	db := cppg.New(config)

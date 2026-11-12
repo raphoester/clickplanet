@@ -21,7 +21,48 @@ env:
   CADDY_IMAGE: ghcr.io/${{ github.repository_owner }}/clickplanet-caddy
 
 jobs:
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/backend/go.mod
+          cache-dependency-path: apps/backend/go.sum
+
+      - name: read the revision the VPS runs
+        id: running
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          key=$(mktemp)
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$VPS_SSH_KEY" > "$key"
+          revision=$(ssh -i "$key" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            "$VPS_USER@$VPS_HOST" \
+            "docker inspect cp-backend --format '{{ index .Config.Labels \"org.opencontainers.image.revision\" }}'")
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+
+      - name: check the migrations against the ones the database ran
+        working-directory: apps/backend
+        env:
+          RUNNING: ${{ steps.running.outputs.revision }}
+        run: |
+          if [ -z "$RUNNING" ] || [ "$RUNNING" = "<no value>" ]; then
+            echo "::warning::cp-backend's image has no revision label: only the names and versions were checked"
+            make check-migrations
+          else
+            echo "the VPS runs $RUNNING"
+            make check-migrations BASE="$RUNNING"
+          fi
+
   build:
+    needs: [ migrations ]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,6 +82,7 @@ jobs:
         with:
           context: apps/backend
           push: true
+          labels: org.opencontainers.image.revision=${{ github.sha }}
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}
@@ -48,6 +90,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   caddy:
+    needs: [ migrations ]
     runs-on: ubuntu-latest
     permissions:
       contents: read

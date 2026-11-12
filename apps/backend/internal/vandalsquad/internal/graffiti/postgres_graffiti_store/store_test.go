@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/graffiti"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/graffiti/postgres_graffiti_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/migrations"
@@ -22,7 +23,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "vandalsquad", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "vandalsquad", migrations.FS)
 	store := postgres_graffiti_store.New(s.db)
 	s.NewStorage = func() graffiti.Storage { return store }
 	s.Kept = func(graffiti.Storage) []graffiti.Snapshot { return s.kept() }

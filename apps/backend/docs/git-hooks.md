@@ -11,7 +11,8 @@ inside each app, and hooks are the one genuinely repo-wide thing.
   72-character subject so `git log --oneline` stays readable. Merge, revert,
   fixup and squash subjects are git's to format and are left alone.
 - **pre-push** — `make test`, `make deadcode`, `make lint-ci`,
-  `make check-format`, `make check-quiz` and `make check-moderation`, run
+  `make check-format`, `make check-quiz`, `make check-moderation` and
+  `make check-migrations BASE=origin/main` ([Migrations](migrations.md)), run
   concurrently; output is only printed for a step that fails.
 
 All three take `--no-verify`. The hooks re-point `core.hooksPath` at a *relative*

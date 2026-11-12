@@ -950,6 +950,12 @@ container over SSH. GHCR rather than a dedicated registry because it adds no
 account, no vendor and no bill: the code is already on GitHub, CI already runs
 there, and the push authenticates with the built-in `GITHUB_TOKEN`.
 
+Before anything builds, its `migrations` job reads the revision `cp-backend`
+runs (the image's `org.opencontainers.image.revision` label) over SSH and checks
+the new migrations against it: a migration golang-migrate would skip, or a boot
+that would fail, stops the deploy there. See
+[Migrations](../../apps/backend/docs/migrations.md).
+
 ### Where the secrets live
 
 **The repository's Actions secrets, and nowhere else.** The box used to be the

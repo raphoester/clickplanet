@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/postgres_verdict_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/screen_names_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
@@ -58,7 +59,7 @@ func TestShownNamesSuite(t *testing.T) {
 }
 
 func (s *ShownNamesSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "clips", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "clips", migrations.FS)
 	s.verdicts, s.optOuts = postgres_verdict_store.New(s.db), postgres_optout_store.New(s.db)
 }
 

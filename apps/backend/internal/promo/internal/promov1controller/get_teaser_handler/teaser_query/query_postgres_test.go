@@ -24,7 +24,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/get_teaser_handler/teaser_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 var (
 	war    = backgrounds.BackgroundID{15: 1}
@@ -63,7 +68,7 @@ func (p planet) Played(_ context.Context, set string) (placeholders.Played, erro
 
 func seeded(t *testing.T, decks map[cards.SetName][]cards.Draft) cppg.Conn {
 	t.Helper()
-	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "promo", migrations.FS)
 	for _, id := range []backgrounds.BackgroundID{war, points} {
 		background, err := backgrounds.Keep(backgrounds.File{ID: id, MediaType: "image/png", Size: 1}, id.String(),
 			time.Now(), backgrounds.Rules{MaxBytes: 2 << 20})

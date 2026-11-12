@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
@@ -20,13 +21,13 @@ func TestRunSuite(t *testing.T) {
 
 type testSuite struct {
 	suite.Suite
-	server *cppg.TestServer
-	db     *cppg.Postgres
+	database cppgtest.Database
+	db       *cppg.Postgres
 }
 
 func (s *testSuite) SetupSuite() {
-	s.server = cppg.StartTestServer(s.T())
-	s.db = s.server.OpenSchema(s.T(), "antibot", migrations.FS)
+	s.database = server.CreateDatabase(s.T())
+	s.db = s.database.OpenSchema(s.T(), "antibot", migrations.FS)
 }
 
 func (s *testSuite) TestItKeepsTheContract() {
@@ -51,7 +52,7 @@ func (s *testSuite) TestItKeepsTheContract() {
 }
 
 func (s *testSuite) TestTheMigrationSeedsDefaultWithProductionsRules() {
-	seeded := s.server.OpenSchema(s.T(), "antibot_seeded", migrations.FS)
+	seeded := s.database.OpenSchema(s.T(), "antibot_seeded", migrations.FS)
 
 	set, err := cprules.NewPostgresStore(seeded, guard.Parts()).Set(s.T().Context(), cprules.Default)
 

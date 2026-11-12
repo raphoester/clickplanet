@@ -52,6 +52,10 @@ make historic-scripts
 make zernio-spec
 make zernio
 
+# Check each module's migrations; with BASE, also against a database that ran every migration of that revision
+# (see migrations.md)
+make check-migrations BASE=origin/main
+
 # Build Docker image
 make dBuild
 

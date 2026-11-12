@@ -13,7 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards/postgres_card_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 var (
 	at    = time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
@@ -44,7 +49,7 @@ func names(t *testing.T, db cppg.Conn) []string {
 }
 
 func TestABackgroundKeptAgainTakesItsNewName(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "promo", migrations.FS)
 	store := postgres_background_store.New(db)
 
 	kept(t, store, war, "War")
@@ -54,7 +59,7 @@ func TestABackgroundKeptAgainTakesItsNewName(t *testing.T) {
 }
 
 func TestABackgroundRemovedIsGone(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "promo", migrations.FS)
 	store := postgres_background_store.New(db)
 	kept(t, store, war, "The war")
 
@@ -65,7 +70,7 @@ func TestABackgroundRemovedIsGone(t *testing.T) {
 }
 
 func TestABackgroundACardShowsStaysAndTheSetsAreNamed(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "promo", migrations.FS)
 	store := postgres_background_store.New(db)
 	kept(t, store, war, "The war")
 	for _, set := range []cards.SetName{"urf", "rush"} {

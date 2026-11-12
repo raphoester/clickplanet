@@ -12,11 +12,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_rules_handler/rules_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/postgres_rules_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestTheRulesAreReadAsTheStoreKeptThem(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "missions", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "missions", migrations.FS)
 	message := &missionsv1.Rules{FlagMissions: &missionsv1.FlagMissionRules{GoalPercent: 40, LeastGoal: 300, FewestPoints: 2, MostPoints: 8}}
 	saved, err := rules.RulesOf(message)
 	require.NoError(t, err)

@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler/totals_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -41,7 +42,7 @@ var (
 )
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "missions", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "missions", migrations.FS)
 	s.calendar = postgres_day_store.New(s.db)
 	s.store = postgres_mission_store.New(s.db)
 }

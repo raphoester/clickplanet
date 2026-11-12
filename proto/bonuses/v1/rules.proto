@@ -74,4 +74,17 @@ message QuizRules {
   // How much a question leans to the countries that hold the most; 0 is a flat draw.
   optional double leader_bias = 7;
   optional uint32 max_charges_per_hour = 8;
+  // The difficulty-weighted draw, inside the subject's questions the lean picked. The chance of a right answer, for an
+  // average player, it aims at: 0.34 to 0.99.
+  optional double target = 9;
+  // How wide the bell around target is, on the rating scale: a question this far from target weighs 0.61 of one on it,
+  // twice as far 0.14. 0 is off, the draw of before: no question weighs more for how hard it is, and none is left out.
+  optional double width = 10;
+  // A question whose rating says fewer than this share of average players get it right, once floor_after answers moved
+  // it, is never drawn. A prior alone never leaves a question out. At most target.
+  optional double floor = 11;
+  optional uint32 floor_after = 12;
+  // The share of draws that ignore how hard a question is, so every question keeps being asked; never one under the
+  // floor. 0 to 1.
+  optional double explore = 13;
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/postgres_verdict_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 var at = time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)
@@ -27,7 +27,7 @@ func names(listed *clipsv1.ListNameVerdictsResponse) []string {
 }
 
 func TestTheVerdictsAreListedTheNewestFirstAndTheHiddenAlone(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "clips", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "clips", migrations.FS)
 	store, query := postgres_verdict_store.New(db), verdicts_query.NewPostgresQuery(db)
 	ada, ira := verdicts.AccountID(uuid.New()), verdicts.AccountID(uuid.New())
 	require.NoError(t, store.Keep(t.Context(), verdicts.Judged(map[verdicts.AccountID]string{ada: "Ada"},

@@ -12,12 +12,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rules_handler/rule_sets_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 func TestTheSetsComeDefaultFirstThenByNameAsKept(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "planet", migrations.FS)
 	rush := rules.Named("rush", func(r *planetv1.Rules) { r.Clicks.Tempo = proto.Float64(3) })
 	set, err := rush.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)

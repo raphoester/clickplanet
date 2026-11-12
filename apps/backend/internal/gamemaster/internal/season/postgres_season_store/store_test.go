@@ -11,11 +11,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/postgres_season_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestThePostgresStoreKeepsTheContract(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 
 	suite.Run(t, &season.StoreContractSuite{
 		NewStore: func() season.Store {
@@ -26,7 +30,7 @@ func TestThePostgresStoreKeepsTheContract(t *testing.T) {
 }
 
 func TestSeasonZeroIsSeededWithItsFinalBattleOn31OctoberFrom21To23(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "gamemaster", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 
 	calendar, err := postgres_season_store.New(db).Calendar(t.Context())
 

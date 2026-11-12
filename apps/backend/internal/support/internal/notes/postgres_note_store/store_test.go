@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
@@ -26,7 +27,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
 	store := postgres_note_store.New(s.db)
 	s.NewStorage = func() notes.Storage { return store }
 	s.Kept = func(notes.Storage) []notes.Snapshot { return s.kept() }

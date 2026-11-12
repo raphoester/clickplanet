@@ -35,7 +35,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis/cpredistest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support"
 )
@@ -55,7 +57,7 @@ type gameStack struct {
 	consoleURL string
 	adminURL   string
 	fakes      auth.FakeProviders
-	postgres   *cppg.TestServer
+	postgres   *cppgtest.Server
 	missions   *cppg.Postgres
 	redis      cpredis.Config
 }
@@ -63,8 +65,8 @@ type gameStack struct {
 func startGame(t *testing.T) gameStack {
 	t.Helper()
 
-	postgres := cppg.StartTestServer(t)
-	redis := cpredis.StartTestServer(t).Config()
+	postgres := cppgtest.StartServer(t)
+	redis := cpredistest.StartServer(t).Config()
 	secret, _ := cpsession.TestKeyPair()
 	public, internal, console, admin := listen(t), listen(t), listen(t), listen(t)
 	server := cpbootstrap.ServerConfig{

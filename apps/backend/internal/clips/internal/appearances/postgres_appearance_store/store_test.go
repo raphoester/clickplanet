@@ -17,6 +17,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/postgres_optout_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -44,7 +45,7 @@ func (l links) Of(context.Context, []string) (map[appearances_query.PostOnPlatfo
 var now = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "clips", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "clips", migrations.FS)
 	s.store = postgres_appearance_store.New(s.db)
 	s.links = links{}
 	s.query = appearances_query.NewPostgresQuery(s.db, s.links, cptime.NewFixedClock(now))

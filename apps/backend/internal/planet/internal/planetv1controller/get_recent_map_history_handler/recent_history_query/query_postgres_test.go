@@ -24,8 +24,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/postgres_reset_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
@@ -89,7 +94,7 @@ func mapOf(owners ...string) clicks.DenseBatch {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
+	s.db = server.CreateDatabase(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
 	s.store = postgres_ledger_store.New(s.db)
 }
 

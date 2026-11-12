@@ -18,12 +18,12 @@ const draws = 30000
 func subjectCounts(t *testing.T, lean float64, shares quizzes.Shares) map[string]int {
 	t.Helper()
 
-	bank, err := quizzes.Load(shares)
+	bank, err := quizzes.Load(shares, nil)
 	require.NoError(t, err)
 
 	counts := map[string]int{}
 	for range draws {
-		counts[bank.Draw(lean).Question.Subject]++
+		counts[bank.Draw(lean, quizzes.Fit{}).Question.Subject]++
 	}
 
 	return counts
@@ -32,12 +32,12 @@ func subjectCounts(t *testing.T, lean float64, shares quizzes.Shares) map[string
 func drawsWhere(t *testing.T, lean float64, shares quizzes.Shares, n int, match func(quizzes.Question) bool) int {
 	t.Helper()
 
-	bank, err := quizzes.Load(shares)
+	bank, err := quizzes.Load(shares, nil)
 	require.NoError(t, err)
 
 	matched := 0
 	for range n {
-		if match(bank.Draw(lean).Question) {
+		if match(bank.Draw(lean, quizzes.Fit{}).Question) {
 			matched++
 		}
 	}
@@ -84,12 +84,12 @@ func TestNoBoardIsAFlatDraw(t *testing.T) {
 
 func TestTheDrawReadsTheBoardAsItIsNow(t *testing.T) {
 	live := board{}
-	bank, err := quizzes.Load(live)
+	bank, err := quizzes.Load(live, nil)
 	require.NoError(t, err)
 
 	before := 0
 	for range draws {
-		if bank.Draw(1).Question.Subject == "bg" {
+		if bank.Draw(1, quizzes.Fit{}).Question.Subject == "bg" {
 			before++
 		}
 	}
@@ -98,7 +98,7 @@ func TestTheDrawReadsTheBoardAsItIsNow(t *testing.T) {
 
 	after := 0
 	for range draws {
-		if bank.Draw(1).Question.Subject == "bg" {
+		if bank.Draw(1, quizzes.Fit{}).Question.Subject == "bg" {
 			after++
 		}
 	}

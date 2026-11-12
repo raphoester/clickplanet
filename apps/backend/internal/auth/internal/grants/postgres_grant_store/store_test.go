@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/postgres_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -31,7 +32,7 @@ type testSuite struct {
 var at = time.Date(2026, 11, 3, 12, 0, 0, 0, time.UTC)
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "auth", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "auth", migrations.FS)
 	sealer, err := aes_grant_sealer.New(bytes.Repeat([]byte{1}, 32))
 	s.Require().NoError(err)
 	s.sealer = sealer

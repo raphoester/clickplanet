@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -26,7 +27,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "planet", migrations.FS)
 	s.store = postgres_tile_store.New(s.db)
 }
 

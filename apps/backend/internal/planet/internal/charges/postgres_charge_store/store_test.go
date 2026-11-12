@@ -10,11 +10,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/postgres_charge_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestThePostgresStoreKeepsTheContract(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 
 	suite.Run(t, &charges.StoreContractSuite{
 		NewStore: func() charges.Store {
@@ -28,7 +32,7 @@ func TestThePostgresStoreKeepsTheContract(t *testing.T) {
 }
 
 func TestAnEmptyHandIsNoRow(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	store := postgres_charge_store.New(db)
 	const alice charges.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 	rows := func() int {

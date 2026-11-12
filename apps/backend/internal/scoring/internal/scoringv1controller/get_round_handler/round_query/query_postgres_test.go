@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_round_handler/round_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/scoringv1controller/get_scores_handler/scores_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -54,7 +55,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "scoring", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "scoring", migrations.FS)
 	s.rounds = postgres_round_store.New(s.db)
 }
 

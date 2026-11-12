@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos/postgres_video_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -36,7 +37,7 @@ func (links) DownloadURL(id videos.VideoID, fileName string) (string, error) {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "clips", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "clips", migrations.FS)
 	s.store = postgres_video_store.New(s.db)
 	s.query = videos_query.NewPostgresQuery(s.db, links{})
 }

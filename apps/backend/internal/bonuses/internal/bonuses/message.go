@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
@@ -42,6 +43,13 @@ func RulesOf(m *bonusesv1.Rules) Rules {
 			AnswerWindow:      duration(quiz.GetAnswerWindow()),
 			LeaderBias:        quiz.GetLeaderBias(),
 			MaxChargesPerHour: int(quiz.GetMaxChargesPerHour()),
+			Fit: quizzes.Fit{
+				Target:     quiz.GetTarget(),
+				Width:      quiz.GetWidth(),
+				Floor:      quiz.GetFloor(),
+				FloorAfter: int(quiz.GetFloorAfter()),
+				Explore:    quiz.GetExplore(),
+			},
 		},
 		SignInRefill: m.GetSignInRefill(),
 		Frozen:       m.GetFrozen(),

@@ -15,6 +15,10 @@ cd apps/frontend && npm run quiz:generate   # rewrite /quiz/bank.json
 cd apps/backend && make quiz                # → apps/backend/generated/quiz (embedded)
 ```
 
+**A question may carry `prior`**, the share of players expected to get it right, from a third to 1: the backend starts
+the question's rating there, and a question with none starts at 0.6. The field is optional, so the bank's `format`
+stays 1 and a backend reads a bank with or without it (see [How hard each quiz question is](../apps/backend/docs/quiz-difficulty.md#priors)).
+
 About 820 of the questions are **derived** from the same pinned Natural Earth snapshot `map/` is cut
 from and from the tile borders themselves, so they are regenerated rather than corrected; the rest
 are hand-written in `apps/frontend/scripts/quiz/extra.json` for what no dataset here can answer. See

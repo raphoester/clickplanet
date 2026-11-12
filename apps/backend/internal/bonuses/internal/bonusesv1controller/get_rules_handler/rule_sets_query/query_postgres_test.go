@@ -12,12 +12,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 func TestTheSetsComeDefaultFirstThenByNameAsKept(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "bonuses", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "bonuses", migrations.FS)
 	rush := rules.Named("rush", func(r *bonusesv1.Rules) { r.Spread.MaxPerBox = proto.Uint32(8) })
 	set, err := rush.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
