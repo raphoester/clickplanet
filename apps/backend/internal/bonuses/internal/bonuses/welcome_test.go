@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -77,7 +78,7 @@ func answerRight(t *testing.T, r *Registry, quiz *QuizOffer, entrant Entrant) An
 
 	answered, ok := r.AnswerQuiz(quiz.Token, entrant, indexOf(asked.Options, rightAnswer))
 	require.True(t, ok)
-	require.True(t, answered.Correct)
+	require.Equal(t, ratings.Right, answered.Outcome)
 
 	return answered
 }

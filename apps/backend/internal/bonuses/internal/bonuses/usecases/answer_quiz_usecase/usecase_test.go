@@ -76,12 +76,12 @@ func newCountedUseCase(
 }
 
 func rightFor(kind bonuses.Kind, amount int) bonuses.Answered {
-	return bonuses.Answered{Correct: true, Reward: bonuses.Reward{Kind: kind, Amount: amount}}
+	return bonuses.Answered{Outcome: ratings.Right, Reward: bonuses.Reward{Kind: kind, Amount: amount}}
 }
 
 func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
 	useCase, registry, store := newUseCase(bonuses.Answered{
-		Correct:       true,
+		Outcome:       ratings.Right,
 		CorrectChoice: 2,
 		Reward:        bonuses.Reward{Kind: bonuses.KindSpreadClicks, Amount: 3},
 		Subject:       "ee",
@@ -107,7 +107,7 @@ func TestARightAnswerGrantsTheChargeAndTellsThePlanet(t *testing.T) {
 }
 
 func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
-	useCase, registry, store := newUseCase(bonuses.Answered{CorrectChoice: 1}, true)
+	useCase, registry, store := newUseCase(bonuses.Answered{Outcome: ratings.Wrong, CorrectChoice: 1}, true)
 	store.Keep(guest.Account, bonuses.Hand{Shields: 4})
 
 	out, err := useCase.Execute(t.Context(), answerOf("t", 0, "bg"))
@@ -123,9 +123,10 @@ func TestAWrongAnswerChangesNothingAndTellsNobody(t *testing.T) {
 }
 
 func TestEveryAnswerIsToldToTheOtherModulesRightOrWrong(t *testing.T) {
-	for _, correct := range []bool{true, false} {
+	for _, outcome := range []ratings.Outcome{ratings.Right, ratings.Wrong, ratings.TimedOut} {
+		correct := outcome == ratings.Right
 		events := cpredis.NewRecordedEvents()
-		registry := &fakeRegistry{answered: bonuses.Answered{Correct: correct, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1}}, known: true}
+		registry := &fakeRegistry{answered: bonuses.Answered{Outcome: outcome, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1}}, known: true}
 		wallet := bonuses.NewFakeWallet()
 
 		_, err := answer_quiz_usecase.New(registry, wallet, &counted{}, events, cptime.NewFixedClock(now)).
@@ -135,7 +136,7 @@ func TestEveryAnswerIsToldToTheOtherModulesRightOrWrong(t *testing.T) {
 		require.Len(t, events.Published(), 1)
 		assert.True(t, proto.Equal(&bonusesv1.QuizAnswered{
 			AccountId: string(guest.Account), Correct: correct, AnsweredAt: timestamppb.New(now),
-		}, events.Published()[0]), "correct: %v", correct)
+		}, events.Published()[0]), "outcome: %v", outcome)
 	}
 }
 
@@ -186,10 +187,10 @@ func TestAFailedGrantIsNotARefusalAndIsToldToNobody(t *testing.T) {
 	assert.Empty(t, events.Published())
 }
 
-func TestEveryAnswerIsCountedForItsQuestionRightOrWrong(t *testing.T) {
-	for _, correct := range []bool{true, false} {
+func TestEveryAnswerIsCountedForItsQuestionWithItsOutcome(t *testing.T) {
+	for _, outcome := range []ratings.Outcome{ratings.Right, ratings.Wrong, ratings.TimedOut} {
 		useCase, _, _, answers := newCountedUseCase(bonuses.Answered{
-			Correct: correct, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1},
+			Outcome: outcome, Reward: bonuses.Reward{Kind: bonuses.KindRefill, Amount: 1},
 			Question: "capital:ee", After: 3 * time.Second,
 		}, true)
 
@@ -199,21 +200,20 @@ func TestEveryAnswerIsCountedForItsQuestionRightOrWrong(t *testing.T) {
 		account, err := ratings.AccountIDOf(string(guest.Account))
 		require.NoError(t, err)
 		assert.Equal(t, []ratings.Answer{{
-			Question: "capital:ee", Account: account, Correct: correct, After: 3 * time.Second, At: now,
-		}}, answers.answers, "correct: %v", correct)
+			Question: "capital:ee", Account: account, Outcome: outcome, After: 3 * time.Second, At: now,
+		}}, answers.answers, "outcome: %v", outcome)
 	}
 }
 
-func TestATimeoutIsCountedWrongAndTimedOut(t *testing.T) {
-	useCase, _, _, answers := newCountedUseCase(bonuses.Answered{Question: "capital:ee", TimedOut: true}, true)
+func TestATimeoutIsWrongToThePlayerAndCountedAsATimeout(t *testing.T) {
+	useCase, _, _, answers := newCountedUseCase(bonuses.Answered{Question: "capital:ee", Outcome: ratings.TimedOut}, true)
 
 	out, err := useCase.Execute(t.Context(), answerOf("t", 3, ""))
 	require.NoError(t, err)
 
 	assert.False(t, out.Correct)
 	require.Len(t, answers.answers, 1)
-	assert.True(t, answers.answers[0].TimedOut)
-	assert.False(t, answers.answers[0].Correct)
+	assert.Equal(t, ratings.TimedOut, answers.answers[0].Outcome)
 }
 
 func TestACallerWithNoAccountIsCountedWithNone(t *testing.T) {
@@ -231,14 +231,14 @@ func TestACallerWithNoAccountIsCountedWithNone(t *testing.T) {
 
 func TestALateAnswerIsCountedAndTheQuizIsStillGone(t *testing.T) {
 	useCase, registry, wallet, answers := newCountedUseCase(bonuses.Answered{
-		Question: "capital:ee", TimedOut: true, Late: true, CorrectChoice: 2,
+		Question: "capital:ee", Outcome: ratings.TimedOut, Late: true, CorrectChoice: 2,
 	}, true)
 
 	_, err := useCase.Execute(t.Context(), answerOf("t", 3, ""))
 
 	require.ErrorIs(t, err, answer_quiz_usecase.ErrNoSuchQuiz, "to the player the quiz lapsed, as it did before")
 	require.Len(t, answers.answers, 1)
-	assert.False(t, answers.answers[0].Correct)
+	assert.Equal(t, ratings.TimedOut, answers.answers[0].Outcome)
 	assert.Empty(t, registry.published)
 	assert.Empty(t, wallet.Payments())
 }

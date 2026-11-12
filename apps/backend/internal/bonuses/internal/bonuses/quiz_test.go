@@ -168,7 +168,7 @@ func TestARightAnswerInTimeIsWorthACharge(t *testing.T) {
 
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
 	require.True(t, ok)
-	assert.True(t, answered.Correct)
+	assert.Equal(t, ratings.Right, answered.Outcome)
 	assert.Equal(t, KindRefill, answered.Reward.Kind)
 	assert.Equal(t, "ee", answered.Subject, "the broadcast says what the question was about")
 }
@@ -179,7 +179,7 @@ func TestAWrongAnswerLandsAndIsWorthNothing(t *testing.T) {
 
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, wrongAnswer))
 	require.True(t, ok, "a wrong answer is not a failed call")
-	assert.False(t, answered.Correct)
+	assert.Equal(t, ratings.Wrong, answered.Outcome)
 	assert.Empty(t, answered.Reward.Kind)
 	assert.Equal(t, indexOf(asked.Options, rightAnswer), answered.CorrectChoice,
 		"it says which one was right, so the player learns something")
@@ -191,7 +191,7 @@ func TestAChoicePastTheEndIsWrongRatherThanAFault(t *testing.T) {
 
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", 99)
 	require.True(t, ok)
-	assert.False(t, answered.Correct)
+	assert.Equal(t, ratings.TimedOut, answered.Outcome)
 }
 
 func TestAnAnswerPastTheDeadlineIsWorthNothing(t *testing.T) {
@@ -202,7 +202,7 @@ func TestAnAnswerPastTheDeadlineIsWorthNothing(t *testing.T) {
 
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
 	require.True(t, ok)
-	assert.False(t, answered.Correct, "the deadline is the server's own stamp, not the client's countdown")
+	assert.Equal(t, ratings.Wrong, answered.Outcome, "the deadline is the server's own stamp, not the client's countdown")
 }
 
 func TestAQuizCannotBeAnsweredWithoutBeingRead(t *testing.T) {
@@ -348,7 +348,7 @@ func TestAQuestionOpenedAndLeftLapsesAtItsDeadline(t *testing.T) {
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
 	require.True(t, ok, "an answer a moment late is still counted")
 	assert.True(t, answered.Late, "the sweep took it: to the player there is nothing left to answer")
-	assert.False(t, answered.Correct, "it came past the deadline")
+	assert.Equal(t, ratings.Wrong, answered.Outcome, "it came past the deadline")
 	assert.Zero(t, answered.Reward)
 }
 
@@ -362,7 +362,7 @@ func TestAnAnswerSaysItsQuestionAndHowLongAfterTheOpeningItLanded(t *testing.T) 
 	require.True(t, ok)
 	assert.Equal(t, ratings.QuestionID("capital:ee"), answered.Question)
 	assert.Equal(t, 2*time.Second, answered.After, "from the opening, not from the banner")
-	assert.False(t, answered.TimedOut)
+	assert.Equal(t, ratings.Wrong, answered.Outcome)
 	assert.False(t, answered.Late)
 }
 
@@ -372,8 +372,7 @@ func TestAChoicePastTheThreeIsThePagesTimeout(t *testing.T) {
 
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", len(asked.Options))
 	require.True(t, ok)
-	assert.True(t, answered.TimedOut)
-	assert.False(t, answered.Correct)
+	assert.Equal(t, ratings.TimedOut, answered.Outcome)
 }
 
 func TestALateAnswerIsCountedOnceAndChangesNoSchedule(t *testing.T) {
@@ -387,7 +386,7 @@ func TestALateAnswerIsCountedOnceAndChangesNoSchedule(t *testing.T) {
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", len(asked.Options))
 	require.True(t, ok)
 	assert.True(t, answered.Late)
-	assert.True(t, answered.TimedOut, "the page's timeout, which reached the server after the sweep")
+	assert.Equal(t, ratings.TimedOut, answered.Outcome, "the page's timeout, which reached the server after the sweep")
 	assert.Equal(t, answerIn+time.Second, answered.After)
 
 	assert.Equal(t, 1, registry.callers["scope-a"].quizMisses, "it lapsed: a miss, as before")
@@ -489,7 +488,7 @@ func TestQuizzesStopAtTheirOwnHourlyCap(t *testing.T) {
 
 		answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", indexOf(asked.Options, rightAnswer))
 		require.True(t, ok)
-		require.True(t, answered.Correct)
+		require.Equal(t, ratings.Right, answered.Outcome)
 	}
 
 	clicked(registry, "scope-a")

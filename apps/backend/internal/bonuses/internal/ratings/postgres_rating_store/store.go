@@ -27,9 +27,9 @@ func (s *Store) SaveAnswer(ctx context.Context, answer ratings.Answer) error {
 	}
 
 	if _, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO quiz_answers (question_id, account_id, correct, timed_out, answer_ms, answered_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`, string(answer.Question), account, answer.Correct, answer.TimedOut, max(answer.After.Milliseconds(), 0),
+		INSERT INTO quiz_answers (question_id, account_id, outcome, answer_ms, answered_at)
+		VALUES ($1, $2, $3, $4, $5)
+	`, string(answer.Question), account, string(answer.Outcome), max(answer.After.Milliseconds(), 0),
 		answer.At); err != nil {
 		return fmt.Errorf("failed to save an answer to %s: %w", answer.Question, err)
 	}

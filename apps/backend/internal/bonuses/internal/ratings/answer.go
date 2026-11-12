@@ -28,6 +28,16 @@ func AccountIDOf(value string) (AccountID, error) {
 	return AccountID(id), nil
 }
 
+type Outcome string
+
+const (
+	Right Outcome = "right"
+	// Wrong is a wrong choice, or any choice past the deadline.
+	Wrong Outcome = "wrong"
+	// TimedOut is the page's own timeout: a choice past the three, which is wrong.
+	TimedOut Outcome = "timed_out"
+)
+
 // Answer is one answer the ratings count: an opened question answered right or wrong, a timeout the page sent, or an
 // answer past the deadline. A banner never opened, and a question opened and left to lapse, are not answers.
 type Answer struct {
@@ -36,10 +46,7 @@ type Answer struct {
 	// Account is NoAccount for a caller with none: its answer still counts for the question.
 	Account AccountID
 
-	Correct bool
-
-	// TimedOut is the page's own timeout: a choice past the three, which is wrong.
-	TimedOut bool
+	Outcome Outcome
 
 	// After is how long after the question was opened the answer landed.
 	After time.Duration

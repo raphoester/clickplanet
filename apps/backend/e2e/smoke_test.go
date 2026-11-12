@@ -194,8 +194,8 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	// No quiz comes within a test: the answer it gave is written as the offers write one.
 	bonuses := s.game.schema(t, "bonuses")
 	_, err := bonuses.On(t.Context()).ExecContext(t.Context(), `
-		INSERT INTO quiz_answers (question_id, account_id, correct, timed_out, answer_ms, answered_at)
-		VALUES ('capital:ee', $1, true, false, 2500, now())`, account)
+		INSERT INTO quiz_answers (question_id, account_id, outcome, answer_ms, answered_at)
+		VALUES ('capital:ee', $1, 'right', 2500, now())`, account)
 	require.NoError(t, err)
 	answerer := func() *string {
 		var kept *string

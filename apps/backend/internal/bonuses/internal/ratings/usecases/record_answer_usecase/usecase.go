@@ -50,7 +50,7 @@ func (u *UseCase) Execute(ctx context.Context, answer ratings.Answer) error {
 	stripe.Lock()
 	defer stripe.Unlock()
 
-	rating := u.rated.Rating(answer.Question).Answered(answer.Correct)
+	rating := u.rated.Rating(answer.Question).Answered(answer.Outcome)
 
 	if err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if err := u.store.SaveAnswer(ctx, answer); err != nil {

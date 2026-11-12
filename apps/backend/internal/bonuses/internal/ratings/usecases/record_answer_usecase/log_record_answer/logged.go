@@ -24,7 +24,7 @@ func (l *Logged) Execute(ctx context.Context, answer ratings.Answer) error {
 	err := l.inner.Execute(ctx, answer)
 	if err != nil {
 		l.logger.Error("failed to count a quiz answer; the player's answer stands, its question's rating is one short",
-			slog.String("question", string(answer.Question)), slog.Bool("correct", answer.Correct),
+			slog.String("question", string(answer.Question)), slog.String("outcome", string(answer.Outcome)),
 			slog.Any("error", err))
 	}
 	return err //nolint:wrapcheck // a decorator adds a log line, not a sentence.

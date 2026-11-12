@@ -69,18 +69,18 @@ func (r Rating) Chance() float64 {
 // P, Δd = −w·(y − P)/P′, taken exactly on the chance scale, where a step near either end cannot overshoot. With players
 // at 0 it is exactly a running mean of the answers on the chance scale, the prior counting as priorAnswers of them,
 // until the step reaches its floor: from there each answer weighs the same.
-func (r Rating) Answered(correct bool) Rating {
+func (r Rating) Answered(outcome Outcome) Rating {
 	answers := r.answers + 1
 	step := math.Max(1/float64(answers+priorAnswers), floorWeight)
 
 	expected := chanceOf(averagePlayer, r.level)
-	outcome, right := 0.0, r.right
-	if correct {
-		outcome, right = 1, right+1
+	happened, right := 0.0, r.right
+	if outcome == Right {
+		happened, right = 1, right+1
 	}
 
 	return Rating{
-		level:   levelOf(averagePlayer, expected+step*(outcome-expected)),
+		level:   levelOf(averagePlayer, expected+step*(happened-expected)),
 		answers: answers,
 		right:   right,
 	}
