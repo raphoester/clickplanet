@@ -59,6 +59,19 @@ export function Inspection({value, caller, onOpenScope}: InspectionProps) {
                     : "no"}
             </Fact>
             {value.pardonedUntil !== undefined && <Fact label="Pardoned">until <When at={value.pardonedUntil}/></Fact>}
+            {isAccount(caller) && (
+                <Fact label="Warned">
+                    {value.warnedAt === undefined
+                        ? "no"
+                        : (
+                            <>
+                                <When at={value.warnedAt}/>, {value.warningAcknowledgedAt === undefined
+                                    ? "not confirmed yet"
+                                    : <>confirmed <When at={value.warningAcknowledgedAt}/></>}
+                            </>
+                        )}
+                </Fact>
+            )}
             <Fact label="Watched">{value.tracked === true ? `yes, ${value.flags} flags` : "no"}</Fact>
             <Fact label="Suspects">
                 {`${value.suspects} of ${value.minSuspects}`}{value.guilty === true && ", guilty"}

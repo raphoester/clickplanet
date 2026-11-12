@@ -331,7 +331,7 @@ describe("ReportDetail", () => {
         fireEvent.click(verdict().getByRole("checkbox", {name: "Ban"}))
         confirm("Act and close", "Yes, act and close")
         expect((await verdict().findByRole("alert")).textContent).toMatch(new RegExp(
-            "^Muted until .*\\. The antibot is off on this server, so it cannot ban, unban or inspect\\. The report is still open\\.$"))
+            "^Muted until .*\\. The antibot is off on this server, so it cannot ban, unban, warn or inspect\\. The report is still open\\.$"))
         expect(admin.askedFor("decideReport")).toEqual([])
         expect(seen.closed).toEqual([])
     })

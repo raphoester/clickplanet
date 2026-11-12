@@ -33,6 +33,8 @@ import {
     SaveRuleSetResponse as AntibotSaveRuleSetResponse,
     UnbanPlayerRequest,
     UnbanPlayerResponse,
+    WarnPlayerRequest,
+    WarnPlayerResponse,
 } from "./gen/grpc/antibot/v1/admin_pb.ts"
 import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
 import {
@@ -279,6 +281,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         new Player({scope: "2001:db8:1:2::/64", tiles: 40, takes: 50}),
     ]
     inspection = new InspectPlayerResponse({accountId: "account-reported", clicks: 42, banned: false})
+    warning = new WarnPlayerResponse({accountId: ACCOUNT, warnedAt: Timestamp.fromDate(AT)})
     // The set the migration keeps, in part: the fake keeps what it is given and checks nothing.
     // The numbers missions draws with, as migration 20261106180000_rules seeds them.
     missionRules = MissionRules.fromJson({flagMissions: {goalPercent: 30, leastGoal: 250, fewestPoints: 3, mostPoints: 10}})
@@ -724,6 +727,10 @@ export class FakeAntibot implements AntibotAdmin {
     unbanPlayer(request: PartialMessage<UnbanPlayerRequest>): Promise<UnbanPlayerResponse> {
         return this.admin.answer("unbanPlayer", request,
             new UnbanPlayerResponse({offence: 2, bannedUntil: Timestamp.fromDate(AT), pardonedUntil: Timestamp.fromDate(AT)}))
+    }
+
+    warnPlayer(request: PartialMessage<WarnPlayerRequest>): Promise<WarnPlayerResponse> {
+        return this.admin.answer("warnPlayer", request, this.admin.warning)
     }
 
     inspectPlayer(request: PartialMessage<InspectPlayerRequest>): Promise<InspectPlayerResponse> {

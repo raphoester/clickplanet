@@ -26,7 +26,8 @@ address>`), so Back goes to the list, as it was.
   soon as it may click, so it is most likely a script. A row with no account is "No account". **Names that cannot be
   read leave the list listed**, every account "Unnamed", with the reason above it.
 - **The player page** (`PlayerView`), top down: its flag and its name (or its address), **where it stands**
-  (`Standing`: banned until when and the offence, the jury's opinion, a pardon, and for an account muted until when,
+  (`Standing`: banned until when and the offence, the jury's opinion, a pardon, the "One account per player" warning
+  and whether the player confirmed it, and for an account muted until when,
   from `chat.v1.AdminService/GetMute`, "by a mute on its network" when another account's mute holds it, and "GIFs
   muted until" when a mute of its GIFs holds it: `mutingsOf` asks `GetMute` once per kind), its account
   and its address with Copy,
@@ -62,13 +63,17 @@ address>`), so Back goes to the list, as it was.
   and no line is tagged: there is no report. An address has no messages, since the chat keeps them by account, and is
   not asked.
 - **The page inspects on open** (`antibot.v1.AdminService/InspectPlayer`, `readingOf`): the antibot's readings, its
-  ban, its pardon and its clicks. The antibot off (its service absent, `unimplemented`) reads as such, not as a
-  failure. A ban or an unban reads it again, and a mute or an unmute reads `GetMute` again.
+  ban, its pardon, for an account its warning (Warned: when, and when the player confirmed it), and its clicks. The
+  antibot off (its service absent, `unimplemented`) reads as such, not as a failure. A ban, an unban or a warning reads it again, and a mute or an unmute reads `GetMute` again.
 - **The ban tools are the antibot's** (`antibot.v1.AdminService`, the `antibot` client), since the antibot became a
   module of its own. A ban reaches planet a moment after its answer.
 - **The tools, one at a time behind tabs**, so the page stays short: Ban (`BanPlayer`, the ladder's next step by
   default), Unban (`UnbanPlayer`, which forgets the latest offence and pardons the key, and says until when;
-  `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Mute (`Mute`), Unmute
+  `not_found` is no ban left), Revert (`RevertPlayer`, dry run first), and for an account alone Warn (`WarnPlayer`, the
+  jury's "One account per player" warning given by hand, which the player sees at once: `Warned …`, or, for an account
+  warned before, `Already warned …` with whether it confirmed it, and nothing changed; `failed_precondition` is the bans
+  not enforced on this server, so nobody is warned; see the backend's
+  [Operator tools](../../backend/docs/admin.md#manual-bans-findplayers-topplayers-banplayer-unbanplayer-revertplayer-inspectplayer)), Mute (`Mute`), Unmute
   (`Unmute`, which ends every mute given to the account and says until when it was muted; `not_found` is no mute of
   its own: a mute on its network given to another account is lifted from that account's page). **Both ask "Mute
   what"** (`MuteKindPicker`): the whole chat, or GIFs alone (the player still writes and reacts). One kind is muted

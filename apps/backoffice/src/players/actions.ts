@@ -31,6 +31,8 @@ export type Mutings = {chat: Muting, gifs: Muting}
 export const UNMUTED: Mutings = {chat: undefined, gifs: undefined}
 export type Banned = {until: Date, offence: number, enforced: boolean}
 export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil: Date | undefined}
+// `already`: the account was warned before, at `at`, and nothing changed.
+export type Warned = {at: Date, already: boolean, acknowledgedAt: Date | undefined}
 export type Reverted = {touched: number, held: number, restored: number}
 export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadClicks: number, shields: number}
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
@@ -111,6 +113,12 @@ export async function ban(antibot: AntibotAdmin, caller: Caller, seconds: number
 export async function unban(antibot: AntibotAdmin, caller: Caller): Promise<Unbanned> {
     const answer = await antibot.unbanPlayer(caller)
     return {offence: answer.offence, until: answer.bannedUntil?.toDate(), pardonedUntil: answer.pardonedUntil?.toDate()}
+}
+
+// An account is warned once, ever: a second call answers the first warning.
+export async function warn(antibot: AntibotAdmin, accountId: string): Promise<Warned> {
+    const answer = await antibot.warnPlayer({accountId})
+    return {at: dateOf(answer.warnedAt), already: answer.alreadyWarned, acknowledgedAt: answer.acknowledgedAt?.toDate()}
 }
 
 // Paced on the server, a tile at a time on the live stream: a big revert takes seconds.
@@ -254,10 +262,20 @@ export function bannedWords(banned: Banned): string {
         + (banned.enforced ? "" : " Not enforced: the antibot only watches on this server.")
 }
 
-export type Action =
-    "mute" | "unmute" | "ban" | "unban" | "revert" | "inspect" | "grant" | "release" | "rename" | "unlink" | "list" | "history"
+export function warnedWords(warned: Warned): string {
+    if (!warned.already) return `Warned ${timeOf(warned.at)}.`
+    return `Already warned ${timeOf(warned.at)}, ${confirmedWords(warned.acknowledgedAt)}. Nothing changed.`
+}
 
-export const ANTIBOT_OFF = "The antibot is off on this server, so it cannot ban, unban or inspect."
+export function confirmedWords(acknowledgedAt: Date | undefined): string {
+    return acknowledgedAt === undefined ? "not confirmed yet" : `confirmed ${timeOf(acknowledgedAt)}`
+}
+
+export type Action =
+    "mute" | "unmute" | "ban" | "unban" | "warn" | "revert" | "inspect" | "grant" | "release" | "rename" | "unlink" | "list" | "history"
+
+export const ANTIBOT_OFF = "The antibot is off on this server, so it cannot ban, unban, warn or inspect."
+export const NOT_ENFORCED = "The antibot does not enforce its bans on this server (bans.enforce is off), so it warns nobody."
 export const NOT_BANNED = "This player has no ban left to lift."
 export const NOT_MUTED = "This player has no mute of its own to lift."
 export const ALERTS_OFF = "Discord pings are off on this server, so no account is linked to Discord."
@@ -268,6 +286,7 @@ const MEANINGS: Record<Action, Meanings> = {
     unmute: {notFound: NOT_MUTED},
     ban: {unimplemented: ANTIBOT_OFF},
     unban: {notFound: NOT_BANNED, unimplemented: ANTIBOT_OFF},
+    warn: {failedPrecondition: NOT_ENFORCED, unimplemented: ANTIBOT_OFF},
     revert: {},
     inspect: {unimplemented: ANTIBOT_OFF},
     grant: {},

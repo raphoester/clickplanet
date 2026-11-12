@@ -18,7 +18,7 @@ planet ◀────────────── RefuseCaller, AdmitCaller (
 
 - **Its own block, `antiBot`** (`antibot.Config`: `enabled`, `database`, `redis`, and the watchdogs' blocks squashed
   in), its own `antibot` schema and pool, its own Redis connection, and its own `antibot.v1.AdminService`
-  (`BanPlayer`, `UnbanPlayer`, `InspectPlayer`, `GetRules`, `SaveRuleSet`; see [Operator tools](admin.md)). The block
+  (`BanPlayer`, `UnbanPlayer`, `WarnPlayer`, `InspectPlayer`, `GetRules`, `SaveRuleSet`; see [Operator tools](admin.md)). The block
   holds the machine only: **every bound below is a rule of the set in force**, kept in postgres and edited from the
   backoffice since 2026-10-26 ([The antibot's rules](antibot-rules.md)). A bound named here by its key (`minSuspects`,
   `bans.enforce`) is that rule.
@@ -133,6 +133,12 @@ the rule, before any ban.
   warning are in them: the main account's next click would read `certain` again, even if it stopped. So the jury tells
   the rotator to forget each warned account's slots up to the slot of its warning (`rotator.ForgetTurns`), and every
   reading is judged again. The ban comes 115 to 125 minutes of turns after the warning. A ring that stops plays on.
+- **The operator warns by hand too** (`WarnPlayer`, since 2026-11-12): one account, for a player known to play several
+  that the rotator has not read `certain`, such as one who said so in the chat. It runs the jury's own path
+  (`Jury.Warn`: the book keeps and shows the warning, the rotator forgets the account's turns up to it), so what
+  follows is the same: its ring is banned on a `suspect` reading, about two hours of turns after the warning. Only
+  that account is warned; the jury warns no ring that holds a warned account, it bans it. Not enforced, it is refused
+  and nothing is kept; an account warned before answers its first warning. See [Operator tools](admin.md).
 - **A boot forgets them again.** The evidence saved before a warning comes back after a crash, so `Guard.Load`, after
   the evidence, forgets the turns before every warning inside the rotator's `window`.
 - **Each account is warned once, ever** (`antibot.warnings`, one row per account, the first kept), and never forgotten,
@@ -152,7 +158,7 @@ the rule, before any ban.
   `antibot_warnings_total`, and `warned_at` and `warning_acknowledged_at` in `InspectPlayer`. Its `guilty` reads the ring
   as warned when the account examined was.
 - `TestACertainReadingOfTurnsWarnsTheRingAndBansNobody` and `TestAWarnedRingIsBannedOnASuspectReadingAndNoNetwork` pin
-  the jury; `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned`, `TestARingThatStopsAtItsWarningPlaysOn` and
+  the jury; `TestAnOperatorsWarningBansTheRingOnTwoHoursOfTurnsAfterIt` the operator's warning; `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned`, `TestARingThatStopsAtItsWarningPlaysOn` and
   `TestABootForgetsTheTurnsBeforeAWarningTheEvidenceStillHeld` the guard; `listen_for_warnings_usecase`'s tests the
   stream.
 

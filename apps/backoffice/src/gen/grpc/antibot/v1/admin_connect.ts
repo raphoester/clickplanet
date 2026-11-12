@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BanPlayerRequest, BanPlayerResponse, GetRulesRequest, GetRulesResponse, InspectPlayerRequest, InspectPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, UnbanPlayerRequest, UnbanPlayerResponse } from "./admin_pb.js";
+import { BanPlayerRequest, BanPlayerResponse, GetRulesRequest, GetRulesResponse, InspectPlayerRequest, InspectPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, UnbanPlayerRequest, UnbanPlayerResponse, WarnPlayerRequest, WarnPlayerResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The operator's bans and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
+ * The operator's bans and warnings, and the rules the antibot judges with. No authentication of its own: served on the console listener, and on the admin listener behind
  * its gate. Never the public router. Each message reads on the wire as the planet.v1 one of the same name, which
  * served these calls until the antibot was a module of its own.
  *
@@ -41,6 +41,23 @@ export const AdminService = {
       name: "UnbanPlayer",
       I: UnbanPlayerRequest,
       O: UnbanPlayerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Warns one account that a player plays one account, as the jury warns a ring of accounts it reads taking turns. The
+     * player's page shows "One account per player" at once, or when it next opens, until the player holds to confirm.
+     * Nothing is refused: from then on, a ring with this account in it is banned on a suspect reading of turns (about
+     * two hours of turns), where a ring never warned needs a certain one (about four) and gets a warning first. Its
+     * turns before the warning never ban. An account is warned once, ever: a second call changes nothing and answers
+     * the first warning with already_warned. Only the account named is warned, not the accounts it plays with; ban an
+     * alt you know of with BanPlayer. FailedPrecondition when the rule bans.enforce is off: then nobody is warned.
+     *
+     * @generated from rpc antibot.v1.AdminService.WarnPlayer
+     */
+    warnPlayer: {
+      name: "WarnPlayer",
+      I: WarnPlayerRequest,
+      O: WarnPlayerResponse,
       kind: MethodKind.Unary,
     },
     /**

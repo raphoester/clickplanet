@@ -11,12 +11,12 @@ import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
 import {GetMuteResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
-import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
+import {InspectPlayerResponse, WarnPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Player as Identity} from "../gen/grpc/player/v1/player_pb.ts"
 import {AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
 import {CountryTiles, Stats} from "../gen/grpc/progression/v1/progression_pb.ts"
 import {Opened} from "../navigation.ts"
-import {ALERTS_OFF, NO_USERNAME} from "./actions.ts"
+import {ALERTS_OFF, ANTIBOT_OFF, NO_USERNAME, NOT_ENFORCED} from "./actions.ts"
 import {PlayersPage} from "./PlayersPage.tsx"
 import {NO_PROFILE} from "./ProfilePanel.tsx"
 
@@ -298,7 +298,7 @@ describe("one player", () => {
         admin.refuse("inspectPlayer", Code.Unimplemented)
         render(<Page admin={admin} first={account}/>)
 
-        expect(await screen.findByText("The antibot is off on this server, so it cannot ban, unban or inspect.")).toBeTruthy()
+        expect(await screen.findByText(ANTIBOT_OFF)).toBeTruthy()
     })
 
     it("bans, then reads the antibot again", async () => {
@@ -338,6 +338,43 @@ describe("one player", () => {
         admin.refuse("unbanPlayer", Code.NotFound)
         confirm("Unban", "Yes, unban")
         expect(await screen.findByText("This player has no ban left to lift.")).toBeTruthy()
+    })
+
+    it("warns an account, reads the antibot again, and says when it was warned before", async () => {
+        const admin = new FakeAdmin()
+        render(<Page admin={admin} first={account}/>)
+        await screen.findByText(/^42 in /)
+        expect(screen.queryByText(/^Warned /)).toBeNull()
+
+        tool("Warn")
+        admin.inspection = new InspectPlayerResponse({clicks: 42, banned: false, warnedAt: Timestamp.fromDate(AT)})
+        confirm("Warn", "Yes, warn")
+
+        expect(await screen.findByText(`Warned ${timeOf(AT)}.`)).toBeTruthy()
+        expect(await screen.findByText(`Warned ${timeOf(AT)}, not confirmed yet`)).toBeTruthy()
+        expect(admin.askedFor("warnPlayer")).toEqual([{accountId: ACCOUNT}])
+        expect(admin.askedFor("inspectPlayer")).toHaveLength(2)
+
+        const confirmed = new Date(AT.getTime() + 60_000)
+        admin.warning = new WarnPlayerResponse({
+            accountId: ACCOUNT, warnedAt: Timestamp.fromDate(AT), alreadyWarned: true, acknowledgedAt: Timestamp.fromDate(confirmed),
+        })
+        confirm("Warn", "Yes, warn")
+        expect(await screen.findByText(`Already warned ${timeOf(AT)}, confirmed ${timeOf(confirmed)}. Nothing changed.`)).toBeTruthy()
+    })
+
+    it("says nobody is warned while the bans are not enforced, and offers no warning to an address", async () => {
+        const admin = new FakeAdmin()
+        admin.refuse("warnPlayer", Code.FailedPrecondition)
+        render(<Page admin={admin} first={account}/>)
+
+        tool("Warn")
+        confirm("Warn", "Yes, warn")
+        expect(await screen.findByText(NOT_ENFORCED)).toBeTruthy()
+        cleanup()
+
+        render(<Page admin={admin} first={address}/>)
+        expect(screen.queryByRole("tab", {name: "Warn"})).toBeNull()
     })
 
     it("reverts only after a dry run, and asks with its numbers", async () => {

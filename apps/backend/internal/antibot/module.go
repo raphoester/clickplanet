@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/unban_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/warn_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans/outbox_planet_enforcer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
@@ -37,6 +38,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/listen_for_warnings_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/unban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/unban_player_usecase/audit_unban"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/warn_player_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/warn_player_usecase/audit_warn"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings/inprocess_warning_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -118,6 +121,8 @@ func NewModule(config Config) cpbootstrap.Module {
 					audit_ban.New(ban_player_usecase.New(watchdogs), props.Logger)),
 				UnbanPlayerHandler: unban_player_handler.New(
 					audit_unban.New(unban_player_usecase.New(watchdogs), props.Logger)),
+				WarnPlayerHandler: warn_player_handler.New(
+					audit_warn.New(warn_player_usecase.New(watchdogs), props.Logger)),
 				InspectPlayerHandler: inspect_player_handler.New(inspect_player_usecase.New(watchdogs)),
 				GetRulesHandler:      get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
 				SaveRuleSetHandler: save_rule_set_handler.New(

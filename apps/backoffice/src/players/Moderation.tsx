@@ -5,7 +5,7 @@ import {timeOf} from "../components/time.ts"
 import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {
     ban, bannedWords, DEFAULT_MUTE_SECONDS, LADDER, MAX_REASON_LENGTH, mute, MUTE_KINDS, muteWordsOf, refusalOf, unban,
-    Unbanned, unmute,
+    Unbanned, unmute, warn, warnedWords,
 } from "./actions.ts"
 import {Caller} from "./caller.ts"
 import {BAN_CHOICES, Choice, labelOf, MUTE_CHOICES} from "./durations.ts"
@@ -110,6 +110,24 @@ export function UnbanAction({antibot, caller, who, onDone}: BanProps) {
                 run={() => unban(antibot, caller)}
                 said={unbannedWords}
                 refusal={err => refusalOf("unban", err)}
+                onDone={onDone}
+            />
+        </div>
+    )
+}
+
+type WarnProps = {antibot: AntibotAdmin, accountId: string, who: string, onDone?: () => void}
+
+// A warning is an account's: the antibot warns no address.
+export function WarnAction({antibot, accountId, who, onDone}: WarnProps) {
+    return (
+        <div className="act">
+            <ConfirmAction
+                label="Warn"
+                question={`Show ${who} the "One account per player" warning?`}
+                run={() => warn(antibot, accountId)}
+                said={warnedWords}
+                refusal={err => refusalOf("warn", err)}
                 onDone={onDone}
             />
         </div>

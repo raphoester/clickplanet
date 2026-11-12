@@ -21,11 +21,8 @@ func ParseCaller(scope, account string) (Caller, error) {
 	case (scope == "") == (account == ""):
 		return Caller{}, ErrNoCaller
 	case account != "":
-		id, err := uuid.Parse(account)
-		if err != nil {
-			return Caller{}, fmt.Errorf("%w: %q", ErrInvalidAccount, account)
-		}
-		return Caller{Account: id.String()}, nil
+		parsed, err := ParseAccount(account)
+		return Caller{Account: parsed}, err
 	}
 
 	parsed, ok := cpipscope.Parse(scope)
@@ -33,4 +30,12 @@ func ParseCaller(scope, account string) (Caller, error) {
 		return Caller{}, fmt.Errorf("%w: %q", ErrInvalidScope, scope)
 	}
 	return Caller{Scope: parsed}, nil
+}
+
+func ParseAccount(account string) (string, error) {
+	id, err := uuid.Parse(account)
+	if err != nil {
+		return "", fmt.Errorf("%w: %q", ErrInvalidAccount, account)
+	}
+	return id.String(), nil
 }
