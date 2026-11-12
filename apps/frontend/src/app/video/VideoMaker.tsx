@@ -5,6 +5,7 @@ import {shareAddress, shareLabel, shareUrl} from "../../domain/shareCard.ts"
 import {alliesOf, castOf, headlineOf, RecentHistory, storyOf} from "../../domain/video/story.ts"
 import {MapHistory} from "../../domain/mapHistory.ts"
 import {nameOf, said} from "../../clip/names.ts"
+import {TIKTOK_HANDLE} from "../../links.ts"
 import {VideoJob} from "../../video/job.ts"
 import Modal from "../components/Modal.tsx"
 import ShareActions from "../share/ShareActions.tsx"
@@ -109,6 +110,7 @@ function Body({making, onSignIn}: {making: Making, onSignIn?: () => void}) {
         case "ready":
             return <div className="video-ready">
                 <video className="video-preview" src={making.url} controls playsInline loop autoPlay muted/>
+                <p className="video-tag">Tag <strong className="video-handle">{TIKTOK_HANDLE}</strong> on TikTok. We repost the best.</p>
                 {onSignIn && <button type="button" className="button button-action" onClick={onSignIn}>Sign in to put your name on it</button>}
             </div>
         case "empty":
