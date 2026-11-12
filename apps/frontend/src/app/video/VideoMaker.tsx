@@ -2,8 +2,7 @@ import {useEffect, useState} from "react"
 import {ShownNamesBackend} from "../../backends/clips.ts"
 import {RecentHistorySource} from "../../backends/recentHistory.ts"
 import {shareAddress, shareLabel, shareUrl} from "../../domain/shareCard.ts"
-import {alliesOf, castOf, headlineOf, RecentHistory, storyOf} from "../../domain/video/story.ts"
-import {MapHistory} from "../../domain/mapHistory.ts"
+import {headlineOf, storyOf} from "../../domain/video/story.ts"
 import {nameOf, said} from "../../clip/names.ts"
 import {TIKTOK_HANDLE} from "../../links.ts"
 import {VideoJob} from "../../video/job.ts"
@@ -13,9 +12,6 @@ import {videoDeliveriesOffered} from "../share/deliverShare.ts"
 import {makeVideo} from "./makeVideo.ts"
 import {readHistory, stale, useVideo} from "./videoStore.ts"
 import "./VideoMaker.css"
-
-// The allies asked about: enough that three are left once the hidden names are out.
-const MOST_ALLIES_ASKED = 30
 
 type Making =
     | {kind: "reading"}
@@ -32,11 +28,6 @@ export type VideoMakerProps = {
     username: string | undefined
     onSignIn?: () => void
     onClose: () => void
-}
-
-// The page carries no account to the video: only what it draws.
-function playedOf(history: RecentHistory): MapHistory {
-    return {frames: history.frames.map(({at, tiles, owners, changedAt}) => ({at, tiles, owners, changedAt})), hits: history.hits}
 }
 
 export default function VideoMaker({source, names, flag, accountId, username, onSignIn, onClose}: VideoMakerProps) {
@@ -57,15 +48,13 @@ export default function VideoMaker({source, names, flag, accountId, username, on
                 set({kind: "empty"})
                 return
             }
-            const allies = alliesOf(read.history, read.ground, story, accountId).slice(0, MOST_ALLIES_ASKED)
-            const shown = await names.shownNames(accountId === undefined ? allies : [accountId, ...allies]).catch((e) => {
-                console.error("could not read which names a video may show", e)
-                return new Map<string, string>()
+            const maker = accountId === undefined ? undefined : await names.shownNames([accountId]).then((shown) => shown.get(accountId), (e) => {
+                console.error("could not read whether a video may show the name", e)
+                return undefined
             })
-            const cast = castOf(accountId, allies, shown)
-            const address = shareAddress(flag, username, accountId === undefined ? undefined : shown.get(accountId))
+            const address = shareAddress(flag, username, maker)
             const headline = headlineOf(story, {nameOf, said})
-            const job: VideoJob = {history: playedOf(read.history), story, headline, cast, address: shareLabel(address)}
+            const job: VideoJob = {history: read.history, story, headline, maker, address: shareLabel(address)}
             set({kind: "making", share: 0})
             const {video} = await makeVideo(job, (share) => set({kind: "making", share}), signal)
             const file = new File([video], `clickplanet-${flag}.mp4`, {type: "video/mp4"})

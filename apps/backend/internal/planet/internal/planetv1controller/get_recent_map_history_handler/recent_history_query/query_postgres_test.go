@@ -136,7 +136,7 @@ func take(account string, tile uint32, previous, country string, at time.Time) l
 	return ledger.Taking{Tile: tile, Scope: "203.0.113.7", Account: account, Country: country, Previous: previous, At: at}
 }
 
-func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNowWithWhoMadeEachChange() {
+func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNow() {
 	ctx := s.T().Context()
 	s.tiles.now = mapOf("de", "fr", "", "jp", "cz")
 	s.record(map[ledger.Caller]ledger.Position{{Account: eve}: 6},
@@ -171,11 +171,11 @@ func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNowWithWhoMadeEachChange() 
 				{Tile: 5, CountryId: "pl"},
 			},
 			since.Add(30 * time.Minute): {
-				{Tile: 1, CountryId: "de", SecondsIntoStep: 600, AccountId: ada},
-				{Tile: 2, CountryId: "de", SecondsIntoStep: 600, AccountId: ada},
+				{Tile: 1, CountryId: "de", SecondsIntoStep: 600},
+				{Tile: 2, CountryId: "de", SecondsIntoStep: 600},
 			},
-			since.Add(150 * time.Minute): {{Tile: 2, CountryId: "fr", SecondsIntoStep: 300, AccountId: bob}},
-			until:                        {{Tile: 3, SecondsIntoStep: 1200, AccountId: bob}},
+			since.Add(150 * time.Minute): {{Tile: 2, CountryId: "fr", SecondsIntoStep: 300}},
+			until:                        {{Tile: 3, SecondsIntoStep: 1200}},
 		}),
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 2, Hits: 2}, {Tile: 3, Hits: 1}},
 	}, history), "a reverted take is in none of it, and one after the end only rewinds: %v", history)
@@ -239,7 +239,7 @@ func (s *testSuite) TestAResetInTheDayStartsTheHistoryAtTheFirstStepAfterIt() {
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: frames(until.Add(-time.Hour), map[time.Time][]*planetv1.TileOwner{
 			until.Add(-time.Hour): {{Tile: 1, CountryId: "fr"}},
-			until:                 {{Tile: 1, CountryId: "de", SecondsIntoStep: 600, AccountId: ada}},
+			until:                 {{Tile: 1, CountryId: "de", SecondsIntoStep: 600}},
 		}),
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
 	}, history), "%v", history)
@@ -274,7 +274,7 @@ func (s *testSuite) TestWhileAnArenaPlaysTheWorldsMapKeptIsRewoundAndTheArenasTa
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: frames(since, map[time.Time][]*planetv1.TileOwner{
 			since:                        {{Tile: 1, CountryId: "fr"}},
-			until.Add(-30 * time.Minute): {{Tile: 1, CountryId: "de", AccountId: ada}},
+			until.Add(-30 * time.Minute): {{Tile: 1, CountryId: "de"}},
 		}),
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
 	}, history), "%v", history)

@@ -51,7 +51,7 @@ func (r *Rewind) Record(entry Entry) error {
 			r.rewound[taking.Tile] = taking.Previous
 		}
 		if during {
-			r.steps[frame][taking.Tile] = Owner{Country: taking.Country, Account: taking.Account, At: entry.At}
+			r.steps[frame][taking.Tile] = Owner{Country: taking.Country, At: entry.At}
 			r.hits[taking.Tile]++
 		}
 	})

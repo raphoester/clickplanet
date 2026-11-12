@@ -24,9 +24,9 @@ message TileOwner {
   // When the tile went to this owner, its last change of the step: whole seconds after the frame before. 0 in the first
   // frame. A replay plays each change at its time, so an enclosure's tiles land together, as they did.
   uint32 seconds_into_step = 3;
-  // The account whose act made the change. Empty in the first frame, for an act no account made or a deleted account's,
-  // and in every frame of GetMapHistory, whose season replays would carry one per change.
-  string account_id = 4;
+
+  reserved 4;
+  reserved "account_id";
 }
 
 message TileHits {

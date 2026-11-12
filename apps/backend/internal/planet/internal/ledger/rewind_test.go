@@ -62,9 +62,9 @@ func TestARewindOpensEachTileOnWhatItHeldBeforeItsFirstChangeAndEveryOtherOneAsI
 	assert.Equal(t, []ledger.Frame{
 		{At: historySince, Owners: map[uint32]ledger.Owner{1: {Country: "fr"}, 2: {Country: "fr"}, 3: {Country: "it"}, 4: {Country: "jp"}}},
 		{At: historySince.Add(time.Hour), Owners: map[uint32]ledger.Owner{
-			1: {Country: "jp", Account: ada, At: historySince.Add(20 * time.Minute)},
+			1: {Country: "jp", At: historySince.Add(20 * time.Minute)},
 		}},
-		{At: historyUntil, Owners: map[uint32]ledger.Owner{3: {Account: bob, At: cleared}}},
+		{At: historyUntil, Owners: map[uint32]ledger.Owner{3: {At: cleared}}},
 	}, rewound.Frames(mapNow("jp", "fr", "", "jp")), "a bomb's clear is a change to no owner, by the bomber")
 }
 
@@ -95,22 +95,22 @@ func TestARewindReadsTheTilesASpreadAnEncloseAndABombListAndNoOwnerFromAStrikeAS
 		1: {Country: "fr"}, 2: {Country: "fr"}, 3: {Country: "fr"}, 5: {Country: "fr"}, 6: {Country: "de"}, 7: {Country: "de"},
 	}, frames[0].Owners, "tile 4 was nobody's before the enclose took it")
 	assert.Equal(t, map[uint32]ledger.Owner{
-		1: {Country: "de", Account: ada, At: at}, 2: {Country: "de", Account: ada, At: at},
-		4: {Country: "de", Account: ada, At: at}, 5: {Country: "de", Account: ada, At: at},
-		6: {Account: bob, At: at},
+		1: {Country: "de", At: at}, 2: {Country: "de", At: at},
+		4: {Country: "de", At: at}, 5: {Country: "de", At: at},
+		6: {At: at},
 	}, frames[1].Owners)
 	assert.Empty(t, frames[2].Owners)
 	assert.Equal(t, map[uint32]uint32{1: 1, 2: 1, 3: 2, 4: 1, 5: 1, 6: 1, 7: 1}, rewound.Hits(),
 		"tile 3 was struck by the spread and by a click, tile 7 by the bomb")
 }
 
-func TestATileChangedTwiceInAStepShowsItsLastChangeAndWhoMadeIt(t *testing.T) {
+func TestATileChangedTwiceInAStepShowsItsLastChange(t *testing.T) {
 	rewound := rewind(t, arenas.Played{},
 		takeBy(ada, 1, "fr", "de", historySince.Add(5*time.Minute)),
 		takeBy(bob, 1, "de", "it", historySince.Add(20*time.Minute)),
 	)
 
-	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "it", Account: bob, At: historySince.Add(20 * time.Minute)}},
+	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "it", At: historySince.Add(20 * time.Minute)}},
 		rewound.Frames(mapNow("it"))[1].Owners)
 }
 
@@ -124,8 +124,8 @@ func TestATileChangedBackWithinAStepIsInNoFrameAndAcrossTwoStepsIsInBoth(t *test
 
 	frames := rewound.Frames(mapNow("fr", "fr"))
 	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "fr"}, 2: {Country: "fr"}}, frames[0].Owners)
-	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "de", Account: ada, At: historySince.Add(50 * time.Minute)}}, frames[1].Owners)
-	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "fr", Account: bob, At: historySince.Add(70 * time.Minute)}}, frames[2].Owners)
+	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "de", At: historySince.Add(50 * time.Minute)}}, frames[1].Owners)
+	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "fr", At: historySince.Add(70 * time.Minute)}}, frames[2].Owners)
 }
 
 func TestAnEntryAtAStepsTimeIsInTheNextFrameAndOneFromTheEndOnOnlyRewinds(t *testing.T) {
@@ -138,7 +138,7 @@ func TestAnEntryAtAStepsTimeIsInTheNextFrameAndOneFromTheEndOnOnlyRewinds(t *tes
 	frames := rewound.Frames(mapNow("jp", "de"))
 	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "fr"}, 2: {Country: "fr"}}, frames[0].Owners)
 	assert.Empty(t, frames[1].Owners)
-	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "de", Account: ada, At: historySince.Add(time.Hour)}}, frames[2].Owners)
+	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "de", At: historySince.Add(time.Hour)}}, frames[2].Owners)
 	assert.Equal(t, map[uint32]uint32{1: 1}, rewound.Hits())
 }
 
@@ -152,7 +152,7 @@ func TestARewindLeavesOutWhatWasPlayedOnAnArenasMap(t *testing.T) {
 
 	frames := rewound.Frames(mapNow("fr", "de"))
 	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "fr"}, 2: {Country: "fr"}}, frames[0].Owners)
-	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "de", Account: ada, At: historySince.Add(50 * time.Minute)}}, frames[1].Owners)
+	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "de", At: historySince.Add(50 * time.Minute)}}, frames[1].Owners)
 	assert.Equal(t, map[uint32]uint32{2: 1}, rewound.Hits())
 }
 

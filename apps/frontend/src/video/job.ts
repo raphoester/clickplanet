@@ -1,12 +1,13 @@
 import {MapHistory} from "../domain/mapHistory.ts"
-import {Cast, VideoStory} from "../domain/video/story.ts"
+import {VideoStory} from "../domain/video/story.ts"
 
 // What the game hands the video page: the 24 hours to play, the story and every word on screen.
 export type VideoJob = {
     history: MapHistory
     story: VideoStory
     headline: string
-    cast: Cast
+    // The maker's name, only as the clips let a video show it.
+    maker: string | undefined
     // The address as a person reads it: clickplanet.lol/pl/kutza.
     address: string
 }

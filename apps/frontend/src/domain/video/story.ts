@@ -1,11 +1,5 @@
 import {MapFrame, MapHistory} from "../mapHistory.ts"
 
-// The map's last 24 hours as planet's GetRecentMapHistory tells them: each change with the account that made it, ""
-// for none (the first frame, a deleted account).
-export type RecentFrame = MapFrame & {accounts: string[]}
-
-export type RecentHistory = Omit<MapHistory, "frames"> & {frames: RecentFrame[]}
-
 export type StoryKind = "gain" | "loss" | "quiet"
 
 // The flag's biggest change of the 24 hours, in the one real country where it gained or lost the most tiles: the
@@ -32,8 +26,6 @@ export const DOT_SHARE = 0.1
 
 // The share of a country the flag has to lose for the game to offer the video then.
 export const LOSS_MOMENT_SHARE = 0.2
-
-export const MOST_ALLIES = 3
 
 type Held = {country: string, tiles: number, start: number, end: number}
 
@@ -105,33 +97,5 @@ export function headlineOf(story: VideoStory, {nameOf, said}: Naming): string {
             return `${flag} is losing ${country}. Help`.toUpperCase()
         case "quiet":
             return `${flag} holds ${percentOf(story.end, story.tiles)}% of ${country}`.toUpperCase()
-    }
-}
-
-// The accounts that won the flag the most tiles of the story's country, most first, the maker left out. Only a change
-// to the flag counts: never one who took from it.
-export function alliesOf(history: RecentHistory, ground: Ground, story: VideoStory, maker: string | undefined): string[] {
-    const won = new Map<string, number>()
-    history.frames.forEach((frame, k) => {
-        if (k === 0) return
-        frame.tiles.forEach((tile, i) => {
-            const account = frame.accounts[i]
-            if (frame.owners[i] !== story.flag || account === "" || account === maker) return
-            if (ground.groundOf(tile) === story.country) won.set(account, (won.get(account) ?? 0) + 1)
-        })
-    })
-    return [...won].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([account]) => account)
-}
-
-// The names the end card shows: the maker's and its first allies', each only as the clips let a video show it.
-export type Cast = {
-    maker: string | undefined
-    allies: string[]
-}
-
-export function castOf(maker: string | undefined, allies: readonly string[], shown: ReadonlyMap<string, string>): Cast {
-    return {
-        maker: maker === undefined ? undefined : shown.get(maker),
-        allies: allies.flatMap((ally) => shown.get(ally) ?? []).slice(0, MOST_ALLIES),
     }
 }

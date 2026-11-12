@@ -1,6 +1,7 @@
 import {create} from "zustand"
 import {dotsAfter, dotsTapped, DotTrigger, parseDots, VideoDots} from "../../domain/video/dots.ts"
-import {Ground, RecentHistory} from "../../domain/video/story.ts"
+import {Ground} from "../../domain/video/story.ts"
+import {MapHistory} from "../../domain/mapHistory.ts"
 import {RecentHistorySource} from "../../backends/recentHistory.ts"
 import {countryOfTile, loadBorders} from "../viewer/borderField.ts"
 import {BORDERS_URL} from "../viewer/bordersAsset.ts"
@@ -11,7 +12,7 @@ const CLICKED_KEY = "clickplanet-video-clicked"
 // The history's frames are 30 minutes apart, on :00 and :30: a newer one is out once a step has passed.
 const STEP_MS = 30 * 60_000
 
-export type Read = {history: RecentHistory, ground: Ground}
+export type Read = {history: MapHistory, ground: Ground}
 
 type VideoStore = {
     read?: Read

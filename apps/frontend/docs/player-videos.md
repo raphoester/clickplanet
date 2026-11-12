@@ -30,7 +30,7 @@ video made, shared or saved. There is no reward in the game (see [Delivery](#del
 ## The 24 hours
 
 - **Planet's `GetRecentMapHistory`** (the backend's [The map's last 24 hours](../../backend/docs/recent-map-history.md)):
-  49 frames, 30 minutes apart, each change with the account that made it. About 830 KB.
+  49 frames, 30 minutes apart. About 800 KB.
 - **Read once the map is up and the page idle** (`useVideoOffer`, `requestIdleCallback`), and only for a player who
   can make one. It is a GET the browser's cache serves until the next step; the video screen reads it again only once
   a newer step is out (`stale`). Never on a render. The borders blob is read beside it, for each tile's country.
@@ -45,10 +45,8 @@ All of it is pure and tested, in `src/domain/video/story.ts`:
 - **The headline**, a fixed English sentence: "POLAND TOOK 40% OF GERMANY", "POLAND IS LOSING GERMANY. HELP", "POLAND
   HOLDS 62% OF POLAND". A share is never rounded up, and never 0% for something. Names as the clips say them
   (`src/clip/names.ts`: CLDR's English name, with its article).
-- **The allies**: the accounts whose changes won the flag the most tiles of that country, the maker left out. Never an
-  account that took from the flag.
-- **The names**: clips' `GetShownNames` for the maker and the first 30 allies. A name it leaves out is not shown: three
-  allies at most, among those shown. A guest, and a player whose name is not shown, has no name on the video.
+- **The name**: clips' `GetShownNames` for the maker alone. A guest, and a player whose name is not shown, has no name
+  on the video.
 
 ## The address
 
@@ -68,8 +66,9 @@ judged within seconds.
 - **The look is the official clips'** (`src/video/overlay.ts`, on a canvas, in their 540-wide sizes): the headline at
   the top with the flag, the flag's share of the country and its change, the address small, and a track. They stay
   out of the apps' buttons: never the bottom fifth, never the right edge. After 6 s, the end card: the flag, the
-  maker's name, the allies, and the address big, in Rubik so the name keeps its case. A name Luckiest Guy cannot draw
-  sets every display word in Rubik Black.
+  maker's name, and the address big, in Rubik so the name keeps its case. A name Luckiest Guy cannot draw sets every
+  display word in Rubik Black. No other player's name: the viewer knows none of them, and under the maker's name they
+  read as its title.
 - **Encoded by WebCodecs** (`VideoEncoder`, H.264, 5 Mbit/s) and **muxed by Mediabunny** (MPL-2.0) into an MP4 with
   its index first.
 - **The sound is the flag's anthem** from the game's recordings (`static/anthems/`, AAC LC in M4A, see
@@ -98,8 +97,7 @@ it reads that account's shown name and tells "kutza called you to fight for Pola
 
 ## In fake mode
 
-`VITE_FAKE_BACKEND=1 npm run dev`: `FakeRecentHistory` makes up 24 hours that end on the fake map, each change by one
-of the fake takers, and `FakeShownNames` shows every name the fakes know but a guest's. The tile shows once a click of
+`VITE_FAKE_BACKEND=1 npm run dev`: `FakeRecentHistory` makes up 24 hours that end on the fake map, and `FakeShownNames` shows every name the fakes know but a guest's. The tile shows once a click of
 today is kept: click a tile, or set `clickplanet-video-clicked` to today.
 
 ## Not measured

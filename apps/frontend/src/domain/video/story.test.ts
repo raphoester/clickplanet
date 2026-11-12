@@ -1,5 +1,6 @@
 import {describe, expect, it} from "vitest"
-import {alliesOf, castOf, Ground, headlineOf, movedShare, percentOf, RecentFrame, RecentHistory, storyOf, VideoStory} from "./story.ts"
+import {MapFrame, MapHistory} from "../mapHistory.ts"
+import {Ground, headlineOf, movedShare, percentOf, storyOf, VideoStory} from "./story.ts"
 
 // Tiles 1-100 are Germany, 101-200 Poland, 201 Monaco.
 const ground: Ground = {
@@ -9,17 +10,16 @@ const ground: Ground = {
 
 const range = (from: number, to: number) => Array.from({length: to - from + 1}, (_, i) => from + i)
 
-function frame(at: number, changes: [tile: number, owner: string, account?: string][]): RecentFrame {
+function frame(at: number, changes: [tile: number, owner: string][]): MapFrame {
     return {
         at,
         tiles: Uint32Array.from(changes.map(([tile]) => tile)),
         owners: changes.map(([, owner]) => owner),
         changedAt: new Float64Array(changes.length).fill(at),
-        accounts: changes.map(([, , account]) => account ?? ""),
     }
 }
 
-function historyOf(...frames: RecentFrame[]): RecentHistory {
+function historyOf(...frames: MapFrame[]): MapHistory {
     return {frames, hits: new Map()}
 }
 
@@ -29,8 +29,8 @@ describe("the video's story", () => {
     it("is the real country where the flag gained the most tiles", () => {
         const history = historyOf(
             frame(0, range(101, 200).map((tile) => [tile, "pl"])),
-            frame(1, range(1, 40).map((tile) => [tile, "pl", "kutza"])),
-            frame(2, [[201, "pl", "kutza"]]),
+            frame(1, range(1, 40).map((tile) => [tile, "pl"])),
+            frame(2, [[201, "pl"]]),
         )
 
         expect(storyOf(history, ground, "pl")).toEqual({flag: "pl", country: "de", kind: "gain", tiles: 100, start: 0, end: 40})
@@ -57,7 +57,7 @@ describe("the video's story", () => {
     })
 
     it("counts a tile a bomb left empty as lost, and nothing for a flag with no land", () => {
-        const history = historyOf(frame(0, range(1, 20).map((tile) => [tile, "pl"])), frame(1, range(1, 20).map((tile) => [tile, "", "bomber"])))
+        const history = historyOf(frame(0, range(1, 20).map((tile) => [tile, "pl"])), frame(1, range(1, 20).map((tile) => [tile, ""])))
 
         expect(storyOf(history, ground, "pl")).toMatchObject({country: "de", kind: "loss", start: 20, end: 0})
         expect(storyOf(historyOf(frame(0, [])), ground, "pl")).toBeUndefined()
@@ -86,26 +86,5 @@ describe("the video's headline", () => {
         expect(percentOf(399, 1000)).toBe(39)
         expect(percentOf(1, 1000)).toBe(1)
         expect(percentOf(0, 1000)).toBe(0)
-    })
-})
-
-describe("the video's allies", () => {
-    const history = historyOf(
-        frame(0, range(1, 10).map((tile) => [tile, "de"])),
-        frame(1, [[1, "pl", "ada"], [2, "pl", "bob"], [3, "pl", "bob"], [4, "de", "hans"], [101, "pl", "cy"], [5, "pl", "maker"], [6, "pl", ""]]),
-        frame(2, [[7, "pl", "ada"], [8, "pl", "ada"], [9, "pl", "dee"]]),
-    )
-    const story: VideoStory = {flag: "pl", country: "de", kind: "gain", tiles: 100, start: 0, end: 8}
-
-    it("are the accounts that won the flag the most of the story's country, never one that took from it, nor the maker", () => {
-        expect(alliesOf(history, ground, story, "maker")).toEqual(["ada", "bob", "dee"])
-    })
-
-    it("name only who the clips let a video show, three at most, and the maker by its shown name", () => {
-        const shown = new Map([["ada", "Ada"], ["dee", "Dee"], ["maker", "kutza"], ["eve", "Eve"], ["fay", "Fay"]])
-
-        expect(castOf("maker", ["ada", "bob", "dee", "eve", "fay"], shown)).toEqual({maker: "kutza", allies: ["Ada", "Dee", "Eve"]})
-        expect(castOf(undefined, [], shown)).toEqual({maker: undefined, allies: []})
-        expect(castOf("bob", [], shown)).toEqual({maker: undefined, allies: []})
     })
 })
