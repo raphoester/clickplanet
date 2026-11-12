@@ -18,6 +18,8 @@ import RoundReveal from "../season/RoundReveal.tsx"
 import {useRoundReveal} from "../season/useRoundReveal.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleUnlocked from "../titles/TitleUnlocked.tsx"
+import VideoMoment from "../video/VideoMoment.tsx"
+import {wonTheDay} from "../../domain/roundReveal.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useCountry} from "../countryStore.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
@@ -32,6 +34,13 @@ export type MomentsProps = {
     accountId?: string
     play: PlaySound
     onWear: (id: string) => Promise<unknown>
+    // Where the player can make a video: what a moment's button opens, and what lights the dots at a moment.
+    video?: MomentVideo
+}
+
+export type MomentVideo = {
+    onMake: () => void
+    onMoment: () => void
 }
 
 export default function Moments(props: MomentsProps) {
@@ -64,6 +73,14 @@ export default function Moments(props: MomentsProps) {
         if (clipNotice.appearance) announce({kind: "clip", appearance: clipNotice.appearance})
     }, [announce, clipNotice.appearance])
 
+    const video = props.video
+    const videoMoment = props.shown && video !== undefined && current !== undefined && (current.kind === "clip" || current.kind === "video"
+        || (current.kind === "round" && wonTheDay(current.closed, countryCode)))
+    const onMoment = video?.onMoment
+    useEffect(() => {
+        if (videoMoment) onMoment?.()
+    }, [videoMoment, onMoment])
+
     if (!props.shown || !current) return null
 
     const key = announcementKeyOf(current)
@@ -81,6 +98,7 @@ export default function Moments(props: MomentsProps) {
                                 results={current.kind === "results"}
                                 countryCode={countryCode}
                                 play={props.play}
+                                onMakeVideo={current.kind === "round" && wonTheDay(current.closed, countryCode) ? video?.onMake : undefined}
                                 onClose={() => {
                                     reveal.dismiss(current)
                                     dismiss()
@@ -122,10 +140,17 @@ export default function Moments(props: MomentsProps) {
             return <ClipNotice key={key}
                                appearance={current.appearance}
                                play={props.play}
+                               onMakeVideo={video?.onMake}
                                onClose={() => {
                                    clipNotice.dismiss(current.appearance)
                                    dismiss()
                                }}/>
+        case "video":
+            return video === undefined ? null : <VideoMoment key={key}
+                                                            story={current.story}
+                                                            play={props.play}
+                                                            onMake={video.onMake}
+                                                            onClose={dismiss}/>
         case "flagMission":
             return <FlagMissionDone key={key}
                                     mission={current.mission}

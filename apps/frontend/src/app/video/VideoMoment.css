@@ -1,0 +1,7 @@
+.video-moment-flag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--medal);
+    font-size: calc(var(--medal) * 0.45);
+}

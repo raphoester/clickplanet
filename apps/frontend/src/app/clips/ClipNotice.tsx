@@ -3,7 +3,7 @@ import {createPortal} from "react-dom"
 import {Appearance, Platform} from "../../backends/clips.ts"
 import {watchLinksOf} from "../../domain/clipAppearances.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
-import {PlayIcon, TikTokIcon, YouTubeIcon} from "../components/icons.tsx"
+import {FilmIcon, PlayIcon, TikTokIcon, YouTubeIcon} from "../components/icons.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import "../titles/TitleUnlocked.css"
@@ -12,10 +12,12 @@ import "./ClipNotice.css"
 export type ClipNoticeProps = {
     appearance: Appearance
     play: PlaySound
+    // The player's own video is offered under the clip it is in.
+    onMakeVideo?: () => void
     onClose: () => void
 }
 
-export default function ClipNotice({appearance, play, onClose}: ClipNoticeProps) {
+export default function ClipNotice({appearance, play, onMakeVideo, onClose}: ClipNoticeProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
     const titleId = useId()
@@ -63,6 +65,13 @@ export default function ClipNotice({appearance, play, onClose}: ClipNoticeProps)
                             <PlatformIcon platform={link.platform}/>
                             {link.label}
                         </a>)}
+                        {onMakeVideo && <button type="button" className="button button-secondary" onClick={() => {
+                            onClose()
+                            onMakeVideo()
+                        }}>
+                            <FilmIcon size={22}/>
+                            Make yours
+                        </button>}
                         <button type="button" className="button" onClick={onClose}>Close</button>
                     </>}
                 </div>

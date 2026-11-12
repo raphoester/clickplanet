@@ -34,9 +34,15 @@ describe("the share link", () => {
     })
 
     it("is the flag alone for a guest, who has no username", () => {
-        expect(shareAddress("fr", undefined)).toEqual({code: "fr"})
-        expect(shareUrl(shareAddress("fr", undefined))).toBe("https://clickplanet.lol/fr")
-        expect(shareUrl(shareAddress("fr", "Ada"))).toBe("https://clickplanet.lol/fr/Ada")
+        expect(shareAddress("fr", undefined, undefined)).toEqual({code: "fr"})
+        expect(shareUrl(shareAddress("fr", undefined, undefined))).toBe("https://clickplanet.lol/fr")
+        expect(shareUrl(shareAddress("fr", "Ada", "Ada"))).toBe("https://clickplanet.lol/fr/Ada")
+    })
+
+    it("carries the name only once the clips let a video show that very name", () => {
+        expect(shareAddress("fr", "Ada", undefined)).toEqual({code: "fr"})
+        expect(shareAddress("fr", "Ada", "Ada Old")).toEqual({code: "fr"})
+        expect(shareAddress("fr", "Ada", "Ada")).toEqual({code: "fr", name: "Ada"})
     })
 
     it("writes each space of the name as a dash, keeps its case, and escapes what a link cannot carry", () => {

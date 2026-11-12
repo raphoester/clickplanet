@@ -59,7 +59,7 @@ The features still held in `PlayScreen` move to stores the same way.
 
 ## The news line
 
-**The line at the top shows one news at a time, the newest.** `useNews` keeps the last bomb, fortify and attack, in
+**The line at the top shows one news at a time, the newest.** `useNews` keeps the last bomb, fortify, attack and welcome, in
 the order they were told (`told`, one counter for the three), and `newestNews` is the one shown; once it is done, the
 one before it shows again. The globe tells the bombs and the fortifies, and `useUnderAttack` the attack. `News`
 (`news/News.tsx`) shows the newest as `BombNews`, `FortifyNews` or `UnderAttack`, the mission's progress when

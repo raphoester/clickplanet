@@ -13,6 +13,7 @@ import {
     revealsDue,
     roundOverLine,
     tablePodiumOf,
+    wonTheDay,
 } from "./roundReveal.ts"
 
 const result = (rank: number, countryCode: string, points: number): RoundStanding => ({rank, countryCode, share: 0.1, points})
@@ -187,5 +188,18 @@ describe("battleFinishedLine", () => {
 describe("medalOf", () => {
     it("is a medal for the podium and nothing below it", () => {
         expect([1, 2, 3, 4].map(medalOf)).toEqual(["🥇", "🥈", "🥉", ""])
+    })
+})
+
+describe("a day won", () => {
+    it("is a day the flag is first on the podium of, level with others too", () => {
+        expect(wonTheDay(DAY, "fr")).toBe(true)
+        expect(wonTheDay(DAY, "de")).toBe(false)
+        expect(wonTheDay({...DAY, standings: [result(1, "fr", 25), result(1, "de", 25)]}, "de")).toBe(true)
+    })
+
+    it("is never a battle, nor a day with no points", () => {
+        expect(wonTheDay(BATTLE, "fr")).toBe(false)
+        expect(wonTheDay({...DAY, standings: [result(1, "fr", 0)]}, "fr")).toBe(false)
     })
 })

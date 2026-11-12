@@ -6,6 +6,7 @@ import MissionProgress from "../missions/MissionProgress.tsx"
 import BombNews from "./BombNews.tsx"
 import FortifyCard from "../components/FortifyCard.tsx"
 import FortifyNews from "./FortifyNews.tsx"
+import WelcomeNews from "./WelcomeNews.tsx"
 import {lastFortified, newestNews, News as Told, useNews} from "./newsStore.ts"
 import {useFortifyGuide} from "../components/useFortifyGuide.ts"
 import {useCountry} from "../countryStore.ts"
@@ -52,5 +53,7 @@ function Line({news, flag, connect, goThere, onDone}: {news: Told, flag: string,
             return <FortifyNews key={news.id} fortified={news.fortified} onDone={onDone}/>
         case "attack":
             return <UnderAttack key={news.id} flag={flag} connect={connect} goThere={goThere} onDone={onDone}/>
+        case "welcome":
+            return <WelcomeNews key={news.id} line={news.line} onDone={onDone}/>
     }
 }

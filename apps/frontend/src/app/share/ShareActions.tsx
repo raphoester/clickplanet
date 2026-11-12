@@ -7,12 +7,14 @@ import "./ShareActions.css"
 export type ShareActionsProps = {
     file: File
     text: string
+    // The ways this browser lets go of the file: a picture's by default.
+    offered?: () => ShareDelivery[]
 }
 
 type ShareState = DeliveryState<ShareDelivery, ShareOutcome>
 
-export default function ShareActions({file, text}: ShareActionsProps) {
-    const [deliveries] = useState(deliveriesOffered)
+export default function ShareActions({file, text, offered = deliveriesOffered}: ShareActionsProps) {
+    const [deliveries] = useState(offered)
     const {state, run} = useDelivery((delivery: ShareDelivery) => deliverShare(delivery, file, text))
 
     return <div className="share-actions">

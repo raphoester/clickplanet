@@ -7,7 +7,8 @@ them, so they watch it and share it, and lets them keep their name out.
 - **The notice is an announcement**, `app/clips/ClipNotice.tsx`: the title unlock's full screen (its slam,
   rays and fanfare) with a gold disc and a play icon, "You are in a clip!", the clip's headline, then one
   button per platform ("Watch on TikTok", "Watch on YouTube", in a new tab) and Close, once the reveal
-  played (`TITLE_REVEAL.ready`). A watch button closes it too. It waits in the announcements queue like
+  played (`TITLE_REVEAL.ready`), and "Make yours" where the player can make its own video (see
+  [Player videos](player-videos.md)). A watch button closes it too. It waits in the announcements queue like
   a title or a battle (see [Battles](battle.md#the-announcements-queue)), keyed `clip:<post id>`.
 - **Only a player with a username is asked**: `PlayScreen` hands `Moments` (which runs `useClipNotice`) the account
   id of a linked account with a username, and nothing for a guest, who is never named. It reads

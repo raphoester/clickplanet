@@ -2,7 +2,7 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {ClipsService} from "../gen/grpc/clips/v1/appearances_connect.ts"
 import {Appearance as AppearancePb, ClipLink as ClipLinkPb} from "../gen/grpc/clips/v1/appearances_pb.ts"
-import {Appearance, ClipLink, ClipsBackend, ClipsNameBackend, Platform} from "./clips.ts"
+import {Appearance, ClipLink, ClipsBackend, ClipsNameBackend, Platform, ShownNamesBackend} from "./clips.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, retrying} from "./transport.ts"
 
@@ -16,7 +16,10 @@ export function newClipsServiceClient(config: Config): PromiseClient<typeof Clip
     }))
 }
 
-export class ConnectClipsBackend implements ClipsBackend, ClipsNameBackend {
+// What GetShownNames takes at once.
+const MOST_NAMES_ASKED = 100
+
+export class ConnectClipsBackend implements ClipsBackend, ClipsNameBackend, ShownNamesBackend {
     constructor(
         private readonly client: PromiseClient<typeof ClipsService>,
         private readonly session: SessionProvider,
@@ -46,6 +49,13 @@ export class ConnectClipsBackend implements ClipsBackend, ClipsNameBackend {
     public async setNameShown(shown: boolean): Promise<boolean> {
         const res = await this.client.setNameShown({nameShown: shown}, {headers: await this.identified()})
         return res.nameShown
+    }
+
+    public async shownNames(accountIds: readonly string[]): Promise<ReadonlyMap<string, string>> {
+        const asked = [...new Set(accountIds)].filter((id) => id !== "").slice(0, MOST_NAMES_ASKED)
+        if (asked.length === 0) return new Map()
+        const res = await retrying(() => this.client.getShownNames({accountIds: asked}), "GetShownNames")
+        return new Map(res.shownNames.map(({accountId, name}) => [accountId, name]))
     }
 
     private async identified(): Promise<Headers> {

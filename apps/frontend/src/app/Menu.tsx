@@ -26,6 +26,7 @@ import {ClipsNameBackend} from "../backends/clips.ts";
 import {shareStats} from "../domain/shareCard.ts";
 import SharePlace, {SharePlaceProps} from "./share/SharePlace.tsx";
 import InviteFriends from "./share/InviteFriends.tsx";
+import {VideoDot} from "./video/VideoTile.tsx";
 import {InviteLink} from "../backends/crazyGames.ts";
 import {youLabel} from "./youLabel.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
@@ -70,7 +71,7 @@ const OPEN_KEY = "clickplanet-menu-open"
 // Where the menu ends: what is centred at the top centres in the room right of it.
 export const MENU_RIGHT = "--menu-right"
 
-type Place = {id: MenuTab, label: string, title: string, icon: ReactNode, news?: number}
+type Place = {id: MenuTab, label: string, title: string, icon: ReactNode, news?: number, dot?: boolean}
 
 export default function Menu(props: MenuProps) {
     const tab = useScreen((screen) => screen.menuTab)
@@ -90,7 +91,7 @@ export default function Menu(props: MenuProps) {
         ...props.missions ? [{id: "missions" as const, label: "Missions", title: "Missions", icon: <TargetIcon/>, news: props.missionsNews}] : [],
         props.invite
             ? {id: "invite", label: "Invite", title: "Invite friends", icon: <UsersIcon/>}
-            : {id: "share", label: "Share", title: "Share", icon: <ShareIcon size={22}/>},
+            : {id: "share", label: "Share", title: "Share", icon: <ShareIcon size={22}/>, dot: props.video?.dot},
         {id: "settings", label: "Settings", title: "Settings", icon: <SettingsIcon/>},
     ]
     const shown = places.find((p) => p.id === tab) ?? places[0]
@@ -128,6 +129,7 @@ export default function Menu(props: MenuProps) {
                     {p.icon}
                     <span className="menu-rail-label">{p.label}</span>
                     {!!p.news && <span className="chip menu-tab-badge" key={p.news} aria-hidden="true">{p.news}</span>}
+                    {p.dot && <VideoDot/>}
                 </button>)}
             </div>
             {account.kind === "ready" && <button type="button"
@@ -180,7 +182,8 @@ export default function Menu(props: MenuProps) {
                             {shown.id === "share" && <SharePlace stats={shareStats(linesShown(props, race), props.country)}
                                                                  address={props.address}
                                                                  onTakePicture={props.onTakePicture}
-                                                                 taking={props.taking}/>}
+                                                                 taking={props.taking}
+                                                                 video={props.video}/>}
                             {shown.id === "invite" && props.invite && <InviteFriends invite={props.invite}/>}
                             {shown.id === "settings" && <SettingsPlace {...props}/>}
                         </div>

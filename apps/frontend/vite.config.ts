@@ -5,14 +5,18 @@ import {INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from './src/links.ts
 import {WEB_ANALYTICS_TOKEN, withoutAnalytics} from './src/webAnalytics.ts'
 import {withFlagCodes} from './src/flagCodes.ts'
 
-// The archive's page at its path in npm run dev, as the Workers asset handler serves archive.html at /archive.
-function archiveRoute(): Plugin {
+// The archive's and the video's pages at their paths in npm run dev, as the Workers asset handler serves archive.html
+// at /archive.
+function pageRoutes(): Plugin {
+    const PAGES = new Map([["/archive", "archive.html"], ["/video", "video.html"]])
+
     return {
-        name: "clickplanet-archive-route",
+        name: "clickplanet-page-routes",
         configureServer(server) {
             server.middlewares.use((req, _res, next) => {
                 const url = new URL(req.url ?? "/", "http://localhost")
-                if (url.pathname.replace(/\/+$/, "") === "/archive") req.url = `/archive.html${url.search}`
+                const page = PAGES.get(url.pathname.replace(/\/+$/, ""))
+                if (page) req.url = `/${page}${url.search}`
                 next()
             })
         },
@@ -52,7 +56,7 @@ function flagAddresses(): Plugin {
 }
 
 export default defineConfig({
-    plugins: [react(), glsl(), gameRoutes(), archiveRoute(), flagAddresses()],
+    plugins: [react(), glsl(), gameRoutes(), pageRoutes(), flagAddresses()],
     base: "/",
     define: {
         "import.meta.env.TIKTOK_PROFILE": JSON.stringify(TIKTOK_PROFILE),
@@ -62,7 +66,7 @@ export default defineConfig({
     },
     build: {
         rollupOptions: {
-            input: {home: "index.html", play: "play.html", archive: "archive.html", privacy: "privacy.html", terms: "terms.html"},
+            input: {home: "index.html", play: "play.html", archive: "archive.html", video: "video.html", privacy: "privacy.html", terms: "terms.html"},
         },
     },
     test: {

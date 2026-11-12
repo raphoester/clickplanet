@@ -25,9 +25,10 @@ export function shareStats(leaderboard: readonly LeaderboardEntry[], country: Co
     return {country, rank: index + 1, tiles: leaderboard[index].tiles}
 }
 
-// Every share's address is made here: the name it carries is the player's username, and none for a guest.
-export function shareAddress(code: string, username: string | undefined): ShareAddress {
-    return username ? {code, name: username} : {code}
+// Every share's address is made here: the name it carries is the player's username, and only once the clips let a
+// video show that very name (shown, as GetShownNames answers it); none for a guest.
+export function shareAddress(code: string, username: string | undefined, shown: string | undefined): ShareAddress {
+    return username && shown === username ? {code, name: username} : {code}
 }
 
 export function shareUrl(address: ShareAddress): string {

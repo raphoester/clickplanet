@@ -1,9 +1,9 @@
-import {Countries} from "../domain/countries.ts"
 import {NamedSide} from "../domain/clip/cast.ts"
 import {Place, sidesOf, Story, storyCountriesOf, THE_WORLD} from "../domain/clip/story.ts"
 import {ordinalOf} from "../domain/ordinal.ts"
 import {regionOf} from "../domain/regions.ts"
 import {callUpWordsOf} from "./callUp.ts"
+import {DISPLAY_FONT_DRAWS, nameOf, said} from "./names.ts"
 
 export type Words = {
     headline: string
@@ -55,43 +55,11 @@ const TIME = new Intl.DateTimeFormat("en-GB", {
 
 const DAY = new Intl.DateTimeFormat("en-GB", {weekday: "short", day: "numeric", month: "short", timeZone: "UTC"})
 
-const ENGLISH = new Intl.DisplayNames(["en"], {type: "region", style: "short"})
 const LIST = new Intl.ListFormat("en-GB", {type: "conjunction"})
-
-// The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech Rep."): a clip says the English name they
-// were cut from, from the CLDR data the browser carries. A name the game chose over it stays: "Turkey", "Ivory Coast",
-// "UAE", and its own flags'.
-export function nameOf(code: string): string {
-    const game = Countries.get(code)?.name ?? code.toUpperCase()
-    const english = englishNameOf(code)
-    return english !== undefined && cutFrom(game, english) ? english : game
-}
-
-// ISO's x codes are for private use: CLDR has a test name where the game has Brittany.
-function englishNameOf(code: string): string | undefined {
-    if (!/^[a-wyz][a-z]$/.test(code)) return undefined
-    const name = ENGLISH.of(code.toUpperCase())
-    // "Congo - Kinshasa" names two places to tell them apart; the game's "DR Congo" says it better.
-    return name === undefined || name.includes(" - ") ? undefined : name.replace(/ \(.*\)$/, "")
-}
-
-function cutFrom(game: string, english: string): boolean {
-    if (/[.,]/.test(game)) return true
-    const wordsOf = (name: string) => name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().split(/[^a-z]+/).filter(Boolean)
-    const full = wordsOf(english)
-    return english.length > game.length && wordsOf(game).every((word) => full.some((whole) => whole.startsWith(word)))
-}
 
 // The countries a place is made of; none for a continent.
 function countriesOf(place: Place): string[] {
     return "country" in place ? [place.country] : "countries" in place ? place.countries : []
-}
-
-// The UK, the Netherlands: a name said with its article.
-const SAID_WITH_THE = /^(UK|USA|UAE|Gambia|Middle East)$|(lands|ines|amas|ives|oros|elles|Republic|Territories)$/
-
-export function said(name: string): string {
-    return SAID_WITH_THE.test(name) ? `the ${name}` : name
 }
 
 export function placeName(place: Place): string {
@@ -182,8 +150,6 @@ function flag(code: string, className: string, parent: HTMLElement) {
     return image
 }
 
-// Luckiest Guy draws Latin-1 and little more: "ŁOTWA" in it would mix two fonts in one word.
-const DISPLAY_FONT_DRAWS = /^[\u0020-\u00ff\u0131\u0152\u0153\u2000-\u206f\u20ac\u2122]*$/u
 
 // A share of a place, to a tenth of a point, never more than it is: 79.96% is 79.9%.
 function shareOf(count: number, ground: number): string {
