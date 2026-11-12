@@ -633,8 +633,8 @@ func (*FrozenRefusal) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{8}
 }
 
-// The detail of the FailedPrecondition that Click answers in an arena, for a tile that touches none of the flag's land
-// and is on the coast of no water where the flag holds a coast.
+// The detail of the FailedPrecondition that Click answers while the reach plays, for a tile that touches none of the
+// flag's land and that no bridge from its land leads to.
 type ReachRefusal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2701,7 +2701,7 @@ type GetChargeRulesResponse struct {
 	TileShields uint32      `protobuf:"varint,8,opt,name=tile_shields,json=tileShields,proto3" json:"tile_shields,omitempty"`
 	// Enclose needs no charge and spends none.
 	EnclosuresUnlimited bool `protobuf:"varint,10,opt,name=enclosures_unlimited,json=enclosuresUnlimited,proto3" json:"enclosures_unlimited,omitempty"`
-	// A take lands only next to the flag's land or across a water where it holds a coast.
+	// A take lands only next to the flag's land or at the far end of a bridge from it.
 	Reach bool `protobuf:"varint,11,opt,name=reach,proto3" json:"reach,omitempty"`
 	// A capital taken by another flag knocks its flag out.
 	KnockOut bool `protobuf:"varint,12,opt,name=knock_out,json=knockOut,proto3" json:"knock_out,omitempty"`

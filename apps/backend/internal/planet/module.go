@@ -193,9 +193,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				return fmt.Errorf("failed to load the map borders: %w", err)
 			}
 
-			waters, err := gameMap.LoadWaters()
+			bridges, err := gameMap.LoadBridges()
 			if err != nil {
-				return fmt.Errorf("failed to load the map's waters: %w", err)
+				return fmt.Errorf("failed to load the map's bridges: %w", err)
 			}
 
 			capitals, err := gameMap.LoadCapitals(borders)
@@ -270,7 +270,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			inPlay := arenas.NewInPlay(clock)
 			inPlay.Resume(playing)
-			reach := clicks.NewReach(cprules.Reader(inForce, clicks.ReachPart), geography, waters, tilesStorage)
+			reach := clicks.NewReach(cprules.Reader(inForce, clicks.ReachPart), geography, bridges, tilesStorage)
 			setups := arenas.NewSetups(ruleSets, seeds.NewCatalog(seeds.Ground{Capitals: capitals}))
 
 			grantStore := postgres_grant_store.New(db)

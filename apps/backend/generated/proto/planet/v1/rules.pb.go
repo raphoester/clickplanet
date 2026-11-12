@@ -37,7 +37,7 @@ type Rules struct {
 	Arena            *ArenaRules `protobuf:"bytes,6,opt,name=arena,proto3" json:"arena,omitempty"`
 	// How an arena's fresh map starts.
 	Seed *Seed `protobuf:"bytes,7,opt,name=seed,proto3" json:"seed,omitempty"`
-	// A take of a flag lands only on its land, on a tile next to it, or on a coast of a water where it holds a coast.
+	// A take of a flag lands only on its land, on a tile next to it, or at the far end of a bridge from it.
 	Reach         *bool         `protobuf:"varint,8,opt,name=reach,proto3,oneof" json:"reach,omitempty"`
 	Capitals      *CapitalRules `protobuf:"bytes,9,opt,name=capitals,proto3" json:"capitals,omitempty"`
 	Charges       *ChargeRules  `protobuf:"bytes,10,opt,name=charges,proto3" json:"charges,omitempty"`

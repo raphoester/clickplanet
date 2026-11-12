@@ -281,7 +281,7 @@ export class FrozenError extends Error {
     }
 }
 
-// While the reach plays, a tile next to none of the flag's land and across none of its waters.
+// While the reach plays, a tile next to none of the flag's land and at the far end of no bridge from it.
 export class OutOfReachError extends Error {
     constructor(options?: {cause?: unknown}) {
         super("the tile is out of the flag's reach", options)

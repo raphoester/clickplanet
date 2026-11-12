@@ -67,7 +67,7 @@ export enum ClickOutcome {
   FAILED = 8,
 
   /**
-   * In an arena, a tile next to none of the flag's land and across none of its waters.
+   * While the reach plays, a tile next to none of the flag's land and at the far end of no bridge from it.
    *
    * @generated from enum value: CLICK_OUTCOME_OUT_OF_REACH = 9;
    */

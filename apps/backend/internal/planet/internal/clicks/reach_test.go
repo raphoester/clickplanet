@@ -9,7 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// landRow is a row of land, 1 to 4, and two islands, 6 and 9. The water between 1 and 6 is one body, between 4 and 9 another.
+// landRow is a row of land, 1 to 4, and two islands, 6 and 9. A bridge leads from 1 to 6, and none to 9.
 var landRow = neighbourhood{1: {2}, 2: {1, 3}, 3: {2, 4}, 4: {3}, 6: {}, 9: {}}
 
 type neighbourhood map[uint32][]uint32
@@ -29,9 +29,9 @@ func (b board) HoldsAny(country string, tiles []uint32) bool {
 
 func reach(t *testing.T, owners board, on bool) clicks.Reach {
 	t.Helper()
-	waters, err := clicks.NewWaters(10, [][]uint32{{1, 6}, {4, 9}})
+	bridges, err := clicks.NewBridges(10, [][2]uint32{{1, 6}})
 	require.NoError(t, err)
-	return clicks.NewReach(func() clicks.Reaching { return clicks.Reaching(on) }, landRow, waters, owners)
+	return clicks.NewReach(func() clicks.Reaching { return clicks.Reaching(on) }, landRow, bridges, owners)
 }
 
 func TestWithTheReachAFlagTakesNextToItsLand(t *testing.T) {
@@ -43,11 +43,18 @@ func TestWithTheReachAFlagTakesNextToItsLand(t *testing.T) {
 	require.ErrorIs(t, r.Refuses("de", 2), clicks.ErrOutOfReach, "a flag with no land reaches nothing")
 }
 
-func TestWithTheReachAFlagCrossesAWaterWhereItHoldsACoast(t *testing.T) {
+func TestWithTheReachAFlagCrossesABridgeFromItsLand(t *testing.T) {
 	r := reach(t, board{1: "fr"}, true)
 
-	require.NoError(t, r.Refuses("fr", 6), "across the water it holds a coast of")
-	require.ErrorIs(t, r.Refuses("fr", 9), clicks.ErrOutOfReach, "no coast of that water")
+	require.NoError(t, r.Refuses("fr", 6), "the far end of a bridge from its land")
+	require.ErrorIs(t, r.Refuses("fr", 9), clicks.ErrOutOfReach, "an island no bridge from its land leads to")
+	require.ErrorIs(t, r.Refuses("de", 6), clicks.ErrOutOfReach, "a bridge from land it does not hold")
+}
+
+func TestWithTheReachABridgeLeadsBothWays(t *testing.T) {
+	r := reach(t, board{6: "fr"}, true)
+
+	require.NoError(t, r.Refuses("fr", 1))
 }
 
 func TestWithoutTheReachEveryTileIsInReach(t *testing.T) {

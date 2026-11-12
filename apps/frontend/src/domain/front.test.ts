@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {Adjacency, Front} from "./front.ts"
-import {Waters} from "./waters.ts"
+import {acrossBridges, Bridges} from "./bridges.ts"
 
 // Tiles 1 to 6 in a row along the equator, each touching the one before and the one after.
 const ROW = 6
@@ -18,8 +18,8 @@ function positionsOfRow(): Float32Array {
     return positions
 }
 
-function frontOf(owners: Map<number, string>, waters?: Waters): Front {
-    return new Front(row, (tile) => owners.get(tile), positionsOfRow(), waters)
+function frontOf(owners: Map<number, string>, bridges?: Bridges): Front {
+    return new Front(bridges ? acrossBridges(row, bridges) : row, (tile) => owners.get(tile), positionsOfRow())
 }
 
 describe("Front", () => {
@@ -85,16 +85,16 @@ describe("Front", () => {
     })
 })
 
-describe("Front across waters", () => {
-    it("lights every coast of a water where the flag holds a coast, as well as its land's edge", () => {
-        const front = frontOf(new Map([[1, "fr"]]), new Waters([[1, 6]]))
+describe("Front across bridges", () => {
+    it("lights the far end of a bridge from the flag's land, as well as its land's edge", () => {
+        const front = frontOf(new Map([[1, "fr"]]), new Bridges([[1, 6]]))
 
         expect(front.follow("fr").on.sort()).toEqual([2, 6])
     })
 
-    it("lights a water's coasts when the flag takes its first coast there, and puts them out when it loses its last", () => {
+    it("lights a bridge's far end when the flag takes its near end, and puts it out when it loses it", () => {
         const owners = new Map([[2, "fr"]])
-        const front = frontOf(owners, new Waters([[1, 6]]))
+        const front = frontOf(owners, new Bridges([[1, 6]]))
         front.follow("fr")
 
         owners.set(1, "fr")
@@ -104,31 +104,26 @@ describe("Front across waters", () => {
         expect(front.touch([1])).toEqual({on: [1], off: [6]})
     })
 
-    it("counts a tile between two waters as a coast of both", () => {
-        const owners = new Map([[3, "fr"]])
-        const front = frontOf(owners, new Waters([[1, 6], [3, 6]]))
-        expect(front.follow("fr").on.sort()).toEqual([2, 4, 6])
+    it("crosses a bridge both ways", () => {
+        const front = frontOf(new Map([[6, "fr"]]), new Bridges([[1, 6]]))
 
-        owners.set(6, "fr")
-        const {on, off} = front.touch([6])
-        expect(on.sort()).toEqual([1, 5])
-        expect(off).toEqual([6])
+        expect(front.follow("fr").on.sort()).toEqual([1, 5])
     })
 
-    it("keeps a water lit while the flag holds another of its coasts", () => {
+    it("keeps a far end lit while the flag holds another tile that leads to it", () => {
         const owners = new Map([[1, "fr"], [3, "fr"]])
-        const front = frontOf(owners, new Waters([[1, 3, 6]]))
+        const front = frontOf(owners, new Bridges([[1, 6], [3, 6]]))
         front.follow("fr")
 
         owners.set(1, "de")
         front.touch([1])
 
         expect(front.reaches(6)).toBe(true)
-        expect(front.reaches(1)).toBe(true)
+        expect(front.reaches(1)).toBe(false)
     })
 
     it("reaches the flag's own tiles and the lit ones, and nothing else", () => {
-        const front = frontOf(new Map([[1, "fr"]]), new Waters([[1, 6]]))
+        const front = frontOf(new Map([[1, "fr"]]), new Bridges([[1, 6]]))
         expect(front.reaches(1)).toBe(false)
 
         front.follow("fr")
@@ -137,7 +132,7 @@ describe("Front across waters", () => {
     })
 
     it("puts out every lit tile when dropped, and reaches nothing after", () => {
-        const front = frontOf(new Map([[1, "fr"]]), new Waters([[1, 6]]))
+        const front = frontOf(new Map([[1, "fr"]]), new Bridges([[1, 6]]))
         front.follow("fr")
 
         const {on, off} = front.drop()

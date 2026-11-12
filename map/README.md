@@ -1,8 +1,8 @@
 # The tile map's geometry
 
 `coordinates-<hash>.bin` says where every tile is and `borders-<hash>.bin` says whose ground it sits
-on; `capitals-<hash>.json` says which tile is each country's capital and `waters-<hash>.json` which bodies of water
-each coast tile touches (see [Capitals and waters](#capitals-and-waters)). They are shared by the apps exactly as
+on; `capitals-<hash>.json` says which tile is each country's capital and `bridges-<hash>.json` which crossings join
+two shores over the sea (see [Capitals and bridges](#capitals-and-bridges)). They are shared by the apps exactly as
 [`/proto`](../proto) is. Neither app may keep its own
 generator or its own copy of the numbers; each carries a **generated copy**, because each is built
 from its own directory as its Docker build context and so cannot read anything at the repo root at
@@ -11,7 +11,7 @@ build time:
 | app | copy | refreshed by |
 | --- | --- | --- |
 | frontend | `apps/frontend/static/<blob>`; the coordinates only when the rebuild below fails | `npm run map` |
-| frontend | `apps/frontend/static/capitals-<hash>.json` and `waters-<hash>.json` | `npm run map:generate` |
+| frontend | `apps/frontend/static/capitals-<hash>.json` and `bridges-<hash>.json` | `npm run map:generate`, `npm run bridges` |
 | backend | `apps/backend/generated/map/<blob>`, all four, embedded | `make map` |
 | backoffice | `apps/backoffice/src/gen/map/coordinates-<hash>.bin` alone, bundled by Vite | `npm run map` |
 
@@ -99,10 +99,11 @@ inside a country's ground (England, Scotland, Wales, Brittany: `REGIONS`), which
 They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open sea
 or a tile in no country is not a map that drifted, it is a generator that broke.
 
-## Capitals and waters
+## Capitals and bridges
 
-Both are written by `npm run map:generate` from the same answer as the tiles, and read only in an arena battle (see
-the backend's [Arena battles](../apps/backend/docs/arenas.md#seeds) and [The reach](../apps/backend/docs/reach.md)). Tiles are named by their wire id
+The capitals are written by `npm run map:generate` from the same answer as the tiles, and the bridges by `npm run
+bridges` from the tiles and the capitals written. Both are read only by the rules of an arena battle (see the backend's
+[Arena battles](../apps/backend/docs/arenas.md#seeds) and [The reach](../apps/backend/docs/reach.md)). Tiles are named by their wire id
 (index + 1).
 
 - **`capitals-<hash>.json`** — `{"tiles": N, "capitals": {"fr": <tile>, …}}`, one for each country with ground, 239.
@@ -113,15 +114,24 @@ the backend's [Arena battles](../apps/backend/docs/arenas.md#seeds) and [The rea
   not Hargeisa), then the biggest. The capital is the country's tile nearest the city. A country of one tile, a seat
   among them, starts on it; one with no place at all (the French Southern Territories) in the middle of its biggest
   landmass. No hand-kept list.
-- **`waters-<hash>.json`** — `{"tiles": N, "bodies": [[<tile>, …], …]}`, each body's coast tiles ascending, the
-  longest first. `scripts/map/waters.mjs` flood-fills the lattice's water vertices: two that touch are one body, so a
-  strait narrower than a cell cuts a sea in two. 342 bodies, 18,839 coast tiles, 385 of them on two bodies. The ocean
-  is one body (15,294 coast tiles); Gibraltar, the Danish straits, Bab-el-Mandeb and Hormuz are open; the Black Sea
-  with Marmara and Azov is cut off at the Bosporus (205), the Caspian is its own (161), and each lake too. The owner
-  took the bodies as the lattice draws them, with no hand fix (2026-11-09).
+- **`bridges-<hash>.json`** — `{"tiles": N, "bridges": [[<tile>, <tile>], …]}`, each bridge's two end tiles, the
+  smaller first, in order. A bridge lands on a coast tile, and on a capital only when its piece of land has no other
+  coast. `scripts/map/bridges.mjs` writes two kinds (the owner, 2026-11-11):
+  - **Stepping stones**, generated: a piece is land that touches, whatever its countries (505 on this map, 86 with a
+    capital). Two pieces get a bridge, between their nearest coast tiles, when no third piece is nearer to both. Every
+    piece is joined, a strait is crossed where it is narrowest, and an island chain is crossed island by island: 565
+    of them, 361 under 100 km. Europe reaches America by the Faroes, Iceland and Greenland as well as by the Bering
+    Strait, and Hawaii by Kiribati and the Aleutians.
+  - **Sea lanes**, placed by hand (`LANES`): two points [lon, lat] on either shore, snapped to the nearest coast tile
+    that is no capital, within 150 km or the generator stops. 17, for the crossings the stones do not make: the North
+    and South Atlantic, Hawaii to California and Japan, the Tasman, the monsoon, Gibraltar. The points are pinned, like
+    the seats: moving one moves a bridge.
 
-`npm run map:audit` fails on a country with ground and no capital, a capital off its own ground, and waters that
-differ from a fresh flood-fill. The backend refuses to boot on a capital off its ground or a file of another map's
+  Until 2026-11-11 the reach crossed `waters-<hash>.json`, each body of water's coast: the ocean was one body, so a
+  flag on any coast reached every coast on Earth, and 130 of the 239 capitals were in reach of every flag at the start.
+
+`npm run map:audit` fails on a country with ground and no capital, a capital off its own ground, bridges that differ
+from a fresh `bridgesOf`, and land no bridge reaches. The backend refuses to boot on a capital off its ground or a file of another map's
 size.
 
 ## Regenerating renumbers every tile

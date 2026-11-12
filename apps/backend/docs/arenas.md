@@ -142,7 +142,7 @@ pattern, and `seeds.Catalog`, built with what the map gives (`seeds.Ground`: the
 
 Each is a knob of its own, read from the rules in force, on whatever map plays:
 
-- **The reach** (`reach`): a take lands only next to the flag's land or across its waters. See [The reach](reach.md).
+- **The reach** (`reach`): a take lands only next to the flag's land or across a bridge from it. See [The reach](reach.md).
 - **The knock-out** (`capitals.knockOut`) and **fixed capital shields** (`capitals.fixedShields`): see
   [The capitals' rules](capitals.md).
 - **The page** learns them from `GetChargeRules` (`reach`, `knock_out`, `capital_shields_fixed`), read again on
@@ -265,15 +265,15 @@ noting it after the take; the relay's `FlagKnockedOut`; the stream's sink and `G
 `allegiances`' arena rule and `Book`.
 
 
-Slice 2: `arenas`' `reach_test.go` pins a take next to the land, across a water with a coast held, refused across one
-without, no reach outside an arena, and a spread past the tile taken or from a struck one; `rules_test.go` the capital
+Slice 2: `arenas`' `reach_test.go` pins a take next to the land, across a water with a coast held (a bridge since
+2026-11-11), refused across one without, no reach outside an arena, and a spread past the tile taken or from a struck one; `rules_test.go` the capital
 shields of default and their bound. `inmemory_tile_storage`'s `capitals_test.go` pins the start kept with the arena
 before any flush, none when keep says no, no shield on a capital in an arena but one on the world's map, a fortify
 that skips a capital, the map's `Arena`, and `HoldsAny`; `postgres_tile_store`'s `maps_test.go` an `Open` in keep's
 transaction and none when keep refuses or fails. `open_arena_usecase` opens with each capital and its shields;
 `reach_click` refuses before the inner click; `throttle_test.go` keeps the token of three clicks out of reach over
 HTTP; `click_handler` answers the `ReachRefusal`; `spread_click` takes only the neighbours in reach. The shipped
-`waters` and `capitals` are pinned in `embedded_geodesic_map`'s `waters_test.go`.
+`bridges` and `capitals` are pinned in `embedded_geodesic_map`'s `bridges_test.go`.
 
 Slice 1:
 
