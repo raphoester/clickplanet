@@ -44,6 +44,7 @@ STEPS=(
   'cd apps/backend && make check-format'
   'cd apps/backend && make check-quiz'
   'cd apps/backend && make check-moderation'
+  'cd apps/backend && make check-migrations BASE=origin/main'
 )
 
 run_step() {

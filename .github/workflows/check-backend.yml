@@ -29,6 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-go@v5
         with:
@@ -46,6 +48,9 @@ jobs:
       - run: make check-quiz
 
       - run: make check-moderation
+
+      # A pull request's HEAD is its merge commit: HEAD^1 is main as it is now. On main, the deploy checks instead.
+      - run: make check-migrations BASE=${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
 
   lint:
     runs-on: ubuntu-latest

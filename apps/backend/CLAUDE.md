@@ -18,6 +18,8 @@ and says what is in it. Read the doc before you change its area.
   off on purpose.
 - [Git hooks](docs/git-hooks.md) — what the repo's hooks run for this app.
 - [Protobuf](docs/protobuf.md) — the contracts in the shared `/proto`, generated into `generated/proto`.
+- [Migrations](docs/migrations.md) — a module's golang-migrate files and their UTC-time versions; what golang-migrate
+  skips or refuses at boot; `make check-migrations` and the deploy's check against the revision the VPS runs.
 
 ## How the code is shaped
 
