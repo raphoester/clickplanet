@@ -51,6 +51,31 @@ describe("choreographSpread", () => {
         expect(last.start + last.travel).toBeLessThan(SPREAD_LIFETIME_SECONDS / 2)
     })
 
+    it("throws the near ring before the far one, and lands every spark of three rings in time", () => {
+        const hexes: [number, number][] = [[0, 0]]
+        for (let q = -3; q <= 3; q++) {
+            for (let r = -3; r <= 3; r++) {
+                const ring = Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r))
+                if (ring > 0 && ring <= 3) hexes.push([q, r])
+            }
+        }
+        const disc = new Float32Array(hexes.flatMap(([q, r]) =>
+            new THREE.Vector3((q + r / 2) * STEP, r * Math.sqrt(3) / 2 * STEP, 1).normalize().toArray()))
+        const ringOf = (tile: number) => {
+            const [q, r] = hexes[tile - 1]
+            return Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r))
+        }
+        const wide: SpreadClick = {countryId: "br", tile: 1, spread: hexes.map((_, i) => i + 1).slice(1).reverse()}
+
+        const landings = choreographSpread(wide, disc).sparks.filter(spark => spark.role === "landing")
+        const rings = landings.map(landing => ringOf(1 + hexes.findIndex((_, i) => landing.to.distanceTo(
+            new THREE.Vector3(disc[i * 3], disc[i * 3 + 1], disc[i * 3 + 2]).normalize()) < 1e-6)))
+
+        expect(landings).toHaveLength(36)
+        expect(rings).toEqual([...rings].sort((a, b) => a - b))
+        expect(landings.at(-1)!.start + landings.at(-1)!.travel).toBeLessThan(SPREAD_LIFETIME_SECONDS / 2)
+    })
+
     it("still bursts on a lone island, which spreads onto nothing", () => {
         const {sparks, reach} = choreographSpread({...spread, spread: []}, positions)
 

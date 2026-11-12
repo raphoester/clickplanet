@@ -17,7 +17,7 @@ beforeEach(() => window.localStorage.clear())
 
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
-    signInRefill: false, enclosuresUnlimited: false,
+    signInRefill: false, enclosuresUnlimited: false, spreadRings: 1, spreadUnlimited: false,
     reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false,
 }
 
@@ -99,6 +99,18 @@ describe("Inventory", () => {
         rerender(inventory({rules: unlimited, onToggle: toggle}))
         expect(slot(/^Enclose, ∞$/).getAttribute("aria-pressed"), "no New: the game gave it, not a box").toBe("false")
         expect(container.querySelector(".inventory-loop")).toBeNull()
+    })
+
+    it("offers spread with none held while spreads are unlimited", () => {
+        const toggle = vi.fn()
+        const unlimited = {...RULES, spreadUnlimited: true}
+        const {container} = render(inventory({rules: unlimited, onToggle: toggle, switches: {...ALL_OFF, spread: true}}))
+
+        expect(slot(/^Spread, ∞, On/).getAttribute("aria-disabled")).toBeNull()
+        expect(container.querySelector(".inventory-loop")).toBeTruthy()
+
+        fireEvent.click(slot(/^Spread/))
+        expect(toggle.mock.calls).toEqual([["spread"]])
     })
 
     it("switches spread and enclose, and says which are on", () => {

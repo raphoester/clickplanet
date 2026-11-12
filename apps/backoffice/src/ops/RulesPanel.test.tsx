@@ -61,7 +61,8 @@ describe("the game rules page", () => {
         fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
         const charges = within(screen.getByRole("group", {name: "Charges"}))
         expect(charges.getAllByRole("spinbutton").map(field => field.closest("label")?.textContent)).toEqual([
-            "Spread clicks held", "Bomb rings", "Enclose tiles, at most", "Enclosures held", "Shields held", "Shields on a tile, at most",
+            "Spread clicks held", "Spread rings, 1 to 3", "Bomb rings", "Enclose tiles, at most", "Enclosures held", "Shields held",
+            "Shields on a tile, at most",
         ])
         expect(screen.queryByLabelText("Shortest box wait (s)")).toBeNull()
         expect(screen.queryByLabelText("Quizzes on")).toBeNull()

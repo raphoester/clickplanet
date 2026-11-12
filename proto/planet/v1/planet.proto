@@ -430,6 +430,13 @@ message GetChargeRulesResponse {
 
   // No bomb is dropped, and none is offered: the page hides the bomb.
   bool bombs_off = 14;
+
+  // A spread takes every tile within this many steps of the tile clicked; while the reach plays, a click that spreads
+  // is in reach when any of them is.
+  uint32 spread_rings = 15;
+
+  // Spread needs no charge and spends none.
+  bool spread_unlimited = 16;
 }
 
 message TollStep {

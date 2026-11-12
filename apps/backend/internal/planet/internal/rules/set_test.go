@@ -61,6 +61,8 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"toll.steps[2].share":           func(r *planetv1.Rules) { r.Toll.Steps[2].Share = 1.5 },
 		"toll.steps[0].share":           func(r *planetv1.Rules) { r.Toll.Steps[0].Share = 0 },
 		"charges.spread.clicks":         func(r *planetv1.Rules) { r.Charges.Spread.Clicks = proto.Uint32(0) },
+		"charges.spread.rings is 0":     func(r *planetv1.Rules) { r.Charges.Spread.Rings = proto.Uint32(0) },
+		"charges.spread.rings is 4":     func(r *planetv1.Rules) { r.Charges.Spread.Rings = proto.Uint32(4) },
 		"charges.bomb.rings":            func(r *planetv1.Rules) { r.Charges.Bomb = nil },
 		"charges.enclose.maxTiles":      func(r *planetv1.Rules) { r.Charges.Enclose.MaxTiles = proto.Uint32(0) },
 		"charges.enclose.held":          func(r *planetv1.Rules) { r.Charges.Enclose.Held = proto.Uint32(0) },

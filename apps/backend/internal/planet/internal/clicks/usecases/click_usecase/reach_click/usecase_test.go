@@ -25,7 +25,7 @@ type stubReach struct {
 	err error
 }
 
-func (s stubReach) Refuses(string, uint32) error { return s.err }
+func (s stubReach) Refuses(string, uint32, int) error { return s.err }
 
 func TestAClickOutOfReachGoesNoFurther(t *testing.T) {
 	inner := &countingClicks{}
@@ -44,4 +44,21 @@ func TestAClickInReachGoesOn(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []click_usecase.In{{TileID: 7, CountryID: "fr"}}, inner.seen)
+}
+
+type ringsAsked struct{ rings []int }
+
+func (r *ringsAsked) Refuses(_ string, _ uint32, rings int) error {
+	r.rings = append(r.rings, rings)
+	return nil
+}
+
+func TestAClickThatSpreadsIsCheckedWithItsRings(t *testing.T) {
+	asked := &ringsAsked{}
+
+	_, err := reach_click.New(&countingClicks{}, asked).Execute(t.Context(),
+		click_usecase.In{TileID: 7, CountryID: "fr", Spread: true, Rings: 2})
+
+	require.NoError(t, err)
+	assert.Equal(t, []int{2}, asked.rings)
 }

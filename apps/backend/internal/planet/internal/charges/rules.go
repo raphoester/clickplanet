@@ -18,9 +18,13 @@ type Rules struct {
 // A tile keeps its shields in a byte.
 const mostShieldsOnATile = 255
 
+const MostSpreadRings = 3
+
 func (r Rules) Validate() error {
 	return errors.Join(
 		rules.Positive("spread.clicks", r.Spread.Clicks),
+		rules.Positive("spread.rings", r.Spread.Rings),
+		rules.AtMost("spread.rings", r.Spread.Rings, "the widest spread", MostSpreadRings),
 		rules.Positive("bomb.rings", r.Bomb.Rings), rules.Finite("bomb.rings", r.Bomb.Rings),
 		rules.Positive("enclose.maxTiles", r.Enclose.MaxTiles),
 		rules.Positive("enclose.held", r.Enclose.Held),
@@ -31,7 +35,9 @@ func (r Rules) Validate() error {
 }
 
 type SpreadRules struct {
-	Clicks int
+	Clicks    int
+	Rings     int
+	Unlimited bool
 }
 
 // BombRules: Off, a bomb held is not dropped, and no hand has room for one, so none is granted.

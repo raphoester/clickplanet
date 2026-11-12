@@ -15,8 +15,12 @@ var Part = cprules.PartOf[*planetv1.Rules, Rules]{Key: "charges", Read: func(m *
 
 func RulesOf(m *planetv1.ChargeRules) Rules {
 	return Rules{
-		Spread: SpreadRules{Clicks: int(m.GetSpread().GetClicks())},
-		Bomb:   BombRules{Rings: m.GetBomb().GetRings(), Off: m.GetBomb().GetOff()},
+		Spread: SpreadRules{
+			Clicks:    int(m.GetSpread().GetClicks()),
+			Rings:     int(m.GetSpread().GetRings()),
+			Unlimited: m.GetSpread().GetUnlimited(),
+		},
+		Bomb: BombRules{Rings: m.GetBomb().GetRings(), Off: m.GetBomb().GetOff()},
 		Enclose: EncloseRules{
 			MaxTiles:  int(m.GetEnclose().GetMaxTiles()),
 			Held:      int(m.GetEnclose().GetHeld()),

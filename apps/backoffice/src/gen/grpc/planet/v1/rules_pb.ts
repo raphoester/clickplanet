@@ -491,6 +491,20 @@ export class SpreadRules extends Message<SpreadRules> {
    */
   clicks?: number;
 
+  /**
+   * How far a spread reaches: every tile within this many steps of the tile clicked. 1 to 3.
+   *
+   * @generated from field: optional uint32 rings = 3;
+   */
+  rings?: number;
+
+  /**
+   * A click with spread on needs no charge and spends none.
+   *
+   * @generated from field: optional bool unlimited = 4;
+   */
+  unlimited?: boolean;
+
   constructor(data?: PartialMessage<SpreadRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -500,6 +514,8 @@ export class SpreadRules extends Message<SpreadRules> {
   static readonly typeName = "planet.v1.SpreadRules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 3, name: "rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 4, name: "unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SpreadRules {

@@ -36,7 +36,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 
 	rules.Bomb.Rings = 5
 	rules.Enclose = charges.EncloseRules{MaxTiles: 40, Held: 4, Unlimited: true}
-	rules.Spread.Clicks = 9
+	rules.Spread = charges.SpreadRules{Clicks: 9, Rings: 2, Unlimited: true}
 	rules.Shield.Held = 12
 	rules.Shield.PerTile = 20
 	rules.Bomb.Off = true
@@ -47,6 +47,8 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	assert.Equal(t, uint32(4), got.GetEnclosures())
 	assert.True(t, got.GetEnclosuresUnlimited())
 	assert.Equal(t, uint32(9), got.GetSpreadClicks())
+	assert.Equal(t, uint32(2), got.GetSpreadRings())
+	assert.True(t, got.GetSpreadUnlimited())
 	assert.Equal(t, uint32(12), got.GetShields())
 	assert.Equal(t, uint32(20), got.GetTileShields())
 	assert.True(t, got.GetBombsOff())

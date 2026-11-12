@@ -17,10 +17,22 @@ play it on the world's map too. The page draws the bridges, rings what the playe
   every tile it does not hold that touches its land, the far end of a bridge counted as a tile it touches. It is the
   white ring of a first visit's front (see [The front](front-guide.md)), on every page while the reach plays. A guided
   page goes back to its plain front once the reach stops.
+- **While spread is on, the ring is wider** (the backend's knob 3, see its [The reach](../../backend/docs/reach.md)): a
+  click that will spread is in reach when any tile within `spreadRings` steps of it is, since the spread fills the gap.
+  So `Front.widen(rings)` lights every tile whose disc over the land (`discOf`, on `Neighbours`, never across a bridge)
+  touches the front, and `reaches` lets a click on it go. `globe.ts` widens the reach's front by `ringsOf(switches,
+  rules)` at each change of the switches (`switchTo`), of the rules, and when the reach starts; spread is on only while
+  it will spread (`switchesHeld`: a spread click held, or unlimited), so the page never lets through a click the server
+  would refuse for want of a spread. Spread off, the ring goes back to the plain front. While widened, `touch` relights
+  every tile within the rings of a tile that changed. Each walk stops at the flag's own land, since an edge tile comes
+  first, and the reach reads each tile's neighbours once (`remembered`, 7 slots a tile, 7 MB while the reach plays).
+  Measured on an M-series Mac (2026-11-12): widening the front of 2,000 scattered tiles takes 7 ms (31 ms before
+  `remembered` and the walks), a tile changed 35 µs; on the page, turning spread on 8 to 13 ms.
 - **A click elsewhere is stopped** (`globe.ts`, right after the frozen map). Nothing is sent, the refused sound plays,
   the meter shakes, and a bubble over it says "Take a tile next to your land" (`refusedClicksStore.refuseOutOfReach`,
   `ClickBudgetMeter`). The server may refuse a click the page let through (`ReachRefusal`, read as `OutOfReachError`).
   That click is rolled back and told the same way. While the knock-out plays, it also opens the out window again (see
   [The capitals](capitals.md)).
 - **The fake backend refuses no click out of reach**: `playReach()` in its console plays the page's side alone, the
-  bridges drawn and the front rung (see [Commands](commands.md)). Check the refusal on the local stack.
+  bridges drawn and the front rung (see [Commands](commands.md)); with `unlimitSpreads()`, spread is on and the ring
+  widens by 2 rings. Check the refusal on the local stack.

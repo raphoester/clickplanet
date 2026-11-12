@@ -3,6 +3,7 @@ package clicks
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
@@ -44,34 +45,31 @@ func NewReach(on func() Reaching, neighbours Neighbourhood, bridges Crossings, h
 	return Reach{on: on, neighbours: neighbours, bridges: bridges, held: held}
 }
 
-func (r Reach) Refuses(flag string, tile uint32) error {
-	if !bool(r.on()) || r.reaches(flag, tile) {
+func (r Reach) Refuses(flag string, tile uint32, rings int) error {
+	if !bool(r.on()) || r.reachesAny(flag, append(Disc(r.neighbours, tile, rings), tile)) {
 		return nil
 	}
 
 	return fmt.Errorf("%w: tile %d for %s", ErrOutOfReach, tile, flag)
 }
 
-// Around is the tile's neighbours a take of the flag lands on. Without the reach it is the map's own table: read it,
-// never write it.
-func (r Reach) Around(flag string, tile uint32) []uint32 {
-	neighbours := r.neighbours.Neighbours(tile)
-	if !r.on() {
-		return neighbours
+// Around is the tiles a spread of the flag takes, read after the tile clicked is written: its whole disc once the tile
+// is the flag's, and only the tiles in reach when a shield kept it.
+func (r Reach) Around(flag string, tile uint32, rings int) []uint32 {
+	disc := Disc(r.neighbours, tile, rings)
+	if !bool(r.on()) || r.held.HoldsAny(flag, []uint32{tile}) {
+		return disc
 	}
 
-	reached := make([]uint32, 0, len(neighbours))
-	for _, neighbour := range neighbours {
-		if r.reaches(flag, neighbour) {
-			reached = append(reached, neighbour)
-		}
-	}
-
-	return reached
+	return slices.DeleteFunc(disc, func(each uint32) bool { return !r.reachesAny(flag, []uint32{each}) })
 }
 
-func (r Reach) reaches(flag string, tile uint32) bool {
-	return r.held.HoldsAny(flag, []uint32{tile}) ||
-		r.held.HoldsAny(flag, r.neighbours.Neighbours(tile)) ||
-		r.held.HoldsAny(flag, r.bridges.Across(tile))
+func (r Reach) reachesAny(flag string, tiles []uint32) bool {
+	near := slices.Clone(tiles)
+	for _, tile := range tiles {
+		near = append(near, r.neighbours.Neighbours(tile)...)
+		near = append(near, r.bridges.Across(tile)...)
+	}
+
+	return r.held.HoldsAny(flag, near)
 }

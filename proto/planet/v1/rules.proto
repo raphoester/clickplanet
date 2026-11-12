@@ -94,6 +94,10 @@ message SpreadRules {
   optional uint32 clicks = 1;
   reserved 2;
   reserved "max_per_box";
+  // How far a spread reaches: every tile within this many steps of the tile clicked. 1 to 3.
+  optional uint32 rings = 3;
+  // A click with spread on needs no charge and spends none.
+  optional bool unlimited = 4;
 }
 
 message BombRules {

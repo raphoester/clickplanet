@@ -108,6 +108,17 @@ func TestAShieldGivenBackIsTheOneTakenWhateverTheStackSize(t *testing.T) {
 	assert.Equal(t, 11, spent.Granted(KindShields, 1, smaller).Shields, "a grant would have kept it")
 }
 
+func TestASpreadClickGivenBackIsTheOneTakenWhateverThePoolSize(t *testing.T) {
+	smaller := chargeRules
+	smaller.Spread.Clicks = 5
+
+	spent, ok := Held{SpreadClicks: 8}.AfterSpreadClick()
+	require.True(t, ok)
+
+	assert.Equal(t, Held{SpreadClicks: 8}, spent.WithSpreadClickBack())
+	assert.Equal(t, 7, spent.Granted(KindSpreadClicks, 1, smaller).SpreadClicks, "a grant would have kept it")
+}
+
 func TestARefillIsOneFill(t *testing.T) {
 	used, ok := Held{}.Granted(KindRefill, 1, chargeRules).AfterRefill()
 	require.True(t, ok)

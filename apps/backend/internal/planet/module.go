@@ -332,7 +332,6 @@ func NewModule(config Config) cpbootstrap.Module {
 			bombing := charges.NewBombing(chargeRules, geography.Spacing())
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
-			clickUseCase = spread_click.New(clickUseCase, hands, reach, writer, board)
 
 			clickUseCase = enclose_click.New(clickUseCase, hands,
 				charges.NewTerrain(geography, tilesStorage),
@@ -345,6 +344,9 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			// Outside the throttle, so a click out of the flag's reach in an arena spends nothing.
 			clickUseCase = reach_click.New(clickUseCase, reach)
+
+			// Outside the reach: a spread is taken before the reach checks its disc, and given back if the click is refused.
+			clickUseCase = spread_click.New(clickUseCase, hands, reach, writer, board)
 
 			// Outside the throttle, so a click refused for its flag spends nothing.
 			clickUseCase = allegiance_click.New(clickUseCase, flags)

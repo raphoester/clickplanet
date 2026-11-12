@@ -30,7 +30,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "charges.spread.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
@@ -41,7 +41,7 @@ describe("the rules", () => {
         const paths = GROUPS.flatMap(group => group.fields.map(field => field.path))
 
         expect(paths.filter(path => path.startsWith("charges."))).toEqual([
-            "charges.spread.clicks", "charges.bomb.rings", "charges.enclose.maxTiles", "charges.enclose.held",
+            "charges.spread.clicks", "charges.spread.rings", "charges.bomb.rings", "charges.enclose.maxTiles", "charges.enclose.held",
             "charges.shield.held", "charges.shield.perTile",
         ])
         expect(paths.filter(path => /box|quiz|kinds|welcome|offer/i.test(path))).toEqual([])
@@ -90,6 +90,20 @@ describe("the rules", () => {
         expect(before.enclosuresUnlimited).toBe(false)
         expect(ruleSetOf(after).rules?.charges?.enclose?.unlimited).toBe(true)
         expect(changesOf(before, after)).toEqual([{label: "Enclosures unlimited", before: "no", after: "yes"}])
+    })
+
+    it("sends unlimited spreads switched on and the spread's rings, and says they changed", () => {
+        const before = draftOf(played())
+        const after = {...before, spreadUnlimited: true, values: {...before.values, "charges.spread.rings": "2"}}
+
+        expect(before.spreadUnlimited).toBe(false)
+        expect(before.values["charges.spread.rings"]).toBe("1")
+        expect(ruleSetOf(after).rules?.charges?.spread?.unlimited).toBe(true)
+        expect(ruleSetOf(after).rules?.charges?.spread?.rings).toBe(2)
+        expect(changesOf(before, after)).toEqual([
+            {label: "Spread unlimited", before: "no", after: "yes"},
+            {label: "Charges · Spread rings, 1 to 3", before: "1", after: "2"},
+        ])
     })
 
     it("freezes a set, and says so in the list", () => {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -11,13 +12,15 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 )
 
+const returnTimeout = 5 * time.Second
+
 type Spreads interface {
-	Spend(ctx context.Context, holder charges.Holder, after func(charges.Held) (charges.Held, bool)) error
+	TakeSpread(ctx context.Context, holder charges.Holder) (charges.Spread, error)
+	GiveBackSpread(ctx context.Context, holder charges.Holder, spread charges.Spread) error
 }
 
-// Reach is the neighbours a spread of the flag takes: every one outside an arena.
 type Reach interface {
-	Around(flag string, tile uint32) []uint32
+	Around(flag string, tile uint32, rings int) []uint32
 }
 
 type Spreader interface {
@@ -53,29 +56,44 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	out, err := u.implementation.Execute(ctx, in)
-	if err != nil || !in.Spread {
-		return out, err
+	if !in.Spread {
+		return u.implementation.Execute(ctx, in)
 	}
 
-	if err := u.spreads.Spend(ctx, charges.HolderOf(clicks.PayerOf(ctx)), charges.Held.AfterSpreadClick); err != nil {
-		if errors.Is(err, charges.ErrNotHeld) {
-			return out, nil
+	holder := charges.HolderOf(clicks.PayerOf(ctx))
+	spread, err := u.spreads.TakeSpread(ctx, holder)
+	if err != nil {
+		return click_usecase.Out{}, fmt.Errorf("failed to take a spread click: %w", err)
+	}
+	in.Rings = spread.Rings
+
+	out, err := u.implementation.Execute(ctx, in)
+	if err != nil {
+		if back := u.giveBack(ctx, holder, spread); back != nil {
+			return out, errors.Join(err, back)
 		}
 		return out, err
 	}
-
-	neighbours := u.reach.Around(in.CountryID, in.TileID)
-	if err := u.spreader.Spread(ctx, in.TileID, in.CountryID, neighbours); err != nil {
-		return out, fmt.Errorf("failed to spread from tile %d: %w", in.TileID, err)
+	if in.Rings == 0 {
+		return out, nil
 	}
 
-	// The neighbours are copied: Around hands back the map's own table.
-	u.publisher.PublishSpread(notices.Spread{
-		CountryID:  in.CountryID,
-		Tile:       in.TileID,
-		Neighbours: append([]uint32(nil), neighbours...),
-	})
+	tiles := u.reach.Around(in.CountryID, in.TileID, in.Rings)
+	if err := u.spreader.Spread(ctx, in.TileID, in.CountryID, tiles); err != nil {
+		return out, fmt.Errorf("failed to spread from tile %d: %w", in.TileID, err)
+	}
+	u.publisher.PublishSpread(notices.Spread{CountryID: in.CountryID, Tile: in.TileID, Neighbours: tiles})
 
 	return out, nil
+}
+
+func (u *UseCase) giveBack(ctx context.Context, holder charges.Holder, spread charges.Spread) error {
+	returning, cancel := context.WithTimeout(context.WithoutCancel(ctx), returnTimeout)
+	defer cancel()
+
+	if err := u.spreads.GiveBackSpread(returning, holder, spread); err != nil {
+		return fmt.Errorf("failed to give back the spread click of a refused click: %w", err)
+	}
+
+	return nil
 }
