@@ -11,7 +11,7 @@ import CountryFlag from "./CountryFlag.tsx"
 import RecruitButton from "../share/RecruitButton.tsx"
 import InviteButton from "../share/InviteButton.tsx"
 import {Country} from "../../domain/countries.ts"
-import {breakHeadline} from "../../domain/shareCard.ts"
+import {breakHeadline, ShareAddress} from "../../domain/shareCard.ts"
 import DiscordButton from "../alerts/DiscordButton.tsx"
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts"
 import {InviteLink} from "../../backends/crazyGames.ts"
@@ -27,7 +27,7 @@ export type ClickBudgetMeterProps = {
     compact?: boolean
     popover?: ReactNode
     // The map takes no play: the dock says so, and when the next season starts when one is planned.
-    frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country}
+    frozen?: {nextSeason?: {number: number, startsAt: number}, country: Country, address: ShareAddress}
     invite?: InviteLink
     discord?: DiscordOffer
 }
@@ -144,7 +144,7 @@ export default function ClickBudgetMeter({
                                     className="button button-mini button-secondary click-budget-invite"
                                     icon={<CountryFlag code={frozen.country.code}/>}
                                     label="Invite"/>
-                    : <RecruitButton code={frozen.country.code}
+                    : <RecruitButton address={frozen.address}
                                      text={breakHeadline(frozen.country, frozen.nextSeason?.number)}
                                      className="button button-mini button-secondary click-budget-invite"
                                      icon={<CountryFlag code={frozen.country.code}/>}

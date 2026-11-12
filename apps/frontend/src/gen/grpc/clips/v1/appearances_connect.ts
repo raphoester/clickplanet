@@ -3,11 +3,12 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAppearancesRequest, GetAppearancesResponse, SetNameShownRequest, SetNameShownResponse } from "./appearances_pb.js";
+import { GetAppearancesRequest, GetAppearancesResponse, GetShownNamesRequest, GetShownNamesResponse, SetNameShownRequest, SetNameShownResponse } from "./appearances_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The clips that name the caller, on the public router: each needs the identity token, and acts on the caller's alone.
+ * The clips that name the caller, on the public router: each needs the identity token, and acts on the caller's alone,
+ * but GetShownNames, which needs none.
  *
  * @generated from service clips.v1.ClipsService
  */
@@ -34,6 +35,18 @@ export const ClipsService = {
       I: SetNameShownRequest,
       O: SetNameShownResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Of a page of accounts, the names a player's own video may show.
+     *
+     * @generated from rpc clips.v1.ClipsService.GetShownNames
+     */
+    getShownNames: {
+      name: "GetShownNames",
+      I: GetShownNamesRequest,
+      O: GetShownNamesResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

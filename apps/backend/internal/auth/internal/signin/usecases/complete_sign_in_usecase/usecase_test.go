@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_recruitment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/inmemory_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
@@ -29,9 +30,10 @@ import (
 )
 
 var (
-	start    = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
-	lifetime = accounts.Lifetime{}.WithDefaults()
-	claim    = accounts.ClaimOf("google-user", "a@example.com", true)
+	start     = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
+	lifetime  = accounts.Lifetime{}.WithDefaults()
+	claim     = accounts.ClaimOf("google-user", "a@example.com", true)
+	recruiter = accounts.AccountID{15: 0x77}
 )
 
 type fixture struct {
@@ -40,6 +42,7 @@ type fixture struct {
 	grants     *inmemory_grant_store.Store
 	store      *inmemory_account_store.Store
 	arrivals   *inmemory_arrival_store.Store
+	recruits   *inmemory_recruitment_store.Store
 	outbox     *cpatomic.FakeOutbox
 	clock      *cptime.FixedClock
 	seeded     int
@@ -52,7 +55,7 @@ func setUp(t *testing.T) *fixture {
 
 	sealer, err := aes_flow_sealer.New(bytes.Repeat([]byte{1}, 32))
 	require.NoError(t, err)
-	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), grants: inmemory_grant_store.New(), store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
+	f := &fixture{sealer: sealer, google: signin.NewFakeProvider(signin.Google), grants: inmemory_grant_store.New(), store: inmemory_account_store.New(), arrivals: inmemory_arrival_store.New(), recruits: inmemory_recruitment_store.New(), outbox: &cpatomic.FakeOutbox{}, clock: cptime.NewFixedClock(start)}
 	providers := signin.Providers{signin.Google: f.google}
 	f.start = start_sign_in_usecase.New(providers, f.store, &signin.SequentialSecrets{}, sealer, f.clock)
 	f.completion = complete_sign_in_usecase.New(providers, sealer, f.admitter(), f.clock)
@@ -60,7 +63,7 @@ func setUp(t *testing.T) *fixture {
 }
 
 func (f *fixture) admitter() *signin.Admitter {
-	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
+	register := arrivals.NewRegister(f.arrivals, f.recruits, &arrivals.SequentialIDs{})
 	return signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register,
 		grants.NewRegister(f.grants, &grants.SequentialIDs{}), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 }
@@ -105,7 +108,7 @@ func (f *fixture) finish(t *testing.T, intent accounts.Intent, sessionCookie str
 		cookies += "; " + sessionCookie
 	}
 	return f.completion.Execute(t.Context(), complete_sign_in_usecase.In{
-		Code: "the-code", State: state, CookieHeader: cookies, Landing: arrivals.Landing{Tag: "rc", Referrer: "discord.com"},
+		Code: "the-code", State: state, CookieHeader: cookies, Landing: arrivals.Landing{Tag: "rc", Referrer: "discord.com", Recruiter: recruiter},
 	})
 }
 
@@ -479,8 +482,9 @@ func TestAnAccountASignInMakesKeepsWhereTheBrowserCameFrom(t *testing.T) {
 
 	require.Equal(t, accounts.Created, out.Outcome())
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceRecruit, Referrer: "discord.com", At: start,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceRecruit, Tag: "rc", Referrer: "discord.com", At: start,
 	}}, f.arrivals.Kept())
+	assert.Equal(t, []arrivals.RecruitmentSnapshot{{Arrival: arrivals.ArrivalID{0: 0xa, 15: 1}, Recruiter: recruiter}}, f.recruits.Kept())
 }
 
 func TestASignInToAnAccountThatExistsKeepsNoArrival(t *testing.T) {
@@ -492,6 +496,7 @@ func TestASignInToAnAccountThatExistsKeepsNoArrival(t *testing.T) {
 
 	require.Equal(t, accounts.Linked, out.Outcome())
 	assert.Empty(t, f.arrivals.Kept(), "the guest's arrival was kept when the guest was made")
+	assert.Empty(t, f.recruits.Kept())
 }
 
 var firstGrant = grants.GrantID{0: 0x9, 15: 1}

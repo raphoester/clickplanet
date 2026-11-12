@@ -15,7 +15,7 @@ const turns: TurnBackend = fake
     : new ConnectTurnBackend(newGamemasterServiceClient({baseUrl: API_BASE_URL}))
 
 // Here, not on /play: the game's page sees this page as where the player came from.
-firstLanding(localLandingStore(), landingOf(new URL(location.href), document.referrer))
+void firstLanding(localLandingStore(), landingOf(new URL(location.href), document.referrer))
 carryQuery(document, location.search)
 
 const season = seasonShown(document)

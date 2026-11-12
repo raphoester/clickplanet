@@ -7,7 +7,7 @@ a read that reuses them forces public fields onto them for its own sake. So a re
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), missions (`AdminService/ListFlagDays`,
 `AdminService/GetMissionTotals`, `AdminService/GetRules`), bonuses (`AdminService/ListQuizQuestions`, of memory), auth
-(`GetMe`, `GetAccount`, `GetAccounts`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream) and support (`ListNotes`, `ListReports`) follow this so far. **A command may
+(`GetMe`, `GetAccount`, `GetAccounts`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream), support (`ListNotes`, `ListReports`) and clips (`GetAppearances`, `ListNameVerdicts`, `GetShownNames`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `IntroducePlayer`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read
 through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
@@ -57,7 +57,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   names them with a map of its own, as `authprovider` does. The handlers still parse an id with
   `accounts.AccountIDOf`, as every edge does.
 - **Every rule written twice has a parity test**, which runs the same stored rows through both copies and asks for
-  the same answer. Player: `IntroducePlayer` against `GetPlayers`. Progression: a command's title worn (`Wardrobe.Showcase`)
+  the same answer. Player: `IntroducePlayer` against `GetPlayers`. Clips: a cast's names (`casts.ShownNames`) against
+  `GetShownNames`. Progression: a command's title worn (`Wardrobe.Showcase`)
   against `GetBadges`.
   Chat (`history_query/parity_test.go`): a message is in the
   history exactly when `React` may react to it and `SendMessage` may reply to it; `React`'s answer against the

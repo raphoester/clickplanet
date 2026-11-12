@@ -26,6 +26,7 @@ import {
 } from "./player.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, NO_TIMEOUT, openStream, retrying} from "./transport.ts"
+import {Recruiters} from "../domain/landing.ts"
 
 export function newPlayerServiceClient(config: Config): PromiseClient<typeof PlayerService> {
     return createPromiseClient(PlayerService, createConnectTransport({
@@ -44,6 +45,19 @@ export function newKeepalivePlayerServiceClient(config: Config): PromiseClient<t
         useBinaryFormat: true,
         fetch: (input, init) => fetch(input, {...init, keepalive: true}),
     }))
+}
+
+// A public read, with no session: the landing that asks it goes with the call that mints the first one.
+export function nameHolder(client: PromiseClient<typeof PlayerService>): Recruiters {
+    return async (name) => {
+        try {
+            const res = await client.getPlayerByName({name})
+            return res.player?.accountId || undefined
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.NotFound) return undefined
+            throw e
+        }
+    }
 }
 
 const FAILURES: Partial<Record<Code, PlayerFailure>> = {

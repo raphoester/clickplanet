@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import glsl from 'vite-plugin-glsl'
 import {INSTAGRAM_PROFILE, TIKTOK_PROFILE, YOUTUBE_CHANNEL} from './src/links.ts'
 import {WEB_ANALYTICS_TOKEN, withoutAnalytics} from './src/webAnalytics.ts'
+import {withFlagCodes} from './src/flagCodes.ts'
 
 // The archive's page at its path in npm run dev, as the Workers asset handler serves archive.html at /archive.
 function archiveRoute(): Plugin {
@@ -43,8 +44,15 @@ function gameRoutes(): Plugin {
     }
 }
 
+function flagAddresses(): Plugin {
+    return {
+        name: "clickplanet-flag-addresses",
+        transformIndexHtml: (html) => withFlagCodes(html),
+    }
+}
+
 export default defineConfig({
-    plugins: [react(), glsl(), gameRoutes(), archiveRoute()],
+    plugins: [react(), glsl(), gameRoutes(), archiveRoute(), flagAddresses()],
     base: "/",
     define: {
         "import.meta.env.TIKTOK_PROFILE": JSON.stringify(TIKTOK_PROFILE),

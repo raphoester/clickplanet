@@ -4,7 +4,27 @@
     <meta charset="UTF-8"/>
     <script>
         try {
-            if (location.hostname === "crazygames.clickplanet.lol"
+            var address = location.hostname === "crazygames.clickplanet.lol"
+                ? null
+                : /^\/([^/]+)(?:\/([^/]+))?\/?$/.exec(location.pathname)
+            var flag = address && address[1].toLowerCase()
+            if (flag && " __FLAG_CODES__ ".indexOf(" " + flag + " ") !== -1) {
+                var query = new URLSearchParams(location.search)
+                query.set("f", flag)
+                query.set("s", "rc")
+                query.delete("r")
+                try {
+                    if (address[2]) query.set("r", decodeURIComponent(address[2]))
+                } catch (e) {
+                    // Not a name: the game still opens on the flag.
+                }
+                try {
+                    sessionStorage.setItem("clickplanet-referrer", document.referrer)
+                } catch (e) {
+                    // No storage: the game takes this page for the one before.
+                }
+                location.replace("/play?" + query + location.hash)
+            } else if (location.hostname === "crazygames.clickplanet.lol"
                 || (location.hash !== "#home" && localStorage.getItem("clickplanet-country") !== null)) {
                 location.replace("/play" + location.search + location.hash)
             }

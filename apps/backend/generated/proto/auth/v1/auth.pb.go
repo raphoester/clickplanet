@@ -382,9 +382,11 @@ type Landing struct {
 	// The ?s= of the link: "rc" for a player's, "yt" for YouTube.
 	Tag string `protobuf:"bytes,1,opt,name=tag,proto3" json:"tag,omitempty"`
 	// The host alone, never a path or a query.
-	Referrer      string `protobuf:"bytes,2,opt,name=referrer,proto3" json:"referrer,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Referrer string `protobuf:"bytes,2,opt,name=referrer,proto3" json:"referrer,omitempty"`
+	// The account that held the name in the player's address the browser came by (player.v1's GetPlayerByName).
+	RecruiterAccountId *string `protobuf:"bytes,3,opt,name=recruiter_account_id,json=recruiterAccountId,proto3,oneof" json:"recruiter_account_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Landing) Reset() {
@@ -427,6 +429,13 @@ func (x *Landing) GetTag() string {
 func (x *Landing) GetReferrer() string {
 	if x != nil {
 		return x.Referrer
+	}
+	return ""
+}
+
+func (x *Landing) GetRecruiterAccountId() string {
+	if x != nil && x.RecruiterAccountId != nil {
+		return *x.RecruiterAccountId
 	}
 	return ""
 }
@@ -1598,10 +1607,12 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x12auth/v1/auth.proto\x12\aauth.v1\"o\n" +
 	"\x14CreateSessionRequest\x12+\n" +
 	"\x11attestation_token\x18\x01 \x01(\tR\x10attestationToken\x12*\n" +
-	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"7\n" +
+	"\alanding\x18\x02 \x01(\v2\x10.auth.v1.LandingR\alanding\"\x87\x01\n" +
 	"\aLanding\x12\x10\n" +
 	"\x03tag\x18\x01 \x01(\tR\x03tag\x12\x1a\n" +
-	"\breferrer\x18\x02 \x01(\tR\breferrer\"Z\n" +
+	"\breferrer\x18\x02 \x01(\tR\breferrer\x125\n" +
+	"\x14recruiter_account_id\x18\x03 \x01(\tH\x00R\x12recruiterAccountId\x88\x01\x01B\x17\n" +
+	"\x15_recruiter_account_id\"Z\n" +
 	"\x15CreateSessionResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
 	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs\"\x16\n" +
@@ -1806,6 +1817,7 @@ func file_auth_v1_auth_proto_init() {
 	if File_auth_v1_auth_proto != nil {
 		return
 	}
+	file_auth_v1_auth_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

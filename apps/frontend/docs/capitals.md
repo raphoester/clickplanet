@@ -22,7 +22,14 @@ map too.
   - on bit 8 of the pulse slot (`TileField.setCapitalMarks`);
   - shown from 10 px across, as the mission ring, never under the painted flags.
 
-  Its 100 shields show as the most the shield marks draw (`tileShields`).
+- **A capital's badge counts every shield it holds** (the owner, 2026-11-12: its 100 shields read 10, the most a tile
+  holds, so its first 90 hits changed nothing on screen). The page shows the count the server sends: the sheet of
+  badges (`shieldMarks.ts`) holds a count up to the most a tile holds on the map (`TileShields.most`), `tileShields`
+  at least, by tens past it (`fitMarks` in `globe.ts`). It grows when an update brings a bigger count, as a capital's
+  100 in an arena, and falls back to `tileShields` once a big stack fell and no tile holds more, as when the world's
+  map plays again. A hit redraws it only when it crosses one of those. Past 16 cells the sheet is laid out square in
+  64 px cells: a capital's 100 weigh about 1.8 MB on the GPU, and 255 stay under 4096 px. Fortify still raises a tile
+  to `tileShields`. No rule names a capital's shields but the seed's.
 - **No shield on a capital**, while `capitalShieldsFixed`:
   - The shield switch on a capital sends nothing, and the slot says "No shield on a capital" (`placementOf` answers
     `"capital"`).

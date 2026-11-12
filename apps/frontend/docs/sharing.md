@@ -17,9 +17,21 @@ the globe on a phone, and it is pressed rarely. On a phone the press closes the
 sheet first, so the globe is what the preview shows the player framed.
 
 **The recruit link is under it** (`RecruitLink.tsx`): "Recruit for France", the
-link `clickplanet.lol/?f=fr` of the country played (`shareLabel`), and one
-button. The link needs nothing new: `?f=` is the flag a shared picture already
-carries, and a newcomer who opens it plays for that country.
+player's address (`shareLabel`), and one button. A newcomer who opens it plays
+for that country.
+
+**Every share carries the player's address**: `clickplanet.lol/<flag>/<name>`
+for a player with a username, `clickplanet.lol/<flag>` for a guest. The recruit
+link, the frozen dock's Invite, the text that rides with a picture and the words
+drawn into it all read one `ShareAddress` (`src/domain/shareCard.ts`), which
+`PlayScreen` makes with `shareAddress` from the flag played and the username:
+that is the one place that decides which name an address shows. In the address
+each space of the name is a `-` (no username holds one), its case is kept, and
+`shareUrl` escapes the letters a link cannot carry while `shareLabel` keeps them
+as a person reads them. The home page's first script opens it on the game (see
+[Pages and routes](routes.md)), and the name in it tells the backend who
+recruited the account that comes by it (see [Arrivals](arrivals.md)). Old `?f=`
+links still open the game on their flag. CrazyGames' Invite is unchanged.
 
 - **A phone gets its share sheet, a desktop a copy** (`linkDeliveryOffered`,
   `deliverLink` in `deliverShare.ts`). The sheet takes the link and the sentence
@@ -34,7 +46,7 @@ carries, and a newcomer who opens it plays for that country.
   whole of it where nothing else copies.
 - `useDelivery.ts` is the button's states for this and for the picture's
   buttons: working, done for 2.5s, failed, and a closed sheet is no outcome.
-- **The button is `RecruitButton.tsx`**, so the frozen dock sends the same link
+- **The button is `RecruitButton.tsx`**, so the frozen dock sends the same address
   (see [A frozen map](backends.md#a-frozen-map)): there it is "Invite" with the
   flag, and the sentence is `breakHeadline`, the next season on a blank map.
 - **On CrazyGames, Invite takes Share's place** (`InviteFriends.tsx`,
@@ -81,21 +93,27 @@ The season ranks a country with points and no ground, which the card says as
 menu header flies — with the link at the other end of that line, and the
 player's badge at the bottom.
 
-**The link switches whoever opens it to its flag.** `main.tsx` reads `?f=`
+**The link switches whoever opens it to its flag.** The address reaches `/play`
+as `?f=` (and an old link carries it as such); `main.tsx` reads it
 with `sharedCountry`, before the first render, and chooses it in the country store, so the game starts on that
 country over the one in storage, then stores it as if it had been picked. An
 unknown code is ignored. The parameter is then taken out of the address bar,
 as the sign-in code is: left there, a reload would undo a flag the player has
-switched since. **The link a player sends also carries `?s=rc`**, so an
-account made by a browser that came by it counts as a recruit (see
-[Arrivals](arrivals.md)). The words drawn into the picture leave it out
-(`shareLabel`): longer, they meet the logo on a portrait card.
+switched since.
 
 **The link is drawn into the image**, not only attached to it: a picture is what
-survives being reposted. It is drawn in the text face (`--font-text`, Rubik)
-rather than the title face, which has no lowercase — a query parameter reading `?C=PS` is a link that
-does not work for whoever retypes it — and it sits on the masthead's line rather
+survives being reposted, and an address typed from it counts as a recruit. It is
+drawn in the text face (`--font-text`, Rubik)
+rather than the title face, which has no lowercase — a name in capitals reads
+as another name to whoever retypes it — and it sits at the top rather
 than over the badge, so a long country name never has to share a width with it.
+**It sits on the masthead's line when it fits beside the wordmark, and on a line
+of its own under it when not** (`linkPlacement`), shrunk only if even that line
+is too short. Measured in hundredths of a portrait card's width (Nov 2026):
+the room beside the wordmark is 49, a line of its own 92; `clickplanet.lol/fr`
+is 26 and `clickplanet.lol/pl/kutza` 37, beside it; a name of 15 characters is
+54 (`Ada-Lovelace-Jr`) to 75 (`gb-sct` and 15 `W`) or 77 (15 CJK characters),
+under it at its full size.
 
 **Anything drawn beside a title is aligned on the capitals, not on the box.**
 Luckiest Guy carries far more ascent than its capitals use, so `align-items:

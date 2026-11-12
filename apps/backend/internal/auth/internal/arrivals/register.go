@@ -13,14 +13,19 @@ type Saver interface {
 	Save(ctx context.Context, arrivals ...Arrival) error
 }
 
-func NewRegister(store Saver, ids IDProvider) *Register {
-	return &Register{store: store, ids: ids}
+type RecruitmentSaver interface {
+	Save(ctx context.Context, recruitments ...Recruitment) error
+}
+
+func NewRegister(store Saver, recruitments RecruitmentSaver, ids IDProvider) *Register {
+	return &Register{store: store, recruitments: recruitments, ids: ids}
 }
 
 // Where an account was made, it is told how the account came.
 type Register struct {
-	store Saver
-	ids   IDProvider
+	store        Saver
+	recruitments RecruitmentSaver
+	ids          IDProvider
 }
 
 func (r *Register) Record(ctx context.Context, account AccountID, landing Landing, now time.Time) error {
@@ -34,6 +39,13 @@ func (r *Register) Record(ctx context.Context, account AccountID, landing Landin
 	}
 	if err := r.store.Save(ctx, arrival); err != nil {
 		return fmt.Errorf("failed to save the arrival: %w", err)
+	}
+	recruitment, recruited := arrival.Recruitment(landing.Recruiter)
+	if !recruited {
+		return nil
+	}
+	if err := r.recruitments.Save(ctx, recruitment); err != nil {
+		return fmt.Errorf("failed to save the recruitment: %w", err)
 	}
 	return nil
 }

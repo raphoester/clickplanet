@@ -39,6 +39,9 @@ const (
 	// ClipsServiceSetNameShownProcedure is the fully-qualified name of the ClipsService's SetNameShown
 	// RPC.
 	ClipsServiceSetNameShownProcedure = "/clips.v1.ClipsService/SetNameShown"
+	// ClipsServiceGetShownNamesProcedure is the fully-qualified name of the ClipsService's
+	// GetShownNames RPC.
+	ClipsServiceGetShownNamesProcedure = "/clips.v1.ClipsService/GetShownNames"
 )
 
 // ClipsServiceClient is a client for the clips.v1.ClipsService service.
@@ -46,6 +49,8 @@ type ClipsServiceClient interface {
 	GetAppearances(context.Context, *connect.Request[v1.GetAppearancesRequest]) (*connect.Response[v1.GetAppearancesResponse], error)
 	// Whether the clips may name the caller.
 	SetNameShown(context.Context, *connect.Request[v1.SetNameShownRequest]) (*connect.Response[v1.SetNameShownResponse], error)
+	// Of a page of accounts, the names a player's own video may show.
+	GetShownNames(context.Context, *connect.Request[v1.GetShownNamesRequest]) (*connect.Response[v1.GetShownNamesResponse], error)
 }
 
 // NewClipsServiceClient constructs a client for the clips.v1.ClipsService service. By default, it
@@ -72,6 +77,13 @@ func NewClipsServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clipsServiceMethods.ByName("SetNameShown")),
 			connect.WithClientOptions(opts...),
 		),
+		getShownNames: connect.NewClient[v1.GetShownNamesRequest, v1.GetShownNamesResponse](
+			httpClient,
+			baseURL+ClipsServiceGetShownNamesProcedure,
+			connect.WithSchema(clipsServiceMethods.ByName("GetShownNames")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -79,6 +91,7 @@ func NewClipsServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type clipsServiceClient struct {
 	getAppearances *connect.Client[v1.GetAppearancesRequest, v1.GetAppearancesResponse]
 	setNameShown   *connect.Client[v1.SetNameShownRequest, v1.SetNameShownResponse]
+	getShownNames  *connect.Client[v1.GetShownNamesRequest, v1.GetShownNamesResponse]
 }
 
 // GetAppearances calls clips.v1.ClipsService.GetAppearances.
@@ -91,11 +104,18 @@ func (c *clipsServiceClient) SetNameShown(ctx context.Context, req *connect.Requ
 	return c.setNameShown.CallUnary(ctx, req)
 }
 
+// GetShownNames calls clips.v1.ClipsService.GetShownNames.
+func (c *clipsServiceClient) GetShownNames(ctx context.Context, req *connect.Request[v1.GetShownNamesRequest]) (*connect.Response[v1.GetShownNamesResponse], error) {
+	return c.getShownNames.CallUnary(ctx, req)
+}
+
 // ClipsServiceHandler is an implementation of the clips.v1.ClipsService service.
 type ClipsServiceHandler interface {
 	GetAppearances(context.Context, *connect.Request[v1.GetAppearancesRequest]) (*connect.Response[v1.GetAppearancesResponse], error)
 	// Whether the clips may name the caller.
 	SetNameShown(context.Context, *connect.Request[v1.SetNameShownRequest]) (*connect.Response[v1.SetNameShownResponse], error)
+	// Of a page of accounts, the names a player's own video may show.
+	GetShownNames(context.Context, *connect.Request[v1.GetShownNamesRequest]) (*connect.Response[v1.GetShownNamesResponse], error)
 }
 
 // NewClipsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -118,12 +138,21 @@ func NewClipsServiceHandler(svc ClipsServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clipsServiceMethods.ByName("SetNameShown")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clipsServiceGetShownNamesHandler := connect.NewUnaryHandler(
+		ClipsServiceGetShownNamesProcedure,
+		svc.GetShownNames,
+		connect.WithSchema(clipsServiceMethods.ByName("GetShownNames")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/clips.v1.ClipsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ClipsServiceGetAppearancesProcedure:
 			clipsServiceGetAppearancesHandler.ServeHTTP(w, r)
 		case ClipsServiceSetNameShownProcedure:
 			clipsServiceSetNameShownHandler.ServeHTTP(w, r)
+		case ClipsServiceGetShownNamesProcedure:
+			clipsServiceGetShownNamesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -139,4 +168,8 @@ func (UnimplementedClipsServiceHandler) GetAppearances(context.Context, *connect
 
 func (UnimplementedClipsServiceHandler) SetNameShown(context.Context, *connect.Request[v1.SetNameShownRequest]) (*connect.Response[v1.SetNameShownResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.ClipsService.SetNameShown is not implemented"))
+}
+
+func (UnimplementedClipsServiceHandler) GetShownNames(context.Context, *connect.Request[v1.GetShownNamesRequest]) (*connect.Response[v1.GetShownNamesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("clips.v1.ClipsService.GetShownNames is not implemented"))
 }

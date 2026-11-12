@@ -6,6 +6,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/announce_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_accounts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_nameplates_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_by_name_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler"
@@ -29,6 +30,7 @@ type PlayerService struct {
 	listen_for_events_handler.ListenForEventsHandler
 	get_player_handler.GetPlayerHandler
 	get_nameplates_handler.GetNameplatesHandler
+	get_player_by_name_handler.GetPlayerByNameHandler
 }
 
 var _ playerv1connect.PlayerServiceHandler = PlayerService{}
