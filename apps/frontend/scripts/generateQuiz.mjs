@@ -23,10 +23,18 @@ const extra = handWritten()
 say(`${extra.length} questions written by hand`)
 
 const countries = gameNames()
-const questions = [...derived, ...extra].map((question) => ({
-    ...question,
-    namesSubject: question.subject !== "" && names(question.text, countries.get(question.subject)),
-}))
+const rated = priors()
+let withPrior = 0
+const questions = [...derived, ...extra].map((question) => {
+    const prior = priorOf(question, rated)
+    if (prior !== undefined) withPrior++
+    return {
+        ...question,
+        namesSubject: question.subject !== "" && names(question.text, countries.get(question.subject)),
+        ...(prior === undefined ? {} : {prior}),
+    }
+})
+say(`${withPrior} questions have a prior from quiz/priors.json`)
 check(questions)
 
 const bank = {
@@ -56,6 +64,23 @@ function handWritten() {
             wrong: question.wrong,
         }
     })
+}
+
+// The priors the subagent rating wrote to quiz/priors.json, by question id. A missing file means no prior at all.
+function priors() {
+    const file = path.join(quizDir, "priors.json")
+    if (!fs.existsSync(file)) return new Map()
+
+    const {questions: entries} = JSON.parse(fs.readFileSync(file, "utf8"))
+    return new Map(entries.map((entry) => [entry.id, entry]))
+}
+
+// A question gets its prior only when its text and answer are the ones it was rated with.
+function priorOf(question, rated) {
+    const entry = rated.get(question.id)
+    if (!entry || entry.text !== question.text || entry.answer !== question.answer) return undefined
+
+    return entry.prior
 }
 
 function check(questions) {
@@ -105,5 +130,5 @@ function write(bank) {
     say(`wrote quiz/bank.json: ${bank.questions.length} questions, ${(body.length / 1024).toFixed(0)} KiB`)
     say("")
     say("next:")
-    say("  cd apps/backend && make quiz   # copy it in to be embedded, then commit both")
+    say("  cd apps/backend && make quiz   # copy the bank in to be embedded, then commit it and quiz/priors.json")
 }
