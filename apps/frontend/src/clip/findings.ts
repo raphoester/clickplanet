@@ -5,7 +5,8 @@ import {KINDS, Place, Story, storyCountriesOf, storyKeyOf} from "../domain/clip/
 import {Look, LOOKS} from "../domain/clip/look.ts"
 import {Path, SagaFacts} from "../domain/clip/saga.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
-import {nameOf, placeName, said, wordsOf, Written} from "./overlay.ts"
+import {placeName, wordsOf, Written} from "./overlay.ts"
+import {nameOf, said} from "./names.ts"
 import {languageOf} from "./clipRecord.ts"
 
 // What the generator measured of a story to find it, before any camera: the numbers its clip would record.

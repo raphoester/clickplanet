@@ -32,6 +32,9 @@ an account. The backend decides what they mean: see the backend's [Arrivals](../
   each of which waits for it. The server keeps it only when that call makes the account, so sending it on every call
   costs nothing. A browser that came by a player's address with a name holds the recruiter's account in
   `clickplanet-landing` from then on.
+- **The newcomer is told who called it, once** ("kutza called you to fight for Poland", on the news line), by the
+  name clips' `GetShownNames` answers for the recruiter's account; none when it shows none. See
+  [Player videos](player-videos.md#welcome-line).
 - **`?s=` and `?r=` are taken out of the address bar** with `?f=` (`withoutLanding`, `withoutSharedFlag`): left
   there, a copied address would make a friend a YouTube arrival, or the recruit of another player.
 - **The CrazyGames page tags every landing `cg`** (`crazyGamesLanding`) and keeps none, with no recruiter: its link

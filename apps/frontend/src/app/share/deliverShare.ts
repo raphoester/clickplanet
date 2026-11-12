@@ -22,6 +22,13 @@ export function deliveriesOffered(): ShareDelivery[] {
     return takesImagesOnClipboard() ? ["copy", "download"] : ["download"]
 }
 
+// A video goes out through a phone's share sheet; an iPhone's sheet may lack TikTok, so it can also be saved. A computer
+// saves it.
+export function videoDeliveriesOffered(): ShareDelivery[] {
+    if (!isPhone() || !takesFilesThroughShareSheet("clickplanet.mp4", "video/mp4")) return ["download"]
+    return isIPhone() ? ["sheet", "download"] : ["sheet"]
+}
+
 export async function deliverShare(
     delivery: ShareDelivery,
     file: File,
@@ -63,11 +70,15 @@ function isPhone(): boolean {
     return window.matchMedia?.("(pointer: coarse)").matches ?? false
 }
 
-function takesFilesThroughShareSheet(): boolean {
+function takesFilesThroughShareSheet(name = "clickplanet.png", type = "image/png"): boolean {
     if (!navigator.share || !navigator.canShare) return false
 
-    const probe = new File([], "clickplanet.png", {type: "image/png"})
+    const probe = new File([], name, {type})
     return navigator.canShare({files: [probe]})
+}
+
+function isIPhone(): boolean {
+    return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
 }
 
 function takesImagesOnClipboard(): boolean {

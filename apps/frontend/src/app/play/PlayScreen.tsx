@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
     AllegianceSource,
     BankFullError,
@@ -130,6 +130,16 @@ import {DiscordAlerts} from "../alerts/discordAlerts.ts";
 import {useDiscordAlerts} from "../alerts/useDiscordAlerts.ts";
 import {useUnderAttack} from "../alerts/useUnderAttack.ts";
 import {Halo} from "../viewer/atmosphere.ts";
+import {RecentHistorySource} from "../../backends/recentHistory.ts";
+import {ShownNamesBackend} from "../../backends/clips.ts";
+import {LandingStore} from "../../domain/landing.ts";
+import {dayOf} from "../../domain/video/dots.ts";
+import {movedShare} from "../../domain/video/story.ts";
+import {useVideoOffer} from "../video/useVideoOffer.ts";
+import {useShownName} from "../video/useShownName.ts";
+import {useVideo} from "../video/videoStore.ts";
+import VideoMaker from "../video/VideoMaker.tsx";
+import {useWelcomeLine} from "../news/useWelcomeLine.ts";
 import "./PlayScreen.css"
 
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
@@ -167,6 +177,11 @@ export type Backends = {
     crazyGames: CrazyGamesPage | undefined
     alerts: DiscordAlerts | undefined
     gifs: GifSearch | undefined
+    // The map's last 24 hours, for the player's video.
+    recentHistory: RecentHistorySource
+    // Which names a player's video, and its address, may show.
+    shownNames: ShownNamesBackend
+    landings: LandingStore
 }
 
 export type PlayScreenProps = {
@@ -317,6 +332,24 @@ export default function PlayScreen(props: PlayScreenProps) {
     const rules = useBonus((bonus) => bonus.rules)
 
     useUnderAttack(countryState.code, tileDeltas, accepted.listenForClicks)
+    // The page cannot tell an arena's map from the world's: a battle that plays the knock-out is taken for one.
+    const arena = battle !== undefined && rules?.knockOut === true
+    const video = useVideoOffer({
+        source: backends.recentHistory,
+        ready: status.state === 'ready',
+        flag: countryState.code,
+        allowed: !arena && !backends.crazyGames,
+        listenForClicks: accepted.listenForClicks,
+    })
+    const videoOpen = useVideo((store) => store.open)
+    const showVideo = useVideo((store) => store.show)
+    const closeVideo = useVideo((store) => store.close)
+    const lightVideoDots = useVideo((store) => store.light)
+    const videoStory = video.story
+    const onVideoMoment = useCallback(() => {
+        if (videoStory) lightVideoDots("moment", dayOf(Date.now()), movedShare(videoStory))
+    }, [videoStory, lightVideoDots])
+    useWelcomeLine(backends.shownNames, backends.landings, status.state === 'ready', countryState.name)
     const dryTaps = useRefusedClicks((refused) => refused.dryTaps)
 
     const spendRefill = () => {
@@ -343,7 +376,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     const anthem = useAnthem(status.state === 'ready' ? lines : NO_LEADERBOARD, order, crazyGames.silenced)
 
     const stats = shareStats(lines, countryState)
-    const address = shareAddress(countryState.code, username)
+    const ownShown = useShownName(backends.shownNames, ownAccountId, username)
+    const address = shareAddress(countryState.code, username, ownShown)
     const {shot, taking, take, discard} = useSharePicture(capture, stats, address)
 
     const openPitch = guest ? () => {
@@ -408,6 +442,13 @@ export default function PlayScreen(props: PlayScreenProps) {
             take()
         },
         taking,
+        video: video.offered ? {
+            dot: video.dot,
+            onMake: () => {
+                closeSheet()
+                useVideo.getState().tap()
+            },
+        } : undefined,
     }
     const settings = {
         sound: {preview: sound.preview},
@@ -490,13 +531,22 @@ export default function PlayScreen(props: PlayScreenProps) {
             <TabBar chat={crazyGames.chat}
                     invite={invite !== undefined}
                     you={account.kind === 'ready' ? (linked ? "player" : "guest") : undefined}
-                    missions={missionsNews}/>
+                    missions={missionsNews}
+                    videoDot={video.dot}/>
         </>}
 
         {shot && <SharePreview shot={shot}
                                stats={stats}
                                address={address}
                                onClose={discard}/>}
+
+        {videoOpen && <VideoMaker source={backends.recentHistory}
+                                  names={backends.shownNames}
+                                  flag={countryState.code}
+                                  accountId={ownAccountId}
+                                  username={username}
+                                  onSignIn={guest ? openPitch ?? (() => openSheet("you")) : undefined}
+                                  onClose={closeVideo}/>}
 
         {pitchOpen && guest && linkedMultiplier && <SignInPitchModal
             state={account}
@@ -545,7 +595,8 @@ export default function PlayScreen(props: PlayScreenProps) {
                  clipsAccount={linked && username !== undefined ? ownAccountId : undefined}
                  accountId={ownAccountId}
                  play={sound.play}
-                 onWear={backends.account.wearTitle}/>
+                 onWear={backends.account.wearTitle}
+                 video={video.offered ? {onMake: showVideo, onMoment: onVideoMoment} : undefined}/>
 
         <MissionsDone/>
 

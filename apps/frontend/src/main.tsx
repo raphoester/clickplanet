@@ -83,6 +83,9 @@ import {FakeAlertsBackend} from "./backends/fakeAlertsBackend.ts"
 import {DiscordAlerts} from "./app/alerts/discordAlerts.ts"
 import {ConnectAntibotBackend, newAntibotServiceClient} from "./backends/antibotBackend.ts"
 import {FakeAntibotBackend} from "./backends/fakeAntibotBackend.ts"
+import {ConnectRecentHistory} from "./backends/recentHistory.ts"
+import {FakeRecentHistory} from "./backends/fakeRecentHistory.ts"
+import {FakeShownNames} from "./backends/fakeShownNames.ts"
 
 // Strip the OAuth code and state from the URL before anything else can read or leak them.
 const callback = callbackOf(new URL(window.location.href))
@@ -361,6 +364,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         crazyGames,
         alerts,
         gifs: gifsOf(new FakeGifs()),
+        recentHistory: new FakeRecentHistory(fake, () => borders.then(({assignment}) => assignment.length)),
+        shownNames: new FakeShownNames(fakeNameplates),
+        landings: localLandingStore(),
     })
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config))
@@ -416,5 +422,8 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         crazyGames,
         alerts,
         gifs: gifsOf(klipyKey ? new KlipyGifs(klipyKey) : undefined),
+        recentHistory: new ConnectRecentHistory(newClickServiceClient(config)),
+        shownNames: clips,
+        landings: localLandingStore(),
     })
 }

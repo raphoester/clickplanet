@@ -1,0 +1,28 @@
+.video-tile {
+    position: relative;
+}
+
+/* The red dot that says a video of the flag's day is worth making. */
+.video-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+    background: var(--action);
+}
+
+.video-tile .video-dot {
+    top: 8px;
+    right: 8px;
+}
+
+.menu-rail-item .video-dot {
+    top: 6px;
+    right: 10px;
+}
+
+.tab-bar-tab .video-dot {
+    top: 6px;
+    left: calc(50% + 9px);
+}

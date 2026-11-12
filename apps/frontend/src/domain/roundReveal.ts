@@ -82,6 +82,11 @@ export function podiumOf(closed: ClosedRound): RoundStanding[] {
     return closed.standings.filter((standing) => standing.rank <= PODIUM && standing.points > 0).slice(0, PODIUM)
 }
 
+// A day the flag won: first on its podium, level with others too.
+export function wonTheDay(closed: ClosedRound, countryCode: string): boolean {
+    return closed.moment === "day" && podiumOf(closed).some((standing) => standing.rank === 1 && standing.countryCode === countryCode)
+}
+
 export function tablePodiumOf(table: Score[]): Score[] {
     return table.filter((score) => score.rank <= PODIUM && score.points > 0).slice(0, PODIUM)
 }

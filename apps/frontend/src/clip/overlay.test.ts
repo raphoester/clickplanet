@@ -2,7 +2,8 @@
 import {describe, expect, it} from "vitest"
 import {NamedSide} from "../domain/clip/cast.ts"
 import {Day, sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
-import {createOverlay, hashtagsOf, nameOf, said, wordsOf, Written} from "./overlay.ts"
+import {createOverlay, hashtagsOf, wordsOf, Written} from "./overlay.ts"
+import {nameOf, said} from "./names.ts"
 
 const day: Day = {
     season: 1, number: 5, finale: false, own: false, endedAt: 0,

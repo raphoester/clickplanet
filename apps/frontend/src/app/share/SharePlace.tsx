@@ -1,5 +1,6 @@
 import {ShareAddress, ShareStats} from "../../domain/shareCard.ts";
 import {CameraIcon} from "../components/icons.tsx";
+import VideoTile, {VideoTileProps} from "../video/VideoTile.tsx";
 import RecruitLink from "./RecruitLink.tsx";
 import "./SharePlace.css"
 
@@ -8,10 +9,13 @@ export type SharePlaceProps = {
     address: ShareAddress
     onTakePicture?: () => void
     taking?: boolean
+    // Where this browser can make the flag's video.
+    video?: VideoTileProps
 }
 
-export default function SharePlace({stats, address, onTakePicture, taking}: SharePlaceProps) {
+export default function SharePlace({stats, address, onTakePicture, taking, video}: SharePlaceProps) {
     return <div className="share-place">
+        {video && <VideoTile {...video}/>}
         {onTakePicture && <button type="button"
                                   className="panel-box menu-tile"
                                   aria-busy={taking}

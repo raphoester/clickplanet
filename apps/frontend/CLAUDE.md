@@ -97,6 +97,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   each bonus on the client.
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link; every share carries the
   player's address, `clickplanet.lol/<flag>/<name>`, or the flag alone for a guest.
+- [Player videos](docs/player-videos.md) — "Make my video": the flag's 24 hours as an 8 s video made in the browser,
+  its story, names and address, the anthem copied in, the red dots, the moments that offer it, the welcome line.
 - [Clips](docs/clips.md) — `npm run clip`: a replay played back as a short video, and what it hands to the
   backend's clips job.
 - [Battle teasers, as posts](docs/teasers.md) — `npm run teaser`: a battle's cards in a frame that says when it

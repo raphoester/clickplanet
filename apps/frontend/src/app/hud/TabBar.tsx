@@ -2,6 +2,7 @@ import {ReactNode} from "react"
 import {ChatIcon, SettingsIcon, ShareIcon, TargetIcon, TrophyIcon, UserIcon, UsersIcon} from "../components/icons.tsx"
 import {useScreen} from "./screenStore.ts"
 import {useChat} from "../chat/chatStore.ts"
+import {VideoDot} from "../video/VideoTile.tsx"
 import "./TabBar.css"
 
 export type Tab = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings"
@@ -13,9 +14,11 @@ export type TabBarProps = {
     you?: "guest" | "player"
     missions?: number
     invite?: boolean
+    // The video of the flag's day is worth making.
+    videoDot?: boolean
 }
 
-export default function TabBar({chat, you, missions, invite}: TabBarProps) {
+export default function TabBar({chat, you, missions, invite, videoDot}: TabBarProps) {
     const unread = useChat((state) => state.unread)
     const open = useScreen((screen) => screen.sheet)
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
@@ -43,7 +46,7 @@ export default function TabBar({chat, you, missions, invite}: TabBarProps) {
             unread === 0 ? undefined : unread === 1 ? "Chat, 1 new message" : `Chat, ${unread} new messages`)}
         {you && tab("you", you === "guest" ? "Sign in" : "You", <UserIcon/>,
             you === "guest" && <span className="tab-bar-dot" aria-hidden="true"/>)}
-        {invite ? tab("invite", "Invite", <UsersIcon/>) : tab("share", "Share", <ShareIcon size={22}/>)}
+        {invite ? tab("invite", "Invite", <UsersIcon/>) : tab("share", "Share", <ShareIcon size={22}/>, videoDot && <VideoDot/>)}
         {tab("settings", "Settings", <SettingsIcon/>)}
     </nav>
 }

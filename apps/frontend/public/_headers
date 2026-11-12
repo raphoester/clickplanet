@@ -63,6 +63,9 @@
 /play
   Cache-Control: public, max-age=0, must-revalidate
 
+/video
+  Cache-Control: public, max-age=0, must-revalidate
+
 /auth/callback
   Cache-Control: public, max-age=0, must-revalidate
   Referrer-Policy: no-referrer

@@ -6,6 +6,7 @@ import {BattleToCome} from "../backends/turn.ts"
 import {Battle, battleKeyOf} from "./battle.ts"
 import {teaserKeyOf} from "./battleTeaser.ts"
 import {Reveal, revealKeyOf} from "./roundReveal.ts"
+import {VideoStory} from "./video/story.ts"
 
 export type Announcement =
     | {kind: "title", title: PlayerTitle}
@@ -14,6 +15,8 @@ export type Announcement =
     | {kind: "teaser", battle: BattleToCome, cards: readonly TeaserCard[], asked?: boolean}
     | {kind: "clip", appearance: Appearance}
     | {kind: "flagMission", mission: FlagMission, country: string}
+    // The flag is losing a country: the video that calls for help is offered.
+    | {kind: "video", story: VideoStory}
     | Reveal
 
 export function announcementKeyOf(announcement: Announcement): string {
@@ -28,6 +31,8 @@ export function announcementKeyOf(announcement: Announcement): string {
             return `clip:${announcement.appearance.postId}`
         case "flagMission":
             return `flagMission:${announcement.mission.id}`
+        case "video":
+            return `video:${announcement.story.flag}:${announcement.story.country}`
         case "round":
         case "over":
         case "points":

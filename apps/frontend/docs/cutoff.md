@@ -49,7 +49,8 @@ once (`app/season/RoundReveal.tsx`; the rules are in `domain/roundReveal.ts`).
 - **Nothing closes it before it is settled**: no button, and Escape does
   nothing, until the rows have moved (`ROUND_REVEAL.slide` + `settle`), or the
   podium has run when there is no table, or the champion has had
-  `ROUND_REVEAL.champion` (2.2s). Then Close appears and Escape works.
+  `ROUND_REVEAL.champion` (2.2s). Then Close appears and Escape works, and "Make my video" beside it on a day the
+  flag won (`wonTheDay`), where the player can make one (see [Player videos](player-videos.md)).
   The rule is the title unlock's: a player spamming the globe would close it
   unseen.
 - **It takes its turn in the announcements queue** (see

@@ -26,12 +26,14 @@ export type RoundRevealProps = {
     results?: boolean
     countryCode: string
     play: PlaySound
+    // A day the flag won: its video is offered.
+    onMakeVideo?: () => void
     onClose: () => void
 }
 
 type Stage = "podium" | "table" | "champion"
 
-export default function RoundReveal({closed, results = false, countryCode, play, onClose}: RoundRevealProps) {
+export default function RoundReveal({closed, results = false, countryCode, play, onMakeVideo, onClose}: RoundRevealProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
     const [podium] = useState(() => results ? [] : podiumOf(closed))
@@ -99,6 +101,10 @@ export default function RoundReveal({closed, results = false, countryCode, play,
                 <div className="title-reveal-actions round-reveal-actions">
                     {!ready && stage !== last &&
                         <button type="button" className="button" onClick={() => setStage(stage === "podium" ? "table" : "champion")}>Next</button>}
+                    {ready && onMakeVideo && <button type="button" className="button button-action" onClick={() => {
+                        onClose()
+                        onMakeVideo()
+                    }}>Make my video</button>}
                     {ready && <button type="button" className="button button-gold" onClick={onClose}>Close</button>}
                 </div>
             </div>

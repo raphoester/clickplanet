@@ -8,7 +8,8 @@ bar. Its "Take a picture" tile takes the shot,
 `takePicture.ts` captures and composes it,
 `drawShareCard.ts` draws the card, `SharePreview.tsx` shows it, `ShareActions
 .tsx` is the row of buttons under it and `deliverShare.ts` is what they do.
-`useSharePicture.ts` holds the one picture there is at a time.
+`useSharePicture.ts` holds the one picture there is at a time. Above the picture's tile is "Make my video" (see
+[Player videos](player-videos.md)).
 `src/domain/shareCard.ts` holds everything decided before a pixel is drawn.
 
 **The camera is a tile in Share, not a button on the globe.** It used to sit
@@ -24,8 +25,10 @@ for that country.
 for a player with a username, `clickplanet.lol/<flag>` for a guest. The recruit
 link, the frozen dock's Invite, the text that rides with a picture and the words
 drawn into it all read one `ShareAddress` (`src/domain/shareCard.ts`), which
-`PlayScreen` makes with `shareAddress` from the flag played and the username:
-that is the one place that decides which name an address shows. In the address
+`PlayScreen` makes with `shareAddress` from the flag played, the username and the name
+clips' `GetShownNames` answers for the player: that is the one place that decides which name an address shows. A
+name the clips do not let a video show (not judged yet, judged hidden, or the player turned clips off) is left out,
+and the address is the flag alone. In the address
 each space of the name is a `-` (no username holds one), its case is kept, and
 `shareUrl` escapes the letters a link cannot carry while `shareLabel` keeps them
 as a person reads them. The home page's first script opens it on the game (see

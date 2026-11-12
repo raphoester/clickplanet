@@ -236,6 +236,9 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   counter was, left of the buttons, in small outlined words and no panel, so the map shows through. **A name is the player's, in any script**: one Luckiest Guy cannot draw sets the
   clip in Rubik Black, as a call-up's words do, and one too long for its row is set smaller (`fit`), never cut.
 
+**A player's own video borrows this look and this camera** (`src/clip/names.ts` for how a country is said, the
+virtual clock, `cameraOf`), drawn on a canvas in the player's browser: see [Player videos](player-videos.md).
+
 **`src/domain/clip/` measures and plays; it judges nothing**, pure and under test:
 
 - **`window.ts` finds the candidates**: for each length from 1 to 24 hours, the busiest stretch of a few places
@@ -265,7 +268,7 @@ What chooses, when a clip goes out, the client of the service and the run's summ
   `storyKeyOf` which story it is, `storyCountriesOf` what it shows, `fightersOf` whose fighting the camera follows.
   `src/clip/overlay.ts` draws its words (`wordsOf`): the editor's, every one, and its own only for a day won and a
   call-up, which no editor writes. A story the editor tells with no words is no clip.
-- **A country is said as people say it.** The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech
+- **A country is said as people say it** (`src/clip/names.ts`). The game's names are cut to fit its board ("Christmas", "N.Zealand", "Czech
   Rep."), so a clip says the English name they were cut from, from the CLDR data the browser carries
   (`Intl.DisplayNames`): "CHRISTMAS ISLAND IS TAKING OVER THE WORLD". A name the game chose over CLDR's stays: "Turkey",
   "Ivory Coast", "UAE", "DR Congo", and its own flags'.
