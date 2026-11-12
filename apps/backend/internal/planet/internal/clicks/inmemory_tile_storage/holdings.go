@@ -35,6 +35,25 @@ func (s *Storage) HoldingsOf(landmass clicks.LandmassID) []clicks.Holding {
 	return holdings
 }
 
+// Each tile asked, in the order asked, under one read of the lock: a tile off the map is nobody's.
+func (s *Storage) HoldsOf(tiles []uint32) []clicks.TileHold {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	holds := make([]clicks.TileHold, len(tiles))
+	for i, tile := range tiles {
+		holds[i] = clicks.TileHold{Tile: tile, Holder: cpsession.NoAccount}
+		if tile == 0 || tile > s.board.last() {
+			continue
+		}
+		state := s.board.tiles[tile]
+		holds[i].Flag = s.board.nameOf(state.owner)
+		holds[i].Holder = s.board.holders.accountOf(state.holder)
+	}
+
+	return holds
+}
+
 // The tiles keep their flag and their shields: only who holds them is forgotten.
 // ForgetHolder takes the account off every tile in memory, then off every tile postgres keeps: the maps that do not play
 // too, so a map played again names it no more.

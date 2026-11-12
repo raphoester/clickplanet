@@ -83,6 +83,9 @@ const (
 	// InternalServiceGetFreezeProcedure is the fully-qualified name of the InternalService's GetFreeze
 	// RPC.
 	InternalServiceGetFreezeProcedure = "/planet.v1.InternalService/GetFreeze"
+	// InternalServiceGetTilesProcedure is the fully-qualified name of the InternalService's GetTiles
+	// RPC.
+	InternalServiceGetTilesProcedure = "/planet.v1.InternalService/GetTiles"
 )
 
 // InternalServiceClient is a client for the planet.v1.InternalService service.
@@ -107,7 +110,7 @@ type InternalServiceClient interface {
 	// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
 	// left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
 	CloseArena(context.Context, *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error)
-	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	// AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
@@ -135,6 +138,10 @@ type InternalServiceClient interface {
 	GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error)
 	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
 	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
+	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
+	// the tiles it touches, for the vandal squad's look at what a player painted. InvalidArgument for a tile off the map,
+	// or for more than 20,000 asked at once.
+	GetTiles(context.Context, *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the planet.v1.InternalService service. By
@@ -267,6 +274,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTiles: connect.NewClient[v1.GetTilesRequest, v1.GetTilesResponse](
+			httpClient,
+			baseURL+InternalServiceGetTilesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetTiles")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -289,6 +303,7 @@ type internalServiceClient struct {
 	getRoom           *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
 	getChargesOf      *connect.Client[v1.GetChargesOfRequest, v1.GetChargesOfResponse]
 	getFreeze         *connect.Client[v1.GetFreezeRequest, v1.GetFreezeResponse]
+	getTiles          *connect.Client[v1.GetTilesRequest, v1.GetTilesResponse]
 }
 
 // PlayRuleSet calls planet.v1.InternalService.PlayRuleSet.
@@ -376,6 +391,11 @@ func (c *internalServiceClient) GetFreeze(ctx context.Context, req *connect.Requ
 	return c.getFreeze.CallUnary(ctx, req)
 }
 
+// GetTiles calls planet.v1.InternalService.GetTiles.
+func (c *internalServiceClient) GetTiles(ctx context.Context, req *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error) {
+	return c.getTiles.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the planet.v1.InternalService service.
 type InternalServiceHandler interface {
 	// Plays the rule set of this name. Planet keeps the latest decision by decided_at, so a call made twice, or after a
@@ -398,7 +418,7 @@ type InternalServiceHandler interface {
 	// Deletes the arena's map and plays the world's again, with a new epoch. An arena never opened closes with the map
 	// left as it is, and never opens. One closed already is left as it is. InvalidArgument for a bad id.
 	CloseArena(context.Context, *connect.Request[v1.CloseArenaRequest]) (*connect.Response[v1.CloseArenaResponse], error)
-	// AdminService/GetLedger, for the clips module's cast: who took which tile.
+	// AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
 	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
@@ -426,6 +446,10 @@ type InternalServiceHandler interface {
 	GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error)
 	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
 	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
+	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
+	// the tiles it touches, for the vandal squad's look at what a player painted. InvalidArgument for a tile off the map,
+	// or for more than 20,000 asked at once.
+	GetTiles(context.Context, *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -554,6 +578,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceGetTilesHandler := connect.NewUnaryHandler(
+		InternalServiceGetTilesProcedure,
+		svc.GetTiles,
+		connect.WithSchema(internalServiceMethods.ByName("GetTiles")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServicePlayRuleSetProcedure:
@@ -590,6 +621,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetChargesOfHandler.ServeHTTP(w, r)
 		case InternalServiceGetFreezeProcedure:
 			internalServiceGetFreezeHandler.ServeHTTP(w, r)
+		case InternalServiceGetTilesProcedure:
+			internalServiceGetTilesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -665,4 +698,8 @@ func (UnimplementedInternalServiceHandler) GetChargesOf(context.Context, *connec
 
 func (UnimplementedInternalServiceHandler) GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetFreeze is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetTiles(context.Context, *connect.Request[v1.GetTilesRequest]) (*connect.Response[v1.GetTilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTiles is not implemented"))
 }
