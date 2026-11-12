@@ -12,6 +12,8 @@ pre-push runs its checks only when a pushed commit changes what they read:
 config files the backend's tests load. Otherwise it says the checks were skipped.
 A new branch is compared with `origin/main`. When the hook cannot tell what
 changed (a remote commit it does not have, no `origin/main`), it runs them.
+CI's `check backend` workflow runs on the same paths: a change to one list is a
+change to the other.
 
 It is a script rather than a root `Makefile` target on purpose — see
 [Independence of the apps](app-independence.md).
