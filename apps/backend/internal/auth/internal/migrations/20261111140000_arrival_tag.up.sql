@@ -1,0 +1,1 @@
+ALTER TABLE arrivals ADD COLUMN tag text NOT NULL DEFAULT '';

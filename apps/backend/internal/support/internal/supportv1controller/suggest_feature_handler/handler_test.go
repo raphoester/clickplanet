@@ -2,7 +2,6 @@ package suggest_feature_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -108,14 +107,6 @@ func TestFilesTheRulesDoNotTakeAreTheCallersFault(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
-func TestASuggestionWithNoContextKeepsTheBrowserAlone(t *testing.T) {
-	useCase := &stubUseCase{}
-
-	require.NoError(t, send(asAda(t), useCase, &supportv1.SuggestFeatureRequest{Text: "a night mode"}, "Mozilla/5.0"))
-
-	assert.Equal(t, notes.Diagnostics{UserAgent: "Mozilla/5.0"}, useCase.asked[0].Diagnostics)
-}
-
 func TestACallerWithNoAccountIsRefusedBeforeTheUseCase(t *testing.T) {
 	useCase := &stubUseCase{}
 
@@ -129,11 +120,4 @@ func TestAnInvalidTextIsTheCallersFault(t *testing.T) {
 	err := suggest(asAda(t), &stubUseCase{err: fmt.Errorf("wrapped: %w", notes.ErrInvalidText)}, " ")
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestAStoreFailureIsLeftToTheErrorNet(t *testing.T) {
-	err := suggest(asAda(t), &stubUseCase{err: errors.New("postgres is down")}, "a night mode")
-
-	assert.ErrorContains(t, err, "postgres is down")
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

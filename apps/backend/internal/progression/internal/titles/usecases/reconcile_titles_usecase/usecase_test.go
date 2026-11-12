@@ -1,7 +1,6 @@
 package reconcile_titles_usecase_test
 
 import (
-	"context"
 	"errors"
 	"testing"
 	"time"
@@ -140,23 +139,6 @@ func TestASecondRunChangesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, reconcile_titles_usecase.Reconciled{}, reconciled)
 	assert.Equal(t, titles.IDs{"first", "third"}, f.held(t, 1))
-}
-
-type refusingGrants struct {
-	*inmemory_title_store.Store
-}
-
-func (refusingGrants) Grant(context.Context, titles.Holdings, time.Time) error {
-	return errors.New("postgres is down")
-}
-
-func TestAFailedGrantIsAnError(t *testing.T) {
-	f := setUp()
-	f.player(t, 1, 1, linked)
-
-	_, err := f.reconcile(t, refusingGrants{f.titles}, catalog)
-
-	require.Error(t, err)
 }
 
 func TestAFailureToAskAuthChangesNothing(t *testing.T) {

@@ -69,3 +69,17 @@ describe("TileShields", () => {
         expect(shields.shieldsOf(11)).toBe(0)
     })
 })
+
+describe("TileShields.most", () => {
+    it("says the most shields any tile holds, and none on an empty map", () => {
+        const shields = new TileShields(10)
+        expect(shields.most()).toBe(0)
+
+        shields.set(3, 100, [])
+        shields.set(7, 4, [])
+        expect(shields.most()).toBe(100)
+
+        shields.set(3, 0, [])
+        expect(shields.most()).toBe(4)
+    })
+})

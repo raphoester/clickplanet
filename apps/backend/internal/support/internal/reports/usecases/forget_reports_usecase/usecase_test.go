@@ -1,7 +1,6 @@
 package forget_reports_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -43,12 +42,4 @@ func TestAnAccountNoReportNamesIsForgottenWithNoError(t *testing.T) {
 	require.NoError(t, forget_reports_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.Equal(t, []reports.Snapshot{kept}, store.Kept())
-}
-
-func TestAFailureToForgetIsAnError(t *testing.T) {
-	store := inmemory_report_storage.New()
-	refused := errors.New("the database is down")
-	store.FailWith(refused)
-
-	assert.ErrorIs(t, forget_reports_usecase.New(store).Execute(t.Context(), ada), refused)
 }

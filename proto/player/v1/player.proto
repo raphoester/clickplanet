@@ -24,6 +24,11 @@ service PlayerService {
   rpc GetNameplates(GetNameplatesRequest) returns (GetNameplatesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
+
+  // The player that holds this username now, matched ignoring case as SetName keeps names unique. NotFound when none.
+  rpc GetPlayerByName(GetPlayerByNameRequest) returns (GetPlayerByNameResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
 }
 
 message Profile {
@@ -139,6 +144,15 @@ message Player {
   // A guest is its account and its name alone: every other field is unset.
   bool guest = 10;
   string account_id = 11;
+}
+
+message GetPlayerByNameRequest {
+  string name = 1;
+}
+
+// A player with a username: a guest has none.
+message GetPlayerByNameResponse {
+  Player player = 1;
 }
 
 message GetNameplatesRequest {

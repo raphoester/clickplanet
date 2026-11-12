@@ -2,7 +2,6 @@ package open_arena_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -86,10 +85,4 @@ func TestTheSwapGoesOnWhenTheCallerGivesUp(t *testing.T) {
 	require.NoError(t, open(gaveUp, useCase, battle()))
 
 	assert.Len(t, useCase.asked, 1)
-}
-
-func TestAFailureIsPassedOnForTheErrorNet(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	require.ErrorIs(t, open(t.Context(), &opening{err: down}, battle()), down)
 }

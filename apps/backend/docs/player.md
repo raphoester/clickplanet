@@ -40,6 +40,7 @@ internal/player/internal/
   playerv1controller/               PlayerService, InternalService and AdminService (bags), the session interceptor
     get_profile_handler/  set_name_handler/  set_color_handler/  introduce_player_handler/  get_player_handler/
     get_players_handler/  get_nameplates_handler/  get_accounts_handler/  announce_handler/  leave_handler/  get_roster_handler/  listen_for_events_handler/
+    get_player_by_name_handler/       its holder_query: PostgresQuery, the player that holds a folded name
     admin_get_player_handler/  search_players_handler/  rename_player_handler/  list_renames_handler/   AdminService's
                                     own; it serves get_players_handler too
       admin_get_player_handler/admin_player_query/   PostgresQuery: who one account is, a guest's too
@@ -60,7 +61,7 @@ internal/player/internal/
   migrations/
 ```
 
-- **The caller is the account in the click token.** Every call of `PlayerService` but `GetPlayer`, `GetNameplates` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, with the process's one verifier (`props.Sessions`), on the key `auth` hands over the internal listener, as every module does. No token, a bad one, or a token with no account is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
+- **The caller is the account in the click token.** Every call of `PlayerService` but `GetPlayer`, `GetNameplates`, `GetPlayerByName` and `ListenForEvents` sits behind `cpconnect.NewSessionInterceptor`, always enforcing, with the process's one verifier (`props.Sessions`), on the key `auth` hands over the internal listener, as every module does. No token, a bad one, or a token with no account is `Unauthenticated`. `player_session_checks{verdict}` counts the verdicts.
 - **`GetProfile`** answers the account id and its name, empty when none was chosen, when the name may change again, and its color. The caller's own titles and fronts are progression's `GetTitles` and `GetFronts`.
 - **`SetName` chooses a username.** `players.NameOf` is the rule. It puts the name in **NFC** and cuts the spaces (U+0020) at its ends — the same text, as it shows — and changes nothing else. Then:
   - **3 to 15 characters, counted in code points after NFC**, as postgres' `char_length` counts, so both agree. A letter with a combining mark NFC cannot compose counts two.
@@ -174,6 +175,20 @@ internal/player/internal/
     `ReactionCount.reactors`, `Standing.name`, `color`) are `reserved`. The chat still introduces a sender
     (`IntroducePlayer`): the guest code and the no-GIF rule are game rules. Scoring keeps its own record of who may be
     ranked, from player's events (see [Scoring](scoring.md#who-may-be-ranked)).
+- **`PlayerService/GetPlayerByName(name)` is the player that holds a username now**, for the address a player shares,
+  `clickplanet.lol/<flag>/<name>`: the browser reads the name into an account and sends the account with its landing,
+  so that auth keeps who recruited a new account (see [Arrivals](arrivals.md)). A name selects nothing else: the
+  account id is what every other read and act takes.
+  - **Matched as `SetName` keeps names unique**: the name asked is folded with `players.FoldedOf` (NFKC_Casefold) and
+    compared with `profiles.name_folded`, through its unique index (`holder_query`). So case and width do not matter,
+    and the whole name must match: no trim, no part of a name. The browser turns each `-` of the address into a space
+    before it asks.
+  - **It answers a `Player`**, as every read of a player does: its `account_id`, the name in the case it was kept, its
+    color and `admin`; never a guest, who holds no username, and never an account asked deleted (`departures`), which
+    the others read as deleted. A name nobody holds is `NotFound` (`holder_query.ErrNoHolder`), which the page reads as
+    no recruiter; an empty name is `InvalidArgument` (`ErrNoName`).
+  - **Public, as `GetPlayer`**: no token (the session interceptor does not list it), `NO_SIDE_EFFECTS`, and `public,
+    max-age=10`; no rate limit, as no read of names has one: every name is on the roster and the boards already.
 - **The tag is private.** `players.TagOf` (SHA-256 of `player.tagSalt`, a NUL and the address, cut to 6 hex characters) is kept on a roster visit so the storage can cap the visits of one address, and never leaves the server.
 - **Who is playing is `presence`, in memory only.** A client calls **`Announce(country_id)`** with its click token when it gets one, when its flag or name changes, and every 30s. A visit counts for `presence.TTL` (90s), so a hidden tab whose timers fire once a minute stays on; the prune runs every 5s. A restart empties it, and clients fill it again within one interval. **`Leave`** takes the caller off at once: a client sends it with `keepalive` when its page closes.
   - **`ListenForEvents` is the roster, live.** It needs no token and reads none: nothing on it is anybody's own. The titles an account earns have their own stream since 2026-11-04, progression's ([A title earned reaches the player at once](progression.md#a-title-earned-reaches-the-player-at-once)); `PlayerEvent.title_earned` (5) is reserved. The first event is the whole roster (`roster`, in the admin `GetRoster`'s order); each one after is a line that joined or changed (`entry`), or the key of one that left (`left`); `heartbeat` every `httpServer.streamHeartbeat`. **A line's `key` is the storage's**: a counter handed to an account's first visit, kept by every later announce, `Move` and `Rename`, so a sign-in renames one line rather than adding one. It says nothing about the account; **the line's `account_id` does**, so a client can say which player it means with an id and never with a name. `Storage.Subscribe` answers the roster and registers the subscriber under one lock, so nothing is lost between the two, and every change is published under that lock, in order. An announce that changes nothing on the line (name, flag, guest, admin, color) publishes nothing, unless the visit had gone stale. **A subscriber `SubscriberBuffer` (256) changes behind is closed, not skipped**: a skipped change would leave its roster wrong for good, and the stream ends, reconnects and starts from a whole roster.
@@ -211,7 +226,7 @@ event goes through player's outbox (relay `player-outbox`; `outbox_event` gained
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
 **Who hears them**: `PlayerCreated`, the offers (the sign-in refill; planet until 2026-11-11), progression (a nameplate) and scoring (a player it
 may rank); `PlayerSignedIn`, missions (what a guest finished that day is paid); `PlayerNamed`, alerts (the Discord
-member's nickname); `PlayerLeaving` and `PlayerReturned`, progression, scoring (a player it ranks no more, then again)
+member's nickname) and clips (the name judged for the videos); `PlayerLeaving` and `PlayerReturned`, progression, scoring (a player it ranks no more, then again)
 and alerts (a nickname taken off and given back);
 `PlayerForgotten`, every module that keeps something of an account: progression, planet, chat, scoring, support,
 missions, alerts and clips. `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
@@ -231,8 +246,8 @@ alerts hears or asks auth, which needs it for a Discord join's token (see [Disco
 - **`player.v1.PlayerNamed{account_id}`**: the account's username was set. `name_account_usecase` records it with
   `PlayerCreated` when it draws the first name, `set_name_usecase` with every name it keeps (a first one, a rename, the
   same name in another case), and `rename_player_usecase` with every operator's rename, each in the transaction of the
-  save; a name refused (invalid, taken, too soon) tells nothing. **The name is not in it**: the alerts module asks
-  `GetPlayers` for the name now, so two told close together, or one told twice, leave it with the latest, whichever
+  save; a name refused (invalid, taken, too soon) tells nothing. **The name is not in it**: the alerts and clips modules ask
+  `GetPlayers` for the name now, so two told close together, or one told twice, leave each with the latest, whichever
   stream it read first. `TestEveryNameKeptIsTold`, `TestARenameIsTold` and the name-account test pin it.
 - **`player.v1.PlayerLeaving{account_id, decided_at}`** and **`PlayerReturned{account_id, decided_at}`**: its player
   asked to delete it, or a sign-in brought it back (see [An account asked deleted](#an-account-asked-deleted)).

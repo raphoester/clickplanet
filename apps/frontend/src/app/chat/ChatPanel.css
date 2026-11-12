@@ -392,8 +392,15 @@
     text-shadow: var(--text-drop);
 }
 
+/* The log gives way, never the composer: with the keyboard up the sheet is short, and a log held at a fixed minimum
+   ran out of its shell and under the reply line and the field. */
 .chat-sheet .chat-log {
-    min-height: 96px;
+    min-height: 0;
+}
+
+/* While the player types, the Discord bar steps aside so the keyboard leaves the log some lines. */
+.chat-sheet:has(.chat-input:focus) .chat-discord {
+    display: none;
 }
 
 .chat-toast {

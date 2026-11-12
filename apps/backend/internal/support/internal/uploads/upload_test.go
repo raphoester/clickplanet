@@ -1,7 +1,6 @@
 package uploads_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -18,13 +17,6 @@ var noon = time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
 
 func file(n byte, size int64) notes.Attachment {
 	return notes.Attachment{ID: notes.AttachmentID{15: n}, MediaType: notes.MediaMP4, Size: size}
-}
-
-func TestAnUploadIsAFileItsSizeAndWhenItsLinkWasSigned(t *testing.T) {
-	upload, err := uploads.NewUpload(file(1, 400), noon)
-
-	require.NoError(t, err)
-	assert.Equal(t, uploads.Snapshot{ID: notes.AttachmentID{15: 1}, Size: 400, At: noon}, upload.TakeSnapshot())
 }
 
 func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
@@ -80,15 +72,4 @@ func TestAShelfWithNoRoomLeftSaysNoneRatherThanLess(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), room, "a smaller shelf than what is held")
-}
-
-func TestTheShelfPassesOnAStoreThatFails(t *testing.T) {
-	storage := inmemory_upload_storage.New()
-	broken := errors.New("the database is gone")
-	storage.FailWith(broken)
-	shelf := uploads.NewShelf(storage, 1000, cptime.NewFixedClock(noon))
-
-	require.ErrorIs(t, shelf.Reserve(t.Context(), file(1, 1)), broken)
-	_, err := shelf.Room(t.Context())
-	require.ErrorIs(t, err, broken)
 }

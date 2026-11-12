@@ -10,6 +10,7 @@ Five pages, built by Vite as a multi-page app (`build.rollupOptions.input` in
 | `/archive` | `archive.html` | The map of the seasons that ended (see [A season's map](season-map.md)). The `archiveRoute` plugin serves it at that path in `npm run dev`. |
 | `/auth/callback` | `auth/callback.html` | The game again, for the sign-in callback. |
 | `/privacy`, `/terms` | `privacy.html`, `terms.html` | Plain pages, no bundle. |
+| `/<flag>`, `/<flag>/<name>` | `index.html` | A player's address: its first script opens the game on the flag. |
 | anything else | `index.html` | `not_found_handling` fallback. |
 
 **Why `/` is not the game.** Google's brand verification, which lets anyone
@@ -26,15 +27,33 @@ those links on it**; they are what the verification reads.
 `/play` with `location.replace`, before anything is painted. The game writes
 that key on its first render, so a browser that opened the game once never
 sees the home page again. `location.search` and `location.hash` go along, so
-a share link such as `/?f=de` still reaches the game with its query. Crawlers
+an old share link such as `/?f=de` still reaches the game with its query. Crawlers
 have no storage and read the home page. `homePage.test.ts` pins the key in the
 script to the constant. **`/#home` does not redirect**: it is the "Home page"
 link at the bottom of the About modal.
 
+**A flag's address opens the game, for a first visit too.** Every share a
+player makes is `clickplanet.lol/<flag>/<name>`, or `clickplanet.lol/<flag>`
+for a guest (see [Sharing the globe](sharing.md)). No file is at that path, so
+the fallback serves the home page, and its first script, before anything is
+painted, sends every browser to `/play?f=<flag>&s=rc`, with `&r=<name>` when
+the address has a name: the same query an old share link carried, which the
+game already reads (`sharedCountry`, and the landing's tag and recruiter, see
+[Arrivals](arrivals.md)). The flag and the name win over the same words in the
+query; the rest of the query and the hash go along. Only a flag the game knows
+counts, in any case: the build writes every code of `countries.json` into the
+script (`withFlagCodes`, the `flagAddresses` plugin in `vite.config.ts`), so
+`/zz`, a third segment, or `/pl/kutza/more` is any other path, as before. A
+name that is not one (`%E0%A4%A`) is dropped and the game still opens on the
+flag. The script keeps the page before in session storage for the game, since
+`location.replace` makes the address itself the game's referrer. The home page
+stays at `/`, for Google's check; crawlers and link previews of an address read
+it too, as before. `homePage.test.ts` runs the script on addresses.
+
 **The CrazyGames page never shows it.** On `crazygames.clickplanet.lol` the same
 script sends every visitor to `/play`, with no storage read and `#home` too, so
 `/`, `/play/` and every other path that falls back to the home page reach the
-game. A reviewer comes with no storage: on Oct 30 2026, the day the game was
+game, with no flag read from the path. A reviewer comes with no storage: on Oct 30 2026, the day the game was
 sent to CrazyGames, four outside visitors there got the home page and never
 pressed Play, and CrazyGames refused the game. The test runs the script.
 

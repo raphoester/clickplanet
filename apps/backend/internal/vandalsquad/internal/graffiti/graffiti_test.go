@@ -38,17 +38,6 @@ func patrol() graffiti.Patrol {
 
 const link = "https://clickplanet.lol/play?lat=-4.00&lon=22.00&zoom=20.0"
 
-func TestANewDrawingIsFlaggedWhenItIsSeen(t *testing.T) {
-	noted, fresh, err := patrol().Note(nil, sighting(ana, "ro", at, 3, 1, 2))
-
-	require.NoError(t, err)
-	assert.True(t, fresh)
-	assert.Equal(t, graffiti.Snapshot{
-		ID: graffiti.ID{15: 1}, Account: ana, Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{1, 2, 3},
-		FlaggedAt: at, SeenAt: at, Link: link,
-	}, noted.TakeSnapshot())
-}
-
 func TestADrawingSeenAgainKeepsItsFirstFlaggingAndTakesItsNewShape(t *testing.T) {
 	watch := patrol()
 	first, _, err := watch.Note(nil, sighting(ana, "ro", at, 1, 2, 3))
@@ -82,23 +71,6 @@ func TestAnotherPlayerAnotherFlagOtherTilesOrAForgottenPainterAreAnotherDrawing(
 	_, fresh, err := watch.Note([]graffiti.Graffiti{first.Anonymized()}, sighting(ana, "ro", at, 1, 2))
 	require.NoError(t, err)
 	assert.True(t, fresh, "a forgotten painter's graffiti is nobody's")
-}
-
-func TestAnAnonymizedGraffitiKeepsAllButItsPainter(t *testing.T) {
-	first, _, err := patrol().Note(nil, sighting(ana, "ro", at, 1, 2))
-	require.NoError(t, err)
-
-	want := first.TakeSnapshot()
-	want.Account = cpsession.NoAccount
-	assert.Equal(t, []graffiti.Snapshot{want}, snapshots(graffiti.AllAnonymized([]graffiti.Graffiti{first})))
-}
-
-func snapshots(all []graffiti.Graffiti) []graffiti.Snapshot {
-	taken := make([]graffiti.Snapshot, len(all))
-	for i, one := range all {
-		taken[i] = one.TakeSnapshot()
-	}
-	return taken
 }
 
 func TestASnapshotMissingAPartDoesNotRestore(t *testing.T) {

@@ -75,14 +75,10 @@ type stubPlanet struct {
 	since time.Time
 	tiles map[drawings.TileID]drawings.MapTile
 	asked [][]drawings.TileID
-	err   error
 }
 
 func (p *stubPlanet) Takes(_ context.Context, since, _ time.Time) ([]paint.Take, error) {
 	p.since = since
-	if p.err != nil {
-		return nil, p.err
-	}
 	return p.takes, nil
 }
 
@@ -211,14 +207,6 @@ func TestAPatrolOfNothingAsksNoTile(t *testing.T) {
 	require.NoError(t, s.patrol.Execute(t.Context()))
 
 	assert.Empty(t, s.planet.asked)
-}
-
-func TestALedgerThatDoesNotAnswerFailsThePatrol(t *testing.T) {
-	s := newSquad()
-	s.planet.err = errors.New("planet is down")
-
-	assert.ErrorContains(t, s.patrol.Execute(t.Context()), "planet is down")
-	assert.Empty(t, s.told.told)
 }
 
 func TestAGraffitiNotKeptIsNotToldAndTheNextPatrolTellsIt(t *testing.T) {

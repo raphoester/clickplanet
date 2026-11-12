@@ -185,4 +185,20 @@ describe("connectCrazyGames", () => {
 
         expect(await connectCrazyGames(async () => fakeSdk({environment: "disabled"}).sdk).room.inviteLink("fr")).toBeUndefined()
     })
+
+    it("makes the invite link at each room report, and copies that one", async () => {
+        const fake = fakeSdk()
+        const page = connectCrazyGames(async () => fake.sdk)
+
+        page.room.report("fr")
+        await settle()
+        expect(fake.sdk.game.inviteLink).toHaveBeenCalledTimes(1)
+        expect(fake.sdk.game.inviteLink).toHaveBeenCalledWith({f: "fr"})
+
+        expect(await page.room.inviteLink("fr")).toBe("https://www.crazygames.com/game/clickplanet?czy_invite=true&f=fr")
+        expect(fake.sdk.game.inviteLink).toHaveBeenCalledTimes(1)
+
+        expect(await page.room.inviteLink("de")).toBe("https://www.crazygames.com/game/clickplanet?czy_invite=true&f=de")
+        expect(fake.sdk.game.inviteLink).toHaveBeenCalledTimes(2)
+    })
 })

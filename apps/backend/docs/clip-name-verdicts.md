@@ -15,6 +15,17 @@ the cast.** The game itself shows every name: the chat, the boards and the map a
 - **Each name is judged once** (`screen_names_usecase`): a cast's names with no verdict, or with a verdict of another
   name (the player renamed), go to the judge, and their verdicts are kept in `name_verdicts`, one row a player. The
   names already judged ask nobody. A name the judge did not answer stays hidden and is asked again at the next cast.
+- **A name is judged as it is set** (`player.v1.PlayerNamed`, group `clips-verdicts-named`, `player_named_subscriber`,
+  `judge_name_usecase`): a name drawn at a first sign-in (an adjective, an animal and two digits, which the instructions
+  keep), one the player chose, and an operator's rename. The event holds no name: the use case asks player the name the
+  account holds now (`GetPlayers`, through `rpc_player_names`; a guest or an account asked deleted has none) and hands
+  it to `screen_names_usecase`, so a name judged already asks nobody, and two events close together judge the latest
+  once. A player who turned the clips off is judged too: the verdict is of the name. **A judge that fails fails the
+  event**, which is tried again in place (`redis.maxDeliveries`, about four minutes) and then buried; the name stays
+  hidden and is asked again at its next cast or its next rename. The subscriber gives each event a minute, a call of the
+  judge and its retry. **With no key the module does not hear the event**: no judge would ever answer, and every event
+  would be buried. The names set before 2026-11-11 are judged only in a cast or at their next rename: there is no
+  backfill.
 - **The judge is Claude Haiku 5.5** (`claude_name_judge`), through Anthropic's Go SDK: its instructions
   (`instructions.md`, embedded) list what the platforms forbid and what stays, and say **when unsure, hide**: a name
   left out costs one mention, a strike costs the channel. Hidden: an armed, terrorist or extremist group, a hate
@@ -36,12 +47,28 @@ the cast.** The game itself shows every name: the chat, the boards and the map a
   it is hidden and who decided; `SetNameVerdict(account_id, shown, reason)`, the operator's verdict of the name the
   player was judged under (`Verdict.Overruled`), `NotFound` for a name never judged. It holds until the player
   renames: the new name is judged again.
+- **`clips.v1.ClipsService/GetShownNames(account_ids)` is the public read of the names a player's own video may show**
+  (the frontend's video names its maker and its allies, and the welcome line a newcomer's recruiter). It answers each
+  account whose verdict is shown, by the judge or the operator, **of the name it holds now**, and that did not turn the
+  clips off, with that name, once each, in the order asked. Every other account is left out: a guest, one unknown,
+  deleted or asked deleted, one never judged, one judged hidden, one judged under a name it left, one kept out. **It
+  asks the judge nothing**: a read never writes, and a name not judged yet is hidden until it is. `shown_names_query`
+  asks player the names held now (the same `rpc_player_names`), then one statement joins them on `name_verdicts` and
+  `opt_outs`; `TestTheReadShowsTheNamesACastShowsWhenTheJudgeAnswersNothing` pins it against `casts.ShownNames`, the
+  same rule on the write side. **It needs no token**: the session interceptor does not list it, and names are public.
+  At most 100 ids a call (`get_shown_names_handler.MaxAsked`), more is `InvalidArgument` (`ErrTooMany`), as is an id
+  that is not an account. `NO_SIDE_EFFECTS`, and `no-store`: a rename, an opt-out or the operator's verdict holds at
+  the next read. No rate limit, as player's `GetNameplates`: a page is one call to player and one statement. Caddy
+  routes it with the rest of `clips.v1.ClipsService`.
 - **A deleted account is forgotten** (`player.v1.PlayerForgotten`, group `clips-verdicts-forgotten`): its row is
   deleted.
 - **What it does not undo**: a clip posted before is still on TikTok and YouTube.
-- **What it costs**: one call for a run's new names, a few thousand tokens of Haiku, and none when no name is new.
+- **What it costs**: one call for a run's new names, a few thousand tokens of Haiku, and none when no name is new; one
+  call of one name for each name set.
 - **The table**: `name_verdicts(account, name, shown, reason, decided_by, decided_at)`, `decided_by` the enum
   `verdict_by` (`judge`, `operator`), migration `20261109120000_name_verdicts`.
 - **Tests**: the domain (`Screen`, `Judged`, `Overruled`), the use cases on `verdicts.MemoryStore` and
   `verdicts.ScriptedJudge` (behind the `testing` tag), the judge on a fake of Anthropic's API (the request, the
-  numbers answered twice or made up, the batches, a refusal, an answer cut short), the store and the list on postgres.
+  numbers answered twice or made up, the batches, a refusal, an answer cut short), the store and the list on postgres,
+  the subscriber of `PlayerNamed` on a fake use case, `GetShownNames`' handler on a fake query and its query on
+  postgres, and the module booted, read with no token.

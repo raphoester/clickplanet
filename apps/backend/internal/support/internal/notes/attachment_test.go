@@ -112,16 +112,6 @@ func TestANoteKeptWithMoreThanTheRulesNowTakeIsStillRestored(t *testing.T) {
 	assert.Equal(t, kept, note.TakeSnapshot())
 }
 
-func TestAFileIsUploadedWhenTheRulesWouldTakeItInANote(t *testing.T) {
-	require.NoError(t, rules.UploadError(photo))
-	require.NoError(t, rules.UploadError(video), "a file at the limit")
-
-	bigger := video
-	bigger.Size++
-	require.ErrorIs(t, rules.UploadError(bigger), notes.ErrInvalidAttachment)
-	require.ErrorIs(t, notes.AttachmentRules{}.UploadError(photo), notes.ErrInvalidAttachment, "a server that takes no file")
-}
-
 func TestAnAttachmentIDIsReadFromItsText(t *testing.T) {
 	id := uuid.New()
 

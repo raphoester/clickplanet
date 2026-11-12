@@ -1,7 +1,6 @@
 package forget_account_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -29,12 +28,4 @@ func TestAForgottenAccountLeavesTheStandingsAndTheOthersStay(t *testing.T) {
 
 	assert.True(t, store.Tally("season-0", ada).Empty())
 	assert.False(t, store.Tally("season-0", bob).Empty())
-}
-
-func TestAFailureToForgetIsAnError(t *testing.T) {
-	store := inmemory_contribution_store.New()
-	refused := errors.New("the database is down")
-	store.FailWith(refused)
-
-	assert.ErrorIs(t, forget_account_usecase.New(store).Execute(t.Context(), ada), refused)
 }

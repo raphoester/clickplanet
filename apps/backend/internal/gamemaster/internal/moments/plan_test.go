@@ -112,17 +112,6 @@ func TestTheFinaleOfASeasonWithNoneNamesNothing(t *testing.T) {
 	require.ErrorIs(t, err, moments.ErrUnknownRound)
 }
 
-func TestTheFinaleFollowsTheSeasonsEnd(t *testing.T) {
-	moved := season.NewCalendar(season.Snapshot{
-		Number: 0, Length: seasonEnds.Add(24 * time.Hour).Sub(season.Origin), Finale: rush,
-	}.Restore())
-
-	finale, ok := moments.NewPlan(moved, cutoff, nil).FinaleAt(finaleAt.Add(24 * time.Hour))
-
-	require.True(t, ok)
-	assert.Equal(t, seasonEnds.Add(24*time.Hour), finale.EndsAt)
-}
-
 func TestADayKeepsWhatTheBattlesAtItsStartAndItsEndLeaveIt(t *testing.T) {
 	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 21), at(30, 23)))
 

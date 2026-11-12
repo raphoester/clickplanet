@@ -8,6 +8,7 @@ on:
       - 'proto/**'
       - 'quiz/**'
       - 'docs/moderation.md'
+      - 'deploy/**'
       - '.github/workflows/check-backend.yml'
   pull_request:
     paths:
@@ -15,6 +16,7 @@ on:
       - 'proto/**'
       - 'quiz/**'
       - 'docs/moderation.md'
+      - 'deploy/**'
       - '.github/workflows/check-backend.yml'
   workflow_dispatch:
 

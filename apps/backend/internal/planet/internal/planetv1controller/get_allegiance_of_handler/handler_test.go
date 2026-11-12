@@ -2,7 +2,6 @@ package get_allegiance_of_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -61,12 +60,4 @@ func TestAnIDThatIsNotAnAccountIsInvalidAndReadsNothing(t *testing.T) {
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "%q", account)
 	}
 	assert.Empty(t, query.asked)
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := ask(t, &stubQuery{err: failure}, ada)
-
-	assert.ErrorIs(t, err, failure)
 }

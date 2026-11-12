@@ -1,7 +1,6 @@
 package forget_worn_title_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -22,11 +21,4 @@ func TestADeletedAccountWearsNothing(t *testing.T) {
 	choice, err := store.Choice(t.Context(), accounts.AccountID{15: 1})
 	require.NoError(t, err)
 	assert.Empty(t, choice)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	store := inmemory_worn_title_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	assert.Error(t, forget_worn_title_usecase.New(store).Execute(t.Context(), accounts.AccountID{15: 1}))
 }

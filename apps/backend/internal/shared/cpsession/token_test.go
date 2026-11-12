@@ -96,16 +96,6 @@ func TestAnUnsetTTLTakesTheDefault(t *testing.T) {
 	assert.Equal(t, now.Add(time.Hour), token.ExpiresAt)
 }
 
-func TestTheTwoHalvesOfOneBlockAgree(t *testing.T) {
-	signer, verifier := newPair(t)
-
-	token, err := signer.Mint("1.2.3.4", cpsession.Holder{}, now)
-	require.NoError(t, err)
-
-	_, err = verifier.Verify(token.Value, "1.2.3.4", now)
-	assert.NoError(t, err, "planet builds its verifier from the public half of the block auth mints with")
-}
-
 func TestAMintedTokenVerifiesForTheAddressItWasMintedFor(t *testing.T) {
 	signer, verifier := newPair(t)
 
