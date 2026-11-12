@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports/postgres_report_store"
@@ -24,7 +25,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
 	store := postgres_report_store.New(s.db)
 	s.NewStorage = func() reports.Storage { return store }
 	s.Kept = func(reports.Storage) []reports.Snapshot { return s.kept() }

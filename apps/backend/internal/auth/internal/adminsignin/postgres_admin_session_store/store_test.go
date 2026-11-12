@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/adminsignin/postgres_admin_session_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -33,7 +34,7 @@ var (
 )
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "auth", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "auth", migrations.FS)
 	s.accounts = postgres_account_store.New(s.db)
 	s.store = postgres_admin_session_store.New(s.db)
 }

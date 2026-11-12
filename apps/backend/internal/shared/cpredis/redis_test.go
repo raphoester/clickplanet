@@ -20,7 +20,12 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis/cpredistest"
 )
+
+var server cpredistest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 type handlerFunc[T any] func(ctx context.Context, event T) error
 
@@ -131,7 +136,7 @@ func gauge(t *testing.T, metrics *prometheus.Registry, name, subscriber string) 
 }
 
 func TestEveryModuleReadsEveryEventInOrderThoughItConnectedAfterThePublish(t *testing.T) {
-	server := cpredis.StartTestServer(t)
+	server.Flush(t)
 	publish(connected(t, server.Config(), prometheus.NewRegistry()), numbered(300)...)
 	first, second := &received{}, &received{}
 
@@ -147,7 +152,8 @@ func TestEveryModuleReadsEveryEventInOrderThoughItConnectedAfterThePublish(t *te
 }
 
 func TestEachSubscriberGetsItsOwnCopy(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	first, second := &received{}, &received{}
 	stop := running(subscribed[*wrapperspb.StringValue](t, streams, "first", first),
 		subscribed[*wrapperspb.StringValue](t, streams, "second", second))
@@ -163,7 +169,8 @@ func TestEachSubscriberGetsItsOwnCopy(t *testing.T) {
 }
 
 func TestNoSubscriberCodeRunsInThePublishersStack(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	subscriber := &received{}
 	stop := running(subscribed[*wrapperspb.StringValue](t, streams, "subscriber", subscriber))
 
@@ -177,7 +184,8 @@ func TestNoSubscriberCodeRunsInThePublishersStack(t *testing.T) {
 }
 
 func TestAnEventOfAnotherTypeIsNotDelivered(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	subscriber := &received{}
 	numbers := make(chan int64, 1)
 	stop := running(subscribed[*wrapperspb.StringValue](t, streams, "strings", subscriber),
@@ -194,7 +202,8 @@ func TestAnEventOfAnotherTypeIsNotDelivered(t *testing.T) {
 }
 
 func TestTwoSubscribersOfOneTypeCannotShareAName(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	subscribed[*wrapperspb.StringValue](t, streams, "player", &received{})
 
 	_, err := cpredis.Subscribe[*wrapperspb.StringValue](t.Context(), streams, "player", &received{})
@@ -211,7 +220,7 @@ func handled[T proto.Message](t *testing.T, streams *cpredis.Streams, handler cp
 }
 
 func TestACommandSentBeforeItsHandlerListensIsHandled(t *testing.T) {
-	server := cpredis.StartTestServer(t)
+	server.Flush(t)
 	require.NoError(t, connected(t, server.Config(), prometheus.NewRegistry()).Commands().
 		Send(t.Context(), wrapperspb.String("grant"), wrapperspb.String("grant again")))
 	handler := &received{}
@@ -224,7 +233,8 @@ func TestACommandSentBeforeItsHandlerListensIsHandled(t *testing.T) {
 }
 
 func TestACommandIsNoEventAndAnEventNoCommand(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	commands, events := &received{}, &received{}
 	stop := running(handled[*wrapperspb.StringValue](t, streams, commands),
 		subscribed[*wrapperspb.StringValue](t, streams, "listener", events))
@@ -239,7 +249,8 @@ func TestACommandIsNoEventAndAnEventNoCommand(t *testing.T) {
 }
 
 func TestACommandHasOneHandler(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	handled[*wrapperspb.StringValue](t, streams, &received{})
 
 	_, err := cpredis.Handle[*wrapperspb.StringValue](t.Context(), streams, &received{})
@@ -256,7 +267,7 @@ func TestAModuleConnectsOnlyToARedisItNamesAndReaches(t *testing.T) {
 }
 
 func TestEveryModuleCountsWhatRedisRefusedUnderOneName(t *testing.T) {
-	server := cpredis.StartTestServer(t)
+	server.Flush(t)
 	metrics := prometheus.NewRegistry()
 	planet, chat := connected(t, server.Config(), metrics), connected(t, server.Config(), metrics)
 	require.NoError(t, planet.Close())
@@ -299,7 +310,8 @@ func (f *flaky) tries() []string {
 
 func TestAFailedEventIsTriedAgainBeforeTheOnesBehindIt(t *testing.T) {
 	metrics := prometheus.NewRegistry()
-	streams := connected(t, cpredis.StartTestServer(t).Config(), metrics)
+	server.Flush(t)
+	streams := connected(t, server.Config(), metrics)
 	handler := &flaky{fails: map[string]int{"first": 2}}
 	stop := running(subscribed[*wrapperspb.StringValue](t, streams, "flaky", handler))
 
@@ -319,7 +331,8 @@ func TestAFailedEventIsTriedAgainBeforeTheOnesBehindIt(t *testing.T) {
 
 func TestAnEventThatKeepsFailingIsBuriedWhereAnOperatorCanReadIt(t *testing.T) {
 	metrics := prometheus.NewRegistry()
-	config := cpredis.StartTestServer(t).Config()
+	server.Flush(t)
+	config := server.Config()
 	config.MaxDeliveries = 3
 	streams := connected(t, config, metrics)
 	handler := &flaky{fails: map[string]int{"poison": 100}}
@@ -344,7 +357,8 @@ func TestAnEventThatKeepsFailingIsBuriedWhereAnOperatorCanReadIt(t *testing.T) {
 }
 
 func TestWhatACrashLeftPendingIsHandledFirstByTheNextProcess(t *testing.T) {
-	config := cpredis.StartTestServer(t).Config()
+	server.Flush(t)
+	config := server.Config()
 	crashed := make(chan struct{})
 	before := connected(t, config, prometheus.NewRegistry())
 	stop := running(subscribed(t, before, "player",
@@ -369,7 +383,8 @@ func TestWhatACrashLeftPendingIsHandledFirstByTheNextProcess(t *testing.T) {
 }
 
 func TestWhatWasReadBeforeShutdownIsStillHandled(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	subscriber := &received{}
 	release := make(chan struct{})
 	reading := make(chan struct{})
@@ -431,7 +446,8 @@ func batched(t *testing.T, streams *cpredis.Streams, name string, handler cpredi
 
 func TestABatchSubscriberHandlesWhatOneReadGaveAtOnce(t *testing.T) {
 	metrics := prometheus.NewRegistry()
-	streams := connected(t, cpredis.StartTestServer(t).Config(), metrics)
+	server.Flush(t)
+	streams := connected(t, server.Config(), metrics)
 	publish(streams, numbered(10)...)
 	handler := &batches{}
 	stop := running(batched(t, streams, "batched", handler))
@@ -449,7 +465,8 @@ func TestABatchSubscriberHandlesWhatOneReadGaveAtOnce(t *testing.T) {
 
 func TestABatchThatFailsIsHandledOneEventAtATimeSoAPoisonEventIsBuriedAlone(t *testing.T) {
 	metrics := prometheus.NewRegistry()
-	config := cpredis.StartTestServer(t).Config()
+	server.Flush(t)
+	config := server.Config()
 	config.MaxDeliveries = 3
 	config.RetryAfter = time.Millisecond
 	streams := connected(t, config, metrics)

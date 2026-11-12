@@ -9,11 +9,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_warning_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestTheStoreKeepsTheContract(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "antibot", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "antibot", migrations.FS)
 
 	suite.Run(t, &warnings.StoreContractSuite{NewStore: func() warnings.Store {
 		require.NoError(t, db.Purge(t.Context()))

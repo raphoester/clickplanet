@@ -38,7 +38,8 @@ func publishOld(streams *cpredis.Streams, values ...string) {
 }
 
 func TestWhatTheOldStreamHeldIsHandledBeforeTheNewOne(t *testing.T) {
-	config := cpredis.StartTestServer(t).Config()
+	server.Flush(t)
+	config := server.Config()
 	before := connected(t, config, prometheus.NewRegistry())
 	// The group the module read the old stream with, as a deploy leaves it: never run again.
 	subscribed(t, before, "missions-boxes",
@@ -56,7 +57,8 @@ func TestWhatTheOldStreamHeldIsHandledBeforeTheNewOne(t *testing.T) {
 }
 
 func TestWhatTheOldGroupHandledIsNotHandledAgain(t *testing.T) {
-	config := cpredis.StartTestServer(t).Config()
+	server.Flush(t)
+	config := server.Config()
 	before := connected(t, config, prometheus.NewRegistry())
 	old := &received{}
 	oldDone := make(chan struct{}, 1)
@@ -81,7 +83,8 @@ func TestWhatTheOldGroupHandledIsNotHandledAgain(t *testing.T) {
 }
 
 func TestAGroupThatNeverReadTheOldStreamStartsOnTheNewOne(t *testing.T) {
-	config := cpredis.StartTestServer(t).Config()
+	server.Flush(t)
+	config := server.Config()
 	streams := connected(t, config, prometheus.NewRegistry())
 	publishOld(streams, "another module's")
 	heard := &received{}
@@ -95,7 +98,8 @@ func TestAGroupThatNeverReadTheOldStreamStartsOnTheNewOne(t *testing.T) {
 }
 
 func TestNoOldStreamIsNothingLeft(t *testing.T) {
-	streams := connected(t, cpredis.StartTestServer(t).Config(), prometheus.NewRegistry())
+	server.Flush(t)
+	streams := connected(t, server.Config(), prometheus.NewRegistry())
 	heard := &received{}
 
 	stop := running(movedSubscriber(t, streams, "gone.v1.Event", "fresh", heard))

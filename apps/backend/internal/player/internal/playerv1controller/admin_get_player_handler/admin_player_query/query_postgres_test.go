@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -47,7 +48,7 @@ var (
 )
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
 	s.players = postgres_player_store.New(s.db)
 }
 

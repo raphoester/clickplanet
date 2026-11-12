@@ -19,7 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -32,7 +32,7 @@ var at = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 
 func TestADeletedAccountIsTakenOffEveryTakeItMade(t *testing.T) {
 	ctx := t.Context()
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "planet", migrations.FS)
 	store := postgres_ledger_store.New(db)
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, store, slog.New(slog.DiscardHandler))
 	require.NoError(t, takings.Load(ctx))

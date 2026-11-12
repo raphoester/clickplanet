@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/decisions/postgres_decision_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
@@ -36,7 +37,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
 	s.store = postgres_decision_store.New(s.db)
 	s.reports = postgres_report_store.New(s.db)
 }

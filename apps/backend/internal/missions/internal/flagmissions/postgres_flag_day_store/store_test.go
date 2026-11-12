@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/postgres_flag_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -22,7 +23,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "missions", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "missions", migrations.FS)
 	store := postgres_flag_day_store.New(s.db)
 	s.NewStore = func() flagmissions.Store { return store }
 }

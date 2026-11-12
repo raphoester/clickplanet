@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/books/postgres_grant_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -22,7 +23,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "scoring", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "scoring", migrations.FS)
 	store := postgres_grant_store.New(s.db)
 	s.NewStore = func() books.Grants { return store }
 }

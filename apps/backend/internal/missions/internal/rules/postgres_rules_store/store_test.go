@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/postgres_rules_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -20,12 +21,17 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	db    *cppg.Postgres
-	store *postgres_rules_store.Store
+	server *cppgtest.Server
+	db     *cppg.Postgres
+	store  *postgres_rules_store.Store
+}
+
+func (s *testSuite) SetupSuite() {
+	s.server = cppgtest.StartServer(s.T())
 }
 
 func (s *testSuite) SetupTest() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "missions", migrations.FS)
+	s.db = s.server.CreateDatabase(s.T()).OpenSchema(s.T(), "missions", migrations.FS)
 	s.store = postgres_rules_store.New(s.db)
 }
 

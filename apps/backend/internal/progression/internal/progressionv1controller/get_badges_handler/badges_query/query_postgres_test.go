@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -49,7 +50,7 @@ var (
 )
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "progression", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "progression", migrations.FS)
 	s.stats = postgres_stats_store.New(s.db)
 	s.nameplates = postgres_nameplate_store.New(s.db)
 	s.titles = postgres_title_store.New(s.db)

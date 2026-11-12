@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cps3/cps3test"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -27,7 +28,7 @@ type testSuite struct {
 
 func (s *testSuite) SetupSuite() {
 	var err error
-	s.bucket, err = cps3.New(cps3.StartTestServer(s.T(), "media").Config(), cptime.SystemClock{}, http.DefaultClient)
+	s.bucket, err = cps3.New(cps3test.StartServer(s.T(), "media").Config(), cptime.SystemClock{}, http.DefaultClient)
 	s.Require().NoError(err)
 }
 

@@ -18,8 +18,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/postgres_placement_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 const holder charges.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 
@@ -39,7 +44,7 @@ type flushed struct {
 func setup(t *testing.T) flushed {
 	t.Helper()
 
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	wallet := charges.NewCharges(postgres_charge_store.New(db), charges.TestRules)
 	_, err := wallet.Grant(t.Context(), holder, charges.KindShields, 2)
 	require.NoError(t, err)

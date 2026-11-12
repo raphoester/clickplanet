@@ -9,11 +9,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestThePostgresStoreKeepsTheContract(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "planet", migrations.FS)
 
 	suite.Run(t, &arenas.StoreContractSuite{
 		NewStore: func() arenas.Store {

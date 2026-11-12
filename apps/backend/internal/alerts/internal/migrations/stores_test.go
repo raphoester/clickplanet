@@ -16,7 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings/postgres_ping_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/postgres_role_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 var (
@@ -26,7 +26,7 @@ var (
 )
 
 func TestTheStoresKeepWhatTheyAreGiven(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "alerts", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "alerts", migrations.FS)
 
 	t.Run("a link, by account and by user, with or without a flag and a name", func(t *testing.T) {
 		store := postgres_link_store.New(db)

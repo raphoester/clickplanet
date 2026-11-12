@@ -14,11 +14,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds/postgres_background_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/list_backgrounds_handler/backgrounds_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestTheLibraryIsListedNewestFirstWithItsPublicURLs(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "promo", migrations.FS)
 	at := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
 	war := backgrounds.File{ID: backgrounds.BackgroundID{15: 1}, MediaType: "image/webp", Size: 300_000}
 	points := backgrounds.File{ID: backgrounds.BackgroundID{15: 2}, MediaType: "image/png", Size: 900_000}

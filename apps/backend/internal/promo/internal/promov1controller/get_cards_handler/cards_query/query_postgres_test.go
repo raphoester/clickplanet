@@ -19,8 +19,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/promov1controller/get_cards_handler/cards_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
+
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
 
 var war = backgrounds.BackgroundID{15: 1}
 
@@ -49,7 +53,7 @@ func (scoring) Battle(_ context.Context, times uint32) (placeholders.Battle, err
 }
 
 func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "promo", migrations.FS)
 	background, err := backgrounds.Keep(backgrounds.File{ID: war, MediaType: "image/png", Size: 1}, "The war", time.Now(),
 		backgrounds.Rules{MaxBytes: 2 << 20})
 	require.NoError(t, err)
@@ -98,7 +102,7 @@ func TestEverySetPlanetKeepsIsListedWithItsCardsAsWrittenAndAsRead(t *testing.T)
 }
 
 func TestASetWhoseValuesPlanetWillNotTellSaysWhy(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "promo", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "promo", migrations.FS)
 	background, err := backgrounds.Keep(backgrounds.File{ID: war, MediaType: "image/png", Size: 1}, "The war", time.Now(),
 		backgrounds.Rules{MaxBytes: 2 << 20})
 	require.NoError(t, err)

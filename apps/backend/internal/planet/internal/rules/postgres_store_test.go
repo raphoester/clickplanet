@@ -19,7 +19,7 @@ import (
 )
 
 func TestThePostgresStoreKeepsTheContract(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 
 	suite.Run(t, &cprules.StoreContractSuite[*planetv1.Rules]{
 		NewStore: func() cprules.Store[*planetv1.Rules] {
@@ -36,7 +36,7 @@ func TestThePostgresStoreKeepsTheContract(t *testing.T) {
 }
 
 func TestASetThatHoldsATollWithNoStepPlaysNone(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	free, err := cprules.Snapshot[*planetv1.Rules]{Name: "free", Rules: &planetv1.Rules{Toll: &planetv1.TollRules{}}}.
 		Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestASetThatHoldsATollWithNoStepPlaysNone(t *testing.T) {
 }
 
 func TestTheMigrationSeedsDefaultWithProductionsRules(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 
 	set, err := cprules.NewPostgresStore(db, parts.All()).Set(t.Context(), cprules.Default)
 	require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestTheMigrationSeedsDefaultWithProductionsRules(t *testing.T) {
 }
 
 func TestAValueThisBuildDoesNotKnowIsIgnored(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`UPDATE rule_sets SET rules = jsonb_set(rules, '{paused}', 'true') WHERE name = 'default'`)
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestAValueThisBuildDoesNotKnowIsIgnored(t *testing.T) {
 }
 
 func TestASetKeptThatCannotPlayIsRefused(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`UPDATE rule_sets SET rules = jsonb_set(rules, '{clicks,burst}', '0') WHERE name = 'default'`)
 	require.NoError(t, err)
@@ -84,7 +84,7 @@ func TestASetKeptThatCannotPlayIsRefused(t *testing.T) {
 }
 
 func TestASetIsWrittenWithTheValuesItHoldsZerosIncluded(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	quiet, err := cprules.Snapshot[*planetv1.Rules]{Name: "quiet", Rules: &planetv1.Rules{
 		Charges: &planetv1.ChargeRules{Bomb: &planetv1.BombRules{Off: proto.Bool(false)}},
 	}}.Restore(parts.All(), rules.Seeded())
@@ -95,7 +95,7 @@ func TestASetIsWrittenWithTheValuesItHoldsZerosIncluded(t *testing.T) {
 }
 
 func TestAFrozenSetIsReadFrozen(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `INSERT INTO rule_sets (name, rules) VALUES ('frozen', '{"frozen": true}')`)
 	require.NoError(t, err)
 

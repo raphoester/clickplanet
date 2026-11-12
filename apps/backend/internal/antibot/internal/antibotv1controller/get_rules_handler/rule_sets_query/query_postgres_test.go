@@ -12,12 +12,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestTheSetsComeDefaultFirstThenByNameWithTheirValues(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "antibot", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "antibot", migrations.FS)
 	store := cprules.NewPostgresStore(db, guard.Parts())
 	rush := rules.Named("rush", func(r *antibotv1.Rules) { r.Cohort.CertainMembers = proto.Uint32(50) })
 	for _, kept := range []cprules.Snapshot[*antibotv1.Rules]{rush, rules.Named("calm", rules.AsIs)} {
@@ -38,7 +42,7 @@ func TestTheSetsComeDefaultFirstThenByNameWithTheirValues(t *testing.T) {
 }
 
 func TestASetThatCannotPlayIsListedSoItCanBeMended(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "antibot", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "antibot", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`UPDATE rule_sets SET rules = jsonb_set(rules, '{jury,minSuspects}', '0') WHERE name = 'default'`)
 	require.NoError(t, err)

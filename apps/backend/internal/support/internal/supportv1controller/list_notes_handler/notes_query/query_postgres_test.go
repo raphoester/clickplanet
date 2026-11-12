@@ -13,6 +13,7 @@ import (
 
 	supportv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/support/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes/postgres_note_store"
@@ -47,7 +48,7 @@ var (
 )
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "support", migrations.FS)
 	s.notes = postgres_note_store.New(s.db)
 	s.links = &stubLinks{}
 	s.query = notes_query.NewPostgresQuery(s.db, s.links)

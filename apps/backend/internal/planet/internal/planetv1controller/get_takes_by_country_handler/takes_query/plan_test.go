@@ -1,4 +1,4 @@
-package takes_query
+package takes_query_test
 
 import (
 	"strings"
@@ -9,11 +9,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler/takes_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
+var server cppgtest.Server
+
+func TestMain(m *testing.M) { server.Run(m) }
+
 func TestTheTakesOfOneAccountAreReadFromTheIndexAlone(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
+	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
 		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account)
 		SELECT n, 'take'::ledger_event_kind, n % 260503 + 1, NULL, 'fr', 'de', now(), md5((n % 500)::text)::uuid
@@ -33,7 +39,7 @@ func TestTheTakesOfOneAccountAreReadFromTheIndexAlone(t *testing.T) {
 func explain(t *testing.T, db *cppg.Postgres, account uuid.UUID) string {
 	t.Helper()
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+takes, account)
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+takes_query.Takes, account)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 

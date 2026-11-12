@@ -13,6 +13,7 @@ import (
 
 	vandalsquadv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/vandalsquad/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/graffiti"
@@ -39,7 +40,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "vandalsquad", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "vandalsquad", migrations.FS)
 }
 
 func (s *testSuite) SetupTest() {

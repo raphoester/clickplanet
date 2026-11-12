@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/postgres_rename_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -36,7 +37,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
 }
 
 func (s *testSuite) SetupTest() {

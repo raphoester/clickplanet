@@ -10,12 +10,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 func TestTheNamesAreEverySetKeptByName(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "antibot", migrations.FS)
+	db := cppgtest.StartServer(t).OpenSchema(t, "antibot", migrations.FS)
 	rush, err := rules.Named("rush", rules.AsIs).Restore(guard.Parts(), rules.Seeded())
 	require.NoError(t, err)
 	require.NoError(t, cprules.NewPostgresStore(db, guard.Parts()).Save(t.Context(), rush))
