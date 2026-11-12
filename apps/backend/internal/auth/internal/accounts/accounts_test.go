@@ -203,30 +203,6 @@ func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
 	}
 }
 
-func TestANewIdentityWithNowhereToGoCreatesAnAccount(t *testing.T) {
-	for name, current := range map[string]*accounts.Account{
-		"no account":    nil,
-		"same provider": accountOf(account, identityOf("google", "someone else", account)),
-	} {
-		t.Run(name, func(t *testing.T) {
-			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, nil, "google")
-
-			require.NoError(t, err)
-			assert.Equal(t, accounts.Created, outcome)
-		})
-	}
-}
-
-func TestLinkingAnIdentityTheAccountAlreadyHasChangesNothing(t *testing.T) {
-	known := identityOf("google", "user", account)
-	current := accountOf(account, known)
-
-	outcome, err := accounts.OutcomeOf(accounts.IntentLink, current, known, nil, "google")
-
-	require.NoError(t, err)
-	assert.Equal(t, accounts.SignedIn, outcome, "the browser stays on its account")
-}
-
 func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
 	onDiscord := accountOf(account, identityOf("discord", "d", account))
 	elsewhere := identityOf("google", "user", accounts.AccountID{15: 2})

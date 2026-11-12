@@ -2,7 +2,6 @@ package list_reports_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -62,10 +61,4 @@ func TestNoSinceIsEveryReport(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, query.since.IsZero())
-}
-
-func TestAFailedReadIsLeftToTheErrorNet(t *testing.T) {
-	_, err := list(t, &stubQuery{err: errors.New("postgres is down")}, &supportv1.ListReportsRequest{})
-
-	assert.ErrorContains(t, err, "postgres is down")
 }

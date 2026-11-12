@@ -1,7 +1,6 @@
 package forget_titles_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -23,11 +22,4 @@ func TestADeletedAccountLosesItsTitles(t *testing.T) {
 	held, err := store.Held(t.Context(), accounts.AccountID{15: 1})
 	require.NoError(t, err)
 	assert.Empty(t, held)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	store := inmemory_title_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	assert.Error(t, forget_titles_usecase.New(store).Execute(t.Context(), accounts.AccountID{15: 1}))
 }

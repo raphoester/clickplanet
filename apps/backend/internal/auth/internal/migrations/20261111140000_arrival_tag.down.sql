@@ -1,0 +1,1 @@
+ALTER TABLE arrivals DROP COLUMN tag;

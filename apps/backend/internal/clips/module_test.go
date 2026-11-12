@@ -15,6 +15,7 @@ import (
 	clipsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/clips/v1/clipsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
@@ -29,7 +30,10 @@ func listen(t *testing.T) net.Listener {
 }
 
 func TestTheModuleServesItsOperatorAndThePlayersOnceTheServerRuns(t *testing.T) {
-	config := clips.ModuleConfig{Database: cppg.StartTestServer(t).ConfigFor("clips"), Redis: cpredis.StartTestServer(t).Config()}
+	config := clips.ModuleConfig{
+		Database: cppg.StartTestServer(t).ConfigFor("clips"), Redis: cpredis.StartTestServer(t).Config(),
+		Judge: clips.NameJudgeConfig{Anthropic: cpanthropic.Config{APIKey: "a-test-key", BaseURL: "http://127.0.0.1:1"}},
+	}
 	public, console, internal := listen(t), listen(t), listen(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	done := make(chan error, 1)
@@ -54,9 +58,11 @@ func TestTheModuleServesItsOperatorAndThePlayersOnceTheServerRuns(t *testing.T) 
 		assert.NoError(c, err)
 	}, time.Minute, 100*time.Millisecond, "the module serves once the server runs, its pool open")
 
-	_, err := clipsv1connect.NewClipsServiceClient(http.DefaultClient, "http://"+public.Addr().String()).
-		GetAppearances(t.Context(), connect.NewRequest(&clipsv1.GetAppearancesRequest{}))
+	players := clipsv1connect.NewClipsServiceClient(http.DefaultClient, "http://"+public.Addr().String())
+	_, err := players.GetAppearances(t.Context(), connect.NewRequest(&clipsv1.GetAppearancesRequest{}))
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "the posts that name a player are its own")
+	_, err = players.GetShownNames(t.Context(), connect.NewRequest(&clipsv1.GetShownNamesRequest{}))
+	assert.NoError(t, err, "a guest reads the names a video may show")
 }
 
 func TestAConfigWithNoDatabaseIsRefused(t *testing.T) {

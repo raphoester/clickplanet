@@ -386,6 +386,13 @@ function accountOf(reactor: string): string {
     return reactor === ME ? fakeAccountId(OWN_GUEST_NAME) : reactor
 }
 
+// What GetPlayerByName answers: the account of a chatter's username, in any case; a guest code is no username.
+export async function chatterNamed(name: string): Promise<string | undefined> {
+    const chatter = [...CHATTERS, ...flagChatters("")]
+        .find((chatter) => !chatter.name.startsWith("guest_") && chatter.name.toLowerCase() === name.toLowerCase())
+    return chatter && fakeAccountId(chatter.name)
+}
+
 // What GetNameplates answers for a chatter of any room: undefined for an account no chatter has.
 export function chatterNameplateOf(accountId: string): Nameplate | undefined {
     const chatter = [...CHATTERS, ...flagChatters("")].find(({name}) => fakeAccountId(name) === accountId)

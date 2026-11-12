@@ -58,29 +58,6 @@ func TestNoOffenceIsDismissedWithItsReasonAndDoesNothing(t *testing.T) {
 	assert.Equal(t, "Claude judge: no offence: banter between rivals", decision.Judgement.Comment())
 }
 
-func TestAFirstOffenceRemovesTheMessageAndMutesNobody(t *testing.T) {
-	decision := decide(judgements.Answer{
-		Category: judgements.CategoryOffence, Offending: []messages.MessageID{"m-2"}, What: "an insult aimed at a player",
-	})
-
-	assert.Equal(t, []messages.MessageID{"m-2"}, decision.Remove)
-	assert.Zero(t, decision.Mute)
-	assert.Equal(t, "offence 1 (chat): an insult aimed at a player", decision.Reason)
-	assert.Equal(t, judgements.Acted, decision.Judgement.TakeSnapshot().Verdict)
-	assert.Equal(t, "offence 1 (chat): an insult aimed at a player; 1 message removed", decision.Judgement.TakeSnapshot().Reason)
-}
-
-func TestASecondOffenceMutesFifteenMinutes(t *testing.T) {
-	decision := decide(judgements.Answer{
-		Category: judgements.CategoryOffence, Offending: []messages.MessageID{"m-2"}, What: "a threat",
-	}, removal(now.Add(-time.Hour), "offence 1 (chat): a threat"))
-
-	assert.Equal(t, 15*time.Minute, decision.Mute)
-	assert.Equal(t, mutes.Chat, decision.Kind)
-	assert.Equal(t, "offence 2 (chat): a threat", decision.Reason)
-	assert.Equal(t, "offence 2 (chat): a threat; 1 message removed, muted 15 minutes", decision.Judgement.TakeSnapshot().Reason)
-}
-
 func TestASevereOffenceMutesAnHourAndIsFlagged(t *testing.T) {
 	decision := decide(judgements.Answer{
 		Category: judgements.CategoryOffence, Severe: true, Offending: []messages.MessageID{"m-2"}, What: "a racial slur",

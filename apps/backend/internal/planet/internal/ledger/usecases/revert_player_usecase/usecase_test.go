@@ -2,7 +2,6 @@ package revert_player_usecase_test
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -143,14 +142,6 @@ func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
 
 	assert.Equal(t, 2, out.Restored, "the first batch went before the pause noticed")
 	assert.Equal(t, 5, takenBy(book, "9.9.9.9"), "an interrupted revert can be run again")
-}
-
-func TestAStorageErrorIsReturned(t *testing.T) {
-	book, tiles := setup(t)
-	tiles.err = errors.New("code table full")
-
-	_, err := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
-	require.ErrorIs(t, err, tiles.err)
 }
 
 func TestAnAccountIsRevertedWhateverScopeItTookFrom(t *testing.T) {

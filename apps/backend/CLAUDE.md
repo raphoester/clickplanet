@@ -116,10 +116,12 @@ and says what is in it. Read the doc before you change its area.
   session a framed page carries in a header, operators, sign-out, deletion with its 30-day grace period and the purge,
   a sign-in that brings an account back, and pruning.
 - [Arrivals](docs/arrivals.md) — how each new account came: a player's link, the YouTube link, CrazyGames, or unknown,
-  and the referrer's host; kept by `auth` when it makes the account, anonymized when the account goes; the query.
+  the link's tag (a streamer's own link) and the referrer's host; the recruiter's account, in a table of its own
+  (`auth.recruitments`); kept by `auth` when it makes the account, anonymized when the recruit's or the recruiter's
+  account goes; the queries.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's and the offers' facts about callers, judges them, and asks planet to
-  refuse the ones it bans; a ring of accounts warned once before a ban for its turns; what survives a restart, and the
-  parts that are easy to get wrong.
+  refuse the ones it bans; a ring of accounts warned once before a ban for its turns; a streamer's chat, which
+  `default` keeps from bans with `cohort` and `churner` off; what survives a restart, and the parts that are easy to get wrong.
 - [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice, that
   judges with default's where it holds none; the pointer the watchdogs read, which set plays, what stays in the YAML.
 
@@ -132,7 +134,7 @@ and says what is in it. Read the doc before you change its area.
   account saw; why each context keeps its own history.
 - [Player](docs/player.md) — who an account is: names (a slur or a Nazi reference refused however it is spelled) and
   guest codes, colors, the nameplates the page draws every name
-  from (`GetNameplates`), who is playing now, and an account
+  from (`GetNameplates`), the player that holds a name (`GetPlayerByName`, for a player's address), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
   an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,
   `GetAccounts`), so no game module but alerts hears or asks auth; the deploy that moved them to it.
@@ -184,8 +186,9 @@ and says what is in it. Read the doc before you change its area.
 - [The players a clip names](docs/clip-appearances.md) — a run's cast, numbers and names and never an account; who
   each post names; the opt-out, kept by clips and not by player; the public read the game tells a player from.
 - [The names a post may show](docs/clip-name-verdicts.md) — a Claude Haiku judge leaves out of every cast a name
-  TikTok and YouTube forbid (a terrorist group, a hate code, a mass killer); each name judged once, again on a rename;
-  the operator's verdict; no names with no key.
+  TikTok and YouTube forbid (a terrorist group, a hate code, a mass killer); each name judged once, as it is set
+  (`PlayerNamed`) or in a cast, again on a rename; the operator's verdict; no names with no key; `GetShownNames`, the
+  public read of the names a player's video may show.
 
 ## Operator tools and jobs
 

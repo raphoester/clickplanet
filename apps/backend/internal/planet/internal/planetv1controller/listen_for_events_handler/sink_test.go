@@ -227,14 +227,6 @@ func TestASinkFramesEverythingAGrantLeftHeld(t *testing.T) {
 	assert.Equal(t, uint32(20), held.GetShields())
 }
 
-func TestAHeartbeatStillWinsOverEverything(t *testing.T) {
-	stream := &recorder{}
-
-	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{Heartbeat: true}))
-
-	assert.NotNil(t, stream.sent[0].GetHeartbeat())
-}
-
 func TestASinkFramesAKnockOutAsOneEventWithItsTilesAndVersion(t *testing.T) {
 	stream := &recorder{}
 

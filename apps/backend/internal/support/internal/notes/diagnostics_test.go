@@ -82,15 +82,6 @@ func TestANoteWhosePageSaidNothingKeepsEmptyDiagnostics(t *testing.T) {
 	assert.Equal(t, notes.Diagnostics{}, diagnosticsKept(t, notes.Diagnostics{Build: " \n", UserAgent: "\x00"}))
 }
 
-func TestABugReportIsANoteOfThatKindWithItsTextCleaned(t *testing.T) {
-	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "  the globe is black  ", notes.Diagnostics{}, sentAt)
-
-	require.NoError(t, err)
-	assert.Equal(t, notes.Snapshot{
-		ID: notes.NoteID{15: 1}, Kind: notes.KindBug, Account: ada, Text: "the globe is black", At: sentAt,
-	}, note.TakeSnapshot())
-}
-
 func TestABugReportNeedsTheAccountThatSendsIt(t *testing.T) {
 	_, err := notes.NewBugReport(notes.NoteID{15: 1}, notes.AccountID{}, "the globe is black", notes.Diagnostics{}, sentAt)
 

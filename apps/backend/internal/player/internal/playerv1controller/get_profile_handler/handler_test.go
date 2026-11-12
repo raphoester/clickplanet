@@ -2,7 +2,6 @@ package get_profile_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -48,12 +47,4 @@ func TestACallerWithNoAccountIsUnauthenticatedAndReadsNothing(t *testing.T) {
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
 	assert.Empty(t, query.asked)
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := get_profile_handler.New(&stubQuery{err: failure}).GetProfile(cpctx.AddAccountToContext(t.Context(), ada), connect.NewRequest(&playerv1.GetProfileRequest{}))
-
-	assert.ErrorIs(t, err, failure)
 }

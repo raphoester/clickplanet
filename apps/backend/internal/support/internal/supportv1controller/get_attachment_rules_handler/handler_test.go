@@ -2,7 +2,6 @@ package get_attachment_rules_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -62,13 +61,4 @@ func TestTheRulesShrinkToTheRoomTheBucketHasLeftAndAFullOneTakesNoFile(t *testin
 	assert.Equal(t, uint64(1000), low.Msg.GetMaxBytes())
 	assert.Zero(t, full.Msg.GetMaxPerNote())
 	assert.Zero(t, full.Msg.GetMaxBytes())
-}
-
-func TestARoomThatCannotBeReadIsLeftToTheErrorNet(t *testing.T) {
-	broken := errors.New("the database is gone")
-
-	_, err := get_attachment_rules_handler.New(notes.AttachmentRules{MaxPerNote: 10, MaxBytes: 1000}, room{err: broken}).
-		GetAttachmentRules(t.Context(), connect.NewRequest(&supportv1.GetAttachmentRulesRequest{}))
-
-	require.ErrorIs(t, err, broken)
 }

@@ -10,7 +10,7 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/landingmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin/usecases/complete_email_sign_in_usecase"
 )
@@ -44,7 +44,7 @@ func (h CompleteEmailSignInHandler) CompleteEmailSignIn(
 	out, err := h.useCase.Execute(ctx, complete_email_sign_in_usecase.In{
 		Code:         req.Msg.GetCode(),
 		CookieHeader: req.Header().Get("Cookie"),
-		Landing:      arrivals.Landing{Tag: req.Msg.GetLanding().GetTag(), Referrer: req.Msg.GetLanding().GetReferrer()},
+		Landing:      landingmessage.LandingOf(req.Msg.GetLanding()),
 	})
 	switch {
 	case errors.Is(err, signin.ErrSignInOff):

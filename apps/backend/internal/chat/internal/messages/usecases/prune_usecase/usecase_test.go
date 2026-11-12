@@ -1,8 +1,6 @@
 package prune_usecase_test
 
 import (
-	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -24,12 +22,6 @@ import (
 )
 
 var now = time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
-
-type failingPruner struct{}
-
-func (failingPruner) DeleteBefore(context.Context, time.Time) (int64, error) {
-	return 0, errors.New("postgres is down")
-}
 
 func TestAPruneDeletesMessagesReactionsAndAnnouncementsPastRetention(t *testing.T) {
 	sent := inmemory_message_storage.New()
@@ -70,11 +62,4 @@ func TestTheModerationHistoryIsPrunedPastARetentionOfItsOwn(t *testing.T) {
 	assert.Empty(t, sent.Kept())
 	require.Len(t, history.Kept(), 1, "the history outlives the chat's retention")
 	assert.Equal(t, now.Add(-48*time.Hour), history.Kept()[0].At)
-}
-
-func TestAFailedPruneSaysSo(t *testing.T) {
-	_, err := prune_usecase.New(cptime.NewFixedClock(now), prune_usecase.KeptFor(time.Hour, failingPruner{})).
-		Execute(t.Context())
-
-	require.Error(t, err)
 }

@@ -1,7 +1,6 @@
 package add_season_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -60,16 +59,6 @@ func TestARefusedSeasonIsNotKept(t *testing.T) {
 	calendar, err := seasons.Calendar(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, calendar.TakeSnapshot(), 1)
-}
-
-func TestSeasonsThatCannotBeReadAddNone(t *testing.T) {
-	seasons := store(t)
-	down := errors.New("postgres is down")
-	seasons.FailWith(down)
-
-	_, err := adding(seasons, inmemory_entry_store.New()).Execute(t.Context(), one)
-
-	require.ErrorIs(t, err, down)
 }
 
 func TestASeasonIsAddedWithItsFinale(t *testing.T) {

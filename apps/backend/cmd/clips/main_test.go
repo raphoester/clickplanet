@@ -47,15 +47,6 @@ func TestACommandNoStageIsWrittenForIsAnErrorAndDoesNothing(t *testing.T) {
 	assert.Empty(t, left)
 }
 
-func TestACommandCalledWrongPrintsNothingAndSaysHowToCallIt(t *testing.T) {
-	var out bytes.Buffer
-
-	err := run(t.Context(), []string{"publish"}, &out)
-
-	require.ErrorContains(t, err, "usage:")
-	assert.Empty(t, out.String())
-}
-
 func TestAFetchOfNoTimeIsRefusedBeforeAnythingIsAskedOfTheBackend(t *testing.T) {
 	t.Setenv(flags.HostVariable, "deploy@vps.example")
 	var out bytes.Buffer

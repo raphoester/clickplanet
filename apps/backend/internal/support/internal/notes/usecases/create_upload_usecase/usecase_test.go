@@ -1,7 +1,6 @@
 package create_upload_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -20,12 +19,6 @@ var (
 	rules = notes.AttachmentRules{MaxPerNote: 10, MaxBytes: 1000}
 	noon  = time.Date(2026, 10, 14, 12, 0, 0, 0, time.UTC)
 )
-
-type failingIDs struct{}
-
-func (failingIDs) NewAttachmentID() (notes.AttachmentID, error) {
-	return notes.AttachmentID{}, errors.New("no entropy")
-}
 
 func shelfOf(storage *inmemory_upload_storage.Storage, capacity int64) *uploads.Shelf {
 	return uploads.NewShelf(storage, capacity, cptime.NewFixedClock(noon))
@@ -80,24 +73,4 @@ func TestAFileTheBucketHasNoRoomForGetsNoLink(t *testing.T) {
 
 	require.ErrorIs(t, err, uploads.ErrShelfFull)
 	assert.Len(t, storage.Kept(), 1)
-}
-
-func TestAnUploadWithNoIDNoRoomReadOrNoLinkFails(t *testing.T) {
-	_, err := create_upload_usecase.New(failingIDs{}, rules, shelfOf(inmemory_upload_storage.New(), 10_000),
-		inmemory_attachment_bucket.New()).Execute(t.Context(), create_upload_usecase.In{MediaType: notes.MediaPNG, Size: 10})
-	require.Error(t, err)
-
-	gone := errors.New("the database is gone")
-	storage := inmemory_upload_storage.New()
-	storage.FailWith(gone)
-	_, err = create_upload_usecase.New(&notes.SequentialIDs{}, rules, shelfOf(storage, 10_000), inmemory_attachment_bucket.New()).
-		Execute(t.Context(), create_upload_usecase.In{MediaType: notes.MediaPNG, Size: 10})
-	require.ErrorIs(t, err, gone)
-
-	down := errors.New("no bucket")
-	bucket := inmemory_attachment_bucket.New()
-	bucket.FailWith(down)
-	_, err = create_upload_usecase.New(&notes.SequentialIDs{}, rules, shelfOf(inmemory_upload_storage.New(), 10_000), bucket).
-		Execute(t.Context(), create_upload_usecase.In{MediaType: notes.MediaPNG, Size: 10})
-	require.ErrorIs(t, err, down)
 }

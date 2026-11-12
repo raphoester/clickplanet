@@ -46,6 +46,9 @@ message Landing {
 
   // The host alone, never a path or a query.
   string referrer = 2;
+
+  // The account that held the name in the player's address the browser came by (player.v1's GetPlayerByName).
+  optional string recruiter_account_id = 3;
 }
 
 message CreateSessionResponse {

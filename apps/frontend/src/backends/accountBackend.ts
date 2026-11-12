@@ -87,7 +87,7 @@ export class ConnectAccountBackend implements AccountBackend {
     constructor(
         private readonly client: PromiseClient<typeof AuthService>,
         private readonly attest: Attester,
-        private readonly landing: Landing,
+        private readonly landing: Promise<Landing>,
     ) {
     }
 
@@ -117,7 +117,8 @@ export class ConnectAccountBackend implements AccountBackend {
     }
 
     public async completeSignIn(code: string, state: string): Promise<SignInOutcome> {
-        const res = await mapped(() => this.client.completeSignIn({code, state, landing: this.landing}))
+        const landing = await this.landing
+        const res = await mapped(() => this.client.completeSignIn({code, state, landing}))
         return outcomeOf(res)
     }
 
@@ -127,13 +128,15 @@ export class ConnectAccountBackend implements AccountBackend {
     }
 
     public async completeEmailSignIn(code: string): Promise<SignInOutcome> {
-        const res = await mapped(() => this.client.completeEmailSignIn({code, landing: this.landing}),
+        const landing = await this.landing
+        const res = await mapped(() => this.client.completeEmailSignIn({code, landing}),
             {[Code.InvalidArgument]: "wrongCode", [Code.FailedPrecondition]: "newCode"})
         return outcomeOf(res)
     }
 
     public async completeCrazyGamesSignIn(token: string): Promise<SignInOutcome> {
-        const res = await mapped(() => this.client.completeCrazyGamesSignIn({token, landing: this.landing}))
+        const landing = await this.landing
+        const res = await mapped(() => this.client.completeCrazyGamesSignIn({token, landing}))
         return outcomeOf(res)
     }
 

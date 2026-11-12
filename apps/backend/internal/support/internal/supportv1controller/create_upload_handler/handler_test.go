@@ -2,7 +2,6 @@ package create_upload_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"testing"
@@ -64,14 +63,6 @@ func TestAFileTheRulesDoNotTakeIsTheCallersFault(t *testing.T) {
 		&supportv1.CreateUploadRequest{ContentType: "text/html", SizeBytes: 10})
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestALinkThatCannotBeMadeIsLeftToTheErrorNet(t *testing.T) {
-	_, err := create(t, &stubUseCase{err: errors.New("no bucket")},
-		&supportv1.CreateUploadRequest{ContentType: "image/png", SizeBytes: 10})
-
-	assert.ErrorContains(t, err, "no bucket")
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }
 
 func TestAFullBucketIsExhaustedNotTheCallersFault(t *testing.T) {

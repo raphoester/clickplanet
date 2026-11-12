@@ -7,6 +7,128 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
+ * 100 at most.
+ *
+ * @generated from message clips.v1.GetShownNamesRequest
+ */
+export class GetShownNamesRequest extends Message<GetShownNamesRequest> {
+  /**
+   * @generated from field: repeated string account_ids = 1;
+   */
+  accountIds: string[] = [];
+
+  constructor(data?: PartialMessage<GetShownNamesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.GetShownNamesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetShownNamesRequest {
+    return new GetShownNamesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetShownNamesRequest {
+    return new GetShownNamesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetShownNamesRequest {
+    return new GetShownNamesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetShownNamesRequest | PlainMessage<GetShownNamesRequest> | undefined, b: GetShownNamesRequest | PlainMessage<GetShownNamesRequest> | undefined): boolean {
+    return proto3.util.equals(GetShownNamesRequest, a, b);
+  }
+}
+
+/**
+ * Once each, in the order asked: an account whose name it holds now the judge or the operator let the posts show, and
+ * that did not turn the clips off. A guest, an account unknown, deleted or asked deleted, or a name not judged is left out.
+ *
+ * @generated from message clips.v1.GetShownNamesResponse
+ */
+export class GetShownNamesResponse extends Message<GetShownNamesResponse> {
+  /**
+   * @generated from field: repeated clips.v1.ShownName shown_names = 1;
+   */
+  shownNames: ShownName[] = [];
+
+  constructor(data?: PartialMessage<GetShownNamesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.GetShownNamesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "shown_names", kind: "message", T: ShownName, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetShownNamesResponse {
+    return new GetShownNamesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetShownNamesResponse {
+    return new GetShownNamesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetShownNamesResponse {
+    return new GetShownNamesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetShownNamesResponse | PlainMessage<GetShownNamesResponse> | undefined, b: GetShownNamesResponse | PlainMessage<GetShownNamesResponse> | undefined): boolean {
+    return proto3.util.equals(GetShownNamesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message clips.v1.ShownName
+ */
+export class ShownName extends Message<ShownName> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  constructor(data?: PartialMessage<ShownName>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "clips.v1.ShownName";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ShownName {
+    return new ShownName().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ShownName {
+    return new ShownName().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ShownName {
+    return new ShownName().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ShownName | PlainMessage<ShownName> | undefined, b: ShownName | PlainMessage<ShownName> | undefined): boolean {
+    return proto3.util.equals(ShownName, a, b);
+  }
+}
+
+/**
  * @generated from message clips.v1.GetAppearancesRequest
  */
 export class GetAppearancesRequest extends Message<GetAppearancesRequest> {

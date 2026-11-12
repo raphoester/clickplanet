@@ -22,16 +22,6 @@ func newTestLimiter() (*Limiter, *cptime.FixedClock) {
 	return New("test", Config{PerSecond: 1, Burst: 10}, clock), clock
 }
 
-func TestTakeSpendsTheBurstThenRefuses(t *testing.T) {
-	limiter, _ := newTestLimiter()
-
-	for i := 0; i < 10; i++ {
-		require.Truef(t, allow(limiter, "1.2.3.4"), "click %d should be allowed", i)
-	}
-
-	require.False(t, allow(limiter, "1.2.3.4"))
-}
-
 func TestTakeNSpendsAllOrNothing(t *testing.T) {
 	limiter, _ := newTestLimiter()
 

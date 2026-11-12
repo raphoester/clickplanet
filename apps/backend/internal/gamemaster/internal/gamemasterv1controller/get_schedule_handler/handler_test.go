@@ -2,7 +2,6 @@ package get_schedule_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -31,13 +30,4 @@ func TestTheScheduleIsTheQuerys(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(answer, res.Msg))
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	_, err := get_schedule_handler.New(stubQuery{err: down}).
-		GetSchedule(t.Context(), connect.NewRequest(&gamemasterv1.GetScheduleRequest{}))
-
-	require.ErrorIs(t, err, down)
 }

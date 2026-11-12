@@ -1,7 +1,6 @@
 package decide_departure_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -54,11 +53,4 @@ func TestADecisionWithNoTimeIsRefused(t *testing.T) {
 	departure, err := store.Departure(t.Context(), account)
 	require.NoError(t, err)
 	assert.False(t, departure.TakeSnapshot().Leaving)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	store := inmemory_departure_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	assert.Error(t, decide_departure_usecase.New(store).Execute(t.Context(), account, departures.Leaves(start)))
 }

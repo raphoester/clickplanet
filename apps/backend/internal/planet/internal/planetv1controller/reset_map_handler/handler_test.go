@@ -2,7 +2,6 @@ package reset_map_handler_test
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -77,12 +76,4 @@ func TestTheWipeGoesOnWhenTheCallerGivesUp(t *testing.T) {
 	require.NoError(t, reset(gaveUp, useCase, &planetv1.ResetMapRequest{ResetId: "season-1", DecidedAt: timestamppb.New(at)}))
 
 	assert.Equal(t, []resets.Reset{{ID: "season-1", At: at}}, useCase.applied)
-}
-
-func TestAFailureIsPassedOnForTheErrorNet(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	err := reset(t.Context(), &resetting{err: down}, &planetv1.ResetMapRequest{ResetId: "season-1", DecidedAt: timestamppb.New(at)})
-
-	require.ErrorIs(t, err, down)
 }

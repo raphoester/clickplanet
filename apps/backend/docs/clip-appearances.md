@@ -33,7 +33,7 @@ of each run, who each post names, and who keeps out.**
   one. **`NotFound` for a cast forgotten or never made, `InvalidArgument` for a number it does not have**, and the
   job logs a warning: the clip is out already. Keeping one forgets the appearances scheduled more than 7 days before
   (`appearances.ShownSince`).
-- **`clips.v1.ClipsService/GetAppearances` is the public read**, on the one service of the module on the public router:
+- **`clips.v1.ClipsService/GetAppearances` is the caller's public read**, on the one service of the module on the public router:
   the posts out in the last 7 days that name the caller, the newest first, each with its headline, its time and a
   link per platform (`appearances_query`). It needs the identity token (`clipsv1controller.NewSessionInterceptor`,
   `Identified`): a player reads its own, and no request names an account. **A post scheduled for later is not out**,
@@ -42,7 +42,8 @@ of each run, who each post names, and who keeps out.**
   of that post and platform; `rpc_publishing_links`), else empty: the daily snapshot is the one read of Zernio that
   has it, and the game links to the channel until then. A publishing that does not answer leaves every link empty,
   with a warning, and the posts are still read (see [The posts' numbers](post-stats.md)). Until 2026-11-10 the query
-  joined the clips module's own `snapshot_rows`.
+  joined the clips module's own `snapshot_rows`. The same service's `GetShownNames` needs no token: the names a
+  player's own video may show, opt-outs left out ([The names a post may show](clip-name-verdicts.md)).
 - **A deleted account is forgotten** (`player.v1.PlayerForgotten`, which player tells for every account auth deletes,
   so the module subscribes to Redis): its appearances and its opt-out are deleted (`clips-appearances-forgotten`,
   `clips-optouts-forgotten`), and in a cast its number stays and names no one (`clips-casts-forgotten`, `account` and

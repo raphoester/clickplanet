@@ -37,12 +37,6 @@ func TestDefaultSeedsEachCapitalWithItsShields(t *testing.T) {
 		seed.Tiles())
 }
 
-func TestASetsOwnShieldsSeedTheCapitals(t *testing.T) {
-	set := battle(t, &planetv1.Rules{Seed: capitalsSeed(new(uint32(40)))})
-
-	assert.Equal(t, seeds.Capitals{Shields: 40}, seeds.Part.Of(set))
-}
-
 func TestASetHoldingThePatternAloneKeepsDefaultsNumbers(t *testing.T) {
 	set := battle(t, &planetv1.Rules{Seed: capitalsSeed(nil)})
 

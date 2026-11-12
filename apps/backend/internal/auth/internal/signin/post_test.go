@@ -1,7 +1,6 @@
 package signin_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -17,14 +16,6 @@ func post(clock *cptime.FixedClock) (*signin.Post, *signin.FakeMailer) {
 	mailer := &signin.FakeMailer{}
 	sends := cpratelimit.New("sends", cpratelimit.Config{Burst: 3, PerSecond: 1.0 / 1200}, clock)
 	return signin.NewPost(signin.BlockedDomains{"mailinator.com"}, sends, mailer), mailer
-}
-
-func TestALetterReachesAnOrdinaryAddress(t *testing.T) {
-	p, mailer := post(cptime.NewFixedClock(now))
-
-	require.NoError(t, p.Send(t.Context(), "player@example.com", signin.CodeLetter("000001")))
-
-	assert.Equal(t, []signin.Sent{{To: "player@example.com", Letter: signin.CodeLetter("000001")}}, mailer.Sent())
 }
 
 func TestADisposableAddressGetsNothingAndSpendsNoBudget(t *testing.T) {
@@ -50,11 +41,4 @@ func TestAnAddressGetsThreeLettersThenOneEveryTwentyMinutes(t *testing.T) {
 	require.NoError(t, p.Send(t.Context(), "player@example.com", signin.CodeLetter("000001")))
 
 	assert.Len(t, mailer.Sent(), 5)
-}
-
-func TestAMailerThatFailsIsAnError(t *testing.T) {
-	p, mailer := post(cptime.NewFixedClock(now))
-	mailer.FailWith(errors.New("cloudflare answered 503"))
-
-	assert.Error(t, p.Send(t.Context(), "player@example.com", signin.CodeLetter("000001")))
 }

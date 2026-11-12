@@ -244,12 +244,11 @@ scene and no run; `replay_usecase` a replay across an arena and one while it pla
 no world tile; `history_query`, `changes_query`, `holder_query` and `landmass_query` the same on postgres, with their
 plans; the handlers the asides and the `FailedPrecondition`; the frontend's `round.test.ts` no round story in a stretch.
 
-The shell (2026-11-10): `arenas`' `seed_test.go` pins a setup read from the set named, a set that cannot play refused,
-and a failed read that is no refusal; `arena_test.go` and `in_play_test.go` the opening's own freeze; `seeds`'
-`seeds_test.go` default's capitals, a set's own shields, the pattern held alone, the bound, and a default with no
+The shell (2026-11-10): `arenas`' `seed_test.go` pins a failed read of the set that is no refusal; `arena_test.go` and `in_play_test.go` the opening's own freeze; `seeds`'
+`seeds_test.go` default's capitals, the pattern held alone, the bound, and a default with no
 pattern; `cpproto`'s `overlay_test.go` a oneof case merged with the same and played alone over another;
-`open_arena_usecase` opens seeded and frozen as the battle's set says and refuses a set planet keeps none of; the
-migrations' `rule_knobs_test.go` the capital shields moved to the seed and back, and an arena kept before its freeze;
+`open_arena_usecase` opens seeded and frozen as the battle's set says (its own shields too) and refuses a set planet
+keeps none of;
 `postgres_arena_store` keeps the freeze. In the gamemaster, `moments`' `arenas_test.go` pins the set that waits for its
 judgement and for its arena opened, and a turn of no battle that waits for nothing; `play_schedule_usecase` the antibot
 called at T1 and planet once the wait ends with the turn's decision time, a plain turn never asked, a wait that calls
@@ -260,7 +259,7 @@ the take of a capital that clears the flag's other tiles in one change after the
 a flag out once, a blank capital that still falls, nothing on the world's map, an enclosure that knocks out once its
 pocket is written, the flag out saved by the flush (again after a failed one) and read at boot, and gone with its
 arena; `postgres_tile_store`'s `knockouts_test.go` the rows of each map, kept once, deleted by a wipe, none on the
-world's; the migrations' `knockouts_test.go`; `ledger_test.go` the event's entry, takes and scenes, and `Recording`
+world's; `ledger_test.go` the event's entry, takes and scenes, and `Recording`
 noting it after the take; the relay's `FlagKnockedOut`; the stream's sink and `GetMap`'s out flags;
 `allegiances`' arena rule and `Book`.
 

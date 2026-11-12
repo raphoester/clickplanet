@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_recruitment_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/attestation/open_attester"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/grants/inmemory_grant_store"
@@ -63,7 +64,7 @@ func (f *fixture) challenges(offered bool) *signin.Challenges {
 }
 
 func (f *fixture) useCase(offered bool) *complete_email_sign_in_usecase.UseCase {
-	register := arrivals.NewRegister(f.arrivals, &arrivals.SequentialIDs{})
+	register := arrivals.NewRegister(f.arrivals, inmemory_recruitment_store.New(), &arrivals.SequentialIDs{})
 	admitter := signin.NewAdmitter(cpatomic.FakeTransactioner{}, f.store, f.outbox, register,
 		grants.NewRegister(inmemory_grant_store.New(), &grants.SequentialIDs{}), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime)
 	return complete_email_sign_in_usecase.New(f.challenges(offered), admitter, f.clock)
@@ -284,6 +285,6 @@ func TestAnAccountACodeMakesKeepsWhereTheBrowserCameFrom(t *testing.T) {
 
 	require.Equal(t, accounts.Created, out.Outcome())
 	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceYouTube, At: start,
+		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: out.Account(), Source: arrivals.SourceYouTube, Tag: "yt", At: start,
 	}}, f.arrivals.Kept())
 }

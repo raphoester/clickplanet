@@ -243,6 +243,13 @@ export class Landing extends Message<Landing> {
    */
   referrer = "";
 
+  /**
+   * The account that held the name in the player's address the browser came by (player.v1's GetPlayerByName).
+   *
+   * @generated from field: optional string recruiter_account_id = 3;
+   */
+  recruiterAccountId?: string;
+
   constructor(data?: PartialMessage<Landing>) {
     super();
     proto3.util.initPartial(data, this);
@@ -253,6 +260,7 @@ export class Landing extends Message<Landing> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "referrer", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "recruiter_account_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Landing {

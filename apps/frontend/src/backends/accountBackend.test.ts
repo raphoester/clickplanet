@@ -17,10 +17,10 @@ const refusing = (code: Code) => vi.fn(async () => {
     throw new ConnectError("no", code)
 })
 
-const LANDING = {tag: "rc", referrer: "discord.com"}
+const LANDING = {tag: "rc", referrer: "discord.com", recruiterAccountId: "0193f2a4-7c1e-7000-8000-00000000ada0"}
 
 function backendWith(methods: Record<string, unknown>, attest = vi.fn(async () => "turnstile-token")) {
-    return new ConnectAccountBackend(methods as never, attest, LANDING)
+    return new ConnectAccountBackend(methods as never, attest, Promise.resolve(LANDING))
 }
 
 describe("ConnectAccountBackend", () => {
@@ -237,7 +237,7 @@ describe("the auth transport", () => {
         })
         vi.stubGlobal("fetch", fetch)
 
-        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"}), async () => "", LANDING).signInOptions()
+        await new ConnectAccountBackend(newAuthServiceClient({baseUrl: "https://api.test"}), async () => "", Promise.resolve(LANDING)).signInOptions()
 
         expect(String((fetch.mock.calls[0] as unknown[])[0])).toBe("https://api.test/auth.v1.AuthService/GetSignInOptions")
         expect(((fetch.mock.calls[0] as unknown[])[1] as RequestInit).credentials).toBe("include")
