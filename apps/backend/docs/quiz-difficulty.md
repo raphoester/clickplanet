@@ -128,8 +128,8 @@ regenerated with priors loads on this build and an older one.
 - **A prior that is not a share** (under 0 or over 1) refuses the boot, as any broken question does.
 - **A prior changed later moves only the questions with no row yet.** A question already answered keeps the rating its
   answers moved, which started from the old prior. Correcting the priors as a whole is a replay of the log (below).
-- The parallel task that rates the bank writes the field from the generator (`apps/frontend/scripts/quiz/`); see
-  [The quiz bank](../../../docs/quiz-bank.md).
+- The priors are in `quiz/priors.json`, one per question, rated by hand and calibrated to a mean of 0.45; the generator
+  writes each into the bank by id, text and answer. See [The quiz bank](../../../docs/quiz-bank.md#where-the-priors-come-from-quizpriorsjson).
 
 ## The draw
 

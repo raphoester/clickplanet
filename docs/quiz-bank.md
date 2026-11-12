@@ -19,6 +19,25 @@ cd apps/backend && make quiz                # → apps/backend/generated/quiz (e
 the question's rating there, and a question with none starts at 0.6. The field is optional, so the bank's `format`
 stays 1 and a backend reads a bank with or without it (see [How hard each quiz question is](../apps/backend/docs/quiz-difficulty.md#priors)).
 
+**Where the priors come from: `quiz/priors.json`.** One entry per question: its id, the text and answer it was rated
+with, and the prior. The generator sets `prior` on a question only when its id, text and answer all match the entry, so
+a question whose wording changed starts at 0.6 until it is rated again. The file is one question per line, like the bank.
+
+The priors in the file were rated by hand: subagents each read a tenth of the bank and judged each question for a
+teenager who has not studied its subject, against two anchors ("What is the capital of France?" about 0.95, a question
+about an obscure Pacific island prince about 0.38). Then one shift on the rating scale (`d = -logit((3P - 1) / 2)`) moved
+the whole bank so its mean prior is 0.45, and every prior is clamped to 0.34 to 0.99. The shift is recorded in the file.
+
+To rate new questions, the same way: read them, write a prior per id into `quiz/priors.json`, then run the generator
+and `make quiz`:
+
+```bash
+cd apps/frontend && npm run quiz:generate   # the bank, with the questions that changed
+# add the new or changed ids to quiz/priors.json
+cd apps/frontend && npm run quiz:generate   # write the priors into the bank
+cd apps/backend && make quiz                # → apps/backend/generated/quiz, then commit bank, priors and the copy
+```
+
 About 820 of the questions are **derived** from the same pinned Natural Earth snapshot `map/` is cut
 from and from the tile borders themselves, so they are regenerated rather than corrected; the rest
 are hand-written in `apps/frontend/scripts/quiz/extra.json` for what no dataset here can answer. See
