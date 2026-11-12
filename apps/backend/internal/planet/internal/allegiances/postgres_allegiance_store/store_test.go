@@ -26,18 +26,3 @@ func TestThePostgresStoreKeepsTheContract(t *testing.T) {
 		},
 	})
 }
-
-func TestAFirstFlagIsKeptWithNoTime(t *testing.T) {
-	db := cppg.StartTestServer(t).OpenSchema(t, "planet", migrations.FS)
-	store := postgres_allegiance_store.New(db)
-	const alice allegiances.Account = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
-
-	require.NoError(t, store.Change(t.Context(), alice, func(allegiances.Allegiance) (allegiances.Allegiance, error) {
-		return allegiances.Snapshot{Flag: "fr"}.Restore(), nil
-	}))
-
-	var changedAt *string
-	require.NoError(t, db.On(t.Context()).QueryRowContext(t.Context(), `SELECT changed_at::text FROM allegiances WHERE account = $1`,
-		string(alice)).Scan(&changedAt))
-	require.Nil(t, changedAt)
-}

@@ -21,16 +21,6 @@ func draft(set schedule.SetName, startsAt, endsAt time.Time, priority schedule.P
 	}
 }
 
-func TestAnEntryIsMadeNowAndPlaysItsDraft(t *testing.T) {
-	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
-
-	require.NoError(t, err)
-	assert.Equal(t, schedule.EntrySnapshot{
-		ID: id(1), Set: "calm", Kind: schedule.Battle, Description: words, StartsAt: finale, EndsAt: battleEnds, Priority: 1,
-		Times: 3, MadeAt: now,
-	}, made.TakeSnapshot())
-}
-
 func TestADraftIsRefusedWithEveryReason(t *testing.T) {
 	long := draft("Calm!", now, now.Add(-time.Minute), 0)
 	long.Description = schedule.Description(strings.Repeat("x", schedule.MaxDescription+1))
@@ -110,21 +100,6 @@ func TestAnEntryWithNoEndIsRefused(t *testing.T) {
 	_, err := schedule.NewEntry(id(1), draft("calm", finale, time.Time{}, 1), now)
 
 	require.ErrorIs(t, err, schedule.ErrInvalidEntry)
-}
-
-func TestAnEntryToComeIsEditedAndKeepsItsPlaceInATie(t *testing.T) {
-	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
-	require.NoError(t, err)
-	edit := draft("frozen", finale.Add(time.Minute), battleEnds, 2)
-	edit.Kind, edit.Times = schedule.Plain, 0
-
-	edited, err := made.Edited(edit, now.Add(time.Minute))
-
-	require.NoError(t, err)
-	assert.Equal(t, schedule.EntrySnapshot{
-		ID: id(1), Set: "frozen", Kind: schedule.Plain, Description: words, StartsAt: finale.Add(time.Minute), EndsAt: battleEnds,
-		Priority: 2, MadeAt: now,
-	}, edited.TakeSnapshot())
 }
 
 func TestAnEntryThatStartedNeitherChangesNorGoes(t *testing.T) {

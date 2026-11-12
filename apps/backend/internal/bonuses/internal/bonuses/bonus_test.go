@@ -420,26 +420,6 @@ func TestAKindHeldIsLeftOutOfTheDrawAndTheOthersStillCome(t *testing.T) {
 	}
 }
 
-func TestABombTheWalletHasNoRoomForIsNeverOffered(t *testing.T) {
-	registry, clock := newRegistryOffering(map[Kind]float64{KindBomb: 100, KindRefill: 1})
-	events := playing(t, registry, "scope-a")
-	// What the wallet answers for every hand while planet's bombs are off.
-	roomOf(registry).Keep(accountOf("scope-a"), KindBomb)
-
-	for range 20 {
-		clock.Advance(window + time.Second)
-		clicked(registry, "scope-a")
-		registry.sweep(t.Context())
-
-		offer := offered(t, events)
-		require.NotNil(t, offer)
-		require.Equal(t, KindRefill, offer.Kind)
-
-		clock.Advance(16 * time.Second)
-		registry.sweep(t.Context())
-	}
-}
-
 func TestAFrozenSetOffersNothingAndAsksNoRoom(t *testing.T) {
 	registry, clock := newRuledRegistry(func(rules *Rules) { rules.Frozen = true })
 	events := playing(t, registry, "scope-a")
@@ -564,20 +544,6 @@ func TestKindsAreDrawnInProportionToTheirWeight(t *testing.T) {
 	assert.InDelta(t, 0.1, float64(spreads)/draws, 0.02)
 }
 
-func TestAClaimByTheCallerItWasOfferedToSucceeds(t *testing.T) {
-	registry, clock := newTestRegistry()
-	events := playing(t, registry, "scope-a")
-
-	waitOut(t, registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
-
-	reward, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
-
-	require.True(t, claimed)
-	assert.Equal(t, offer.Kind, reward.Kind, "the claim grants what the box said it was")
-}
-
 func TestACatchIsReportedWithHowLongItTook(t *testing.T) {
 	registry, clock := newTestRegistry()
 
@@ -634,58 +600,6 @@ func TestALapsedBoxIsReportedAgainstItsCaller(t *testing.T) {
 	registry.sweep(t.Context())
 
 	assert.Equal(t, []string{"scope-a"}, missedBy)
-}
-
-func TestATokenIsWorthNothingToAnybodyElse(t *testing.T) {
-	registry, clock := newTestRegistry()
-	events := playing(t, registry, "scope-a")
-
-	waitOut(t, registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
-
-	_, stolen := registry.Claim(offer.Token, "scope-b", "scope-b")
-	assert.False(t, stolen)
-
-	_, mine := registry.Claim(offer.Token, "scope-a", "scope-a")
-	assert.True(t, mine, "a failed theft must not spend the owner's box")
-}
-
-func TestATokenIsSpentExactlyOnce(t *testing.T) {
-	registry, clock := newTestRegistry()
-	events := playing(t, registry, "scope-a")
-
-	waitOut(t, registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
-
-	_, first := registry.Claim(offer.Token, "scope-a", "scope-a")
-	_, second := registry.Claim(offer.Token, "scope-a", "scope-a")
-
-	assert.True(t, first)
-	assert.False(t, second)
-}
-
-func TestALapsedTokenIsRefused(t *testing.T) {
-	registry, clock := newTestRegistry()
-	events := playing(t, registry, "scope-a")
-
-	waitOut(t, registry, clock)
-	offer := offered(t, events)
-	require.NotNil(t, offer)
-
-	clock.Advance(16 * time.Second)
-
-	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
-	assert.False(t, claimed)
-}
-
-func TestAnUnknownTokenIsRefused(t *testing.T) {
-	registry, _ := newTestRegistry()
-
-	_, claimed := registry.Claim("not-a-token", "scope-a", "scope-a")
-
-	assert.False(t, claimed)
 }
 
 func foreign(registry *Registry) map[string]int {

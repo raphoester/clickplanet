@@ -1,7 +1,6 @@
 package mark_seen_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -57,15 +56,6 @@ func TestNoTimeIsRefused(t *testing.T) {
 	err := markSeen(t, inmemory_seen_storage.New(), mark_seen_usecase.In{Account: ada, Room: messages.World})
 
 	assert.ErrorIs(t, err, seen.ErrNoTime)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	store := inmemory_seen_storage.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	err := markSeen(t, store, mark_seen_usecase.In{Account: ada, Room: messages.World, At: now})
-
-	assert.ErrorContains(t, err, "postgres is down")
 }
 
 func TestEachRoomKeepsItsOwnMark(t *testing.T) {

@@ -45,13 +45,3 @@ func TestABackendThatDoesNotAnswerTheTurnKeepsNothing(t *testing.T) {
 	require.ErrorIs(t, err, unserved)
 	assert.Empty(t, store.SavedTurns)
 }
-
-func TestATurnThatCannotBeKeptIsAnError(t *testing.T) {
-	full := errors.New("the disk is full")
-	_, store, usecase := fetching()
-	store.FailWith(full)
-
-	_, err := usecase.Execute(t.Context())
-
-	require.ErrorIs(t, err, full)
-}

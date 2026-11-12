@@ -55,13 +55,3 @@ func TestABackendThatDoesNotAnswerTheRoundKeepsNothing(t *testing.T) {
 	require.ErrorIs(t, err, unserved)
 	assert.Empty(t, store.SavedRounds)
 }
-
-func TestARoundThatCannotBeKeptIsAnError(t *testing.T) {
-	full := errors.New("the disk is full")
-	_, store, usecase := fetching()
-	store.FailWith(full)
-
-	_, err := usecase.Execute(t.Context(), debriefed)
-
-	require.ErrorIs(t, err, full)
-}

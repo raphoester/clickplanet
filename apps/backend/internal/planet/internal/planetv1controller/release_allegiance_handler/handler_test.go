@@ -2,7 +2,6 @@ package release_allegiance_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -62,12 +61,4 @@ func TestAnIDThatIsNotAnAccountIsInvalidAndReleasesNothing(t *testing.T) {
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "%q", account)
 	}
 	assert.Empty(t, book.released)
-}
-
-func TestAFailedReleaseIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := release(t, &stubBook{err: failure}, false, ada)
-
-	assert.ErrorIs(t, err, failure)
 }

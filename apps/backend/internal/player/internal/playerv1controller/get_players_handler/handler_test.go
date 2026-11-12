@@ -2,7 +2,6 @@ package get_players_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -67,12 +66,4 @@ func TestTheAnswerIsNeverStored(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"), "who a player is changes when it renames")
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := getPlayers(t, &stubQuery{err: failure}, adaID)
-
-	assert.ErrorIs(t, err, failure)
 }

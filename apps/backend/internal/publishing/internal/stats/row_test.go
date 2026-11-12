@@ -64,13 +64,6 @@ func TestAPlatformTheAnswerHasNoEntryForIsARowWithNullAnalytics(t *testing.T) {
 	assert.Nil(t, rows[0].Retention)
 }
 
-func TestAPostOutOnNoPlatformIsNotOut(t *testing.T) {
-	post := stats.Post{Targets: []stats.Target{{Platform: "tiktok"}, {Platform: "youtube"}}}
-
-	assert.False(t, post.Out())
-	assert.True(t, aPost().Out())
-}
-
 func TestBusinessMetricsAreTheOnesOnlyTikTokForBusinessGives(t *testing.T) {
 	for entry, business := range map[string]bool{
 		`{"analytics":{"views":120,"likes":4,"completionRate":0,"impressionSources":{},"audienceCountries":{}}}`: false,

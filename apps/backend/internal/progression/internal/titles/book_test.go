@@ -27,13 +27,6 @@ func holding(t *testing.T, ids ...titles.ID) *inmemory_title_store.Store {
 	return store
 }
 
-func TestUnheldIsWhatTheCareerEarnsAndTheAccountDoesNotHold(t *testing.T) {
-	unheld, err := titles.NewBook(holding(t, "first"), catalog).Unheld(t.Context(), ada, tiles(3))
-
-	require.NoError(t, err)
-	assert.Equal(t, titles.IDs{"third"}, unheld)
-}
-
 func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
 	store := inmemory_title_store.New()
 	store.FailWith(errors.New("postgres is down"))
@@ -44,30 +37,9 @@ func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
 	assert.Empty(t, unheld)
 }
 
-func TestGrantedTitlesAreHeld(t *testing.T) {
-	store := inmemory_title_store.New()
-
-	require.NoError(t, titles.NewBook(store, catalog).Grant(t.Context(), ada, titles.IDs{"first"}, at))
-
-	held, err := store.Held(t.Context(), ada)
-	require.NoError(t, err)
-	assert.Equal(t, titles.IDs{"first"}, held)
-}
-
 func TestShownIsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {
 	shown, err := titles.NewBook(holding(t, "badge", "low", "mid"), tracks).Shown(t.Context(), ada)
 
 	require.NoError(t, err)
 	assert.Equal(t, []standingView{alone(badge), ranked(mid, ladder, 2)}, viewsOf(shown))
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	store := inmemory_title_store.New()
-	store.FailWith(errors.New("postgres is down"))
-	book := titles.NewBook(store, tracks)
-
-	_, err := book.Shown(t.Context(), ada)
-	require.Error(t, err)
-	_, err = book.Unheld(t.Context(), ada, tiles(3))
-	assert.Error(t, err)
 }

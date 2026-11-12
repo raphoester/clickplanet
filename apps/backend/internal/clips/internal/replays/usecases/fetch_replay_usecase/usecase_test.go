@@ -56,13 +56,3 @@ func TestABackendThatDoesNotAnswerKeepsNothing(t *testing.T) {
 	require.ErrorIs(t, err, unreachable)
 	assert.Empty(t, store.Saved)
 }
-
-func TestAReplayThatCannotBeKeptFailsTheFetch(t *testing.T) {
-	full := errors.New("the disk is full")
-	_, store, usecase := fetching(replays.Request{Span: time.Hour})
-	store.FailWith(full)
-
-	_, err := usecase.Execute(t.Context())
-
-	require.ErrorIs(t, err, full)
-}

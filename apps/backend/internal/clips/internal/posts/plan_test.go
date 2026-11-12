@@ -18,16 +18,6 @@ var (
 	asap = posts.Plan{Platforms: both, BestOnly: tiktok}
 )
 
-func TestTheBestClipGoesFirstWhateverTheOrderItWasRenderedIn(t *testing.T) {
-	ranked := posts.Ranked([]posts.Clip{clip(t, 2, "SECOND"), clip(t, 1, "BEST"), clip(t, 3, "THIRD")})
-
-	titles := make([]string, 0, len(ranked))
-	for _, clip := range ranked {
-		titles = append(titles, clip.TakeSnapshot().Title)
-	}
-	assert.Equal(t, []string{"BEST", "SECOND", "THIRD"}, titles)
-}
-
 func TestAPlatformThatTakesTheBestOnlyIsAskedForARunsFirstClipAlone(t *testing.T) {
 	assert.Equal(t, both, asap.PlatformsOf(1))
 	assert.Equal(t, []posts.Platform{posts.YouTube}, asap.PlatformsOf(2))

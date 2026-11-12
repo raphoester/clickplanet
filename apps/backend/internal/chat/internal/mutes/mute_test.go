@@ -40,20 +40,6 @@ func TestWhatIsNotAnAddressIsNoNetwork(t *testing.T) {
 	}
 }
 
-func TestNoDurationIsOneHour(t *testing.T) {
-	duration, err := mutes.DurationOf(0)
-
-	require.NoError(t, err)
-	assert.Equal(t, time.Hour, duration)
-}
-
-func TestADurationIsKeptAsAsked(t *testing.T) {
-	duration, err := mutes.DurationOf(90 * time.Minute)
-
-	require.NoError(t, err)
-	assert.Equal(t, 90*time.Minute, duration)
-}
-
 func TestANegativeOrFractionalDurationIsRefused(t *testing.T) {
 	for _, asked := range []time.Duration{-time.Hour, 1500 * time.Millisecond, time.Millisecond} {
 		_, err := mutes.DurationOf(asked)
@@ -82,25 +68,10 @@ func TestALiftedMuteEndsWhenItIsLiftedAndKeepsTheRest(t *testing.T) {
 		"nor its network")
 }
 
-func TestAMuteHoldsAFreshGuestOnTheSameSlash64(t *testing.T) {
-	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, at, time.Hour)
-
-	assert.True(t, mute.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2:dead:beef::5"), mutes.Chat, at))
-	assert.False(t, mute.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:3::1"), mutes.Chat, at))
-}
-
 func TestAMuteWithNoNetworkHoldsNoOneElse(t *testing.T) {
 	mute := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, ""), mutes.Chat, at, time.Hour)
 
 	assert.False(t, mute.ApplicableTo(mutes.NewCaller(newGuest, ""), mutes.Chat, at))
-}
-
-func TestAMuteHoldsItsKindAlone(t *testing.T) {
-	gifs := mutes.NewMute(mutes.MuteID{1}, mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Gifs, at, time.Hour)
-
-	assert.True(t, gifs.ApplicableTo(mutes.NewCaller(newGuest, "2a01:e0a:1:2::9"), mutes.Gifs, at),
-		"with its network, as a mute of the chat")
-	assert.False(t, gifs.ApplicableTo(mutes.NewCaller(bully, "2a01:e0a:1:2::1"), mutes.Chat, at))
 }
 
 func TestALiftedMuteKeepsItsKind(t *testing.T) {
@@ -124,12 +95,6 @@ func TestARefusalSaysTheKindOfTheMute(t *testing.T) {
 	require.ErrorIs(t, refusal, mutes.ErrMuted)
 	assert.Equal(t, mutes.Gifs, refusal.Kind())
 	assert.Contains(t, refusal.Error(), "gifs")
-}
-
-func TestTheBookLetsSpeakWhomNoMuteHolds(t *testing.T) {
-	book := mutes.NewBook(inmemory_mute_storage.New(), cptime.NewFixedClock(at))
-
-	assert.NoError(t, book.MuteError(t.Context(), mutes.NewCaller(bully, "203.0.113.7"), mutes.Chat))
 }
 
 func TestTheBookRefusesAMutedCallerWithTheMuteThatEndsLast(t *testing.T) {

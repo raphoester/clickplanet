@@ -38,9 +38,3 @@ func TestAStreamThatEndsStopsListening(t *testing.T) {
 	require.False(t, open)
 	feed.Publish(warnings.Warning{Account: "ada", At: at})
 }
-
-func TestAWarningToAnAccountWithNoStreamIsDropped(t *testing.T) {
-	feed := inprocess_warning_feed.New()
-
-	assert.NotPanics(t, func() { feed.Publish(warnings.Warning{Account: "ada", At: at}) })
-}

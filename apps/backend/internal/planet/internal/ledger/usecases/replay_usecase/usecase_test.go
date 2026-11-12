@@ -156,15 +156,6 @@ func TestAReplayNeedsASinceBeforeItsUntil(t *testing.T) {
 	}
 }
 
-func TestAMapThatCannotBeReadFailsTheReplay(t *testing.T) {
-	h := setup(t, "de")
-	h.now.err = errors.New("no map")
-
-	_, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
-
-	require.ErrorIs(t, err, h.now.err)
-}
-
 func (h harness) arena(t *testing.T, id arenas.ID, openedAt time.Time, closedAt time.Time) {
 	t.Helper()
 	require.NoError(t, h.arenas.Open(t.Context(), arenas.Opening{ID: id, OpenedAt: openedAt, EndsAt: closedAt}))

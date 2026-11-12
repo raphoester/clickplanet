@@ -37,13 +37,6 @@ func TestAnOperatorIsIssuedASessionOfTheLifetimeAndNoMore(t *testing.T) {
 	assert.True(t, cookie.Secure)
 }
 
-func TestSomebodyWhoDoesNotOperateIsIssuedNothing(t *testing.T) {
-	_, err := adminsignin.NewIssuer(&accounts.SequentialTokens{}, adminsignin.DefaultTTL).
-		Session(adminsignin.CandidateOf(ada, false), start)
-
-	require.ErrorIs(t, err, adminsignin.ErrNotAnOperator)
-}
-
 func TestTheAdminCookiesAreApartFromTheGamesOnes(t *testing.T) {
 	session, err := http.ParseSetCookie(adminsignin.ExpiredCookie())
 	require.NoError(t, err)

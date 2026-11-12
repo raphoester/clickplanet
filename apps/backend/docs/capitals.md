@@ -62,6 +62,5 @@ they are not, a fortify that skips a fixed capital, the map's `Arena`, and `Hold
 of a capital that clears the flag's other tiles in one change after the take, nobody knocked out while the rule is off,
 the knock-out on the world's map kept by the flush, an enclosure that knocks out once its pocket is written, the flag
 out saved by the flush (again after a failed one) and read at boot, and gone with its arena; `postgres_tile_store`'s
-`knockouts_test.go` the rows of each map, the world's too, kept once and deleted by a wipe; the migrations'
-`knockouts_test.go`; `ledger_test.go` the event's entry, takes and scenes; the relay's `FlagKnockedOut`; the stream's
+`knockouts_test.go` the rows of each map, the world's too, kept once and deleted by a wipe; `ledger_test.go` the event's entry, takes and scenes; the relay's `FlagKnockedOut`; the stream's
 sink and `GetMap`'s out flags; `allegiances`' rule and `Book`.

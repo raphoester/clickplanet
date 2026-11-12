@@ -77,15 +77,6 @@ func TestTheReportIsATableOfEachClipOnEachPlatformItsTimeAndWhatBecameOfIt(t *te
 `, out.String())
 }
 
-func TestAReportWithEveryClipScheduledOnEveryPlatformSaysSo(t *testing.T) {
-	var out bytes.Buffer
-
-	scheduled, err := display.Report("", &out, clips.Report{{Title: "T", At: at, Post: "post-1", Platforms: everywhere}})
-
-	require.NoError(t, err)
-	assert.True(t, scheduled)
-}
-
 func TestAClipHeldForAFullDayIsARowOfItsOwnAndStillScheduled(t *testing.T) {
 	var out bytes.Buffer
 

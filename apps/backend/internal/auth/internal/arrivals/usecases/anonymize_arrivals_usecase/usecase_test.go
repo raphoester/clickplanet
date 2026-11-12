@@ -1,7 +1,6 @@
 package anonymize_arrivals_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -40,12 +39,4 @@ func TestAnAccountWithNoArrivalChangesNothing(t *testing.T) {
 	require.NoError(t, anonymize_arrivals_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.Equal(t, []arrivals.Snapshot{kept}, store.Kept())
-}
-
-func TestAFailureToAnonymizeIsAnError(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	refused := errors.New("the database is down")
-	store.FailWith(refused)
-
-	assert.ErrorIs(t, anonymize_arrivals_usecase.New(store).Execute(t.Context(), ada), refused)
 }

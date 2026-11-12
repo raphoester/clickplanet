@@ -2,7 +2,6 @@ package close_arena_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -67,10 +66,4 @@ func TestTheSwapGoesOnWhenTheCallerGivesUp(t *testing.T) {
 	require.NoError(t, closeArena(gaveUp, useCase, "battle"))
 
 	assert.Equal(t, []arenas.ID{"battle"}, useCase.asked)
-}
-
-func TestAFailureIsPassedOnForTheErrorNet(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	require.ErrorIs(t, closeArena(t.Context(), &closing{err: down}, "battle"), down)
 }

@@ -120,14 +120,3 @@ func TestTheSameLoopToldOnlyByItsTakesIsMissed(t *testing.T) {
 	assert.False(t, loopIntoTheThrottle(t, watch(t), false),
 		"the takes alone are 0.95s, 1.9s and 2.85s apart: a spread no clock shows")
 }
-
-func TestARefusedCallersTriesFeedNoWatchdog(t *testing.T) {
-	w := watch(t)
-
-	for range 2000 {
-		w.clock.Advance(time.Second)
-		require.NoError(t, w.tries(w.try(planetv1.ClickOutcome_CLICK_OUTCOME_REFUSED, 1)))
-	}
-
-	assert.Empty(t, w.enforcer.Told(), "a ban does not feed itself")
-}

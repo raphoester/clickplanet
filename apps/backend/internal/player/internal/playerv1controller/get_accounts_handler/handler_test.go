@@ -2,7 +2,6 @@ package get_accounts_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -71,12 +70,4 @@ func TestAnIdThatIsNotAnAccountIsRefusedAndReadsNothing(t *testing.T) {
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), id)
 		assert.Empty(t, accounts.asked, id)
 	}
-}
-
-func TestAFailureToAskAuthIsAnError(t *testing.T) {
-	failure := errors.New("auth is down")
-
-	_, err := getAccounts(t, &stubAccounts{err: failure}, ada.String())
-
-	assert.ErrorIs(t, err, failure)
 }

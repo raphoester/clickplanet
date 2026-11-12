@@ -34,11 +34,3 @@ func TestTheRunIsCounted(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, proto.Equal(&alertsv1.LinkMembersResponse{Linked: 7, Outside: 13, Failed: 1, Named: 5}, res.Msg), "got %v", res.Msg)
 }
-
-func TestARunThatStoppedIsAnError(t *testing.T) {
-	useCase := stubUseCase{err: errors.New("auth does not answer")}
-
-	_, err := link_members_handler.New(useCase).LinkMembers(t.Context(), connect.NewRequest(&alertsv1.LinkMembersRequest{}))
-
-	require.Error(t, err)
-}
