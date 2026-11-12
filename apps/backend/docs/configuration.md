@@ -79,7 +79,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `gameMap.maxIndex` — total number of tiles
 - `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.maxOpenConns` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment. `pool.maxOpenConns` is the most connections the module's pool opens, and the pool keeps each one it opened (idle = open); unset is unbounded, which only tests do
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
-- `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h)
+- `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h). Less than
+  24.5h refuses the boot: `GetRecentMapHistory` reads postgres from the ledger's head (see [The map's last 24
+  hours](recent-map-history.md))
 - `ledgerStorage.flushInterval` — how often new takes are written to postgres (1s, and on shutdown)
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; a subscriber that falls that far behind is closed, never blocked on or skipped

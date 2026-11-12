@@ -19,6 +19,7 @@ type Frame struct {
 // Owner is whom a tile went to, empty for no one, and when: its last change before the frame.
 type Owner struct {
 	Country string
+	Account string
 	At      time.Time
 }
 

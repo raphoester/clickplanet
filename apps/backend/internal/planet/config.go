@@ -43,6 +43,10 @@ func (c Config) Validate() error {
 		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
 	}
 
+	if err := c.Ledger.Validate(); err != nil {
+		return fmt.Errorf("ledger: %w", err)
+	}
+
 	if err := c.Database.Validate(); err != nil {
 		return fmt.Errorf("database: %w", err)
 	}
