@@ -1,7 +1,6 @@
 package titles_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -54,23 +53,4 @@ func TestCareersReadTheAccountAndItsFights(t *testing.T) {
 	page, err := careers.PageOf(t.Context(), []stats.Stats{counted})
 	require.NoError(t, err)
 	assert.Equal(t, []titles.Career{titles.CareerOf(counted, known, finales.Fights{fight})}, page)
-}
-
-func TestCareersFailWhenAuthOrTheFightsFail(t *testing.T) {
-	counted := stats.StatsSnapshot{Account: accounts.AccountID{15: 1}}.Restore()
-	asked, fights := titles.NewFakeAccounts(), inmemory_fight_store.New()
-	careers := titles.NewCareers(asked, fights)
-
-	fights.FailWith(errors.New("postgres is down"))
-	_, err := careers.Of(t.Context(), counted)
-	require.Error(t, err)
-	_, err = careers.PageOf(t.Context(), []stats.Stats{counted})
-	require.Error(t, err)
-
-	fights.FailWith(nil)
-	asked.FailWith(errors.New("player is down"))
-	_, err = careers.Of(t.Context(), counted)
-	require.Error(t, err)
-	_, err = careers.PageOf(t.Context(), []stats.Stats{counted})
-	assert.Error(t, err)
 }

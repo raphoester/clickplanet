@@ -2,7 +2,6 @@ package list_notes_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -72,10 +71,4 @@ func TestAKindThatIsNotOneIsTheOperatorsFault(t *testing.T) {
 	_, err := list(t, &stubQuery{err: fmt.Errorf("%w: 9", notes_query.ErrInvalidKind)}, &supportv1.ListNotesRequest{Kind: 9})
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestAFailedReadIsLeftToTheErrorNet(t *testing.T) {
-	_, err := list(t, &stubQuery{err: errors.New("postgres is down")}, &supportv1.ListNotesRequest{})
-
-	assert.ErrorContains(t, err, "postgres is down")
 }

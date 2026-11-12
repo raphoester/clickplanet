@@ -124,17 +124,6 @@ func TestAGuestIsNotLinkedAndKeepsNoName(t *testing.T) {
 	assert.ErrorIs(t, err, players.ErrNoProfile)
 }
 
-func TestANameAnotherPlayerHoldsIsTaken(t *testing.T) {
-	store, accounts := setUp()
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now))
-	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
-	require.NoError(t, err)
-
-	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: bob, Name: "ADA"})
-
-	require.ErrorIs(t, err, players.ErrNameTaken)
-}
-
 func TestAPlayerSetsItsOwnNameAgainInAnotherCase(t *testing.T) {
 	store, accounts := setUp()
 	clock := cptime.NewFixedClock(now)

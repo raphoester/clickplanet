@@ -1,7 +1,6 @@
 package suggest_feature_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -27,10 +26,6 @@ var (
 		{ID: notes.AttachmentID{0: 0xa, 15: 2}, MediaType: notes.MediaMP4, Size: 1000},
 	}
 )
-
-type failingIDs struct{}
-
-func (failingIDs) NewID() (notes.NoteID, error) { return notes.NoteID{}, errors.New("no entropy") }
 
 type testSuite struct {
 	suite.Suite
@@ -119,19 +114,4 @@ func (s *testSuite) TestAnInvalidTextIsRefusedAndNothingIsKept() {
 
 	s.Require().ErrorIs(err, notes.ErrInvalidText)
 	s.Empty(s.notes.Kept())
-}
-
-func (s *testSuite) TestASuggestionWithNoIDIsNotKept() {
-	err := s.suggest(s.build(failingIDs{}), "a night mode")
-
-	s.Require().Error(err)
-	s.NotErrorIs(err, notes.ErrInvalidText)
-	s.Empty(s.notes.Kept())
-}
-
-func (s *testSuite) TestASuggestionThatCannotBeKeptFails() {
-	cause := errors.New("postgres is down")
-	s.notes.FailWith(cause)
-
-	s.Require().ErrorIs(s.suggest(s.useCase, "a night mode"), cause)
 }

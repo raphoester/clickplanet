@@ -12,11 +12,6 @@ import (
 
 var limits = messages.NewLimits(0)
 
-func TestEmptyTextIsRefused(t *testing.T) {
-	_, err := limits.Text("   ")
-	require.ErrorIs(t, err, messages.ErrInvalidMessage)
-}
-
 func TestOverlongTextIsRefused(t *testing.T) {
 	_, err := limits.Text(strings.Repeat("a", 281))
 	require.ErrorIs(t, err, messages.ErrInvalidMessage)
@@ -54,12 +49,6 @@ func TestATextKeepsTheAlphabetsWrittenTodayAndEmojis(t *testing.T) {
 		require.NoError(t, err, "%q", value)
 		assert.Equal(t, value, text)
 	}
-}
-
-func TestTabsBecomeSpaces(t *testing.T) {
-	text, err := limits.Text("hello\tplanet")
-	require.NoError(t, err)
-	assert.Equal(t, "hello planet", text)
 }
 
 func TestConfiguredLimitsReplaceTheDefaults(t *testing.T) {

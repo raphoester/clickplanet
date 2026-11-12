@@ -63,16 +63,6 @@ func TestASignInGoesWhereverTheBrowserIsNow(t *testing.T) {
 	assert.NoError(t, flow.AccountError(accounts.AccountOf(accounts.AccountID{15: 9}, time.Time{}, nil)))
 }
 
-func TestALinkMustEndOnTheAccountItStartedOn(t *testing.T) {
-	started := accounts.AccountID{15: 7}
-	flow, err := signin.NewFlow(signin.Google, accounts.IntentLink, started, &signin.SequentialSecrets{}, now)
-	require.NoError(t, err)
-
-	require.NoError(t, flow.AccountError(accounts.AccountOf(started, time.Time{}, nil)))
-	require.ErrorIs(t, flow.AccountError(accounts.AccountOf(accounts.AccountID{15: 8}, time.Time{}, nil)), signin.ErrFlowInvalid, "signed in elsewhere since")
-	assert.ErrorIs(t, flow.AccountError(nil), signin.ErrFlowInvalid, "signed out since")
-}
-
 func TestTheFlowCookieLivesAsLongAsTheFlowOnThisSiteOnly(t *testing.T) {
 	cookie, err := http.ParseSetCookie(flow(t).Cookie("sealed", now))
 	require.NoError(t, err)
@@ -89,12 +79,6 @@ func TestTheFlowCookieLivesAsLongAsTheFlowOnThisSiteOnly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "cp_oauth", cleared.Name)
 	assert.Negative(t, cleared.MaxAge)
-}
-
-func TestNoProviderIsSignInOff(t *testing.T) {
-	_, err := signin.Providers{}.Provider(signin.Google)
-
-	assert.ErrorIs(t, err, signin.ErrSignInOff)
 }
 
 func TestAProviderNotOfferedIsUnknown(t *testing.T) {

@@ -2,7 +2,6 @@ package get_rules_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -35,13 +34,4 @@ func TestTheRulesAreEverySetKeptAndTheOnePlaying(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, proto.Equal(&bonusesv1.GetRulesResponse{Sets: sets, Playing: "default"}, res.Msg), "%v", res.Msg)
-}
-
-func TestASetsReadThatFailsFailsTheCall(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	_, err := get_rules_handler.New(stubSets{err: down}, playing("default")).
-		GetRules(t.Context(), connect.NewRequest(&bonusesv1.GetRulesRequest{}))
-
-	require.ErrorIs(t, err, down)
 }

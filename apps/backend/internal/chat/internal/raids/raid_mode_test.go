@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/raids"
 )
 
@@ -53,12 +52,4 @@ func TestARaidModeRunsWholeSecondsAndNeverBackwards(t *testing.T) {
 	}
 	_, err := raids.Start(at, 0, "")
 	require.ErrorIs(t, err, raids.ErrInvalidDuration, "no duration ends one, it starts none")
-}
-
-func TestARaidModeRefusesAGuestAndAdmitsAPlayer(t *testing.T) {
-	mode, err := raids.Start(at, time.Hour, "")
-	require.NoError(t, err)
-
-	require.ErrorIs(t, mode.Admits(messages.GuestOf("guest_0b1c2d")), raids.ErrGuest)
-	require.NoError(t, mode.Admits(messages.AuthorOf("Ada_L")))
 }

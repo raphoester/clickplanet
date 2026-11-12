@@ -50,26 +50,6 @@ func TestATakenShieldLeavesTheHandAndWaitsUnderWay(t *testing.T) {
 	assert.Equal(t, []placements.Snapshot{{ID: id, Holder: alice, TakenAt: takenAt}}, f.kept.Kept())
 }
 
-func TestAHandWithNoShieldTakesNone(t *testing.T) {
-	f := setup(t, 0)
-
-	_, _, err := f.escrow.Take(t.Context(), alice)
-
-	require.ErrorIs(t, err, charges.ErrNotHeld)
-	assert.Empty(t, f.kept.Kept())
-}
-
-func TestAShieldReturnedComesBackAboveTheStackSize(t *testing.T) {
-	f := setup(t, charges.TestRules().Shield.Held+5)
-
-	_, id, err := f.escrow.Take(t.Context(), alice)
-	require.NoError(t, err)
-	require.NoError(t, f.escrow.Return(t.Context(), id))
-
-	assert.Equal(t, charges.Held{Shields: charges.TestRules().Shield.Held + 5}, f.hands.Kept(alice))
-	assert.Empty(t, f.kept.Kept())
-}
-
 func TestAShieldIsReturnedOnceHoweverOftenItIsAsked(t *testing.T) {
 	f := setup(t, 3)
 

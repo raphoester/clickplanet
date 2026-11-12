@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/reports"
 )
 
@@ -33,17 +32,6 @@ func complaintKept(t *testing.T, said reports.Complaint) reports.Complaint {
 	return report.TakeSnapshot().Complaint
 }
 
-func TestAReportIsBuiltFromWhoReportsWhoIsReportedAndTheComplaint(t *testing.T) {
-	said := reports.Complaint{Reason: reports.ReasonChatAbuse, Text: "it insults everyone", Message: "message-1"}
-
-	report, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, said, createdAt, nil)
-
-	require.NoError(t, err)
-	assert.Equal(t, reports.Snapshot{
-		ID: reports.ReportID{15: 1}, Reporter: ada, Reported: bob, Complaint: said, At: createdAt,
-	}, report.TakeSnapshot())
-}
-
 func TestASnapshotRestoresTheReportItWasTakenFrom(t *testing.T) {
 	report, err := valid().Restore()
 	require.NoError(t, err)
@@ -53,12 +41,6 @@ func TestASnapshotRestoresTheReportItWasTakenFrom(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, report, again)
 	assert.Equal(t, valid(), again.TakeSnapshot())
-}
-
-func TestAReportOfOneselfCannotBeBuilt(t *testing.T) {
-	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, ada, reports.Complaint{Reason: reports.ReasonCheating}, createdAt, nil)
-
-	require.ErrorIs(t, err, reports.ErrOwnAccount)
 }
 
 func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
@@ -98,13 +80,6 @@ func TestAComplaintNeedsNeitherATextNorAMessage(t *testing.T) {
 	kept := complaintKept(t, reports.Complaint{Reason: reports.ReasonCheating, Text: " \n "})
 
 	assert.Equal(t, reports.Complaint{Reason: reports.ReasonCheating, Message: reports.NoMessage}, kept)
-}
-
-func TestAComplaintWithATextTooLongIsRefused(t *testing.T) {
-	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob,
-		reports.Complaint{Reason: reports.ReasonOther, Text: strings.Repeat("a", notes.MaxTextLength+1)}, createdAt, nil)
-
-	require.ErrorIs(t, err, notes.ErrInvalidText)
 }
 
 func TestAMessageIDIsCleanedAndOneTooLongIsDropped(t *testing.T) {

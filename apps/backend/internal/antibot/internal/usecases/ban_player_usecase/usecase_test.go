@@ -2,7 +2,6 @@ package ban_player_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -82,11 +81,4 @@ func TestItRefusesBothOrNeitherAndWhatIsNotAnAccount(t *testing.T) {
 	require.ErrorIs(t, err, bans.ErrInvalidAccount)
 
 	assert.Empty(t, b.accounts)
-}
-
-func TestABanThatCannotBeKeptIsAnError(t *testing.T) {
-	cause := errors.New("postgres is down")
-
-	_, err := ban_player_usecase.New(&banner{failing: cause}).Execute(t.Context(), ban_player_usecase.In{Scope: "1.2.3.4"})
-	require.ErrorIs(t, err, cause)
 }

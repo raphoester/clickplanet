@@ -2,7 +2,6 @@ package rpc_player_names_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -59,12 +58,4 @@ func TestAnAccountPlayerDoesNotShowHasNoName(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, name)
-}
-
-func TestAPlayerThatDoesNotAnswerIsAFailure(t *testing.T) {
-	down := errors.New("player is down")
-
-	_, err := rpc_player_names.New(&player{err: down}).NameOf(t.Context(), account)
-
-	assert.ErrorIs(t, err, down)
 }

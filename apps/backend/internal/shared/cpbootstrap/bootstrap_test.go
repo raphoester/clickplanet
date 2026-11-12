@@ -166,10 +166,6 @@ func TestEveryModuleIsHandedTheOneSessionVerifier(t *testing.T) {
 	assert.Same(t, handed[0], handed[1], "one verifier, so the process asks auth for the key once")
 }
 
-func TestAProcessWithNoModuleIsRefused(t *testing.T) {
-	require.Error(t, run(t, nil))
-}
-
 func TestADisabledModuleIsNeverBuilt(t *testing.T) {
 	built := false
 

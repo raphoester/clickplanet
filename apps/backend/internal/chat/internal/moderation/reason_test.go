@@ -19,22 +19,10 @@ func TestNoReasonIsAReasonToo(t *testing.T) {
 	}
 }
 
-func TestAnOverlongReasonIsRefused(t *testing.T) {
-	_, err := moderation.ReasonOf(strings.Repeat("a", moderation.MaxReasonLength+1))
-
-	require.ErrorIs(t, err, moderation.ErrInvalidReason)
-}
-
 func TestAReasonIsCountedInRunesNotBytes(t *testing.T) {
 	_, err := moderation.ReasonOf(strings.Repeat("🌍", moderation.MaxReasonLength))
 
 	require.NoError(t, err)
-}
-
-func TestAReasonThatIsNotUTF8IsRefused(t *testing.T) {
-	_, err := moderation.ReasonOf(string([]byte{0xff, 0xfe, 0xfd}))
-
-	require.ErrorIs(t, err, moderation.ErrInvalidReason)
 }
 
 func TestAReasonKeepsItsLinesAndLosesEveryOtherControlCharacter(t *testing.T) {

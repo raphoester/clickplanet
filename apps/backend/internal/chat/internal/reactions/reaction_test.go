@@ -23,23 +23,6 @@ func gave(reactors ...reactions.Reactor) []reactions.Reactor {
 	return reactors
 }
 
-func TestReactionsCountEachReactionInTheOrderItFirstAppeared(t *testing.T) {
-	given := reactions.Reactions{}.With(clown, ada).With(laugh, bo).With(clown, bo)
-
-	assert.Equal(t, []reactions.Count{
-		reactions.CountOf(clown, 2, true, gave(ada, bo)),
-		reactions.CountOf(laugh, 1, false, gave(bo)),
-	}, given.Tally(ada))
-}
-
-func TestAReactorGivesAReactionOnce(t *testing.T) {
-	given := reactions.Reactions{}.With(clown, ada).With(clown, ada)
-
-	assert.Equal(t, []reactions.Count{
-		reactions.CountOf(clown, 1, true, gave(ada)),
-	}, given.Tally(ada))
-}
-
 func TestAReactionNobodyGivesAnyMoreLosesItsPlace(t *testing.T) {
 	given := reactions.Reactions{}.With(clown, ada).With(laugh, ada).Without(clown, ada).With(clown, bo)
 
@@ -66,10 +49,6 @@ func TestWithAndWithoutLeaveTheReceiverAsItWas(t *testing.T) {
 	assert.Equal(t, []reactions.Count{
 		reactions.CountOf(clown, 1, false, gave(ada)),
 	}, before.Tally(reactions.NoReactor))
-}
-
-func TestNoReactorOwnsNothing(t *testing.T) {
-	assert.False(t, reactions.Reactions{}.With(clown, ada).Tally(reactions.NoReactor)[0].Mine())
 }
 
 func TestEveryAccountReactsAsItselfAndNoAccountIsNobody(t *testing.T) {

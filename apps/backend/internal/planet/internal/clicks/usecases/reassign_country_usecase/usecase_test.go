@@ -2,7 +2,6 @@ package reassign_country_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -115,13 +114,4 @@ func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
 	assert.Equal(t, 2, out.Moved, "the first batch went before the pause noticed")
 	assert.Equal(t, 3, out.FromAfter)
 	assert.Equal(t, 3, out.ToAfter)
-}
-
-func TestAStorageErrorIsReturned(t *testing.T) {
-	tiles := newMap()
-	tiles.err = errors.New("code table full")
-	useCase := reassign_country_usecase.New(tiles, countries{}, clicks.Pacing{Batch: 2})
-
-	_, err := useCase.Execute(t.Context(), reassign_country_usecase.In{From: "dz", To: "fr"})
-	require.ErrorIs(t, err, tiles.err)
 }

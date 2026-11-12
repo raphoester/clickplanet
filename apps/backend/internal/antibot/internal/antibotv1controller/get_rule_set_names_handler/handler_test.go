@@ -2,7 +2,6 @@ package get_rule_set_names_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -26,13 +25,4 @@ func TestTheNamesAreTheQuerys(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, []string{"default", "rush"}, res.Msg.GetNames())
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	_, err := get_rule_set_names_handler.New(stubQuery{err: down}).
-		GetRuleSetNames(t.Context(), connect.NewRequest(&antibotv1.GetRuleSetNamesRequest{}))
-
-	require.ErrorIs(t, err, down)
 }

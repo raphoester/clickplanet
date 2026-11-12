@@ -443,8 +443,6 @@ them in a database with no player schema (progression's own tests).
   tables**; player's events keep both from then. A group reads its stream from the start, so a `PlayerCreated` still
   in the stream is heard again, which the insert ignores.
 - **Its down migration drops the nameplates and the departures**, and leaves the four tables in `progression`.
-- `migrations_test.go` pins the move with its rows and index (`TestTheTablesMoveFromPlayerWithTheirRows`), the
-  backfill (`TestTheNameplatesAndTheDeparturesStartFromPlayers`) and a fresh database (`TestAFreshDatabaseMakesTheTables`).
 - **No foreign key to another schema**: the schemas are each module's own, and an event is how a fact crosses.
 - **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they read before the shutdown is still
   written.

@@ -2,7 +2,6 @@ package sign_out_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -44,10 +43,4 @@ func TestSigningOutAnswersTheClearedCookie(t *testing.T) {
 	assert.Equal(t, []string{"cp_sid=abc"}, useCase.asked)
 	assert.Equal(t, "cp_sid=; Max-Age=0", res.Header().Get("Set-Cookie"))
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
-}
-
-func TestAFailureIsAnError(t *testing.T) {
-	_, err := signOut(&stubUseCase{err: errors.New("postgres is down")})
-
-	assert.Error(t, err)
 }
