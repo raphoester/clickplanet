@@ -66,11 +66,15 @@ func (s *StoreContractSuite) TestNothingIsKeptAtFirst() {
 }
 
 func (s *StoreContractSuite) TestEverySourceIsKeptAsItWas() {
-	recruit := Snapshot{ID: contractID("recruit"), Account: contractAda, Source: SourceRecruit, Referrer: "discord.com", At: contractStart}
-	youtube := Snapshot{
-		ID: contractID("youtube"), Account: contractBob, Source: SourceYouTube, At: contractStart.Add(time.Second),
+	recruit := Snapshot{
+		ID: contractID("recruit"), Account: contractAda, Source: SourceRecruit, Tag: "rc", Referrer: "discord.com", At: contractStart,
 	}
-	unknown := Snapshot{ID: contractID("unknown"), Account: AccountID{15: 3}, Source: SourceUnknown, At: contractStart.Add(2 * time.Second)}
+	youtube := Snapshot{
+		ID: contractID("youtube"), Account: contractBob, Source: SourceYouTube, Tag: "yt", At: contractStart.Add(time.Second),
+	}
+	unknown := Snapshot{
+		ID: contractID("unknown"), Account: AccountID{15: 3}, Source: SourceUnknown, Tag: "2poko2", At: contractStart.Add(2 * time.Second),
+	}
 
 	s.save(recruit, youtube, unknown)
 

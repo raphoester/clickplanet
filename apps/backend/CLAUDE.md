@@ -116,8 +116,9 @@ and says what is in it. Read the doc before you change its area.
   session a framed page carries in a header, operators, sign-out, deletion with its 30-day grace period and the purge,
   a sign-in that brings an account back, and pruning.
 - [Arrivals](docs/arrivals.md) — how each new account came: a player's link, the YouTube link, CrazyGames, or unknown,
-  and the referrer's host; the recruiter's account, in a table of its own (`auth.recruitments`); kept by `auth` when it
-  makes the account, anonymized when the recruit's or the recruiter's account goes; the queries.
+  the link's tag (a streamer's own link) and the referrer's host; the recruiter's account, in a table of its own
+  (`auth.recruitments`); kept by `auth` when it makes the account, anonymized when the recruit's or the recruiter's
+  account goes; the queries.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's and the offers' facts about callers, judges them, and asks planet to
   refuse the ones it bans; a ring of accounts warned once before a ban for its turns; a streamer's chat, which
   `default` keeps from bans with `cohort` and `churner` off; what survives a restart, and the parts that are easy to get wrong.

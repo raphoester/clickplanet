@@ -37,7 +37,7 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) kept() []arrivals.Snapshot {
 	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(),
-		`SELECT id, account_id, source, referrer, arrived_at FROM arrivals ORDER BY arrived_at, id`)
+		`SELECT id, account_id, source, tag, referrer, arrived_at FROM arrivals ORDER BY arrived_at, id`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()
 
@@ -47,13 +47,14 @@ func (s *testSuite) kept() []arrivals.Snapshot {
 			id       uuid.UUID
 			account  uuid.NullUUID
 			source   string
+			tag      string
 			referrer string
 			at       time.Time
 		)
-		s.Require().NoError(rows.Scan(&id, &account, &source, &referrer, &at))
+		s.Require().NoError(rows.Scan(&id, &account, &source, &tag, &referrer, &at))
 		kept = append(kept, arrivals.Snapshot{
 			ID: arrivals.ArrivalID(id), Account: arrivals.AccountID(account.UUID), Source: arrivals.Source(source),
-			Referrer: referrer, At: at,
+			Tag: tag, Referrer: referrer, At: at,
 		})
 	}
 	s.Require().NoError(rows.Err())
