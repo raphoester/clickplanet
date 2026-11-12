@@ -7,6 +7,7 @@ import {FakePromoBackend} from "../../backends/fakePromoBackend.ts"
 import {FlagMission} from "../../backends/missions.ts"
 import {PlayerTitle} from "../../backends/progression.ts"
 import {BATTLE_TEASED_STORAGE_KEY} from "../../domain/battleTeaser.ts"
+import {NUDGE_SETTLE_MS, NUDGES_STORAGE_KEY} from "../../domain/nudges.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {NO_SCHEDULE, useSchedule} from "../battle/scheduleStore.ts"
 import {useTeaserCards} from "../battle/teaserCardsStore.ts"
@@ -71,19 +72,55 @@ describe("Moments", () => {
         expect(useAnnouncements.getState().queue).toHaveLength(1)
     })
 
-    it("teases the next battle with its cards, and keeps that it did once closed", async () => {
+    it("teases the next battle with its cards once the map settled, before any ask, and keeps that it did once closed", async () => {
         const startsAt = Date.now() + 3 * 60 * 60 * 1000
         const next = {entryId: "tonight", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "tonight"}
         useSchedule.setState({battles: [next]})
         useTeaserCards.getState().serve(new FakePromoBackend())
         render(moments(true))
+        await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS - 1))
+        expect(screen.queryByRole("dialog")).toBeNull()
 
+        await act(async () => vi.advanceTimersByTime(1))
         expect(await screen.findByRole("dialog", {name: "Battle"})).toBeDefined()
         act(() => vi.advanceTimersByTime(TITLE_REVEAL.ready * 1000))
         await userEvent.setup({advanceTimers: vi.advanceTimersByTime}).click(screen.getByRole("button", {name: "To the globe"}))
 
         expect(screen.queryByRole("dialog")).toBeNull()
         expect(JSON.parse(window.localStorage.getItem(BATTLE_TEASED_STORAGE_KEY) ?? "")).toMatchObject({key: "tonight"})
+    })
+
+    it("asks for a coffee after the moments queued at the start, and keeps that it asked", async () => {
+        useAnnouncements.getState().announce({kind: "title", title: raider})
+        render(moments(true))
+        await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS + TITLE_REVEAL.ready * 1000))
+        const user = userEvent.setup({advanceTimers: vi.advanceTimersByTime})
+
+        await user.click(screen.getByRole("button", {name: "Close"}))
+        expect(screen.getByRole("dialog", {name: "Like ClickPlanet?"})).toBeDefined()
+
+        await user.click(screen.getByRole("button", {name: "Close"}))
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(JSON.parse(window.localStorage.getItem(NUDGES_STORAGE_KEY) ?? "")).toMatchObject({shown: {coffee: expect.any(Number)}})
+    })
+
+    it("asks for the next follow in turn, and keeps that its link was opened", async () => {
+        window.localStorage.setItem(NUDGES_STORAGE_KEY, JSON.stringify({shown: {coffee: Date.now() - 13 * 60 * 60 * 1000}, opened: {}}))
+        render(moments(true))
+        await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS))
+
+        await userEvent.setup({advanceTimers: vi.advanceTimersByTime}).click(screen.getByRole("link", {name: "Follow @clickplanetlol"}))
+
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(JSON.parse(window.localStorage.getItem(NUDGES_STORAGE_KEY) ?? "")).toMatchObject({opened: {tiktok: expect.any(Number)}})
+    })
+
+    it("asks nothing on a first visit", async () => {
+        render(<Moments shown guided clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
+                        play={vi.fn()} onWear={vi.fn()}/>)
+        await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS))
+
+        expect(screen.queryByRole("dialog")).toBeNull()
     })
 
     it("shows a teaser the player asked for at once, with no wait to close it, and keeps that it was told", async () => {

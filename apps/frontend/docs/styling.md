@@ -99,6 +99,6 @@ drag that pulled the page to refresh. Size a full-screen layer with
 `position: fixed; inset: 0` instead. `overscroll-behavior: none` on the root
 stops pull-to-refresh everywhere.
 
-`--open-menu` opens the Board sheet. The donation modal never shows there:
-`DonationModal` skips a browser's first visit (no stored country), and the throwaway
-profile is always one.
+`--open-menu` opens the Board sheet. The asks never show there: they skip a
+browser's first visit (see [Nudges](nudges.md)), and the throwaway profile is always
+one.

@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {BattleToCome, PLAIN_TURN, Turn} from "../backends/turn.ts"
-import {BATTLE_TEASER_EVERY_MS, battleTeaserDue, battleWhenLine, playingOf, teasedOf, teaserClockLine, teaserKeyOf} from "./battleTeaser.ts"
+import {BATTLE_TEASER_EVERY_MS, BATTLE_TEASER_LAST_CALL_MS, battleTeaserDue, battleWhenLine, playingOf, teasedOf, teaserClockLine, teaserKeyOf} from "./battleTeaser.ts"
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
@@ -30,6 +30,14 @@ describe("battleTeaserDue", () => {
         expect(battleTeaserDue(battle, teased, now + HOUR, true)).toBe(false)
         expect(battleTeaserDue(battle, teased, now + BATTLE_TEASER_EVERY_MS - 1, true)).toBe(false)
         expect(battleTeaserDue(battle, teased, now + BATTLE_TEASER_EVERY_MS, true)).toBe(true)
+    })
+
+    it("tells a browser once more in the battle's last hour", () => {
+        const lastCall = battle.startsAt - BATTLE_TEASER_LAST_CALL_MS
+        const teased = {key: "tonight", at: lastCall - HOUR}
+        expect(battleTeaserDue(battle, teased, lastCall - 1, true)).toBe(false)
+        expect(battleTeaserDue(battle, teased, lastCall, true)).toBe(true)
+        expect(battleTeaserDue(battle, {key: "tonight", at: lastCall}, lastCall + 30 * MINUTE, true)).toBe(false)
     })
 
     it("tells of another battle at once", () => {

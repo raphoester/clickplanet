@@ -31,6 +31,7 @@ describe("the announcements", () => {
         expect(announcementKeyOf(teaser)).toBe("teaser:season-0/finale")
         expect(announcementKeyOf(clip)).toBe("clip:post-1")
         expect(announcementKeyOf(flagMission)).toBe("flagMission:8b4a8dc8")
+        expect(announcementKeyOf({kind: "ask", ask: "tiktok"})).toBe("ask:tiktok")
         expect(announcementKeyOf(round)).toBe("round:0:5:3")
         expect(announcementKeyOf(over)).toBe("over:0:battle:entry-1:over")
         expect(announcementKeyOf(results)).toBe("results:0:results:entry-1")

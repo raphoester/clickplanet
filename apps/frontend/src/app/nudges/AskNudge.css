@@ -1,0 +1,18 @@
+.ask-nudge-text {
+    padding: var(--space-1) 0 var(--space-4) 0;
+}
+
+.ask-nudge-icon {
+    color: var(--cream);
+}
+
+.ask-nudge-follow {
+    display: flex;
+}
+
+@media (max-width: 768px), (max-height: 600px) {
+    .ask-nudge-follow {
+        width: fit-content;
+        margin: 0 auto;
+    }
+}
