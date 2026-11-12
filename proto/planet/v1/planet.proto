@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package planet.v1;
 
+import "planet/v1/history.proto";
+
 service ClickService {
   rpc Click(ClickRequest) returns (ClickResponse);
 
@@ -45,6 +47,11 @@ service ClickService {
   }
 
   rpc GetLandmass(GetLandmassRequest) returns (GetLandmassResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The world's map over the 24 hours up to the last :00 or :30 UTC, a frame every 30 minutes.
+  rpc GetRecentMapHistory(GetRecentMapHistoryRequest) returns (GetRecentMapHistoryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
@@ -331,6 +338,12 @@ message LandmassFortification {
   string account_id = 1;
   string country_id = 2;
   int64 fortified_at_unix_ms = 3;
+}
+
+message GetRecentMapHistoryRequest {}
+
+message GetRecentMapHistoryResponse {
+  MapHistory history = 1;
 }
 
 message GetFortressesRequest {}

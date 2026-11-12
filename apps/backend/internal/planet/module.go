@@ -110,6 +110,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler/history_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_room_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler"
@@ -468,6 +470,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),
 				GetLandmassHandler: get_landmass_handler.New(borders,
 					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage), arenaStore, clock)),
+				GetRecentMapHistoryHandler: get_recent_map_history_handler.New(
+					recent_history_query.NewPostgresQuery(db, tilesStorage, arenaStore, resetStore, clock), clock),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

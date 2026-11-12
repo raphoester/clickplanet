@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings/postgres_rating_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
 var at = time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
@@ -36,7 +37,7 @@ func TestTheStore(t *testing.T) {
 }
 
 func (s *StoreSuite) SetupSuite() {
-	s.db = cppg.StartTestServer(s.T()).OpenSchema(s.T(), "bonuses", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "bonuses", migrations.FS)
 	s.store = postgres_rating_store.New(s.db)
 }
 

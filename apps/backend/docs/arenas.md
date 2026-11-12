@@ -196,6 +196,9 @@ and no copy of the ledger is made: each reader takes the stretches from planet's
   - `GetMapHistory` (`history_query`, `ledger.History`): the frames stand still over the battle, and no hit counts its
     fighting. It feeds the clips' sagas and chapters, and the gamemaster's `GetSeasonReplay` (the `/archive` replay and
     heatmap). An arena finale's 10-second replay shows the world's map standing still.
+  - `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`): the frames stand still over the battle, as
+    `GetMapHistory`'s, and while an arena plays it rewinds from the world's map kept, as `GetReplay` does. The players'
+    videos read it (see [The map's last 24 hours](recent-map-history.md)).
   - `GetLedger` (`changes_query`, in SQL, so a page still holds 20,000 events): the clips' cast names nobody for a take
     in an arena, and the backoffice Home counts no battle's change as won or lost.
   - `RevertPlayer` (`ledger.Runs`): an arena take neither breaks nor makes a run, so a revert after a battle never

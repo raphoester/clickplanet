@@ -88,6 +88,9 @@ and says what is in it. Read the doc before you change its area.
 - [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
   reads a landmass's holders and its last fortify.
+- [The map's last 24 hours](docs/recent-map-history.md) — `GetRecentMapHistory`, public: a frame each half hour and who
+  made each change, rewound from the map in memory over the ledger's rows from its head, built once per step; what
+  cannot be rewound; its size.
 - [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it.
 - [Bonus boxes](docs/bonus-boxes.md) — the box each caller is offered on a schedule of its own (the bonuses module's),
   the kinds it grants, `ClaimBonus`, `bonus_offered` and the hourly cap.
