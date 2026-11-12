@@ -211,7 +211,7 @@ event goes through player's outbox (relay `player-outbox`; `outbox_event` gained
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
 **Who hears them**: `PlayerCreated`, the offers (the sign-in refill; planet until 2026-11-11), progression (a nameplate) and scoring (a player it
 may rank); `PlayerSignedIn`, missions (what a guest finished that day is paid); `PlayerNamed`, alerts (the Discord
-member's nickname); `PlayerLeaving` and `PlayerReturned`, progression, scoring (a player it ranks no more, then again)
+member's nickname) and clips (the name judged for the videos); `PlayerLeaving` and `PlayerReturned`, progression, scoring (a player it ranks no more, then again)
 and alerts (a nickname taken off and given back);
 `PlayerForgotten`, every module that keeps something of an account: progression, planet, chat, scoring, support,
 missions, alerts and clips. `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
@@ -231,8 +231,8 @@ alerts hears or asks auth, which needs it for a Discord join's token (see [Disco
 - **`player.v1.PlayerNamed{account_id}`**: the account's username was set. `name_account_usecase` records it with
   `PlayerCreated` when it draws the first name, `set_name_usecase` with every name it keeps (a first one, a rename, the
   same name in another case), and `rename_player_usecase` with every operator's rename, each in the transaction of the
-  save; a name refused (invalid, taken, too soon) tells nothing. **The name is not in it**: the alerts module asks
-  `GetPlayers` for the name now, so two told close together, or one told twice, leave it with the latest, whichever
+  save; a name refused (invalid, taken, too soon) tells nothing. **The name is not in it**: the alerts and clips modules ask
+  `GetPlayers` for the name now, so two told close together, or one told twice, leave each with the latest, whichever
   stream it read first. `TestEveryNameKeptIsTold`, `TestARenameIsTold` and the name-account test pin it.
 - **`player.v1.PlayerLeaving{account_id, decided_at}`** and **`PlayerReturned{account_id, decided_at}`**: its player
   asked to delete it, or a sign-in brought it back (see [An account asked deleted](#an-account-asked-deleted)).

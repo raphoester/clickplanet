@@ -30,6 +30,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler/appearances_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_appearances_handler/appearances_query/rpc_publishing_links"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_shown_names_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/get_shown_names_handler/shown_names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_appearance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/keep_video_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/clipsv1controller/list_name_verdicts_handler"
@@ -46,9 +48,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/optouts/usecases/set_name_shown_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/player_forgotten_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/subscribers/player_named_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/claude_name_judge"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/postgres_verdict_store"
 	forget_verdicts "github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/forget_account_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/judge_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/screen_names_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/verdicts/usecases/set_verdict_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/videos"
@@ -125,6 +129,8 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 	appearances := postgres_appearance_store.New(db)
 	optOuts := postgres_optout_store.New(db)
 	nameVerdicts := postgres_verdict_store.New(db)
+	usernames := rpc_player_names.New(playerv1connect.NewInternalServiceClient(internal, baseURL))
+	screening := screen_names_usecase.New(nameVerdicts, nameJudge, clock)
 
 	forgottenCasts, err := cpredis.Subscribe(ctx, streams, "clips-casts-forgotten",
 		log_subscriber.New(player_forgotten_subscriber.New(forget_casts.New(castStore)), props.Logger))
@@ -150,15 +156,23 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 		closeStores()
 		return fmt.Errorf("failed to subscribe the name verdicts to player.v1.PlayerForgotten: %w", err)
 	}
+	subscriptions := []cpbootstrap.Runner{forgottenCasts, forgottenAppearances, forgottenOptOuts, forgottenVerdicts}
+	if config.Judge.keyed() {
+		namedVerdicts, err := cpredis.Subscribe(ctx, streams, "clips-verdicts-named",
+			log_subscriber.New(player_named_subscriber.New(judge_name_usecase.New(usernames, screening)), props.Logger))
+		if err != nil {
+			closeStores()
+			return fmt.Errorf("failed to subscribe the name verdicts to player.v1.PlayerNamed: %w", err)
+		}
+		subscriptions = append(subscriptions, namedVerdicts)
+	}
 	// Not closers: closers run before the runners stop, and the runners use both.
-	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		forgottenCasts, forgottenAppearances, forgottenOptOuts, forgottenVerdicts)))
+	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger, subscriptions...)))
 
 	adminService := clipsv1controller.AdminService{
 		MakeCastHandler: make_cast_handler.New(make_cast_usecase.New(
 			rpc_planet_ledger.New(planetv1connect.NewInternalServiceClient(internal, baseURL)),
-			casts.NewShownNames(rpc_player_names.New(playerv1connect.NewInternalServiceClient(internal, baseURL)), optOuts,
-				screen_names_usecase.New(nameVerdicts, nameJudge, clock)),
+			casts.NewShownNames(usernames, optOuts, screening),
 			castStore, uuid_id_provider.Provider{}, clock,
 		)),
 		KeepAppearanceHandler: keep_appearance_handler.New(keep_appearance_usecase.New(castStore, appearances, clock)),
@@ -179,7 +193,8 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 	clipsService := clipsv1controller.ClipsService{
 		GetAppearancesHandler: get_appearances_handler.New(appearances_query.NewPostgresQuery(db,
 			rpc_publishing_links.New(publishingv1connect.NewInternalServiceClient(internal, baseURL), props.Logger), clock)),
-		SetNameShownHandler: set_name_shown_handler.New(set_name_shown_usecase.New(optOuts)),
+		SetNameShownHandler:  set_name_shown_handler.New(set_name_shown_usecase.New(optOuts)),
+		GetShownNamesHandler: get_shown_names_handler.New(shown_names_query.NewPostgresQuery(db, usernames)),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return clipsv1connect.NewClipsServiceHandler(clipsService, options...)
@@ -188,7 +203,7 @@ func build(ctx context.Context, config ModuleConfig, props cpbootstrap.Props) er
 	}
 
 	props.Logger.Info("clips built", slog.String("schema", config.Database.Schema), slog.Bool("videos", config.Videos.Enabled),
-		slog.Bool("nameJudge", config.Judge.Anthropic.APIKey != ""))
+		slog.Bool("nameJudge", config.Judge.keyed()))
 	return nil
 }
 
@@ -206,6 +221,11 @@ type NameJudgeConfig struct {
 	Anthropic cpanthropic.Config
 	// Unset is claude_name_judge.DefaultModel, Claude Haiku 5.5.
 	Model string
+}
+
+// Unkeyed, no name is judged: the module does not hear the names set.
+func (c NameJudgeConfig) keyed() bool {
+	return c.Anthropic.APIKey != ""
 }
 
 // The judge of the names on a client of Anthropic's API built here; with no key, one that sends nothing.

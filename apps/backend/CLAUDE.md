@@ -182,8 +182,9 @@ and says what is in it. Read the doc before you change its area.
 - [The players a clip names](docs/clip-appearances.md) — a run's cast, numbers and names and never an account; who
   each post names; the opt-out, kept by clips and not by player; the public read the game tells a player from.
 - [The names a post may show](docs/clip-name-verdicts.md) — a Claude Haiku judge leaves out of every cast a name
-  TikTok and YouTube forbid (a terrorist group, a hate code, a mass killer); each name judged once, again on a rename;
-  the operator's verdict; no names with no key.
+  TikTok and YouTube forbid (a terrorist group, a hate code, a mass killer); each name judged once, as it is set
+  (`PlayerNamed`) or in a cast, again on a rename; the operator's verdict; no names with no key; `GetShownNames`, the
+  public read of the names a player's video may show.
 
 ## Operator tools and jobs
 
