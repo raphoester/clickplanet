@@ -208,6 +208,7 @@
   "mission.flagMission": "A mission the whole flag plays for season points, not a bonus.",
   "mission.flagDone.order": "{order} is the mission's order, as \"Break 300 shields of (flag) Algeria\".",
   "quiz.banner.title": "The title of the banner that offers a quiz.",
+  "quiz.left": "The verdict on a quiz question the player left before answering: they switched app or tab, or opened their phone's assistant over the page. Leaving ends the question, so it cannot be looked up.",
   "quiz.theAnswer": "A screen reader reads it on the right choice of a quiz. {choice} is the choice as shown; the words in <hidden> are not shown, only read.",
   "quiz.yourPick": "A screen reader reads it on the wrong choice the player picked. {choice} is the choice as shown; the words in <hidden> are not shown, only read.",
   "share.working": "On a share button while the picture, video or link is being prepared",

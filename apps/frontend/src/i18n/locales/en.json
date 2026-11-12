@@ -681,6 +681,7 @@
   "quiz.correct": "Correct!",
   "quiz.notQuite": "Not quite",
   "quiz.outOfTime": "Out of time",
+  "quiz.left": "You left the quiz",
   "quiz.inventoryFull": "Your inventory is already full",
   "quiz.theAnswer": "{choice}<hidden>, the answer</hidden>",
   "quiz.yourPick": "{choice}<hidden>, your pick</hidden>",

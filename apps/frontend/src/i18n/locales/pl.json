@@ -681,6 +681,7 @@
   "quiz.correct": "Dobrze!",
   "quiz.notQuite": "Nie do końca",
   "quiz.outOfTime": "Koniec czasu",
+  "quiz.left": "Quiz opuszczony",
   "quiz.inventoryFull": "Masz już pełny ekwipunek",
   "quiz.theAnswer": "{choice}<hidden>, dobra odpowiedź</hidden>",
   "quiz.yourPick": "{choice}<hidden>, twój wybór</hidden>",

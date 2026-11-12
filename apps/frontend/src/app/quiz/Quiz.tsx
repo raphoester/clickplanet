@@ -4,6 +4,7 @@ import {QuizOutcome, QuizQuestion, secondsLeft, timeLeft, untilNextSecond} from 
 import {now as budgetNow} from '../../backends/clickBudget.ts'
 import {t, translator} from '../../i18n/page.ts'
 import {rich} from '../../i18n/rich.tsx'
+import {Key} from '../../i18n/translator.ts'
 import {describeReward} from '../bonus/describeReward.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import {CloseIcon, PlayIcon} from '../components/icons.tsx'
@@ -30,6 +31,7 @@ export default function Quiz() {
     const state = useQuiz((quiz) => quiz.state)
     const open = useQuiz((quiz) => quiz.open)
     const answer = useQuiz((quiz) => quiz.answer)
+    const forfeit = useQuiz((quiz) => quiz.forfeit)
     const dismiss = useQuiz((quiz) => quiz.dismiss)
 
     switch (state.phase) {
@@ -40,9 +42,21 @@ export default function Quiz() {
             return <Banner working={state.phase === 'opening'} onOpen={open}/>
         case 'asking':
         case 'answering':
-            return <Question key={state.token} question={state.question} onAnswer={answer}/>
+            return <Question
+                key={state.token}
+                question={state.question}
+                sent={state.phase === 'answering'}
+                onAnswer={answer}
+                onLeave={forfeit}
+            />
         case 'answered':
-            return <Result question={state.question} outcome={state.outcome} chosen={state.chosen} onClose={dismiss}/>
+            return <Result
+                question={state.question}
+                outcome={state.outcome}
+                chosen={state.chosen}
+                left={state.left}
+                onClose={dismiss}
+            />
     }
 }
 
@@ -69,15 +83,22 @@ function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
     </div>
 }
 
-function Question({question, onAnswer}: {question: QuizQuestion, onAnswer: (choice: number) => void}) {
+function Question({question, sent, onAnswer, onLeave}: {
+    question: QuizQuestion,
+    sent: boolean,
+    onAnswer: (choice: number) => void,
+    onLeave: () => void,
+}) {
     const [picked, setPicked] = useState<number>()
     const seconds = useSecondsLeft(question, picked === undefined)
     const [clock] = useState(() => clockStyle(question, budgetNow()))
 
     const answer = useRef(onAnswer)
+    const leave = useRef(onLeave)
     useEffect(() => {
         answer.current = onAnswer
-    }, [onAnswer])
+        leave.current = onLeave
+    }, [onAnswer, onLeave])
 
     useEffect(() => {
         const timer = setTimeout(
@@ -87,7 +108,9 @@ function Question({question, onAnswer}: {question: QuizQuestion, onAnswer: (choi
         return () => clearTimeout(timer)
     }, [question])
 
-    const closed = picked !== undefined || seconds === 0
+    useEffect(() => leaving(() => leave.current()), [])
+
+    const closed = picked !== undefined || seconds === 0 || sent
     const pick = (index: number) => {
         if (closed) return
         setPicked(index)
@@ -128,10 +151,11 @@ function Question({question, onAnswer}: {question: QuizQuestion, onAnswer: (choi
     </div>
 }
 
-function Result({question, outcome, chosen, onClose}: {
+function Result({question, outcome, chosen, left, onClose}: {
     question: QuizQuestion,
     outcome: QuizOutcome,
     chosen?: number,
+    left?: boolean,
     onClose: () => void,
 }) {
     const won = outcome.reward
@@ -143,7 +167,7 @@ function Result({question, outcome, chosen, onClose}: {
                 {won && <PrizeWon kind={won.kind}/>}
                 <div className="quiz-verdict-words">
                     <p className="quiz-verdict">
-                        {t(outcome.correct ? "quiz.correct" : chosen === undefined ? "quiz.outOfTime" : "quiz.notQuite")}
+                        {t(verdict(outcome, chosen, left))}
                     </p>
                     {won && reward && <p className={`quiz-reward quiz-kind--${won.kind}`}>{reward.title}</p>}
                     {reward?.detail && <p className="quiz-reward-detail">{reward.detail}</p>}
@@ -169,6 +193,30 @@ function Result({question, outcome, chosen, onClose}: {
             </ol>
         </div>
     </div>
+}
+
+function verdict(outcome: QuizOutcome, chosen?: number, left?: boolean): Key {
+    if (outcome.correct) return "quiz.correct"
+    if (left) return "quiz.left"
+    return chosen === undefined ? "quiz.outOfTime" : "quiz.notQuite"
+}
+
+// Calls back when the page loses the player while a question is open: another window took the focus (the phone's
+// assistant or screen search drawn over the page, another app, a click outside the browser) or the tab was hidden.
+// A question that can be read off the screen by something else is no longer answered from what the player knows.
+function leaving(callback: () => void): () => void {
+    const blurred = (event: FocusEvent) => {
+        if (!(event.target instanceof Node)) callback()
+    }
+    const hidden = () => {
+        if (document.visibilityState === 'hidden') callback()
+    }
+    window.addEventListener('blur', blurred)
+    document.addEventListener('visibilitychange', hidden)
+    return () => {
+        window.removeEventListener('blur', blurred)
+        document.removeEventListener('visibilitychange', hidden)
+    }
 }
 
 function choiceLine(mark: "right" | "wrong" | "other", choice: string): ReactNode {

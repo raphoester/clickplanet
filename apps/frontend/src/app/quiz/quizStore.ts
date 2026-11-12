@@ -17,6 +17,7 @@ type QuizState =
         question: QuizQuestion,
         outcome: QuizOutcome,
         chosen?: number,
+        left?: boolean,
     }
 
 type QuizLink = {
@@ -31,6 +32,7 @@ type QuizStore = {
     offer: (offer: QuizOffer) => void
     open: () => void
     answer: (choice: number) => void
+    forfeit: () => void
     dismiss: () => void
 }
 
@@ -40,6 +42,29 @@ export const quizShown = (quiz: QuizStore) => quiz.state.phase !== 'idle'
 
 export const useQuiz = create<QuizStore>()((set, get) => {
     const leave = (shown: QuizState) => set((quiz) => quiz.state === shown ? {state: IDLE} : quiz)
+
+    const send = (choice: number, left: boolean) => {
+        const {state, link} = get()
+        if (!link || state.phase !== 'asking') return
+
+        const {token, question} = state
+        const chosen = choice < question.choices.length ? choice : undefined
+        set({state: {phase: 'answering', token, question}})
+
+        link.master.answerQuiz(token, choice, link.countryCode)
+            .then((outcome) => {
+                const answered: QuizState = {phase: 'answered', question, outcome, chosen, left}
+                set({state: answered})
+                get().link?.play(outcome.correct ? 'quizRight' : 'quizWrong')
+                const clear = () => setTimeout(() => leave(answered), RESULT_MS)
+                if (left) whenBack(clear)
+                else clear()
+            })
+            .catch((error) => {
+                if (!(error instanceof BonusLostError)) console.error('could not answer the quiz', error)
+                set({state: IDLE})
+            })
+    }
 
     return {
         state: IDLE,
@@ -66,25 +91,10 @@ export const useQuiz = create<QuizStore>()((set, get) => {
                     leave(opening)
                 })
         },
-        answer: (choice) => {
-            const {state, link} = get()
-            if (!link || state.phase !== 'asking') return
-
-            const {token, question} = state
-            const chosen = choice < question.choices.length ? choice : undefined
-            set({state: {phase: 'answering', token, question}})
-
-            link.master.answerQuiz(token, choice, link.countryCode)
-                .then((outcome) => {
-                    const answered: QuizState = {phase: 'answered', question, outcome, chosen}
-                    set({state: answered})
-                    get().link?.play(outcome.correct ? 'quizRight' : 'quizWrong')
-                    setTimeout(() => leave(answered), RESULT_MS)
-                })
-                .catch((error) => {
-                    if (!(error instanceof BonusLostError)) console.error('could not answer the quiz', error)
-                    set({state: IDLE})
-                })
+        answer: (choice) => send(choice, false),
+        forfeit: () => {
+            const {state} = get()
+            if (state.phase === 'asking') send(state.question.choices.length, true)
         },
         dismiss: () => {
             const {state} = get()
@@ -92,3 +102,19 @@ export const useQuiz = create<QuizStore>()((set, get) => {
         },
     }
 })
+
+// Calls back at once when the page has the focus, or else when it next gets it or is pressed: a result that says the
+// quiz was left must still be there when the player comes back to read it.
+function whenBack(callback: () => void) {
+    if (document.hasFocus()) {
+        callback()
+        return
+    }
+    const back = () => {
+        window.removeEventListener('focus', back)
+        window.removeEventListener('pointerdown', back, true)
+        callback()
+    }
+    window.addEventListener('focus', back)
+    window.addEventListener('pointerdown', back, true)
+}

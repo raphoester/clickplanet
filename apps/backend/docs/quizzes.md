@@ -68,6 +68,10 @@ Everything below exists to make whatever it is set to real:
 - **An answer cannot be sent without the question having been read.** A token
   answered before it was opened fails: that is a client guessing at three choices
   it was never sent.
+- **The page ends a question the player leaves** (another window over it, such as a phone's assistant reading the
+  screen, or the tab hidden) by sending its timeout at once: see the frontend's
+  [Quizzes](../../frontend/docs/quizzes.md). The server cannot see the focus, so this is the page's rule alone, and
+  what it sends is a plain timeout.
 - **Each bank entry carries five wrong answers and a round shows two**, drawn when
   the quiz is offered (`Bank.Draw`). The same question is not the same three choices twice, so "press the
   second one for Estonia" is worth nothing.

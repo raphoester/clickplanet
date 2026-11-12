@@ -681,6 +681,7 @@
   "quiz.correct": "Doğru!",
   "quiz.notQuite": "Olmadı",
   "quiz.outOfTime": "Süre doldu",
+  "quiz.left": "Quizden çıktın",
   "quiz.inventoryFull": "Envanterin zaten dolu",
   "quiz.theAnswer": "{choice}<hidden>, doğru cevap</hidden>",
   "quiz.yourPick": "{choice}<hidden>, senin seçimin</hidden>",

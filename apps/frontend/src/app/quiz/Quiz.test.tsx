@@ -231,6 +231,88 @@ describe("Quiz", () => {
         expect(screen.getByText("Tallinn")).toBeTruthy()
     })
 
+    it("ends the question as soon as another window takes the focus, and says the quiz was left", async () => {
+        master.outcome = {correct: false, correctChoice: 1}
+
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        act(() => void window.dispatchEvent(new FocusEvent("blur")))
+        await settle()
+
+        expect(master.answered).toEqual([{token: "t1", choice: 3, countryId: "bg"}])
+        expect(screen.getByText("You left the quiz")).toBeTruthy()
+        expect(screen.getByText("Tallinn")).toBeTruthy()
+    })
+
+    it("ends the question when the tab is hidden", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden")
+        act(() => void document.dispatchEvent(new Event("visibilitychange")))
+        visibility.mockRestore()
+        await settle()
+
+        expect(master.answered).toEqual([{token: "t1", choice: 3, countryId: "bg"}])
+    })
+
+    it("does not end the question when the focus moves inside the page", async () => {
+        render(<><Harness master={master}/><input aria-label="chat"/></>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        const field = screen.getByRole("textbox", {name: "chat"})
+        act(() => field.focus())
+        act(() => field.blur())
+        await settle()
+
+        expect(master.answered).toEqual([])
+        expect(screen.getByText(QUESTION.text)).toBeTruthy()
+    })
+
+    it("does not take back an answer given before the focus left", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        act(() => void window.dispatchEvent(new FocusEvent("blur")))
+        await settle()
+
+        expect(master.answered).toEqual([{token: "t1", choice: 1, countryId: "bg"}])
+        expect(screen.getByText("Correct!")).toBeTruthy()
+    })
+
+    it("keeps the result of a quiz left until the player is back to read it", async () => {
+        master.outcome = {correct: false, correctChoice: 1}
+        const focused = vi.spyOn(document, "hasFocus").mockReturnValue(false)
+
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        act(() => void window.dispatchEvent(new FocusEvent("blur")))
+        await settle()
+        act(() => void vi.advanceTimersByTime(RESULT_MS * 3))
+
+        expect(screen.getByText("You left the quiz")).toBeTruthy()
+
+        focused.mockReturnValue(true)
+        act(() => void window.dispatchEvent(new FocusEvent("focus")))
+        act(() => void vi.advanceTimersByTime(RESULT_MS + 100))
+
+        expect(screen.queryByText("You left the quiz")).toBeNull()
+        focused.mockRestore()
+    })
+
     it("answers once, however many choices are pressed", async () => {
         render(<Harness master={master}/>)
         act(() => master.offer())
