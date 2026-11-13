@@ -69,3 +69,7 @@
 /auth/callback
   Cache-Control: public, max-age=0, must-revalidate
   Referrer-Policy: no-referrer
+
+# The CrazyGames host is the same build, framed by CrazyGames: kept out of Google so it never competes with clickplanet.lol.
+https://crazygames.clickplanet.lol/*
+  X-Robots-Tag: noindex

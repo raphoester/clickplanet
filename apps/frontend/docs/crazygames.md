@@ -38,6 +38,8 @@ says why a host of its own and what the owner sets up.
   screen; the game never pauses, so there is no `gameplayStop`.
 - **No ad.** The owner chose none: no ad call, no ad button, nothing from CrazyGames' ad module.
 - **The words of CrazyGames' list are masked** in the chat and in every player name: see [The word filter](#the-word-filter).
+- **Google does not index it.** `public/_headers` sends `X-Robots-Tag: noindex` on every path of this host, so it
+  never competes with clickplanet.lol in the results (see [Search](search.md)).
 
 ## The word filter
 
