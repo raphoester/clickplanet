@@ -7,7 +7,9 @@ The client for the backend's second bounded context: `chat.ts` declares
 implements them against `/chat.v1.ChatService/` alone — `SendMessage`,
 `GetHistory`, `React`, `MarkSeen` and the `ListenForEvents` stream — and
 `fakeChatBackend.ts` is the dev stand-in. On a desktop `ChatPanel` is the
-right-hand column, folded and unfolded from its own header. On a phone it is the
+right-hand column, folded and unfolded from its own header. **The fold is kept**: the player's last open or fold is in
+the screen's store (`chatOpen`, in `clickplanet-chat-open`) and wins at every later visit; with none, the chat starts
+folded in a frame under 1600px wide and open above it (see [The screen](screen.md)). On a phone it is the
 Chat tab's sheet, and `PlayScreen` passes whether it is open (`open`,
 `onOpenChange`) from the screen's store; see [The screen](screen.md). **It is always
 mounted**, open or not, on both: it owns each room's history load, stream, unread
@@ -19,7 +21,7 @@ peek (below) and puts the unread count in the chat's store, which the tab bar re
 [Stores](stores.md)): the unread count of both rooms, which went up through `PlayScreen` to `TabBar`, and the messages
 this page reported, which went from the report's modal through the panel to `ChatLog`. The panel takes both away
 with it when it goes. **What the panel uses itself stays in it**: each room (`useChatRoom`, over `useRoomLog` and
-`useSeenMark`: one per backend, with its stream), the tab shown, the fold, the message being answered (its send drops
+`useSeenMark`: one per backend, with its stream), the tab shown, the message being answered (its send drops
 it on another tab and puts it back on a refusal) and the message being reported (it draws the modal). `ChatLog` keeps
 its own scroll, picker and spotlight, and the composer its text.
 
@@ -453,7 +455,7 @@ announcements, not the player's own messages. See the backend's
   the lines after it, open or not. A history with no mark is a first visit:
   nothing counts, and the newest line of the history is sent as the mark, so
   the next visit has one even if the chat is never opened in this one.
-- **Opening the chat marks nothing.** On a desktop it is open from the start,
+- **Opening the chat marks nothing.** On a wide desktop it is open from the start,
   and a phone's sheet used to open on the newest line: either way the player
   was shown the bottom and nothing above it. So `ChatLog` opens on an **Unread
   line** (`.chat-unseen`) above the first line after the mark, with a little of

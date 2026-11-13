@@ -5,7 +5,7 @@ import {PlayerReporter} from "../../backends/support.ts";
 import {Country} from "../../domain/countries.ts";
 import {ChevronIcon} from "../components/icons.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
-import {opensFolded} from "../compact.ts";
+import {useSmallFrame} from "../compact.ts";
 import {truncate} from "../truncate.ts";
 import {usePageVisible} from "../usePageVisible.ts";
 import {PlaySound} from "../sound/soundPlayer.ts";
@@ -27,6 +27,7 @@ import {ChatRoomState, useChatRoom} from "./useChatRoom.ts";
 import {useChatIdentity} from "./useChatIdentity.ts";
 import {useChatSize} from "./useChatSize.ts";
 import {useChat} from "./chatStore.ts";
+import {useScreen} from "../hud/screenStore.ts";
 import {useWordFilter} from "../crazygames/wordFilter.ts";
 import {t, translator} from "../../i18n/page.ts";
 import {wordsOf} from "./wordsOf.ts";
@@ -63,10 +64,12 @@ const PEEK_AUTHOR_MAX_LENGTH = 12
 const PEEK_TEXT_MAX_LENGTH = 80
 
 export default function ChatPanel(props: ChatPanelProps) {
-    const [ownOpen, setOwnOpen] = useState(() => !opensFolded())
-    const isOpen = props.open ?? ownOpen
+    const chosen = useScreen((screen) => screen.chatOpen)
+    const setChosen = useScreen((screen) => screen.setChatOpen)
+    const small = useSmallFrame()
+    const isOpen = props.open ?? chosen ?? !small
     const {onOpenChange} = props
-    const setOpen = useCallback((open: boolean) => onOpenChange ? onOpenChange(open) : setOwnOpen(open), [onOpenChange])
+    const setOpen = useCallback((open: boolean) => onOpenChange ? onOpenChange(open) : setChosen(open), [onOpenChange, setChosen])
     const [view, setView] = useState<View>("world")
     const online = useRoster(onlineCount)
     const visible = usePageVisible()

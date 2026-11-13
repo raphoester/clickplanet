@@ -25,6 +25,15 @@ export function enterFrontGuide(storeOf: () => Store = browserStore): boolean {
     }
 }
 
+// A guided browser that has not taken a tile yet.
+export function firstTakeAhead(storeOf: () => Store = browserStore): boolean {
+    try {
+        return storeOf().getItem(FRONT_GUIDE_STORAGE_KEY) === "0"
+    } catch {
+        return false
+    }
+}
+
 export function countGuidedTake(storeOf: () => Store = browserStore) {
     try {
         const store = storeOf()

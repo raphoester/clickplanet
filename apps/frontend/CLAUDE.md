@@ -37,7 +37,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [A server restart reloads the page](../../docs/reload-on-restart.md) — `restartInterceptor` reloads once the
   backend answers under a new boot; which answers it trusts.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at
-  768px wide or 600px high and under.
+  768px wide or 600px high and under; the board and the chat folded under 1600px wide until the player opens one, and
+  the player's last fold kept.
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Stores](docs/stores.md) — a feature's state in its own Zustand store, read by the component that shows it, not
   held in `PlayScreen`; never the tiles; the stores the globe's notices go to, and the news line, one at a time.
@@ -61,7 +62,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Live chat](docs/chat.md) — the World and the flag's room, GIFs from KLIPY, replies, removed messages, reactions,
   announcements, delivery, and what was missed.
 - [The front, for a first visit](docs/front-guide.md) — a browser's first visit opens on its own country, flies to
-  its flag's nearest fight once the tiles are read, and rings the tiles it can take, until it has taken 50.
+  its flag's nearest tiles with no shield once the tiles are read, rings the tiles it can take, until it has taken 50,
+  and shows a hand tapping one of them until its first take.
 - [The reach](docs/reach.md) — a rule knob: the bridges drawn as dotted arcs, the tiles the flag can take (next to its
   land, or across a bridge from it) ringed, wider by the spread's rings while spread is on, a click elsewhere stopped
   with "Take a tile next to your land"; learnt from `GetChargeRules`.

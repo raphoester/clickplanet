@@ -23,8 +23,9 @@ that does not.
 
 - **What is open is one store**, `useScreen` (`hud/screenStore.ts`, see
   [Stores](stores.md)): the phone's sheet (`sheet`), the desktop menu's place
-  (`menuTab`), and the desktop's popovers (`popovers`: the season, the battle and
-  "Your clicks"). The tab bar, the status bar, the chips, the dock and the menu
+  (`menuTab`), the desktop's popovers (`popovers`: the season, the battle and
+  "Your clicks"), and the player's last open or fold of the desktop menu's panel and of the chat (`menuOpen`,
+  `chatOpen`, unset until the player chooses). The tab bar, the status bar, the chips, the dock, the menu and the chat
   read and change it themselves; `PlayScreen` reads the sheet to draw it. A change
   between the phone and the desktop form closes the sheet and the popovers.
 - **One sheet at a time on a phone**: the five
@@ -56,7 +57,18 @@ that does not.
   "playing for". The hide button, or the open place pressed again, folds the
   panel away: the rail stays, with the flag, its rank and Change as a pill
   beside it, and any place opens the panel again. Folded or open is kept in
-  `localStorage` (`clickplanet-menu-open`) from one visit to the next.
+  `localStorage` (`clickplanet-menu-open`) from one visit to the next, and the chat's fold the same way
+  (`clickplanet-chat-open`).
+- **In a small frame the board and the chat start folded**, until the player opens or folds
+  one: then that choice wins at every later visit, in any frame. The globe is the screen, and both are one press away
+  (the rail stays; the chat folds to its header). The frame is small under 1600px wide (`SMALL_FRAME`, `useSmallFrame`
+  in `compact.ts`, followed live, so a frame made full screen opens them). The open board and chat take about 900 to
+  960px side by side; under 1600px they leave the globe less than 40% of the width. Measured on the fake (2026-11-13),
+  the strip between them is 226px at 1077×606 and 270px at 1216×684 (CrazyGames' frames outside full screen), 380px
+  at 1280×720, 425px at 1366×768 and 576px at 1536×864, and 960px, half the width, at 1920×1080. On CrazyGames'
+  1077×606 a reviewer saw a strip of globe 230px wide between the board and the chat, and the board's tooltip as the
+  first text (2026-11-12). The same rule on clickplanet.lol and on the CrazyGames host; the phone form keeps its
+  sheets closed anyway.
 - **What is centred at the top centres on the globe and the dock, clear of the desktop menu.** The menu
   publishes its right edge, open or folded (`MENU_RIGHT`, `--menu-right`, through `useEdge`), and `index.css`
   turns it into `--top-centre` and `--top-room`, which place the season and battle chips, the quiz, the mission

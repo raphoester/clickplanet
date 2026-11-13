@@ -1,0 +1,92 @@
+.tap-pointer {
+    position: absolute;
+    z-index: 100;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.tap-pointer-hand {
+    position: absolute;
+    left: calc(-1 * var(--tap-tip-x));
+    top: calc(-1 * var(--tap-tip-y));
+    overflow: visible;
+    transform-origin: var(--tap-tip-x) var(--tap-tip-y);
+    transform: translateY(-5px) rotate(-20deg) scale(1.04);
+    filter: drop-shadow(0 5px 0 var(--ink));
+    animation: tap-pointer-press 1.6s ease-in-out infinite;
+}
+
+.tap-pointer-outline {
+    fill: var(--ink);
+    stroke: var(--ink);
+    stroke-linejoin: round;
+}
+
+.tap-pointer-glove {
+    fill: var(--cream);
+}
+
+.tap-pointer-creases {
+    fill: none;
+    stroke: var(--ink);
+    stroke-linecap: round;
+}
+
+.tap-pointer-burst {
+    position: absolute;
+    left: -20px;
+    top: -20px;
+    width: 40px;
+    height: 40px;
+    overflow: visible;
+    opacity: 0;
+    animation: tap-pointer-burst 1.6s ease-out infinite;
+}
+
+.tap-pointer-burst line {
+    stroke-linecap: round;
+}
+
+.tap-pointer-burst-ink {
+    stroke: var(--ink);
+    stroke-width: 6px;
+}
+
+.tap-pointer-burst-light {
+    stroke: var(--cream);
+    stroke-width: 2.5px;
+}
+
+@keyframes tap-pointer-press {
+    0%, 35%, 85%, 100% {
+        transform: translateY(-5px) rotate(-20deg) scale(1.04);
+        filter: drop-shadow(0 5px 0 var(--ink));
+    }
+    50%, 65% {
+        transform: translateY(0) rotate(-20deg) scale(1);
+        filter: drop-shadow(0 0 0 var(--ink));
+    }
+}
+
+@keyframes tap-pointer-burst {
+    0%, 48% {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+    55% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    75%, 100% {
+        opacity: 0;
+        transform: scale(1.15);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tap-pointer-hand,
+    .tap-pointer-burst {
+        animation: none;
+    }
+}

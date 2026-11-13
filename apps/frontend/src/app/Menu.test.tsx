@@ -13,6 +13,7 @@ import {useDisplaySettings} from "./settings/displaySettingsStore.ts"
 import {useSoundSettings} from "./sound/soundSettingsStore.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
 import {useScreen} from "./hud/screenStore.ts"
+import {SMALL_FRAME} from "./compact.ts"
 import {useRace} from "./standings/raceStore.ts"
 import {AccountBackend, Me, Provider} from "../backends/account.ts"
 import {AccountStore} from "./account/accountStore.ts"
@@ -104,14 +105,37 @@ describe("Menu", () => {
     })
 
     it("opens folded when the player left it folded", () => {
-        localStorage.setItem("clickplanet-menu-open", "false")
+        useScreen.setState({menuOpen: false})
         setup([entry("fr", 500)])
 
         expect(board()).toBeNull()
     })
 
+    describe("in a small frame", () => {
+        beforeEach(() => vi.stubGlobal("matchMedia", (query: string) => ({matches: query === SMALL_FRAME})))
+        afterEach(() => vi.unstubAllGlobals())
+
+        it("opens folded until the player opens it", async () => {
+            const {user} = setup([entry("fr", 500)])
+
+            expect(board()).toBeNull()
+
+            await user.click(tab("Board"))
+
+            expect(board()).not.toBeNull()
+            expect(localStorage.getItem("clickplanet-menu-open")).toBe("true")
+        })
+
+        it("opens as the player left it open", () => {
+            useScreen.setState({menuOpen: true})
+            setup([entry("fr", 500)])
+
+            expect(board()).not.toBeNull()
+        })
+    })
+
     it("opens the panel on the country picker from the folded flag", async () => {
-        localStorage.setItem("clickplanet-menu-open", "false")
+        useScreen.setState({menuOpen: false})
         const {user} = setup()
 
         await user.click(button("Change"))

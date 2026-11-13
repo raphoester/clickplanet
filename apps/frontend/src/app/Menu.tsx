@@ -29,6 +29,7 @@ import InviteFriends from "./share/InviteFriends.tsx";
 import {VideoDot} from "./video/VideoTile.tsx";
 import {InviteLink} from "../backends/crazyGames.ts";
 import {youLabel} from "./youLabel.ts"
+import {useSmallFrame} from "./compact.ts"
 import BoardViews, {BoardHeading, BoardStandings} from "./standings/BoardViews.tsx"
 import Sheet from "./hud/Sheet.tsx"
 import {ListenForClicks} from "./clicks/acceptedClicks.ts"
@@ -67,8 +68,6 @@ export type MenuProps = BoardPlaceProps & YouPlaceProps & SettingsPlaceProps & O
     invite?: InviteLink,
 }
 
-const OPEN_KEY = "clickplanet-menu-open"
-
 // Where the menu ends: what is centred at the top centres in the room right of it.
 export const MENU_RIGHT = "--menu-right"
 
@@ -81,7 +80,10 @@ export default function Menu(props: MenuProps) {
     const account = useAccount(props.account)
     const tabsId = useId()
     const panelId = useId()
-    const [open, setOpen] = useMenuOpen()
+    const chosen = useScreen((screen) => screen.menuOpen)
+    const setOpen = useScreen((screen) => screen.setMenuOpen)
+    const small = useSmallFrame()
+    const open = chosen ?? !small
     const [profileOpen, setProfileOpen] = useState(false)
     const picker = usePicker()
     const [shell, setShell] = useState<HTMLElement | null>(null)
@@ -212,25 +214,6 @@ export default function Menu(props: MenuProps) {
                                       country={props.country}
                                       onClose={() => setProfileOpen(false)}/>}
     </div>
-}
-
-// The panel stays as the player left it, folded or open, from one visit to the next.
-function useMenuOpen(): [boolean, (open: boolean) => void] {
-    const [open, setOpen] = useState(() => {
-        try {
-            return localStorage.getItem(OPEN_KEY) !== "false"
-        } catch {
-            return true
-        }
-    })
-    return [open, (next: boolean) => {
-        setOpen(next)
-        try {
-            localStorage.setItem(OPEN_KEY, String(next))
-        } catch {
-            // A browser that keeps nothing folds the panel for this visit only.
-        }
-    }]
 }
 
 function usePicker() {

@@ -7,6 +7,7 @@ import {Country} from '../../domain/countries.ts';
 import {MapView, Rendering} from '../../domain/displaySettings.ts';
 import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/backend.ts';
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
+import {firstTakeAhead} from '../frontGuide.ts';
 import {Switches} from '../../domain/bonus.ts';
 import {Bomber, BonusListener, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
@@ -110,6 +111,7 @@ export function useGlobe(options: UseGlobeOptions) {
             container: element,
             linkedShot,
             showFront,
+            showTap: showFront && firstTakeAhead(),
             country: initialCountry.current,
             mapView: latestMapView.current,
             rendering,
