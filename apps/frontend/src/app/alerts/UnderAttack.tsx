@@ -1,6 +1,5 @@
 import {useEffect, useRef} from "react"
 import CountryFlag from "../components/CountryFlag.tsx"
-import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import {DiscordIcon, TargetIcon} from "../components/icons.tsx"
 import {pingFailureOf, pingNameOf} from "./alertsMessages.ts"
 import {usePing} from "./usePing.ts"
@@ -20,7 +19,6 @@ export type UnderAttackProps = {
 
 export default function UnderAttack({flag, connect, goThere, onDone}: UnderAttackProps) {
     const name = translator().country(flag)
-    const lowered = useQuiz(quizShown)
 
     const done = useRef(onDone)
     useEffect(() => {
@@ -32,7 +30,7 @@ export default function UnderAttack({flag, connect, goThere, onDone}: UnderAttac
         return () => clearTimeout(timer)
     }, [])
 
-    return <div className={`bomb-news under-attack${lowered ? " bomb-news--lowered" : ""}`} role="status" aria-live="polite">
+    return <div className="bomb-news under-attack" role="status" aria-live="polite">
         <div className="bomb-news-line under-attack-line panel" style={{animationDuration: `${UNDER_ATTACK_MS}ms`}}>
             <span className="under-attack-text">
                 <CountryFlag code={flag}/>

@@ -1,5 +1,4 @@
 import {useEffect, useRef} from "react"
-import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import {t} from "../../i18n/page.ts"
 import "./BombNews.css"
 import "./WelcomeNews.css"
@@ -13,8 +12,6 @@ export type WelcomeNewsProps = {
 }
 
 export default function WelcomeNews({recruiter, flagName, onDone}: WelcomeNewsProps) {
-    const lowered = useQuiz(quizShown)
-
     const done = useRef(onDone)
     useEffect(() => {
         done.current = onDone
@@ -25,7 +22,7 @@ export default function WelcomeNews({recruiter, flagName, onDone}: WelcomeNewsPr
         return () => clearTimeout(timer)
     }, [recruiter, flagName])
 
-    return <div className={`bomb-news${lowered ? " bomb-news--lowered" : ""}`} role="status" aria-live="polite">
+    return <div className="bomb-news" role="status" aria-live="polite">
         <div className="bomb-news-line welcome-news-line panel">{t("news.welcome", {player: recruiter, flag: flagName})}</div>
     </div>
 }

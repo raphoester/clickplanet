@@ -1,11 +1,3 @@
-.bomb-news.under-attack {
-    left: var(--space-4);
-    right: var(--space-4);
-    display: flex;
-    justify-content: center;
-    transform: none;
-}
-
 .under-attack-line {
     flex-wrap: wrap;
     justify-content: center;

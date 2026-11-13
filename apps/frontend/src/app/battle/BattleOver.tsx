@@ -2,7 +2,6 @@ import {useEffect, useRef, useState} from "react"
 import {BATTLE_OVER_MS} from "../../domain/battle.ts"
 import {t} from "../../i18n/page.ts"
 import {SwordsIcon} from "../components/icons.tsx"
-import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import "./Battle.css"
 
 export type BattleOverProps = {
@@ -11,8 +10,6 @@ export type BattleOverProps = {
 }
 
 export default function BattleOver({awaiting, onDone}: BattleOverProps) {
-    const lowered = useQuiz(quizShown)
-
     const done = useRef(onDone)
     useEffect(() => {
         done.current = onDone
@@ -26,7 +23,7 @@ export default function BattleOver({awaiting, onDone}: BattleOverProps) {
         return () => clearTimeout(timer)
     }, [awaiting, waited])
 
-    const className = ["battle-over", lowered && "battle-over--lowered", awaiting && "battle-over--awaiting"].filter(Boolean).join(" ")
+    const className = ["battle-over", awaiting && "battle-over--awaiting"].filter(Boolean).join(" ")
     return <div className={className} role="status" aria-live="polite">
         <div className="battle-over-line panel">
             <SwordsIcon/>
