@@ -7,6 +7,7 @@ import {clockOf, localOf, timeOf} from "../components/time.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {AddSeasonRequest, EditSeasonRequest} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {SeasonsPanel} from "./SeasonsPanel.tsx"
@@ -31,7 +32,7 @@ const later = (date: Date, seconds: number) => new Date(date.getTime() + seconds
 const alerts = () => screen.queryAllByRole("alert").map(alert => alert.textContent)
 
 function show(admin: FakeAdmin) {
-    render(<SeasonsPanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} bonuses={admin.bonuses}/>)
+    render(<SeasonsPanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} bonuses={admin.bonuses} quizzes={admin.quizzes}/>)
 }
 
 async function edit(number: number) {
@@ -262,11 +263,13 @@ describe("the seasons page", () => {
         expect(asked.finale?.times).toBe(3)
     })
 
-    it("offers a final battle only a set planet, the antibot and the offers all keep", async () => {
+    it("offers a final battle only a set planet, the antibot, the offers and the quizzes all keep", async () => {
         const admin = new FakeAdmin()
-        admin.rules.sets.push(new RuleSet({name: "rush"}), new RuleSet({name: "urf"}))
-        admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}), new AntibotRuleSet({name: "urf"}))
-        admin.bonusRules.sets.push(new BonusesRuleSet({name: "urf"}))
+        admin.rules.sets.push(new RuleSet({name: "rush"}), new RuleSet({name: "urf"}), new RuleSet({name: "storm"}))
+        admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}), new AntibotRuleSet({name: "urf"}),
+            new AntibotRuleSet({name: "storm"}))
+        admin.bonusRules.sets.push(new BonusesRuleSet({name: "urf"}), new BonusesRuleSet({name: "storm"}))
+        admin.quizRules.sets.push(new QuizzesRuleSet({name: "urf"}))
         show(admin)
 
         fireEvent.click(await screen.findByRole("button", {name: "Add a season"}))

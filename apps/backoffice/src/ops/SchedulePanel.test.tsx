@@ -7,6 +7,7 @@ import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as BonusesRules, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetRulesResponse as QuizzesRules, RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {AddEntryRequest, EditEntryRequest, Playing} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {SchedulePanel} from "./SchedulePanel.tsx"
@@ -19,7 +20,7 @@ const rowOf = (set: string) =>
 const type = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
-// Planet, the antibot and the offers keep calm and frozen too, and play calm.
+// Planet, the antibot, the offers and the quizzes keep calm and frozen too, and play calm.
 function keeping(): FakeAdmin {
     const admin = new FakeAdmin()
     const planetDefault = admin.rules.sets[0]
@@ -37,11 +38,16 @@ function keeping(): FakeAdmin {
         sets: ["default", "calm", "frozen", "rush"].map(name => new BonusesRuleSet({name, rules: bonusesDefault.rules?.clone()})),
         playing: "calm",
     })
+    const quizzesDefault = admin.quizRules.sets[0]
+    admin.quizRules = new QuizzesRules({
+        sets: ["default", "calm", "frozen", "rush"].map(name => new QuizzesRuleSet({name, rules: quizzesDefault.rules?.clone()})),
+        playing: "calm",
+    })
     return admin
 }
 
 function show(admin: FakeAdmin) {
-    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} bonuses={admin.bonuses}/>)
+    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} bonuses={admin.bonuses} quizzes={admin.quizzes}/>)
 }
 
 describe("the rule schedule page", () => {
@@ -61,7 +67,7 @@ describe("the rule schedule page", () => {
         expect(within(rowOf("calm")).queryByText(/×/)).toBeNull()
         expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
         expect(screen.getByText(/Planet plays/).textContent?.replace(/\s+/g, " "))
-            .toBe("Planet plays calm, the antibot plays calm, the offers play calm.")
+            .toBe("Planet plays calm, the antibot plays calm, the offers play calm, the quizzes play calm.")
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
@@ -113,8 +119,8 @@ describe("the rule schedule page", () => {
         show(new FakeAdmin())
 
         await screen.findByRole("table")
-        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot or the offers.")).toBeTruthy()
-        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot or the offers.")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot, the offers or the quizzes.")).toBeTruthy()
+        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot, the offers or the quizzes.")).toBeTruthy()
         expect(within(rowOf("rush")).queryByRole("alert")).toBeNull()
     })
 
@@ -134,6 +140,16 @@ describe("the rule schedule page", () => {
         expect(await screen.findByText(/Planet does not play/)).toBeTruthy()
         expect(screen.getByText(/The antibot does not play/)).toBeTruthy()
         expect(screen.getByText(/The offers do not play/)).toBeTruthy()
+        expect(screen.getByText(/The quizzes do not play/)).toBeTruthy()
+    })
+
+    it("warns of a set the quizzes alone do not keep", async () => {
+        const admin = keeping()
+        admin.quizRules = new QuizzesRules({sets: admin.quizRules.sets.filter(set => set.name !== "frozen"), playing: "calm"})
+        show(admin)
+
+        await screen.findByRole("table")
+        expect(within(rowOf("frozen")).getByText("No set frozen in the quizzes.")).toBeTruthy()
     })
 
     it("says when the offers alone do not play what the schedule plays", async () => {

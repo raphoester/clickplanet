@@ -32,12 +32,22 @@ export enum Ranking {
    * @generated from enum value: RANKING_HELD_AND_GAIN = 2;
    */
   HELD_AND_GAIN = 2,
+
+  /**
+   * Only the countries whose players took a tile in the round are placed: by the sum of two ranks, on the tiles each
+   * holds at the round's end and on the tiles its players took during it, smallest first, the takes' rank breaking a
+   * tie; every country placed scores. A battle's: a country that held its capital and never fought scores nothing.
+   *
+   * @generated from enum value: RANKING_FIGHTERS = 3;
+   */
+  FIGHTERS = 3,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Ranking)
 proto3.util.setEnumType(Ranking, "scoring.v1.Ranking", [
   { no: 0, name: "RANKING_UNSPECIFIED" },
   { no: 1, name: "RANKING_GAIN" },
   { no: 2, name: "RANKING_HELD_AND_GAIN" },
+  { no: 3, name: "RANKING_FIGHTERS" },
 ]);
 
 /**

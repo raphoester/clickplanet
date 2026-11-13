@@ -8,8 +8,8 @@ import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { BonusKind, ChargesHeld } from "../../planet/v1/planet_pb.js";
 
 /**
- * The detail of the FailedPrecondition that ClaimBonus, OpenQuiz and AnswerQuiz answer while the offers play a frozen
- * set, or while planet's map takes no play: the box or the quiz lapses.
+ * The detail of the FailedPrecondition that ClaimBonus answers while the offers play a frozen set, or while planet's map
+ * takes no play: the box lapses.
  *
  * @generated from message bonuses.v1.FrozenRefusal
  */
@@ -138,212 +138,6 @@ export class ClaimBonusResponse extends Message<ClaimBonusResponse> {
 }
 
 /**
- * @generated from message bonuses.v1.OpenQuizRequest
- */
-export class OpenQuizRequest extends Message<OpenQuizRequest> {
-  /**
-   * @generated from field: string token = 1;
-   */
-  token = "";
-
-  constructor(data?: PartialMessage<OpenQuizRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.OpenQuizRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenQuizRequest {
-    return new OpenQuizRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenQuizRequest {
-    return new OpenQuizRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenQuizRequest {
-    return new OpenQuizRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: OpenQuizRequest | PlainMessage<OpenQuizRequest> | undefined, b: OpenQuizRequest | PlainMessage<OpenQuizRequest> | undefined): boolean {
-    return proto3.util.equals(OpenQuizRequest, a, b);
-  }
-}
-
-/**
- * @generated from message bonuses.v1.OpenQuizResponse
- */
-export class OpenQuizResponse extends Message<OpenQuizResponse> {
-  /**
-   * @generated from field: string question = 1;
-   */
-  question = "";
-
-  /**
-   * @generated from field: repeated string choices = 2;
-   */
-  choices: string[] = [];
-
-  /**
-   * @generated from field: int64 deadline_unix_ms = 3;
-   */
-  deadlineUnixMs = protoInt64.zero;
-
-  /**
-   * @generated from field: double answer_seconds = 4;
-   */
-  answerSeconds = 0;
-
-  constructor(data?: PartialMessage<OpenQuizResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.OpenQuizResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "question", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "choices", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "deadline_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 4, name: "answer_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenQuizResponse {
-    return new OpenQuizResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenQuizResponse {
-    return new OpenQuizResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenQuizResponse {
-    return new OpenQuizResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: OpenQuizResponse | PlainMessage<OpenQuizResponse> | undefined, b: OpenQuizResponse | PlainMessage<OpenQuizResponse> | undefined): boolean {
-    return proto3.util.equals(OpenQuizResponse, a, b);
-  }
-}
-
-/**
- * @generated from message bonuses.v1.AnswerQuizRequest
- */
-export class AnswerQuizRequest extends Message<AnswerQuizRequest> {
-  /**
-   * @generated from field: string token = 1;
-   */
-  token = "";
-
-  /**
-   * @generated from field: uint32 choice = 2;
-   */
-  choice = 0;
-
-  /**
-   * @generated from field: string country_id = 3;
-   */
-  countryId = "";
-
-  constructor(data?: PartialMessage<AnswerQuizRequest>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.AnswerQuizRequest";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "choice", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerQuizRequest {
-    return new AnswerQuizRequest().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerQuizRequest {
-    return new AnswerQuizRequest().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerQuizRequest {
-    return new AnswerQuizRequest().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AnswerQuizRequest | PlainMessage<AnswerQuizRequest> | undefined, b: AnswerQuizRequest | PlainMessage<AnswerQuizRequest> | undefined): boolean {
-    return proto3.util.equals(AnswerQuizRequest, a, b);
-  }
-}
-
-/**
- * @generated from message bonuses.v1.AnswerQuizResponse
- */
-export class AnswerQuizResponse extends Message<AnswerQuizResponse> {
-  /**
-   * @generated from field: bool correct = 1;
-   */
-  correct = false;
-
-  /**
-   * @generated from field: uint32 correct_choice = 2;
-   */
-  correctChoice = 0;
-
-  /**
-   * @generated from field: planet.v1.BonusKind kind = 3;
-   */
-  kind = BonusKind.UNSPECIFIED;
-
-  /**
-   * What planet kept.
-   *
-   * @generated from field: uint32 amount = 4;
-   */
-  amount = 0;
-
-  /**
-   * All the hand holds after.
-   *
-   * @generated from field: planet.v1.ChargesHeld charges = 5;
-   */
-  charges?: ChargesHeld;
-
-  constructor(data?: PartialMessage<AnswerQuizResponse>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.AnswerQuizResponse";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "correct", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "correct_choice", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 4, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 5, name: "charges", kind: "message", T: ChargesHeld },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AnswerQuizResponse {
-    return new AnswerQuizResponse().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AnswerQuizResponse {
-    return new AnswerQuizResponse().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AnswerQuizResponse {
-    return new AnswerQuizResponse().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AnswerQuizResponse | PlainMessage<AnswerQuizResponse> | undefined, b: AnswerQuizResponse | PlainMessage<AnswerQuizResponse> | undefined): boolean {
-    return proto3.util.equals(AnswerQuizResponse, a, b);
-  }
-}
-
-/**
  * Empty is every event.
  *
  * @generated from message bonuses.v1.ListenForEventsRequest
@@ -407,14 +201,6 @@ export class BonusEvent extends Message<BonusEvent> {
     case: "bonusTaken";
   } | {
     /**
-     * Only to the caller it is offered to.
-     *
-     * @generated from field: bonuses.v1.QuizOffered quiz_offered = 4;
-     */
-    value: QuizOffered;
-    case: "quizOffered";
-  } | {
-    /**
      * The offers took another set: GetGrantRules answers anew.
      *
      * @generated from field: bonuses.v1.RulesChanged rules_changed = 5;
@@ -434,7 +220,6 @@ export class BonusEvent extends Message<BonusEvent> {
     { no: 1, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 2, name: "bonus_offered", kind: "message", T: BonusOffered, oneof: "event" },
     { no: 3, name: "bonus_taken", kind: "message", T: BonusTaken, oneof: "event" },
-    { no: 4, name: "quiz_offered", kind: "message", T: QuizOffered, oneof: "event" },
     { no: 5, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
   ]);
 
@@ -573,7 +358,7 @@ export class BonusOffered extends Message<BonusOffered> {
 }
 
 /**
- * A box caught, or a quiz won, by anyone.
+ * A box caught by anyone.
  *
  * @generated from message bonuses.v1.BonusTaken
  */
@@ -588,13 +373,6 @@ export class BonusTaken extends Message<BonusTaken> {
    */
   kind = BonusKind.UNSPECIFIED;
 
-  /**
-   * The country the quiz won was about; empty for a box.
-   *
-   * @generated from field: string quiz_subject_country_id = 3;
-   */
-  quizSubjectCountryId = "";
-
   constructor(data?: PartialMessage<BonusTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -605,7 +383,6 @@ export class BonusTaken extends Message<BonusTaken> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 3, name: "quiz_subject_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BonusTaken {
@@ -622,51 +399,6 @@ export class BonusTaken extends Message<BonusTaken> {
 
   static equals(a: BonusTaken | PlainMessage<BonusTaken> | undefined, b: BonusTaken | PlainMessage<BonusTaken> | undefined): boolean {
     return proto3.util.equals(BonusTaken, a, b);
-  }
-}
-
-/**
- * Says nothing of the question: even its subject's flag can be the answer.
- *
- * @generated from message bonuses.v1.QuizOffered
- */
-export class QuizOffered extends Message<QuizOffered> {
-  /**
-   * @generated from field: string token = 1;
-   */
-  token = "";
-
-  /**
-   * @generated from field: int64 expires_at_unix_ms = 2;
-   */
-  expiresAtUnixMs = protoInt64.zero;
-
-  constructor(data?: PartialMessage<QuizOffered>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.QuizOffered";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "expires_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizOffered {
-    return new QuizOffered().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizOffered {
-    return new QuizOffered().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizOffered {
-    return new QuizOffered().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: QuizOffered | PlainMessage<QuizOffered> | undefined, b: QuizOffered | PlainMessage<QuizOffered> | undefined): boolean {
-    return proto3.util.equals(QuizOffered, a, b);
   }
 }
 

@@ -1,4 +1,4 @@
-import {JsonObject, JsonValue} from "@bufbuild/protobuf"
+import {Duration, JsonObject, JsonValue} from "@bufbuild/protobuf"
 import {secondsWord} from "../components/time.ts"
 
 // A value of a set's protojson, by its path, as the game rules and the box and quiz rules type it: a duration in
@@ -72,4 +72,16 @@ export function shownOf(field: Field, typed: string): string {
 
 export function yesOf(on: boolean | undefined): string {
     return on === undefined ? "default" : on ? "yes" : "no"
+}
+
+// How often a box or a quiz comes, from its shortest and longest wait: "4 min to 8 min", "90 s".
+export function paceOf(min: Duration | undefined, max: Duration | undefined): string {
+    const shortest = spanOf(min)
+    const longest = spanOf(max)
+    return shortest === longest ? shortest : `${shortest} to ${longest}`
+}
+
+function spanOf(duration: Duration | undefined): string {
+    const seconds = Number(duration?.seconds ?? 0n)
+    return seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`
 }

@@ -3,6 +3,7 @@ import {describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as BonusesRules, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {changeable, complete, draftOf, ended, kinds, lacking, playable, questionOf, rowsOf, shortOf, timesOf, wordOf} from "./schedule.ts"
@@ -22,13 +23,13 @@ describe("the schedule's rows", () => {
 })
 
 describe("the sets", () => {
-    it("an entry plays are the ones every module keeps: planet, the antibot and the offers", () => {
+    it("an entry plays are the ones every module keeps: planet, the antibot, the offers and the quizzes", () => {
         const admin = new FakeAdmin()
-        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules}
+        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules, quizzes: admin.quizRules}
 
         expect(playable(modules)).toEqual(["default"])
-        expect(lacking("rush", modules)).toEqual(["planet", "the antibot", "the offers"])
-        expect(lacking("frozen", modules)).toEqual(["planet", "the antibot", "the offers"])
+        expect(lacking("rush", modules)).toEqual(["planet", "the antibot", "the offers", "the quizzes"])
+        expect(lacking("frozen", modules)).toEqual(["planet", "the antibot", "the offers", "the quizzes"])
         expect(lacking("default", modules)).toEqual([])
     })
 
@@ -36,7 +37,8 @@ describe("the sets", () => {
         const admin = new FakeAdmin()
         admin.rules.sets.push(new RuleSet({name: "rush"}))
         admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}))
-        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules}
+        admin.quizRules.sets.push(new QuizzesRuleSet({name: "rush"}))
+        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules, quizzes: admin.quizRules}
 
         expect(playable(modules)).toEqual(["default"])
         expect(lacking("rush", modules)).toEqual(["the offers"])
@@ -44,6 +46,17 @@ describe("the sets", () => {
         const kept = {...modules, bonuses: new BonusesRules({sets: [...admin.bonusRules.sets, new BonusesRuleSet({name: "rush"})]})}
         expect(playable(kept)).toEqual(["default", "rush"])
         expect(lacking("rush", kept)).toEqual([])
+    })
+
+    it("are not the ones the quizzes lack", () => {
+        const admin = new FakeAdmin()
+        admin.rules.sets.push(new RuleSet({name: "rush"}))
+        admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}))
+        admin.bonusRules.sets.push(new BonusesRuleSet({name: "rush"}))
+        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules, quizzes: admin.quizRules}
+
+        expect(playable(modules)).toEqual(["default"])
+        expect(lacking("rush", modules)).toEqual(["the quizzes"])
     })
 })
 

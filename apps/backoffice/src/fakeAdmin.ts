@@ -40,13 +40,21 @@ import {Rules} from "./gen/grpc/antibot/v1/rules_pb.ts"
 import {
     GetRulesRequest as BonusesGetRulesRequest,
     GetRulesResponse as BonusesGetRulesResponse,
-    ListQuizQuestionsRequest,
-    ListQuizQuestionsResponse,
     RuleSet as BonusesRuleSet,
     SaveRuleSetRequest as BonusesSaveRuleSetRequest,
     SaveRuleSetResponse as BonusesSaveRuleSetResponse,
 } from "./gen/grpc/bonuses/v1/admin_pb.ts"
 import {Rules as BonusesRules} from "./gen/grpc/bonuses/v1/rules_pb.ts"
+import {
+    GetRulesRequest as QuizzesGetRulesRequest,
+    GetRulesResponse as QuizzesGetRulesResponse,
+    ListQuizQuestionsRequest,
+    ListQuizQuestionsResponse,
+    RuleSet as QuizzesRuleSet,
+    SaveRuleSetRequest as QuizzesSaveRuleSetRequest,
+    SaveRuleSetResponse as QuizzesSaveRuleSetResponse,
+} from "./gen/grpc/quizzes/v1/admin_pb.ts"
+import {Rules as QuizzesRules} from "./gen/grpc/quizzes/v1/rules_pb.ts"
 import {MuteKind} from "./gen/grpc/chat/v1/chat_pb.ts"
 import {
     DiscordLink,
@@ -193,7 +201,7 @@ import {
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, BonusesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin,
-    PlayerAdmin, ProgressionAdmin, PromoAdmin, SupportAdmin,
+    PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -214,6 +222,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly bonuses: FakeBonuses = new FakeBonuses(this)
+    readonly quizzes: FakeQuizzes = new FakeQuizzes(this)
     readonly alerts: FakeAlerts = new FakeAlerts(this)
     readonly progression: FakeProgression = new FakeProgression(this)
     readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
@@ -384,7 +393,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         reach: false,
         capitals: {knockOut: false, fixedShields: false},
     })})], playing: "default"})
-    // The offers' set the migration keeps: when a box and a quiz come, and what each grants.
+    // The offers' set the migration keeps: when a box comes, and what a box or a right answer grants.
     bonusRules = new BonusesGetRulesResponse({sets: [new BonusesRuleSet({name: "default", rules: BonusesRules.fromJson({
         boxes: {minInterval: "240s", maxInterval: "480s", maxChargesPerHour: 12},
         kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3},
@@ -393,12 +402,16 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         enclose: {maxPerBox: 3},
         shield: {minPerBox: 5, maxPerBox: 20},
         welcome: {within: "600s", boxAfter: "60s"},
-        quiz: {
-            enabled: true, minInterval: "240s", maxInterval: "480s", missRetry: "120s", offerTtl: "25s",
-            answerWindow: "8s", leaderBias: 1, maxChargesPerHour: 12,
-            target: 0.7, width: 0, floor: 0.42, floorAfter: 15, explore: 0.1,
-        },
         signInRefill: true,
+        frozen: false,
+    })})], playing: "default"})
+    // The quizzes' set production plays: when a quiz comes, how long it stays and how its question is drawn.
+    quizRules = new QuizzesGetRulesResponse({sets: [new QuizzesRuleSet({name: "default", rules: QuizzesRules.fromJson({
+        enabled: true, minInterval: "240s", maxInterval: "480s", missRetry: "120s", offerTtl: "25s", answerWindow: "8s",
+        leaderBias: 1, maxRightAnswersPerHour: 12,
+        target: 0.7, width: 1, floor: 0.42, floorAfter: 15, explore: 0.1,
+        activeWithin: "120s",
+        welcome: {within: "600s"},
         frozen: false,
     })})], playing: "default"})
     roster = [
@@ -442,7 +455,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return {
             alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
-            publishing: this,
+            publishing: this, quizzes: this.quizzes,
         }
     }
 
@@ -627,11 +640,8 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     saveRuleSet(request: PartialMessage<SaveRuleSetRequest>): Promise<SaveRuleSetResponse> {
         const answer = this.answer("saveRuleSet", request, new SaveRuleSetResponse())
         if (!this.refusals.has("saveRuleSet") && request.set !== undefined) {
-            const saved = new RuleSet(request.set)
-            const others = this.rules.sets.filter(set => set.name !== saved.name)
             this.rules = new GetRulesResponse({
-                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
-                    a.name.localeCompare(b.name)),
+                sets: setsWith(this.rules.sets, new RuleSet(request.set)),
                 playing: this.rules.playing,
             })
         }
@@ -745,11 +755,8 @@ export class FakeAntibot implements AntibotAdmin {
     saveRuleSet(request: PartialMessage<AntibotSaveRuleSetRequest>): Promise<AntibotSaveRuleSetResponse> {
         const answer = this.admin.answer("saveRuleSet", request, new AntibotSaveRuleSetResponse())
         if (!this.admin.refusals.has("saveRuleSet") && request.set !== undefined) {
-            const saved = new AntibotRuleSet(request.set)
-            const others = this.admin.antibotRules.sets.filter(set => set.name !== saved.name)
             this.admin.antibotRules = new AntibotGetRulesResponse({
-                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
-                    a.name.localeCompare(b.name)),
+                sets: setsWith(this.admin.antibotRules.sets, new AntibotRuleSet(request.set)),
                 playing: this.admin.antibotRules.playing,
             })
         }
@@ -770,21 +777,46 @@ export class FakeBonuses implements BonusesAdmin {
     saveRuleSet(request: PartialMessage<BonusesSaveRuleSetRequest>): Promise<BonusesSaveRuleSetResponse> {
         const answer = this.admin.answer("saveBonusRuleSet", request, new BonusesSaveRuleSetResponse())
         if (!this.admin.refusals.has("saveBonusRuleSet") && request.set !== undefined) {
-            const saved = new BonusesRuleSet(request.set)
-            const others = this.admin.bonusRules.sets.filter(set => set.name !== saved.name)
             this.admin.bonusRules = new BonusesGetRulesResponse({
-                sets: [...others, saved].sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") ||
-                    a.name.localeCompare(b.name)),
+                sets: setsWith(this.admin.bonusRules.sets, new BonusesRuleSet(request.set)),
                 playing: this.admin.bonusRules.playing,
             })
         }
         return answer
     }
+}
 
-    // No page reads it yet: Claude does, as bonuses_list_quiz_questions.
+// quizzes.v1's calls, asked of the same fake as getQuizRules, saveQuizRuleSet and listQuizQuestions: planet.v1,
+// antibot.v1 and bonuses.v1 have a getRules and a saveRuleSet of their own.
+export class FakeQuizzes implements QuizzesAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getRules(request: PartialMessage<QuizzesGetRulesRequest>): Promise<QuizzesGetRulesResponse> {
+        return this.admin.answer("getQuizRules", request, this.admin.quizRules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<QuizzesSaveRuleSetRequest>): Promise<QuizzesSaveRuleSetResponse> {
+        const answer = this.admin.answer("saveQuizRuleSet", request, new QuizzesSaveRuleSetResponse())
+        if (!this.admin.refusals.has("saveQuizRuleSet") && request.set !== undefined) {
+            this.admin.quizRules = new QuizzesGetRulesResponse({
+                sets: setsWith(this.admin.quizRules.sets, new QuizzesRuleSet(request.set)),
+                playing: this.admin.quizRules.playing,
+            })
+        }
+        return answer
+    }
+
+    // No page reads it: Claude does, through the connector.
     listQuizQuestions(request: PartialMessage<ListQuizQuestionsRequest>): Promise<ListQuizQuestionsResponse> {
         return this.admin.answer("listQuizQuestions", request, new ListQuizQuestionsResponse())
     }
+}
+
+// A module's sets with `saved` in place of the one of its name, default first, then by name.
+function setsWith<S extends {name: string}>(sets: S[], saved: S): S[] {
+    return [...sets.filter(set => set.name !== saved.name), saved]
+        .sort((a, b) => Number(a.name !== "default") - Number(b.name !== "default") || a.name.localeCompare(b.name))
 }
 
 // missions.v1's rules, asked of the same fake: planet.v1 and antibot.v1 have a getRules of their own. A save replaces
@@ -936,7 +968,8 @@ function daysOf(startsAt: Date, endsAt: Date): Day[] {
 }
 
 // promo.v1's calls, asked of the same fake. GetCards lists the sets planet's fake keeps (`rules`), each with the cards
-// `decks` holds, filled the way the page fills a draft: `{bonuses.…}` from the offers' fake (`bonusRules`).
+// `decks` holds, filled the way the page fills a draft: `{bonuses.…}` from the offers' fake (`bonusRules`) and
+// `{quizzes.…}` from the quizzes' (`quizRules`).
 export class FakePromo implements PromoAdmin {
     backgrounds: PromoBackground[] = [
         new PromoBackground({
@@ -993,7 +1026,7 @@ export class FakePromo implements PromoAdmin {
     }
 
     getCards(request: PartialMessage<GetCardsRequest>): Promise<GetCardsResponse> {
-        const played = playedBySet(this.admin.rules, this.admin.bonusRules)
+        const played = playedBySet(this.admin.rules, {bonuses: this.admin.bonusRules, quizzes: this.admin.quizRules})
         const rules = this.placeholders.map(placeholder => placeholder.path)
         const sets = this.admin.rules.sets.map(set => new SetCards({
             ruleSet: set.name,
@@ -1022,10 +1055,11 @@ export class FakePromo implements PromoAdmin {
     }
 }
 
-// A few of planet.v1.Rules' numbers and durations, and of bonuses.v1.Rules' under `bonuses.`, as GetCards lists them.
+// A few of planet.v1.Rules' numbers and durations, of bonuses.v1.Rules' under `bonuses.` and of quizzes.v1.Rules' under
+// `quizzes.`, as GetCards lists them.
 const PLACEHOLDER_PATHS = [
     "clicks.tempo", "clicks.burst", "charges.bomb.rings", "charges.shield.held", "bonuses.boxes.minInterval",
-    "bonuses.boxes.maxInterval", "bonuses.quiz.offerTtl",
+    "bonuses.boxes.maxInterval", "quizzes.offerTtl", "quizzes.answerWindow",
 ]
 
 // The example battle's values, as scoring scores a ×3 battle.

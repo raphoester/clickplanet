@@ -1,6 +1,6 @@
 import {ConnectError, Code} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
-import {AntibotAdmin, BonusesAdmin, PlanetAdmin, GamemasterAdmin} from "../clients.ts"
+import {AntibotAdmin, BonusesAdmin, QuizzesAdmin, PlanetAdmin, GamemasterAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {spanOf, zoneOf} from "../components/time.ts"
@@ -27,16 +27,19 @@ const refusal = (err: unknown) => {
 // Editing: an entry to come, or undefined for a new one.
 type Editing = {entry: Entry | undefined}
 
-export function SchedulePanel({gamemaster, planet, antibot, bonuses}: {
-    gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, bonuses: BonusesAdmin,
+export function SchedulePanel({gamemaster, planet, antibot, bonuses, quizzes}: {
+    gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, bonuses: BonusesAdmin, quizzes: QuizzesAdmin,
 }) {
     const read = useCallback(async (signal: AbortSignal): Promise<Read> => {
-        const [schedule, seasons, planetRules, antibotRules, bonusRules] = await Promise.all([
+        const [schedule, seasons, planetRules, antibotRules, bonusRules, quizRules] = await Promise.all([
             gamemaster.getSchedule({}, {signal}), gamemaster.getSeasons({}, {signal}), planet.getRules({}, {signal}),
-            antibot.getRules({}, {signal}), bonuses.getRules({}, {signal}),
+            antibot.getRules({}, {signal}), bonuses.getRules({}, {signal}), quizzes.getRules({}, {signal}),
         ])
-        return {schedule, cutoff: cutoffOf(seasons.dailyCutoff), planet: planetRules, antibot: antibotRules, bonuses: bonusRules}
-    }, [gamemaster, planet, antibot, bonuses])
+        return {
+            schedule, cutoff: cutoffOf(seasons.dailyCutoff),
+            planet: planetRules, antibot: antibotRules, bonuses: bonusRules, quizzes: quizRules,
+        }
+    }, [gamemaster, planet, antibot, bonuses, quizzes])
     const [state, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
 
@@ -93,7 +96,7 @@ function Playing({read}: {read: Read}) {
             </p>
             <p className="hint">
                 Planet plays <code>{read.planet.playing}</code>, the antibot plays <code>{read.antibot.playing}</code>, the
-                offers play <code>{read.bonuses.playing}</code>.
+                offers play <code>{read.bonuses.playing}</code>, the quizzes play <code>{read.quizzes.playing}</code>.
             </p>
             {read.planet.playing !== set && (
                 <p className="action-refused" role="alert">Planet does not play <code>{set}</code>.</p>
@@ -103,6 +106,9 @@ function Playing({read}: {read: Read}) {
             )}
             {read.bonuses.playing !== set && (
                 <p className="action-refused" role="alert">The offers do not play <code>{set}</code>.</p>
+            )}
+            {read.quizzes.playing !== set && (
+                <p className="action-refused" role="alert">The quizzes do not play <code>{set}</code>.</p>
             )}
         </>
     )

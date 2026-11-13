@@ -4,6 +4,7 @@ import {PromoAdmin} from "../clients.ts"
 import {GetRulesResponse as BonusesRules} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {CardDraft} from "../gen/grpc/promo/v1/admin_pb.ts"
+import {GetRulesResponse as QuizzesRules} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {DEFAULT_SET} from "../ops/rules.ts"
 import {overlay} from "../ops/overlay.ts"
 import {wordsOf} from "../refusal.ts"
@@ -67,16 +68,21 @@ export function saveRefusalOf(err: unknown): string {
     return wordsOf(err)
 }
 
-// The prefix a card names the offers' values by: `{bonuses.boxes.minInterval}` is bonuses.v1.Rules' boxes.minInterval.
-export const OFFERS = "bonuses"
+// The modules a card names the values of under a prefix, by it: `{bonuses.boxes.minInterval}` is bonuses.v1.Rules'
+// boxes.minInterval, `{quizzes.answerWindow}` quizzes.v1.Rules' answerWindow.
+export type Prefixed = {bonuses: BonusesRules, quizzes: QuizzesRules}
 
-// What each set planet keeps plays, as the server fills a card: planet's values, and under `bonuses` the offers' for the
-// set of the same name, each default's with the set's own over them. A set the offers do not keep has no `bonuses`.
-export function playedBySet(planet: PlanetRules, offers: BonusesRules): Map<string, JsonValue> {
-    const theirs = playedOf(offers.sets)
+// What each set planet keeps plays, as the server fills a card: planet's values, and under each prefix that module's
+// for the set of the same name, each default's with the set's own over them. A set a module does not keep has nothing
+// under its prefix.
+export function playedBySet(planet: PlanetRules, prefixed: Prefixed): Map<string, JsonValue> {
+    const theirs = Object.entries(prefixed).map(([prefix, rules]) => ({prefix, sets: playedOf(rules.sets)}))
     return new Map([...playedOf(planet.sets)].map(([name, played]) => {
-        const offered = theirs.get(name)
-        return [name, offered === undefined ? played : {...(played as JsonObject), [OFFERS]: offered}]
+        const kept = theirs.flatMap(({prefix, sets}) => {
+            const value = sets.get(name)
+            return value === undefined ? [] : [[prefix, value]]
+        })
+        return [name, {...(played as JsonObject), ...Object.fromEntries(kept)}]
     }))
 }
 

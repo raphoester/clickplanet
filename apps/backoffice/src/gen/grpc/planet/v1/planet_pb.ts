@@ -1271,7 +1271,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     case: "rulesChanged";
   } | {
     /**
-     * Only on a stream opened with a signed-in account's token, and only that account's.
+     * Only on a stream opened with the token of the account granted, a guest's too.
      *
      * @generated from field: planet.v1.ChargesGranted charges_granted = 12;
      */
@@ -1393,7 +1393,8 @@ export class KnockOut extends Message<KnockOut> {
 }
 
 /**
- * A grant from outside the player's own clicks, such as a mission paid: all it holds now.
+ * A grant from outside the player's own clicks, such as a box caught, a right answer or a mission paid: what it added,
+ * and all the hand holds after.
  *
  * @generated from message planet.v1.ChargesGranted
  */
@@ -1402,6 +1403,13 @@ export class ChargesGranted extends Message<ChargesGranted> {
    * @generated from field: planet.v1.ChargesHeld charges = 1;
    */
   charges?: ChargesHeld;
+
+  /**
+   * Each kind the grant added to the hand, and how many: what a full stack kept, none for a kind it kept none of.
+   *
+   * @generated from field: repeated planet.v1.ChargeGained gained = 2;
+   */
+  gained: ChargeGained[] = [];
 
   constructor(data?: PartialMessage<ChargesGranted>) {
     super();
@@ -1412,6 +1420,7 @@ export class ChargesGranted extends Message<ChargesGranted> {
   static readonly typeName = "planet.v1.ChargesGranted";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "charges", kind: "message", T: ChargesHeld },
+    { no: 2, name: "gained", kind: "message", T: ChargeGained, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesGranted {
@@ -1428,6 +1437,49 @@ export class ChargesGranted extends Message<ChargesGranted> {
 
   static equals(a: ChargesGranted | PlainMessage<ChargesGranted> | undefined, b: ChargesGranted | PlainMessage<ChargesGranted> | undefined): boolean {
     return proto3.util.equals(ChargesGranted, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ChargeGained
+ */
+export class ChargeGained extends Message<ChargeGained> {
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 1;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 amount = 2;
+   */
+  amount = 0;
+
+  constructor(data?: PartialMessage<ChargeGained>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ChargeGained";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 2, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeGained {
+    return new ChargeGained().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChargeGained {
+    return new ChargeGained().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChargeGained {
+    return new ChargeGained().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ChargeGained | PlainMessage<ChargeGained> | undefined, b: ChargeGained | PlainMessage<ChargeGained> | undefined): boolean {
+    return proto3.util.equals(ChargeGained, a, b);
   }
 }
 
