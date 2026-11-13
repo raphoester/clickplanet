@@ -24,7 +24,16 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
 async function loaded(url: string): Promise<void> {
     const image = new Image()
     image.src = url
-    await image.decode()
+    await decoded(image, url)
+}
+
+// decode() rejects with the same words for a refused download as for a broken file.
+async function decoded(image: HTMLImageElement, url: string): Promise<void> {
+    try {
+        await image.decode()
+    } catch (error) {
+        throw new Error(`the background ${url} did not load: ${error instanceof Error ? error.message : String(error)}`)
+    }
 }
 
 async function main() {
@@ -68,7 +77,7 @@ async function main() {
             line.textContent = shown.line
             line.hidden = shown.line === ""
             each.forEach((dot, i) => dot.dataset.shown = String(i === index))
-            await background.decode()
+            await decoded(background, shown.backgroundUrl)
         },
     }
 }

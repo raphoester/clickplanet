@@ -29,8 +29,13 @@ npm run teaser -- --teaser teaser.json --headed        # watch Chrome take the s
   `/__teaser/teaser.json`; Chrome (`CHROME_PATH`), driven over the DevTools protocol with no other dependency, opens the
   page, which preloads every background and waits for the fonts before it says it is ready (`window.teaser`); then
   each card is shown (`window.teaser.show(i)`), decoded, and taken as a JPEG of quality 92. **JPEG, not PNG**: TikTok's
-  photo posts take JPEG and WebP. A background that does not load fails the page (`window.teaserFailed`), and so the
-  render: that battle is not posted, and the next run tries again.
+  photo posts take JPEG and WebP. A background that does not load fails the page (`window.teaserFailed`, with its
+  address), and so the render: that battle is not posted, and the next run tries again. The script prints each request
+  the page sent that failed or was answered 400 or more, with Cloudflare's `cf-mitigated` when it says one.
+- **Chrome's user agent says `Chrome/`, not `HeadlessChrome/`**: Cloudflare's Bot Fight Mode is on for the whole
+  `clickplanet.lol` zone, and on the Free plan no rule skips it. It answered 403 (a managed challenge) to every
+  background a GitHub runner's headless Chrome asked `media.clickplanet.lol` for, so the first Capital Siege teaser
+  failed twice on 2026-11-13. The same render on a Mac passed.
 - **The slideshow** is ffmpeg's: each still for `--seconds`, H.264 in yuv420p with `faststart`, at 1080×1920, with a
   silent AAC track. TikTok adds its own music to the carousel (`autoAddMusic`, the backend's
   [Publishing](../../backend/docs/publishing.md)).

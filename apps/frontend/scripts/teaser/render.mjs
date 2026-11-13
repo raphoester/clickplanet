@@ -124,6 +124,7 @@ async function openPage() {
 
     let lastId = 0
     const pending = new Map()
+    const requested = new Map()
     let loaded = false
     ws.addEventListener("message", (m) => {
         const msg = JSON.parse(m.data)
@@ -133,6 +134,14 @@ async function openPage() {
             msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result)
         } else if (msg.method === "Page.loadEventFired") {
             loaded = true
+        } else if (msg.method === "Network.requestWillBeSent") {
+            requested.set(msg.params.requestId, msg.params.request.url)
+        } else if (msg.method === "Network.responseReceivedExtraInfo" && msg.params.statusCode >= 400) {
+            // Unlike responseReceived, also sent for a response Chrome then blocks, as it blocks Cloudflare's challenge.
+            const mitigated = Object.entries(msg.params.headers).find(([name]) => name.toLowerCase() === "cf-mitigated")
+            console.error(`page: ${requested.get(msg.params.requestId)} answered ${msg.params.statusCode}${mitigated ? ` (cf-mitigated: ${mitigated[1]})` : ""}`)
+        } else if (msg.method === "Network.loadingFailed" && !msg.params.canceled) {
+            console.error(`page: ${requested.get(msg.params.requestId)} failed: ${msg.params.errorText}`)
         } else if (msg.method === "Runtime.exceptionThrown") {
             console.error("page:", msg.params.exceptionDetails.exception?.description ?? msg.params.exceptionDetails.text)
         }
@@ -150,6 +159,10 @@ async function openPage() {
 
     await send("Page.enable")
     await send("Runtime.enable")
+    await send("Network.enable")
+    // Cloudflare's Bot Fight Mode, which no rule skips on the Free plan, challenges "HeadlessChrome" on a GitHub runner.
+    const {userAgent} = await send("Browser.getVersion")
+    await send("Network.setUserAgentOverride", {userAgent: userAgent.replace("HeadlessChrome/", "Chrome/")})
     await send("Emulation.setDeviceMetricsOverride", {width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false})
 
     return {
