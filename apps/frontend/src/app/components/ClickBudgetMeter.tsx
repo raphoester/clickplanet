@@ -1,4 +1,4 @@
-import {ReactNode, useEffect, useRef} from 'react'
+import {ReactNode, useEffect, useRef, useState} from 'react'
 import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {DiscordIcon, HourglassIcon, LockIcon, UsersIcon} from "./icons.tsx"
@@ -22,7 +22,11 @@ import {useRefusedClicks} from "../clicks/refusedClicksStore.ts"
 import {useClickBudget} from "../clicks/clickBudgetStore.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
+import {useNarrowDock} from "../compact.ts"
+import {useEdge} from "./useEdge.ts"
 import "./ClickBudgetMeter.css"
+
+export const DOCK_DRAWN_HEIGHT = "--dock-drawn-height"
 
 export type ClickBudgetMeterProps = {
     children?: ReactNode
@@ -59,6 +63,9 @@ export default function ClickBudgetMeter({
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
+    const narrow = useNarrowDock()
+    const [dock, setDock] = useState<HTMLElement | null>(null)
+    useEdge(dock, DOCK_DRAWN_HEIGHT, "height")
     const open = useScreen((screen) => compact ? screen.sheet === "clicks" : screen.popovers.clicks)
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
     const togglePopover = useScreen((screen) => screen.togglePopover)
@@ -133,7 +140,7 @@ export default function ClickBudgetMeter({
     }, [budget])
 
     if (frozen) {
-        return <div className="click-budget-dock panel">
+        return <div ref={setDock} className="click-budget-dock panel">
             <div ref={root} className="click-budget click-budget-frozen" role="status">
                 <LockIcon/>
                 <FrozenLines nextSeason={frozen.nextSeason}/>
@@ -158,7 +165,7 @@ export default function ClickBudgetMeter({
         </div>
     }
 
-    if (!budget) return children ? <div className="click-budget-dock panel">{children}</div> : null
+    if (!budget) return children ? <div ref={setDock} className="click-budget-dock panel">{children}</div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
@@ -170,7 +177,7 @@ export default function ClickBudgetMeter({
 
     const offer = speedUp && !compact && !slowdown
 
-    return <div className="click-budget-dock panel">
+    return <div ref={setDock} className="click-budget-dock panel">
         <div className="click-budget-shell">
             <div
                 ref={root}
@@ -205,7 +212,7 @@ export default function ClickBudgetMeter({
                                    role="img"
                                    aria-label={t("clicks.refillsSlower", {factor: factor(slowdown)})}>
                     <HourglassIcon/>
-                    <span aria-hidden="true">{t(compact ? "clicks.factor" : "clicks.slower", {factor: factor(slowdown)})}</span>
+                    <span aria-hidden="true">{t(compact || narrow ? "clicks.factor" : "clicks.slower", {factor: factor(slowdown)})}</span>
                 </span>}
                 {slow(budget) && <span ref={wait} className="click-budget-next">{waitText(budget, now())}</span>}
                 {budget.sharedWith && <span className="click-budget-shared"

@@ -72,7 +72,9 @@ German, Polish and Brazilian Portuguese run up to 30% longer than English ("Clas
   season chip).
 - **A line that may get long** wraps only when it does not fit (`text-wrap: balance`): a hero line ("Nouveau
   titre !"), a news line with two long country names, the quiz banner. A label goes above its value when both do
-  not fit beside a button (the phone's "Tu joues pour").
+  not fit beside a button (the phone's "Tu joues pour"), and the dock's "+1 dans 1s" goes under its "1,5× moins
+  vite" chip when the wider bonus names leave no room beside it. The 1280px measure missed it: it ran with a full
+  bank, where the countdown does not show.
 - **A fixed column** (the board's numbers) keeps its width, and its head is a short word: the head's note in
   `notes.json` says so to the translator.
 
