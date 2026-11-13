@@ -116,6 +116,9 @@ message EncloseRules {
   reserved "max_per_box";
   // A click with enclose on needs no charge and spends none.
   optional bool unlimited = 4;
+  // No enclosure: a click with enclose on closes nothing and spends nothing, and no hand has room for one (GetRoom), so
+  // no box, quiz or mission grants one. The enclosures held are kept. Never with unlimited.
+  optional bool off = 5;
 }
 
 message ShieldRules {

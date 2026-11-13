@@ -113,6 +113,7 @@ const RULES: BonusRules = {
     capitalShieldsFixed: false,
     bombsOff: false,
     spreadUnlimited: false,
+    enclosuresOff: false,
 }
 
 export type FakeBackendOptions = {
@@ -356,7 +357,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private pretendToEnclose(tileId: number, countryId: string) {
         const unlimited = this.rules.enclosuresUnlimited
-        if (!unlimited && this.charges.enclosures === 0) return
+        if (this.rules.enclosuresOff || (!unlimited && this.charges.enclosures === 0)) return
 
         const wall = [0, 1, 2, 3, 4, 5].map(step => tileId + step).filter(id => id <= this.tileCount)
         const inside = [6, 7, 8].map(step => tileId + step).filter(id => id <= this.tileCount)
@@ -459,7 +460,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public unlimitEnclosures(on: boolean): void {
-        this.rules = {...this.rules, enclosuresUnlimited: on}
+        this.rules = {...this.rules, enclosuresUnlimited: on, enclosuresOff: this.rules.enclosuresOff && !on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public turnEnclosuresOff(off: boolean): void {
+        this.rules = {...this.rules, enclosuresOff: off, enclosuresUnlimited: this.rules.enclosuresUnlimited && !off}
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 

@@ -25,6 +25,7 @@ func RulesOf(m *planetv1.ChargeRules) Rules {
 			MaxTiles:  int(m.GetEnclose().GetMaxTiles()),
 			Held:      int(m.GetEnclose().GetHeld()),
 			Unlimited: m.GetEnclose().GetUnlimited(),
+			Off:       m.GetEnclose().GetOff(),
 		},
 		Shield: ShieldRules{Held: int(m.GetShield().GetHeld()), PerTile: int(m.GetShield().GetPerTile())},
 	}

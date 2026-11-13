@@ -31,6 +31,7 @@ func (r Rules) Validate() error {
 		rules.Positive("shield.held", r.Shield.Held),
 		rules.Positive("shield.perTile", r.Shield.PerTile),
 		rules.AtMost("shield.perTile", r.Shield.PerTile, "what a tile keeps", mostShieldsOnATile),
+		r.Enclose.validate(),
 	)
 }
 
@@ -46,10 +47,20 @@ type BombRules struct {
 	Off   bool
 }
 
+// EncloseRules: Off, a click with enclose on closes nothing and spends nothing, and no hand has room for one, so none
+// is granted. The enclosures held are kept.
 type EncloseRules struct {
 	MaxTiles  int
 	Held      int
 	Unlimited bool
+	Off       bool
+}
+
+func (r EncloseRules) validate() error {
+	if r.Off && r.Unlimited {
+		return errors.New("enclose.off is on with enclose.unlimited: an enclosure cannot be off and free")
+	}
+	return nil
 }
 
 type ShieldRules struct {

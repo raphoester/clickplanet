@@ -154,6 +154,9 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                             <SwitchField label="Bombs off: no box offers one, and none is dropped" on={draft.bombsOff}
                                          defaults={defaults?.bombsOff} inherits={defaults !== undefined}
                                          onChange={bombsOff => change({bombsOff})}/>
+                            <SwitchField label="Enclose off: no box offers one, and none is used" on={draft.enclosuresOff}
+                                         defaults={defaults?.enclosuresOff} inherits={defaults !== undefined}
+                                         onChange={enclosuresOff => change({enclosuresOff})}/>
                         </>}
                         <div className="fields">
                             {group.fields.map(field => (

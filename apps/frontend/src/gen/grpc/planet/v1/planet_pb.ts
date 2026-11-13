@@ -2266,6 +2266,13 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   spreadUnlimited = false;
 
+  /**
+   * No enclosure closes a shape, and none is offered: the page hides the enclose slot.
+   *
+   * @generated from field: bool enclosures_off = 17;
+   */
+  enclosuresOff = false;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2287,6 +2294,7 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 13, name: "capital_shields_fixed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 14, name: "bombs_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 16, name: "spread_unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 17, name: "enclosures_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {

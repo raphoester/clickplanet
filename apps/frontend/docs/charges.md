@@ -32,8 +32,8 @@ reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` puts it in t
 **The sizes are rules**: `GetChargeRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size, how many can stand on one tile
-(`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) and whether spreads are unlimited
-(`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
+(`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) or off (`enclosuresOff`) and whether spreads
+are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
 new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the offers' rule,
 from `BonusService/GetGrantRules`, read at load and on the offers stream's own `rulesChanged` and comeback, and told
@@ -71,12 +71,22 @@ enclosure held by surprise. Turning another switch on, or aiming the bomb, turns
 (`switchesHeld`). No "Shape is not closed" bubble is said while enclosures are unlimited: nearly every click would say
 it.
 
+### No enclose while enclosures are off
+
+**A rule set with enclosures off** (`enclosuresOff`, the backend's
+[Enclosures off](../../backend/docs/enclose.md#enclosures-off-chargesencloseoff)) **hides the Enclose slot**, held or
+not, as bombs off hides the bomb. `switchesHeld` turns enclose off and never keeps it on, so the page sends no click with
+enclose on, and no "Shape is not closed" bubble is said; `restingSwitch` never picks enclose. When the set starts
+playing, `onRules` puts the switch off at once. The enclosures held are kept, and the slot shows them again when the set
+stops. In the fake, `encloseOff()` plays it and `encloseOff(false)` stops it.
+
 ## The inventory
 
 `bonus/Inventory.tsx` is the section that shows them, the **right half of
 the dock** (the meter takes it as `children`, and shows it even with no budget).
 It draws no border or background of its own: the one panel is `.click-budget-dock`.
-One slot per kind, always shown, each drawn with its box's
+One slot per kind, always shown (but the bomb while bombs are off, and Enclose while enclosures are off), each drawn
+with its box's
 icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement). An empty slot is dimmed, and a
 press on it does nothing but say how to get one. A pool shows its count against

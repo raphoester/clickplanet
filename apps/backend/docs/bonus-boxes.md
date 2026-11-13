@@ -16,8 +16,8 @@ strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
 - **`enclose_clicks`** — 1 to the offers' `enclose.maxPerBox` (3) enclosures added to a
   stack of at most `charges.enclose.held` (3). While the player switches enclose on,
   a click that closes shapes of its flag's tiles also takes the tiles
-  inside each, at most `charges.enclose.maxTiles` (25) a shape, and spends one.
-  See [What an enclose does to a click](enclose.md).
+  inside each, at most `charges.enclose.maxTiles` (25) a shape, and spends one. Never offered while planet's
+  `charges.enclose.off`: no hand has room for one. See [What an enclose does to a click](enclose.md).
 - **`shields`** — the offers' `shield.minPerBox` (5) to `shield.maxPerBox` (20)
   shields added to a stack of at most `charges.shield.held` (30). Each is placed on a tile the player's flag
   holds and takes one foreign click there. See [Shields](shields.md).

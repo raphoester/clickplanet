@@ -79,8 +79,9 @@ nothing was in planet's. Its config is the `bonuses:` block: `database`, `redis`
   - A `ClickTried` Redis refused (counted in `events_unpublished_total`) is a click the offers never hear, as the
     antibot never does: at worst a newcomer's dry click, whose early quiz waits for its next dry click.
 - **Room.** Planet answers, for each account asked, the kinds its hand has no room for: a full stack, a charge held
-  where one is the most, and **a bomb while planet's `charges.bomb.off` is on**. So `bomb.off` is planet's rule alone:
-  the offers never offer a bomb then, since no hand has room for one. An account with room for everything is left out of
+  where one is the most, and **a bomb while planet's `charges.bomb.off` is on**, or an enclosure while its
+  `charges.enclose.off` is on. So `bomb.off` and `enclose.off` are planet's rules alone: the offers never offer a bomb or
+  an enclosure then, since no hand has room for one. An account with room for everything is left out of
   the answer. An error loses the slot, as before ([Room](offers-and-wallet.md#room)).
 - **Pay.** Planet grants once per grant id and answers what the stack kept and the hand after. A box's or an answer's id
   is its token's (`OfferGrantOf`) and planet keeps it 10 minutes in memory (`lasting` unset), since the offer itself

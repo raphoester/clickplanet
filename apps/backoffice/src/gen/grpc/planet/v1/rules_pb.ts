@@ -606,6 +606,14 @@ export class EncloseRules extends Message<EncloseRules> {
    */
   unlimited?: boolean;
 
+  /**
+   * No enclosure: a click with enclose on closes nothing and spends nothing, and no hand has room for one (GetRoom), so
+   * no box, quiz or mission grants one. The enclosures held are kept. Never with unlimited.
+   *
+   * @generated from field: optional bool off = 5;
+   */
+  off?: boolean;
+
   constructor(data?: PartialMessage<EncloseRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -617,6 +625,7 @@ export class EncloseRules extends Message<EncloseRules> {
     { no: 1, name: "max_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 2, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 4, name: "unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EncloseRules {

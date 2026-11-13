@@ -26,6 +26,7 @@ const pick = (label: string, value: "default" | "yes" | "no") =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
 const BOMBS_OFF = "Bombs off: no box offers one, and none is dropped"
+const ENCLOSE_OFF = "Enclose off: no box offers one, and none is used"
 
 // A set that holds only a slower refill, and plays default's for the rest.
 function withSlow(): FakeAdmin {
@@ -209,6 +210,20 @@ describe("the game rules page", () => {
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
         expect(sent(admin)?.rules?.charges?.bomb?.off).toBe(true)
+    })
+
+    it("turns enclose off with a switch of its own, and keeps every other value", async () => {
+        const admin = withCalm()
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        pick(ENCLOSE_OFF, "yes")
+        save()
+
+        await waitFor(() => expect(sent(admin)).toBeDefined())
+        expect(sent(admin)?.rules?.charges?.enclose?.off).toBe(true)
+        expect(sent(admin)?.rules?.charges?.enclose?.maxTiles).toBe(25)
+        expect(sent(admin)?.rules?.charges?.bomb?.off).toBe(false)
     })
 
     it("makes a new set from a copy of default, which holds only what is typed", async () => {
