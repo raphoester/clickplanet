@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AnswerQuizRequest, AnswerQuizResponse, BonusEvent, ClaimBonusRequest, ClaimBonusResponse, GetGrantRulesRequest, GetGrantRulesResponse, ListenForEventsRequest, OpenQuizRequest, OpenQuizResponse } from "./bonuses_pb.js";
+import { BonusEvent, ClaimBonusRequest, ClaimBonusResponse, GetGrantRulesRequest, GetGrantRulesResponse, ListenForEventsRequest } from "./bonuses_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The boxes and quizzes the game offers a caller, and what each grants. What a box or a right answer grants is planet's
+ * The boxes the game offers a caller, and what each grants. What a box, a right answer or a sign-in grants is planet's
  * charges, in planet's words (planet.v1.BonusKind, planet.v1.ChargesHeld): the offers grant, planet holds and spends.
  *
  * @generated from service bonuses.v1.BonusService
@@ -28,32 +28,8 @@ export const BonusService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Opens a quiz offered to the caller: its question, its choices, and the short clock that starts now. NotFound as
-     * ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
-     *
-     * @generated from rpc bonuses.v1.BonusService.OpenQuiz
-     */
-    openQuiz: {
-      name: "OpenQuiz",
-      I: OpenQuizRequest,
-      O: OpenQuizResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Answers a quiz opened: the right choice, and for a right answer in time what planet kept of its charge. NotFound as
-     * ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
-     *
-     * @generated from rpc bonuses.v1.BonusService.AnswerQuiz
-     */
-    answerQuiz: {
-      name: "AnswerQuiz",
-      I: AnswerQuizRequest,
-      O: AnswerQuizResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * The boxes and quizzes offered to the caller, every box caught and every quiz won by anyone, and each set the offers
-     * take. A heartbeat at once and every so often.
+     * The boxes offered to the caller, every box caught by anyone, and each set the offers take. A heartbeat at once and
+     * every so often.
      *
      * @generated from rpc bonuses.v1.BonusService.ListenForEvents
      */

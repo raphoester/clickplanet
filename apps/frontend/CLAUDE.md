@@ -33,7 +33,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   `Backends` object `main.tsx` gives the page.
 - [`src/domain/`](docs/domain.md) — the logic worth testing: no GPU, no DOM, no React.
 - [`src/backends/`](docs/backends.md) — the contracts and the one Connect transport; the click budget; a frozen
-  map; the offers stream beside planet's, for the boxes and quizzes; connection health.
+  map; the offers stream beside planet's, for the boxes, and the quizzes' stream, whose reward comes from planet's grants;
+  connection health.
 - [A server restart reloads the page](../../docs/reload-on-restart.md) — `restartInterceptor` reloads once the
   backend answers under a new boot; which answers it trusts.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at

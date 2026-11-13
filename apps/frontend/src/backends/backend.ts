@@ -134,8 +134,6 @@ export type BonusOffer = {
 
 export type BonusCatch = {
     countryId: string
-
-    quizSubject?: string
 }
 
 export type Enclosure = {
@@ -185,7 +183,20 @@ export interface QuizMaster {
 
     openQuiz(token: string): Promise<QuizQuestion>
 
+    // Right or wrong: what a right answer won comes a moment after, as a reward.
     answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome>
+
+    listenForRewards(onRewarded: (reward: BonusReward) => void): () => void
+}
+
+// Each charge a grant gave the page's account, as planet's stream tells it: a right answer's, a mission's.
+export interface GrantSource {
+    listenForGrants(onGranted: (rewards: BonusReward[]) => void): () => void
+}
+
+// Each session token a call of the page carried: a stream that reads its token only as it opens follows it.
+export interface SessionSource {
+    listenForSessions(onSession: (token: string) => void): () => void
 }
 
 export type GlobePoint = {x: number, y: number, z: number}

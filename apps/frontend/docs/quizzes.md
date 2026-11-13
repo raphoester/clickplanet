@@ -7,9 +7,9 @@ caught box; a wrong one, and running out of time, cost nothing.
 `src/app/quiz/` is the whole of it — `quizStore.ts` holds the state and its
 verbs, `useQuizMaster.ts` links it to the backend, `Quiz.tsx` draws, `Quiz.css`
 styles — plus `domain/quiz.ts` for the shapes and the two pieces of arithmetic a
-countdown needs. The backend half is `QuizMaster` in `backends/backend.ts`, which `PlanetBackend` implements against
-`bonuses.v1.BonusService`: the banner comes on the offers stream (`quiz_offered`), and `OpenQuiz` and `AnswerQuiz` are
-its calls (see [The offers stream](backends.md#the-offers-stream)).
+countdown needs. The backend half is `QuizMaster` in `backends/backend.ts`, which `QuizzesBackend` implements against
+`quizzes.v1.QuizService`: the banner comes on the quizzes' stream (`quiz_offered`), and `OpenQuiz` and `AnswerQuiz` are
+its calls (see [The quizzes stream](backends.md#the-quizzes-stream)).
 
 **The state is a [store](stores.md), `useQuiz`.** `Quiz` reads the state and
 calls `open` and `answer` itself. `PlayScreen` calls
@@ -62,9 +62,16 @@ pressing is the charge behind it.
 
 **The charge is teased as a slot reel** (`PrizeReel`): the five bonus boxes roll
 past under a gold "?", on the banner and again beside the clock. The server picks
-the kind when it offers the quiz and does not send it, so the reel shows every
-kind and stops on none. A right answer is the first time the client knows, and
-the box then spins in as the bonus won.
+the kind only once a right answer is told, so the reel shows every kind and stops
+on none. **The reward comes a moment after the answer, from planet's stream**: the
+answer says right or wrong, the result keeps the reel rolling (`awaiting`), and the
+first grant planet tells after it (`listenForRewards`, `charges_granted` with what it
+`gained`) is the bonus won, which spins in. A grant that comes before the answer is
+back is kept for it. With none in `REWARD_WAIT_MS` (2.5 s) the hand had room for
+nothing, and the result says the inventory is full. **A mission paid at the same
+moment can be taken for the reward**, a rare and harmless mix-up: both are charges
+the player holds. The result is its quiz's token, so a reward that comes, or the
+wait that ends, leaves it to go away at `RESULT_MS` as before.
 
 It draws no countdown of its own either, because it is free to ignore, and it
 goes away by itself.

@@ -52,57 +52,6 @@ export class BonusClaimed extends Message<BonusClaimed> {
 }
 
 /**
- * A quiz answered, right or wrong, by a caller with an account; a right one once planet kept its charge.
- *
- * @generated from message bonuses.v1.QuizAnswered
- */
-export class QuizAnswered extends Message<QuizAnswered> {
-  /**
-   * @generated from field: string account_id = 1;
-   */
-  accountId = "";
-
-  /**
-   * @generated from field: bool correct = 2;
-   */
-  correct = false;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp answered_at = 3;
-   */
-  answeredAt?: Timestamp;
-
-  constructor(data?: PartialMessage<QuizAnswered>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.QuizAnswered";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "correct", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "answered_at", kind: "message", T: Timestamp },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizAnswered {
-    return new QuizAnswered().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizAnswered {
-    return new QuizAnswered().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizAnswered {
-    return new QuizAnswered().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: QuizAnswered | PlainMessage<QuizAnswered> | undefined, b: QuizAnswered | PlainMessage<QuizAnswered> | undefined): boolean {
-    return proto3.util.equals(QuizAnswered, a, b);
-  }
-}
-
-/**
  * A box claimed by the scope it was offered to.
  *
  * @generated from message bonuses.v1.BoxCaught

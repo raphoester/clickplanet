@@ -21,6 +21,7 @@ import {
     FrozenRefusal,
     BombDropped,
     BonusKind,
+    ChargeGained,
     ChargesGranted,
     ChargesHeld,
     ClickBudget as ClickBudgetMessage,
@@ -53,7 +54,6 @@ import {
 } from "../gen/grpc/planet/v1/planet_pb.ts"
 import {AllegianceLockedError, BankFullError, BannedError, BombRefusedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
 import {
-    AnswerQuizResponse,
     BonusEvent,
     BonusOffered,
     BonusTaken,
@@ -61,13 +61,11 @@ import {
     FrozenRefusal as OffersFrozenRefusal,
     GetGrantRulesResponse,
     Heartbeat as OffersHeartbeat,
-    OpenQuizResponse,
-    QuizOffered,
     RulesChanged as GrantRulesChanged,
 } from "../gen/grpc/bonuses/v1/bonuses_pb.ts"
 import {NoSession, SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
-import type {BonusRules, Charges} from "../domain/bonus.ts"
+import type {BonusReward, BonusRules, Charges} from "../domain/bonus.ts"
 import type {Allegiance} from "../domain/allegiance.ts"
 import {tileRanges} from "../domain/mapTiles.ts"
 import type {Counts, MapVersion} from "./backend.ts"
@@ -1593,10 +1591,9 @@ describe("PlanetBackend offers", () => {
         const seen: string[] = []
         backend.listenForBonuses({
             onOffered: (offer) => seen.push(`offered ${offer.token} ${offer.reward.kind}`),
-            onTaken: (taken) => seen.push(`taken ${taken.countryId} ${taken.quizSubject ?? "box"}`),
+            onTaken: (taken) => seen.push(`taken ${taken.countryId}`),
             onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
-        backend.listenForQuizzes((offer) => seen.push(`quiz ${offer.token}`))
         return seen
     }
 
@@ -1622,6 +1619,17 @@ describe("PlanetBackend offers", () => {
         backend.close()
     })
 
+    it("tells the session listeners each token a call carried, so the quizzes' stream follows it too", async () => {
+        const backend = new PlanetBackend(clientWith(), 1_000, fixedSession("session-1"), offersWith())
+        const carried: string[] = []
+        backend.listenForSessions((token) => carried.push(token))
+
+        await backend.clickTile(3, "fr")
+
+        expect(carried).toContain("session-1")
+        backend.close()
+    })
+
     it("follows the identity the cookie resumes, as the planet's stream does", async () => {
         const listenForEvents = quietOffers()
         let resumed: string | undefined
@@ -1640,13 +1648,11 @@ describe("PlanetBackend offers", () => {
         backend.close()
     })
 
-    it("hands a box offered and a catch to the bonus listeners, and a quiz to the quiz listeners", async () => {
+    it("hands a box offered and a catch to the bonus listeners", async () => {
         const listenForEvents = vi.fn(async function* () {
             yield new BonusEvent({event: {case: "heartbeat", value: new OffersHeartbeat()}})
             yield new BonusEvent({event: {case: "bonusOffered", value: new BonusOffered({token: "box-1", kind: BonusKind.SHIELDS, expiresAtUnixMs: BigInt(Date.now() + 15_000)})}})
-            yield new BonusEvent({event: {case: "quizOffered", value: new QuizOffered({token: "quiz-1", expiresAtUnixMs: BigInt(Date.now() + 25_000)})}})
             yield new BonusEvent({event: {case: "bonusTaken", value: new BonusTaken({countryId: "jp"})}})
-            yield new BonusEvent({event: {case: "bonusTaken", value: new BonusTaken({countryId: "fr", quizSubjectCountryId: "ee"})}})
             yield new BonusEvent()
             await new Promise(() => {})
         })
@@ -1654,7 +1660,7 @@ describe("PlanetBackend offers", () => {
 
         const seen = follow(backend)
 
-        await vi.waitFor(() => expect(seen).toEqual(["offered box-1 shields", "quiz quiz-1", "taken jp box", "taken fr ee"]))
+        await vi.waitFor(() => expect(seen).toEqual(["offered box-1 shields", "taken jp"]))
         backend.close()
     })
 
@@ -1798,46 +1804,10 @@ describe("PlanetBackend offers", () => {
         backend.close()
     })
 
-    it("opens a quiz from the offers with a session token, its clock read from how long is left", async () => {
-        const openQuiz = vi.fn().mockResolvedValue(new OpenQuizResponse({
-            question: "What is the capital of Estonia?", choices: ["Riga", "Tallinn", "Vilnius"],
-            deadlineUnixMs: BigInt(Date.now() + 5_000), answerSeconds: 5,
-        }))
-        const backend = new PlanetBackend(clientWith(), 1_000, fixedSession("session-1"), offersWith({openQuiz}))
-
-        const question = await backend.openQuiz("quiz-1")
-
-        expect(question).toMatchObject({text: "What is the capital of Estonia?", choices: ["Riga", "Tallinn", "Vilnius"], window: 5_000})
-        expect(openQuiz).toHaveBeenCalledWith({token: "quiz-1"}, expect.anything())
-        expect((openQuiz.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
-        backend.close()
-    })
-
-    it("answers a quiz to the offers, and holds what a right answer won", async () => {
-        const answerQuiz = vi.fn().mockResolvedValue(new AnswerQuizResponse({
-            correct: true, correctChoice: 1, kind: BonusKind.SPREAD_CLICKS, amount: 3, charges: new ChargesHeld({spreadClicksLeft: 3}),
-        }))
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 4})})
-        const backend = new PlanetBackend(clientWith({getCharges}), 1_000, fixedSession("session-1"), offersWith({answerQuiz}))
-        await ruled(backend)
-        const charges = heldBy(backend)
-        await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(4))
-
-        await expect(backend.answerQuiz("quiz-1", 1, "fr")).resolves.toEqual({
-            correct: true, correctChoice: 1, reward: {kind: "spreadClicks", clicks: 3},
-        })
-        expect(answerQuiz).toHaveBeenCalledWith({token: "quiz-1", choice: 1, countryId: "fr"}, expect.anything())
-        expect((answerQuiz.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
-        expect(charges.at(-1)?.spreadClicksLeft).toBe(3)
-        backend.close()
-    })
-
     it("offers nothing and claims nothing with no offers client", async () => {
         const backend = new PlanetBackend(clientWith(), 1_000, fixedSession("session-1"))
 
         await expect(backend.claimBonus("box-1", "fr")).rejects.toBeInstanceOf(BonusLostError)
-        await expect(backend.openQuiz("quiz-1")).rejects.toBeInstanceOf(BonusLostError)
-        await expect(backend.answerQuiz("quiz-1", 0, "fr")).rejects.toBeInstanceOf(BonusLostError)
         backend.close()
     })
 })
@@ -2066,6 +2036,27 @@ describe("the charges held", () => {
 
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25}))
         expect(getCharges).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("tells the grant listeners what a grant added, each kind as a reward", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({
+                charges: new ChargesHeld({bomb: true, shields: 25}),
+                gained: [
+                    new ChargeGained({kind: BonusKind.SHIELDS, amount: 20}),
+                    new ChargeGained({kind: BonusKind.UNSPECIFIED, amount: 1}),
+                ],
+            })}})
+            yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({charges: new ChargesHeld({shields: 25})})}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000)
+        const granted: BonusReward[][] = []
+        backend.listenForGrants((rewards) => granted.push(rewards))
+
+        await vi.waitFor(() => expect(granted).toEqual([[{kind: "shields", shields: 20}]]))
         backend.close()
     })
 

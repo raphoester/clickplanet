@@ -8,16 +8,17 @@ a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
 30 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 5
 to 20 shields, capped at the size; the reward it announces
 is what was kept (`+2 spread clicks`), which is what the server answers in
-`ClaimBonusResponse.amount`. The boxes and the quizzes are the offers' (`bonuses.v1.BonusService`, on a stream of its
-own: see [The offers stream](backends.md#the-offers-stream)); the charges they grant are planet's.
+`ClaimBonusResponse.amount`. The boxes are the offers' (`bonuses.v1.BonusService`, on a stream of its own: see
+[The offers stream](backends.md#the-offers-stream)), the quizzes the quizzes' ([The quizzes
+stream](backends.md#the-quizzes-stream)); the charges they grant are planet's.
 
 **`PlanetBackend` holds `Charges` (`domain/bonus.ts`), and only a grant pushes them.**
 It reads `GetCharges` at load, with the token in hand and never a fresh one, again
 when a click goes out under a new token (`followSession`), and when its stream comes
 back after a gap: the charges are the account's. A grant from outside the player's
-own clicks (a mission paid, an operator's) comes on the planet stream of a signed-in
-account as `charges_granted`, all it holds now (`grantedOf`), and replaces them with
-no read. `ClaimBonusResponse.charges` (and `AnswerQuizResponse.charges`) replaces them on a claim, and
+own clicks (a box caught, a right answer, a mission paid, an operator's) comes on the planet stream of the account,
+a guest's too, as `charges_granted`: all it holds now (`grantedOf`), which replaces them with no read, and what it
+added (`gainedOf`), which the grant listeners hear (a right answer's reward). `ClaimBonusResponse.charges` replaces them on a claim, and
 `UseRefillResponse.charges` on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
