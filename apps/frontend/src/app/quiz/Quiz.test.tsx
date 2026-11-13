@@ -5,7 +5,7 @@ import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 import {BonusLostError, QuizMaster} from "../../backends/backend.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../../domain/quiz.ts"
-import Quiz from "./Quiz.tsx"
+import Quiz, {QUIZ_BOTTOM} from "./Quiz.tsx"
 import {RESULT_MS, useQuiz} from "./quizStore.ts"
 import {useQuizMaster} from "./useQuizMaster.ts"
 
@@ -418,17 +418,28 @@ describe("Quiz", () => {
         expect(master.listening()).toBe(false)
     })
 
-    it("makes room at the top by saying it is there", async () => {
+    it("makes room at the top: its bottom edge is published while it shows, and cleared when it goes", async () => {
+        const box = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect")
+            .mockReturnValue({bottom: 300, width: 440, height: 290} as DOMRect)
+        const edge = () => document.documentElement.style.getPropertyValue(QUIZ_BOTTOM)
         render(<Harness master={master}/>)
-        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(edge()).toBe("")
 
         act(() => master.offer())
-        expect(screen.getByRole("button")).toBeTruthy()
+        expect(edge()).toBe("300px")
 
         fireEvent.click(screen.getByRole("button"))
         await settle()
-
         expect(screen.getByRole("dialog")).toBeTruthy()
+        expect(edge()).toBe("300px")
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+        expect(edge()).toBe("300px")
+
+        fireEvent.click(screen.getByRole("button", {name: "Close"}))
+        expect(edge()).toBe("")
+        box.mockRestore()
     })
 
     it("is heard when the banner arrives, and again when the answer lands", async () => {

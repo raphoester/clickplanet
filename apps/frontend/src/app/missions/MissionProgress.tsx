@@ -6,16 +6,14 @@ import {t} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
 import BonusIcon from "../components/BonusIcon.tsx"
 import CountryFlag from "../components/CountryFlag.tsx"
-import {quizShown, useQuiz} from "../quiz/quizStore.ts"
 import {countryInOf, countryOf, orderText} from "./orderParts.tsx"
 import "../news/BombNews.css"
 import "./Missions.css"
 
 export default function MissionProgress({moved}: {moved: Moved}) {
-    const lowered = useQuiz(quizShown)
     const reached = reachedOf(moved.order)
 
-    return <div className={`bomb-news mission-progress${lowered ? " bomb-news--lowered" : ""}`} role="status">
+    return <div className="bomb-news mission-progress" role="status">
         <div className="bomb-news-line mission-progress-line panel">
             {moved.flag && <span className="mission-progress-kicker">{t("mission.flagMission")}</span>}
             <span className="mission-progress-order">{lineOf(moved.order)}</span>

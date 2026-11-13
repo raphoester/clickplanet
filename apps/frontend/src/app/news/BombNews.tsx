@@ -4,7 +4,6 @@ import CountryFlag from '../components/CountryFlag.tsx'
 import {Blast, blastOf} from '../../domain/blast.ts'
 import {translator} from '../../i18n/page.ts'
 import {rich} from '../../i18n/rich.tsx'
-import {quizShown, useQuiz} from '../quiz/quizStore.ts'
 import './BombNews.css'
 
 const BOMB_NEWS_MS = 4000
@@ -17,8 +16,6 @@ export type BombNewsProps = {
 }
 
 export default function BombNews({drop, land, onDone}: BombNewsProps) {
-    const lowered = useQuiz(quizShown)
-
     const done = useRef(onDone)
     useEffect(() => {
         done.current = onDone
@@ -29,7 +26,7 @@ export default function BombNews({drop, land, onDone}: BombNewsProps) {
         return () => clearTimeout(timer)
     }, [drop])
 
-    return <div className={`bomb-news${lowered ? " bomb-news--lowered" : ""}`} role="status" aria-live="polite">
+    return <div className="bomb-news" role="status" aria-live="polite">
         <div className="bomb-news-line panel">
             <span aria-hidden="true">{drop.tile === undefined ? "🌊" : "💥"}</span>
             <CountryFlag code={drop.countryId}/>

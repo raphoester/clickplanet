@@ -8,8 +8,13 @@ import {Key} from '../../i18n/translator.ts'
 import {describeReward} from '../bonus/describeReward.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import {CloseIcon, PlayIcon} from '../components/icons.tsx'
+import {useEdge} from '../components/useEdge.ts'
 import {useQuiz} from './quizStore.ts'
 import './Quiz.css'
+
+export const QUIZ_BOTTOM = "--quiz-bottom"
+
+type Frame = (element: HTMLDivElement | null) => void
 
 const PRIZES: BonusReward["kind"][] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields"]
 
@@ -34,16 +39,20 @@ export default function Quiz() {
     const forfeit = useQuiz((quiz) => quiz.forfeit)
     const dismiss = useQuiz((quiz) => quiz.dismiss)
 
+    const [frame, setFrame] = useState<HTMLDivElement | null>(null)
+    useEdge(frame, QUIZ_BOTTOM, "bottom")
+
     switch (state.phase) {
         case 'idle':
             return null
         case 'offered':
         case 'opening':
-            return <Banner working={state.phase === 'opening'} onOpen={open}/>
+            return <Banner frame={setFrame} working={state.phase === 'opening'} onOpen={open}/>
         case 'asking':
         case 'answering':
             return <Question
                 key={state.token}
+                frame={setFrame}
                 question={state.question}
                 sent={state.phase === 'answering'}
                 onAnswer={answer}
@@ -51,6 +60,7 @@ export default function Quiz() {
             />
         case 'answered':
             return <Result
+                frame={setFrame}
                 question={state.question}
                 outcome={state.outcome}
                 chosen={state.chosen}
@@ -60,8 +70,8 @@ export default function Quiz() {
     }
 }
 
-function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
-    return <div className="quiz quiz--banner">
+function Banner({frame, working, onOpen}: {frame: Frame, working: boolean, onOpen: () => void}) {
+    return <div ref={frame} className="quiz quiz--banner">
         <button
             type="button"
             className="quiz-banner panel"
@@ -83,7 +93,8 @@ function Banner({working, onOpen}: {working: boolean, onOpen: () => void}) {
     </div>
 }
 
-function Question({question, sent, onAnswer, onLeave}: {
+function Question({frame, question, sent, onAnswer, onLeave}: {
+    frame: Frame,
     question: QuizQuestion,
     sent: boolean,
     onAnswer: (choice: number) => void,
@@ -121,7 +132,7 @@ function Question({question, sent, onAnswer, onLeave}: {
     if (picked !== undefined) card.push("quiz-card--picked")
     else if (seconds <= HURRY_S) card.push("quiz-card--hurry")
 
-    return <div className="quiz quiz--asking" role="dialog" aria-label={t("quiz.label")}>
+    return <div ref={frame} className="quiz quiz--asking" role="dialog" aria-label={t("quiz.label")}>
         <div className={card.join(" ")}>
             <div className="quiz-head">
                 <PrizeReel/>
@@ -151,7 +162,8 @@ function Question({question, sent, onAnswer, onLeave}: {
     </div>
 }
 
-function Result({question, outcome, chosen, left, onClose}: {
+function Result({frame, question, outcome, chosen, left, onClose}: {
+    frame: Frame,
     question: QuizQuestion,
     outcome: QuizOutcome,
     chosen?: number,
@@ -161,7 +173,7 @@ function Result({question, outcome, chosen, left, onClose}: {
     const won = outcome.reward
     const reward = won && describeReward(won)
 
-    return <div className={`quiz quiz--result quiz--${outcome.correct ? "right" : "wrong"}`} role="status" aria-live="polite">
+    return <div ref={frame} className={`quiz quiz--result quiz--${outcome.correct ? "right" : "wrong"}`} role="status" aria-live="polite">
         <div className="quiz-card panel">
             <div className="quiz-head quiz-head--verdict">
                 {won && <PrizeWon kind={won.kind}/>}

@@ -116,11 +116,15 @@ has read the answer wants to play again. `dismiss` acts only on `answered`, and
 the timer that was to clear the result finds another state and does nothing.
 
 **The quiz and the lines of news all want the band at the top**, and the news
-gives it up: `BombNews`, `FortifyNews`, `UnderAttack`,
-`BattleOver` and `ConnectionLost` each read `quizShown` from the store and move
-down under the quiz while it shows (`--lowered`). Four seconds of news nobody
-presses moves, a question somebody is answering does not. The sign-in nudge reads
-it too, so it never opens over a quiz.
+gives it up. The quiz publishes its bottom edge (`QUIZ_BOTTOM`, `--quiz-bottom`,
+through `useEdge`) while it shows, and every line of news (`.bomb-news`, so
+`BombNews`, `FortifyNews`, `WelcomeNews`, `UnderAttack` and the mission progress,
+and `BattleOver` and `ConnectionLost`) sits 8px under the lower of it and the
+status. Four seconds of news nobody presses moves, a question somebody is
+answering does not. The edge is measured, not a fixed drop: a question on two
+lines with three answers is about 290px tall, and the 212px the news once dropped
+put it over the answers (2026-11-13). The sign-in nudge reads `quizShown`, so it
+never opens over a quiz.
 
 **Three sounds, one switch.** `quiz` when the banner arrives (the same reason
 `bonusSpawn` exists: it is at the top of the screen and the player is looking at

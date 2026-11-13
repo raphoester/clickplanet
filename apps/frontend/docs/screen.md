@@ -72,7 +72,9 @@ that does not.
 - **What is centred at the top centres on the globe and the dock, clear of the desktop menu.** The menu
   publishes its right edge, open or folded (`MENU_RIGHT`, `--menu-right`, through `useEdge`), and `index.css`
   turns it into `--top-centre` and `--top-room`, which place the season and battle chips, the quiz, the mission
-  progress line, the bomb news, "connection lost" and the battle's end. The centre is the screen's, unless that
+  progress line, the bomb news, "under attack", "connection lost" and the battle's end; the news lines go under the
+  quiz's bottom edge (see [Quizzes](quizzes.md)). "Under attack" once spanned the screen and covered the open board
+  (2026-11-13). The centre is the screen's, unless that
   leaves less than 240px (half the 440px quiz and its margins) right of the menu: then it is 240px right of the
   menu, and never past the middle of the room right of it. With no menu, on a phone, it is the screen's centre.
   The menu is `clamp(340px, 40vw, 480px)` wide so the board shows the countries' names (see
