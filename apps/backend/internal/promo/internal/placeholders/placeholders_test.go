@@ -11,6 +11,7 @@ import (
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders"
 )
 
@@ -25,10 +26,10 @@ var played = placeholders.Played{
 			MinInterval: durationpb.New(time.Minute), MaxInterval: durationpb.New(90 * time.Second),
 			MaxChargesPerHour: proto.Uint32(30),
 		},
-		Quiz:     &bonusesv1.QuizRules{OfferTtl: durationpb.New(1500 * time.Millisecond), Enabled: proto.Bool(true)},
 		Welcome:  &bonusesv1.WelcomeRules{Within: durationpb.New(2 * time.Hour)},
 		OfferTtl: durationpb.New(0),
 	},
+	Quizzes: &quizzesv1.Rules{OfferTtl: durationpb.New(1500 * time.Millisecond), Enabled: proto.Bool(true)},
 }
 
 var triple = placeholders.Battle{Times: 3, Points: map[uint32]uint32{1: 75, 2: 54, 3: 45, 4: 36}}
@@ -38,17 +39,21 @@ func TestRulePathsAreTheNumbersAndDurationsOfTheRules(t *testing.T) {
 
 	for _, path := range []string{
 		"clicks.tempo", "clicks.burst", "bonuses.boxes.minInterval", "charges.bomb.rings",
-		"charges.shield.perTile", "bonuses.quiz.leaderBias", "bonuses.offerTtl", "bonuses.shield.maxPerBox",
+		"charges.shield.perTile", "quizzes.leaderBias", "bonuses.offerTtl", "bonuses.shield.maxPerBox",
+		"quizzes.answerWindow", "quizzes.welcome.within",
 	} {
 		assert.Contains(t, paths, path)
 	}
 	for _, path := range []string{
-		"frozen", "allegianceLocked", "bonuses.quiz.enabled", "bonuses.frozen", "toll.steps", "clicks", "bonuses.boxes",
+		"frozen", "allegianceLocked", "quizzes.enabled", "bonuses.frozen", "toll.steps", "clicks", "bonuses.boxes",
 	} {
 		assert.NotContains(t, paths, path, "a boolean, a list or a message reads as no word")
 	}
 	for _, path := range []string{"bonuses.bomb.rings", "bonuses.shield.perTile", "bonuses.spread.clicks"} {
 		assert.NotContains(t, paths, path, "the wallet's values are charges.* since they left bonuses")
+	}
+	for _, path := range []string{"bonuses.quiz.leaderBias", "bonuses.quiz.answerWindow"} {
+		assert.NotContains(t, paths, path, "the quizzes' values are quizzes.* since they left bonuses")
 	}
 }
 
@@ -66,7 +71,7 @@ func TestFillWritesTheValuesTheSetPlays(t *testing.T) {
 		"A click every {clicks.perSecond} s":                                     "A click every 0.2 s",
 		"A bank of {clicks.burst}":                                               "A bank of 60",
 		"A box every {bonuses.boxes.minInterval} to {bonuses.boxes.maxInterval}": "A box every 1 min to 90 s",
-		"Answer within {bonuses.quiz.offerTtl}":                                  "Answer within 1500 ms",
+		"Open it within {quizzes.offerTtl}":                                      "Open it within 1500 ms",
 		"Newcomers for {bonuses.welcome.within}":                                 "Newcomers for 2 h",
 		"Gone in {bonuses.offerTtl}":                                             "Gone in 0 s",
 		"{charges.shield.held} shields at most":                                  "75 shields at most",
@@ -114,11 +119,16 @@ func TestTheOffersValuesAreNamedWhereTheyWereInPlanetsRules(t *testing.T) {
 	assert.Equal(t, "A bonus box drops every 30 s to 1 min.", filled)
 }
 
-func TestASetTheOffersDoNotKeepPlaysNoneOfTheirValues(t *testing.T) {
+func TestASetTheOffersOrTheQuizzesDoNotKeepPlaysNoneOfTheirValues(t *testing.T) {
 	_, err := placeholders.Fill("A box every {bonuses.boxes.minInterval}", placeholders.Played{Planet: played.Planet}, triple)
 
 	require.ErrorIs(t, err, placeholders.ErrNoValue)
 	assert.Contains(t, err.Error(), "{bonuses.boxes.minInterval}")
+
+	_, err = placeholders.Fill("A quiz every {quizzes.minInterval}", placeholders.Played{Planet: played.Planet}, triple)
+
+	require.ErrorIs(t, err, placeholders.ErrNoValue)
+	assert.Contains(t, err.Error(), "{quizzes.minInterval}")
 
 	filled, err := placeholders.Fill("{clicks.tempo}× faster", placeholders.Played{Planet: played.Planet}, triple)
 	require.NoError(t, err)
@@ -138,6 +148,7 @@ func TestCheckRefusesWhatNamesNoValue(t *testing.T) {
 		"{toll.steps}",
 		"{bonuses.boxes}",
 		"{bonuses.bomb.rings}",
+		"{bonuses.quiz.answerWindow}",
 		"{}",
 		"an { alone",
 		"a } alone",

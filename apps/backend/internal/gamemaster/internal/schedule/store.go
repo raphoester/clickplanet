@@ -16,7 +16,7 @@ type Store interface {
 	Delete(ctx context.Context, id EntryID) error
 }
 
-// Keeper is a module that plays the schedule's sets: planet, the antibot, the bonuses module.
+// Keeper is a module that plays the schedule's sets: planet, the antibot, the bonuses module, the quizzes module.
 type Keeper interface {
 	// Keeps is nil when the module keeps a set of this name, and an ErrUnknownSet that names the module when not.
 	Keeps(ctx context.Context, set SetName) error

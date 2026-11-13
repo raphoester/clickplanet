@@ -35,10 +35,6 @@ const (
 const (
 	// BonusServiceClaimBonusProcedure is the fully-qualified name of the BonusService's ClaimBonus RPC.
 	BonusServiceClaimBonusProcedure = "/bonuses.v1.BonusService/ClaimBonus"
-	// BonusServiceOpenQuizProcedure is the fully-qualified name of the BonusService's OpenQuiz RPC.
-	BonusServiceOpenQuizProcedure = "/bonuses.v1.BonusService/OpenQuiz"
-	// BonusServiceAnswerQuizProcedure is the fully-qualified name of the BonusService's AnswerQuiz RPC.
-	BonusServiceAnswerQuizProcedure = "/bonuses.v1.BonusService/AnswerQuiz"
 	// BonusServiceListenForEventsProcedure is the fully-qualified name of the BonusService's
 	// ListenForEvents RPC.
 	BonusServiceListenForEventsProcedure = "/bonuses.v1.BonusService/ListenForEvents"
@@ -52,14 +48,8 @@ type BonusServiceClient interface {
 	// A box offered to the caller, caught: planet keeps what fits the hand. NotFound for a box not offered to the caller,
 	// gone or caught already. FailedPrecondition with a FrozenRefusal while the offers or the map take no play.
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
-	// Opens a quiz offered to the caller: its question, its choices, and the short clock that starts now. NotFound as
-	// ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
-	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
-	// Answers a quiz opened: the right choice, and for a right answer in time what planet kept of its charge. NotFound as
-	// ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
-	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
-	// The boxes and quizzes offered to the caller, every box caught and every quiz won by anyone, and each set the offers
-	// take. A heartbeat at once and every so often.
+	// The boxes offered to the caller, every box caught by anyone, and each set the offers take. A heartbeat at once and
+	// every so often.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.BonusEvent], error)
 	// What the page shows of the rules the offers play.
 	GetGrantRules(context.Context, *connect.Request[v1.GetGrantRulesRequest]) (*connect.Response[v1.GetGrantRulesResponse], error)
@@ -82,18 +72,6 @@ func NewBonusServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(bonusServiceMethods.ByName("ClaimBonus")),
 			connect.WithClientOptions(opts...),
 		),
-		openQuiz: connect.NewClient[v1.OpenQuizRequest, v1.OpenQuizResponse](
-			httpClient,
-			baseURL+BonusServiceOpenQuizProcedure,
-			connect.WithSchema(bonusServiceMethods.ByName("OpenQuiz")),
-			connect.WithClientOptions(opts...),
-		),
-		answerQuiz: connect.NewClient[v1.AnswerQuizRequest, v1.AnswerQuizResponse](
-			httpClient,
-			baseURL+BonusServiceAnswerQuizProcedure,
-			connect.WithSchema(bonusServiceMethods.ByName("AnswerQuiz")),
-			connect.WithClientOptions(opts...),
-		),
 		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.BonusEvent](
 			httpClient,
 			baseURL+BonusServiceListenForEventsProcedure,
@@ -113,8 +91,6 @@ func NewBonusServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 // bonusServiceClient implements BonusServiceClient.
 type bonusServiceClient struct {
 	claimBonus      *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
-	openQuiz        *connect.Client[v1.OpenQuizRequest, v1.OpenQuizResponse]
-	answerQuiz      *connect.Client[v1.AnswerQuizRequest, v1.AnswerQuizResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.BonusEvent]
 	getGrantRules   *connect.Client[v1.GetGrantRulesRequest, v1.GetGrantRulesResponse]
 }
@@ -122,16 +98,6 @@ type bonusServiceClient struct {
 // ClaimBonus calls bonuses.v1.BonusService.ClaimBonus.
 func (c *bonusServiceClient) ClaimBonus(ctx context.Context, req *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error) {
 	return c.claimBonus.CallUnary(ctx, req)
-}
-
-// OpenQuiz calls bonuses.v1.BonusService.OpenQuiz.
-func (c *bonusServiceClient) OpenQuiz(ctx context.Context, req *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error) {
-	return c.openQuiz.CallUnary(ctx, req)
-}
-
-// AnswerQuiz calls bonuses.v1.BonusService.AnswerQuiz.
-func (c *bonusServiceClient) AnswerQuiz(ctx context.Context, req *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error) {
-	return c.answerQuiz.CallUnary(ctx, req)
 }
 
 // ListenForEvents calls bonuses.v1.BonusService.ListenForEvents.
@@ -149,14 +115,8 @@ type BonusServiceHandler interface {
 	// A box offered to the caller, caught: planet keeps what fits the hand. NotFound for a box not offered to the caller,
 	// gone or caught already. FailedPrecondition with a FrozenRefusal while the offers or the map take no play.
 	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
-	// Opens a quiz offered to the caller: its question, its choices, and the short clock that starts now. NotFound as
-	// ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
-	OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error)
-	// Answers a quiz opened: the right choice, and for a right answer in time what planet kept of its charge. NotFound as
-	// ClaimBonus, FailedPrecondition with a FrozenRefusal as ClaimBonus.
-	AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error)
-	// The boxes and quizzes offered to the caller, every box caught and every quiz won by anyone, and each set the offers
-	// take. A heartbeat at once and every so often.
+	// The boxes offered to the caller, every box caught by anyone, and each set the offers take. A heartbeat at once and
+	// every so often.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.BonusEvent]) error
 	// What the page shows of the rules the offers play.
 	GetGrantRules(context.Context, *connect.Request[v1.GetGrantRulesRequest]) (*connect.Response[v1.GetGrantRulesResponse], error)
@@ -173,18 +133,6 @@ func NewBonusServiceHandler(svc BonusServiceHandler, opts ...connect.HandlerOpti
 		BonusServiceClaimBonusProcedure,
 		svc.ClaimBonus,
 		connect.WithSchema(bonusServiceMethods.ByName("ClaimBonus")),
-		connect.WithHandlerOptions(opts...),
-	)
-	bonusServiceOpenQuizHandler := connect.NewUnaryHandler(
-		BonusServiceOpenQuizProcedure,
-		svc.OpenQuiz,
-		connect.WithSchema(bonusServiceMethods.ByName("OpenQuiz")),
-		connect.WithHandlerOptions(opts...),
-	)
-	bonusServiceAnswerQuizHandler := connect.NewUnaryHandler(
-		BonusServiceAnswerQuizProcedure,
-		svc.AnswerQuiz,
-		connect.WithSchema(bonusServiceMethods.ByName("AnswerQuiz")),
 		connect.WithHandlerOptions(opts...),
 	)
 	bonusServiceListenForEventsHandler := connect.NewServerStreamHandler(
@@ -204,10 +152,6 @@ func NewBonusServiceHandler(svc BonusServiceHandler, opts ...connect.HandlerOpti
 		switch r.URL.Path {
 		case BonusServiceClaimBonusProcedure:
 			bonusServiceClaimBonusHandler.ServeHTTP(w, r)
-		case BonusServiceOpenQuizProcedure:
-			bonusServiceOpenQuizHandler.ServeHTTP(w, r)
-		case BonusServiceAnswerQuizProcedure:
-			bonusServiceAnswerQuizHandler.ServeHTTP(w, r)
 		case BonusServiceListenForEventsProcedure:
 			bonusServiceListenForEventsHandler.ServeHTTP(w, r)
 		case BonusServiceGetGrantRulesProcedure:
@@ -223,14 +167,6 @@ type UnimplementedBonusServiceHandler struct{}
 
 func (UnimplementedBonusServiceHandler) ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.BonusService.ClaimBonus is not implemented"))
-}
-
-func (UnimplementedBonusServiceHandler) OpenQuiz(context.Context, *connect.Request[v1.OpenQuizRequest]) (*connect.Response[v1.OpenQuizResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.BonusService.OpenQuiz is not implemented"))
-}
-
-func (UnimplementedBonusServiceHandler) AnswerQuiz(context.Context, *connect.Request[v1.AnswerQuizRequest]) (*connect.Response[v1.AnswerQuizResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.BonusService.AnswerQuiz is not implemented"))
 }
 
 func (UnimplementedBonusServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.BonusEvent]) error {

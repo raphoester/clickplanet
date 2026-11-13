@@ -41,14 +41,11 @@ type Offer struct {
 type Taken struct {
 	CountryID string
 	Kind      Kind
-
-	QuizSubject string
 }
 
-// Event is what the offers send down a caller's streams: a box or a quiz for it, and every catch for all.
+// Event is what the offers send down a caller's streams: a box for it, and every catch for all.
 type Event struct {
 	Offer *Offer
-	Quiz  *QuizOffer
 	Taken *Taken
 }
 
@@ -59,7 +56,7 @@ type Reward struct {
 }
 
 // Click is a click planet took, struck a shield with or found its tile already wearing its flag, as planet's ClickTried
-// tells it: what it says of its caller, when, and whether it left the bank empty.
+// tells it: what it says of its caller, and when.
 type Click struct {
 	Caller Caller
 
@@ -68,9 +65,6 @@ type Click struct {
 
 	// Born is when the account was made, read from its id.
 	Born time.Time
-
-	// Dry is a click that left the bank empty: fewer than one click.
-	Dry bool
 }
 
 type caller struct {
@@ -79,7 +73,6 @@ type caller struct {
 	scope string
 
 	nextOfferAt time.Time
-	lastOfferAt time.Time
 	lastSeen    time.Time
 	lastClickAt time.Time
 
@@ -91,14 +84,6 @@ type caller struct {
 	grants []time.Time
 
 	owedBox Kind
-
-	nextQuizAt      time.Time
-	lastQuizAt      time.Time
-	outstandingQuiz string
-	quizMisses      int
-	quizGrants      []time.Time
-
-	owedQuiz Kind
 }
 
 func (c *caller) watching() bool {
@@ -123,12 +108,6 @@ type Report struct {
 	Caught func(scope string, after time.Duration)
 
 	Foreign func(scope string)
-
-	QuizOffered func()
-
-	QuizLapsed func(scope string)
-
-	QuizAnswered func(scope string, correct bool, after time.Duration)
 }
 
 type Pace struct {
@@ -144,22 +123,15 @@ type Registry struct {
 	clock  cptime.Clock
 	report Report
 	room   Room
-	bank   Questions
 
 	mu            sync.Mutex
 	followedBoxes Pace
-	followedQuiz  QuizRules
 	callers       map[Entrant]*caller
 	offers        map[string]*pending
 
 	spent map[string]spentOffer
 
-	quizOffers map[string]*pendingQuiz
-
-	// Each question opened and lapsed, until lateAnswers past its deadline: an answer that lands then is counted, late.
-	lapsedQuizzes map[string]*pendingQuiz
-
-	newcomers map[Account]*newcomer
+	newcomers map[Account]time.Time
 
 	nextID uint64
 }
@@ -181,27 +153,17 @@ const rememberSpent = 10 * time.Minute
 
 const eventBuffer = 32
 
-func New(config Config, clock cptime.Clock, room Room, rules func() Rules, bank Questions) *Registry {
-	if clock == nil {
-		clock = cptime.SystemClock{}
-	}
-
-	followed := rules()
-
+func New(config Config, clock cptime.Clock, room Room, rules func() Rules) *Registry {
 	return &Registry{
 		config:        config.withDefaults(),
 		rules:         rules,
 		clock:         clock,
 		room:          room,
-		bank:          bank,
-		followedBoxes: followed.Boxes,
-		followedQuiz:  followed.Quiz,
+		followedBoxes: rules().Boxes,
 		callers:       make(map[Entrant]*caller),
 		offers:        make(map[string]*pending),
 		spent:         make(map[string]spentOffer),
-		quizOffers:    make(map[string]*pendingQuiz),
-		lapsedQuizzes: make(map[string]*pendingQuiz),
-		newcomers:     make(map[Account]*newcomer),
+		newcomers:     make(map[Account]time.Time),
 	}
 }
 
@@ -212,27 +174,18 @@ func (r *Registry) Observe(report Report) {
 	r.report = report
 }
 
-// follow brings in a box or a quiz due later than the longest wait of a new pace, and a caller's next quiz is a whole
-// wait away from when quizzes are switched on.
+// follow brings in a box due later than the longest wait of a new pace.
 func (r *Registry) follow(rules Rules, now time.Time) {
-	if rules.Boxes != r.followedBoxes {
-		for _, entry := range r.callers {
-			if entry.nextOfferAt.After(now.Add(rules.Boxes.MaxInterval)) {
-				entry.nextOfferAt = now.Add(boxWait(rules))
-			}
-		}
-		r.followedBoxes = rules.Boxes
+	if rules.Boxes == r.followedBoxes {
+		return
 	}
 
-	if rules.Quiz != r.followedQuiz {
-		switchedOn := rules.Quiz.Enabled && !r.followedQuiz.Enabled
-		for _, entry := range r.callers {
-			if switchedOn || entry.nextQuizAt.After(now.Add(rules.Quiz.MaxInterval)) {
-				entry.nextQuizAt = now.Add(quizWait(rules))
-			}
+	for _, entry := range r.callers {
+		if entry.nextOfferAt.After(now.Add(rules.Boxes.MaxInterval)) {
+			entry.nextOfferAt = now.Add(boxWait(rules))
 		}
-		r.followedQuiz = rules.Quiz
 	}
+	r.followedBoxes = rules.Boxes
 }
 
 func (r *Registry) counted(hook func()) {
@@ -270,7 +223,6 @@ func (r *Registry) caller(entrant Entrant, rules Rules, now time.Time) *caller {
 		streams:     make(map[uint64]chan Event),
 		players:     make(map[Account]time.Time),
 		nextOfferAt: now.Add(boxWait(rules)),
-		nextQuizAt:  now.Add(quizWait(rules)),
 		lastSeen:    now,
 	}
 	r.callers[entrant] = entry
@@ -410,15 +362,13 @@ func (r *Registry) sweep(ctx context.Context) {
 // dueOne is a caller found due, the accounts that played behind it then, and what the wallet said of their room.
 type dueOne struct {
 	entrant  Entrant
-	box      bool
-	quiz     bool
 	accounts []Account
 
 	full map[Account][]Kind
 	err  error
 }
 
-// dueCallers are the callers due a quiz or a box, once the registry is tidied under the same lock.
+// dueCallers are the callers due a box, once the registry is tidied under the same lock.
 func (r *Registry) dueCallers(rules Rules, now time.Time) []*dueOne {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -427,10 +377,8 @@ func (r *Registry) dueCallers(rules Rules, now time.Time) []*dueOne {
 
 	var due []*dueOne
 	for entrant, entry := range r.callers {
-		quiz := rules.Quiz.Enabled && r.quizDue(entry, rules, now)
-		box := r.due(entry, rules, now)
-		if quiz || box {
-			due = append(due, &dueOne{entrant: entrant, box: box, quiz: quiz, accounts: entry.playing(rules, now)})
+		if r.due(entry, rules, now) {
+			due = append(due, &dueOne{entrant: entrant, accounts: entry.playing(rules, now)})
 		}
 	}
 
@@ -441,7 +389,6 @@ func (r *Registry) tidy(rules Rules, now time.Time) {
 	r.follow(rules, now)
 	r.collectMisses(rules, now)
 	r.forgetSpent(now)
-	r.collectStaleQuizzes(rules, now)
 	r.forgetStale(now)
 	r.forgetNewcomers(now)
 }
@@ -458,30 +405,13 @@ func (r *Registry) ask(ctx context.Context, due []*dueOne, rules Rules) {
 	}
 }
 
-// offerDue offers the quizzes first, then the boxes, so a box due beside a quiz just offered waits for it.
 func (r *Registry) offerDue(due []*dueOne, rules Rules, now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, one := range due {
 		entry, ok := r.callers[one.entrant]
-		if !one.quiz || !ok || !entry.playedBy(one.accounts, rules, now) || !r.quizDue(entry, rules, now) {
-			continue
-		}
-
-		kinds := drawable(entry.owedQuiz, r.offerable(entry, one, rules, now))
-		entry.owedQuiz = ""
-		if kinds.Empty() {
-			entry.nextQuizAt = now.Add(quizWait(rules))
-			continue
-		}
-
-		r.offerQuiz(one.entrant, entry, rules, now, drawKind(kinds, rules.Kinds))
-	}
-
-	for _, one := range due {
-		entry, ok := r.callers[one.entrant]
-		if !one.box || !ok || !entry.playedBy(one.accounts, rules, now) || !r.due(entry, rules, now) {
+		if !ok || !entry.playedBy(one.accounts, rules, now) || !r.due(entry, rules, now) {
 			continue
 		}
 
@@ -532,34 +462,26 @@ func (r *Registry) due(entry *caller, rules Rules, now time.Time) bool {
 		return false
 	}
 
-	return !near(entry.outstandingQuiz, entry.lastQuizAt, entry.owedBox, rules, now)
+	return true
 }
 
 // offerable leaves out every kind the wallet said an account playing behind the caller has no room for.
 func (r *Registry) offerable(entry *caller, one *dueOne, rules Rules, now time.Time) *cpcolls.Set[Kind] {
-	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
-
 	if one.err != nil || rules.Frozen {
 		// Offered nothing: the slot is lost, as an away player's.
-		return kinds
+		return cpcolls.NewSet[Kind]()
 	}
 
 	if len(one.accounts) == 0 || r.grantedWithinTheHour(entry, now) >= rules.Boxes.MaxChargesPerHour {
-		return kinds
+		return cpcolls.NewSet[Kind]()
 	}
 
-	full := cpcolls.NewSet[Kind]()
+	var full []Kind
 	for _, account := range one.accounts {
-		full.Add(one.full[account]...)
+		full = append(full, one.full[account]...)
 	}
 
-	for _, kind := range Kinds {
-		if rules.Offered(kind) && !full.Contains(kind) {
-			kinds.Add(kind)
-		}
-	}
-
-	return kinds
+	return rules.roomFor(full)
 }
 
 func (r *Registry) grantedWithinTheHour(entry *caller, now time.Time) int {
@@ -599,7 +521,6 @@ func (r *Registry) offer(entrant Entrant, entry *caller, rules Rules, now time.T
 	}
 
 	entry.outstanding = token
-	entry.lastOfferAt = now
 	entry.nextOfferAt = offer.ExpiresAt.Add(boxWait(rules))
 
 	entry.send(Event{Offer: &offer})
@@ -645,29 +566,8 @@ func (r *Registry) forgetStale(now time.Time) {
 			continue
 		}
 
-		if entry.outstandingQuiz != "" {
-			delete(r.quizOffers, entry.outstandingQuiz)
-		}
-
 		delete(r.callers, entrant)
 	}
-}
-
-// A box and a quiz keep this far apart: half the shorter of their shortest waits, so one falls between two of the other
-// rather than beside one.
-func spacing(rules Rules) time.Duration {
-	return min(rules.Boxes.MinInterval, rules.Quiz.MinInterval) / 2
-}
-
-// near says the other of the two, out still or offered at offeredAt, is too close for this one to be offered now. It
-// is held, not redrawn, so it comes the moment the other is far enough. A welcome owed has its own moment, so it waits
-// only for the other to be gone.
-func near(out string, offeredAt time.Time, owed Kind, rules Rules, now time.Time) bool {
-	if out != "" {
-		return true
-	}
-
-	return owed == "" && now.Sub(offeredAt) < spacing(rules)
 }
 
 func boxWait(rules Rules) time.Duration {

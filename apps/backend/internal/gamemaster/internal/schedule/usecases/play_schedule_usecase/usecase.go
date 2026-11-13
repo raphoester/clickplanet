@@ -19,7 +19,7 @@ type Seasons interface {
 }
 
 type Commands interface {
-	// Play tells planet, the antibot and the bonuses module the turn's set: nil once all play it.
+	// Play tells planet, the antibot, the bonuses and the quizzes modules the turn's set: nil once all play it.
 	Play(ctx context.Context, turn schedule.Turn, decidedAt time.Time) error
 	// PlayAntibot tells the antibot alone: planet's set, and the offers', wait for its battle's map.
 	PlayAntibot(ctx context.Context, turn schedule.Turn, decidedAt time.Time) error

@@ -204,16 +204,17 @@ func subscribeFacts(
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe to planet.v1.TilesTaken: %w", err)
 	}
-	// The offers tell boxes and answers since 2026-11-11: each group handles what planet's stream of them held first.
+	// The offers tell boxes since 2026-11-11, and the quizzes answers since 2026-11-13: each group handles what the
+	// stream before held first.
 	boxes, err := cpredis.SubscribeMoved(ctx, streams, "planet.v1.BonusClaimed", "missions-boxes",
 		log_subscriber.New(bonus_claimed_subscriber.New(record), logger))
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe to planet.v1.BonusClaimed: %w", err)
 	}
-	answers, err := cpredis.SubscribeMoved(ctx, streams, "planet.v1.QuizAnswered", "missions-answers",
+	answers, err := cpredis.SubscribeMoved(ctx, streams, "bonuses.v1.QuizAnswered", "missions-answers",
 		log_subscriber.New(quiz_answered_subscriber.New(record), logger))
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to planet.v1.QuizAnswered: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to quizzes.v1.QuizAnswered: %w", err)
 	}
 	bombs, err := cpredis.Subscribe(ctx, streams, "missions-bombs", log_subscriber.New(bomb_landed_subscriber.New(record), logger))
 	if err != nil {

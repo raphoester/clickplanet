@@ -51,7 +51,8 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	case event.Granted != nil:
 		return s.stream.Send(&planetv1.PlanetEvent{
 			Event: &planetv1.PlanetEvent_ChargesGranted{ChargesGranted: &planetv1.ChargesGranted{
-				Charges: chargesheld.Encode(*event.Granted),
+				Charges: chargesheld.Encode(event.Granted.After),
+				Gained:  chargesheld.Gained(*event.Granted),
 			}},
 		})
 	default:

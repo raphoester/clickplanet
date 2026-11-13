@@ -36,7 +36,7 @@ func newRuledRegistry(change func(*Rules)) (*Registry, *cptime.FixedClock) {
 
 	read := &rules
 	registry := New(Config{ForgetAfter: 5 * time.Minute, SweepInterval: time.Second}, clock, &fakeRoom{},
-		func() Rules { return *read }, fixedBank{})
+		func() Rules { return *read })
 	testRules[registry] = read
 
 	return registry, clock

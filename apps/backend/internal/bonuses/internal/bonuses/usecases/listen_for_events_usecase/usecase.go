@@ -12,17 +12,16 @@ import (
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
 const DefaultHeartbeat = 30 * time.Second
 
-// Event is one frame of a caller's stream: a box or a quiz offered to it, a catch by anyone, a set taken, a heartbeat.
+// Event is one frame of a caller's stream: a box offered to it, a catch by anyone, a set taken, a heartbeat.
 type Event struct {
 	Heartbeat    bool
 	RulesChanged bool
 
 	Offer *bonuses.Offer
-	Quiz  *bonuses.QuizOffer
 	Taken *bonuses.Taken
 }
 
-// Offers is the boxes and quizzes for the caller, and every catch. A caller attends while its stream is open: the
+// Offers is the boxes for the caller, and every catch. A caller attends while its stream is open: the
 // offers go only to a caller who attends.
 type Offers interface {
 	Attend(entrant bonuses.Entrant) (<-chan bonuses.Event, func())
@@ -86,7 +85,7 @@ func (u *UseCase) Execute(ctx context.Context, caller bonuses.Caller, sink Sink)
 			if !open {
 				return nil
 			}
-			if err := sink.Send(Event{Offer: event.Offer, Quiz: event.Quiz, Taken: event.Taken}); err != nil {
+			if err := sink.Send(Event{Offer: event.Offer, Taken: event.Taken}); err != nil {
 				return err
 			}
 		}

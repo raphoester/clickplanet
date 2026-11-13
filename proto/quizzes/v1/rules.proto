@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package quizzes.v1;
+
+import "google/protobuf/duration.proto";
+
+// When a quiz comes, how long it stays and how its question is drawn. "default" holds every value; another set holds
+// the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
+// (quizzes.rule_sets.rules). What a right answer pays is the bonuses module's (bonuses.v1.Rules).
+message Rules {
+  optional bool enabled = 1;
+  google.protobuf.Duration min_interval = 2;
+  google.protobuf.Duration max_interval = 3;
+  // A quiz missed brings the next one this soon, once.
+  google.protobuf.Duration miss_retry = 4;
+  // How long the banner stays before it is opened.
+  google.protobuf.Duration offer_ttl = 5;
+  // How long a question opened may be answered.
+  google.protobuf.Duration answer_window = 6;
+  // How much a question leans to the countries that hold the most; 0 is a flat draw.
+  optional double leader_bias = 7;
+  // No quiz for a caller that answered this many right in the last hour.
+  optional uint32 max_right_answers_per_hour = 8;
+  // The difficulty-weighted draw, inside the subject's questions the lean picked. The chance of a right answer, for an
+  // average player, it aims at: 0.34 to 0.99.
+  optional double target = 9;
+  // How wide the bell around target is, on the rating scale: a question this far from target weighs 0.61 of one on it,
+  // twice as far 0.14. 0 is off, the draw of before: no question weighs more for how hard it is, and none is left out.
+  optional double width = 10;
+  // A question whose rating says fewer than this share of average players get it right, once floor_after answers moved
+  // it, is never drawn. A prior alone never leaves a question out. At most target.
+  optional double floor = 11;
+  optional uint32 floor_after = 12;
+  // The share of draws that ignore how hard a question is, so every question keeps being asked; never one under the
+  // floor. 0 to 1.
+  optional double explore = 13;
+  // No quiz for a caller that has not clicked for this long.
+  google.protobuf.Duration active_within = 14;
+  WelcomeRules welcome = 15;
+  // No quiz is offered, and OpenQuiz and AnswerQuiz are refused.
+  optional bool frozen = 16;
+}
+
+// An account younger than `within` is asked a quiz when its clicks run out, once. 0s is off.
+message WelcomeRules {
+  google.protobuf.Duration within = 1;
+}

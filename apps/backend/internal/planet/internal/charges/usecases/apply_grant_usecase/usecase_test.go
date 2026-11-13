@@ -29,15 +29,15 @@ func (g grants) Record(_ context.Context, grant charges.GrantID, _ time.Time) (b
 
 type told struct {
 	holder charges.Holder
-	held   charges.Held
+	gain   charges.Gain
 }
 
 type recordingStreams struct {
 	told []told
 }
 
-func (s *recordingStreams) PublishGranted(holder charges.Holder, held charges.Held) {
-	s.told = append(s.told, told{holder: holder, held: held})
+func (s *recordingStreams) PublishGranted(holder charges.Holder, gain charges.Gain) {
+	s.told = append(s.told, told{holder: holder, gain: gain})
 }
 
 const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
@@ -73,10 +73,10 @@ func TestAGrantToldTwiceIsGrantedAndToldToTheStreamsOnce(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), in))
 
 	assert.Equal(t, 10, held(t, wallet).Shields)
-	assert.Equal(t, []told{{holder: charges.Holder(ada), held: charges.Held{Shields: 10}}}, streams.told)
+	assert.Equal(t, []told{{holder: charges.Holder(ada), gain: charges.Gain{After: charges.Held{Shields: 10}}}}, streams.told)
 }
 
-func TestTheStreamsAreToldAllTheAccountHoldsNotTheGrant(t *testing.T) {
+func TestTheStreamsAreToldWhatTheGrantAddedAndAllTheAccountHolds(t *testing.T) {
 	useCase, _, streams := setUp()
 
 	for n, kind := range []charges.Kind{charges.KindBomb, charges.KindShields} {
@@ -85,7 +85,9 @@ func TestTheStreamsAreToldAllTheAccountHoldsNotTheGrant(t *testing.T) {
 	}
 
 	require.Len(t, streams.told, 2)
-	assert.Equal(t, charges.Held{Bomb: true, Shields: 10}, streams.told[1].held)
+	assert.Equal(t, charges.Held{Bomb: true, Shields: 10}, streams.told[1].gain.After)
+	assert.Equal(t, 10, streams.told[1].gain.Count(charges.KindShields))
+	assert.Zero(t, streams.told[1].gain.Count(charges.KindBomb), "the bomb was the first grant's")
 }
 
 func TestWhatDoesNotFitTheStackIsNotGranted(t *testing.T) {

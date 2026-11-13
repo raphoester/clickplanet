@@ -266,7 +266,7 @@ message PlanetEvent {
 
     RulesChanged rules_changed = 11;
 
-    // Only on a stream opened with a signed-in account's token, and only that account's.
+    // Only on a stream opened with the token of the account granted, a guest's too.
     ChargesGranted charges_granted = 12;
 
     KnockOut knock_out = 13;
@@ -290,9 +290,19 @@ message KnockOut {
   MapVersion version = 5;
 }
 
-// A grant from outside the player's own clicks, such as a mission paid: all it holds now.
+// A grant from outside the player's own clicks, such as a box caught, a right answer or a mission paid: what it added,
+// and all the hand holds after.
 message ChargesGranted {
   ChargesHeld charges = 1;
+
+  // Each kind the grant added to the hand, and how many: what a full stack kept, none for a kind it kept none of.
+  repeated ChargeGained gained = 2;
+}
+
+message ChargeGained {
+  BonusKind kind = 1;
+
+  uint32 amount = 2;
 }
 
 message GetTileHolderRequest {

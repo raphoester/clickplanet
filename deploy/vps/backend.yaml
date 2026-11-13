@@ -271,7 +271,8 @@ gamemaster:
     address: redis:6379
     password: env://REDIS_PASSWORD
 
-# The boxes and the quizzes. Their rules are the rule sets postgres keeps (bonuses.rule_sets), edited on the backoffice.
+# The boxes, and what a box, a right answer and a sign-in grant. Their rules are the rule sets postgres keeps
+# (bonuses.rule_sets), edited on the backoffice.
 bonuses:
   database:
     host: postgres
@@ -282,6 +283,26 @@ bonuses:
     sslMode: disable
     schema: bonuses
     # Its rule sets alone: each statement takes the one connection, and a save's transaction holds it alone.
+    pool:
+      maxOpenConns: 1
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+  offers:
+    forgetAfter: 5m
+    sweepInterval: 1s
+
+# The quizzes. Their rules are the rule sets postgres keeps (quizzes.rule_sets), edited on the backoffice.
+quizzes:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: quizzes
+    # Its rule sets and each answer counted, about a thousand a day. The alerts module gave it its second connection.
     pool:
       maxOpenConns: 1
   redis:
@@ -382,8 +403,9 @@ alerts:
     dbName: clickplanet
     sslMode: disable
     schema: alerts
+    # One since the quizzes took the other (2026-11-13), so the sum below max_connections did not grow.
     pool:
-      maxOpenConns: 2
+      maxOpenConns: 1
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD

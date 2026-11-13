@@ -72,7 +72,7 @@ func TestAnAccountThatFirstClicksWhileTheRoomIsAskedWaitsForTheNextSweep(t *test
 	// The newcomer's scope is due with no account behind it, and its first click lands while scope-x's room is asked.
 	roomOf(registry).during = func() {
 		roomOf(registry).during = nil
-		registry.Clicked(clickOf(newcomerPayer, false))
+		registry.Clicked(clickOf(newcomerPayer))
 	}
 	registry.sweep(t.Context())
 	require.Nil(t, offered(t, events), "the newcomer was not counted in a room asked")

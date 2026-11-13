@@ -18,17 +18,20 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1/quizzesv1connect"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 )
 
 // It runs last, by its name: the battle takes the rest of today, and the other tests need a day.
-func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndTheOffersAndScoredByScoring() {
+func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotTheOffersAndTheQuizzesAndScoredByScoring() {
 	t := s.T()
 	ctx := t.Context()
 	planet := planetv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	antibot := antibotv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	offers := bonusesv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
+	quizzes := quizzesv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	schedule := gamemasterv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 
 	planetRules, err := planet.GetRules(ctx, connect.NewRequest(&planetv1.GetRulesRequest{}))
@@ -47,6 +50,10 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndThe
 		Set: &bonusesv1.RuleSet{Name: "encore", Rules: &bonusesv1.Rules{}},
 	}))
 	require.NoError(t, err, "a set that changes none of the offers' values plays default's")
+	_, err = quizzes.SaveRuleSet(ctx, connect.NewRequest(&quizzesv1.SaveRuleSetRequest{
+		Set: &quizzesv1.RuleSet{Name: "encore", Rules: &quizzesv1.Rules{}},
+	}))
+	require.NoError(t, err, "and so does one that changes none of the quizzes'")
 
 	startsAt := time.Now().Add(2 * time.Second)
 	endsAt := startsAt.UTC().Truncate(24 * time.Hour).Add(21 * time.Hour)
@@ -58,7 +65,7 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndThe
 		StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(endsAt), Priority: 1, Times: 2,
 	}))
 	require.NoError(t, err,
-		"the gamemaster module asks planet, the antibot and the offers over the internal listener whether they keep the set")
+		"the gamemaster module asks planet, the antibot, the offers and the quizzes over the internal listener whether they keep the set")
 
 	scoring := scoringv1connect.NewScoringServiceClient(http.DefaultClient, s.game.baseURL)
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -71,10 +78,13 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndThe
 		offerRules, err := offers.GetRules(ctx, connect.NewRequest(&bonusesv1.GetRulesRequest{}))
 		require.NoError(c, err)
 		assert.Equal(c, "encore", offerRules.Msg.GetPlaying())
+		quizRules, err := quizzes.GetRules(ctx, connect.NewRequest(&quizzesv1.GetRulesRequest{}))
+		require.NoError(c, err)
+		assert.Equal(c, "encore", quizRules.Msg.GetPlaying())
 		round, err := scoring.GetRound(ctx, connect.NewRequest(&scoringv1.GetRoundRequest{RoundId: added.Msg.GetId()}))
 		require.NoError(c, err)
 		assert.Equal(c, uint32(2), round.Msg.GetRound().GetTimes())
-	}, 15*time.Second, 100*time.Millisecond, "the gamemaster commands the set to planet, the antibot and the offers, and opens the battle's round in scoring")
+	}, 15*time.Second, 100*time.Millisecond, "the gamemaster commands the set to planet, the antibot, the offers and the quizzes, and opens the battle's round in scoring")
 
 	playing, err := schedule.GetSchedule(ctx, connect.NewRequest(&gamemasterv1.GetScheduleRequest{}))
 	require.NoError(t, err)

@@ -19,6 +19,11 @@ type Charger interface {
 	Held(ctx context.Context, holder charges.Holder) (charges.Held, error)
 }
 
+// Streams tell the account's own streams what a grant added, so the page shows a reward the answer did not carry.
+type Streams interface {
+	PublishGranted(holder charges.Holder, gain charges.Gain)
+}
+
 type In struct {
 	Grant  charges.GrantID
 	Holder charges.Holder
@@ -32,8 +37,10 @@ type Out struct {
 	Held charges.Held
 }
 
-func New(transactioner cpatomic.Transactioner, grants Grants, charger Charger, clock cptime.Clock) *UseCase {
-	return &UseCase{transactioner: transactioner, grants: grants, charger: charger, clock: clock}
+func New(
+	transactioner cpatomic.Transactioner, grants Grants, charger Charger, streams Streams, clock cptime.Clock,
+) *UseCase {
+	return &UseCase{transactioner: transactioner, grants: grants, charger: charger, streams: streams, clock: clock}
 }
 
 // UseCase pays a grant another module makes at once (InternalService/GrantCharges). It is the GrantCharges command's
@@ -42,12 +49,16 @@ type UseCase struct {
 	transactioner cpatomic.Transactioner
 	grants        Grants
 	charger       Charger
+	streams       Streams
 	clock         cptime.Clock
 }
 
 // Execute grants once per grant: told again, it keeps nothing and answers the hand as it is.
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
-	var out Out
+	var (
+		out     Out
+		granted *charges.Gain
+	)
 	if err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		first, err := u.grants.Record(ctx, in.Grant, u.clock.Now())
 		if err != nil {
@@ -59,11 +70,15 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 			return err
 		}
 		gain, err := u.charger.Grant(ctx, in.Holder, in.Kind, in.Amount)
-		out = Out{Kept: gain.Count(in.Kind), Held: gain.After}
+		out, granted = Out{Kept: gain.Count(in.Kind), Held: gain.After}, &gain
 		return err
 	}); err != nil {
 		return Out{}, err
 	}
 
+	// After the commit, so a stream never shows what a rollback took back.
+	if granted != nil {
+		u.streams.PublishGranted(in.Holder, *granted)
+	}
 	return out, nil
 }

@@ -1,7 +1,8 @@
 // Package placeholders reads the `{path}` a card's words name a value by, and fills it with the value a battle plays. A
-// path is a field of planet.v1.Rules as protojson names it, such as `clicks.tempo` or `charges.bomb.rings`, or one of
-// bonuses.v1.Rules under `bonuses.`, such as `bonuses.boxes.minInterval`, and only a number or a duration reads as a
-// word in a sentence; or a value of the battle, such as `battle.points.first`.
+// path is a field of planet.v1.Rules as protojson names it, such as `clicks.tempo` or `charges.bomb.rings`, one of
+// bonuses.v1.Rules under `bonuses.`, such as `bonuses.boxes.minInterval`, or one of quizzes.v1.Rules under `quizzes.`,
+// such as `quizzes.answerWindow`, and only a number or a duration reads as a word in a sentence; or a value of the
+// battle, such as `battle.points.first`.
 package placeholders
 
 import (
@@ -18,6 +19,7 @@ import (
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 )
 
 var (
@@ -31,13 +33,17 @@ var durationName = (&durationpb.Duration{}).ProtoReflect().Descriptor().FullName
 
 // offers is where the offers' values are named: the place they held in planet's rules until they were a module of their
 // own, so a card that names one reads as it did.
-const offers = "bonuses."
+const (
+	offers  = "bonuses."
+	quizzes = "quizzes."
+)
 
-// Played is what a set plays: planet's values, and the offers' of the set of the same name. Offers is nil when the
-// offers keep no set of that name: a card names none of their values.
+// Played is what a set plays: planet's values, and the offers' and the quizzes' of the set of the same name. Offers or
+// Quizzes is nil when that module keeps no set of that name: a card names none of its values.
 type Played struct {
-	Planet *planetv1.Rules
-	Offers *bonusesv1.Rules
+	Planet  *planetv1.Rules
+	Offers  *bonusesv1.Rules
+	Quizzes *quizzesv1.Rules
 }
 
 // Battle is what a card may name of the battle that plays its set: its points' times, and what each rank scores in
@@ -78,12 +84,13 @@ func (b Battle) valueOf(path string) (string, error) {
 }
 
 // RulePaths is every path a card may name of the rules: planet's in the order planet.v1.Rules declares them, then the
-// offers' in bonuses.v1.Rules' order.
+// offers' in bonuses.v1.Rules' order, then the quizzes' in quizzes.v1.Rules' order.
 func RulePaths() []string {
 	var paths []string
 	visit := func(path string, _ protoreflect.FieldDescriptor) { paths = append(paths, path) }
 	walk((&planetv1.Rules{}).ProtoReflect().Descriptor(), "", visit)
 	walk((&bonusesv1.Rules{}).ProtoReflect().Descriptor(), offers, visit)
+	walk((&quizzesv1.Rules{}).ProtoReflect().Descriptor(), quizzes, visit)
 	return paths
 }
 
@@ -154,7 +161,9 @@ func Fill(words string, played Played, battle Battle) (string, error) {
 		case slices.Contains(battlePaths, path):
 			value, err = battle.valueOf(path)
 		case strings.HasPrefix(path, offers):
-			value, err = played.offersValueOf(path)
+			value, err = moduleValueOf(played.Offers, offers, path)
+		case strings.HasPrefix(path, quizzes):
+			value, err = moduleValueOf(played.Quizzes, quizzes, path)
 		default:
 			value, err = valueOf(played.Planet.ProtoReflect(), path, path)
 		}
@@ -169,11 +178,15 @@ func Fill(words string, played Played, battle Battle) (string, error) {
 	return filled, nil
 }
 
-func (p Played) offersValueOf(path string) (string, error) {
-	if p.Offers == nil {
+// moduleValueOf reads a value of a module's own rules, named under its prefix: none when it keeps no set of the name.
+func moduleValueOf[M interface {
+	*bonusesv1.Rules | *quizzesv1.Rules
+	ProtoReflect() protoreflect.Message
+}](rules M, prefix, path string) (string, error) {
+	if rules == nil {
 		return "", fmt.Errorf("%w: {%s}", ErrNoValue, path)
 	}
-	return valueOf(p.Offers.ProtoReflect(), strings.TrimPrefix(path, offers), path)
+	return valueOf(rules.ProtoReflect(), strings.TrimPrefix(path, prefix), path)
 }
 
 // valueOf reads the value at path in the message; named is the path the card wrote, which every refusal quotes.

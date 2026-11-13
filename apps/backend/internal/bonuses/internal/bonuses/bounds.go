@@ -32,20 +32,6 @@ func atLeast[B bound](name string, value B, floorName string, floor B) error {
 	return fmt.Errorf("%s is %v, under %s (%v)", name, value, floorName, floor)
 }
 
-func atMost[B bound](name string, value B, ceilingName string, ceiling B) error {
-	if value <= ceiling {
-		return nil
-	}
-	return fmt.Errorf("%s is %v, over %s (%v)", name, value, ceilingName, ceiling)
-}
-
-func share(name string, value float64) error {
-	if value >= 0 && value <= 1 {
-		return nil
-	}
-	return fmt.Errorf("%s is %v, and a share is between 0 and 1", name, value)
-}
-
 func finite(name string, value float64) error {
 	if !math.IsNaN(value) && !math.IsInf(value, 0) {
 		return nil

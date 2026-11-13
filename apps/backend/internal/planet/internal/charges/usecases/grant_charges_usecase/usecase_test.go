@@ -17,11 +17,11 @@ func storage() *charges.MemoryStore {
 }
 
 type recordingStreams struct {
-	told map[charges.Holder]charges.Held
+	told map[charges.Holder]charges.Gain
 }
 
-func (s *recordingStreams) PublishGranted(holder charges.Holder, held charges.Held) {
-	s.told[holder] = held
+func (s *recordingStreams) PublishGranted(holder charges.Holder, gain charges.Gain) {
+	s.told[holder] = gain
 }
 
 func grantTelling(store *charges.MemoryStore, streams *recordingStreams) *grant_charges_usecase.UseCase {
@@ -31,13 +31,13 @@ func grantTelling(store *charges.MemoryStore, streams *recordingStreams) *grant_
 }
 
 func grant(store *charges.MemoryStore) *grant_charges_usecase.UseCase {
-	return grantTelling(store, &recordingStreams{told: map[charges.Holder]charges.Held{}})
+	return grantTelling(store, &recordingStreams{told: map[charges.Holder]charges.Gain{}})
 }
 
-func TestTheAccountsStreamsAreToldAllItHoldsAfterTheGrant(t *testing.T) {
+func TestTheAccountsStreamsAreToldWhatTheGrantAddedAndAllItHoldsAfter(t *testing.T) {
 	wallet := storage()
 	wallet.Keep(account, charges.Held{Enclosures: 1})
-	streams := &recordingStreams{told: map[charges.Holder]charges.Held{}}
+	streams := &recordingStreams{told: map[charges.Holder]charges.Gain{}}
 
 	_, err := grantTelling(wallet, streams).Execute(t.Context(), grant_charges_usecase.In{
 		Account: account,
@@ -45,7 +45,9 @@ func TestTheAccountsStreamsAreToldAllItHoldsAfterTheGrant(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, map[charges.Holder]charges.Held{account: {Bomb: true, Enclosures: 1}}, streams.told)
+	assert.Equal(t, map[charges.Holder]charges.Gain{account: {
+		Before: charges.Held{Enclosures: 1}, After: charges.Held{Bomb: true, Enclosures: 1},
+	}}, streams.told)
 }
 
 func TestEveryKindCanBeGranted(t *testing.T) {

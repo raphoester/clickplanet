@@ -50,12 +50,12 @@ func TestOnlyATakeAStrikeOrAnUnchangedTileIsHeard(t *testing.T) {
 	}
 }
 
-func TestAClickSaysItsCallerWhenItWasTriedTheAccountsAgeAndWhetherItRanDry(t *testing.T) {
+func TestAClickSaysItsCallerWhenItWasTriedAndTheAccountsAge(t *testing.T) {
 	account := cpsession.AccountCreatedAt(born).String()
 
 	clicks := heard(t, &planetv1.ClickTried{
 		Scope: "1.2.3.4", AccountId: account, Linked: true, TriedAt: timestamppb.New(tried),
-		Outcome: planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN, Dry: true,
+		Outcome: planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN,
 	})
 
 	require.Len(t, clicks, 1)
@@ -63,7 +63,6 @@ func TestAClickSaysItsCallerWhenItWasTriedTheAccountsAgeAndWhetherItRanDry(t *te
 		Caller: bonuses.Caller{Scope: "1.2.3.4", Account: bonuses.Account(account), Linked: true},
 		At:     tried,
 		Born:   born,
-		Dry:    true,
 	}, clicks[0])
 }
 

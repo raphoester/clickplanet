@@ -11,19 +11,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 )
 
-// The calls that take a box or a quiz. The stream and the reads go on while frozen.
+// The calls that take a box. The stream and the reads go on while frozen.
 var takeProcedures = []string{
 	bonusesv1connect.BonusServiceClaimBonusProcedure,
-	bonusesv1connect.BonusServiceOpenQuizProcedure,
-	bonusesv1connect.BonusServiceAnswerQuizProcedure,
 }
 
-// Frozen says whether a box or a quiz may be taken now: no while the offers play a frozen set, nor while planet's map
+// Frozen says whether a box may be taken now: no while the offers play a frozen set, nor while planet's map
 // takes no play (its frozen set, an arena's freeze).
 type Frozen func(ctx context.Context) (bool, error)
 
-// NewFreezeInterceptor refuses a claim, an opening and an answer while frozen, before the offer is spent: the box or
-// the quiz lapses as it would have.
+// NewFreezeInterceptor refuses a claim while frozen, before the offer is spent: the box lapses as it would have.
 func NewFreezeInterceptor(frozen Frozen) connect.Interceptor {
 	return connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {

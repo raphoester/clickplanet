@@ -4,11 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func TestAQuickerPaceBringsInABoxDueLaterThanItsLongestWait(t *testing.T) {
@@ -67,7 +65,7 @@ func TestThePaceSetsTheHourlyCap(t *testing.T) {
 
 func TestNoBoxIsOfferedBeforeARuleSetIsInForce(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{}, clock, &fakeRoom{}, func() Rules { return Rules{} }, fixedBank{})
+	registry := New(Config{}, clock, &fakeRoom{}, func() Rules { return Rules{} })
 	events := playing(t, registry, "scope-a")
 
 	for range 3 {
@@ -77,61 +75,6 @@ func TestNoBoxIsOfferedBeforeARuleSetIsInForce(t *testing.T) {
 	}
 
 	assert.Nil(t, offered(t, events), "a cap of 0 an hour offers nothing")
-}
-
-func TestAQuickerQuizPaceBringsInAQuizDueLaterThanItsLongestWait(t *testing.T) {
-	registry, clock := newQuizzingRegistry(t)
-	events := playing(t, registry, "scope-a")
-
-	rulesOf(registry).Quiz.MinInterval = 10 * time.Second
-	rulesOf(registry).Quiz.MaxInterval = 10 * time.Second
-	registry.sweep(t.Context())
-	clock.Advance(11 * time.Second)
-	clicked(registry, "scope-a")
-	registry.sweep(t.Context())
-
-	assert.NotNil(t, quizOffered(t, events), "due three minutes after the first click, now ten seconds after the pace changed")
-}
-
-func TestQuizzesSwitchedOnAskEachCallerAWholeWaitLater(t *testing.T) {
-	registry, clock := newRuledRegistry(func(rules *Rules) {
-		rules.Quiz = quizzing(quizWindow)
-		rules.Quiz.Enabled = false
-	})
-	events := playing(t, registry, "scope-a")
-	clock.Advance(time.Hour)
-	clicked(registry, "scope-a")
-	registry.sweep(t.Context())
-
-	rulesOf(registry).Quiz.Enabled = true
-	registry.sweep(t.Context())
-	assert.Nil(t, quizOffered(t, events), "a wait long past is not a quiz for everyone at once")
-
-	waitOutQuiz(t, registry, clock)
-	clicked(registry, "scope-a")
-	registry.sweep(t.Context())
-	assert.NotNil(t, quizOffered(t, events))
-}
-
-func TestQuizzesSwitchedOffAskNoMoreAndLetTheOneAskedBeAnswered(t *testing.T) {
-	registry, clock := newQuizzingRegistry(t)
-	events := playing(t, registry, "scope-a")
-	waitOutQuiz(t, registry, clock)
-	offer := quizOffered(t, events)
-	require.NotNil(t, offer)
-
-	rulesOf(registry).Quiz.Enabled = false
-	registry.sweep(t.Context())
-	_, opened := registry.OpenQuiz(offer.Token, "scope-a")
-	require.True(t, opened)
-	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", 1)
-	require.True(t, ok)
-	assert.Equal(t, ratings.Right, answered.Outcome)
-
-	clock.Advance(time.Hour)
-	clicked(registry, "scope-a")
-	registry.sweep(t.Context())
-	assert.Nil(t, quizOffered(t, events))
 }
 
 func TestABoxLastsTheOfferTTLInForceWhenItIsOffered(t *testing.T) {

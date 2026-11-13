@@ -10,7 +10,8 @@ import (
 )
 
 // FakeWallet stands for planet's wallet in the offers' tests: it pays each grant once, a refill or a bomb as one held,
-// and a stack up to the size it is told (none, no size). It applies none of planet's own rules.
+// and a stack up to the size it is told (none, no size), and says a hand full where it holds that much. It applies none
+// of planet's own rules.
 type FakeWallet struct {
 	mu       sync.Mutex
 	hands    map[Account]Hand
@@ -104,14 +105,33 @@ func (w *FakeWallet) Pay(ctx context.Context, payment Payment) (Paid, error) {
 	return Paid{Kept: kept, Hand: hand}, nil
 }
 
-func (w *FakeWallet) Hand(_ context.Context, account Account) (Hand, error) {
+// Full is every kind a hand holds as many of as its size, or one of where one is the most.
+func (w *FakeWallet) Full(_ context.Context, accounts []Account) (map[Account][]Kind, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	if w.failing != nil {
-		return Hand{}, w.failing
+		return nil, w.failing
 	}
-	return w.hands[account], nil
+	full := make(map[Account][]Kind, len(accounts))
+	for _, account := range accounts {
+		hand := w.hands[account]
+		if hand.Refill {
+			full[account] = append(full[account], KindRefill)
+		}
+		if hand.Bomb {
+			full[account] = append(full[account], KindBomb)
+		}
+		for _, stack := range []struct {
+			kind Kind
+			held int
+		}{{KindEncloseClicks, hand.Enclosures}, {KindSpreadClicks, hand.SpreadClicks}, {KindShields, hand.Shields}} {
+			if size, ok := w.sizes[stack.kind]; ok && stack.held >= size {
+				full[account] = append(full[account], stack.kind)
+			}
+		}
+	}
+	return full, nil
 }
 
 func (w *FakeWallet) stacked(held int, payment Payment) (int, int) {

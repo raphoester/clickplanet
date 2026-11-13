@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1/promov1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/publishing/v1/publishingv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1/quizzesv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds"
@@ -90,7 +91,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			"scoring what its ranks score and publishing for the teasers' posts: %w", err)
 	}
 	planet := rpc_rule_sets.New(planetv1connect.NewInternalServiceClient(internal, baseURL),
-		bonusesv1connect.NewInternalServiceClient(internal, baseURL))
+		bonusesv1connect.NewInternalServiceClient(internal, baseURL), quizzesv1connect.NewInternalServiceClient(internal, baseURL))
 	gamemaster := gamemasterv1connect.NewInternalServiceClient(internal, baseURL)
 	battles := rpc_gamemaster_battles.New(gamemaster)
 	points := rpc_scoring_points.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))

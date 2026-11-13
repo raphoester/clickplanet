@@ -31,14 +31,9 @@ func restored(t *testing.T, snapshot cprules.Snapshot[*bonusesv1.Rules]) cprules
 }
 
 func TestAZeroASetHoldsIsPlayed(t *testing.T) {
-	quiet := cprules.Snapshot[*bonusesv1.Rules]{Name: "quiet", Rules: &bonusesv1.Rules{
-		Quiz:         &bonusesv1.QuizRules{Enabled: proto.Bool(false)},
-		SignInRefill: proto.Bool(false),
-	}}
+	quiet := cprules.Snapshot[*bonusesv1.Rules]{Name: "quiet", Rules: &bonusesv1.Rules{SignInRefill: proto.Bool(false)}}
 
-	played := restored(t, quiet).TakePlayedSnapshot().Rules
-	assert.False(t, played.GetQuiz().GetEnabled())
-	assert.False(t, played.GetSignInRefill())
+	assert.False(t, restored(t, quiet).TakePlayedSnapshot().Rules.GetSignInRefill())
 }
 
 func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
@@ -59,27 +54,6 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"shield.maxPerBox":                      func(r *bonusesv1.Rules) { r.Shield.MaxPerBox = proto.Uint32(4) },
 		"welcome.within":                        func(r *bonusesv1.Rules) { r.Welcome.Within = d(-time.Minute) },
 		"welcome.boxAfter":                      func(r *bonusesv1.Rules) { r.Welcome.BoxAfter = d(-time.Minute) },
-		"quiz.minInterval":                      func(r *bonusesv1.Rules) { r.Quiz.MinInterval = d(0) },
-		"quiz.maxInterval":                      func(r *bonusesv1.Rules) { r.Quiz.MaxInterval = d(time.Minute) },
-		"quiz.maxChargesPerHour":                func(r *bonusesv1.Rules) { r.Quiz.MaxChargesPerHour = proto.Uint32(0) },
-		"quiz.missRetry":                        func(r *bonusesv1.Rules) { r.Quiz.MissRetry = d(0) },
-		"quiz.offerTtl":                         func(r *bonusesv1.Rules) { r.Quiz.OfferTtl = d(0) },
-		"quiz.answerWindow":                     func(r *bonusesv1.Rules) { r.Quiz.AnswerWindow = d(0) },
-		"quiz.leaderBias is -1":                 func(r *bonusesv1.Rules) { r.Quiz.LeaderBias = proto.Float64(-1) },
-		"quiz.leaderBias is NaN":                func(r *bonusesv1.Rules) { r.Quiz.LeaderBias = proto.Float64(math.NaN()) },
-		"quiz.target is 0.2, and a chance of a right answer is between 0.34 and 0.99": func(r *bonusesv1.Rules) {
-			r.Quiz.Target = proto.Float64(0.2)
-		},
-		"quiz.target is 1":   func(r *bonusesv1.Rules) { r.Quiz.Target = proto.Float64(1) },
-		"quiz.width is -1":   func(r *bonusesv1.Rules) { r.Quiz.Width = proto.Float64(-1) },
-		"quiz.width is +Inf": func(r *bonusesv1.Rules) { r.Quiz.Width = proto.Float64(math.Inf(1)) },
-		"quiz.floor is 1.5, and a share is between 0 and 1": func(r *bonusesv1.Rules) {
-			r.Quiz.Floor = proto.Float64(1.5)
-		},
-		"quiz.floor is 0.8, over quiz.target (0.7)": func(r *bonusesv1.Rules) { r.Quiz.Floor = proto.Float64(0.8) },
-		"quiz.floorAfter is 0, and must be above 0": func(r *bonusesv1.Rules) { r.Quiz.FloorAfter = proto.Uint32(0) },
-		"quiz.explore is -0.1":                      func(r *bonusesv1.Rules) { r.Quiz.Explore = proto.Float64(-0.1) },
-		"quiz.explore is 2":                         func(r *bonusesv1.Rules) { r.Quiz.Explore = proto.Float64(2) },
 	}
 	for reason, breaks := range broken {
 		t.Run(reason, func(t *testing.T) {
@@ -102,24 +76,6 @@ func TestASetIsCheckedOverDefault(t *testing.T) {
 	assert.Contains(t, err.Error(), "boxes.maxInterval is 8m0s, under boxes.minInterval (10m0s)")
 }
 
-func TestAFloorIsCheckedAgainstDefaultsTarget(t *testing.T) {
-	harsh := cprules.Snapshot[*bonusesv1.Rules]{Name: "harsh", Rules: &bonusesv1.Rules{
-		Quiz: &bonusesv1.QuizRules{Floor: proto.Float64(0.75)},
-	}}
-
-	_, err := harsh.Restore(parts.All(), rules.Seeded())
-
-	require.ErrorIs(t, err, cprules.ErrInvalidSet)
-	assert.Contains(t, err.Error(), "quiz.floor is 0.75, over quiz.target (0.7)")
-}
-
-func TestTheDifficultyWeightedDrawIsOffInDefault(t *testing.T) {
-	played := restored(t, rules.Seeded()).TakePlayedSnapshot().Rules.GetQuiz()
-
-	assert.Zero(t, played.GetWidth(), "width 0 is the draw of before; the operator switches it on")
-	assert.Equal(t, uint32(15), played.GetFloorAfter())
-}
-
 func TestDefaultPlaysOnlyWhatItHolds(t *testing.T) {
 	_, err := rules.Named(cprules.Default, func(r *bonusesv1.Rules) { r.Boxes = nil }).Restore(parts.All(), rules.Seeded())
 
@@ -130,23 +86,18 @@ func TestDefaultPlaysOnlyWhatItHolds(t *testing.T) {
 func TestEveryReasonIsSaid(t *testing.T) {
 	_, err := rules.Named(cprules.Default, func(r *bonusesv1.Rules) {
 		r.Spread.MaxPerBox = proto.Uint32(0)
-		r.Quiz.AnswerWindow = nil
+		r.MissRetry = nil
 	}).Restore(parts.All(), rules.Seeded())
 
 	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Contains(t, err.Error(), "spread.maxPerBox is 0")
-	assert.Contains(t, err.Error(), "quiz.answerWindow is 0s")
+	assert.Contains(t, err.Error(), "missRetry is 0s")
 }
 
 func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
 	set := rules.Named(cprules.Default, func(r *bonusesv1.Rules) {
 		r.Kinds.Bomb = proto.Float64(0)
 		r.Welcome = nil
-		r.Quiz.LeaderBias = proto.Float64(0)
-		r.Quiz.Enabled = proto.Bool(false)
-		r.Quiz.Width = proto.Float64(0)
-		r.Quiz.Floor = proto.Float64(0)
-		r.Quiz.Explore = proto.Float64(0)
 		r.Boxes.MaxInterval = r.Boxes.MinInterval
 		r.SignInRefill = nil
 		r.Frozen = nil

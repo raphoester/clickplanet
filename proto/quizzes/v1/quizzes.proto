@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package quizzes.v1;
+
+// The quizzes the game asks a caller: a question, three choices and a short clock. It pays nothing: a right answer is
+// told to the other modules (QuizAnswered), and the reward comes on planet's stream (planet.v1.ChargesGranted).
+service QuizService {
+  // Opens a quiz offered to the caller: its question, its choices, and the short clock that starts now. NotFound for a
+  // quiz not offered to the caller, gone or answered. FailedPrecondition with a FrozenRefusal while the quizzes or
+  // planet's map take no play.
+  rpc OpenQuiz(OpenQuizRequest) returns (OpenQuizResponse);
+
+  // Answers a quiz opened: whether the answer was right in time, and the right choice. NotFound and FailedPrecondition
+  // as OpenQuiz.
+  rpc AnswerQuiz(AnswerQuizRequest) returns (AnswerQuizResponse);
+
+  // The quizzes offered to the caller, and every quiz won by anyone. A heartbeat at once and every so often.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream QuizEvent);
+}
+
+// The detail of the FailedPrecondition that OpenQuiz and AnswerQuiz answer while the quizzes play a frozen set, or while
+// planet's map takes no play: the quiz lapses.
+message FrozenRefusal {}
+
+message OpenQuizRequest {
+  string token = 1;
+}
+
+message OpenQuizResponse {
+  string question = 1;
+
+  repeated string choices = 2;
+
+  int64 deadline_unix_ms = 3;
+
+  double answer_seconds = 4;
+}
+
+message AnswerQuizRequest {
+  string token = 1;
+
+  // A choice past the three is the page's timeout.
+  uint32 choice = 2;
+
+  // The flag the caller plays for, which the quiz won names.
+  string country_id = 3;
+}
+
+message AnswerQuizResponse {
+  bool correct = 1;
+
+  uint32 correct_choice = 2;
+}
+
+// Empty is every event.
+message ListenForEventsRequest {}
+
+message QuizEvent {
+  oneof event {
+    Heartbeat heartbeat = 1;
+
+    // Only to the caller it is offered to.
+    QuizOffered quiz_offered = 2;
+
+    // To every stream.
+    QuizWon quiz_won = 3;
+  }
+}
+
+message Heartbeat {}
+
+// Says nothing of the question: even its subject's flag can be the answer.
+message QuizOffered {
+  string token = 1;
+
+  int64 expires_at_unix_ms = 2;
+}
+
+// A quiz answered right, by anyone.
+message QuizWon {
+  // The flag of the caller who won it.
+  string country_id = 1;
+
+  // The country the question was about. Empty for none.
+  string subject_country_id = 2;
+}

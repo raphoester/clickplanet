@@ -23,8 +23,8 @@ func entrantOf(p payer) Entrant {
 	return EntrantOf(p.caller())
 }
 
-func clickOf(p payer, dry bool) Click {
-	return Click{Caller: p.caller(), Born: p.Created, Dry: dry}
+func clickOf(p payer) Click {
+	return Click{Caller: p.caller(), Born: p.Created}
 }
 
 // fakeRoom is the wallet's word on room, as a test sets it: every account has room for every kind until it is kept full.

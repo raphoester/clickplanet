@@ -19,7 +19,7 @@ type Charger interface {
 }
 
 type Streams interface {
-	PublishGranted(holder charges.Holder, held charges.Held)
+	PublishGranted(holder charges.Holder, gain charges.Gain)
 }
 
 type In struct {
@@ -52,7 +52,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		return fmt.Errorf("cannot grant: %w", err)
 	}
 
-	var granted *charges.Held
+	var granted *charges.Gain
 	if err := u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		first, err := u.grants.Record(ctx, in.Grant, u.clock.Now())
 		if err != nil {
@@ -65,7 +65,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) error {
 		if err != nil {
 			return err //nolint:wrapcheck // the charger named it.
 		}
-		granted = &gain.After
+		granted = &gain
 		return nil
 	}); err != nil {
 		return err

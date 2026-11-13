@@ -47,7 +47,6 @@ func (s Subscriber) Handle(_ context.Context, event *planetv1.ClickTried) error 
 		},
 		At:   event.GetTriedAt().AsTime(),
 		Born: bornOf(event.GetAccountId()),
-		Dry:  event.GetDry(),
 	})
 	return nil
 }

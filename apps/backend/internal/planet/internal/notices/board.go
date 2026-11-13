@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 // Spread is the tiles a spread click took, told to every stream at once.
@@ -15,16 +14,16 @@ type Spread struct {
 	Neighbours []uint32
 }
 
-// Event is one notice: a spread, or all a signed-in account holds after a grant.
+// Event is one notice: a spread, or what a grant added to an account's hand and all it holds after.
 type Event struct {
 	Spread  *Spread
-	Granted *charges.Held
+	Granted *charges.Gain
 }
 
 const buffer = 32
 
 // Board tells the streams open what planet's own wallet and clicks did beside the map's changes: a spread to every
-// stream, a grant to the signed-in account's own. A stream that is not reading is dropped from, never waited for.
+// stream, a grant to the granted account's own. A stream that is not reading is dropped from, never waited for.
 type Board struct {
 	mu      sync.Mutex
 	streams map[uint64]stream
@@ -32,7 +31,7 @@ type Board struct {
 }
 
 type stream struct {
-	caller clicks.Caller
+	holder charges.Holder
 	events chan Event
 }
 
@@ -40,14 +39,15 @@ func New() *Board {
 	return &Board{streams: make(map[uint64]stream)}
 }
 
-func (b *Board) Attend(caller clicks.Caller) (<-chan Event, func()) {
+// Attend opens a stream for the account its session names: NoHolder for one with none, which hears no grant.
+func (b *Board) Attend(holder charges.Holder) (<-chan Event, func()) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	b.nextID++
 	id := b.nextID
 	events := make(chan Event, buffer)
-	b.streams[id] = stream{caller: caller, events: events}
+	b.streams[id] = stream{holder: holder, events: events}
 
 	return events, func() { b.leave(id) }
 }
@@ -63,10 +63,13 @@ func (b *Board) PublishSpread(spread Spread) {
 	b.send(func(stream) bool { return true }, Event{Spread: &spread})
 }
 
-// A guest's streams share its address with others', so only a signed-in account hears what it holds.
-func (b *Board) PublishGranted(holder charges.Holder, held charges.Held) {
-	account := clicks.CallerOf(clicks.Payer{Account: string(holder), Linked: true})
-	b.send(func(each stream) bool { return each.caller == account }, Event{Granted: &held})
+// A grant reaches only the streams whose session names the account granted, a guest's as a signed-in one's: a guest's
+// token names its own account, which the others behind its address do not share.
+func (b *Board) PublishGranted(holder charges.Holder, gain charges.Gain) {
+	if holder == charges.NoHolder {
+		return
+	}
+	b.send(func(each stream) bool { return each.holder == holder }, Event{Granted: &gain})
 }
 
 func (b *Board) send(to func(stream) bool, event Event) {

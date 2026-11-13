@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
 	"github.com/raphoester/clickplanet.lol-backend/internal/publishing"
+	"github.com/raphoester/clickplanet.lol-backend/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
@@ -41,8 +42,10 @@ type Config struct {
 	Scoring     scoring.Config
 	Gamemaster  gamemaster.Config
 	Missions    missions.Config
-	// The boxes and the quizzes, and what each grants.
+	// The boxes, and what a box, a right answer and a sign-in grant.
 	Bonuses bonuses.Config
+	// The quizzes, the bank and how hard each question is.
+	Quizzes quizzes.Config
 	Support support.Config
 	MCP     mcp.Config
 	// Who each clip names and who keeps out, the names a post may show, and the operator's videos.
@@ -92,6 +95,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		auth.NewModule(config.Auth),
 		planet.NewModule(config.Planet),
 		bonuses.NewModule(config.Bonuses),
+		quizzes.NewModule(config.Quizzes),
 		antibot.NewModule(config.AntiBot),
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
@@ -131,6 +135,7 @@ func (c Config) Validate() error {
 		c.Gamemaster.Validate(),
 		c.Missions.Validate(),
 		c.Bonuses.Validate(),
+		c.Quizzes.Validate(),
 		c.Support.Validate(),
 		c.Clips.Validate(),
 		c.Alerts.Validate(),

@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
@@ -192,7 +193,7 @@ func (steadyRules) Watch() (<-chan cprules.Set[*planetv1.Rules], func()) {
 
 type noNotices struct{}
 
-func (noNotices) Attend(clicks.Caller) (<-chan notices.Event, func()) {
+func (noNotices) Attend(charges.Holder) (<-chan notices.Event, func()) {
 	return nil, func() {}
 }
 

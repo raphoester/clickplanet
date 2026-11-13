@@ -2,5 +2,5 @@ package subscribers
 
 import "time"
 
-// A payment is one call to planet, which answers at once; a forgotten account is one update of the answers it gave.
+// A payment is a call or two to planet, which answers at once.
 const Timeout = 30 * time.Second

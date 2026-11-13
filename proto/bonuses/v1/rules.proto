@@ -4,26 +4,31 @@ package bonuses.v1;
 
 import "google/protobuf/duration.proto";
 
-// When a box and a quiz come, what each may be and how much it grants. "default" holds every value; another set holds
-// the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
-// (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules).
+// When a box comes, and what a box or a right answer may be and how much it grants. "default" holds every value; another
+// set holds the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
+// (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules);
+// when a quiz comes is the quizzes' (quizzes.v1.Rules).
 message Rules {
+  // The quizzes' own rules since they are a module of their own: quizzes.v1.Rules. A set kept from before still holds
+  // it, read no more.
+  reserved 10;
+  reserved "quiz";
+
   BoxPace boxes = 1;
   KindWeights kinds = 2;
   // How long a box flies. It must outlast the flight the page draws.
   google.protobuf.Duration offer_ttl = 3;
   // A box missed brings the next one this soon, once.
   google.protobuf.Duration miss_retry = 4;
-  // No box or quiz for a caller that has not clicked for this long.
+  // No box for a caller that has not clicked for this long.
   google.protobuf.Duration active_within = 5;
   SpreadRules spread = 6;
   EncloseRules enclose = 7;
   ShieldRules shield = 8;
   WelcomeRules welcome = 9;
-  QuizRules quiz = 10;
   // A guest's first sign-in earns a refill, once per account.
   optional bool sign_in_refill = 11;
-  // No box or quiz is offered, and ClaimBonus, OpenQuiz and AnswerQuiz are refused.
+  // No box is offered, and ClaimBonus is refused.
   optional bool frozen = 12;
 }
 
@@ -33,8 +38,8 @@ message BoxPace {
   optional uint32 max_charges_per_hour = 3;
 }
 
-// What a box or a quiz is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind planet
-// says a hand has no room for is never offered to it, nor a bomb while planet's bombs are off.
+// What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
+// planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off.
 message KindWeights {
   optional double refill = 1;
   optional double spread_clicks = 2;
@@ -57,34 +62,8 @@ message ShieldRules {
   optional uint32 max_per_box = 2;
 }
 
-// An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is
-// off.
+// An account younger than `within` gets its first box `box_after` it was made. 0s is off.
 message WelcomeRules {
   google.protobuf.Duration within = 1;
   google.protobuf.Duration box_after = 2;
-}
-
-message QuizRules {
-  optional bool enabled = 1;
-  google.protobuf.Duration min_interval = 2;
-  google.protobuf.Duration max_interval = 3;
-  google.protobuf.Duration miss_retry = 4;
-  google.protobuf.Duration offer_ttl = 5;
-  google.protobuf.Duration answer_window = 6;
-  // How much a question leans to the countries that hold the most; 0 is a flat draw.
-  optional double leader_bias = 7;
-  optional uint32 max_charges_per_hour = 8;
-  // The difficulty-weighted draw, inside the subject's questions the lean picked. The chance of a right answer, for an
-  // average player, it aims at: 0.34 to 0.99.
-  optional double target = 9;
-  // How wide the bell around target is, on the rating scale: a question this far from target weighs 0.61 of one on it,
-  // twice as far 0.14. 0 is off, the draw of before: no question weighs more for how hard it is, and none is left out.
-  optional double width = 10;
-  // A question whose rating says fewer than this share of average players get it right, once floor_after answers moved
-  // it, is never drawn. A prior alone never leaves a question out. At most target.
-  optional double floor = 11;
-  optional uint32 floor_after = 12;
-  // The share of draws that ignore how hard a question is, so every question keeps being asked; never one under the
-  // floor. 0 to 1.
-  optional double explore = 13;
 }

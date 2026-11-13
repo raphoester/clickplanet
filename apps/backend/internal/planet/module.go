@@ -93,7 +93,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charge_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charges_of_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_country_sizes_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_fortresses_handler/fortresses_query"
@@ -412,12 +411,11 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetRuleSetHandler:        get_rule_set_handler.New(rule_set_query.NewPostgresQuery(db)),
 				// A grant made at once is known by its id in memory for a while, or in charge_grants for good.
 				GrantChargesHandler: internal_grant_charges_handler.New(
-					pay_usecase.New(db, inmemory_grant_store.New(briefGrantsKept), hands, clock),
-					pay_usecase.New(db, grantStore, hands, clock)),
-				GetRoomHandler:      get_room_handler.New(hands, chargeRules),
-				GetChargesOfHandler: get_charges_of_handler.New(hands),
-				GetFreezeHandler:    get_freeze_handler.New(freezing),
-				GetTilesHandler:     get_tiles_handler.New(tilesChecker, tiles_query.NewMemoryQuery(tilesStorage, geography)),
+					pay_usecase.New(db, inmemory_grant_store.New(briefGrantsKept), hands, board, clock),
+					pay_usecase.New(db, grantStore, hands, board, clock)),
+				GetRoomHandler:   get_room_handler.New(hands, chargeRules),
+				GetFreezeHandler: get_freeze_handler.New(freezing),
+				GetTilesHandler:  get_tiles_handler.New(tilesChecker, tiles_query.NewMemoryQuery(tilesStorage, geography)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

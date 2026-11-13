@@ -301,7 +301,8 @@ gamemaster:
     address: localhost:6379
     password: ""
 
-# The boxes and the quizzes. Their rules are the rule sets postgres keeps (bonuses.rule_sets), edited on the backoffice.
+# The boxes, and what a box, a right answer and a sign-in grant. Their rules are the rule sets postgres keeps
+# (bonuses.rule_sets), edited on the backoffice.
 bonuses:
   database:
     host: localhost
@@ -319,7 +320,28 @@ bonuses:
   offers:
     # A caller with no stream open is forgotten after this long.
     forgetAfter: 5m
-    # How often the offers look for whom a box or a quiz is due.
+    # How often the offers look for whom a box is due.
+    sweepInterval: 1s
+
+# The quizzes. Their rules are the rule sets postgres keeps (quizzes.rule_sets), edited on the backoffice.
+quizzes:
+  database:
+    host: localhost
+    port: "5432"
+    user: postgres
+    password: postgres
+    dbName: postgres
+    sslMode: disable
+    schema: quizzes
+    pool:
+      maxOpenConns: 2
+  redis:
+    address: localhost:6379
+    password: ""
+  offers:
+    # A caller with no stream open is forgotten after this long.
+    forgetAfter: 5m
+    # How often the quizzes look for whom a quiz is due.
     sweepInterval: 1s
 
 missions:
