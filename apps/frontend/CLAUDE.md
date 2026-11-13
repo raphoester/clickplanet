@@ -23,6 +23,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   browser), adding a string or a language.
 - [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes; a flag's address,
   `clickplanet.lol/<flag>/<name>`, which the home page's first script opens on the game.
+- [Search](docs/search.md) — what Google reads: the titles, the one description, the JSON-LD that names us
+  "Click Planet" too, the sitemap, the CrazyGames host's noindex; the Search Console baseline of Nov 2026 and how to
+  read it with Composio.
 
 ## Architecture
 
