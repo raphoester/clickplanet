@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {ALL_OFF, atRest, BonusRules, NO_CHARGES, restingSwitch, ringsOf, switched, switchesHeld} from "./bonus.ts"
+import {ALL_OFF, atRest, NO_CHARGES, restingSwitch, switched, switchesHeld} from "./bonus.ts"
 
 const PAID = {spreadUnlimited: false, enclosuresUnlimited: false}
 
@@ -67,16 +67,6 @@ describe("restingSwitch", () => {
         expect(restingSwitch({...PAID, enclosuresUnlimited: true})).toBe("enclose")
         expect(restingSwitch({...PAID, spreadUnlimited: true})).toBe("spread")
         expect(restingSwitch({spreadUnlimited: true, enclosuresUnlimited: true})).toBe("spread")
-    })
-})
-
-describe("ringsOf", () => {
-    it("is the rules' rings while spread is on, and none otherwise", () => {
-        const rules = {spreadRings: 2} as BonusRules
-
-        expect(ringsOf({...ALL_OFF, spread: true}, rules)).toBe(2)
-        expect(ringsOf(ALL_OFF, rules)).toBe(0)
-        expect(ringsOf({...ALL_OFF, spread: true}, undefined)).toBe(1)
     })
 })
 

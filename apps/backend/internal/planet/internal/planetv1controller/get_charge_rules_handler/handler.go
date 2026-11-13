@@ -55,7 +55,6 @@ func (h GetChargeRulesHandler) GetChargeRules(
 		CapitalShieldsFixed: capitals.FixedShields,
 		BombsOff:            rules.Bomb.Off,
 
-		SpreadRings:     uint32(rules.Spread.Rings),
 		SpreadUnlimited: rules.Spread.Unlimited,
 	}), nil
 }

@@ -69,7 +69,7 @@ import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
 import {createClickGlints} from "./clickGlints.ts";
-import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, restingSwitch, ringsOf, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
+import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, restingSwitch, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {canClick, ClickBudget, ClickBudgetSource, now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
 import {IMPACT_DELAY} from "../../domain/blast.ts";
@@ -79,7 +79,7 @@ import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
 import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
 import {pointOf} from "../../domain/clip/geometry.ts";
-import {Front, FrontChanges, remembered} from "../../domain/front.ts";
+import {Front, FrontChanges} from "../../domain/front.ts";
 import {OpenGround, openTileNear, opensOn} from "../../domain/openTiles.ts";
 import {createTapPointer} from "./tapPointer.ts";
 import {CapitalMarks} from "../../domain/capitalMarks.ts";
@@ -636,7 +636,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const settled = atRest(next, restSwitchedOff || armed ? undefined : restingSwitch(rules))
         if (sameSwitches(settled, switches)) return
         switches = settled
-        widenReach()
         onSwitchesChange(settled)
     }
 
@@ -848,15 +847,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const widenReach = () => {
-        if (reach) lightFront(reach.widen(ringsOf(switches, rules)))
-    }
-
     const playReach = (bridges: Bridges) => {
         if (front) lightFront(front.drop())
-        const land = remembered(neighbourhood(), field.size)
-        reach = new Front(acrossBridges(land, bridges), shownOwnerOf, geometryData.positions, land)
-        reach.widen(ringsOf(switches, rules))
+        reach = new Front(acrossBridges(neighbourhood(), bridges), shownOwnerOf, geometryData.positions)
         front = reach
         lightFront(reach.follow(country.code))
         arcs = createBridgeArcs(bridges.all, geometryData.positions)
@@ -1022,7 +1015,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 const held = {...switches, spread: switches.spread && !spreadChanged, enclose: switches.enclose && !encloseChanged}
                 switchTo(switchesHeld(held, charges, read))
             }
-            widenReach()
             drawMarks(marksFor(shielded.most()))
             followRules(read)
             if (read.bombsOff) disarm()

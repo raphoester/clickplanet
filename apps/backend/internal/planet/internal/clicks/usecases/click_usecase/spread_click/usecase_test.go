@@ -19,11 +19,9 @@ import (
 type stubClick struct {
 	storage *recordingStorage
 	err     error
-	seen    *[]click_usecase.In
 }
 
 func (s stubClick) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	*s.seen = append(*s.seen, in)
 	if s.err != nil {
 		return click_usecase.Out{}, s.err
 	}
@@ -39,9 +37,15 @@ func played(t *testing.T) context.Context {
 	return cpctx.AddAccountToContext(t.Context(), string(caller))
 }
 
-type stubNeighbours map[uint32][]uint32
+type stubNeighbours struct {
+	around map[uint32][]uint32
+	rings  []int
+}
 
-func (s stubNeighbours) Around(_ string, tile uint32, _ int) []uint32 { return slices.Clone(s[tile]) }
+func (s *stubNeighbours) Around(_ string, tile uint32, rings int) []uint32 {
+	s.rings = append(s.rings, rings)
+	return slices.Clone(s.around[tile])
+}
 
 type recordingStorage struct {
 	tiles map[uint32]string
@@ -69,9 +73,11 @@ func (r *recordingPublisher) PublishSpread(spread notices.Spread) {
 	r.spreads = append(r.spreads, spread)
 }
 
-var honeycomb = stubNeighbours{
-	100: {90, 91, 99, 101, 109, 110},
-	7:   nil,
+func honeycomb() *stubNeighbours {
+	return &stubNeighbours{around: map[uint32][]uint32{
+		100: {90, 91, 99, 101, 109, 110},
+		7:   nil,
+	}}
 }
 
 type fixture struct {
@@ -79,7 +85,7 @@ type fixture struct {
 	storage   *recordingStorage
 	publisher *recordingPublisher
 	hands     *charges.MemoryStore
-	seen      []click_usecase.In
+	reach     *stubNeighbours
 }
 
 func setup(t *testing.T, clicksLeft int, err error, rules func() charges.Rules) *fixture {
@@ -89,10 +95,11 @@ func setup(t *testing.T, clicksLeft int, err error, rules func() charges.Rules) 
 		storage:   &recordingStorage{tiles: map[uint32]string{}},
 		publisher: &recordingPublisher{},
 		hands:     charges.NewMemoryStore(),
+		reach:     honeycomb(),
 	}
 	f.hands.Keep(caller, charges.Held{SpreadClicks: clicksLeft})
-	f.useCase = spread_click.New(stubClick{storage: f.storage, err: err, seen: &f.seen},
-		charges.NewCharges(f.hands, rules), honeycomb, f.storage, f.publisher)
+	f.useCase = spread_click.New(stubClick{storage: f.storage, err: err},
+		charges.NewCharges(f.hands, rules), f.reach, f.storage, f.publisher)
 
 	return f
 }
@@ -116,14 +123,13 @@ func TestASpreadingClickTakesTheTileAndEveryTileTouchingIt(t *testing.T) {
 	}, f.storage.tiles)
 }
 
-func TestTheClickIsPlayedWithTheRingsInForce(t *testing.T) {
+func TestTheSpreadReachesTheRingsInForce(t *testing.T) {
 	f := setup(t, 8, nil, spreading(2, false))
 
 	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
-	assert.Equal(t, []click_usecase.In{{TileID: 100, CountryID: "fr", Spread: true, Rings: 2}}, f.seen,
-		"the reach inside checks the disc the spread will take")
+	assert.Equal(t, []int{2}, f.reach.rings)
 }
 
 func TestASpreadTheWriterFailsIsAnErrorAndIsNotAnnounced(t *testing.T) {
@@ -136,50 +142,25 @@ func TestASpreadTheWriterFailsIsAnErrorAndIsNotAnnounced(t *testing.T) {
 	assert.Empty(t, f.publisher.spreads)
 }
 
-func TestWithoutTheBonusAClickTakesOneTileAndIsPlayedAsAPlainOne(t *testing.T) {
+func TestWithoutTheBonusAClickTakesOneTile(t *testing.T) {
 	f := setup(t, 0, nil, charges.TestRules)
 
 	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
 
 	assert.Equal(t, map[uint32]string{100: "fr"}, f.storage.tiles)
-	assert.Equal(t, []click_usecase.In{{TileID: 100, CountryID: "fr", Spread: true}}, f.seen, "no ring: the plain reach")
 }
 
-func TestARefusedClickSpreadsNothingAndGivesItsSpreadClickBack(t *testing.T) {
-	refused := errors.New("throttled")
+func TestARefusedClickSpreadsNothingAndCostsNoSpreadClick(t *testing.T) {
+	refused := errors.New("unknown country")
 	f := setup(t, 8, refused, charges.TestRules)
 
 	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "zz", Spread: true})
 
 	require.ErrorIs(t, err, refused)
-	assert.Equal(t, []click_usecase.In{{TileID: 100, CountryID: "zz", Spread: true, Rings: 1}}, f.seen)
 	assert.Empty(t, f.storage.tiles)
 	assert.Empty(t, f.publisher.spreads)
 	assert.Equal(t, 8, f.hands.Kept(caller).SpreadClicks)
-}
-
-type failingAfter struct {
-	hands *charges.MemoryStore
-	down  error
-}
-
-func (f failingAfter) Execute(context.Context, click_usecase.In) (click_usecase.Out, error) {
-	f.hands.FailWith(f.down)
-	return click_usecase.Out{}, errors.New("throttled")
-}
-
-func TestARefusedClickWhoseSpreadClickCannotComeBackSaysBoth(t *testing.T) {
-	hands := charges.NewMemoryStore()
-	hands.Keep(caller, charges.Held{SpreadClicks: 8})
-	down := errors.New("postgres is down")
-	useCase := spread_click.New(failingAfter{hands: hands, down: down}, charges.NewCharges(hands, charges.TestRules),
-		honeycomb, &recordingStorage{tiles: map[uint32]string{}}, &recordingPublisher{})
-
-	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
-
-	require.ErrorIs(t, err, down)
-	assert.ErrorContains(t, err, "throttled")
 }
 
 func TestTheChargeSpreadsItsClicksAndNoMore(t *testing.T) {
@@ -211,11 +192,10 @@ func TestUnlimitedSpreadsNeedNoAccountAndWaitForSpreadSwitchedOn(t *testing.T) {
 
 	_, err := f.useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 	require.NoError(t, err)
-	_, err = f.useCase.Execute(t.Context(), click_usecase.In{TileID: 7, CountryID: "fr"})
+	_, err = f.useCase.Execute(t.Context(), click_usecase.In{TileID: 100, CountryID: "fr"})
 	require.NoError(t, err)
 
 	assert.Len(t, f.publisher.spreads, 1)
-	assert.Equal(t, 0, f.seen[1].Rings)
 }
 
 func TestACallerWithNoAccountSpreadsNothing(t *testing.T) {
@@ -274,7 +254,7 @@ func TestAClickWithSpreadSwitchedOffSpreadsNothingAndSpendsNothing(t *testing.T)
 	assert.Equal(t, 8, f.hands.Kept(caller).SpreadClicks, "the pool is used only when the player chooses")
 }
 
-func TestASpreadTheStoreCannotTakeFailsBeforeTheClick(t *testing.T) {
+func TestASpreadTheStoreCannotSpendFailsWithTheTileTakenAndNoNeighbour(t *testing.T) {
 	f := setup(t, 8, nil, charges.TestRules)
 	down := errors.New("postgres is down")
 	f.hands.FailWith(down)
@@ -282,12 +262,10 @@ func TestASpreadTheStoreCannotTakeFailsBeforeTheClick(t *testing.T) {
 	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
 
 	require.ErrorIs(t, err, down)
-	assert.Empty(t, f.seen)
-	assert.Empty(t, f.storage.tiles)
+	assert.Equal(t, map[uint32]string{100: "fr"}, f.storage.tiles)
 	assert.Empty(t, f.publisher.spreads)
 }
 
-// In an arena, the reach leaves out the neighbours the flag cannot take.
 type armReach map[string][]uint32
 
 func (a armReach) Around(flag string, _ uint32, _ int) []uint32 { return a[flag] }
@@ -297,8 +275,7 @@ func TestASpreadTakesOnlyTheNeighboursInTheFlagsReach(t *testing.T) {
 	hands := charges.NewMemoryStore()
 	hands.Keep(caller, charges.Held{SpreadClicks: 1})
 	publisher := &recordingPublisher{}
-	var seen []click_usecase.In
-	useCase := spread_click.New(stubClick{storage: storage, seen: &seen}, charges.NewCharges(hands, charges.TestRules),
+	useCase := spread_click.New(stubClick{storage: storage}, charges.NewCharges(hands, charges.TestRules),
 		armReach{"fr": {90, 91}}, storage, publisher)
 
 	_, err := useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})

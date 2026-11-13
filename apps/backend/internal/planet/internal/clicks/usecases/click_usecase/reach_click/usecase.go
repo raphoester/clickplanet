@@ -7,7 +7,7 @@ import (
 )
 
 type Reach interface {
-	Refuses(flag string, tile uint32, rings int) error
+	Refuses(flag string, tile uint32) error
 }
 
 func New(implementation click_usecase.IUseCase, reach Reach) *UseCase {
@@ -20,7 +20,7 @@ type UseCase struct {
 }
 
 func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_usecase.Out, error) {
-	if err := u.reach.Refuses(in.CountryID, in.TileID, in.Rings); err != nil {
+	if err := u.reach.Refuses(in.CountryID, in.TileID); err != nil {
 		return click_usecase.Out{}, err //nolint:wrapcheck // the reach names the tile and the flag.
 	}
 

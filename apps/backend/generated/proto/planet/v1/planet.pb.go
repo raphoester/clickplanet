@@ -2709,9 +2709,6 @@ type GetChargeRulesResponse struct {
 	CapitalShieldsFixed bool `protobuf:"varint,13,opt,name=capital_shields_fixed,json=capitalShieldsFixed,proto3" json:"capital_shields_fixed,omitempty"`
 	// No bomb is dropped, and none is offered: the page hides the bomb.
 	BombsOff bool `protobuf:"varint,14,opt,name=bombs_off,json=bombsOff,proto3" json:"bombs_off,omitempty"`
-	// A spread takes every tile within this many steps of the tile clicked; while the reach plays, a click that spreads
-	// is in reach when any of them is.
-	SpreadRings uint32 `protobuf:"varint,15,opt,name=spread_rings,json=spreadRings,proto3" json:"spread_rings,omitempty"`
 	// Spread needs no charge and spends none.
 	SpreadUnlimited bool `protobuf:"varint,16,opt,name=spread_unlimited,json=spreadUnlimited,proto3" json:"spread_unlimited,omitempty"`
 	unknownFields   protoimpl.UnknownFields
@@ -2830,13 +2827,6 @@ func (x *GetChargeRulesResponse) GetBombsOff() bool {
 		return x.BombsOff
 	}
 	return false
-}
-
-func (x *GetChargeRulesResponse) GetSpreadRings() uint32 {
-	if x != nil {
-		return x.SpreadRings
-	}
-	return 0
 }
 
 func (x *GetChargeRulesResponse) GetSpreadUnlimited() bool {
@@ -3799,7 +3789,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x17\n" +
-	"\x15GetChargeRulesRequest\"\xcd\x04\n" +
+	"\x15GetChargeRulesRequest\"\xbe\x04\n" +
 	"\x16GetChargeRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -3816,10 +3806,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x05reach\x18\v \x01(\bR\x05reach\x12\x1b\n" +
 	"\tknock_out\x18\f \x01(\bR\bknockOut\x122\n" +
 	"\x15capital_shields_fixed\x18\r \x01(\bR\x13capitalShieldsFixed\x12\x1b\n" +
-	"\tbombs_off\x18\x0e \x01(\bR\bbombsOff\x12!\n" +
-	"\fspread_rings\x18\x0f \x01(\rR\vspreadRings\x12)\n" +
+	"\tbombs_off\x18\x0e \x01(\bR\bbombsOff\x12)\n" +
 	"\x10spread_unlimited\x18\x10 \x01(\bR\x0fspreadUnlimitedJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
-	"R\thome_soilR\x0esign_in_refill\"<\n" +
+	"J\x04\b\x0f\x10\x10R\thome_soilR\x0esign_in_refillR\fspread_rings\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +
 	"\bslowdown\x18\x02 \x01(\x01R\bslowdown\"1\n" +

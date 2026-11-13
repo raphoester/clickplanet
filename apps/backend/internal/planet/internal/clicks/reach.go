@@ -45,8 +45,8 @@ func NewReach(on func() Reaching, neighbours Neighbourhood, bridges Crossings, h
 	return Reach{on: on, neighbours: neighbours, bridges: bridges, held: held}
 }
 
-func (r Reach) Refuses(flag string, tile uint32, rings int) error {
-	if !bool(r.on()) || r.reachesAny(flag, append(Disc(r.neighbours, tile, rings), tile)) {
+func (r Reach) Refuses(flag string, tile uint32) error {
+	if !bool(r.on()) || r.reachesAny(flag, []uint32{tile}) {
 		return nil
 	}
 
