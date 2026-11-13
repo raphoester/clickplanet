@@ -21,7 +21,6 @@ type TileStorage interface {
 	HoldingsOf(landmass LandmassID) []Holding
 	ForgetHolder(ctx context.Context, account cpsession.AccountID) (int, error)
 	Clear(ctx context.Context, blast Blast) (Blast, error)
-	Reassign(ctx context.Context, from, to string, start uint32, limit int) (next uint32, moved int, err error)
 	Restore(ctx context.Context, restorations []Restoration) (int, error)
 
 	// The version is the map's as the subscription starts: every change after it is on the channel, in order.

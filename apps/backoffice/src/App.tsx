@@ -6,8 +6,6 @@ import {Menu, Sidebar} from "./components/Menu.tsx"
 import {ConnectPage} from "./connect/ConnectPage.tsx"
 import {clearPending, pendingRequest} from "./connect/pending.ts"
 import {HomePage} from "./home/HomePage.tsx"
-import {PaintPanel} from "./map/PaintPanel.tsx"
-import {ReassignPanel} from "./map/ReassignPanel.tsx"
 import {ReplayPanel} from "./map/ReplayPanel.tsx"
 import {ClipStatsPage} from "./clips/ClipStatsPage.tsx"
 import {OpenPlayer, Opened, PageId, titleOf} from "./navigation.ts"
@@ -119,8 +117,6 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                         onOpen={opened => opened === undefined ? go("players") : openPlayer(opened)}
                     />
                 )}
-                {page === "reassign" && <ReassignPanel planet={CLIENTS.planet}/>}
-                {page === "paint" && <PaintPanel planet={CLIENTS.planet}/>}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage publishing={CLIENTS.publishing}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}

@@ -1260,9 +1260,8 @@ backoffice.clickplanet.lol → api.clickplanet.lol/<package>.v1.AdminService/* �
   not signed in, or not an operator.
 - **Every tool in this section is on the page too**, in its burger menu:
   Players (find, ban, unban, revert, inspect, mute, unmute, grant charges), the Map
-  pages (reassign, paint, replay) and the Ops pages (titles, names). Each asks before it changes anything, and a revert, a
-  reassign and a paint run their dry run first. The commands below stay for
-  scripts on the box.
+  page (replay) and the Ops pages (titles, names). Each asks before it changes anything, and a revert runs its dry run
+  first. The commands below stay for scripts on the box.
 
 ### Connect Claude (the connector)
 
@@ -1362,38 +1361,6 @@ docker compose exec postgres psql -U clickplanet -c \
 The purge runs every hour (`auth.deletion.interval`) and deletes it with
 everything every module keeps about it, as it would on day 30.
 
-### Give one country's tiles to another
-
-Dry run first. It changes nothing and says how many tiles each side holds:
-
-```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"fromCountryId":"dz","toCountryId":"fr","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/ReassignCountry
-```
-
-Then the same without `"dryRun":true`. There is no restart:
-
-- It moves every tile `from` holds, 256 at a time every 50ms — about 4.5s for
-  22,000 tiles.
-- Each tile goes out on the live stream as an ordinary update, so open tabs
-  repaint, the toll sees the new counts, and the next flush writes it to postgres.
-- A tile `from` takes back while it runs stays theirs. `fromAfter` in the answer
-  says how many; run it again.
-- **A count of zero is left out of the answer** — that is how protobuf JSON
-  writes it. `{"fromBefore":22040,"moved":22040,"toAfter":22040}` means `fromAfter` is 0.
-- A refusal (unknown or identical country) shows as `server returned error: HTTP/1.1 400`.
-- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin country reassignment"`.
-
-**Reassigning back does not undo it**: it would also move the tiles `to` held
-before. Copy the table first if you may want to return:
-
-```bash
-docker compose exec postgres psql -U clickplanet -c "create table planet.tiles_before_reassign as table planet.tiles"
-```
-
-To go back: stop the backend (its last flush runs on the way down), then
-`truncate planet.tiles; insert into planet.tiles select * from planet.tiles_before_reassign;` in psql,
-then start it.
-
 ### Reconcile the players' titles
 
 Makes every player's titles what the rules give it, no more and no less. Run
@@ -1412,24 +1379,6 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   kept keeps the date it was first earned. A failed run is simply run again.
 - It reads 500 players at a time and asks auth about each page at once.
 - Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin title reconciliation"`.
-
-### Paint random tiles of a country with a flag
-
-Paints `count` tiles with `flagCountryId`, starting on `areaCountryId`'s ground.
-Leave out `areaCountryId` to start anywhere on the map.
-Dry run first; it says how many tiles of the area do not wear the flag yet:
-
-```bash
-docker compose exec backend wget -qO- --header 'Content-Type: application/json' --post-data '{"flagCountryId":"dz","areaCountryId":"fr","count":500,"proximity":0.8,"dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/PaintRandomTiles
-```
-
-- `proximity` goes from 0 to 1. 0 scatters the tiles over the whole country;
-  1 grows one patch. Between the two you get a few patches.
-- A patch can grow past the country's border. `outsideArea` says how many
-  tiles it took there.
-- A tile somebody takes while it runs stays theirs: `painted` can be below `picked`.
-- It is not undone by anything. Copy the table first, as for a reassign.
-- Every call is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin random paint"`.
 
 ### Give a player charges
 
@@ -1542,7 +1491,8 @@ docker compose exec backend wget -qO- --header 'Content-Type: application/json' 
   the flag it wore, while it is still empty. They count in `touched`. So are the
   tiles its spreads and enclosures took. Its shields and the shields it struck
   are not put back.
-- Paced like the reassign, each tile an ordinary update on the live stream.
+- Paced, 256 tiles every 50ms, each tile an ordinary update on the live stream, so
+  open tabs repaint, the toll sees the new counts, and the next flush writes it to postgres.
 - A second run answers zeros: a reverted player has nothing left to revert.
 - Every ban and revert is logged: `journalctl CONTAINER_NAME=cp-backend | grep "admin ban\|admin player revert"`.
 

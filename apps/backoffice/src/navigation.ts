@@ -3,8 +3,8 @@ import {Player} from "./gen/grpc/planet/v1/admin_pb.ts"
 import {Caller} from "./players/caller.ts"
 
 export type PageId =
-    | "home" | "notes" | "reports" | "players" | "reassign" | "paint" | "replay" | "clips" | "videos" | "titles"
-    | "discord" | "rules" | "bonusRules" | "antibotRules" | "missionRules" | "schedule" | "seasons" | "timeline" | "promo"
+    | "home" | "notes" | "reports" | "players" | "replay" | "clips" | "videos" | "titles" | "discord" | "rules"
+    | "bonusRules" | "antibotRules" | "missionRules" | "schedule" | "seasons" | "timeline" | "promo"
 
 export type MenuGroup = {label: string, pages: {page: PageId, label: string}[]}
 
@@ -13,14 +13,7 @@ export const MENU: MenuGroup[] = [
     {label: "Overview", pages: [{page: "home", label: "Home"}]},
     {label: "Feedback", pages: [{page: "notes", label: "Ideas and bugs"}]},
     {label: "Moderation", pages: [{page: "reports", label: "Reports"}, {page: "players", label: "Players"}]},
-    {
-        label: "Map",
-        pages: [
-            {page: "reassign", label: "Reassign a country"},
-            {page: "paint", label: "Paint random tiles"},
-            {page: "replay", label: "Download a replay"},
-        ],
-    },
+    {label: "Map", pages: [{page: "replay", label: "Download a replay"}]},
     {label: "Clips", pages: [{page: "clips", label: "Clip stats"}, {page: "videos", label: "Videos"}]},
     {
         label: "Ops",

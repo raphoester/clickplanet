@@ -45,8 +45,8 @@ and a fortify change no owner.
 
 ## What cannot be rewound
 
-**A change that wrote no event**: an operator's `ReassignCountry`, `PaintRandomTiles` and `RevertPlayer`. A tile one of
-them changed inside the window opens as it was after that change, and the change is in no frame. A revert's takes are
+**A change that wrote no event**: an operator's `RevertPlayer`. A tile it changed inside the window opens as it was
+after that change, and the change is in no frame. A revert's takes are
 forgotten, so a tile a reverted account took and someone else took after opens on the reverted account's flag. **The
 last second**, not flushed yet: a tile changed only in it opens as it is now.
 

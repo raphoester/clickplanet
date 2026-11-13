@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	// A reassign or a reconciliation walks the whole map or every account.
+	// A revert or a reconciliation walks the whole map or every account.
 	callTimeout = 5 * time.Minute
 	maxAnswer   = 8 << 20
 )

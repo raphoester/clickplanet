@@ -84,8 +84,8 @@ internal/planet/internal/
   owner changed, and each tile's changes and shield hits in the window, by `Event.Replay` and `Event.Strikes`, so no kind
   is asked. The read stops at the first event at or after `until`, since positions follow time, and the map's resets
   (`map_resets`, which write no event) wipe it at their time. It is the world's map: an event made while an arena's
-  played changes no frame and no hit (see [Arena battles](arenas.md#the-ledgers-readers)). What a reassign, a paint or a
-  revert wrote is not in it.
+  played changes no frame and no hit (see [Arena battles](arenas.md#the-ledgers-readers)). What a revert wrote is not in
+  it.
   **`ClickService/GetRecentMapHistory` is the last 24 hours of it, public**
   (`recent_history_query`, `ledger.Rewind`): rewound from the map in memory over the rows from the ledger's head, never
   replayed from the reset, and built once per half hour for every caller. See [The map's last 24
@@ -98,7 +98,7 @@ internal/planet/internal/
   the events a revert forgot** (`forgotten`, see [Durability](durability.md)), as memory replays none of them, so a
   tile a revert gave back names the take it went back to. Until 2026-11-10 it named the reverted take, of another
   flag, and the card showed nothing. **It reads the takes of the map that plays**: while an arena plays only its own,
-  after it none of its (see [Arena battles](arenas.md#the-ledgers-readers)). A reassign, a paint or a revert writes no event, and the last second is not
+  after it none of its (see [Arena battles](arenas.md#the-ledgers-readers)). A revert writes no event, and the last second is not
   flushed yet, so the client names the holder only while the tile still wears its `country_id`. A parity test runs
   every kind through both.
 - **`refusals/`** — the callers planet refuses, each a scope or an account (`Caller`), until when, and when that was
@@ -154,8 +154,6 @@ because it serves every concept over one Connect service. It only maps.
 | `clicks/usecases/map_density_usecase` | how many tiles there are | `MaxIndexReader` |
 | `clicks/usecases/get_budget_usecase` | a caller's allowance, unspent | `ClickBudgetReader`, `Pricer` |
 | `clicks/usecases/listen_for_events_usecase` | one client's live feed, heartbeat included, told as a `StreamOpened` | `UpdatesSubscriber`, `Notices`, `RulesFeed`, `Facts` |
-| `clicks/usecases/reassign_country_usecase` | gives one country's tiles to another | `Map`, `CountryChecker` |
-| `clicks/usecases/paint_random_tiles_usecase` | paints random tiles with a flag, starting on one country's ground or anywhere | `Borders`, `Neighbours`, `Map`, `CountryChecker` |
 | `ledger/usecases/find_players_usecase` | who is painting a flag, and where, and whom planet refuses | `Ledger`, `Owners`, `Borders`, `Refusals`, `CountryChecker` |
 | `ledger/usecases/top_players_usecase` | who takes the most tiles, every flag, and whom planet refuses | `Ledger`, `Owners`, `Refusals` |
 | `ledger/usecases/revert_player_usecase` | gives back what one caller still holds | `Ledger`, `Map` |

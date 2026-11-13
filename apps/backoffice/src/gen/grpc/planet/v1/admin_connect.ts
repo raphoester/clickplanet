@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, PaintRandomTilesRequest, PaintRandomTilesResponse, ReassignCountryRequest, ReassignCountryResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
+import { FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
@@ -16,19 +16,6 @@ import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js"
 export const AdminService = {
   typeName: "planet.v1.AdminService",
   methods: {
-    /**
-     * Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
-     * update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
-     * retakes during the move stays its own; from_after says whether to run it again.
-     *
-     * @generated from rpc planet.v1.AdminService.ReassignCountry
-     */
-    reassignCountry: {
-      name: "ReassignCountry",
-      I: ReassignCountryRequest,
-      O: ReassignCountryResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
      * per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
@@ -68,18 +55,6 @@ export const AdminService = {
       name: "RevertPlayer",
       I: RevertPlayerRequest,
       O: RevertPlayerResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
-     * between stays theirs. The ledger does not see it.
-     *
-     * @generated from rpc planet.v1.AdminService.PaintRandomTiles
-     */
-    paintRandomTiles: {
-      name: "PaintRandomTiles",
-      I: PaintRandomTilesRequest,
-      O: PaintRandomTilesResponse,
       kind: MethodKind.Unary,
     },
     /**

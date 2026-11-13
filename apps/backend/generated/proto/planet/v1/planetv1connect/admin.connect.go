@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AdminServiceReassignCountryProcedure is the fully-qualified name of the AdminService's
-	// ReassignCountry RPC.
-	AdminServiceReassignCountryProcedure = "/planet.v1.AdminService/ReassignCountry"
 	// AdminServiceFindPlayersProcedure is the fully-qualified name of the AdminService's FindPlayers
 	// RPC.
 	AdminServiceFindPlayersProcedure = "/planet.v1.AdminService/FindPlayers"
@@ -44,9 +41,6 @@ const (
 	// AdminServiceRevertPlayerProcedure is the fully-qualified name of the AdminService's RevertPlayer
 	// RPC.
 	AdminServiceRevertPlayerProcedure = "/planet.v1.AdminService/RevertPlayer"
-	// AdminServicePaintRandomTilesProcedure is the fully-qualified name of the AdminService's
-	// PaintRandomTiles RPC.
-	AdminServicePaintRandomTilesProcedure = "/planet.v1.AdminService/PaintRandomTiles"
 	// AdminServiceGrantChargesProcedure is the fully-qualified name of the AdminService's GrantCharges
 	// RPC.
 	AdminServiceGrantChargesProcedure = "/planet.v1.AdminService/GrantCharges"
@@ -69,10 +63,6 @@ const (
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
 type AdminServiceClient interface {
-	// Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
-	// update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
-	// retakes during the move stays its own; from_after says whether to run it again.
-	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
 	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
 	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
 	// IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
@@ -85,9 +75,6 @@ type AdminServiceClient interface {
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
 	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
-	// between stays theirs. The ledger does not see it.
-	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
@@ -118,12 +105,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	adminServiceMethods := v1.File_planet_v1_admin_proto.Services().ByName("AdminService").Methods()
 	return &adminServiceClient{
-		reassignCountry: connect.NewClient[v1.ReassignCountryRequest, v1.ReassignCountryResponse](
-			httpClient,
-			baseURL+AdminServiceReassignCountryProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("ReassignCountry")),
-			connect.WithClientOptions(opts...),
-		),
 		findPlayers: connect.NewClient[v1.FindPlayersRequest, v1.FindPlayersResponse](
 			httpClient,
 			baseURL+AdminServiceFindPlayersProcedure,
@@ -142,12 +123,6 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			httpClient,
 			baseURL+AdminServiceRevertPlayerProcedure,
 			connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
-			connect.WithClientOptions(opts...),
-		),
-		paintRandomTiles: connect.NewClient[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse](
-			httpClient,
-			baseURL+AdminServicePaintRandomTilesProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
 			connect.WithClientOptions(opts...),
 		),
 		grantCharges: connect.NewClient[v1.GrantChargesRequest, v1.GrantChargesResponse](
@@ -201,11 +176,9 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	reassignCountry   *connect.Client[v1.ReassignCountryRequest, v1.ReassignCountryResponse]
 	findPlayers       *connect.Client[v1.FindPlayersRequest, v1.FindPlayersResponse]
 	topPlayers        *connect.Client[v1.TopPlayersRequest, v1.TopPlayersResponse]
 	revertPlayer      *connect.Client[v1.RevertPlayerRequest, v1.RevertPlayerResponse]
-	paintRandomTiles  *connect.Client[v1.PaintRandomTilesRequest, v1.PaintRandomTilesResponse]
 	grantCharges      *connect.Client[v1.GrantChargesRequest, v1.GrantChargesResponse]
 	getReplay         *connect.Client[v1.GetReplayRequest, v1.GetReplayResponse]
 	releaseAllegiance *connect.Client[v1.ReleaseAllegianceRequest, v1.ReleaseAllegianceResponse]
@@ -213,11 +186,6 @@ type adminServiceClient struct {
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getRules          *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
 	saveRuleSet       *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
-}
-
-// ReassignCountry calls planet.v1.AdminService.ReassignCountry.
-func (c *adminServiceClient) ReassignCountry(ctx context.Context, req *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error) {
-	return c.reassignCountry.CallUnary(ctx, req)
 }
 
 // FindPlayers calls planet.v1.AdminService.FindPlayers.
@@ -233,11 +201,6 @@ func (c *adminServiceClient) TopPlayers(ctx context.Context, req *connect.Reques
 // RevertPlayer calls planet.v1.AdminService.RevertPlayer.
 func (c *adminServiceClient) RevertPlayer(ctx context.Context, req *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
 	return c.revertPlayer.CallUnary(ctx, req)
-}
-
-// PaintRandomTiles calls planet.v1.AdminService.PaintRandomTiles.
-func (c *adminServiceClient) PaintRandomTiles(ctx context.Context, req *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
-	return c.paintRandomTiles.CallUnary(ctx, req)
 }
 
 // GrantCharges calls planet.v1.AdminService.GrantCharges.
@@ -277,10 +240,6 @@ func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Reque
 
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
-	// Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
-	// update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
-	// retakes during the move stays its own; from_after says whether to run it again.
-	ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error)
 	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
 	// per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
 	// IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
@@ -293,9 +252,6 @@ type AdminServiceHandler interface {
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
 	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
-	// between stays theirs. The ledger does not see it.
-	PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error)
 	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
 	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
@@ -322,12 +278,6 @@ type AdminServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	adminServiceMethods := v1.File_planet_v1_admin_proto.Services().ByName("AdminService").Methods()
-	adminServiceReassignCountryHandler := connect.NewUnaryHandler(
-		AdminServiceReassignCountryProcedure,
-		svc.ReassignCountry,
-		connect.WithSchema(adminServiceMethods.ByName("ReassignCountry")),
-		connect.WithHandlerOptions(opts...),
-	)
 	adminServiceFindPlayersHandler := connect.NewUnaryHandler(
 		AdminServiceFindPlayersProcedure,
 		svc.FindPlayers,
@@ -346,12 +296,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		AdminServiceRevertPlayerProcedure,
 		svc.RevertPlayer,
 		connect.WithSchema(adminServiceMethods.ByName("RevertPlayer")),
-		connect.WithHandlerOptions(opts...),
-	)
-	adminServicePaintRandomTilesHandler := connect.NewUnaryHandler(
-		AdminServicePaintRandomTilesProcedure,
-		svc.PaintRandomTiles,
-		connect.WithSchema(adminServiceMethods.ByName("PaintRandomTiles")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminServiceGrantChargesHandler := connect.NewUnaryHandler(
@@ -402,16 +346,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AdminServiceReassignCountryProcedure:
-			adminServiceReassignCountryHandler.ServeHTTP(w, r)
 		case AdminServiceFindPlayersProcedure:
 			adminServiceFindPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceTopPlayersProcedure:
 			adminServiceTopPlayersHandler.ServeHTTP(w, r)
 		case AdminServiceRevertPlayerProcedure:
 			adminServiceRevertPlayerHandler.ServeHTTP(w, r)
-		case AdminServicePaintRandomTilesProcedure:
-			adminServicePaintRandomTilesHandler.ServeHTTP(w, r)
 		case AdminServiceGrantChargesProcedure:
 			adminServiceGrantChargesHandler.ServeHTTP(w, r)
 		case AdminServiceGetReplayProcedure:
@@ -435,10 +375,6 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedAdminServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAdminServiceHandler struct{}
 
-func (UnimplementedAdminServiceHandler) ReassignCountry(context.Context, *connect.Request[v1.ReassignCountryRequest]) (*connect.Response[v1.ReassignCountryResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.ReassignCountry is not implemented"))
-}
-
 func (UnimplementedAdminServiceHandler) FindPlayers(context.Context, *connect.Request[v1.FindPlayersRequest]) (*connect.Response[v1.FindPlayersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.FindPlayers is not implemented"))
 }
@@ -449,10 +385,6 @@ func (UnimplementedAdminServiceHandler) TopPlayers(context.Context, *connect.Req
 
 func (UnimplementedAdminServiceHandler) RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.RevertPlayer is not implemented"))
-}
-
-func (UnimplementedAdminServiceHandler) PaintRandomTiles(context.Context, *connect.Request[v1.PaintRandomTilesRequest]) (*connect.Response[v1.PaintRandomTilesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.PaintRandomTiles is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error) {

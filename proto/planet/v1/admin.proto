@@ -11,11 +11,6 @@ import "planet/v1/rules.proto";
 
 // No authentication of its own: served on the console listener, and on the admin listener behind its gate. Never the public router.
 service AdminService {
-  // Gives every tile one country holds to another, while the game runs: paced in batches, each tile an ordinary
-  // update every screen repaints. The ledger does not see it, so no revert undoes it. A tile the first country
-  // retakes during the move stays its own; from_after says whether to run it again.
-  rpc ReassignCountry(ReassignCountryRequest) returns (ReassignCountryResponse);
-
   // Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
   // per account on a scope, latest take first, with any running ban. A scope is an address over IPv4 and its /64 over
   // IPv6. The scope and the account_id are what RevertPlayer and antibot's BanPlayer, UnbanPlayer and InspectPlayer
@@ -34,10 +29,6 @@ service AdminService {
   // caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
   // from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
   rpc RevertPlayer(RevertPlayerRequest) returns (RevertPlayerResponse);
-
-  // Paints count tiles with a flag, drawn on one country's ground or anywhere on the map. A tile somebody takes in
-  // between stays theirs. The ledger does not see it.
-  rpc PaintRandomTiles(PaintRandomTilesRequest) returns (PaintRandomTilesResponse);
 
   // Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
   // one each, the rest stack. before and after say what fit. The player sees them at its next page load.
@@ -127,25 +118,6 @@ message ReleaseAllegianceResponse {
   bool locked = 1;
 }
 
-message PaintRandomTilesRequest {
-  // The flag painted: a country id, "fr".
-  string flag_country_id = 1;
-  // The country whose ground a patch starts on; empty is anywhere on the map. A patch grows across the border.
-  string area_country_id = 2;
-  uint32 count = 3;
-  // 0 to 1: how likely each next tile touches one already picked. 0 scatters them, 1 grows one patch.
-  double proximity = 4;
-  // Picks the tiles, and paints nothing.
-  bool dry_run = 5;
-}
-
-message PaintRandomTilesResponse {
-  uint32 eligible = 1;
-  uint32 picked = 2;
-  uint32 painted = 3;
-  uint32 outside_area = 4;
-}
-
 message FindPlayersRequest {
   // A country id: ISO 3166-1 alpha-2 in lower case, "fr".
   string flag_country_id = 1;
@@ -203,22 +175,6 @@ message RevertPlayerResponse {
   uint32 touched = 2;
   uint32 held = 3;
   uint32 restored = 4;
-}
-
-message ReassignCountryRequest {
-  // A country id: ISO 3166-1 alpha-2 in lower case, "fr".
-  string from_country_id = 1;
-  string to_country_id = 2;
-  // Counts what would move, and moves nothing.
-  bool dry_run = 3;
-}
-
-message ReassignCountryResponse {
-  uint32 from_before = 1;
-  uint32 to_before = 2;
-  uint32 moved = 3;
-  uint32 from_after = 4;
-  uint32 to_after = 5;
 }
 
 message GetRulesRequest {}

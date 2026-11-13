@@ -36,7 +36,7 @@ src/
                     HistoryPanel over history.ts (an account's moderation history: the chat's and the renames);
                     caller.ts (an account or a scope, from what was typed), charges.ts (a grant and what is held, in
                     words), durations.ts (the mute and ban choices, a span in words)
-  map/              Reassign a country, Paint random tiles, Download a replay; download.ts (a file saved from memory)
+  map/              Download a replay; download.ts (a file saved from memory)
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,

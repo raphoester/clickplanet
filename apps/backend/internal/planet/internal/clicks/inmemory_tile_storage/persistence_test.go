@@ -172,24 +172,6 @@ func (s *testSuite) TestRunFlushesOnItsInterval() {
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
-func (s *testSuite) TestReassignedTilesSurviveAFlush() {
-	ctx := context.Background()
-	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
-
-	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Set(ctx, 12, "dz"))
-	_, _, err := storage.Reassign(ctx, "dz", "fr", 0, 10)
-	s.Require().NoError(err)
-	s.Require().NoError(storage.Flush(ctx))
-
-	restored := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(restored.Load(ctx, clicks.World))
-	owner, _ := restored.Owner(12)
-	s.Equal("fr", owner)
-	s.Equal(1, restored.Held("fr"))
-	s.Zero(restored.Held("dz"))
-}
-
 func (s *testSuite) TestAFortifiedLandmassStaysLockedAcrossARestart() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})

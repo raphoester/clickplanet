@@ -277,81 +277,6 @@ func (s *TileStorageContractSuite) TestShareFollowsSetsAndBlasts() {
 	s.Zero(s.storage.Share(""), "unowned ground is nobody's share")
 }
 
-func (s *TileStorageContractSuite) TestReassignMovesOnlyTheTilesFromHolds() {
-	ctx := context.Background()
-	for tile, country := range map[uint32]string{3: "dz", 4: "bg", 5: "dz", 9: "fr"} {
-		s.Require().NoError(s.set(ctx, tile, country))
-	}
-
-	next, moved, err := s.storage.Reassign(ctx, "dz", "fr", 0, 100)
-	s.Require().NoError(err)
-
-	s.Equal(uint32(0), next, "the scan reached the end of the map")
-	s.Equal(2, moved)
-	s.Equal(map[uint32]string{3: "fr", 4: "bg", 5: "fr", 9: "fr"}, s.owners(0, 10))
-	s.Equal(0, s.storage.Held("dz"))
-	s.Equal(3, s.storage.Held("fr"))
-	s.InDelta(3.0/contractMaxIndex, s.storage.Share("fr"), 1e-12, "the toll reads the same counts")
-}
-
-func (s *TileStorageContractSuite) TestReassignPublishesOneOrdinaryUpdatePerTile() {
-	s.Require().NoError(s.set(context.Background(), 7, "dz"))
-	s.Require().NoError(s.set(context.Background(), 8, "dz"))
-	listener, ctx := s.subscribe(2 * time.Second)
-
-	_, _, err := s.storage.Reassign(ctx, "dz", "fr", 0, 100)
-	s.Require().NoError(err)
-
-	for _, tile := range []uint32{7, 8} {
-		s.Equal(&TileUpdate{Tile: tile, Value: "fr", Previous: "dz"}, s.next(ctx, listener).Update)
-	}
-	s.Empty(listener)
-}
-
-func (s *TileStorageContractSuite) TestReassignStopsAtTheLimitAndResumesWhereItStopped() {
-	ctx := context.Background()
-	for _, tile := range []uint32{10, 20, 30, 40, 50} {
-		s.Require().NoError(s.set(ctx, tile, "dz"))
-	}
-
-	next, moved, err := s.storage.Reassign(ctx, "dz", "fr", 0, 2)
-	s.Require().NoError(err)
-	s.Equal(2, moved)
-	s.Equal(uint32(30), next, "the next tile still held, not the one after the last moved")
-
-	next, moved, err = s.storage.Reassign(ctx, "dz", "fr", next, 2)
-	s.Require().NoError(err)
-	s.Equal(2, moved)
-	s.Equal(uint32(50), next)
-
-	next, moved, err = s.storage.Reassign(ctx, "dz", "fr", next, 2)
-	s.Require().NoError(err)
-	s.Equal(1, moved)
-	s.Equal(uint32(0), next)
-
-	s.Equal(0, s.storage.Held("dz"))
-}
-
-func (s *TileStorageContractSuite) TestReassignOfACountryWithNoTilesDoesNothing() {
-	ctx := context.Background()
-	s.Require().NoError(s.set(ctx, 1, "fr"))
-
-	next, moved, err := s.storage.Reassign(ctx, "dz", "fr", 0, 10)
-	s.Require().NoError(err)
-	s.Equal(uint32(0), next)
-	s.Zero(moved)
-
-	next, moved, err = s.storage.Reassign(ctx, "fr", "fr", 0, 10)
-	s.Require().NoError(err)
-	s.Equal(uint32(0), next)
-	s.Zero(moved, "a country is not reassigned to itself")
-}
-
-func (s *TileStorageContractSuite) TestReassignRefusesANonPositiveLimit() {
-	_, _, err := s.storage.Reassign(context.Background(), "dz", "fr", 0, 0)
-	s.Error(err)
-}
-
 func (s *TileStorageContractSuite) TestRestoreGivesBackOnlyTheTilesStillHoldingFrom() {
 	ctx := context.Background()
 	for tile, country := range map[uint32]string{3: "ps", 4: "de", 5: "ps"} {
@@ -466,9 +391,7 @@ func (s *TileStorageContractSuite) TestEveryChangeOfOwnerSendsTheShieldsHome() {
 	}
 
 	s.Require().NoError(s.click(ctx, 1, "de"))
-	_, _, err := s.storage.Reassign(ctx, "fr", "it", 2, 1)
-	s.Require().NoError(err)
-	_, err = s.storage.Restore(ctx, []Restoration{{Tile: 3, From: "fr", To: "es"}})
+	_, err := s.storage.Restore(ctx, []Restoration{{Tile: 2, From: "fr", To: "it"}, {Tile: 3, From: "fr", To: "es"}})
 	s.Require().NoError(err)
 	s.Require().NoError(s.set(ctx, 4, "fr"))
 
@@ -549,7 +472,7 @@ func (s *TileStorageContractSuite) TestTheFortressesSayWhoFortifiedEachLandmassL
 	_, err := s.fortify(ctx, 90_003, "fr", 10)
 	s.Require().NoError(err)
 	s.own("dz", contractIslet...)
-	_, _, err = s.storage.Reassign(ctx, "dz", "de", 0, 100)
+	_, err = s.storage.Restore(ctx, []Restoration{{Tile: contractIslet[0], From: "dz", To: "de"}})
 	s.Require().NoError(err)
 
 	s.Equal(map[LandmassID]string{1: "fr", 2: "de"}, s.storage.Fortresses())
@@ -627,18 +550,6 @@ func (s *TileStorageContractSuite) TestABlastBreaksAWholeLandmass() {
 	s.Require().ErrorIs(err, ErrNotWhole)
 }
 
-func (s *TileStorageContractSuite) TestAReassignThatMakesALandmassWholeLocksItToItsNewHolder() {
-	ctx := context.Background()
-	s.own("dz", contractIsland...)
-	_, _, err := s.storage.Reassign(ctx, "dz", "fr", 0, 100)
-	s.Require().NoError(err)
-
-	_, err = s.fortify(ctx, 90_001, "fr", 10)
-
-	s.Require().ErrorIs(err, ErrFortifiedAlready)
-	s.Equal([]int{0, 0, 0}, s.shieldsOn(contractIsland...))
-}
-
 func (s *TileStorageContractSuite) TestARestoreThatMakesALandmassWholeLocksItToItsNewHolder() {
 	ctx := context.Background()
 	s.own("fr", 90_001, 90_002)
@@ -698,7 +609,7 @@ func (s *TileStorageContractSuite) TestATakeForAnotherFlagHoldsTheTileForItsTake
 	s.Equal([]Holding{{Account: bobID, Flag: "de", Tiles: 1}}, s.storage.HoldingsOf(1))
 }
 
-func (s *TileStorageContractSuite) TestAClearAReassignAndARestoreLeaveTheirTilesHeldByNobody() {
+func (s *TileStorageContractSuite) TestAClearAndARestoreLeaveTheirTilesHeldByNobody() {
 	ana, anaID := s.asAccount()
 	for _, tile := range contractIsland {
 		s.Require().NoError(s.click(ana, tile, "fr"))
@@ -709,10 +620,6 @@ func (s *TileStorageContractSuite) TestAClearAReassignAndARestoreLeaveTheirTiles
 	_, err = s.storage.Restore(context.Background(), []Restoration{{Tile: contractIsland[1], From: "fr", To: "us"}})
 	s.Require().NoError(err)
 	s.Equal([]Holding{{Account: anaID, Flag: "fr", Tiles: 1}}, s.storage.HoldingsOf(1))
-
-	_, _, err = s.storage.Reassign(context.Background(), "fr", "it", 0, 10)
-	s.Require().NoError(err)
-	s.Empty(s.storage.HoldingsOf(1))
 }
 
 func (s *TileStorageContractSuite) TestAForgottenHolderLeavesItsTilesWearingTheirFlag() {
@@ -749,7 +656,7 @@ func (s *TileStorageContractSuite) TestEveryWriteCountsOneAfterTheVersionTheSubs
 	s.Require().Equal(Shielded, s.claim(ctx, 8, "de").Outcome)
 	_, err = s.storage.Clear(ctx, Blast{Cleared: []uint32{7}})
 	s.Require().NoError(err)
-	_, _, err = s.storage.Reassign(ctx, "dz", "it", 0, 10)
+	_, err = s.storage.Restore(ctx, []Restoration{{Tile: 9, From: "dz", To: "it"}})
 	s.Require().NoError(err)
 	_, err = s.storage.Restore(ctx, []Restoration{{Tile: 9, From: "it", To: "dz"}})
 	s.Require().NoError(err)
@@ -770,7 +677,7 @@ func (s *TileStorageContractSuite) TestAWriteThatChangesNothingCountsNothing() {
 
 	s.Require().NoError(s.set(ctx, 7, "fr"))
 	s.Equal(Unchanged, s.claim(ctx, 7, "fr").Outcome)
-	_, _, err := s.storage.Reassign(ctx, "dz", "it", 0, 10)
+	_, err := s.storage.Restore(ctx, []Restoration{{Tile: 7, From: "dz", To: "it"}})
 	s.Require().NoError(err)
 
 	s.Equal(before, s.batchVersion())

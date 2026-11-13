@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetChargesOfRequest, GetChargesOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
+import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 
@@ -199,18 +199,6 @@ export const InternalService = {
       name: "GetRoom",
       I: GetRoomRequest,
       O: GetRoomResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
-    },
-    /**
-     * All an account holds now.
-     *
-     * @generated from rpc planet.v1.InternalService.GetChargesOf
-     */
-    getChargesOf: {
-      name: "GetChargesOf",
-      I: GetChargesOfRequest,
-      O: GetChargesOfResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },
