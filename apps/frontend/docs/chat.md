@@ -439,7 +439,9 @@ the eye without stealing it. Four things say it, each for a different glance:
   It is `aria-hidden` — a screen reader gets the count from the badge and the
   text from the log, and the quote would only say it a third time. **On a phone
   it is a peek over the dock instead** (`.chat-toast`): the newest line, as a
-  balloon, for `TOAST_MS` (4s) after it lands, and a press opens the chat. It is
+  balloon, for `TOAST_MS` (4s) after it lands, and a press opens the chat. It sits
+  12px above the dock, at the height the dock publishes (`--dock-drawn-height`), so it
+  rises when the dock grows. It is
   a button named by the line it quotes, since it is the only thing on screen
   that opens the chat from it.
 

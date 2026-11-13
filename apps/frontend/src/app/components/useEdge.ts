@@ -1,7 +1,8 @@
 import {useEffect} from "react";
 
-// Publishes where the element ends on the screen, its bottom or its right edge, as a property of the page's root.
-export function useEdge(element: HTMLElement | null, property: string, side: "bottom" | "right") {
+// Publishes where the element ends on the screen, its bottom or its right edge, or its height, as a property of the
+// page's root.
+export function useEdge(element: HTMLElement | null, property: string, side: "bottom" | "right" | "height") {
     useEffect(() => {
         if (!element) return
 

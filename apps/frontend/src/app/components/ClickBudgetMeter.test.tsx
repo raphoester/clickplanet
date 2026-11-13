@@ -2,13 +2,14 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import {ReactElement} from 'react'
-import ClickBudgetMeter from './ClickBudgetMeter.tsx'
+import ClickBudgetMeter, {DOCK_DRAWN_HEIGHT} from './ClickBudgetMeter.tsx'
 import {BUBBLE_MS} from './Bubble.tsx'
 import {useRefusedClicks} from '../clicks/refusedClicksStore.ts'
 import {ClickBudget} from "../../backends/clickBudget.ts"
 import {useClickBudget} from "../clicks/clickBudgetStore.ts"
 import {Countries} from "../../domain/countries.ts"
 import {useScreen} from "../hud/screenStore.ts"
+import {NARROW_DOCK} from "../compact.ts"
 
 vi.mock("../share/deliverShare.ts", async (original) => ({
     ...await original<typeof import("../share/deliverShare.ts")>(),
@@ -210,6 +211,26 @@ describe("ClickBudgetMeter and the price", () => {
         render(budgeted(reading({price: slowed}), <ClickBudgetMeter compact/>))
 
         expect(screen.getByRole("img", {name: "Refills 4× slower"}).textContent).toBe("4×")
+    })
+
+    it("says it in short in the narrow dock of a small desktop", () => {
+        vi.stubGlobal("matchMedia", (query: string) => ({matches: query === NARROW_DOCK}))
+        render(budgeted(reading({price: slowed}), <ClickBudgetMeter/>))
+        vi.unstubAllGlobals()
+
+        expect(screen.getByRole("img", {name: "Refills 4× slower"}).textContent).toBe("4×")
+    })
+
+    it("tells the chat's peek how tall the dock is, so the peek sits above it when the countdown goes under the chip", () => {
+        const box = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(12, 685, 366, 82.6))
+        const height = () => document.documentElement.style.getPropertyValue(DOCK_DRAWN_HEIGHT)
+
+        const {unmount} = render(budgeted(reading({price: slowed}), <ClickBudgetMeter compact/>))
+        expect(height()).toBe("83px")
+
+        unmount()
+        expect(height()).toBe("")
+        box.mockRestore()
     })
 
     it("keeps the slowdown out of the meter, which is a reading", () => {

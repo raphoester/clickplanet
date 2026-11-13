@@ -77,9 +77,17 @@
    instead of gliding.
 
    **It says when the toll slows the refill**: a chip before the countdown,
-   "4× slower" (on a phone "4×", named in full), whenever `ClickBudget.price`
-   says a slowdown above 1. The chip, the countdown and the offer below are a
-   line beside the meter, never inside it.
+   "4× slower" ("4×", named in full, on a phone and in the narrow dock under
+   1280px, `NARROW_DOCK`), whenever `ClickBudget.price` says a slowdown above 1.
+   The chip, the countdown and the offer below are a line beside the meter, never
+   inside it. The countdown goes under the chip when both do not fit beside the
+   bonus slots ("4× moins vite" and "+1 dans 1s" on a desktop, every language on
+   a phone). On a desktop of 1280px and wider the dock has room for that second
+   line. On a phone the dock grows by about 11px while the toll slows the clicks.
+   It publishes the height it is drawn at (`DOCK_DRAWN_HEIGHT`,
+   `--dock-drawn-height`, through `useEdge`), and the chat's peek sits on it. On a
+   360px phone, "+1 dalam 2 dtk" and "2sn sonra +1" are still wider than the
+   column and touch the corner of the first slot.
 
    **The reading opens "Your clicks"** (`ClicksPanel`): a button laid over the
    reading (`.click-budget-open`), so `role="meter"` stays a leaf. On a desktop it

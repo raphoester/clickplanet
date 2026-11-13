@@ -5,6 +5,9 @@ export const COMPACT = "(max-width: 768px), (max-height: 600px)"
 // The desktop frame where the board and the chat start folded until the player opens one; see docs/screen.md.
 export const SMALL_FRAME = "(max-width: 1599px)"
 
+// The dock's narrow width in index.css.
+export const NARROW_DOCK = "(max-width: 1279px)"
+
 const matches = (query: string) => window.matchMedia?.(query).matches ?? false
 
 function useMatches(query: string): boolean {
@@ -25,3 +28,5 @@ function useMatches(query: string): boolean {
 export const useCompact = () => useMatches(COMPACT)
 
 export const useSmallFrame = () => useMatches(SMALL_FRAME)
+
+export const useNarrowDock = () => useMatches(NARROW_DOCK)
