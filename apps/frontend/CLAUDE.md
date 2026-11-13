@@ -37,7 +37,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [A server restart reloads the page](../../docs/reload-on-restart.md) — `restartInterceptor` reloads once the
   backend answers under a new boot; which answers it trusts.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at
-  768px wide or 600px high and under.
+  768px wide or 600px high and under; the board and the chat folded under 1600px wide until the player opens one, and
+  the player's last fold kept.
 - [Data flow](docs/data-flow.md) — from `createGlobe` to the screen, step by step.
 - [Stores](docs/stores.md) — a feature's state in its own Zustand store, read by the component that shows it, not
   held in `PlayScreen`; never the tiles; the stores the globe's notices go to, and the news line, one at a time.

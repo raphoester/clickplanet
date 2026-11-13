@@ -25,6 +25,8 @@ import {GifQuery} from "../../backends/gifs.ts"
 import {NameColor, RosterEntry} from "../../backends/player.ts"
 import {useRoster} from "../players/rosterStore.ts"
 import {useChat} from "./chatStore.ts"
+import {useScreen} from "../hud/screenStore.ts"
+import {SMALL_FRAME} from "../compact.ts"
 import {AccountNameplate, Nameplate} from "../../backends/nameplates.ts"
 import {useNameplates} from "../nameplates/nameplatesStore.ts"
 import {FakeSupportBackend} from "../../backends/fakeSupportBackend.ts"
@@ -140,6 +142,7 @@ afterEach(() => {
     cleanup()
     useRoster.setState({state: {kind: "unavailable"}})
     useChat.setState(useChat.getInitialState(), true)
+    useScreen.setState(useScreen.getInitialState(), true)
     useNameplates.getState().serve(undefined)
 })
 
@@ -1336,6 +1339,40 @@ describe("ChatPanel on a desktop", () => {
 
         await user.click(screen.getByRole("button", {name: /Chat/}))
         expect(await screen.findByText("who took Brittany")).toBeDefined()
+    })
+
+    it("keeps the fold from one visit to the next", async () => {
+        const {backend} = stubBackend([message("a", "who took Brittany")])
+        const {user} = setup(backend)
+
+        await user.click(screen.getByRole("button", {name: "Fold the chat"}))
+
+        expect(window.localStorage.getItem("clickplanet-chat-open")).toBe("false")
+    })
+
+    describe("in a small frame", () => {
+        beforeEach(() => vi.stubGlobal("matchMedia", (query: string) => ({matches: query === SMALL_FRAME})))
+        afterEach(() => vi.unstubAllGlobals())
+
+        it("starts folded until the player opens it", async () => {
+            const {backend} = stubBackend([message("a", "who took Brittany")])
+            const {user} = setup(backend)
+
+            expect(screen.queryByRole("button", {name: "Fold the chat"})).toBeNull()
+
+            await user.click(screen.getByRole("button", {name: /Chat/}))
+
+            expect(await screen.findByText("who took Brittany")).toBeDefined()
+            expect(window.localStorage.getItem("clickplanet-chat-open")).toBe("true")
+        })
+
+        it("starts open as the player left it open", async () => {
+            useScreen.setState({chatOpen: true})
+            const {backend} = stubBackend([message("a", "who took Brittany")])
+            setup(backend)
+
+            expect(await screen.findByText("who took Brittany")).toBeDefined()
+        })
     })
 })
 
