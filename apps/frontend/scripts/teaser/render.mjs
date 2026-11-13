@@ -124,6 +124,7 @@ async function openPage() {
 
     let lastId = 0
     const pending = new Map()
+    const requested = new Map()
     let loaded = false
     ws.addEventListener("message", (m) => {
         const msg = JSON.parse(m.data)
@@ -133,6 +134,14 @@ async function openPage() {
             msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result)
         } else if (msg.method === "Page.loadEventFired") {
             loaded = true
+        } else if (msg.method === "Network.requestWillBeSent") {
+            requested.set(msg.params.requestId, msg.params.request.url)
+        } else if (msg.method === "Network.responseReceived" && msg.params.response.status >= 400) {
+            const {url, status, headers} = msg.params.response
+            const mitigated = headers["cf-mitigated"] ? ` (cf-mitigated: ${headers["cf-mitigated"]})` : ""
+            console.error(`page: ${url} answered ${status}${mitigated}`)
+        } else if (msg.method === "Network.loadingFailed" && !msg.params.canceled) {
+            console.error(`page: ${requested.get(msg.params.requestId)} failed: ${msg.params.errorText}`)
         } else if (msg.method === "Runtime.exceptionThrown") {
             console.error("page:", msg.params.exceptionDetails.exception?.description ?? msg.params.exceptionDetails.text)
         }
@@ -150,6 +159,11 @@ async function openPage() {
 
     await send("Page.enable")
     await send("Runtime.enable")
+    await send("Network.enable")
+    // Cloudflare's Bot Fight Mode, on for the whole zone and skipped by no rule on its plan, answers 403 to
+    // "HeadlessChrome" from GitHub's runners: every background of media.clickplanet.lol.
+    const {userAgent} = await send("Browser.getVersion")
+    await send("Network.setUserAgentOverride", {userAgent: userAgent.replace("HeadlessChrome/", "Chrome/")})
     await send("Emulation.setDeviceMetricsOverride", {width: WIDTH, height: HEIGHT, deviceScaleFactor: SCALE, mobile: false})
 
     return {
