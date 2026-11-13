@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
-import {countGuidedTake, FRONT_GUIDE_STORAGE_KEY, enterFrontGuide, GUIDED_TAKES} from "./frontGuide.ts"
+import {countGuidedTake, FRONT_GUIDE_STORAGE_KEY, enterFrontGuide, firstTakeAhead, GUIDED_TAKES} from "./frontGuide.ts"
 
 function storeOf(entries: Record<string, string> = {}) {
     const values = new Map(Object.entries(entries))
@@ -38,6 +38,26 @@ describe("enterFrontGuide", () => {
 
     it("guides nothing when the storage refuses", () => {
         expect(enterFrontGuide(() => {
+            throw new Error("denied")
+        })).toBe(false)
+    })
+})
+
+describe("firstTakeAhead", () => {
+    it("is true on a guided browser until its first take", () => {
+        const store = storeOf()
+        enterFrontGuide(() => store)
+
+        expect(firstTakeAhead(() => store)).toBe(true)
+
+        countGuidedTake(() => store)
+
+        expect(firstTakeAhead(() => store)).toBe(false)
+    })
+
+    it("is false on a browser never guided, and when the storage refuses", () => {
+        expect(firstTakeAhead(() => storeOf())).toBe(false)
+        expect(firstTakeAhead(() => {
             throw new Error("denied")
         })).toBe(false)
     })

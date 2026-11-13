@@ -62,7 +62,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Live chat](docs/chat.md) — the World and the flag's room, GIFs from KLIPY, replies, removed messages, reactions,
   announcements, delivery, and what was missed.
 - [The front, for a first visit](docs/front-guide.md) — a browser's first visit opens on its own country, flies to
-  its flag's nearest fight once the tiles are read, and rings the tiles it can take, until it has taken 50.
+  its flag's nearest tiles with no shield once the tiles are read, rings the tiles it can take, until it has taken 50,
+  and shows a hand tapping one of them until its first take.
 - [The reach](docs/reach.md) — a rule knob: the bridges drawn as dotted arcs, the tiles the flag can take (next to its
   land, or across a bridge from it) ringed, wider by the spread's rings while spread is on, a click elsewhere stopped
   with "Take a tile next to your land"; learnt from `GetChargeRules`.

@@ -126,10 +126,11 @@ export class Front {
         return {on: [], off}
     }
 
-    nearestTo(point: Point): number | undefined {
+    nearestTo(point: Point, passes: (tile: number) => boolean = () => true): number | undefined {
         let nearest: number | undefined
         let closest = -Infinity
         for (const tile of this.lit) {
+            if (!passes(tile)) continue
             const along = dot(pointOf(this.positions, tile), point)
             if (along > closest) {
                 closest = along

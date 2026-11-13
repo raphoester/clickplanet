@@ -80,6 +80,8 @@ import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts"
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
 import {pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges, remembered} from "../../domain/front.ts";
+import {OpenGround, openTileNear, opensOn} from "../../domain/openTiles.ts";
+import {createTapPointer} from "./tapPointer.ts";
 import {CapitalMarks} from "../../domain/capitalMarks.ts";
 import {Standing, standingOf} from "../../domain/standing.ts";
 import {acrossBridges, type Bridges} from "../../domain/bridges.ts";
@@ -186,6 +188,8 @@ const GHOSTS_EVERY_SECONDS = 0.2
 // The share of the screen's shorter half, around its middle, that the ghosts raid: clear of the zones on its edges.
 const GHOSTS_SIGHT = 0.7
 
+const TAP_AIM_EVERY_SECONDS = 1
+
 const textureLoader = new THREE.TextureLoader();
 
 export type Shot = {
@@ -212,6 +216,8 @@ export type GlobeOptions = {
     linkedShot?: Shot
     // A first visit: the camera starts on the flag's own country, flies to its front once the tiles are read, and the front is lit.
     showFront?: boolean
+    // A first visit before its first take: a hand taps a tile one click takes, until a take is accepted.
+    showTap?: boolean
     country: Country
     mapView: MapView
     rendering: Rendering
@@ -290,6 +296,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         container: eventTarget,
         linkedShot,
         showFront = false,
+        showTap = false,
         country: initialCountry,
         mapView: initialMapView,
         rendering,
@@ -752,15 +759,68 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         countOf: (flag) => holdings.tilesOf(flag),
     })
 
+    const openGround: OpenGround = {
+        get flag() {
+            return country.code
+        },
+        positions: geometryData.positions,
+        ownerOf: (tile) => ownership.ownerOf(tile),
+        shieldsOf: (tile) => shielded.shieldsOf(tile),
+        get reach() {
+            return reach !== undefined
+        },
+    }
+    const opens = opensOn(openGround)
+
+    const tapPointer = showTap ? createTapPointer(eventTarget) : undefined
+    const tapAt = new THREE.Vector3()
+    let tapping = false
+    let tapped: number | undefined
+    let aimedAt = -Infinity
+
+    const aimTap = (from: GlobePoint) => {
+        tapped = front ? openTileNear(front, from, openGround) : undefined
+    }
+
     const goToFront = () => {
         if (!front) {
             front = new Front(neighbourhood(), shownOwnerOf, geometryData.positions)
             lightFront(front.follow(country.code))
         }
         army = new GhostArmy(ghostGround(neighbourhood()), ghosts, Math.random, Date.now())
+        tapping = showTap
         if (taken || !homeShot) return
-        const nearest = front.nearestTo(homeShot.direction)
-        if (nearest !== undefined) flyDown(nearest)
+        const open = openTileNear(front, homeShot.direction, openGround)
+        const target = open ?? front.nearestTo(homeShot.direction)
+        if (target !== undefined) flyDown(target)
+        tapped = open
+        aimedAt = performance.now() / 1000
+    }
+
+    const driveTap = (seconds: number) => {
+        if (!tapPointer || !tapping) return
+        if (flight || armed || budget?.frozen || orbiting()) {
+            tapPointer.update(undefined, camera)
+            return
+        }
+        if (tapped !== undefined && !opens(tapped)) tapped = undefined
+        if (tapped === undefined && seconds >= aimedAt + TAP_AIM_EVERY_SECONDS) {
+            aimedAt = seconds
+            const {x, y, z} = camera.position.clone().normalize()
+            aimTap({x, y, z})
+        }
+        if (tapped === undefined) {
+            tapPointer.update(undefined, camera)
+            return
+        }
+        const at = (tapped - 1) * 3
+        tapPointer.update(tapAt.set(geometryData.positions[at], geometryData.positions[at + 1], geometryData.positions[at + 2]), camera)
+    }
+
+    const endTap = () => {
+        tapping = false
+        tapped = undefined
+        tapPointer?.update(undefined, camera)
     }
 
     // The reach and the capitals rules, each followed as the rules in force say: the reach draws the bridges and rings
@@ -1290,6 +1350,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const enclosing = switches.enclose && outcome === "taken" && !enclosuresUnlimited()
         tileClicker.clickTile(tile, clicked, switches).then(() => {
             if (lifetime.signal.aborted) return
+            if (outcome === "taken") endTap()
             onClickAccepted({country: clicked, took: outcome === "taken"})
             if (shielding) onNotice(outcome === "taken" ? "shieldTaken" : "shieldNotYours")
             if (enclosing) setTimeout(() => {
@@ -1495,6 +1556,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return was
     }, (seconds) => {
         driveGhosts(seconds)
+        driveTap(seconds)
         const boxed = driveBonusBox(seconds)
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
@@ -1642,6 +1704,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             picker.dispose()
             bonusPointer.dispose()
             blastPointer.dispose()
+            tapPointer?.dispose()
             blasts.dispose()
             field.dispose()
             territories.dispose()
