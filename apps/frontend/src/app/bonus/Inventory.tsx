@@ -111,7 +111,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
                       pressed("spreadClicks", !switches.spread, t("inventory.spread.learn"))
                       onToggle("spread")
                   })}/>
-            <Slot {...slot("encloseClicks")}
+            {!rules?.enclosuresOff && <Slot {...slot("encloseClicks")}
                   name={t("bonus.enclose")}
                   held={unlimited || charges.enclosures > 0}
                   count={unlimited ? "∞" : countOf(charges.enclosures, rules?.enclosures)}
@@ -124,7 +124,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
                           ? t("inventory.enclose.learnUpTo", {max})
                           : t("inventory.enclose.learn"))
                       onToggle("enclose")
-                  })}/>
+                  })}/>}
             <Slot {...slot("shields")}
                   name={t("bonus.shield")}
                   held={charges.shields > 0}

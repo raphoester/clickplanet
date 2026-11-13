@@ -69,6 +69,9 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"charges.shield.held":           func(r *planetv1.Rules) { r.Charges.Shield.Held = proto.Uint32(0) },
 		"charges.shield.perTile is 0":   func(r *planetv1.Rules) { r.Charges.Shield.PerTile = proto.Uint32(0) },
 		"charges.shield.perTile is 256": func(r *planetv1.Rules) { r.Charges.Shield.PerTile = proto.Uint32(256) },
+		"charges.enclose.off is on with enclose.unlimited": func(r *planetv1.Rules) {
+			r.Charges.Enclose.Off, r.Charges.Enclose.Unlimited = proto.Bool(true), proto.Bool(true)
+		},
 	}
 	for reason, breaks := range broken {
 		t.Run(reason, func(t *testing.T) {

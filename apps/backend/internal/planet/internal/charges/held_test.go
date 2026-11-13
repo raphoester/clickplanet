@@ -169,3 +169,11 @@ func TestNoHandHasRoomForABombWhileBombsAreOff(t *testing.T) {
 	assert.Equal(t, []Kind{KindBomb}, Held{Bomb: true}.Full(off), "and one that holds one is full of them once")
 	assert.Empty(t, Held{}.Full(TestRules()))
 }
+
+func TestNoHandHasRoomForAnEnclosureWhileEnclosuresAreOff(t *testing.T) {
+	off := TestRules()
+	off.Enclose.Off = true
+
+	assert.Equal(t, []Kind{KindEncloseClicks}, Held{}.Full(off), "an empty hand takes no enclosure")
+	assert.Equal(t, []Kind{KindEncloseClicks}, Held{Enclosures: 3}.Full(off), "and a full one is full of them once")
+}

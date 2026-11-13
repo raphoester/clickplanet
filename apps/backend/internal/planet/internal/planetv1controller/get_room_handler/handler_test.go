@@ -53,6 +53,16 @@ func TestWhileBombsAreOffNoHandHasRoomForOne(t *testing.T) {
 	assert.Equal(t, []planetv1.BonusKind{planetv1.BonusKind_BONUS_KIND_BOMB}, rooms[0].GetFull())
 }
 
+func TestWhileEnclosuresAreOffNoHandHasRoomForOne(t *testing.T) {
+	off := charges.TestRules()
+	off.Enclose.Off = true
+
+	rooms := room(t, off, empty)
+
+	require.Len(t, rooms, 1)
+	assert.Equal(t, []planetv1.BonusKind{planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS}, rooms[0].GetFull())
+}
+
 func TestAnIdThatNamesNoAccountIsRefused(t *testing.T) {
 	_, err := get_room_handler.New(hands{}, charges.TestRules).
 		GetRoom(t.Context(), connect.NewRequest(&planetv1.GetRoomRequest{AccountIds: []string{"a-guest"}}))

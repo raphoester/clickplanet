@@ -2711,8 +2711,10 @@ type GetChargeRulesResponse struct {
 	BombsOff bool `protobuf:"varint,14,opt,name=bombs_off,json=bombsOff,proto3" json:"bombs_off,omitempty"`
 	// Spread needs no charge and spends none.
 	SpreadUnlimited bool `protobuf:"varint,16,opt,name=spread_unlimited,json=spreadUnlimited,proto3" json:"spread_unlimited,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// No enclosure closes a shape, and none is offered: the page hides the enclose slot.
+	EnclosuresOff bool `protobuf:"varint,17,opt,name=enclosures_off,json=enclosuresOff,proto3" json:"enclosures_off,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetChargeRulesResponse) Reset() {
@@ -2832,6 +2834,13 @@ func (x *GetChargeRulesResponse) GetBombsOff() bool {
 func (x *GetChargeRulesResponse) GetSpreadUnlimited() bool {
 	if x != nil {
 		return x.SpreadUnlimited
+	}
+	return false
+}
+
+func (x *GetChargeRulesResponse) GetEnclosuresOff() bool {
+	if x != nil {
+		return x.EnclosuresOff
 	}
 	return false
 }
@@ -3789,7 +3798,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x17\n" +
-	"\x15GetChargeRulesRequest\"\xbe\x04\n" +
+	"\x15GetChargeRulesRequest\"\xe5\x04\n" +
 	"\x16GetChargeRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -3807,7 +3816,8 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\tknock_out\x18\f \x01(\bR\bknockOut\x122\n" +
 	"\x15capital_shields_fixed\x18\r \x01(\bR\x13capitalShieldsFixed\x12\x1b\n" +
 	"\tbombs_off\x18\x0e \x01(\bR\bbombsOff\x12)\n" +
-	"\x10spread_unlimited\x18\x10 \x01(\bR\x0fspreadUnlimitedJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
+	"\x10spread_unlimited\x18\x10 \x01(\bR\x0fspreadUnlimited\x12%\n" +
+	"\x0eenclosures_off\x18\x11 \x01(\bR\renclosuresOffJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
 	"J\x04\b\x0f\x10\x10R\thome_soilR\x0esign_in_refillR\fspread_rings\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +

@@ -713,7 +713,10 @@ type EncloseRules struct {
 	// The stack a hand holds at most.
 	Held *uint32 `protobuf:"varint,2,opt,name=held,proto3,oneof" json:"held,omitempty"`
 	// A click with enclose on needs no charge and spends none.
-	Unlimited     *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
+	Unlimited *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
+	// No enclosure: a click with enclose on closes nothing and spends nothing, and no hand has room for one (GetRoom), so
+	// no box, quiz or mission grants one. The enclosures held are kept. Never with unlimited.
+	Off           *bool `protobuf:"varint,5,opt,name=off,proto3,oneof" json:"off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -765,6 +768,13 @@ func (x *EncloseRules) GetHeld() uint32 {
 func (x *EncloseRules) GetUnlimited() bool {
 	if x != nil && x.Unlimited != nil {
 		return *x.Unlimited
+	}
+	return false
+}
+
+func (x *EncloseRules) GetOff() bool {
+	if x != nil && x.Off != nil {
+		return *x.Off
 	}
 	return false
 }
@@ -900,16 +910,18 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01\x12\x15\n" +
 	"\x03off\x18\x02 \x01(\bH\x01R\x03off\x88\x01\x01B\b\n" +
 	"\x06_ringsB\x06\n" +
-	"\x04_off\"\xa4\x01\n" +
+	"\x04_off\"\xc3\x01\n" +
 	"\fEncloseRules\x12 \n" +
 	"\tmax_tiles\x18\x01 \x01(\rH\x00R\bmaxTiles\x88\x01\x01\x12\x17\n" +
 	"\x04held\x18\x02 \x01(\rH\x01R\x04held\x88\x01\x01\x12!\n" +
-	"\tunlimited\x18\x04 \x01(\bH\x02R\tunlimited\x88\x01\x01B\f\n" +
+	"\tunlimited\x18\x04 \x01(\bH\x02R\tunlimited\x88\x01\x01\x12\x15\n" +
+	"\x03off\x18\x05 \x01(\bH\x03R\x03off\x88\x01\x01B\f\n" +
 	"\n" +
 	"_max_tilesB\a\n" +
 	"\x05_heldB\f\n" +
 	"\n" +
-	"_unlimitedJ\x04\b\x03\x10\x04R\vmax_per_box\"\x82\x01\n" +
+	"_unlimitedB\x06\n" +
+	"\x04_offJ\x04\b\x03\x10\x04R\vmax_per_box\"\x82\x01\n" +
 	"\vShieldRules\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12\x1e\n" +
 	"\bper_tile\x18\x04 \x01(\rH\x01R\aperTile\x88\x01\x01B\a\n" +

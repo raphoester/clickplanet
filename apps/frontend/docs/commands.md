@@ -105,7 +105,8 @@ wait for another flag; `lockFlags()` locks the flags as a battle's rule set does
 player's own again. `fakeBackend.closeShapes(false)` makes every enclose click
 close nothing, for the bubble that says so, and `closeShapes(true)` puts it back.
 `unlimitEnclosures()` plays a set with unlimited enclosures (enclose on, ∞, nothing spent), and
-`unlimitEnclosures(false)` stops it. `unlimitSpreads()` plays Capital Siege's spread (spread on, ∞, nothing spent, 2
+`unlimitEnclosures(false)` stops it. `encloseOff()` plays a set with enclosures off (no Enclose slot, an enclose click
+closes nothing, the enclosures held kept), and `encloseOff(false)` stops it. `unlimitSpreads()` plays Capital Siege's spread (spread on, ∞, nothing spent, 2
 rings: the fake takes the tiles within 2.3 tile spacings), `unlimitSpreads(true, 3)` another number of rings, and
 `unlimitSpreads(false)` stops it.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90

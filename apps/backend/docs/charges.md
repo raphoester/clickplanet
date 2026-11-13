@@ -23,11 +23,14 @@ its own.
   `AfterRefill`, `AfterBomb`, `AfterEnclose`, `AfterSpreadClick` and `AfterShield`
   build a new `Held` and change
   nothing; `charges.Charges` writes it. `Count(kind)` is how many of a kind are held,
-  and `Full(rules)` the kinds a hand has no room for, a bomb while bombs are off included, which
+  and `Full(rules)` the kinds a hand has no room for, a bomb while bombs are off and an enclosure while enclosures
+  are off included, which
   `InternalService/GetRoom` answers. The sizes are the wallet's rules (`charges.Rules`, `charges.*` in a set); the
   offers never read one.
 - **A rule set may make enclosures unlimited** (`charges.enclose.unlimited`): enclose then spends no charge, and
   the stack held is left as it is. See [Unlimited enclosures](enclose.md#unlimited-enclosures-chargesencloseunlimited).
+- **A rule set may turn enclosures off** (`charges.enclose.off`): an enclose click closes nothing and spends nothing,
+  no hand has room for one, and the stack held is kept. See [Enclosures off](enclose.md#enclosures-off-chargesencloseoff).
 - **A rule set may make spreads unlimited** (`charges.spread.unlimited`): spread then spends no charge, and the pool
   held is left as it is. See [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited).
 - **How much fits.** A refill and a bomb are one: a second replaces the first,

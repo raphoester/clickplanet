@@ -436,6 +436,9 @@ message GetChargeRulesResponse {
 
   // Spread needs no charge and spends none.
   bool spread_unlimited = 16;
+
+  // No enclosure closes a shape, and none is offered: the page hides the enclose slot.
+  bool enclosures_off = 17;
 }
 
 message TollStep {

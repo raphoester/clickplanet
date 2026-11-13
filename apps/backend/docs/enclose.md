@@ -46,8 +46,9 @@ tells closed from open — there is no second rule.
 the search sees it — who holds a tile, what touches it — and finds the pockets a
 click closed. `charges.Charges` says whether the caller holds the charge, and
 the rule set's `charges.enclose`, read once per click, how big a shape may be and whether it costs a charge.
-`Annexer` spends the charge and hands the pocket's shape and inside to the encloser. `Execute` asks whether the
-charge is held (not while enclosures are unlimited), lets the rule write, and hands the pocket to the annexer.
+`Annexer` spends the charge and hands the pocket's shape and inside to the encloser. `Execute` plays a plain click while
+enclosures are off, asks whether the charge is held (not while enclosures are unlimited), lets the rule write, and hands
+the pocket to the annexer.
 
 It sits beside `spread_click`, against the rule and inside everything else, so
 it is one click to the throttle and to `prom_click`, a click the ban refuses never
@@ -83,6 +84,27 @@ there when the set stops playing; a battle that plays it sets the offers' `kinds
 the same name, since a box of them would be worth nothing. `GetChargeRules.enclosures_unlimited` tells the client.
 `default` holds `false`
 (migration `20261105120000_enclose_unlimited`).
+
+## Enclosures off (`charges.enclose.off`)
+
+**A rule set with `off` keeps every enclosure out of the game** (the owner, 2026-11-13, for Capital Siege: with a
+spread of 19 tiles, enclose is useless, and turning it on turns the free spread off for that click). A knob of its own,
+on any map, built as [bombs off](bomb.md) was:
+
+- **A click sent with enclose on closes nothing and spends nothing**: `enclose_click` reads the rule first and hands the
+  click to the rule as a plain one. It is not refused: an old tab that still sends `enclose` takes its tile.
+- **No hand has room for one**: `Held.Full` lists `KindEncloseClicks` while it plays, so `GetRoom` says so and the
+  offers draw no enclosure for a box or a quiz. A grant itself is not refused, as for a bomb while bombs are off: a
+  mission's reward of enclosures, or the operator's `GrantCharges`, still lands, capped at `held`.
+- **The enclosures held are kept**, not taken, and are there when the set stops.
+- **`off` and `unlimited` both on is refused**: `charges.Rules.Validate` names `charges.enclose.off`, since an enclosure
+  cannot be off and free.
+- `GetChargeRules.enclosures_off` tells the page, which hides the Enclose slot and keeps enclose switched off (see the
+  frontend's [Charges](../../frontend/docs/charges.md)).
+
+`default` holds `false` (migration `20261113120000_enclose_off`; its down removes the value from every set). Until
+2026-11-13 the offers' `kinds.encloseClicks` 0 was the only way to stop them, and it left the enclosures held usable
+and the slot on screen.
 
 **How big a shape may be is `maxTiles`, apart from it.** Measured on the real map (2026-11-05, an M-series laptop):
 a search that finds open ground stops at the first coast or lake, 0.07 ms at the median and 2 ms at worst with no

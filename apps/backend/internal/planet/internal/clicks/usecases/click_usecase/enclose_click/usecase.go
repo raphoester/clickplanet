@@ -31,9 +31,13 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		return u.implementation.Execute(ctx, in)
 	}
 
+	rules := u.rules().Enclose
+	if rules.Off {
+		return u.implementation.Execute(ctx, in)
+	}
+
 	payer := clicks.PayerOf(ctx)
 	holder := charges.HolderOf(payer)
-	rules := u.rules().Enclose
 
 	armed, err := u.armed(ctx, holder, rules)
 	if err != nil {

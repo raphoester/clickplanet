@@ -8,7 +8,8 @@ world's map before and after it joins up (see [The ledger's readers](#the-ledger
 the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a battle plays on the fresh map is a knob
 of its own in its rule set, which plays on any map, the world's too: [the reach](reach.md), [the capitals' rules](capitals.md)
 (the knock-out and fixed capital shields). **Capital Siege is one rule set**: `arena.on`, the capitals seed, the reach,
-the knock-out and fixed capital shields, no bombs (`charges.bomb.off`), and urf's speed with an unlimited, wide spread (see
+the knock-out and fixed capital shields, no bombs (`charges.bomb.off`), no enclosures (`charges.enclose.off`), and urf's
+speed with an unlimited, wide spread (see
 [Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
 used in another mode or on the world's map.
 
@@ -153,13 +154,19 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 ## Capital Siege's set
 
 `capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, boxes and quizzes, its shield and
-welcome values, flags locked), plus `arena {on, freeze 8s}`, `seed.capitals.shields` 100, `reach`,
-`capitals {knockOut, fixedShields}`, `charges.bomb.off`, and a spread that makes the map small:
+welcome values, flags locked), plus `arena {on, freeze 8s}`, `seed.capitals.shields` 50, `reach`,
+`capitals {knockOut, fixedShields}`, `charges.bomb.off`, `charges.enclose.off`, and a spread that makes the map small:
 `charges.spread.unlimited` with `charges.spread.rings` 2 (see [Spread](spread.md)), so every click with spread on, next
 to the flag's land, takes 19 tiles. Its toll starts at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×,
-0.5 → 4×), and `charges.enclose.maxTiles` is 500. The offers' set of the same name grants no spread clicks
-(`kinds.spreadClicks` 0, since a box of them would be worth nothing), weighs `encloseClicks` 2 against 1 for refill and
-shields, and offers a box every 20 to 40 s.
+0.5 → 4×). The offers' set of the same name grants no spread clicks and no enclosures (`kinds.spreadClicks` and
+`kinds.encloseClicks` 0, since a box of them would be worth nothing), and offers a box every 20 to 40 s.
+
+**Capitals start with 50 shields** (saved in production on 2026-11-13). A simulation with production's battle numbers
+let the first knock-out wait 20 to 36 minutes with 100, and knocked a flag out after 1 to 4 minutes with 25.
+
+**No enclosures** (the owner, 2026-11-13): with a spread of 19 tiles a click, an enclosure is useless, and turning
+enclose on turns the free spread off for that click, which confused players. Until then the set played
+`charges.enclose.maxTiles` 500, and the offers weighed `encloseClicks` 2 against 1 for refill and shields.
 
 **Why** (the owner, 2026-11-12): the point of the mode is eliminations, and the full map felt far too slow in a test.
 With a pool of 50 and up to 25 a box, only 7-15% of clicks spread, about 1.3 new tiles a click: 15 players at 1 click a

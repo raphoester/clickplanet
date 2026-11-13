@@ -374,7 +374,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         charges: {
             spread: {clicks: 8, rings: 1, unlimited: false},
             bomb: {rings: 4, off: false},
-            enclose: {maxTiles: 25, held: 3, unlimited: false},
+            enclose: {maxTiles: 25, held: 3, unlimited: false, off: false},
             shield: {held: 30, perTile: 10},
         },
         frozen: false,

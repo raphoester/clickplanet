@@ -447,6 +447,21 @@ func TestUnlimitedEnclosuresSpendNoneOfTheChargesHeld(t *testing.T) {
 	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures, "the charge held is still there after the battle")
 }
 
+func TestWhileEnclosuresAreOffAClickWithEncloseOnIsAPlainClick(t *testing.T) {
+	f := setup(true, nil)
+	f.rules.Enclose.Off = true
+	centre, ring := f.grid.id(5, 5), f.grid.ring(5, 5)
+	f.own("de", centre)
+	f.own("fr", ring[1:]...)
+
+	f.click(t, ring[0])
+
+	assert.Equal(t, "fr", f.tiles[ring[0]], "the click is played")
+	assert.Equal(t, "de", f.tiles[centre], "and closes nothing")
+	assert.Empty(t, f.published.published)
+	assert.Equal(t, 1, f.hands.Kept(caller).Enclosures, "the enclosure held is kept for when the set stops")
+}
+
 func TestUnlimitedEnclosuresWaitForEncloseSwitchedOn(t *testing.T) {
 	f := setup(false, nil)
 	f.rules.Enclose.Unlimited = true

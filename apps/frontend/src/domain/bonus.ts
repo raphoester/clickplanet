@@ -44,20 +44,20 @@ export function switched(switches: Switches, name: keyof Switches, on: boolean):
     return on ? {...ALL_OFF, [name]: true} : {...switches, [name]: false}
 }
 
-export type Unlimited = Pick<BonusRules, "spreadUnlimited" | "enclosuresUnlimited">
+export type SwitchRules = Pick<BonusRules, "spreadUnlimited" | "enclosuresUnlimited" | "enclosuresOff">
 
-export function switchesHeld(switches: Switches, charges: Charges, unlimited: Unlimited | undefined): Switches {
-    const spread = switches.spread && (!!unlimited?.spreadUnlimited || charges.spreadClicksLeft > 0)
-    const enclose = switches.enclose && (!!unlimited?.enclosuresUnlimited || charges.enclosures > 0)
+export function switchesHeld(switches: Switches, charges: Charges, rules: SwitchRules | undefined): Switches {
+    const spread = switches.spread && (!!rules?.spreadUnlimited || charges.spreadClicksLeft > 0)
+    const enclose = switches.enclose && !rules?.enclosuresOff && (!!rules?.enclosuresUnlimited || charges.enclosures > 0)
     const shield = switches.shield && charges.shields > 0
     if (spread === switches.spread && enclose === switches.enclose && shield === switches.shield) return switches
     return {spread, enclose, shield}
 }
 
-// The switch on while no other is: an unlimited one, spread before enclose.
-export function restingSwitch(unlimited: Unlimited | undefined): "spread" | "enclose" | undefined {
-    if (unlimited?.spreadUnlimited) return "spread"
-    if (unlimited?.enclosuresUnlimited) return "enclose"
+// The switch on while no other is: an unlimited one, spread before enclose, never enclose while it is off.
+export function restingSwitch(rules: SwitchRules | undefined): "spread" | "enclose" | undefined {
+    if (rules?.spreadUnlimited) return "spread"
+    if (rules?.enclosuresUnlimited && !rules.enclosuresOff) return "enclose"
     return undefined
 }
 
@@ -100,4 +100,6 @@ export type BonusRules = {
     // No bomb is offered or dropped: the page hides the bomb.
     bombsOff: boolean
     spreadUnlimited: boolean
+    // No enclosure closes a shape or is offered: the page hides the enclose slot.
+    enclosuresOff: boolean
 }

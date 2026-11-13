@@ -30,7 +30,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   `…Of(message)` (`message.go`) and a `Part` (`cprules.PartOf[*planetv1.Rules, R]{Key, Read}`). `cprules` names none
   of them.
 - **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `.rings`, `.unlimited`, `bomb.rings`,
-  `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`, `shield.held`, `.perTile`). Until 2026-11-11 those were the
+  `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`, `.off`, `shield.held`, `.perTile`). Until 2026-11-11 those were the
   wallet's half of `bonuses` (`planet.v1.BonusRules`), whose other half a second part read for the offers
   (`parts.Grants`, see [Offers and the wallet](offers-and-wallet.md#the-rules-split)). The offers keep that half in rule
   sets of their own now ([The offers](bonuses.md#its-rule-sets)); `Rules.bonuses` (3) is `reserved`, and the wallet's
@@ -75,6 +75,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `charges.enclose.maxTiles`, `.held` — the biggest shape and the stack (25, 3). See [Enclose](enclose.md)
 - `charges.enclose.unlimited` — a click with enclose on needs no charge and spends none (off). See
   [Unlimited enclosures](enclose.md#unlimited-enclosures-chargesencloseunlimited)
+- `charges.enclose.off` — no enclosure: a click with enclose on closes nothing and spends nothing, and no hand has room
+  for one, so no box or quiz offers one; the enclosures held are kept (off). Never with `unlimited`. See
+  [Enclosures off](enclose.md#enclosures-off-chargesencloseoff)
 - `charges.shield.held`, `.perTile` — the stack and a tile's most (30, 10; a tile keeps them in a byte, so 255 at
   most). See [Shields](shields.md)
 - **The offers' rules are not here since 2026-11-11**: a box's wait, its kinds and its flight, what a box or a right

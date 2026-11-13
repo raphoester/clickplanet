@@ -56,6 +56,7 @@ func (h GetChargeRulesHandler) GetChargeRules(
 		BombsOff:            rules.Bomb.Off,
 
 		SpreadUnlimited: rules.Spread.Unlimited,
+		EnclosuresOff:   rules.Enclose.Off,
 	}), nil
 }
 

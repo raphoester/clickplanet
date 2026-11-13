@@ -73,7 +73,9 @@ the tiles an enclose fills and the shields a tile takes; with "Enclosures unlimi
 unlimited: spread spends no charge", `charges.spread.unlimited`: see the backend's
 [Spread](../../backend/docs/spread.md), and "Bombs off: no box offers one, and none is
 dropped", `charges.bomb.off`: no hand has room for a bomb then, so the offers offer none; see the backend's
-[Bomb](../../backend/docs/bomb.md)), Arena (`arena.freeze`, how long an arena takes no play after its
+[Bomb](../../backend/docs/bomb.md), and "Enclose off: no box offers one, and none is used", `charges.enclose.off`: no
+hand has room for an enclosure then, and an enclose click closes nothing; never with enclosures unlimited, which the
+server refuses; see the backend's [Enclosures off](../../backend/docs/enclose.md#enclosures-off-chargesencloseoff)), Arena (`arena.freeze`, how long an arena takes no play after its
 fresh map plays and before the battle ends, and `seed.capitals.shields`, the shields each capital starts with in the
 capitals seed, the one pattern so far: a second one brings a picker), and the Toll, whose steps are rows to add and
 remove.
