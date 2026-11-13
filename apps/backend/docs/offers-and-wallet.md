@@ -13,7 +13,10 @@ is planet's.** The wallet, the charges a player holds and spends, stays in plane
   (below). `ClickTried` gained `dry`, planet's `BonusRules` shrank to `ChargeRules` (`Rules.charges`), and
   `GetBonusRules` became `GetChargeRules`. A hard-switch deploy ([A server restart reloads the
   page](../../../docs/reload-on-restart.md)). See [What B did beside the plan](#what-b-did-beside-the-plan).
-- **Step C** is the quiz difficulty, inside `bonuses`.
+- **Step C** was the quiz difficulty, inside `bonuses` (2026-11-11).
+- **Then the quizzes left `bonuses`** (2026-11-13) for a module of their own, the same way: a seam, then a move
+  ([The quizzes](quizzes-module.md)). A right answer stopped paying at once: the offers pay it from `QuizAnswered`, and
+  `GetChargesOf`, which answered the hand a wrong answer leaves, went. The sections below name the quiz as B left it.
 
 ## The two sides
 

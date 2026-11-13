@@ -3,7 +3,7 @@
 **Every player has four or five missions a day of its own, and each pays itself once done. Every flag has one more,
 which all its players do together, and which gives the flag season points** (see [The flag's mission](#the-flags-mission)).
 It reads planet's facts (`TilesTaken`, `BombLanded`, `ShieldPlaced`, `Fortified`, `ShieldsStruck`, `GetTerritories`,
-`GetCountrySizes`, `GetAllegianceOf`), the offers' (`BonusClaimed`, `QuizAnswered`, planet's until 2026-11-11), the
+`GetCountrySizes`, `GetAllegianceOf`), the offers' (`BonusClaimed`, planet's until 2026-11-11), the quizzes' (`QuizAnswered`, the offers' until 2026-11-13), the
 gamemaster's days (`DayStarted`), player's
 word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands planet to grant a reward
 (`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet

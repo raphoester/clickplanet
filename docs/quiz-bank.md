@@ -3,12 +3,12 @@
 `quiz/` is one of the four things the root holds for the apps, beside `proto/`, `map/` and
 [`docs/moderation.md`](moderation.md), and, like the last, it is shared with only *one* app. `bank.json` is
 every question the quizzes can ask and the answer to each; `make quiz`
-copies it into `apps/backend/generated/quiz/`, where it is embedded, and the backend's `bonuses` module alone reads it
-(`internal/bonuses/internal/quizzes`; planet's `internal/quizzes` until 2026-11-11).
+copies it into `apps/backend/generated/quiz/`, where it is embedded, and the backend's `quizzes` module alone reads it
+(`internal/quizzes/internal/bank`; the bonuses module's `internal/quizzes` until 2026-11-13, planet's until 2026-11-11).
 
 **The frontend deliberately has no copy**, because the answers are in it: a bank served to the page
 is a bank anyone can fetch with the network tab open. The question and its three choices reach the
-client one at a time from `bonuses.v1.BonusService/OpenQuiz`, and which of the three is right never leaves the server.
+client one at a time from `quizzes.v1.QuizService/OpenQuiz`, and which of the three is right never leaves the server.
 
 ```bash
 cd apps/frontend && npm run quiz:generate   # rewrite /quiz/bank.json
