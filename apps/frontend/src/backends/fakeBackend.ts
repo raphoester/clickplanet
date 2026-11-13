@@ -112,7 +112,6 @@ const RULES: BonusRules = {
     knockOut: false,
     capitalShieldsFixed: false,
     bombsOff: false,
-    spreadRings: 1,
     spreadUnlimited: false,
 }
 
@@ -165,6 +164,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private fast = false
     private flagsLocked = false
     private shapesClose = true
+    private spreadRings = 1
 
     private rules = RULES
     private bannedUntil: number | undefined
@@ -343,7 +343,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (!this.tilePositions) return
         const positions = await this.loadPositions()
 
-        const reach = (this.rules.spreadRings + 0.3) * SPREAD_RING
+        const reach = (this.spreadRings + 0.3) * SPREAD_RING
         const spread = tilesWithin(positions, tile, reach).filter(id => id !== tile)
         this.applyClick(tile, countryId)
         spread.forEach(id => this.applyClick(id, countryId, false))
@@ -464,7 +464,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public unlimitSpreads(on: boolean, rings: number): void {
-        this.rules = {...this.rules, spreadUnlimited: on, spreadRings: rings}
+        this.spreadRings = rings
+        this.rules = {...this.rules, spreadUnlimited: on}
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 

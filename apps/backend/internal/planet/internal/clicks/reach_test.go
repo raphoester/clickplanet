@@ -37,31 +37,31 @@ func reach(t *testing.T, owners board, on bool) clicks.Reach {
 func TestWithTheReachAFlagTakesNextToItsLand(t *testing.T) {
 	r := reach(t, board{1: "fr"}, true)
 
-	require.NoError(t, r.Refuses("fr", 2, 0))
-	require.NoError(t, r.Refuses("fr", 1, 0), "its own tile")
-	require.ErrorIs(t, r.Refuses("fr", 3, 0), clicks.ErrOutOfReach)
-	require.ErrorIs(t, r.Refuses("de", 2, 0), clicks.ErrOutOfReach, "a flag with no land reaches nothing")
+	require.NoError(t, r.Refuses("fr", 2))
+	require.NoError(t, r.Refuses("fr", 1), "its own tile")
+	require.ErrorIs(t, r.Refuses("fr", 3), clicks.ErrOutOfReach)
+	require.ErrorIs(t, r.Refuses("de", 2), clicks.ErrOutOfReach, "a flag with no land reaches nothing")
 }
 
 func TestWithTheReachAFlagCrossesABridgeFromItsLand(t *testing.T) {
 	r := reach(t, board{1: "fr"}, true)
 
-	require.NoError(t, r.Refuses("fr", 6, 0), "the far end of a bridge from its land")
-	require.ErrorIs(t, r.Refuses("fr", 9, 0), clicks.ErrOutOfReach, "an island no bridge from its land leads to")
-	require.ErrorIs(t, r.Refuses("de", 6, 0), clicks.ErrOutOfReach, "a bridge from land it does not hold")
+	require.NoError(t, r.Refuses("fr", 6), "the far end of a bridge from its land")
+	require.ErrorIs(t, r.Refuses("fr", 9), clicks.ErrOutOfReach, "an island no bridge from its land leads to")
+	require.ErrorIs(t, r.Refuses("de", 6), clicks.ErrOutOfReach, "a bridge from land it does not hold")
 }
 
 func TestWithTheReachABridgeLeadsBothWays(t *testing.T) {
 	r := reach(t, board{6: "fr"}, true)
 
-	require.NoError(t, r.Refuses("fr", 1, 0))
+	require.NoError(t, r.Refuses("fr", 1))
 }
 
 func TestWithoutTheReachEveryTileIsInReach(t *testing.T) {
 	r := reach(t, board{1: "fr"}, false)
 
-	require.NoError(t, r.Refuses("fr", 3, 0))
-	require.NoError(t, r.Refuses("de", 9, 0))
+	require.NoError(t, r.Refuses("fr", 3))
+	require.NoError(t, r.Refuses("de", 9))
 	assert.Equal(t, []uint32{2, 4}, r.Around("fr", 3, 1), "the map's own neighbours")
 }
 
@@ -75,16 +75,6 @@ func TestASpreadFromAStruckTileTakesOnlyWhatTouchesOtherLand(t *testing.T) {
 	r := reach(t, board{1: "fr", 2: "de"}, true)
 
 	assert.Equal(t, []uint32{1}, r.Around("fr", 2, 1), "3 touches only de's tile and fr's nothing")
-}
-
-func TestAClickThatSpreadsIsInReachWhenAnyTileOfItsDiscIs(t *testing.T) {
-	r := reach(t, board{1: "fr"}, true)
-
-	require.ErrorIs(t, r.Refuses("fr", 3, 0), clicks.ErrOutOfReach, "two tiles out, a plain click")
-	require.NoError(t, r.Refuses("fr", 3, 1), "its disc holds 2, next to the land")
-	require.ErrorIs(t, r.Refuses("fr", 4, 1), clicks.ErrOutOfReach, "its disc is 3 alone")
-	require.NoError(t, r.Refuses("fr", 4, 2))
-	require.ErrorIs(t, r.Refuses("de", 3, 2), clicks.ErrOutOfReach, "a flag with no land reaches nothing")
 }
 
 func TestAWideSpreadFromATileTakenTakesItsWholeDisc(t *testing.T) {

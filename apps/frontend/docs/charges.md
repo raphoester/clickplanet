@@ -32,8 +32,8 @@ reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` puts it in t
 **The sizes are rules**: `GetChargeRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size, how many can stand on one tile
-(`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`), how far a spread reaches (`spreadRings`) and
-whether spreads are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
+(`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) and whether spreads are unlimited
+(`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
 new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the offers' rule,
 from `BonusService/GetGrantRules`, read at load and on the offers stream's own `rulesChanged` and comeback, and told
@@ -69,7 +69,7 @@ put away. **The player can still turn it off**, and it stays off until they turn
 until the set changes again. When the set stops, the switch goes off, so a click never spends a spread click or an
 enclosure held by surprise. Turning another switch on, or aiming the bomb, turns it off, as ever. No charge is needed
 (`switchesHeld`). No "Shape is not closed" bubble is said while enclosures are unlimited: nearly every click would say
-it. While spread is on, the reach's ring is wider (see [The reach](reach.md)).
+it.
 
 ## The inventory
 

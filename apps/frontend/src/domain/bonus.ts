@@ -66,10 +66,6 @@ export function atRest(switches: Switches, resting: keyof Switches | undefined):
     return {...switches, [resting]: true}
 }
 
-export function ringsOf(switches: Switches, rules: BonusRules | undefined): number {
-    return switches.spread ? rules?.spreadRings ?? 1 : 0
-}
-
 export function sameSwitches(a: Switches, b: Switches): boolean {
     return a.spread === b.spread && a.enclose === b.enclose && a.shield === b.shield
 }
@@ -103,7 +99,5 @@ export type BonusRules = {
     capitalShieldsFixed: boolean
     // No bomb is offered or dropped: the page hides the bomb.
     bombsOff: boolean
-    // A spread takes every tile within this many steps of the tile clicked, and widens the reach as far.
-    spreadRings: number
     spreadUnlimited: boolean
 }

@@ -17,33 +17,25 @@ touches the pool.
 bomb's, so a spread never jumps a strait. `default` holds 1, today's spread (migration `20261112120000_spread_knobs`);
 a set holds 1 to 3 (`charges.MostSpreadRings`).
 
-## A spread is taken before the click, and given back on a refusal
+## A spread is spent after the click
 
-`click/spread_click` reads it. **It sits outside the reach, the throttle and the rule**, inside the try, the ban and
-the allegiance check:
-
-1. With spread on, `Charges.TakeSpread` decides how far the click spreads before anything else plays: the rings in
-   force, and a spread click spent (`Charges.Spend(holder, Held.AfterSpreadClick)`) unless the set is unlimited. With
-   none held, or no account, it spreads nothing (`Rings` 0), and the click goes on as a plain click.
-2. The click goes on with `click_usecase.In.Rings`. The reach checks it with its disc (below), the throttle takes one
-   token, and the rule writes the tile.
-3. **A click refused inside it gives its spread click back** (`Charges.GiveBackSpread`, `Held.WithSpreadClickBack`,
-   on a context the caller cannot cut): out of reach, throttled, an unknown country, a tile out of range, both bonuses
-   at once, or a write that failed. So a refused click spreads nothing and costs nothing, as before.
-4. An accepted click spreads: `Reach.Around` names the tiles, `ledger.Recording.Spread` claims each one as an ordinary
-   `Set`, and `notices.Board.PublishSpread` tells every stream.
-
-**Why before and not after** (2026-11-12): the reach widens for a click that spreads (see [The reach](reach.md)). If the
-spread were spent after the click, two clicks racing for the last spread click would both pass the wider check, and
-the second one would land outside the plain reach with no spread to fill the gap. Taken first, the second click finds
-none, is checked as a plain click, and is refused. **No click lands outside the plain reach unless its spread really
-happens.** A store that cannot take the spread fails the click before anything is written.
+`click/spread_click` reads it, and **it sits right against the rule**, inside the count, the ban, the reach and the
+throttle. Once the rule accepted the click, `Charges.TakeSpread` answers how far it spreads: the rings in force, and a
+spread click spent (`Charges.Spend(holder, Held.AfterSpreadClick)`) unless the set is unlimited. With none held, or no
+account, it spreads nothing. Then `Reach.Around` names the tiles, `ledger.Recording.Spread` claims each one as an
+ordinary `Set`, and `notices.Board.PublishSpread` tells every stream.
 
 - a click is **one click** to the throttle and to `prom_click`, however many tiles it took
-- a click the ban or the allegiance refuses never reaches the spread, so it spends nothing
+- a click the ban, the reach or the throttle refuses never reaches the rule, so it spreads nothing and spends nothing
+- a click the rule refuses (unknown country, tile out of range) spreads nothing
 - the spread's tiles are not reported to the antibot jury — only the clicked tile is a click the caller made
-- a throttled click with spread on costs two writes to `planet.charges` (the spend and the give back); an unlimited
-  spread costs none
+- a store that cannot spend fails the click with its tile taken and no other
+
+**A click that spreads is checked by the reach like any click** (the owner, 2026-11-13): its tile must touch the flag's
+land, or lie across a bridge from it. From 2026-11-12 to 2026-11-13 a click that would spread was in reach when any tile
+of its disc was, so the spread filled the gap. The owner found the rule confusing and took it back before the first
+Capital Siege. Its spread was taken before the click and given back on a refusal, so the wider check and the spend
+agreed; with the plain reach, nothing needs that, and the spend is after the click again.
 
 ## Unlimited spreads (`charges.spread.unlimited`)
 
@@ -85,6 +77,6 @@ Production's busiest second measured so far (2026-11-10) held 46 events on the w
 Tests: `clicks`' `reach_test.go` pins the disc for 0 to 3 rings on a patch of hexagons, its end at a coast, the whole
 disc from a tile taken, the disc in reach from a struck one, the disc without the reach, and a slice of its own;
 `embedded_geodesic_map`'s `load_test.go` the 6, 18 and 36 tiles around inland tiles of the shipped map; `charges`'
-`spread_test.go` the spend, nothing held, unlimited, and the give back; `spread_click`'s tests the rings handed to the
-click, the give back on a refusal, the pool spent to its end, unlimited, and with the real reach and `reach_click`, a
-centre two tiles out taken with spread and refused without, and two clicks racing for the last spread click.
+`spread_test.go` the spend, nothing held and unlimited; `spread_click`'s tests the rings in force, a refused click that
+spends nothing, the pool spent to its end, unlimited, and with the real reach and `reach_click`, a spreading click two
+tiles out refused and a spreading click next to the land that takes its whole disc.

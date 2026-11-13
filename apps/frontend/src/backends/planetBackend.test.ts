@@ -1886,7 +1886,7 @@ describe("the rules", () => {
         const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], enclosuresUnlimited: true,
-            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadRings: 2, spreadUnlimited: true,
+            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
         }))
         const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
         const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), offersWith({getGrantRules}))
@@ -1896,7 +1896,7 @@ describe("the rules", () => {
         await vi.waitFor(() => expect(seen.at(-1)).toEqual({
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
-            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadRings: 2, spreadUnlimited: true,
+            reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
         }))
         backend.close()
     })
@@ -2077,7 +2077,7 @@ describe("the charges held", () => {
 
     it("counts no spread click off while spreads are unlimited", async () => {
         const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({spreadClicksLeft: 2})})
-        const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({spreadRings: 2, spreadUnlimited: true}))
+        const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({spreadUnlimited: true}))
         const click = vi.fn().mockResolvedValue({})
         const backend = new PlanetBackend(clientWith({getCharges, getChargeRules, click}), 1_000)
         const seen = follow(backend)

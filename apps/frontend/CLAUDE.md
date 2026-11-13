@@ -65,8 +65,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   its flag's nearest tiles with no shield once the tiles are read, rings the tiles it can take, until it has taken 50,
   and shows a hand tapping one of them until its first take.
 - [The reach](docs/reach.md) — a rule knob: the bridges drawn as dotted arcs, the tiles the flag can take (next to its
-  land, or across a bridge from it) ringed, wider by the spread's rings while spread is on, a click elsewhere stopped
-  with "Take a tile next to your land"; learnt from `GetChargeRules`.
+  land, or across a bridge from it) ringed, a click elsewhere stopped with "Take a tile next to your land"; learnt from
+  `GetChargeRules`.
 - [The capitals](docs/capitals.md) — two rule knobs: each capital still standing marked with a crown, no shield on a
   capital, a knock-out cleared in one event, and the out window that asks for a flag still in.
 - [Ghosts, for a quiet first visit](docs/ghosts.md) — while fewer than 7 play, a guided page sees fake raids near it,

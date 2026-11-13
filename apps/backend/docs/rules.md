@@ -65,7 +65,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   1.5×, 20% 2.5×, 30% 4×). No step is no toll. See [A big country refills slower](rate-limiting.md#a-big-country-refills-slower-clickstoll)
 - `charges.spread.clicks` — the spread pool a hand holds (8). See [Spread](spread.md)
 - `charges.spread.rings` — how far a spread reaches: every tile within this many steps of the tile clicked, 1 to 3 (1:
-  7 tiles; 2: 19; 3: 37). While the reach plays, it widens a spreading click's reach as far. See
+  7 tiles; 2: 19; 3: 37). See
   [The disc](spread.md#the-disc-chargesspreadrings)
 - `charges.spread.unlimited` — a click with spread on needs no charge and spends none (off). See
   [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited)
@@ -157,7 +157,7 @@ The readers call it where they use the rules, not when they are built: a set tak
 - `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
   takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`cprules.PartOf.Of(set)`).
 - `clicks.ReachPart` — `clicks.Reach` (`reach_click`, `spread_click`) and `GetChargeRules.reach`. The spread's rings
-  are `charges.Part`'s, taken by `spread_click` and handed to the reach with the click.
+  are `charges.Part`'s, read by `spread_click` after the click.
 - `clicks.CapitalsPart` — `clicks.CapitalPlay` in the tile storage (a shield on a capital, a fortify, the knock-out, the
   standing) and `GetChargeRules` (`knock_out`, `capital_shields_fixed`).
 - **`cprules.PlayUseCase` plays when something changes, never on a timer**: at boot and after each save (`Execute`) the

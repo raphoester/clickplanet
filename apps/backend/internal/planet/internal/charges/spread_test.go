@@ -22,23 +22,23 @@ func TestASpreadTakesOneSpreadClickAndReachesTheRingsInForce(t *testing.T) {
 	store.Keep("alice", charges.Held{SpreadClicks: 2})
 	wallet := charges.NewCharges(store, spreadRules(2, false))
 
-	spread, err := wallet.TakeSpread(t.Context(), "alice")
+	rings, err := wallet.TakeSpread(t.Context(), "alice")
 
 	require.NoError(t, err)
-	assert.Equal(t, charges.Spread{Rings: 2, Spent: true}, spread)
+	assert.Equal(t, 2, rings)
 	assert.Equal(t, 1, store.Kept("alice").SpreadClicks)
 }
 
 func TestWithNoSpreadClickHeldAClickSpreadsNothing(t *testing.T) {
 	wallet := charges.NewCharges(charges.NewMemoryStore(), spreadRules(2, false))
 
-	spread, err := wallet.TakeSpread(t.Context(), "alice")
+	rings, err := wallet.TakeSpread(t.Context(), "alice")
 	require.NoError(t, err)
-	assert.Equal(t, charges.Spread{}, spread)
+	assert.Zero(t, rings)
 
 	guest, err := wallet.TakeSpread(t.Context(), charges.NoHolder)
 	require.NoError(t, err)
-	assert.Equal(t, charges.Spread{}, guest)
+	assert.Zero(t, guest)
 }
 
 func TestAnUnlimitedSpreadSpendsNothingAndNeedsNothing(t *testing.T) {
@@ -51,20 +51,7 @@ func TestAnUnlimitedSpreadSpendsNothingAndNeedsNothing(t *testing.T) {
 	guest, err := wallet.TakeSpread(t.Context(), charges.NoHolder)
 	require.NoError(t, err)
 
-	assert.Equal(t, charges.Spread{Rings: 2}, held)
-	assert.Equal(t, charges.Spread{Rings: 2}, guest)
+	assert.Equal(t, 2, held)
+	assert.Equal(t, 2, guest)
 	assert.Equal(t, 3, store.Kept("alice").SpreadClicks, "the pool held is left for when the set stops")
-}
-
-func TestASpreadGivenBackIsTheSpreadClickItSpent(t *testing.T) {
-	store := charges.NewMemoryStore()
-	store.Keep("alice", charges.Held{SpreadClicks: 1})
-	wallet := charges.NewCharges(store, spreadRules(1, false))
-	spread, err := wallet.TakeSpread(t.Context(), "alice")
-	require.NoError(t, err)
-
-	require.NoError(t, wallet.GiveBackSpread(t.Context(), "alice", spread))
-	require.NoError(t, wallet.GiveBackSpread(t.Context(), "alice", charges.Spread{Rings: 1}), "nothing was spent")
-
-	assert.Equal(t, 1, store.Kept("alice").SpreadClicks)
 }

@@ -155,8 +155,8 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 `capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, boxes and quizzes, its shield and
 welcome values, flags locked), plus `arena {on, freeze 8s}`, `seed.capitals.shields` 100, `reach`,
 `capitals {knockOut, fixedShields}`, `charges.bomb.off`, and a spread that makes the map small:
-`charges.spread.unlimited` with `charges.spread.rings` 2 (see [Spread](spread.md)), so every click with spread on
-takes 19 tiles and reaches 2 tiles past the front. Its toll starts at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×,
+`charges.spread.unlimited` with `charges.spread.rings` 2 (see [Spread](spread.md)), so every click with spread on, next
+to the flag's land, takes 19 tiles. Its toll starts at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×,
 0.5 → 4×), and `charges.enclose.maxTiles` is 500. The offers' set of the same name grants no spread clicks
 (`kinds.spreadClicks` 0, since a box of them would be worth nothing), weighs `encloseClicks` 2 against 1 for refill and
 shields, and offers a box every 20 to 40 s.

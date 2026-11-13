@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {Adjacency, discOf, Front, remembered} from "./front.ts"
+import {Adjacency, Front} from "./front.ts"
 import {acrossBridges, Bridges} from "./bridges.ts"
 
 // Tiles 1 to 6 in a row along the equator, each touching the one before and the one after.
@@ -148,92 +148,5 @@ describe("Front across bridges", () => {
 
         expect(front.facing({x: 1, y: 0, z: 0})).toBe(true)
         expect(front.facing({x: -1, y: 0, z: 0})).toBe(false)
-    })
-})
-
-describe("discOf", () => {
-    it("is every tile within the rings, nearest first, the centre left out", () => {
-        expect(discOf(row, 3, 0)).toEqual([])
-        expect(discOf(row, 3, 1)).toEqual([2, 4])
-        expect(discOf(row, 3, 2)).toEqual([2, 4, 1, 5])
-        expect(discOf(row, 1, 9)).toEqual([2, 3, 4, 5, 6])
-    })
-})
-
-describe("A front widened by a spread", () => {
-    it("lights every tile whose disc touches the front, and reaches them", () => {
-        const owners = new Map([[1, "fr"]])
-        const front = frontOf(owners)
-        front.follow("fr")
-
-        expect(front.reaches(3)).toBe(false)
-        expect(front.widen(1)).toEqual({on: [3], off: []})
-        expect(front.reaches(3)).toBe(true)
-        expect(front.reaches(4)).toBe(false)
-        expect(front.widen(2).on).toEqual([4])
-        expect(front.widen(0)).toEqual({on: [], off: [3, 4]})
-    })
-
-    it("widens over the land alone, never across a bridge", () => {
-        const owners = new Map([[1, "fr"]])
-        const front = new Front(acrossBridges(row, new Bridges([[2, 6]])), (tile) => owners.get(tile), positionsOfRow(), row)
-        front.follow("fr")
-
-        const {on} = front.widen(1)
-
-        expect(on.sort()).toEqual([3])
-        expect(front.reaches(5)).toBe(false)
-    })
-
-    it("follows the tiles taken while widened", () => {
-        const owners = new Map([[1, "fr"]])
-        const front = frontOf(owners)
-        front.follow("fr")
-        front.widen(1)
-
-        owners.set(2, "fr")
-        owners.set(3, "fr")
-        const {on, off} = front.touch([2, 3])
-
-        expect(on.sort()).toEqual([4, 5])
-        expect(off.sort()).toEqual([2, 3])
-        expect(front.reaches(5)).toBe(true)
-        expect(front.reaches(6)).toBe(false)
-    })
-
-    it("puts the far tiles out when the land is lost", () => {
-        const owners = new Map([[3, "fr"]])
-        const front = frontOf(owners)
-        front.follow("fr")
-        front.widen(1)
-
-        owners.set(3, "de")
-        const {on, off} = front.touch([3])
-
-        expect(on).toEqual([])
-        expect(off.sort()).toEqual([1, 2, 4, 5])
-    })
-})
-
-describe("remembered", () => {
-    it("asks each tile's neighbours once, and answers them every time", () => {
-        const asked: number[] = []
-        const counted: Adjacency = {of: (tile) => {
-            asked.push(tile)
-            return row.of(tile)
-        }}
-        const land = remembered(counted, ROW)
-
-        expect(land.of(3)).toEqual([2, 4])
-        expect(land.of(3)).toEqual([2, 4])
-        expect(land.of(1)).toEqual([2])
-        expect(asked).toEqual([3, 1])
-    })
-
-    it("remembers a tile with no neighbour", () => {
-        const land = remembered({of: () => []}, ROW)
-
-        expect(land.of(5)).toEqual([])
-        expect(land.of(5)).toEqual([])
     })
 })

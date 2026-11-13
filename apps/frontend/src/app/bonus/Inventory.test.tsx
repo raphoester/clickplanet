@@ -17,7 +17,7 @@ beforeEach(() => window.localStorage.clear())
 
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
-    signInRefill: false, enclosuresUnlimited: false, spreadRings: 1, spreadUnlimited: false,
+    signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
     reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false,
 }
 
