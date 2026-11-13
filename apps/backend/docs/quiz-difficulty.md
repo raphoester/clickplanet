@@ -1,9 +1,10 @@
-# How hard each quiz question is (`internal/bonuses/internal/ratings/`)
+# How hard each quiz question is (`internal/quizzes/internal/ratings/`)
 
 **Every quiz question carries a rating, and every answer to it moves the rating.** The bank ran from "stupidly niche,
 only a history nerd knows" to "what's the capital of France", and nothing recorded which question was answered:
 `QuizAnswered` says only who answered and whether it was right. Since step C of [Offers and the wallet](offers-and-wallet.md)
-(2026-11-11) the offers log every answer and rate every question, and the draw can offer questions that fit once the
+(2026-11-11) the offers, and since 2026-11-13 the quizzes ([The quizzes](quizzes-module.md)), log every answer and rate
+every question, and the draw can offer questions that fit once the
 operator switches it on ([The draw](#the-draw)).
 
 A typical question is answered about once a week: the bank holds 7,196 questions (830 generated, 6,366 hand-written)
@@ -67,7 +68,7 @@ the error away (to 0.07, measured) and 400 take it under 0.035 (0.02, measured).
 | a banner never opened | the player never saw the question |
 | a question opened then left to lapse (the tab closed) | "didn't know" cannot be told from "left" |
 | an answer more than 10 s past its deadline | a page that comes back that late was left, a phone locked or a tab asleep |
-| an answer refused by the freeze or the session check | it never reached the offers |
+| an answer refused by the freeze or the session check | it never reached the registry |
 
 - **A caller with no account counts for the question**, with no account recorded.
 - **A late answer is counted, and the player is told what it was told before.** The page sends its timeout when its
@@ -81,7 +82,7 @@ the error away (to 0.07, measured) and 400 take it under 0.035 (0.02, measured).
 
 ## The answer path
 
-`answer_quiz_usecase` counts the answer right after the registry settles it, before it pays a right one, through
+`answer_quiz_usecase` counts the answer right after the registry settles it, before it tells it (`QuizAnswered`), through
 ratings' `record_answer_usecase` (`prom_record_answer` counts `quiz_answers_recorded_total{outcome}`,
 `log_record_answer` logs a failure at Error):
 
@@ -92,11 +93,11 @@ ratings' `record_answer_usecase` (`prom_record_answer` counts `quiz_answers_reco
 - **A question's answers are counted one at a time** (64 stripes by question), so two answers at once never both move
   it from the same rating, and a slow commit holds up only the questions of its stripe.
 - **The count runs on a context the caller's leaving does not cut**, 5 s at most: the answer is spent.
-- **A count that fails costs the player nothing**: the answer stands, the charge is paid, and the question is one answer
+- **A count that fails costs the player nothing**: the answer stands, it is told and paid, and the question is one answer
   short, logged and counted as `failed`.
-- **Unchanged**: `QuizAnswered`, the page, the answers, every metric before. No difficulty reaches the client.
+- **No difficulty reaches the client**: not on the banner, the question or the answer.
 
-## The tables (schema `bonuses`)
+## The tables (schema `quizzes`)
 
 - **`quiz_answers`**, one row per counted answer, never edited: `question_id`, `account_id` (null for a caller with
   none, or once forgotten), `outcome` (enum `quiz_answer_outcome`: `right`, `wrong` or `timed_out`), `answer_ms` (from
@@ -105,7 +106,11 @@ ratings' `record_answer_usecase` (`prom_record_answer` counts `quiz_answers_reco
   rows a day.
 - **`quiz_questions`**, one row per question answered at least once: `question_id`, `rating`, `answers`,
   `right_answers`. The log's running totals.
-- **A forgotten account** (`player.v1.PlayerForgotten`, group `bonuses-answers-forgotten`) has its id blanked in
+Both moved from schema `bonuses` on 2026-11-13 (`ALTER TABLE … SET SCHEMA quizzes`, rows and indexes with them, migration
+`20261113161646_from_bonuses`), and so did the `quiz_answer_outcome` type.
+
+- **A forgotten account** (`player.v1.PlayerForgotten`, group `bonuses-answers-forgotten`, its name kept) has its id
+  blanked in
   `quiz_answers` (`forget_account_usecase`). Its answers stay, and so do the ratings they moved.
 
 ## The boot
@@ -133,12 +138,12 @@ regenerated with priors loads on this build and an older one.
 
 ## The draw
 
-**The draw weighs a question by how hard it is, inside the pool the lean picked, and ships switched off.** Five values
-of the offers' rule sets (`bonuses.v1.Rules.quiz`, played per set like every offer rule: see
-[Its rule sets](bonuses.md#its-rule-sets)), read as `quizzes.Fit`:
+**The draw weighs a question by how hard it is, inside the pool the lean picked.** It shipped switched off; production
+switched it on by hand (`width` 1). Five values of the quizzes' rule sets (`quizzes.v1.Rules`, played per set: see
+[Its rule sets](quizzes-module.md#its-rule-sets)), read as `bank.Fit`:
 
-- `width`: how wide the bell around the target is, on the rating scale. **0 is off, and is `default`'s value**: the
-  draw of before, with no floor and no exploring. A question a width from the target weighs 0.61 of one on it, two
+- `width`: how wide the bell around the target is, on the rating scale. **0 is off**: the draw of before, with no floor
+  and no exploring. A question a width from the target weighs 0.61 of one on it, two
   widths away 0.14. 1 is a fair start: with a target of 0.7 (a rating of −0.2), a question answered right 54% or 85%
   of the time (0.8 and −1.2) weighs 0.61, and one at 43% or 93% (1.8 and −2.2) weighs 0.14.
 - `target`: the chance of a right answer, for an average player, the draw aims at (0.7 in default), 0.34 to 0.99.
@@ -160,13 +165,13 @@ of the offers' rule sets (`bonuses.v1.Rules.quiz`, played per set like every off
    nothing to draw anywhere is drawn flat, floor ignored: a quiz is still asked.
 
 `fit_test.go` holds it to the bell's shares, the floor and its exceptions, the exploring draws, the subject drawn as
-before, and both cases of nothing to draw. **The operator switches it on from the backoffice** (Box & quiz rules, Quiz
-difficulty) or Claude's `bonuses_save_rule_set`, after a few weeks of answers; no set does yet.
+before, and both cases of nothing to draw. **The operator tunes it from the backoffice** (Box & quiz rules, Quiz
+difficulty) or Claude's `quizzes_save_rule_set`.
 
 ## The operator's list
 
-**`bonuses.v1.AdminService/ListQuizQuestions`** answers every question of the bank with how hard it is, and the connector
-makes it Claude's `bonuses_list_quiz_questions` with no code of its own ([Claude as a connector](connector.md)). No
+**`quizzes.v1.AdminService/ListQuizQuestions`** answers every question of the bank with how hard it is, and the connector
+makes it Claude's `quizzes_list_quiz_questions` with no code of its own ([Claude as a connector](connector.md)). No
 backoffice page reads it yet.
 
 - **Each question**: its id, text, right answer and subject; its prior (unset when the bank holds none: it started at
@@ -178,7 +183,7 @@ backoffice page reads it yet.
 - **A page at a time**: `limit` (50 unless asked, 500 at most) from `offset`, and `total`, how many the filter keeps.
 - **It reads memory, never postgres** (`quiz_questions_query.MemoryQuery`, [Reads are queries](queries.md)): the bank
   and the book the draw reads, through `inmemory_quiz_questions`, which the bank's seam test lets read the bank, answers
-  and all (`TestTheQuizzesAreTheOffersAlone`). The list is the admin listener's alone.
+  and all (`TestTheBankIsTheRegistrysAlone`). The list is the admin listener's alone.
 
 ## What comes later
 

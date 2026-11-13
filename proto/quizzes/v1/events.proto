@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package quizzes.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// What the quizzes tell the other modules, over Redis Streams.
+
+// A quiz answered, right or wrong, by a caller with an account. Its first three fields read as bonuses.v1.QuizAnswered,
+// which the bonuses module told until the quizzes were a module of their own.
+message QuizAnswered {
+  string account_id = 1;
+  bool correct = 2;
+  google.protobuf.Timestamp answered_at = 3;
+  // The token the quiz was offered under: random, used once, so it names the answer.
+  string token = 4;
+  // The quiz asked early to a new account whose clicks ran out.
+  bool welcome = 5;
+}

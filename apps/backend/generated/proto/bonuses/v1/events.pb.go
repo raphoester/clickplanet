@@ -76,67 +76,6 @@ func (x *BonusClaimed) GetClaimedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// A quiz answered, right or wrong, by a caller with an account; a right one once planet kept its charge.
-type QuizAnswered struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Correct       bool                   `protobuf:"varint,2,opt,name=correct,proto3" json:"correct,omitempty"`
-	AnsweredAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=answered_at,json=answeredAt,proto3" json:"answered_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *QuizAnswered) Reset() {
-	*x = QuizAnswered{}
-	mi := &file_bonuses_v1_events_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *QuizAnswered) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*QuizAnswered) ProtoMessage() {}
-
-func (x *QuizAnswered) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_events_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use QuizAnswered.ProtoReflect.Descriptor instead.
-func (*QuizAnswered) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_events_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *QuizAnswered) GetAccountId() string {
-	if x != nil {
-		return x.AccountId
-	}
-	return ""
-}
-
-func (x *QuizAnswered) GetCorrect() bool {
-	if x != nil {
-		return x.Correct
-	}
-	return false
-}
-
-func (x *QuizAnswered) GetAnsweredAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.AnsweredAt
-	}
-	return nil
-}
-
 // A box claimed by the scope it was offered to.
 type BoxCaught struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -150,7 +89,7 @@ type BoxCaught struct {
 
 func (x *BoxCaught) Reset() {
 	*x = BoxCaught{}
-	mi := &file_bonuses_v1_events_proto_msgTypes[2]
+	mi := &file_bonuses_v1_events_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -162,7 +101,7 @@ func (x *BoxCaught) String() string {
 func (*BoxCaught) ProtoMessage() {}
 
 func (x *BoxCaught) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_events_proto_msgTypes[2]
+	mi := &file_bonuses_v1_events_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -175,7 +114,7 @@ func (x *BoxCaught) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoxCaught.ProtoReflect.Descriptor instead.
 func (*BoxCaught) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_events_proto_rawDescGZIP(), []int{2}
+	return file_bonuses_v1_events_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *BoxCaught) GetScope() string {
@@ -210,7 +149,7 @@ type BoxLapsed struct {
 
 func (x *BoxLapsed) Reset() {
 	*x = BoxLapsed{}
-	mi := &file_bonuses_v1_events_proto_msgTypes[3]
+	mi := &file_bonuses_v1_events_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -222,7 +161,7 @@ func (x *BoxLapsed) String() string {
 func (*BoxLapsed) ProtoMessage() {}
 
 func (x *BoxLapsed) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_events_proto_msgTypes[3]
+	mi := &file_bonuses_v1_events_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -235,7 +174,7 @@ func (x *BoxLapsed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoxLapsed.ProtoReflect.Descriptor instead.
 func (*BoxLapsed) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_events_proto_rawDescGZIP(), []int{3}
+	return file_bonuses_v1_events_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *BoxLapsed) GetScope() string {
@@ -263,7 +202,7 @@ type ForeignBoxClaimed struct {
 
 func (x *ForeignBoxClaimed) Reset() {
 	*x = ForeignBoxClaimed{}
-	mi := &file_bonuses_v1_events_proto_msgTypes[4]
+	mi := &file_bonuses_v1_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -275,7 +214,7 @@ func (x *ForeignBoxClaimed) String() string {
 func (*ForeignBoxClaimed) ProtoMessage() {}
 
 func (x *ForeignBoxClaimed) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_events_proto_msgTypes[4]
+	mi := &file_bonuses_v1_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -288,7 +227,7 @@ func (x *ForeignBoxClaimed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForeignBoxClaimed.ProtoReflect.Descriptor instead.
 func (*ForeignBoxClaimed) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_events_proto_rawDescGZIP(), []int{4}
+	return file_bonuses_v1_events_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ForeignBoxClaimed) GetScope() string {
@@ -315,13 +254,7 @@ const file_bonuses_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x129\n" +
 	"\n" +
-	"claimed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt\"\x84\x01\n" +
-	"\fQuizAnswered\x12\x1d\n" +
-	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
-	"\acorrect\x18\x02 \x01(\bR\acorrect\x12;\n" +
-	"\vanswered_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"answeredAt\"\x8b\x01\n" +
+	"claimed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tclaimedAt\"\x8b\x01\n" +
 	"\tBoxCaught\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12/\n" +
 	"\x05after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x05after\x127\n" +
@@ -349,28 +282,26 @@ func file_bonuses_v1_events_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_events_proto_rawDescData
 }
 
-var file_bonuses_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_bonuses_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_bonuses_v1_events_proto_goTypes = []any{
 	(*BonusClaimed)(nil),          // 0: bonuses.v1.BonusClaimed
-	(*QuizAnswered)(nil),          // 1: bonuses.v1.QuizAnswered
-	(*BoxCaught)(nil),             // 2: bonuses.v1.BoxCaught
-	(*BoxLapsed)(nil),             // 3: bonuses.v1.BoxLapsed
-	(*ForeignBoxClaimed)(nil),     // 4: bonuses.v1.ForeignBoxClaimed
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
-	(*durationpb.Duration)(nil),   // 6: google.protobuf.Duration
+	(*BoxCaught)(nil),             // 1: bonuses.v1.BoxCaught
+	(*BoxLapsed)(nil),             // 2: bonuses.v1.BoxLapsed
+	(*ForeignBoxClaimed)(nil),     // 3: bonuses.v1.ForeignBoxClaimed
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*durationpb.Duration)(nil),   // 5: google.protobuf.Duration
 }
 var file_bonuses_v1_events_proto_depIdxs = []int32{
-	5, // 0: bonuses.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	5, // 1: bonuses.v1.QuizAnswered.answered_at:type_name -> google.protobuf.Timestamp
-	6, // 2: bonuses.v1.BoxCaught.after:type_name -> google.protobuf.Duration
-	5, // 3: bonuses.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
-	5, // 4: bonuses.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
-	5, // 5: bonuses.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	4, // 0: bonuses.v1.BonusClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	5, // 1: bonuses.v1.BoxCaught.after:type_name -> google.protobuf.Duration
+	4, // 2: bonuses.v1.BoxCaught.caught_at:type_name -> google.protobuf.Timestamp
+	4, // 3: bonuses.v1.BoxLapsed.lapsed_at:type_name -> google.protobuf.Timestamp
+	4, // 4: bonuses.v1.ForeignBoxClaimed.claimed_at:type_name -> google.protobuf.Timestamp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_events_proto_init() }
@@ -384,7 +315,7 @@ func file_bonuses_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_events_proto_rawDesc), len(file_bonuses_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

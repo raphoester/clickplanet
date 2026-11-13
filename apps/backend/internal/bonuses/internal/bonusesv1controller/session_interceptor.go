@@ -12,16 +12,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-var ErrNoSession = errors.New("boxes and quizzes require a session; call auth.v1.AuthService/CreateSession first")
+var ErrNoSession = errors.New("boxes require a session; call auth.v1.AuthService/CreateSession first")
 
-// NewSessionInterceptor asks a claim, an opening and an answer for the click token a click carries, as planet asked
-// them before the offers were a module of their own.
+// NewSessionInterceptor asks a claim for the click token a click carries, as planet asked it before the offers were a
+// module of their own.
 func NewSessionInterceptor(
 	verifier cpconnect.SessionVerifier, clock cptime.Clock, registerer prometheus.Registerer,
 ) connect.Interceptor {
 	checks := promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
 		Name: "bonus_session_checks",
-		Help: "Box claims, quiz openings and answers by the verdict on the session token they carried",
+		Help: "Box claims by the verdict on the session token they carried",
 	}, []string{"verdict"})
 
 	return cpconnect.NewSessionInterceptor(
@@ -30,8 +30,6 @@ func NewSessionInterceptor(
 		ErrNoSession,
 		func(verdict cpconnect.SessionVerdict) { checks.WithLabelValues(string(verdict)).Inc() },
 		cpconnect.Attested(bonusesv1connect.BonusServiceClaimBonusProcedure),
-		cpconnect.Attested(bonusesv1connect.BonusServiceOpenQuizProcedure),
-		cpconnect.Attested(bonusesv1connect.BonusServiceAnswerQuizProcedure),
 	)
 }
 

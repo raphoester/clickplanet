@@ -86,8 +86,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `ledgerStorage.maxTakes` — the most takes kept (4M, ~100 MiB); past it the oldest go before the retention
 - `tilesStorage.subscriberBuffer` — per-subscriber channel capacity, which is now per connected client rather than per fanout; a subscriber that falls that far behind is closed, never blocked on or skipped
 - **Every game rule is the rule set's, kept in postgres** (`planet.rule_sets`), not a key here: the refill, the bank
-  and the scope multipliers, the toll and the charges. See [Rules](rules.md). The boxes, the welcome and the quizzes
-  are the offers' sets (`bonuses.rule_sets`): see [The offers](bonuses.md#its-rule-sets)
+  and the scope multipliers, the toll and the charges. See [Rules](rules.md). The boxes and the welcome are the offers'
+  sets (`bonuses.rule_sets`), the quizzes the quizzes' (`quizzes.rule_sets`): see [The offers](bonuses.md#its-rule-sets)
+  and [The quizzes](quizzes-module.md#its-rule-sets)
 - `rateLimiter.sweepInterval` — how often the click limiter forgets a bucket that is full (1m)
 - `vpnBlocklist.enabled`, `vpnBlocklist.includeDatacenters`, `vpnBlocklist.allow` — the VPN refusal (see [VPN blocklist](vpn-blocklist.md)); disabled parses nothing and allocates nothing
 - `antiBot` — the antibot module's block (`antibot.Config`, beside `planet.Config` in `cmd/api`). It holds the machine only: **every bound the antibot judges with is a rule set in postgres**, edited from the backoffice (see [The antibot's rules](antibot-rules.md)). A rule left in the file is read by nothing, and `TestEveryAntibotKeyIsOneTheConfigReads` refuses it
@@ -149,11 +150,14 @@ There is no struct-tag validation and therefore no validator dependency — a ho
   days), and how often the older ones are deleted (1h)
 - `progression.database.*` — the stats, the titles, the titles worn, the finales fought, the nameplates and the departures, same shape as `database`, schema `progression`; required. `progression.database.password` belongs in the environment. Its first migration moves four tables out of schema `player`, so its user must own them, as production's one user does (see [Progression](progression.md#the-tables-and-their-move))
 - `bonuses.database.*` — the offers' rule sets and the set they play, same shape as `database`, schema `bonuses`, one
-  connection in production; required. `bonuses.database.password` belongs in the environment. Nothing of a box or a
-  quiz is written: the offers are memory only. See [The offers](bonuses.md)
+  connection in production; required. `bonuses.database.password` belongs in the environment. Nothing of a box is
+  written: the offers are memory only. See [The offers](bonuses.md)
 - `bonuses.offers.forgetAfter`, `bonuses.offers.sweepInterval` — how long a caller with no stream open is remembered
-  (5m), and how often the boxes and the quizzes are swept (1s). Until 2026-11-11 they were planet's top-level
-  `bonus.forgetAfter` and `bonus.sweepInterval`
+  (5m), and how often the boxes are swept (1s). Until 2026-11-11 they were planet's top-level `bonus.forgetAfter` and
+  `bonus.sweepInterval`
+- `quizzes.database.*` — the quizzes' rule sets, the answers counted, each question's rating and the outbox, schema
+  `quizzes`, one connection in production; required. See [The quizzes](quizzes-module.md)
+- `quizzes.offers.forgetAfter`, `quizzes.offers.sweepInterval` — the same as the offers', for the quizzes (5m, 1s)
 - `missions.database.*` — the briefs, the sheets, the progress, the payments, the days, the flag missions and their rules, same shape as `database`, schema `missions`; required. `missions.database.password` belongs in the environment
 - `scoring.database.*` — the standings and the rounds, same shape as `database`, schema `scoring`; required. `scoring.database.password` belongs in the environment
 - `gamemaster.dailyCutoff` — the time of day, UTC, every day of a season ends at, as a duration from midnight (`21h`); 0s

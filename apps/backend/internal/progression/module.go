@@ -145,10 +145,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-messages", log_subscriber.New(message_sent_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-bombs", log_subscriber.New(bomb_landed_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-fortifies", log_subscriber.New(fortified_subscriber.New(recordStats), props.Logger))),
-		// The offers tell boxes and answers since 2026-11-11: each group handles what planet's stream held first.
+		// The offers tell boxes since 2026-11-11, and the quizzes answers since 2026-11-13: each group handles what the
+		// stream before held first.
 		subscribed(cpredis.SubscribeMoved(ctx, streams, "planet.v1.BonusClaimed", "player-stats-bonuses",
 			log_subscriber.New(bonus_claimed_subscriber.New(recordStats), props.Logger))),
-		subscribed(cpredis.SubscribeMoved(ctx, streams, "planet.v1.QuizAnswered", "player-stats-quizzes",
+		subscribed(cpredis.SubscribeMoved(ctx, streams, "bonuses.v1.QuizAnswered", "player-stats-quizzes",
 			log_subscriber.New(quiz_answered_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-missions", log_subscriber.New(missions_paid_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-titles", log_subscriber.New(stats_changed_subscriber.New(award), props.Logger))),

@@ -40,11 +40,9 @@ func always(frozen bool) bonusesv1controller.Frozen {
 	return func(context.Context) (bool, error) { return frozen, nil }
 }
 
-func TestWhileFrozenNoBoxOrQuizIsTakenBeforeItIsSpent(t *testing.T) {
+func TestWhileFrozenNoBoxIsTakenBeforeItIsSpent(t *testing.T) {
 	for _, procedure := range []string{
 		bonusesv1connect.BonusServiceClaimBonusProcedure,
-		bonusesv1connect.BonusServiceOpenQuizProcedure,
-		bonusesv1connect.BonusServiceAnswerQuizProcedure,
 	} {
 		t.Run(procedure, func(t *testing.T) {
 			ran, err := call(t, always(true), procedure)

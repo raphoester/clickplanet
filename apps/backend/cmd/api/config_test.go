@@ -32,6 +32,8 @@ func TestTheExampleConfigStillReachesTheStructs(t *testing.T) {
 
 	assert.Equal(t, 5*time.Minute, config.Bonuses.Offers.ForgetAfter)
 	assert.Equal(t, time.Second, config.Bonuses.Offers.SweepInterval)
+	assert.Equal(t, 5*time.Minute, config.Quizzes.Offers.ForgetAfter)
+	assert.Equal(t, time.Second, config.Quizzes.Offers.SweepInterval)
 	assert.Equal(t, time.Minute, config.Planet.RateLimiter.SweepInterval)
 
 	assert.False(t, config.Auth.Connector.Enabled, "the example connects nothing")
@@ -147,6 +149,9 @@ missions:
 bonuses:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: bonuses}
   redis: {address: localhost:6379}
+quizzes:
+  database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: quizzes}
+  redis: {address: localhost:6379}
 support:
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: support}
   redis: {address: localhost:6379}
@@ -236,6 +241,18 @@ func TestTheExampleConfigReachesTheBonusesBlock(t *testing.T) {
 
 func TestTheBonusesModuleWithNoDatabaseIsRefused(t *testing.T) {
 	assert.ErrorContains(t, Config{}.Validate(), "bonuses.database")
+}
+
+func TestTheExampleConfigReachesTheQuizzesBlock(t *testing.T) {
+	var config Config
+	require.NoError(t, cpconfigs.Load(&config, cpconfigs.FromFile("example.yaml")))
+
+	assert.Equal(t, "quizzes", config.Quizzes.Database.Schema)
+	require.NoError(t, config.Quizzes.Validate())
+}
+
+func TestTheQuizzesModuleWithNoDatabaseIsRefused(t *testing.T) {
+	assert.ErrorContains(t, Config{}.Validate(), "quizzes.database")
 }
 
 func TestTheMissionsModuleWithNoDatabaseIsRefused(t *testing.T) {
@@ -531,7 +548,7 @@ func TestEveryModuleOfProductionTalksToTheSameRedis(t *testing.T) {
 		"auth": config.Auth.Redis, "chat": config.Chat.Redis, "player": config.Player.Redis,
 		"progression": config.Progression.Redis,
 		"scoring":     config.Scoring.Redis, "support": config.Support.Redis, "missions": config.Missions.Redis,
-		"bonuses": config.Bonuses.Redis,
+		"bonuses": config.Bonuses.Redis, "quizzes": config.Quizzes.Redis,
 		"antiBot": config.AntiBot.Redis, "gamemaster": config.Gamemaster.Redis, "clips": config.Clips.Redis,
 		"alerts": config.Alerts.Redis, "vandalSquad": config.VandalSquad.Redis,
 	} {

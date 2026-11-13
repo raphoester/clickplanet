@@ -13,7 +13,7 @@ type Charger interface {
 }
 
 type Streams interface {
-	PublishGranted(holder charges.Holder, held charges.Held)
+	PublishGranted(holder charges.Holder, gain charges.Gain)
 }
 
 type In struct {
@@ -61,6 +61,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, err
 	}
 
-	u.streams.PublishGranted(holder, after)
+	u.streams.PublishGranted(holder, charges.Gain{Before: before, After: after})
 	return Out{Holder: holder, Before: before, After: after}, nil
 }

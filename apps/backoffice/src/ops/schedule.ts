@@ -4,6 +4,7 @@ import {localOf} from "../components/time.ts"
 import {GetRulesResponse as AntibotRules} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as BonusesRules} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {GetRulesResponse as QuizzesRules} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {Entry, GetScheduleResponse, ScheduledFinale} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {Cutoff, offCutoffWords} from "./cutoff.ts"
@@ -36,13 +37,14 @@ export function changeable(row: Row, now: Date): boolean {
     return row.startsAt !== undefined && now < row.startsAt
 }
 
-// What each module the schedule commands keeps and plays: planet, the antibot, and the offers (bonuses.v1), whose sets
-// say when a box and a quiz come.
-export type Modules = {planet: PlanetRules, antibot: AntibotRules, bonuses: BonusesRules}
+// What each module the schedule commands keeps and plays: planet, the antibot, the offers (bonuses.v1), whose sets say
+// when a box comes and what a box or a right answer grants, and the quizzes (quizzes.v1).
+export type Modules = {planet: PlanetRules, antibot: AntibotRules, bonuses: BonusesRules, quizzes: QuizzesRules}
 
 // Each module in the operator's words, in the order the page names them.
 const MODULES: {key: keyof Modules, name: string}[] = [
     {key: "planet", name: "planet"}, {key: "antibot", name: "the antibot"}, {key: "bonuses", name: "the offers"},
+    {key: "quizzes", name: "the quizzes"},
 ]
 
 // The modules that keep no set of this name.

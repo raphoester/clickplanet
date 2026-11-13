@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers"
@@ -24,11 +24,11 @@ type Subscriber struct {
 	useCase UseCase
 }
 
-var _ cpredis.Handler[*bonusesv1.QuizAnswered] = Subscriber{}
+var _ cpredis.Handler[*quizzesv1.QuizAnswered] = Subscriber{}
 
 var errNoTime = errors.New("the answer has no time")
 
-func (s Subscriber) Handle(ctx context.Context, event *bonusesv1.QuizAnswered) error {
+func (s Subscriber) Handle(ctx context.Context, event *quizzesv1.QuizAnswered) error {
 	account, err := missions.AccountIDOf(event.GetAccountId())
 	if err != nil {
 		return fmt.Errorf("quiz answered: %w", err)

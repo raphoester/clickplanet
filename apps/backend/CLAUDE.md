@@ -24,8 +24,8 @@ and says what is in it. Read the doc before you change its area.
 
 ## How the code is shaped
 
-- [Sixteen bounded contexts, one process](docs/bounded-contexts.md) — planet, bonuses, chat, auth, player, progression,
-  scoring, support, missions, antibot, gamemaster, alerts, clips, promo, publishing and vandalsquad. A module publishes its root package and hides the rest; the
+- [Seventeen bounded contexts, one process](docs/bounded-contexts.md) — planet, bonuses, quizzes, chat, auth, player,
+  progression, scoring, support, missions, antibot, gamemaster, alerts, clips, promo, publishing and vandalsquad. A module publishes its root package and hides the rest; the
   modules depend on each other with no cycle, and only player and alerts speak auth's language.
 - [The composite layer](docs/composite-layer.md) — each context wires itself in its `module.go`; how a module
   calls another one, how it tells the others what happened and asks one to change something: Redis Streams, an event
@@ -98,21 +98,24 @@ and says what is in it. Read the doc before you change its area.
 - [Spread](docs/spread.md), [Bomb](docs/bomb.md), [Enclose](docs/enclose.md), [Refill](docs/refill.md) — what
   each charge does to a click or to the bucket.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, the bank's lean on planet's board, and the charge a
-  right answer gives (the bonuses module's).
+  right answer gives (the bonuses module's, from the quizzes' `QuizAnswered`).
+- [The quizzes module](docs/quizzes-module.md) — the quizzes left bonuses (2026-11-13): the schedule, the bank, the
+  ratings and the answer log; `QuizService` (pays nothing), `QuizAnswered` through an outbox, its rule sets
+  (`quizzes.rule_sets`), the tables moved from schema `bonuses`, the dropped "box and quiz apart" rule, the deploy.
 - [How hard each quiz question is](docs/quiz-difficulty.md) — a rating per question, moved by every answer counted
   (`P = 1/3 + 2/3·σ(s − d)`, a running mean then a 1/200 step), from the bank's prior; the answer log and the totals in
   postgres, the copy in memory the draw reads; what counts (a late answer too), and what comes later.
 - [A newcomer's first box and first quiz](docs/welcome-bonus.md) — a new account gets both early, once; the dry click
-  the offers hear from planet's `ClickTried`.
+  the quizzes hear from planet's `ClickTried`.
 - [A guest's first sign-in earns a refill](docs/sign-in-refill.md) — once per account, when player makes it a player
   (`PlayerCreated`, which the offers hear and pay through planet's `GrantCharges`); why nobody can farm it.
 - [Offers and the wallet](docs/offers-and-wallet.md) — the seam cut inside planet (step A) and the move of the offers
   out of it (step B, done 2026-11-11): the wallet (`charges`) and the offers (`bonuses`), the ports, what `Clicked`
   hears, the rules split.
-- [Bonuses](docs/bonuses.md) — the box and quiz offers' module, downstream of planet like missions: the registry and the
-  quiz bank, its stream (`BonusService.ListenForEvents`), its rule sets (`bonuses.rule_sets`, played by the gamemaster),
-  what it asks planet in planet's words (`ClickTried`, `GetRoom`, `GrantCharges`, `GetChargesOf`, `GetFreeze`,
-  `GetTerritories`), the freeze, its facts and where its sets came from.
+- [Bonuses](docs/bonuses.md) — the boxes and the rewards' module, downstream of planet like missions: the registry, its
+  stream (`BonusService.ListenForEvents`), a right answer paid from the quizzes' `QuizAnswered`, its rule sets
+  (`bonuses.rule_sets`, played by the gamemaster), what it asks planet in planet's words (`ClickTried`, `GetRoom`,
+  `GrantCharges`, `GetFreeze`), the freeze, its facts and where its sets came from.
 
 ## Who a caller is
 
@@ -153,15 +156,15 @@ and says what is in it. Read the doc before you change its area.
 - [Scoring](docs/scoring.md) — a points accountant: books, rounds and grants by the ids it is given, opened and closed
   by the gamemaster's calls (a round or book never opened answered missed, and kept so no open lands after), each round placed by its ranking: a battle on the countries that fought, by the tiles held and the tiles taken, a day on that rank plus its rank on the tiles held; no season, day, battle or clock; who a
   board may rank, kept from player's events.
-- [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that calls planet, the antibot
-  and the offers, the seasons, days and battles it opens and closes in scoring's books, the map swaps on a runner of their own, each season's finale (the Final
+- [The gamemaster](docs/gamemaster.md) — every moment of the game: the rule schedule that calls planet, the antibot,
+  the offers and the quizzes, the seasons, days and battles it opens and closes in scoring's books, the map swaps on a runner of their own, each season's finale (the Final
   Battle), the events in the game's words (each season, day and battle as it starts), and how to freeze the map over
   the break between two seasons.
 - [The gamemaster as a reconciler](docs/gamemaster-reconciler.md) — each second, what the game wants against what the
   modules answered: each change an RPC called until it answers, kept right after the call, no call before the ones ahead
   of it answered, a refusal for good, a call cut by its timeout, the reset after the book before it, the boot, the cost.
 - [Missions](docs/missions.md) — four or five missions a day per player, in the days the gamemaster tells
-  (`DayStarted`), counted from planet's and the offers' facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
+  (`DayStarted`), counted from planet's, the offers' and the quizzes' facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
   with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to
   scoring), and told done to the chat (`FlagMissionDone`), which announces it in the world and the flag's room; why
   progress is not read from the ledger; the flag mission's numbers, one document the operator edits (`GetRules`,
@@ -169,7 +172,7 @@ and says what is in it. Read the doc before you change its area.
 - [Promo](docs/promo.md) — a battle's teaser: each rule set's cards, kept under its name, over backgrounds the operator
   uploads to the bucket and Cloudflare serves publicly; words with `{path}` placeholders filled from the values the set
   plays and the battle's points at each read (`GetTeaser`); the set and times from the gamemaster (`GetBattle`), the
-  values from planet and the offers (`GetRuleSet`), the points from scoring (`GetRankPoints`); the battles to come with their cards
+  values from planet, the offers and the quizzes (`GetRuleSet`), the points from scoring (`GetRankPoints`); the battles to come with their cards
   (`ListTeasers`, from the gamemaster's `GetTimeline`); each battle's teaser posted on TikTok and YouTube through
   publishing (`ListDueTeasers`, `PostTeaser`).
 - [Publishing](docs/publishing.md) — the game's posts on its own TikTok and YouTube through Zernio: the calendar every

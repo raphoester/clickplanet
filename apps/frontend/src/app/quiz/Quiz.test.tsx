@@ -4,9 +4,10 @@ import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
 
 import {BonusLostError, QuizMaster} from "../../backends/backend.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
+import {BonusReward} from "../../domain/bonus.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../../domain/quiz.ts"
 import Quiz, {QUIZ_BOTTOM} from "./Quiz.tsx"
-import {RESULT_MS, useQuiz} from "./quizStore.ts"
+import {RESULT_MS, REWARD_WAIT_MS, useQuiz} from "./quizStore.ts"
 import {useQuizMaster} from "./useQuizMaster.ts"
 
 const BANNER_MS = 20_000
@@ -21,6 +22,7 @@ const QUESTION: QuizQuestion = {
 
 class FakeMaster implements QuizMaster {
     private listeners: ((offer: QuizOffer) => void)[] = []
+    private rewardListeners: ((reward: BonusReward) => void)[] = []
 
     public opened: string[] = []
     public answered: {token: string, choice: number, countryId: string}[] = []
@@ -28,7 +30,7 @@ class FakeMaster implements QuizMaster {
     public open: (token: string) => Promise<QuizQuestion> = () =>
         Promise.resolve({...QUESTION, deadline: performance.now() + ANSWER_MS})
 
-    public outcome: QuizOutcome = {correct: true, correctChoice: 1, reward: {kind: "refill"}}
+    public outcome: QuizOutcome = {correct: true, correctChoice: 1}
 
     listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void {
         this.listeners.push(onOffered)
@@ -45,6 +47,17 @@ class FakeMaster implements QuizMaster {
     answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
         this.answered.push({token, choice, countryId})
         return Promise.resolve(this.outcome)
+    }
+
+    listenForRewards(onRewarded: (reward: BonusReward) => void): () => void {
+        this.rewardListeners.push(onRewarded)
+        return () => {
+            this.rewardListeners = this.rewardListeners.filter((listener) => listener !== onRewarded)
+        }
+    }
+
+    reward(reward: BonusReward) {
+        this.rewardListeners.forEach((listener) => listener(reward))
     }
 
     offer(token = "t1") {
@@ -153,7 +166,7 @@ describe("Quiz", () => {
         expect(master.answered).toEqual([{token: "t1", choice: 1, countryId: "bg"}])
     })
 
-    it("says what a right answer won", async () => {
+    it("says what a right answer won once planet tells the grant", async () => {
         render(<Harness master={master}/>)
         act(() => master.offer())
         fireEvent.click(screen.getByRole("button"))
@@ -163,7 +176,68 @@ describe("Quiz", () => {
         await settle()
 
         expect(screen.getByText("Correct!")).toBeTruthy()
+        expect(screen.queryByText("Refill")).toBeNull()
+        expect(screen.queryByText("Your inventory is already full")).toBeNull()
+
+        act(() => master.reward({kind: "refill"}))
+
         expect(screen.getByText("Refill")).toBeTruthy()
+    })
+
+    it("takes a grant that comes before the answer is back as the right answer's", async () => {
+        let answered: (outcome: QuizOutcome) => void = () => {}
+        master.answerQuiz = () => new Promise((resolve) => { answered = resolve })
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        act(() => master.reward({kind: "refill"}))
+        await act(async () => answered({correct: true, correctChoice: 1}))
+
+        expect(screen.getByText("Refill")).toBeTruthy()
+    })
+
+    it("says the inventory is full when no grant comes", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+        act(() => vi.advanceTimersByTime(REWARD_WAIT_MS))
+
+        expect(screen.getByText("Your inventory is already full")).toBeTruthy()
+    })
+
+    it("still goes away by itself once the reward came", async () => {
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+        act(() => master.reward({kind: "refill"}))
+        act(() => vi.advanceTimersByTime(RESULT_MS))
+
+        expect(screen.queryByText("Correct!")).toBeNull()
+    })
+
+    it("takes no grant for a wrong answer", async () => {
+        master.outcome = {correct: false, correctChoice: 1}
+        render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Riga"}))
+        await settle()
+        act(() => master.reward({kind: "refill"}))
+
+        expect(screen.queryByText("Refill")).toBeNull()
     })
 
     it("says which one was right when it was not the one pressed", async () => {

@@ -84,6 +84,12 @@
 		}
 	}
 
+	handle /quizzes.v1.QuizService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle /auth.v1.AuthService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}

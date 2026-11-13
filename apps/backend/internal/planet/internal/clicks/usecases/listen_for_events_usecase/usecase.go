@@ -38,12 +38,12 @@ type Event struct {
 	RulesChanged  bool
 
 	Spread  *notices.Spread
-	Granted *charges.Held
+	Granted *charges.Gain
 }
 
-// Notices is planet's own news for the caller: every spread, and what its account holds after a grant.
+// Notices is planet's own news for the caller: every spread, and what a grant added to its account's hand.
 type Notices interface {
-	Attend(caller clicks.Caller) (<-chan notices.Event, func())
+	Attend(holder charges.Holder) (<-chan notices.Event, func())
 }
 
 type RulesFeed interface {
@@ -97,7 +97,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	payer := clicks.PayerOf(ctx)
 	caller := clicks.CallerOf(payer)
 
-	news, stopHearing := u.notices.Attend(caller)
+	news, stopHearing := u.notices.Attend(charges.HolderOf(payer))
 	defer stopHearing()
 
 	changes, stopWatching := u.rules.Watch()

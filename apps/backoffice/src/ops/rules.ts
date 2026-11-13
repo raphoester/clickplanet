@@ -23,8 +23,8 @@ export function clicksOf(clicks: ClickRules | undefined): string {
     return `${clicks.burst} in hand, ${clicks.perSecond} a second`
 }
 
-// The values of the set's JSON, by their path. The boxes and quizzes are the offers' (bonusRules.ts): planet keeps
-// only what a hand holds and what a charge does when it is spent.
+// The values of the set's JSON, by their path. The boxes are the offers' (bonusRules.ts) and the quizzes the quizzes'
+// (quizRules.ts): planet keeps only what a hand holds and what a charge does when it is spent.
 export const GROUPS: {title: string, fields: Field[]}[] = [
     {title: "Clicks", fields: [
         {path: "clicks.tempo", label: "Refill, times as fast", kind: "number"},

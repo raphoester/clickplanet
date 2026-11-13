@@ -3,7 +3,7 @@ import {Placeholder} from "../gen/grpc/promo/v1/admin_pb.ts"
 import {durationWord, fill, namesBattle, Values} from "./fill.ts"
 
 const RULES = ["clicks.tempo", "clicks.perSecond", "clicks.burst", "bonuses.boxes.minInterval", "bonuses.boxes.maxInterval",
-    "charges.bomb.rings", "bonuses.quiz.offerTtl"]
+    "charges.bomb.rings", "quizzes.offerTtl"]
 const TRIPLE = [
     new Placeholder({path: "battle.times", example: "3"}),
     new Placeholder({path: "battle.points.first", example: "75"}),
@@ -13,7 +13,8 @@ const TRIPLE = [
 const urf: Values = {
     played: {
         clicks: {tempo: 3, perSecond: 0.2, burst: 60},
-        bonuses: {boxes: {minInterval: "60s", maxInterval: "90s"}, quiz: {offerTtl: "1.500s"}},
+        bonuses: {boxes: {minInterval: "60s", maxInterval: "90s"}},
+        quizzes: {offerTtl: "1.500s"},
     },
     rules: RULES,
     battle: TRIPLE,
@@ -26,7 +27,7 @@ describe("fill", () => {
             .toBe("A click every 0.2 s, a bank of 60")
         expect(fill("A box every {bonuses.boxes.minInterval} to {bonuses.boxes.maxInterval}", urf).text)
             .toBe("A box every 1 min to 90 s")
-        expect(fill("Answer within {bonuses.quiz.offerTtl}", urf).text).toBe("Answer within 1500 ms")
+        expect(fill("Answer within {quizzes.offerTtl}", urf).text).toBe("Answer within 1500 ms")
         expect(fill("No placeholder", urf)).toEqual({text: "No placeholder", problems: []})
     })
 

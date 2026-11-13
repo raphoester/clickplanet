@@ -31,6 +31,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo"
+	"github.com/raphoester/clickplanet.lol-backend/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/scoring"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -107,6 +108,8 @@ func startGame(t *testing.T) gameStack {
 
 	bonusesConfig := bonuses.Config{Database: postgres.ConfigFor("bonuses"), Redis: redis}
 
+	quizzesConfig := quizzes.Config{Database: postgres.ConfigFor("quizzes"), Redis: redis}
+
 	gamemasterConfig := gamemaster.Config{Database: postgres.ConfigFor("gamemaster"), Redis: redis, DailyCutoff: 21 * time.Hour}
 	seasonRuns(t, gamemasterConfig.Database)
 
@@ -142,7 +145,8 @@ func startGame(t *testing.T) gameStack {
 			Server: server,
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
-				authModule, planet.NewModule(planetConfig), bonuses.NewModule(bonusesConfig), antibot.NewModule(antibotConfig),
+				authModule, planet.NewModule(planetConfig), bonuses.NewModule(bonusesConfig), quizzes.NewModule(quizzesConfig),
+				antibot.NewModule(antibotConfig),
 				player.NewModule(playerConfig),
 				progression.NewModule(progressionConfig),
 				chat.NewModule(chatConfig), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),

@@ -63,6 +63,7 @@ export default function Quiz() {
                 frame={setFrame}
                 question={state.question}
                 outcome={state.outcome}
+                awaiting={state.awaiting}
                 chosen={state.chosen}
                 left={state.left}
                 onClose={dismiss}
@@ -162,10 +163,11 @@ function Question({frame, question, sent, onAnswer, onLeave}: {
     </div>
 }
 
-function Result({frame, question, outcome, chosen, left, onClose}: {
+function Result({frame, question, outcome, awaiting, chosen, left, onClose}: {
     frame: Frame,
     question: QuizQuestion,
     outcome: QuizOutcome,
+    awaiting?: boolean,
     chosen?: number,
     left?: boolean,
     onClose: () => void,
@@ -176,14 +178,15 @@ function Result({frame, question, outcome, chosen, left, onClose}: {
     return <div ref={frame} className={`quiz quiz--result quiz--${outcome.correct ? "right" : "wrong"}`} role="status" aria-live="polite">
         <div className="quiz-card panel">
             <div className="quiz-head quiz-head--verdict">
-                {won && <PrizeWon kind={won.kind}/>}
+                {won ? <PrizeWon kind={won.kind}/> : awaiting && <PrizeReel/>}
                 <div className="quiz-verdict-words">
                     <p className="quiz-verdict">
                         {t(verdict(outcome, chosen, left))}
                     </p>
                     {won && reward && <p className={`quiz-reward quiz-kind--${won.kind}`}>{reward.title}</p>}
                     {reward?.detail && <p className="quiz-reward-detail">{reward.detail}</p>}
-                    {outcome.correct && !reward && <p className="quiz-reward-detail">{t("quiz.inventoryFull")}</p>}
+                    {outcome.correct && !reward && !awaiting &&
+                        <p className="quiz-reward-detail">{t("quiz.inventoryFull")}</p>}
                 </div>
                 <button type="button" className="icon-button quiz-close" aria-label={t("common.close")} onClick={onClose}>
                     <CloseIcon/>

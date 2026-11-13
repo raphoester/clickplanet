@@ -124,23 +124,25 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage publishing={CLIENTS.publishing}/>}
                 {page === "videos" && <VideosPage clips={CLIENTS.clips}/>}
-                {page === "promo" && <PromoPage promo={CLIENTS.promo} planet={CLIENTS.planet} bonuses={CLIENTS.bonuses}/>}
+                {page === "promo" && (
+                    <PromoPage promo={CLIENTS.promo} planet={CLIENTS.planet} bonuses={CLIENTS.bonuses} quizzes={CLIENTS.quizzes}/>
+                )}
                 {page === "titles" && <TitlesPanel progression={CLIENTS.progression}/>}
                 {page === "discord" && <DiscordMembersPanel alerts={CLIENTS.alerts}/>}
                 {page === "rules" && <RulesPanel planet={CLIENTS.planet}/>}
-                {page === "bonusRules" && <BonusRulesPanel bonuses={CLIENTS.bonuses}/>}
+                {page === "bonusRules" && <BonusRulesPanel bonuses={CLIENTS.bonuses} quizzes={CLIENTS.quizzes}/>}
                 {page === "antibotRules" && <AntibotRulesPanel antibot={CLIENTS.antibot}/>}
                 {page === "missionRules" && <MissionRulesPanel missions={CLIENTS.missions}/>}
                 {page === "schedule" && (
                     <SchedulePanel
                         gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet} antibot={CLIENTS.antibot}
-                        bonuses={CLIENTS.bonuses}
+                        bonuses={CLIENTS.bonuses} quizzes={CLIENTS.quizzes}
                     />
                 )}
                 {page === "seasons" && (
                     <SeasonsPanel
                         gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet} antibot={CLIENTS.antibot}
-                        bonuses={CLIENTS.bonuses}
+                        bonuses={CLIENTS.bonuses} quizzes={CLIENTS.quizzes}
                     />
                 )}
                 {page === "timeline" && <TimelinePanel gamemaster={CLIENTS.gamemaster} planet={CLIENTS.planet}/>}

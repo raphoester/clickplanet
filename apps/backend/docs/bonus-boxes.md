@@ -90,8 +90,8 @@ add nothing to (a refill or a bomb held, a full stack or pool) is not offered.
 
 **A caller is an entrant, not a connection.** `bonuses.EntrantOf(caller)` is the
 account (`account:<id>`) when the click token says it is linked, and its scope
-(`cpipscope.Of`) otherwise. `Attend`, `Clicked`, `Claim`, `OpenQuiz`,
-`AnswerQuiz` are all keyed on it, and the `yours` each stream tells of an enclosure is keyed alike, on planet's own
+(`cpipscope.Of`) otherwise. `Attend`, `Clicked` and `Claim` are all keyed on it (and the quizzes' `OpenQuiz` and
+`AnswerQuiz` on their own `quizzes.EntrantOf`, the same rule), and the `yours` each stream tells of an enclosure is keyed alike, on planet's own
 `clicks.CallerOf`; it holds every
 stream sharing it — so twenty tabs are one entrant on one schedule, and all of
 them are sent the box. Two signed-in players behind one address are two
@@ -137,5 +137,5 @@ planet's (see [The live streams](live-streams.md)).
 
 The catch is published **after** planet kept the charge (`GrantCharges` answered), so a catch announced to the
 planet that then failed to apply is the one lie this cannot tell. The same use case then
-tells the other modules who caught it, `bonuses.v1.BonusClaimed`, for the `Loot` titles;
-`answer_quiz_usecase` tells every answer as `bonuses.v1.QuizAnswered`, for `Quiz`.
+tells the other modules who caught it, `bonuses.v1.BonusClaimed`, for the `Loot` titles; the quizzes' `answer_quiz_usecase`
+tells every answer as `quizzes.v1.QuizAnswered`, for `Quiz`.

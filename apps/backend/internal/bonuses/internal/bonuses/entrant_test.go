@@ -6,8 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 )
 
 const sharedAddress = "1.2.3.4"
@@ -22,7 +20,7 @@ func playingAs(t *testing.T, r *Registry, payer payer) <-chan Event {
 	t.Helper()
 
 	events := attend(t, r, entrantOf(payer))
-	r.Clicked(clickOf(payer, false))
+	r.Clicked(clickOf(payer))
 
 	return events
 }
@@ -108,28 +106,4 @@ func TestALinkedAccountsMissIsReportedToTheAntibotByItsNetwork(t *testing.T) {
 	registry.sweep(t.Context())
 
 	assert.Equal(t, []string{sharedAddress}, missedBy)
-}
-
-func TestTwoLinkedAccountsBehindOneAddressAreEachAskedTheirOwnQuiz(t *testing.T) {
-	registry, clock := newQuizzingRegistry(t)
-	hers, his := playingAs(t, registry, alice), playingAs(t, registry, bob)
-
-	waitOutQuiz(t, registry, clock)
-
-	herQuiz, hisQuiz := quizOffered(t, hers), quizOffered(t, his)
-	require.NotNil(t, herQuiz)
-	require.NotNil(t, hisQuiz)
-
-	_, stolen := registry.OpenQuiz(herQuiz.Token, entrantOf(bob))
-	assert.False(t, stolen)
-
-	herAsked, herOpened := registry.OpenQuiz(herQuiz.Token, entrantOf(alice))
-	hisAsked, hisOpened := registry.OpenQuiz(hisQuiz.Token, entrantOf(bob))
-	require.True(t, herOpened)
-	require.True(t, hisOpened)
-
-	herAnswer, _ := registry.AnswerQuiz(herQuiz.Token, entrantOf(alice), indexOf(herAsked.Options, rightAnswer))
-	hisAnswer, _ := registry.AnswerQuiz(hisQuiz.Token, entrantOf(bob), indexOf(hisAsked.Options, rightAnswer))
-	assert.Equal(t, ratings.Right, herAnswer.Outcome)
-	assert.Equal(t, ratings.Right, hisAnswer.Outcome)
 }

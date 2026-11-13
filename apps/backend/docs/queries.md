@@ -6,7 +6,7 @@ a read that reuses them forces public fields onto them for its own sake. So a re
 (`GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
 (`GetTakesByCountry`, `GetLedgerTotals`, `GetMapHistory`, `GetRecentMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`, `GetTiles`), vandalsquad (`AdminService/ListGraffiti`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), missions (`AdminService/ListFlagDays`,
-`AdminService/GetMissionTotals`, `AdminService/GetRules`), bonuses (`AdminService/ListQuizQuestions`, of memory), auth
+`AdminService/GetMissionTotals`, `AdminService/GetRules`), quizzes (`AdminService/ListQuizQuestions`, of memory), auth
 (`GetMe`, `GetAccount`, `GetAccounts`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream), support (`ListNotes`, `ListReports`) and clips (`GetAppearances`, `ListNameVerdicts`, `GetShownNames`) follow this so far. **A command may
 still answer a small struct** (`SetName`, `WearTitle`, `React`, `IntroducePlayer`, which draws a guest code,
 `signin.Admission`); the rule is for what only reads. Auth's `GetSignInOptions` and `GetVerifyingKey` already read

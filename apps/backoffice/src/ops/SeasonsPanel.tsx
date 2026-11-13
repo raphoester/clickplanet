@@ -1,6 +1,6 @@
 import {ConnectError, Code} from "@connectrpc/connect"
 import {useCallback, useState} from "react"
-import {AntibotAdmin, BonusesAdmin, GamemasterAdmin, PlanetAdmin} from "../clients.ts"
+import {AntibotAdmin, BonusesAdmin, QuizzesAdmin, GamemasterAdmin, PlanetAdmin} from "../clients.ts"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {zoneOf} from "../components/time.ts"
@@ -27,16 +27,16 @@ const refusal = (err: unknown) => {
 // Editing: a season that has not ended, or undefined for a new one.
 type Editing = {row: Row | undefined}
 
-export function SeasonsPanel({gamemaster, planet, antibot, bonuses}: {
-    gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, bonuses: BonusesAdmin,
+export function SeasonsPanel({gamemaster, planet, antibot, bonuses, quizzes}: {
+    gamemaster: GamemasterAdmin, planet: PlanetAdmin, antibot: AntibotAdmin, bonuses: BonusesAdmin, quizzes: QuizzesAdmin,
 }) {
     const read = useCallback(async (signal: AbortSignal): Promise<Read> => {
-        const [seasons, planetRules, antibotRules, bonusRules] = await Promise.all([
+        const [seasons, planetRules, antibotRules, bonusRules, quizRules] = await Promise.all([
             gamemaster.getSeasons({}, {signal}), planet.getRules({}, {signal}), antibot.getRules({}, {signal}),
-            bonuses.getRules({}, {signal}),
+            bonuses.getRules({}, {signal}), quizzes.getRules({}, {signal}),
         ])
-        return {seasons, planet: planetRules, antibot: antibotRules, bonuses: bonusRules}
-    }, [gamemaster, planet, antibot, bonuses])
+        return {seasons, planet: planetRules, antibot: antibotRules, bonuses: bonusRules, quizzes: quizRules}
+    }, [gamemaster, planet, antibot, bonuses, quizzes])
     const [state, again] = useCall(read)
     const [editing, setEditing] = useState<Editing | undefined>(undefined)
 

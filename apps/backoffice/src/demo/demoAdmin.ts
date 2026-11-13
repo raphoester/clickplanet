@@ -48,6 +48,8 @@ import {
 import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {GetRulesResponse as BonusesGetRulesResponse, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {Rules as BonusesRules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
+import {GetRulesResponse as QuizzesGetRulesResponse, RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
+import {Rules as QuizzesRules} from "../gen/grpc/quizzes/v1/rules_pb.ts"
 import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {
     GetPlayerLinkRequest,
@@ -279,6 +281,7 @@ export class DemoAdmin extends FakeAdmin {
         const [planetDefault] = this.rules.sets
         const [antibotDefault] = this.antibotRules.sets
         const [bonusesDefault] = this.bonusRules.sets
+        const [quizzesDefault] = this.quizRules.sets
         this.rules = new GetRulesResponse({playing: "calm", sets: [
             planetDefault,
             new RuleSet({name: "calm", rules: PlanetRules.fromJson({clicks: {tempo: 0.5}})}),
@@ -305,10 +308,18 @@ export class DemoAdmin extends FakeAdmin {
         ]})
         this.bonusRules = new BonusesGetRulesResponse({playing: "calm", sets: [
             bonusesDefault,
-            new BonusesRuleSet({name: "calm", rules: BonusesRules.fromJson({boxes: {maxChargesPerHour: 6}, quiz: {enabled: false}})}),
+            new BonusesRuleSet({name: "calm", rules: BonusesRules.fromJson({boxes: {maxChargesPerHour: 6}})}),
             new BonusesRuleSet({name: "frozen", rules: BonusesRules.fromJson({frozen: true})}),
             new BonusesRuleSet({name: "rush", rules: BonusesRules.fromJson({
                 boxes: {minInterval: "60s", maxInterval: "60s", maxChargesPerHour: 30}, kinds: {bomb: 3},
+            })}),
+        ]})
+        this.quizRules = new QuizzesGetRulesResponse({playing: "calm", sets: [
+            quizzesDefault,
+            new QuizzesRuleSet({name: "calm", rules: QuizzesRules.fromJson({enabled: false})}),
+            new QuizzesRuleSet({name: "frozen", rules: QuizzesRules.fromJson({frozen: true})}),
+            new QuizzesRuleSet({name: "rush", rules: QuizzesRules.fromJson({
+                minInterval: "120s", maxInterval: "180s", maxRightAnswersPerHour: 20,
             })}),
         ]})
 

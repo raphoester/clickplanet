@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetRulesRequest, GetRulesResponse, ListQuizQuestionsRequest, ListQuizQuestionsResponse, SaveRuleSetRequest, SaveRuleSetResponse } from "./admin_pb.js";
+import { GetRulesRequest, GetRulesResponse, SaveRuleSetRequest, SaveRuleSetResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The rules the boxes and quizzes are offered by. No authentication of its own: served on the console listener, and on
+ * The rules the boxes are offered by, and what a box, a right answer and a sign-in grant. No authentication of its own: served on the console listener, and on
  * the admin listener behind its gate. Never the public router.
  *
  * @generated from service bonuses.v1.AdminService
@@ -16,8 +16,8 @@ export const AdminService = {
   typeName: "bonuses.v1.AdminService",
   methods: {
     /**
-     * Every rule set the offers keep, and the one they play now: when a box and a quiz come, what each may be and how
-     * much it grants. SaveRuleSet changes one.
+     * Every rule set the offers keep, and the one they play now: when a box comes, and what a box or a right answer may
+     * be and how much it grants. When a quiz comes is the quizzes' rules. SaveRuleSet changes one.
      *
      * @generated from rpc bonuses.v1.AdminService.GetRules
      */
@@ -39,20 +39,6 @@ export const AdminService = {
       I: SaveRuleSetRequest,
       O: SaveRuleSetResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * Every question of the quiz bank with how hard it is: its prior, its rating, the share of average players the rating
-     * predicts get it right, and how many answers moved it and how many of them were right. Sorted by the predicted or
-     * the measured share, hardest first unless asked, a page at a time. Each right answer is in it.
-     *
-     * @generated from rpc bonuses.v1.AdminService.ListQuizQuestions
-     */
-    listQuizQuestions: {
-      name: "ListQuizQuestions",
-      I: ListQuizQuestionsRequest,
-      O: ListQuizQuestionsResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
     },
   }
 } as const;

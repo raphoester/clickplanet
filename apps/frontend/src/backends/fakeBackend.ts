@@ -85,6 +85,7 @@ const SPREAD_RING = 0.004
 const QUIZ_EVERY_MS = 30_000
 const QUIZ_OFFER_TTL_MS = 25_000
 const QUIZ_ANSWER_MS = 5_000
+const FAKE_REWARD_DELAY_MS = 600
 
 const FAKE_QUIZZES: {subject: string, text: string, choices: string[], correct: number}[] = [
     {subject: "ee", text: "What is the capital of Estonia?", choices: ["Riga", "Tallinn", "Vilnius"], correct: 1},
@@ -141,6 +142,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
+    private rewardCallbacks: Map<string, (reward: BonusReward) => void> = new Map()
     private fortificationCallbacks: Map<string, (fortification: Fortification) => void> = new Map()
     private shields: Map<number, number> = new Map()
     private fortresses: FakeFortresses | undefined
@@ -189,12 +191,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         this.timers.push(setInterval(() => this.flushUpdates(), batchUpdateDurationMs))
 
-        const offerable = this.offerable()
-
         this.timers.push(setInterval(() => this.offerBox(), BONUS_EVERY_MS))
 
         this.timers.push(setInterval(() => {
-            if (this.quiz || offerable.every((kind) => this.full(kind))) return
+            if (this.quiz) return
 
             const asked = FAKE_QUIZZES[Math.floor(Math.random() * FAKE_QUIZZES.length)]
             this.quiz = {token: UUIDv4(), expiresAt: budgetNow() + QUIZ_OFFER_TTL_MS, asked}
@@ -694,22 +694,32 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
-    public async answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
+    public async answerQuiz(token: string, choice: number): Promise<QuizOutcome> {
         const quiz = this.quiz
         if (!quiz || quiz.token !== token || quiz.deadline === undefined) throw new BonusLostError()
 
         this.quiz = undefined
 
         const correct = budgetNow() <= quiz.deadline && choice === quiz.asked.correct
-        if (!correct) return {correct: false, correctChoice: quiz.asked.correct}
+        if (correct) setTimeout(() => this.payRightAnswer(), FAKE_REWARD_DELAY_MS)
 
+        return {correct, correctChoice: quiz.asked.correct}
+    }
+
+    public listenForRewards(onRewarded: (reward: BonusReward) => void): () => void {
+        const identifier = UUIDv4()
+        this.rewardCallbacks.set(identifier, onRewarded)
+
+        return () => this.rewardCallbacks.delete(identifier)
+    }
+
+    // As the bonuses module pays a right answer a moment after it was told, and planet's stream says what it added.
+    private payRightAnswer() {
         const kinds = BONUS_KINDS.filter((kind) => !this.full(kind) && (kind !== "bomb" || this.tilePositions))
-        if (kinds.length === 0) return {correct: true, correctChoice: quiz.asked.correct}
+        if (kinds.length === 0) return
 
         const {reward} = this.grant(kinds[Math.floor(Math.random() * kinds.length)])
-        this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId, quizSubject: quiz.asked.subject}))
-
-        return {correct: true, correctChoice: quiz.asked.correct, reward}
+        this.rewardCallbacks.forEach(callback => callback(reward))
     }
 
     // A box flies at once, unless every stack is full.

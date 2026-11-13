@@ -2,9 +2,10 @@
 
 **The game's meta: which rules play together, and when; every moment of the game, and what scoring counts in it.**
 Planet keeps its game rules in its sets (see [Rules](rules.md)), the antibot its bounds in its own (see [The antibot's
-rules](antibot-rules.md)), and the offers when a box and a quiz come in theirs (see [The offers](bonuses.md#its-rule-sets),
-2026-11-11). The gamemaster module never holds a rule: it picks which set each module plays, by name, so a set of
-planet, one of the antibot and one of the offers play as one. No module picks the set it plays: the gamemaster's schedule does,
+rules](antibot-rules.md)), the offers when a box comes and what it grants in theirs (see [The offers](bonuses.md#its-rule-sets),
+2026-11-11), and the quizzes when a quiz comes in theirs (see [The quizzes](quizzes-module.md#its-rule-sets), 2026-11-13).
+The gamemaster module never holds a rule: it picks which set each module plays, by name, so a set of planet, one of the
+antibot, one of the offers and one of the quizzes play as one. No module picks the set it plays: the gamemaster's schedule does,
 and no operator call changes it at once (the user's rule, 2026-10-26: "there needs to be a schedule of overrides with
 a hierarchy … they have to use schedules and priority orders, always").
 
@@ -593,10 +594,10 @@ finale starts at the cutoff.
 The map is frozen over a break the way any set plays (see [A frozen map](rules.md#a-frozen-map)):
 
 1. Ops → Game rules: Copy `default`, name it `frozen`, tick "Frozen: the map takes no play". Save.
-2. Ops → Box & quiz rules: Copy `default`, name it `frozen`, tick "Frozen: no box or quiz is offered, caught or
-   answered". Save. Production's `frozen` came across frozen from planet's on 2026-11-11 (see
-   [The offers](bonuses.md#where-the-sets-came-from)). A set there not frozen still offers boxes and quizzes, and
-   refuses them when taken, through planet's freeze.
+2. Ops → Box & quiz rules: in the boxes' sets and in the quizzes' sets, Copy `default`, name it `frozen`, tick
+   "Frozen". Save. Production's `frozen` came across frozen from planet's on 2026-11-11 (see
+   [The offers](bonuses.md#where-the-sets-came-from)), and the quizzes' from the offers' on 2026-11-13. A set there not
+   frozen still offers boxes and quizzes, and refuses them when taken, through planet's freeze.
 3. Ops → Anti-bot rules: Copy `default`, name it `frozen`. Save.
 4. Ops → Rule schedule: add a plain entry `frozen` from the season's end to the next season's start, priority 1. It
    starts as the Final Battle ends, so it overlaps no finale.

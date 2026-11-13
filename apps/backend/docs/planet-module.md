@@ -112,12 +112,13 @@ internal/planet/internal/
   log.
 - **`charges/`** — the wallet: `Held`, `Holder`, `Kind` (and `KindOf`, `EncodeKind`: planet.v1's word for it),
   `Charges` and its `Store`, `GrantID`, and the wallet's rules (`charges.Rules`, `charges.Part`, `charges.*` in a set).
-  It is what planet answers the offers on its `InternalService` (`GrantCharges`, `GetRoom`, `GetChargesOf`). Its root also holds the rules a charge plays by: `Terrain` and `Pocket`
+  It is what planet answers the offers on its `InternalService` (`GrantCharges`, `GetRoom`; `GetChargesOf` went on
+  2026-11-13, with the wrong answer's hand). Its root also holds the rules a charge plays by: `Terrain` and `Pocket`
   (what an enclose closes) and `Bombing` (where a bomb lands and what it clears). See [Charges](charges.md).
 - **The offers** (the box registry, the quizzes and their bank, the welcome, the hourly caps, what a box or a right
   answer grants) were `bonuses/` and `quizzes/` here until 2026-11-11, cut apart from the rest by step A
   ([Offers and the wallet](offers-and-wallet.md)). They are the bonuses module now, which asks planet in its words:
-  see [The offers](bonuses.md).
+  see [The offers](bonuses.md); the quizzes have a module of their own since 2026-11-13 ([The quizzes](quizzes-module.md)).
 - **`notices/`** — what planet tells the streams open beside the map's changes: a spread to every one, all a
   signed-in account holds after a grant to its own. `ListenForEvents` merges it with the tile feed.
 

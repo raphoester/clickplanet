@@ -8,6 +8,8 @@ import {Rules as OfferRules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/planet/v1/rules_pb.ts"
 import {CardDraft, SaveCardsRequest} from "../gen/grpc/promo/v1/admin_pb.ts"
+import {RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
+import {Rules as QuizRules} from "../gen/grpc/quizzes/v1/rules_pb.ts"
 import {Put} from "./actions.ts"
 import {PromoPage} from "./PromoPage.tsx"
 
@@ -20,12 +22,13 @@ function putting() {
     })
 }
 
-// Planet keeps urf, which refills three times as fast; the offers keep it, a box every minute at the soonest; and urf
-// has two cards.
+// Planet keeps urf, which refills three times as fast; the offers keep it, a box every minute at the soonest; the
+// quizzes keep it, five seconds to answer; and urf has two cards.
 function withUrf(): FakeAdmin {
     const admin = new FakeAdmin()
     admin.rules.sets.push(new RuleSet({name: "urf", rules: Rules.fromJson({clicks: {tempo: 3}})}))
     admin.bonusRules.sets.push(new BonusesRuleSet({name: "urf", rules: OfferRules.fromJson({boxes: {minInterval: "60s"}})}))
+    admin.quizRules.sets.push(new QuizzesRuleSet({name: "urf", rules: QuizRules.fromJson({answerWindow: "5s"})}))
     admin.promo.decks.set("urf", [
         new CardDraft({backgroundId: "background-war", headline: "Clicks refill {clicks.tempo}× faster", line: "Every country at once."}),
         new CardDraft({backgroundId: "background-points", headline: "A box every {bonuses.boxes.minInterval}"}),
@@ -34,7 +37,7 @@ function withUrf(): FakeAdmin {
 }
 
 function show(admin: FakeAdmin, put: Put = putting()) {
-    return render(<PromoPage promo={admin.promo} planet={admin} bonuses={admin.bonuses} put={put}/>)
+    return render(<PromoPage promo={admin.promo} planet={admin} bonuses={admin.bonuses} quizzes={admin.quizzes} put={put}/>)
 }
 
 async function card(n: number): Promise<HTMLElement> {
@@ -106,12 +109,24 @@ describe("PromoPage", () => {
         show(withUrf())
         const first = await card(1)
 
-        fireEvent.change(within(first).getByLabelText(/^Headline/), {target: {value: "Answer within "}})
-        fireEvent.change(within(first).getByLabelText("Insert a value in Card 1"), {target: {value: "bonuses.quiz.offerTtl"}})
+        fireEvent.change(within(first).getByLabelText(/^Headline/), {target: {value: "Boxes up to "}})
+        fireEvent.change(within(first).getByLabelText("Insert a value in Card 1"), {target: {value: "bonuses.boxes.maxInterval"}})
 
         expect(within(first).getByLabelText("Card 1 as players read it").textContent)
-            .toBe("Answer within 25 s" + "Every country at once.")
+            .toBe("Boxes up to 8 min" + "Every country at once.")
         expect(within(await card(2)).getByLabelText("Card 2 as players read it").textContent).toBe("A box every 1 min")
+    })
+
+    it("fills a value of the quizzes from their set of the same name, default's where it holds none", async () => {
+        show(withUrf())
+        const first = await card(1)
+
+        fireEvent.change(within(first).getByLabelText(/^Headline/), {target: {value: "Banner "}})
+        fireEvent.change(within(first).getByLabelText("Insert a value in Card 1"), {target: {value: "quizzes.offerTtl"}})
+        fireEvent.change(within(first).getByLabelText(/^Line/), {target: {value: "Answer within {quizzes.answerWindow}"}})
+
+        expect(within(first).getByLabelText("Card 1 as players read it").textContent)
+            .toBe("Banner 25 s" + "Answer within 5 s")
     })
 
     it("says a value of the offers a set plays nothing of, when the offers do not keep it", async () => {

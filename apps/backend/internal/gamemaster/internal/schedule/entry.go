@@ -23,7 +23,7 @@ func ParseEntryID(id string) (EntryID, error) {
 
 func (id EntryID) String() string { return uuid.UUID(id).String() }
 
-// SetName names a rule set as planet, the antibot and the bonuses module name theirs.
+// SetName names a rule set as planet, the antibot, the bonuses and the quizzes modules name theirs.
 type SetName string
 
 // Default is what plays when no entry runs.

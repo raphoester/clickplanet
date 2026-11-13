@@ -100,11 +100,6 @@ service InternalService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // All an account holds now.
-  rpc GetChargesOf(GetChargesOfRequest) returns (GetChargesOfResponse) {
-    option idempotency_level = NO_SIDE_EFFECTS;
-  }
-
   // Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
   rpc GetFreeze(GetFreezeRequest) returns (GetFreezeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -288,14 +283,6 @@ message GetRoomResponse {
 message Room {
   string account_id = 1;
   repeated BonusKind full = 2;
-}
-
-message GetChargesOfRequest {
-  string account_id = 1;
-}
-
-message GetChargesOfResponse {
-  ChargesHeld charges = 1;
 }
 
 message GetFreezeRequest {}

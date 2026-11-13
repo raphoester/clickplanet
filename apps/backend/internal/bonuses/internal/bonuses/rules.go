@@ -4,12 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/ratings"
 )
 
-// Rules is what the offers play (bonuses.v1.Rules): when a box or a quiz comes, what it may be and how much it grants.
+// Rules is what the offers play (bonuses.v1.Rules): when a box comes, and what a box or a right answer may be and how
+// much it grants.
 // How much of each charge a hand holds, and what it does when it is spent, is planet's: an offer pays what it drew, and
 // the wallet keeps what fits.
 type Rules struct {
@@ -27,11 +25,9 @@ type Rules struct {
 
 	Welcome WelcomeRules
 
-	Quiz QuizRules
-
 	SignInRefill bool
 
-	// Frozen offers nothing, and refuses every claim and answer.
+	// Frozen offers nothing, and refuses every claim.
 	Frozen bool
 }
 
@@ -50,7 +46,6 @@ func (r Rules) Validate() error {
 		atLeast("shield.maxPerBox", r.Shield.MaxPerBox, "shield.minPerBox", r.Shield.MinPerBox),
 		notNegative("welcome.within", r.Welcome.Within),
 		notNegative("welcome.boxAfter", r.Welcome.BoxAfter),
-		r.Quiz.validate(),
 	)
 }
 
@@ -81,37 +76,11 @@ func weightsProblem(r Rules) error {
 	return errors.Join(problems...)
 }
 
-func (q QuizRules) validate() error {
-	return errors.Join(
-		positive("quiz.minInterval", q.MinInterval),
-		atLeast("quiz.maxInterval", q.MaxInterval, "quiz.minInterval", q.MinInterval),
-		positive("quiz.maxChargesPerHour", q.MaxChargesPerHour),
-		positive("quiz.missRetry", q.MissRetry),
-		positive("quiz.offerTtl", q.OfferTTL),
-		positive("quiz.answerWindow", q.AnswerWindow),
-		notNegative("quiz.leaderBias", q.LeaderBias), finite("quiz.leaderBias", q.LeaderBias),
-		chance("quiz.target", q.Fit.Target),
-		notNegative("quiz.width", q.Fit.Width), finite("quiz.width", q.Fit.Width),
-		share("quiz.floor", q.Fit.Floor), atMost("quiz.floor", q.Fit.Floor, "quiz.target", q.Fit.Target),
-		positive("quiz.floorAfter", q.Fit.FloorAfter),
-		share("quiz.explore", q.Fit.Explore),
-	)
-}
-
-// chance is a chance of a right answer a rating can stand for.
-func chance(name string, value float64) error {
-	if value >= ratings.MinChance && value <= ratings.MaxChance {
-		return nil
-	}
-	return fmt.Errorf("%s is %v, and a chance of a right answer is between %v and %v", name, value,
-		ratings.MinChance, ratings.MaxChance)
-}
-
 type SpreadRules struct {
 	MaxPerBox int
 }
 
-// Offered is true for a kind a box or a quiz may be: weighed above 0. A bomb while planet's bombs are off is a kind the
+// Offered is true for a kind a box or a right answer may be: weighed above 0. A bomb while planet's bombs are off is a kind the
 // wallet says no hand has room for.
 func (r Rules) Offered(kind Kind) bool {
 	return r.Kinds[kind] > 0
@@ -132,23 +101,5 @@ type WelcomeRules struct {
 	BoxAfter time.Duration
 }
 
-type QuizRules struct {
-	Enabled bool
-
-	MinInterval time.Duration
-	MaxInterval time.Duration
-
-	MissRetry    time.Duration
-	OfferTTL     time.Duration
-	AnswerWindow time.Duration
-
-	LeaderBias float64
-
-	MaxChargesPerHour int
-
-	// Fit weighs the draw inside the subject the lean picked by how hard each question is; its Width 0 is off.
-	Fit quizzes.Fit
-}
-
-// ErrFrozen refuses a claim, an opening and an answer while the offers play a frozen set or planet's map takes no play.
-var ErrFrozen = errors.New("no box or quiz can be taken now: the game is frozen")
+// ErrFrozen refuses a claim while the offers play a frozen set or planet's map takes no play.
+var ErrFrozen = errors.New("no box can be taken now: the game is frozen")

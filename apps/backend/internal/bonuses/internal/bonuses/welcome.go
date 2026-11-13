@@ -3,16 +3,7 @@ package bonuses
 import "time"
 
 // Never a refill or a bomb: an account made each minute would get a bank or a strike each.
-const (
-	welcomeBox  = KindSpreadClicks
-	welcomeQuiz = KindShields
-)
-
-type newcomer struct {
-	until time.Time
-	boxed bool
-	asked bool
-}
+const welcomeBox = KindSpreadClicks
 
 // An account welcomed keeps the welcome it was given; a new rule applies to the accounts it meets after.
 func (r *Registry) welcome(entry *caller, click Click, rules Rules, now time.Time) {
@@ -20,30 +11,19 @@ func (r *Registry) welcome(entry *caller, click Click, rules Rules, now time.Tim
 	if click.Born.IsZero() || !now.Before(until) {
 		return
 	}
-
-	account, ok := r.newcomers[click.Caller.Account]
-	if !ok {
-		account = &newcomer{until: until}
-		r.newcomers[click.Caller.Account] = account
+	if _, boxed := r.newcomers[click.Caller.Account]; boxed {
+		return
 	}
 
-	if !account.boxed {
-		account.boxed = true
-		entry.owedBox = welcomeBox
-		entry.nextOfferAt = earliest(entry.nextOfferAt, click.Born.Add(rules.Welcome.BoxAfter))
-	}
-
-	if click.Dry && !account.asked && rules.Quiz.Enabled {
-		account.asked = true
-		entry.owedQuiz = welcomeQuiz
-		entry.nextQuizAt = now
-	}
+	r.newcomers[click.Caller.Account] = until
+	entry.owedBox = welcomeBox
+	entry.nextOfferAt = earliest(entry.nextOfferAt, click.Born.Add(rules.Welcome.BoxAfter))
 }
 
 func (r *Registry) forgetNewcomers(now time.Time) {
-	for each, account := range r.newcomers {
-		if !now.Before(account.until) {
-			delete(r.newcomers, each)
+	for account, until := range r.newcomers {
+		if !now.Before(until) {
+			delete(r.newcomers, account)
 		}
 	}
 }

@@ -6,13 +6,12 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/quizzes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
 // RulesOf reads a set's values: the offers keep rule sets of their own (bonuses.rule_sets).
 func RulesOf(m *bonusesv1.Rules) Rules {
-	kinds, quiz := m.GetKinds(), m.GetQuiz()
+	kinds := m.GetKinds()
 
 	return Rules{
 		Boxes: Pace{
@@ -34,23 +33,6 @@ func RulesOf(m *bonusesv1.Rules) Rules {
 		Enclose:      EncloseRules{MaxPerBox: int(m.GetEnclose().GetMaxPerBox())},
 		Shield:       ShieldRules{MinPerBox: int(m.GetShield().GetMinPerBox()), MaxPerBox: int(m.GetShield().GetMaxPerBox())},
 		Welcome:      WelcomeRules{Within: duration(m.GetWelcome().GetWithin()), BoxAfter: duration(m.GetWelcome().GetBoxAfter())},
-		Quiz: QuizRules{
-			Enabled:           quiz.GetEnabled(),
-			MinInterval:       duration(quiz.GetMinInterval()),
-			MaxInterval:       duration(quiz.GetMaxInterval()),
-			MissRetry:         duration(quiz.GetMissRetry()),
-			OfferTTL:          duration(quiz.GetOfferTtl()),
-			AnswerWindow:      duration(quiz.GetAnswerWindow()),
-			LeaderBias:        quiz.GetLeaderBias(),
-			MaxChargesPerHour: int(quiz.GetMaxChargesPerHour()),
-			Fit: quizzes.Fit{
-				Target:     quiz.GetTarget(),
-				Width:      quiz.GetWidth(),
-				Floor:      quiz.GetFloor(),
-				FloorAfter: int(quiz.GetFloorAfter()),
-				Explore:    quiz.GetExplore(),
-			},
-		},
 		SignInRefill: m.GetSignInRefill(),
 		Frozen:       m.GetFrozen(),
 	}

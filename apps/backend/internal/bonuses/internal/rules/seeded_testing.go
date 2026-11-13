@@ -13,7 +13,7 @@ import (
 )
 
 // Seeded is the set the migrations keep as default on a database with no planet rules to copy: production's default of
-// 11 November 2026, the offers' half of planet's, with the difficulty-weighted draw's values, off.
+// 11 November 2026, the offers' half of planet's. The quiz's values it held are the quizzes' module's since.
 func Seeded() cprules.Snapshot[*bonusesv1.Rules] {
 	d := durationpb.New
 	f, n, on := proto.Float64, proto.Uint32, proto.Bool
@@ -29,12 +29,6 @@ func Seeded() cprules.Snapshot[*bonusesv1.Rules] {
 			Enclose:      &bonusesv1.EncloseRules{MaxPerBox: n(3)},
 			Shield:       &bonusesv1.ShieldRules{MinPerBox: n(5), MaxPerBox: n(20)},
 			Welcome:      &bonusesv1.WelcomeRules{Within: d(10 * time.Minute), BoxAfter: d(time.Minute)},
-			Quiz: &bonusesv1.QuizRules{
-				Enabled: on(true), MinInterval: d(4 * time.Minute), MaxInterval: d(8 * time.Minute),
-				MissRetry: d(2 * time.Minute), OfferTtl: d(25 * time.Second), AnswerWindow: d(8 * time.Second),
-				LeaderBias: f(1), MaxChargesPerHour: n(12),
-				Target: f(0.7), Width: f(0), Floor: f(0.42), FloorAfter: n(15), Explore: f(0.1),
-			},
 			SignInRefill: on(true),
 			Frozen:       on(false),
 		},

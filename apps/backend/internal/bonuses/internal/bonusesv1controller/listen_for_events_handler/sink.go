@@ -42,16 +42,10 @@ func frameOf(event listen_for_events_usecase.Event) *bonusesv1.BonusEvent {
 			Kind:            planetwords.Kind(event.Offer.Kind),
 			ExpiresAtUnixMs: event.Offer.ExpiresAt.UnixMilli(),
 		}}}
-	case event.Quiz != nil:
-		return &bonusesv1.BonusEvent{Event: &bonusesv1.BonusEvent_QuizOffered{QuizOffered: &bonusesv1.QuizOffered{
-			Token:           event.Quiz.Token,
-			ExpiresAtUnixMs: event.Quiz.ExpiresAt.UnixMilli(),
-		}}}
 	case event.Taken != nil:
 		return &bonusesv1.BonusEvent{Event: &bonusesv1.BonusEvent_BonusTaken{BonusTaken: &bonusesv1.BonusTaken{
-			CountryId:            event.Taken.CountryID,
-			Kind:                 planetwords.Kind(event.Taken.Kind),
-			QuizSubjectCountryId: event.Taken.QuizSubject,
+			CountryId: event.Taken.CountryID,
+			Kind:      planetwords.Kind(event.Taken.Kind),
 		}}}
 	}
 	return nil

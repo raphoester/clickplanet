@@ -22,8 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// The detail of the FailedPrecondition that ClaimBonus, OpenQuiz and AnswerQuiz answer while the offers play a frozen
-// set, or while planet's map takes no play: the box or the quiz lapses.
+// The detail of the FailedPrecondition that ClaimBonus answers while the offers play a frozen set, or while planet's map
+// takes no play: the box lapses.
 type FrozenRefusal struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -174,256 +174,6 @@ func (x *ClaimBonusResponse) GetCharges() *v1.ChargesHeld {
 	return nil
 }
 
-type OpenQuizRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *OpenQuizRequest) Reset() {
-	*x = OpenQuizRequest{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenQuizRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenQuizRequest) ProtoMessage() {}
-
-func (x *OpenQuizRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenQuizRequest.ProtoReflect.Descriptor instead.
-func (*OpenQuizRequest) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *OpenQuizRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-type OpenQuizResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Question       string                 `protobuf:"bytes,1,opt,name=question,proto3" json:"question,omitempty"`
-	Choices        []string               `protobuf:"bytes,2,rep,name=choices,proto3" json:"choices,omitempty"`
-	DeadlineUnixMs int64                  `protobuf:"varint,3,opt,name=deadline_unix_ms,json=deadlineUnixMs,proto3" json:"deadline_unix_ms,omitempty"`
-	AnswerSeconds  float64                `protobuf:"fixed64,4,opt,name=answer_seconds,json=answerSeconds,proto3" json:"answer_seconds,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *OpenQuizResponse) Reset() {
-	*x = OpenQuizResponse{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenQuizResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenQuizResponse) ProtoMessage() {}
-
-func (x *OpenQuizResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenQuizResponse.ProtoReflect.Descriptor instead.
-func (*OpenQuizResponse) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *OpenQuizResponse) GetQuestion() string {
-	if x != nil {
-		return x.Question
-	}
-	return ""
-}
-
-func (x *OpenQuizResponse) GetChoices() []string {
-	if x != nil {
-		return x.Choices
-	}
-	return nil
-}
-
-func (x *OpenQuizResponse) GetDeadlineUnixMs() int64 {
-	if x != nil {
-		return x.DeadlineUnixMs
-	}
-	return 0
-}
-
-func (x *OpenQuizResponse) GetAnswerSeconds() float64 {
-	if x != nil {
-		return x.AnswerSeconds
-	}
-	return 0
-}
-
-type AnswerQuizRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	Choice        uint32                 `protobuf:"varint,2,opt,name=choice,proto3" json:"choice,omitempty"`
-	CountryId     string                 `protobuf:"bytes,3,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AnswerQuizRequest) Reset() {
-	*x = AnswerQuizRequest{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AnswerQuizRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AnswerQuizRequest) ProtoMessage() {}
-
-func (x *AnswerQuizRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AnswerQuizRequest.ProtoReflect.Descriptor instead.
-func (*AnswerQuizRequest) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *AnswerQuizRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-func (x *AnswerQuizRequest) GetChoice() uint32 {
-	if x != nil {
-		return x.Choice
-	}
-	return 0
-}
-
-func (x *AnswerQuizRequest) GetCountryId() string {
-	if x != nil {
-		return x.CountryId
-	}
-	return ""
-}
-
-type AnswerQuizResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Correct       bool                   `protobuf:"varint,1,opt,name=correct,proto3" json:"correct,omitempty"`
-	CorrectChoice uint32                 `protobuf:"varint,2,opt,name=correct_choice,json=correctChoice,proto3" json:"correct_choice,omitempty"`
-	Kind          v1.BonusKind           `protobuf:"varint,3,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	// What planet kept.
-	Amount uint32 `protobuf:"varint,4,opt,name=amount,proto3" json:"amount,omitempty"`
-	// All the hand holds after.
-	Charges       *v1.ChargesHeld `protobuf:"bytes,5,opt,name=charges,proto3" json:"charges,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AnswerQuizResponse) Reset() {
-	*x = AnswerQuizResponse{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AnswerQuizResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AnswerQuizResponse) ProtoMessage() {}
-
-func (x *AnswerQuizResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AnswerQuizResponse.ProtoReflect.Descriptor instead.
-func (*AnswerQuizResponse) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *AnswerQuizResponse) GetCorrect() bool {
-	if x != nil {
-		return x.Correct
-	}
-	return false
-}
-
-func (x *AnswerQuizResponse) GetCorrectChoice() uint32 {
-	if x != nil {
-		return x.CorrectChoice
-	}
-	return 0
-}
-
-func (x *AnswerQuizResponse) GetKind() v1.BonusKind {
-	if x != nil {
-		return x.Kind
-	}
-	return v1.BonusKind(0)
-}
-
-func (x *AnswerQuizResponse) GetAmount() uint32 {
-	if x != nil {
-		return x.Amount
-	}
-	return 0
-}
-
-func (x *AnswerQuizResponse) GetCharges() *v1.ChargesHeld {
-	if x != nil {
-		return x.Charges
-	}
-	return nil
-}
-
 // Empty is every event.
 type ListenForEventsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -433,7 +183,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[7]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -445,7 +195,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[7]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -458,7 +208,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{7}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{3}
 }
 
 type BonusEvent struct {
@@ -468,7 +218,6 @@ type BonusEvent struct {
 	//	*BonusEvent_Heartbeat
 	//	*BonusEvent_BonusOffered
 	//	*BonusEvent_BonusTaken
-	//	*BonusEvent_QuizOffered
 	//	*BonusEvent_RulesChanged
 	Event         isBonusEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
@@ -477,7 +226,7 @@ type BonusEvent struct {
 
 func (x *BonusEvent) Reset() {
 	*x = BonusEvent{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[8]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -489,7 +238,7 @@ func (x *BonusEvent) String() string {
 func (*BonusEvent) ProtoMessage() {}
 
 func (x *BonusEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[8]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,7 +251,7 @@ func (x *BonusEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BonusEvent.ProtoReflect.Descriptor instead.
 func (*BonusEvent) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{8}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *BonusEvent) GetEvent() isBonusEvent_Event {
@@ -539,15 +288,6 @@ func (x *BonusEvent) GetBonusTaken() *BonusTaken {
 	return nil
 }
 
-func (x *BonusEvent) GetQuizOffered() *QuizOffered {
-	if x != nil {
-		if x, ok := x.Event.(*BonusEvent_QuizOffered); ok {
-			return x.QuizOffered
-		}
-	}
-	return nil
-}
-
 func (x *BonusEvent) GetRulesChanged() *RulesChanged {
 	if x != nil {
 		if x, ok := x.Event.(*BonusEvent_RulesChanged); ok {
@@ -575,11 +315,6 @@ type BonusEvent_BonusTaken struct {
 	BonusTaken *BonusTaken `protobuf:"bytes,3,opt,name=bonus_taken,json=bonusTaken,proto3,oneof"`
 }
 
-type BonusEvent_QuizOffered struct {
-	// Only to the caller it is offered to.
-	QuizOffered *QuizOffered `protobuf:"bytes,4,opt,name=quiz_offered,json=quizOffered,proto3,oneof"`
-}
-
 type BonusEvent_RulesChanged struct {
 	// The offers took another set: GetGrantRules answers anew.
 	RulesChanged *RulesChanged `protobuf:"bytes,5,opt,name=rules_changed,json=rulesChanged,proto3,oneof"`
@@ -591,8 +326,6 @@ func (*BonusEvent_BonusOffered) isBonusEvent_Event() {}
 
 func (*BonusEvent_BonusTaken) isBonusEvent_Event() {}
 
-func (*BonusEvent_QuizOffered) isBonusEvent_Event() {}
-
 func (*BonusEvent_RulesChanged) isBonusEvent_Event() {}
 
 type Heartbeat struct {
@@ -603,7 +336,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[9]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -615,7 +348,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[9]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -628,7 +361,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{9}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{5}
 }
 
 type RulesChanged struct {
@@ -639,7 +372,7 @@ type RulesChanged struct {
 
 func (x *RulesChanged) Reset() {
 	*x = RulesChanged{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[10]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +384,7 @@ func (x *RulesChanged) String() string {
 func (*RulesChanged) ProtoMessage() {}
 
 func (x *RulesChanged) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[10]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +397,7 @@ func (x *RulesChanged) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RulesChanged.ProtoReflect.Descriptor instead.
 func (*RulesChanged) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{10}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{6}
 }
 
 type BonusOffered struct {
@@ -679,7 +412,7 @@ type BonusOffered struct {
 
 func (x *BonusOffered) Reset() {
 	*x = BonusOffered{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[11]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +424,7 @@ func (x *BonusOffered) String() string {
 func (*BonusOffered) ProtoMessage() {}
 
 func (x *BonusOffered) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[11]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +437,7 @@ func (x *BonusOffered) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BonusOffered.ProtoReflect.Descriptor instead.
 func (*BonusOffered) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{11}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *BonusOffered) GetToken() string {
@@ -735,20 +468,18 @@ func (x *BonusOffered) GetExpiresAtUnixMs() int64 {
 	return 0
 }
 
-// A box caught, or a quiz won, by anyone.
+// A box caught by anyone.
 type BonusTaken struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	Kind      v1.BonusKind           `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	// The country the quiz won was about; empty for a box.
-	QuizSubjectCountryId string `protobuf:"bytes,3,opt,name=quiz_subject_country_id,json=quizSubjectCountryId,proto3" json:"quiz_subject_country_id,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CountryId     string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	Kind          v1.BonusKind           `protobuf:"varint,2,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BonusTaken) Reset() {
 	*x = BonusTaken{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[12]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -760,7 +491,7 @@ func (x *BonusTaken) String() string {
 func (*BonusTaken) ProtoMessage() {}
 
 func (x *BonusTaken) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[12]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -773,7 +504,7 @@ func (x *BonusTaken) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BonusTaken.ProtoReflect.Descriptor instead.
 func (*BonusTaken) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{12}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *BonusTaken) GetCountryId() string {
@@ -790,66 +521,6 @@ func (x *BonusTaken) GetKind() v1.BonusKind {
 	return v1.BonusKind(0)
 }
 
-func (x *BonusTaken) GetQuizSubjectCountryId() string {
-	if x != nil {
-		return x.QuizSubjectCountryId
-	}
-	return ""
-}
-
-// Says nothing of the question: even its subject's flag can be the answer.
-type QuizOffered struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Token           string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
-	ExpiresAtUnixMs int64                  `protobuf:"varint,2,opt,name=expires_at_unix_ms,json=expiresAtUnixMs,proto3" json:"expires_at_unix_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *QuizOffered) Reset() {
-	*x = QuizOffered{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *QuizOffered) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*QuizOffered) ProtoMessage() {}
-
-func (x *QuizOffered) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use QuizOffered.ProtoReflect.Descriptor instead.
-func (*QuizOffered) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *QuizOffered) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
-}
-
-func (x *QuizOffered) GetExpiresAtUnixMs() int64 {
-	if x != nil {
-		return x.ExpiresAtUnixMs
-	}
-	return 0
-}
-
 type GetGrantRulesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -858,7 +529,7 @@ type GetGrantRulesRequest struct {
 
 func (x *GetGrantRulesRequest) Reset() {
 	*x = GetGrantRulesRequest{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[14]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -870,7 +541,7 @@ func (x *GetGrantRulesRequest) String() string {
 func (*GetGrantRulesRequest) ProtoMessage() {}
 
 func (x *GetGrantRulesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[14]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -883,7 +554,7 @@ func (x *GetGrantRulesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGrantRulesRequest.ProtoReflect.Descriptor instead.
 func (*GetGrantRulesRequest) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{14}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{9}
 }
 
 type GetGrantRulesResponse struct {
@@ -896,7 +567,7 @@ type GetGrantRulesResponse struct {
 
 func (x *GetGrantRulesResponse) Reset() {
 	*x = GetGrantRulesResponse{}
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[15]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -908,7 +579,7 @@ func (x *GetGrantRulesResponse) String() string {
 func (*GetGrantRulesResponse) ProtoMessage() {}
 
 func (x *GetGrantRulesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_bonuses_proto_msgTypes[15]
+	mi := &file_bonuses_v1_bonuses_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -921,7 +592,7 @@ func (x *GetGrantRulesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGrantRulesResponse.ProtoReflect.Descriptor instead.
 func (*GetGrantRulesResponse) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{15}
+	return file_bonuses_v1_bonuses_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetGrantRulesResponse) GetSignInRefill() bool {
@@ -945,60 +616,34 @@ const file_bonuses_v1_bonuses_proto_rawDesc = "" +
 	"\x12ClaimBonusResponse\x12(\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\rR\x06amount\x120\n" +
-	"\acharges\x18\x03 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"'\n" +
-	"\x0fOpenQuizRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"\x99\x01\n" +
-	"\x10OpenQuizResponse\x12\x1a\n" +
-	"\bquestion\x18\x01 \x01(\tR\bquestion\x12\x18\n" +
-	"\achoices\x18\x02 \x03(\tR\achoices\x12(\n" +
-	"\x10deadline_unix_ms\x18\x03 \x01(\x03R\x0edeadlineUnixMs\x12%\n" +
-	"\x0eanswer_seconds\x18\x04 \x01(\x01R\ranswerSeconds\"`\n" +
-	"\x11AnswerQuizRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12\x16\n" +
-	"\x06choice\x18\x02 \x01(\rR\x06choice\x12\x1d\n" +
-	"\n" +
-	"country_id\x18\x03 \x01(\tR\tcountryId\"\xc9\x01\n" +
-	"\x12AnswerQuizResponse\x12\x18\n" +
-	"\acorrect\x18\x01 \x01(\bR\acorrect\x12%\n" +
-	"\x0ecorrect_choice\x18\x02 \x01(\rR\rcorrectChoice\x12(\n" +
-	"\x04kind\x18\x03 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
-	"\x06amount\x18\x04 \x01(\rR\x06amount\x120\n" +
-	"\acharges\x18\x05 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x18\n" +
-	"\x16ListenForEventsRequest\"\xc7\x02\n" +
+	"\acharges\x18\x03 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x18\n" +
+	"\x16ListenForEventsRequest\"\x9d\x02\n" +
 	"\n" +
 	"BonusEvent\x125\n" +
 	"\theartbeat\x18\x01 \x01(\v2\x15.bonuses.v1.HeartbeatH\x00R\theartbeat\x12?\n" +
 	"\rbonus_offered\x18\x02 \x01(\v2\x18.bonuses.v1.BonusOfferedH\x00R\fbonusOffered\x129\n" +
 	"\vbonus_taken\x18\x03 \x01(\v2\x16.bonuses.v1.BonusTakenH\x00R\n" +
-	"bonusTaken\x12<\n" +
-	"\fquiz_offered\x18\x04 \x01(\v2\x17.bonuses.v1.QuizOfferedH\x00R\vquizOffered\x12?\n" +
+	"bonusTaken\x12?\n" +
 	"\rrules_changed\x18\x05 \x01(\v2\x18.bonuses.v1.RulesChangedH\x00R\frulesChangedB\a\n" +
-	"\x05event\"\v\n" +
+	"\x05eventJ\x04\b\x04\x10\x05R\fquiz_offered\"\v\n" +
 	"\tHeartbeat\"\x0e\n" +
 	"\fRulesChanged\"\x8f\x01\n" +
 	"\fBonusOffered\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x12\n" +
 	"\x04seed\x18\x02 \x01(\rR\x04seed\x12(\n" +
 	"\x04kind\x18\x03 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x04 \x01(\x03R\x0fexpiresAtUnixMs\"\x8c\x01\n" +
+	"\x12expires_at_unix_ms\x18\x04 \x01(\x03R\x0fexpiresAtUnixMs\"t\n" +
 	"\n" +
 	"BonusTaken\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12(\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x125\n" +
-	"\x17quiz_subject_country_id\x18\x03 \x01(\tR\x14quizSubjectCountryId\"P\n" +
-	"\vQuizOffered\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\x12+\n" +
-	"\x12expires_at_unix_ms\x18\x02 \x01(\x03R\x0fexpiresAtUnixMs\"\x16\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kindJ\x04\b\x03\x10\x04R\x17quiz_subject_country_id\"\x16\n" +
 	"\x14GetGrantRulesRequest\"=\n" +
 	"\x15GetGrantRulesResponse\x12$\n" +
-	"\x0esign_in_refill\x18\x01 \x01(\bR\fsignInRefill2\x9b\x03\n" +
+	"\x0esign_in_refill\x18\x01 \x01(\bR\fsignInRefill2\x87\x02\n" +
 	"\fBonusService\x12K\n" +
 	"\n" +
-	"ClaimBonus\x12\x1d.bonuses.v1.ClaimBonusRequest\x1a\x1e.bonuses.v1.ClaimBonusResponse\x12E\n" +
-	"\bOpenQuiz\x12\x1b.bonuses.v1.OpenQuizRequest\x1a\x1c.bonuses.v1.OpenQuizResponse\x12K\n" +
-	"\n" +
-	"AnswerQuiz\x12\x1d.bonuses.v1.AnswerQuizRequest\x1a\x1e.bonuses.v1.AnswerQuizResponse\x12O\n" +
+	"ClaimBonus\x12\x1d.bonuses.v1.ClaimBonusRequest\x1a\x1e.bonuses.v1.ClaimBonusResponse\x12O\n" +
 	"\x0fListenForEvents\x12\".bonuses.v1.ListenForEventsRequest\x1a\x16.bonuses.v1.BonusEvent0\x01\x12Y\n" +
 	"\rGetGrantRules\x12 .bonuses.v1.GetGrantRulesRequest\x1a!.bonuses.v1.GetGrantRulesResponse\"\x03\x90\x02\x01B\xbb\x01\n" +
 	"\x0ecom.bonuses.v1B\fBonusesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1;bonusesv1\xa2\x02\x03BXX\xaa\x02\n" +
@@ -1017,54 +662,42 @@ func file_bonuses_v1_bonuses_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_bonuses_proto_rawDescData
 }
 
-var file_bonuses_v1_bonuses_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_bonuses_v1_bonuses_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_bonuses_v1_bonuses_proto_goTypes = []any{
 	(*FrozenRefusal)(nil),          // 0: bonuses.v1.FrozenRefusal
 	(*ClaimBonusRequest)(nil),      // 1: bonuses.v1.ClaimBonusRequest
 	(*ClaimBonusResponse)(nil),     // 2: bonuses.v1.ClaimBonusResponse
-	(*OpenQuizRequest)(nil),        // 3: bonuses.v1.OpenQuizRequest
-	(*OpenQuizResponse)(nil),       // 4: bonuses.v1.OpenQuizResponse
-	(*AnswerQuizRequest)(nil),      // 5: bonuses.v1.AnswerQuizRequest
-	(*AnswerQuizResponse)(nil),     // 6: bonuses.v1.AnswerQuizResponse
-	(*ListenForEventsRequest)(nil), // 7: bonuses.v1.ListenForEventsRequest
-	(*BonusEvent)(nil),             // 8: bonuses.v1.BonusEvent
-	(*Heartbeat)(nil),              // 9: bonuses.v1.Heartbeat
-	(*RulesChanged)(nil),           // 10: bonuses.v1.RulesChanged
-	(*BonusOffered)(nil),           // 11: bonuses.v1.BonusOffered
-	(*BonusTaken)(nil),             // 12: bonuses.v1.BonusTaken
-	(*QuizOffered)(nil),            // 13: bonuses.v1.QuizOffered
-	(*GetGrantRulesRequest)(nil),   // 14: bonuses.v1.GetGrantRulesRequest
-	(*GetGrantRulesResponse)(nil),  // 15: bonuses.v1.GetGrantRulesResponse
-	(v1.BonusKind)(0),              // 16: planet.v1.BonusKind
-	(*v1.ChargesHeld)(nil),         // 17: planet.v1.ChargesHeld
+	(*ListenForEventsRequest)(nil), // 3: bonuses.v1.ListenForEventsRequest
+	(*BonusEvent)(nil),             // 4: bonuses.v1.BonusEvent
+	(*Heartbeat)(nil),              // 5: bonuses.v1.Heartbeat
+	(*RulesChanged)(nil),           // 6: bonuses.v1.RulesChanged
+	(*BonusOffered)(nil),           // 7: bonuses.v1.BonusOffered
+	(*BonusTaken)(nil),             // 8: bonuses.v1.BonusTaken
+	(*GetGrantRulesRequest)(nil),   // 9: bonuses.v1.GetGrantRulesRequest
+	(*GetGrantRulesResponse)(nil),  // 10: bonuses.v1.GetGrantRulesResponse
+	(v1.BonusKind)(0),              // 11: planet.v1.BonusKind
+	(*v1.ChargesHeld)(nil),         // 12: planet.v1.ChargesHeld
 }
 var file_bonuses_v1_bonuses_proto_depIdxs = []int32{
-	16, // 0: bonuses.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
-	17, // 1: bonuses.v1.ClaimBonusResponse.charges:type_name -> planet.v1.ChargesHeld
-	16, // 2: bonuses.v1.AnswerQuizResponse.kind:type_name -> planet.v1.BonusKind
-	17, // 3: bonuses.v1.AnswerQuizResponse.charges:type_name -> planet.v1.ChargesHeld
-	9,  // 4: bonuses.v1.BonusEvent.heartbeat:type_name -> bonuses.v1.Heartbeat
-	11, // 5: bonuses.v1.BonusEvent.bonus_offered:type_name -> bonuses.v1.BonusOffered
-	12, // 6: bonuses.v1.BonusEvent.bonus_taken:type_name -> bonuses.v1.BonusTaken
-	13, // 7: bonuses.v1.BonusEvent.quiz_offered:type_name -> bonuses.v1.QuizOffered
-	10, // 8: bonuses.v1.BonusEvent.rules_changed:type_name -> bonuses.v1.RulesChanged
-	16, // 9: bonuses.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
-	16, // 10: bonuses.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
-	1,  // 11: bonuses.v1.BonusService.ClaimBonus:input_type -> bonuses.v1.ClaimBonusRequest
-	3,  // 12: bonuses.v1.BonusService.OpenQuiz:input_type -> bonuses.v1.OpenQuizRequest
-	5,  // 13: bonuses.v1.BonusService.AnswerQuiz:input_type -> bonuses.v1.AnswerQuizRequest
-	7,  // 14: bonuses.v1.BonusService.ListenForEvents:input_type -> bonuses.v1.ListenForEventsRequest
-	14, // 15: bonuses.v1.BonusService.GetGrantRules:input_type -> bonuses.v1.GetGrantRulesRequest
-	2,  // 16: bonuses.v1.BonusService.ClaimBonus:output_type -> bonuses.v1.ClaimBonusResponse
-	4,  // 17: bonuses.v1.BonusService.OpenQuiz:output_type -> bonuses.v1.OpenQuizResponse
-	6,  // 18: bonuses.v1.BonusService.AnswerQuiz:output_type -> bonuses.v1.AnswerQuizResponse
-	8,  // 19: bonuses.v1.BonusService.ListenForEvents:output_type -> bonuses.v1.BonusEvent
-	15, // 20: bonuses.v1.BonusService.GetGrantRules:output_type -> bonuses.v1.GetGrantRulesResponse
-	16, // [16:21] is the sub-list for method output_type
-	11, // [11:16] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	11, // 0: bonuses.v1.ClaimBonusResponse.kind:type_name -> planet.v1.BonusKind
+	12, // 1: bonuses.v1.ClaimBonusResponse.charges:type_name -> planet.v1.ChargesHeld
+	5,  // 2: bonuses.v1.BonusEvent.heartbeat:type_name -> bonuses.v1.Heartbeat
+	7,  // 3: bonuses.v1.BonusEvent.bonus_offered:type_name -> bonuses.v1.BonusOffered
+	8,  // 4: bonuses.v1.BonusEvent.bonus_taken:type_name -> bonuses.v1.BonusTaken
+	6,  // 5: bonuses.v1.BonusEvent.rules_changed:type_name -> bonuses.v1.RulesChanged
+	11, // 6: bonuses.v1.BonusOffered.kind:type_name -> planet.v1.BonusKind
+	11, // 7: bonuses.v1.BonusTaken.kind:type_name -> planet.v1.BonusKind
+	1,  // 8: bonuses.v1.BonusService.ClaimBonus:input_type -> bonuses.v1.ClaimBonusRequest
+	3,  // 9: bonuses.v1.BonusService.ListenForEvents:input_type -> bonuses.v1.ListenForEventsRequest
+	9,  // 10: bonuses.v1.BonusService.GetGrantRules:input_type -> bonuses.v1.GetGrantRulesRequest
+	2,  // 11: bonuses.v1.BonusService.ClaimBonus:output_type -> bonuses.v1.ClaimBonusResponse
+	4,  // 12: bonuses.v1.BonusService.ListenForEvents:output_type -> bonuses.v1.BonusEvent
+	10, // 13: bonuses.v1.BonusService.GetGrantRules:output_type -> bonuses.v1.GetGrantRulesResponse
+	11, // [11:14] is the sub-list for method output_type
+	8,  // [8:11] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_bonuses_proto_init() }
@@ -1072,11 +705,10 @@ func file_bonuses_v1_bonuses_proto_init() {
 	if File_bonuses_v1_bonuses_proto != nil {
 		return
 	}
-	file_bonuses_v1_bonuses_proto_msgTypes[8].OneofWrappers = []any{
+	file_bonuses_v1_bonuses_proto_msgTypes[4].OneofWrappers = []any{
 		(*BonusEvent_Heartbeat)(nil),
 		(*BonusEvent_BonusOffered)(nil),
 		(*BonusEvent_BonusTaken)(nil),
-		(*BonusEvent_QuizOffered)(nil),
 		(*BonusEvent_RulesChanged)(nil),
 	}
 	type x struct{}
@@ -1085,7 +717,7 @@ func file_bonuses_v1_bonuses_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_bonuses_proto_rawDesc), len(file_bonuses_v1_bonuses_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

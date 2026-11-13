@@ -10,4 +10,5 @@ export function useQuizMaster(master: QuizMaster, countryCode: string, play: Pla
     }, [master, countryCode, play])
 
     useEffect(() => master.listenForQuizzes(useQuiz.getState().offer), [master])
+    useEffect(() => master.listenForRewards(useQuiz.getState().rewarded), [master])
 }

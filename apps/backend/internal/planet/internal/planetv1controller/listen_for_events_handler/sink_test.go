@@ -211,20 +211,32 @@ func TestASinkFramesASpreadClick(t *testing.T) {
 	assert.Equal(t, []uint32{99, 101}, spread.GetSpreadTileIds())
 }
 
-func TestASinkFramesEverythingAGrantLeftHeld(t *testing.T) {
+func TestASinkFramesWhatAGrantAddedAndEverythingItLeftHeld(t *testing.T) {
 	stream := &recorder{}
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
-		Granted: &charges.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4, Shields: 20},
+		Granted: &charges.Gain{
+			Before: charges.Held{Enclosures: 2, Shields: 5},
+			After:  charges.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4, Shields: 20},
+		},
 	}))
 
-	held := stream.sent[0].GetChargesGranted().GetCharges()
+	granted := stream.sent[0].GetChargesGranted()
+	held := granted.GetCharges()
 	require.NotNil(t, held)
 	assert.True(t, held.GetBomb())
 	assert.False(t, held.GetRefill())
 	assert.Equal(t, uint32(2), held.GetEnclosures())
 	assert.Equal(t, uint32(4), held.GetSpreadClicksLeft())
 	assert.Equal(t, uint32(20), held.GetShields())
+
+	gained := map[planetv1.BonusKind]uint32{}
+	for _, each := range granted.GetGained() {
+		gained[each.GetKind()] = each.GetAmount()
+	}
+	assert.Equal(t, map[planetv1.BonusKind]uint32{
+		planetv1.BonusKind_BONUS_KIND_BOMB: 1, planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS: 4, planetv1.BonusKind_BONUS_KIND_SHIELDS: 15,
+	}, gained, "the enclosures it held before are no gain")
 }
 
 func TestASinkFramesAKnockOutAsOneEventWithItsTilesAndVersion(t *testing.T) {

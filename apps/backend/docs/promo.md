@@ -15,7 +15,8 @@ internal/promo/
     teaser_job/                     the teasers job's alone, which the server never builds (see teasers-job.md)
     migrations/                     backgrounds, cards
     placeholders/                   RulePaths, BattlePaths, Battle, Played, Check, Fill: `{path}` in a card's words,
-                                    filled with a value of planet.v1.Rules, of bonuses.v1.Rules (`bonuses.…`) or of the battle
+                                    filled with a value of planet.v1.Rules, of bonuses.v1.Rules (`bonuses.…`), of
+                                    quizzes.v1.Rules (`quizzes.…`) or of the battle
       rpc_scoring_points/           a battle's points by its times, from scoring.v1.InternalService
     backgrounds/                    BackgroundID, MediaType, File, Rules (FileError), Background (Keep, TakeSnapshot),
                                     BackgroundSnapshot (Restore); the IDProvider port; fakes behind the testing tag
@@ -30,8 +31,8 @@ internal/promo/
     cards/                          SetName, Draft, Card, Deck (NewDeck, TakeSnapshot), DeckSnapshot; fakes behind the
                                     testing tag
       postgres_card_store/          Save: a set's cards replaced, in a transaction
-      rpc_rule_sets/                the sets planet keeps and the values each plays, planet's and the offers', from
-                                    planet.v1.InternalService and bonuses.v1.InternalService
+      rpc_rule_sets/                the sets planet keeps and the values each plays, planet's, the offers' and the
+                                    quizzes', from planet.v1, bonuses.v1 and quizzes.v1 InternalService
       usecases/save_cards_usecase/  checks the cards and that planet keeps the set, then replaces its cards
     promov1controller/              AdminService and PromoService (bags), NewCacheInterceptor
       promoread/                    Filled: a card as players read it
@@ -53,12 +54,15 @@ reason at once, `ErrInvalidCards`). **None is a set whose battles are not teased
 with no cards (the owner: "If there is no carousel let's just not tease anything").
 
 **Words name a rule's value with a placeholder**, `{path}`, the path of a field of `planet.v1.Rules` as protojson
-writes it, or of the offers' `bonuses.v1.Rules` under `bonuses.`: `Clicks refill {clicks.tempo}× faster`,
+writes it, of the offers' `bonuses.v1.Rules` under `bonuses.`, or of the quizzes' `quizzes.v1.Rules` under `quizzes.`:
+`Clicks refill {clicks.tempo}× faster`,
 `A box every {bonuses.boxes.minInterval}` (`placeholders.RulePaths`, `Check`). **`bonuses.` is where the offers'
 values sat in planet's rules** until they were a module of their own (2026-11-11), so a card written before reads as it
 did: `urf`'s `every {bonuses.boxes.minInterval} to {bonuses.boxes.maxInterval}` still reads `every 30 s to 1 min`. A
 `{bonuses.…}` reads the offers' set of the battle's name (`bonuses.v1.InternalService/GetRuleSet`), every other path
-planet's, the wallet's `charges.*` included; a set the offers keep none of fills no `{bonuses.…}` (`ErrNoValue`). **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
+planet's, the wallet's `charges.*` included; a set the offers keep none of fills no `{bonuses.…}` (`ErrNoValue`). A
+`{quizzes.…}` reads the quizzes' set the same way (`quizzes.v1.InternalService/GetRuleSet`, since 2026-11-13); the
+quiz's values were `{bonuses.quiz.…}` until then, and no card named one. **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
 message reads as no word in a sentence, and is refused. A brace that opens or closes no placeholder is refused too.
 
 **Words name the battle's points too** (`placeholders.BattlePaths`): `{battle.times}`, the battle's points' times (1

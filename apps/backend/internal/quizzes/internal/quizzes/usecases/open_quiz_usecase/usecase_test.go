@@ -1,0 +1,56 @@
+package open_quiz_usecase_test
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/quizzes/internal/quizzes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/quizzes/internal/quizzes/usecases/open_quiz_usecase"
+)
+
+var deadline = time.Date(2024, 1, 1, 0, 0, 5, 0, time.UTC)
+
+var guest = quizzes.Caller{Scope: "1.2.3.4", Account: "a-guest"}
+
+type fakeRegistry struct {
+	asked quizzes.Asked
+	known bool
+
+	token      string
+	forEntrant quizzes.Entrant
+}
+
+func (f *fakeRegistry) OpenQuiz(token string, entrant quizzes.Entrant) (quizzes.Asked, bool) {
+	f.token, f.forEntrant = token, entrant
+
+	return f.asked, f.known
+}
+
+func TestOpeningReadsTheQuestionAndTheClockItStarted(t *testing.T) {
+	registry := &fakeRegistry{known: true, asked: quizzes.Asked{
+		Question: "What is the capital of Estonia?",
+		Options:  []string{"Riga", "Tallinn", "Vilnius"},
+		Deadline: deadline,
+		Window:   5 * time.Second,
+	}}
+
+	out, err := open_quiz_usecase.New(registry).Execute(t.Context(), open_quiz_usecase.In{Caller: guest, Token: "t"})
+	require.NoError(t, err)
+
+	assert.Equal(t, "What is the capital of Estonia?", out.Question)
+	assert.Equal(t, []string{"Riga", "Tallinn", "Vilnius"}, out.Options)
+	assert.Equal(t, deadline, out.Deadline)
+	assert.Equal(t, 5*time.Second, out.Window)
+
+	assert.Equal(t, "t", registry.token)
+	assert.Equal(t, quizzes.Entrant("1.2.3.4"), registry.forEntrant, "a guest's question is its scope's")
+}
+
+func TestAQuizThatIsNotThisCallersIsNotFound(t *testing.T) {
+	_, err := open_quiz_usecase.New(&fakeRegistry{}).Execute(t.Context(), open_quiz_usecase.In{Caller: guest, Token: "t"})
+
+	require.ErrorIs(t, err, open_quiz_usecase.ErrNoSuchQuiz)
+}

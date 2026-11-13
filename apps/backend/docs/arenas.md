@@ -107,8 +107,8 @@ map.
   answered by `ArenaOpened` and `ArenaClosed` through planet's outbox, which went with them.
 - **Neither writes a ledger event.** The ledger keeps the battle's takes as any other; its readers tell them apart by
   time (see [The ledger's readers](#the-ledgers-readers)).
-- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, and the offers'
-  ClaimBonus, OpenQuiz, AnswerQuiz) is refused with a `FrozenRefusal` for the battle's `arena.freeze` after the map went blank and from it
+- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, the offers'
+  ClaimBonus, and the quizzes' OpenQuiz, AnswerQuiz) is refused with a `FrozenRefusal` for the battle's `arena.freeze` after the map went blank and from it
   before the battle's end until the map is back (`Opening.Freezes`, read through `InPlay`, an atomic pointer loaded at
   boot). The freeze is the opening's, read from the battle's set as it opened and kept in `planet.arenas.freeze_ms`, so
   a boot keeps it; `InPlay` reads no rules.
@@ -173,8 +173,9 @@ With a pool of 50 and up to 25 a box, only 7-15% of clicks spread, about 1.3 new
 second, nobody fighting, would fill the 260,503 tiles in about 3.7 h, and a battle lasts 2 h. Unlimited with 2 rings is
 about 19 new tiles a click, so the same 15 fill it in about 15 minutes. Until then it played a pool of 50
 (`charges.spread.clicks`), up to 25 a box (the offers' `spread.maxPerBox`), weighed 2 against 1 for refill, enclose and
-shields. Since 2026-11-11 the boxes, the quizzes, the welcome and what a box grants are in the offers' set of the same
-name, which their migration copied from planet's (see [The offers](bonuses.md#where-the-sets-came-from)). Its antibot
+shields. Since 2026-11-11 the boxes, the welcome and what a box grants are in the offers' set of the same name, which their
+migration copied from planet's (see [The offers](bonuses.md#where-the-sets-came-from)), and since 2026-11-13 the quizzes
+in the quizzes' set of the same name. Its antibot
 set of the same name exists. Every value is edited on the backoffice.
 
 ## Gamemaster: the arena battles (`internal/gamemaster/internal/arenas/`)

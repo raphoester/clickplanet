@@ -22,9 +22,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// When a box and a quiz come, what each may be and how much it grants. "default" holds every value; another set holds
-// the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
-// (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules).
+// When a box comes, and what a box or a right answer may be and how much it grants. "default" holds every value; another
+// set holds the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
+// (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules);
+// when a quiz comes is the quizzes' (quizzes.v1.Rules).
 type Rules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Boxes *BoxPace               `protobuf:"bytes,1,opt,name=boxes,proto3" json:"boxes,omitempty"`
@@ -33,16 +34,15 @@ type Rules struct {
 	OfferTtl *durationpb.Duration `protobuf:"bytes,3,opt,name=offer_ttl,json=offerTtl,proto3" json:"offer_ttl,omitempty"`
 	// A box missed brings the next one this soon, once.
 	MissRetry *durationpb.Duration `protobuf:"bytes,4,opt,name=miss_retry,json=missRetry,proto3" json:"miss_retry,omitempty"`
-	// No box or quiz for a caller that has not clicked for this long.
+	// No box for a caller that has not clicked for this long.
 	ActiveWithin *durationpb.Duration `protobuf:"bytes,5,opt,name=active_within,json=activeWithin,proto3" json:"active_within,omitempty"`
 	Spread       *SpreadRules         `protobuf:"bytes,6,opt,name=spread,proto3" json:"spread,omitempty"`
 	Enclose      *EncloseRules        `protobuf:"bytes,7,opt,name=enclose,proto3" json:"enclose,omitempty"`
 	Shield       *ShieldRules         `protobuf:"bytes,8,opt,name=shield,proto3" json:"shield,omitempty"`
 	Welcome      *WelcomeRules        `protobuf:"bytes,9,opt,name=welcome,proto3" json:"welcome,omitempty"`
-	Quiz         *QuizRules           `protobuf:"bytes,10,opt,name=quiz,proto3" json:"quiz,omitempty"`
 	// A guest's first sign-in earns a refill, once per account.
 	SignInRefill *bool `protobuf:"varint,11,opt,name=sign_in_refill,json=signInRefill,proto3,oneof" json:"sign_in_refill,omitempty"`
-	// No box or quiz is offered, and ClaimBonus, OpenQuiz and AnswerQuiz are refused.
+	// No box is offered, and ClaimBonus is refused.
 	Frozen        *bool `protobuf:"varint,12,opt,name=frozen,proto3,oneof" json:"frozen,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -141,13 +141,6 @@ func (x *Rules) GetWelcome() *WelcomeRules {
 	return nil
 }
 
-func (x *Rules) GetQuiz() *QuizRules {
-	if x != nil {
-		return x.Quiz
-	}
-	return nil
-}
-
 func (x *Rules) GetSignInRefill() bool {
 	if x != nil && x.SignInRefill != nil {
 		return *x.SignInRefill
@@ -222,8 +215,8 @@ func (x *BoxPace) GetMaxChargesPerHour() uint32 {
 	return 0
 }
 
-// What a box or a quiz is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind planet
-// says a hand has no room for is never offered to it, nor a bomb while planet's bombs are off.
+// What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
+// planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off.
 type KindWeights struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Refill        *float64               `protobuf:"fixed64,1,opt,name=refill,proto3,oneof" json:"refill,omitempty"`
@@ -441,8 +434,7 @@ func (x *ShieldRules) GetMaxPerBox() uint32 {
 	return 0
 }
 
-// An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is
-// off.
+// An account younger than `within` gets its first box `box_after` it was made. 0s is off.
 type WelcomeRules struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Within        *durationpb.Duration   `protobuf:"bytes,1,opt,name=within,proto3" json:"within,omitempty"`
@@ -495,161 +487,12 @@ func (x *WelcomeRules) GetBoxAfter() *durationpb.Duration {
 	return nil
 }
 
-type QuizRules struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	Enabled      *bool                  `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
-	MinInterval  *durationpb.Duration   `protobuf:"bytes,2,opt,name=min_interval,json=minInterval,proto3" json:"min_interval,omitempty"`
-	MaxInterval  *durationpb.Duration   `protobuf:"bytes,3,opt,name=max_interval,json=maxInterval,proto3" json:"max_interval,omitempty"`
-	MissRetry    *durationpb.Duration   `protobuf:"bytes,4,opt,name=miss_retry,json=missRetry,proto3" json:"miss_retry,omitempty"`
-	OfferTtl     *durationpb.Duration   `protobuf:"bytes,5,opt,name=offer_ttl,json=offerTtl,proto3" json:"offer_ttl,omitempty"`
-	AnswerWindow *durationpb.Duration   `protobuf:"bytes,6,opt,name=answer_window,json=answerWindow,proto3" json:"answer_window,omitempty"`
-	// How much a question leans to the countries that hold the most; 0 is a flat draw.
-	LeaderBias        *float64 `protobuf:"fixed64,7,opt,name=leader_bias,json=leaderBias,proto3,oneof" json:"leader_bias,omitempty"`
-	MaxChargesPerHour *uint32  `protobuf:"varint,8,opt,name=max_charges_per_hour,json=maxChargesPerHour,proto3,oneof" json:"max_charges_per_hour,omitempty"`
-	// The difficulty-weighted draw, inside the subject's questions the lean picked. The chance of a right answer, for an
-	// average player, it aims at: 0.34 to 0.99.
-	Target *float64 `protobuf:"fixed64,9,opt,name=target,proto3,oneof" json:"target,omitempty"`
-	// How wide the bell around target is, on the rating scale: a question this far from target weighs 0.61 of one on it,
-	// twice as far 0.14. 0 is off, the draw of before: no question weighs more for how hard it is, and none is left out.
-	Width *float64 `protobuf:"fixed64,10,opt,name=width,proto3,oneof" json:"width,omitempty"`
-	// A question whose rating says fewer than this share of average players get it right, once floor_after answers moved
-	// it, is never drawn. A prior alone never leaves a question out. At most target.
-	Floor      *float64 `protobuf:"fixed64,11,opt,name=floor,proto3,oneof" json:"floor,omitempty"`
-	FloorAfter *uint32  `protobuf:"varint,12,opt,name=floor_after,json=floorAfter,proto3,oneof" json:"floor_after,omitempty"`
-	// The share of draws that ignore how hard a question is, so every question keeps being asked; never one under the
-	// floor. 0 to 1.
-	Explore       *float64 `protobuf:"fixed64,13,opt,name=explore,proto3,oneof" json:"explore,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *QuizRules) Reset() {
-	*x = QuizRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *QuizRules) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*QuizRules) ProtoMessage() {}
-
-func (x *QuizRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use QuizRules.ProtoReflect.Descriptor instead.
-func (*QuizRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *QuizRules) GetEnabled() bool {
-	if x != nil && x.Enabled != nil {
-		return *x.Enabled
-	}
-	return false
-}
-
-func (x *QuizRules) GetMinInterval() *durationpb.Duration {
-	if x != nil {
-		return x.MinInterval
-	}
-	return nil
-}
-
-func (x *QuizRules) GetMaxInterval() *durationpb.Duration {
-	if x != nil {
-		return x.MaxInterval
-	}
-	return nil
-}
-
-func (x *QuizRules) GetMissRetry() *durationpb.Duration {
-	if x != nil {
-		return x.MissRetry
-	}
-	return nil
-}
-
-func (x *QuizRules) GetOfferTtl() *durationpb.Duration {
-	if x != nil {
-		return x.OfferTtl
-	}
-	return nil
-}
-
-func (x *QuizRules) GetAnswerWindow() *durationpb.Duration {
-	if x != nil {
-		return x.AnswerWindow
-	}
-	return nil
-}
-
-func (x *QuizRules) GetLeaderBias() float64 {
-	if x != nil && x.LeaderBias != nil {
-		return *x.LeaderBias
-	}
-	return 0
-}
-
-func (x *QuizRules) GetMaxChargesPerHour() uint32 {
-	if x != nil && x.MaxChargesPerHour != nil {
-		return *x.MaxChargesPerHour
-	}
-	return 0
-}
-
-func (x *QuizRules) GetTarget() float64 {
-	if x != nil && x.Target != nil {
-		return *x.Target
-	}
-	return 0
-}
-
-func (x *QuizRules) GetWidth() float64 {
-	if x != nil && x.Width != nil {
-		return *x.Width
-	}
-	return 0
-}
-
-func (x *QuizRules) GetFloor() float64 {
-	if x != nil && x.Floor != nil {
-		return *x.Floor
-	}
-	return 0
-}
-
-func (x *QuizRules) GetFloorAfter() uint32 {
-	if x != nil && x.FloorAfter != nil {
-		return *x.FloorAfter
-	}
-	return 0
-}
-
-func (x *QuizRules) GetExplore() float64 {
-	if x != nil && x.Explore != nil {
-		return *x.Explore
-	}
-	return 0
-}
-
 var File_bonuses_v1_rules_proto protoreflect.FileDescriptor
 
 const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"\x16bonuses/v1/rules.proto\x12\n" +
-	"bonuses.v1\x1a\x1egoogle/protobuf/duration.proto\"\xee\x04\n" +
+	"bonuses.v1\x1a\x1egoogle/protobuf/duration.proto\"\xcf\x04\n" +
 	"\x05Rules\x12)\n" +
 	"\x05boxes\x18\x01 \x01(\v2\x13.bonuses.v1.BoxPaceR\x05boxes\x12-\n" +
 	"\x05kinds\x18\x02 \x01(\v2\x17.bonuses.v1.KindWeightsR\x05kinds\x126\n" +
@@ -661,12 +504,11 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\aenclose\x18\a \x01(\v2\x18.bonuses.v1.EncloseRulesR\aenclose\x12/\n" +
 	"\x06shield\x18\b \x01(\v2\x17.bonuses.v1.ShieldRulesR\x06shield\x122\n" +
 	"\awelcome\x18\t \x01(\v2\x18.bonuses.v1.WelcomeRulesR\awelcome\x12)\n" +
-	"\x04quiz\x18\n" +
-	" \x01(\v2\x15.bonuses.v1.QuizRulesR\x04quiz\x12)\n" +
 	"\x0esign_in_refill\x18\v \x01(\bH\x00R\fsignInRefill\x88\x01\x01\x12\x1b\n" +
 	"\x06frozen\x18\f \x01(\bH\x01R\x06frozen\x88\x01\x01B\x11\n" +
 	"\x0f_sign_in_refillB\t\n" +
-	"\a_frozen\"\xd4\x01\n" +
+	"\a_frozenJ\x04\b\n" +
+	"\x10\vR\x04quiz\"\xd4\x01\n" +
 	"\aBoxPace\x12<\n" +
 	"\fmin_interval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
 	"\fmax_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x124\n" +
@@ -697,35 +539,7 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\f_max_per_box\"y\n" +
 	"\fWelcomeRules\x121\n" +
 	"\x06within\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06within\x126\n" +
-	"\tbox_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bboxAfter\"\xbc\x05\n" +
-	"\tQuizRules\x12\x1d\n" +
-	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12<\n" +
-	"\fmin_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
-	"\fmax_interval\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x128\n" +
-	"\n" +
-	"miss_retry\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\tmissRetry\x126\n" +
-	"\toffer_ttl\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\bofferTtl\x12>\n" +
-	"\ranswer_window\x18\x06 \x01(\v2\x19.google.protobuf.DurationR\fanswerWindow\x12$\n" +
-	"\vleader_bias\x18\a \x01(\x01H\x01R\n" +
-	"leaderBias\x88\x01\x01\x124\n" +
-	"\x14max_charges_per_hour\x18\b \x01(\rH\x02R\x11maxChargesPerHour\x88\x01\x01\x12\x1b\n" +
-	"\x06target\x18\t \x01(\x01H\x03R\x06target\x88\x01\x01\x12\x19\n" +
-	"\x05width\x18\n" +
-	" \x01(\x01H\x04R\x05width\x88\x01\x01\x12\x19\n" +
-	"\x05floor\x18\v \x01(\x01H\x05R\x05floor\x88\x01\x01\x12$\n" +
-	"\vfloor_after\x18\f \x01(\rH\x06R\n" +
-	"floorAfter\x88\x01\x01\x12\x1d\n" +
-	"\aexplore\x18\r \x01(\x01H\aR\aexplore\x88\x01\x01B\n" +
-	"\n" +
-	"\b_enabledB\x0e\n" +
-	"\f_leader_biasB\x17\n" +
-	"\x15_max_charges_per_hourB\t\n" +
-	"\a_targetB\b\n" +
-	"\x06_widthB\b\n" +
-	"\x06_floorB\x0e\n" +
-	"\f_floor_afterB\n" +
-	"\n" +
-	"\b_exploreB\xb9\x01\n" +
+	"\tbox_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bboxAfterB\xb9\x01\n" +
 	"\x0ecom.bonuses.v1B\n" +
 	"RulesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1;bonusesv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Bonuses.V1\xca\x02\n" +
@@ -743,7 +557,7 @@ func file_bonuses_v1_rules_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_rules_proto_rawDescData
 }
 
-var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_bonuses_v1_rules_proto_goTypes = []any{
 	(*Rules)(nil),               // 0: bonuses.v1.Rules
 	(*BoxPace)(nil),             // 1: bonuses.v1.BoxPace
@@ -752,34 +566,27 @@ var file_bonuses_v1_rules_proto_goTypes = []any{
 	(*EncloseRules)(nil),        // 4: bonuses.v1.EncloseRules
 	(*ShieldRules)(nil),         // 5: bonuses.v1.ShieldRules
 	(*WelcomeRules)(nil),        // 6: bonuses.v1.WelcomeRules
-	(*QuizRules)(nil),           // 7: bonuses.v1.QuizRules
-	(*durationpb.Duration)(nil), // 8: google.protobuf.Duration
+	(*durationpb.Duration)(nil), // 7: google.protobuf.Duration
 }
 var file_bonuses_v1_rules_proto_depIdxs = []int32{
 	1,  // 0: bonuses.v1.Rules.boxes:type_name -> bonuses.v1.BoxPace
 	2,  // 1: bonuses.v1.Rules.kinds:type_name -> bonuses.v1.KindWeights
-	8,  // 2: bonuses.v1.Rules.offer_ttl:type_name -> google.protobuf.Duration
-	8,  // 3: bonuses.v1.Rules.miss_retry:type_name -> google.protobuf.Duration
-	8,  // 4: bonuses.v1.Rules.active_within:type_name -> google.protobuf.Duration
+	7,  // 2: bonuses.v1.Rules.offer_ttl:type_name -> google.protobuf.Duration
+	7,  // 3: bonuses.v1.Rules.miss_retry:type_name -> google.protobuf.Duration
+	7,  // 4: bonuses.v1.Rules.active_within:type_name -> google.protobuf.Duration
 	3,  // 5: bonuses.v1.Rules.spread:type_name -> bonuses.v1.SpreadRules
 	4,  // 6: bonuses.v1.Rules.enclose:type_name -> bonuses.v1.EncloseRules
 	5,  // 7: bonuses.v1.Rules.shield:type_name -> bonuses.v1.ShieldRules
 	6,  // 8: bonuses.v1.Rules.welcome:type_name -> bonuses.v1.WelcomeRules
-	7,  // 9: bonuses.v1.Rules.quiz:type_name -> bonuses.v1.QuizRules
-	8,  // 10: bonuses.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
-	8,  // 11: bonuses.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
-	8,  // 12: bonuses.v1.WelcomeRules.within:type_name -> google.protobuf.Duration
-	8,  // 13: bonuses.v1.WelcomeRules.box_after:type_name -> google.protobuf.Duration
-	8,  // 14: bonuses.v1.QuizRules.min_interval:type_name -> google.protobuf.Duration
-	8,  // 15: bonuses.v1.QuizRules.max_interval:type_name -> google.protobuf.Duration
-	8,  // 16: bonuses.v1.QuizRules.miss_retry:type_name -> google.protobuf.Duration
-	8,  // 17: bonuses.v1.QuizRules.offer_ttl:type_name -> google.protobuf.Duration
-	8,  // 18: bonuses.v1.QuizRules.answer_window:type_name -> google.protobuf.Duration
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	7,  // 9: bonuses.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
+	7,  // 10: bonuses.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
+	7,  // 11: bonuses.v1.WelcomeRules.within:type_name -> google.protobuf.Duration
+	7,  // 12: bonuses.v1.WelcomeRules.box_after:type_name -> google.protobuf.Duration
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_rules_proto_init() }
@@ -793,14 +600,13 @@ func file_bonuses_v1_rules_proto_init() {
 	file_bonuses_v1_rules_proto_msgTypes[3].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[4].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[5].OneofWrappers = []any{}
-	file_bonuses_v1_rules_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_rules_proto_rawDesc), len(file_bonuses_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

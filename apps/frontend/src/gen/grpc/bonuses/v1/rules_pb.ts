@@ -7,9 +7,10 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Duration, Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * When a box and a quiz come, what each may be and how much it grants. "default" holds every value; another set holds
- * the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
- * (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules).
+ * When a box comes, and what a box or a right answer may be and how much it grants. "default" holds every value; another
+ * set holds the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
+ * (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules);
+ * when a quiz comes is the quizzes' (quizzes.v1.Rules).
  *
  * @generated from message bonuses.v1.Rules
  */
@@ -39,7 +40,7 @@ export class Rules extends Message<Rules> {
   missRetry?: Duration;
 
   /**
-   * No box or quiz for a caller that has not clicked for this long.
+   * No box for a caller that has not clicked for this long.
    *
    * @generated from field: google.protobuf.Duration active_within = 5;
    */
@@ -66,11 +67,6 @@ export class Rules extends Message<Rules> {
   welcome?: WelcomeRules;
 
   /**
-   * @generated from field: bonuses.v1.QuizRules quiz = 10;
-   */
-  quiz?: QuizRules;
-
-  /**
    * A guest's first sign-in earns a refill, once per account.
    *
    * @generated from field: optional bool sign_in_refill = 11;
@@ -78,7 +74,7 @@ export class Rules extends Message<Rules> {
   signInRefill?: boolean;
 
   /**
-   * No box or quiz is offered, and ClaimBonus, OpenQuiz and AnswerQuiz are refused.
+   * No box is offered, and ClaimBonus is refused.
    *
    * @generated from field: optional bool frozen = 12;
    */
@@ -101,7 +97,6 @@ export class Rules extends Message<Rules> {
     { no: 7, name: "enclose", kind: "message", T: EncloseRules },
     { no: 8, name: "shield", kind: "message", T: ShieldRules },
     { no: 9, name: "welcome", kind: "message", T: WelcomeRules },
-    { no: 10, name: "quiz", kind: "message", T: QuizRules },
     { no: 11, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 12, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
@@ -173,8 +168,8 @@ export class BoxPace extends Message<BoxPace> {
 }
 
 /**
- * What a box or a quiz is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind planet
- * says a hand has no room for is never offered to it, nor a bomb while planet's bombs are off.
+ * What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
+ * planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off.
  *
  * @generated from message bonuses.v1.KindWeights
  */
@@ -356,8 +351,7 @@ export class ShieldRules extends Message<ShieldRules> {
 }
 
 /**
- * An account younger than `within` gets its first box `box_after` it was made, and a quiz when its bank runs dry. 0s is
- * off.
+ * An account younger than `within` gets its first box `box_after` it was made. 0s is off.
  *
  * @generated from message bonuses.v1.WelcomeRules
  */
@@ -398,129 +392,6 @@ export class WelcomeRules extends Message<WelcomeRules> {
 
   static equals(a: WelcomeRules | PlainMessage<WelcomeRules> | undefined, b: WelcomeRules | PlainMessage<WelcomeRules> | undefined): boolean {
     return proto3.util.equals(WelcomeRules, a, b);
-  }
-}
-
-/**
- * @generated from message bonuses.v1.QuizRules
- */
-export class QuizRules extends Message<QuizRules> {
-  /**
-   * @generated from field: optional bool enabled = 1;
-   */
-  enabled?: boolean;
-
-  /**
-   * @generated from field: google.protobuf.Duration min_interval = 2;
-   */
-  minInterval?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration max_interval = 3;
-   */
-  maxInterval?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration miss_retry = 4;
-   */
-  missRetry?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration offer_ttl = 5;
-   */
-  offerTtl?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration answer_window = 6;
-   */
-  answerWindow?: Duration;
-
-  /**
-   * How much a question leans to the countries that hold the most; 0 is a flat draw.
-   *
-   * @generated from field: optional double leader_bias = 7;
-   */
-  leaderBias?: number;
-
-  /**
-   * @generated from field: optional uint32 max_charges_per_hour = 8;
-   */
-  maxChargesPerHour?: number;
-
-  /**
-   * The difficulty-weighted draw, inside the subject's questions the lean picked. The chance of a right answer, for an
-   * average player, it aims at: 0.34 to 0.99.
-   *
-   * @generated from field: optional double target = 9;
-   */
-  target?: number;
-
-  /**
-   * How wide the bell around target is, on the rating scale: a question this far from target weighs 0.61 of one on it,
-   * twice as far 0.14. 0 is off, the draw of before: no question weighs more for how hard it is, and none is left out.
-   *
-   * @generated from field: optional double width = 10;
-   */
-  width?: number;
-
-  /**
-   * A question whose rating says fewer than this share of average players get it right, once floor_after answers moved
-   * it, is never drawn. A prior alone never leaves a question out. At most target.
-   *
-   * @generated from field: optional double floor = 11;
-   */
-  floor?: number;
-
-  /**
-   * @generated from field: optional uint32 floor_after = 12;
-   */
-  floorAfter?: number;
-
-  /**
-   * The share of draws that ignore how hard a question is, so every question keeps being asked; never one under the
-   * floor. 0 to 1.
-   *
-   * @generated from field: optional double explore = 13;
-   */
-  explore?: number;
-
-  constructor(data?: PartialMessage<QuizRules>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.QuizRules";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-    { no: 2, name: "min_interval", kind: "message", T: Duration },
-    { no: 3, name: "max_interval", kind: "message", T: Duration },
-    { no: 4, name: "miss_retry", kind: "message", T: Duration },
-    { no: 5, name: "offer_ttl", kind: "message", T: Duration },
-    { no: 6, name: "answer_window", kind: "message", T: Duration },
-    { no: 7, name: "leader_bias", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 8, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-    { no: 9, name: "target", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 10, name: "width", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 11, name: "floor", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 12, name: "floor_after", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-    { no: 13, name: "explore", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): QuizRules {
-    return new QuizRules().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): QuizRules {
-    return new QuizRules().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): QuizRules {
-    return new QuizRules().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: QuizRules | PlainMessage<QuizRules> | undefined, b: QuizRules | PlainMessage<QuizRules> | undefined): boolean {
-    return proto3.util.equals(QuizRules, a, b);
   }
 }
 

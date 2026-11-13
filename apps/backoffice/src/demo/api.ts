@@ -11,6 +11,7 @@ import {AdminService as ProgressionAdmin} from "../gen/grpc/progression/v1/admin
 import {AdminService as GamemasterAdmin} from "../gen/grpc/gamemaster/v1/admin_connect.ts"
 import {AdminService as MissionsAdmin} from "../gen/grpc/missions/v1/admin_connect.ts"
 import {AdminService as PromoAdmin} from "../gen/grpc/promo/v1/admin_connect.ts"
+import {AdminService as QuizzesAdmin} from "../gen/grpc/quizzes/v1/admin_connect.ts"
 import {AdminService as PublishingAdmin} from "../gen/grpc/publishing/v1/admin_connect.ts"
 import {AdminService as SupportAdmin} from "../gen/grpc/support/v1/admin_connect.ts"
 import {DemoAdmin, OPERATOR} from "./demoAdmin.ts"
@@ -33,6 +34,7 @@ const transport = createRouterTransport(router => {
     router.service(SupportAdmin, admin)
     router.service(PromoAdmin, admin.demoPromo)
     router.service(PublishingAdmin, admin)
+    router.service(QuizzesAdmin, admin.quizzes)
 })
 
 export const alertsAdmin = createPromiseClient(AlertsAdmin, transport)
@@ -49,6 +51,7 @@ export const missionsAdmin = createPromiseClient(MissionsAdmin, transport)
 export const supportAdmin = createPromiseClient(SupportAdmin, transport)
 export const promoAdmin = createPromiseClient(PromoAdmin, transport)
 export const publishingAdmin = createPromiseClient(PublishingAdmin, transport)
+export const quizzesAdmin = createPromiseClient(QuizzesAdmin, transport)
 
 export const LONG_CALL_MS = 120_000
 

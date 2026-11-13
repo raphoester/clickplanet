@@ -64,17 +64,20 @@ its own.
   nothing. `missions` pays its rewards this way.
 - **Or with a call answered at once**, `InternalService/GrantCharges{grant_id, account_id, kind, amount, lasting}`
   (`internal_grant_charges_handler`, then `pay_usecase`, the command's path with an answer: what the stack kept and
-  the hand after). The offers pay a box, a right answer and a new player's refill this way (2026-11-11). With `lasting`
+  the hand after). The offers pay a box, a right answer the quizzes told and a new player's refill this way. With `lasting`
   the grant id is kept for good in `charge_grants`, as a command's: the refill, once per account, from player's
   `PlayerCreated` ([A guest's first sign-in](sign-in-refill.md)). Without it, ten minutes in memory
   (`inmemory_grant_store`): a box's or an answer's id is its token's, which lives minutes and never outlives a
   restart. A bad id or account, an unknown kind or no amount is `InvalidArgument`.
-- **A grant reaches the player at once, on the planet stream it has open**: `charges_granted`, all it holds after the
-  grant, read in the grant's transaction and sent once it is committed (`notices.Board.PublishGranted`, a
-  `notices.Event`'s `Granted`), from `apply_grant_usecase` and the operator's `grant_charges_usecase`. Only a signed-in
-  account's own streams hear it: a guest's stream is its address's, which others share. Delivery is at most once; the
-  client reads the charges again when its stream comes back. The sign-in refill sends none: the client reads the
-  charges when it signs in.
+- <a id="a-grant-on-the-stream"></a>**A grant reaches the player at once, on the planet stream it has open**:
+  `charges_granted`, all it holds after the grant and **what the grant added** (`gained`, each kind and how many the
+  stack kept), sent once it is committed (`notices.Board.PublishGranted`, a `notices.Event`'s `Granted`, a
+  `charges.Gain`), from `apply_grant_usecase`, the operator's `grant_charges_usecase` and, since 2026-11-13, the offers'
+  `pay_usecase`, whose grant told again sends nothing. **It reaches every stream whose session names the account
+  granted, a guest's too** (`notices.Board.Attend` keys a stream by the account its token names): a guest's token names
+  its own account, which the others behind its address do not share. A stream with no token hears none. The page shows
+  a right answer's reward from it, since `AnswerQuiz` pays nothing ([The quizzes](quizzes-module.md)). Delivery is at
+  most once; the client reads the charges again when its stream comes back.
 - **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
   `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
   keeping what was still in time. `bonus.chargeTTL` is gone.
@@ -89,11 +92,12 @@ its own.
 - **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
   tabs racing for the last one get one, and the other `charges.ErrNotHeld`.
   `charges.StoreContractSuite` runs on postgres and on `MemoryStore` (behind the tag).
-- **A box or a right answer is taken from memory before its grant**, so a grant that fails (the database down, or
-  planet's `GrantCharges` failing) loses it. That failure is not a refusal: `NotFound` is only for a token that is not the caller's or not there, and a failed
-  grant goes to the error net (logged, answered `internal`). `bonus_claims_total` and `quiz_answers_total` count it
-  `failed`, apart from `refused`. Once the offer is taken, the grant does not stop when the page leaves: it runs on
-  `context.WithoutCancel` for at most 5 s.
+- **A box is taken from memory before its grant**, so a grant that fails (the database down, or planet's
+  `GrantCharges` failing) loses it. That failure is not a refusal: `NotFound` is only for a token that is not the
+  caller's or not there, and a failed grant goes to the error net (logged, answered `internal`). `bonus_claims_total`
+  counts it `failed`, apart from `refused`. Once the offer is taken, the grant does not stop when the page leaves: it runs
+  on `context.WithoutCancel` for at most 5 s. A right answer is paid from the quizzes' `QuizAnswered`, which the bus
+  tries again until planet answers.
 - **A return undoes a spend**: `Charges.Return` puts back what a spend took, and reads no rule, since it grants
   nothing. Only a shield the map refused comes back this way (see [A shield's way](placements.md)).
 - **Only a grant pushes them** (`charges_granted`, above). Otherwise they are not live news: `GetCharges` answers what the

@@ -18,7 +18,6 @@ import {
     GlobePoint,
     Ownerships,
     OwnershipsGetter,
-    QuizMaster,
     RateLimitedError,
     Refiller,
     Shielder,
@@ -35,10 +34,11 @@ import {
     UpdatesListener,
     VPNBlockedError,
     FrozenError,
+    GrantSource,
     OutOfReachError,
+    SessionSource,
 } from "./backend.ts";
-import {ALL_OFF, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
-import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {Allegiance} from "../domain/allegiance.ts";
 import {
     Allegiance as AllegianceMessage,
@@ -59,7 +59,7 @@ import {
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {BonusService} from "../gen/grpc/bonuses/v1/bonuses_connect.ts";
-import {catchOf, grantRulesChanged, offerOf, quizOf} from "./bonusesBackend.ts";
+import {catchOf, grantRulesChanged, offerOf} from "./bonusesBackend.ts";
 import {rewardOf} from "./bonusKind.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
@@ -79,12 +79,13 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
     private readonly bonusCallbacks = new Map<string, BonusHandlers>()
-    private readonly quizCallbacks = new Map<string, (offer: QuizOffer) => void>()
+    private readonly grantCallbacks = new Map<string, (rewards: BonusReward[]) => void>()
+    private readonly sessionCallbacks = new Map<string, (token: string) => void>()
     private readonly bombCallbacks = new Map<string, (drop: BombDrop) => void>()
     private readonly budgetCallbacks = new Map<string, (budget: ClickBudget) => void>()
     private readonly openingCallbacks = new Map<string, (version: MapVersion) => void>()
@@ -120,7 +121,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private flagged: {token: string, ready: Promise<void>} | undefined
 
-    // With no offers client, as in a test of the map alone, no box or quiz is offered and none is claimed.
+    // With no offers client, as in a test of the map alone, no box is offered and none is claimed.
     constructor(
         private client: PromiseClient<typeof ClickService>,
         batchUpdateDurationMs: number,
@@ -156,7 +157,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.updateBatchCallbacks.clear()
         this.updateCallbacks.clear()
         this.bonusCallbacks.clear()
-        this.quizCallbacks.clear()
+        this.grantCallbacks.clear()
+        this.sessionCallbacks.clear()
         this.bombCallbacks.clear()
         this.budgetCallbacks.clear()
         this.openingCallbacks.clear()
@@ -418,6 +420,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 const granted = grantedOf(event)
                 if (granted) {
                     this.holdCharges(granted)
+                    const rewards = gainedOf(event, this.rules)
+                    if (rewards.length > 0) this.grantCallbacks.forEach(callback => callback(rewards))
                     return
                 }
 
@@ -433,7 +437,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         )
     }
 
-    // Opened as the planet's is, and beside it: the boxes and quizzes go only to a caller with it open.
+    // Opened as the planet's is, and beside it: the boxes go only to a caller with it open.
     private openOffersStream(): () => void {
         const offers = this.offers
         if (!offers) return () => {}
@@ -452,12 +456,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 const offer = offerOf(event)
                 if (offer) {
                     this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
-                    return
-                }
-
-                const quiz = quizOf(event)
-                if (quiz) {
-                    this.quizCallbacks.forEach(callback => callback(quiz))
                     return
                 }
 
@@ -502,6 +500,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private followSession(token: string | undefined): void {
         this.followOffers(token)
+        if (token) this.sessionCallbacks.forEach(callback => callback(token))
         if (!token || token === this.streamToken) return
 
         this.streamToken = token
@@ -771,69 +770,18 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return this.offers
     }
 
-    public listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void {
+    public listenForGrants(onGranted: (rewards: BonusReward[]) => void): () => void {
         const id = generateUUID()
-        this.quizCallbacks.set(id, onOffered)
+        this.grantCallbacks.set(id, onGranted)
 
-        return () => this.quizCallbacks.delete(id)
+        return () => this.grantCallbacks.delete(id)
     }
 
-    public async openQuiz(token: string): Promise<QuizQuestion> {
-        try {
-            return await this.open(token)
-        } catch (e) {
-            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asBonusError(e)
+    public listenForSessions(onSession: (token: string) => void): () => void {
+        const id = generateUUID()
+        this.sessionCallbacks.set(id, onSession)
 
-            this.session.invalidate()
-
-            try {
-                return await this.open(token)
-            } catch (retried) {
-                throw asBonusError(retried)
-            }
-        }
-    }
-
-    private async open(token: string): Promise<QuizQuestion> {
-        const sessionToken = await this.session.token()
-
-        const headers = new Headers()
-        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
-
-        const at = budgetNow()
-        const wallClock = Date.now()
-        const res = await this.offersClient().openQuiz({token}, {headers})
-        this.followSession(sessionToken)
-
-        return {
-            text: res.question,
-            choices: [...res.choices],
-            deadline: at + (Number(res.deadlineUnixMs) - wallClock),
-            window: res.answerSeconds * 1000,
-        }
-    }
-
-    public async answerQuiz(token: string, choice: number, countryId: string): Promise<QuizOutcome> {
-        const sessionToken = await this.session.token()
-
-        const headers = new Headers()
-        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
-
-        let res
-        try {
-            res = await this.offersClient().answerQuiz({token, choice, countryId}, {headers})
-        } catch (e) {
-            throw asBonusError(e)
-        }
-        this.followSession(sessionToken)
-
-        this.holdCharges(chargesOfMessage(res.charges))
-
-        return {
-            correct: res.correct,
-            correctChoice: res.correctChoice,
-            reward: res.correct ? rewardOf(res.kind, this.rules, res.amount) : undefined,
-        }
+        return () => this.sessionCallbacks.delete(id)
     }
 
     public listenForBombs(onDropped: (drop: BombDrop) => void): () => void {
@@ -1020,6 +968,13 @@ export function grantedOf(event: PlanetEvent): Charges | undefined {
     if (event.event.case !== "chargesGranted") return undefined
 
     return chargesOfMessage(event.event.value.charges)
+}
+
+// What a grant added, each kind as a reward: a kind this build cannot describe is left out.
+export function gainedOf(event: PlanetEvent, rules?: BonusRules): BonusReward[] {
+    if (event.event.case !== "chargesGranted") return []
+
+    return event.event.value.gained.flatMap(({kind, amount}) => rewardOf(kind, rules, amount) ?? [])
 }
 
 export function chargesOfMessage(held: ChargesHeld | undefined): Charges {

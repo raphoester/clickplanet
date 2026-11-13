@@ -2,21 +2,20 @@ import {Duration, JsonObject, JsonValue} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
-import {BoxPace, QuizRules, Rules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
+import {BoxPace, Rules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
 import {
-    boxesOf, changesOf, complete, copyOf, draftOf, FROZEN, GROUPS, offersOf, playedOf, quizzesOf, ruleSetOf, saveRuleSet,
+    boxesOf, changesOf, complete, copyOf, draftOf, FROZEN, GROUPS, offersOf, playedOf, ruleSetOf, saveRuleSet,
 } from "./bonusRules.ts"
 
 const minutes = (n: number) => new Duration({seconds: BigInt(n * 60)})
 
 const played = () => new FakeAdmin().bonusRules.sets[0]
 
-// Boxes every minute or two, thirty an hour, and no quiz.
+// Boxes every minute or two, thirty an hour.
 const rush = () => {
     const set = played().clone()
     set.name = "rush"
     set.rules!.boxes = new BoxPace({minInterval: minutes(1), maxInterval: minutes(2), maxChargesPerHour: 30})
-    set.rules!.quiz!.enabled = false
     return set
 }
 
@@ -25,8 +24,8 @@ function leaves(json: JsonValue, path = ""): string[] {
     return Object.entries(json as JsonObject).flatMap(([key, value]) => leaves(value, path === "" ? key : `${path}.${key}`))
 }
 
-describe("the box and quiz rules", () => {
-    it("says whether a set offers, and how often a box and a quiz come", () => {
+describe("the box rules", () => {
+    it("says whether a set offers, and how often a box comes", () => {
         expect(offersOf(played())).toBe("Open")
         expect(offersOf(new RuleSet({rules: Rules.fromJson({frozen: true})}))).toBe("Frozen")
         expect(boxesOf(played().rules?.boxes)).toBe("Every 4 min to 8 min, 12 an hour at most")
@@ -35,10 +34,6 @@ describe("the box and quiz rules", () => {
             minInterval: new Duration({seconds: 90n}), maxInterval: new Duration({seconds: 90n}), maxChargesPerHour: 30,
         }))).toBe("Every 90 s, 30 an hour at most")
         expect(boxesOf(undefined)).toBe("—")
-        expect(quizzesOf(played().rules?.quiz)).toBe("Every 4 min to 8 min, 12 won an hour at most")
-        expect(quizzesOf(rush().rules?.quiz)).toBe("Off")
-        expect(quizzesOf(new QuizRules())).toBe("Off")
-        expect(quizzesOf(undefined)).toBe("—")
     })
 
     it("edits every value of a set", () => {
@@ -59,8 +54,7 @@ describe("the box and quiz rules", () => {
         expect(draft.values["boxes.minInterval"]).toBe("60")
         expect(draft.values["kinds.bomb"]).toBe("1")
         expect(draft.values["shield.maxPerBox"]).toBe("20")
-        expect(draft.values["quiz.leaderBias"]).toBe("1")
-        expect(draft.switches).toEqual({"frozen": false, "signInRefill": true, "quiz.enabled": false})
+        expect(draft.switches).toEqual({"frozen": false, "signInRefill": true})
         expect(ruleSetOf(draft).equals(rush())).toBe(true)
     })
 
@@ -97,27 +91,26 @@ describe("the box and quiz rules", () => {
         expect(draft.values["boxes.minInterval"]).toBe("60")
         expect(draft.values["boxes.maxInterval"]).toBe("")
         expect(draft.switches.frozen).toBe(true)
-        expect(draft.switches["quiz.enabled"]).toBeUndefined()
+        expect(draft.switches.signInRefill).toBeUndefined()
     })
 
     it("sends only the values a set holds, zeros and noes included", () => {
         const draft = draftOf(new RuleSet({name: "quiet"}))
         draft.values["kinds.bomb"] = "0"
-        draft.switches["quiz.enabled"] = false
         draft.switches.signInRefill = false
 
-        expect(ruleSetOf(draft).rules?.toJson()).toEqual({kinds: {bomb: 0}, quiz: {enabled: false}, signInRefill: false})
+        expect(ruleSetOf(draft).rules?.toJson()).toEqual({kinds: {bomb: 0}, signInRefill: false})
     })
 
     it("plays default's values where a set holds none", () => {
-        const quiet = new RuleSet({name: "quiet", rules: Rules.fromJson({boxes: {maxChargesPerHour: 6}, quiz: {enabled: false}})})
+        const quiet = new RuleSet({name: "quiet", rules: Rules.fromJson({boxes: {maxChargesPerHour: 6}, kinds: {bomb: 0}})})
 
         const rules = playedOf(quiet, played()).rules
 
         expect(rules?.boxes?.maxChargesPerHour).toBe(6)
         expect(Number(rules?.boxes?.minInterval?.seconds)).toBe(240)
-        expect(rules?.quiz?.enabled).toBe(false)
-        expect(rules?.quiz?.maxChargesPerHour).toBe(12)
+        expect(rules?.kinds?.bomb).toBe(0)
+        expect(rules?.kinds?.refill).toBe(5)
         expect(rules?.signInRefill).toBe(true)
         expect(playedOf(played(), played()).equals(played())).toBe(true)
     })
@@ -128,7 +121,7 @@ describe("the box and quiz rules", () => {
         expect(complete(draft)).toBe(true)
         expect(complete({...draft, values: {...draft.values, "offerTtl": ""}})).toBe(true)
         expect(complete({...draftOf(played()), values: {...draftOf(played()).values, "offerTtl": ""}})).toBe(false)
-        expect(complete({...draft, values: {...draft.values, "quiz.leaderBias": "a lot"}})).toBe(false)
+        expect(complete({...draft, values: {...draft.values, "kinds.bomb": "a lot"}})).toBe(false)
         expect(complete({...draft, name: " "})).toBe(false)
     })
 
@@ -136,15 +129,15 @@ describe("the box and quiz rules", () => {
         const before = draftOf(rush())
         const after = {
             ...before,
-            values: {...before.values, "boxes.minInterval": "120", "quiz.answerWindow": "", "kinds.refill": "5.0"},
-            switches: {...before.switches, "frozen": true, "quiz.enabled": undefined},
+            values: {...before.values, "boxes.minInterval": "120", "offerTtl": "", "kinds.refill": "5.0"},
+            switches: {...before.switches, "frozen": true, "signInRefill": undefined},
         }
 
         expect(changesOf(before, after)).toEqual([
             {label: "Frozen", before: "no", after: "yes"},
             {label: "Boxes · Shortest box wait (s)", before: "1 min", after: "2 min"},
-            {label: "Quizzes on", before: "no", after: "default"},
-            {label: "Quizzes · Time to answer (s)", before: "8 s", after: "default"},
+            {label: "Boxes · Box flight (s)", before: "15 s", after: "default"},
+            {label: "Refill at first sign-in", before: "yes", after: "default"},
         ])
     })
 

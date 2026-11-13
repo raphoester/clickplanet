@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/inmemory_stats_store"
@@ -39,10 +39,10 @@ func statsOf(t *testing.T, store *inmemory_stats_store.Store) stats.StatsSnapsho
 func TestOnlyARightAnswerCounts(t *testing.T) {
 	handler, store := subscriber()
 
-	require.NoError(t, handler.Handle(t.Context(), &bonusesv1.QuizAnswered{
+	require.NoError(t, handler.Handle(t.Context(), &quizzesv1.QuizAnswered{
 		AccountId: account, Correct: true, AnsweredAt: timestamppb.New(at),
 	}))
-	require.NoError(t, handler.Handle(t.Context(), &bonusesv1.QuizAnswered{
+	require.NoError(t, handler.Handle(t.Context(), &quizzesv1.QuizAnswered{
 		AccountId: account, Correct: false, AnsweredAt: timestamppb.New(at.Add(time.Minute)),
 	}))
 
@@ -52,5 +52,5 @@ func TestOnlyARightAnswerCounts(t *testing.T) {
 func TestAnAnswerWithNoAccountIsRefused(t *testing.T) {
 	handler, _ := subscriber()
 
-	assert.ErrorIs(t, handler.Handle(t.Context(), &bonusesv1.QuizAnswered{Correct: true}), accounts.ErrInvalidAccount)
+	assert.ErrorIs(t, handler.Handle(t.Context(), &quizzesv1.QuizAnswered{Correct: true}), accounts.ErrInvalidAccount)
 }

@@ -77,9 +77,6 @@ const (
 	InternalServiceGrantChargesProcedure = "/planet.v1.InternalService/GrantCharges"
 	// InternalServiceGetRoomProcedure is the fully-qualified name of the InternalService's GetRoom RPC.
 	InternalServiceGetRoomProcedure = "/planet.v1.InternalService/GetRoom"
-	// InternalServiceGetChargesOfProcedure is the fully-qualified name of the InternalService's
-	// GetChargesOf RPC.
-	InternalServiceGetChargesOfProcedure = "/planet.v1.InternalService/GetChargesOf"
 	// InternalServiceGetFreezeProcedure is the fully-qualified name of the InternalService's GetFreeze
 	// RPC.
 	InternalServiceGetFreezeProcedure = "/planet.v1.InternalService/GetFreeze"
@@ -134,8 +131,6 @@ type InternalServiceClient interface {
 	// For each account asked, the kinds of charge it has no room for: a full stack, and a bomb while the rules in force
 	// hold charges.bomb.off.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
-	// All an account holds now.
-	GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error)
 	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
 	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
 	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
@@ -260,13 +255,6 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		getChargesOf: connect.NewClient[v1.GetChargesOfRequest, v1.GetChargesOfResponse](
-			httpClient,
-			baseURL+InternalServiceGetChargesOfProcedure,
-			connect.WithSchema(internalServiceMethods.ByName("GetChargesOf")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
 		getFreeze: connect.NewClient[v1.GetFreezeRequest, v1.GetFreezeResponse](
 			httpClient,
 			baseURL+InternalServiceGetFreezeProcedure,
@@ -301,7 +289,6 @@ type internalServiceClient struct {
 	getRuleSet        *connect.Client[v1.GetRuleSetRequest, v1.GetRuleSetResponse]
 	grantCharges      *connect.Client[v1.InternalGrantChargesRequest, v1.InternalGrantChargesResponse]
 	getRoom           *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
-	getChargesOf      *connect.Client[v1.GetChargesOfRequest, v1.GetChargesOfResponse]
 	getFreeze         *connect.Client[v1.GetFreezeRequest, v1.GetFreezeResponse]
 	getTiles          *connect.Client[v1.GetTilesRequest, v1.GetTilesResponse]
 }
@@ -381,11 +368,6 @@ func (c *internalServiceClient) GetRoom(ctx context.Context, req *connect.Reques
 	return c.getRoom.CallUnary(ctx, req)
 }
 
-// GetChargesOf calls planet.v1.InternalService.GetChargesOf.
-func (c *internalServiceClient) GetChargesOf(ctx context.Context, req *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error) {
-	return c.getChargesOf.CallUnary(ctx, req)
-}
-
 // GetFreeze calls planet.v1.InternalService.GetFreeze.
 func (c *internalServiceClient) GetFreeze(ctx context.Context, req *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error) {
 	return c.getFreeze.CallUnary(ctx, req)
@@ -442,8 +424,6 @@ type InternalServiceHandler interface {
 	// For each account asked, the kinds of charge it has no room for: a full stack, and a bomb while the rules in force
 	// hold charges.bomb.off.
 	GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error)
-	// All an account holds now.
-	GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error)
 	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
 	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
 	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
@@ -564,13 +544,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	internalServiceGetChargesOfHandler := connect.NewUnaryHandler(
-		InternalServiceGetChargesOfProcedure,
-		svc.GetChargesOf,
-		connect.WithSchema(internalServiceMethods.ByName("GetChargesOf")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
 	internalServiceGetFreezeHandler := connect.NewUnaryHandler(
 		InternalServiceGetFreezeProcedure,
 		svc.GetFreeze,
@@ -617,8 +590,6 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGrantChargesHandler.ServeHTTP(w, r)
 		case InternalServiceGetRoomProcedure:
 			internalServiceGetRoomHandler.ServeHTTP(w, r)
-		case InternalServiceGetChargesOfProcedure:
-			internalServiceGetChargesOfHandler.ServeHTTP(w, r)
 		case InternalServiceGetFreezeProcedure:
 			internalServiceGetFreezeHandler.ServeHTTP(w, r)
 		case InternalServiceGetTilesProcedure:
@@ -690,10 +661,6 @@ func (UnimplementedInternalServiceHandler) GrantCharges(context.Context, *connec
 
 func (UnimplementedInternalServiceHandler) GetRoom(context.Context, *connect.Request[v1.GetRoomRequest]) (*connect.Response[v1.GetRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetRoom is not implemented"))
-}
-
-func (UnimplementedInternalServiceHandler) GetChargesOf(context.Context, *connect.Request[v1.GetChargesOfRequest]) (*connect.Response[v1.GetChargesOfResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetChargesOf is not implemented"))
 }
 
 func (UnimplementedInternalServiceHandler) GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error) {

@@ -36,14 +36,14 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks
 
 type silentNotices struct{}
 
-func (silentNotices) Attend(clicks.Caller) (<-chan notices.Event, func()) {
+func (silentNotices) Attend(charges.Holder) (<-chan notices.Event, func()) {
 	return nil, func() {}
 }
 
-type addressedNotices map[clicks.Caller]chan notices.Event
+type addressedNotices map[charges.Holder]chan notices.Event
 
-func (f addressedNotices) Attend(caller clicks.Caller) (<-chan notices.Event, func()) {
-	return f[caller], func() {}
+func (f addressedNotices) Attend(holder charges.Holder) (<-chan notices.Event, func()) {
+	return f[holder], func() {}
 }
 
 type quietRules struct{}
@@ -191,18 +191,18 @@ func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {Fortification: fortification}}, sink.seen())
 }
 
-func TestAGrantToTheSignedInCallerIsCarriedToTheSink(t *testing.T) {
+func TestAGrantToTheCallersAccountIsCarriedToTheSinkAGuestsToo(t *testing.T) {
 	news := make(chan notices.Event, 1)
-	held := &charges.Held{Bomb: true, Shields: 20}
+	held := &charges.Gain{After: charges.Held{Bomb: true, Shields: 20}}
 	news <- notices.Event{Granted: held}
 
-	signedIn := cpctx.AddLinkedToContext(cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "acc-1"))
-	ctx, cancel := context.WithCancel(signedIn)
+	guest := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "acc-1")
+	ctx, cancel := context.WithCancel(guest)
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedNotices{"account:acc-1": news}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedNotices{"acc-1": news}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -223,7 +223,7 @@ func TestASpreadIsCarriedToTheSink(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(stubSubscriber{updates: make(chan clicks.Change)}, time.Hour,
-			addressedNotices{"1.2.3.4": news}, quietRules{},
+			addressedNotices{charges.NoHolder: news}, quietRules{},
 			facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
