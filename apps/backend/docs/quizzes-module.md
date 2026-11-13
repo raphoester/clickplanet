@@ -108,9 +108,11 @@ its own, for a caller with an account, right or wrong. A right one is then told 
   (`missions-answers`) and [progression](progression.md) (`player-stats-quizzes`). The last two kept their groups and read
   what the offers' stream still held first (`cpredis.SubscribeMoved` from `bonuses.v1.QuizAnswered`).
 
-**The registry no longer asks planet's room.** The offers offered a quiz only when a hand had room for a kind it could
-pay; the quizzes know no kind. A right answer whose hand has room for nothing is paid nothing, and the page says the
-inventory is full.
+**What a right answer pays did not change** ([A right answer](bonuses.md#a-right-answer)): a kind drawn from `kinds`
+among those the hand has room for, and shields for a newcomer's first quiz. **The one change to rewards: a quiz is asked
+even when the hand is full.** The offers offered a quiz only when a hand had room for a kind it could pay; the quizzes
+know no kind, so they no longer ask planet's room. A right answer whose hand has room for nothing is paid nothing, and
+the page says the inventory is full.
 
 **What the cut dropped: a box and a quiz no longer keep apart in time.** It was the only rule that tied the two; the
 owner chose to drop it rather than keep a link between two modules. A welcome no longer waits for a box to be gone.
