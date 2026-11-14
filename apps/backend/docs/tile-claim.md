@@ -15,7 +15,7 @@ one shield struck, the flag and the holder kept; any other tile is `Taken`, with
   did not see. The `previous` the ledger keeps is the owner the write replaced.
 - **The adapter decides nothing.** `inmemory_tile_storage` reads a `TileSnapshot` from its board and writes the one it
   is given. A write equal to the tile is no write: nothing published, no version counted. A change of owner moves
-  the landmass and flag counts (`putLocked`). A bomb's `Clear` and the operator's `Reassign` and `Restore` are one lock
+  the landmass and flag counts (`putLocked`). A bomb's `Clear` and the operator's `Restore` are one lock
   each too, with their own rule: the shields go home and nobody holds the tile.
 - **A lock, not a version per tile.** Every write already takes `s.mu` alone, to publish in version order. The read
   and the rule add well under a microsecond to that hold (a claim is ~0.4 µs on a laptop). A compare-and-set on a

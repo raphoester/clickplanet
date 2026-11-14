@@ -40,10 +40,10 @@ describe("Menu", () => {
         render(<Shown onGo={onGo}/>)
 
         fireEvent.click(burger())
-        fireEvent.click(screen.getByRole("button", {name: "Paint random tiles"}))
+        fireEvent.click(screen.getByRole("button", {name: "Download a replay"}))
 
-        expect(onGo).toHaveBeenCalledWith("paint")
-        expect(screen.getByText("Paint random tiles")).toBeTruthy()
+        expect(onGo).toHaveBeenCalledWith("replay")
+        expect(screen.getByText("Download a replay")).toBeTruthy()
         expect(screen.queryByRole("dialog")).toBeNull()
         expect(document.activeElement).toBe(burger())
     })

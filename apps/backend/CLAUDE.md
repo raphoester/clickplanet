@@ -206,7 +206,7 @@ and says what is in it. Read the doc before you change its area.
 ## Operator tools and jobs
 
 - [Operator tools (`AdminService`)](docs/admin.md) — the console and admin listeners; `GrantCharges`,
-  `ReleaseAllegiance`, `GetReplay`, `GetLedger`, `PaintRandomTiles`, manual bans and warnings, a player's Discord link, linking the
+  `ReleaseAllegiance`, `GetReplay`, `GetLedger`, manual bans and warnings, a player's Discord link, linking the
   Discord members.
 - [Claude as a connector](docs/connector.md) — every admin method is a tool Claude calls over MCP, read from the
   admin protos (a method's comment is its description); what is hidden; auth's OAuth 2.1 server and the tokens; the

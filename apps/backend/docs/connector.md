@@ -44,7 +44,7 @@ that listener (`props.AdminHTTP`), not admin services, so they are outside the g
   reason (`chat_list_moderation`, `player_list_renames`: see [The moderation history](chat.md#the-moderation-history)).
   A refusal (a Connect code and its sentence) is the tool's result with
   `isError`, so Claude reads it and tries again. Only a tool nobody offers is a JSON-RPC error. A call has 5 minutes:
-  a reassign or a reconciliation walks the whole map or every account.
+  a revert or a reconciliation walks the whole map or every account.
 - **MCP over Streamable HTTP, answered with plain JSON** (`mcpcontroller`): `initialize` (2025-06-18, 2025-03-26 or
   2024-11-05, the newest for any other), `ping`, `tools/list`, `tools/call`. A notification is a 202, and a batch is
   answered for its requests. No session id and no stream from the server: `GET` is a 405. The handshake carries

@@ -12,9 +12,9 @@ map started again, and what it holds is to be read again.
 
 - **`inmemory_tile_storage` keeps the counter beside the board and the landmasses**, under the same `s.mu`.
   `publishLocked` raises it and stamps the `clicks.Change` it publishes, so a write that changes nothing (a click on
-  a tile already its flag, a strike with no shield left) counts nothing. A bomb, a fortify and each tile of a reassign
-  or a restore count one each.
-- **Every publish runs under `s.mu`**, in a claim's writes (`Claim`, `Enclose`), `Clear`, `Shield`, `Reassign` and `Restore`. So
+  a tile already its flag, a strike with no shield left) counts nothing. A bomb, a fortify and each tile of a restore
+  count one each.
+- **Every publish runs under `s.mu`**, in a claim's writes (`Claim`, `Enclose`), `Clear`, `Shield` and `Restore`. So
   every stream gets the changes in the order of their versions: two writes cannot reach a channel in the other order.
   `feed.publish` never blocks (a full channel is cut, see [The live streams](live-streams.md)), about 1-2 µs for 50 to
   100 streams, so the lock is held no longer than a click already holds it. The lock order is `s.mu` then `feed.mu`;
@@ -60,6 +60,6 @@ backend sees its own tag. `MapDensity`, `GetFortresses` and `GetLandmass` get th
 
 The contract suite pins that each write counts one after the subscription's version, that a no-op counts nothing,
 that concurrent writes reach every subscriber in version order, and that a batch holds the map as it was at its
-version. `tally_test.go` pins that after a take, a bomb, an enclosure and a reassign the published rows equal a
+version. `tally_test.go` pins that after a take, a bomb, an enclosure and a restore the published rows equal a
 `Tally()` read right after, and list every row that changed; and that a fortify, which moves no count, publishes
 none. `cache_interceptor_test.go` pins the tag, the 304 and the weak match.

@@ -12,7 +12,7 @@ to the jury.
 - **A tile's shields are part of the tile**: `clicks.Tile` is its owner, its shields and
   its holder, kept by `inmemory_tile_storage` in one `tileState` per tile, under one lock.
   **Every change of owner sets them to 0** — a click, a spread, an enclose, a bomb,
-  `ReassignCountry`, `RevertPlayer`, `PaintRandomTiles` — so no shield ever stands on a
+  `RevertPlayer` — so no shield ever stands on a
   tile for a flag that lost it.
 - **The rule is `clicks.Tile.Claimed(flag, by)`**, pure and tested in the `clicks` root,
   over `clicks.OutcomeOf(owner, flag, shields)`: `Unchanged` when the tile wears the flag,

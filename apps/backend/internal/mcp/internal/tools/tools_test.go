@@ -92,7 +92,7 @@ func TestAReadIsAMethodMarkedNoSideEffects(t *testing.T) {
 
 	for name, reads := range map[string]bool{
 		"planet_top_players": true, "antibot_inspect_player": true, "support_list_notes": true, "chat_get_message": true,
-		"antibot_ban_player": false, "chat_mute": false, "planet_reassign_country": false,
+		"antibot_ban_player": false, "chat_mute": false, "planet_revert_player": false,
 		"chat_get_raid_mode": true, "chat_set_raid_mode": false,
 	} {
 		tool, err := c.Tool(name)

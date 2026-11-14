@@ -7,10 +7,9 @@
   Acted?"), run in order, and stop at the first refused, saying what was done before it. **A read asks nothing**
   (inspect, a dry run, a list, a replay): `useAction` runs it on a click and holds its answer, as `useCall` does on
   mount.
-- **What can be undone by nothing counts first**: a revert, a reassign and a paint stay disabled until their dry
-  run, and the question quotes it ("Give back the 120 tiles Ana holds?"). The dry run holds for the inputs it ran
-  on alone: changing a country disables the action again, and **a question whose inputs change under it is taken
-  back** (`ConfirmAction` with `disabled`).
+- **What can be undone by nothing counts first**: a revert stays disabled until its dry run, and the question
+  quotes it ("Give back the 120 tiles Ana holds?"). **A question whose action turns disabled under it is taken back**
+  (`ConfirmAction` with `disabled`).
 - **The refusals in plain words** (`wordsOf` in `refusal.ts`, and each section's `refusalOf` over it, which says
   what its `not_found`, `failed_precondition` and `unimplemented` mean): `not_found` is a message or a report no longer
   kept, or no ban left to lift; `unimplemented` is the antibot off (no ban, unban, warning or inspection) or the Discord
@@ -19,8 +18,8 @@
   of its work; a session that ended says to sign in again. **A time the server quotes is in the operator's own time**
   (`localized`): each UTC stamp (`2026-11-28T15:00:00Z`) and each time of day in UTC (`21:00 UTC`, on the day of the
   first stamp), so no refusal asks the operator to convert.
-- **The long calls take `LONG_CALL_MS`** (`api.ts`, 2 minutes) instead of the transport's 10s: a revert, a
-  reassign and a paint are paced on the server, a replay is MBs, and the two ops runs page through every player.
+- **The long calls take `LONG_CALL_MS`** (`api.ts`, 2 minutes) instead of the transport's 10s: a revert is
+  paced on the server, a replay is MBs, and the two ops runs page through every player.
 - **Every page takes its clients** (`clients.ts`: `AlertsAdmin`, `AntibotAdmin`, `BonusesAdmin`, `ChatAdmin`, `PlanetAdmin`, `PlayerAdmin`,
   `ProgressionAdmin`, `GamemasterAdmin`, `MissionsAdmin`, `QuizzesAdmin`, `SupportAdmin`, `ClipsAdmin`, `PromoAdmin`,
   `PublishingAdmin`, defaulting to `CLIENTS`), so a test hands it `FakeAdmin` (`fakeAdmin.ts`), which answers every method, records

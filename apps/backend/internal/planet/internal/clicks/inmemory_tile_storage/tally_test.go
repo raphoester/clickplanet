@@ -141,11 +141,11 @@ func (s *testSuite) TestAnEnclosureIsTalliedAsTheReadAfterIt() {
 	})
 }
 
-func (s *testSuite) TestAReassignIsTalliedAsTheReadAfterIt() {
+func (s *testSuite) TestARestoreIsTalliedAsTheReadAfterIt() {
 	storage := s.seeded()
 
 	s.assertTheTallyIsTheReadAfter(storage, func(ctx context.Context) {
-		_, _, err := storage.Reassign(ctx, "it", "de", 0, 100)
+		_, err := storage.Restore(ctx, []clicks.Restoration{{Tile: 1, From: "it", To: "de"}, {Tile: 2, From: "it", To: ""}})
 		s.Require().NoError(err)
 	})
 }

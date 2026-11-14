@@ -98,11 +98,7 @@ import {
     GetRulesResponse,
     GrantChargesRequest,
     GrantChargesResponse,
-    PaintRandomTilesRequest,
-    PaintRandomTilesResponse,
     Player,
-    ReassignCountryRequest,
-    ReassignCountryResponse,
     ReleaseAllegianceRequest,
     ReleaseAllegianceResponse,
     RevertPlayerRequest,
@@ -598,19 +594,6 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     findPlayers(request: PartialMessage<FindPlayersRequest>): Promise<FindPlayersResponse> {
         return this.answer("findPlayers", request, new FindPlayersResponse({players: this.players, total: 2}))
-    }
-
-    reassignCountry(request: PartialMessage<ReassignCountryRequest>): Promise<ReassignCountryResponse> {
-        const answer = request.dryRun === true
-            ? {fromBefore: 22040, toBefore: 300, fromAfter: 22040, toAfter: 300}
-            : {fromBefore: 22040, toBefore: 300, moved: 22040, fromAfter: 0, toAfter: 22340}
-        return this.answer("reassignCountry", request, new ReassignCountryResponse(answer))
-    }
-
-    paintRandomTiles(request: PartialMessage<PaintRandomTilesRequest>): Promise<PaintRandomTilesResponse> {
-        const painted = request.dryRun === true ? 0 : 498
-        return this.answer("paintRandomTiles", request,
-            new PaintRandomTilesResponse({eligible: 4000, picked: 500, painted, outsideArea: 12}))
     }
 
     getReplay(request: PartialMessage<GetReplayRequest>): Promise<GetReplayResponse> {

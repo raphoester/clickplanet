@@ -43,7 +43,7 @@ export const promoAdmin = createPromiseClient(PromoAdmin, transport)
 export const publishingAdmin = createPromiseClient(PublishingAdmin, transport)
 export const quizzesAdmin = createPromiseClient(QuizzesAdmin, transport)
 
-// For the calls that walk the whole map or every player: a revert, a reassign, a paint, a replay, a reconciliation.
+// For the calls that walk the whole map or every player: a revert, a replay, a reconciliation.
 export const LONG_CALL_MS = 120_000
 
 // XMLHttpRequest, not fetch: fetch cannot report how much of an upload is sent.

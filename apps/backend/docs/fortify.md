@@ -19,7 +19,7 @@ defence against taking back the last tile for a free refill, and it costs no tim
   that made the landmass whole.
 - **Only a player's take fortifies.** `clicks.Claiming` asks `Fortify` after each take,
   so a click, each tile of a spread and each tile of an enclose can; the answer is on
-  `Impact.Fortified`. A reassign or a revert that makes a landmass whole locks it to its
+  `Impact.Fortified`. A revert that makes a landmass whole locks it to its
   holder instead (`settleLocked`), and so does the boot for every whole landmass with no
   lock: so the launch, and an operator, can never hand out a free fortify.
 - **Kept with the tiles**: `planet.landmasses (map, asset, id, fortified_by)`, written by the
