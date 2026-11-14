@@ -2218,3 +2218,66 @@ a.button {
     padding-left: 18px;
     color: var(--bug);
 }
+
+/* Graffiti: each drawing the vandal squad flagged, drawn from the map's tile coordinates. */
+.graffiti-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.graffiti-row-text {
+    display: grid;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.graffiti-thumb {
+    flex: none;
+    display: block;
+    width: 56px;
+    height: 56px;
+    border-radius: 6px;
+    background: var(--map-land);
+}
+
+.graffiti-figure {
+    margin: 0 0 8px;
+    display: grid;
+    gap: 6px;
+}
+
+.graffiti-picture {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    aspect-ratio: 1;
+    border-radius: var(--radius);
+    background: var(--map-sea);
+}
+
+.graffiti-land {
+    fill: var(--map-land);
+    stroke: var(--surface);
+    stroke-width: 0.75px;
+    vector-effect: non-scaling-stroke;
+}
+
+.graffiti-drawn {
+    fill: var(--text);
+    stroke: var(--text);
+    stroke-width: 0.75px;
+    vector-effect: non-scaling-stroke;
+}
+
+.status-bad-text {
+    color: var(--bug);
+}
+
+.painter {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+}

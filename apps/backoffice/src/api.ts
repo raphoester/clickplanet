@@ -15,6 +15,7 @@ import {AdminService as MissionsAdmin} from "./gen/grpc/missions/v1/admin_connec
 import {AdminService as PromoAdmin} from "./gen/grpc/promo/v1/admin_connect.ts"
 import {AdminService as QuizzesAdmin} from "./gen/grpc/quizzes/v1/admin_connect.ts"
 import {AdminService as SupportAdmin} from "./gen/grpc/support/v1/admin_connect.ts"
+import {AdminService as VandalsquadAdmin} from "./gen/grpc/vandalsquad/v1/admin_connect.ts"
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "https://api.clickplanet.lol"
 
@@ -42,6 +43,7 @@ export const supportAdmin = createPromiseClient(SupportAdmin, transport)
 export const promoAdmin = createPromiseClient(PromoAdmin, transport)
 export const publishingAdmin = createPromiseClient(PublishingAdmin, transport)
 export const quizzesAdmin = createPromiseClient(QuizzesAdmin, transport)
+export const vandalsquadAdmin = createPromiseClient(VandalsquadAdmin, transport)
 
 // For the calls that walk the whole map or every player: a revert, a replay, a reconciliation.
 export const LONG_CALL_MS = 120_000

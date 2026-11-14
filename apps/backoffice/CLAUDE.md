@@ -30,6 +30,8 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [The player page](docs/player-page.md) — one search box, a sortable table, and one player: where it stands, every
   tool on it (a reason with each mute, unmute and rename), and its moderation history: what Claude and the operator did,
   and why.
+- [Graffiti](docs/graffiti.md) — the swastikas the vandal squad flagged, each drawn from the tile coordinates, north
+  up over the land around it, for a person to judge; its painter's ban and revert beside it.
 - [The map tools](docs/map-tools.md) — download a replay.
 - [A country on the page](docs/countries.md) — typed by its id and named below it; a flag is an emoji.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of

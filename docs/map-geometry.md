@@ -1,7 +1,7 @@
 # Shared map geometry
 
 `map/` is the **second thing the frontend and the backend share**, and the only other one (the backoffice carries
-the coordinates too, to draw where tiles changed hands): the tile coordinates blob,
+the coordinates too, to draw where tiles changed hands and the vandal squad's graffiti): the tile coordinates blob,
 which says where every tile is and therefore what a tile id means, and the borders blob, which says
 which country's ground each tile sits on. Beside them, each country's capital tile and the bridges over the sea, which
 an arena battle's rules read. **They are written by one command from one oracle**, so

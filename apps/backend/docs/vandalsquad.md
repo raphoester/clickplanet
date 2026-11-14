@@ -123,4 +123,6 @@ the window). It asks planet over the internal listener. Off, it is never built, 
 404s.
 
 `vandalsquad.v1.AdminService/ListGraffiti` is on the admin listener, so the connector offers it as
-`vandalsquad_list_graffiti` (see [Claude as a connector](connector.md)).
+`vandalsquad_list_graffiti` (see [Claude as a connector](connector.md)), and the backoffice's Graffiti page draws each
+graffiti from its tiles, for the operator to judge by eye, beside its painter's ban and revert (see the backoffice's
+[Graffiti](../../backoffice/docs/graffiti.md)).
