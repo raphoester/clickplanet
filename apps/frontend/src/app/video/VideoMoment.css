@@ -1,7 +1,28 @@
+/* Smaller than a title's medal: the moment has two lines under it, and its two buttons stay on a phone's screen. */
+.video-moment {
+    --medal: min(220px, 24vh, 48vw);
+}
+
 .video-moment-flag {
     display: flex;
     align-items: center;
     justify-content: center;
     height: var(--medal);
     font-size: calc(var(--medal) * 0.45);
+}
+
+.video-moment-line {
+    max-width: 100%;
+    font-size: clamp(var(--display-l), min(7vw, 5vh), var(--display-xxl));
+    text-wrap: balance;
+}
+
+/* The phrase's own space stands after the flag. */
+.video-moment-line .country-flag {
+    margin-right: 0;
+}
+
+.video-moment-why {
+    max-width: 30em;
+    text-wrap: pretty;
 }
