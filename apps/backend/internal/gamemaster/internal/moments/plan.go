@@ -160,9 +160,11 @@ func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, e
 		for i := range book.Battles {
 			book.Battles[i].Number = uint32(i + 1) //nolint:gosec // a season holds far fewer battles.
 		}
+		natural := slices.Clone(book.Days)
 		for i, day := range book.Days {
 			book.Days[i] = around(day, book.Battles)
 		}
+		endedEarly(book.Days, natural, book.Battles)
 		books = append(books, book)
 	}
 	return Plan{books: books, cutoff: cutoff}
@@ -181,6 +183,25 @@ func around(day season.Day, battles []Battle) season.Day {
 	return day
 }
 
+// endedEarly cuts the days around a battle whose end the operator moved sooner while it ran, so that it starts and ends
+// inside one day: that day ends as the battle starts, and the day after it starts as the battle ends, before its cutoff.
+// A battle to come never lies inside a day (Clashes), so only a battle ended early does.
+func endedEarly(days, natural []season.Day, battles []Battle) {
+	for i, day := range natural {
+		for _, battle := range battles {
+			if !battle.StartsAt.After(day.StartsAt) || !battle.EndsAt.Before(day.EndsAt) {
+				continue
+			}
+			if battle.StartsAt.Before(days[i].EndsAt) {
+				days[i].EndsAt = battle.StartsAt
+			}
+			if i+1 < len(days) && battle.EndsAt.Before(days[i+1].StartsAt) {
+				days[i+1].StartsAt = battle.EndsAt
+			}
+		}
+	}
+}
+
 func (p Plan) Clashes(now time.Time) error {
 	var found []error
 	for _, book := range p.books {
@@ -188,7 +209,8 @@ func (p Plan) Clashes(now time.Time) error {
 			if !battle.EndsAt.After(now) {
 				continue
 			}
-			if !p.cutoff.Is(battle.StartsAt) && !p.cutoff.Is(battle.EndsAt) {
+			// A battle that started may have been ended early, inside its day (endedEarly).
+			if battle.StartsAt.After(now) && !p.cutoff.Is(battle.StartsAt) && !p.cutoff.Is(battle.EndsAt) {
 				found = append(found, fmt.Errorf("%w, %s: %s", ErrOffCutoff, p.cutoff, battle))
 			}
 			for _, other := range book.Battles[i+1:] {

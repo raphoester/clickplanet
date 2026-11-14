@@ -156,9 +156,14 @@ even when it plays the set already playing, so it is called again.
 - **An operator adds an entry, or edits or deletes one that has not started** (`Entry.Changeable`). A start must be
   after now, an end after the start, the name a set's, and the description short enough (`Draft.check`, every reason
   at once, each reason found by `errors.Is`).
-- **A running entry runs to its end.** To fix one, the operator adds an entry at a higher priority. There is no "end
-  now", no override button, and no call that changes which set plays at once; a save of the set in force changes its
-  values at once (see [Rules](rules.md#the-operator)).
+- **A running entry changes only by ending sooner** (`Entry.Edited`, the owner, 2026-11-14): `EditEntry` with every
+  value the same but an end after now and before the one kept (`ErrInvalidEntry` otherwise; any other change is
+  `ErrStarted`). Never later: the battle's arena and the day after it were planned on its end. A battle ended early
+  is exempt from the cutoff rule once it started (`Plan.Clashes`), and the day it ran in gives the rest of itself to the
+  day after (`endedEarly`, see [A battle and the days](#a-battle-and-the-days)). Otherwise, to fix a running entry, the
+  operator adds an entry at a higher priority. There is no override button and no call that changes which set plays at
+  once; a save of the set in force changes its values at once (see [Rules](rules.md#the-operator)). Why: Capital Siege of
+  2026-11-14 was won at 19:54 and ran empty to 21:00.
 - **An edit keeps the entry's id and its `made_at`**, so it keeps its place in a tie.
 - **A battle fits between the season's days** (`Plan.Clashes`, `FailedPrecondition`; see [A battle and the
   days](#a-battle-and-the-days)): a new or edited entry is judged in the plan with it (`Planner.With`), in place of the
@@ -333,8 +338,14 @@ and two are never scored at once. Before, a battle ran inside a day and both sco
     refused.
 - **A battle that starts in a break is no round**, so it takes nothing from a day and is not judged. A battle that has
   ended is not judged either: an entry kept before the rule stays as it was planned.
-- **An entry changes only before it starts**, so every day edge it moves is still to come: scoring hears a day's end
-  only in its `CloseRound`.
+- **A battle ended early** (its end moved sooner while it ran, see [Only an entry to come
+  changes](#only-an-entry-to-come-changes)) starts and ends inside one day: that day ends as it starts, as before, and
+  **the day after starts as it ends**, before its cutoff (`endedEarly`). Capital Siege from 19:00 to 21:00, ended at
+  20:10: day K scored at 19:00, the battle at 20:10, its arena closed, and day K+1 opened and told from 20:10 to the next
+  21:00 (pinned second by second in `arenanight`). The arena's end freeze is not moved, since planet was told the old
+  end: see [Arena battles](arenas.md#known-gaps).
+- **An entry changes only before it starts, but for an earlier end**, so every day edge it moves is still to come:
+  scoring hears a day's end only in its `CloseRound`.
 
 ## The ids
 

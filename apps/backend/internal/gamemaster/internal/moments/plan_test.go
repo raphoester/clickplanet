@@ -131,6 +131,32 @@ func TestADayKeepsWhatTheBattlesAtItsStartAndItsEndLeaveIt(t *testing.T) {
 	})
 }
 
+func TestABattleEndedEarlyGivesTheRestOfItsDayToTheDayAfter(t *testing.T) {
+	endedAt := at(30, 19).Add(10 * time.Minute)
+	// The battle of 18:00 to 21:00, its end moved to 19:10 while it ran.
+	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, at(30, 18), endedAt))
+
+	before, ok := plan.DayAt(at(30, 17))
+	require.True(t, ok)
+	assert.Equal(t, season.Day{Season: 0, Number: 23, StartsAt: at(29, 21), EndsAt: at(30, 18)}, before)
+	_, ok = plan.DayAt(at(30, 19))
+	assert.False(t, ok, "the battle runs")
+	after, ok := plan.DayAt(endedAt)
+	require.True(t, ok)
+	assert.Equal(t, season.Day{Season: 0, Number: 24, StartsAt: endedAt, EndsAt: at(31, 21)}, after)
+	assert.Len(t, plan.DaysOf(0), 24)
+	due := plan.DueAt(endedAt)
+	assert.Contains(t, due, moments.Command{
+		Action: moments.CloseRound, Book: "season-0", Round: moments.BattleRoundOf(early), At: endedAt,
+	})
+	assert.Contains(t, due, moments.Command{
+		Action: moments.OpenRound, Book: "season-0", Round: "season-0/day-24", Times: 1, At: endedAt,
+		Ranking: moments.RankedByHeldAndGain,
+	})
+	require.NoError(t, plan.Clashes(at(30, 19)), "it started, so it may end off the cutoff")
+	require.ErrorIs(t, plan.Clashes(at(30, 17)), moments.ErrOffCutoff, "a battle to come may not")
+}
+
 func TestBattlesThatFitBetweenTheDaysClashWithNothing(t *testing.T) {
 	plan := moments.NewPlan(calendar(rush), cutoff, nil,
 		battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 21), at(30, 23)), battle(last, at(31, 18), finaleAt),
