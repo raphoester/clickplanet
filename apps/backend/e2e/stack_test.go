@@ -53,6 +53,9 @@ const (
 	judgeKey = "sk-ant-e2e-key"
 )
 
+// dailyCutoff is production's 21:00 unless a test moves it before it starts the game.
+var dailyCutoff = 21 * time.Hour
+
 type gameStack struct {
 	baseURL    string
 	consoleURL string
@@ -110,7 +113,7 @@ func startGame(t *testing.T) gameStack {
 
 	quizzesConfig := quizzes.Config{Database: postgres.ConfigFor("quizzes"), Redis: redis}
 
-	gamemasterConfig := gamemaster.Config{Database: postgres.ConfigFor("gamemaster"), Redis: redis, DailyCutoff: 21 * time.Hour}
+	gamemasterConfig := gamemaster.Config{Database: postgres.ConfigFor("gamemaster"), Redis: redis, DailyCutoff: dailyCutoff}
 	seasonRuns(t, gamemasterConfig.Database)
 
 	chatConfig := chat.Config{Database: postgres.ConfigFor("chat"), Redis: redis}
@@ -236,7 +239,8 @@ func waitUntilServed(t *testing.T, address string) {
 	require.NoError(t, res.Body.Close())
 }
 
-// Season 0 ends 30 days on at 23:00, so its 2 h finale starts at the cutoff. The gamemaster tells scoring at boot.
+// Season 0 ends 30 days on, 2 h past the cutoff, so its 2 h finale starts at the cutoff. The gamemaster tells scoring
+// at boot.
 func seasonRuns(t *testing.T, database cppg.Config) {
 	t.Helper()
 
@@ -246,7 +250,7 @@ func seasonRuns(t *testing.T, database cppg.Config) {
 	defer func() { _ = db.Close() }()
 	_, err := db.On(t.Context()).ExecContext(t.Context(),
 		`UPDATE seasons SET length = $1::timestamptz - timestamptz '2026-10-08T00:00:00Z' WHERE number = 0`,
-		time.Now().Add(30*24*time.Hour).UTC().Truncate(24*time.Hour).Add(23*time.Hour))
+		time.Now().Add(30*24*time.Hour).UTC().Truncate(24*time.Hour).Add(dailyCutoff+2*time.Hour))
 	require.NoError(t, err)
 }
 
