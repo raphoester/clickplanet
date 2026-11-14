@@ -48,7 +48,10 @@ All of it is pure and tested, in `src/domain/video/story.ts`:
   between the first frame and the last. Under a hundredth of that country is a quiet day: then it is the country where
   the flag holds the most, weighed by its share, so 62% of Poland comes before 1% of Russia.
 - **The headline**, a fixed English sentence: "POLAND TOOK 40% OF GERMANY", "POLAND IS LOSING GERMANY. HELP", "POLAND
-  HOLDS 62% OF POLAND". A share is never rounded up, and never 0% for something. Names as the clips say them
+  HOLDS 62% OF GERMANY". When the country is the flag's own (`atHome`), it is not named twice: "POLAND TOOK BACK 40% OF
+  ITS LAND", "POLAND IS LOSING GROUND AT HOME. HELP", "POLAND HOLDS 62% OF ITS LAND". The shared text says the same in
+  the player's language (`videoHeadline`, the `video.headline.*Home` lines). A share is never rounded up, and never 0%
+  for something. Names as the clips say them
   (`src/clip/names.ts`: CLDR's English name, with its article).
 - **The name**: clips' `GetShownNames` for the maker alone. A guest, and a player whose name is not shown, has no name
   on the video.
