@@ -49,7 +49,9 @@ map too.
   (held, or a newcomer's choice) does not stand, "France is out" (or "England has no capital"), "Pick a flag that is
   still in.", and the list of the flags still in. A pick pledges at once (the server lets a flag that does not stand
   change past the lock and the hour). **It can be closed, to watch** (the owner, 2026-11-10); a click out of reach opens
-  it again (`useStanding.ask`).
+  it again (`useStanding.ask`). **Each time it opens, its list takes no pick for 2 s** (`ARM_MS`), dimmed, and a click
+  on the backdrop does not close it: it opens under a player still clicking the globe, whose next click picked the flag
+  under the finger and locked it (the owner, 2026-11-14, in a Capital Siege).
 - **The menu's picker** lists only the flags still in while the knock-out plays, and is open to a player whose flag does
   not stand (`lockOf` learns the standing): see [The flag played for](flag.md).
 - **The fake backend plays neither rule.** Check them on the local stack.
