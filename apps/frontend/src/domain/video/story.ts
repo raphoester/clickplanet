@@ -87,15 +87,25 @@ export type Naming = {
     said: (name: string) => string
 }
 
+// The flag's day is in its own country: the headline says "its land" and "at home", never "POLAND IS LOSING POLAND".
+export function atHome(story: VideoStory): boolean {
+    return story.flag === story.country
+}
+
 export function headlineOf(story: VideoStory, {nameOf, said}: Naming): string {
     const flag = said(nameOf(story.flag))
     const country = said(nameOf(story.country))
+    const home = atHome(story)
     switch (story.kind) {
-        case "gain":
-            return `${flag} took ${percentOf(story.end - story.start, story.tiles)}% of ${country}`.toUpperCase()
+        case "gain": {
+            const share = percentOf(story.end - story.start, story.tiles)
+            return (home ? `${flag} took back ${share}% of its land` : `${flag} took ${share}% of ${country}`).toUpperCase()
+        }
         case "loss":
-            return `${flag} is losing ${country}. Help`.toUpperCase()
-        case "quiet":
-            return `${flag} holds ${percentOf(story.end, story.tiles)}% of ${country}`.toUpperCase()
+            return (home ? `${flag} is losing ground at home. Help` : `${flag} is losing ${country}. Help`).toUpperCase()
+        case "quiet": {
+            const share = percentOf(story.end, story.tiles)
+            return (home ? `${flag} holds ${share}% of its land` : `${flag} holds ${share}% of ${country}`).toUpperCase()
+        }
     }
 }

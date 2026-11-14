@@ -20,7 +20,12 @@ video made, shared or saved. There is no reward in the game (see [Delivery](#del
 - **"Make my video", the first tile of Share** (`app/video/VideoTile.tsx`, in `SharePlace`), above "Take a picture".
 - **Three moments**: the day reveal of a day the flag won (`wonTheDay`) gets "Make my video"; the flag losing a fifth
   or more of a country gets a moment of its own (`VideoMoment`, the announcement `video`, once a day,
-  `clickplanet-video-loss`), with the headline; "You are in a clip!" gets "Make yours".
+  `clickplanet-video-loss`); "You are in a clip!" gets "Make yours".
+- **The loss moment says what happened and what the button does**, in the player's language: "Call for backup!", the
+  player's flag, "Your flag is losing ground in 🇩🇪 Germany", then "The game makes a video of it in one tap. Once
+  posted, its link brings new players to your flag.", and "Make my video" or "Not now". Not the video's headline:
+  alone on the screen, "FRANCE : FRANCE PERD DU TERRAIN. À L'AIDE" read as news nobody explained, and said the country
+  twice when the flag loses its own. Its medal is smaller than a title's, so both buttons stay on a phone's screen.
 - **Red dots**, one on the tile and one on the Share tab (the menu's rail and the phone's tab bar), in `--action`. They
   light at most once a day, only when the flag gained or lost a tenth of a country in the 24 hours, at the first visit
   of the day or the first of the three moments, whichever the page reads first (`dotsAfter`,
@@ -43,7 +48,10 @@ All of it is pure and tested, in `src/domain/video/story.ts`:
   between the first frame and the last. Under a hundredth of that country is a quiet day: then it is the country where
   the flag holds the most, weighed by its share, so 62% of Poland comes before 1% of Russia.
 - **The headline**, a fixed English sentence: "POLAND TOOK 40% OF GERMANY", "POLAND IS LOSING GERMANY. HELP", "POLAND
-  HOLDS 62% OF POLAND". A share is never rounded up, and never 0% for something. Names as the clips say them
+  HOLDS 62% OF GERMANY". When the country is the flag's own (`atHome`), it is not named twice: "POLAND TOOK BACK 40% OF
+  ITS LAND", "POLAND IS LOSING GROUND AT HOME. HELP", "POLAND HOLDS 62% OF ITS LAND". The shared text says the same in
+  the player's language (`videoHeadline`, the `video.headline.*Home` lines). A share is never rounded up, and never 0%
+  for something. Names as the clips say them
   (`src/clip/names.ts`: CLDR's English name, with its article).
 - **The name**: clips' `GetShownNames` for the maker alone. A guest, and a player whose name is not shown, has no name
   on the video.

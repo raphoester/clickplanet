@@ -78,6 +78,14 @@ describe("the video's headline", () => {
         expect(headlineOf(story("quiet", 62, 62), naming)).toBe("POLAND HOLDS 62% OF GERMANY")
     })
 
+    it("does not name the country twice when the flag's day is in its own", () => {
+        const home = (kind: VideoStory["kind"], start: number, end: number) => ({...story(kind, start, end), country: "pl"})
+
+        expect(headlineOf(home("gain", 0, 40), naming)).toBe("POLAND TOOK BACK 40% OF ITS LAND")
+        expect(headlineOf(home("loss", 60, 10), naming)).toBe("POLAND IS LOSING GROUND AT HOME. HELP")
+        expect(headlineOf(home("quiet", 62, 62), naming)).toBe("POLAND HOLDS 62% OF ITS LAND")
+    })
+
     it("says a name with its article", () => {
         expect(headlineOf({...story("gain", 0, 40), flag: "gb"}, naming)).toBe("THE UK TOOK 40% OF GERMANY")
     })

@@ -3,10 +3,12 @@ import {createPortal} from "react-dom"
 import {VideoStory} from "../../domain/video/story.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
+import {FilmIcon} from "../components/icons.tsx"
 import {useModalDialog} from "../components/useDialog.ts"
+import {countryInOf} from "../missions/orderParts.tsx"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import {t} from "../../i18n/page.ts"
-import {videoHeadline} from "./videoHeadline.ts"
+import {rich} from "../../i18n/rich.tsx"
 import "../titles/TitleUnlocked.css"
 import "../clips/ClipNotice.css"
 import "./VideoMoment.css"
@@ -18,10 +20,12 @@ export type VideoMomentProps = {
     onClose: () => void
 }
 
-// The flag is losing a country: the moment offers the video that calls for help.
+// The flag is losing a country: the moment says so, and offers the video that calls for help. Not the video's
+// headline: shown alone, out of the video, it read as news nobody explained.
 export default function VideoMoment({story, play, onMake, onClose}: VideoMomentProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
+    const lineId = useId()
     const [ready, setReady] = useState(false)
 
     useEffect(() => {
@@ -41,22 +45,29 @@ export default function VideoMoment({story, play, onMake, onClose}: VideoMomentP
              className="title-reveal clip-notice video-moment"
              role="dialog"
              aria-modal="true"
-             aria-labelledby={headId}
+             aria-labelledby={`${headId} ${lineId}`}
              tabIndex={-1}
              style={timing}>
             <div className="title-reveal-stage">
-                <h2 id={headId} className="title-reveal-head clip-notice-head">{videoHeadline(story)}</h2>
+                <h2 id={headId} className="title-reveal-head clip-notice-head">{t("video.moment.head")}</h2>
                 <div className="title-reveal-medal">
                     <div className="title-reveal-rays" aria-hidden="true"/>
-                    <span className="title-reveal-float video-moment-flag"><CountryFlag code={story.country}/></span>
+                    <span className="title-reveal-float video-moment-flag"><CountryFlag code={story.flag}/></span>
                 </div>
+                <p id={lineId} className="title-reveal-name video-moment-line">
+                    {rich("video.moment.losing", {where: countryInOf(story.country)})}
+                </p>
+                <p className="title-reveal-rank video-moment-why">{t("video.moment.why")}</p>
                 <div className="title-reveal-actions clip-notice-actions">
                     {ready && <>
                         <button type="button" className="button button-action" onClick={() => {
                             onClose()
                             onMake()
-                        }}>{t("video.make")}</button>
-                        <button type="button" className="button" onClick={onClose}>{t("common.close")}</button>
+                        }}>
+                            <FilmIcon size={22}/>
+                            {t("video.make")}
+                        </button>
+                        <button type="button" className="button" onClick={onClose}>{t("video.moment.later")}</button>
                     </>}
                 </div>
             </div>
