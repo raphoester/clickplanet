@@ -249,6 +249,11 @@ count none: a fact counts only inside a day, and a battle is no day.
   the battle's set.
 - **The knock-out without the reach**: a flag that is out can still take tiles. With the reach, a flag with no land
   reaches nothing. Fix it when a mode needs it: the allegiance refuses a take for a flag that does not stand.
+- **An arena battle ended early** (see the gamemaster's [Only an entry to come
+  changes](gamemaster.md#only-an-entry-to-come-changes)) has no end freeze: planet keeps the end it was told at the
+  open. At the new end the next turn's set plays at once while the battle is scored and the arena closes, a second or
+  two in which the arena takes clicks under that set (no reach, no knock-out under `default`). The operator brackets the
+  end with a plain entry of `frozen` at a higher priority, from 30 s before the new end to a few minutes after it.
 - **A season end moved during an arena battle** cuts the battle; the arena's `ends_at` is the one planet was told, so
   the end's freeze starts late (the close still comes once the cut battle is scored).
 

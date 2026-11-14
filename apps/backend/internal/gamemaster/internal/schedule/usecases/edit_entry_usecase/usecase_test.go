@@ -119,3 +119,18 @@ func TestAMovedBattleIsJudgedInPlaceOfTheOneKept(t *testing.T) {
 
 	require.NoError(t, err)
 }
+
+func TestARunningBattleEndsSooner(t *testing.T) {
+	store := kept(t)
+	seasons := inmemory_season_store.New()
+	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 0, Length: finale.Add(26 * time.Hour).Sub(season.Origin)}.Restore()))
+	sooner := schedule.Draft{Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 1, Times: 3}
+
+	err := edit_entry_usecase.New(store, planned(seasons, store), all, cptime.NewFixedClock(finale.Add(30*time.Minute))).
+		Execute(t.Context(), first, sooner)
+
+	require.NoError(t, err)
+	entry, err := store.Entry(t.Context(), first)
+	require.NoError(t, err)
+	assert.Equal(t, finale.Add(time.Hour), entry.TakeSnapshot().EndsAt)
+}

@@ -178,9 +178,13 @@ func (e Entry) Changeable(now time.Time) error {
 	return nil
 }
 
-// Edited is the entry with the draft's values, and keeps its place in a tie.
+// Edited is the entry with the draft's values, and keeps its place in a tie. A running entry changes only by ending
+// sooner (endedSooner).
 func (e Entry) Edited(draft Draft, now time.Time) (Entry, error) {
 	if err := e.Changeable(now); err != nil {
+		if e.runs(now) && e.onlyEndMoved(draft) {
+			return e.endedSooner(draft.EndsAt, now)
+		}
 		return Entry{}, err
 	}
 	if err := draft.check(now); err != nil {
@@ -190,6 +194,25 @@ func (e Entry) Edited(draft Draft, now time.Time) (Entry, error) {
 		id: e.id, set: draft.Set, kind: draft.Kind, description: draft.Description, startsAt: draft.StartsAt, endsAt: draft.EndsAt,
 		priority: draft.Priority, times: draft.Times, madeAt: e.madeAt,
 	}, nil
+}
+
+// onlyEndMoved is true when the draft holds every value of the entry but its end.
+func (e Entry) onlyEndMoved(draft Draft) bool {
+	return draft.Set == e.set && draft.Kind == e.kind && draft.Description == e.description &&
+		draft.StartsAt.Equal(e.startsAt) && draft.Priority == e.priority && draft.Times == e.times &&
+		!draft.EndsAt.Equal(e.endsAt)
+}
+
+// endedSooner is a running entry that ends at a time after now and before its end: never later, since a battle's arena
+// and the day after it were planned on its end.
+func (e Entry) endedSooner(endsAt, now time.Time) (Entry, error) {
+	if !endsAt.After(now) || !endsAt.Before(e.endsAt) {
+		return Entry{}, fmt.Errorf("%w: it has started, and may only end sooner, after now and before %s, not at %s",
+			ErrInvalidEntry, e.endsAt.UTC().Format(time.RFC3339), endsAt.UTC().Format(time.RFC3339))
+	}
+	ended := e
+	ended.endsAt = endsAt
+	return ended, nil
 }
 
 func (e Entry) TakeSnapshot() EntrySnapshot {

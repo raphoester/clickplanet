@@ -113,6 +113,43 @@ func TestAnEntryThatStartedNeitherChangesNorGoes(t *testing.T) {
 	require.ErrorIs(t, err, schedule.ErrStarted)
 }
 
+func TestARunningEntryMayEndSooner(t *testing.T) {
+	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
+	require.NoError(t, err)
+	running := finale.Add(30 * time.Minute)
+
+	ended, err := made.Edited(draft("calm", finale, running.Add(time.Minute), 1), running)
+
+	require.NoError(t, err)
+	assert.Equal(t, schedule.EntrySnapshot{
+		ID: id(1), Set: "calm", Kind: schedule.Battle, Description: words, StartsAt: finale, EndsAt: running.Add(time.Minute),
+		Priority: 1, Times: 3, MadeAt: now,
+	}, ended.TakeSnapshot(), "it keeps its place in a tie")
+}
+
+func TestARunningEntryEndsNeitherLaterNorByNowNorChangesAnythingElse(t *testing.T) {
+	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
+	require.NoError(t, err)
+	running := finale.Add(30 * time.Minute)
+
+	for name, asked := range map[string]schedule.Draft{
+		"later":       draft("calm", finale, battleEnds.Add(time.Minute), 1),
+		"now":         draft("calm", finale, running, 1),
+		"in the past": draft("calm", finale, running.Add(-time.Minute), 1),
+	} {
+		_, err := made.Edited(asked, running)
+		require.ErrorIs(t, err, schedule.ErrInvalidEntry, name)
+	}
+	_, err = made.Edited(draft("rush", finale, running.Add(time.Minute), 1), running)
+	require.ErrorIs(t, err, schedule.ErrStarted, "another set")
+	_, err = made.Edited(draft("calm", finale, running.Add(time.Minute), 2), running)
+	require.ErrorIs(t, err, schedule.ErrStarted, "another priority")
+	_, err = made.Edited(draft("calm", finale, battleEnds, 1), running)
+	require.ErrorIs(t, err, schedule.ErrStarted, "the same end is no change")
+	_, err = made.Edited(draft("calm", finale, battleEnds.Add(-time.Minute), 1), battleEnds)
+	require.ErrorIs(t, err, schedule.ErrStarted, "once it ended")
+}
+
 func TestAnEditIsCheckedAsANewEntry(t *testing.T) {
 	made, err := schedule.NewEntry(id(1), draft("calm", finale, battleEnds, 1), now)
 	require.NoError(t, err)

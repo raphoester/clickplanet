@@ -168,6 +168,7 @@ type night struct {
 	clock   *cptime.FixedClock
 	journal *journal
 	planner moments.Planner
+	entries *inmemory_entry_store.Store
 	kept    *inmemory_moment_store.Store
 	judged  *inmemory_arena_store.Store
 	outbox  *cpatomic.FakeOutbox
@@ -191,7 +192,7 @@ func newNight(t *testing.T, at time.Time) *night {
 	kept, judged := inmemory_moment_store.New(), inmemory_arena_store.New()
 	notes := &journal{clock: clock}
 	n := &night{
-		t: t, clock: clock, journal: notes, kept: kept, judged: judged, outbox: &cpatomic.FakeOutbox{},
+		t: t, clock: clock, journal: notes, entries: entries, kept: kept, judged: judged, outbox: &cpatomic.FakeOutbox{},
 		planner: moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour)),
 		scoring: &scoring{journal: notes, opened: cpcolls.NewSet[moments.RoundID]()},
 		planet: &planet{
@@ -347,4 +348,38 @@ func TestAnArenaPlanetRefusesAtItsEndNeverOpensItsRoundAndDay24Opens(t *testing.
 		"23:00:01 open round season-0/day-24 from nothing false",
 		"23:00:01 day 24 told",
 	}, n.journal.entries, "the battle never counts from nothing on the world's map")
+}
+
+func TestAnArenaBattleEndedEarlyIsScoredThenTheMapComesBackAndTheNextDayOpensAtOnce(t *testing.T) {
+	// Capital Siege's shape: from 19:00 to the 21:00 cutoff, its end moved to 20:10 while it runs.
+	starts, endedAt := arenaStarts.Add(-2*time.Hour), arenaStarts.Add(-50*time.Minute)
+	n := newNight(t, starts.Add(-time.Minute))
+	siege := schedule.EntrySnapshot{
+		ID: arenaEntry, Set: "arena-battle", Kind: schedule.Battle, Description: "Arena battle.", StartsAt: starts,
+		EndsAt: arenaStarts, Priority: 1, Times: 2, MadeAt: starts.Add(-24 * time.Hour),
+	}
+	require.NoError(t, n.entries.Save(t.Context(), siege.Restore()))
+	n.until(starts.Add(-time.Second))
+	n.journal.entries = nil
+	n.until(starts.Add(30 * time.Minute))
+	ended, err := siege.Restore().Edited(schedule.Draft{
+		Set: siege.Set, Kind: siege.Kind, Description: siege.Description, StartsAt: starts, EndsAt: endedAt,
+		Priority: siege.Priority, Times: siege.Times,
+	}, n.clock.Now())
+	require.NoError(t, err)
+	require.NoError(t, n.entries.Save(t.Context(), ended))
+
+	n.until(arenaStarts.Add(time.Minute))
+
+	assert.Equal(t, []string{
+		"19:00:00 close round season-0/day-23",
+		"19:00:00 scored season-0/day-23",
+		"19:00:00 blank the map",
+		"19:00:01 open round " + string(fought) + " from nothing true",
+		"20:10:00 close round " + string(fought),
+		"20:10:00 scored " + string(fought),
+		"20:10:00 map back",
+		"20:10:01 open round season-0/day-24 from nothing false",
+		"20:10:01 day 24 told",
+	}, n.journal.entries)
 }
