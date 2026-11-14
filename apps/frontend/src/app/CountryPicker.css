@@ -23,3 +23,10 @@
     opacity: 0.6;
     pointer-events: none;
 }
+
+/* The out window's list, the first moments it is open: seen, not yet taking a pick. */
+.country-picker-list[data-waiting="true"] {
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
