@@ -565,7 +565,7 @@ export default function PlayScreen(props: PlayScreenProps) {
             fullBank={signInRefill}
             onClose={nudge.close}/>}
 
-        <OutModal flag={countryState} onPick={pickCountry}/>
+        <OutModal flag={countryState} allegiance={allegiance} onPick={pickCountry}/>
 
         {invitation.asked && allegiance && <InvitedModal key={invitation.asked.code}
                                                          friend={invitation.asked}

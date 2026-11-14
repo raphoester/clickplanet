@@ -42,7 +42,8 @@ and so is one from an account that pledged none.
   country once an hour."), and while the flag is held, when the next change is,
   with no list. Under the rules' lock it says `LOCKED_LINE` ("You can't change country right now.") alone, with no
   list. **There is no confirm step**: a tap on a country switches, since
-  the rule is right above it. A pick that failed for another reason says so, and
+  the rule is right above it. The knock-out's out window has one, since it opens under a player still clicking
+  (see [The capitals](capitals.md)). A pick that failed for another reason says so, and
   the picker stays open.
 - **While the knock-out plays the picker lists only the flags still in** (`useStanding`, see [The capitals](capitals.md)),
   with no flag selected when the one played is out, and `lockOf(allegiance, now, standing)` locks nothing for a flag held that
