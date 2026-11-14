@@ -1,19 +1,22 @@
 // @vitest-environment jsdom
 import {StrictMode} from "react"
-import {afterEach, describe, expect, it, vi} from "vitest"
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
 import {Countries} from "../../domain/countries.ts"
 import {standingOf} from "../../domain/standing.ts"
 import CountryPicker from "../CountryPicker.tsx"
 import {useStanding} from "./standingStore.ts"
-import OutModal, {ARM_MS} from "./OutModal.tsx"
+import OutModal, {CONFIRM_ARM_MS} from "./OutModal.tsx"
 
 const france = Countries.get("fr")!
 const england = Countries.get("gb-eng")!
 
 // Paris fell; Berlin and Rome stand.
 const standing = standingOf(new Map([[1, "fr"], [2, "de"], [3, "it"]]), new Set(["fr"]))
+
+beforeEach(() => {
+    vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
+})
 
 afterEach(() => {
     cleanup()
@@ -23,13 +26,14 @@ afterEach(() => {
 
 const dialog = () => screen.queryByRole("dialog")
 // fireEvent, not userEvent: userEvent waits on the timers these tests fake.
-const clickAndSettle = (target: Element) => act(async () => { fireEvent.click(target) })
-const arm = () => act(() => { vi.advanceTimersByTime(ARM_MS) })
+const click = (target: Element) => act(async () => { fireEvent.click(target) })
+const wait = (ms: number) => act(() => { vi.advanceTimersByTime(ms) })
+const option = (name: string) => screen.getByRole("option", {name})
+const button = (name: string) => screen.getByRole("button", {name})
 const options = () => within(screen.getByRole("listbox", {name: "Country"})).getAllByRole("option").map((option) => option.textContent)
 
 describe("the out window", () => {
-    it("tells a player whose flag is out to pick a flag still in, from those alone", async () => {
-        vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
+    it("tells a player whose flag is out to pick a flag still in, from those alone, and pledges it once confirmed", async () => {
         useStanding.getState().follow(standing)
         const onPick = vi.fn(async () => {})
         render(<StrictMode><OutModal flag={france} onPick={onPick}/></StrictMode>)
@@ -38,44 +42,60 @@ describe("the out window", () => {
         expect(screen.getByText("Pick a flag that is still in.")).toBeDefined()
         expect(options()).toEqual(["Germany", "Italy"])
 
-        arm()
-        await clickAndSettle(screen.getByRole("option", {name: "Germany"}))
+        await click(option("Germany"))
+        expect(screen.getByRole("dialog", {name: "Play for Germany?"})).toBeDefined()
+        expect(onPick).not.toHaveBeenCalled()
+
+        wait(CONFIRM_ARM_MS)
+        await click(button("Confirm"))
         expect(onPick).toHaveBeenCalledWith(Countries.get("de"))
     })
 
-    it("takes no pick the first moments it is open, nor closes on the backdrop, so a click meant for a tile pledges nothing", async () => {
-        vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
+    it("takes no confirm the first moment it shows, so a double click on a country pledges nothing", async () => {
         useStanding.getState().follow(standing)
         const onPick = vi.fn(async () => {})
         render(<OutModal flag={france} onPick={onPick}/>)
 
-        await clickAndSettle(screen.getByRole("option", {name: "Germany"}))
-        await clickAndSettle(document.querySelector(".modal")!)
-        act(() => { vi.advanceTimersByTime(ARM_MS - 100) })
-        await clickAndSettle(screen.getByRole("option", {name: "Italy"}))
+        await click(option("Germany"))
+        await click(button("Confirm"))
+        wait(CONFIRM_ARM_MS - 100)
+        await click(button("Confirm"))
         expect(onPick).not.toHaveBeenCalled()
-        expect(dialog()).not.toBeNull()
+        expect((button("Confirm") as HTMLButtonElement).disabled).toBe(true)
 
-        act(() => { vi.advanceTimersByTime(100) })
-        await clickAndSettle(screen.getByRole("option", {name: "Italy"}))
-        expect(onPick).toHaveBeenCalledWith(Countries.get("it"))
+        wait(100)
+        expect((button("Confirm") as HTMLButtonElement).disabled).toBe(false)
+        await click(button("Confirm"))
+        expect(onPick).toHaveBeenCalledWith(Countries.get("de"))
     })
 
-    it("waits again each time it opens", async () => {
-        vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
+    it("goes back to the list, and waits again on the next pick, even of the same country", async () => {
         useStanding.getState().follow(standing)
         const onPick = vi.fn(async () => {})
         render(<OutModal flag={france} onPick={onPick}/>)
-        arm()
 
-        await clickAndSettle(screen.getByRole("button", {name: "Close"}))
-        act(() => useStanding.getState().ask())
-        await clickAndSettle(screen.getByRole("option", {name: "Germany"}))
+        await click(option("Germany"))
+        wait(CONFIRM_ARM_MS)
+        await click(button("Back"))
+        expect(screen.getByRole("dialog", {name: "France is out"})).toBeDefined()
+
+        await click(option("Germany"))
+        await click(button("Confirm"))
         expect(onPick).not.toHaveBeenCalled()
 
-        arm()
-        await clickAndSettle(screen.getByRole("option", {name: "Germany"}))
+        wait(CONFIRM_ARM_MS)
+        await click(button("Confirm"))
         expect(onPick).toHaveBeenCalledWith(Countries.get("de"))
+    })
+
+    it("says when the flag picked can change again", async () => {
+        useStanding.getState().follow(standing)
+        const {rerender} = render(<OutModal flag={france} allegiance={{countryId: "fr", locked: true}} onPick={vi.fn()}/>)
+        await click(option("Italy"))
+        expect(screen.getByText("You can't change your flag again unless this one is knocked out too.")).toBeDefined()
+
+        rerender(<OutModal flag={france} allegiance={{countryId: "fr"}} onPick={vi.fn()}/>)
+        expect(screen.getByText("You can change your flag again in an hour, or at once if this one is knocked out too.")).toBeDefined()
     })
 
     it("tells a region flag's player that it has no capital", () => {
@@ -98,7 +118,7 @@ describe("the out window", () => {
         useStanding.getState().follow(standing)
         render(<OutModal flag={france} onPick={vi.fn()}/>)
 
-        await userEvent.click(screen.getByRole("button", {name: "Close"}))
+        await click(button("Close"))
         expect(dialog()).toBeNull()
 
         act(() => useStanding.getState().ask())
@@ -106,16 +126,16 @@ describe("the out window", () => {
     })
 
     it("says so when the pick fails, and stays", async () => {
-        vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
         useStanding.getState().follow(standing)
         vi.spyOn(console, "error").mockImplementation(() => {})
         render(<OutModal flag={france} onPick={vi.fn(async () => { throw new Error("refused") })}/>)
 
-        arm()
-        await clickAndSettle(screen.getByRole("option", {name: "Italy"}))
+        await click(option("Italy"))
+        wait(CONFIRM_ARM_MS)
+        await click(button("Confirm"))
 
         expect(screen.getByRole("alert").textContent).toBe("Could not change your flag. Try again.")
-        expect(dialog()).not.toBeNull()
+        expect(screen.getByRole("dialog", {name: "Play for Italy?"})).toBeDefined()
     })
 })
 
