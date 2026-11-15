@@ -57,6 +57,26 @@ describe("BonusAward", () => {
         expect(screen.queryByRole("status")).toBeNull()
     })
 
+    it("says the inventory is full when a box caught held nothing, then goes away", () => {
+        render(<BonusAward/>)
+        act(() => useBonus.getState().winNothing())
+
+        expect(screen.getByRole("status").textContent).toBe("Your inventory is already full")
+
+        act(() => void vi.advanceTimersByTime(AWARD_MS))
+        expect(useBonus.getState().emptyBox).toBe(false)
+        expect(screen.queryByRole("status")).toBeNull()
+    })
+
+    it("shows a reward won after a box that held nothing, and not the empty box", () => {
+        render(<BonusAward/>)
+        act(() => useBonus.getState().winNothing())
+        award(REWARD)
+
+        expect(screen.getByText("Refill")).toBeTruthy()
+        expect(screen.queryByText("Your inventory is already full")).toBeNull()
+    })
+
     it("still goes away while its parent re-renders around it", () => {
         const {rerender} = render(<BonusAward/>)
         award(REWARD)

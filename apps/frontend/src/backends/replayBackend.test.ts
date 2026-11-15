@@ -133,7 +133,7 @@ describe("a replay", () => {
         backend.listenForBombs((drop: BombDrop) => seen.push(`bomb ${drop.cleared.join(",")}`))
         backend.listenForBonuses({
             onSpread: (click: SpreadClick) => seen.push(`spread ${click.tile}`),
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onCharges: () => {}, onRules: () => {},
+            onEnclosed: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
         backend.advanceTo(SINCE + 3_000)
@@ -159,7 +159,7 @@ describe("a replay", () => {
         const seen: {seq: number, filled: number[]}[] = []
         backend.listenForBonuses({
             onEnclosed: ({version, filled}) => seen.push({seq: version.seq, filled}),
-            onOffered: () => {}, onTaken: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
+            onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
         backend.advanceTo(SINCE + 1_000)

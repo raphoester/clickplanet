@@ -4,47 +4,22 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Duration, Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * When a box comes, and what a box or a right answer may be and how much it grants. "default" holds every value; another
- * set holds the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
- * (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules);
- * when a quiz comes is the quizzes' (quizzes.v1.Rules).
+ * What a box caught or a right answer may be and how much it grants, and the sign-in refill. "default" holds every
+ * value; another set holds the values it changes, and plays default's for every value it leaves unset. Postgres keeps it
+ * as protojson (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's
+ * (planet.v1.ChargeRules); when a quiz comes is the quizzes' (quizzes.v1.Rules), when a box comes the boxes'
+ * (boxes.v1.Rules).
  *
  * @generated from message bonuses.v1.Rules
  */
 export class Rules extends Message<Rules> {
   /**
-   * @generated from field: bonuses.v1.BoxPace boxes = 1;
-   */
-  boxes?: BoxPace;
-
-  /**
    * @generated from field: bonuses.v1.KindWeights kinds = 2;
    */
   kinds?: KindWeights;
-
-  /**
-   * How long a box flies. It must outlast the flight the page draws.
-   *
-   * @generated from field: google.protobuf.Duration offer_ttl = 3;
-   */
-  offerTtl?: Duration;
-
-  /**
-   * A box missed brings the next one this soon, once.
-   *
-   * @generated from field: google.protobuf.Duration miss_retry = 4;
-   */
-  missRetry?: Duration;
-
-  /**
-   * No box for a caller that has not clicked for this long.
-   *
-   * @generated from field: google.protobuf.Duration active_within = 5;
-   */
-  activeWithin?: Duration;
 
   /**
    * @generated from field: bonuses.v1.SpreadRules spread = 6;
@@ -62,23 +37,11 @@ export class Rules extends Message<Rules> {
   shield?: ShieldRules;
 
   /**
-   * @generated from field: bonuses.v1.WelcomeRules welcome = 9;
-   */
-  welcome?: WelcomeRules;
-
-  /**
    * A guest's first sign-in earns a refill, once per account.
    *
    * @generated from field: optional bool sign_in_refill = 11;
    */
   signInRefill?: boolean;
-
-  /**
-   * No box is offered, and ClaimBonus is refused.
-   *
-   * @generated from field: optional bool frozen = 12;
-   */
-  frozen?: boolean;
 
   constructor(data?: PartialMessage<Rules>) {
     super();
@@ -88,17 +51,11 @@ export class Rules extends Message<Rules> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "bonuses.v1.Rules";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "boxes", kind: "message", T: BoxPace },
     { no: 2, name: "kinds", kind: "message", T: KindWeights },
-    { no: 3, name: "offer_ttl", kind: "message", T: Duration },
-    { no: 4, name: "miss_retry", kind: "message", T: Duration },
-    { no: 5, name: "active_within", kind: "message", T: Duration },
     { no: 6, name: "spread", kind: "message", T: SpreadRules },
     { no: 7, name: "enclose", kind: "message", T: EncloseRules },
     { no: 8, name: "shield", kind: "message", T: ShieldRules },
-    { no: 9, name: "welcome", kind: "message", T: WelcomeRules },
     { no: 11, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-    { no: 12, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -115,55 +72,6 @@ export class Rules extends Message<Rules> {
 
   static equals(a: Rules | PlainMessage<Rules> | undefined, b: Rules | PlainMessage<Rules> | undefined): boolean {
     return proto3.util.equals(Rules, a, b);
-  }
-}
-
-/**
- * @generated from message bonuses.v1.BoxPace
- */
-export class BoxPace extends Message<BoxPace> {
-  /**
-   * @generated from field: google.protobuf.Duration min_interval = 1;
-   */
-  minInterval?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration max_interval = 2;
-   */
-  maxInterval?: Duration;
-
-  /**
-   * @generated from field: optional uint32 max_charges_per_hour = 3;
-   */
-  maxChargesPerHour?: number;
-
-  constructor(data?: PartialMessage<BoxPace>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.BoxPace";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "min_interval", kind: "message", T: Duration },
-    { no: 2, name: "max_interval", kind: "message", T: Duration },
-    { no: 3, name: "max_charges_per_hour", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BoxPace {
-    return new BoxPace().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BoxPace {
-    return new BoxPace().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BoxPace {
-    return new BoxPace().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: BoxPace | PlainMessage<BoxPace> | undefined, b: BoxPace | PlainMessage<BoxPace> | undefined): boolean {
-    return proto3.util.equals(BoxPace, a, b);
   }
 }
 
@@ -347,51 +255,6 @@ export class ShieldRules extends Message<ShieldRules> {
 
   static equals(a: ShieldRules | PlainMessage<ShieldRules> | undefined, b: ShieldRules | PlainMessage<ShieldRules> | undefined): boolean {
     return proto3.util.equals(ShieldRules, a, b);
-  }
-}
-
-/**
- * An account younger than `within` gets its first box `box_after` it was made. 0s is off.
- *
- * @generated from message bonuses.v1.WelcomeRules
- */
-export class WelcomeRules extends Message<WelcomeRules> {
-  /**
-   * @generated from field: google.protobuf.Duration within = 1;
-   */
-  within?: Duration;
-
-  /**
-   * @generated from field: google.protobuf.Duration box_after = 2;
-   */
-  boxAfter?: Duration;
-
-  constructor(data?: PartialMessage<WelcomeRules>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "bonuses.v1.WelcomeRules";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "within", kind: "message", T: Duration },
-    { no: 2, name: "box_after", kind: "message", T: Duration },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WelcomeRules {
-    return new WelcomeRules().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WelcomeRules {
-    return new WelcomeRules().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WelcomeRules {
-    return new WelcomeRules().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: WelcomeRules | PlainMessage<WelcomeRules> | undefined, b: WelcomeRules | PlainMessage<WelcomeRules> | undefined): boolean {
-    return proto3.util.equals(WelcomeRules, a, b);
   }
 }
 

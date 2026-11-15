@@ -13,9 +13,9 @@ export const InternalService = {
   typeName: "bonuses.v1.InternalService",
   methods: {
     /**
-     * Plays the rule set of this name. The offers keep the latest decision by decided_at, so a call made twice, or after
-     * a newer one, changes nothing. FailedPrecondition for a name the offers keep no set of, or a set they cannot play:
-     * they play on the set they play.
+     * Plays the rule set of this name. The bonuses module keeps the latest decision by decided_at, so a call made twice, or
+     * after a newer one, changes nothing. FailedPrecondition for a name it keeps no set of, or a set it cannot play: it
+     * plays on the set it plays.
      *
      * @generated from rpc bonuses.v1.InternalService.PlayRuleSet
      */

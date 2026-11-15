@@ -7,8 +7,8 @@ import { GetRulesRequest, GetRulesResponse, SaveRuleSetRequest, SaveRuleSetRespo
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The rules the boxes are offered by, and what a box, a right answer and a sign-in grant. No authentication of its own: served on the console listener, and on
- * the admin listener behind its gate. Never the public router.
+ * What a box caught, a right answer and a sign-in grant. No authentication of its own: served on the console listener,
+ * and on the admin listener behind its gate. Never the public router.
  *
  * @generated from service bonuses.v1.AdminService
  */
@@ -16,8 +16,9 @@ export const AdminService = {
   typeName: "bonuses.v1.AdminService",
   methods: {
     /**
-     * Every rule set the offers keep, and the one they play now: when a box comes, and what a box or a right answer may
-     * be and how much it grants. When a quiz comes is the quizzes' rules. SaveRuleSet changes one.
+     * Every rule set the bonuses module keeps, and the one it plays now: what a box caught or a right answer may be and how
+     * much it grants, and the sign-in refill. When a box comes is the boxes' rules, when a quiz comes the quizzes'.
+     * SaveRuleSet changes one.
      *
      * @generated from rpc bonuses.v1.AdminService.GetRules
      */

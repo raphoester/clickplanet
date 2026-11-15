@@ -606,6 +606,7 @@
   "bonus.shield": "Štít",
   "bonus.spread.switchOn": "Zapni rozptyl: každý klik obsadí i pole kolem",
   "bonus.gotIt": "Jasně",
+  "bonus.inventoryFull": "Inventář máš už plný",
   "reward.refill.detail": "Doplní ti kliky naplno, kdy chceš",
   "reward.spreadClicks": "{clicks, plural, one {+# klik s rozptylem} few {+# kliky s rozptylem} many {+# kliku s rozptylem} other {+# kliků s rozptylem}}",
   "reward.bomb.detail": "Vyčistí pole v oblasti. Zaměř ji z inventáře",

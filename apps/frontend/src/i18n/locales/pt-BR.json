@@ -606,6 +606,7 @@
   "bonus.shield": "Escudo",
   "bonus.spread.switchOn": "Ligue o espalhamento: cada clique também toma as casas em volta",
   "bonus.gotIt": "Entendi",
+  "bonus.inventoryFull": "Seu inventário já está cheio",
   "reward.refill.detail": "Enche seus cliques até o máximo, quando você quiser",
   "reward.spreadClicks": "{clicks, plural, one {+# clique de espalhamento} many {+# de cliques de espalhamento} other {+# cliques de espalhamento}}",
   "reward.bomb.detail": "Zera as casas de uma área. Mire pelo seu inventário",

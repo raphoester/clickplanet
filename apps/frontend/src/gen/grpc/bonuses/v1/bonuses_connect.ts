@@ -3,12 +3,13 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BonusEvent, ClaimBonusRequest, ClaimBonusResponse, GetGrantRulesRequest, GetGrantRulesResponse, ListenForEventsRequest } from "./bonuses_pb.js";
+import { GetGrantRulesRequest, GetGrantRulesResponse } from "./bonuses_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * The boxes the game offers a caller, and what each grants. What a box, a right answer or a sign-in grants is planet's
- * charges, in planet's words (planet.v1.BonusKind, planet.v1.ChargesHeld): the offers grant, planet holds and spends.
+ * What a box caught, a right answer or a sign-in grants: planet's charges. The bonuses module draws and pays them
+ * through planet's wallet; the reward comes on planet's stream (planet.v1.ChargesGranted). The boxes are the boxes
+ * module's since 2026-11-15 (boxes.v1.BoxService).
  *
  * @generated from service bonuses.v1.BonusService
  */
@@ -16,31 +17,7 @@ export const BonusService = {
   typeName: "bonuses.v1.BonusService",
   methods: {
     /**
-     * A box offered to the caller, caught: planet keeps what fits the hand. NotFound for a box not offered to the caller,
-     * gone or caught already. FailedPrecondition with a FrozenRefusal while the offers or the map take no play.
-     *
-     * @generated from rpc bonuses.v1.BonusService.ClaimBonus
-     */
-    claimBonus: {
-      name: "ClaimBonus",
-      I: ClaimBonusRequest,
-      O: ClaimBonusResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * The boxes offered to the caller, every box caught by anyone, and each set the offers take. A heartbeat at once and
-     * every so often.
-     *
-     * @generated from rpc bonuses.v1.BonusService.ListenForEvents
-     */
-    listenForEvents: {
-      name: "ListenForEvents",
-      I: ListenForEventsRequest,
-      O: BonusEvent,
-      kind: MethodKind.ServerStreaming,
-    },
-    /**
-     * What the page shows of the rules the offers play.
+     * What the page shows of the rules the bonuses module plays.
      *
      * @generated from rpc bonuses.v1.BonusService.GetGrantRules
      */
