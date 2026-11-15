@@ -42,3 +42,15 @@ func TestAnAddressGetsThreeLettersThenOneEveryTwentyMinutes(t *testing.T) {
 
 	assert.Len(t, mailer.Sent(), 5)
 }
+
+func TestTheFormsOfOneMailboxShareItsBudgetAndEachLetterGoesWhereItWasAsked(t *testing.T) {
+	p, mailer := post(cptime.NewFixedClock(now))
+	for _, address := range []signin.Address{"jane+1@gmail.com", "j.a.n.e@gmail.com", "jane@googlemail.com"} {
+		require.NoError(t, p.Send(t.Context(), address, signin.CodeLetter("000001")))
+	}
+
+	require.ErrorIs(t, p.Send(t.Context(), "jane+4@gmail.com", signin.CodeLetter("000001")), signin.ErrTooManyCodes,
+		"a fourth form of the address is the same inbox")
+	require.Len(t, mailer.Sent(), 3)
+	assert.Equal(t, signin.Address("j.a.n.e@gmail.com"), mailer.Sent()[1].To)
+}

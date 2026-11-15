@@ -14,7 +14,7 @@ type Store interface {
 
 	Account(ctx context.Context, account AccountID) (*Account, error)
 	Identity(ctx context.Context, provider string, subject string) (*Identity, error)
-	AccountOfEmail(ctx context.Context, address string) (*Account, error)
+	AccountOfMailbox(ctx context.Context, mailbox Mailbox) (*Account, error)
 	SaveSignIn(ctx context.Context, signIn SignIn) error
 	RequestDeletion(ctx context.Context, account AccountID, at time.Time) error
 	DeleteAccount(ctx context.Context, account AccountID) error

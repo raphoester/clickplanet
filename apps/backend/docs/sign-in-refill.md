@@ -22,7 +22,8 @@ at the moment it ran dry. The client asks a guest to sign in at that moment (the
   an account moves the browser there, and a verified address that another account holds joins that account: that
   account had its profile, so nothing is earned, and the guest the browser leaves gets nothing. A second provider, or
   a sign-out then a sign-in, makes no profile either. So a switch of account earns nothing, and each refill needs a
-  new identity: a Google or Discord account, or an email address that is not disposable ([Auth](auth.md)).
+  new identity: a Google or Discord account, or a mailbox that is not disposable, whatever form of its address is typed
+  ([One mailbox, one player](mailboxes.md)).
 - **What farming wins.** The refill fills what the player spent from its own bank. A guest spends from its network's
   shared guest bank too ([Rate limiting](rate-limiting.md)), so all the refills that a network's guests can earn are
   bounded by what that shared bank let through: one bank, refilled at 0.2 clicks a second, or at the signed-in pace
