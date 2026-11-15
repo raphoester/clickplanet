@@ -25,7 +25,7 @@ internal/clips/internal/
 
 - **The file first, the row after**, as a support note's files: `CreateVideoUpload(content_type, size_bytes)` answers
   an id and a link, and the page sends the file there with one `PUT`, straight to the bucket. No byte passes through
-  the server (1 GB of memory, and Cloudflare cuts a proxied body at 100 MB). Then `KeepVideo(video_id, name, caption)`
+  the server (4 GB of memory, and Cloudflare cuts a proxied body at 100 MB). Then `KeepVideo(video_id, name, caption)`
   reads the file back with a `HEAD` and keeps the type and the size the bucket holds, never what the page said. A file
   that is not there is `FailedPrecondition`.
 - **An mp4, a mov or a webm, of 500 MiB at most** (`clips.videos.maxBytes`): anything else is `InvalidArgument`, at the
