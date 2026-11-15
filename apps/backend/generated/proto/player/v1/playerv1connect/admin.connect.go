@@ -42,6 +42,9 @@ const (
 	// AdminServiceSearchPlayersProcedure is the fully-qualified name of the AdminService's
 	// SearchPlayers RPC.
 	AdminServiceSearchPlayersProcedure = "/player.v1.AdminService/SearchPlayers"
+	// AdminServiceSearchPlayersByEmailProcedure is the fully-qualified name of the AdminService's
+	// SearchPlayersByEmail RPC.
+	AdminServiceSearchPlayersByEmailProcedure = "/player.v1.AdminService/SearchPlayersByEmail"
 	// AdminServiceRenamePlayerProcedure is the fully-qualified name of the AdminService's RenamePlayer
 	// RPC.
 	AdminServiceRenamePlayerProcedure = "/player.v1.AdminService/RenamePlayer"
@@ -61,6 +64,11 @@ type AdminServiceClient interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
+	// Every account holding a verified email address that contains the text typed, in any case: the address of an
+	// emailed code, or the one Google or Discord verified, one row per identity. Ordered by the address, then the oldest
+	// link first, a page at a time; a page shorter than the limit is the last one. It shows players' addresses: read it
+	// to find who holds an address, never to copy them out. InvalidArgument for an empty text.
+	SearchPlayersByEmail(context.Context, *connect.Request[v1.SearchPlayersByEmailRequest]) (*connect.Response[v1.SearchPlayersByEmailResponse], error)
 	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
 	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
 	// Every rename an operator made, with the old and the new name, the reason given and who made it, newest first.
@@ -108,6 +116,13 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		searchPlayersByEmail: connect.NewClient[v1.SearchPlayersByEmailRequest, v1.SearchPlayersByEmailResponse](
+			httpClient,
+			baseURL+AdminServiceSearchPlayersByEmailProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SearchPlayersByEmail")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		renamePlayer: connect.NewClient[v1.RenamePlayerRequest, v1.RenamePlayerResponse](
 			httpClient,
 			baseURL+AdminServiceRenamePlayerProcedure,
@@ -126,12 +141,13 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	getPlayers    *connect.Client[v1.GetPlayersRequest, v1.GetPlayersResponse]
-	getPlayer     *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
-	getRoster     *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
-	searchPlayers *connect.Client[v1.SearchPlayersRequest, v1.SearchPlayersResponse]
-	renamePlayer  *connect.Client[v1.RenamePlayerRequest, v1.RenamePlayerResponse]
-	listRenames   *connect.Client[v1.ListRenamesRequest, v1.ListRenamesResponse]
+	getPlayers           *connect.Client[v1.GetPlayersRequest, v1.GetPlayersResponse]
+	getPlayer            *connect.Client[v1.AdminGetPlayerRequest, v1.AdminGetPlayerResponse]
+	getRoster            *connect.Client[v1.GetRosterRequest, v1.GetRosterResponse]
+	searchPlayers        *connect.Client[v1.SearchPlayersRequest, v1.SearchPlayersResponse]
+	searchPlayersByEmail *connect.Client[v1.SearchPlayersByEmailRequest, v1.SearchPlayersByEmailResponse]
+	renamePlayer         *connect.Client[v1.RenamePlayerRequest, v1.RenamePlayerResponse]
+	listRenames          *connect.Client[v1.ListRenamesRequest, v1.ListRenamesResponse]
 }
 
 // GetPlayers calls player.v1.AdminService.GetPlayers.
@@ -152,6 +168,11 @@ func (c *adminServiceClient) GetRoster(ctx context.Context, req *connect.Request
 // SearchPlayers calls player.v1.AdminService.SearchPlayers.
 func (c *adminServiceClient) SearchPlayers(ctx context.Context, req *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error) {
 	return c.searchPlayers.CallUnary(ctx, req)
+}
+
+// SearchPlayersByEmail calls player.v1.AdminService.SearchPlayersByEmail.
+func (c *adminServiceClient) SearchPlayersByEmail(ctx context.Context, req *connect.Request[v1.SearchPlayersByEmailRequest]) (*connect.Response[v1.SearchPlayersByEmailResponse], error) {
+	return c.searchPlayersByEmail.CallUnary(ctx, req)
 }
 
 // RenamePlayer calls player.v1.AdminService.RenamePlayer.
@@ -175,6 +196,11 @@ type AdminServiceHandler interface {
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
 	// Every account whose username, or guest code until it chooses one, holds the name typed, in any case. InvalidArgument for an empty name.
 	SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error)
+	// Every account holding a verified email address that contains the text typed, in any case: the address of an
+	// emailed code, or the one Google or Discord verified, one row per identity. Ordered by the address, then the oldest
+	// link first, a page at a time; a page shorter than the limit is the last one. It shows players' addresses: read it
+	// to find who holds an address, never to copy them out. InvalidArgument for an empty text.
+	SearchPlayersByEmail(context.Context, *connect.Request[v1.SearchPlayersByEmailRequest]) (*connect.Response[v1.SearchPlayersByEmailResponse], error)
 	// Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
 	RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error)
 	// Every rename an operator made, with the old and the new name, the reason given and who made it, newest first.
@@ -218,6 +244,13 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceSearchPlayersByEmailHandler := connect.NewUnaryHandler(
+		AdminServiceSearchPlayersByEmailProcedure,
+		svc.SearchPlayersByEmail,
+		connect.WithSchema(adminServiceMethods.ByName("SearchPlayersByEmail")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceRenamePlayerHandler := connect.NewUnaryHandler(
 		AdminServiceRenamePlayerProcedure,
 		svc.RenamePlayer,
@@ -241,6 +274,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetRosterHandler.ServeHTTP(w, r)
 		case AdminServiceSearchPlayersProcedure:
 			adminServiceSearchPlayersHandler.ServeHTTP(w, r)
+		case AdminServiceSearchPlayersByEmailProcedure:
+			adminServiceSearchPlayersByEmailHandler.ServeHTTP(w, r)
 		case AdminServiceRenamePlayerProcedure:
 			adminServiceRenamePlayerHandler.ServeHTTP(w, r)
 		case AdminServiceListRenamesProcedure:
@@ -268,6 +303,10 @@ func (UnimplementedAdminServiceHandler) GetRoster(context.Context, *connect.Requ
 
 func (UnimplementedAdminServiceHandler) SearchPlayers(context.Context, *connect.Request[v1.SearchPlayersRequest]) (*connect.Response[v1.SearchPlayersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.SearchPlayers is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SearchPlayersByEmail(context.Context, *connect.Request[v1.SearchPlayersByEmailRequest]) (*connect.Response[v1.SearchPlayersByEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("player.v1.AdminService.SearchPlayersByEmail is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) RenamePlayer(context.Context, *connect.Request[v1.RenamePlayerRequest]) (*connect.Response[v1.RenamePlayerResponse], error) {

@@ -46,6 +46,7 @@ func TestEveryAdminMethodIsATool(t *testing.T) {
 	assert.Equal(t, "/chat.v1.AdminService/RemoveMessage", names["chat_remove_message"])
 	assert.Equal(t, "/missions.v1.AdminService/ListFlagDays", names["missions_list_flag_days"])
 	assert.Equal(t, "/missions.v1.AdminService/SaveRules", names["missions_save_rules"])
+	assert.Equal(t, "/player.v1.AdminService/SearchPlayersByEmail", names["player_search_players_by_email"])
 	assert.Equal(t, "/progression.v1.AdminService/ReconcileTitles", names["progression_reconcile_titles"])
 	assert.Equal(t, "/support.v1.AdminService/DecideReport", names["support_decide_report"])
 	assert.Equal(t, "/vandalsquad.v1.AdminService/ListGraffiti", names["vandalsquad_list_graffiti"])

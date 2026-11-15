@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_token_operator_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/search_emails_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
@@ -54,6 +55,7 @@ type InternalService struct {
 	get_discord_grant_handler.GetDiscordGrantHandler
 	get_discord_users_handler.GetDiscordUsersHandler
 	get_token_operator_handler.GetTokenOperatorHandler
+	search_emails_handler.SearchEmailsHandler
 }
 
 var _ authv1connect.InternalServiceHandler = InternalService{}

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetDiscordGrantRequest, GetDiscordGrantResponse, GetDiscordUsersRequest, GetDiscordUsersResponse, GetOperatorRequest, GetOperatorResponse, GetTokenOperatorRequest, GetTokenOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse } from "./internal_pb.js";
+import { GetAccountRequest, GetAccountResponse, GetAccountsRequest, GetAccountsResponse, GetDiscordGrantRequest, GetDiscordGrantResponse, GetDiscordUsersRequest, GetDiscordUsersResponse, GetOperatorRequest, GetOperatorResponse, GetTokenOperatorRequest, GetTokenOperatorResponse, GetVerifyingKeyRequest, GetVerifyingKeyResponse, SearchEmailsRequest, SearchEmailsResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -86,6 +86,21 @@ export const InternalService = {
       name: "GetDiscordUsers",
       I: GetDiscordUsersRequest,
       O: GetDiscordUsersResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Every identity holding a verified email address that contains the text, in any case: the address of an emailed
+     * code, or the one Google or Discord verified. Ordered by the address, then the oldest link first, a page at a time;
+     * a page shorter than the limit is the last one. An account its player asked to delete is in it: it still holds the
+     * address. For player.v1.AdminService/SearchPlayersByEmail. InvalidArgument for an empty text.
+     *
+     * @generated from rpc auth.v1.InternalService.SearchEmails
+     */
+    searchEmails: {
+      name: "SearchEmails",
+      I: SearchEmailsRequest,
+      O: SearchEmailsResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

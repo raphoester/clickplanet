@@ -5,7 +5,7 @@
 
 import { GetPlayersRequest, GetPlayersResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
-import { AdminGetPlayerRequest, AdminGetPlayerResponse, ListRenamesRequest, ListRenamesResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
+import { AdminGetPlayerRequest, AdminGetPlayerResponse, ListRenamesRequest, ListRenamesResponse, RenamePlayerRequest, RenamePlayerResponse, SearchPlayersByEmailRequest, SearchPlayersByEmailResponse, SearchPlayersRequest, SearchPlayersResponse } from "./admin_pb.js";
 import { GetRosterRequest, GetRosterResponse } from "./player_pb.js";
 
 /**
@@ -62,6 +62,21 @@ export const AdminService = {
       name: "SearchPlayers",
       I: SearchPlayersRequest,
       O: SearchPlayersResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Every account holding a verified email address that contains the text typed, in any case: the address of an
+     * emailed code, or the one Google or Discord verified, one row per identity. Ordered by the address, then the oldest
+     * link first, a page at a time; a page shorter than the limit is the last one. It shows players' addresses: read it
+     * to find who holds an address, never to copy them out. InvalidArgument for an empty text.
+     *
+     * @generated from rpc player.v1.AdminService.SearchPlayersByEmail
+     */
+    searchPlayersByEmail: {
+      name: "SearchPlayersByEmail",
+      I: SearchPlayersByEmailRequest,
+      O: SearchPlayersByEmailResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

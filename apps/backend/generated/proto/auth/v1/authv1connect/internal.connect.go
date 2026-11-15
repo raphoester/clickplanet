@@ -54,6 +54,9 @@ const (
 	// InternalServiceGetDiscordUsersProcedure is the fully-qualified name of the InternalService's
 	// GetDiscordUsers RPC.
 	InternalServiceGetDiscordUsersProcedure = "/auth.v1.InternalService/GetDiscordUsers"
+	// InternalServiceSearchEmailsProcedure is the fully-qualified name of the InternalService's
+	// SearchEmails RPC.
+	InternalServiceSearchEmailsProcedure = "/auth.v1.InternalService/SearchEmails"
 )
 
 // InternalServiceClient is a client for the auth.v1.InternalService service.
@@ -72,6 +75,11 @@ type InternalServiceClient interface {
 	// Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
 	// account its player asked to delete is left out. A page shorter than the limit is the last one.
 	GetDiscordUsers(context.Context, *connect.Request[v1.GetDiscordUsersRequest]) (*connect.Response[v1.GetDiscordUsersResponse], error)
+	// Every identity holding a verified email address that contains the text, in any case: the address of an emailed
+	// code, or the one Google or Discord verified. Ordered by the address, then the oldest link first, a page at a time;
+	// a page shorter than the limit is the last one. An account its player asked to delete is in it: it still holds the
+	// address. For player.v1.AdminService/SearchPlayersByEmail. InvalidArgument for an empty text.
+	SearchEmails(context.Context, *connect.Request[v1.SearchEmailsRequest]) (*connect.Response[v1.SearchEmailsResponse], error)
 }
 
 // NewInternalServiceClient constructs a client for the auth.v1.InternalService service. By default,
@@ -130,6 +138,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		searchEmails: connect.NewClient[v1.SearchEmailsRequest, v1.SearchEmailsResponse](
+			httpClient,
+			baseURL+InternalServiceSearchEmailsProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("SearchEmails")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -142,6 +157,7 @@ type internalServiceClient struct {
 	getTokenOperator *connect.Client[v1.GetTokenOperatorRequest, v1.GetTokenOperatorResponse]
 	getDiscordGrant  *connect.Client[v1.GetDiscordGrantRequest, v1.GetDiscordGrantResponse]
 	getDiscordUsers  *connect.Client[v1.GetDiscordUsersRequest, v1.GetDiscordUsersResponse]
+	searchEmails     *connect.Client[v1.SearchEmailsRequest, v1.SearchEmailsResponse]
 }
 
 // GetVerifyingKey calls auth.v1.InternalService.GetVerifyingKey.
@@ -179,6 +195,11 @@ func (c *internalServiceClient) GetDiscordUsers(ctx context.Context, req *connec
 	return c.getDiscordUsers.CallUnary(ctx, req)
 }
 
+// SearchEmails calls auth.v1.InternalService.SearchEmails.
+func (c *internalServiceClient) SearchEmails(ctx context.Context, req *connect.Request[v1.SearchEmailsRequest]) (*connect.Response[v1.SearchEmailsResponse], error) {
+	return c.searchEmails.CallUnary(ctx, req)
+}
+
 // InternalServiceHandler is an implementation of the auth.v1.InternalService service.
 type InternalServiceHandler interface {
 	GetVerifyingKey(context.Context, *connect.Request[v1.GetVerifyingKeyRequest]) (*connect.Response[v1.GetVerifyingKeyResponse], error)
@@ -195,6 +216,11 @@ type InternalServiceHandler interface {
 	// Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
 	// account its player asked to delete is left out. A page shorter than the limit is the last one.
 	GetDiscordUsers(context.Context, *connect.Request[v1.GetDiscordUsersRequest]) (*connect.Response[v1.GetDiscordUsersResponse], error)
+	// Every identity holding a verified email address that contains the text, in any case: the address of an emailed
+	// code, or the one Google or Discord verified. Ordered by the address, then the oldest link first, a page at a time;
+	// a page shorter than the limit is the last one. An account its player asked to delete is in it: it still holds the
+	// address. For player.v1.AdminService/SearchPlayersByEmail. InvalidArgument for an empty text.
+	SearchEmails(context.Context, *connect.Request[v1.SearchEmailsRequest]) (*connect.Response[v1.SearchEmailsResponse], error)
 }
 
 // NewInternalServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -249,6 +275,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceSearchEmailsHandler := connect.NewUnaryHandler(
+		InternalServiceSearchEmailsProcedure,
+		svc.SearchEmails,
+		connect.WithSchema(internalServiceMethods.ByName("SearchEmails")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.InternalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalServiceGetVerifyingKeyProcedure:
@@ -265,6 +298,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetDiscordGrantHandler.ServeHTTP(w, r)
 		case InternalServiceGetDiscordUsersProcedure:
 			internalServiceGetDiscordUsersHandler.ServeHTTP(w, r)
+		case InternalServiceSearchEmailsProcedure:
+			internalServiceSearchEmailsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -300,4 +335,8 @@ func (UnimplementedInternalServiceHandler) GetDiscordGrant(context.Context, *con
 
 func (UnimplementedInternalServiceHandler) GetDiscordUsers(context.Context, *connect.Request[v1.GetDiscordUsersRequest]) (*connect.Response[v1.GetDiscordUsersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.GetDiscordUsers is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) SearchEmails(context.Context, *connect.Request[v1.SearchEmailsRequest]) (*connect.Response[v1.SearchEmailsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.InternalService.SearchEmails is not implemented"))
 }
