@@ -18,10 +18,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/hopper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/jury"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/metronome"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/retaker"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rotator"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/scraper"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sequencer"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/sharing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
@@ -35,6 +37,7 @@ type (
 	Sentence = bans.Sentence
 	Pardon   = bans.Pardon
 	Warning  = warnings.Warning
+	Notice   = notices.Notice
 
 	Examination = detect.Examination
 	Reading     = detect.Reading
@@ -92,6 +95,8 @@ type Observer struct {
 
 	OnWarn func(report Report)
 
+	OnNotice func(scope string, notice Notice)
+
 	OnRise func(watchdog, level string)
 
 	OnStanding func(watchdog, level string, callers int)
@@ -105,7 +110,7 @@ type Observer struct {
 func Parts() cprules.Parts[*antibotv1.Rules] {
 	return cprules.Parts[*antibotv1.Rules]{
 		bans.Part, jury.Part, retaker.Part, sequencer.Part, metronome.Part, defender.Part,
-		catcher.Part, cohort.Part, scraper.Part, churner.Part, hopper.Part, rotator.Part,
+		catcher.Part, cohort.Part, scraper.Part, churner.Part, hopper.Part, rotator.Part, sharing.Part,
 	}
 }
 
@@ -117,13 +122,19 @@ func New(
 	observer Observer,
 	banner *bans.Book,
 	warner *warnings.Book,
+	noticer *notices.Book,
 	evidences evidence.Persistence,
 	heard ...evidence.Section,
 ) *Guard {
 	onStateError := orNothing(observer.OnStateError)
+	onNotice := observer.OnNotice
+	if onNotice == nil {
+		onNotice = func(string, Notice) {}
+	}
 
 	g := &Guard{
-		onStart: observer.OnStart, onStateError: onStateError, rules: inForce, clock: clock, banner: banner, warner: warner,
+		onStart: observer.OnStart, onStateError: onStateError, onNotice: onNotice, rules: inForce, clock: clock,
+		banner: banner, warner: warner, noticer: noticer,
 	}
 
 	onScopeAccounts := observer.OnScopeAccounts
@@ -163,6 +174,9 @@ func New(
 	g.jury = jury.New(config.Jury, cprules.Reader(inForce, jury.Part), banner, warner, g.rotator, clock, juryHooks(observer),
 		g.watchdogs...)
 	g.runners = append(g.runners, g.jury.Run)
+
+	g.sharing = sharing.New(cprules.Reader(inForce, sharing.Part), clock)
+	g.runners = append(g.runners, g.sharing.Run)
 
 	g.evidence = evidence.New(config.Evidence, clock, evidences, onStateError, append(append(sections, g.jury, g.jury.Accounts()), heard...)...)
 	g.runners = append(g.runners, g.evidence.Run)
@@ -207,6 +221,8 @@ type Guard struct {
 	clock     cptime.Clock
 	banner    *bans.Book
 	warner    *warnings.Book
+	noticer   *notices.Book
+	sharing   *sharing.Tracker
 	evidence  *evidence.Store
 	catcher   *catcher.Watchdog
 	scraper   *scraper.Watchdog
@@ -217,6 +233,7 @@ type Guard struct {
 	onStart   func(Description)
 
 	onStateError func(error)
+	onNotice     func(string, Notice)
 }
 
 func (g *Guard) Attempted(click Click) {
@@ -237,6 +254,38 @@ func (g *Guard) Inspect(ctx context.Context, click Click) {
 // Only for a click the game accepted; a refused one would frame the next clicker.
 func (g *Guard) Committed(click Click) {
 	g.jury.Committed(click)
+}
+
+// Every click tried but a refused one: a banned caller's tries tell nothing of who plays beside it.
+func (g *Guard) Played(ctx context.Context, click Click) {
+	alongside, found := g.sharing.Tried(click)
+	if !found {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, banTimeout)
+	defer cancel()
+
+	if err := g.notice(ctx, click.Scope, click.Account, alongside); err != nil {
+		g.onStateError(err)
+	}
+}
+
+// An account warned before was told more than a notice says.
+func (g *Guard) notice(ctx context.Context, scope, account, alongside string) error {
+	warned, err := g.warner.Warned(ctx, []string{account})
+	if err != nil || warned {
+		return err //nolint:wrapcheck // the warner already named what failed.
+	}
+
+	notice, given, err := g.noticer.Notify(ctx, account, alongside)
+	if err != nil {
+		return err //nolint:wrapcheck // the noticer already named what failed.
+	}
+	if given {
+		g.onNotice(scope, notice)
+	}
+	return nil
 }
 
 func (g *Guard) Caught(scope string, after time.Duration) {
@@ -320,9 +369,17 @@ func (g *Guard) Examine(ctx context.Context, scope, account string) (Examination
 		return Examination{}, err //nolint:wrapcheck // the warner already named what failed.
 	}
 
+	notice, _, err := g.noticer.Notice(ctx, account)
+	if err != nil {
+		return Examination{}, err //nolint:wrapcheck // the noticer already named what failed.
+	}
+
 	examination := g.jury.Examine(scope, account, warned)
 	examination.WarnedAt = warning.At
 	examination.WarningAcknowledgedAt = warning.AcknowledgedAt
+	examination.NoticedAt = notice.At
+	examination.NoticedAlongside = notice.Alongside
+	examination.NoticeAcknowledgedAt = notice.AcknowledgedAt
 
 	caller := bans.Caller{Scope: examination.Scope, Account: account}
 

@@ -75,6 +75,10 @@ so a set can hold a zero or an `enabled: false` of its own. Its snapshot is the 
   `minClicks`, `minFlagShare`, `minLinks`, `certainLinks` — the takeovers
 - `hopper.minAngle`, `minGap`, `maxGap`, `minSteps`, `minShare`, `certainSteps`, `certainShare` — what a hop is, and the
   share of hops that reads each level
+- `sharing.enabled`, `window`, `maxAccounts` — not a watchdog: two accounts that play in turns from one scope inside the
+  window are each shown a notice, once, unless more accounts than `maxAccounts` tried there; it bans nothing (see
+  [Two accounts on one connection](antibot.md#two-accounts-on-one-connection-a-notice-never-a-ban)). Migration
+  `20261115120000_notices` writes it into `default`: on, 1 hour, 3 accounts
 - `rotator.window`, `minSeconds`, `minByChance`, `maxShare` — how far back slots count, the seconds each account must
   click in for a pair to share a slot, the shared seconds chance must have given, and the share a rotating pair stays
   under; `minSlots` — the shared slots that read `suspect`, which the jury counts for nothing but on a ring warned

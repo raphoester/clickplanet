@@ -29,7 +29,8 @@ two halves of a public card side by side (see [Who is playing](who-is-playing.md
 see [Support](support.md). `clips.ts` is the clips that name the player — see [In a
 clip](clip-appearances.md). `alerts.ts` is whether the player is in the game's Discord server, which a Discord sign-in joins — see [Discord pings](discord-alerts.md).
 `antibot.ts` is the warning before a ban for playing several accounts: `WarningsListener` (the antibot's stream, opened
-with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`.
+with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`; the same
+stream's notice that another account played from the connection, and `NoticeAcknowledger`.
 `antibotBackend.ts` implements them against `antibot.v1.AntibotService`, and `FakeAntibotBackend` in fake mode (see
 [Data flow](data-flow.md)). `bonusesBackend.ts` is the offers' wire: the `bonuses.v1.BonusService` client and what its
 stream carries, read (`offerOf`, `catchOf`, `grantRulesChanged`). `PlanetBackend` holds that client and opens

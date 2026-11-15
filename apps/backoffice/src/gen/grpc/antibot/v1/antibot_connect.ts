@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AcknowledgeWarningRequest, AcknowledgeWarningResponse, AntibotEvent, ListenForEventsRequest } from "./antibot_pb.js";
+import { AcknowledgeNoticeRequest, AcknowledgeNoticeResponse, AcknowledgeWarningRequest, AcknowledgeWarningResponse, AntibotEvent, ListenForEventsRequest } from "./antibot_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -33,6 +33,17 @@ export const AntibotService = {
       name: "AcknowledgeWarning",
       I: AcknowledgeWarningRequest,
       O: AcknowledgeWarningResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The caller read its notice, so the stream stops telling it. A caller with no notice changes nothing.
+     *
+     * @generated from rpc antibot.v1.AntibotService.AcknowledgeNotice
+     */
+    acknowledgeNotice: {
+      name: "AcknowledgeNotice",
+      I: AcknowledgeNoticeRequest,
+      O: AcknowledgeNoticeResponse,
       kind: MethodKind.Unary,
     },
   }

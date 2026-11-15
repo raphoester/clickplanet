@@ -129,7 +129,8 @@ and says what is in it. Read the doc before you change its area.
   (`auth.recruitments`); kept by `auth` when it makes the account, anonymized when the recruit's or the recruiter's
   account goes; the queries.
 - [Anti-bot](docs/antibot.md) — a module that hears planet's and the offers' facts about callers, judges them, and asks planet to
-  refuse the ones it bans; a ring of accounts warned once before a ban for its turns, by the jury or by hand; a streamer's chat, which
+  refuse the ones it bans; a ring of accounts warned once before a ban for its turns, by the jury or by hand; two
+  accounts that play in turns from one connection each shown a notice once, which bans nothing; a streamer's chat, which
   `default` keeps from bans with `cohort` and `churner` off; what survives a restart, and the parts that are easy to get wrong.
 - [The antibot's rules](docs/antibot-rules.md) — every bound is a rule set in postgres, edited from the backoffice, that
   judges with default's where it holds none; the pointer the watchdogs read, which set plays, what stays in the YAML.

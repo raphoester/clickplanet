@@ -63,6 +63,7 @@ type AntibotEvent struct {
 	//
 	//	*AntibotEvent_Heartbeat
 	//	*AntibotEvent_Warning
+	//	*AntibotEvent_Notice
 	Event         isAntibotEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -123,6 +124,15 @@ func (x *AntibotEvent) GetWarning() *Warning {
 	return nil
 }
 
+func (x *AntibotEvent) GetNotice() *Notice {
+	if x != nil {
+		if x, ok := x.Event.(*AntibotEvent_Notice); ok {
+			return x.Notice
+		}
+	}
+	return nil
+}
+
 type isAntibotEvent_Event interface {
 	isAntibotEvent_Event()
 }
@@ -135,9 +145,15 @@ type AntibotEvent_Warning struct {
 	Warning *Warning `protobuf:"bytes,2,opt,name=warning,proto3,oneof"`
 }
 
+type AntibotEvent_Notice struct {
+	Notice *Notice `protobuf:"bytes,3,opt,name=notice,proto3,oneof"`
+}
+
 func (*AntibotEvent_Heartbeat) isAntibotEvent_Event() {}
 
 func (*AntibotEvent_Warning) isAntibotEvent_Event() {}
+
+func (*AntibotEvent_Notice) isAntibotEvent_Event() {}
 
 type Heartbeat struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -212,6 +228,44 @@ func (*Warning) Descriptor() ([]byte, []int) {
 	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{3}
 }
 
+// Another account played from the caller's connection at the same time as it: the caller is reminded that one player
+// plays one account. Nothing follows from it: no ban counts it.
+type Notice struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Notice) Reset() {
+	*x = Notice{}
+	mi := &file_antibot_v1_antibot_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Notice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Notice) ProtoMessage() {}
+
+func (x *Notice) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_antibot_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Notice.ProtoReflect.Descriptor instead.
+func (*Notice) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{4}
+}
+
 type AcknowledgeWarningRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -220,7 +274,7 @@ type AcknowledgeWarningRequest struct {
 
 func (x *AcknowledgeWarningRequest) Reset() {
 	*x = AcknowledgeWarningRequest{}
-	mi := &file_antibot_v1_antibot_proto_msgTypes[4]
+	mi := &file_antibot_v1_antibot_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -232,7 +286,7 @@ func (x *AcknowledgeWarningRequest) String() string {
 func (*AcknowledgeWarningRequest) ProtoMessage() {}
 
 func (x *AcknowledgeWarningRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_antibot_proto_msgTypes[4]
+	mi := &file_antibot_v1_antibot_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -245,7 +299,7 @@ func (x *AcknowledgeWarningRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcknowledgeWarningRequest.ProtoReflect.Descriptor instead.
 func (*AcknowledgeWarningRequest) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{4}
+	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{5}
 }
 
 type AcknowledgeWarningResponse struct {
@@ -256,7 +310,7 @@ type AcknowledgeWarningResponse struct {
 
 func (x *AcknowledgeWarningResponse) Reset() {
 	*x = AcknowledgeWarningResponse{}
-	mi := &file_antibot_v1_antibot_proto_msgTypes[5]
+	mi := &file_antibot_v1_antibot_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -268,7 +322,7 @@ func (x *AcknowledgeWarningResponse) String() string {
 func (*AcknowledgeWarningResponse) ProtoMessage() {}
 
 func (x *AcknowledgeWarningResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_antibot_v1_antibot_proto_msgTypes[5]
+	mi := &file_antibot_v1_antibot_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -281,7 +335,79 @@ func (x *AcknowledgeWarningResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcknowledgeWarningResponse.ProtoReflect.Descriptor instead.
 func (*AcknowledgeWarningResponse) Descriptor() ([]byte, []int) {
-	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{5}
+	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{6}
+}
+
+type AcknowledgeNoticeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcknowledgeNoticeRequest) Reset() {
+	*x = AcknowledgeNoticeRequest{}
+	mi := &file_antibot_v1_antibot_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeNoticeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeNoticeRequest) ProtoMessage() {}
+
+func (x *AcknowledgeNoticeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_antibot_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeNoticeRequest.ProtoReflect.Descriptor instead.
+func (*AcknowledgeNoticeRequest) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{7}
+}
+
+type AcknowledgeNoticeResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcknowledgeNoticeResponse) Reset() {
+	*x = AcknowledgeNoticeResponse{}
+	mi := &file_antibot_v1_antibot_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeNoticeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeNoticeResponse) ProtoMessage() {}
+
+func (x *AcknowledgeNoticeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_antibot_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeNoticeResponse.ProtoReflect.Descriptor instead.
+func (*AcknowledgeNoticeResponse) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_antibot_proto_rawDescGZIP(), []int{8}
 }
 
 var File_antibot_v1_antibot_proto protoreflect.FileDescriptor
@@ -290,18 +416,23 @@ const file_antibot_v1_antibot_proto_rawDesc = "" +
 	"\n" +
 	"\x18antibot/v1/antibot.proto\x12\n" +
 	"antibot.v1\"\x18\n" +
-	"\x16ListenForEventsRequest\"\x7f\n" +
+	"\x16ListenForEventsRequest\"\xad\x01\n" +
 	"\fAntibotEvent\x125\n" +
 	"\theartbeat\x18\x01 \x01(\v2\x15.antibot.v1.HeartbeatH\x00R\theartbeat\x12/\n" +
-	"\awarning\x18\x02 \x01(\v2\x13.antibot.v1.WarningH\x00R\awarningB\a\n" +
+	"\awarning\x18\x02 \x01(\v2\x13.antibot.v1.WarningH\x00R\awarning\x12,\n" +
+	"\x06notice\x18\x03 \x01(\v2\x12.antibot.v1.NoticeH\x00R\x06noticeB\a\n" +
 	"\x05event\"\v\n" +
 	"\tHeartbeat\"\t\n" +
-	"\aWarning\"\x1b\n" +
+	"\aWarning\"\b\n" +
+	"\x06Notice\"\x1b\n" +
 	"\x19AcknowledgeWarningRequest\"\x1c\n" +
-	"\x1aAcknowledgeWarningResponse2\xc8\x01\n" +
+	"\x1aAcknowledgeWarningResponse\"\x1a\n" +
+	"\x18AcknowledgeNoticeRequest\"\x1b\n" +
+	"\x19AcknowledgeNoticeResponse2\xaa\x02\n" +
 	"\x0eAntibotService\x12Q\n" +
 	"\x0fListenForEvents\x12\".antibot.v1.ListenForEventsRequest\x1a\x18.antibot.v1.AntibotEvent0\x01\x12c\n" +
-	"\x12AcknowledgeWarning\x12%.antibot.v1.AcknowledgeWarningRequest\x1a&.antibot.v1.AcknowledgeWarningResponseB\xbb\x01\n" +
+	"\x12AcknowledgeWarning\x12%.antibot.v1.AcknowledgeWarningRequest\x1a&.antibot.v1.AcknowledgeWarningResponse\x12`\n" +
+	"\x11AcknowledgeNotice\x12$.antibot.v1.AcknowledgeNoticeRequest\x1a%.antibot.v1.AcknowledgeNoticeResponseB\xbb\x01\n" +
 	"\x0ecom.antibot.v1B\fAntibotProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +
 	"Antibot.V1\xca\x02\n" +
 	"Antibot\\V1\xe2\x02\x16Antibot\\V1\\GPBMetadata\xea\x02\vAntibot::V1b\x06proto3"
@@ -318,27 +449,33 @@ func file_antibot_v1_antibot_proto_rawDescGZIP() []byte {
 	return file_antibot_v1_antibot_proto_rawDescData
 }
 
-var file_antibot_v1_antibot_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_antibot_v1_antibot_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_antibot_v1_antibot_proto_goTypes = []any{
 	(*ListenForEventsRequest)(nil),     // 0: antibot.v1.ListenForEventsRequest
 	(*AntibotEvent)(nil),               // 1: antibot.v1.AntibotEvent
 	(*Heartbeat)(nil),                  // 2: antibot.v1.Heartbeat
 	(*Warning)(nil),                    // 3: antibot.v1.Warning
-	(*AcknowledgeWarningRequest)(nil),  // 4: antibot.v1.AcknowledgeWarningRequest
-	(*AcknowledgeWarningResponse)(nil), // 5: antibot.v1.AcknowledgeWarningResponse
+	(*Notice)(nil),                     // 4: antibot.v1.Notice
+	(*AcknowledgeWarningRequest)(nil),  // 5: antibot.v1.AcknowledgeWarningRequest
+	(*AcknowledgeWarningResponse)(nil), // 6: antibot.v1.AcknowledgeWarningResponse
+	(*AcknowledgeNoticeRequest)(nil),   // 7: antibot.v1.AcknowledgeNoticeRequest
+	(*AcknowledgeNoticeResponse)(nil),  // 8: antibot.v1.AcknowledgeNoticeResponse
 }
 var file_antibot_v1_antibot_proto_depIdxs = []int32{
 	2, // 0: antibot.v1.AntibotEvent.heartbeat:type_name -> antibot.v1.Heartbeat
 	3, // 1: antibot.v1.AntibotEvent.warning:type_name -> antibot.v1.Warning
-	0, // 2: antibot.v1.AntibotService.ListenForEvents:input_type -> antibot.v1.ListenForEventsRequest
-	4, // 3: antibot.v1.AntibotService.AcknowledgeWarning:input_type -> antibot.v1.AcknowledgeWarningRequest
-	1, // 4: antibot.v1.AntibotService.ListenForEvents:output_type -> antibot.v1.AntibotEvent
-	5, // 5: antibot.v1.AntibotService.AcknowledgeWarning:output_type -> antibot.v1.AcknowledgeWarningResponse
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 2: antibot.v1.AntibotEvent.notice:type_name -> antibot.v1.Notice
+	0, // 3: antibot.v1.AntibotService.ListenForEvents:input_type -> antibot.v1.ListenForEventsRequest
+	5, // 4: antibot.v1.AntibotService.AcknowledgeWarning:input_type -> antibot.v1.AcknowledgeWarningRequest
+	7, // 5: antibot.v1.AntibotService.AcknowledgeNotice:input_type -> antibot.v1.AcknowledgeNoticeRequest
+	1, // 6: antibot.v1.AntibotService.ListenForEvents:output_type -> antibot.v1.AntibotEvent
+	6, // 7: antibot.v1.AntibotService.AcknowledgeWarning:output_type -> antibot.v1.AcknowledgeWarningResponse
+	8, // 8: antibot.v1.AntibotService.AcknowledgeNotice:output_type -> antibot.v1.AcknowledgeNoticeResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_antibot_proto_init() }
@@ -349,6 +486,7 @@ func file_antibot_v1_antibot_proto_init() {
 	file_antibot_v1_antibot_proto_msgTypes[1].OneofWrappers = []any{
 		(*AntibotEvent_Heartbeat)(nil),
 		(*AntibotEvent_Warning)(nil),
+		(*AntibotEvent_Notice)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -356,7 +494,7 @@ func file_antibot_v1_antibot_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_antibot_v1_antibot_proto_rawDesc), len(file_antibot_v1_antibot_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -244,10 +244,11 @@ export function bansOf(set: RuleSet): string {
     return set.rules?.bans?.enforce === true ? "Enforced" : "Not enforced"
 }
 
-// A watchdog's part of a set is the one with an enabled switch.
+// A watchdog's part of a set is the one with an enabled switch, but sharing's: its notice bans nothing.
 const WATCHDOGS = Rules.fields.list()
     .filter(field => field.kind === "message" && field.T.fields.findJsonName("enabled") !== undefined)
     .map(field => field.localName)
+    .filter(part => part !== "sharing")
 
 export function offOf(set: RuleSet): string {
     const parts = (set.rules ?? new Rules()) as unknown as Record<string, {enabled: boolean} | undefined>

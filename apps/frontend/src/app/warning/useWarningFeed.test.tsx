@@ -15,12 +15,14 @@ function Harness({backend}: {backend: WarningsListener}) {
 function listening(token: string | undefined) {
     const stream = {
         warn: (): void => {},
+        notice: (): void => {},
         stop: vi.fn(),
     }
     const backend = {
         heldIdentity: vi.fn((): string | undefined => token),
-        listenForWarnings: vi.fn((onWarned: () => void) => {
+        listenForWarnings: vi.fn((onWarned: () => void, onNoticed: () => void) => {
             stream.warn = () => act(() => onWarned())
+            stream.notice = () => act(() => onNoticed())
             return stream.stop
         }),
     }
@@ -43,6 +45,16 @@ describe("useWarningFeed", () => {
         stream.warn()
 
         expect(useWarning.getState().warned).toBe(true)
+    })
+
+    it("puts the notice the stream sends in the store, apart from the warning", () => {
+        const {backend, stream} = listening("token-1")
+        render(<Harness backend={backend}/>)
+
+        stream.notice()
+
+        expect(useWarning.getState().noticed).toBe(true)
+        expect(useWarning.getState().warned).toBe(false)
     })
 
     it("waits for a token, then listens", () => {
@@ -75,11 +87,13 @@ describe("useWarningFeed", () => {
         const {backend, stream} = listening("token-1")
         const view = render(<Harness backend={backend}/>)
         stream.warn()
+        stream.notice()
 
         view.unmount()
 
         expect(stream.stop).toHaveBeenCalledTimes(1)
         expect(useWarning.getState().warned).toBe(false)
+        expect(useWarning.getState().noticed).toBe(false)
     })
 
     it("follows one stream in StrictMode", () => {

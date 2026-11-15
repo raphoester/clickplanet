@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
@@ -52,7 +53,8 @@ func watch(t *testing.T) watched {
 	enforcer := &bans.MemoryEnforcer{}
 	marks := listener.NewMarks()
 	watchdogs := guard.NewInMemory(config, inForce, clock, guard.Observer{}, bans.NewMemoryStore(), bans.NewMemoryStore(),
-		enforcer, warnings.NewMemoryStore(), &warnings.MemoryFeed{}, evidence.NewMemoryPersistence(), marks)
+		enforcer, warnings.NewMemoryStore(), &warnings.MemoryFeed{}, notices.NewMemoryStore(), &notices.MemoryFeed{},
+		evidence.NewMemoryPersistence(), marks)
 	require.NoError(t, watchdogs.Load(t.Context()))
 
 	ctx, cancel := context.WithCancel(t.Context())

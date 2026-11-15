@@ -30,3 +30,9 @@ func (s *Sink) SendWarning() error {
 		Event: &antibotv1.AntibotEvent_Warning{Warning: &antibotv1.Warning{}},
 	})
 }
+
+func (s *Sink) SendNotice() error {
+	return s.stream.Send(&antibotv1.AntibotEvent{ //nolint:wrapcheck // the stream's own error.
+		Event: &antibotv1.AntibotEvent_Notice{Notice: &antibotv1.Notice{}},
+	})
+}

@@ -19,6 +19,7 @@ message Rules {
   ChurnerRules churner = 10;
   HopperRules hopper = 11;
   RotatorRules rotator = 12;
+  SharingRules sharing = 13;
 }
 
 message BanRules {
@@ -199,4 +200,16 @@ message RotatorRules {
   // Zero never reads; certain needs both.
   optional uint32 certain_slots = 7;
   optional double certain_by_chance = 8;
+}
+
+// Not a watchdog: it never bans. Two accounts that play in turns from one scope are each shown a notice, once.
+message SharingRules {
+  // Off, nobody is noticed.
+  optional bool enabled = 1;
+  // How far back an account's tries on a scope count: two accounts play together when one tried between two tries of
+  // the other inside it.
+  google.protobuf.Duration window = 2;
+  // A scope where more accounts tried inside the window is a shared network (a school, a carrier's address): nobody on
+  // it is noticed.
+  optional uint32 max_accounts = 3;
 }

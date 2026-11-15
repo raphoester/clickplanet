@@ -628,6 +628,28 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
   warningAcknowledgedAt?: Timestamp;
 
   /**
+   * When the account was shown that another account played from its connection at the same time. Unset for one never
+   * noticed. It bans nothing.
+   *
+   * @generated from field: google.protobuf.Timestamp noticed_at = 21;
+   */
+  noticedAt?: Timestamp;
+
+  /**
+   * The account that played beside it then.
+   *
+   * @generated from field: string noticed_alongside = 22;
+   */
+  noticedAlongside = "";
+
+  /**
+   * When the account acknowledged its notice. Unset while it has not.
+   *
+   * @generated from field: google.protobuf.Timestamp notice_acknowledged_at = 23;
+   */
+  noticeAcknowledgedAt?: Timestamp;
+
+  /**
    * @generated from field: repeated antibot.v1.WatchdogReading readings = 7;
    */
   readings: WatchdogReading[] = [];
@@ -695,6 +717,9 @@ export class InspectPlayerResponse extends Message<InspectPlayerResponse> {
     { no: 18, name: "pardoned_until", kind: "message", T: Timestamp },
     { no: 19, name: "warned_at", kind: "message", T: Timestamp },
     { no: 20, name: "warning_acknowledged_at", kind: "message", T: Timestamp },
+    { no: 21, name: "noticed_at", kind: "message", T: Timestamp },
+    { no: 22, name: "noticed_alongside", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 23, name: "notice_acknowledged_at", kind: "message", T: Timestamp },
     { no: 7, name: "readings", kind: "message", T: WatchdogReading, repeated: true },
     { no: 8, name: "suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "min_suspects", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },

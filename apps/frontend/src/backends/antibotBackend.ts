@@ -1,7 +1,7 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {AntibotService} from "../gen/grpc/antibot/v1/antibot_connect.ts"
-import {WarningAcknowledger, WarningsListener} from "./antibot.ts"
+import {NoticeAcknowledger, WarningAcknowledger, WarningsListener} from "./antibot.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, NO_TIMEOUT, openStream, retryingAtOnce} from "./transport.ts"
 
@@ -14,7 +14,7 @@ export function newAntibotServiceClient(config: Config): PromiseClient<typeof An
     }))
 }
 
-export class ConnectAntibotBackend implements WarningsListener, WarningAcknowledger {
+export class ConnectAntibotBackend implements WarningsListener, WarningAcknowledger, NoticeAcknowledger {
     constructor(
         private readonly client: PromiseClient<typeof AntibotService>,
         private readonly session: SessionProvider,
@@ -25,7 +25,7 @@ export class ConnectAntibotBackend implements WarningsListener, WarningAcknowled
         return this.session.heldIdentity()
     }
 
-    public listenForWarnings(onWarned: () => void): () => void {
+    public listenForWarnings(onWarned: () => void, onNoticed: () => void): () => void {
         const client = this.client
         const session = this.session
         return openStream(
@@ -37,6 +37,7 @@ export class ConnectAntibotBackend implements WarningsListener, WarningAcknowled
             },
             (event) => {
                 if (event.event.case === "warning") onWarned()
+                if (event.event.case === "notice") onNoticed()
             },
             "warnings",
             {stopsOn: (e) => e instanceof ConnectError && e.code === Code.Unauthenticated},
@@ -48,5 +49,12 @@ export class ConnectAntibotBackend implements WarningsListener, WarningAcknowled
         const token = await this.session.identity()
         if (token) headers.set(SESSION_HEADER, token)
         await retryingAtOnce(() => this.client.acknowledgeWarning({}, {headers}), "AcknowledgeWarning")
+    }
+
+    public async acknowledgeNotice(): Promise<void> {
+        const headers = new Headers()
+        const token = await this.session.identity()
+        if (token) headers.set(SESSION_HEADER, token)
+        await retryingAtOnce(() => this.client.acknowledgeNotice({}, {headers}), "AcknowledgeNotice")
     }
 }

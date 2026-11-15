@@ -136,6 +136,13 @@ message InspectPlayerResponse {
   google.protobuf.Timestamp warned_at = 19;
   // When the account acknowledged its warning. Unset while it has not.
   google.protobuf.Timestamp warning_acknowledged_at = 20;
+  // When the account was shown that another account played from its connection at the same time. Unset for one never
+  // noticed. It bans nothing.
+  google.protobuf.Timestamp noticed_at = 21;
+  // The account that played beside it then.
+  string noticed_alongside = 22;
+  // When the account acknowledged its notice. Unset while it has not.
+  google.protobuf.Timestamp notice_acknowledged_at = 23;
 
   repeated WatchdogReading readings = 7;
 

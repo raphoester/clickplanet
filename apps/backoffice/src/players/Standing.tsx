@@ -5,8 +5,8 @@ import {confirmedWords, Muting, Mutings, muteWordsOf, Reading} from "./actions.t
 
 type Props = {reading: Call<Reading>, muting?: Call<Mutings>}
 
-// Where a player stands, at a glance: banned or not, its offences, the jury's opinion, its warning, and muted or not for
-// an account, from the whole chat or from its GIFs.
+// Where a player stands, at a glance: banned or not, its offences, the jury's opinion, its warning, its notice for
+// sharing a connection, and muted or not for an account, from the whole chat or from its GIFs.
 export function Standing({reading, muting}: Props) {
     return (
         <span className="standing">
@@ -40,6 +40,11 @@ function Antibot({reading}: {reading: Call<Reading>}) {
             {value.warnedAt !== undefined && (
                 <span className="status status-warn">
                     Warned {timeOf(value.warnedAt.toDate())}, {confirmedWords(value.warningAcknowledgedAt?.toDate())}
+                </span>
+            )}
+            {value.noticedAt !== undefined && (
+                <span className="status">
+                    Shared a connection {timeOf(value.noticedAt.toDate())}, {confirmedWords(value.noticeAcknowledgedAt?.toDate())}
                 </span>
             )}
         </>
