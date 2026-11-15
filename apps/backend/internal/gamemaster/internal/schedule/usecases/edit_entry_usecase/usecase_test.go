@@ -38,8 +38,10 @@ func kept(t *testing.T) *inmemory_entry_store.Store {
 	return store
 }
 
-func planned(seasons *inmemory_season_store.Store, entries *inmemory_entry_store.Store) moments.Planner {
-	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
+// planned is the planner at now, the use case's time.
+func planned(seasons *inmemory_season_store.Store, entries *inmemory_entry_store.Store, now time.Time) moments.Planner {
+	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_arena_store.New(), season.Cutoff(21*time.Hour),
+		cptime.NewFixedClock(now))
 }
 
 var calm = schedule.Draft{
@@ -49,7 +51,7 @@ var calm = schedule.Draft{
 func TestAnEntryToComeTakesTheNewValues(t *testing.T) {
 	store := kept(t)
 
-	require.NoError(t, edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store), all, cptime.NewFixedClock(finale.Add(-time.Minute))).
+	require.NoError(t, edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store, finale.Add(-time.Minute)), all, cptime.NewFixedClock(finale.Add(-time.Minute))).
 		Execute(t.Context(), first, calm))
 
 	entry, err := store.Entry(t.Context(), first)
@@ -63,7 +65,7 @@ func TestAnEntryToComeTakesTheNewValues(t *testing.T) {
 func TestAnEntryThatStartedRunsAsItIs(t *testing.T) {
 	store := kept(t)
 
-	err := edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store), all, cptime.NewFixedClock(finale)).Execute(t.Context(), first, calm)
+	err := edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store, finale), all, cptime.NewFixedClock(finale)).Execute(t.Context(), first, calm)
 
 	require.ErrorIs(t, err, schedule.ErrStarted)
 	entry, err := store.Entry(t.Context(), first)
@@ -76,7 +78,7 @@ func TestASetAModuleLacksIsRefused(t *testing.T) {
 	frozen.Set = "frozen"
 	store := kept(t)
 
-	err := edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, frozen)
+	err := edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store, madeAt), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, frozen)
 
 	require.ErrorIs(t, err, schedule.ErrUnknownSet)
 }
@@ -84,7 +86,7 @@ func TestASetAModuleLacksIsRefused(t *testing.T) {
 func TestAnEntryNeverKeptIsUnknown(t *testing.T) {
 	store := kept(t)
 
-	err := edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store), all, cptime.NewFixedClock(madeAt)).
+	err := edit_entry_usecase.New(store, planned(inmemory_season_store.New(), store, madeAt), all, cptime.NewFixedClock(madeAt)).
 		Execute(t.Context(), schedule.EntryID(uuid.UUID{15: 9}), calm)
 
 	require.ErrorIs(t, err, schedule.ErrUnknownEntry)
@@ -101,7 +103,7 @@ func TestABattleMovedOverASeasonsFinaleIsRefused(t *testing.T) {
 		Set: "rush", Kind: schedule.Battle, StartsAt: finale.Add(24 * time.Hour), EndsAt: finale.Add(25 * time.Hour), Priority: 1, Times: 3,
 	}
 
-	err := edit_entry_usecase.New(store, planned(seasons, store), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, moved)
+	err := edit_entry_usecase.New(store, planned(seasons, store, madeAt), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, moved)
 
 	require.ErrorIs(t, err, moments.ErrOverlap)
 	entry, err := store.Entry(t.Context(), first)
@@ -115,7 +117,7 @@ func TestAMovedBattleIsJudgedInPlaceOfTheOneKept(t *testing.T) {
 	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 0, Length: finale.Add(26 * time.Hour).Sub(season.Origin)}.Restore()))
 	shorter := schedule.Draft{Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 1, Times: 3}
 
-	err := edit_entry_usecase.New(store, planned(seasons, store), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, shorter)
+	err := edit_entry_usecase.New(store, planned(seasons, store, madeAt), all, cptime.NewFixedClock(madeAt)).Execute(t.Context(), first, shorter)
 
 	require.NoError(t, err)
 }
@@ -126,7 +128,7 @@ func TestARunningBattleEndsSooner(t *testing.T) {
 	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 0, Length: finale.Add(26 * time.Hour).Sub(season.Origin)}.Restore()))
 	sooner := schedule.Draft{Set: "rush", Kind: schedule.Battle, StartsAt: finale, EndsAt: finale.Add(time.Hour), Priority: 1, Times: 3}
 
-	err := edit_entry_usecase.New(store, planned(seasons, store), all, cptime.NewFixedClock(finale.Add(30*time.Minute))).
+	err := edit_entry_usecase.New(store, planned(seasons, store, finale.Add(30*time.Minute)), all, cptime.NewFixedClock(finale.Add(30*time.Minute))).
 		Execute(t.Context(), first, sooner)
 
 	require.NoError(t, err)

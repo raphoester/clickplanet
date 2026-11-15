@@ -143,7 +143,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	seasons := postgres_season_store.New(db)
 	heard := postgres_moment_store.New(db)
 	judged := postgres_arena_store.New(db)
-	planner := moments.NewPlanner(seasons, entries, heard, judged, cutoff)
+	planner := moments.NewPlanner(seasons, entries, heard, judged, cutoff, clock)
 	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
 		play_schedule_usecase.New(entries, seasons, planner, rpc_rule_set_plays.New(planet, antibot, bonuses, quizzes), clock, callAgain),
 		props.Logger))
@@ -173,7 +173,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			edit_entry_usecase.New(entries, planner, keepers, clock), props.Logger)),
 		DeleteEntryHandler: delete_entry_handler.New(audit_delete_entry.New(
 			delete_entry_usecase.New(entries, clock), props.Logger)),
-		GetSeasonsHandler: get_seasons_handler.New(seasons_query.NewPostgresQuery(db, cutoff)),
+		GetSeasonsHandler: get_seasons_handler.New(seasons_query.NewPostgresQuery(db, clock, cutoff)),
 		AddSeasonHandler: add_season_handler.New(audit_add_season.New(
 			add_season_usecase.New(seasons, entries, keepers, cutoff, clock), props.Logger)),
 		EditSeasonHandler: edit_season_handler.New(audit_edit_season.New(

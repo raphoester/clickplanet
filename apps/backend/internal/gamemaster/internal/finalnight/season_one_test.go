@@ -57,7 +57,7 @@ func TestTheMapIsFrozenOverTheBreakAndResetAsSeasonOneStarts(t *testing.T) {
 	require.NoError(t, err, "the finale was judged as it started, before this test's last second of it")
 	told := outbox_moment_events.New(&cpatomic.FakeOutbox{})
 	boot := func() (*play_schedule_usecase.UseCase, *play_plan_usecase.UseCase, *play_maps_usecase.UseCase) {
-		planner := moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour))
+		planner := moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour), clock)
 		return play_schedule_usecase.New(entries, seasons, planner, modules, clock, time.Minute),
 			play_plan_usecase.New(planner, judge_battles_usecase.New(judged, rulesOf{}, clock),
 				play_scoring_usecase.New(kept, scoring, told, cpatomic.FakeTransactioner{}, clock, time.Minute),

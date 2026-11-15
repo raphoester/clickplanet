@@ -117,9 +117,12 @@ type Plan struct {
 	known  Known
 }
 
-// A day that opened keeps running to the season's end when the end moves before its cutoff: opened names the rounds
-// the gamemaster opened.
-func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, entries ...schedule.Entry) Plan {
+// NewPlan is the books as they stand at now. A day that opened keeps running to the season's end when the end moves
+// before its cutoff: opened names the rounds the gamemaster opened. A battle that started by now and lies inside a day
+// ended early (endedEarly).
+func NewPlan(
+	calendar season.Calendar, cutoff season.Cutoff, now time.Time, opened []RoundID, entries ...schedule.Entry,
+) Plan {
 	battles := make([]schedule.EntrySnapshot, 0, len(entries))
 	for _, entry := range entries {
 		if snapshot := entry.TakeSnapshot(); snapshot.Kind == schedule.Battle && snapshot.Times >= 1 {
@@ -164,7 +167,7 @@ func NewPlan(calendar season.Calendar, cutoff season.Cutoff, opened []RoundID, e
 		for i, day := range book.Days {
 			book.Days[i] = around(day, book.Battles)
 		}
-		endedEarly(book.Days, natural, book.Battles)
+		endedEarly(book.Days, natural, book.Battles, now)
 		books = append(books, book)
 	}
 	return Plan{books: books, cutoff: cutoff}
@@ -185,11 +188,12 @@ func around(day season.Day, battles []Battle) season.Day {
 
 // endedEarly cuts the days around a battle whose end the operator moved sooner while it ran, so that it starts and ends
 // inside one day: that day ends as the battle starts, and the day after it starts as the battle ends, before its cutoff.
-// A battle to come never lies inside a day (Clashes), so only a battle ended early does.
-func endedEarly(days, natural []season.Day, battles []Battle) {
+// An end moves sooner only while the battle runs, so only a battle that started by now counts. One to come that lies
+// inside a day, which Clashes refuses at a save but a schedule kept from before the rule may hold, leaves the day whole.
+func endedEarly(days, natural []season.Day, battles []Battle, now time.Time) {
 	for i, day := range natural {
 		for _, battle := range battles {
-			if !battle.StartsAt.After(day.StartsAt) || !battle.EndsAt.Before(day.EndsAt) {
+			if battle.StartsAt.After(now) || !battle.StartsAt.After(day.StartsAt) || !battle.EndsAt.Before(day.EndsAt) {
 				continue
 			}
 			if battle.StartsAt.Before(days[i].EndsAt) {

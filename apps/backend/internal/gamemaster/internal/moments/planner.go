@@ -8,6 +8,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type Seasons interface {
@@ -28,18 +29,21 @@ type Arenas interface {
 	ArenasKept(ctx context.Context) (ArenasKept, error)
 }
 
-func NewPlanner(seasons Seasons, entries Entries, rounds Rounds, arenas Arenas, cutoff season.Cutoff) Planner {
-	return Planner{seasons: seasons, entries: entries, rounds: rounds, arenas: arenas, cutoff: cutoff}
+func NewPlanner(
+	seasons Seasons, entries Entries, rounds Rounds, arenas Arenas, cutoff season.Cutoff, clock cptime.Clock,
+) Planner {
+	return Planner{seasons: seasons, entries: entries, rounds: rounds, arenas: arenas, cutoff: cutoff, clock: clock}
 }
 
 // Planner reads the seasons, the entries that may be a battle of one, and what the gamemaster kept of its commands, and
-// plans their books.
+// plans their books as they stand now.
 type Planner struct {
 	seasons Seasons
 	entries Entries
 	rounds  Rounds
 	arenas  Arenas
 	cutoff  season.Cutoff
+	clock   cptime.Clock
 }
 
 func (p Planner) Plan(ctx context.Context) (Plan, error) {
@@ -67,7 +71,8 @@ func (p Planner) With(ctx context.Context, changed ...schedule.Entry) (Plan, err
 		id := entry.TakeSnapshot().ID
 		entries = slices.DeleteFunc(entries, func(other schedule.Entry) bool { return other.TakeSnapshot().ID == id })
 	}
-	return NewPlan(calendar, p.cutoff, kept.Opened, append(entries, changed...)...).With(NewKnown(kept, arenas)), nil
+	return NewPlan(calendar, p.cutoff, p.clock.Now(), kept.Opened, append(entries, changed...)...).
+		With(NewKnown(kept, arenas)), nil
 }
 
 // SetWaits is true while planet must not play the set of the battle the turn plays at a time: see Plan.SetWaits.

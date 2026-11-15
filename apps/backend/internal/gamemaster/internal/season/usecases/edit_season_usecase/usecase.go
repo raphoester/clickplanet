@@ -53,7 +53,7 @@ func (u *UseCase) Execute(ctx context.Context, number season.Number, draft seaso
 	if err != nil {
 		return fmt.Errorf("could not read the schedule: %w", err)
 	}
-	if err := moments.NewPlan(calendar.With(edited), u.cutoff, nil, entries...).Clashes(now); err != nil {
+	if err := moments.NewPlan(calendar.With(edited), u.cutoff, now, nil, entries...).Clashes(now); err != nil {
 		return err //nolint:wrapcheck // the plan names each battle.
 	}
 	if err := u.seasons.Save(ctx, edited); err != nil {

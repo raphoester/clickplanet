@@ -34,11 +34,13 @@ func keepers(planet, antibot []schedule.SetName) []schedule.Keeper {
 }
 
 func adding(store *inmemory_entry_store.Store, keepers []schedule.Keeper) *add_entry_usecase.UseCase {
-	return add_entry_usecase.New(store, planned(inmemory_season_store.New(), store), keepers, &schedule.FakeIDs{IDs: []schedule.EntryID{first}}, cptime.NewFixedClock(now))
+	return add_entry_usecase.New(store, planned(inmemory_season_store.New(), store, now), keepers, &schedule.FakeIDs{IDs: []schedule.EntryID{first}}, cptime.NewFixedClock(now))
 }
 
-func planned(seasons *inmemory_season_store.Store, entries *inmemory_entry_store.Store) moments.Planner {
-	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
+// planned is the planner at now, the use case's time.
+func planned(seasons *inmemory_season_store.Store, entries *inmemory_entry_store.Store, now time.Time) moments.Planner {
+	return moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), inmemory_arena_store.New(), season.Cutoff(21*time.Hour),
+		cptime.NewFixedClock(now))
 }
 
 var rush = schedule.Draft{
@@ -96,7 +98,7 @@ func TestABattleOverASeasonsFinaleIsRefused(t *testing.T) {
 	}.Restore()))
 	all := keepers([]schedule.SetName{"rush", "calm"}, []schedule.SetName{"rush", "calm"})
 	ids := &schedule.FakeIDs{IDs: []schedule.EntryID{first, schedule.EntryID(uuid.UUID{15: 2})}}
-	useCase := add_entry_usecase.New(store, planned(seasons, store), all, ids, cptime.NewFixedClock(now))
+	useCase := add_entry_usecase.New(store, planned(seasons, store, now), all, ids, cptime.NewFixedClock(now))
 
 	_, err := useCase.Execute(t.Context(), rush)
 	require.ErrorIs(t, err, moments.ErrOverlap)

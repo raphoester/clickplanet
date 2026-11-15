@@ -59,7 +59,7 @@ func newHarness(t *testing.T, set schedule.SetName) *harness {
 		clock: cptime.NewFixedClock(starts), judged: inmemory_arena_store.New(),
 		planet: &planet{arenas: map[schedule.SetName]bool{"arena-battle": true}},
 	}
-	h.planner = moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), h.judged, season.Cutoff(21*time.Hour))
+	h.planner = moments.NewPlanner(seasons, entries, inmemory_moment_store.New(), h.judged, season.Cutoff(21*time.Hour), h.clock)
 	h.useCase = judge_battles_usecase.New(h.judged, h.planet, h.clock)
 	return h
 }

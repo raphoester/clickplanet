@@ -36,7 +36,7 @@ func at(day, hour int) time.Time {
 }
 
 func TestASeasonWithNoFinaleClosesWithNoTiebreak(t *testing.T) {
-	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, nil)
+	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, seasonEnds, nil)
 
 	ended, err := plan.BookClosed("season-0", seasonEnds)
 
@@ -46,7 +46,7 @@ func TestASeasonWithNoFinaleClosesWithNoTiebreak(t *testing.T) {
 }
 
 func TestABattleThatRunsToTheSeasonsEndIsCutThereAndIsNoFinale(t *testing.T) {
-	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, finaleAt, seasonEnds.Add(time.Hour)))
+	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, finaleAt, nil, battle(early, finaleAt, seasonEnds.Add(time.Hour)))
 
 	cut, ok := plan.BattleOf(early)
 
@@ -59,7 +59,7 @@ func TestABattleThatRunsToTheSeasonsEndIsCutThereAndIsNoFinale(t *testing.T) {
 }
 
 func TestTheFinaleIsTheSeasonsBattleNamedByItsSeason(t *testing.T) {
-	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, finaleAt.Add(-5*time.Hour), finaleAt.Add(-3*time.Hour)))
+	plan := moments.NewPlan(calendar(rush), cutoff, finaleAt, nil, battle(early, finaleAt.Add(-5*time.Hour), finaleAt.Add(-3*time.Hour)))
 
 	finale, ok := plan.FinaleAt(finaleAt)
 
@@ -90,7 +90,7 @@ func TestTheFinaleIsTheSeasonsBattleNamedByItsSeason(t *testing.T) {
 }
 
 func TestTheBattleAtATimeIsTheOneThatRunsTheFinaleIncluded(t *testing.T) {
-	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, at(30, 18), at(30, 21)))
+	plan := moments.NewPlan(calendar(rush), cutoff, at(30, 18), nil, battle(early, at(30, 18), at(30, 21)))
 
 	_, ok := plan.BattleAt(at(30, 18).Add(-time.Second))
 	assert.False(t, ok, "it has not started")
@@ -107,13 +107,13 @@ func TestTheBattleAtATimeIsTheOneThatRunsTheFinaleIncluded(t *testing.T) {
 }
 
 func TestTheFinaleOfASeasonWithNoneNamesNothing(t *testing.T) {
-	_, err := moments.NewPlan(calendar(season.Finale{}), cutoff, nil).RoundEnded("season-0/finale", seasonEnds)
+	_, err := moments.NewPlan(calendar(season.Finale{}), cutoff, seasonEnds, nil).RoundEnded("season-0/finale", seasonEnds)
 
 	require.ErrorIs(t, err, moments.ErrUnknownRound)
 }
 
 func TestADayKeepsWhatTheBattlesAtItsStartAndItsEndLeaveIt(t *testing.T) {
-	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 21), at(30, 23)))
+	plan := moments.NewPlan(calendar(rush), cutoff, at(30, 17), nil, battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 21), at(30, 23)))
 
 	before, ok := plan.DayAt(at(30, 17))
 	require.True(t, ok)
@@ -133,8 +133,9 @@ func TestADayKeepsWhatTheBattlesAtItsStartAndItsEndLeaveIt(t *testing.T) {
 
 func TestABattleEndedEarlyGivesTheRestOfItsDayToTheDayAfter(t *testing.T) {
 	endedAt := at(30, 19).Add(10 * time.Minute)
-	// The battle of 18:00 to 21:00, its end moved to 19:10 while it ran.
-	plan := moments.NewPlan(calendar(rush), cutoff, nil, battle(early, at(30, 18), endedAt))
+	// The battle of 18:00 to 21:00, its end moved to 19:10 while it ran, planned at 19:00.
+	ended := battle(early, at(30, 18), endedAt)
+	plan := moments.NewPlan(calendar(rush), cutoff, at(30, 19), nil, ended)
 
 	before, ok := plan.DayAt(at(30, 17))
 	require.True(t, ok)
@@ -154,18 +155,39 @@ func TestABattleEndedEarlyGivesTheRestOfItsDayToTheDayAfter(t *testing.T) {
 		Ranking: moments.RankedByHeldAndGain,
 	})
 	require.NoError(t, plan.Clashes(at(30, 19)), "it started, so it may end off the cutoff")
-	require.ErrorIs(t, plan.Clashes(at(30, 17)), moments.ErrOffCutoff, "a battle to come may not")
+	require.ErrorIs(t, moments.NewPlan(calendar(rush), cutoff, at(30, 17), nil, ended).Clashes(at(30, 17)), moments.ErrOffCutoff,
+		"a battle to come may not")
+}
+
+func TestABattleToComeInsideADayLeavesTheDayWhole(t *testing.T) {
+	// The battle of 18:00 to 20:00, inside day 23, planned at 17:00: Clashes refuses it at a save, but a schedule kept
+	// from before the rule may hold it. It has not run, so it did not end early, and the days keep their cutoffs.
+	plan := moments.NewPlan(calendar(rush), cutoff, at(30, 17), nil, battle(early, at(30, 18), at(30, 20)))
+
+	day, ok := plan.DayAt(at(30, 17))
+	require.True(t, ok)
+	assert.Equal(t, season.Day{Season: 0, Number: 23, StartsAt: at(29, 21), EndsAt: at(30, 21)}, day)
+	assert.Equal(t, season.Day{Season: 0, Number: 24, StartsAt: at(30, 21), EndsAt: at(31, 21)}, plan.DaysOf(0)[23])
+	assert.NotContains(t, plan.DueAt(at(30, 18)), moments.Command{
+		Action: moments.CloseRound, Book: "season-0", Round: "season-0/day-23", At: at(30, 18),
+	})
+
+	started := moments.NewPlan(calendar(rush), cutoff, at(30, 18), nil, battle(early, at(30, 18), at(30, 20)))
+	assert.Equal(t, []season.Day{
+		{Season: 0, Number: 23, StartsAt: at(29, 21), EndsAt: at(30, 18)},
+		{Season: 0, Number: 24, StartsAt: at(30, 20), EndsAt: at(31, 21)},
+	}, started.DaysOf(0)[22:], "once it runs it is cut as one ended early")
 }
 
 func TestBattlesThatFitBetweenTheDaysClashWithNothing(t *testing.T) {
-	plan := moments.NewPlan(calendar(rush), cutoff, nil,
+	plan := moments.NewPlan(calendar(rush), cutoff, at(29, 12), nil,
 		battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 21), at(30, 23)), battle(last, at(31, 18), finaleAt),
 		battle(schedule.EntryID(uuid.UUID{15: 4}), seasonEnds, seasonEnds.Add(time.Hour)),
 		schedule.EntrySnapshot{Kind: schedule.Plain, StartsAt: finaleAt, EndsAt: seasonEnds}.Restore(),
 	)
 
 	require.NoError(t, plan.Clashes(at(29, 12)), "a plain entry plays under the finale, and a battle after the season is none")
-	require.NoError(t, moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, at(28, 14), at(28, 16))).Clashes(at(29, 12)),
+	require.NoError(t, moments.NewPlan(calendar(season.Finale{}), cutoff, at(29, 12), nil, battle(early, at(28, 14), at(28, 16))).Clashes(at(29, 12)),
 		"a battle that ended is not judged")
 }
 
@@ -183,7 +205,7 @@ func TestABattleThatDoesNotFitBetweenTheDaysClashes(t *testing.T) {
 		"two over a whole day": {battles: []schedule.Entry{battle(early, at(29, 21), at(30, 9)), battle(late, at(30, 9), at(30, 21))}, want: moments.ErrDayTaken},
 	} {
 		t.Run(name, func(t *testing.T) {
-			err := moments.NewPlan(calendar(c.finale), cutoff, nil, c.battles...).Clashes(at(29, 12))
+			err := moments.NewPlan(calendar(c.finale), cutoff, at(29, 12), nil, c.battles...).Clashes(at(29, 12))
 
 			require.ErrorIs(t, err, c.want)
 		})

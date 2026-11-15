@@ -55,9 +55,10 @@ func newBoundary(t *testing.T, at time.Time) *boundary {
 	seasons, kept, judged := inmemory_season_store.New(), inmemory_moment_store.New(), inmemory_arena_store.New()
 	require.NoError(t, seasons.Save(t.Context(), seasonZero.Restore()))
 	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 1, Length: 28 * 24 * time.Hour}.Restore()))
+	clock := cptime.NewFixedClock(at)
 	b := &boundary{
-		t: t, clock: cptime.NewFixedClock(at), kept: kept, judged: judged, landsAt: map[moments.Key]time.Time{},
-		planner: moments.NewPlanner(seasons, inmemory_entry_store.New(), kept, judged, season.Cutoff(21*time.Hour)),
+		t: t, clock: clock, kept: kept, judged: judged, landsAt: map[moments.Key]time.Time{},
+		planner: moments.NewPlanner(seasons, inmemory_entry_store.New(), kept, judged, season.Cutoff(21*time.Hour), clock),
 	}
 	b.boot()
 	return b

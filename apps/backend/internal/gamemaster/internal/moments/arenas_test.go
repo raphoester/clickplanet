@@ -22,7 +22,7 @@ var (
 )
 
 func backToBack(known moments.Known) moments.Plan {
-	return moments.NewPlan(calendar(season.Finale{}), cutoff, nil,
+	return moments.NewPlan(calendar(season.Finale{}), cutoff, firstStarts, nil,
 		battle(early, firstStarts, secondStarts), battle(late, secondStarts, secondEnds)).With(known)
 }
 
@@ -44,7 +44,7 @@ func TestABattleIsJudgedAnArenaBattleWhenItsSetSaysSoUnlessItOpensItsBook(t *tes
 	assert.Equal(t, moments.Judgement{Round: first, Mode: moments.Plain}, plan.Judge(running, false))
 	assert.Equal(t, "rush", string(running.Set))
 
-	opener := moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, season.Origin, season.Origin.Add(time.Hour)))
+	opener := moments.NewPlan(calendar(season.Finale{}), cutoff, season.Origin, nil, battle(early, season.Origin, season.Origin.Add(time.Hour)))
 	atStart, ok := opener.Unjudged(season.Origin)
 	require.True(t, ok)
 	assert.Equal(t, moments.Plain, opener.Judge(atStart, true).Mode, "the season's reset blanked the map already")
@@ -129,7 +129,7 @@ func TestWhatComesAfterAnArenaBattleWaitsForItsMap(t *testing.T) {
 }
 
 func TestAPlanThatKnowsNoArenaOpensEveryRoundOnTime(t *testing.T) {
-	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, firstStarts, secondStarts))
+	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, firstStarts, nil, battle(early, firstStarts, secondStarts))
 
 	assert.Contains(t, plan.DueAt(firstStarts),
 		moments.Command{Action: moments.OpenRound, Book: "season-0", Round: first, Times: 2, At: firstStarts, Ranking: moments.RankedByFighters})
@@ -149,7 +149,7 @@ func TestAPlanJudgedOpensTheBattleAsAPlanReadAfterTheJudgementWasKept(t *testing
 }
 
 func TestAPlanThatKnowsNoArenaStaysSoOnceJudged(t *testing.T) {
-	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, nil, battle(early, firstStarts, secondStarts))
+	plan := moments.NewPlan(calendar(season.Finale{}), cutoff, firstStarts, nil, battle(early, firstStarts, secondStarts))
 
 	judged := plan.Judged(moments.Judgement{Round: first, Mode: moments.Arena})
 

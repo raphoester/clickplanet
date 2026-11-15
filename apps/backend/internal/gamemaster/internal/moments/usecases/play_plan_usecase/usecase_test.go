@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/inmemory_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season/inmemory_season_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var (
@@ -107,7 +108,7 @@ func newHarness(t *testing.T) *harness {
 	h := &harness{
 		seasons: seasons,
 		planner: &counted{planner: moments.NewPlanner(seasons, entries, inmemory_moment_store.New(),
-			inmemory_arena_store.New(), season.Cutoff(21*time.Hour))},
+			inmemory_arena_store.New(), season.Cutoff(21*time.Hour), cptime.NewFixedClock(starts))},
 		steps: &steps{},
 	}
 	h.plays = play_plan_usecase.New(h.planner, judge{h.steps}, scoring{h.steps}, starting{h.steps})

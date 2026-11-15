@@ -160,10 +160,11 @@ even when it plays the set already playing, so it is called again.
   value the same but an end after now and before the one kept (`ErrInvalidEntry` otherwise; any other change is
   `ErrStarted`). Never later: the battle's arena and the day after it were planned on its end. A battle ended early
   is exempt from the cutoff rule once it started (`Plan.Clashes`), and the day it ran in gives the rest of itself to the
-  day after (`endedEarly`, see [A battle and the days](#a-battle-and-the-days)). Otherwise, to fix a running entry, the
-  operator adds an entry at a higher priority. There is no override button and no call that changes which set plays at
-  once; a save of the set in force changes its values at once (see [Rules](rules.md#the-operator)). Why: Capital Siege of
-  2026-11-14 was won at 19:54 and ran empty to 21:00.
+  day after (`endedEarly`, which counts only a battle that started, see [A battle and the
+  days](#a-battle-and-the-days)). Otherwise, to fix a running entry, the operator adds an entry at a higher priority.
+  There is no override button and no call that changes which set plays at once; a save of the set in force changes its
+  values at once (see [Rules](rules.md#the-operator)). Why: Capital Siege of 2026-11-14 was won at 19:54 and ran empty
+  to 21:00.
 - **An edit keeps the entry's id and its `made_at`**, so it keeps its place in a tie.
 - **A battle fits between the season's days** (`Plan.Clashes`, `FailedPrecondition`; see [A battle and the
   days](#a-battle-and-the-days)): a new or edited entry is judged in the plan with it (`Planner.With`), in place of the
@@ -344,6 +345,14 @@ and two are never scored at once. Before, a battle ran inside a day and both sco
   20:10: day K scored at 19:00, the battle at 20:10, its arena closed, and day K+1 opened and told from 20:10 to the next
   21:00 (pinned second by second in `arenanight`). The arena's end freeze is not moved, since planet was told the old
   end: see [Arena battles](arenas.md#known-gaps).
+- **The plan tells one ended early by its start: a battle inside a day that started by now** (`moments.NewPlan` takes
+  now; the `Planner` reads it from its clock, `turn_query` and `seasons_query` from theirs). An end moves sooner only
+  while the battle runs, so under the rule no other battle that started lies inside a day, and whether its round opened
+  does not matter: an arena battle whose arena planet refused never opens its round, and is the likeliest to be ended
+  early. **A battle to come that lies inside a day leaves the day whole**, its days at their cutoffs: `Clashes` refuses
+  one at a save, but a schedule kept from before the rule may hold one. If it then starts, it is cut as one ended
+  early. From 2026-11-14 to 2026-11-15 (#807) every battle inside a day cut it, a battle to come too, so `today` ended
+  at its start before it ran.
 - **An entry changes only before it starts, but for an earlier end**, so every day edge it moves is still to come:
   scoring hears a day's end only in its `CloseRound`.
 
@@ -547,15 +556,16 @@ for it: asked once per season, part and process, as the totals are, 10 minutes a
 The rule is pinned by `schedule_test.go` (priorities, ties, the end, since when, two entries of one set, the turn's
 kind, its window, the battles after a time and their order) and `entry_test.go` (only an entry to come changes, every
 reason, a kind nobody knows, a battle's times 1 to 10 and a plain entry's none). `schedule.StoreContractSuite` runs on
-the memory and postgres stores. `finale_test.go` pins the finale's window, its rules, an end that stays once it
-started, and a moved end that moves it. `season`'s tests pin the calendar's rules and the days (season 0's day 1 ends
-2026-10-08 21:00, day 24 2026-10-31 21:00, none from 21:00 to 23:00), and `season.StoreContractSuite` runs on both
-stores. `moments`' tests pin the ids read back, a day cut by a battle at its end and one at its start, the battle that
-runs at a time (the finale included), the battles that fit (season 0's Final Battle, battles at a cutoff, a plain entry
-under the finale, a battle that ended) and each clash; `moments.StoreContractSuite` (each round and book kept once, each
-season and battle told once, a day told again when its end moves) runs on both stores. The entry and season use cases' tests
-pin a battle over the finale refused, a moved battle judged in place of the one kept, and a finale at no cutoff
-refused.
+the memory and postgres stores. `finale_test.go` pins the finale's window, its rules, an end that stays once it started,
+and a moved end that moves it. `season`'s tests pin the calendar's rules and the days (season 0's day 1 ends 2026-10-08
+21:00, day 24 2026-10-31 21:00, none from 21:00 to 23:00), and `season.StoreContractSuite` runs on both stores.
+`moments`' tests pin the ids read back, a day cut by a battle at its end and one at its start, a battle ended early that
+gives the rest of its day to the day after, a battle to come inside a day that leaves it whole until it starts, the
+battle that runs at a time (the finale included), the battles that fit (season 0's Final Battle, battles at a cutoff, a
+plain entry under the finale, a battle that ended) and each clash; `moments.StoreContractSuite` (each round and book
+kept once, each season and battle told once, a day told again when its end moves) runs on both stores. The entry and
+season use cases' tests pin a battle over the finale refused, a moved battle judged in place of the one kept, and a
+finale at no cutoff refused.
 
 **`finalnight`'s test is the safety net for Sat 31 Oct**: season 0 as the migrations seed it, from the start of day 24
 to after 23:00, second by second through `play_schedule_usecase`, `play_plan_usecase`, `play_maps_usecase` and a fake
@@ -586,19 +596,20 @@ with its new end, while its season is told once.
 
 `turn_query`'s test pins the public read while a battle runs (its id and round among it), after the last one ended and
 before any, the timeline (a battle to come in the players' words with its times, round and finale, no plain entry, none
-once started), the seasons with their books, today, and the debrief (none before any, a day, then the season's end
-after the round that ends with it); `cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s
-test pins the feed (a stream gets the turn once read, another at once, each change to every stream, a battle added,
-edited or deleted sent, a new debrief sent, a turn that holds not sent again, nothing read with nobody following, a
-failed read) and `listen_for_events_handler`'s the stream (the turn, the timeline then the debrief first, only the part
-that changed after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's
-test pins a call at boot and at each change, none once every module played it, and a call with no answer made again a
-minute later with the turn's decision time. The smoke
-test `TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndTheOffersAndScoredByScoring` adds a battle entry that ends at
+once started), the seasons with their books, today (whole before a battle inside it starts, from the battle's end once
+it ran), and the debrief (none before any, a day, then the season's end after the round that ends with it);
+`cache_interceptor_test.go` pins the GET and its header. `inprocess_turn_feed`'s test pins the feed (a stream gets the
+turn once read, another at once, each change to every stream, a battle added, edited or deleted sent, a new debrief
+sent, a turn that holds not sent again, nothing read with nobody following, a failed read) and
+`listen_for_events_handler`'s the stream (the turn, the timeline then the debrief first, only the part that changed
+after, the heartbeat, the feed left when the stream closes, a clean end when the feed closes). The runner's test pins a
+call at boot and at each change, none once every module played it, and a call with no answer made again a minute later
+with the turn's decision time. The smoke test
+`TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotAndTheOffersAndScoredByScoring` adds a battle entry that ends at
 the next cutoff on the console listener, waits for the modules to play it and scoring to open its round, reads its kind
-and its end on the public listener, and opens the stream, whose first event is it. It runs last, by its name: its
-battle takes the rest of today, and the other smoke tests need a day. The suite's season 0 ends at 23:00, so its 2 h
-finale starts at the cutoff.
+and its end on the public listener, and opens the stream, whose first event is it. It runs last, by its name: its battle
+takes the rest of today, and the other smoke tests need a day. The suite's season 0 ends at 23:00, so its 2 h finale
+starts at the cutoff.
 
 ## A freeze over the break between two seasons
 
