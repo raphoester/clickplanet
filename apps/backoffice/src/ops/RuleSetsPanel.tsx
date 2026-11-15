@@ -153,7 +153,7 @@ function SetForm<S extends Kept>({book, save, editing, onCancel, onSaved}: {
                     <input value={draft.name} disabled={editing.made} onChange={e => setDraft(was => ({...was, name: e.target.value}))}/>
                 </label>
                 {defaults !== undefined && <p className="hint">An empty value plays default's.</p>}
-                {switchOf(book.frozen)}
+                {book.frozen && switchOf(book.frozen)}
             </div>
             <div className="rule-groups">
                 {book.groups.map(group => (

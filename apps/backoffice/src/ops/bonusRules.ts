@@ -1,28 +1,17 @@
 import {BonusesAdmin} from "../clients.ts"
 import {Change} from "../components/Changes.tsx"
 import {RuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
-import {BoxPace, Rules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
+import {Rules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
 import * as ruleBook from "./ruleBook.ts"
 import {Book, Draft, Group} from "./ruleBook.ts"
-import {paceOf, Switch} from "./ruleValues.ts"
 
-// The offers' rule sets (bonuses.v1): when a box comes, what a box or a right answer may be and how much it grants.
-// What a hand holds and what a charge does are planet's (the Game rules' Charges); when a quiz comes is the quizzes'.
+// The bonuses module's rule sets (bonuses.v1): what a box caught or a right answer may be and how much it grants, and
+// the sign-in refill. What a hand holds and what a charge does are planet's (the Game rules' Charges); when a box comes
+// is the boxes' (boxRules.ts), when a quiz comes the quizzes'.
 
 export type {Draft}
 
-// Offered nothing, and every claim refused, while it plays.
-export const FROZEN: Switch = {path: "frozen", label: "Frozen: no box is offered or caught", short: "Frozen"}
-
 export const GROUPS: Group[] = [
-    {title: "Boxes", switches: [], fields: [
-        {path: "boxes.minInterval", label: "Shortest box wait (s)", kind: "seconds"},
-        {path: "boxes.maxInterval", label: "Longest box wait (s)", kind: "seconds"},
-        {path: "boxes.maxChargesPerHour", label: "Charges an hour, at most", kind: "whole"},
-        {path: "offerTtl", label: "Box flight (s)", kind: "seconds"},
-        {path: "missRetry", label: "Next box after a miss (s)", kind: "seconds"},
-        {path: "activeWithin", label: "Last click within (s)", kind: "seconds"},
-    ]},
     {title: "What a box or a right answer is", switches: [], fields: [
         {path: "kinds.refill", label: "Refill, weight", kind: "number"},
         {path: "kinds.spreadClicks", label: "Spread, weight", kind: "number"},
@@ -39,15 +28,11 @@ export const GROUPS: Group[] = [
     {
         title: "New accounts",
         switches: [{path: "signInRefill", label: "Refill at first sign-in", short: "Refill at first sign-in"}],
-        fields: [
-            {path: "welcome.within", label: "New for (s)", kind: "seconds"},
-            {path: "welcome.boxAfter", label: "First box after (s)", kind: "seconds"},
-        ],
+        fields: [],
     },
 ]
 
 export const BOOK: Book<RuleSet> = {
-    frozen: FROZEN,
     groups: GROUPS,
     setOf: (name, json) => new RuleSet({name, rules: Rules.fromJson(json)}),
 }
@@ -80,13 +65,16 @@ export async function saveRuleSet(bonuses: BonusesAdmin, draft: Draft): Promise<
     await bonuses.saveRuleSet({set: ruleSetOf(draft)})
 }
 
-// A frozen set offers nothing, and refuses every claim.
-export function offersOf(set: RuleSet): string {
-    return set.rules?.frozen ? "Frozen" : "Open"
-}
+const KINDS: {path: keyof NonNullable<Rules["kinds"]>, short: string}[] = [
+    {path: "refill", short: "refill"}, {path: "spreadClicks", short: "spread"}, {path: "encloseClicks", short: "enclose"},
+    {path: "bomb", short: "bomb"}, {path: "shields", short: "shields"},
+]
 
-export function boxesOf(boxes: BoxPace | undefined): string {
-    if (boxes === undefined) return "—"
-
-    return `Every ${paceOf(boxes.minInterval, boxes.maxInterval)}, ${boxes.maxChargesPerHour ?? 0} an hour at most`
+// The kinds a box or a right answer may be, and each one's weight: "refill 5, spread 3, shields 4".
+export function kindsOf(rules: Rules | undefined): string {
+    const weighed = KINDS.flatMap(({path, short}) => {
+        const weight = rules?.kinds?.[path]
+        return weight === undefined ? [] : [`${short} ${weight}`]
+    })
+    return weighed.length === 0 ? "—" : weighed.join(", ")
 }

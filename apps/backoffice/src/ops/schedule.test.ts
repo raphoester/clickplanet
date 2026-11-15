@@ -3,6 +3,7 @@ import {describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as BonusesRules, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {RuleSet as BoxesRuleSet} from "../gen/grpc/boxes/v1/admin_pb.ts"
 import {RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {EntryKind} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
@@ -22,26 +23,34 @@ describe("the schedule's rows", () => {
     })
 })
 
+function modulesOf(admin: FakeAdmin) {
+    return {
+        planet: admin.rules, antibot: admin.antibotRules, boxes: admin.boxRules, bonuses: admin.bonusRules,
+        quizzes: admin.quizRules,
+    }
+}
+
 describe("the sets", () => {
-    it("an entry plays are the ones every module keeps: planet, the antibot, the offers and the quizzes", () => {
+    it("an entry plays are the ones every module keeps: planet, the antibot, the boxes, the bonuses and the quizzes", () => {
         const admin = new FakeAdmin()
-        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules, quizzes: admin.quizRules}
+        const modules = modulesOf(admin)
 
         expect(playable(modules)).toEqual(["default"])
-        expect(lacking("rush", modules)).toEqual(["planet", "the antibot", "the offers", "the quizzes"])
-        expect(lacking("frozen", modules)).toEqual(["planet", "the antibot", "the offers", "the quizzes"])
+        expect(lacking("rush", modules)).toEqual(["planet", "the antibot", "the boxes", "the bonuses", "the quizzes"])
+        expect(lacking("frozen", modules)).toEqual(["planet", "the antibot", "the boxes", "the bonuses", "the quizzes"])
         expect(lacking("default", modules)).toEqual([])
     })
 
-    it("are not the ones the offers lack", () => {
+    it("are not the ones the bonuses lack", () => {
         const admin = new FakeAdmin()
         admin.rules.sets.push(new RuleSet({name: "rush"}))
         admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}))
+        admin.boxRules.sets.push(new BoxesRuleSet({name: "rush"}))
         admin.quizRules.sets.push(new QuizzesRuleSet({name: "rush"}))
-        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules, quizzes: admin.quizRules}
+        const modules = modulesOf(admin)
 
         expect(playable(modules)).toEqual(["default"])
-        expect(lacking("rush", modules)).toEqual(["the offers"])
+        expect(lacking("rush", modules)).toEqual(["the bonuses"])
 
         const kept = {...modules, bonuses: new BonusesRules({sets: [...admin.bonusRules.sets, new BonusesRuleSet({name: "rush"})]})}
         expect(playable(kept)).toEqual(["default", "rush"])
@@ -52,11 +61,24 @@ describe("the sets", () => {
         const admin = new FakeAdmin()
         admin.rules.sets.push(new RuleSet({name: "rush"}))
         admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}))
+        admin.boxRules.sets.push(new BoxesRuleSet({name: "rush"}))
         admin.bonusRules.sets.push(new BonusesRuleSet({name: "rush"}))
-        const modules = {planet: admin.rules, antibot: admin.antibotRules, bonuses: admin.bonusRules, quizzes: admin.quizRules}
+        const modules = modulesOf(admin)
 
         expect(playable(modules)).toEqual(["default"])
         expect(lacking("rush", modules)).toEqual(["the quizzes"])
+    })
+
+    it("are not the ones the boxes lack", () => {
+        const admin = new FakeAdmin()
+        admin.rules.sets.push(new RuleSet({name: "rush"}))
+        admin.antibotRules.sets.push(new AntibotRuleSet({name: "rush"}))
+        admin.bonusRules.sets.push(new BonusesRuleSet({name: "rush"}))
+        admin.quizRules.sets.push(new QuizzesRuleSet({name: "rush"}))
+        const modules = modulesOf(admin)
+
+        expect(playable(modules)).toEqual(["default"])
+        expect(lacking("rush", modules)).toEqual(["the boxes"])
     })
 })
 

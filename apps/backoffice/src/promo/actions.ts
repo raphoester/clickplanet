@@ -5,6 +5,7 @@ import {GetRulesResponse as BonusesRules} from "../gen/grpc/bonuses/v1/admin_pb.
 import {GetRulesResponse as PlanetRules} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {CardDraft} from "../gen/grpc/promo/v1/admin_pb.ts"
 import {GetRulesResponse as QuizzesRules} from "../gen/grpc/quizzes/v1/admin_pb.ts"
+import {GetRulesResponse as BoxesRules} from "../gen/grpc/boxes/v1/admin_pb.ts"
 import {DEFAULT_SET} from "../ops/rules.ts"
 import {overlay} from "../ops/overlay.ts"
 import {wordsOf} from "../refusal.ts"
@@ -68,9 +69,10 @@ export function saveRefusalOf(err: unknown): string {
     return wordsOf(err)
 }
 
-// The modules a card names the values of under a prefix, by it: `{bonuses.boxes.minInterval}` is bonuses.v1.Rules'
-// boxes.minInterval, `{quizzes.answerWindow}` quizzes.v1.Rules' answerWindow.
-export type Prefixed = {bonuses: BonusesRules, quizzes: QuizzesRules}
+// The modules a card names the values of under a prefix, by it: `{bonuses.shield.maxPerBox}` is bonuses.v1.Rules'
+// shield.maxPerBox, `{boxes.minInterval}` boxes.v1.Rules' minInterval, `{quizzes.answerWindow}` quizzes.v1.Rules'
+// answerWindow.
+export type Prefixed = {bonuses: BonusesRules, boxes: BoxesRules, quizzes: QuizzesRules}
 
 // What each set planet keeps plays, as the server fills a card: planet's values, and under each prefix that module's
 // for the set of the same name, each default's with the set's own over them. A set a module does not keep has nothing

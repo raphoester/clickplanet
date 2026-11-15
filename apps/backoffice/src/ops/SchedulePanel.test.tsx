@@ -6,6 +6,7 @@ import {clockOf, localOf, spanOf} from "../components/time.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
 import {GetRulesResponse as AntibotRules, RuleSet as AntibotRuleSet} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {GetRulesResponse as BonusesRules, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {GetRulesResponse as BoxesRules, RuleSet as BoxesRuleSet} from "../gen/grpc/boxes/v1/admin_pb.ts"
 import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {GetRulesResponse as QuizzesRules, RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {AddEntryRequest, EditEntryRequest, Playing} from "../gen/grpc/gamemaster/v1/admin_pb.ts"
@@ -20,7 +21,7 @@ const rowOf = (set: string) =>
 const type = (label: string, value: string) =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
-// Planet, the antibot, the offers and the quizzes keep calm and frozen too, and play calm.
+// Planet, the antibot, the boxes, the bonuses and the quizzes keep calm and frozen too, and play calm.
 function keeping(): FakeAdmin {
     const admin = new FakeAdmin()
     const planetDefault = admin.rules.sets[0]
@@ -38,6 +39,11 @@ function keeping(): FakeAdmin {
         sets: ["default", "calm", "frozen", "rush"].map(name => new BonusesRuleSet({name, rules: bonusesDefault.rules?.clone()})),
         playing: "calm",
     })
+    const boxesDefault = admin.boxRules.sets[0]
+    admin.boxRules = new BoxesRules({
+        sets: ["default", "calm", "frozen", "rush"].map(name => new BoxesRuleSet({name, rules: boxesDefault.rules?.clone()})),
+        playing: "calm",
+    })
     const quizzesDefault = admin.quizRules.sets[0]
     admin.quizRules = new QuizzesRules({
         sets: ["default", "calm", "frozen", "rush"].map(name => new QuizzesRuleSet({name, rules: quizzesDefault.rules?.clone()})),
@@ -47,7 +53,7 @@ function keeping(): FakeAdmin {
 }
 
 function show(admin: FakeAdmin) {
-    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} bonuses={admin.bonuses} quizzes={admin.quizzes}/>)
+    render(<SchedulePanel gamemaster={admin.gamemaster} planet={admin} antibot={admin.antibot} boxes={admin.boxes} bonuses={admin.bonuses} quizzes={admin.quizzes}/>)
 }
 
 describe("the rule schedule page", () => {
@@ -67,7 +73,7 @@ describe("the rule schedule page", () => {
         expect(within(rowOf("calm")).queryByText(/×/)).toBeNull()
         expect(screen.getByText(/a plain entry, since/)).toBeTruthy()
         expect(screen.getByText(/Planet plays/).textContent?.replace(/\s+/g, " "))
-            .toBe("Planet plays calm, the antibot plays calm, the offers play calm, the quizzes play calm.")
+            .toBe("Planet plays calm, the antibot plays calm, the boxes play calm, the bonuses play calm, the quizzes play calm.")
         expect(screen.queryByRole("alert")).toBeNull()
     })
 
@@ -98,7 +104,9 @@ describe("the rule schedule page", () => {
         admin.schedule.playing = new Playing({ruleSet: "rush", kind: EntryKind.BATTLE, finaleSeason: 2})
         admin.rules.playing = "rush"
         admin.antibotRules.playing = "rush"
+        admin.boxRules.playing = "rush"
         admin.bonusRules.playing = "rush"
+        admin.quizRules.playing = "rush"
         show(admin)
 
         expect(await screen.findByText(/season 2's final battle/)).toBeTruthy()
@@ -119,18 +127,20 @@ describe("the rule schedule page", () => {
         show(new FakeAdmin())
 
         await screen.findByRole("table")
-        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot, the offers or the quizzes.")).toBeTruthy()
-        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot, the offers or the quizzes.")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("No set frozen in planet, the antibot, the boxes, the bonuses or the quizzes."))
+            .toBeTruthy()
+        expect(within(rowOf("calm")).getByText("No set calm in planet, the antibot, the boxes, the bonuses or the quizzes."))
+            .toBeTruthy()
         expect(within(rowOf("rush")).queryByRole("alert")).toBeNull()
     })
 
-    it("warns of a set the offers alone do not keep", async () => {
+    it("warns of a set the bonuses alone do not keep", async () => {
         const admin = keeping()
         admin.bonusRules = new BonusesRules({sets: admin.bonusRules.sets.filter(set => set.name !== "frozen"), playing: "calm"})
         show(admin)
 
         await screen.findByRole("table")
-        expect(within(rowOf("frozen")).getByText("No set frozen in the offers.")).toBeTruthy()
+        expect(within(rowOf("frozen")).getByText("No set frozen in the bonuses.")).toBeTruthy()
         expect(within(rowOf("calm")).queryByRole("alert")).toBeNull()
     })
 
@@ -139,7 +149,8 @@ describe("the rule schedule page", () => {
 
         expect(await screen.findByText(/Planet does not play/)).toBeTruthy()
         expect(screen.getByText(/The antibot does not play/)).toBeTruthy()
-        expect(screen.getByText(/The offers do not play/)).toBeTruthy()
+        expect(screen.getByText(/The boxes do not play/)).toBeTruthy()
+        expect(screen.getByText(/The bonuses do not play/)).toBeTruthy()
         expect(screen.getByText(/The quizzes do not play/)).toBeTruthy()
     })
 
@@ -152,12 +163,22 @@ describe("the rule schedule page", () => {
         expect(within(rowOf("frozen")).getByText("No set frozen in the quizzes.")).toBeTruthy()
     })
 
-    it("says when the offers alone do not play what the schedule plays", async () => {
+    it("says when the bonuses alone do not play what the schedule plays", async () => {
         const admin = keeping()
         admin.bonusRules.playing = "default"
         show(admin)
 
-        expect((await screen.findByRole("alert")).textContent).toBe("The offers do not play calm.")
+        expect((await screen.findByRole("alert")).textContent).toBe("The bonuses do not play calm.")
+    })
+
+    it("warns of a set the boxes alone do not keep, and says when they alone do not play it", async () => {
+        const admin = keeping()
+        admin.boxRules = new BoxesRules({sets: admin.boxRules.sets.filter(set => set.name !== "frozen"), playing: "default"})
+        show(admin)
+
+        await screen.findByRole("table")
+        expect(within(rowOf("frozen")).getByText("No set frozen in the boxes.")).toBeTruthy()
+        expect(screen.getAllByRole("alert").map(alert => alert.textContent)).toContain("The boxes do not play calm.")
     })
 
     it("adds an entry once confirmed, and reads the schedule again", async () => {
