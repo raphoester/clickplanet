@@ -105,6 +105,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler/history_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler/play_days_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
@@ -393,6 +395,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetLedgerTotalsHandler:   get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
 				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, arenaStore)),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
+				GetPlayDaysHandler:       get_play_days_handler.New(play_days_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
 				GetCountrySizesHandler:   get_country_sizes_handler.New(borders),
 				GetAllegianceOfHandler:   get_allegiance_of_handler.New(allegiance_query.NewPostgresQuery(db, lock)),

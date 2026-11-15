@@ -400,6 +400,125 @@ export class GetTakesByCountryResponse extends Message<GetTakesByCountryResponse
 }
 
 /**
+ * @generated from message planet.v1.GetPlayDaysRequest
+ */
+export class GetPlayDaysRequest extends Message<GetPlayDaysRequest> {
+  /**
+   * @generated from field: repeated string account_ids = 1;
+   */
+  accountIds: string[] = [];
+
+  constructor(data?: PartialMessage<GetPlayDaysRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetPlayDaysRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetPlayDaysRequest {
+    return new GetPlayDaysRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetPlayDaysRequest {
+    return new GetPlayDaysRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetPlayDaysRequest {
+    return new GetPlayDaysRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetPlayDaysRequest | PlainMessage<GetPlayDaysRequest> | undefined, b: GetPlayDaysRequest | PlainMessage<GetPlayDaysRequest> | undefined): boolean {
+    return proto3.util.equals(GetPlayDaysRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetPlayDaysResponse
+ */
+export class GetPlayDaysResponse extends Message<GetPlayDaysResponse> {
+  /**
+   * @generated from field: repeated planet.v1.AccountPlayDays accounts = 1;
+   */
+  accounts: AccountPlayDays[] = [];
+
+  constructor(data?: PartialMessage<GetPlayDaysResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetPlayDaysResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "accounts", kind: "message", T: AccountPlayDays, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetPlayDaysResponse {
+    return new GetPlayDaysResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetPlayDaysResponse {
+    return new GetPlayDaysResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetPlayDaysResponse {
+    return new GetPlayDaysResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetPlayDaysResponse | PlainMessage<GetPlayDaysResponse> | undefined, b: GetPlayDaysResponse | PlainMessage<GetPlayDaysResponse> | undefined): boolean {
+    return proto3.util.equals(GetPlayDaysResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.AccountPlayDays
+ */
+export class AccountPlayDays extends Message<AccountPlayDays> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * Each UTC day once, as YYYY-MM-DD, oldest first.
+   *
+   * @generated from field: repeated string days = 2;
+   */
+  days: string[] = [];
+
+  constructor(data?: PartialMessage<AccountPlayDays>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.AccountPlayDays";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "days", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AccountPlayDays {
+    return new AccountPlayDays().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AccountPlayDays {
+    return new AccountPlayDays().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AccountPlayDays {
+    return new AccountPlayDays().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AccountPlayDays | PlainMessage<AccountPlayDays> | undefined, b: AccountPlayDays | PlainMessage<AccountPlayDays> | undefined): boolean {
+    return proto3.util.equals(AccountPlayDays, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.CountryTakes
  */
 export class CountryTakes extends Message<CountryTakes> {
