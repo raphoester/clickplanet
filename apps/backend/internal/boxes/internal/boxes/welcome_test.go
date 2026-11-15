@@ -65,7 +65,7 @@ func after(t *testing.T, r *Registry, clock *cptime.FixedClock, d time.Duration)
 	t.Helper()
 
 	clock.Advance(d)
-	r.sweep(t.Context())
+	r.sweep()
 }
 
 func TestANewcomersFirstBoxIsAWelcomeAMinuteAfterItsAccountWasMade(t *testing.T) {
@@ -88,7 +88,7 @@ func TestTheFirstMinuteCountsFromTheAccountNotFromItsLaterClick(t *testing.T) {
 
 	clock.Advance(3 * time.Minute)
 	registry.Clicked(clickOf(newcomerPayer))
-	registry.sweep(t.Context())
+	registry.sweep()
 
 	boxes := receivedOn(events).boxes
 	require.Len(t, boxes, 1, "a minute after it was made has passed already")
@@ -150,23 +150,6 @@ func TestWithNoWelcomeANewcomerWaitsLikeAnybody(t *testing.T) {
 	after(t, registry, clock, firstBoxAfter)
 
 	assert.Empty(t, receivedOn(events).boxes)
-}
-
-func TestAWelcomeToAHandWithRoomForNothingGivesNoEarlyBox(t *testing.T) {
-	registry, clock := welcoming(t)
-	events := attend(t, registry, entrantOf(newcomerPayer))
-	registry.Clicked(clickOf(newcomerPayer))
-	roomOf(registry).Fill(newcomerPayer.Account, true)
-
-	after(t, registry, clock, firstBoxAfter)
-	assert.Empty(t, receivedOn(events).boxes, "a box would pay nothing")
-
-	roomOf(registry).Fill(newcomerPayer.Account, false)
-	registry.Clicked(clickOf(newcomerPayer))
-	after(t, registry, clock, ordinaryWindow)
-	boxes := receivedOn(events).boxes
-	require.Len(t, boxes, 1, "the ordinary schedule goes on")
-	assert.False(t, welcomed(t, registry, newcomerPayer, boxes[0]), "the welcome went with the turn")
 }
 
 func TestANewcomerIsForgottenOnceItIsNoLongerNew(t *testing.T) {

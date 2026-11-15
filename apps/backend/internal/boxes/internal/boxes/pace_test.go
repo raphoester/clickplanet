@@ -14,10 +14,10 @@ func TestAQuickerPaceBringsInABoxDueLaterThanItsLongestWait(t *testing.T) {
 	events := playing(t, registry, "scope-a")
 
 	rulesOf(registry).Pace = Pace{MinInterval: 10 * time.Second, MaxInterval: 10 * time.Second, MaxBoxesPerHour: 6}
-	registry.sweep(t.Context())
+	registry.sweep()
 	clock.Advance(11 * time.Second)
 	clicked(registry, "scope-a")
-	registry.sweep(t.Context())
+	registry.sweep()
 
 	assert.NotNil(t, offered(t, events), "due a minute after the first click, now ten seconds after the pace changed")
 }
@@ -38,7 +38,7 @@ func TestASlowerPaceKeepsTheBoxAlreadyDueAndSpacesTheNext(t *testing.T) {
 
 	clock.Advance(5 * time.Minute)
 	clicked(registry, "scope-a")
-	registry.sweep(t.Context())
+	registry.sweep()
 	assert.NotNil(t, offered(t, events))
 }
 
@@ -50,7 +50,7 @@ func TestThePaceSetsTheHourlyCapOfBoxesCaught(t *testing.T) {
 	for range 8 {
 		waitOut(t, registry, clock)
 		clicked(registry, "scope-a")
-		registry.sweep(t.Context())
+		registry.sweep()
 		offer := offered(t, events)
 		require.NotNil(t, offer)
 		_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
@@ -59,19 +59,19 @@ func TestThePaceSetsTheHourlyCapOfBoxesCaught(t *testing.T) {
 
 	waitOut(t, registry, clock)
 	clicked(registry, "scope-a")
-	registry.sweep(t.Context())
+	registry.sweep()
 	assert.Nil(t, offered(t, events), "eight, not the config's six")
 }
 
 func TestNoBoxIsOfferedBeforeARuleSetIsInForce(t *testing.T) {
 	clock := cptime.NewFixedClock(epoch)
-	registry := New(Config{}, clock, &fakeRoom{}, func() Rules { return Rules{} })
+	registry := New(Config{}, clock, func() Rules { return Rules{} })
 	events := playing(t, registry, "scope-a")
 
 	for range 3 {
 		clock.Advance(time.Minute)
 		clicked(registry, "scope-a")
-		registry.sweep(t.Context())
+		registry.sweep()
 	}
 
 	assert.Nil(t, offered(t, events), "a cap of 0 an hour offers nothing")

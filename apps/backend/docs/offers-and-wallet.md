@@ -97,7 +97,12 @@ newcomer's welcome is not lost to the race (`TestAnAccountThatFirstClicksWhileTh
 The outcomes are those of before: the same kinds left out, and an error still loses the slot, as an away player's
 (`TestARoomTheWalletCannotTellLosesTheSlot`). The wallet applies its own sizes (`Held.Full(charges.Rules)`); the offers
 never see one. Since B, `Held.Full` also counts a bomb while `charges.bomb.off`, so the offers need no `bomb.off`.
-`TestTheRoomIsAskedWithTheRegistryUnlocked` pins the lock.
+`TestTheRoomIsAskedWithTheRegistryUnlocked` pinned the lock.
+
+**Since 2026-11-15 no offer asks the room.** The quizzes stopped on 2026-11-13 and the boxes on 2026-11-15, as each left
+`bonuses` knowing no kind: a quiz is asked and a box offered whatever the hand holds, and the sweep is one pass under
+the lock again. The bonuses module asks `GetRoom` once per win, when it draws what it pays
+([The bonuses](bonuses.md#what-it-asks-of-planet-in-planets-words)); the tests named here went with the boxes' room.
 
 ### Pay
 

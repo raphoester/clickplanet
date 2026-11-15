@@ -66,8 +66,8 @@ was caught.
   from `kinds`, among those planet's room says the account's hand has room for (`GetRoom`, one account), and its amount
   from `spread`, `enclose` and `shield`. **A newcomer's early box pays a spread or nothing** (`BoxClaimed.welcome`):
   never a refill or a bomb, as before.
-- **A box may pay nothing**, which it could not before: the boxes know no kind, so they offer a box to a hand with room
-  for any of planet's kinds, and the hand may have room only for kinds weighed 0. Counted in
+- **A box may pay nothing**, which it could not before: the boxes know no kind and ask no room, so a box comes to a full
+  hand, or to one with room only for kinds weighed 0, as a quiz is asked of one. Counted in
   `bonus_box_rewards_total{outcome}` (`paid`, `nothing`, `failed`), by `prom_pay_caught_box`.
 - **The grant id is the box's token's** (`OfferGrantOf`, as before the cut): the bus may tell a catch twice, and planet
   pays it once. A redraw on a second telling changes nothing.

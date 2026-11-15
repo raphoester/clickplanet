@@ -87,10 +87,10 @@ every box it is offered where a person catches some. This makes the worst case
 a number you choose rather than a function of reflexes. Past 12 boxes caught in the
 last hour (`maxBoxesPerHour`) the slot is lost, like a caller's who was away; 12 is above the ten
 boxes an hour a person catching every one would get. Until 2026-11-15 the cap counted the charges granted; each box
-granted one, so the number is the same. **A hand with room for no kind at all** (a refill and a bomb held, every stack
-and pool full) **is offered no box.** The boxes know no kind, so a hand with room only for a kind the bonuses' rules weigh
-0 is offered one, which pays nothing ([A box caught](bonuses.md#a-box-caught)); before, the offer left out every kind a
-box would add nothing to.
+granted one, so the number is the same. **A box comes whatever the hand holds**: the boxes know no kind and ask no room
+([The boxes](boxes-module.md#what-it-asks-of-planet)), so a full hand, or one with room only for a kind the bonuses' rules
+weigh 0, is offered one, which pays nothing ([A box caught](bonuses.md#a-box-caught)). Until 2026-11-15 a hand with room
+for no kind the rules weighed was offered no box.
 
 **A caller is an entrant, not a connection.** `bonuses.EntrantOf(caller)` is the
 account (`account:<id>`) when the click token says it is linked, and its scope

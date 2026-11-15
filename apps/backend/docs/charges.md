@@ -43,14 +43,10 @@ its own.
   read under the lock of its one transaction, so a player is never told of clicks that did not fit, and a spend in
   another tab cannot change the number. The bonuses module's `InternalService/GrantCharges` runs the wallet's payment
   (`pay_usecase`). Until 2026-11-15 the claim's own answer said what was kept.
-- **The schedule offers no box to a hand with room for no kind** for any account that clicked as
-  the entrant within `activeWithin` (`Registry.offerable`): the linked account
-  itself, or every guest behind the scope. The schedule is by entrant and a charge
-  is by account, so the boxes hear both off every click planet tells (`planet.v1.ClickTried`: the scope, the
-  account, linked), and ask planet's `GetRoom`, outside their lock, which kinds those accounts have no room
-  for: a hand planet cannot tell is offered nothing (see
-  [The boxes](boxes-module.md#what-it-asks-of-planet)). The kind is drawn at the catch, among the kinds the hand has
-  room for then ([A box caught](bonuses.md#a-box-caught)).
+- **The schedule offers a box whatever the hand holds** (since 2026-11-15). The schedule is by entrant and a charge
+  is by account, and the boxes know no kind and ask no room ([The boxes](boxes-module.md#what-it-asks-of-planet)). The
+  kind is drawn at the catch, among the kinds the claiming account's hand has room for then, and a full hand is paid
+  nothing ([A box caught](bonuses.md#a-box-caught)).
 - **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
   the player switched on for this click, and `click_usecase.In` carries them.
   `spread_click` spends a spread click only with `Spread`, once the click is accepted (see [Spread](spread.md)),

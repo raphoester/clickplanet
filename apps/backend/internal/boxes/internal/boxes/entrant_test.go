@@ -103,7 +103,7 @@ func TestALinkedAccountsMissIsReportedToTheAntibotByItsNetwork(t *testing.T) {
 	require.NotNil(t, offered(t, events))
 
 	clock.Advance(rulesOf(registry).OfferTTL + time.Second)
-	registry.sweep(t.Context())
+	registry.sweep()
 
 	assert.Equal(t, []string{sharedAddress}, missedBy)
 }

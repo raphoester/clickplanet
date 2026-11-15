@@ -6,7 +6,8 @@ paid by the bonuses module, which hears it ([The bonuses](bonuses.md)). The modu
 second of three cuts that leave bonuses with the reward alone, so that a reward can later depend on the player's level
 (the owner's Claude Doc "Boxes and quizzes leave bonuses"). How a box is offered is in [Bonus boxes](bonus-boxes.md).
 
-It is downstream of planet: it hears planet's clicks, and asks planet the room of a hand and the freeze. **It speaks
+It is downstream of planet: it hears planet's clicks, and asks planet the freeze. **It asks no hand what it holds**
+(below). **It speaks
 planet's language alone**, and nothing it speaks to hears it back: `cmd/api/modules_test.go` pins it
 (`TestTheBoxesSpeakPlanetsLanguageAlone`).
 
@@ -14,7 +15,7 @@ planet's language alone**, and nothing it speaks to hears it back: `cmd/api/modu
 
 | package | what |
 |---|---|
-| `internal/boxes` | the registry (`box.go`, `welcome.go`, `entrant.go`, `caller.go`), the room port (`room.go`, answered by `rpc_planet_room`), the box facts (`box_facts`), its rules (`rules.go`, `message.go`) and the use cases `claim_box` and `listen_for_events`; moved from `bonuses/internal/bonuses` |
+| `internal/boxes` | the registry (`box.go`, `welcome.go`, `entrant.go`, `caller.go`), the box facts (`box_facts`), its rules (`rules.go`, `message.go`) and the use cases `claim_box` and `listen_for_events`; moved from `bonuses/internal/bonuses` |
 | `internal/facts` | its own facts log and relay, for the box facts; moved from `bonuses/internal/facts` |
 | `internal/rules` | the list of its parts (`parts.All()`) and its fixtures (`rules.Seeded()`); the machinery is `cprules` ([Shared](shared.md)) |
 | `internal/subscribers` | the clicks heard from planet |
@@ -48,16 +49,19 @@ progression gave up (4 to 3), so `max_connections` stays 42.
 | port | planet's answer | when |
 |---|---|---|
 | activity (`Registry.Clicked`) | `planet.v1.ClickTried`, group `bonuses-clicks` | every click planet tried |
-| `Room.Any` | `planet.v1.InternalService/GetRoom` | once per sweep for each caller due, outside the registry's lock |
 | the map's freeze | `planet.v1.InternalService/GetFreeze` | each claim |
 
 - **Activity.** The clicks taken, struck or unchanged ([What `Clicked` hears](offers-and-wallet.md#what-clicked-hears)).
   **The group kept the bonuses module's name**, so it goes on where the bonuses module left the stream, and no group is
-  left behind.
-- **Room.** Planet answers, for each account asked, the kinds its hand has no room for. **The boxes know no kind**: the
-  adapter reads the answers of every account playing behind a caller together, and says whether they leave room for at
-  least one of the kinds planet names (`planet.v1.BonusKind`). A box is offered only then. An error loses the slot, as
-  before.
+  left behind. A click with no account (`auth.enabled` off) is not heard, as the quizzes do not hear it: nothing could
+  pay a box to it.
+- **No room.** **The boxes ask no hand what it holds**, and offer a box to every caller due, whatever the hands behind it
+  hold. Whether a box pays anything is the bonuses module's to say when it is caught, from the room planet answers then
+  ([A box caught](bonuses.md#a-box-caught)), as it says for a right answer since the quizzes left
+  ([The quizzes](quizzes-module.md)). Keeping "no box for a full hand" would need the bonuses' weights, and the boxes
+  cannot ask the bonuses module, which hears them (a cycle, which `cmd/api/modules_test.go` refuses); asking planet's
+  `GetRoom` instead would teach the boxes planet's kinds and still miss the kinds weighed 0. The owner's call,
+  2026-11-15: a full hand is offered boxes that pay nothing.
 - **The freeze**: as the bonuses module asked it ([The freeze](#the-freeze)).
 
 ## Its rule sets
@@ -92,7 +96,7 @@ release strips them.
 **A claim is refused before the box is spent** (`boxesv1controller.NewFreezeInterceptor`), with `FailedPrecondition` and a
 `FrozenRefusal`, while the boxes play a frozen set or planet's `GetFreeze` answers frozen: its rules in force freeze the
 map, or an arena's freeze holds it ([Arena battles](arenas.md)). A slot that comes due while frozen is lost: the next wait
-is drawn, and planet is asked no room.
+is drawn.
 
 ## A box caught, told
 
@@ -119,13 +123,15 @@ streams held first (`cpredis.SubscribeMoved`).
 
 ## What the cut changed for a player
 
-**What a box pays did not change, but for two cases that cannot be helped** ([A box caught](bonuses.md#a-box-caught)):
+**What a box pays did not change, but for two cases** ([A box caught](bonuses.md#a-box-caught)):
 
 1. **A box may pay nothing.** The bonuses module offered a box only for a kind the hand had room for and the rules
-   weighed. The boxes know no kind: they skip the offer only when the hand has room for none of planet's kinds. A hand
-   with room only for a kind weighed 0 (capital-siege weighs spread and enclose 0) is offered a box that pays nothing; the
-   page then says the inventory is full, and `bonus_box_rewards_total{outcome="nothing"}` counts it. So is a newcomer's
-   early box when the set weighs spread 0 or the spread pool is full: before, it gave no early box at all.
+   weighed. The boxes know no kind and ask no room ([No room](#what-it-asks-of-planet)), so a box comes whatever the hand
+   holds: a full hand, or one with room only for a kind weighed 0 (capital-siege weighs spread and enclose 0), is offered
+   a box that pays nothing; the page then says the inventory is full, and `bonus_box_rewards_total{outcome="nothing"}`
+   counts it. So is a newcomer's early box when the set weighs spread 0 or the spread pool is full: before, it gave no
+   early box at all. A full hand's catches now count, as any catch, for the box missions, the `Loot` titles and the
+   antibot's box facts, where before it was offered nothing to catch.
 2. **The hourly cap counts boxes caught**, not charges granted. Each box paid one grant, so the numbers are the same.
 
 The claim's answer no longer says what the box held: the page shows the reward from planet's `charges_granted`, about a
@@ -148,7 +154,7 @@ the box's reward from `charges_granted`. **The page first, then the server**, as
 
 ## Tests
 
-The registry's (the schedule, the welcome, the pace, the room's sweep, the frozen set, a click heard late, the entrants),
-the room adapter's, the use cases', the handlers', the stream's and its sink's, the facts log's, the rules package's (and
+The registry's (the schedule, the welcome, the pace, the frozen set, a click heard late, a click with no account, the
+entrants), the use cases', the handlers', the stream's and its sink's, the facts log's, the rules package's (and
 `cprules`' contract suites on its migrations, and the copy of production's sets from the bonuses module), and promo's
 migration test.

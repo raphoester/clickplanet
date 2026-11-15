@@ -101,7 +101,8 @@ and says what is in it. Read the doc before you change its area.
   right answer gives (the bonuses module's, from the quizzes' `QuizAnswered`).
 - [The boxes module](docs/boxes-module.md) — the boxes left bonuses (2026-11-15): the schedule, the offer and the claim,
   a newcomer's early box, the box facts; `BoxService` (pays nothing, no kind on the wire), `BoxClaimed` through an outbox,
-  its rule sets (`boxes.rule_sets`), the room read as any kind or none, the two unavoidable changes, the deploy.
+  its rule sets (`boxes.rule_sets`), no hand's room asked (a full hand is offered boxes that pay nothing), the two
+  changes for a player, the deploy.
 - [The quizzes module](docs/quizzes-module.md) — the quizzes left bonuses (2026-11-13): the schedule, the bank, the
   ratings and the answer log; `QuizService` (pays nothing), `QuizAnswered` through an outbox, its rule sets
   (`quizzes.rule_sets`), the tables moved from schema `bonuses`, the dropped "box and quiz apart" rule, the deploy.

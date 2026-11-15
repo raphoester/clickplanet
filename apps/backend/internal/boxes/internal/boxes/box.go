@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"slices"
 	"sync"
 	"time"
 
@@ -49,8 +48,6 @@ type caller struct {
 	nextOfferAt time.Time
 	lastSeen    time.Time
 	lastClickAt time.Time
-
-	players map[Account]time.Time
 
 	outstanding string
 	misses      int
@@ -96,7 +93,6 @@ type Registry struct {
 	rules  func() Rules
 	clock  cptime.Clock
 	report Report
-	room   Room
 
 	mu           sync.Mutex
 	followedPace Pace
@@ -127,12 +123,11 @@ const rememberSpent = 10 * time.Minute
 
 const offerBuffer = 32
 
-func New(config Config, clock cptime.Clock, room Room, rules func() Rules) *Registry {
+func New(config Config, clock cptime.Clock, rules func() Rules) *Registry {
 	return &Registry{
 		config:       config.withDefaults(),
 		rules:        rules,
 		clock:        clock,
-		room:         room,
 		followedPace: rules().Pace,
 		callers:      make(map[Entrant]*caller),
 		offers:       make(map[string]*pending),
@@ -195,7 +190,6 @@ func (r *Registry) caller(entrant Entrant, rules Rules, now time.Time) *caller {
 
 	entry = &caller{
 		streams:     make(map[uint64]chan Offer),
-		players:     make(map[Account]time.Time),
 		nextOfferAt: now.Add(boxWait(rules)),
 		lastSeen:    now,
 	}
@@ -217,8 +211,8 @@ func (r *Registry) leave(entrant Entrant, id uint64) {
 	entry.lastSeen = r.clock.Now()
 }
 
-// Clicked hears a click a moment after it was tried; one tried longer ago than activeWithin, heard late after a boot,
-// is no sign of a player.
+// Clicked hears a click a moment after it was tried. A click with no account, which no box could pay, or one tried
+// longer ago than activeWithin, heard late after a boot, is no sign of a player.
 func (r *Registry) Clicked(click Click) {
 	now := r.clock.Now()
 	rules := r.rules()
@@ -227,7 +221,7 @@ func (r *Registry) Clicked(click Click) {
 	if at.IsZero() || at.After(now) {
 		at = now
 	}
-	if now.Sub(at) > rules.ActiveWithin {
+	if click.Caller.Account == NoAccount || now.Sub(at) > rules.ActiveWithin {
 		return
 	}
 
@@ -238,13 +232,6 @@ func (r *Registry) Clicked(click Click) {
 	entry.scope = click.Caller.Scope
 	if at.After(entry.lastClickAt) {
 		entry.lastClickAt = at
-	}
-	if click.Caller.Account == NoAccount {
-		return
-	}
-
-	if at.After(entry.players[click.Caller.Account]) {
-		entry.players[click.Caller.Account] = at
 	}
 	r.welcome(entry, click, rules, now)
 }
@@ -302,115 +289,42 @@ func (r *Registry) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			r.sweep(ctx)
+			r.sweep()
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-// sweep decides who is due under the lock, asks the wallet for their room outside it, then offers under it again to
-// whoever is due still: the room is a call out of the boxes, and nothing else waits on the registry while it runs.
-func (r *Registry) sweep(ctx context.Context) {
+// sweep tidies the registry and offers a box to each caller due. It asks nobody what a box would pay: that is the bonuses
+// module's to say when the box is caught, and a box that pays nothing is still offered.
+func (r *Registry) sweep() {
 	now := r.clock.Now()
 	rules := r.rules()
 
-	due := r.dueCallers(rules, now)
-	r.ask(ctx, due, rules)
-	r.offerDue(due, rules, now)
-}
-
-// dueOne is a caller found due, the accounts that played behind it then, and what the wallet said of their room.
-type dueOne struct {
-	entrant  Entrant
-	accounts []Account
-
-	room bool
-	err  error
-}
-
-// dueCallers are the callers due a box, once the registry is tidied under the same lock.
-func (r *Registry) dueCallers(rules Rules, now time.Time) []*dueOne {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.tidy(rules, now)
-
-	var due []*dueOne
-	for entrant, entry := range r.callers {
-		if r.due(entry, rules, now) {
-			due = append(due, &dueOne{entrant: entrant, accounts: entry.playing(rules, now)})
-		}
-	}
-
-	return due
-}
-
-func (r *Registry) tidy(rules Rules, now time.Time) {
 	r.follow(rules, now)
 	r.collectMisses(rules, now)
 	r.forgetSpent(now)
 	r.forgetStale(now)
 	r.forgetNewcomers(now)
-}
 
-// ask runs with the registry unlocked. A frozen set offers nothing, so it asks nothing.
-func (r *Registry) ask(ctx context.Context, due []*dueOne, rules Rules) {
-	if rules.Frozen {
-		return
-	}
-	for _, one := range due {
-		if len(one.accounts) > 0 {
-			one.room, one.err = r.room.Any(ctx, one.accounts)
-		}
-	}
-}
-
-func (r *Registry) offerDue(due []*dueOne, rules Rules, now time.Time) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for _, one := range due {
-		entry, ok := r.callers[one.entrant]
-		if !ok || !entry.playedBy(one.accounts, rules, now) || !r.due(entry, rules, now) {
+	for entrant, entry := range r.callers {
+		if !r.due(entry, rules, now) {
 			continue
 		}
 
 		welcome := entry.owedWelcome
 		entry.owedWelcome = false
-		if !r.offerable(entry, one, rules, now) {
+		if !r.offerable(entry, rules, now) {
 			entry.nextOfferAt = now.Add(boxWait(rules))
 			continue
 		}
 
-		r.offer(one.entrant, entry, rules, now, welcome)
+		r.offer(entrant, entry, rules, now, welcome)
 	}
-}
-
-// playing forgets the accounts that last clicked longer ago than activeWithin, and is the others.
-func (c *caller) playing(rules Rules, now time.Time) []Account {
-	accounts := make([]Account, 0, len(c.players))
-	for account, clicked := range c.players {
-		if now.Sub(clicked) > rules.ActiveWithin {
-			delete(c.players, account)
-			continue
-		}
-		accounts = append(accounts, account)
-	}
-
-	return accounts
-}
-
-// playedBy is true while every account playing behind the caller is one the wallet was asked of: one that clicked
-// first while the room was asked waits for the next sweep, rather than be offered on a room it was not counted in.
-func (c *caller) playedBy(asked []Account, rules Rules, now time.Time) bool {
-	for account, clicked := range c.players {
-		if now.Sub(clicked) <= rules.ActiveWithin && !slices.Contains(asked, account) {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (r *Registry) due(entry *caller, rules Rules, now time.Time) bool {
@@ -426,19 +340,10 @@ func (r *Registry) due(entry *caller, rules Rules, now time.Time) bool {
 	return true
 }
 
-// offerable is false while the wallet said the hands playing behind the caller have room for no kind at all: a box
-// would pay nothing. Which kind it holds is the bonuses module's to draw.
-func (r *Registry) offerable(entry *caller, one *dueOne, rules Rules, now time.Time) bool {
-	if one.err != nil || rules.Frozen {
-		// Offered nothing: the slot is lost, as an away player's.
-		return false
-	}
-
-	if len(one.accounts) == 0 || r.caughtWithinTheHour(entry, now) >= rules.Pace.MaxBoxesPerHour {
-		return false
-	}
-
-	return one.room
+// offerable is false while the set is frozen, and once the caller caught the hour's boxes: the slot is lost, as an away
+// player's.
+func (r *Registry) offerable(entry *caller, rules Rules, now time.Time) bool {
+	return !rules.Frozen && r.caughtWithinTheHour(entry, now) < rules.Pace.MaxBoxesPerHour
 }
 
 func (r *Registry) caughtWithinTheHour(entry *caller, now time.Time) int {

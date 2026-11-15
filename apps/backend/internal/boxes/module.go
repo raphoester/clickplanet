@@ -14,7 +14,6 @@ import (
 	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/boxes/internal/boxes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/boxes/internal/boxes/box_facts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/boxes/internal/boxes/rpc_planet_room"
 	"github.com/raphoester/clickplanet.lol-backend/internal/boxes/internal/boxes/usecases/claim_box_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/boxes/internal/boxes/usecases/claim_box_usecase/prom_claim_box"
 	"github.com/raphoester/clickplanet.lol-backend/internal/boxes/internal/boxes/usecases/listen_for_events_usecase"
@@ -98,7 +97,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	boxRules := cprules.Reader(inForce, boxes.Part)
 
-	registry := boxes.New(config.Offers, clock, rpc_planet_room.New(planet), boxRules)
+	registry := boxes.New(config.Offers, clock, boxRules)
 	told := facts.NewLog(clock)
 	claim := take(registry, db, told, clock, props)
 
