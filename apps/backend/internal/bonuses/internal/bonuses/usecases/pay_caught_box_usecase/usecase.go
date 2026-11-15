@@ -16,8 +16,8 @@ type Wallet interface {
 	Pay(ctx context.Context, payment bonuses.Payment) error
 }
 
-// Out says whether the box was worth anything: the boxes, which know no kind, offer one to a hand with room for any of
-// planet's kinds, and this one may have room for none the rules weigh.
+// Out says whether the box was worth anything: the boxes, which know no kind and ask no room, offer one whatever the
+// hand holds, and this one may have room for none the rules weigh.
 type Out struct {
 	Paid bool
 }
