@@ -109,6 +109,105 @@ func (x *ReconcileTitlesResponse) GetRevoked() uint32 {
 	return 0
 }
 
+type BackfillDaysPlayedRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Counts what would change, and writes nothing.
+	DryRun        bool `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BackfillDaysPlayedRequest) Reset() {
+	*x = BackfillDaysPlayedRequest{}
+	mi := &file_progression_v1_admin_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackfillDaysPlayedRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackfillDaysPlayedRequest) ProtoMessage() {}
+
+func (x *BackfillDaysPlayedRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_progression_v1_admin_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackfillDaysPlayedRequest.ProtoReflect.Descriptor instead.
+func (*BackfillDaysPlayedRequest) Descriptor() ([]byte, []int) {
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BackfillDaysPlayedRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type BackfillDaysPlayedResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The accounts with stats, every one read.
+	Accounts uint32 `protobuf:"varint,1,opt,name=accounts,proto3" json:"accounts,omitempty"`
+	// The accounts whose days played went up, or would.
+	Changed       uint32 `protobuf:"varint,2,opt,name=changed,proto3" json:"changed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BackfillDaysPlayedResponse) Reset() {
+	*x = BackfillDaysPlayedResponse{}
+	mi := &file_progression_v1_admin_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BackfillDaysPlayedResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BackfillDaysPlayedResponse) ProtoMessage() {}
+
+func (x *BackfillDaysPlayedResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_progression_v1_admin_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BackfillDaysPlayedResponse.ProtoReflect.Descriptor instead.
+func (*BackfillDaysPlayedResponse) Descriptor() ([]byte, []int) {
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BackfillDaysPlayedResponse) GetAccounts() uint32 {
+	if x != nil {
+		return x.Accounts
+	}
+	return 0
+}
+
+func (x *BackfillDaysPlayedResponse) GetChanged() uint32 {
+	if x != nil {
+		return x.Changed
+	}
+	return 0
+}
+
 type AdminGetProgressRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
@@ -118,7 +217,7 @@ type AdminGetProgressRequest struct {
 
 func (x *AdminGetProgressRequest) Reset() {
 	*x = AdminGetProgressRequest{}
-	mi := &file_progression_v1_admin_proto_msgTypes[2]
+	mi := &file_progression_v1_admin_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -130,7 +229,7 @@ func (x *AdminGetProgressRequest) String() string {
 func (*AdminGetProgressRequest) ProtoMessage() {}
 
 func (x *AdminGetProgressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_admin_proto_msgTypes[2]
+	mi := &file_progression_v1_admin_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -143,7 +242,7 @@ func (x *AdminGetProgressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetProgressRequest.ProtoReflect.Descriptor instead.
 func (*AdminGetProgressRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_admin_proto_rawDescGZIP(), []int{2}
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AdminGetProgressRequest) GetAccountId() string {
@@ -154,20 +253,22 @@ func (x *AdminGetProgressRequest) GetAccountId() string {
 }
 
 type AdminGetProgressResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Stats         *Stats                 `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
-	MessagesSent  uint64                 `protobuf:"varint,2,opt,name=messages_sent,json=messagesSent,proto3" json:"messages_sent,omitempty"`
-	Titles        []*Title               `protobuf:"bytes,3,rep,name=titles,proto3" json:"titles,omitempty"`
-	WornTitle     *Title                 `protobuf:"bytes,4,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
-	PlaysFor      []*CountryTiles        `protobuf:"bytes,5,rep,name=plays_for,json=playsFor,proto3" json:"plays_for,omitempty"`
-	PlaysAgainst  []*CountryTiles        `protobuf:"bytes,6,rep,name=plays_against,json=playsAgainst,proto3" json:"plays_against,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Stats        *Stats                 `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
+	MessagesSent uint64                 `protobuf:"varint,2,opt,name=messages_sent,json=messagesSent,proto3" json:"messages_sent,omitempty"`
+	Titles       []*Title               `protobuf:"bytes,3,rep,name=titles,proto3" json:"titles,omitempty"`
+	WornTitle    *Title                 `protobuf:"bytes,4,opt,name=worn_title,json=wornTitle,proto3" json:"worn_title,omitempty"`
+	PlaysFor     []*CountryTiles        `protobuf:"bytes,5,rep,name=plays_for,json=playsFor,proto3" json:"plays_for,omitempty"`
+	PlaysAgainst []*CountryTiles        `protobuf:"bytes,6,rep,name=plays_against,json=playsAgainst,proto3" json:"plays_against,omitempty"`
+	// The UTC days with at least one take.
+	DaysPlayed    uint64 `protobuf:"varint,8,opt,name=days_played,json=daysPlayed,proto3" json:"days_played,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AdminGetProgressResponse) Reset() {
 	*x = AdminGetProgressResponse{}
-	mi := &file_progression_v1_admin_proto_msgTypes[3]
+	mi := &file_progression_v1_admin_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -179,7 +280,7 @@ func (x *AdminGetProgressResponse) String() string {
 func (*AdminGetProgressResponse) ProtoMessage() {}
 
 func (x *AdminGetProgressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_admin_proto_msgTypes[3]
+	mi := &file_progression_v1_admin_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -192,7 +293,7 @@ func (x *AdminGetProgressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetProgressResponse.ProtoReflect.Descriptor instead.
 func (*AdminGetProgressResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_admin_proto_rawDescGZIP(), []int{3}
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AdminGetProgressResponse) GetStats() *Stats {
@@ -237,6 +338,13 @@ func (x *AdminGetProgressResponse) GetPlaysAgainst() []*CountryTiles {
 	return nil
 }
 
+func (x *AdminGetProgressResponse) GetDaysPlayed() uint64 {
+	if x != nil {
+		return x.DaysPlayed
+	}
+	return 0
+}
+
 var File_progression_v1_admin_proto protoreflect.FileDescriptor
 
 const file_progression_v1_admin_proto_rawDesc = "" +
@@ -245,10 +353,15 @@ const file_progression_v1_admin_proto_rawDesc = "" +
 	"\x16ReconcileTitlesRequest\"M\n" +
 	"\x17ReconcileTitlesResponse\x12\x18\n" +
 	"\agranted\x18\x01 \x01(\rR\agranted\x12\x18\n" +
-	"\arevoked\x18\x02 \x01(\rR\arevoked\"8\n" +
+	"\arevoked\x18\x02 \x01(\rR\arevoked\"4\n" +
+	"\x19BackfillDaysPlayedRequest\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"R\n" +
+	"\x1aBackfillDaysPlayedResponse\x12\x1a\n" +
+	"\baccounts\x18\x01 \x01(\rR\baccounts\x12\x18\n" +
+	"\achanged\x18\x02 \x01(\rR\achanged\"8\n" +
 	"\x17AdminGetProgressRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"\xcf\x02\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"\xf0\x02\n" +
 	"\x18AdminGetProgressResponse\x12+\n" +
 	"\x05stats\x18\x01 \x01(\v2\x15.progression.v1.StatsR\x05stats\x12#\n" +
 	"\rmessages_sent\x18\x02 \x01(\x04R\fmessagesSent\x12-\n" +
@@ -256,9 +369,12 @@ const file_progression_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"worn_title\x18\x04 \x01(\v2\x15.progression.v1.TitleR\twornTitle\x129\n" +
 	"\tplays_for\x18\x05 \x03(\v2\x1c.progression.v1.CountryTilesR\bplaysFor\x12A\n" +
-	"\rplays_against\x18\x06 \x03(\v2\x1c.progression.v1.CountryTilesR\fplaysAgainst2\xd9\x01\n" +
+	"\rplays_against\x18\x06 \x03(\v2\x1c.progression.v1.CountryTilesR\fplaysAgainst\x12\x1f\n" +
+	"\vdays_played\x18\b \x01(\x04R\n" +
+	"daysPlayed2\xc6\x02\n" +
 	"\fAdminService\x12b\n" +
-	"\x0fReconcileTitles\x12&.progression.v1.ReconcileTitlesRequest\x1a'.progression.v1.ReconcileTitlesResponse\x12e\n" +
+	"\x0fReconcileTitles\x12&.progression.v1.ReconcileTitlesRequest\x1a'.progression.v1.ReconcileTitlesResponse\x12k\n" +
+	"\x12BackfillDaysPlayed\x12).progression.v1.BackfillDaysPlayedRequest\x1a*.progression.v1.BackfillDaysPlayedResponse\x12e\n" +
 	"\vGetProgress\x12'.progression.v1.AdminGetProgressRequest\x1a(.progression.v1.AdminGetProgressResponse\"\x03\x90\x02\x01B\xd5\x01\n" +
 	"\x12com.progression.v1B\n" +
 	"AdminProtoP\x01ZZgithub.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1;progressionv1\xa2\x02\x03PXX\xaa\x02\x0eProgression.V1\xca\x02\x0eProgression\\V1\xe2\x02\x1aProgression\\V1\\GPBMetadata\xea\x02\x0fProgression::V1b\x06proto3"
@@ -275,28 +391,32 @@ func file_progression_v1_admin_proto_rawDescGZIP() []byte {
 	return file_progression_v1_admin_proto_rawDescData
 }
 
-var file_progression_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_progression_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_progression_v1_admin_proto_goTypes = []any{
-	(*ReconcileTitlesRequest)(nil),   // 0: progression.v1.ReconcileTitlesRequest
-	(*ReconcileTitlesResponse)(nil),  // 1: progression.v1.ReconcileTitlesResponse
-	(*AdminGetProgressRequest)(nil),  // 2: progression.v1.AdminGetProgressRequest
-	(*AdminGetProgressResponse)(nil), // 3: progression.v1.AdminGetProgressResponse
-	(*Stats)(nil),                    // 4: progression.v1.Stats
-	(*Title)(nil),                    // 5: progression.v1.Title
-	(*CountryTiles)(nil),             // 6: progression.v1.CountryTiles
+	(*ReconcileTitlesRequest)(nil),     // 0: progression.v1.ReconcileTitlesRequest
+	(*ReconcileTitlesResponse)(nil),    // 1: progression.v1.ReconcileTitlesResponse
+	(*BackfillDaysPlayedRequest)(nil),  // 2: progression.v1.BackfillDaysPlayedRequest
+	(*BackfillDaysPlayedResponse)(nil), // 3: progression.v1.BackfillDaysPlayedResponse
+	(*AdminGetProgressRequest)(nil),    // 4: progression.v1.AdminGetProgressRequest
+	(*AdminGetProgressResponse)(nil),   // 5: progression.v1.AdminGetProgressResponse
+	(*Stats)(nil),                      // 6: progression.v1.Stats
+	(*Title)(nil),                      // 7: progression.v1.Title
+	(*CountryTiles)(nil),               // 8: progression.v1.CountryTiles
 }
 var file_progression_v1_admin_proto_depIdxs = []int32{
-	4, // 0: progression.v1.AdminGetProgressResponse.stats:type_name -> progression.v1.Stats
-	5, // 1: progression.v1.AdminGetProgressResponse.titles:type_name -> progression.v1.Title
-	5, // 2: progression.v1.AdminGetProgressResponse.worn_title:type_name -> progression.v1.Title
-	6, // 3: progression.v1.AdminGetProgressResponse.plays_for:type_name -> progression.v1.CountryTiles
-	6, // 4: progression.v1.AdminGetProgressResponse.plays_against:type_name -> progression.v1.CountryTiles
+	6, // 0: progression.v1.AdminGetProgressResponse.stats:type_name -> progression.v1.Stats
+	7, // 1: progression.v1.AdminGetProgressResponse.titles:type_name -> progression.v1.Title
+	7, // 2: progression.v1.AdminGetProgressResponse.worn_title:type_name -> progression.v1.Title
+	8, // 3: progression.v1.AdminGetProgressResponse.plays_for:type_name -> progression.v1.CountryTiles
+	8, // 4: progression.v1.AdminGetProgressResponse.plays_against:type_name -> progression.v1.CountryTiles
 	0, // 5: progression.v1.AdminService.ReconcileTitles:input_type -> progression.v1.ReconcileTitlesRequest
-	2, // 6: progression.v1.AdminService.GetProgress:input_type -> progression.v1.AdminGetProgressRequest
-	1, // 7: progression.v1.AdminService.ReconcileTitles:output_type -> progression.v1.ReconcileTitlesResponse
-	3, // 8: progression.v1.AdminService.GetProgress:output_type -> progression.v1.AdminGetProgressResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
+	2, // 6: progression.v1.AdminService.BackfillDaysPlayed:input_type -> progression.v1.BackfillDaysPlayedRequest
+	4, // 7: progression.v1.AdminService.GetProgress:input_type -> progression.v1.AdminGetProgressRequest
+	1, // 8: progression.v1.AdminService.ReconcileTitles:output_type -> progression.v1.ReconcileTitlesResponse
+	3, // 9: progression.v1.AdminService.BackfillDaysPlayed:output_type -> progression.v1.BackfillDaysPlayedResponse
+	5, // 10: progression.v1.AdminService.GetProgress:output_type -> progression.v1.AdminGetProgressResponse
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name
 	5, // [5:5] is the sub-list for extension extendee
 	0, // [0:5] is the sub-list for field type_name
@@ -315,7 +435,7 @@ func file_progression_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_progression_v1_admin_proto_rawDesc), len(file_progression_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

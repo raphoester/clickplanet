@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 )
@@ -23,7 +24,7 @@ func TestTheFirstTakeStartsAStreakOfOne(t *testing.T) {
 	counted := taken(beforeMidnight)
 
 	assert.Equal(t, stats.StatsSnapshot{
-		TilesTaken: 1, Streak: stats.StreakOf(1, stats.DayOf(beforeMidnight)), StreakBest: 1,
+		TilesTaken: 1, Streak: stats.StreakOf(1, stats.DayOf(beforeMidnight)), StreakBest: 1, DaysPlayed: 1,
 		Counted: stats.Counted{TakesBelow: stats.TakeMark{Position: 0, Index: 1}},
 	}.Restore(), counted)
 }
@@ -91,7 +92,7 @@ func TestNoTakeIsNoDay(t *testing.T) {
 
 func TestAMessageCountsAMessageAndLeavesTheTilesAndTheStreakAlone(t *testing.T) {
 	want := stats.StatsSnapshot{
-		TilesTaken: 1, Streak: stats.StreakOf(1, stats.DayOf(beforeMidnight)), StreakBest: 1, MessagesSent: 2,
+		TilesTaken: 1, Streak: stats.StreakOf(1, stats.DayOf(beforeMidnight)), StreakBest: 1, DaysPlayed: 1, MessagesSent: 2,
 		Counted: stats.Counted{TakesBelow: stats.TakeMark{Position: 0, Index: 1}, MessagesUntil: beforeMidnight.Add(time.Second)},
 	}.Restore()
 
@@ -159,4 +160,97 @@ func TestTheMissionsDoneAreTheMostMissionsTellsItPaid(t *testing.T) {
 	assert.Equal(t, uint64(3), counted.MissionsDone(), "a payment told twice or late counts nothing more")
 	assert.Equal(t, uint64(12), counted.WithMissionsPaid(12).MissionsDone(), "the first one heard brings every mission before it")
 	assert.Equal(t, stats.Streak{}, counted.Streak())
+}
+
+func TestATakeOnANewUTCDayAddsADayPlayed(t *testing.T) {
+	assert.Equal(t, uint64(1), taken(beforeMidnight).DaysPlayed(), "the first take is the first day")
+	assert.Equal(t, uint64(2), taken(beforeMidnight, beforeMidnight.Add(2*time.Second)).DaysPlayed(),
+		"just past UTC midnight is the next day")
+	assert.Equal(t, uint64(3), taken(beforeMidnight, beforeMidnight.Add(24*time.Hour), beforeMidnight.Add(5*24*time.Hour)).DaysPlayed(),
+		"a day after a gap counts though the streak starts again")
+}
+
+func TestATakeOnTheSameDayOrALateOlderDayAddsNoDayPlayed(t *testing.T) {
+	assert.Equal(t, uint64(1), taken(beforeMidnight.Add(-23*time.Hour), beforeMidnight).DaysPlayed())
+	assert.Equal(t, uint64(2), taken(beforeMidnight, beforeMidnight.Add(24*time.Hour), beforeMidnight.Add(-48*time.Hour)).DaysPlayed(),
+		"a late take older than the last day adds nothing, as for the streak")
+}
+
+func TestATakeCountedAlreadyAddsNoDayPlayed(t *testing.T) {
+	counted := taken(beforeMidnight).WithTake(0, 0, beforeMidnight.Add(time.Hour))
+
+	assert.Equal(t, uint64(1), counted.DaysPlayed())
+}
+
+func TestNoOtherFactAddsADayPlayed(t *testing.T) {
+	counted := stats.Stats{}.WithMessage(beforeMidnight).WithBomb(1).WithFortify(2, 3).WithBonus(beforeMidnight).
+		WithRightAnswer(beforeMidnight).WithMissionsPaid(4)
+
+	assert.Zero(t, counted.DaysPlayed())
+}
+
+func day(t *testing.T, value string) stats.Day {
+	t.Helper()
+
+	parsed, err := stats.DayFrom(value)
+	require.NoError(t, err)
+	return parsed
+}
+
+func days(t *testing.T, values ...string) []stats.Day {
+	t.Helper()
+
+	parsed := make([]stats.Day, 0, len(values))
+	for _, value := range values {
+		parsed = append(parsed, day(t, value))
+	}
+	return parsed
+}
+
+func TestTheBackfillCountsEachLedgerDayUpToTheLastDayOnce(t *testing.T) {
+	counted := stats.StatsSnapshot{Streak: stats.StreakOf(1, day(t, "2026-10-05"))}.Restore().
+		WithPlayDays(days(t, "2026-09-20", "2026-09-25", "2026-09-25", "2026-10-05", "2026-10-07"))
+
+	assert.Equal(t, uint64(3), counted.DaysPlayed(), "a day after the last one is the live count's")
+}
+
+func TestTheBackfillAlwaysCountsTheLastDay(t *testing.T) {
+	counted := stats.StatsSnapshot{Streak: stats.StreakOf(1, day(t, "2026-10-05"))}.Restore().
+		WithPlayDays(days(t, "2026-09-20", "2026-09-25"))
+
+	assert.Equal(t, uint64(3), counted.DaysPlayed(), "a take flushed after the ledger was read")
+}
+
+func TestTheBestStreakIsTheFloorOfTheDaysPlayed(t *testing.T) {
+	counted := stats.StatsSnapshot{Streak: stats.StreakOf(2, day(t, "2026-10-05")), StreakBest: 12}.Restore().
+		WithPlayDays(days(t, "2026-10-04", "2026-10-05"))
+
+	assert.Equal(t, uint64(12), counted.DaysPlayed(), "takes from before the ledger had accounts")
+}
+
+func TestTheBackfillNeverLowersTheDaysPlayed(t *testing.T) {
+	counted := stats.StatsSnapshot{Streak: stats.StreakOf(1, day(t, "2026-10-05")), StreakBest: 1, DaysPlayed: 40}.Restore().
+		WithPlayDays(days(t, "2026-10-05"))
+
+	assert.Equal(t, uint64(40), counted.DaysPlayed())
+}
+
+func TestTheBackfillTwiceChangesNothing(t *testing.T) {
+	ledger := days(t, "2026-09-20", "2026-09-25", "2026-10-05")
+	once := stats.StatsSnapshot{Streak: stats.StreakOf(1, day(t, "2026-10-05")), StreakBest: 1}.Restore().WithPlayDays(ledger)
+
+	assert.Equal(t, once, once.WithPlayDays(ledger))
+}
+
+func TestAnAccountWithNoTakeHasNoDayToBackfill(t *testing.T) {
+	counted := stats.Stats{}.WithMessage(beforeMidnight).WithPlayDays(days(t, "2026-09-20"))
+
+	assert.Zero(t, counted.DaysPlayed())
+}
+
+func TestADayReadsBackAsItIsWritten(t *testing.T) {
+	assert.Equal(t, stats.DayOf(beforeMidnight), day(t, stats.DayOf(beforeMidnight).String()))
+
+	_, err := stats.DayFrom("17/09/2026")
+	require.Error(t, err)
 }

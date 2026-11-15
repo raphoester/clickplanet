@@ -51,6 +51,9 @@ const (
 	// InternalServiceGetTakesByCountryProcedure is the fully-qualified name of the InternalService's
 	// GetTakesByCountry RPC.
 	InternalServiceGetTakesByCountryProcedure = "/planet.v1.InternalService/GetTakesByCountry"
+	// InternalServiceGetPlayDaysProcedure is the fully-qualified name of the InternalService's
+	// GetPlayDays RPC.
+	InternalServiceGetPlayDaysProcedure = "/planet.v1.InternalService/GetPlayDays"
 	// InternalServiceGetLedgerTotalsProcedure is the fully-qualified name of the InternalService's
 	// GetLedgerTotals RPC.
 	InternalServiceGetLedgerTotalsProcedure = "/planet.v1.InternalService/GetLedgerTotals"
@@ -110,6 +113,10 @@ type InternalServiceClient interface {
 	// AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
+	// The UTC days each account asked took at least one tile on, from the postgres ledger: a take, or a spread or an
+	// enclose that took a tile, as TilesTaken tells them; a reverted take still counts. For progression's backfill of the
+	// days played. An account with no take is left out. InvalidArgument for a bad id, or for more than 500 asked at once.
+	GetPlayDays(context.Context, *connect.Request[v1.GetPlayDaysRequest]) (*connect.Response[v1.GetPlayDaysResponse], error)
 	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
 	// keeps the answer. InvalidArgument unless since is before until.
 	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
@@ -189,6 +196,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+InternalServiceGetTakesByCountryProcedure,
 			connect.WithSchema(internalServiceMethods.ByName("GetTakesByCountry")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getPlayDays: connect.NewClient[v1.GetPlayDaysRequest, v1.GetPlayDaysResponse](
+			httpClient,
+			baseURL+InternalServiceGetPlayDaysProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("GetPlayDays")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
@@ -280,6 +294,7 @@ type internalServiceClient struct {
 	closeArena        *connect.Client[v1.CloseArenaRequest, v1.CloseArenaResponse]
 	getLedger         *connect.Client[v1.GetLedgerRequest, v1.GetLedgerResponse]
 	getTakesByCountry *connect.Client[v1.GetTakesByCountryRequest, v1.GetTakesByCountryResponse]
+	getPlayDays       *connect.Client[v1.GetPlayDaysRequest, v1.GetPlayDaysResponse]
 	getLedgerTotals   *connect.Client[v1.GetLedgerTotalsRequest, v1.GetLedgerTotalsResponse]
 	getMapHistory     *connect.Client[v1.GetMapHistoryRequest, v1.GetMapHistoryResponse]
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
@@ -321,6 +336,11 @@ func (c *internalServiceClient) GetLedger(ctx context.Context, req *connect.Requ
 // GetTakesByCountry calls planet.v1.InternalService.GetTakesByCountry.
 func (c *internalServiceClient) GetTakesByCountry(ctx context.Context, req *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error) {
 	return c.getTakesByCountry.CallUnary(ctx, req)
+}
+
+// GetPlayDays calls planet.v1.InternalService.GetPlayDays.
+func (c *internalServiceClient) GetPlayDays(ctx context.Context, req *connect.Request[v1.GetPlayDaysRequest]) (*connect.Response[v1.GetPlayDaysResponse], error) {
+	return c.getPlayDays.CallUnary(ctx, req)
 }
 
 // GetLedgerTotals calls planet.v1.InternalService.GetLedgerTotals.
@@ -403,6 +423,10 @@ type InternalServiceHandler interface {
 	// AdminService/GetLedger, for the clips module's cast and the vandal squad's patrols: who took which tile.
 	GetLedger(context.Context, *connect.Request[v1.GetLedgerRequest]) (*connect.Response[v1.GetLedgerResponse], error)
 	GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error)
+	// The UTC days each account asked took at least one tile on, from the postgres ledger: a take, or a spread or an
+	// enclose that took a tile, as TilesTaken tells them; a reverted take still counts. For progression's backfill of the
+	// days played. An account with no take is left out. InvalidArgument for a bad id, or for more than 500 asked at once.
+	GetPlayDays(context.Context, *connect.Request[v1.GetPlayDaysRequest]) (*connect.Response[v1.GetPlayDaysResponse], error)
 	// The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
 	// keeps the answer. InvalidArgument unless since is before until.
 	GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error)
@@ -478,6 +502,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		InternalServiceGetTakesByCountryProcedure,
 		svc.GetTakesByCountry,
 		connect.WithSchema(internalServiceMethods.ByName("GetTakesByCountry")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	internalServiceGetPlayDaysHandler := connect.NewUnaryHandler(
+		InternalServiceGetPlayDaysProcedure,
+		svc.GetPlayDays,
+		connect.WithSchema(internalServiceMethods.ByName("GetPlayDays")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -572,6 +603,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetLedgerHandler.ServeHTTP(w, r)
 		case InternalServiceGetTakesByCountryProcedure:
 			internalServiceGetTakesByCountryHandler.ServeHTTP(w, r)
+		case InternalServiceGetPlayDaysProcedure:
+			internalServiceGetPlayDaysHandler.ServeHTTP(w, r)
 		case InternalServiceGetLedgerTotalsProcedure:
 			internalServiceGetLedgerTotalsHandler.ServeHTTP(w, r)
 		case InternalServiceGetMapHistoryProcedure:
@@ -625,6 +658,10 @@ func (UnimplementedInternalServiceHandler) GetLedger(context.Context, *connect.R
 
 func (UnimplementedInternalServiceHandler) GetTakesByCountry(context.Context, *connect.Request[v1.GetTakesByCountryRequest]) (*connect.Response[v1.GetTakesByCountryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetTakesByCountry is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) GetPlayDays(context.Context, *connect.Request[v1.GetPlayDaysRequest]) (*connect.Response[v1.GetPlayDaysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GetPlayDays is not implemented"))
 }
 
 func (UnimplementedInternalServiceHandler) GetLedgerTotals(context.Context, *connect.Request[v1.GetLedgerTotalsRequest]) (*connect.Response[v1.GetLedgerTotalsResponse], error) {

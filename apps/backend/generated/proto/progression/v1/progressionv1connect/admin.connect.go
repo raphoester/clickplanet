@@ -36,6 +36,9 @@ const (
 	// AdminServiceReconcileTitlesProcedure is the fully-qualified name of the AdminService's
 	// ReconcileTitles RPC.
 	AdminServiceReconcileTitlesProcedure = "/progression.v1.AdminService/ReconcileTitles"
+	// AdminServiceBackfillDaysPlayedProcedure is the fully-qualified name of the AdminService's
+	// BackfillDaysPlayed RPC.
+	AdminServiceBackfillDaysPlayedProcedure = "/progression.v1.AdminService/BackfillDaysPlayed"
 	// AdminServiceGetProgressProcedure is the fully-qualified name of the AdminService's GetProgress
 	// RPC.
 	AdminServiceGetProgressProcedure = "/progression.v1.AdminService/GetProgress"
@@ -46,6 +49,11 @@ type AdminServiceClient interface {
 	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
 	// adds a title or changes a rule. A second run changes nothing.
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	// Counts each account's days played again from planet's ledger, once, after the deploy that started counting them:
+	// a day is a UTC day with a take, and the days played never go below the best streak nor below what is counted
+	// already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
+	// their ledger rows.
+	BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
 	GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error)
@@ -68,6 +76,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
 			connect.WithClientOptions(opts...),
 		),
+		backfillDaysPlayed: connect.NewClient[v1.BackfillDaysPlayedRequest, v1.BackfillDaysPlayedResponse](
+			httpClient,
+			baseURL+AdminServiceBackfillDaysPlayedProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("BackfillDaysPlayed")),
+			connect.WithClientOptions(opts...),
+		),
 		getProgress: connect.NewClient[v1.AdminGetProgressRequest, v1.AdminGetProgressResponse](
 			httpClient,
 			baseURL+AdminServiceGetProgressProcedure,
@@ -80,13 +94,19 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	reconcileTitles *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
-	getProgress     *connect.Client[v1.AdminGetProgressRequest, v1.AdminGetProgressResponse]
+	reconcileTitles    *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
+	backfillDaysPlayed *connect.Client[v1.BackfillDaysPlayedRequest, v1.BackfillDaysPlayedResponse]
+	getProgress        *connect.Client[v1.AdminGetProgressRequest, v1.AdminGetProgressResponse]
 }
 
 // ReconcileTitles calls progression.v1.AdminService.ReconcileTitles.
 func (c *adminServiceClient) ReconcileTitles(ctx context.Context, req *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
 	return c.reconcileTitles.CallUnary(ctx, req)
+}
+
+// BackfillDaysPlayed calls progression.v1.AdminService.BackfillDaysPlayed.
+func (c *adminServiceClient) BackfillDaysPlayed(ctx context.Context, req *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error) {
+	return c.backfillDaysPlayed.CallUnary(ctx, req)
 }
 
 // GetProgress calls progression.v1.AdminService.GetProgress.
@@ -99,6 +119,11 @@ type AdminServiceHandler interface {
 	// Gives every account the titles the rules give it and takes back the ones they no longer do, after a deploy that
 	// adds a title or changes a rule. A second run changes nothing.
 	ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error)
+	// Counts each account's days played again from planet's ledger, once, after the deploy that started counting them:
+	// a day is a UTC day with a take, and the days played never go below the best streak nor below what is counted
+	// already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
+	// their ledger rows.
+	BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
 	GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error)
@@ -117,6 +142,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ReconcileTitles")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceBackfillDaysPlayedHandler := connect.NewUnaryHandler(
+		AdminServiceBackfillDaysPlayedProcedure,
+		svc.BackfillDaysPlayed,
+		connect.WithSchema(adminServiceMethods.ByName("BackfillDaysPlayed")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceGetProgressHandler := connect.NewUnaryHandler(
 		AdminServiceGetProgressProcedure,
 		svc.GetProgress,
@@ -128,6 +159,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		switch r.URL.Path {
 		case AdminServiceReconcileTitlesProcedure:
 			adminServiceReconcileTitlesHandler.ServeHTTP(w, r)
+		case AdminServiceBackfillDaysPlayedProcedure:
+			adminServiceBackfillDaysPlayedHandler.ServeHTTP(w, r)
 		case AdminServiceGetProgressProcedure:
 			adminServiceGetProgressHandler.ServeHTTP(w, r)
 		default:
@@ -141,6 +174,10 @@ type UnimplementedAdminServiceHandler struct{}
 
 func (UnimplementedAdminServiceHandler) ReconcileTitles(context.Context, *connect.Request[v1.ReconcileTitlesRequest]) (*connect.Response[v1.ReconcileTitlesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.AdminService.ReconcileTitles is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.AdminService.BackfillDaysPlayed is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error) {

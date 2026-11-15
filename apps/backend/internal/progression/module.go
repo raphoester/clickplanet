@@ -29,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/admin_get_progress_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/admin_get_progress_handler/admin_progress_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/backfill_days_played_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler/badges_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_fronts_handler"
@@ -43,6 +44,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/rpc_planet_fronts/caching_fronts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/wear_title_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/postgres_stats_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/rpc_planet_play_days"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/backfill_days_played_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/backfill_days_played_usecase/audit_backfill_days_played"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/forget_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/record_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/bomb_landed_subscriber"
@@ -97,10 +101,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the progression module asks player about accounts, planet about takes and scoring about finales: %w", err)
+		return fmt.Errorf("the progression module asks player about accounts, planet about takes and days played and scoring about finales: %w", err)
 	}
 	accounts := rpc_player_accounts.New(playerv1connect.NewInternalServiceClient(internal, baseURL))
-	fronts := rpc_planet_fronts.New(planetv1connect.NewInternalServiceClient(internal, baseURL))
+	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
+	fronts := rpc_planet_fronts.New(planet)
+	playDays := rpc_planet_play_days.New(planet)
 	scoring := rpc_scoring_finales.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))
 
 	db := cppg.New(config.Database)
@@ -198,6 +204,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		AdminGetProgressHandler: admin_get_progress_handler.New(
 			admin_progress_query.NewPostgresQuery(db, titleCards, fronts, clock),
 		),
+		BackfillDaysPlayedHandler: backfill_days_played_handler.New(audit_backfill_days_played.New(
+			backfill_days_played_usecase.New(statsStore, playDays), props.Logger,
+		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return progressionv1connect.NewAdminServiceHandler(adminService, options...)

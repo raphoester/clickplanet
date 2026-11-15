@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
+import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetPlayDaysRequest, GetPlayDaysResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 
@@ -92,6 +92,20 @@ export const InternalService = {
       name: "GetTakesByCountry",
       I: GetTakesByCountryRequest,
       O: GetTakesByCountryResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The UTC days each account asked took at least one tile on, from the postgres ledger: a take, or a spread or an
+     * enclose that took a tile, as TilesTaken tells them; a reverted take still counts. For progression's backfill of the
+     * days played. An account with no take is left out. InvalidArgument for a bad id, or for more than 500 asked at once.
+     *
+     * @generated from rpc planet.v1.InternalService.GetPlayDays
+     */
+    getPlayDays: {
+      name: "GetPlayDays",
+      I: GetPlayDaysRequest,
+      O: GetPlayDaysResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

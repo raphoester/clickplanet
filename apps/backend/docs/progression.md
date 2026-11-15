@@ -11,12 +11,17 @@ internal/progression/internal/
   accounts/                         AccountID, Account (AccountOf): whether an account is linked and when it was made, as player
                                     tells it
     rpc_player_accounts/            the same of one account or a page, from player.v1.InternalService/GetAccounts (2s timeout)
-  stats/                            Stats (StatsSnapshot), Streak, Day, Counted, TakeMark, and the rules on them (TakeAt, MessageAt,
-                                    BombAt, FortifyAt, BonusAt, RightAnswerAt, MissionsPaid); the Store port and its contract suite
+  stats/                            Stats (StatsSnapshot), Streak, Day (DayOf, DayFrom), Counted, TakeMark, and the rules on them (TakeAt,
+                                    MessageAt, BombAt, FortifyAt, BonusAt, RightAnswerAt, MissionsPaid, PlayDays); the Store port and its
+                                    contract suite
     postgres_stats_store/           the Store over progression.stats, under an advisory lock per account
     inmemory_stats_store/           the same port in maps, behind the testing tag
     usecases/record_stats_usecase/  — one change to an account's stats, then progression.v1.StatsChanged
     usecases/forget_stats_usecase/
+    rpc_planet_play_days/           the UTC days each account of a page took a tile on, from planet.v1.InternalService/GetPlayDays (1 min)
+    usecases/backfill_days_played_usecase/  — every account's days played counted again from planet's ledger, once;
+                                    progression.v1.AdminService/BackfillDaysPlayed
+      backfill_days_played_usecase/audit_backfill_days_played/  logs every backfill at Warn
   titles/                           Title (one type per title), Rank, Track (Conquest, Devotion, Chatter, Defense, Bombs, Loot, Quiz, Missions),
                                     Place, Standing, Catalog (NewCatalog), Career (CareerOf), Careers (Of, PageOf),
                                     Holdings, Reconciliation, Book (Shown, Unheld, Grant); the Store port and its contract suite
@@ -52,7 +57,7 @@ internal/progression/internal/
   progressionv1controller/          ProgressionService and AdminService (bags), the session interceptor, the stream's session reader
     get_titles_handler/  wear_title_handler/  get_fronts_handler/  get_badges_handler/
     get_progress_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  admin_get_progress_handler/   AdminService's own
+    reconcile_titles_handler/  admin_get_progress_handler/  backfill_days_played_handler/   AdminService's own
       admin_get_progress_handler/admin_progress_query/   PostgresQuery: what progression keeps of one account, a guest's too
     get_titles_handler/titles_query/  get_badges_handler/badges_query/
     get_progress_handler/progress_query/
@@ -121,8 +126,10 @@ key, so progression's code never names auth.
 
 - **`ReconcileTitles`** (see [The reconciliation](#the-reconciliation)). It moved from `player.v1.AdminService` with no
   change of behaviour.
+- **`BackfillDaysPlayed(dry_run)`** (see [The days played](#the-days-played)).
 - **`GetProgress(account_id)`** (`admin_get_progress_handler`, `admin_progress_query`) is what progression keeps of
   one account, a guest's too: the stats as kept (a guest's streak too, which the game never shows), `messages_sent`,
+  `days_played`,
   the titles shown and the one worn, and **every** country it plays for and against, uncached (`rpc_planet_fronts`,
   not `caching_fronts`): the public card's cut to three is for the public wire. **It is zeros for an account it keeps
   nothing about, never `NotFound`**: whether the account is one is player's to say (`player.v1.AdminService/GetPlayer`).
@@ -164,6 +171,8 @@ reads player's tables (but once, at its first migration, below).
   leaves the streak alone (`Stats.WithTake`). The reads take it as of today: a streak whose last day is before
   yesterday reads 0, and `streak_best` keeps it. The rule is
   `progressionread.StreakNow`, the same `CASE` in each query's SQL; the queries' tests pin it across UTC midnight.
+- **The days played are the UTC days with at least one take**, the streak's days whether or not they follow each
+  other (`progression.stats.days_played`, migration `20261115185223_days_played`): see [The days played](#the-days-played).
 - **Messages sent come from `chat.v1.MessageSent`** (`player-stats-messages`), one event per message kept
   (`Stats.WithMessage`, `progression.stats.messages_sent`, player's migration `20261003140000_messages_sent`). Every message
   counts: the chat's own rate limit is the only bound. A message is no take, so it neither starts nor extends a
@@ -214,6 +223,34 @@ reads player's tables (but once, at its first migration, below).
   read the same stats. An advisory lock rather than
   `FOR UPDATE`, because a first take has no row to lock; `TestFactsEachSubscriberCountsAtOnceAreAllKept`, the
   subscribers writing one account at once, fails without it.
+
+### The days played
+
+**A day played is a UTC day with at least one take: the streak's day.** It is the first source of the player level to
+come (XP slice 1), and nothing shows it to a player yet: only the operator's `GetProgress` answers it.
+
+- **Live, `Stats.WithTake` adds one each time the streak's last day moves forward**: the first take, the next day, a
+  day after a gap. A take on the same day adds nothing, and so does a late take older than the last day, as for the
+  streak. A take counted already (its mark) adds nothing either, so a redelivery counts no day twice. No other fact
+  adds a day.
+- **The days before the column are counted once, by hand: `progression.v1.AdminService/BackfillDaysPlayed(dry_run)`**
+  (`backfill_days_played_usecase`, `audit_backfill_days_played` logs each call at Warn). It pages `progression.stats`
+  (500 accounts, account order), asks planet the UTC days each account of the page took a tile on
+  (`planet.v1.InternalService/GetPlayDays`, `rpc_planet_play_days`: the postgres ledger keeps every event since
+  2026-09-16 with its account; the memory's 72h would not do), and applies `stats.PlayDays(days)` to each account
+  through `Store.Record`, under the stats' lock: the days played become the days of the ledger up to the streak's last
+  day, that day always counted, and never less than the best streak nor than what is counted already.
+  - **Only the days up to the last day, read under the lock**, so a day the live count counted is not counted twice;
+    **the last day always**, so a take flushed between planet's read and the lock is not lost.
+  - **The best streak is a floor**: the stats count from 2026-09-17, and the ledger holds no account on the takes before it.
+    The rest is an undercount for a handful of the oldest accounts.
+  - **A reverted take still counts**, as `tiles_taken` never takes one back; a deleted account's takes are nobody's.
+  - **An account the page shows unchanged is not written.** The answer is `{accounts, changed}`: every account read,
+    and the ones whose days played went up. `dry_run` counts the same and writes nothing. A second run changes
+    nothing, so a failed or interrupted one is simply run again.
+  - **Run it once after the deploy that added the column, dry run first, off-peak**: each page is one grouped scan of
+    its accounts' ledger rows (found through `ledger_events_account_kind`, the times read from the table). The
+    connector's tool is `progression_backfill_days_played`.
 
 ## Titles
 
