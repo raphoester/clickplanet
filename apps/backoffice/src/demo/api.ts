@@ -14,6 +14,7 @@ import {AdminService as PromoAdmin} from "../gen/grpc/promo/v1/admin_connect.ts"
 import {AdminService as QuizzesAdmin} from "../gen/grpc/quizzes/v1/admin_connect.ts"
 import {AdminService as PublishingAdmin} from "../gen/grpc/publishing/v1/admin_connect.ts"
 import {AdminService as SupportAdmin} from "../gen/grpc/support/v1/admin_connect.ts"
+import {AdminService as VandalsquadAdmin} from "../gen/grpc/vandalsquad/v1/admin_connect.ts"
 import {DemoAdmin, OPERATOR} from "./demoAdmin.ts"
 
 // `npm run demo` serves this module in place of ../api.ts (vite.config.ts): every call answered in the page.
@@ -35,6 +36,7 @@ const transport = createRouterTransport(router => {
     router.service(PromoAdmin, admin.demoPromo)
     router.service(PublishingAdmin, admin)
     router.service(QuizzesAdmin, admin.quizzes)
+    router.service(VandalsquadAdmin, admin.vandalsquad)
 })
 
 export const alertsAdmin = createPromiseClient(AlertsAdmin, transport)
@@ -52,6 +54,7 @@ export const supportAdmin = createPromiseClient(SupportAdmin, transport)
 export const promoAdmin = createPromiseClient(PromoAdmin, transport)
 export const publishingAdmin = createPromiseClient(PublishingAdmin, transport)
 export const quizzesAdmin = createPromiseClient(QuizzesAdmin, transport)
+export const vandalsquadAdmin = createPromiseClient(VandalsquadAdmin, transport)
 
 export const LONG_CALL_MS = 120_000
 

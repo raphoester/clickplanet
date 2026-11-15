@@ -130,6 +130,7 @@ import {
     TikTokAccount,
 } from "./gen/grpc/publishing/v1/admin_pb.ts"
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
+import {Graffiti, GraffitiKind, ListGraffitiRequest, ListGraffitiResponse} from "./gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {GetLedgerRequest, GetLedgerResponse, LedgerChange} from "./gen/grpc/planet/v1/ledger_pb.ts"
 import {
     AddEntryRequest,
@@ -197,7 +198,7 @@ import {
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
 import {
     AlertsAdmin, AntibotAdmin, BonusesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin,
-    PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin,
+    PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin, VandalsquadAdmin,
 } from "./clients.ts"
 
 export const AT = new Date("2026-10-18T12:00:00Z")
@@ -224,6 +225,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly gamemaster: FakeGamemaster = new FakeGamemaster(this)
     readonly missions: FakeMissions = new FakeMissions(this)
     readonly promo: FakePromo = new FakePromo(this)
+    readonly vandalsquad: FakeVandalsquad = new FakeVandalsquad(this)
     readonly asked: {method: string, request: unknown}[] = []
     readonly refusals = new Map<string, Code>()
     private readonly holds = new Map<string, Promise<void>>()
@@ -446,12 +448,20 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         }),
     ]
     readonly uploads = new Map<string, PartialMessage<CreateVideoUploadRequest>>()
+    // The swastikas the vandal squad flagged, newest first: one of BraveFox42's, on the first five tiles.
+    graffiti = [
+        new Graffiti({
+            accountId: ACCOUNT, countryId: "de", kind: GraffitiKind.SWASTIKA, tileIds: [1, 2, 3, 4, 5],
+            flaggedAt: Timestamp.fromDate(AT), seenAt: Timestamp.fromDate(new Date(AT.getTime() + 600_000)),
+            link: "https://clickplanet.lol/play?lat=48.85&lon=2.35&zoom=20.0",
+        }),
+    ]
 
     clients(): Clients {
         return {
             alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
-            publishing: this, quizzes: this.quizzes,
+            publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad,
         }
     }
 
@@ -672,6 +682,15 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     decideReport(request: PartialMessage<DecideReportRequest>): Promise<DecideReportResponse> {
         return this.answer("decideReport", request, new DecideReportResponse({decidedAt: Timestamp.fromDate(AT)}))
+    }
+}
+
+// vandalsquad.v1's calls, asked of the same fake.
+export class FakeVandalsquad implements VandalsquadAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    listGraffiti(request: PartialMessage<ListGraffitiRequest>): Promise<ListGraffitiResponse> {
+        return this.admin.answer("listGraffiti", request, new ListGraffitiResponse({graffiti: this.admin.graffiti}))
     }
 }
 

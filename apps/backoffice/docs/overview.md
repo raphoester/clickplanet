@@ -10,7 +10,8 @@ burger menu (see [The menu](menu.md)), by group:
   [Who sent a note](note-sender.md)) and its photos and videos (see
   [A note's photos and videos](note-media.md)).
 - **Moderation**: Reports, which the operator acts on and closes (see [Acting on a report](reports.md)),
-  and Players, who played and every tool on one player (see [The player page](player-page.md)).
+  Players, who played and every tool on one player (see [The player page](player-page.md)), and Graffiti, the
+  swastikas the vandal squad flagged, drawn, with their painter's ban and revert (see [Graffiti](graffiti.md)).
 - **Map**: Download a replay (see [The map tools](map-tools.md)).
 - **Clips**: Clip stats, the daily numbers of every post the game made, the clips' among them, and a CSV of them (see
   [Clip stats](clip-stats.md)), and Videos, the season-end videos to post by hand, with their captions (see

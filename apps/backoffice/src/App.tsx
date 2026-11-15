@@ -21,6 +21,7 @@ import {TitlesPanel} from "./ops/TitlesPanel.tsx"
 import {callerOf, idOf} from "./players/caller.ts"
 import {PlayersPage} from "./players/PlayersPage.tsx"
 import {ReportsView} from "./reports/ReportsView.tsx"
+import {GraffitiView} from "./graffiti/GraffitiView.tsx"
 import {Callback} from "./signIn/callback.ts"
 import {SignInCallback} from "./signIn/SignInCallback.tsx"
 import {SignOutButton} from "./signIn/SignOutButton.tsx"
@@ -116,6 +117,9 @@ function Console({operator, onSignedOut}: {operator: string, onSignedOut: () => 
                         opened={player}
                         onOpen={opened => opened === undefined ? go("players") : openPlayer(opened)}
                     />
+                )}
+                {page === "graffiti" && (
+                    <GraffitiView opened={route.item} onOpen={key => setRoute({page: "graffiti", item: key})}/>
                 )}
                 {page === "replay" && <ReplayPanel planet={CLIENTS.planet}/>}
                 {page === "clips" && <ClipStatsPage publishing={CLIENTS.publishing}/>}

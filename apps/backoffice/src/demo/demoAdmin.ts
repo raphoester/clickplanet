@@ -89,6 +89,7 @@ import {
 } from "../gen/grpc/support/v1/admin_pb.ts"
 import {ReportReason} from "../gen/grpc/support/v1/support_pb.ts"
 import {FakeAdmin} from "../fakeAdmin.ts"
+import {Graffiti, GraffitiKind} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {
     Background as PromoBackground,
     CardDraft,
@@ -198,6 +199,15 @@ export class DemoAdmin extends FakeAdmin {
             row.banned = true
             row.bannedUntil = at(NOW + 5 * 24 * HOUR)
         }
+
+        // Four drawings the vandal squad flagged, from its own tests' samples: three swastikas, two of them by one
+        // player, and one the operator judged none, which a person must clear by eye.
+        const painters = this.accounts.filter(account => account.name !== "")
+        this.graffiti = DEMO_GRAFFITI.map(({tiles, flag, hoursAgo, painter, place}) => new Graffiti({
+            accountId: painters[painter].id, countryId: flag, kind: GraffitiKind.SWASTIKA, tileIds: tiles,
+            flaggedAt: at(NOW - hoursAgo * HOUR), seenAt: at(NOW - hoursAgo * HOUR + 40 * MINUTE),
+            link: `https://clickplanet.lol/play?lat=${place[0]}&lon=${place[1]}&zoom=20.0`,
+        }))
 
         // The chat of the last day and a half, a line every few minutes, now and then an insult, one in five in the
         // author's flag room.
@@ -674,6 +684,39 @@ export class DemoAdmin extends FakeAdmin {
 function muteKeyOf(request: {accountId?: string, kind?: MuteKind}): string {
     return `${request.kind ?? MuteKind.CHAT}:${request.accountId ?? ""}`
 }
+
+// The tiles of four drawings of apps/backend/internal/vandalsquad/internal/swastikas/testdata/drawings.json, on the
+// map the page bundles: nov6-447, final-battle-2026-10-31T22:59-br, season0-2233 (judged none) and nov6-283.
+const DEMO_GRAFFITI: {tiles: number[], flag: string, hoursAgo: number, painter: number, place: [number, number]}[] = [
+    {
+        tiles: [
+            25533, 25534, 25535, 25536, 25539, 25687, 25690, 25836, 25839, 25987, 25990, 26134, 26135, 26136, 26137, 26138,
+            26139, 26283, 26286, 26434, 26437, 26584, 26586, 26724, 26726, 26727, 26728, 26729, 26862,
+        ],
+        flag: "de", hoursAgo: 0.3, painter: 4, place: [46.97, 55.23],
+    },
+    {
+        tiles: [
+            251102, 251105, 251106, 251107, 251108, 251170, 251173, 251238, 251241, 251305, 251306, 251307, 251308, 251309,
+            251310, 251311, 251375, 251378, 251442, 251445, 251505, 251506, 251507, 251508, 251511,
+        ],
+        flag: "de", hoursAgo: 3, painter: 4, place: [-28.13, -52.64],
+    },
+    {
+        tiles: [
+            210609, 210610, 210707, 210708, 210808, 210809, 210810, 210904, 210907, 210910, 211004, 211005, 211006, 211105,
+            211106, 211206, 211207,
+        ],
+        flag: "fr", hoursAgo: 26, painter: 9, place: [-81.79, 84.83],
+    },
+    {
+        tiles: [
+            171359, 171491, 171621, 171623, 171752, 171753, 171755, 171883, 171885, 171886, 172013, 172016, 172145, 172146,
+            172148, 172275, 172277, 172278, 172404, 172406, 172532, 172661,
+        ],
+        flag: "es", hoursAgo: 50, painter: 15, place: [-5.27, -66.33],
+    },
+]
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"]
 

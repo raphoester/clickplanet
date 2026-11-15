@@ -36,6 +36,10 @@ src/
                     HistoryPanel over history.ts (an account's moderation history: the chat's and the renames);
                     caller.ts (an account or a scope, from what was typed), charges.ts (a grant and what is held, in
                     words), durations.ts (the mute and ban choices, a span in words)
+  graffiti/         Graffiti: GraffitiView (the inbox), GraffitiDetail (one, with its painter's Ban and Revert),
+                    GraffitiPicture over picture.ts (a drawing as the globe shows it, each tile its cell), graffiti.ts
+                    (the list, the painters' names and standings, a graffiti's key); testPlaces.ts (a patch of the
+                    lattice, for the tests)
   map/              Download a replay; download.ts (a file saved from memory)
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
