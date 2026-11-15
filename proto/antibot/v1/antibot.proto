@@ -9,6 +9,9 @@ service AntibotService {
 
   // The caller read its warning, so the stream stops telling it. A caller with no warning changes nothing.
   rpc AcknowledgeWarning(AcknowledgeWarningRequest) returns (AcknowledgeWarningResponse);
+
+  // The caller read its notice, so the stream stops telling it. A caller with no notice changes nothing.
+  rpc AcknowledgeNotice(AcknowledgeNoticeRequest) returns (AcknowledgeNoticeResponse);
 }
 
 message ListenForEventsRequest {}
@@ -17,6 +20,7 @@ message AntibotEvent {
   oneof event {
     Heartbeat heartbeat = 1;
     Warning warning = 2;
+    Notice notice = 3;
   }
 }
 
@@ -25,6 +29,14 @@ message Heartbeat {}
 // The account was told that playing several accounts is refused, and that more of it is a ban.
 message Warning {}
 
+// Another account played from the caller's connection at the same time as it: the caller is reminded that one player
+// plays one account. Nothing follows from it: no ban counts it.
+message Notice {}
+
 message AcknowledgeWarningRequest {}
 
 message AcknowledgeWarningResponse {}
+
+message AcknowledgeNoticeRequest {}
+
+message AcknowledgeNoticeResponse {}

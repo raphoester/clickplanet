@@ -303,6 +303,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
                 retaker: {enabled: true}, sequencer: {enabled: true}, metronome: {enabled: true},
                 defender: {enabled: false}, catcher: {enabled: true}, cohort: {enabled: true, minMembers: 2, certainMembers: 6},
                 scraper: {enabled: true}, churner: {enabled: true}, hopper: {enabled: true}, rotator: {enabled: true},
+                sharing: {enabled: true, window: "3600s", maxAccounts: 3},
             }),
         })],
         playing: "default",

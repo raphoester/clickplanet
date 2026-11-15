@@ -27,7 +27,8 @@ address>`), so Back goes to the list, as it was.
   read leave the list listed**, every account "Unnamed", with the reason above it.
 - **The player page** (`PlayerView`), top down: its flag and its name (or its address), **where it stands**
   (`Standing`: banned until when and the offence, the jury's opinion, a pardon, the "One account per player" warning
-  and whether the player confirmed it, and for an account muted until when,
+  and whether the player confirmed it, the notice for sharing a connection with another account at the same time
+  ("Shared a connection …", which bans nothing) and whether it confirmed it, and for an account muted until when,
   from `chat.v1.AdminService/GetMute`, "by a mute on its network" when another account's mute holds it, and "GIFs
   muted until" when a mute of its GIFs holds it: `mutingsOf` asks `GetMute` once per kind), its account
   and its address with Copy,
@@ -63,7 +64,8 @@ address>`), so Back goes to the list, as it was.
   and no line is tagged: there is no report. An address has no messages, since the chat keeps them by account, and is
   not asked.
 - **The page inspects on open** (`antibot.v1.AdminService/InspectPlayer`, `readingOf`): the antibot's readings, its
-  ban, its pardon, for an account its warning (Warned: when, and when the player confirmed it), and its clicks. The
+  ban, its pardon, for an account its warning (Warned: when, and when the player confirmed it) and its notice (Noticed:
+  when, the account it played beside on its connection, and when it confirmed it), and its clicks. The
   antibot off (its service absent, `unimplemented`) reads as such, not as a failure. A ban, an unban or a warning reads it again, and a mute or an unmute reads `GetMute` again.
 - **The ban tools are the antibot's** (`antibot.v1.AdminService`, the `antibot` client), since the antibot became a
   module of its own. A ban reaches planet a moment after its answer.

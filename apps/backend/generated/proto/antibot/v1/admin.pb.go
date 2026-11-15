@@ -699,18 +699,25 @@ type InspectPlayerResponse struct {
 	WarnedAt *timestamppb.Timestamp `protobuf:"bytes,19,opt,name=warned_at,json=warnedAt,proto3" json:"warned_at,omitempty"`
 	// When the account acknowledged its warning. Unset while it has not.
 	WarningAcknowledgedAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=warning_acknowledged_at,json=warningAcknowledgedAt,proto3" json:"warning_acknowledged_at,omitempty"`
-	Readings              []*WatchdogReading     `protobuf:"bytes,7,rep,name=readings,proto3" json:"readings,omitempty"`
-	Suspects              uint32                 `protobuf:"varint,8,opt,name=suspects,proto3" json:"suspects,omitempty"`
-	MinSuspects           uint32                 `protobuf:"varint,9,opt,name=min_suspects,json=minSuspects,proto3" json:"min_suspects,omitempty"`
-	Guilty                *bool                  `protobuf:"varint,10,opt,name=guilty,proto3,oneof" json:"guilty,omitempty"`
-	Clicks                uint32                 `protobuf:"varint,11,opt,name=clicks,proto3" json:"clicks,omitempty"`
-	ActiveFor             *durationpb.Duration   `protobuf:"bytes,12,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
-	LongestGap            *durationpb.Duration   `protobuf:"bytes,13,opt,name=longest_gap,json=longestGap,proto3" json:"longest_gap,omitempty"`
-	LastClickAt           *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_click_at,json=lastClickAt,proto3" json:"last_click_at,omitempty"`
-	TopCountry            string                 `protobuf:"bytes,15,opt,name=top_country,json=topCountry,proto3" json:"top_country,omitempty"`
-	TopCountryClicks      uint32                 `protobuf:"varint,16,opt,name=top_country_clicks,json=topCountryClicks,proto3" json:"top_country_clicks,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// When the account was shown that another account played from its connection at the same time. Unset for one never
+	// noticed. It bans nothing.
+	NoticedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=noticed_at,json=noticedAt,proto3" json:"noticed_at,omitempty"`
+	// The account that played beside it then.
+	NoticedAlongside string `protobuf:"bytes,22,opt,name=noticed_alongside,json=noticedAlongside,proto3" json:"noticed_alongside,omitempty"`
+	// When the account acknowledged its notice. Unset while it has not.
+	NoticeAcknowledgedAt *timestamppb.Timestamp `protobuf:"bytes,23,opt,name=notice_acknowledged_at,json=noticeAcknowledgedAt,proto3" json:"notice_acknowledged_at,omitempty"`
+	Readings             []*WatchdogReading     `protobuf:"bytes,7,rep,name=readings,proto3" json:"readings,omitempty"`
+	Suspects             uint32                 `protobuf:"varint,8,opt,name=suspects,proto3" json:"suspects,omitempty"`
+	MinSuspects          uint32                 `protobuf:"varint,9,opt,name=min_suspects,json=minSuspects,proto3" json:"min_suspects,omitempty"`
+	Guilty               *bool                  `protobuf:"varint,10,opt,name=guilty,proto3,oneof" json:"guilty,omitempty"`
+	Clicks               uint32                 `protobuf:"varint,11,opt,name=clicks,proto3" json:"clicks,omitempty"`
+	ActiveFor            *durationpb.Duration   `protobuf:"bytes,12,opt,name=active_for,json=activeFor,proto3" json:"active_for,omitempty"`
+	LongestGap           *durationpb.Duration   `protobuf:"bytes,13,opt,name=longest_gap,json=longestGap,proto3" json:"longest_gap,omitempty"`
+	LastClickAt          *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=last_click_at,json=lastClickAt,proto3" json:"last_click_at,omitempty"`
+	TopCountry           string                 `protobuf:"bytes,15,opt,name=top_country,json=topCountry,proto3" json:"top_country,omitempty"`
+	TopCountryClicks     uint32                 `protobuf:"varint,16,opt,name=top_country_clicks,json=topCountryClicks,proto3" json:"top_country_clicks,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *InspectPlayerResponse) Reset() {
@@ -809,6 +816,27 @@ func (x *InspectPlayerResponse) GetWarnedAt() *timestamppb.Timestamp {
 func (x *InspectPlayerResponse) GetWarningAcknowledgedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.WarningAcknowledgedAt
+	}
+	return nil
+}
+
+func (x *InspectPlayerResponse) GetNoticedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NoticedAt
+	}
+	return nil
+}
+
+func (x *InspectPlayerResponse) GetNoticedAlongside() string {
+	if x != nil {
+		return x.NoticedAlongside
+	}
+	return ""
+}
+
+func (x *InspectPlayerResponse) GetNoticeAcknowledgedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NoticeAcknowledgedAt
 	}
 	return nil
 }
@@ -1002,7 +1030,7 @@ const file_antibot_v1_admin_proto_rawDesc = "" +
 	"\x14InspectPlayerRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\tR\taccountId\"\x9b\a\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\"\xd5\b\n" +
 	"\x15InspectPlayerResponse\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x1d\n" +
 	"\n" +
@@ -1014,7 +1042,11 @@ const file_antibot_v1_admin_proto_rawDesc = "" +
 	"\x05flags\x18\x06 \x01(\rR\x05flags\x12A\n" +
 	"\x0epardoned_until\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\rpardonedUntil\x127\n" +
 	"\twarned_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\bwarnedAt\x12R\n" +
-	"\x17warning_acknowledged_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\x15warningAcknowledgedAt\x127\n" +
+	"\x17warning_acknowledged_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\x15warningAcknowledgedAt\x129\n" +
+	"\n" +
+	"noticed_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tnoticedAt\x12+\n" +
+	"\x11noticed_alongside\x18\x16 \x01(\tR\x10noticedAlongside\x12P\n" +
+	"\x16notice_acknowledged_at\x18\x17 \x01(\v2\x1a.google.protobuf.TimestampR\x14noticeAcknowledgedAt\x127\n" +
 	"\breadings\x18\a \x03(\v2\x1b.antibot.v1.WatchdogReadingR\breadings\x12\x1a\n" +
 	"\bsuspects\x18\b \x01(\rR\bsuspects\x12!\n" +
 	"\fmin_suspects\x18\t \x01(\rR\vminSuspects\x12\x1b\n" +
@@ -1097,28 +1129,30 @@ var file_antibot_v1_admin_proto_depIdxs = []int32{
 	16, // 10: antibot.v1.InspectPlayerResponse.pardoned_until:type_name -> google.protobuf.Timestamp
 	16, // 11: antibot.v1.InspectPlayerResponse.warned_at:type_name -> google.protobuf.Timestamp
 	16, // 12: antibot.v1.InspectPlayerResponse.warning_acknowledged_at:type_name -> google.protobuf.Timestamp
-	13, // 13: antibot.v1.InspectPlayerResponse.readings:type_name -> antibot.v1.WatchdogReading
-	15, // 14: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
-	15, // 15: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
-	16, // 16: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
-	16, // 17: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
-	5,  // 18: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
-	7,  // 19: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
-	9,  // 20: antibot.v1.AdminService.WarnPlayer:input_type -> antibot.v1.WarnPlayerRequest
-	11, // 21: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
-	0,  // 22: antibot.v1.AdminService.GetRules:input_type -> antibot.v1.GetRulesRequest
-	3,  // 23: antibot.v1.AdminService.SaveRuleSet:input_type -> antibot.v1.SaveRuleSetRequest
-	6,  // 24: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
-	8,  // 25: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
-	10, // 26: antibot.v1.AdminService.WarnPlayer:output_type -> antibot.v1.WarnPlayerResponse
-	12, // 27: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
-	1,  // 28: antibot.v1.AdminService.GetRules:output_type -> antibot.v1.GetRulesResponse
-	4,  // 29: antibot.v1.AdminService.SaveRuleSet:output_type -> antibot.v1.SaveRuleSetResponse
-	24, // [24:30] is the sub-list for method output_type
-	18, // [18:24] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	16, // 13: antibot.v1.InspectPlayerResponse.noticed_at:type_name -> google.protobuf.Timestamp
+	16, // 14: antibot.v1.InspectPlayerResponse.notice_acknowledged_at:type_name -> google.protobuf.Timestamp
+	13, // 15: antibot.v1.InspectPlayerResponse.readings:type_name -> antibot.v1.WatchdogReading
+	15, // 16: antibot.v1.InspectPlayerResponse.active_for:type_name -> google.protobuf.Duration
+	15, // 17: antibot.v1.InspectPlayerResponse.longest_gap:type_name -> google.protobuf.Duration
+	16, // 18: antibot.v1.InspectPlayerResponse.last_click_at:type_name -> google.protobuf.Timestamp
+	16, // 19: antibot.v1.WatchdogReading.at:type_name -> google.protobuf.Timestamp
+	5,  // 20: antibot.v1.AdminService.BanPlayer:input_type -> antibot.v1.BanPlayerRequest
+	7,  // 21: antibot.v1.AdminService.UnbanPlayer:input_type -> antibot.v1.UnbanPlayerRequest
+	9,  // 22: antibot.v1.AdminService.WarnPlayer:input_type -> antibot.v1.WarnPlayerRequest
+	11, // 23: antibot.v1.AdminService.InspectPlayer:input_type -> antibot.v1.InspectPlayerRequest
+	0,  // 24: antibot.v1.AdminService.GetRules:input_type -> antibot.v1.GetRulesRequest
+	3,  // 25: antibot.v1.AdminService.SaveRuleSet:input_type -> antibot.v1.SaveRuleSetRequest
+	6,  // 26: antibot.v1.AdminService.BanPlayer:output_type -> antibot.v1.BanPlayerResponse
+	8,  // 27: antibot.v1.AdminService.UnbanPlayer:output_type -> antibot.v1.UnbanPlayerResponse
+	10, // 28: antibot.v1.AdminService.WarnPlayer:output_type -> antibot.v1.WarnPlayerResponse
+	12, // 29: antibot.v1.AdminService.InspectPlayer:output_type -> antibot.v1.InspectPlayerResponse
+	1,  // 30: antibot.v1.AdminService.GetRules:output_type -> antibot.v1.GetRulesResponse
+	4,  // 31: antibot.v1.AdminService.SaveRuleSet:output_type -> antibot.v1.SaveRuleSetResponse
+	26, // [26:32] is the sub-list for method output_type
+	20, // [20:26] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_admin_proto_init() }

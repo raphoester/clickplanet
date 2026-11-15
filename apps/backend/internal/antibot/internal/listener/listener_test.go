@@ -36,6 +36,10 @@ func (h *recorder) Committed(click guard.Click) {
 	h.calls, h.click = append(h.calls, "committed"), click
 }
 
+func (h *recorder) Played(_ context.Context, click guard.Click) {
+	h.calls, h.click = append(h.calls, "played"), click
+}
+
 func (h *recorder) Caught(scope string, after time.Duration) {
 	h.calls = append(h.calls, "caught "+scope+" "+after.String())
 }
@@ -60,14 +64,14 @@ func tried(outcome planetv1.ClickOutcome, when time.Time) *planetv1.ClickTried {
 func TestEachOutcomeReachesTheWatchdogsAsFarAsTheClickWent(t *testing.T) {
 	for outcome, calls := range map[planetv1.ClickOutcome][]string{
 		planetv1.ClickOutcome_CLICK_OUTCOME_REFUSED:      nil,
-		planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED:    {"attempted"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG:   {"attempted"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH: {"attempted"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_INVALID:      {"attempted", "inspect"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_FAILED:       {"attempted", "inspect"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN:        {"attempted", "inspect", "committed"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_STRUCK:       {"attempted", "inspect", "committed"},
-		planetv1.ClickOutcome_CLICK_OUTCOME_UNCHANGED:    {"attempted", "inspect", "committed"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED:    {"attempted", "played"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG:   {"attempted", "played"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH: {"attempted", "played"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_INVALID:      {"attempted", "inspect", "played"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_FAILED:       {"attempted", "inspect", "played"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_TAKEN:        {"attempted", "inspect", "committed", "played"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_STRUCK:       {"attempted", "inspect", "committed", "played"},
+		planetv1.ClickOutcome_CLICK_OUTCOME_UNCHANGED:    {"attempted", "inspect", "committed", "played"},
 	} {
 		t.Run(outcome.String(), func(t *testing.T) {
 			guard := &recorder{}
@@ -108,7 +112,8 @@ func TestAFactHeardAlreadyIsHeardOnce(t *testing.T) {
 		require.NoError(t, tries.Handle(t.Context(), fact))
 	}
 
-	assert.Equal(t, []string{"attempted", "attempted"}, guard.calls, "a redelivery after a crash feeds no watchdog twice")
+	assert.Equal(t, []string{"attempted", "played", "attempted", "played"}, guard.calls,
+		"a redelivery after a crash feeds no watchdog twice")
 }
 
 func TestEachKindOfFactKeepsItsOwnMark(t *testing.T) {
@@ -121,7 +126,7 @@ func TestEachKindOfFactKeepsItsOwnMark(t *testing.T) {
 	require.NoError(t, heard.MapRead().Handle(t.Context(),
 		&planetv1.MapRead{Scope: "1.2.3.4", Maps: 0.5, OffMap: true, ReadAt: timestamppb.New(at.Add(-time.Second))}))
 
-	assert.Equal(t, []string{"attempted", "listened 1.2.3.4", "fetched 1.2.3.4 0.50 off the map true"}, guard.calls,
+	assert.Equal(t, []string{"attempted", "played", "listened 1.2.3.4", "fetched 1.2.3.4 0.50 off the map true"}, guard.calls,
 		"a stream read behind another is not late: each kind is told in its own order")
 }
 
@@ -153,5 +158,5 @@ func TestTheMarksSurviveARestart(t *testing.T) {
 	require.NoError(t, tries.Handle(t.Context(), tried(planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED, at)))
 	require.NoError(t, tries.Handle(t.Context(), tried(planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED, at.Add(time.Second))))
 
-	assert.Equal(t, []string{"attempted"}, guard.calls, "what the last flush had heard is not heard again")
+	assert.Equal(t, []string{"attempted", "played"}, guard.calls, "what the last flush had heard is not heard again")
 }

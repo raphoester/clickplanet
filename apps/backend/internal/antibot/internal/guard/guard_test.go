@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
@@ -39,6 +40,8 @@ type stack struct {
 	enforcer       *bans.MemoryEnforcer
 	warned         *warnings.MemoryStore
 	feed           *warnings.MemoryFeed
+	noticed        *notices.MemoryStore
+	noticeFeed     *notices.MemoryFeed
 	evidence       *evidence.MemoryPersistence
 	forgetEvidence bool
 
@@ -47,6 +50,7 @@ type stack struct {
 	linked   *cpcolls.Set[string]
 	reports  []guard.Report
 	warnings []guard.Report
+	notices  []guard.Notice
 	rises    []string
 	errors   []error
 }
@@ -67,6 +71,8 @@ func newStack(t *testing.T, options ...option) *stack {
 		enforcer:    &bans.MemoryEnforcer{},
 		warned:      warnings.NewMemoryStore(),
 		feed:        &warnings.MemoryFeed{},
+		noticed:     notices.NewMemoryStore(),
+		noticeFeed:  &notices.MemoryFeed{},
 		evidence:    evidence.NewMemoryPersistence(),
 		inForce:     cprules.NewInForce[*antibotv1.Rules](cptime.SystemClock{}),
 	}
@@ -122,10 +128,11 @@ func (s *stack) boot() {
 	built := guard.NewInMemory(s.config, s.inForce, s.clock, guard.Observer{
 		OnFlag:       func(report guard.Report) { s.reports = append(s.reports, report) },
 		OnWarn:       func(report guard.Report) { s.warnings = append(s.warnings, report) },
+		OnNotice:     func(_ string, notice guard.Notice) { s.notices = append(s.notices, notice) },
 		OnRise:       func(watchdog, level string) { s.rises = append(s.rises, watchdog+" "+level) },
 		OnStateError: func(err error) { s.errors = append(s.errors, err) },
 		OnStart:      func(guard.Description) { close(started) },
-	}, s.bans, s.accountBans, s.enforcer, s.warned, s.feed, s.evidence)
+	}, s.bans, s.accountBans, s.enforcer, s.warned, s.feed, s.noticed, s.noticeFeed, s.evidence)
 	if err := built.Load(context.Background()); err != nil {
 		panic(err)
 	}
@@ -216,6 +223,7 @@ func (s *stack) clickOn(scope, account string, tile uint32, at guard.Point, coun
 			s.owner[tile] = country
 		}
 	}
+	s.guard.Played(s.t.Context(), click)
 
 	return drop
 }

@@ -1,8 +1,11 @@
-import {WarningAcknowledger, WarningsListener} from "./antibot.ts"
+import {NoticeAcknowledger, WarningAcknowledger, WarningsListener} from "./antibot.ts"
 
-export class FakeAntibotBackend implements WarningsListener, WarningAcknowledger {
+type Listener = {onWarned: () => void, onNoticed: () => void}
+
+export class FakeAntibotBackend implements WarningsListener, WarningAcknowledger, NoticeAcknowledger {
     private warned = false
-    private readonly listeners = new Set<() => void>()
+    private noticed = false
+    private readonly listeners = new Set<Listener>()
 
     public heldIdentity(): string | undefined {
         return "fake-session"
@@ -10,16 +13,27 @@ export class FakeAntibotBackend implements WarningsListener, WarningAcknowledger
 
     public warn(): void {
         this.warned = true
-        this.listeners.forEach((listener) => listener())
+        this.listeners.forEach((listener) => listener.onWarned())
     }
 
-    public listenForWarnings(onWarned: () => void): () => void {
-        this.listeners.add(onWarned)
+    public notice(): void {
+        this.noticed = true
+        this.listeners.forEach((listener) => listener.onNoticed())
+    }
+
+    public listenForWarnings(onWarned: () => void, onNoticed: () => void): () => void {
+        const listener = {onWarned, onNoticed}
+        this.listeners.add(listener)
         if (this.warned) onWarned()
-        return () => this.listeners.delete(onWarned)
+        if (this.noticed) onNoticed()
+        return () => this.listeners.delete(listener)
     }
 
     public async acknowledgeWarning(): Promise<void> {
         this.warned = false
+    }
+
+    public async acknowledgeNotice(): Promise<void> {
+        this.noticed = false
     }
 }

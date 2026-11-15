@@ -38,6 +38,7 @@ type Rules struct {
 	Churner       *ChurnerRules          `protobuf:"bytes,10,opt,name=churner,proto3" json:"churner,omitempty"`
 	Hopper        *HopperRules           `protobuf:"bytes,11,opt,name=hopper,proto3" json:"hopper,omitempty"`
 	Rotator       *RotatorRules          `protobuf:"bytes,12,opt,name=rotator,proto3" json:"rotator,omitempty"`
+	Sharing       *SharingRules          `protobuf:"bytes,13,opt,name=sharing,proto3" json:"sharing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -152,6 +153,13 @@ func (x *Rules) GetHopper() *HopperRules {
 func (x *Rules) GetRotator() *RotatorRules {
 	if x != nil {
 		return x.Rotator
+	}
+	return nil
+}
+
+func (x *Rules) GetSharing() *SharingRules {
+	if x != nil {
+		return x.Sharing
 	}
 	return nil
 }
@@ -1630,12 +1638,78 @@ func (x *RotatorRules) GetCertainByChance() float64 {
 	return 0
 }
 
+// Not a watchdog: it never bans. Two accounts that play in turns from one scope are each shown a notice, once.
+type SharingRules struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Off, nobody is noticed.
+	Enabled *bool `protobuf:"varint,1,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// How far back an account's tries on a scope count: two accounts play together when one tried between two tries of
+	// the other inside it.
+	Window *durationpb.Duration `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
+	// A scope where more accounts tried inside the window is a shared network (a school, a carrier's address): nobody on
+	// it is noticed.
+	MaxAccounts   *uint32 `protobuf:"varint,3,opt,name=max_accounts,json=maxAccounts,proto3,oneof" json:"max_accounts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SharingRules) Reset() {
+	*x = SharingRules{}
+	mi := &file_antibot_v1_rules_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SharingRules) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SharingRules) ProtoMessage() {}
+
+func (x *SharingRules) ProtoReflect() protoreflect.Message {
+	mi := &file_antibot_v1_rules_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SharingRules.ProtoReflect.Descriptor instead.
+func (*SharingRules) Descriptor() ([]byte, []int) {
+	return file_antibot_v1_rules_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SharingRules) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *SharingRules) GetWindow() *durationpb.Duration {
+	if x != nil {
+		return x.Window
+	}
+	return nil
+}
+
+func (x *SharingRules) GetMaxAccounts() uint32 {
+	if x != nil && x.MaxAccounts != nil {
+		return *x.MaxAccounts
+	}
+	return 0
+}
+
 var File_antibot_v1_rules_proto protoreflect.FileDescriptor
 
 const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"\x16antibot/v1/rules.proto\x12\n" +
-	"antibot.v1\x1a\x1egoogle/protobuf/duration.proto\"\xed\x04\n" +
+	"antibot.v1\x1a\x1egoogle/protobuf/duration.proto\"\xa1\x05\n" +
 	"\x05Rules\x12(\n" +
 	"\x04bans\x18\x01 \x01(\v2\x14.antibot.v1.BanRulesR\x04bans\x12)\n" +
 	"\x04jury\x18\x02 \x01(\v2\x15.antibot.v1.JuryRulesR\x04jury\x122\n" +
@@ -1649,7 +1723,8 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\achurner\x18\n" +
 	" \x01(\v2\x18.antibot.v1.ChurnerRulesR\achurner\x12/\n" +
 	"\x06hopper\x18\v \x01(\v2\x17.antibot.v1.HopperRulesR\x06hopper\x122\n" +
-	"\arotator\x18\f \x01(\v2\x18.antibot.v1.RotatorRulesR\arotator\"\xb9\x01\n" +
+	"\arotator\x18\f \x01(\v2\x18.antibot.v1.RotatorRulesR\arotator\x122\n" +
+	"\asharing\x18\r \x01(\v2\x18.antibot.v1.SharingRulesR\asharing\"\xb9\x01\n" +
 	"\bBanRules\x12\x1d\n" +
 	"\aenforce\x18\x01 \x01(\bH\x00R\aenforce\x88\x01\x01\x12>\n" +
 	"\rban_durations\x18\x02 \x03(\v2\x19.google.protobuf.DurationR\fbanDurations\x12B\n" +
@@ -1873,7 +1948,14 @@ const file_antibot_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"_min_slotsB\x10\n" +
 	"\x0e_certain_slotsB\x14\n" +
-	"\x12_certain_by_chanceB\xb9\x01\n" +
+	"\x12_certain_by_chance\"\xa5\x01\n" +
+	"\fSharingRules\x12\x1d\n" +
+	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x121\n" +
+	"\x06window\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06window\x12&\n" +
+	"\fmax_accounts\x18\x03 \x01(\rH\x01R\vmaxAccounts\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x0f\n" +
+	"\r_max_accountsB\xb9\x01\n" +
 	"\x0ecom.antibot.v1B\n" +
 	"RulesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1;antibotv1\xa2\x02\x03AXX\xaa\x02\n" +
 	"Antibot.V1\xca\x02\n" +
@@ -1891,7 +1973,7 @@ func file_antibot_v1_rules_proto_rawDescGZIP() []byte {
 	return file_antibot_v1_rules_proto_rawDescData
 }
 
-var file_antibot_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_antibot_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_antibot_v1_rules_proto_goTypes = []any{
 	(*Rules)(nil),               // 0: antibot.v1.Rules
 	(*BanRules)(nil),            // 1: antibot.v1.BanRules
@@ -1912,7 +1994,8 @@ var file_antibot_v1_rules_proto_goTypes = []any{
 	(*RelayRules)(nil),          // 16: antibot.v1.RelayRules
 	(*HopperRules)(nil),         // 17: antibot.v1.HopperRules
 	(*RotatorRules)(nil),        // 18: antibot.v1.RotatorRules
-	(*durationpb.Duration)(nil), // 19: google.protobuf.Duration
+	(*SharingRules)(nil),        // 19: antibot.v1.SharingRules
+	(*durationpb.Duration)(nil), // 20: google.protobuf.Duration
 }
 var file_antibot_v1_rules_proto_depIdxs = []int32{
 	1,  // 0: antibot.v1.Rules.bans:type_name -> antibot.v1.BanRules
@@ -1927,47 +2010,49 @@ var file_antibot_v1_rules_proto_depIdxs = []int32{
 	14, // 9: antibot.v1.Rules.churner:type_name -> antibot.v1.ChurnerRules
 	17, // 10: antibot.v1.Rules.hopper:type_name -> antibot.v1.HopperRules
 	18, // 11: antibot.v1.Rules.rotator:type_name -> antibot.v1.RotatorRules
-	19, // 12: antibot.v1.BanRules.ban_durations:type_name -> google.protobuf.Duration
-	19, // 13: antibot.v1.BanRules.reflag_interval:type_name -> google.protobuf.Duration
-	19, // 14: antibot.v1.JuryRules.suspicion_window:type_name -> google.protobuf.Duration
-	19, // 15: antibot.v1.RetakerRules.reaction_window:type_name -> google.protobuf.Duration
-	19, // 16: antibot.v1.RetakerRules.max_spread:type_name -> google.protobuf.Duration
-	19, // 17: antibot.v1.RetakerRules.max_median:type_name -> google.protobuf.Duration
-	19, // 18: antibot.v1.RetakerRules.roam_median:type_name -> google.protobuf.Duration
-	19, // 19: antibot.v1.MetronomeRules.max_gap:type_name -> google.protobuf.Duration
-	19, // 20: antibot.v1.MetronomeRules.max_spread:type_name -> google.protobuf.Duration
-	19, // 21: antibot.v1.MetronomeRules.certain_for:type_name -> google.protobuf.Duration
-	6,  // 22: antibot.v1.MetronomeRules.shape:type_name -> antibot.v1.ShapeRules
-	7,  // 23: antibot.v1.MetronomeRules.clock:type_name -> antibot.v1.ClockRules
-	8,  // 24: antibot.v1.MetronomeRules.stamina:type_name -> antibot.v1.StaminaRules
-	19, // 25: antibot.v1.ShapeRules.max_gap:type_name -> google.protobuf.Duration
-	19, // 26: antibot.v1.ClockRules.period:type_name -> google.protobuf.Duration
-	19, // 27: antibot.v1.ClockRules.certain_for:type_name -> google.protobuf.Duration
-	19, // 28: antibot.v1.StaminaRules.window:type_name -> google.protobuf.Duration
-	19, // 29: antibot.v1.StaminaRules.min_busy:type_name -> google.protobuf.Duration
-	19, // 30: antibot.v1.StaminaRules.certain_busy:type_name -> google.protobuf.Duration
-	19, // 31: antibot.v1.DefenderRules.retake_window:type_name -> google.protobuf.Duration
-	19, // 32: antibot.v1.CatcherRules.max_median:type_name -> google.protobuf.Duration
-	19, // 33: antibot.v1.CatcherRules.certain_median:type_name -> google.protobuf.Duration
-	11, // 34: antibot.v1.CatcherRules.foreign:type_name -> antibot.v1.ForeignRules
-	19, // 35: antibot.v1.ForeignRules.window:type_name -> google.protobuf.Duration
-	19, // 36: antibot.v1.CohortRules.start_window:type_name -> google.protobuf.Duration
-	19, // 37: antibot.v1.CohortRules.quiet_after:type_name -> google.protobuf.Duration
-	19, // 38: antibot.v1.CohortRules.chain_window:type_name -> google.protobuf.Duration
-	19, // 39: antibot.v1.ChurnerRules.window:type_name -> google.protobuf.Duration
-	15, // 40: antibot.v1.ChurnerRules.v6:type_name -> antibot.v1.AccountBounds
-	15, // 41: antibot.v1.ChurnerRules.v4:type_name -> antibot.v1.AccountBounds
-	16, // 42: antibot.v1.ChurnerRules.relay:type_name -> antibot.v1.RelayRules
-	19, // 43: antibot.v1.RelayRules.handoff:type_name -> google.protobuf.Duration
-	19, // 44: antibot.v1.RelayRules.max_life:type_name -> google.protobuf.Duration
-	19, // 45: antibot.v1.HopperRules.min_gap:type_name -> google.protobuf.Duration
-	19, // 46: antibot.v1.HopperRules.max_gap:type_name -> google.protobuf.Duration
-	19, // 47: antibot.v1.RotatorRules.window:type_name -> google.protobuf.Duration
-	48, // [48:48] is the sub-list for method output_type
-	48, // [48:48] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	19, // 12: antibot.v1.Rules.sharing:type_name -> antibot.v1.SharingRules
+	20, // 13: antibot.v1.BanRules.ban_durations:type_name -> google.protobuf.Duration
+	20, // 14: antibot.v1.BanRules.reflag_interval:type_name -> google.protobuf.Duration
+	20, // 15: antibot.v1.JuryRules.suspicion_window:type_name -> google.protobuf.Duration
+	20, // 16: antibot.v1.RetakerRules.reaction_window:type_name -> google.protobuf.Duration
+	20, // 17: antibot.v1.RetakerRules.max_spread:type_name -> google.protobuf.Duration
+	20, // 18: antibot.v1.RetakerRules.max_median:type_name -> google.protobuf.Duration
+	20, // 19: antibot.v1.RetakerRules.roam_median:type_name -> google.protobuf.Duration
+	20, // 20: antibot.v1.MetronomeRules.max_gap:type_name -> google.protobuf.Duration
+	20, // 21: antibot.v1.MetronomeRules.max_spread:type_name -> google.protobuf.Duration
+	20, // 22: antibot.v1.MetronomeRules.certain_for:type_name -> google.protobuf.Duration
+	6,  // 23: antibot.v1.MetronomeRules.shape:type_name -> antibot.v1.ShapeRules
+	7,  // 24: antibot.v1.MetronomeRules.clock:type_name -> antibot.v1.ClockRules
+	8,  // 25: antibot.v1.MetronomeRules.stamina:type_name -> antibot.v1.StaminaRules
+	20, // 26: antibot.v1.ShapeRules.max_gap:type_name -> google.protobuf.Duration
+	20, // 27: antibot.v1.ClockRules.period:type_name -> google.protobuf.Duration
+	20, // 28: antibot.v1.ClockRules.certain_for:type_name -> google.protobuf.Duration
+	20, // 29: antibot.v1.StaminaRules.window:type_name -> google.protobuf.Duration
+	20, // 30: antibot.v1.StaminaRules.min_busy:type_name -> google.protobuf.Duration
+	20, // 31: antibot.v1.StaminaRules.certain_busy:type_name -> google.protobuf.Duration
+	20, // 32: antibot.v1.DefenderRules.retake_window:type_name -> google.protobuf.Duration
+	20, // 33: antibot.v1.CatcherRules.max_median:type_name -> google.protobuf.Duration
+	20, // 34: antibot.v1.CatcherRules.certain_median:type_name -> google.protobuf.Duration
+	11, // 35: antibot.v1.CatcherRules.foreign:type_name -> antibot.v1.ForeignRules
+	20, // 36: antibot.v1.ForeignRules.window:type_name -> google.protobuf.Duration
+	20, // 37: antibot.v1.CohortRules.start_window:type_name -> google.protobuf.Duration
+	20, // 38: antibot.v1.CohortRules.quiet_after:type_name -> google.protobuf.Duration
+	20, // 39: antibot.v1.CohortRules.chain_window:type_name -> google.protobuf.Duration
+	20, // 40: antibot.v1.ChurnerRules.window:type_name -> google.protobuf.Duration
+	15, // 41: antibot.v1.ChurnerRules.v6:type_name -> antibot.v1.AccountBounds
+	15, // 42: antibot.v1.ChurnerRules.v4:type_name -> antibot.v1.AccountBounds
+	16, // 43: antibot.v1.ChurnerRules.relay:type_name -> antibot.v1.RelayRules
+	20, // 44: antibot.v1.RelayRules.handoff:type_name -> google.protobuf.Duration
+	20, // 45: antibot.v1.RelayRules.max_life:type_name -> google.protobuf.Duration
+	20, // 46: antibot.v1.HopperRules.min_gap:type_name -> google.protobuf.Duration
+	20, // 47: antibot.v1.HopperRules.max_gap:type_name -> google.protobuf.Duration
+	20, // 48: antibot.v1.RotatorRules.window:type_name -> google.protobuf.Duration
+	20, // 49: antibot.v1.SharingRules.window:type_name -> google.protobuf.Duration
+	50, // [50:50] is the sub-list for method output_type
+	50, // [50:50] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_antibot_v1_rules_proto_init() }
@@ -1993,13 +2078,14 @@ func file_antibot_v1_rules_proto_init() {
 	file_antibot_v1_rules_proto_msgTypes[16].OneofWrappers = []any{}
 	file_antibot_v1_rules_proto_msgTypes[17].OneofWrappers = []any{}
 	file_antibot_v1_rules_proto_msgTypes[18].OneofWrappers = []any{}
+	file_antibot_v1_rules_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_antibot_v1_rules_proto_rawDesc), len(file_antibot_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

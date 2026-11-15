@@ -46,7 +46,7 @@ describe("ConnectAntibotBackend warnings", () => {
         })
         const onWarned = vi.fn()
 
-        const stop = backendWith({listenForEvents}, session).listenForWarnings(onWarned)
+        const stop = backendWith({listenForEvents}, session).listenForWarnings(onWarned, () => {})
         await vi.waitFor(() => expect(onWarned).toHaveBeenCalledTimes(1))
         stop()
 
@@ -60,7 +60,7 @@ describe("ConnectAntibotBackend warnings", () => {
         const listenForEvents = vi.fn(failingWith(new ConnectError("no", Code.Unauthenticated)))
         const session = holding("expired")
 
-        backendWith({listenForEvents}, session).listenForWarnings(() => {})
+        backendWith({listenForEvents}, session).listenForWarnings(() => {}, () => {})
         await vi.advanceTimersByTimeAsync(60_000)
 
         expect(listenForEvents).toHaveBeenCalledTimes(1)
@@ -78,12 +78,41 @@ describe("ConnectAntibotBackend warnings", () => {
             })
         const onWarned = vi.fn()
 
-        const stop = backendWith({listenForEvents}).listenForWarnings(onWarned)
+        const stop = backendWith({listenForEvents}).listenForWarnings(onWarned, () => {})
         await vi.advanceTimersByTimeAsync(1_000)
         stop()
 
         expect(listenForEvents).toHaveBeenCalledTimes(2)
         expect(onWarned).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("ConnectAntibotBackend notices", () => {
+    it("tells each notice apart from the warnings", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new AntibotEventPb({event: {case: "notice", value: {}}})
+            yield new AntibotEventPb({event: {case: "warning", value: {}}})
+            await new Promise(() => {})
+        })
+        const onWarned = vi.fn()
+        const onNoticed = vi.fn()
+
+        const stop = backendWith({listenForEvents}).listenForWarnings(onWarned, onNoticed)
+        await vi.waitFor(() => expect(onWarned).toHaveBeenCalledTimes(1))
+        stop()
+
+        expect(onNoticed).toHaveBeenCalledTimes(1)
+    })
+
+    it("acknowledges the notice with the identity token, never a mint", async () => {
+        const session = holding("identity-1")
+        const acknowledgeNotice = vi.fn(async () => ({}))
+
+        await backendWith({acknowledgeNotice}, session).acknowledgeNotice()
+
+        expect(acknowledgeNotice).toHaveBeenCalledWith({}, expect.anything())
+        expect(optionsOf(acknowledgeNotice).headers.get(SESSION_HEADER)).toBe("identity-1")
+        expect(session.token).not.toHaveBeenCalled()
     })
 })
 

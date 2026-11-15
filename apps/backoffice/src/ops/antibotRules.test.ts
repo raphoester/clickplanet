@@ -30,7 +30,7 @@ describe("the antibot rules", () => {
     it("reads the form off the proto: a part each, its switch first, and every value of antibot.v1.Rules", () => {
         expect(PARTS.map(part => part.label)).toEqual([
             "Bans", "Jury", "Retaker", "Sequencer", "Metronome", "Defender", "Catcher", "Cohort", "Scraper", "Churner",
-            "Hopper", "Rotator",
+            "Hopper", "Rotator", "Sharing",
         ])
         const metronome = PARTS.find(part => part.label === "Metronome")
         expect(metronome?.leaves[0]).toEqual({path: "metronome.enabled", label: "Enabled", kind: "switch"})
@@ -38,7 +38,7 @@ describe("the antibot rules", () => {
         expect(LEAVES.find(leaf => leaf.path === "metronome.shape.maxSkew")).toMatchObject({kind: "number"})
         expect(LEAVES.find(leaf => leaf.path === "bans.banDurations")).toMatchObject({kind: "secondsList"})
         expect(LEAVES.find(leaf => leaf.path === "cohort.certainMembers")).toMatchObject({kind: "whole"})
-        expect(LEAVES).toHaveLength(95)
+        expect(LEAVES).toHaveLength(98)
     })
 
     it("edits a set's values as typed: durations in seconds, a value it leaves unset empty", () => {
