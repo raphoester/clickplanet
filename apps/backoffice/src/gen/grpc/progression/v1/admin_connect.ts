@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetProgressRequest, AdminGetProgressResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { AdminGetProgressRequest, AdminGetProgressResponse, BackfillDaysPlayedRequest, BackfillDaysPlayedResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -24,6 +24,20 @@ export const AdminService = {
       name: "ReconcileTitles",
       I: ReconcileTitlesRequest,
       O: ReconcileTitlesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Counts each account's days played again from planet's ledger, once, after the deploy that started counting them:
+     * a day is a UTC day with a take, and the days played never go below the best streak nor below what is counted
+     * already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
+     * their ledger rows.
+     *
+     * @generated from rpc progression.v1.AdminService.BackfillDaysPlayed
+     */
+    backfillDaysPlayed: {
+      name: "BackfillDaysPlayed",
+      I: BackfillDaysPlayedRequest,
+      O: BackfillDaysPlayedResponse,
       kind: MethodKind.Unary,
     },
     /**

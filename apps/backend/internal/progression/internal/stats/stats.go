@@ -1,9 +1,11 @@
 package stats
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 type Day struct {
@@ -13,6 +15,15 @@ type Day struct {
 func DayOf(at time.Time) Day {
 	year, month, day := at.UTC().Date()
 	return Day{midnight: time.Date(year, month, day, 0, 0, 0, 0, time.UTC)}
+}
+
+// DayFrom reads a day written as YYYY-MM-DD, as Day.String writes it.
+func DayFrom(value string) (Day, error) {
+	at, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		return Day{}, fmt.Errorf("not a day: %q: %w", value, err)
+	}
+	return DayOf(at), nil
 }
 
 func (d Day) Empty() bool { return d.midnight.IsZero() }
@@ -33,6 +44,7 @@ type Stats struct {
 	tilesTaken     uint64
 	streak         Streak
 	streakBest     uint32
+	daysPlayed     uint64
 	messagesSent   uint64
 	bombsDropped   uint64
 	tilesFortified uint64
@@ -57,6 +69,7 @@ type StatsSnapshot struct {
 	TilesTaken     uint64
 	Streak         Streak
 	StreakBest     uint32
+	DaysPlayed     uint64
 	MessagesSent   uint64
 	BombsDropped   uint64
 	TilesFortified uint64
@@ -72,6 +85,7 @@ func (s StatsSnapshot) Restore() Stats {
 		tilesTaken:     s.TilesTaken,
 		streak:         s.Streak,
 		streakBest:     s.StreakBest,
+		daysPlayed:     s.DaysPlayed,
 		messagesSent:   s.MessagesSent,
 		bombsDropped:   s.BombsDropped,
 		tilesFortified: s.TilesFortified,
@@ -88,6 +102,7 @@ func (s Stats) TakeSnapshot() StatsSnapshot {
 		TilesTaken:     s.tilesTaken,
 		Streak:         s.streak,
 		StreakBest:     s.streakBest,
+		DaysPlayed:     s.daysPlayed,
 		MessagesSent:   s.messagesSent,
 		BombsDropped:   s.bombsDropped,
 		TilesFortified: s.tilesFortified,
@@ -117,6 +132,9 @@ func (s Stats) TilesTaken() uint64 { return s.tilesTaken }
 func (s Stats) Streak() Streak { return s.streak }
 
 func (s Stats) StreakBest() uint32 { return s.streakBest }
+
+// DaysPlayed is the UTC days with at least one take: the streak's days, counted whether or not they follow each other.
+func (s Stats) DaysPlayed() uint64 { return s.daysPlayed }
 
 func (s Stats) MessagesSent() uint64 { return s.messagesSent }
 
@@ -181,6 +199,10 @@ func MissionsPaid(inAll uint64) func(Stats) Stats {
 	return func(s Stats) Stats { return s.WithMissionsPaid(inAll) }
 }
 
+func PlayDays(days []Day) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithPlayDays(days) }
+}
+
 // Postgres keeps a time to the microsecond: a fact told again must compare equal to the one kept.
 func momentOf(at time.Time) time.Time { return at.UTC().Truncate(time.Microsecond) }
 
@@ -206,6 +228,7 @@ func (s Stats) WithTake(position uint64, index uint32, at time.Time) Stats {
 
 	s.streak.lastDay = day
 	s.streakBest = max(s.streakBest, s.streak.days)
+	s.daysPlayed++
 
 	return s
 }
@@ -258,6 +281,25 @@ func (s Stats) WithRightAnswer(at time.Time) Stats {
 // Missions tells how many it paid in all, so a payment told twice or late counts nothing more.
 func (s Stats) WithMissionsPaid(inAll uint64) Stats {
 	s.missionsDone = max(s.missionsDone, inAll)
+	return s
+}
+
+// WithPlayDays counts the days played again from the days the ledger holds a take on, for the backfill. Only the days up
+// to the streak's last day count, and that day always does: a take the live count already counted on a later day is
+// not counted twice, and one flushed after the ledger was read is not lost. The best streak is a floor, for the takes
+// from before the ledger had accounts, and the days played never go down.
+func (s Stats) WithPlayDays(days []Day) Stats {
+	last := s.streak.lastDay
+	if last.Empty() {
+		return s
+	}
+	played := cpcolls.NewSet(last)
+	for _, day := range days {
+		if !last.Before(day) {
+			played.Add(day)
+		}
+	}
+	s.daysPlayed = max(uint64(played.Len()), uint64(s.streakBest), s.daysPlayed)
 	return s
 }
 

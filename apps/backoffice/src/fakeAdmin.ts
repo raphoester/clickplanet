@@ -184,6 +184,8 @@ import {GetRosterRequest, GetRosterResponse, Player as Identity, RosterEntry} fr
 import {
     AdminGetProgressRequest,
     AdminGetProgressResponse,
+    BackfillDaysPlayedRequest,
+    BackfillDaysPlayedResponse,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
 } from "./gen/grpc/progression/v1/admin_pb.ts"
@@ -740,6 +742,10 @@ export class FakeProgression implements ProgressionAdmin {
 
     reconcileTitles(request: PartialMessage<ReconcileTitlesRequest>): Promise<ReconcileTitlesResponse> {
         return this.admin.answer("reconcileTitles", request, new ReconcileTitlesResponse({granted: 12, revoked: 3}))
+    }
+
+    backfillDaysPlayed(request: PartialMessage<BackfillDaysPlayedRequest>): Promise<BackfillDaysPlayedResponse> {
+        return this.admin.answer("backfillDaysPlayed", request, new BackfillDaysPlayedResponse({accounts: 1200, changed: 37}))
     }
 
     getProgress(request: PartialMessage<AdminGetProgressRequest>): Promise<AdminGetProgressResponse> {

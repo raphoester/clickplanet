@@ -72,6 +72,10 @@ internal/planet/internal/
   (`takes_query`): an account's tiles by the flag they were taken for and by the flag that held them, counting a
   take's own row and each tile in a spread's or an enclose's payload, as `Taking.Replay` does. A parity test runs
   every kind of event through both. It is what `progression` shows as "plays for" and "plays against".
+  **`InternalService/GetPlayDays(account_ids)` reads it there too** (`play_days_query`): the UTC days each account of a
+  page (500 at most) took a tile on, from the events the relay tells as `TilesTaken` (a take, and a spread or an
+  enclose that took a tile; a reverted one too), found through `ledger_events_account_kind`. A parity test runs every
+  kind of event through it and `Replay`. Progression's backfill of the days played asks it.
   **`InternalService/GetLedgerTotals(since, until)` reads it there too** (`totals_query`): the events of each kind in
   the window and the accounts that made them, in one scan of `taken_at` (no index on it: seconds over a season). The
   gamemaster asks it once per ended season and keeps the answer (see [The gamemaster](gamemaster.md)).
