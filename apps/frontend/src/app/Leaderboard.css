@@ -185,9 +185,11 @@
     width: 38px;
 }
 
-.leaderboard-entry-index {
+/* Scoped under .leaderboard-entry so it outranks `.leaderboard-entry td`, whose ellipsis drew ".." after a coin wider than the column. */
+.leaderboard-entry .leaderboard-entry-index {
     text-align: center;
     padding-right: var(--space-2);
+    overflow: visible;
     text-overflow: clip;
 }
 
