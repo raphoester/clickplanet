@@ -188,8 +188,8 @@ both, before any rotator reading, and says that each person on a shared connecti
   (`antibot state not persisted`) and lost until the account's span lapses.
 - **The page hears it on the warnings' stream**: `AntibotEvent.notice`, sent as the stream opens while it is not
   acknowledged and as it is given (`inprocess_notice_feed`), and `AcknowledgeNotice` keeps `acknowledged_at`. The page
-  shows "One account per player", closed by a click on "I understand these rules" (see the frontend's
-  [Data flow](../../frontend/docs/data-flow.md)). It costs no stream more.
+  shows nothing of it since 2026-11-15, when its modal was deleted for a player stuck behind it, so no notice is
+  acknowledged now (see the frontend's [Data flow](../../frontend/docs/data-flow.md)). It costs no stream more.
 - **The operator sees it**: the `antibot notice` log line (`scope`, `account`, `alongside`), the counter
   `antibot_notices_total`, and `noticed_at`, `noticed_alongside` and `notice_acknowledged_at` in `InspectPlayer`.
 - Off (`sharing.enabled`), nobody is noticed and the tracker keeps watching, so it finds the pairs at once when on.
