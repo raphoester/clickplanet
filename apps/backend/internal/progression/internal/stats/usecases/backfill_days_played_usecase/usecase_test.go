@@ -178,7 +178,8 @@ func TestTheBestStreakIsTheFloor(t *testing.T) {
 
 func TestEveryPageIsAskedAndCounted(t *testing.T) {
 	f := setUp()
-	for i := range 501 {
+	// From 1: account(0) is the zero id, the cursor the first page starts after, and no account.
+	for i := 1; i <= 501; i++ {
 		f.take(t, i, 0)
 		f.before(t, i)
 	}
@@ -188,8 +189,8 @@ func TestEveryPageIsAskedAndCounted(t *testing.T) {
 	assert.Equal(t, backfill_days_played_usecase.Backfilled{Accounts: 501, Changed: 501}, backfilled)
 	require.Len(t, f.ledger.asked, 2)
 	assert.Len(t, f.ledger.asked[0], 500)
-	assert.Equal(t, []accounts.AccountID{account(500)}, f.ledger.asked[1])
-	assert.Equal(t, uint64(1), f.played(t, 500))
+	assert.Equal(t, []accounts.AccountID{account(501)}, f.ledger.asked[1])
+	assert.Equal(t, uint64(1), f.played(t, 501))
 }
 
 func TestNoStatsAsksNothing(t *testing.T) {
