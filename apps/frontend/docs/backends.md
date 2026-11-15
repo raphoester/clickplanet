@@ -32,11 +32,10 @@ clip](clip-appearances.md). `alerts.ts` is whether the player is in the game's D
 with the token held as progression's is, and stopped for good on a refused token) and `WarningAcknowledger`; the same
 stream's notice that another account played from the connection, and `NoticeAcknowledger`.
 `antibotBackend.ts` implements them against `antibot.v1.AntibotService`, and `FakeAntibotBackend` in fake mode (see
-[Data flow](data-flow.md)). `bonusesBackend.ts` is the offers' wire: the `bonuses.v1.BonusService` client and what its
-stream carries, read (`offerOf`, `catchOf`, `grantRulesChanged`). `PlanetBackend` holds that client and opens
-its stream, since what a box grants is planet's charges, which it holds (see [The offers
-stream](#the-offers-stream)). `quizzesBackend.ts` is the quizzes': `QuizzesBackend` implements `QuizMaster` against
-`quizzes.v1.QuizService` (see [The quizzes stream](#the-quizzes-stream)).
+[Data flow](data-flow.md)). `bonusesBackend.ts` is the `bonuses.v1.BonusService` client, which `PlanetBackend` holds to read whether a first
+sign-in earns a refill (`GetGrantRules`). `boxesBackend.ts` is the boxes': `BoxesBackend` implements `BoxCatcher`
+against `boxes.v1.BoxService` (see [The boxes stream](#the-boxes-stream)). `quizzesBackend.ts` is the quizzes':
+`QuizzesBackend` implements `QuizMaster` against `quizzes.v1.QuizService` (see [The quizzes stream](#the-quizzes-stream)).
 
 `transport.ts` holds what both contexts need and neither owns: `retrying`,
 `retryingAtOnce`, `NO_TIMEOUT`, and `openStream`, which follows a
@@ -46,7 +45,7 @@ knows nothing about what it carries, so each context keeps its own mapping —
 both a few lines over it.
 
 **One stream per API, carrying an envelope.** `ClickService.ListenForEvents`
-sends `PlanetEvent`, `BonusService.ListenForEvents` sends `BonusEvent` and `ChatService.ListenForEvents` sends
+sends `PlanetEvent`, `BoxService.ListenForEvents` sends `BoxEvent` and `ChatService.ListenForEvents` sends
 `ChatEvent`, each a `oneof`. `updateOf` and `messageOf` unwrap the case each context cares about and
 **return undefined for everything else** — heartbeats, and any case this build
 does not know, which reads as an unset `oneof`. That is what lets the backend
@@ -82,8 +81,7 @@ the meantime is gone. So `openStream` calls `onResumed` on the first message of
 a connection when an earlier one had been live, and the chat reads its history
 again there. The planet's first message on each connection is a heartbeat with
 the map's version, which `listenForOpenings` hands the globe (see below), and on a resumed one the planet reads
-`GetBudget` and `GetChargeRules` again, since a `rulesChanged` may have fallen in the gap; a resumed offers stream
-reads `GetGrantRules` again for the same reason. The roster and the board need
+`GetBudget` and `GetChargeRules` again, since a `rulesChanged` may have fallen in the gap. The roster and the board need
 nothing: each connection starts with the whole of it. Two more things find a
 gap sooner:
 
@@ -106,7 +104,7 @@ active one is wired in `main.tsx`. Both expose `close()`, and both implement the
 fourth contract in `clickBudget.ts` — see [The click budget](#the-click-budget).
 
 `planetBackend.ts` talks to the API through the generated Connect clients
-(`src/gen/grpc/planet/v1/planet_connect.ts`, and `bonuses/v1/bonuses_connect.ts` for the offers). No gRPC is involved — Connect is
+(`src/gen/grpc/planet/v1/planet_connect.ts`, and `bonuses/v1/bonuses_connect.ts` for the sign-in refill's rule). No gRPC is involved — Connect is
 an ordinary HTTP POST, or a GET for reads.
 
 **Two transport options are load-bearing and both default to `false`:**
@@ -288,40 +286,42 @@ the server accepted went out under a token the stream was not opened with — th
 first click of a page load, and the first one after a sign-in or a sign-out. The
 hourly re-mint for the same account reopens it too: telling the two apart would
 mean reading the token, which is the server's business. A refused call reopens
-nothing. The offers stream follows the same token the same way (below).
+nothing. The boxes' and the quizzes' streams follow each token a call carried (`listenForSessions`, below).
 
-## The offers stream
+## The boxes stream
 
-**The boxes come on a stream of their own, beside the planet's**:
-`bonuses.v1.BonusService/ListenForEvents`, which sends `BonusEvent` (the backend's
-[Offers and the wallet](../../backend/docs/offers-and-wallet.md)). `PlanetBackend` opens it at construction, through
-`openStream` as the planet's: the same backoff, the same silence limit and wakes, and the clean end of a server
-restart opens it again 500 ms later.
+**The boxes come on a stream of their own, the boxes module's** (2026-11-15): `boxes.v1.BoxService/ListenForEvents`,
+which sends `BoxEvent` (the backend's [The boxes](../../backend/docs/boxes-module.md)). `BoxesBackend` opens it at
+construction through `openStream`, as the planet's: the same backoff, the same silence limit and wakes, and the clean end
+of a server restart opens it again 500 ms later.
 
 - **It carries the token held, never a mint** (`heldIdentity()`), and the server reads it only as it opens. **A box goes
   only to a caller with this stream open**, to the account it names (the backend's
-  [Bonus boxes](../../backend/docs/bonus-boxes.md)). So `followSession` reopens it beside the planet's when an accepted
-  click, claim or bomb went out under a token it was not opened with, and so does the identity the cookie
-  resumes at load (`followOffers`): a signed-in account's stream hears the boxes as that account. **Each stream keeps
-  the token it opened with**, since either can reconnect alone and read a newer one.
-- **What it carries goes where the planet's offers went**: `bonus_offered` to `BonusHandlers.onOffered` (the globe's
-  flying box), `bonus_taken` to `onTaken`. Nothing above `PlanetBackend` knows there are two streams.
-- **Its `rules_changed` reads `GetGrantRules`** (a GET, as `GetChargeRules`), and so does a resumed connection: whether a
-  guest's first sign-in earns a refill is the offers' rule. `PlanetBackend` tells it as `BonusRules.signInRefill`, with
-  planet's rules, through `onRules`: again when it changes, and nothing before planet's are read.
-- **`ClaimBonus` goes to `BonusService`**, with a click token as before: minted, and minted again after an
-  `unauthenticated`. What it grants is planet's charges in planet's words (`planet.v1.BonusKind`, `ChargesHeld`), which
-  `PlanetBackend` holds. `asBonusError` reads its refusals as before; a claim refused while the offers or the map take no
-  play (`FailedPrecondition` with `bonuses.v1.FrozenRefusal`) is a failed claim.
-- **The fakes have no such stream**: `FakeBackend` and `ReplayBackend` implement `BonusListener` and `QuizMaster`
-  themselves, and a replay holds no offer. A `PlanetBackend` built with no offers client, as in a test of the map,
-  opens none and claims nothing.
+  [Bonus boxes](../../backend/docs/bonus-boxes.md)). So it follows the identity the cookie resumes, and each token a
+  planet call carried (`PlanetBackend.listenForSessions`, a `SessionSource`): a signed-in account's stream hears the
+  boxes as that account.
+- **`box_offered` goes to `listenForBoxes`** (the globe's flying box): a question mark, its token, seed and expiry
+  (`boxOf`), and no kind. Until 2026-11-15 the offer named its kind, and `offerOf` dropped one it did not know.
+- **`ClaimBox` goes to `BoxService`**, with a click token: minted, and minted again after an `unauthenticated`.
+  `asBonusError` reads its refusals; a claim refused while the boxes or the map take no play (`FailedPrecondition` with
+  `boxes.v1.FrozenRefusal`) is a failed claim. **`ClaimBox` pays nothing**: the bonuses module draws what the box holds
+  and pays it about a second later, and planet's stream tells it (`charges_granted` with what it `gained`).
+  `BoxesBackend.claimBox` listens to the grants (`PlanetBackend.listenForGrants`, a `GrantSource`) from before the claim
+  goes out, and answers the first one after it as what the box held, or nothing when none comes in
+  `BOX_REWARD_WAIT_MS` (2.5 s): the hand had room for no kind the rules weigh, and the award card says the inventory is
+  full. A grant of another kind in that window (a mission paid) would be taken for the box's, as for a right answer.
+- **Whether a first sign-in earns a refill** is the bonuses module's rule (`GetGrantRules`, a GET as `GetChargeRules`).
+  `PlanetBackend` reads it once a load and tells it as `BonusRules.signInRefill`, with planet's rules, through `onRules`,
+  nothing before planet's are read. The bonuses module has no stream since 2026-11-15: only its `default` sets the rule,
+  and every deploy reloads the page.
+- **The fakes have no such stream**: `FakeBackend` implements `BoxCatcher` itself, pays a box a moment after its catch,
+  and `ReplayBackend` offers none.
 
 ## The quizzes stream
 
 **The quizzes come on a third stream, the quizzes module's** (2026-11-13): `quizzes.v1.QuizService/ListenForEvents`,
 which sends `QuizEvent` (the backend's [The quizzes](../../backend/docs/quizzes-module.md)). `QuizzesBackend` opens it at
-construction through `openStream`, as the offers'.
+construction through `openStream`, as the boxes'.
 
 - **It carries the token held, and follows a new one**: the identity the cookie resumes, and each token a planet call
   carried (`PlanetBackend.listenForSessions`, a `SessionSource`), so a guest who signs in hears the quizzes as its
@@ -332,8 +332,8 @@ construction through `openStream`, as the offers'.
   moment later, and planet's stream tells it (`charges_granted` with what it `gained`). `QuizzesBackend.listenForRewards`
   hands each charge a grant gave the account (`PlanetBackend.listenForGrants`, a `GrantSource`) to the quiz store, which
   takes the first after a right answer as its reward ([Quizzes](quizzes.md)).
-- **One more stream on the page.** Fine in production on HTTP/2; locally, on plain HTTP/1.1, the browser's six
-  connections are already full.
+- **One more stream on the page**, which the bonuses module's, gone on 2026-11-15, offsets. Fine in production on
+  HTTP/2; locally, on plain HTTP/1.1, the browser's six connections are already full.
 
 ## Connection health
 

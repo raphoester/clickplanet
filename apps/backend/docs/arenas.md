@@ -107,8 +107,8 @@ map.
   answered by `ArenaOpened` and `ArenaClosed` through planet's outbox, which went with them.
 - **Neither writes a ledger event.** The ledger keeps the battle's takes as any other; its readers tell them apart by
   time (see [The ledger's readers](#the-ledgers-readers)).
-- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, the offers'
-  ClaimBonus, and the quizzes' OpenQuiz, AnswerQuiz) is refused with a `FrozenRefusal` for the battle's `arena.freeze` after the map went blank and from it
+- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, the boxes'
+  ClaimBox, and the quizzes' OpenQuiz, AnswerQuiz) is refused with a `FrozenRefusal` for the battle's `arena.freeze` after the map went blank and from it
   before the battle's end until the map is back (`Opening.Freezes`, read through `InPlay`, an atomic pointer loaded at
   boot). The freeze is the opening's, read from the battle's set as it opened and kept in `planet.arenas.freeze_ms`, so
   a boot keeps it; `InPlay` reads no rules.

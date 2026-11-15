@@ -26,11 +26,13 @@ backgrounds, and up to five cards per rule set planet keeps, under the set's nam
   120 at most, each counted as it is typed; ↑ and ↓ move it, Remove takes it out, and Add a card adds one, five at
   most.
 - **A value of the rules is a placeholder**, `{path}`: a number or a duration of planet's rules by its path
-  (`clicks.tempo`, `charges.bomb.rings`), of the offers' rules (`bonuses.v1.Rules`) by its path under `bonuses.`
-  (`bonuses.boxes.minInterval`), or of the quizzes' (`quizzes.v1.Rules`) under `quizzes.` (`quizzes.answerWindow`).
+  (`clicks.tempo`, `charges.bomb.rings`), of the bonuses' rules (`bonuses.v1.Rules`) by its path under `bonuses.`
+  (`bonuses.shield.maxPerBox`), of the boxes' (`boxes.v1.Rules`) under `boxes.` (`boxes.minInterval`), or of the
+  quizzes' (`quizzes.v1.Rules`) under `quizzes.` (`quizzes.answerWindow`).
   "Insert a value at the cursor" lists every path `GetCards` answers, with default's value, and writes the one picked
   where the cursor was, in the headline or the line. The server fills it when a player reads the card, `{bonuses.…}`
-  from the offers' set of the battle's name, `{quizzes.…}` from the quizzes' and the rest from planet's, so the card
+  from the bonuses' set of the battle's name, `{boxes.…}` from the boxes', `{quizzes.…}` from the quizzes' and the rest
+  from planet's, so the card
   follows the set's rules with nothing to edit.
 - **So is a value of the battle**: `{battle.times}` and `{battle.points.first}`, `second`, `third`, the points the first
   three places win, listed in the picker's second group. Each battle fills its own (`75` in a ×3 battle, `50` in a ×2
@@ -41,10 +43,11 @@ backgrounds, and up to five cards per rule set planet keeps, under the set's nam
 - **The preview is the card as players read it.** A card as it was saved shows what the server filled (`filled`), or
   the server's `problem` when it does not fill. A card being written is filled in the page (`fill.ts`, the server's
   rules: a number with no trailing zero, a duration in its largest whole unit), with the values the set plays: planet's
-  `GetRules`, under `bonuses` the offers' (`bonuses.v1.AdminService/GetRules`) and under `quizzes` the quizzes'
+  `GetRules`, under `bonuses` the bonuses' (`bonuses.v1.AdminService/GetRules`), under `boxes` the boxes'
+  (`boxes.v1.AdminService/GetRules`) and under `quizzes` the quizzes'
   (`quizzes.v1.AdminService/GetRules`), their sets of the same name, each the set's own over default's (`playedBySet`,
   over the Game rules' `overlay`); and the battle's values as the server wrote them for the example battle. A set the
-  offers or the quizzes do not keep plays no `{bonuses.…}` or `{quizzes.…}` value, and the card says so.
+  bonuses, the boxes or the quizzes do not keep plays no `{bonuses.…}`, `{boxes.…}` or `{quizzes.…}` value, and the card says so.
 - **Save asks first** ("Save the 3 cards of urf?", or "Remove every card of urf? Its battles are not teased then.")
   and sends the set's cards in their order (`SaveCards`), which replace what it had. It stays disabled until something
   changed and **while a card shows a problem the server would refuse**: no background, a headline or a line too long,
@@ -56,5 +59,5 @@ backgrounds, and up to five cards per rule set planet keeps, under the set's nam
 `npm run demo`: three made-up backgrounds drawn in the page (SVG), `rush` with four cards (one names the battle's
 points, one a box's wait and a bomb's rings), an upload that the made-up bucket takes in two seconds (an image only),
 and a removal refused while a card shows the background, as the server does. The tests drive the page on
-`FakeAdmin.promo` (`FakePromo`), which lists the sets of planet's fake, fills `{bonuses.…}` from the offers' fake and
+`FakeAdmin.promo` (`FakePromo`), which lists the sets of planet's fake, fills `{bonuses.…}` from the bonuses' fake, `{boxes.…}` from the boxes' and
 `{quizzes.…}` from the quizzes', and answers a ×3 example battle.

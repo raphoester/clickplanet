@@ -7,10 +7,12 @@ clicks and a pool of shields. The server keeps them per account, in postgres:
 a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
 30 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 5
 to 20 shields, capped at the size; the reward it announces
-is what was kept (`+2 spread clicks`), which is what the server answers in
-`ClaimBonusResponse.amount`. The boxes are the offers' (`bonuses.v1.BonusService`, on a stream of its own: see
-[The offers stream](backends.md#the-offers-stream)), the quizzes the quizzes' ([The quizzes
-stream](backends.md#the-quizzes-stream)); the charges they grant are planet's.
+is what was kept (`+2 spread clicks`), which planet's stream tells as the grant's `gained` about a second after the
+catch. The boxes are the boxes module's (`boxes.v1.BoxService`, on a stream of its own: see
+[The boxes stream](backends.md#the-boxes-stream)), the quizzes the quizzes' ([The quizzes
+stream](backends.md#the-quizzes-stream)); what they hold is drawn by the bonuses module, and the charges are planet's.
+A box that held nothing (the hand had room for no kind the rules weigh) shows the award card's "Your inventory is
+already full" (`bonus.winNothing`).
 
 **`PlanetBackend` holds `Charges` (`domain/bonus.ts`), and only a grant pushes them.**
 It reads `GetCharges` at load, with the token in hand and never a fresh one, again
@@ -18,8 +20,8 @@ when a click goes out under a new token (`followSession`), and when its stream c
 back after a gap: the charges are the account's. A grant from outside the player's
 own clicks (a box caught, a right answer, a mission paid, an operator's) comes on the planet stream of the account,
 a guest's too, as `charges_granted`: all it holds now (`grantedOf`), which replaces them with no read, and what it
-added (`gainedOf`), which the grant listeners hear (a right answer's reward). `ClaimBonusResponse.charges` replaces them on a claim, and
-`UseRefillResponse.charges` on a refill, which also brings the full budget, and
+added (`gainedOf`), which the grant listeners hear (a box's or a right answer's reward).
+`UseRefillResponse.charges` replaces them on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
 click off (not while spreads are unlimited), this player's own `tilesEnclosed` takes an enclosure off (not while enclosures are unlimited; the event
@@ -36,9 +38,8 @@ stack's size, the shields' pool size, how many can stand on one tile
 (`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) or off (`enclosuresOff`) and whether spreads
 are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
-new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the offers' rule,
-from `BonusService/GetGrantRules`, read at load and on the offers stream's own `rulesChanged` and comeback, and told
-with planet's.
+new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the bonuses module's rule,
+from `BonusService/GetGrantRules`, read once a load, and told with planet's.
 
 ## Off by default, one at a time
 

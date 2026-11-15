@@ -129,7 +129,7 @@ The player level needs a reward that depends on the level, so the reward must si
 progression hears the offers (`BonusClaimed`, `QuizAnswered`), so the offers could not hear progression without a cycle.
 The offers held three languages that need different places: the box and the quiz (activity, upstream of missions and
 progression) and the reward (downstream). The quiz shared nothing with the box but the rule that kept them apart. The
-next cut moves the boxes out the same way; what is left in `bonuses` is the reward, which will hear progression's
+boxes left the same way on 2026-11-15 ([The boxes](boxes-module.md)); what is left in `bonuses` is the reward, which will hear progression's
 `LevelReached`. Rejected: a gate in planet, levels in bonuses, and progression commanding the offers (`OpenKinds`,
 `SetLevel`), events in disguise.
 

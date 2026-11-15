@@ -1,9 +1,10 @@
 # Bonus boxes
 
 A question-mark box flies past the planet every so often; whoever catches it
-gets one of five bonuses. Each box draws its kind from the offers' rule set's `kinds` (see
+gets one of five bonuses. **The boxes module offers it** ([The boxes](boxes-module.md)) and knows nothing of what it holds;
+**the bonuses module draws its kind when it is caught**, from its rule set's `kinds` (see
 [Its rule sets](bonuses.md#its-rule-sets)), a weight per kind — a kind's chance is its weight over the sum of the weights, so the
-strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 3):
+strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 4):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
   caller chooses, and gives the network's bucket as much. Up to one bank, 60 clicks. See [What a refill does to the bucket](refill.md).
@@ -29,11 +30,11 @@ clicks, maybe": nothing on a full bank, and a different amount for every
 country's pace. The refill is the same good, clicks, with the moment chosen by
 the player.
 
-Boxes are always on: there is no switch. They are the bonuses module's since 2026-11-11 (see
-[The offers](bonuses.md)); planet holds what they grant.
+Boxes are always on: there is no switch. They left planet for the bonuses module on 2026-11-11, and the bonuses module
+for the boxes module on 2026-11-15 (see [The boxes](boxes-module.md)); planet holds what they grant.
 
-**The waits and the hourly cap are the offers' rule set's** (`bonuses.Pace`, see
-[Its rule sets](bonuses.md#its-rule-sets)), not the config's: the registry reads them at each sweep, so a set taken reaches every caller within a second.
+**The waits and the hourly cap are the boxes' rule set's** (`boxes.Pace`, see
+[Its rule sets](boxes-module.md#its-rule-sets)), not the config's: the registry reads them at each sweep, so a set taken reaches every caller within a second.
 
 **The server picks who gets one, and that is the whole design.** A box broadcast
 to everyone is caught by whichever client reacts fastest, and that is a script
@@ -53,7 +54,7 @@ ten players, one an hour at three hundred. What a player experiences must not
 depend on how many other people are online.
 
 That schedule is one `nextOfferAt` per caller and **one sweep for everybody**,
-not a timer each: `bonuses.offers.sweepInterval` walks the map the way the antibot sweeps
+not a timer each: `boxes.offers.sweepInterval` walks the map the way the antibot sweeps
 already do.
 
 **The wait is drawn uniformly from `[minInterval, maxInterval]`.** The spread is
@@ -83,10 +84,13 @@ they got a short one.
 **The rule set's hourly cap bounds what a caller can be granted.** Nothing here is a
 race any more, but catch rate is where an advantage is left: a script catches
 every box it is offered where a person catches some. This makes the worst case
-a number you choose rather than a function of reflexes. Past 12 charges in the
-last hour the slot is lost, like a caller's who was away; 12 is above the ten
-boxes an hour a person catching every one would get. A kind another box would
-add nothing to (a refill or a bomb held, a full stack or pool) is not offered.
+a number you choose rather than a function of reflexes. Past 12 boxes caught in the
+last hour (`maxBoxesPerHour`) the slot is lost, like a caller's who was away; 12 is above the ten
+boxes an hour a person catching every one would get. Until 2026-11-15 the cap counted the charges granted; each box
+granted one, so the number is the same. **A hand with room for no kind at all** (a refill and a bomb held, every stack
+and pool full) **is offered no box.** The boxes know no kind, so a hand with room only for a kind the bonuses' rules weigh
+0 is offered one, which pays nothing ([A box caught](bonuses.md#a-box-caught)); before, the offer left out every kind a
+box would add nothing to.
 
 **A caller is an entrant, not a connection.** `bonuses.EntrantOf(caller)` is the
 account (`account:<id>`) when the click token says it is linked, and its scope
@@ -106,8 +110,8 @@ is what removes a stream; there is no context goroutine per connected client,
 because the fanout deliberately does not pay that cost.
 
 The stream and the claim must name the same entrant, so the client opens the
-offers' stream with the token it clicks with and reopens it, with planet's, when that token changes
-(`followSession` in the frontend's `planetBackend.ts`): signing in moves the
+boxes' stream with the token it clicks with and reopens it when a planet call carried another
+(`BoxesBackend` in the frontend's `boxesBackend.ts`, following `PlanetBackend.listenForSessions`): signing in moves the
 stream to the account at the next click.
 
 **The offer is the state, so there is no crypto here.** The registry already has
@@ -121,21 +125,21 @@ the way past.
 between "no such token" and "not yours" is exactly what a script guessing tokens
 would measure.
 
-**`ClaimBonus` is session-gated**, `Attested` on the offers' `NewSessionInterceptor`
-(`bonusesv1controller`, counted in `bonus_session_checks`), as it was on planet's: a bonus is only ever spent as clicks, and clicks need a session,
+**`ClaimBox` is session-gated**, `Attested` on the boxes' `NewSessionInterceptor`
+(`boxesv1controller`, counted in `bonus_session_checks`), as it was on planet's: a bonus is only ever spent as clicks, and clicks need a session,
 so the box that grants them should not be the one way to widen an allowance
 without proving anything. It is deliberately **not** throttled — a claim is
 already gated on holding a token the server addressed to you, and spending a
 click token to collect a bonus is backwards.
 
-**Two cases on the offers' stream** (`bonuses.v1.BonusService/ListenForEvents`) — `bonus_offered`, which
-reaches one caller, and `bonus_taken`, which reaches everyone. The private reward
-with a public outcome is what keeps the spectacle without the scramble. A client too old to know a case reads an unset
-`oneof` and skips it, which is the whole reason the envelope exists. Until 2026-11-11 they were two cases of
-`PlanetEvent` (3 and 4, `reserved` now); the offers' stream is their own since they left planet, opened beside
-planet's (see [The live streams](live-streams.md)).
+**One case on the boxes' stream** (`boxes.v1.BoxService/ListenForEvents`): `box_offered`, which reaches one caller,
+with no kind: the box is a question mark until it is caught. A client too old to know a case reads an unset `oneof` and
+skips it, which is the whole reason the envelope exists. Until 2026-11-11 the offers were cases of `PlanetEvent` (3 and 4,
+`reserved` now); until 2026-11-15 the bonuses module's stream also told every catch to everyone (`bonus_taken`, with the
+flag and the kind). The page had shown nothing of it since 2026-11-06, and the boxes no longer know the kind, so it went
+(the owner's call).
 
-The catch is published **after** planet kept the charge (`GrantCharges` answered), so a catch announced to the
-planet that then failed to apply is the one lie this cannot tell. The same use case then
-tells the other modules who caught it, `bonuses.v1.BonusClaimed`, for the `Loot` titles; the quizzes' `answer_quiz_usecase`
-tells every answer as `quizzes.v1.QuizAnswered`, for `Quiz`.
+**The catch is told, not paid, by the boxes**: `claim_box_usecase` records `boxes.v1.BoxClaimed` in the boxes' outbox, and
+the bonuses module draws what the box holds and pays it through planet's `GrantCharges`; the page shows the reward when
+planet's stream tells the grant. `BoxClaimed` is also heard for the `Loot` titles and the box missions; the quizzes'
+`answer_quiz_usecase` tells every answer as `quizzes.v1.QuizAnswered`, for `Quiz`.

@@ -46,8 +46,9 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → every subscriber: one per open ListenForEvents stream
 
   … the try, as planet.v1.ClickTried on Redis
-  → the offers' click_tried_subscriber (bonuses-clicks): a take, a strike or an unchanged tile marks the caller
-      playing; a dry one owes a newcomer its first quiz (see bonuses.md)
+  → the boxes' click_tried_subscriber (bonuses-clicks, the name kept): a take, a strike or an unchanged tile marks the
+      caller playing, and a young account's first owes it an early box (see boxes-module.md)
+  → the quizzes' click_tried_subscriber (quizzes-clicks): the same, and a dry one owes a newcomer its first quiz
   → the antibot's listener (antibot-clicks): Attempted, Inspect, Committed, as far as the click went
   → a guilty caller's ban row, and a planet.v1.RefuseCaller in the same transaction (the antibot's outbox)
   → planet's refuse_caller_handler (commands:planet.v1.RefuseCaller): planet.refused_callers, read by refusal_click

@@ -17,6 +17,9 @@ is planet's.** The wallet, the charges a player holds and spends, stays in plane
 - **Then the quizzes left `bonuses`** (2026-11-13) for a module of their own, the same way: a seam, then a move
   ([The quizzes](quizzes-module.md)). A right answer stopped paying at once: the offers pay it from `QuizAnswered`, and
   `GetChargesOf`, which answered the hand a wrong answer leaves, went. The sections below name the quiz as B left it.
+- **Then the boxes left `bonuses`** (2026-11-15) for a module of their own ([The boxes](boxes-module.md)): the schedule,
+  the offer, the claim and the box facts. What a box holds is drawn at the catch, by the bonuses module, which pays it
+  from `boxes.v1.BoxClaimed`; the claim answers no hand. The sections below name the box as B left it.
 
 ## The two sides
 

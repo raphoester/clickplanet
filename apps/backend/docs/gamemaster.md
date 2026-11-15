@@ -2,10 +2,11 @@
 
 **The game's meta: which rules play together, and when; every moment of the game, and what scoring counts in it.**
 Planet keeps its game rules in its sets (see [Rules](rules.md)), the antibot its bounds in its own (see [The antibot's
-rules](antibot-rules.md)), the offers when a box comes and what it grants in theirs (see [The offers](bonuses.md#its-rule-sets),
+rules](antibot-rules.md)), the boxes when a box comes in theirs (see [The boxes](boxes-module.md#its-rule-sets),
+2026-11-15), the bonuses module what a box or a right answer grants in its own (see [The bonuses](bonuses.md#its-rule-sets),
 2026-11-11), and the quizzes when a quiz comes in theirs (see [The quizzes](quizzes-module.md#its-rule-sets), 2026-11-13).
 The gamemaster module never holds a rule: it picks which set each module plays, by name, so a set of planet, one of the
-antibot, one of the offers and one of the quizzes play as one. No module picks the set it plays: the gamemaster's schedule does,
+antibot, one of the boxes, one of the bonuses and one of the quizzes play as one. No module picks the set it plays: the gamemaster's schedule does,
 and no operator call changes it at once (the user's rule, 2026-10-26: "there needs to be a schedule of overrides with
 a hierarchy … they have to use schedules and priority orders, always").
 
@@ -42,7 +43,9 @@ internal/gamemaster/
       rpc_planet_rule_sets/         Keeper, from planet.v1.InternalService/GetRuleSetNames
       rpc_antibot_rule_sets/        Keeper, from antibot.v1.InternalService/GetRuleSetNames
       rpc_bonuses_rule_sets/        Keeper, from bonuses.v1.InternalService/GetRuleSetNames
-      rpc_rule_set_plays/           planet.v1, antibot.v1 and bonuses.v1 InternalService/PlayRuleSet
+      rpc_boxes_rule_sets/          Keeper, from boxes.v1.InternalService/GetRuleSetNames
+      rpc_quizzes_rule_sets/        Keeper, from quizzes.v1.InternalService/GetRuleSetNames
+      rpc_rule_set_plays/           planet.v1, antibot.v1, boxes.v1, bonuses.v1 and quizzes.v1 InternalService/PlayRuleSet
       usecases/add_entry_usecase/     audit_add_entry/
       usecases/edit_entry_usecase/    audit_edit_entry/
       usecases/delete_entry_usecase/  audit_delete_entry/
@@ -169,7 +172,8 @@ even when it plays the set already playing, so it is called again.
 - **A battle fits between the season's days** (`Plan.Clashes`, `FailedPrecondition`; see [A battle and the
   days](#a-battle-and-the-days)): a new or edited entry is judged in the plan with it (`Planner.With`), in place of the
   one kept. A plain entry is never judged, and may overlap anything.
-- **A new or edited entry must name a set planet, the antibot and the offers all keep** (`schedule.Playable`): the module asks
+- **A new or edited entry must name a set planet, the antibot, the boxes, the bonuses and the quizzes all keep**
+  (`schedule.Playable`): the module asks
   each, in its own words, which sets it keeps (`GetRuleSetNames` on its internal service), and the refusal names each
   module that lacks it (`planet keeps no rule set of this name: "rush"`). **An antibot that is off** serves no route
   (`Unimplemented`): it judges with no set, so it lacks none. Scoring keeps no sets: a battle's times are the entry's.
@@ -184,7 +188,7 @@ the antibot turned on after the entry was saved), it is loud, not silent:
 - **The module refuses the call** (`FailedPrecondition`) and plays on with its set; its log and the gamemaster's say so
   at Error (`failed to play the rules`, `failed to play the schedule`).
 - **The backoffice warns** on each entry that has not ended and names a set a module lacks ("No set rush in planet,
-  the antibot or the offers."), from each module's `GetRules`, and says when a module does not play what the schedule plays.
+  the antibot, the boxes, the bonuses or the quizzes."), from each module's `GetRules`, and says when a module does not play what the schedule plays.
 - **The fix is the set**: mend or make it. The schedule calls the turn again each minute while a module refuses it (see
   [Calling the turn](#calling-the-turn)), so the module plays it within a minute, with no new entry. Until 2026-11-10 the
   turn was sent only at a change, and the fix was an entry at a higher priority.
@@ -208,11 +212,10 @@ See [Arena battles](arenas.md#the-order).
 **Level-triggered, with nothing written.** The runner keeps the last turn, its decision time and which module played
 it in memory; a crash is followed by the boot's call. The clock decides, so no transaction holds the call.
 
-**`rpc_rule_set_plays` calls each module, in its words** (`Play`, the antibot, then planet, then the offers, or
-`PlayAntibot` alone while planet's set waits): `planet.v1.InternalService/PlayRuleSet{rule_set, decided_at}`,
-`antibot.v1.InternalService/PlayRuleSet{rule_set, decided_at}` and `bonuses.v1.InternalService/PlayRuleSet{rule_set,
-decided_at}` (2026-11-11): a minute at most for the antibot's, since it restates its bans under a new set, and a minute
-for planet's and the offers' together. `decided_at` is the runner's now when the turn changed, or at the boot, and stays the same when
+**`rpc_rule_set_plays` calls each module, in its words** (`Play`, the antibot, then planet, then the boxes, the bonuses
+module and the quizzes, or `PlayAntibot` alone while planet's set waits): `planet.v1.InternalService/PlayRuleSet{rule_set,
+decided_at}`, `antibot.v1`'s, `boxes.v1`'s (2026-11-15), `bonuses.v1`'s (2026-11-11) and `quizzes.v1`'s (2026-11-13): a
+minute at most for the antibot's, since it restates its bans under a new set, and a minute for the others together. `decided_at` is the runner's now when the turn changed, or at the boot, and stays the same when
 the turn is called again. Scoring plays no rule set: a battle reaches it as a round (see [Calling
 scoring](#calling-scoring)).
 
@@ -299,7 +302,7 @@ times. Now the fact "ends season S" is the season's own.
 - **Its rules** (every reason found by `errors.Is`): a length above none and at most the season's, a set's name, a
   description of at most 300 characters and times 1 to 10 (`ErrInvalidSeason`); **once it started, the season's end
   and the finale stay** (`ErrFinaleStarted`, `FailedPrecondition`); a finale that is added, changed or moved starts
-  after now; **its set is one planet, the antibot and the offers keep** (`schedule.Playable`, `FailedPrecondition`); **it fits
+  after now; **its set is one planet, the antibot, the boxes, the bonuses and the quizzes keep** (`schedule.Playable`, `FailedPrecondition`); **it fits
   between the days like any battle** (see [A battle and the days](#a-battle-and-the-days)): it starts at the season's
   last cutoff, or the season ends at a cutoff, and no battle overlaps it. It is judged on the season's add and edit with
   every battle that has not ended, and on every battle added or edited.
@@ -617,9 +620,11 @@ The map is frozen over a break the way any set plays (see [A frozen map](rules.m
 
 1. Ops → Game rules: Copy `default`, name it `frozen`, tick "Frozen: the map takes no play". Save.
 2. Ops → Box & quiz rules: in the boxes' sets and in the quizzes' sets, Copy `default`, name it `frozen`, tick
-   "Frozen". Save. Production's `frozen` came across frozen from planet's on 2026-11-11 (see
-   [The offers](bonuses.md#where-the-sets-came-from)), and the quizzes' from the offers' on 2026-11-13. A set there not
-   frozen still offers boxes and quizzes, and refuses them when taken, through planet's freeze.
+   "Frozen". Save. In what a box or a right answer holds, Copy `default` and name it `frozen`: it has no Frozen of its
+   own, but every module keeps the set's name. Production's `frozen` came across frozen from planet's on 2026-11-11 (see
+   [The bonuses](bonuses.md#where-the-sets-came-from)), the quizzes' from the offers' on 2026-11-13 and the boxes' on
+   2026-11-15. A set there not frozen still offers boxes and quizzes, and refuses them when taken, through planet's
+   freeze.
 3. Ops → Anti-bot rules: Copy `default`, name it `frozen`. Save.
 4. Ops → Rule schedule: add a plain entry `frozen` from the season's end to the next season's start, priority 1. It
    starts as the Final Battle ends, so it overlaps no finale.
