@@ -15,14 +15,16 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/season"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func NewPostgresQuery(db cppg.Conn, cutoff season.Cutoff) *PostgresQuery {
-	return &PostgresQuery{db: db, cutoff: cutoff}
+func NewPostgresQuery(db cppg.Conn, clock cptime.Clock, cutoff season.Cutoff) *PostgresQuery {
+	return &PostgresQuery{db: db, clock: clock, cutoff: cutoff}
 }
 
 type PostgresQuery struct {
 	db     cppg.Conn
+	clock  cptime.Clock
 	cutoff season.Cutoff
 }
 
@@ -40,7 +42,7 @@ func (q *PostgresQuery) Seasons(ctx context.Context) (*gamemasterv1.GetSeasonsRe
 	if err != nil {
 		return nil, err
 	}
-	plan := moments.NewPlan(seasons, q.cutoff, opened, entries...)
+	plan := moments.NewPlan(seasons, q.cutoff, q.clock.Now(), opened, entries...)
 	answer := &gamemasterv1.GetSeasonsResponse{DailyCutoff: durationpb.New(time.Duration(q.cutoff))}
 	planned := seasons.TakeSnapshot()
 	for i, window := range seasons.Windows() {

@@ -66,7 +66,7 @@ func newHarness(t *testing.T, at time.Time) *harness {
 }
 
 func (h *harness) boot() {
-	h.planner = moments.NewPlanner(h.seasons, h.entries, h.store, inmemory_arena_store.New(), season.Cutoff(21*time.Hour))
+	h.planner = moments.NewPlanner(h.seasons, h.entries, h.store, inmemory_arena_store.New(), season.Cutoff(21*time.Hour), h.clock)
 	h.useCase = tell_starts_usecase.New(h.store, outbox_moment_events.New(h.outbox), cpatomic.FakeTransactioner{}, h.clock)
 }
 

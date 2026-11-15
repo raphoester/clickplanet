@@ -48,7 +48,7 @@ func (q *PostgresQuery) Now(ctx context.Context) (*gamemasterv1.GetTurnResponse,
 	if err != nil {
 		return nil, err
 	}
-	plan := moments.NewPlan(seasons, q.cutoff, opened, entries...)
+	plan := moments.NewPlan(seasons, q.cutoff, now, opened, entries...)
 	sched := schedule.New(entries...).With(seasons.Finales()...)
 
 	turn, err := turnOf(sched, plan, now)

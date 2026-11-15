@@ -117,7 +117,7 @@ func (h *harness) noFinale() {
 }
 
 func (h *harness) boot() {
-	h.planner = moments.NewPlanner(h.seasons, h.entries, h.opened, h.judged, cutoff)
+	h.planner = moments.NewPlanner(h.seasons, h.entries, h.opened, h.judged, cutoff, h.clock)
 	h.useCase = play_scoring_usecase.New(h.opened, h.scoring, outbox_moment_events.New(h.outbox),
 		cpatomic.FakeTransactioner{}, h.clock, time.Minute)
 }

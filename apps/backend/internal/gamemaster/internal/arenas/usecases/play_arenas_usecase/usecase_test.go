@@ -67,7 +67,7 @@ func newHarness(t *testing.T, set schedule.SetName) *harness {
 	}
 	_, err := h.judged.KeepJudged(t.Context(), moments.Judgement{Round: fought, Mode: moments.Arena})
 	require.NoError(t, err)
-	h.planner = moments.NewPlanner(seasons, entries, h.kept, h.judged, season.Cutoff(21*time.Hour))
+	h.planner = moments.NewPlanner(seasons, entries, h.kept, h.judged, season.Cutoff(21*time.Hour), h.clock)
 	h.boot()
 	return h
 }

@@ -139,6 +139,22 @@ func TestTheTimelineIsTheBattlesToComeInThePlayersWordsTheFinaleAmongThem(t *tes
 	}}, timeline), "season 0 and its finale are seeded: %v", timeline)
 }
 
+func TestABattleInsideADayCutsItOnlyOnceItRan(t *testing.T) {
+	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
+	battle(t, db)
+
+	before := nowAt(t, db, earlyAt.Add(-time.Minute)).GetTimeline().GetToday()
+	assert.True(t, proto.Equal(&gamemasterv1.Day{
+		Number: 23, StartsAt: timestamppb.New(finale.Add(-48 * time.Hour)), EndsAt: timestamppb.New(finale.Add(-24 * time.Hour)),
+		RoundId: "season-0/day-23",
+	}, before), "a battle to come did not end early: %v", before)
+	assert.Nil(t, nowAt(t, db, earlyAt.Add(time.Minute)).GetTimeline().GetToday(), "the battle runs")
+	after := nowAt(t, db, earlyEnds).GetTimeline().GetToday()
+	assert.True(t, proto.Equal(&gamemasterv1.Day{
+		Number: 24, StartsAt: timestamppb.New(earlyEnds), EndsAt: timestamppb.New(finale), RoundId: "season-0/day-24",
+	}, after), "it ran and ended off the cutoff, as one ended early: %v", after)
+}
+
 func TestABattleThatStartedLeavesTheTimeline(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "gamemaster", migrations.FS)
 	battle(t, db)

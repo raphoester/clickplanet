@@ -85,7 +85,7 @@ func harnessWith(t *testing.T, at time.Time, zero season.Snapshot, pause time.Du
 	require.NoError(t, seasons.Save(t.Context(), zero.Restore()))
 	require.NoError(t, seasons.Save(t.Context(), season.Snapshot{Number: 1, Break: pause, Length: 28 * 24 * time.Hour}.Restore()))
 	told, clock := &planet{}, cptime.NewFixedClock(at)
-	planner := moments.NewPlanner(seasons, inmemory_entry_store.New(), kept, judged, season.Cutoff(21*time.Hour))
+	planner := moments.NewPlanner(seasons, inmemory_entry_store.New(), kept, judged, season.Cutoff(21*time.Hour), clock)
 	return stores{
 		t: t, useCase: planned{t: t, planner: planner, useCase: play_resets_usecase.New(kept, told, clock, time.Minute)}, told: told, clock: clock,
 		judged: judged, kept: kept,

@@ -193,7 +193,7 @@ func newNight(t *testing.T, at time.Time) *night {
 	notes := &journal{clock: clock}
 	n := &night{
 		t: t, clock: clock, journal: notes, entries: entries, kept: kept, judged: judged, outbox: &cpatomic.FakeOutbox{},
-		planner: moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour)),
+		planner: moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour), clock),
 		scoring: &scoring{journal: notes, opened: cpcolls.NewSet[moments.RoundID]()},
 		planet: &planet{
 			journal: notes, landsAt: map[moments.ArenaKey]time.Time{}, answers: map[moments.ArenaKey]error{},

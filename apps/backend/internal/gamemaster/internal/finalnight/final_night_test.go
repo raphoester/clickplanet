@@ -91,7 +91,7 @@ func TestSeasonZerosLastDayAndItsFinalePlaySecondBySecond(t *testing.T) {
 	seasons, entries, kept := inmemory_season_store.New(), inmemory_entry_store.New(), inmemory_moment_store.New()
 	require.NoError(t, seasons.Save(t.Context(), seasonZero.Restore()))
 	judged := inmemory_arena_store.New()
-	planner := moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour))
+	planner := moments.NewPlanner(seasons, entries, kept, judged, season.Cutoff(21*time.Hour), clock)
 	outbox := &cpatomic.FakeOutbox{}
 	told := outbox_moment_events.New(outbox)
 
