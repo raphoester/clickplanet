@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen} from "@testing-library/react"
-import NoticeModal, {NOTICE_HOLD_MS} from "./NoticeModal.tsx"
+import NoticeModal from "./NoticeModal.tsx"
 import {GAME_RULES} from "./BannedModal.tsx"
 import {useWarning} from "../warning/warningStore.ts"
 
@@ -26,9 +26,9 @@ function acknowledging() {
 
 const understand = () => screen.getByRole("button", {name: "I understand these rules"})
 
-async function hold(ms = NOTICE_HOLD_MS) {
-    fireEvent.pointerDown(understand())
-    await act(() => vi.advanceTimersByTimeAsync(ms))
+async function click() {
+    fireEvent.click(understand())
+    await act(() => vi.advanceTimersByTimeAsync(0))
 }
 
 describe("NoticeModal", () => {
@@ -69,30 +69,16 @@ describe("NoticeModal", () => {
         expect(understand()).not.toBeNull()
     })
 
-    it("acknowledges the notice once the button is held three seconds, then closes", async () => {
+    it("acknowledges the notice on a click, then closes", async () => {
         const notices = acknowledging()
         render(<NoticeModal notices={notices}/>)
         noticed()
 
-        await hold()
+        await click()
 
         expect(notices.acknowledgeNotice).toHaveBeenCalledTimes(1)
         expect(screen.queryByText("One account per player")).toBeNull()
         expect(useWarning.getState().noticed).toBe(false)
-    })
-
-    it("takes no click, and no hold shorter than three seconds", async () => {
-        const notices = acknowledging()
-        render(<NoticeModal notices={notices}/>)
-        noticed()
-
-        fireEvent.click(understand())
-        await hold(NOTICE_HOLD_MS - 100)
-        fireEvent.pointerUp(understand())
-        await act(() => vi.advanceTimersByTimeAsync(NOTICE_HOLD_MS))
-
-        expect(notices.acknowledgeNotice).not.toHaveBeenCalled()
-        expect(useWarning.getState().noticed).toBe(true)
     })
 
     it("cannot be closed any other way", () => {
@@ -107,19 +93,18 @@ describe("NoticeModal", () => {
         expect(screen.getByText("One account per player")).not.toBeNull()
     })
 
-    it("stays open when the server could not take it, so the player can hold again", async () => {
+    it("stays open when the server could not take it, so the player can click again", async () => {
         const logged = vi.spyOn(console, "error").mockImplementation(() => {})
         const notices = {acknowledgeNotice: vi.fn().mockRejectedValueOnce(new Error("down")).mockResolvedValueOnce(undefined)}
         render(<NoticeModal notices={notices}/>)
         noticed()
 
-        await hold()
+        await click()
 
         expect(logged).toHaveBeenCalledTimes(1)
         expect(useWarning.getState().noticed).toBe(true)
 
-        fireEvent.pointerUp(understand())
-        await hold()
+        await click()
 
         expect(notices.acknowledgeNotice).toHaveBeenCalledTimes(2)
         expect(useWarning.getState().noticed).toBe(false)
