@@ -3,49 +3,28 @@ package bonuses
 import (
 	"errors"
 	"fmt"
-	"time"
 )
 
-// Rules is what the offers play (bonuses.v1.Rules): when a box comes, and what a box or a right answer may be and how
-// much it grants.
-// How much of each charge a hand holds, and what it does when it is spent, is planet's: an offer pays what it drew, and
-// the wallet keeps what fits.
+// Rules is what the bonuses module plays (bonuses.v1.Rules): what a box caught or a right answer may be and how much it
+// grants, and the sign-in refill. How much of each charge a hand holds, and what it does when it is spent, is planet's:
+// a win pays what it drew, and the wallet keeps what fits.
 type Rules struct {
-	Boxes Pace
-
 	Kinds map[Kind]float64
-
-	OfferTTL     time.Duration
-	MissRetry    time.Duration
-	ActiveWithin time.Duration
 
 	Spread  SpreadRules
 	Enclose EncloseRules
 	Shield  ShieldRules
 
-	Welcome WelcomeRules
-
 	SignInRefill bool
-
-	// Frozen offers nothing, and refuses every claim.
-	Frozen bool
 }
 
 func (r Rules) Validate() error {
 	return errors.Join(
-		positive("boxes.minInterval", r.Boxes.MinInterval),
-		atLeast("boxes.maxInterval", r.Boxes.MaxInterval, "boxes.minInterval", r.Boxes.MinInterval),
-		positive("boxes.maxChargesPerHour", r.Boxes.MaxChargesPerHour),
 		weightsProblem(r),
-		positive("offerTtl", r.OfferTTL),
-		positive("missRetry", r.MissRetry),
-		positive("activeWithin", r.ActiveWithin),
 		positive("spread.maxPerBox", r.Spread.MaxPerBox),
 		positive("enclose.maxPerBox", r.Enclose.MaxPerBox),
 		positive("shield.minPerBox", r.Shield.MinPerBox),
 		atLeast("shield.maxPerBox", r.Shield.MaxPerBox, "shield.minPerBox", r.Shield.MinPerBox),
-		notNegative("welcome.within", r.Welcome.Within),
-		notNegative("welcome.boxAfter", r.Welcome.BoxAfter),
 	)
 }
 
@@ -80,8 +59,8 @@ type SpreadRules struct {
 	MaxPerBox int
 }
 
-// Offered is true for a kind a box or a right answer may be: weighed above 0. A bomb while planet's bombs are off is a kind the
-// wallet says no hand has room for.
+// Offered is true for a kind a box or a right answer may be: weighed above 0. A bomb while planet's bombs are off is a
+// kind the wallet says no hand has room for.
 func (r Rules) Offered(kind Kind) bool {
 	return r.Kinds[kind] > 0
 }
@@ -94,12 +73,3 @@ type ShieldRules struct {
 	MinPerBox int
 	MaxPerBox int
 }
-
-type WelcomeRules struct {
-	Within time.Duration
-
-	BoxAfter time.Duration
-}
-
-// ErrFrozen refuses a claim while the offers play a frozen set or planet's map takes no play.
-var ErrFrozen = errors.New("no box can be taken now: the game is frozen")

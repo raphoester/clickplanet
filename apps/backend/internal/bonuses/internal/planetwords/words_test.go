@@ -30,9 +30,3 @@ func TestTheOffersAndTheWalletNameTheSameKinds(t *testing.T) {
 		assert.True(t, ok, "planet holds %s, which no box may be", name)
 	}
 }
-
-func TestAHandIsReadAsPlanetWroteIt(t *testing.T) {
-	hand := bonuses.Hand{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 7, Shields: 30}
-
-	assert.Equal(t, hand, planetwords.HandOf(planetwords.Hand(hand)))
-}

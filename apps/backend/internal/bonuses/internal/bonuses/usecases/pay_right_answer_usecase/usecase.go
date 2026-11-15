@@ -13,7 +13,7 @@ type Room interface {
 
 // Wallet pays each grant once: it is planet's, which keeps what fits.
 type Wallet interface {
-	Pay(ctx context.Context, payment bonuses.Payment) (bonuses.Paid, error)
+	Pay(ctx context.Context, payment bonuses.Payment) error
 }
 
 func New(room Room, wallet Wallet, rules func() bonuses.Rules) *UseCase {
@@ -39,7 +39,7 @@ func (u *UseCase) Execute(ctx context.Context, answer bonuses.Answer) error {
 		return nil
 	}
 
-	_, err = u.wallet.Pay(ctx, bonuses.Payment{
+	err = u.wallet.Pay(ctx, bonuses.Payment{
 		Grant: answer.Grant(), Account: answer.Account, Kind: reward.Kind, Amount: reward.Amount,
 	})
 	return err //nolint:wrapcheck // the wallet named it.

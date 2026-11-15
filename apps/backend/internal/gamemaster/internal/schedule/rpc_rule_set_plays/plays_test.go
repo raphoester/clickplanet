@@ -12,6 +12,7 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
@@ -51,6 +52,17 @@ func (b *bonuses) PlayRuleSet(_ context.Context, req *connect.Request[bonusesv1.
 	return connect.NewResponse(&bonusesv1.PlayRuleSetResponse{}), b.err
 }
 
+type boxes struct {
+	asked []*boxesv1.PlayRuleSetRequest
+	err   error
+}
+
+func (b *boxes) PlayRuleSet(_ context.Context, req *connect.Request[boxesv1.PlayRuleSetRequest],
+) (*connect.Response[boxesv1.PlayRuleSetResponse], error) {
+	b.asked = append(b.asked, req.Msg)
+	return connect.NewResponse(&boxesv1.PlayRuleSetResponse{}), b.err
+}
+
 type quizzes struct {
 	asked []*quizzesv1.PlayRuleSetRequest
 	err   error
@@ -69,15 +81,18 @@ func turnOf(set schedule.SetName) schedule.Turn {
 }
 
 func TestEveryModulePlaysTheSetWithItsDecisionTime(t *testing.T) {
-	toPlanet, toAntibot, toBonuses, toQuizzes := &planet{}, &antibot{}, &bonuses{}, &quizzes{}
+	toPlanet, toAntibot, toBoxes, toBonuses, toQuizzes := &planet{}, &antibot{}, &boxes{}, &bonuses{}, &quizzes{}
 
-	require.NoError(t, rpc_rule_set_plays.New(toPlanet, toAntibot, toBonuses, toQuizzes).
+	require.NoError(t, rpc_rule_set_plays.New(toPlanet, toAntibot, toBoxes, toBonuses, toQuizzes).
 		Play(t.Context(), turnOf("storm"), decided))
 
 	require.Len(t, toPlanet.asked, 1)
 	require.Len(t, toAntibot.asked, 1)
+	require.Len(t, toBoxes.asked, 1)
 	require.Len(t, toBonuses.asked, 1)
 	require.Len(t, toQuizzes.asked, 1)
+	assert.Equal(t, "storm", toBoxes.asked[0].GetRuleSet())
+	assert.Equal(t, decided, toBoxes.asked[0].GetDecidedAt().AsTime())
 	assert.Equal(t, "storm", toBonuses.asked[0].GetRuleSet())
 	assert.Equal(t, decided, toBonuses.asked[0].GetDecidedAt().AsTime())
 	assert.Equal(t, "storm", toQuizzes.asked[0].GetRuleSet())
@@ -88,13 +103,14 @@ func TestEveryModulePlaysTheSetWithItsDecisionTime(t *testing.T) {
 	assert.Equal(t, decided, toAntibot.asked[0].GetDecidedAt().AsTime())
 }
 
-func TestTheAntibotAloneLeavesPlanetTheOffersAndTheQuizzesOnTheirSet(t *testing.T) {
-	toPlanet, toAntibot, toBonuses, toQuizzes := &planet{}, &antibot{}, &bonuses{}, &quizzes{}
+func TestTheAntibotAloneLeavesPlanetTheBoxesTheOffersAndTheQuizzesOnTheirSet(t *testing.T) {
+	toPlanet, toAntibot, toBoxes, toBonuses, toQuizzes := &planet{}, &antibot{}, &boxes{}, &bonuses{}, &quizzes{}
 
-	require.NoError(t, rpc_rule_set_plays.New(toPlanet, toAntibot, toBonuses, toQuizzes).
+	require.NoError(t, rpc_rule_set_plays.New(toPlanet, toAntibot, toBoxes, toBonuses, toQuizzes).
 		PlayAntibot(t.Context(), turnOf("storm"), decided))
 
 	assert.Empty(t, toPlanet.asked)
+	assert.Empty(t, toBoxes.asked, "the boxes wait for the battle's map with planet")
 	assert.Empty(t, toBonuses.asked, "the offers wait for the battle's map with planet")
 	assert.Empty(t, toQuizzes.asked, "and so do the quizzes")
 	assert.Len(t, toAntibot.asked, 1)
@@ -103,18 +119,23 @@ func TestTheAntibotAloneLeavesPlanetTheOffersAndTheQuizzesOnTheirSet(t *testing.
 func TestAModuleThatRefusesIsAnError(t *testing.T) {
 	refused := connect.NewError(connect.CodeFailedPrecondition, errors.New("no such set"))
 
-	err := rpc_rule_set_plays.New(&planet{err: refused}, &antibot{}, &bonuses{}, &quizzes{}).
+	err := rpc_rule_set_plays.New(&planet{err: refused}, &antibot{}, &boxes{}, &bonuses{}, &quizzes{}).
 		Play(t.Context(), turnOf("storm"), decided)
 
 	require.ErrorIs(t, err, refused)
 
-	err = rpc_rule_set_plays.New(&planet{}, &antibot{}, &bonuses{err: refused}, &quizzes{}).
+	err = rpc_rule_set_plays.New(&planet{}, &antibot{}, &boxes{}, &bonuses{err: refused}, &quizzes{}).
 		Play(t.Context(), turnOf("storm"), decided)
 
 	require.ErrorIs(t, err, refused, "the offers' refusal is the schedule's too: it calls again")
 
-	err = rpc_rule_set_plays.New(&planet{}, &antibot{}, &bonuses{}, &quizzes{err: refused}).
+	err = rpc_rule_set_plays.New(&planet{}, &antibot{}, &boxes{}, &bonuses{}, &quizzes{err: refused}).
 		Play(t.Context(), turnOf("storm"), decided)
 
 	require.ErrorIs(t, err, refused, "and so is the quizzes'")
+
+	err = rpc_rule_set_plays.New(&planet{}, &antibot{}, &boxes{err: refused}, &bonuses{}, &quizzes{}).
+		Play(t.Context(), turnOf("storm"), decided)
+
+	require.ErrorIs(t, err, refused, "and the boxes'")
 }

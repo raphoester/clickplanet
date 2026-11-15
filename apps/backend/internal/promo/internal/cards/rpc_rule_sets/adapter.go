@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/cards"
@@ -23,18 +24,23 @@ type Bonuses interface {
 	GetRuleSet(context.Context, *connect.Request[bonusesv1.GetRuleSetRequest]) (*connect.Response[bonusesv1.GetRuleSetResponse], error)
 }
 
+type Boxes interface {
+	GetRuleSet(context.Context, *connect.Request[boxesv1.GetRuleSetRequest]) (*connect.Response[boxesv1.GetRuleSetResponse], error)
+}
+
 type Quizzes interface {
 	GetRuleSet(context.Context, *connect.Request[quizzesv1.GetRuleSetRequest]) (*connect.Response[quizzesv1.GetRuleSetResponse], error)
 }
 
-func New(planet Planet, bonuses Bonuses, quizzes Quizzes) *Adapter {
-	return &Adapter{planet: planet, bonuses: bonuses, quizzes: quizzes}
+func New(planet Planet, bonuses Bonuses, boxes Boxes, quizzes Quizzes) *Adapter {
+	return &Adapter{planet: planet, bonuses: bonuses, boxes: boxes, quizzes: quizzes}
 }
 
-// The sets planet keeps, and the values each plays, in planet's words, the offers' and the quizzes'.
+// The sets planet keeps, and the values each plays, in planet's words, the bonuses', the boxes' and the quizzes'.
 type Adapter struct {
 	planet  Planet
 	bonuses Bonuses
+	boxes   Boxes
 	quizzes Quizzes
 }
 
@@ -47,8 +53,8 @@ func (a *Adapter) Names(ctx context.Context) ([]string, error) {
 	return res.Msg.GetNames(), nil
 }
 
-// Played is cards.ErrUnknownSet for a set planet does not keep. A set the offers or the quizzes do not keep plays none of
-// their values.
+// Played is cards.ErrUnknownSet for a set planet does not keep. A set the bonuses module, the boxes or the quizzes do not
+// keep plays none of their values.
 func (a *Adapter) Played(ctx context.Context, set string) (placeholders.Played, error) {
 	res, err := a.planet.GetRuleSet(ctx, connect.NewRequest(&planetv1.GetRuleSetRequest{Name: set}))
 	switch {
@@ -68,6 +74,14 @@ func (a *Adapter) Played(ctx context.Context, set string) (placeholders.Played, 
 		played.Offers = offered.Msg.GetPlayed()
 	case connect.CodeOf(err) != connect.CodeNotFound:
 		return placeholders.Played{}, fmt.Errorf("failed to ask the bonuses module what %q plays: %w", set, err)
+	}
+
+	boxed, err := a.boxes.GetRuleSet(ctx, connect.NewRequest(&boxesv1.GetRuleSetRequest{Name: set}))
+	switch {
+	case err == nil:
+		played.Boxes = boxed.Msg.GetPlayed()
+	case connect.CodeOf(err) != connect.CodeNotFound:
+		return placeholders.Played{}, fmt.Errorf("failed to ask the boxes module what %q plays: %w", set, err)
 	}
 
 	asked, err := a.quizzes.GetRuleSet(ctx, connect.NewRequest(&quizzesv1.GetRuleSetRequest{Name: set}))

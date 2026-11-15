@@ -10,6 +10,7 @@ import (
 
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule"
@@ -25,6 +26,11 @@ type Antibot interface {
 	) (*connect.Response[antibotv1.PlayRuleSetResponse], error)
 }
 
+type Boxes interface {
+	PlayRuleSet(ctx context.Context, req *connect.Request[boxesv1.PlayRuleSetRequest],
+	) (*connect.Response[boxesv1.PlayRuleSetResponse], error)
+}
+
 type Bonuses interface {
 	PlayRuleSet(ctx context.Context, req *connect.Request[bonusesv1.PlayRuleSetRequest],
 	) (*connect.Response[bonusesv1.PlayRuleSetResponse], error)
@@ -38,14 +44,16 @@ type Quizzes interface {
 // The antibot takes a set with its running bans restated.
 const playTimeout = time.Minute
 
-func New(planet Planet, antibot Antibot, bonuses Bonuses, quizzes Quizzes) Plays {
-	return Plays{planet: planet, antibot: antibot, bonuses: bonuses, quizzes: quizzes}
+func New(planet Planet, antibot Antibot, boxes Boxes, bonuses Bonuses, quizzes Quizzes) Plays {
+	return Plays{planet: planet, antibot: antibot, boxes: boxes, bonuses: bonuses, quizzes: quizzes}
 }
 
-// Plays tells planet, the antibot, the offers and the quizzes, each in its own words, the set the schedule plays.
+// Plays tells planet, the antibot, the boxes, the bonuses module and the quizzes, each in its own words, the set the
+// schedule plays.
 type Plays struct {
 	planet  Planet
 	antibot Antibot
+	boxes   Boxes
 	bonuses Bonuses
 	quizzes Quizzes
 }
@@ -63,7 +71,12 @@ func (p Plays) Play(ctx context.Context, turn schedule.Turn, decidedAt time.Time
 	})); err != nil {
 		return fmt.Errorf("planet did not play the rule set %q: %w", set, err)
 	}
-	// The offers and the quizzes play with planet: a battle's boxes and quizzes come with its map.
+	// The boxes, what they hold and the quizzes play with planet: a battle's boxes and quizzes come with its map.
+	if _, err := p.boxes.PlayRuleSet(ctx, connect.NewRequest(&boxesv1.PlayRuleSetRequest{
+		RuleSet: set, DecidedAt: timestamppb.New(decidedAt),
+	})); err != nil {
+		return fmt.Errorf("the boxes module did not play the rule set %q: %w", set, err)
+	}
 	if _, err := p.bonuses.PlayRuleSet(ctx, connect.NewRequest(&bonusesv1.PlayRuleSetRequest{
 		RuleSet: set, DecidedAt: timestamppb.New(decidedAt),
 	})); err != nil {

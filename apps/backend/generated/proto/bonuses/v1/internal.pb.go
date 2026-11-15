@@ -74,7 +74,7 @@ func (x *PlayRuleSetRequest) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// The offers play the latest decision.
+// The bonuses module plays the latest decision.
 type PlayRuleSetResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields

@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package boxes.v1;
+
+import "google/protobuf/duration.proto";
+
+// When a box comes, how long it flies, and a newcomer's first box. "default" holds every value; another set holds the
+// values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
+// (boxes.rule_sets.rules). What a box holds is the bonuses module's (bonuses.v1.Rules).
+message Rules {
+  google.protobuf.Duration min_interval = 1;
+  google.protobuf.Duration max_interval = 2;
+  // No box for a caller that caught this many in the last hour.
+  optional uint32 max_boxes_per_hour = 3;
+  // How long a box flies. It must outlast the flight the page draws.
+  google.protobuf.Duration offer_ttl = 4;
+  // A box missed brings the next one this soon, once.
+  google.protobuf.Duration miss_retry = 5;
+  // No box for a caller that has not clicked for this long.
+  google.protobuf.Duration active_within = 6;
+  WelcomeRules welcome = 7;
+  // No box is offered, and ClaimBox is refused.
+  optional bool frozen = 8;
+}
+
+// An account younger than `within` gets its first box `box_after` it was made. 0s is off.
+message WelcomeRules {
+  google.protobuf.Duration within = 1;
+  google.protobuf.Duration box_after = 2;
+}

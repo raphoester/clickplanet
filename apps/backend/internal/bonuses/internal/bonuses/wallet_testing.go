@@ -9,9 +9,21 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// FakeWallet stands for planet's wallet in the offers' tests: it pays each grant once, a refill or a bomb as one held,
-// and a stack up to the size it is told (none, no size), and says a hand full where it holds that much. It applies none
-// of planet's own rules.
+// Hand is what the fake wallet holds for an account.
+type Hand struct {
+	Refill bool
+	Bomb   bool
+
+	Enclosures int
+
+	SpreadClicks int
+
+	Shields int
+}
+
+// FakeWallet stands for planet's wallet in the bonuses module's tests: it pays each grant once, a refill or a bomb as one
+// held, and a stack up to the size it is told (none, no size), and says a hand full where it holds that much. It applies
+// none of planet's own rules.
 type FakeWallet struct {
 	mu       sync.Mutex
 	hands    map[Account]Hand
@@ -71,38 +83,37 @@ func (w *FakeWallet) Gone() []error {
 	return append([]error(nil), w.gone...)
 }
 
-func (w *FakeWallet) Pay(ctx context.Context, payment Payment) (Paid, error) {
+func (w *FakeWallet) Pay(ctx context.Context, payment Payment) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	w.payments = append(w.payments, payment)
 	w.gone = append(w.gone, ctx.Err())
 	if w.failing != nil {
-		return Paid{}, w.failing
+		return w.failing
 	}
 
 	hand := w.hands[payment.Account]
 	if payment.Account == NoAccount || w.paid.Contains(payment.Grant) {
-		return Paid{Hand: hand}, nil
+		return nil
 	}
 	w.paid.Add(payment.Grant)
 
-	kept := 0
 	switch payment.Kind {
 	case KindRefill:
-		kept, hand.Refill = oneIf(!hand.Refill), true
+		hand.Refill = true
 	case KindBomb:
-		kept, hand.Bomb = oneIf(!hand.Bomb), true
+		hand.Bomb = true
 	case KindEncloseClicks:
-		kept, hand.Enclosures = w.stacked(hand.Enclosures, payment)
+		hand.Enclosures = w.stacked(hand.Enclosures, payment)
 	case KindSpreadClicks:
-		kept, hand.SpreadClicks = w.stacked(hand.SpreadClicks, payment)
+		hand.SpreadClicks = w.stacked(hand.SpreadClicks, payment)
 	case KindShields:
-		kept, hand.Shields = w.stacked(hand.Shields, payment)
+		hand.Shields = w.stacked(hand.Shields, payment)
 	}
 	w.hands[payment.Account] = hand
 
-	return Paid{Kept: kept, Hand: hand}, nil
+	return nil
 }
 
 // Full is every kind a hand holds as many of as its size, or one of where one is the most.
@@ -134,17 +145,10 @@ func (w *FakeWallet) Full(_ context.Context, accounts []Account) (map[Account][]
 	return full, nil
 }
 
-func (w *FakeWallet) stacked(held int, payment Payment) (int, int) {
+func (w *FakeWallet) stacked(held int, payment Payment) int {
 	after := held + payment.Amount
 	if size, ok := w.sizes[payment.Kind]; ok {
 		after = max(held, min(after, size))
 	}
-	return after - held, after
-}
-
-func oneIf(held bool) int {
-	if held {
-		return 1
-	}
-	return 0
+	return after
 }

@@ -1,0 +1,39 @@
+package play_rule_set_handler
+
+import (
+	"context"
+	"errors"
+
+	"connectrpc.com/connect"
+
+	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
+)
+
+type Rules interface {
+	Play(ctx context.Context, choice cprules.Choice) (cprules.Snapshot[*boxesv1.Rules], bool, error)
+}
+
+func New(rules Rules) PlayRuleSetHandler {
+	return PlayRuleSetHandler{rules: rules}
+}
+
+type PlayRuleSetHandler struct {
+	rules Rules
+}
+
+func (h PlayRuleSetHandler) PlayRuleSet(
+	ctx context.Context,
+	req *connect.Request[boxesv1.PlayRuleSetRequest],
+) (*connect.Response[boxesv1.PlayRuleSetResponse], error) {
+	_, _, err := h.rules.Play(ctx, cprules.Choice{
+		Set: cprules.SetName(req.Msg.GetRuleSet()), DecidedAt: req.Msg.GetDecidedAt().AsTime(),
+	})
+	switch {
+	case errors.Is(err, cprules.ErrUnknownSet), errors.Is(err, cprules.ErrInvalidSet):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	case err != nil:
+		return nil, err //nolint:wrapcheck // the error net answers what is not the caller's fault.
+	}
+	return connect.NewResponse(&boxesv1.PlayRuleSetResponse{}), nil
+}

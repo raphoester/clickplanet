@@ -46,9 +46,9 @@ const (
 
 // InternalServiceClient is a client for the bonuses.v1.InternalService service.
 type InternalServiceClient interface {
-	// Plays the rule set of this name. The offers keep the latest decision by decided_at, so a call made twice, or after
-	// a newer one, changes nothing. FailedPrecondition for a name the offers keep no set of, or a set they cannot play:
-	// they play on the set they play.
+	// Plays the rule set of this name. The bonuses module keeps the latest decision by decided_at, so a call made twice, or
+	// after a newer one, changes nothing. FailedPrecondition for a name it keeps no set of, or a set it cannot play: it
+	// plays on the set it plays.
 	PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error)
 	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
 	// The values a set plays: default's, with the set's own written over them. NotFound for a set postgres does not keep.
@@ -114,9 +114,9 @@ func (c *internalServiceClient) GetRuleSet(ctx context.Context, req *connect.Req
 
 // InternalServiceHandler is an implementation of the bonuses.v1.InternalService service.
 type InternalServiceHandler interface {
-	// Plays the rule set of this name. The offers keep the latest decision by decided_at, so a call made twice, or after
-	// a newer one, changes nothing. FailedPrecondition for a name the offers keep no set of, or a set they cannot play:
-	// they play on the set they play.
+	// Plays the rule set of this name. The bonuses module keeps the latest decision by decided_at, so a call made twice, or
+	// after a newer one, changes nothing. FailedPrecondition for a name it keeps no set of, or a set it cannot play: it
+	// plays on the set it plays.
 	PlayRuleSet(context.Context, *connect.Request[v1.PlayRuleSetRequest]) (*connect.Response[v1.PlayRuleSetResponse], error)
 	GetRuleSetNames(context.Context, *connect.Request[v1.GetRuleSetNamesRequest]) (*connect.Response[v1.GetRuleSetNamesResponse], error)
 	// The values a set plays: default's, with the set's own written over them. NotFound for a set postgres does not keep.

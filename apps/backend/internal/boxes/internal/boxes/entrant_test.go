@@ -1,0 +1,109 @@
+package boxes
+
+import (
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+const sharedAddress = "1.2.3.4"
+
+var (
+	alice = payer{Scope: sharedAddress, Account: "alice", Linked: true}
+	bob   = payer{Scope: sharedAddress, Account: "bob", Linked: true}
+	guest = payer{Scope: sharedAddress, Account: "a-guest"}
+)
+
+func playingAs(t *testing.T, r *Registry, payer payer) <-chan Offer {
+	t.Helper()
+
+	events := attend(t, r, entrantOf(payer))
+	r.Clicked(clickOf(payer))
+
+	return events
+}
+
+func TestALinkedAccountIsItsOwnEntrantOnAnyNetwork(t *testing.T) {
+	elsewhere := alice
+	elsewhere.Scope = "5.6.7.8"
+
+	assert.Equal(t, Entrant("account:alice"), entrantOf(alice))
+	assert.Equal(t, entrantOf(alice), entrantOf(elsewhere))
+	assert.NotEqual(t, entrantOf(alice), entrantOf(bob))
+}
+
+func TestAGuestOrACallerWithNoAccountIsItsNetwork(t *testing.T) {
+	assert.Equal(t, Entrant(sharedAddress), entrantOf(guest))
+	assert.Equal(t, Entrant(sharedAddress), entrantOf(payer{Scope: sharedAddress}))
+}
+
+func TestTwoLinkedAccountsBehindOneAddressAreEachOfferedAndClaimTheirOwnBox(t *testing.T) {
+	registry, clock := newTestRegistry()
+	hers, his := playingAs(t, registry, alice), playingAs(t, registry, bob)
+
+	waitOut(t, registry, clock)
+
+	herOffer, hisOffer := offered(t, hers), offered(t, his)
+	require.NotNil(t, herOffer)
+	require.NotNil(t, hisOffer)
+	assert.NotEqual(t, herOffer.Token, hisOffer.Token)
+
+	_, stolen := registry.Claim(herOffer.Token, entrantOf(bob), sharedAddress)
+	assert.False(t, stolen)
+
+	_, herClaim := registry.Claim(herOffer.Token, entrantOf(alice), sharedAddress)
+	_, hisClaim := registry.Claim(hisOffer.Token, entrantOf(bob), sharedAddress)
+	assert.True(t, herClaim)
+	assert.True(t, hisClaim)
+}
+
+func TestAGuestBehindTheAddressOfALinkedAccountIsOnTheAddressSchedule(t *testing.T) {
+	registry, clock := newTestRegistry()
+	hers, theirs := playingAs(t, registry, alice), playingAs(t, registry, guest)
+
+	waitOut(t, registry, clock)
+
+	herOffer, theirOffer := offered(t, hers), offered(t, theirs)
+	require.NotNil(t, herOffer)
+	require.NotNil(t, theirOffer)
+
+	_, claimed := registry.Claim(theirOffer.Token, entrantOf(guest), sharedAddress)
+	assert.True(t, claimed)
+	assert.Contains(t, registry.callers, Entrant(sharedAddress))
+	assert.Contains(t, registry.callers, Entrant("account:alice"))
+}
+
+func TestALinkedAccountsCatchIsReportedToTheAntibotByItsNetwork(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	var caughtBy []string
+	registry.Observe(Report{Caught: func(scope string, _ time.Duration) { caughtBy = append(caughtBy, scope) }})
+
+	events := playingAs(t, registry, alice)
+	waitOut(t, registry, clock)
+	offer := offered(t, events)
+	require.NotNil(t, offer)
+
+	_, claimed := registry.Claim(offer.Token, entrantOf(alice), sharedAddress)
+	require.True(t, claimed)
+
+	assert.Equal(t, []string{sharedAddress}, caughtBy)
+}
+
+func TestALinkedAccountsMissIsReportedToTheAntibotByItsNetwork(t *testing.T) {
+	registry, clock := newTestRegistry()
+
+	var missedBy []string
+	registry.Observe(Report{Lapsed: func(scope string) { missedBy = append(missedBy, scope) }})
+
+	events := playingAs(t, registry, alice)
+	waitOut(t, registry, clock)
+	require.NotNil(t, offered(t, events))
+
+	clock.Advance(rulesOf(registry).OfferTTL + time.Second)
+	registry.sweep(t.Context())
+
+	assert.Equal(t, []string{sharedAddress}, missedBy)
+}

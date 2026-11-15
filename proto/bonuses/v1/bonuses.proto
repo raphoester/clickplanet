@@ -2,90 +2,14 @@ syntax = "proto3";
 
 package bonuses.v1;
 
-import "planet/v1/planet.proto";
-
-// The boxes the game offers a caller, and what each grants. What a box, a right answer or a sign-in grants is planet's
-// charges, in planet's words (planet.v1.BonusKind, planet.v1.ChargesHeld): the offers grant, planet holds and spends.
+// What a box caught, a right answer or a sign-in grants: planet's charges. The bonuses module draws and pays them
+// through planet's wallet; the reward comes on planet's stream (planet.v1.ChargesGranted). The boxes are the boxes
+// module's since 2026-11-15 (boxes.v1.BoxService).
 service BonusService {
-  // A box offered to the caller, caught: planet keeps what fits the hand. NotFound for a box not offered to the caller,
-  // gone or caught already. FailedPrecondition with a FrozenRefusal while the offers or the map take no play.
-  rpc ClaimBonus(ClaimBonusRequest) returns (ClaimBonusResponse);
-
-  // The boxes offered to the caller, every box caught by anyone, and each set the offers take. A heartbeat at once and
-  // every so often.
-  rpc ListenForEvents(ListenForEventsRequest) returns (stream BonusEvent);
-
-  // What the page shows of the rules the offers play.
+  // What the page shows of the rules the bonuses module plays.
   rpc GetGrantRules(GetGrantRulesRequest) returns (GetGrantRulesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
-}
-
-// The detail of the FailedPrecondition that ClaimBonus answers while the offers play a frozen set, or while planet's map
-// takes no play: the box lapses.
-message FrozenRefusal {}
-
-message ClaimBonusRequest {
-  string token = 1;
-
-  string country_id = 2;
-}
-
-message ClaimBonusResponse {
-  planet.v1.BonusKind kind = 1;
-
-  // What planet kept: fewer than the box held when the hand's stack is full.
-  uint32 amount = 2;
-
-  // All the hand holds after.
-  planet.v1.ChargesHeld charges = 3;
-}
-
-// Empty is every event.
-message ListenForEventsRequest {}
-
-message BonusEvent {
-  // The quizzes' stream tells them since they are a module of their own (quizzes.v1.QuizEvent).
-  reserved 4;
-  reserved "quiz_offered";
-
-  oneof event {
-    Heartbeat heartbeat = 1;
-
-    // Only to the caller it is offered to.
-    BonusOffered bonus_offered = 2;
-
-    // To every stream.
-    BonusTaken bonus_taken = 3;
-
-    // The offers took another set: GetGrantRules answers anew.
-    RulesChanged rules_changed = 5;
-  }
-}
-
-message Heartbeat {}
-
-message RulesChanged {}
-
-message BonusOffered {
-  string token = 1;
-
-  uint32 seed = 2;
-
-  planet.v1.BonusKind kind = 3;
-
-  int64 expires_at_unix_ms = 4;
-}
-
-// A box caught by anyone.
-message BonusTaken {
-  // A quiz won is quizzes.v1.QuizWon.
-  reserved 3;
-  reserved "quiz_subject_country_id";
-
-  string country_id = 1;
-
-  planet.v1.BonusKind kind = 2;
 }
 
 message GetGrantRulesRequest {}

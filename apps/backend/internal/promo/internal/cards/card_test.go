@@ -21,13 +21,13 @@ func draft(headline, line string) cards.Draft {
 func TestADeckKeepsItsCardsInOrder(t *testing.T) {
 	deck, err := cards.NewDeck("urf", []cards.Draft{
 		draft("  Clicks refill {clicks.tempo}× faster ", " Every country at once "),
-		draft("A box every {bonuses.boxes.minInterval}", ""),
+		draft("A box every {boxes.minInterval}", ""),
 	})
 
 	require.NoError(t, err)
 	assert.Equal(t, cards.DeckSnapshot{Set: "urf", Cards: []cards.CardSnapshot{
 		{Background: war, Headline: "Clicks refill {clicks.tempo}× faster", Line: "Every country at once"},
-		{Background: war, Headline: "A box every {bonuses.boxes.minInterval}"},
+		{Background: war, Headline: "A box every {boxes.minInterval}"},
 	}}, deck.TakeSnapshot())
 }
 

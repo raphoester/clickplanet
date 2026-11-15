@@ -9,7 +9,6 @@ package bonusesv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -22,28 +21,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// When a box comes, and what a box or a right answer may be and how much it grants. "default" holds every value; another
-// set holds the values it changes, and plays default's for every value it leaves unset. Postgres keeps it as protojson
-// (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's (planet.v1.ChargeRules);
-// when a quiz comes is the quizzes' (quizzes.v1.Rules).
+// What a box caught or a right answer may be and how much it grants, and the sign-in refill. "default" holds every
+// value; another set holds the values it changes, and plays default's for every value it leaves unset. Postgres keeps it
+// as protojson (bonuses.rule_sets.rules). How much of a charge a hand holds, and what it does, is planet's
+// (planet.v1.ChargeRules); when a quiz comes is the quizzes' (quizzes.v1.Rules), when a box comes the boxes'
+// (boxes.v1.Rules).
 type Rules struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Boxes *BoxPace               `protobuf:"bytes,1,opt,name=boxes,proto3" json:"boxes,omitempty"`
-	Kinds *KindWeights           `protobuf:"bytes,2,opt,name=kinds,proto3" json:"kinds,omitempty"`
-	// How long a box flies. It must outlast the flight the page draws.
-	OfferTtl *durationpb.Duration `protobuf:"bytes,3,opt,name=offer_ttl,json=offerTtl,proto3" json:"offer_ttl,omitempty"`
-	// A box missed brings the next one this soon, once.
-	MissRetry *durationpb.Duration `protobuf:"bytes,4,opt,name=miss_retry,json=missRetry,proto3" json:"miss_retry,omitempty"`
-	// No box for a caller that has not clicked for this long.
-	ActiveWithin *durationpb.Duration `protobuf:"bytes,5,opt,name=active_within,json=activeWithin,proto3" json:"active_within,omitempty"`
-	Spread       *SpreadRules         `protobuf:"bytes,6,opt,name=spread,proto3" json:"spread,omitempty"`
-	Enclose      *EncloseRules        `protobuf:"bytes,7,opt,name=enclose,proto3" json:"enclose,omitempty"`
-	Shield       *ShieldRules         `protobuf:"bytes,8,opt,name=shield,proto3" json:"shield,omitempty"`
-	Welcome      *WelcomeRules        `protobuf:"bytes,9,opt,name=welcome,proto3" json:"welcome,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Kinds   *KindWeights           `protobuf:"bytes,2,opt,name=kinds,proto3" json:"kinds,omitempty"`
+	Spread  *SpreadRules           `protobuf:"bytes,6,opt,name=spread,proto3" json:"spread,omitempty"`
+	Enclose *EncloseRules          `protobuf:"bytes,7,opt,name=enclose,proto3" json:"enclose,omitempty"`
+	Shield  *ShieldRules           `protobuf:"bytes,8,opt,name=shield,proto3" json:"shield,omitempty"`
 	// A guest's first sign-in earns a refill, once per account.
-	SignInRefill *bool `protobuf:"varint,11,opt,name=sign_in_refill,json=signInRefill,proto3,oneof" json:"sign_in_refill,omitempty"`
-	// No box is offered, and ClaimBonus is refused.
-	Frozen        *bool `protobuf:"varint,12,opt,name=frozen,proto3,oneof" json:"frozen,omitempty"`
+	SignInRefill  *bool `protobuf:"varint,11,opt,name=sign_in_refill,json=signInRefill,proto3,oneof" json:"sign_in_refill,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -78,37 +68,9 @@ func (*Rules) Descriptor() ([]byte, []int) {
 	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Rules) GetBoxes() *BoxPace {
-	if x != nil {
-		return x.Boxes
-	}
-	return nil
-}
-
 func (x *Rules) GetKinds() *KindWeights {
 	if x != nil {
 		return x.Kinds
-	}
-	return nil
-}
-
-func (x *Rules) GetOfferTtl() *durationpb.Duration {
-	if x != nil {
-		return x.OfferTtl
-	}
-	return nil
-}
-
-func (x *Rules) GetMissRetry() *durationpb.Duration {
-	if x != nil {
-		return x.MissRetry
-	}
-	return nil
-}
-
-func (x *Rules) GetActiveWithin() *durationpb.Duration {
-	if x != nil {
-		return x.ActiveWithin
 	}
 	return nil
 }
@@ -134,85 +96,11 @@ func (x *Rules) GetShield() *ShieldRules {
 	return nil
 }
 
-func (x *Rules) GetWelcome() *WelcomeRules {
-	if x != nil {
-		return x.Welcome
-	}
-	return nil
-}
-
 func (x *Rules) GetSignInRefill() bool {
 	if x != nil && x.SignInRefill != nil {
 		return *x.SignInRefill
 	}
 	return false
-}
-
-func (x *Rules) GetFrozen() bool {
-	if x != nil && x.Frozen != nil {
-		return *x.Frozen
-	}
-	return false
-}
-
-type BoxPace struct {
-	state             protoimpl.MessageState `protogen:"open.v1"`
-	MinInterval       *durationpb.Duration   `protobuf:"bytes,1,opt,name=min_interval,json=minInterval,proto3" json:"min_interval,omitempty"`
-	MaxInterval       *durationpb.Duration   `protobuf:"bytes,2,opt,name=max_interval,json=maxInterval,proto3" json:"max_interval,omitempty"`
-	MaxChargesPerHour *uint32                `protobuf:"varint,3,opt,name=max_charges_per_hour,json=maxChargesPerHour,proto3,oneof" json:"max_charges_per_hour,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
-}
-
-func (x *BoxPace) Reset() {
-	*x = BoxPace{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BoxPace) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BoxPace) ProtoMessage() {}
-
-func (x *BoxPace) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BoxPace.ProtoReflect.Descriptor instead.
-func (*BoxPace) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *BoxPace) GetMinInterval() *durationpb.Duration {
-	if x != nil {
-		return x.MinInterval
-	}
-	return nil
-}
-
-func (x *BoxPace) GetMaxInterval() *durationpb.Duration {
-	if x != nil {
-		return x.MaxInterval
-	}
-	return nil
-}
-
-func (x *BoxPace) GetMaxChargesPerHour() uint32 {
-	if x != nil && x.MaxChargesPerHour != nil {
-		return *x.MaxChargesPerHour
-	}
-	return 0
 }
 
 // What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
@@ -230,7 +118,7 @@ type KindWeights struct {
 
 func (x *KindWeights) Reset() {
 	*x = KindWeights{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -242,7 +130,7 @@ func (x *KindWeights) String() string {
 func (*KindWeights) ProtoMessage() {}
 
 func (x *KindWeights) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -255,7 +143,7 @@ func (x *KindWeights) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KindWeights.ProtoReflect.Descriptor instead.
 func (*KindWeights) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{2}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *KindWeights) GetRefill() float64 {
@@ -303,7 +191,7 @@ type SpreadRules struct {
 
 func (x *SpreadRules) Reset() {
 	*x = SpreadRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -315,7 +203,7 @@ func (x *SpreadRules) String() string {
 func (*SpreadRules) ProtoMessage() {}
 
 func (x *SpreadRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -328,7 +216,7 @@ func (x *SpreadRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpreadRules.ProtoReflect.Descriptor instead.
 func (*SpreadRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{3}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SpreadRules) GetMaxPerBox() uint32 {
@@ -347,7 +235,7 @@ type EncloseRules struct {
 
 func (x *EncloseRules) Reset() {
 	*x = EncloseRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -359,7 +247,7 @@ func (x *EncloseRules) String() string {
 func (*EncloseRules) ProtoMessage() {}
 
 func (x *EncloseRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -372,7 +260,7 @@ func (x *EncloseRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EncloseRules.ProtoReflect.Descriptor instead.
 func (*EncloseRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{4}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *EncloseRules) GetMaxPerBox() uint32 {
@@ -392,7 +280,7 @@ type ShieldRules struct {
 
 func (x *ShieldRules) Reset() {
 	*x = ShieldRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[5]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -404,7 +292,7 @@ func (x *ShieldRules) String() string {
 func (*ShieldRules) ProtoMessage() {}
 
 func (x *ShieldRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[5]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -417,7 +305,7 @@ func (x *ShieldRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShieldRules.ProtoReflect.Descriptor instead.
 func (*ShieldRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{5}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ShieldRules) GetMinPerBox() uint32 {
@@ -434,86 +322,22 @@ func (x *ShieldRules) GetMaxPerBox() uint32 {
 	return 0
 }
 
-// An account younger than `within` gets its first box `box_after` it was made. 0s is off.
-type WelcomeRules struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Within        *durationpb.Duration   `protobuf:"bytes,1,opt,name=within,proto3" json:"within,omitempty"`
-	BoxAfter      *durationpb.Duration   `protobuf:"bytes,2,opt,name=box_after,json=boxAfter,proto3" json:"box_after,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WelcomeRules) Reset() {
-	*x = WelcomeRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WelcomeRules) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WelcomeRules) ProtoMessage() {}
-
-func (x *WelcomeRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use WelcomeRules.ProtoReflect.Descriptor instead.
-func (*WelcomeRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *WelcomeRules) GetWithin() *durationpb.Duration {
-	if x != nil {
-		return x.Within
-	}
-	return nil
-}
-
-func (x *WelcomeRules) GetBoxAfter() *durationpb.Duration {
-	if x != nil {
-		return x.BoxAfter
-	}
-	return nil
-}
-
 var File_bonuses_v1_rules_proto protoreflect.FileDescriptor
 
 const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"\x16bonuses/v1/rules.proto\x12\n" +
-	"bonuses.v1\x1a\x1egoogle/protobuf/duration.proto\"\xcf\x04\n" +
-	"\x05Rules\x12)\n" +
-	"\x05boxes\x18\x01 \x01(\v2\x13.bonuses.v1.BoxPaceR\x05boxes\x12-\n" +
-	"\x05kinds\x18\x02 \x01(\v2\x17.bonuses.v1.KindWeightsR\x05kinds\x126\n" +
-	"\toffer_ttl\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\bofferTtl\x128\n" +
-	"\n" +
-	"miss_retry\x18\x04 \x01(\v2\x19.google.protobuf.DurationR\tmissRetry\x12>\n" +
-	"\ractive_within\x18\x05 \x01(\v2\x19.google.protobuf.DurationR\factiveWithin\x12/\n" +
+	"bonuses.v1\"\xf8\x02\n" +
+	"\x05Rules\x12-\n" +
+	"\x05kinds\x18\x02 \x01(\v2\x17.bonuses.v1.KindWeightsR\x05kinds\x12/\n" +
 	"\x06spread\x18\x06 \x01(\v2\x17.bonuses.v1.SpreadRulesR\x06spread\x122\n" +
 	"\aenclose\x18\a \x01(\v2\x18.bonuses.v1.EncloseRulesR\aenclose\x12/\n" +
-	"\x06shield\x18\b \x01(\v2\x17.bonuses.v1.ShieldRulesR\x06shield\x122\n" +
-	"\awelcome\x18\t \x01(\v2\x18.bonuses.v1.WelcomeRulesR\awelcome\x12)\n" +
-	"\x0esign_in_refill\x18\v \x01(\bH\x00R\fsignInRefill\x88\x01\x01\x12\x1b\n" +
-	"\x06frozen\x18\f \x01(\bH\x01R\x06frozen\x88\x01\x01B\x11\n" +
-	"\x0f_sign_in_refillB\t\n" +
-	"\a_frozenJ\x04\b\n" +
-	"\x10\vR\x04quiz\"\xd4\x01\n" +
-	"\aBoxPace\x12<\n" +
-	"\fmin_interval\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\vminInterval\x12<\n" +
-	"\fmax_interval\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\vmaxInterval\x124\n" +
-	"\x14max_charges_per_hour\x18\x03 \x01(\rH\x00R\x11maxChargesPerHour\x88\x01\x01B\x17\n" +
-	"\x15_max_charges_per_hour\"\xfd\x01\n" +
+	"\x06shield\x18\b \x01(\v2\x17.bonuses.v1.ShieldRulesR\x06shield\x12)\n" +
+	"\x0esign_in_refill\x18\v \x01(\bH\x00R\fsignInRefill\x88\x01\x01B\x11\n" +
+	"\x0f_sign_in_refillJ\x04\b\n" +
+	"\x10\vJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
+	"J\x04\b\f\x10\rR\x04quizR\x05boxesR\toffer_ttlR\n" +
+	"miss_retryR\ractive_withinR\awelcomeR\x06frozen\"\xfd\x01\n" +
 	"\vKindWeights\x12\x1b\n" +
 	"\x06refill\x18\x01 \x01(\x01H\x00R\x06refill\x88\x01\x01\x12(\n" +
 	"\rspread_clicks\x18\x02 \x01(\x01H\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
@@ -536,10 +360,7 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\vmin_per_box\x18\x01 \x01(\rH\x00R\tminPerBox\x88\x01\x01\x12#\n" +
 	"\vmax_per_box\x18\x02 \x01(\rH\x01R\tmaxPerBox\x88\x01\x01B\x0e\n" +
 	"\f_min_per_boxB\x0e\n" +
-	"\f_max_per_box\"y\n" +
-	"\fWelcomeRules\x121\n" +
-	"\x06within\x18\x01 \x01(\v2\x19.google.protobuf.DurationR\x06within\x126\n" +
-	"\tbox_after\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\bboxAfterB\xb9\x01\n" +
+	"\f_max_per_boxB\xb9\x01\n" +
 	"\x0ecom.bonuses.v1B\n" +
 	"RulesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1;bonusesv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Bonuses.V1\xca\x02\n" +
@@ -557,36 +378,24 @@ func file_bonuses_v1_rules_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_rules_proto_rawDescData
 }
 
-var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_bonuses_v1_rules_proto_goTypes = []any{
-	(*Rules)(nil),               // 0: bonuses.v1.Rules
-	(*BoxPace)(nil),             // 1: bonuses.v1.BoxPace
-	(*KindWeights)(nil),         // 2: bonuses.v1.KindWeights
-	(*SpreadRules)(nil),         // 3: bonuses.v1.SpreadRules
-	(*EncloseRules)(nil),        // 4: bonuses.v1.EncloseRules
-	(*ShieldRules)(nil),         // 5: bonuses.v1.ShieldRules
-	(*WelcomeRules)(nil),        // 6: bonuses.v1.WelcomeRules
-	(*durationpb.Duration)(nil), // 7: google.protobuf.Duration
+	(*Rules)(nil),        // 0: bonuses.v1.Rules
+	(*KindWeights)(nil),  // 1: bonuses.v1.KindWeights
+	(*SpreadRules)(nil),  // 2: bonuses.v1.SpreadRules
+	(*EncloseRules)(nil), // 3: bonuses.v1.EncloseRules
+	(*ShieldRules)(nil),  // 4: bonuses.v1.ShieldRules
 }
 var file_bonuses_v1_rules_proto_depIdxs = []int32{
-	1,  // 0: bonuses.v1.Rules.boxes:type_name -> bonuses.v1.BoxPace
-	2,  // 1: bonuses.v1.Rules.kinds:type_name -> bonuses.v1.KindWeights
-	7,  // 2: bonuses.v1.Rules.offer_ttl:type_name -> google.protobuf.Duration
-	7,  // 3: bonuses.v1.Rules.miss_retry:type_name -> google.protobuf.Duration
-	7,  // 4: bonuses.v1.Rules.active_within:type_name -> google.protobuf.Duration
-	3,  // 5: bonuses.v1.Rules.spread:type_name -> bonuses.v1.SpreadRules
-	4,  // 6: bonuses.v1.Rules.enclose:type_name -> bonuses.v1.EncloseRules
-	5,  // 7: bonuses.v1.Rules.shield:type_name -> bonuses.v1.ShieldRules
-	6,  // 8: bonuses.v1.Rules.welcome:type_name -> bonuses.v1.WelcomeRules
-	7,  // 9: bonuses.v1.BoxPace.min_interval:type_name -> google.protobuf.Duration
-	7,  // 10: bonuses.v1.BoxPace.max_interval:type_name -> google.protobuf.Duration
-	7,  // 11: bonuses.v1.WelcomeRules.within:type_name -> google.protobuf.Duration
-	7,  // 12: bonuses.v1.WelcomeRules.box_after:type_name -> google.protobuf.Duration
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	1, // 0: bonuses.v1.Rules.kinds:type_name -> bonuses.v1.KindWeights
+	2, // 1: bonuses.v1.Rules.spread:type_name -> bonuses.v1.SpreadRules
+	3, // 2: bonuses.v1.Rules.enclose:type_name -> bonuses.v1.EncloseRules
+	4, // 3: bonuses.v1.Rules.shield:type_name -> bonuses.v1.ShieldRules
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_rules_proto_init() }
@@ -599,14 +408,13 @@ func file_bonuses_v1_rules_proto_init() {
 	file_bonuses_v1_rules_proto_msgTypes[2].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[3].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[4].OneofWrappers = []any{}
-	file_bonuses_v1_rules_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_rules_proto_rawDesc), len(file_bonuses_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
