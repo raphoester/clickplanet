@@ -249,6 +249,8 @@ come (XP slice 1), and nothing shows it to a player yet: only the operator's `Ge
   - **Run it once after the deploy that added the column, dry run first, off-peak**: each page is one grouped scan of
     its accounts' ledger rows (found through `ledger_events_account_kind`, the times read from the table). The
     connector's tool is `progression_backfill_days_played`.
+  - **Run on 2026-11-15 around 20:30 UTC**, at peak hour, on the 4 GB droplet: 2,796 accounts, 2,742 changed, the dry
+    run's numbers; a dry run after it changed none.
 
 ## Titles
 
