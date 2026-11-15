@@ -43,6 +43,7 @@ const progress = `
 		COALESCE(stats.streak_best, 0),
 		COALESCE(to_char(stats.streak_last_day, 'YYYY-MM-DD'), ''),
 		COALESCE(stats.messages_sent, 0),
+		COALESCE(stats.days_played, 0),
 		COALESCE(worn_titles.title, ''),
 		COALESCE(
 			(SELECT array_agg(titles.title ORDER BY titles.earned_at, titles.title) FROM titles WHERE titles.account_id = asked.account_id),
@@ -61,7 +62,7 @@ func (q *PostgresQuery) Progress(ctx context.Context, account accounts.AccountID
 	)
 	if err := q.db.On(ctx).QueryRowContext(ctx, progress, uuid.UUID(account), q.clock.Now().UTC().Format(time.DateOnly)).Scan(
 		&answer.Stats.TilesTaken, &answer.Stats.StreakCurrent, &answer.Stats.StreakBest, &answer.Stats.StreakLastDay,
-		&answer.MessagesSent, &choice, pq.Array(&held),
+		&answer.MessagesSent, &answer.DaysPlayed, &choice, pq.Array(&held),
 	); err != nil {
 		return nil, fmt.Errorf("failed to read the progress: %w", err)
 	}

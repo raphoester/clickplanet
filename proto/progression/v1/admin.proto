@@ -11,6 +11,12 @@ service AdminService {
   // adds a title or changes a rule. A second run changes nothing.
   rpc ReconcileTitles(ReconcileTitlesRequest) returns (ReconcileTitlesResponse);
 
+  // Counts each account's days played again from planet's ledger, once, after the deploy that started counting them:
+  // a day is a UTC day with a take, and the days played never go below the best streak nor below what is counted
+  // already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
+  // their ledger rows.
+  rpc BackfillDaysPlayed(BackfillDaysPlayedRequest) returns (BackfillDaysPlayedResponse);
+
   // What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
   // An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
   rpc GetProgress(AdminGetProgressRequest) returns (AdminGetProgressResponse) {
@@ -25,6 +31,18 @@ message ReconcileTitlesResponse {
   uint32 revoked = 2;
 }
 
+message BackfillDaysPlayedRequest {
+  // Counts what would change, and writes nothing.
+  bool dry_run = 1;
+}
+
+message BackfillDaysPlayedResponse {
+  // The accounts with stats, every one read.
+  uint32 accounts = 1;
+  // The accounts whose days played went up, or would.
+  uint32 changed = 2;
+}
+
 message AdminGetProgressRequest {
   string account_id = 1;
 }
@@ -36,4 +54,6 @@ message AdminGetProgressResponse {
   Title worn_title = 4;
   repeated CountryTiles plays_for = 5;
   repeated CountryTiles plays_against = 6;
+  // The UTC days with at least one take.
+  uint64 days_played = 8;
 }
