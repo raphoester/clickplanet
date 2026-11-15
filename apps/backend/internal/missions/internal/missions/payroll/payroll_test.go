@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/paidmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
@@ -70,7 +71,9 @@ func TestASignedInAccountIsGrantedEachMissionDoneOnce(t *testing.T) {
 	require.Len(t, outbox.Recorded(), 2)
 	assert.True(t, proto.Equal(planetgrant.Of(ada, missions.Payment{Mission: bank.ID, Reward: bank.Reward}), outbox.Recorded()[0]))
 	assert.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, outbox.Recorded()[0].(*planetv1.GrantCharges).GetKind())
-	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1}, outbox.Recorded()[1]))
+	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1, ByKind: []*missionsv1.KindPaid{
+		{Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, Done: 1, Goals: uint64(bankGoal)},
+	}}, outbox.Recorded()[1]), outbox.Recorded()[1])
 	sheet, err := store.Sheet(t.Context(), day, ada)
 	require.NoError(t, err)
 	assert.True(t, sheet.Snapshot().Paid.Contains(bank.ID))
@@ -85,7 +88,30 @@ func TestTheMissionsPaidCountEveryDayOfTheAccount(t *testing.T) {
 
 	require.NoError(t, pay(t, paying))
 
-	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 3}, outbox.Recorded()[1]))
+	told := outbox.Recorded()[1].(*missionsv1.MissionsPaid)
+	assert.Equal(t, uint64(3), told.GetPaidInAll())
+	assert.Len(t, told.GetByKind(), 1, "yesterday's brief was never kept: its payments have no kind")
+}
+
+func TestTheMissionsPaidSumTheGoalsOfEachKindOverEveryDay(t *testing.T) {
+	paying, store, outbox := setUp(t, &accounts{linked: true}, bankGoal)
+	yesterday := days.TestingDayAt(time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC))
+	before := missions.Draw(yesterday, ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}})
+	_, err := store.KeepBrief(t.Context(), yesterday, ada, before)
+	require.NoError(t, err)
+	paidBefore := before.Snapshot()[:2]
+	require.NoError(t, store.ChangeSheet(t.Context(), yesterday, ada, func(missions.Sheet) missions.Sheet {
+		return missions.SheetOf(missions.SheetSnapshot{Paid: cpcolls.NewSet(paidBefore[0].ID, paidBefore[1].ID)})
+	}))
+
+	require.NoError(t, pay(t, paying))
+
+	expected := missions.NothingPaid().
+		WithDay(before, missions.SheetOf(missions.SheetSnapshot{Paid: cpcolls.NewSet(paidBefore[0].ID, paidBefore[1].ID)})).
+		WithDay(drawn, missions.SheetOf(missions.SheetSnapshot{Paid: cpcolls.NewSet(bank.ID)}))
+	assert.True(t, proto.Equal(paidmessage.Of(ada, expected), outbox.Recorded()[1]), outbox.Recorded()[1])
+	assert.Equal(t, uint64(bankGoal+paidBefore[0].Order.(missions.TakeFor).Goal),
+		outbox.Recorded()[1].(*missionsv1.MissionsPaid).GetByKind()[0].GetGoals(), "both banks' goals")
 }
 
 func TestAGuestIsNotPaidYet(t *testing.T) {

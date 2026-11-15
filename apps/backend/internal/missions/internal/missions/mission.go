@@ -30,6 +30,8 @@ type Reward struct {
 type Order interface {
 	advanced(progress uint32, fact Fact) uint32
 	done(progress uint32) bool
+	kind() Kind
+	goal() uint32
 }
 
 // Take Goal tiles for Flag.
@@ -43,6 +45,8 @@ func (o TakeFor) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, ok && take.Flag == o.Flag)
 }
 func (o TakeFor) done(progress uint32) bool { return progress >= o.Goal }
+func (o TakeFor) kind() Kind                { return KindTakeFor }
+func (o TakeFor) goal() uint32              { return o.Goal }
 
 // Take Goal tiles that Flag held.
 type TakeFrom struct {
@@ -55,6 +59,8 @@ func (o TakeFrom) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, ok && take.Previous == o.Flag)
 }
 func (o TakeFrom) done(progress uint32) bool { return progress >= o.Goal }
+func (o TakeFrom) kind() Kind                { return KindTakeFrom }
+func (o TakeFrom) goal() uint32              { return o.Goal }
 
 // Take Goal tiles on Ground, a country's land.
 type TakeIn struct {
@@ -67,6 +73,8 @@ func (o TakeIn) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, ok && take.Ground == o.Ground)
 }
 func (o TakeIn) done(progress uint32) bool { return progress >= o.Goal }
+func (o TakeIn) kind() Kind                { return KindTakeIn }
+func (o TakeIn) goal() uint32              { return o.Goal }
 
 type TakeFromIn struct {
 	Flag   string
@@ -79,6 +87,8 @@ func (o TakeFromIn) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, ok && take.Previous == o.Flag && take.Ground == o.Ground)
 }
 func (o TakeFromIn) done(progress uint32) bool { return progress >= o.Goal }
+func (o TakeFromIn) kind() Kind                { return KindTakeFromIn }
+func (o TakeFromIn) goal() uint32              { return o.Goal }
 
 type CatchBoxes struct {
 	Goal uint32
@@ -89,6 +99,8 @@ func (o CatchBoxes) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, caught)
 }
 func (o CatchBoxes) done(progress uint32) bool { return progress >= o.Goal }
+func (o CatchBoxes) kind() Kind                { return KindCatchBoxes }
+func (o CatchBoxes) goal() uint32              { return o.Goal }
 
 // Answer Goal quizzes right.
 type AnswerQuizzes struct {
@@ -100,6 +112,8 @@ func (o AnswerQuizzes) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, right)
 }
 func (o AnswerQuizzes) done(progress uint32) bool { return progress >= o.Goal }
+func (o AnswerQuizzes) kind() Kind                { return KindAnswerQuizzes }
+func (o AnswerQuizzes) goal() uint32              { return o.Goal }
 
 type BombIn struct {
 	Ground string
@@ -111,6 +125,8 @@ func (o BombIn) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, ok && bomb.Ground == o.Ground)
 }
 func (o BombIn) done(progress uint32) bool { return progress >= o.Goal }
+func (o BombIn) kind() Kind                { return KindBombIn }
+func (o BombIn) goal() uint32              { return o.Goal }
 
 // A placement adds one shield: the one that reaches Shields counts the tile.
 type ShieldTiles struct {
@@ -123,6 +139,8 @@ func (o ShieldTiles) advanced(progress uint32, fact Fact) uint32 {
 	return oneMore(progress, o.Goal, ok && placed.Shields == o.Shields)
 }
 func (o ShieldTiles) done(progress uint32) bool { return progress >= o.Goal }
+func (o ShieldTiles) kind() Kind                { return KindShieldTiles }
+func (o ShieldTiles) goal() uint32              { return o.Goal }
 
 type FortifyTiles struct {
 	Goal uint32
@@ -136,6 +154,8 @@ func (o FortifyTiles) advanced(progress uint32, fact Fact) uint32 {
 	return min(progress+fortified.Tiles, o.Goal)
 }
 func (o FortifyTiles) done(progress uint32) bool { return progress >= o.Goal }
+func (o FortifyTiles) kind() Kind                { return KindFortifyTiles }
+func (o FortifyTiles) goal() uint32              { return o.Goal }
 
 func oneMore(progress, goal uint32, counts bool) uint32 {
 	if counts && progress < goal {

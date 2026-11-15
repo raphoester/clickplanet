@@ -196,15 +196,19 @@ func (s *StoreContractSuite) TestAPaymentIsKept() {
 	s.Equal(uint32(2), s.sheet(contractDay, 1).Progress[s.frMission(1, 0)], "and the takes after it")
 }
 
-func (s *StoreContractSuite) paidInAll(account byte) uint64 {
-	paid, err := s.store.PaidInAll(s.T().Context(), s.account(account))
+func (s *StoreContractSuite) paid(account byte) Paid {
+	paid, err := s.store.PaidTotals(s.T().Context(), s.account(account))
 	s.Require().NoError(err)
 	return paid
 }
 
-func (s *StoreContractSuite) TestTheMissionsPaidAddUpOverEveryDay() {
-	s.Zero(s.paidInAll(1))
+func (s *StoreContractSuite) TestAnAccountNeverPaidWasPaidNothing() {
+	s.takeFor(contractDay, 1, Take{Flag: "fr"})
 
+	s.Equal(NothingPaid(), s.paid(1))
+}
+
+func (s *StoreContractSuite) TestTheMissionsPaidAddUpOverEveryDay() {
 	for _, day := range []days.Day{contractDay, contractNextDay} {
 		s.takeFor(day, 1, Take{Flag: "fr"})
 	}
@@ -214,8 +218,88 @@ func (s *StoreContractSuite) TestTheMissionsPaidAddUpOverEveryDay() {
 	s.pay(contractNextDay, 1, Draw(contractNextDay, s.account(1), "fr", contractWorld).Snapshot()[0].ID)
 	s.pay(contractDay, 2, s.frMission(2, 0))
 
-	s.Equal(uint64(3), s.paidInAll(1))
-	s.Equal(uint64(1), s.paidInAll(2))
+	s.Equal(uint64(3), s.paid(1).InAll)
+	s.Equal(uint64(1), s.paid(2).InAll)
+	s.Empty(s.paid(1).ByKind, "no brief was kept, so no payment has a kind")
+}
+
+// One mission of every kind, each with a goal of its own, the first one twice.
+func (s *StoreContractSuite) keepEveryKind(day days.Day, account byte) []MissionID {
+	orders := []Order{
+		TakeFor{Flag: "fr", Goal: 120},
+		TakeFor{Flag: "fr", Goal: 200},
+		TakeFrom{Flag: "dz", Goal: 80},
+		TakeIn{Ground: "br", Goal: 300},
+		TakeFromIn{Flag: "dz", Ground: "br", Goal: 40},
+		CatchBoxes{Goal: 3},
+		AnswerQuizzes{Goal: 2},
+		BombIn{Ground: "br", Goal: 1},
+		ShieldTiles{Shields: 10, Goal: 2},
+		FortifyTiles{Goal: 20},
+	}
+	snapshots := make([]MissionSnapshot, 0, len(orders))
+	ids := make([]MissionID, 0, len(orders))
+	for n, order := range orders {
+		id := drawnID(day, s.account(account), n)
+		snapshots = append(snapshots, MissionSnapshot{ID: id, Order: order, Reward: Reward{Kind: RewardShields, Amount: 1}})
+		ids = append(ids, id)
+	}
+	brief, err := BriefOf(snapshots)
+	s.Require().NoError(err)
+	s.keep(day, account, brief)
+	s.takeFor(day, account, Take{Flag: "fr"})
+	return ids
+}
+
+func (s *StoreContractSuite) TestTheMissionsPaidAreCountedByTheKindTheirBriefKeeps() {
+	paid := s.keepEveryKind(contractDay, 1)
+	for _, id := range paid {
+		s.pay(contractDay, 1, id)
+	}
+	tomorrow := s.keepEveryKind(contractNextDay, 1)
+	s.pay(contractNextDay, 1, tomorrow[0])
+	s.pay(contractNextDay, 1, tomorrow[5])
+
+	s.Equal(Paid{InAll: 12, ByKind: map[Kind]KindPaid{
+		KindTakeFor:       {Done: 3, Goals: 440},
+		KindTakeFrom:      {Done: 1, Goals: 80},
+		KindTakeIn:        {Done: 1, Goals: 300},
+		KindTakeFromIn:    {Done: 1, Goals: 40},
+		KindCatchBoxes:    {Done: 2, Goals: 6},
+		KindAnswerQuizzes: {Done: 1, Goals: 2},
+		KindBombIn:        {Done: 1, Goals: 1},
+		KindShieldTiles:   {Done: 1, Goals: 2},
+		KindFortifyTiles:  {Done: 1, Goals: 20},
+	}}, s.paid(1), "every kind, the missions of the brief not paid left out")
+	s.Len(s.paid(1).ByKind, len(TestingKinds()))
+}
+
+func (s *StoreContractSuite) paidAfter(after AccountID, limit int) []AccountPaid {
+	page, err := s.store.PaidAfter(s.T().Context(), after, limit)
+	s.Require().NoError(err)
+	return page
+}
+
+func (s *StoreContractSuite) TestTheAccountsPaidArePagedInOrderWithTheirTotals() {
+	for _, account := range []byte{3, 1, 2} {
+		ids := s.keepEveryKind(contractDay, account)
+		for _, id := range ids[:account] {
+			s.pay(contractDay, account, id)
+		}
+	}
+	s.takeFor(contractDay, 4, Take{Flag: "fr"})
+
+	first := s.paidAfter(AccountID{}, 2)
+	second := s.paidAfter(first[len(first)-1].Account, 2)
+
+	s.Equal([]AccountPaid{
+		{Account: s.account(1), Paid: s.paid(1)},
+		{Account: s.account(2), Paid: s.paid(2)},
+	}, first)
+	s.Equal([]AccountPaid{{Account: s.account(3), Paid: s.paid(3)}}, second, "an account with no payment is left out")
+	s.Equal(uint64(2), first[1].Paid.InAll)
+	s.Equal(KindPaid{Done: 2, Goals: 320}, first[1].Paid.ByKind[KindTakeFor])
+	s.Empty(s.paidAfter(s.account(3), 2))
 }
 
 func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {
@@ -230,7 +314,8 @@ func (s *StoreContractSuite) TestDeletingAnAccountForgetsItsDays() {
 	s.noBrief(contractDay, 1)
 	s.Empty(s.sheet(contractDay, 1).Progress)
 	s.True(s.sheet(contractDay, 1).Paid.Empty())
-	s.Zero(s.paidInAll(1))
+	s.Equal(NothingPaid(), s.paid(1))
+	s.Empty(s.paidAfter(AccountID{}, 2), "nor is it among the accounts paid")
 	_, err := s.store.Brief(s.T().Context(), contractDay, s.account(2))
 	s.Require().NoError(err, "another account keeps its day")
 	s.NotEmpty(s.sheet(contractDay, 2).Progress)

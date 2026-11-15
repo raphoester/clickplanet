@@ -3,12 +3,25 @@ syntax = "proto3";
 package missions.v1;
 
 import "google/protobuf/timestamp.proto";
+import "missions/v1/kind.proto";
 import "missions/v1/missions.proto";
 
 message MissionsPaid {
   string account_id = 1;
   // How many missions the account was paid in all, these included: an event told twice or lost, the next one repairs.
   uint64 paid_in_all = 2;
+  // The same missions by kind, totals too, one per kind paid at least once, in the order of MissionKind. An event told
+  // before the kinds were added has none; RetellMissionsPaid tells every account's once.
+  repeated KindPaid by_kind = 3;
+}
+
+// The missions of one kind an account was paid in all.
+message KindPaid {
+  MissionKind kind = 1;
+  // How many were paid.
+  uint64 done = 2;
+  // Their goals, summed, each in its kind's unit: tiles, boxes, right answers or bombs.
+  uint64 goals = 3;
 }
 
 // A flag finished its mission of the day. Told once, with the points it gave the flag.

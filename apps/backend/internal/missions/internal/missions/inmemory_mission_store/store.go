@@ -3,7 +3,9 @@
 package inmemory_mission_store
 
 import (
+	"bytes"
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
@@ -89,18 +91,53 @@ func (s *Store) ChangeSheet(
 	return nil
 }
 
-func (s *Store) PaidInAll(_ context.Context, account missions.AccountID) (uint64, error) {
+func (s *Store) PaidTotals(_ context.Context, account missions.AccountID) (missions.Paid, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return 0, s.failWith
+		return missions.Paid{}, s.failWith
 	}
-	var paid uint64
+	return s.paidTo(account)
+}
+
+func (s *Store) PaidAfter(_ context.Context, after missions.AccountID, limit int) ([]missions.AccountPaid, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	var accounts []missions.AccountID
 	for key, sheet := range s.sheets {
-		if key.account == account && sheet.Paid != nil {
-			paid += uint64(sheet.Paid.Len())
+		if !sheet.Paid.Empty() && bytes.Compare(key.account[:], after[:]) > 0 && !slices.Contains(accounts, key.account) {
+			accounts = append(accounts, key.account)
 		}
+	}
+	slices.SortFunc(accounts, func(a, b missions.AccountID) int { return bytes.Compare(a[:], b[:]) })
+
+	page := make([]missions.AccountPaid, 0, min(limit, len(accounts)))
+	for _, account := range accounts[:min(limit, len(accounts))] {
+		totals, err := s.paidTo(account)
+		if err != nil {
+			return nil, err
+		}
+		page = append(page, missions.AccountPaid{Account: account, Paid: totals})
+	}
+	return page, nil
+}
+
+func (s *Store) paidTo(account missions.AccountID) (missions.Paid, error) {
+	paid := missions.NothingPaid()
+	for key, sheet := range s.sheets {
+		if key.account != account {
+			continue
+		}
+		brief, err := missions.BriefOf(s.briefs[key])
+		if err != nil {
+			return missions.Paid{}, err //nolint:wrapcheck // the domain named it.
+		}
+		paid = paid.WithDay(brief, missions.SheetOf(sheet))
 	}
 	return paid, nil
 }

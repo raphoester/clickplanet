@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMissionTotalsRequest, GetMissionTotalsResponse, GetRulesRequest, GetRulesResponse, ListFlagDaysRequest, ListFlagDaysResponse, SaveRulesRequest, SaveRulesResponse } from "./admin_pb.js";
+import { GetMissionTotalsRequest, GetMissionTotalsResponse, GetRulesRequest, GetRulesResponse, ListFlagDaysRequest, ListFlagDaysResponse, RetellMissionsPaidRequest, RetellMissionsPaidResponse, SaveRulesRequest, SaveRulesResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -69,6 +69,20 @@ export const AdminService = {
       name: "SaveRules",
       I: SaveRulesRequest,
       O: SaveRulesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Tells MissionsPaid once more for every account ever paid a mission: how many in all and, by kind, how many and
+     * their goals summed, as a payment tells them, so the listeners hear the kinds of the missions paid before
+     * MissionsPaid carried them. Run once after that deploy, dry_run first. Players see nothing: no charge is granted,
+     * and a listener keeps the highest totals it heard, so a second run changes nothing.
+     *
+     * @generated from rpc missions.v1.AdminService.RetellMissionsPaid
+     */
+    retellMissionsPaid: {
+      name: "RetellMissionsPaid",
+      I: RetellMissionsPaidRequest,
+      O: RetellMissionsPaidResponse,
       kind: MethodKind.Unary,
     },
   }

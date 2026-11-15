@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { MissionKind } from "./kind_pb.js";
 import { FlagMission } from "./missions_pb.js";
 
 /**
@@ -23,6 +24,14 @@ export class MissionsPaid extends Message<MissionsPaid> {
    */
   paidInAll = protoInt64.zero;
 
+  /**
+   * The same missions by kind, totals too, one per kind paid at least once, in the order of MissionKind. An event told
+   * before the kinds were added has none; RetellMissionsPaid tells every account's once.
+   *
+   * @generated from field: repeated missions.v1.KindPaid by_kind = 3;
+   */
+  byKind: KindPaid[] = [];
+
   constructor(data?: PartialMessage<MissionsPaid>) {
     super();
     proto3.util.initPartial(data, this);
@@ -33,6 +42,7 @@ export class MissionsPaid extends Message<MissionsPaid> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "paid_in_all", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "by_kind", kind: "message", T: KindPaid, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MissionsPaid {
@@ -49,6 +59,61 @@ export class MissionsPaid extends Message<MissionsPaid> {
 
   static equals(a: MissionsPaid | PlainMessage<MissionsPaid> | undefined, b: MissionsPaid | PlainMessage<MissionsPaid> | undefined): boolean {
     return proto3.util.equals(MissionsPaid, a, b);
+  }
+}
+
+/**
+ * The missions of one kind an account was paid in all.
+ *
+ * @generated from message missions.v1.KindPaid
+ */
+export class KindPaid extends Message<KindPaid> {
+  /**
+   * @generated from field: missions.v1.MissionKind kind = 1;
+   */
+  kind = MissionKind.UNSPECIFIED;
+
+  /**
+   * How many were paid.
+   *
+   * @generated from field: uint64 done = 2;
+   */
+  done = protoInt64.zero;
+
+  /**
+   * Their goals, summed, each in its kind's unit: tiles, boxes, right answers or bombs.
+   *
+   * @generated from field: uint64 goals = 3;
+   */
+  goals = protoInt64.zero;
+
+  constructor(data?: PartialMessage<KindPaid>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.KindPaid";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(MissionKind) },
+    { no: 2, name: "done", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "goals", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KindPaid {
+    return new KindPaid().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KindPaid {
+    return new KindPaid().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KindPaid {
+    return new KindPaid().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KindPaid | PlainMessage<KindPaid> | undefined, b: KindPaid | PlainMessage<KindPaid> | undefined): boolean {
+    return proto3.util.equals(KindPaid, a, b);
   }
 }
 

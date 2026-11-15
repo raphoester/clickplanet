@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package missions.v1;
+
+// The kinds of a player's mission, as Mission's kind names them. The operator's totals and MissionsPaid count by it.
+enum MissionKind {
+  MISSION_KIND_UNSPECIFIED = 0;
+  MISSION_KIND_TAKE_FOR = 1;
+  MISSION_KIND_TAKE_FROM = 2;
+  MISSION_KIND_TAKE_IN = 3;
+  MISSION_KIND_TAKE_FROM_IN = 4;
+  MISSION_KIND_CATCH_BOXES = 5;
+  MISSION_KIND_ANSWER_QUIZZES = 6;
+  MISSION_KIND_BOMB_IN = 7;
+  MISSION_KIND_SHIELD_TILES = 8;
+  MISSION_KIND_FORTIFY_TILES = 9;
+}

@@ -22,77 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// The kinds of a player's mission, as Mission's kind names them.
-type MissionKind int32
-
-const (
-	MissionKind_MISSION_KIND_UNSPECIFIED    MissionKind = 0
-	MissionKind_MISSION_KIND_TAKE_FOR       MissionKind = 1
-	MissionKind_MISSION_KIND_TAKE_FROM      MissionKind = 2
-	MissionKind_MISSION_KIND_TAKE_IN        MissionKind = 3
-	MissionKind_MISSION_KIND_TAKE_FROM_IN   MissionKind = 4
-	MissionKind_MISSION_KIND_CATCH_BOXES    MissionKind = 5
-	MissionKind_MISSION_KIND_ANSWER_QUIZZES MissionKind = 6
-	MissionKind_MISSION_KIND_BOMB_IN        MissionKind = 7
-	MissionKind_MISSION_KIND_SHIELD_TILES   MissionKind = 8
-	MissionKind_MISSION_KIND_FORTIFY_TILES  MissionKind = 9
-)
-
-// Enum value maps for MissionKind.
-var (
-	MissionKind_name = map[int32]string{
-		0: "MISSION_KIND_UNSPECIFIED",
-		1: "MISSION_KIND_TAKE_FOR",
-		2: "MISSION_KIND_TAKE_FROM",
-		3: "MISSION_KIND_TAKE_IN",
-		4: "MISSION_KIND_TAKE_FROM_IN",
-		5: "MISSION_KIND_CATCH_BOXES",
-		6: "MISSION_KIND_ANSWER_QUIZZES",
-		7: "MISSION_KIND_BOMB_IN",
-		8: "MISSION_KIND_SHIELD_TILES",
-		9: "MISSION_KIND_FORTIFY_TILES",
-	}
-	MissionKind_value = map[string]int32{
-		"MISSION_KIND_UNSPECIFIED":    0,
-		"MISSION_KIND_TAKE_FOR":       1,
-		"MISSION_KIND_TAKE_FROM":      2,
-		"MISSION_KIND_TAKE_IN":        3,
-		"MISSION_KIND_TAKE_FROM_IN":   4,
-		"MISSION_KIND_CATCH_BOXES":    5,
-		"MISSION_KIND_ANSWER_QUIZZES": 6,
-		"MISSION_KIND_BOMB_IN":        7,
-		"MISSION_KIND_SHIELD_TILES":   8,
-		"MISSION_KIND_FORTIFY_TILES":  9,
-	}
-)
-
-func (x MissionKind) Enum() *MissionKind {
-	p := new(MissionKind)
-	*p = x
-	return p
-}
-
-func (x MissionKind) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (MissionKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_missions_v1_admin_proto_enumTypes[0].Descriptor()
-}
-
-func (MissionKind) Type() protoreflect.EnumType {
-	return &file_missions_v1_admin_proto_enumTypes[0]
-}
-
-func (x MissionKind) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use MissionKind.Descriptor instead.
-func (MissionKind) EnumDescriptor() ([]byte, []int) {
-	return file_missions_v1_admin_proto_rawDescGZIP(), []int{0}
-}
-
 type ListFlagDaysRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The days that started at or after it.
@@ -814,11 +743,101 @@ func (*SaveRulesResponse) Descriptor() ([]byte, []int) {
 	return file_missions_v1_admin_proto_rawDescGZIP(), []int{12}
 }
 
+type RetellMissionsPaidRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Counts the accounts it would tell, and tells nothing.
+	DryRun        bool `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetellMissionsPaidRequest) Reset() {
+	*x = RetellMissionsPaidRequest{}
+	mi := &file_missions_v1_admin_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetellMissionsPaidRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetellMissionsPaidRequest) ProtoMessage() {}
+
+func (x *RetellMissionsPaidRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_admin_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetellMissionsPaidRequest.ProtoReflect.Descriptor instead.
+func (*RetellMissionsPaidRequest) Descriptor() ([]byte, []int) {
+	return file_missions_v1_admin_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RetellMissionsPaidRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type RetellMissionsPaidResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The accounts told: every one with a mission paid. With dry_run, the ones it would tell.
+	Accounts      uint32 `protobuf:"varint,1,opt,name=accounts,proto3" json:"accounts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetellMissionsPaidResponse) Reset() {
+	*x = RetellMissionsPaidResponse{}
+	mi := &file_missions_v1_admin_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetellMissionsPaidResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetellMissionsPaidResponse) ProtoMessage() {}
+
+func (x *RetellMissionsPaidResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_admin_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetellMissionsPaidResponse.ProtoReflect.Descriptor instead.
+func (*RetellMissionsPaidResponse) Descriptor() ([]byte, []int) {
+	return file_missions_v1_admin_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *RetellMissionsPaidResponse) GetAccounts() uint32 {
+	if x != nil {
+		return x.Accounts
+	}
+	return 0
+}
+
 var File_missions_v1_admin_proto protoreflect.FileDescriptor
 
 const file_missions_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x17missions/v1/admin.proto\x12\vmissions.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1amissions/v1/missions.proto\x1a\x17missions/v1/rules.proto\"y\n" +
+	"\x17missions/v1/admin.proto\x12\vmissions.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16missions/v1/kind.proto\x1a\x1amissions/v1/missions.proto\x1a\x17missions/v1/rules.proto\"y\n" +
 	"\x13ListFlagDaysRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"A\n" +
@@ -863,23 +882,17 @@ const file_missions_v1_admin_proto_rawDesc = "" +
 	"\x05rules\x18\x01 \x01(\v2\x12.missions.v1.RulesR\x05rules\"<\n" +
 	"\x10SaveRulesRequest\x12(\n" +
 	"\x05rules\x18\x01 \x01(\v2\x12.missions.v1.RulesR\x05rules\"\x13\n" +
-	"\x11SaveRulesResponse*\xb3\x02\n" +
-	"\vMissionKind\x12\x1c\n" +
-	"\x18MISSION_KIND_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15MISSION_KIND_TAKE_FOR\x10\x01\x12\x1a\n" +
-	"\x16MISSION_KIND_TAKE_FROM\x10\x02\x12\x18\n" +
-	"\x14MISSION_KIND_TAKE_IN\x10\x03\x12\x1d\n" +
-	"\x19MISSION_KIND_TAKE_FROM_IN\x10\x04\x12\x1c\n" +
-	"\x18MISSION_KIND_CATCH_BOXES\x10\x05\x12\x1f\n" +
-	"\x1bMISSION_KIND_ANSWER_QUIZZES\x10\x06\x12\x18\n" +
-	"\x14MISSION_KIND_BOMB_IN\x10\a\x12\x1d\n" +
-	"\x19MISSION_KIND_SHIELD_TILES\x10\b\x12\x1e\n" +
-	"\x1aMISSION_KIND_FORTIFY_TILES\x10\t2\xe8\x02\n" +
+	"\x11SaveRulesResponse\"4\n" +
+	"\x19RetellMissionsPaidRequest\x12\x17\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"8\n" +
+	"\x1aRetellMissionsPaidResponse\x12\x1a\n" +
+	"\baccounts\x18\x01 \x01(\rR\baccounts2\xcf\x03\n" +
 	"\fAdminService\x12X\n" +
 	"\fListFlagDays\x12 .missions.v1.ListFlagDaysRequest\x1a!.missions.v1.ListFlagDaysResponse\"\x03\x90\x02\x01\x12d\n" +
 	"\x10GetMissionTotals\x12$.missions.v1.GetMissionTotalsRequest\x1a%.missions.v1.GetMissionTotalsResponse\"\x03\x90\x02\x01\x12L\n" +
 	"\bGetRules\x12\x1c.missions.v1.GetRulesRequest\x1a\x1d.missions.v1.GetRulesResponse\"\x03\x90\x02\x01\x12J\n" +
-	"\tSaveRules\x12\x1d.missions.v1.SaveRulesRequest\x1a\x1e.missions.v1.SaveRulesResponseB\xc0\x01\n" +
+	"\tSaveRules\x12\x1d.missions.v1.SaveRulesRequest\x1a\x1e.missions.v1.SaveRulesResponse\x12e\n" +
+	"\x12RetellMissionsPaid\x12&.missions.v1.RetellMissionsPaidRequest\x1a'.missions.v1.RetellMissionsPaidResponseB\xc0\x01\n" +
 	"\x0fcom.missions.v1B\n" +
 	"AdminProtoP\x01ZTgithub.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1;missionsv1\xa2\x02\x03MXX\xaa\x02\vMissions.V1\xca\x02\vMissions\\V1\xe2\x02\x17Missions\\V1\\GPBMetadata\xea\x02\fMissions::V1b\x06proto3"
 
@@ -895,54 +908,57 @@ func file_missions_v1_admin_proto_rawDescGZIP() []byte {
 	return file_missions_v1_admin_proto_rawDescData
 }
 
-var file_missions_v1_admin_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_missions_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_missions_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_missions_v1_admin_proto_goTypes = []any{
-	(MissionKind)(0),                 // 0: missions.v1.MissionKind
-	(*ListFlagDaysRequest)(nil),      // 1: missions.v1.ListFlagDaysRequest
-	(*ListFlagDaysResponse)(nil),     // 2: missions.v1.ListFlagDaysResponse
-	(*FlagDays)(nil),                 // 3: missions.v1.FlagDays
-	(*Day)(nil),                      // 4: missions.v1.Day
-	(*FlagDay)(nil),                  // 5: missions.v1.FlagDay
-	(*GetMissionTotalsRequest)(nil),  // 6: missions.v1.GetMissionTotalsRequest
-	(*GetMissionTotalsResponse)(nil), // 7: missions.v1.GetMissionTotalsResponse
-	(*DayTotals)(nil),                // 8: missions.v1.DayTotals
-	(*KindTotals)(nil),               // 9: missions.v1.KindTotals
-	(*GetRulesRequest)(nil),          // 10: missions.v1.GetRulesRequest
-	(*GetRulesResponse)(nil),         // 11: missions.v1.GetRulesResponse
-	(*SaveRulesRequest)(nil),         // 12: missions.v1.SaveRulesRequest
-	(*SaveRulesResponse)(nil),        // 13: missions.v1.SaveRulesResponse
-	(*timestamppb.Timestamp)(nil),    // 14: google.protobuf.Timestamp
-	(*FlagMission)(nil),              // 15: missions.v1.FlagMission
-	(*Rules)(nil),                    // 16: missions.v1.Rules
+	(*ListFlagDaysRequest)(nil),        // 0: missions.v1.ListFlagDaysRequest
+	(*ListFlagDaysResponse)(nil),       // 1: missions.v1.ListFlagDaysResponse
+	(*FlagDays)(nil),                   // 2: missions.v1.FlagDays
+	(*Day)(nil),                        // 3: missions.v1.Day
+	(*FlagDay)(nil),                    // 4: missions.v1.FlagDay
+	(*GetMissionTotalsRequest)(nil),    // 5: missions.v1.GetMissionTotalsRequest
+	(*GetMissionTotalsResponse)(nil),   // 6: missions.v1.GetMissionTotalsResponse
+	(*DayTotals)(nil),                  // 7: missions.v1.DayTotals
+	(*KindTotals)(nil),                 // 8: missions.v1.KindTotals
+	(*GetRulesRequest)(nil),            // 9: missions.v1.GetRulesRequest
+	(*GetRulesResponse)(nil),           // 10: missions.v1.GetRulesResponse
+	(*SaveRulesRequest)(nil),           // 11: missions.v1.SaveRulesRequest
+	(*SaveRulesResponse)(nil),          // 12: missions.v1.SaveRulesResponse
+	(*RetellMissionsPaidRequest)(nil),  // 13: missions.v1.RetellMissionsPaidRequest
+	(*RetellMissionsPaidResponse)(nil), // 14: missions.v1.RetellMissionsPaidResponse
+	(*timestamppb.Timestamp)(nil),      // 15: google.protobuf.Timestamp
+	(*FlagMission)(nil),                // 16: missions.v1.FlagMission
+	(MissionKind)(0),                   // 17: missions.v1.MissionKind
+	(*Rules)(nil),                      // 18: missions.v1.Rules
 }
 var file_missions_v1_admin_proto_depIdxs = []int32{
-	14, // 0: missions.v1.ListFlagDaysRequest.since:type_name -> google.protobuf.Timestamp
-	14, // 1: missions.v1.ListFlagDaysRequest.until:type_name -> google.protobuf.Timestamp
-	3,  // 2: missions.v1.ListFlagDaysResponse.days:type_name -> missions.v1.FlagDays
-	4,  // 3: missions.v1.FlagDays.day:type_name -> missions.v1.Day
-	5,  // 4: missions.v1.FlagDays.flags:type_name -> missions.v1.FlagDay
-	14, // 5: missions.v1.Day.starts_at:type_name -> google.protobuf.Timestamp
-	14, // 6: missions.v1.Day.ends_at:type_name -> google.protobuf.Timestamp
-	15, // 7: missions.v1.FlagDay.mission:type_name -> missions.v1.FlagMission
-	14, // 8: missions.v1.GetMissionTotalsRequest.since:type_name -> google.protobuf.Timestamp
-	14, // 9: missions.v1.GetMissionTotalsRequest.until:type_name -> google.protobuf.Timestamp
-	8,  // 10: missions.v1.GetMissionTotalsResponse.days:type_name -> missions.v1.DayTotals
-	4,  // 11: missions.v1.DayTotals.day:type_name -> missions.v1.Day
-	9,  // 12: missions.v1.DayTotals.kinds:type_name -> missions.v1.KindTotals
-	0,  // 13: missions.v1.KindTotals.kind:type_name -> missions.v1.MissionKind
-	16, // 14: missions.v1.GetRulesResponse.rules:type_name -> missions.v1.Rules
-	16, // 15: missions.v1.SaveRulesRequest.rules:type_name -> missions.v1.Rules
-	1,  // 16: missions.v1.AdminService.ListFlagDays:input_type -> missions.v1.ListFlagDaysRequest
-	6,  // 17: missions.v1.AdminService.GetMissionTotals:input_type -> missions.v1.GetMissionTotalsRequest
-	10, // 18: missions.v1.AdminService.GetRules:input_type -> missions.v1.GetRulesRequest
-	12, // 19: missions.v1.AdminService.SaveRules:input_type -> missions.v1.SaveRulesRequest
-	2,  // 20: missions.v1.AdminService.ListFlagDays:output_type -> missions.v1.ListFlagDaysResponse
-	7,  // 21: missions.v1.AdminService.GetMissionTotals:output_type -> missions.v1.GetMissionTotalsResponse
-	11, // 22: missions.v1.AdminService.GetRules:output_type -> missions.v1.GetRulesResponse
-	13, // 23: missions.v1.AdminService.SaveRules:output_type -> missions.v1.SaveRulesResponse
-	20, // [20:24] is the sub-list for method output_type
-	16, // [16:20] is the sub-list for method input_type
+	15, // 0: missions.v1.ListFlagDaysRequest.since:type_name -> google.protobuf.Timestamp
+	15, // 1: missions.v1.ListFlagDaysRequest.until:type_name -> google.protobuf.Timestamp
+	2,  // 2: missions.v1.ListFlagDaysResponse.days:type_name -> missions.v1.FlagDays
+	3,  // 3: missions.v1.FlagDays.day:type_name -> missions.v1.Day
+	4,  // 4: missions.v1.FlagDays.flags:type_name -> missions.v1.FlagDay
+	15, // 5: missions.v1.Day.starts_at:type_name -> google.protobuf.Timestamp
+	15, // 6: missions.v1.Day.ends_at:type_name -> google.protobuf.Timestamp
+	16, // 7: missions.v1.FlagDay.mission:type_name -> missions.v1.FlagMission
+	15, // 8: missions.v1.GetMissionTotalsRequest.since:type_name -> google.protobuf.Timestamp
+	15, // 9: missions.v1.GetMissionTotalsRequest.until:type_name -> google.protobuf.Timestamp
+	7,  // 10: missions.v1.GetMissionTotalsResponse.days:type_name -> missions.v1.DayTotals
+	3,  // 11: missions.v1.DayTotals.day:type_name -> missions.v1.Day
+	8,  // 12: missions.v1.DayTotals.kinds:type_name -> missions.v1.KindTotals
+	17, // 13: missions.v1.KindTotals.kind:type_name -> missions.v1.MissionKind
+	18, // 14: missions.v1.GetRulesResponse.rules:type_name -> missions.v1.Rules
+	18, // 15: missions.v1.SaveRulesRequest.rules:type_name -> missions.v1.Rules
+	0,  // 16: missions.v1.AdminService.ListFlagDays:input_type -> missions.v1.ListFlagDaysRequest
+	5,  // 17: missions.v1.AdminService.GetMissionTotals:input_type -> missions.v1.GetMissionTotalsRequest
+	9,  // 18: missions.v1.AdminService.GetRules:input_type -> missions.v1.GetRulesRequest
+	11, // 19: missions.v1.AdminService.SaveRules:input_type -> missions.v1.SaveRulesRequest
+	13, // 20: missions.v1.AdminService.RetellMissionsPaid:input_type -> missions.v1.RetellMissionsPaidRequest
+	1,  // 21: missions.v1.AdminService.ListFlagDays:output_type -> missions.v1.ListFlagDaysResponse
+	6,  // 22: missions.v1.AdminService.GetMissionTotals:output_type -> missions.v1.GetMissionTotalsResponse
+	10, // 23: missions.v1.AdminService.GetRules:output_type -> missions.v1.GetRulesResponse
+	12, // 24: missions.v1.AdminService.SaveRules:output_type -> missions.v1.SaveRulesResponse
+	14, // 25: missions.v1.AdminService.RetellMissionsPaid:output_type -> missions.v1.RetellMissionsPaidResponse
+	21, // [21:26] is the sub-list for method output_type
+	16, // [16:21] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name
 	16, // [16:16] is the sub-list for extension extendee
 	0,  // [0:16] is the sub-list for field type_name
@@ -953,6 +969,7 @@ func file_missions_v1_admin_proto_init() {
 	if File_missions_v1_admin_proto != nil {
 		return
 	}
+	file_missions_v1_kind_proto_init()
 	file_missions_v1_missions_proto_init()
 	file_missions_v1_rules_proto_init()
 	type x struct{}
@@ -960,14 +977,13 @@ func file_missions_v1_admin_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_missions_v1_admin_proto_rawDesc), len(file_missions_v1_admin_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   13,
+			NumEnums:      0,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_missions_v1_admin_proto_goTypes,
 		DependencyIndexes: file_missions_v1_admin_proto_depIdxs,
-		EnumInfos:         file_missions_v1_admin_proto_enumTypes,
 		MessageInfos:      file_missions_v1_admin_proto_msgTypes,
 	}.Build()
 	File_missions_v1_admin_proto = out.File

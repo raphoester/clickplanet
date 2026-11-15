@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
@@ -203,14 +204,100 @@ func (s *Store) ChangeSheet(
 	})
 }
 
-func (s *Store) PaidInAll(ctx context.Context, account missions.AccountID) (uint64, error) {
-	var paid int64
-	if err := s.db.On(ctx).QueryRowContext(ctx, `
-		SELECT count(*) FROM mission_payments WHERE account_id = $1
-	`, uuid.UUID(account)).Scan(&paid); err != nil {
-		return 0, fmt.Errorf("failed to count the account's payments: %w", err)
+func (s *Store) PaidTotals(ctx context.Context, account missions.AccountID) (missions.Paid, error) {
+	paid, err := paidTo(ctx, s.db.On(ctx), []missions.AccountID{account})
+	if err != nil {
+		return missions.Paid{}, err
 	}
-	return uint64(paid), nil //nolint:gosec // a count is never negative.
+	return paid[account], nil
+}
+
+func (s *Store) PaidAfter(ctx context.Context, after missions.AccountID, limit int) ([]missions.AccountPaid, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT DISTINCT account_id FROM mission_payments WHERE account_id > $1 ORDER BY account_id LIMIT $2
+	`, uuid.UUID(after), limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read a page of the accounts paid: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var accounts []missions.AccountID
+	for rows.Next() {
+		var account uuid.UUID
+		if err := rows.Scan(&account); err != nil {
+			return nil, fmt.Errorf("failed to read an account paid: %w", err)
+		}
+		accounts = append(accounts, missions.AccountID(account))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read a page of the accounts paid: %w", err)
+	}
+
+	paid, err := paidTo(ctx, s.db.On(ctx), accounts)
+	if err != nil {
+		return nil, err
+	}
+	page := make([]missions.AccountPaid, 0, len(accounts))
+	for _, account := range accounts {
+		page = append(page, missions.AccountPaid{Account: account, Paid: paid[account]})
+	}
+	return page, nil
+}
+
+// Each account's payments by the kind of the mission in the day's brief, with its goals summed. A payment whose brief
+// holds no such mission has no kind: it counts in all only.
+const paidByKind = `
+	SELECT pay.account_id, mission.kind, count(*), COALESCE(sum(mission.goal), 0)
+	FROM mission_payments AS pay
+	LEFT JOIN mission_briefs AS brief ON brief.day = pay.day AND brief.account_id = pay.account_id
+	LEFT JOIN LATERAL (
+		SELECT m->>'kind' AS kind, (m->'payload'->>'goal')::bigint AS goal
+		FROM jsonb_array_elements(brief.missions) AS m WHERE (m->>'id')::uuid = pay.mission_id
+	) AS mission ON true
+	WHERE pay.account_id = ANY($1::uuid[])
+	GROUP BY pay.account_id, mission.kind`
+
+func paidTo(ctx context.Context, db cppg.Querier, accounts []missions.AccountID) (map[missions.AccountID]missions.Paid, error) {
+	paid := make(map[missions.AccountID]missions.Paid, len(accounts))
+	if len(accounts) == 0 {
+		return paid, nil
+	}
+	ids := make([]string, 0, len(accounts))
+	for _, account := range accounts {
+		ids = append(ids, account.String())
+		paid[account] = missions.NothingPaid()
+	}
+
+	rows, err := db.QueryContext(ctx, paidByKind, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to count the accounts' payments: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			account      uuid.UUID
+			name         sql.NullString
+			count, goals int64
+		)
+		if err := rows.Scan(&account, &name, &count, &goals); err != nil {
+			return nil, fmt.Errorf("failed to count an account's payments: %w", err)
+		}
+		totals := paid[missions.AccountID(account)]
+		totals.InAll += uint64(count) //nolint:gosec // a count is never negative.
+		if name.Valid {
+			kind, ok := kindOfRecord[name.String]
+			if !ok {
+				return nil, fmt.Errorf("%w: %q", ErrUnknownKind, name.String)
+			}
+			totals.ByKind[kind] = missions.KindPaid{Done: uint64(count), Goals: uint64(goals)} //nolint:gosec // as above, and goals are never negative.
+		}
+		paid[missions.AccountID(account)] = totals
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to count the accounts' payments: %w", err)
+	}
+	return paid, nil
 }
 
 const countedColumns = `counted_takes_below, counted_bombs_below, counted_shields_below, counted_fortifies_below,
