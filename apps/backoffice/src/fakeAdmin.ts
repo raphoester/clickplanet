@@ -166,6 +166,8 @@ import {
     Rename,
     RenamePlayerRequest,
     RenamePlayerResponse,
+    SearchPlayersByEmailRequest,
+    SearchPlayersByEmailResponse,
     SearchPlayersRequest,
     SearchPlayersResponse,
 } from "./gen/grpc/player/v1/admin_pb.ts"
@@ -659,6 +661,11 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             .filter(identity => identity.name.toLowerCase().includes(name))
             .map(identity => new PlayerMatch({accountId: identity.accountId, name: identity.name, guest: identity.guest}))
         return this.answer("searchPlayers", request, new SearchPlayersResponse({players, total: players.length}))
+    }
+
+    // The fake's players hold no address, and no page asks it yet.
+    searchPlayersByEmail(request: PartialMessage<SearchPlayersByEmailRequest>): Promise<SearchPlayersByEmailResponse> {
+        return this.answer("searchPlayersByEmail", request, new SearchPlayersByEmailResponse())
     }
 
     getPlayer(request: PartialMessage<AdminGetPlayerRequest>): Promise<AdminGetPlayerResponse> {

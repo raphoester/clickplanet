@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package auth.v1;
 
+import "google/protobuf/timestamp.proto";
+
 service InternalService {
   rpc GetVerifyingKey(GetVerifyingKeyRequest) returns (GetVerifyingKeyResponse);
   rpc GetAccount(GetAccountRequest) returns (GetAccountResponse);
@@ -26,6 +28,14 @@ service InternalService {
   // Every account signed in with Discord and its Discord user, a page at a time, in the order of the account ids. An
   // account its player asked to delete is left out. A page shorter than the limit is the last one.
   rpc GetDiscordUsers(GetDiscordUsersRequest) returns (GetDiscordUsersResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // Every identity holding a verified email address that contains the text, in any case: the address of an emailed
+  // code, or the one Google or Discord verified. Ordered by the address, then the oldest link first, a page at a time;
+  // a page shorter than the limit is the last one. An account its player asked to delete is in it: it still holds the
+  // address. For player.v1.AdminService/SearchPlayersByEmail. InvalidArgument for an empty text.
+  rpc SearchEmails(SearchEmailsRequest) returns (SearchEmailsResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 }
@@ -104,4 +114,26 @@ message GetDiscordUsersResponse {
 message DiscordUser {
   string account_id = 1;
   string discord_user_id = 2;
+}
+
+message SearchEmailsRequest {
+  // Matched anywhere in the address, in any case.
+  string text = 1;
+  // 0 is 500, and more is 500.
+  uint32 limit = 2;
+  // How many matches to skip: the page after a full one starts at its offset plus its limit.
+  uint32 offset = 3;
+}
+
+message SearchEmailsResponse {
+  repeated EmailHolder holders = 1;
+}
+
+message EmailHolder {
+  string account_id = 1;
+  // As kept: an emailed code's in lower case, Google's and Discord's as they gave it.
+  string email = 2;
+  // The identity that verified it: "google", "discord" or "email".
+  string provider = 3;
+  google.protobuf.Timestamp linked_at = 4;
 }

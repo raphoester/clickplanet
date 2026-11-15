@@ -414,6 +414,159 @@ export class PlayerMatch extends Message<PlayerMatch> {
 }
 
 /**
+ * @generated from message player.v1.SearchPlayersByEmailRequest
+ */
+export class SearchPlayersByEmailRequest extends Message<SearchPlayersByEmailRequest> {
+  /**
+   * Matched anywhere in the address, in any case: "+", "@gmail.com", "doe".
+   *
+   * @generated from field: string text = 1;
+   */
+  text = "";
+
+  /**
+   * 50 unless asked, 500 at most.
+   *
+   * @generated from field: uint32 limit = 2;
+   */
+  limit = 0;
+
+  /**
+   * How many matches to skip: the page after a full one starts at its offset plus its limit.
+   *
+   * @generated from field: uint32 offset = 3;
+   */
+  offset = 0;
+
+  constructor(data?: PartialMessage<SearchPlayersByEmailRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.SearchPlayersByEmailRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "offset", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchPlayersByEmailRequest {
+    return new SearchPlayersByEmailRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchPlayersByEmailRequest {
+    return new SearchPlayersByEmailRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchPlayersByEmailRequest {
+    return new SearchPlayersByEmailRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SearchPlayersByEmailRequest | PlainMessage<SearchPlayersByEmailRequest> | undefined, b: SearchPlayersByEmailRequest | PlainMessage<SearchPlayersByEmailRequest> | undefined): boolean {
+    return proto3.util.equals(SearchPlayersByEmailRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.SearchPlayersByEmailResponse
+ */
+export class SearchPlayersByEmailResponse extends Message<SearchPlayersByEmailResponse> {
+  /**
+   * @generated from field: repeated player.v1.EmailMatch matches = 1;
+   */
+  matches: EmailMatch[] = [];
+
+  constructor(data?: PartialMessage<SearchPlayersByEmailResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.SearchPlayersByEmailResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "matches", kind: "message", T: EmailMatch, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchPlayersByEmailResponse {
+    return new SearchPlayersByEmailResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchPlayersByEmailResponse {
+    return new SearchPlayersByEmailResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchPlayersByEmailResponse {
+    return new SearchPlayersByEmailResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SearchPlayersByEmailResponse | PlainMessage<SearchPlayersByEmailResponse> | undefined, b: SearchPlayersByEmailResponse | PlainMessage<SearchPlayersByEmailResponse> | undefined): boolean {
+    return proto3.util.equals(SearchPlayersByEmailResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message player.v1.EmailMatch
+ */
+export class EmailMatch extends Message<EmailMatch> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * As kept: an emailed code's in lower case, Google's and Discord's as they gave it.
+   *
+   * @generated from field: string email = 2;
+   */
+  email = "";
+
+  /**
+   * The identity that verified it: "google", "discord" or "email" (an emailed code).
+   *
+   * @generated from field: string provider = 3;
+   */
+  provider = "";
+
+  /**
+   * When the account linked that identity.
+   *
+   * @generated from field: google.protobuf.Timestamp linked_at = 4;
+   */
+  linkedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<EmailMatch>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.EmailMatch";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "provider", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "linked_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EmailMatch {
+    return new EmailMatch().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EmailMatch {
+    return new EmailMatch().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EmailMatch {
+    return new EmailMatch().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EmailMatch | PlainMessage<EmailMatch> | undefined, b: EmailMatch | PlainMessage<EmailMatch> | undefined): boolean {
+    return proto3.util.equals(EmailMatch, a, b);
+  }
+}
+
+/**
  * @generated from message player.v1.AdminGetPlayerRequest
  */
 export class AdminGetPlayerRequest extends Message<AdminGetPlayerRequest> {

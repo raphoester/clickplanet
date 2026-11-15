@@ -55,6 +55,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/list_renames_handler/renames_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/rename_player_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_by_email_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_by_email_handler/email_matches_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/search_players_handler/matches_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/set_color_handler"
@@ -261,10 +263,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	adminService := playerv1controller.AdminService{
-		GetPlayersHandler:     getPlayers,
-		AdminGetPlayerHandler: admin_get_player_handler.New(admin_player_query.NewPostgresQuery(db, accounts)),
-		GetRosterHandler:      get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock))),
-		SearchPlayersHandler:  search_players_handler.New(matches_query.NewPostgresQuery(db)),
+		GetPlayersHandler:           getPlayers,
+		AdminGetPlayerHandler:       admin_get_player_handler.New(admin_player_query.NewPostgresQuery(db, accounts)),
+		GetRosterHandler:            get_roster_handler.New(roster_query.NewMemoryQuery(inmemory_roster.New(visits, clock))),
+		SearchPlayersHandler:        search_players_handler.New(matches_query.NewPostgresQuery(db)),
+		SearchPlayersByEmailHandler: search_players_by_email_handler.New(email_matches_query.New(auth)),
 		RenamePlayerHandler: rename_player_handler.New(
 			audit_rename_player.New(rename_player_usecase.New(db, store, renameStore, outbox, clock), props.Logger),
 		),

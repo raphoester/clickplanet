@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from message auth.v1.GetVerifyingKeyRequest
@@ -648,6 +648,157 @@ export class DiscordUser extends Message<DiscordUser> {
 
   static equals(a: DiscordUser | PlainMessage<DiscordUser> | undefined, b: DiscordUser | PlainMessage<DiscordUser> | undefined): boolean {
     return proto3.util.equals(DiscordUser, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.SearchEmailsRequest
+ */
+export class SearchEmailsRequest extends Message<SearchEmailsRequest> {
+  /**
+   * Matched anywhere in the address, in any case.
+   *
+   * @generated from field: string text = 1;
+   */
+  text = "";
+
+  /**
+   * 0 is 500, and more is 500.
+   *
+   * @generated from field: uint32 limit = 2;
+   */
+  limit = 0;
+
+  /**
+   * How many matches to skip: the page after a full one starts at its offset plus its limit.
+   *
+   * @generated from field: uint32 offset = 3;
+   */
+  offset = 0;
+
+  constructor(data?: PartialMessage<SearchEmailsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SearchEmailsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "limit", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "offset", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchEmailsRequest {
+    return new SearchEmailsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchEmailsRequest {
+    return new SearchEmailsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchEmailsRequest {
+    return new SearchEmailsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SearchEmailsRequest | PlainMessage<SearchEmailsRequest> | undefined, b: SearchEmailsRequest | PlainMessage<SearchEmailsRequest> | undefined): boolean {
+    return proto3.util.equals(SearchEmailsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.SearchEmailsResponse
+ */
+export class SearchEmailsResponse extends Message<SearchEmailsResponse> {
+  /**
+   * @generated from field: repeated auth.v1.EmailHolder holders = 1;
+   */
+  holders: EmailHolder[] = [];
+
+  constructor(data?: PartialMessage<SearchEmailsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.SearchEmailsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "holders", kind: "message", T: EmailHolder, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SearchEmailsResponse {
+    return new SearchEmailsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SearchEmailsResponse {
+    return new SearchEmailsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SearchEmailsResponse {
+    return new SearchEmailsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SearchEmailsResponse | PlainMessage<SearchEmailsResponse> | undefined, b: SearchEmailsResponse | PlainMessage<SearchEmailsResponse> | undefined): boolean {
+    return proto3.util.equals(SearchEmailsResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message auth.v1.EmailHolder
+ */
+export class EmailHolder extends Message<EmailHolder> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * As kept: an emailed code's in lower case, Google's and Discord's as they gave it.
+   *
+   * @generated from field: string email = 2;
+   */
+  email = "";
+
+  /**
+   * The identity that verified it: "google", "discord" or "email".
+   *
+   * @generated from field: string provider = 3;
+   */
+  provider = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp linked_at = 4;
+   */
+  linkedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<EmailHolder>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "auth.v1.EmailHolder";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "provider", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "linked_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): EmailHolder {
+    return new EmailHolder().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): EmailHolder {
+    return new EmailHolder().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): EmailHolder {
+    return new EmailHolder().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: EmailHolder | PlainMessage<EmailHolder> | undefined, b: EmailHolder | PlainMessage<EmailHolder> | undefined): boolean {
+    return proto3.util.equals(EmailHolder, a, b);
   }
 }
 

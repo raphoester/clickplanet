@@ -128,6 +128,16 @@ internal/player/internal/
     search shows. `matches_query` reads them in one statement (a scan of both tables: no index serves a match
     inside a name), and its test pins that each is named as `GetPlayers` names it. An empty part is
     `InvalidArgument` (`ErrNoName`). `no-store`.
+  - **`SearchPlayersByEmail(text, limit, offset)` finds the accounts holding an address**, for a player who writes
+    from an address, and for the forms of one address that made several accounts before the address was the identity
+    (`+` and the dots of Gmail). Player keeps no address: `email_matches_query` asks auth's
+    `InternalService/SearchEmails` (5s) and answers each holder as an `EmailMatch`: the account, the address, the
+    provider that verified it (`google`, `discord` or `email`) and when it was linked, one row per identity, so an
+    account that holds one address from two providers is two rows. Ordered by the address, then the oldest link
+    first. `limit` is 50 when 0, 500 at most, and `offset` skips that many matches: a page shorter than the limit is
+    the last. An empty text is `InvalidArgument` (`ErrNoText`). `no-store`. **It shows players' addresses** to the
+    operator and to Claude (the connector's `player_search_players_by_email`); the gate's `admin call` line keeps the
+    text searched, never the answer.
 - **The operator changes a username with `player.v1.AdminService/RenamePlayer(account_id, name, reason)`**, for a player stuck
   with a bad name for 7 days (`rename_player_usecase`, wrapped in `audit_rename_player`, which logs every call at
   Warn with the account and the name typed).

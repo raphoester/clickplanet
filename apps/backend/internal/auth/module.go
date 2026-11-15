@@ -71,6 +71,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_token_operator_handler/token_operator_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/get_verifying_key_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/resume_session_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/search_emails_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/search_emails_handler/emails_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_everywhere_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/sign_out_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/authv1controller/start_email_sign_in_handler"
@@ -363,6 +365,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props, signIns 
 		GetDiscordGrantHandler:  get_discord_grant_handler.New(live_grant_usecase.New(grantStore, clock)),
 		GetDiscordUsersHandler:  get_discord_users_handler.New(discord_users_query.NewPostgresQuery(db)),
 		GetTokenOperatorHandler: get_token_operator_handler.New(token_operator_query.NewPostgresQuery(db, clock)),
+		SearchEmailsHandler:     search_emails_handler.New(emails_query.NewPostgresQuery(db)),
 	}
 	if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return authv1connect.NewInternalServiceHandler(internalService, options...)

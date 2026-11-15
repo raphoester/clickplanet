@@ -30,6 +30,14 @@ service AdminService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  // Every account holding a verified email address that contains the text typed, in any case: the address of an
+  // emailed code, or the one Google or Discord verified, one row per identity. Ordered by the address, then the oldest
+  // link first, a page at a time; a page shorter than the limit is the last one. It shows players' addresses: read it
+  // to find who holds an address, never to copy them out. InvalidArgument for an empty text.
+  rpc SearchPlayersByEmail(SearchPlayersByEmailRequest) returns (SearchPlayersByEmailResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // Changes an account's username under SetName's rules, during its wait too. Not the player's choice: its next SetName goes at once. NotFound for an account with no username.
   rpc RenamePlayer(RenamePlayerRequest) returns (RenamePlayerResponse);
 
@@ -96,6 +104,29 @@ message PlayerMatch {
   string account_id = 1;
   string name = 2;
   bool guest = 3;
+}
+
+message SearchPlayersByEmailRequest {
+  // Matched anywhere in the address, in any case: "+", "@gmail.com", "doe".
+  string text = 1;
+  // 50 unless asked, 500 at most.
+  uint32 limit = 2;
+  // How many matches to skip: the page after a full one starts at its offset plus its limit.
+  uint32 offset = 3;
+}
+
+message SearchPlayersByEmailResponse {
+  repeated EmailMatch matches = 1;
+}
+
+message EmailMatch {
+  string account_id = 1;
+  // As kept: an emailed code's in lower case, Google's and Discord's as they gave it.
+  string email = 2;
+  // The identity that verified it: "google", "discord" or "email" (an emailed code).
+  string provider = 3;
+  // When the account linked that identity.
+  google.protobuf.Timestamp linked_at = 4;
 }
 
 message AdminGetPlayerRequest {
