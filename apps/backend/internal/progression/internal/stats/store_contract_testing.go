@@ -122,13 +122,23 @@ func (s *StoreContractSuite) TestAFactToldAgainAfterItWasKeptIsNotCountedAgain()
 	}
 
 	s.Equal(StatsSnapshot{
-		Account: accounts.AccountID{15: 1}, TilesTaken: 1, Streak: StreakOf(1, DayOf(contractAt)), StreakBest: 1, MessagesSent: 1,
+		Account: accounts.AccountID{15: 1}, TilesTaken: 1, Streak: StreakOf(1, DayOf(contractAt)), StreakBest: 1, DaysPlayed: 1, MessagesSent: 1,
 		BombsDropped: 1, TilesFortified: 60, BonusesClaimed: 1, RightAnswers: 1, MissionsDone: 3,
 		Counted: Counted{
 			TakesBelow: TakeMark{Position: 4, Index: 1}, BombsBelow: 6, FortifiesBelow: 7,
 			MessagesUntil: contractAt, BonusesUntil: contractAt, AnswersUntil: contractAt,
 		},
 	}, s.stats(1).TakeSnapshot())
+}
+
+func (s *StoreContractSuite) TestTheDaysPlayedReadBack() {
+	s.recordTake(1, 0, contractAt)
+	s.recordTake(1, 1, contractAt.Add(48*time.Hour))
+	s.record(1, PlayDays([]Day{DayOf(contractAt.Add(-72 * time.Hour)), DayOf(contractAt)}))
+
+	s.Equal(uint64(3), s.stats(1).DaysPlayed())
+	s.Equal(NewStats(accounts.AccountID{15: 1}).WithTake(0, 0, contractAt).WithTake(1, 0, contractAt.Add(48*time.Hour)).
+		WithPlayDays([]Day{DayOf(contractAt.Add(-72 * time.Hour)), DayOf(contractAt)}), s.stats(1))
 }
 
 func (s *StoreContractSuite) TestEachTakeOfASpreadIsCountedOnceThoughTheyShareAPosition() {

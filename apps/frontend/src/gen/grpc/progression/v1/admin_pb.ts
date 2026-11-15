@@ -83,6 +83,92 @@ export class ReconcileTitlesResponse extends Message<ReconcileTitlesResponse> {
 }
 
 /**
+ * @generated from message progression.v1.BackfillDaysPlayedRequest
+ */
+export class BackfillDaysPlayedRequest extends Message<BackfillDaysPlayedRequest> {
+  /**
+   * Counts what would change, and writes nothing.
+   *
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<BackfillDaysPlayedRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.BackfillDaysPlayedRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BackfillDaysPlayedRequest {
+    return new BackfillDaysPlayedRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BackfillDaysPlayedRequest {
+    return new BackfillDaysPlayedRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BackfillDaysPlayedRequest {
+    return new BackfillDaysPlayedRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BackfillDaysPlayedRequest | PlainMessage<BackfillDaysPlayedRequest> | undefined, b: BackfillDaysPlayedRequest | PlainMessage<BackfillDaysPlayedRequest> | undefined): boolean {
+    return proto3.util.equals(BackfillDaysPlayedRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message progression.v1.BackfillDaysPlayedResponse
+ */
+export class BackfillDaysPlayedResponse extends Message<BackfillDaysPlayedResponse> {
+  /**
+   * The accounts with stats, every one read.
+   *
+   * @generated from field: uint32 accounts = 1;
+   */
+  accounts = 0;
+
+  /**
+   * The accounts whose days played went up, or would.
+   *
+   * @generated from field: uint32 changed = 2;
+   */
+  changed = 0;
+
+  constructor(data?: PartialMessage<BackfillDaysPlayedResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.BackfillDaysPlayedResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "accounts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "changed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BackfillDaysPlayedResponse {
+    return new BackfillDaysPlayedResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BackfillDaysPlayedResponse {
+    return new BackfillDaysPlayedResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BackfillDaysPlayedResponse {
+    return new BackfillDaysPlayedResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BackfillDaysPlayedResponse | PlainMessage<BackfillDaysPlayedResponse> | undefined, b: BackfillDaysPlayedResponse | PlainMessage<BackfillDaysPlayedResponse> | undefined): boolean {
+    return proto3.util.equals(BackfillDaysPlayedResponse, a, b);
+  }
+}
+
+/**
  * @generated from message progression.v1.AdminGetProgressRequest
  */
 export class AdminGetProgressRequest extends Message<AdminGetProgressRequest> {
@@ -153,6 +239,13 @@ export class AdminGetProgressResponse extends Message<AdminGetProgressResponse> 
    */
   playsAgainst: CountryTiles[] = [];
 
+  /**
+   * The UTC days with at least one take.
+   *
+   * @generated from field: uint64 days_played = 8;
+   */
+  daysPlayed = protoInt64.zero;
+
   constructor(data?: PartialMessage<AdminGetProgressResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -167,6 +260,7 @@ export class AdminGetProgressResponse extends Message<AdminGetProgressResponse> 
     { no: 4, name: "worn_title", kind: "message", T: Title },
     { no: 5, name: "plays_for", kind: "message", T: CountryTiles, repeated: true },
     { no: 6, name: "plays_against", kind: "message", T: CountryTiles, repeated: true },
+    { no: 8, name: "days_played", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminGetProgressResponse {

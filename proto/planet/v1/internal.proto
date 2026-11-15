@@ -52,6 +52,13 @@ service InternalService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  // The UTC days each account asked took at least one tile on, from the postgres ledger: a take, or a spread or an
+  // enclose that took a tile, as TilesTaken tells them; a reverted take still counts. For progression's backfill of the
+  // days played. An account with no take is left out. InvalidArgument for a bad id, or for more than 500 asked at once.
+  rpc GetPlayDays(GetPlayDaysRequest) returns (GetPlayDaysResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // The ledger's totals from since to until, for the gamemaster's season totals. A scan of the window: the caller
   // keeps the answer. InvalidArgument unless since is before until.
   rpc GetLedgerTotals(GetLedgerTotalsRequest) returns (GetLedgerTotalsResponse) {
@@ -159,6 +166,20 @@ message GetTakesByCountryRequest {
 message GetTakesByCountryResponse {
   repeated CountryTakes taken_for = 1;
   repeated CountryTakes taken_from = 2;
+}
+
+message GetPlayDaysRequest {
+  repeated string account_ids = 1;
+}
+
+message GetPlayDaysResponse {
+  repeated AccountPlayDays accounts = 1;
+}
+
+message AccountPlayDays {
+  string account_id = 1;
+  // Each UTC day once, as YYYY-MM-DD, oldest first.
+  repeated string days = 2;
 }
 
 message CountryTakes {

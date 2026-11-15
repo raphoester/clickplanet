@@ -88,6 +88,7 @@ func (s *testSuite) TestEverythingTheGameKeepsIsRead() {
 	s.True(proto.Equal(&progressionv1.AdminGetProgressResponse{
 		Stats:        &progressionv1.Stats{TilesTaken: 2, StreakCurrent: 2, StreakBest: 2, StreakLastDay: "2026-09-14"},
 		MessagesSent: 1,
+		DaysPlayed:   2,
 		Titles:       progressionmessage.Titles([]titles.Standing{og, settler}),
 		WornTitle:    progressionmessage.Title(og),
 	}, s.progress(ada)), "%v", s.progress(ada))
@@ -97,6 +98,17 @@ func (s *testSuite) TestAnAccountWithNoNameplateIsReadAsKept() {
 	s.Require().NoError(s.stats.Record(s.T().Context(), ada, stats.TakeAt(2, 0, monday)))
 
 	s.Equal(uint32(1), s.progress(ada).GetStats().GetStreakCurrent(), "the game shows a guest no streak, and the operator what is kept")
+}
+
+func (s *testSuite) TestTheDaysPlayedAreTheOnesKept() {
+	ctx := s.T().Context()
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.TakeAt(0, 0, monday.Add(-72*time.Hour))))
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.TakeAt(1, 0, monday)))
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.PlayDays([]stats.Day{
+		stats.DayOf(monday.Add(-10 * 24 * time.Hour)), stats.DayOf(monday.Add(-72 * time.Hour)),
+	})))
+
+	s.Equal(uint64(3), s.progress(ada).GetDaysPlayed(), "not the streak: the days need not follow each other")
 }
 
 func (s *testSuite) TestAnAccountTheGameKeepsNothingAboutIsZeros() {

@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_totals_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_room_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler"
@@ -30,6 +31,7 @@ type InternalService struct {
 	get_ledger_totals_handler.GetLedgerTotalsHandler
 	get_map_history_handler.GetMapHistoryHandler
 	get_takes_by_country_handler.GetTakesByCountryHandler
+	get_play_days_handler.GetPlayDaysHandler
 	get_territories_handler.GetTerritoriesHandler
 	get_country_sizes_handler.GetCountrySizesHandler
 	get_allegiance_of_handler.GetAllegianceOfHandler

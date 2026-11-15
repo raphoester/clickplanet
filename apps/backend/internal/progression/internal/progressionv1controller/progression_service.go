@@ -3,6 +3,7 @@ package progressionv1controller
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1/progressionv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/admin_get_progress_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/backfill_days_played_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_fronts_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler"
@@ -26,6 +27,7 @@ var _ progressionv1connect.ProgressionServiceHandler = ProgressionService{}
 type AdminService struct {
 	reconcile_titles_handler.ReconcileTitlesHandler
 	admin_get_progress_handler.AdminGetProgressHandler
+	backfill_days_played_handler.BackfillDaysPlayedHandler
 }
 
 var _ progressionv1connect.AdminServiceHandler = AdminService{}
