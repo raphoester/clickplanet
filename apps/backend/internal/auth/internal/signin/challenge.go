@@ -95,8 +95,9 @@ func (c *Challenge) Letter() Letter {
 	return CodeLetter(c.code)
 }
 
+// The mailbox is the identity, so every form of the address signs in to one account; the address as typed is kept.
 func (c *Challenge) Claim() accounts.Claim {
-	return accounts.ClaimOf(string(c.address), string(c.address), true)
+	return accounts.ClaimOf(accounts.MailboxOf(string(c.address)).String(), string(c.address), true)
 }
 
 func (c *Challenge) Cookie(sealed string, now time.Time) string {

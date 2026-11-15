@@ -3,6 +3,8 @@ package signin
 import (
 	"context"
 	"fmt"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
 )
 
 type Post struct {
@@ -19,7 +21,8 @@ func (p *Post) Send(ctx context.Context, to Address, letter Letter) error {
 	if p.blocklist.Disposable(to.Domain()) {
 		return fmt.Errorf("%w: %s", ErrAddressDisposable, to.Domain())
 	}
-	if allowed, _ := p.sends.Take(string(to)); !allowed {
+	// Per mailbox: each form of an address would be a budget of its own, and one inbox could be filled through them.
+	if allowed, _ := p.sends.Take(accounts.MailboxOf(string(to)).String()); !allowed {
 		return ErrTooManyCodes
 	}
 	if err := p.mailer.Send(ctx, to, letter); err != nil {

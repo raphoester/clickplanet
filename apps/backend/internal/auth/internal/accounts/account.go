@@ -97,6 +97,14 @@ func (i *Identity) EmailVerified() bool {
 	return i.emailVerified
 }
 
+// The mailbox of its verified address, which finds its account. Empty for an identity with no verified address.
+func (i *Identity) Mailbox() Mailbox {
+	if !i.emailVerified {
+		return ""
+	}
+	return MailboxOf(i.email)
+}
+
 func (i *Identity) LinkedAt() time.Time {
 	return i.linkedAt
 }

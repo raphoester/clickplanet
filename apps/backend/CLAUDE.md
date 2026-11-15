@@ -124,6 +124,9 @@ and says what is in it. Read the doc before you change its area.
 - [Auth](docs/auth.md) — Turnstile, guest and signed-in accounts (Google, Discord, emailed code, CrazyGames), the
   session a framed page carries in a header, operators, sign-out, deletion with its 30-day grace period and the purge,
   a sign-in that brings an account back, and pruning.
+- [One mailbox, one player](docs/mailboxes.md) — `accounts.MailboxOf`: the forms of one address (`+tag`, Gmail's dots,
+  googlemail) are one identity, for the providers it lists; the email code's subject, `identities.mailbox` and the owner
+  it finds, the budget per mailbox; the migration that folded what was kept and the accounts the forms made.
 - [Arrivals](docs/arrivals.md) — how each new account came: a player's link, the YouTube link, CrazyGames, or unknown,
   the link's tag (a streamer's own link) and the referrer's host; the recruiter's account, in a table of its own
   (`auth.recruitments`); kept by `auth` when it makes the account, anonymized when the recruit's or the recruiter's

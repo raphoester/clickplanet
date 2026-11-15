@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -151,7 +150,7 @@ func (s *Store) Identity(_ context.Context, provider string, subject string) (*a
 	return &identity, nil
 }
 
-func (s *Store) AccountOfEmail(_ context.Context, address string) (*accounts.Account, error) {
+func (s *Store) AccountOfMailbox(_ context.Context, mailbox accounts.Mailbox) (*accounts.Account, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -161,7 +160,7 @@ func (s *Store) AccountOfEmail(_ context.Context, address string) (*accounts.Acc
 
 	holders := []accounts.Identity{}
 	for _, identity := range s.identities {
-		if identity.EmailVerified() && strings.EqualFold(identity.Email(), address) {
+		if identity.EmailVerified() && identity.Mailbox() == mailbox {
 			holders = append(holders, identity)
 		}
 	}

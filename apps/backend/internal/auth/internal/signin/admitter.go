@@ -20,7 +20,7 @@ type IdentityStore interface {
 	accounts.SessionFinder
 	accounts.AccountFinder
 	Identity(ctx context.Context, provider string, subject string) (*accounts.Identity, error)
-	AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error)
+	AccountOfMailbox(ctx context.Context, mailbox accounts.Mailbox) (*accounts.Account, error)
 	SaveSignIn(ctx context.Context, signIn accounts.SignIn) error
 }
 
@@ -137,11 +137,11 @@ func (a *Admitter) admit(
 
 	var owner *accounts.Account
 	if address := claim.VerifiedEmail(); known == nil && address != "" {
-		owner, err = a.store.AccountOfEmail(ctx, address)
+		owner, err = a.store.AccountOfMailbox(ctx, accounts.MailboxOf(address))
 		if errors.Is(err, accounts.ErrAccountNotFound) {
 			owner = nil
 		} else if err != nil {
-			return nil, fmt.Errorf("failed to find the account of the address: %w", err)
+			return nil, fmt.Errorf("failed to find the account of the mailbox: %w", err)
 		}
 	}
 

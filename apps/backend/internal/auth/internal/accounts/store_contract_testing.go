@@ -270,7 +270,7 @@ func (s *StoreContractSuite) TestTheAccountOfAnAddressSaysItsDeletionWasRequeste
 	s.signInWith(1, "discord", contractClaim, "token-1", contractStart)
 	s.Require().NoError(s.store.RequestDeletion(s.T().Context(), AccountID{15: 1}, contractStart.Add(time.Hour)))
 
-	found, err := s.store.AccountOfEmail(s.T().Context(), contractClaim.email)
+	found, err := s.store.AccountOfMailbox(s.T().Context(), MailboxOf(contractClaim.email))
 
 	s.Require().NoError(err)
 	s.Equal(AccountID{15: 1}, found.id)
@@ -366,10 +366,10 @@ func (s *StoreContractSuite) TestThePruneStopsAtItsLimit() {
 	s.Len(pruned, 1)
 }
 
-func (s *StoreContractSuite) TestAnAccountIsFoundByAVerifiedAddressOfAnyIdentityIgnoringCase() {
+func (s *StoreContractSuite) TestAnAccountIsFoundByTheMailboxOfAVerifiedAddressOfAnyIdentityIgnoringCase() {
 	s.signInWith(1, "discord", Claim{subject: "d", email: "Player@Example.com", emailVerified: true}, "token-1", contractStart)
 
-	found, err := s.store.AccountOfEmail(s.T().Context(), "player@example.COM")
+	found, err := s.store.AccountOfMailbox(s.T().Context(), MailboxOf("player@example.COM"))
 
 	s.Require().NoError(err)
 	s.Equal(AccountID{15: 1}, found.id)
@@ -380,7 +380,7 @@ func (s *StoreContractSuite) TestAnUnverifiedOrUnknownAddressFindsNoAccount() {
 	s.signInWith(1, "discord", Claim{subject: "d", email: "player@example.com"}, "token-1", contractStart)
 
 	for _, address := range []string{"player@example.com", "nobody@example.com", ""} {
-		_, err := s.store.AccountOfEmail(s.T().Context(), address)
+		_, err := s.store.AccountOfMailbox(s.T().Context(), MailboxOf(address))
 
 		s.ErrorIs(err, ErrAccountNotFound, address)
 	}
@@ -390,8 +390,23 @@ func (s *StoreContractSuite) TestTheOldestLinkOwnsAnAddressTwoAccountsHold() {
 	s.signInWith(2, "google", Claim{subject: "g", email: "player@example.com", emailVerified: true}, "token-2", contractStart.Add(time.Minute))
 	s.signInWith(1, "discord", Claim{subject: "d", email: "player@example.com", emailVerified: true}, "token-1", contractStart)
 
-	found, err := s.store.AccountOfEmail(s.T().Context(), "player@example.com")
+	found, err := s.store.AccountOfMailbox(s.T().Context(), MailboxOf("player@example.com"))
 
 	s.Require().NoError(err)
 	s.Equal(AccountID{15: 1}, found.id)
+}
+
+func (s *StoreContractSuite) TestEveryFormOfAGmailAddressFindsTheAccountOfAnother() {
+	s.signInWith(1, "discord", Claim{subject: "d", email: "John.Doe+discord@gmail.com", emailVerified: true}, "token-1", contractStart)
+
+	for _, address := range []string{"johndoe@gmail.com", "j.o.h.n.doe+x@googlemail.com", "JOHNDOE@GMAIL.COM"} {
+		found, err := s.store.AccountOfMailbox(s.T().Context(), MailboxOf(address))
+
+		s.Require().NoError(err, address)
+		s.Equal(AccountID{15: 1}, found.id, address)
+	}
+	identity, err := s.store.Identity(s.T().Context(), "discord", "d")
+	s.Require().NoError(err)
+	s.Equal("John.Doe+discord@gmail.com", identity.Email(), "the address is kept as the provider gave it")
+	s.Equal(Mailbox("johndoe@gmail.com"), identity.Mailbox())
 }

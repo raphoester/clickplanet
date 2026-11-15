@@ -142,18 +142,18 @@ func (s *Store) Identity(ctx context.Context, provider string, subject string) (
 	return identity, err
 }
 
-func (s *Store) AccountOfEmail(ctx context.Context, address string) (*accounts.Account, error) {
+func (s *Store) AccountOfMailbox(ctx context.Context, mailbox accounts.Mailbox) (*accounts.Account, error) {
 	var account uuid.UUID
 	err := s.db.On(ctx).QueryRowContext(ctx, `
 		SELECT account_id FROM identities
-		WHERE email_verified AND lower(email) = lower($1)
+		WHERE email_verified AND mailbox = $1
 		ORDER BY linked_at, provider::text LIMIT 1
-	`, address).Scan(&account)
+	`, mailbox.String()).Scan(&account)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, accounts.ErrAccountNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to select the account of the address: %w", err)
+		return nil, fmt.Errorf("failed to select the account of the mailbox: %w", err)
 	}
 	return s.Account(ctx, accounts.AccountID(account))
 }
@@ -276,16 +276,20 @@ func insertSession(ctx context.Context, tx cppg.Querier, session *accounts.Sessi
 }
 
 func insertIdentity(ctx context.Context, tx cppg.Querier, identity *accounts.Identity) error {
-	var email sql.NullString
+	var email, mailbox sql.NullString
 	if identity.Email() != "" {
 		email = sql.NullString{String: identity.Email(), Valid: true}
 	}
+	if identity.Mailbox() != "" {
+		mailbox = sql.NullString{String: identity.Mailbox().String(), Valid: true}
+	}
 
 	result, err := tx.ExecContext(ctx, `
-		INSERT INTO identities (provider, subject, account_id, email, email_verified, linked_at)
-		VALUES ($1::identity_provider, $2, $3, $4, $5, $6)
+		INSERT INTO identities (provider, subject, account_id, email, email_verified, mailbox, linked_at)
+		VALUES ($1::identity_provider, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (provider, subject) DO NOTHING
-	`, identity.Provider(), identity.Subject(), uuid.UUID(identity.Account()), email, identity.EmailVerified(), identity.LinkedAt().UTC())
+	`, identity.Provider(), identity.Subject(), uuid.UUID(identity.Account()), email, identity.EmailVerified(), mailbox,
+		identity.LinkedAt().UTC())
 	if err != nil {
 		return fmt.Errorf("failed to insert the identity: %w", err)
 	}

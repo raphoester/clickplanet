@@ -79,8 +79,14 @@ func (f *fixture) guest(t *testing.T, account byte, token string) {
 func (f *fixture) began(t *testing.T, intent accounts.Intent, sessionCookie string) string {
 	t.Helper()
 
+	return f.beganWith(t, address, intent, sessionCookie)
+}
+
+func (f *fixture) beganWith(t *testing.T, typed string, intent accounts.Intent, sessionCookie string) string {
+	t.Helper()
+
 	out, err := f.start.Execute(t.Context(), start_email_sign_in_usecase.In{
-		Address: address, Intent: intent, AttestationToken: "widget", IP: "192.0.2.1", CookieHeader: sessionCookie,
+		Address: typed, Intent: intent, AttestationToken: "widget", IP: "192.0.2.1", CookieHeader: sessionCookie,
 	})
 	require.NoError(t, err)
 	cookie, err := http.ParseSetCookie(out.SetCookie)
@@ -202,6 +208,45 @@ func TestLinkingAnAddressAGoogleAccountHoldsIsRefused(t *testing.T) {
 	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
 	_, err = f.store.Identity(t.Context(), signin.Email, address)
 	assert.ErrorIs(t, err, accounts.ErrIdentityNotFound)
+}
+
+func TestEveryFormOfAnAddressSignsInToTheAccountTheFirstMade(t *testing.T) {
+	f := setUp(t)
+	first, err := f.complete(t, f.beganWith(t, "John.Doe+one@gmail.com", accounts.IntentSignIn, ""), "000001")
+	require.NoError(t, err)
+	f.guest(t, 9, "elsewhere")
+
+	out, err := f.complete(t, f.beganWith(t, "johndoe+two@googlemail.com", accounts.IntentSignIn, "cp_sid=elsewhere"), "000002")
+	require.NoError(t, err)
+
+	assert.Equal(t, first.Account(), out.Account())
+	assert.Equal(t, accounts.SignedIn, out.Outcome(), "no second account for a second form of one mailbox")
+	identity, err := f.store.Identity(t.Context(), signin.Email, "johndoe@gmail.com")
+	require.NoError(t, err)
+	assert.Equal(t, first.Account(), identity.Account())
+	assert.Equal(t, "john.doe+one@gmail.com", identity.Email(), "the address is kept as it was typed first")
+}
+
+func TestAFormOfAnAddressAGoogleAccountHoldsSignsInToThatAccount(t *testing.T) {
+	f := setUp(t)
+	f.googleAccount(t, 9, "John.Doe@gmail.com")
+
+	out, err := f.complete(t, f.beganWith(t, "johndoe+game@gmail.com", accounts.IntentSignIn, ""), "000001")
+	require.NoError(t, err)
+
+	assert.Equal(t, accounts.AccountID{15: 9}, out.Account())
+	assert.Equal(t, accounts.Joined, out.Outcome())
+}
+
+func TestALinkOfAFormOfAnAddressAnotherAccountUsesIsRefused(t *testing.T) {
+	f := setUp(t)
+	_, err := f.complete(t, f.beganWith(t, "jane@proton.me", accounts.IntentSignIn, ""), "000001")
+	require.NoError(t, err)
+	f.guest(t, 7, "guest")
+
+	_, err = f.complete(t, f.beganWith(t, "jane+alt@proton.me", accounts.IntentLink, "cp_sid=guest"), "000002")
+
+	require.ErrorIs(t, err, accounts.ErrIdentityLinkedElsewhere)
 }
 
 func TestAWrongCodeMayBeTypedAgain(t *testing.T) {
