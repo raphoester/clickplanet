@@ -27,6 +27,9 @@ internal/progression/internal/
       award_titles_usecase/notifying_award_titles/  publishes what was granted to the feed
     usecases/reconcile_titles_usecase/  — every account the titles the rules give it, no more; progression.v1.AdminService/ReconcileTitles
       reconcile_titles_usecase/audit_reconcile_titles/  logs every reconciliation at Warn
+  levels/                           XP, Level, Record, Source (one type per XP source), MissionKind, MissionRate (one type per
+                                    kind), Curve, Standing, Scale (StandingOf): the domain alone, nothing calls it yet
+                                    (docs/levels.md)
   wearing/                          the title a player wears: WornOf, Wearable, Showcase (ShowcaseOf), Wardrobe; the Store port and
                                     its contract suite
     postgres_worn_title_store/      the Store over progression.worn_titles
