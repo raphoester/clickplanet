@@ -46,6 +46,14 @@ import {
 } from "./gen/grpc/bonuses/v1/admin_pb.ts"
 import {Rules as BonusesRules} from "./gen/grpc/bonuses/v1/rules_pb.ts"
 import {
+    GetRulesRequest as BoxesGetRulesRequest,
+    GetRulesResponse as BoxesGetRulesResponse,
+    RuleSet as BoxesRuleSet,
+    SaveRuleSetRequest as BoxesSaveRuleSetRequest,
+    SaveRuleSetResponse as BoxesSaveRuleSetResponse,
+} from "./gen/grpc/boxes/v1/admin_pb.ts"
+import {Rules as BoxesRules} from "./gen/grpc/boxes/v1/rules_pb.ts"
+import {
     GetRulesRequest as QuizzesGetRulesRequest,
     GetRulesResponse as QuizzesGetRulesResponse,
     ListQuizQuestionsRequest,
@@ -199,7 +207,7 @@ import {
 } from "./gen/grpc/missions/v1/admin_pb.ts"
 import {Rules as MissionRules} from "./gen/grpc/missions/v1/rules_pb.ts"
 import {
-    AlertsAdmin, AntibotAdmin, BonusesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin,
+    AlertsAdmin, AntibotAdmin, BonusesAdmin, BoxesAdmin, ChatAdmin, ClipsAdmin, Clients, GamemasterAdmin, MissionsAdmin, PlanetAdmin,
     PlayerAdmin, ProgressionAdmin, PromoAdmin, QuizzesAdmin, SupportAdmin, VandalsquadAdmin,
 } from "./clients.ts"
 
@@ -221,6 +229,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     readonly kind = "fake admin"
     readonly antibot: FakeAntibot = new FakeAntibot(this)
     readonly bonuses: FakeBonuses = new FakeBonuses(this)
+    readonly boxes: FakeBoxes = new FakeBoxes(this)
     readonly quizzes: FakeQuizzes = new FakeQuizzes(this)
     readonly alerts: FakeAlerts = new FakeAlerts(this)
     readonly progression: FakeProgression = new FakeProgression(this)
@@ -394,16 +403,19 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         reach: false,
         capitals: {knockOut: false, fixedShields: false},
     })})], playing: "default"})
-    // The offers' set the migration keeps: when a box comes, and what a box or a right answer grants.
+    // The bonuses module's set the migration keeps: what a box caught or a right answer grants, and the sign-in refill.
     bonusRules = new BonusesGetRulesResponse({sets: [new BonusesRuleSet({name: "default", rules: BonusesRules.fromJson({
-        boxes: {minInterval: "240s", maxInterval: "480s", maxChargesPerHour: 12},
         kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3},
-        offerTtl: "15s", missRetry: "120s", activeWithin: "120s",
         spread: {maxPerBox: 4},
         enclose: {maxPerBox: 3},
         shield: {minPerBox: 5, maxPerBox: 20},
-        welcome: {within: "600s", boxAfter: "60s"},
         signInRefill: true,
+    })})], playing: "default"})
+    // The boxes' set production plays: when a box comes, how long it flies, and a newcomer's first box.
+    boxRules = new BoxesGetRulesResponse({sets: [new BoxesRuleSet({name: "default", rules: BoxesRules.fromJson({
+        minInterval: "240s", maxInterval: "480s", maxBoxesPerHour: 12,
+        offerTtl: "15s", missRetry: "120s", activeWithin: "120s",
+        welcome: {within: "600s", boxAfter: "60s"},
         frozen: false,
     })})], playing: "default"})
     // The quizzes' set production plays: when a quiz comes, how long it stays and how its question is drawn.
@@ -462,7 +474,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
 
     clients(): Clients {
         return {
-            alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, chat: this, planet: this, player: this, progression: this.progression,
+            alerts: this.alerts, antibot: this.antibot, bonuses: this.bonuses, boxes: this.boxes, chat: this, planet: this, player: this, progression: this.progression,
             gamemaster: this.gamemaster, missions: this.missions, support: this, clips: this, promo: this.promo,
             publishing: this, quizzes: this.quizzes, vandalsquad: this.vandalsquad,
         }
@@ -796,6 +808,28 @@ export class FakeBonuses implements BonusesAdmin {
     }
 }
 
+// boxes.v1's rules, asked of the same fake as getBoxRules and saveBoxRuleSet: planet.v1, antibot.v1, bonuses.v1 and
+// quizzes.v1 have a getRules and a saveRuleSet of their own.
+export class FakeBoxes implements BoxesAdmin {
+    constructor(private readonly admin: FakeAdmin) {}
+
+    getRules(request: PartialMessage<BoxesGetRulesRequest>): Promise<BoxesGetRulesResponse> {
+        return this.admin.answer("getBoxRules", request, this.admin.boxRules)
+    }
+
+    // Kept as the server keeps it: a set of the same name is replaced.
+    saveRuleSet(request: PartialMessage<BoxesSaveRuleSetRequest>): Promise<BoxesSaveRuleSetResponse> {
+        const answer = this.admin.answer("saveBoxRuleSet", request, new BoxesSaveRuleSetResponse())
+        if (!this.admin.refusals.has("saveBoxRuleSet") && request.set !== undefined) {
+            this.admin.boxRules = new BoxesGetRulesResponse({
+                sets: setsWith(this.admin.boxRules.sets, new BoxesRuleSet(request.set)),
+                playing: this.admin.boxRules.playing,
+            })
+        }
+        return answer
+    }
+}
+
 // quizzes.v1's calls, asked of the same fake as getQuizRules, saveQuizRuleSet and listQuizQuestions: planet.v1,
 // antibot.v1 and bonuses.v1 have a getRules and a saveRuleSet of their own.
 export class FakeQuizzes implements QuizzesAdmin {
@@ -978,8 +1012,8 @@ function daysOf(startsAt: Date, endsAt: Date): Day[] {
 }
 
 // promo.v1's calls, asked of the same fake. GetCards lists the sets planet's fake keeps (`rules`), each with the cards
-// `decks` holds, filled the way the page fills a draft: `{bonuses.…}` from the offers' fake (`bonusRules`) and
-// `{quizzes.…}` from the quizzes' (`quizRules`).
+// `decks` holds, filled the way the page fills a draft: `{bonuses.…}` from the bonuses' fake (`bonusRules`),
+// `{boxes.…}` from the boxes' (`boxRules`) and `{quizzes.…}` from the quizzes' (`quizRules`).
 export class FakePromo implements PromoAdmin {
     backgrounds: PromoBackground[] = [
         new PromoBackground({
@@ -1036,7 +1070,9 @@ export class FakePromo implements PromoAdmin {
     }
 
     getCards(request: PartialMessage<GetCardsRequest>): Promise<GetCardsResponse> {
-        const played = playedBySet(this.admin.rules, {bonuses: this.admin.bonusRules, quizzes: this.admin.quizRules})
+        const played = playedBySet(this.admin.rules, {
+            bonuses: this.admin.bonusRules, boxes: this.admin.boxRules, quizzes: this.admin.quizRules,
+        })
         const rules = this.placeholders.map(placeholder => placeholder.path)
         const sets = this.admin.rules.sets.map(set => new SetCards({
             ruleSet: set.name,
@@ -1065,11 +1101,11 @@ export class FakePromo implements PromoAdmin {
     }
 }
 
-// A few of planet.v1.Rules' numbers and durations, of bonuses.v1.Rules' under `bonuses.` and of quizzes.v1.Rules' under
-// `quizzes.`, as GetCards lists them.
+// A few of planet.v1.Rules' numbers and durations, of bonuses.v1.Rules' under `bonuses.`, of boxes.v1.Rules' under
+// `boxes.` and of quizzes.v1.Rules' under `quizzes.`, as GetCards lists them.
 const PLACEHOLDER_PATHS = [
-    "clicks.tempo", "clicks.burst", "charges.bomb.rings", "charges.shield.held", "bonuses.boxes.minInterval",
-    "bonuses.boxes.maxInterval", "quizzes.offerTtl", "quizzes.answerWindow",
+    "clicks.tempo", "clicks.burst", "charges.bomb.rings", "charges.shield.held", "bonuses.shield.maxPerBox",
+    "boxes.minInterval", "boxes.maxInterval", "quizzes.offerTtl", "quizzes.answerWindow",
 ]
 
 // The example battle's values, as scoring scores a ×3 battle.

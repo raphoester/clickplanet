@@ -4,8 +4,8 @@ import {overlay} from "./overlay.ts"
 import {DEFAULT_SET} from "./rules.ts"
 import {Field, jsonOf, numbersTyped, put, sameNumber, shownOf, Switch, typedOf, valueAt, yesOf} from "./ruleValues.ts"
 
-// A module's rule sets as one form edits them, by the paths of their protojson: the offers' (bonusRules.ts) and the
-// quizzes' (quizRules.ts).
+// A module's rule sets as one form edits them, by the paths of their protojson: the boxes' (boxRules.ts), the bonuses'
+// (bonusRules.ts) and the quizzes' (quizRules.ts).
 
 // A rule set as a module keeps it: its name, and its rules.
 export type Kept = {name: string, rules?: {toJson: () => JsonValue}}
@@ -13,9 +13,9 @@ export type Kept = {name: string, rules?: {toJson: () => JsonValue}}
 // A group of the form: its switches first, then a field per value.
 export type Group = {title: string, switches: Switch[], fields: Field[]}
 
-// What the form knows of a module: the switch that freezes a set, the groups of its values, and a set made from a name
-// and its protojson.
-export type Book<S extends Kept> = {frozen: Switch, groups: Group[], setOf: (name: string, json: JsonValue) => S}
+// What the form knows of a module: the switch that freezes a set, for a module whose sets can freeze, the groups of its
+// values, and a set made from a name and its protojson.
+export type Book<S extends Kept> = {frozen?: Switch, groups: Group[], setOf: (name: string, json: JsonValue) => S}
 
 // A set as the form edits it: every value as typed, every switch, by its path. Outside default, "" and undefined are
 // default's value.
@@ -26,7 +26,7 @@ function fieldsOf<S extends Kept>(book: Book<S>): Field[] {
 }
 
 function switchesOf<S extends Kept>(book: Book<S>): Switch[] {
-    return [book.frozen, ...book.groups.flatMap(group => group.switches)]
+    return [...(book.frozen ? [book.frozen] : []), ...book.groups.flatMap(group => group.switches)]
 }
 
 export function draftOf<S extends Kept>(book: Book<S>, set: Kept): Draft {
@@ -66,7 +66,7 @@ export function changesOf<S extends Kept>(book: Book<S>, before: Draft, after: D
         const is = after.switches[each.path]
         if (was !== is) changes.push({label: each.short, before: yesOf(was), after: yesOf(is)})
     }
-    switched(book.frozen)
+    if (book.frozen) switched(book.frozen)
     for (const group of book.groups) {
         group.switches.forEach(switched)
         for (const field of group.fields) {

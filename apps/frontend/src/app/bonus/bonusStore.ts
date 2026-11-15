@@ -3,14 +3,18 @@ import {ALL_OFF, BonusNotice, BonusNoticeEvent, BonusReward, BonusRules, Charges
 
 type BonusStore = {
     award?: BonusReward
+    // A box caught that held nothing: the hand had room for no kind it could be.
+    emptyBox: boolean
     notice?: BonusNoticeEvent
     charges: Charges
     rules?: BonusRules
     switches: Switches
     bombArmed: boolean
     win: (reward: BonusReward) => void
+    winNothing: () => void
     notify: (notice: BonusNotice) => void
     dismissAward: () => void
+    dismissEmptyBox: () => void
     setCharges: (charges: Charges) => void
     setRules: (rules: BonusRules) => void
     setSwitches: (switches: Switches) => void
@@ -21,9 +25,12 @@ export const useBonus = create<BonusStore>()((set) => ({
     charges: NO_CHARGES,
     switches: ALL_OFF,
     bombArmed: false,
-    win: (award) => set({award}),
+    emptyBox: false,
+    win: (award) => set({award, emptyBox: false}),
+    winNothing: () => set({award: undefined, emptyBox: true}),
     notify: (notice) => set((bonus) => ({notice: {notice, seq: (bonus.notice?.seq ?? 0) + 1}})),
     dismissAward: () => set({award: undefined}),
+    dismissEmptyBox: () => set({emptyBox: false}),
     setCharges: (charges) => set({charges}),
     setRules: (rules) => set({rules}),
     setSwitches: (switches) => set({switches}),

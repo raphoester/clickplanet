@@ -4,6 +4,7 @@ import {
     BankFullError,
     Bomber,
     BonusListener,
+    BoxCatcher,
     BonusLostError,
     ChargesRefresher,
     OwnershipsGetter,
@@ -152,6 +153,7 @@ export type Backends = {
     clickBudgetSource: ClickBudgetSource
     connection: ConnectionSource
     bonusListener: BonusListener
+    boxCatcher: BoxCatcher
     quizMaster: QuizMaster
     bomber: Bomber
     refiller: Refiller
@@ -312,6 +314,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         updatesListener: backends.updatesListener,
         clickBudget: backends.clickBudgetSource,
         bonusListener: backends.bonusListener,
+        boxCatcher: backends.boxCatcher,
         bomber: backends.bomber,
         shielder: backends.shielder,
         playSound: sound.play,

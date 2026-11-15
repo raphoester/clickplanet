@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/boxes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
 	"github.com/raphoester/clickplanet.lol-backend/internal/mcp"
@@ -106,6 +107,8 @@ func startGame(t *testing.T) gameStack {
 
 	missionsConfig := missions.Config{Database: postgres.ConfigFor("missions"), Redis: redis}
 
+	boxesConfig := boxes.Config{Database: postgres.ConfigFor("boxes"), Redis: redis}
+
 	bonusesConfig := bonuses.Config{Database: postgres.ConfigFor("bonuses"), Redis: redis}
 
 	quizzesConfig := quizzes.Config{Database: postgres.ConfigFor("quizzes"), Redis: redis}
@@ -145,7 +148,8 @@ func startGame(t *testing.T) gameStack {
 			Server: server,
 			Logger: logger,
 			Modules: []cpbootstrap.Module{
-				authModule, planet.NewModule(planetConfig), bonuses.NewModule(bonusesConfig), quizzes.NewModule(quizzesConfig),
+				authModule, planet.NewModule(planetConfig), boxes.NewModule(boxesConfig), bonuses.NewModule(bonusesConfig),
+				quizzes.NewModule(quizzesConfig),
 				antibot.NewModule(antibotConfig),
 				player.NewModule(playerConfig),
 				progression.NewModule(progressionConfig),

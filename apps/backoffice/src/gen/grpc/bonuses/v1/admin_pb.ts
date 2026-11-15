@@ -50,7 +50,7 @@ export class GetRulesResponse extends Message<GetRulesResponse> {
   sets: RuleSet[] = [];
 
   /**
-   * The set the offers play now: the one the schedule played last, or "default".
+   * The set the bonuses module plays now: the one the schedule played last, or "default".
    *
    * @generated from field: string playing = 2;
    */

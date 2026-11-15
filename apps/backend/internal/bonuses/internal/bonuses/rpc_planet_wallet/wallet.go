@@ -17,8 +17,8 @@ type Planet interface {
 	GetRoom(context.Context, *connect.Request[planetv1.GetRoomRequest]) (*connect.Response[planetv1.GetRoomResponse], error)
 }
 
-// Lasting is how long planet knows a payment's id: an offer's for ten minutes, in memory as the offer itself is; the
-// sign-in refill's for good, so a PlayerCreated told again any day pays nothing.
+// Lasting is how long planet knows a payment's id: a box's or a right answer's for ten minutes, in memory as the offer
+// itself was; the sign-in refill's for good, so a PlayerCreated told again any day pays nothing.
 type Lasting bool
 
 const (
@@ -30,7 +30,7 @@ func New(planet Planet, lasting Lasting) Wallet {
 	return Wallet{planet: planet, lasting: lasting}
 }
 
-// Wallet answers the offers' ports with planet's internal calls: the room each hand has, and a payment.
+// Wallet answers the bonuses module's ports with planet's internal calls: the room each hand has, and a payment.
 type Wallet struct {
 	planet  Planet
 	lasting Lasting
@@ -59,12 +59,12 @@ func (w Wallet) Full(ctx context.Context, accounts []bonuses.Account) (map[bonus
 }
 
 // Pay grants a caller with no account nothing, as planet's wallet holds nothing for one.
-func (w Wallet) Pay(ctx context.Context, payment bonuses.Payment) (bonuses.Paid, error) {
+func (w Wallet) Pay(ctx context.Context, payment bonuses.Payment) error {
 	if payment.Account == bonuses.NoAccount {
-		return bonuses.Paid{}, nil
+		return nil
 	}
 
-	res, err := w.planet.GrantCharges(ctx, connect.NewRequest(&planetv1.InternalGrantChargesRequest{
+	_, err := w.planet.GrantCharges(ctx, connect.NewRequest(&planetv1.InternalGrantChargesRequest{
 		GrantId:   payment.Grant.String(),
 		AccountId: string(payment.Account),
 		Kind:      planetwords.Kind(payment.Kind),
@@ -72,8 +72,7 @@ func (w Wallet) Pay(ctx context.Context, payment bonuses.Payment) (bonuses.Paid,
 		Lasting:   bool(w.lasting),
 	}))
 	if err != nil {
-		return bonuses.Paid{}, fmt.Errorf("planet did not pay %s %d %s: %w", payment.Account, payment.Amount, payment.Kind, err)
+		return fmt.Errorf("planet did not pay %s %d %s: %w", payment.Account, payment.Amount, payment.Kind, err)
 	}
-
-	return bonuses.Paid{Kept: int(res.Msg.GetKept()), Hand: planetwords.HandOf(res.Msg.GetCharges())}, nil
+	return nil
 }

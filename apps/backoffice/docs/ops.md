@@ -54,11 +54,11 @@ given its name. The form takes the page's place, with "← All sets" back.
 **Game rules** (`RulesPanel`, `rules.ts`) is `planet.v1.AdminService/GetRules` and `SaveRuleSet` (the backend's
 [Rules](../../backend/docs/rules.md)): every set postgres keeps, `default` first, with its map (`Open`, or `Frozen` for
 a set that takes no play, `playOf`), its tempo (`3×`) and its clicks (`60 in hand, 0.2 a second`). **Planet keeps
-what a hand holds and what a charge does, nothing of the offers or the quizzes**: when a box and a quiz come, what each
+what a hand holds and what a charge does, nothing of the boxes, the bonuses or the quizzes**: when a box and a quiz come, what each
 may be and how much it grants are the Box & quiz rules', and the page says so above the list.
 
 **The form edits every value of a set, grouped**, under six switches, "Frozen: the map takes no play" (the set's
-`frozen`: while it plays, planet refuses every click, bomb, shield and refill, the offers refuse every box caught and
+`frozen`: while it plays, planet refuses every click, bomb, shield and refill, the boxes refuse every box caught and
 the quizzes every answer; see the backend's
 [A frozen map](../../backend/docs/rules.md#a-frozen-map)), "Flags locked: no player changes country" (the set's
 `allegianceLocked`, for a battle's set: see the backend's [Allegiance](../../backend/docs/allegiance.md)), "Arena: the battle is
@@ -72,7 +72,7 @@ the tiles an enclose fills and the shields a tile takes; with "Enclosures unlimi
 `charges.enclose.unlimited`: see the backend's [Unlimited enclosures](../../backend/docs/enclose.md), "Spread
 unlimited: spread spends no charge", `charges.spread.unlimited`: see the backend's
 [Spread](../../backend/docs/spread.md), and "Bombs off: no box offers one, and none is
-dropped", `charges.bomb.off`: no hand has room for a bomb then, so the offers offer none; see the backend's
+dropped", `charges.bomb.off`: no hand has room for a bomb then, so a box never holds one; see the backend's
 [Bomb](../../backend/docs/bomb.md), and "Enclose off: no box offers one, and none is used", `charges.enclose.off`: no
 hand has room for an enclosure then, and an enclose click closes nothing; never with enclosures unlimited, which the
 server refuses; see the backend's [Enclosures off](../../backend/docs/enclose.md#enclosures-off-chargesencloseoff)), Arena (`arena.freeze`, how long an arena takes no play after its
@@ -85,35 +85,39 @@ label and a number field, so a value cannot be left out or misspelled; a test (`
 the set gains a value the form does not name. The fields and the switches are `RuleFields.tsx`, over `ruleValues.ts`
 (a value as typed, as sent, and as read), which the Box & quiz rules share.
 
-**Box & quiz rules** (`BonusRulesPanel`) is two lists on one page, each with its form: **Boxes**, the offers' sets
-(`bonusRules.ts`, `bonuses.v1.AdminService/GetRules` and `SaveRuleSet`, see the backend's
-[Offers and the wallet](../../backend/docs/offers-and-wallet.md)), and **Quizzes**, the quizzes' sets (`quizRules.ts`,
-`quizzes.v1.AdminService/GetRules` and `SaveRuleSet`, see the backend's [quizzes module](../../backend/docs/quizzes-module.md)).
-The schedule plays each by name, as it does planet's and the antibot's. Each lists every set postgres keeps, `default`
-first: Boxes with its offers (`Open`, or `Frozen`, `offersOf`) and its boxes (`Every 4 min to 8 min, 12 an hour at
-most`, `boxesOf`); Quizzes with its offers and its quizzes (`Every 4 min to 8 min, 12 right an hour at most`, or `Off`,
-`quizzesOf`). While a set is edited, its form takes the page's place: the other list goes, and is read again after.
+**Box & quiz rules** (`BonusRulesPanel`) is three lists on one page, each with its form: **Boxes**, the boxes' sets
+(`boxRules.ts`, `boxes.v1.AdminService/GetRules` and `SaveRuleSet`, see the backend's
+[boxes module](../../backend/docs/boxes-module.md)), **What a box or a right answer holds**, the bonuses module's sets
+(`bonusRules.ts`, `bonuses.v1.AdminService`, see the backend's [Bonuses](../../backend/docs/bonuses.md)), and
+**Quizzes**, the quizzes' sets (`quizRules.ts`, `quizzes.v1.AdminService`, see the backend's
+[quizzes module](../../backend/docs/quizzes-module.md)). The schedule plays each by name, as it does planet's and the
+antibot's. Each lists every set postgres keeps, `default` first: Boxes with its offers (`Open`, or `Frozen`,
+`offersOf`) and its boxes (`Every 4 min to 8 min, 12 an hour at most`, `boxesOf`); what a box holds with the kinds it is
+drawn as (`refill 5, spread 3, enclose 2, bomb 1, shields 4`, `kindsOf`); Quizzes with its offers and its quizzes
+(`Every 4 min to 8 min, 12 right an hour at most`, or `Off`, `quizzesOf`). While a set is edited, its form takes the
+page's place: the other lists go, and are read again after.
 
 - **One form for both, the Game rules' form in each module's words** (`RuleSetsPanel` over `ruleBook.ts`): the same
   fields and switches (`SwitchField`, `ValueField`), the same default's values shown in a set that holds none, the same
-  list of changes and Save. Each module is a book (`BOOK`): its frozen switch, its `GROUPS`, each value by its path in
+  list of changes and Save. Each module is a book (`BOOK`): its frozen switch (none for the bonuses module, whose sets the boxes and the
+  quizzes freeze), its `GROUPS`, each value by its path in
   the module's `Rules`, and how a set is made from a name and its protojson (`setOf`). A test per module (`edits every
   value of a set`) fails when the proto gains a value the form does not name, or the form names one it lost.
-- **Boxes, "Frozen: no box is offered or caught"** (`frozen`): while it plays, the offers offer no box and refuse every
+- **Boxes, "Frozen: no box is offered or caught"** (`frozen`): while it plays, the boxes offer none and refuse every
   claim. Planet's own Frozen refuses them too.
-- **Boxes**: the shortest and longest wait between two boxes (`boxes.minInterval`, `maxInterval`), the charges a caller
-  is granted an hour at most (`boxes.maxChargesPerHour`), a box's flight (`offerTtl`), the next box after a miss
-  (`missRetry`), and how recent a caller's last click must be for a box (`activeWithin`). See the backend's
-  [Bonus boxes](../../backend/docs/bonus-boxes.md).
+- **Boxes**: the shortest and longest wait between two boxes (`minInterval`, `maxInterval`), the boxes a caller catches
+  an hour at most (`maxBoxesPerHour`), a box's flight (`offerTtl`), the next box after a miss (`missRetry`), and how
+  recent a caller's last click must be for a box (`activeWithin`); for new accounts, how long an account is new
+  (`welcome.within`) and when its first box comes (`welcome.boxAfter`; see the backend's [A newcomer's first
+  box](../../backend/docs/welcome-bonus.md)). See the backend's [Bonus boxes](../../backend/docs/bonus-boxes.md).
 - **What a box or a right answer is**: each kind's weight (`kinds`: refill, spread, enclose, bomb, shields); a kind's
-  chance is its weight over the sum. A kind a hand has no room for is never offered, nor a bomb while planet's bombs
-  are off.
+  chance is its weight over the sum, drawn when the box is caught. A kind a hand has no room for is never drawn, nor a
+  bomb while planet's bombs are off; a box whose hand has room only for kinds weighed 0 pays nothing.
 - **What it grants**: the spread clicks and the enclosures one box or right answer adds at most, and the shields it
   adds, at least and at most (`spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `maxPerBox`). What a hand
   holds at most is the Game rules' Charges.
 - **New accounts**: "Refill at first sign-in" (`signInRefill`: see the backend's
-  [A guest's first sign-in](../../backend/docs/sign-in-refill.md)), how long an account is new (`welcome.within`) and
-  when its first box comes (`welcome.boxAfter`; see the backend's [A newcomer's first box](../../backend/docs/welcome-bonus.md)).
+  [A guest's first sign-in](../../backend/docs/sign-in-refill.md)).
 - **Quizzes, "Frozen: no quiz is offered or answered"** (`frozen`): while it plays, the quizzes ask nothing and refuse
   every answer. Planet's own Frozen refuses them too.
 - **Quizzes**: "Quizzes on" (`enabled`), the shortest and longest wait, the right answers an hour at most
@@ -157,18 +161,19 @@ quoted. A save saves every number, and the form stays, with "Saved." and what wa
 from. The question says when it plays: a flag draws its mission once a day, so most flags see it the next day.
 
 **Rule schedule** (`SchedulePanel`, `schedule.ts`) is `gamemaster.v1.AdminService` (the backend's
-[gamemaster module](../../backend/docs/gamemaster.md)), with planet's, the antibot's, the offers' (`bonuses.v1`) and
+[gamemaster module](../../backend/docs/gamemaster.md)), with planet's, the antibot's, the boxes' (`boxes.v1`), the bonuses' (`bonuses.v1`) and
 the quizzes' (`quizzes.v1`) `GetRules` beside it: the gamemaster plays its set in all four, and keeps an entry only of a set
 all four keep.
 
-- **What plays now, its kind and since when**, from `GetSchedule.playing`, and what planet, the antibot, the offers and
-  the quizzes each play ("Planet plays calm, the antibot plays calm, the offers play calm, the quizzes play calm."). When a module does not play
-  the schedule's set, the page says so in red ("The offers do not play calm."): a module refused it, since it keeps no
+- **What plays now, its kind and since when**, from `GetSchedule.playing`, and what planet, the antibot, the boxes, the
+  bonuses and the quizzes each play ("Planet plays calm, the antibot plays calm, the boxes play calm, the bonuses play
+  calm, the quizzes play calm."). When a module does not play the schedule's set, the page says so in red ("The boxes do
+  not play calm."): a module refused it, since it keeps no
   such set.
 - **The schedule**: every entry, by start, with its start and end on one line, what they share said once ("5 nov.
   2026, 22:00 – 23:00", `spanOf`), its kind, a battle's times (`3×`) and its description (cut at 60 characters, whole
   on hover), the row playing marked, an ended one muted. A row that has not ended and names a set a module keeps none
-  of says which ("No set rush in planet, the antibot or the offers.", `lacking`).
+  of says which ("No set rush in planet, the antibot, the boxes, the bonuses or the quizzes.", `lacking`).
 - **On a phone (below 720px) each entry is a card**, not a row of seven columns: its set, kind, times and priority on
   the first line, then its span, its description and its buttons (`.schedule` in `index.css`). A cell breaks a word
   only when it cannot fit, so no column is squeezed to a letter wide.
@@ -194,10 +199,10 @@ all four keep.
 - **A battle's times** (`Entry.times`) are what its points are worth: scoring scores the battle's window as a round of
   its own, its points times this. A whole number from 1 to 10 (`MAX_TIMES`, the server's bound); a new battle starts at
   3. A plain entry has no round: the field is hidden and the page sends 0 (`timesOf`). Scoring keeps no rule set:
-  only planet, the antibot and the offers play the schedule's set.
+  only planet, the antibot, the boxes, the bonuses and the quizzes play the schedule's set.
 
 **Seasons** (`SeasonsPanel`, `seasons.ts`) is `gamemaster.v1.AdminService/GetSeasons`, `AddSeason`, `EditSeason` and
-`DeleteSeason`, with planet's, the antibot's and the offers' `GetRules` beside it. **The operator picks times, never durations**
+`DeleteSeason`, with planet's, the antibot's, the boxes', the bonuses' and the quizzes' `GetRules` beside it. **The operator picks times, never durations**
 (the owner, 2026-11-01: "I don't want to have to do mental calculations"): the page turns them into the break and the
 length the server keeps.
 

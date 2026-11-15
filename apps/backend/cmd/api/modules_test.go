@@ -117,13 +117,22 @@ func TestProgressionKnowsPlayerAndNotAuth(t *testing.T) {
 	assert.NotContains(t, upstream, "auth", "auth is player's detail; progression verifies tokens with the verifier cpbootstrap hands it")
 }
 
-// The offers are downstream of planet, as missions is: they hear its clicks and pay through its wallet, hear player's
-// new players, and pay the right answers the quizzes tell. Planet never names them.
-func TestTheBonusesSpeakPlanetsPlayersAndTheQuizzesLanguageAlone(t *testing.T) {
+// The bonuses module is downstream of planet, as missions is: it pays through planet's wallet, hears player's new
+// players, and pays the boxes the boxes tell caught and the right answers the quizzes tell. Planet never names it.
+func TestTheBonusesSpeakPlanetsPlayersTheBoxesAndTheQuizzesLanguageAlone(t *testing.T) {
 	edges := moduleEdges(t)
 
-	assert.ElementsMatch(t, []string{"planet", "player", "quizzes"}, edges["bonuses"])
-	assert.NotContains(t, edges["planet"], "bonuses", "planet knows nothing of the offers")
+	assert.ElementsMatch(t, []string{"planet", "player", "boxes", "quizzes"}, edges["bonuses"])
+	assert.NotContains(t, edges["planet"], "bonuses", "planet knows nothing of the bonuses module")
+}
+
+// The boxes hear planet's clicks and read its room and its freeze. They tell a box caught and pay nothing: no module
+// they speak to hears them back.
+func TestTheBoxesSpeakPlanetsLanguageAlone(t *testing.T) {
+	edges := moduleEdges(t)
+
+	assert.ElementsMatch(t, []string{"planet"}, edges["boxes"])
+	assert.NotContains(t, edges["planet"], "boxes", "planet knows nothing of the boxes")
 }
 
 // The quizzes hear planet's clicks, read its board and its freeze, and hear player's forgotten accounts. They tell an
@@ -136,11 +145,19 @@ func TestTheQuizzesSpeakPlanetsAndPlayersLanguageAlone(t *testing.T) {
 	assert.NotContains(t, edges["player"], "quizzes", "player knows nothing of the quizzes")
 }
 
-func TestTheModulesThatPlayHearOrReadTheOffersSpeakTheirLanguage(t *testing.T) {
+func TestTheModulesThatPlayOrReadTheBonusesRulesSpeakItsLanguage(t *testing.T) {
 	edges := moduleEdges(t)
 
-	for _, module := range []string{"gamemaster", "promo", "antibot", "missions", "progression"} {
+	for _, module := range []string{"gamemaster", "promo"} {
 		assert.Contains(t, edges[module], "bonuses", module)
+	}
+}
+
+func TestTheModulesThatPlayHearOrReadTheBoxesSpeakTheirLanguage(t *testing.T) {
+	edges := moduleEdges(t)
+
+	for _, module := range []string{"gamemaster", "promo", "antibot", "missions", "progression", "bonuses"} {
+		assert.Contains(t, edges[module], "boxes", module)
 	}
 }
 

@@ -106,7 +106,8 @@ the quizzes' `width` and its values ([The draw](quiz-difficulty.md#the-draw)). I
 and the draw is the one above.
 
 **`quiz_offered` is a case of the quizzes' own stream** (`quizzes.v1.QuizEvent`; `PlanetEvent`'s 8 until 2026-11-11, then
-`BonusEvent`'s 4 until 2026-11-13, both `reserved` now), addressed to one caller, and carrying only the token and the
+`BonusEvent`'s 4 until 2026-11-13; `PlanetEvent`'s is `reserved`, and `BonusEvent` went with the bonuses module's stream on
+2026-11-15), addressed to one caller, and carrying only the token and the
 expiry. A win is announced to every stream with `quiz_won`: the winner's flag and the question's subject (the offers'
 `bonus_taken` carried it until 2026-11-13). **The subject is on the broadcast and not on the offer**, which is the whole
 distinction: after a win there is nothing left to give away.

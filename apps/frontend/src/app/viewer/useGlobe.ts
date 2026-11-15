@@ -9,7 +9,7 @@ import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/bac
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {firstTakeAhead} from '../frontGuide.ts';
 import {Switches} from '../../domain/bonus.ts';
-import {Bomber, BonusListener, Shielder} from '../../backends/backend.ts';
+import {Bomber, BonusListener, BoxCatcher, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from '../clicks/acceptedClicks.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
@@ -38,6 +38,7 @@ export type UseGlobeOptions = {
     updatesListener: UpdatesListener
     clickBudget?: ClickBudgetSource
     bonusListener?: BonusListener
+    boxCatcher?: BoxCatcher
     bomber?: Bomber
     shielder?: Shielder
     // Must keep its identity: a new one rebuilds the globe.
@@ -59,7 +60,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -134,10 +135,12 @@ export function useGlobe(options: UseGlobeOptions) {
             },
             onStanding: standing.follow,
             onBonusWon: bonus.win,
+            onBoxEmpty: bonus.winNothing,
             onCharges: bonus.setCharges,
             onRules: bonus.setRules,
             onSwitchesChange: bonus.setSwitches,
             bonusListener,
+            boxCatcher,
             bomber,
             onBombDropped: news.tellBomb,
             onArmedChange: bonus.setBombArmed,
@@ -180,7 +183,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
+    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
 
     useEffect(() => () => {
         useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)

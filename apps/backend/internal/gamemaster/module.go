@@ -11,6 +11,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1/bonusesv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1/boxesv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1/quizzesv1connect"
@@ -60,6 +61,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/postgres_entry_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_antibot_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_bonuses_rule_sets"
+	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_boxes_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_planet_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_quizzes_rule_sets"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster/internal/schedule/rpc_rule_set_plays"
@@ -113,15 +115,17 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the gamemaster module calls planet, the antibot, the bonuses, the quizzes and scoring: %w", err)
+		return fmt.Errorf("the gamemaster module calls planet, the antibot, the boxes, the bonuses, the quizzes and scoring: %w",
+			err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
 	antibot := antibotv1connect.NewInternalServiceClient(internal, baseURL)
+	boxes := boxesv1connect.NewInternalServiceClient(internal, baseURL)
 	bonuses := bonusesv1connect.NewInternalServiceClient(internal, baseURL)
 	quizzes := quizzesv1connect.NewInternalServiceClient(internal, baseURL)
 	keepers := []schedule.Keeper{
 		rpc_planet_rule_sets.New(planet), rpc_antibot_rule_sets.New(antibot), rpc_bonuses_rule_sets.New(bonuses),
-		rpc_quizzes_rule_sets.New(quizzes),
+		rpc_quizzes_rule_sets.New(quizzes), rpc_boxes_rule_sets.New(boxes),
 	}
 
 	db := cppg.New(config.Database)
@@ -145,7 +149,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	judged := postgres_arena_store.New(db)
 	planner := moments.NewPlanner(seasons, entries, heard, judged, cutoff, clock)
 	ruleSchedule := play_schedule_usecase.NewRunner(scheduleCheck, log_play_schedule.New(
-		play_schedule_usecase.New(entries, seasons, planner, rpc_rule_set_plays.New(planet, antibot, bonuses, quizzes), clock, callAgain),
+		play_schedule_usecase.New(entries, seasons, planner, rpc_rule_set_plays.New(planet, antibot, boxes, bonuses, quizzes), clock, callAgain),
 		props.Logger))
 	told := outbox_moment_events.New(cpoutbox.New(db))
 	scoring := rpc_scoring_books.New(scoringv1connect.NewInternalServiceClient(internal, baseURL))

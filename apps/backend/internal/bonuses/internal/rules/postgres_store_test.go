@@ -46,9 +46,10 @@ func TestTheMigrationSeedsDefaultWithProductionsRules(t *testing.T) {
 	assert.True(t, proto.Equal(rules.Seeded().Rules, set.TakeSnapshot().Rules), "%v", set.TakeSnapshot().Rules)
 }
 
-func TestAFrozenSetIsReadFrozen(t *testing.T) {
+func TestASetKeptWithTheBoxesHalfStillPlaysItsOwnHalf(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "bonuses", migrations.FS)
-	_, err := db.On(t.Context()).ExecContext(t.Context(), `INSERT INTO rule_sets (name, rules) VALUES ('frozen', '{"frozen": true}')`)
+	_, err := db.On(t.Context()).ExecContext(t.Context(), `INSERT INTO rule_sets (name, rules) VALUES ('frozen',
+		'{"frozen": true, "boxes": {"minInterval": "20s"}, "missRetry": "30s", "shield": {"minPerBox": 7}}')`)
 	require.NoError(t, err)
 
 	set, err := cprules.NewPostgresStore(db, parts.All()).Set(t.Context(), "frozen")
@@ -56,5 +57,5 @@ func TestAFrozenSetIsReadFrozen(t *testing.T) {
 
 	inForce := cprules.NewInForce[*bonusesv1.Rules](cptime.SystemClock{})
 	inForce.Enforce(set)
-	assert.True(t, cprules.Reader(inForce, bonuses.Part)().Frozen)
+	assert.Equal(t, 7, cprules.Reader(inForce, bonuses.Part)().Shield.MinPerBox, "the boxes' half is read no more")
 }

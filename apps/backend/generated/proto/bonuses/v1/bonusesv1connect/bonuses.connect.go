@@ -33,11 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// BonusServiceClaimBonusProcedure is the fully-qualified name of the BonusService's ClaimBonus RPC.
-	BonusServiceClaimBonusProcedure = "/bonuses.v1.BonusService/ClaimBonus"
-	// BonusServiceListenForEventsProcedure is the fully-qualified name of the BonusService's
-	// ListenForEvents RPC.
-	BonusServiceListenForEventsProcedure = "/bonuses.v1.BonusService/ListenForEvents"
 	// BonusServiceGetGrantRulesProcedure is the fully-qualified name of the BonusService's
 	// GetGrantRules RPC.
 	BonusServiceGetGrantRulesProcedure = "/bonuses.v1.BonusService/GetGrantRules"
@@ -45,13 +40,7 @@ const (
 
 // BonusServiceClient is a client for the bonuses.v1.BonusService service.
 type BonusServiceClient interface {
-	// A box offered to the caller, caught: planet keeps what fits the hand. NotFound for a box not offered to the caller,
-	// gone or caught already. FailedPrecondition with a FrozenRefusal while the offers or the map take no play.
-	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
-	// The boxes offered to the caller, every box caught by anyone, and each set the offers take. A heartbeat at once and
-	// every so often.
-	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.BonusEvent], error)
-	// What the page shows of the rules the offers play.
+	// What the page shows of the rules the bonuses module plays.
 	GetGrantRules(context.Context, *connect.Request[v1.GetGrantRulesRequest]) (*connect.Response[v1.GetGrantRulesResponse], error)
 }
 
@@ -66,18 +55,6 @@ func NewBonusServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 	baseURL = strings.TrimRight(baseURL, "/")
 	bonusServiceMethods := v1.File_bonuses_v1_bonuses_proto.Services().ByName("BonusService").Methods()
 	return &bonusServiceClient{
-		claimBonus: connect.NewClient[v1.ClaimBonusRequest, v1.ClaimBonusResponse](
-			httpClient,
-			baseURL+BonusServiceClaimBonusProcedure,
-			connect.WithSchema(bonusServiceMethods.ByName("ClaimBonus")),
-			connect.WithClientOptions(opts...),
-		),
-		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.BonusEvent](
-			httpClient,
-			baseURL+BonusServiceListenForEventsProcedure,
-			connect.WithSchema(bonusServiceMethods.ByName("ListenForEvents")),
-			connect.WithClientOptions(opts...),
-		),
 		getGrantRules: connect.NewClient[v1.GetGrantRulesRequest, v1.GetGrantRulesResponse](
 			httpClient,
 			baseURL+BonusServiceGetGrantRulesProcedure,
@@ -90,19 +67,7 @@ func NewBonusServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // bonusServiceClient implements BonusServiceClient.
 type bonusServiceClient struct {
-	claimBonus      *connect.Client[v1.ClaimBonusRequest, v1.ClaimBonusResponse]
-	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.BonusEvent]
-	getGrantRules   *connect.Client[v1.GetGrantRulesRequest, v1.GetGrantRulesResponse]
-}
-
-// ClaimBonus calls bonuses.v1.BonusService.ClaimBonus.
-func (c *bonusServiceClient) ClaimBonus(ctx context.Context, req *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error) {
-	return c.claimBonus.CallUnary(ctx, req)
-}
-
-// ListenForEvents calls bonuses.v1.BonusService.ListenForEvents.
-func (c *bonusServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.BonusEvent], error) {
-	return c.listenForEvents.CallServerStream(ctx, req)
+	getGrantRules *connect.Client[v1.GetGrantRulesRequest, v1.GetGrantRulesResponse]
 }
 
 // GetGrantRules calls bonuses.v1.BonusService.GetGrantRules.
@@ -112,13 +77,7 @@ func (c *bonusServiceClient) GetGrantRules(ctx context.Context, req *connect.Req
 
 // BonusServiceHandler is an implementation of the bonuses.v1.BonusService service.
 type BonusServiceHandler interface {
-	// A box offered to the caller, caught: planet keeps what fits the hand. NotFound for a box not offered to the caller,
-	// gone or caught already. FailedPrecondition with a FrozenRefusal while the offers or the map take no play.
-	ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error)
-	// The boxes offered to the caller, every box caught by anyone, and each set the offers take. A heartbeat at once and
-	// every so often.
-	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.BonusEvent]) error
-	// What the page shows of the rules the offers play.
+	// What the page shows of the rules the bonuses module plays.
 	GetGrantRules(context.Context, *connect.Request[v1.GetGrantRulesRequest]) (*connect.Response[v1.GetGrantRulesResponse], error)
 }
 
@@ -129,18 +88,6 @@ type BonusServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBonusServiceHandler(svc BonusServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	bonusServiceMethods := v1.File_bonuses_v1_bonuses_proto.Services().ByName("BonusService").Methods()
-	bonusServiceClaimBonusHandler := connect.NewUnaryHandler(
-		BonusServiceClaimBonusProcedure,
-		svc.ClaimBonus,
-		connect.WithSchema(bonusServiceMethods.ByName("ClaimBonus")),
-		connect.WithHandlerOptions(opts...),
-	)
-	bonusServiceListenForEventsHandler := connect.NewServerStreamHandler(
-		BonusServiceListenForEventsProcedure,
-		svc.ListenForEvents,
-		connect.WithSchema(bonusServiceMethods.ByName("ListenForEvents")),
-		connect.WithHandlerOptions(opts...),
-	)
 	bonusServiceGetGrantRulesHandler := connect.NewUnaryHandler(
 		BonusServiceGetGrantRulesProcedure,
 		svc.GetGrantRules,
@@ -150,10 +97,6 @@ func NewBonusServiceHandler(svc BonusServiceHandler, opts ...connect.HandlerOpti
 	)
 	return "/bonuses.v1.BonusService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case BonusServiceClaimBonusProcedure:
-			bonusServiceClaimBonusHandler.ServeHTTP(w, r)
-		case BonusServiceListenForEventsProcedure:
-			bonusServiceListenForEventsHandler.ServeHTTP(w, r)
 		case BonusServiceGetGrantRulesProcedure:
 			bonusServiceGetGrantRulesHandler.ServeHTTP(w, r)
 		default:
@@ -164,14 +107,6 @@ func NewBonusServiceHandler(svc BonusServiceHandler, opts ...connect.HandlerOpti
 
 // UnimplementedBonusServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedBonusServiceHandler struct{}
-
-func (UnimplementedBonusServiceHandler) ClaimBonus(context.Context, *connect.Request[v1.ClaimBonusRequest]) (*connect.Response[v1.ClaimBonusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.BonusService.ClaimBonus is not implemented"))
-}
-
-func (UnimplementedBonusServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.BonusEvent]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.BonusService.ListenForEvents is not implemented"))
-}
 
 func (UnimplementedBonusServiceHandler) GetGrantRules(context.Context, *connect.Request[v1.GetGrantRulesRequest]) (*connect.Response[v1.GetGrantRulesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("bonuses.v1.BonusService.GetGrantRules is not implemented"))

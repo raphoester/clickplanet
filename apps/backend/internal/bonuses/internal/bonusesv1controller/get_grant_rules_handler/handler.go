@@ -13,8 +13,8 @@ func New(rules func() bonuses.Rules) GetGrantRulesHandler {
 	return GetGrantRulesHandler{rules: rules}
 }
 
-// GetGrantRulesHandler answers what the page shows of the set the offers play. A GET no cache keeps: a set taken
-// reaches an open tab through the stream's rules_changed.
+// GetGrantRulesHandler answers what the page shows of the set the bonuses module plays. A GET no cache keeps: the page
+// reads it as it loads, and a restart reloads it.
 type GetGrantRulesHandler struct {
 	rules func() bonuses.Rules
 }

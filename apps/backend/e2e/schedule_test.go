@@ -14,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1/bonusesv1connect"
+	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1/boxesv1connect"
 	gamemasterv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/gamemaster/v1/gamemasterv1connect"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -25,13 +27,14 @@ import (
 )
 
 // It runs last, by its name: the battle takes the rest of today, and the other tests need a day.
-func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotTheOffersAndTheQuizzesAndScoredByScoring() {
+func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotTheBoxesTheOffersAndTheQuizzesAndScoredByScoring() {
 	t := s.T()
 	ctx := t.Context()
 	planet := planetv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	antibot := antibotv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	offers := bonusesv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	quizzes := quizzesv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
+	boxes := boxesv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 	schedule := gamemasterv1connect.NewAdminServiceClient(http.DefaultClient, s.game.consoleURL)
 
 	planetRules, err := planet.GetRules(ctx, connect.NewRequest(&planetv1.GetRulesRequest{}))
@@ -54,6 +57,10 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotTheOff
 		Set: &quizzesv1.RuleSet{Name: "encore", Rules: &quizzesv1.Rules{}},
 	}))
 	require.NoError(t, err, "and so does one that changes none of the quizzes'")
+	_, err = boxes.SaveRuleSet(ctx, connect.NewRequest(&boxesv1.SaveRuleSetRequest{
+		Set: &boxesv1.RuleSet{Name: "encore", Rules: &boxesv1.Rules{}},
+	}))
+	require.NoError(t, err, "and one that changes none of the boxes'")
 
 	startsAt := time.Now().Add(2 * time.Second)
 	endsAt := startsAt.UTC().Truncate(24 * time.Hour).Add(21 * time.Hour)
@@ -65,7 +72,7 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotTheOff
 		StartsAt: timestamppb.New(startsAt), EndsAt: timestamppb.New(endsAt), Priority: 1, Times: 2,
 	}))
 	require.NoError(t, err,
-		"the gamemaster module asks planet, the antibot, the offers and the quizzes over the internal listener whether they keep the set")
+		"the gamemaster module asks planet, the antibot, the boxes, the offers and the quizzes over the internal listener whether they keep the set")
 
 	scoring := scoringv1connect.NewScoringServiceClient(http.DefaultClient, s.game.baseURL)
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
@@ -81,10 +88,13 @@ func (s *testSuite) TestLastABattleOfTheScheduleIsPlayedByPlanetTheAntibotTheOff
 		quizRules, err := quizzes.GetRules(ctx, connect.NewRequest(&quizzesv1.GetRulesRequest{}))
 		require.NoError(c, err)
 		assert.Equal(c, "encore", quizRules.Msg.GetPlaying())
+		boxRules, err := boxes.GetRules(ctx, connect.NewRequest(&boxesv1.GetRulesRequest{}))
+		require.NoError(c, err)
+		assert.Equal(c, "encore", boxRules.Msg.GetPlaying())
 		round, err := scoring.GetRound(ctx, connect.NewRequest(&scoringv1.GetRoundRequest{RoundId: added.Msg.GetId()}))
 		require.NoError(c, err)
 		assert.Equal(c, uint32(2), round.Msg.GetRound().GetTimes())
-	}, 15*time.Second, 100*time.Millisecond, "the gamemaster commands the set to planet, the antibot, the offers and the quizzes, and opens the battle's round in scoring")
+	}, 15*time.Second, 100*time.Millisecond, "the gamemaster commands the set to planet, the antibot, the boxes, the offers and the quizzes, and opens the battle's round in scoring")
 
 	playing, err := schedule.GetSchedule(ctx, connect.NewRequest(&gamemasterv1.GetScheduleRequest{}))
 	require.NoError(t, err)

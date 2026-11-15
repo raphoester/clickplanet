@@ -39,7 +39,8 @@ import {
     BonusListener,
     BombRefusedError,
     BonusLostError,
-    BonusOffer,
+    BoxCatcher,
+    BoxOffer,
     ClaimedBonus,
     ShieldRefusedError,
     Ownerships,
@@ -238,10 +239,13 @@ export type GlobeOptions = {
     // while it does not.
     onStanding?: (standing: Standing | undefined) => void
     onBonusWon: (reward: BonusReward) => void
+    // A box caught that held nothing: the hand had room for no kind it could be.
+    onBoxEmpty?: () => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
     onSwitchesChange: (switches: Switches) => void
     bonusListener?: BonusListener
+    boxCatcher?: BoxCatcher
     bomber?: Bomber
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
@@ -312,10 +316,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onOutOfReach,
         onStanding = () => {},
         onBonusWon,
+        onBoxEmpty = () => {},
         onCharges,
         onRules,
         onSwitchesChange,
         bonusListener,
+        boxCatcher,
         bomber,
         onBombDropped,
         onArmedChange,
@@ -439,7 +445,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const outline = createBorderLines(borderLines)
     scene.add(outline.object)
 
-    let offered: BonusOffer | undefined
+    let offered: BoxOffer | undefined
 
     const ownClicks = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
     const ownHits = new OwnClicks(OWN_CLICK_WINDOW_SECONDS)
@@ -978,13 +984,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     // Subscribe only once everything it calls exists: a feed may answer at once.
+    const stopBoxes = boxCatcher?.listenForBoxes((offer) => {
+        offered = offer
+        bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
+        playSound("bonusSpawn")
+    })
     const stopBonuses = bonusListener?.listenForBonuses({
-        onOffered: (offer) => {
-            offered = offer
-            bonusBox.spawn(offer.seed, (offer.expiresAt - CLAIM_MARGIN_MS) / 1000)
-            playSound("bonusSpawn")
-        },
-        onTaken: () => {},
         onEnclosed: (enclosure) => {
             tiles.heard(enclosure.version)
             const struck = new Set(enclosure.struck.map(({tile}) => tile))
@@ -1243,8 +1248,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (!claimed) return
             playSound("bonusCaught")
 
-            bonusListener?.claimBonus(claimed.token, country.code)
-                .then(takeReward)
+            boxCatcher?.claimBox(claimed.token)
+                .then((reward) => {
+                    if (lifetime.signal.aborted) return
+                    if (reward) onBonusWon(reward)
+                    else onBoxEmpty()
+                })
                 .catch((e) => {
                     if (lifetime.signal.aborted) return
                     reportClaimFailure(e, {onSessionUnavailable, onBanned})
@@ -1690,6 +1699,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             stopFortifications()
             stopKnockOuts()
             reading?.abort()
+            stopBoxes?.()
             stopBonuses?.()
             stopBombs?.()
             stopWatchingBudget?.()

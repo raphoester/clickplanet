@@ -47,11 +47,11 @@ src/
                     edited and previewed), actions.ts (the upload's steps, the refusals, each set's values, a card's
                     problems), fill.ts (a card's words filled as the server fills them)
   ops/              Reconcile titles, Link Discord members (discordMembers.ts, its words), Game rules, Box & quiz rules
-                    (BonusRulesPanel: two RuleSetsPanels, the offers' and the quizzes'), Anti-bot rules (a form read off
+                    (BonusRulesPanel: three RuleSetsPanels, the boxes', the bonuses' and the quizzes'), Anti-bot rules (a form read off
                     the proto), Mission rules (missionRules.ts, the four numbers), Rule schedule, Seasons, Timeline;
                     cutoff.ts (the daily cutoff: when days end, a battle off it); rules.ts (a planet set in words and as
                     the form edits it), ruleBook.ts (a module's set as RuleSetsPanel edits it, by a book: its frozen
-                    switch, its groups, its set from protojson), bonusRules.ts and quizRules.ts (the offers' book and
+                    switch, its groups, its set from protojson), boxRules.ts, bonusRules.ts and quizRules.ts (the boxes' book, the bonuses' and
                     the quizzes', and each set in words), RuleFields.tsx (the forms' switch and value fields) over
                     ruleValues.ts (a value as typed, sent and read; a pace in words), antibotRules.ts (the antibot
                     form's fields, read off the proto), overlay.ts (a set's JSON over default's), schedule.ts (the

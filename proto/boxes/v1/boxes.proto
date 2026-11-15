@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package boxes.v1;
+
+// The boxes the game offers a caller. It pays nothing: a box caught is told to the other modules (BoxClaimed), the
+// bonuses module draws what it holds and pays it, and the reward comes on planet's stream (planet.v1.ChargesGranted).
+service BoxService {
+  // A box offered to the caller, caught. NotFound for a box not offered to the caller, gone or caught already.
+  // FailedPrecondition with a FrozenRefusal while the boxes or planet's map take no play.
+  rpc ClaimBox(ClaimBoxRequest) returns (ClaimBoxResponse);
+
+  // The boxes offered to the caller. A heartbeat at once and every so often.
+  rpc ListenForEvents(ListenForEventsRequest) returns (stream BoxEvent);
+}
+
+// The detail of the FailedPrecondition that ClaimBox answers while the boxes play a frozen set, or while planet's map
+// takes no play: the box lapses.
+message FrozenRefusal {}
+
+message ClaimBoxRequest {
+  string token = 1;
+}
+
+message ClaimBoxResponse {}
+
+// Empty is every event.
+message ListenForEventsRequest {}
+
+message BoxEvent {
+  oneof event {
+    Heartbeat heartbeat = 1;
+
+    // Only to the caller it is offered to.
+    BoxOffered box_offered = 2;
+  }
+}
+
+message Heartbeat {}
+
+// Says nothing of what it holds: the bonuses module draws that when it is caught.
+message BoxOffered {
+  string token = 1;
+
+  uint32 seed = 2;
+
+  int64 expires_at_unix_ms = 3;
+}

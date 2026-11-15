@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -13,15 +12,12 @@ import (
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/box_facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/rpc_planet_wallet"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/claim_bonus_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/claim_bonus_usecase/prom_claim_bonus"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/grant_sign_in_refill_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/listen_for_events_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/pay_caught_box_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/pay_caught_box_usecase/prom_pay_caught_box"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/pay_right_answer_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/claim_bonus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_grant_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rule_set_handler/rule_set_query"
@@ -29,14 +25,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rule_set_names_handler/rule_set_names_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_rules_handler/rule_sets_query"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/play_rule_set_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/rpc_planet_freeze"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/save_rule_set_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/click_tried_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/box_claimed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/quiz_answered_subscriber"
@@ -47,11 +40,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-const (
-	moduleName = "bonuses"
-
-	factsRelayInterval = 100 * time.Millisecond
-)
+const moduleName = "bonuses"
 
 func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
@@ -98,28 +87,18 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		props.Logger, cprules.PlayLog{Taken: "offer rules in force", Failed: "failed to play the rules"})
 	if _, _, err := playRules.Execute(ctx); err != nil {
 		closeStores()
-		return fmt.Errorf("failed to play the offers' rules postgres keeps: %w", err)
+		return fmt.Errorf("failed to play the bonuses' rules postgres keeps: %w", err)
 	}
-	offerRules := cprules.Reader(inForce, bonuses.Part)
+	winRules := cprules.Reader(inForce, bonuses.Part)
 
-	// An offer's payment is named by its token, which planet knows in memory as the offer is; the refill's, for good.
-	offersWallet := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForAWhile)
+	// A box's or a right answer's payment is named by its token, which planet knows in memory; the refill's, for good.
+	winsWallet := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForAWhile)
 	signInWallet := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForGood)
 
-	registry := bonuses.New(config.Offers, clock, offersWallet, offerRules)
-	told := facts.NewLog(clock)
-	claim := take(registry, offersWallet, streams, told, clock, props)
-
-	clicks, err := cpredis.Subscribe(ctx, streams, "bonuses-clicks",
-		log_subscriber.New(click_tried_subscriber.New(registry), props.Logger))
-	if err != nil {
-		closeStores()
-		return fmt.Errorf("failed to subscribe the offers to planet.v1.ClickTried: %w", err)
-	}
 	// Planet's group name, kept: the group goes on where planet's subscriber left the stream.
 	newPlayers, err := cpredis.Subscribe(ctx, streams, "planet-charges-players",
 		log_subscriber.New(player_created_subscriber.New(
-			grant_sign_in_refill_usecase.New(signInWallet, offerRules)), props.Logger))
+			grant_sign_in_refill_usecase.New(signInWallet, winRules)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the sign-in refill to player.v1.PlayerCreated: %w", err)
@@ -127,36 +106,30 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Only the quizzes' own stream: an answer the bonuses module told was paid as it was answered.
 	rightAnswers, err := cpredis.Subscribe(ctx, streams, "bonuses-right-answers",
 		log_subscriber.New(quiz_answered_subscriber.New(
-			pay_right_answer_usecase.New(offersWallet, offersWallet, offerRules)), props.Logger))
+			pay_right_answer_usecase.New(winsWallet, winsWallet, winRules)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the rewards to quizzes.v1.QuizAnswered: %w", err)
 	}
+	// Only the boxes' own stream: a box the bonuses module offered was paid as it was caught.
+	boxesCaught, err := cpredis.Subscribe(ctx, streams, "bonuses-boxes",
+		log_subscriber.New(box_claimed_subscriber.New(prom_pay_caught_box.New(
+			pay_caught_box_usecase.New(winsWallet, winsWallet, winRules), props.Metrics)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the rewards to boxes.v1.BoxClaimed: %w", err)
+	}
 
-	props.Runners.Add(registry)
-	// Not closers: the subscribers and the relay's last send outlive the server.
+	// Not closers: the subscribers outlive the server.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		clicks, newPlayers, rightAnswers, facts.NewRelay(told, streams, factsRelayInterval))))
+		newPlayers, rightAnswers, boxesCaught)))
 
-	freeze := rpc_planet_freeze.New(planet)
 	service := bonusesv1controller.BonusService{
-		ClaimBonusHandler: claim_bonus_handler.New(claim),
-		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_events_usecase.New(registry, inForce, props.Server.StreamHeartbeat)),
-		GetGrantRulesHandler: get_grant_rules_handler.New(offerRules),
+		GetGrantRulesHandler: get_grant_rules_handler.New(winRules),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 		return bonusesv1connect.NewBonusServiceHandler(service, options...)
-	},
-		bonusesv1controller.NewFreezeInterceptor(func(ctx context.Context) (bool, error) {
-			if offerRules().Frozen {
-				return true, nil
-			}
-			return freeze.Frozen(ctx)
-		}),
-		bonusesv1controller.NewSessionInterceptor(props.Sessions, clock, props.Metrics),
-		bonusesv1controller.NewStreamSessionReader(props.Sessions, clock),
-	); err != nil {
+	}); err != nil {
 		return fmt.Errorf("failed to mount bonuses.v1.BonusService: %w", err)
 	}
 
@@ -184,32 +157,4 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 
 	return nil
-}
-
-// take builds the claim, counts the offers, and tells the antibot each box caught, lapsed or claimed by another scope:
-// every metric keeps the name it had in planet.
-func take(
-	registry *bonuses.Registry, wallet rpc_planet_wallet.Wallet, streams *cpredis.Streams, told *facts.Log,
-	clock cptime.Clock, props cpbootstrap.Props,
-) *prom_claim_bonus.Decorator {
-	claim, counters := prom_claim_bonus.New(claim_bonus_usecase.New(registry, wallet, streams, clock), props.Metrics)
-
-	boxes := box_facts.New(told)
-	registry.Observe(bonuses.Report{
-		Offered: counters.Offered.Inc,
-		Lapsed: func(scope string) {
-			counters.Lapsed.Inc()
-			boxes.Lapsed(scope)
-		},
-		Caught: func(scope string, after time.Duration) {
-			counters.Caught.Observe(after.Seconds())
-			boxes.Caught(scope, after)
-		},
-		Foreign: func(scope string) {
-			counters.Foreign.Inc()
-			boxes.Foreign(scope)
-		},
-	})
-
-	return claim
 }

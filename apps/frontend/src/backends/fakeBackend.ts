@@ -8,7 +8,8 @@ import {
     BonusHandlers,
     BonusListener,
     BonusLostError,
-    BonusOffer,
+    BoxCatcher,
+    BoxOffer,
     ChargesRefresher,
     ClaimedBonus,
     Counts,
@@ -123,7 +124,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
@@ -140,6 +141,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private updateBatchCallbacks: Map<string, (update: Update[]) => void> = new Map()
     private budgetCallbacks: Map<string, (budget: ClickBudget) => void> = new Map()
     private bonusCallbacks: Map<string, BonusHandlers> = new Map()
+    private boxCallbacks: Map<string, (offer: BoxOffer) => void> = new Map()
     private bombCallbacks: Map<string, (drop: BombDrop) => void> = new Map()
     private quizCallbacks: Map<string, (offer: QuizOffer) => void> = new Map()
     private rewardCallbacks: Map<string, (reward: BonusReward) => void> = new Map()
@@ -153,7 +155,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private positions: Promise<Float32Array> | undefined
     private readonly tilePositions: (() => Promise<Float32Array>) | undefined
 
-    private offered: BonusOffer | undefined
+    private offered: BoxOffer | undefined
 
     private quiz: {token: string, expiresAt: number, asked: typeof FAKE_QUIZZES[number], deadline?: number} | undefined
 
@@ -658,7 +660,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return () => this.bonusCallbacks.delete(identifier)
     }
 
-    public async claimBonus(token: string, countryId: string): Promise<ClaimedBonus> {
+    public listenForBoxes(onOffered: (offer: BoxOffer) => void): () => void {
+        const identifier = UUIDv4()
+        this.boxCallbacks.set(identifier, onOffered)
+
+        return () => this.boxCallbacks.delete(identifier)
+    }
+
+    // As the bonuses module draws what a box held a moment after its catch, and planet's stream says what it added.
+    public async claimBox(token: string): Promise<BonusReward | undefined> {
         const offer = this.offered
 
         if (!offer || offer.token !== token || budgetNow() > offer.expiresAt) {
@@ -666,11 +676,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
 
         this.offered = undefined
-        const claimed = this.grant(offer.reward.kind)
+        await new Promise((resolve) => setTimeout(resolve, FAKE_REWARD_DELAY_MS))
 
-        this.bonusCallbacks.forEach(handlers => handlers.onTaken({countryId}))
+        const kinds = this.offerable().filter((kind) => !this.full(kind))
+        if (kinds.length === 0) return undefined
 
-        return claimed
+        return this.grant(kinds[Math.floor(Math.random() * kinds.length)]).reward
     }
 
     public listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void {
@@ -723,19 +734,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     // A box flies at once, unless every stack is full.
-    public offerBox(): BonusOffer | undefined {
-        const kinds = this.offerable().filter((kind) => !this.full(kind))
-        if (kinds.length === 0) return undefined
+    public offerBox(): BoxOffer | undefined {
+        if (this.offerable().every((kind) => this.full(kind))) return undefined
 
-        const offer: BonusOffer = {
+        const offer: BoxOffer = {
             token: UUIDv4(),
             seed: Math.floor(Math.random() * 0xffffffff),
-            reward: rewardOfKind(kinds[Math.floor(Math.random() * kinds.length)]),
             expiresAt: budgetNow() + BONUS_OFFER_TTL_MS,
         }
 
         this.offered = offer
-        this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
+        this.boxCallbacks.forEach(callback => callback(offer))
         return offer
     }
 

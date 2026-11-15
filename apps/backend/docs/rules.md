@@ -81,10 +81,11 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `charges.shield.held`, `.perTile` — the stack and a tile's most (30, 10; a tile keeps them in a byte, so 255 at
   most). See [Shields](shields.md)
 - **The offers' rules are not here since 2026-11-11**: a box's wait, its kinds and its flight, what a box or a right
-  answer grants, the welcome and the sign-in refill are the bonuses module's own sets (see
-  [Its rule sets](bonuses.md#its-rule-sets)), and the quizzes the quizzes module's since 2026-11-13 (see
-  [Its rule sets](quizzes-module.md#its-rule-sets)). Until then they were `bonuses.*` here, and promo's cards still name them
-  so (`{bonuses.boxes.minInterval}`, see [Promo](promo.md))
+  answer grants and the sign-in refill are the bonuses module's own sets (see
+  [Its rule sets](bonuses.md#its-rule-sets)), the quizzes the quizzes module's since 2026-11-13 (see
+  [Its rule sets](quizzes-module.md#its-rule-sets)), and the boxes and the welcome box the boxes module's since
+  2026-11-15 (see [Its rule sets](boxes-module.md#its-rule-sets)). Until 2026-11-11 they were `bonuses.*` here, and
+  promo's cards still name the bonuses' so (`{bonuses.shield.maxPerBox}`, see [Promo](promo.md))
 - `frozen` — the map takes no play (off). See [A frozen map](#a-frozen-map)
 - `allegianceLocked` — no account changes its flag; a first flag is still taken (off; on in a battle's set). See
   [Allegiance](allegiance.md)
@@ -111,10 +112,10 @@ operator call freezes the map at once.
 
 - **The client learns it from planet, the module that refuses**: `GetBudget` answers `ClickBudget.frozen` (only
   GetBudget sets it), and a set taking over sends `rules_changed`, so an open tab reads it again within a second.
-- **The offers and the quizzes refuse their own calls** (ClaimBonus; OpenQuiz, AnswerQuiz) with their `FrozenRefusal`
+- **The boxes and the quizzes refuse their own calls** (ClaimBox; OpenQuiz, AnswerQuiz) with their `FrozenRefusal`
   while their set is frozen, or while planet's `GetFreeze` answers frozen, one loopback call each: see
-  [The freeze](bonuses.md#the-freeze) and [the quizzes'](quizzes-module.md#the-freeze). Their set of the same name holds `frozen` too (copied from planet's on
-  2026-11-11), and a frozen offers' set offers nothing. A box or a quiz offered while planet alone is frozen is refused
+  [The freeze](boxes-module.md#the-freeze) and [the quizzes'](quizzes-module.md#the-freeze). Their set of the same name holds `frozen` too (copied from planet's on
+  2026-11-11), and a frozen boxes' set offers nothing. A box or a quiz offered while planet alone is frozen is refused
   when taken, and lapses. Until 2026-11-11 a frozen planet still offered boxes on their timer and refused the claims.
 - **The antibot and the offers need a set of the same name** for the entry to be scheduled (an empty one does: each
   plays default's).

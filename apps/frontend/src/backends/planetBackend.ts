@@ -10,7 +10,6 @@ import {
     BombRefusedError,
     BonusLostError,
     ChargesRefresher,
-    ClaimedBonus,
     Counts,
     Enclosure,
     Fortification,
@@ -59,7 +58,6 @@ import {
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {BonusService} from "../gen/grpc/bonuses/v1/bonuses_connect.ts";
-import {catchOf, grantRulesChanged, offerOf} from "./bonusesBackend.ts";
 import {rewardOf} from "./bonusKind.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
@@ -95,10 +93,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
-    private stopOffers: () => void
 
     private streamToken: string | undefined
-    private offersToken: string | undefined
 
     // The version of the last thing the stream told its listeners, and whether the next message opens a connection.
     private streamVersion: MapVersion | undefined
@@ -112,7 +108,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private rules: BonusRules | undefined
 
-    // The offers' rule, read apart from planet's and told inside BonusRules.
+    // The bonuses module's rule, read apart from planet's and told inside BonusRules.
     private signInRefill = false
 
     private charges: Charges = NO_CHARGES
@@ -121,19 +117,18 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private flagged: {token: string, ready: Promise<void>} | undefined
 
-    // With no offers client, as in a test of the map alone, no box is offered and none is claimed.
+    // With no bonuses client, as in a test of the map alone, a sign-in earns no refill the page says.
     constructor(
         private client: PromiseClient<typeof ClickService>,
         batchUpdateDurationMs: number,
         private session: SessionProvider = new NoSession(),
-        private offers?: PromiseClient<typeof BonusService>,
+        private bonuses?: PromiseClient<typeof BonusService>,
     ) {
         void this.readBudget()
         void this.readRules()
         void this.readGrantRules()
 
         this.stopListening = this.openEventStream()
-        this.stopOffers = this.openOffersStream()
         void this.followIdentity()
 
         this.listenForUpdates((update) => {
@@ -153,7 +148,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     public close() {
         clearInterval(this.flushTimer)
         this.stopListening()
-        this.stopOffers()
         this.updateBatchCallbacks.clear()
         this.updateCallbacks.clear()
         this.bonusCallbacks.clear()
@@ -437,42 +431,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         )
     }
 
-    // Opened as the planet's is, and beside it: the boxes go only to a caller with it open.
-    private openOffersStream(): () => void {
-        const offers = this.offers
-        if (!offers) return () => {}
-
-        return openStream(
-            (signal) => {
-                const token = this.session.heldIdentity()
-                this.offersToken = token
-
-                const headers = new Headers()
-                if (token) headers.set(SESSION_HEADER, token)
-
-                return offers.listenForEvents({}, {signal, headers, timeoutMs: NO_TIMEOUT})
-            },
-            (event) => {
-                const offer = offerOf(event)
-                if (offer) {
-                    this.bonusCallbacks.forEach(handlers => handlers.onOffered(offer))
-                    return
-                }
-
-                const taken = catchOf(event)
-                if (taken) {
-                    this.bonusCallbacks.forEach(handlers => handlers.onTaken(taken))
-                    return
-                }
-
-                if (grantRulesChanged(event)) void this.readGrantRules()
-            },
-            "bonus events",
-            // A gap in the stream may have hidden a rulesChanged.
-            {onResumed: () => void this.readGrantRules()},
-        )
-    }
-
     private readRulesInForce(): void {
         void this.readBudget()
         void this.readRules()
@@ -494,12 +452,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             this.followSession(token)
             return
         }
-        this.followOffers(token)
         await Promise.all([this.readCharges(token), this.readAllegiance(token)])
     }
 
     private followSession(token: string | undefined): void {
-        this.followOffers(token)
         if (token) this.sessionCallbacks.forEach(callback => callback(token))
         if (!token || token === this.streamToken) return
 
@@ -509,16 +465,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
         void this.readCharges(token)
         void this.readAllegiance(token)
-    }
-
-    // The offers stream reads the token only when it opens, as the planet's does, and each keeps its own: either can
-    // reconnect alone.
-    private followOffers(token: string | undefined): void {
-        if (!token || token === this.offersToken) return
-
-        this.offersToken = token
-        this.stopOffers()
-        this.stopOffers = this.openOffersStream()
     }
 
     private async readRules(): Promise<void> {
@@ -548,13 +494,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    // Told with planet's rules: until those are read, there are no rules to tell.
+    // Told with planet's rules: until those are read, there are no rules to tell. Read once a load: only default sets
+    // it, and a restart reloads the page.
     private async readGrantRules(): Promise<void> {
-        const offers = this.offers
-        if (!offers) return
+        const bonuses = this.bonuses
+        if (!bonuses) return
 
         try {
-            const res = await retrying(() => offers.getGrantRules({}), "getGrantRules")
+            const res = await retrying(() => bonuses.getGrantRules({}), "getGrantRules")
             this.signInRefill = res.signInRefill
             if (this.rules && this.rules.signInRefill !== res.signInRefill) {
                 this.holdRules({...this.rules, signInRefill: res.signInRefill})
@@ -728,46 +675,6 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         handlers.onCharges(this.charges)
 
         return () => this.bonusCallbacks.delete(id)
-    }
-
-    public async claimBonus(token: string, countryId: string): Promise<ClaimedBonus> {
-        try {
-            return await this.claim(token, countryId)
-        } catch (e) {
-            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asBonusError(e)
-
-            this.session.invalidate()
-
-            try {
-                return await this.claim(token, countryId)
-            } catch (retried) {
-                throw asBonusError(retried)
-            }
-        }
-    }
-
-    private async claim(token: string, countryId: string): Promise<ClaimedBonus> {
-        const sessionToken = await this.session.token()
-
-        const headers = new Headers()
-        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
-
-        // No `retrying`: the first request that lands spends the token.
-        const res = await this.offersClient().claimBonus({token, countryId}, {headers})
-        this.followSession(sessionToken)
-
-        const reward = rewardOf(res.kind, this.rules, res.amount)
-        if (!reward) throw new BonusLostError()
-
-        const charges = chargesOfMessage(res.charges)
-        this.holdCharges(charges)
-
-        return {reward, charges}
-    }
-
-    private offersClient(): PromiseClient<typeof BonusService> {
-        if (!this.offers) throw new BonusLostError()
-        return this.offers
     }
 
     public listenForGrants(onGranted: (rewards: BonusReward[]) => void): () => void {

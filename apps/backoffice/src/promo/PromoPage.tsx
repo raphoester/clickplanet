@@ -1,6 +1,6 @@
 import {useCallback} from "react"
 import {putFile} from "../api.ts"
-import {BonusesAdmin, PlanetAdmin, PromoAdmin, QuizzesAdmin} from "../clients.ts"
+import {BonusesAdmin, BoxesAdmin, PlanetAdmin, PromoAdmin, QuizzesAdmin} from "../clients.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {useCall} from "../useCall.ts"
 import {Put} from "./actions.ts"
@@ -8,8 +8,8 @@ import {BackgroundsPanel} from "./BackgroundsPanel.tsx"
 import {CardsPanel} from "./CardsPanel.tsx"
 
 // The battle teasers: the background library, then each rule set's cards over it, as players will read them.
-export function PromoPage({promo, planet, bonuses, quizzes, put = putFile}: {
-    promo: PromoAdmin, planet: PlanetAdmin, bonuses: BonusesAdmin, quizzes: QuizzesAdmin, put?: Put,
+export function PromoPage({promo, planet, bonuses, boxes, quizzes, put = putFile}: {
+    promo: PromoAdmin, planet: PlanetAdmin, bonuses: BonusesAdmin, boxes: BoxesAdmin, quizzes: QuizzesAdmin, put?: Put,
 }) {
     const listBackgrounds = useCallback(
         async (signal: AbortSignal) => (await promo.listBackgrounds({}, {signal})).backgrounds,
@@ -17,15 +17,16 @@ export function PromoPage({promo, planet, bonuses, quizzes, put = putFile}: {
     )
     const [library, againLibrary] = useCall(listBackgrounds)
 
-    // The cards as the server keeps and fills them, and planet's sets, the offers' and the quizzes', so a card being
-    // written fills as it is typed: `{bonuses.…}` from the offers', `{quizzes.…}` from the quizzes', the rest from planet's.
+    // The cards as the server keeps and fills them, and planet's sets, the bonuses', the boxes' and the quizzes', so a
+    // card being written fills as it is typed: `{bonuses.…}` from the bonuses', `{boxes.…}` from the boxes',
+    // `{quizzes.…}` from the quizzes', the rest from planet's.
     const readCards = useCallback(async (signal: AbortSignal) => {
-        const [cards, rules, offers, asked] = await Promise.all([
+        const [cards, rules, granted, offered, asked] = await Promise.all([
             promo.getCards({}, {signal}), planet.getRules({}, {signal}), bonuses.getRules({}, {signal}),
-            quizzes.getRules({}, {signal}),
+            boxes.getRules({}, {signal}), quizzes.getRules({}, {signal}),
         ])
-        return {cards, rules, prefixed: {bonuses: offers, quizzes: asked}}
-    }, [promo, planet, bonuses, quizzes])
+        return {cards, rules, prefixed: {bonuses: granted, boxes: offered, quizzes: asked}}
+    }, [promo, planet, bonuses, boxes, quizzes])
     const [cards, againCards] = useCall(readCards)
 
     return (

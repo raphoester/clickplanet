@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/known/durationpb"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	quizzesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/quizzes/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/placeholders"
@@ -21,13 +22,12 @@ var played = placeholders.Played{
 		Charges: &planetv1.ChargeRules{Shield: &planetv1.ShieldRules{Held: proto.Uint32(75)}},
 		Frozen:  proto.Bool(false),
 	},
-	Offers: &bonusesv1.Rules{
-		Boxes: &bonusesv1.BoxPace{
-			MinInterval: durationpb.New(time.Minute), MaxInterval: durationpb.New(90 * time.Second),
-			MaxChargesPerHour: proto.Uint32(30),
-		},
-		Welcome:  &bonusesv1.WelcomeRules{Within: durationpb.New(2 * time.Hour)},
-		OfferTtl: durationpb.New(0),
+	Offers: &bonusesv1.Rules{Shield: &bonusesv1.ShieldRules{MaxPerBox: proto.Uint32(20)}},
+	Boxes: &boxesv1.Rules{
+		MinInterval: durationpb.New(time.Minute), MaxInterval: durationpb.New(90 * time.Second),
+		MaxBoxesPerHour: proto.Uint32(30),
+		Welcome:         &boxesv1.WelcomeRules{Within: durationpb.New(2 * time.Hour)},
+		OfferTtl:        durationpb.New(0),
 	},
 	Quizzes: &quizzesv1.Rules{OfferTtl: durationpb.New(1500 * time.Millisecond), Enabled: proto.Bool(true)},
 }
@@ -38,14 +38,14 @@ func TestRulePathsAreTheNumbersAndDurationsOfTheRules(t *testing.T) {
 	paths := placeholders.RulePaths()
 
 	for _, path := range []string{
-		"clicks.tempo", "clicks.burst", "bonuses.boxes.minInterval", "charges.bomb.rings",
-		"charges.shield.perTile", "quizzes.leaderBias", "bonuses.offerTtl", "bonuses.shield.maxPerBox",
-		"quizzes.answerWindow", "quizzes.welcome.within",
+		"clicks.tempo", "clicks.burst", "boxes.minInterval", "charges.bomb.rings",
+		"charges.shield.perTile", "quizzes.leaderBias", "boxes.offerTtl", "bonuses.shield.maxPerBox",
+		"quizzes.answerWindow", "quizzes.welcome.within", "boxes.maxBoxesPerHour", "boxes.welcome.boxAfter",
 	} {
 		assert.Contains(t, paths, path)
 	}
 	for _, path := range []string{
-		"frozen", "allegianceLocked", "quizzes.enabled", "bonuses.frozen", "toll.steps", "clicks", "bonuses.boxes",
+		"frozen", "allegianceLocked", "quizzes.enabled", "boxes.frozen", "toll.steps", "clicks", "boxes.welcome",
 	} {
 		assert.NotContains(t, paths, path, "a boolean, a list or a message reads as no word")
 	}
@@ -54,6 +54,9 @@ func TestRulePathsAreTheNumbersAndDurationsOfTheRules(t *testing.T) {
 	}
 	for _, path := range []string{"bonuses.quiz.leaderBias", "bonuses.quiz.answerWindow"} {
 		assert.NotContains(t, paths, path, "the quizzes' values are quizzes.* since they left bonuses")
+	}
+	for _, path := range []string{"bonuses.boxes.minInterval", "bonuses.offerTtl", "bonuses.welcome.within"} {
+		assert.NotContains(t, paths, path, "the boxes' values are boxes.* since they left bonuses")
 	}
 }
 
@@ -67,16 +70,17 @@ func TestBattlePathsAreItsTimesAndThePointsOfItsFirstThreePlaces(t *testing.T) {
 
 func TestFillWritesTheValuesTheSetPlays(t *testing.T) {
 	for words, want := range map[string]string{
-		"Clicks refill {clicks.tempo}× faster":                                   "Clicks refill 3× faster",
-		"A click every {clicks.perSecond} s":                                     "A click every 0.2 s",
-		"A bank of {clicks.burst}":                                               "A bank of 60",
-		"A box every {bonuses.boxes.minInterval} to {bonuses.boxes.maxInterval}": "A box every 1 min to 90 s",
-		"Open it within {quizzes.offerTtl}":                                      "Open it within 1500 ms",
-		"Newcomers for {bonuses.welcome.within}":                                 "Newcomers for 2 h",
-		"Gone in {bonuses.offerTtl}":                                             "Gone in 0 s",
-		"{charges.shield.held} shields at most":                                  "75 shields at most",
-		"No placeholder at all":                                                  "No placeholder at all",
-		"":                                                                       "",
+		"Clicks refill {clicks.tempo}× faster":                   "Clicks refill 3× faster",
+		"A click every {clicks.perSecond} s":                     "A click every 0.2 s",
+		"A bank of {clicks.burst}":                               "A bank of 60",
+		"A box every {boxes.minInterval} to {boxes.maxInterval}": "A box every 1 min to 90 s",
+		"Open it within {quizzes.offerTtl}":                      "Open it within 1500 ms",
+		"Newcomers for {boxes.welcome.within}":                   "Newcomers for 2 h",
+		"Gone in {boxes.offerTtl}":                               "Gone in 0 s",
+		"{charges.shield.held} shields at most":                  "75 shields at most",
+		"Up to {bonuses.shield.maxPerBox} shields a box":         "Up to 20 shields a box",
+		"No placeholder at all":                                  "No placeholder at all",
+		"":                                                       "",
 	} {
 		filled, err := placeholders.Fill(words, played, triple)
 		require.NoError(t, err, words)
@@ -105,25 +109,29 @@ func TestAValueTheSetDoesNotPlayFillsNothing(t *testing.T) {
 	require.ErrorIs(t, err, placeholders.ErrNoValue)
 }
 
-// Production's urf card of 2026-11-11, over the urf set the offers' first migration copies: the offers' values kept
-// the paths they had in planet's rules.
-func TestTheOffersValuesAreNamedWhereTheyWereInPlanetsRules(t *testing.T) {
-	urf := placeholders.Played{Planet: played.Planet, Offers: &bonusesv1.Rules{Boxes: &bonusesv1.BoxPace{
+// Production's urf card of 2026-11-11, as promo's migration of 2026-11-15 renames it, over the urf set the boxes' first
+// migration copies.
+func TestTheBoxesValuesAreNamedUnderBoxes(t *testing.T) {
+	urf := placeholders.Played{Planet: played.Planet, Boxes: &boxesv1.Rules{
 		MinInterval: durationpb.New(30 * time.Second), MaxInterval: durationpb.New(60 * time.Second),
-	}}}
+	}}
 
-	filled, err := placeholders.Fill(
-		"A bonus box drops every {bonuses.boxes.minInterval} to {bonuses.boxes.maxInterval}.", urf, triple)
+	filled, err := placeholders.Fill("A bonus box drops every {boxes.minInterval} to {boxes.maxInterval}.", urf, triple)
 
 	require.NoError(t, err)
 	assert.Equal(t, "A bonus box drops every 30 s to 1 min.", filled)
 }
 
-func TestASetTheOffersOrTheQuizzesDoNotKeepPlaysNoneOfTheirValues(t *testing.T) {
-	_, err := placeholders.Fill("A box every {bonuses.boxes.minInterval}", placeholders.Played{Planet: played.Planet}, triple)
+func TestASetTheOffersTheBoxesOrTheQuizzesDoNotKeepPlaysNoneOfTheirValues(t *testing.T) {
+	_, err := placeholders.Fill("A box every {boxes.minInterval}", placeholders.Played{Planet: played.Planet}, triple)
 
 	require.ErrorIs(t, err, placeholders.ErrNoValue)
-	assert.Contains(t, err.Error(), "{bonuses.boxes.minInterval}")
+	assert.Contains(t, err.Error(), "{boxes.minInterval}")
+
+	_, err = placeholders.Fill("Up to {bonuses.shield.maxPerBox}", placeholders.Played{Planet: played.Planet}, triple)
+
+	require.ErrorIs(t, err, placeholders.ErrNoValue)
+	assert.Contains(t, err.Error(), "{bonuses.shield.maxPerBox}")
 
 	_, err = placeholders.Fill("A quiz every {quizzes.minInterval}", placeholders.Played{Planet: played.Planet}, triple)
 
@@ -149,6 +157,8 @@ func TestCheckRefusesWhatNamesNoValue(t *testing.T) {
 		"{bonuses.boxes}",
 		"{bonuses.bomb.rings}",
 		"{bonuses.quiz.answerWindow}",
+		"{bonuses.boxes.minInterval}",
+		"{boxes.frozen}",
 		"{}",
 		"an { alone",
 		"a } alone",
@@ -162,6 +172,6 @@ func TestCheckRefusesWhatNamesNoValue(t *testing.T) {
 		_, err := placeholders.Fill(words, played, triple)
 		require.ErrorIs(t, err, placeholders.ErrInvalidPlaceholder, words)
 	}
-	require.NoError(t, placeholders.Check("{clicks.tempo}× faster, {bonuses.boxes.minInterval} a box"))
+	require.NoError(t, placeholders.Check("{clicks.tempo}× faster, {boxes.minInterval} a box"))
 	require.NoError(t, placeholders.Check("1st place wins {battle.points.first} points"))
 }

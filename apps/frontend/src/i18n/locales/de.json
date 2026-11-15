@@ -606,6 +606,7 @@
   "bonus.shield": "Schild",
   "bonus.spread.switchOn": "Schalte Streuung ein: Jeder Klick erobert auch die Felder drumherum",
   "bonus.gotIt": "Alles klar",
+  "bonus.inventoryFull": "Dein Inventar ist schon voll",
   "reward.refill.detail": "Füllt deine Klicks auf, wann du willst",
   "reward.spreadClicks": "{clicks, plural, one {+# Streuklick} other {+# Streuklicks}}",
   "reward.bomb.detail": "Setzt die Felder in einem Bereich zurück. Wähl sie im Inventar und ziele",

@@ -2,7 +2,6 @@ package rules_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -15,13 +14,13 @@ import (
 
 func TestAReaderReadsItsPartOfTheSetEnforcedLast(t *testing.T) {
 	inForce := cprules.NewInForce[*bonusesv1.Rules](cptime.SystemClock{})
-	offers := cprules.Reader(inForce, bonuses.Part)
+	read := cprules.Reader(inForce, bonuses.Part)
 
 	for _, kept := range []cprules.Snapshot[*bonusesv1.Rules]{rules.Seeded(), rush()} {
 		inForce.Enforce(restored(t, kept))
 	}
 
 	assert.Equal(t, cprules.SetName("rush"), inForce.Name())
-	assert.Equal(t, 30, offers().Boxes.MaxChargesPerHour)
-	assert.Equal(t, time.Minute, offers().Boxes.MinInterval)
+	assert.Equal(t, 30, read().Shield.MaxPerBox)
+	assert.Equal(t, 10, read().Shield.MinPerBox)
 }

@@ -17,6 +17,9 @@ is planet's.** The wallet, the charges a player holds and spends, stays in plane
 - **Then the quizzes left `bonuses`** (2026-11-13) for a module of their own, the same way: a seam, then a move
   ([The quizzes](quizzes-module.md)). A right answer stopped paying at once: the offers pay it from `QuizAnswered`, and
   `GetChargesOf`, which answered the hand a wrong answer leaves, went. The sections below name the quiz as B left it.
+- **Then the boxes left `bonuses`** (2026-11-15) for a module of their own ([The boxes](boxes-module.md)): the schedule,
+  the offer, the claim and the box facts. What a box holds is drawn at the catch, by the bonuses module, which pays it
+  from `boxes.v1.BoxClaimed`; the claim answers no hand. The sections below name the box as B left it.
 
 ## The two sides
 
@@ -94,7 +97,12 @@ newcomer's welcome is not lost to the race (`TestAnAccountThatFirstClicksWhileTh
 The outcomes are those of before: the same kinds left out, and an error still loses the slot, as an away player's
 (`TestARoomTheWalletCannotTellLosesTheSlot`). The wallet applies its own sizes (`Held.Full(charges.Rules)`); the offers
 never see one. Since B, `Held.Full` also counts a bomb while `charges.bomb.off`, so the offers need no `bomb.off`.
-`TestTheRoomIsAskedWithTheRegistryUnlocked` pins the lock.
+`TestTheRoomIsAskedWithTheRegistryUnlocked` pinned the lock.
+
+**Since 2026-11-15 no offer asks the room.** The quizzes stopped on 2026-11-13 and the boxes on 2026-11-15, as each left
+`bonuses` knowing no kind: a quiz is asked and a box offered whatever the hand holds, and the sweep is one pass under
+the lock again. The bonuses module asks `GetRoom` once per win, when it draws what it pays
+([The bonuses](bonuses.md#what-it-asks-of-planet-in-planets-words)); the tests named here went with the boxes' room.
 
 ### Pay
 

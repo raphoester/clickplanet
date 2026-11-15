@@ -9,7 +9,7 @@ import (
 
 var ErrInvalidAccount = errors.New("not an account id")
 
-// Account is the account a click token names: whom an offer pays. A caller with none is NoAccount, and is paid nothing.
+// Account is the account a win pays.
 type Account string
 
 const NoAccount Account = ""
@@ -21,12 +21,4 @@ func ParseAccount(account string) (Account, error) {
 	}
 
 	return Account(id.String()), nil
-}
-
-// Caller is who a request comes from, as its click token and its address say. The offers read no request: the edge
-// that serves one hands its caller over.
-type Caller struct {
-	Scope   string
-	Account Account
-	Linked  bool
 }

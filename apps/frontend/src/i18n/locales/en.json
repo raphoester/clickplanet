@@ -606,6 +606,7 @@
   "bonus.shield": "Shield",
   "bonus.spread.switchOn": "Switch spread on: each click also takes the tiles around it",
   "bonus.gotIt": "Got it",
+  "bonus.inventoryFull": "Your inventory is already full",
   "reward.refill.detail": "Fills your clicks to full, when you choose",
   "reward.spreadClicks": "{clicks, plural, one {+# spread click} other {+# spread clicks}}",
   "reward.bomb.detail": "Resets the tiles in an area. Aim it from your inventory",

@@ -8,9 +8,11 @@ the whole `proto` directory, so a new package needs no config change; run
 
 - [`planet/v1/planet.proto`](../../../proto/planet/v1/planet.proto) — `ClickRequest`,
   `ClickBudget`, `GetMapResponse`, `TileUpdate`
-- [`bonuses/v1/bonuses.proto`](../../../proto/bonuses/v1/bonuses.proto) — the
-  boxes offered (`BonusService`: `ClaimBonus`, its `ListenForEvents` and `GetGrantRules`); what they grant is
-  `planet.v1`'s `BonusKind` and `ChargesHeld`
+- [`bonuses/v1/bonuses.proto`](../../../proto/bonuses/v1/bonuses.proto) — what a box or a right answer grants
+  (`BonusService`: `GetGrantRules`, whether a first sign-in earns a refill); the charges are `planet.v1`'s `BonusKind`
+  and `ChargesHeld`
+- [`boxes/v1/boxes.proto`](../../../proto/boxes/v1/boxes.proto) — the boxes offered (`BoxService`: `ClaimBox`, which
+  pays nothing, and `ListenForEvents`); a box's reward is planet's grant
 - [`quizzes/v1/quizzes.proto`](../../../proto/quizzes/v1/quizzes.proto) — the quizzes asked (`QuizService`:
   `OpenQuiz`, `AnswerQuiz`, which pays nothing, and `ListenForEvents`); a right answer's reward is planet's
   `ChargesGranted.gained`

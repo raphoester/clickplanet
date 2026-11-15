@@ -606,6 +606,7 @@
   "bonus.shield": "Perisai",
   "bonus.spread.switchOn": "Nyalakan sebaran: tiap klik juga merebut petak di sekitarnya",
   "bonus.gotIt": "Oke, paham",
+  "bonus.inventoryFull": "Inventarismu udah penuh",
   "reward.refill.detail": "Isi penuh klikmu, kapan pun kamu mau",
   "reward.spreadClicks": "+{clicks} klik sebaran",
   "reward.bomb.detail": "Mereset petak di satu area. Bidik dari inventarismu",

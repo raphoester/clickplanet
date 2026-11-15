@@ -48,6 +48,8 @@ import {
 import {Rules as AntibotRules} from "../gen/grpc/antibot/v1/rules_pb.ts"
 import {GetRulesResponse as BonusesGetRulesResponse, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {Rules as BonusesRules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
+import {GetRulesResponse as BoxesGetRulesResponse, RuleSet as BoxesRuleSet} from "../gen/grpc/boxes/v1/admin_pb.ts"
+import {Rules as BoxesRules} from "../gen/grpc/boxes/v1/rules_pb.ts"
 import {GetRulesResponse as QuizzesGetRulesResponse, RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {Rules as QuizzesRules} from "../gen/grpc/quizzes/v1/rules_pb.ts"
 import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
@@ -291,6 +293,7 @@ export class DemoAdmin extends FakeAdmin {
         const [planetDefault] = this.rules.sets
         const [antibotDefault] = this.antibotRules.sets
         const [bonusesDefault] = this.bonusRules.sets
+        const [boxesDefault] = this.boxRules.sets
         const [quizzesDefault] = this.quizRules.sets
         this.rules = new GetRulesResponse({playing: "calm", sets: [
             planetDefault,
@@ -307,7 +310,7 @@ export class DemoAdmin extends FakeAdmin {
             }),
             new CardDraft({backgroundId: "demo-rally", headline: "Bring your friends", line: "Your flag needs every click."}),
             new CardDraft({
-                backgroundId: "demo-war", headline: "A box every {bonuses.boxes.minInterval}",
+                backgroundId: "demo-war", headline: "A box every {boxes.minInterval}",
                 line: "Bombs blast {charges.bomb.rings} rings wide.",
             }),
         ])
@@ -316,13 +319,19 @@ export class DemoAdmin extends FakeAdmin {
             ...["calm", "frozen"].map(name => new AntibotRuleSet({name})),
             new AntibotRuleSet({name: "rush", rules: AntibotRules.fromJson({cohort: {certainMembers: 50}})}),
         ]})
+        this.boxRules = new BoxesGetRulesResponse({playing: "calm", sets: [
+            boxesDefault,
+            new BoxesRuleSet({name: "calm", rules: BoxesRules.fromJson({maxBoxesPerHour: 6})}),
+            new BoxesRuleSet({name: "frozen", rules: BoxesRules.fromJson({frozen: true})}),
+            new BoxesRuleSet({name: "rush", rules: BoxesRules.fromJson({
+                minInterval: "60s", maxInterval: "60s", maxBoxesPerHour: 30,
+            })}),
+        ]})
         this.bonusRules = new BonusesGetRulesResponse({playing: "calm", sets: [
             bonusesDefault,
-            new BonusesRuleSet({name: "calm", rules: BonusesRules.fromJson({boxes: {maxChargesPerHour: 6}})}),
-            new BonusesRuleSet({name: "frozen", rules: BonusesRules.fromJson({frozen: true})}),
-            new BonusesRuleSet({name: "rush", rules: BonusesRules.fromJson({
-                boxes: {minInterval: "60s", maxInterval: "60s", maxChargesPerHour: 30}, kinds: {bomb: 3},
-            })}),
+            new BonusesRuleSet({name: "calm", rules: BonusesRules.fromJson({kinds: {bomb: 0}})}),
+            new BonusesRuleSet({name: "frozen"}),
+            new BonusesRuleSet({name: "rush", rules: BonusesRules.fromJson({kinds: {bomb: 3}})}),
         ]})
         this.quizRules = new QuizzesGetRulesResponse({playing: "calm", sets: [
             quizzesDefault,

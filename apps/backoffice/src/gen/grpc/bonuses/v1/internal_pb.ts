@@ -51,7 +51,7 @@ export class PlayRuleSetRequest extends Message<PlayRuleSetRequest> {
 }
 
 /**
- * The offers play the latest decision.
+ * The bonuses module plays the latest decision.
  *
  * @generated from message bonuses.v1.PlayRuleSetResponse
  */

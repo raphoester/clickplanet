@@ -606,6 +606,7 @@
   "bonus.shield": "Tarcza",
   "bonus.spread.switchOn": "Włącz rozrzut: każdy klik zajmuje też pola dookoła",
   "bonus.gotIt": "Rozumiem",
+  "bonus.inventoryFull": "Masz już pełny ekwipunek",
   "reward.refill.detail": "Napełnia twoje kliki do pełna, kiedy chcesz",
   "reward.spreadClicks": "{clicks, plural, one {+# klik z rozrzutem} few {+# kliki z rozrzutem} many {+# klików z rozrzutem} other {+# kliku z rozrzutem}}",
   "reward.bomb.detail": "Czyści pola na obszarze. Celujesz nią z ekwipunku",

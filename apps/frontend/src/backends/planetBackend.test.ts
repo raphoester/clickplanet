@@ -53,16 +53,7 @@ import {
     TileUpdate,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
 import {AllegianceLockedError, BankFullError, BannedError, BombRefusedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
-import {
-    BonusEvent,
-    BonusOffered,
-    BonusTaken,
-    ClaimBonusResponse,
-    FrozenRefusal as OffersFrozenRefusal,
-    GetGrantRulesResponse,
-    Heartbeat as OffersHeartbeat,
-    RulesChanged as GrantRulesChanged,
-} from "../gen/grpc/bonuses/v1/bonuses_pb.ts"
+import {GetGrantRulesResponse} from "../gen/grpc/bonuses/v1/bonuses_pb.ts"
 import {NoSession, SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusReward, BonusRules, Charges} from "../domain/bonus.ts"
@@ -210,34 +201,12 @@ function noEvents() {
     return vi.fn(async function* () {})
 }
 
-type OffersListen = (req: object, options: {signal: AbortSignal, headers: Headers}) => AsyncIterable<BonusEvent>
 
-// An offers stream that opens and says nothing, until it is aborted.
-function quietOffers() {
-    return vi.fn<OffersListen>(() => (async function* () {
-        await new Promise(() => {})
-        yield* []
-    })())
-}
-
-function offersWith(fields: Record<string, unknown> = {}) {
+function bonusesWith(fields: Record<string, unknown> = {}) {
     return {
-        listenForEvents: quietOffers(),
         getGrantRules: vi.fn().mockResolvedValue(new GetGrantRulesResponse()),
         ...fields,
     } as never
-}
-
-async function ruled(backend: PlanetBackend): Promise<void> {
-    await new Promise<void>((resolve) => {
-        const stop = backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
-            onRules: () => {
-                resolve()
-                queueMicrotask(stop)
-            },
-        })
-    })
 }
 
 function bonusReads() {
@@ -702,7 +671,7 @@ describe("PlanetBackend click budget", () => {
         backend.watchClickBudget(b => rates.push(b.perSecond))
         const sizes: number[] = []
         const stop = backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: rules => sizes.push(rules.enclosureMaxTiles),
         })
         await vi.waitFor(() => expect(rates).toEqual([0.2]))
@@ -865,79 +834,6 @@ describe("PlanetBackend click budget", () => {
         expect(watch(backend)).toEqual([])
         expect(error).not.toHaveBeenCalled()
         backend.close()
-    })
-
-    it("reads how many enclosures a box added, how big a shape, and what is held once it is granted", async () => {
-        const claimBonus = vi.fn().mockResolvedValue({
-            kind: BonusKind.ENCLOSE_CLICKS,
-            amount: 2,
-            charges: new ChargesHeld({enclosures: 3, spreadClicksLeft: 3}),
-        })
-        const backend = new PlanetBackend(budgetClient(vi.fn()), 1_000, new NoSession(), offersWith({claimBonus}))
-        await ruled(backend)
-
-        await expect(backend.claimBonus("t", "fr")).resolves.toEqual({
-            reward: {kind: "encloseClicks", shapes: 2, maxTiles: 25},
-            charges: {refill: false, bomb: false, enclosures: 3, spreadClicksLeft: 3, shields: 0},
-        })
-        backend.close()
-    })
-
-    it("reads a shields claim as the shields the box added", async () => {
-        const claimBonus = vi.fn().mockResolvedValue({
-            kind: BonusKind.SHIELDS,
-            amount: 3,
-            charges: new ChargesHeld({shields: 7}),
-        })
-        const backend = new PlanetBackend(budgetClient(vi.fn()), 1_000, new NoSession(), offersWith({claimBonus}))
-        await ruled(backend)
-
-        const claimed = await backend.claimBonus("t", "fr")
-
-        expect(claimed.reward).toEqual({kind: "shields", shields: 3})
-        expect(claimed.charges.shields).toBe(7)
-        backend.close()
-    })
-
-    it("reads a spread claim as the clicks the box added", async () => {
-        const claimBonus = vi.fn().mockResolvedValue({
-            kind: BonusKind.SPREAD_CLICKS,
-            amount: 3,
-            charges: new ChargesHeld({spreadClicksLeft: 8}),
-        })
-        const backend = new PlanetBackend(budgetClient(vi.fn()), 1_000, new NoSession(), offersWith({claimBonus}))
-        await ruled(backend)
-
-        const claimed = await backend.claimBonus("t", "fr")
-
-        expect(claimed.reward).toEqual({kind: "spreadClicks", clicks: 3})
-        expect(claimed.charges.spreadClicksLeft).toBe(8)
-        backend.close()
-    })
-
-    it("asks for no reading when a charge is caught, since a charge never ends on a clock", async () => {
-        vi.useFakeTimers()
-        try {
-            const getBudget = vi.fn().mockResolvedValue({budget: budget(10)})
-            const claimBonus = vi.fn().mockResolvedValue({
-                kind: BonusKind.BOMB,
-                charges: new ChargesHeld({bomb: true}),
-            })
-            const backend = new PlanetBackend(budgetClient(vi.fn(), getBudget), 1_000, new NoSession(), offersWith({claimBonus}))
-            await vi.waitFor(() => expect(getBudget).toHaveBeenCalledTimes(1))
-            await ruled(backend)
-
-            const claimed = await backend.claimBonus("t", "fr")
-            expect(claimed.reward).toEqual({kind: "bomb", radius: 0.03})
-            expect(claimed.charges.bomb).toBe(true)
-
-            await vi.advanceTimersByTimeAsync(60_000)
-
-            expect(getBudget).toHaveBeenCalledTimes(1)
-            backend.close()
-        } finally {
-            vi.useRealTimers()
-        }
     })
 
     it("reads the price the server sends", async () => {
@@ -1269,7 +1165,7 @@ describe("PlanetBackend bombs", () => {
         backend.listenForUpdatesBatch(() => order.push("updates"))
         backend.listenForBonuses({
             onEnclosed: () => order.push("enclosure"),
-            onOffered: () => {}, onTaken: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
+            onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
         await vi.waitFor(() => expect(order).toEqual(["updates", "enclosure"]))
@@ -1367,7 +1263,7 @@ describe("PlanetBackend shields", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -1550,264 +1446,19 @@ describe("PlanetBackend event stream session", () => {
     })
 })
 
-describe("PlanetBackend offers", () => {
-    const openForever = () => vi.fn<(req: object, options: {signal: AbortSignal, headers: Headers}) => AsyncIterable<PlanetEvent>>(
-        () => (async function* () {
-            await new Promise(() => {})
-            yield* []
-        })(),
-    )
-
+describe("PlanetBackend sessions", () => {
     const clientWith = (fields: Record<string, unknown> = {}) =>
         ({click: vi.fn().mockResolvedValue({}), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(),
-            listenForEvents: openForever(), ...fields}) as never
+            listenForEvents: noEvents(), ...fields}) as never
 
-    const tokensOpenedWith = (listen: {mock: {calls: [object, {headers: Headers}][]}}) =>
-        listen.mock.calls.map(call => call[1].headers.get(SESSION_HEADER))
-
-    // Holds nothing until a call mints, as a fresh page does.
-    const mintingSession = (token = "session-1") => {
-        let held: string | undefined
-        const session: SessionProvider = {
-            token: async () => held = token,
-            held: () => held, identity: async () => held, heldIdentity: () => held,
-            invalidate: () => {
-                held = undefined
-            },
-        }
-        return session
-    }
-
-    const heldBy = (backend: PlanetBackend) => {
-        const charges: Charges[] = []
-        backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
-            onCharges: (held) => charges.push(held),
-        })
-        return charges
-    }
-
-    const follow = (backend: PlanetBackend) => {
-        const seen: string[] = []
-        backend.listenForBonuses({
-            onOffered: (offer) => seen.push(`offered ${offer.token} ${offer.reward.kind}`),
-            onTaken: (taken) => seen.push(`taken ${taken.countryId}`),
-            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
-        })
-        return seen
-    }
-
-    it("opens the offers stream beside the planet's, with the token in hand, and never mints for it", async () => {
-        const listenForEvents = quietOffers()
-        const token = vi.fn(async () => "minted")
-        const session: SessionProvider = {
-            token, held: () => undefined, identity: async () => "identity-1", heldIdentity: () => "identity-1", invalidate: () => {},
-        }
-        const backend = new PlanetBackend(clientWith(), 1_000, session, offersWith({listenForEvents}))
-
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual(["identity-1"]))
-        expect(listenForEvents.mock.calls[0][0]).toEqual({})
-        expect(token).not.toHaveBeenCalled()
-        backend.close()
-    })
-
-    it("opens it with no token when none is held", async () => {
-        const listenForEvents = quietOffers()
-        const backend = new PlanetBackend(clientWith(), 1_000, new NoSession(), offersWith({listenForEvents}))
-
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
-        backend.close()
-    })
-
-    it("tells the session listeners each token a call carried, so the quizzes' stream follows it too", async () => {
-        const backend = new PlanetBackend(clientWith(), 1_000, fixedSession("session-1"), offersWith())
+    it("tells the session listeners each token a call carried, so the boxes' and the quizzes' streams follow it", async () => {
+        const backend = new PlanetBackend(clientWith(), 1_000, fixedSession("session-1"), bonusesWith())
         const carried: string[] = []
         backend.listenForSessions((token) => carried.push(token))
 
         await backend.clickTile(3, "fr")
 
         expect(carried).toContain("session-1")
-        backend.close()
-    })
-
-    it("follows the identity the cookie resumes, as the planet's stream does", async () => {
-        const listenForEvents = quietOffers()
-        let resumed: string | undefined
-        const session: SessionProvider = {
-            token: async () => "minted", held: () => undefined,
-            identity: async () => {
-                await Promise.resolve()
-                return resumed = "identity-1"
-            },
-            heldIdentity: () => resumed, invalidate: () => {},
-        }
-        const backend = new PlanetBackend(clientWith(), 1_000, session, offersWith({listenForEvents}))
-
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null, "identity-1"]))
-        expect(listenForEvents.mock.calls[0][1].signal.aborted).toBe(true)
-        backend.close()
-    })
-
-    it("hands a box offered and a catch to the bonus listeners", async () => {
-        const listenForEvents = vi.fn(async function* () {
-            yield new BonusEvent({event: {case: "heartbeat", value: new OffersHeartbeat()}})
-            yield new BonusEvent({event: {case: "bonusOffered", value: new BonusOffered({token: "box-1", kind: BonusKind.SHIELDS, expiresAtUnixMs: BigInt(Date.now() + 15_000)})}})
-            yield new BonusEvent({event: {case: "bonusTaken", value: new BonusTaken({countryId: "jp"})}})
-            yield new BonusEvent()
-            await new Promise(() => {})
-        })
-        const backend = new PlanetBackend(clientWith(), 1_000, new NoSession(), offersWith({listenForEvents}))
-
-        const seen = follow(backend)
-
-        await vi.waitFor(() => expect(seen).toEqual(["offered box-1 shields", "taken jp"]))
-        backend.close()
-    })
-
-    it("hands over no offer from the planet's stream", async () => {
-        const listenForEvents = vi.fn(async function* () {
-            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
-            yield new PlanetEvent()
-            await new Promise(() => {})
-        })
-        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000, new NoSession(), offersWith())
-        const seen = follow(backend)
-
-        await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalledOnce())
-        expect(seen).toEqual([])
-        backend.close()
-    })
-
-    it("opens it again when it ends, as on a server restart", async () => {
-        const listenForEvents = vi.fn()
-            .mockImplementationOnce(async function* () {
-                yield new BonusEvent({event: {case: "heartbeat", value: new OffersHeartbeat()}})
-            })
-            .mockImplementation(async function* () {
-                yield new BonusEvent({event: {case: "bonusOffered", value: new BonusOffered({token: "box-2", kind: BonusKind.REFILL})}})
-                await new Promise(() => {})
-            })
-        const backend = new PlanetBackend(clientWith(), 1_000, new NoSession(), offersWith({listenForEvents}))
-        const seen = follow(backend)
-
-        await vi.waitFor(() => expect(seen).toEqual(["offered box-2 refill"]), {timeout: 3_000})
-        expect(listenForEvents).toHaveBeenCalledTimes(2)
-        backend.close()
-    })
-
-    it("reopens it once a click goes out under a token it does not have, and only once", async () => {
-        const planetEvents = openForever()
-        const listenForEvents = quietOffers()
-        const backend = new PlanetBackend(clientWith({listenForEvents: planetEvents}), 1_000, mintingSession(),
-            offersWith({listenForEvents}))
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
-        const first = listenForEvents.mock.calls[0][1].signal
-
-        await backend.clickTile(1, "fr")
-
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null, "session-1"]))
-        expect(first.aborted).toBe(true)
-        expect(tokensOpenedWith(planetEvents)).toEqual([null, "session-1"])
-
-        await backend.clickTile(2, "fr")
-        expect(tokensOpenedWith(listenForEvents)).toEqual([null, "session-1"])
-        backend.close()
-    })
-
-    it("keeps it when the click was refused", async () => {
-        vi.spyOn(console, "error").mockImplementation(() => {})
-        const click = vi.fn().mockRejectedValue(new ConnectError("slow down", Code.ResourceExhausted))
-        const listenForEvents = quietOffers()
-        const backend = new PlanetBackend(clientWith({click}), 1_000, mintingSession(), offersWith({listenForEvents}))
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
-
-        await expect(backend.clickTile(1, "fr")).rejects.toBeInstanceOf(RateLimitedError)
-
-        expect(tokensOpenedWith(listenForEvents)).toEqual([null])
-        backend.close()
-    })
-
-    it("reopens both streams once a claim goes out under a token they do not have", async () => {
-        const planetEvents = openForever()
-        const listenForEvents = quietOffers()
-        const claimBonus = vi.fn().mockResolvedValue(new ClaimBonusResponse({kind: BonusKind.REFILL, amount: 1, charges: new ChargesHeld({refill: true})}))
-        const backend = new PlanetBackend(clientWith({listenForEvents: planetEvents}), 1_000, mintingSession(),
-            offersWith({listenForEvents, claimBonus}))
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null]))
-
-        await backend.claimBonus("box-1", "fr")
-
-        await vi.waitFor(() => expect(tokensOpenedWith(listenForEvents)).toEqual([null, "session-1"]))
-        expect(tokensOpenedWith(planetEvents)).toEqual([null, "session-1"])
-        backend.close()
-    })
-
-    it("stops it on close", async () => {
-        const listenForEvents = quietOffers()
-        const backend = new PlanetBackend(clientWith(), 1_000, new NoSession(), offersWith({listenForEvents}))
-        await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalledOnce())
-
-        backend.close()
-
-        expect(listenForEvents.mock.calls[0][1].signal.aborted).toBe(true)
-    })
-
-    it("claims a box from the offers with a session token, and holds what the hand holds after", async () => {
-        const claimBonus = vi.fn().mockResolvedValue(new ClaimBonusResponse({
-            kind: BonusKind.ENCLOSE_CLICKS, amount: 2, charges: new ChargesHeld({enclosures: 3}),
-        }))
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 4})})
-        const backend = new PlanetBackend(clientWith({getCharges}), 1_000, fixedSession("session-1"), offersWith({claimBonus}))
-        await ruled(backend)
-        const charges = heldBy(backend)
-        await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(4))
-
-        await expect(backend.claimBonus("box-1", "fr")).resolves.toEqual({
-            reward: {kind: "encloseClicks", shapes: 2, maxTiles: 25},
-            charges: {refill: false, bomb: false, enclosures: 3, spreadClicksLeft: 0, shields: 0},
-        })
-        expect(claimBonus).toHaveBeenCalledWith({token: "box-1", countryId: "fr"}, expect.anything())
-        expect((claimBonus.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
-        expect(charges.at(-1)?.enclosures).toBe(3)
-        backend.close()
-    })
-
-    it("mints a new session and claims once more when the offers refuse the token", async () => {
-        const claimBonus = vi.fn()
-            .mockRejectedValueOnce(new ConnectError("expired", Code.Unauthenticated))
-            .mockResolvedValueOnce(new ClaimBonusResponse({kind: BonusKind.REFILL, charges: new ChargesHeld({refill: true})}))
-        const session = rotatingSession(["stale", "fresh"])
-        const backend = new PlanetBackend(clientWith(), 1_000, session, offersWith({claimBonus}))
-
-        await backend.claimBonus("box-1", "fr")
-
-        expect(session.invalidated).toBe(1)
-        expect(claimBonus.mock.calls.map(([, options]) => (options as {headers: Headers}).headers.get(SESSION_HEADER)))
-            .toEqual(["stale", "fresh"])
-        backend.close()
-    })
-
-    it("reports a box gone as lost, and a box refused while frozen as a failed claim that holds nothing", async () => {
-        const claimBonus = vi.fn()
-            .mockRejectedValueOnce(new ConnectError("gone", Code.NotFound))
-            .mockRejectedValueOnce(new ConnectError("frozen", Code.FailedPrecondition, undefined, [new OffersFrozenRefusal()]))
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({shields: 4})})
-        const backend = new PlanetBackend(clientWith({getCharges}), 1_000, fixedSession("session-1"), offersWith({claimBonus}))
-        const charges = heldBy(backend)
-        await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(4))
-        const before = charges.length
-
-        await expect(backend.claimBonus("box-1", "fr")).rejects.toBeInstanceOf(BonusLostError)
-        await expect(backend.claimBonus("box-2", "fr")).rejects.toMatchObject({code: Code.FailedPrecondition})
-
-        expect(charges.length).toBe(before)
-        backend.close()
-    })
-
-    it("offers nothing and claims nothing with no offers client", async () => {
-        const backend = new PlanetBackend(clientWith(), 1_000, fixedSession("session-1"))
-
-        await expect(backend.claimBonus("box-1", "fr")).rejects.toBeInstanceOf(BonusLostError)
         backend.close()
     })
 })
@@ -1846,7 +1497,7 @@ describe("the rules", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: BonusRules[] = []
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => seen.push(rules),
         })
         return seen
@@ -1859,7 +1510,7 @@ describe("the rules", () => {
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
         }))
         const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
-        const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), offersWith({getGrantRules}))
+        const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), bonusesWith({getGrantRules}))
 
         const seen = follow(backend)
 
@@ -1877,7 +1528,7 @@ describe("the rules", () => {
         const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000)
         let off = false
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => off = rules.enclosuresOff,
         })
 
@@ -1885,11 +1536,11 @@ describe("the rules", () => {
         backend.close()
     })
 
-    it("tells the sign-in refill the offers' rules say with planet's rules, whichever is read first", async () => {
+    it("tells the sign-in refill the bonuses' rules say with planet's rules, whichever is read first", async () => {
         let chargeRulesRead: (res: GetChargeRulesResponse) => void = () => {}
         const getChargeRules = vi.fn(() => new Promise<GetChargeRulesResponse>(resolve => chargeRulesRead = resolve))
         const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
-        const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), offersWith({getGrantRules}))
+        const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), bonusesWith({getGrantRules}))
         const seen = follow(backend)
         await vi.waitFor(() => expect(getGrantRules).toHaveBeenCalledOnce())
         await new Promise(resolve => setTimeout(resolve, 0))
@@ -1901,10 +1552,10 @@ describe("the rules", () => {
         backend.close()
     })
 
-    it("tells planet's rules again once the offers' rules say a first sign-in earns a refill", async () => {
+    it("tells planet's rules again once the bonuses' rules say a first sign-in earns a refill", async () => {
         let grantRulesRead: (res: GetGrantRulesResponse) => void = () => {}
         const getGrantRules = vi.fn(() => new Promise<GetGrantRulesResponse>(resolve => grantRulesRead = resolve))
-        const backend = new PlanetBackend(clientWith({}), 1_000, new NoSession(), offersWith({getGrantRules}))
+        const backend = new PlanetBackend(clientWith({}), 1_000, new NoSession(), bonusesWith({getGrantRules}))
         const seen = follow(backend)
         await vi.waitFor(() => expect(seen.map(({signInRefill}) => signInRefill)).toEqual([false]))
 
@@ -1915,59 +1566,28 @@ describe("the rules", () => {
         backend.close()
     })
 
-    it("reads the offers' rules again when the offers take another set, and planet's not", async () => {
+    it("reads the bonuses' rules once a load: planet's rules read again leave them be", async () => {
         const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({enclosureMaxTiles: 25}))
-        const getGrantRules = vi.fn()
-            .mockResolvedValueOnce(new GetGrantRulesResponse({signInRefill: true}))
-            .mockResolvedValueOnce(new GetGrantRulesResponse({signInRefill: false}))
+        const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
         let changeRules = () => {}
         const listenForEvents = vi.fn(async function* () {
-            yield new BonusEvent({event: {case: "heartbeat", value: new OffersHeartbeat()}})
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
             await new Promise<void>(resolve => changeRules = resolve)
-            yield new BonusEvent({event: {case: "rulesChanged", value: new GrantRulesChanged()}})
+            yield new PlanetEvent({event: {case: "rulesChanged", value: new RulesChanged()}})
             await new Promise(() => {})
         })
-        const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(),
-            offersWith({getGrantRules, listenForEvents}))
+        const backend = new PlanetBackend(clientWith({getChargeRules, listenForEvents}), 1_000, new NoSession(),
+            bonusesWith({getGrantRules}))
         const seen = follow(backend)
         await vi.waitFor(() => expect(seen.at(-1)?.signInRefill).toBe(true))
 
         changeRules()
 
-        await vi.waitFor(() => expect(seen.at(-1)?.signInRefill).toBe(false))
-        expect(getGrantRules).toHaveBeenCalledTimes(2)
-        expect(getChargeRules).toHaveBeenCalledOnce()
-        backend.close()
-    })
-
-    it("reads the offers' rules again on an offers stream that comes back, never on its first", async () => {
-        const getGrantRules = vi.fn()
-            .mockResolvedValueOnce(new GetGrantRulesResponse({signInRefill: false}))
-            .mockResolvedValueOnce(new GetGrantRulesResponse({signInRefill: true}))
-        const heartbeat = new BonusEvent({event: {case: "heartbeat", value: new OffersHeartbeat()}})
-        let drop = () => {}
-        const listenForEvents = vi.fn()
-            .mockImplementationOnce(async function* () {
-                yield heartbeat
-                await new Promise<void>(resolve => drop = resolve)
-            })
-            .mockImplementationOnce(async function* () {
-                yield heartbeat
-                await new Promise(() => {})
-            })
-        const backend = new PlanetBackend(clientWith({}), 1_000, new NoSession(), offersWith({getGrantRules, listenForEvents}))
-        const seen = follow(backend)
-        await vi.waitFor(() => expect(listenForEvents).toHaveBeenCalledOnce())
-        await vi.waitFor(() => expect(seen.at(-1)?.signInRefill).toBe(false))
+        await vi.waitFor(() => expect(getChargeRules).toHaveBeenCalledTimes(2))
         expect(getGrantRules).toHaveBeenCalledOnce()
-
-        drop()
-
-        await vi.waitFor(() => expect(seen.at(-1)?.signInRefill).toBe(true), {timeout: 3_000})
-        expect(listenForEvents).toHaveBeenCalledTimes(2)
+        expect(seen.at(-1)?.signInRefill).toBe(true)
         backend.close()
     })
-
     it("reads them again when the rules change, so a bigger blast is drawn with no reload", async () => {
         const getChargeRules = vi.fn()
             .mockResolvedValueOnce(new GetChargeRulesResponse({blastRadius: 0.03, enclosureMaxTiles: 25}))
@@ -1982,7 +1602,7 @@ describe("the rules", () => {
         const backend = new PlanetBackend(clientWith({getChargeRules, listenForEvents}), 1_000)
         const radii: number[] = []
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => radii.push(rules.blastRadius),
         })
         await vi.waitFor(() => expect(radii.at(-1)).toBe(0.03))
@@ -2002,7 +1622,7 @@ describe("the charges held", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -2088,7 +1708,7 @@ describe("the charges held", () => {
         const seen = follow(backend)
         let unlimited = false
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => unlimited = rules.spreadUnlimited,
         })
         await vi.waitFor(() => expect(seen.at(-1)?.spreadClicksLeft).toBe(2))
@@ -2217,7 +1837,7 @@ describe("the refill", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -2438,7 +2058,7 @@ describe("PlanetBackend allegiance", () => {
         const seen = follow(backend)
         const charges: Charges[] = []
         backend.listenForBonuses({
-            onOffered: () => {}, onTaken: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (held) => charges.push(held),
         })
         await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(3))

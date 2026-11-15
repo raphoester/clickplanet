@@ -606,6 +606,7 @@
   "bonus.shield": "Escudo",
   "bonus.spread.switchOn": "Activa la expansión: cada clic también toma las casillas de alrededor",
   "bonus.gotIt": "Entendido",
+  "bonus.inventoryFull": "Tu inventario ya está lleno",
   "reward.refill.detail": "Llena tus clics al máximo, cuando quieras",
   "reward.spreadClicks": "{clicks, plural, one {+# clic de expansión} many {+# de clics de expansión} other {+# clics de expansión}}",
   "reward.bomb.detail": "Vacía las casillas de una zona. Apúntala desde tu inventario",

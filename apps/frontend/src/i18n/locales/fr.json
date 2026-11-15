@@ -606,6 +606,7 @@
   "bonus.shield": "Bouclier",
   "bonus.spread.switchOn": "Active la propagation : chaque clic prend aussi les cases autour",
   "bonus.gotIt": "Compris",
+  "bonus.inventoryFull": "Ton inventaire est déjà plein",
   "reward.refill.detail": "Remplit tes clics au max, quand tu veux",
   "reward.spreadClicks": "{clicks, plural, one {+# clic de propagation} many {+# de clics de propagation} other {+# clics de propagation}}",
   "reward.bomb.detail": "Remet à zéro les cases d’une zone. Vise depuis ton inventaire",

@@ -46,7 +46,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/forget_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/record_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/bomb_landed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/bonus_claimed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/box_claimed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/message_sent_subscriber"
@@ -145,10 +145,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-messages", log_subscriber.New(message_sent_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-bombs", log_subscriber.New(bomb_landed_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-fortifies", log_subscriber.New(fortified_subscriber.New(recordStats), props.Logger))),
-		// The offers tell boxes since 2026-11-11, and the quizzes answers since 2026-11-13: each group handles what the
-		// stream before held first.
-		subscribed(cpredis.SubscribeMoved(ctx, streams, "planet.v1.BonusClaimed", "player-stats-bonuses",
-			log_subscriber.New(bonus_claimed_subscriber.New(recordStats), props.Logger))),
+		// The boxes tell catches since 2026-11-15, and the quizzes answers since 2026-11-13: each group handles what the
+		// bonuses module's stream held first.
+		subscribed(cpredis.SubscribeMoved(ctx, streams, "bonuses.v1.BonusClaimed", "player-stats-bonuses",
+			log_subscriber.New(box_claimed_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.SubscribeMoved(ctx, streams, "bonuses.v1.QuizAnswered", "player-stats-quizzes",
 			log_subscriber.New(quiz_answered_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-missions", log_subscriber.New(missions_paid_subscriber.New(recordStats), props.Logger))),

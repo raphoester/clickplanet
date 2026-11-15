@@ -54,15 +54,17 @@ reason at once, `ErrInvalidCards`). **None is a set whose battles are not teased
 with no cards (the owner: "If there is no carousel let's just not tease anything").
 
 **Words name a rule's value with a placeholder**, `{path}`, the path of a field of `planet.v1.Rules` as protojson
-writes it, of the offers' `bonuses.v1.Rules` under `bonuses.`, or of the quizzes' `quizzes.v1.Rules` under `quizzes.`:
-`Clicks refill {clicks.tempo}× faster`,
-`A box every {bonuses.boxes.minInterval}` (`placeholders.RulePaths`, `Check`). **`bonuses.` is where the offers'
+writes it, of the bonuses' `bonuses.v1.Rules` under `bonuses.`, of the boxes' `boxes.v1.Rules` under `boxes.`, or of
+the quizzes' `quizzes.v1.Rules` under `quizzes.`: `Clicks refill {clicks.tempo}× faster`,
+`A box every {boxes.minInterval}` (`placeholders.RulePaths`, `Check`). **`bonuses.` is where the offers'
 values sat in planet's rules** until they were a module of their own (2026-11-11), so a card written before reads as it
-did: `urf`'s `every {bonuses.boxes.minInterval} to {bonuses.boxes.maxInterval}` still reads `every 30 s to 1 min`. A
-`{bonuses.…}` reads the offers' set of the battle's name (`bonuses.v1.InternalService/GetRuleSet`), every other path
-planet's, the wallet's `charges.*` included; a set the offers keep none of fills no `{bonuses.…}` (`ErrNoValue`). A
-`{quizzes.…}` reads the quizzes' set the same way (`quizzes.v1.InternalService/GetRuleSet`, since 2026-11-13); the
-quiz's values were `{bonuses.quiz.…}` until then, and no card named one. **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
+did. A `{bonuses.…}` reads the bonuses' set of the battle's name (`bonuses.v1.InternalService/GetRuleSet`), every other
+path planet's, the wallet's `charges.*` included; a set the module keeps none of fills no `{bonuses.…}` (`ErrNoValue`). A
+`{boxes.…}` and a `{quizzes.…}` read the boxes' and the quizzes' sets the same way (`boxes.v1` and
+`quizzes.v1.InternalService/GetRuleSet`). The quiz's values were `{bonuses.quiz.…}` until 2026-11-13, and no card named
+one; the boxes' were `{bonuses.boxes.…}`, `{bonuses.offerTtl}`, `{bonuses.missRetry}`, `{bonuses.activeWithin}` and
+`{bonuses.welcome.…}` until 2026-11-15, and promo's migration `20261115104725_boxes_paths` renamed them in the stored
+cards: `urf`'s `every {boxes.minInterval} to {boxes.maxInterval}` reads `every 30 s to 1 min` as before. **Only a number or a duration**: a boolean, a list (the toll's steps) or a whole
 message reads as no word in a sentence, and is refused. A brace that opens or closes no placeholder is refused too.
 
 **Words name the battle's points too** (`placeholders.BattlePaths`): `{battle.times}`, the battle's points' times (1

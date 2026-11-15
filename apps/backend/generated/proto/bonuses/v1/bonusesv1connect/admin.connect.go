@@ -42,8 +42,9 @@ const (
 
 // AdminServiceClient is a client for the bonuses.v1.AdminService service.
 type AdminServiceClient interface {
-	// Every rule set the offers keep, and the one they play now: when a box comes, and what a box or a right answer may
-	// be and how much it grants. When a quiz comes is the quizzes' rules. SaveRuleSet changes one.
+	// Every rule set the bonuses module keeps, and the one it plays now: what a box caught or a right answer may be and how
+	// much it grants, and the sign-in refill. When a box comes is the boxes' rules, when a quiz comes the quizzes'.
+	// SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once. A save of default is
 	// refused while another set could not play over it.
@@ -95,8 +96,9 @@ func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Reque
 
 // AdminServiceHandler is an implementation of the bonuses.v1.AdminService service.
 type AdminServiceHandler interface {
-	// Every rule set the offers keep, and the one they play now: when a box comes, and what a box or a right answer may
-	// be and how much it grants. When a quiz comes is the quizzes' rules. SaveRuleSet changes one.
+	// Every rule set the bonuses module keeps, and the one it plays now: what a box caught or a right answer may be and how
+	// much it grants, and the sign-in refill. When a box comes is the boxes' rules, when a quiz comes the quizzes'.
+	// SaveRuleSet changes one.
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once. A save of default is
 	// refused while another set could not play over it.

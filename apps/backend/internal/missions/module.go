@@ -46,7 +46,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/usecases/save_rules_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/usecases/save_rules_usecase/audit_save_rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bomb_landed_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/bonus_claimed_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/box_claimed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/day_started_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/fortified_subscriber"
@@ -204,12 +204,12 @@ func subscribeFacts(
 	if err != nil {
 		return nil, fmt.Errorf("failed to subscribe to planet.v1.TilesTaken: %w", err)
 	}
-	// The offers tell boxes since 2026-11-11, and the quizzes answers since 2026-11-13: each group handles what the
-	// stream before held first.
-	boxes, err := cpredis.SubscribeMoved(ctx, streams, "planet.v1.BonusClaimed", "missions-boxes",
-		log_subscriber.New(bonus_claimed_subscriber.New(record), logger))
+	// The boxes tell catches since 2026-11-15, and the quizzes answers since 2026-11-13: each group handles what the
+	// bonuses module's stream held first.
+	boxes, err := cpredis.SubscribeMoved(ctx, streams, "bonuses.v1.BonusClaimed", "missions-boxes",
+		log_subscriber.New(box_claimed_subscriber.New(record), logger))
 	if err != nil {
-		return nil, fmt.Errorf("failed to subscribe to planet.v1.BonusClaimed: %w", err)
+		return nil, fmt.Errorf("failed to subscribe to boxes.v1.BoxClaimed: %w", err)
 	}
 	answers, err := cpredis.SubscribeMoved(ctx, streams, "bonuses.v1.QuizAnswered", "missions-answers",
 		log_subscriber.New(quiz_answered_subscriber.New(record), logger))

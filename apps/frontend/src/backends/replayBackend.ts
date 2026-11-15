@@ -5,8 +5,6 @@ import {
     Bomber,
     BonusHandlers,
     BonusListener,
-    BonusLostError,
-    ClaimedBonus,
     Counts,
     MapVersion,
     Ownerships,
@@ -294,10 +292,6 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     listenForBonuses(handlers: BonusHandlers): () => void {
         this.bonusHandlers.add(handlers)
         return () => this.bonusHandlers.delete(handlers)
-    }
-
-    claimBonus(): Promise<ClaimedBonus> {
-        return Promise.reject(new BonusLostError())
     }
 
     listenForBombs(onDropped: (drop: BombDrop) => void): () => void {

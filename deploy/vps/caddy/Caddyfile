@@ -90,6 +90,12 @@
 		}
 	}
 
+	handle /boxes.v1.BoxService/* {
+		reverse_proxy backend:8080 {
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
 	handle /auth.v1.AuthService/* {
 		reverse_proxy backend:8080 {
 			header_up X-Real-IP {client_ip}

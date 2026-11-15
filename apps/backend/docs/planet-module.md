@@ -117,8 +117,9 @@ internal/planet/internal/
   (what an enclose closes) and `Bombing` (where a bomb lands and what it clears). See [Charges](charges.md).
 - **The offers** (the box registry, the quizzes and their bank, the welcome, the hourly caps, what a box or a right
   answer grants) were `bonuses/` and `quizzes/` here until 2026-11-11, cut apart from the rest by step A
-  ([Offers and the wallet](offers-and-wallet.md)). They are the bonuses module now, which asks planet in its words:
-  see [The offers](bonuses.md); the quizzes have a module of their own since 2026-11-13 ([The quizzes](quizzes-module.md)).
+  ([Offers and the wallet](offers-and-wallet.md)). They were the bonuses module, which asks planet in its words
+  ([The bonuses](bonuses.md)); the quizzes have a module of their own since 2026-11-13 ([The quizzes](quizzes-module.md))
+  and the boxes since 2026-11-15 ([The boxes](boxes-module.md)).
 - **`notices/`** — what planet tells the streams open beside the map's changes: a spread to every one, all a
   signed-in account holds after a grant to its own. `ListenForEvents` merges it with the tile feed.
 

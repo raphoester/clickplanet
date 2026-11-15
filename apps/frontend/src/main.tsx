@@ -6,6 +6,7 @@ import './index.css'
 import {newClickServiceClient, PlanetBackend} from "./backends/planetBackend.ts"
 import {newBonusServiceClient} from "./backends/bonusesBackend.ts"
 import {newQuizServiceClient, QuizzesBackend} from "./backends/quizzesBackend.ts"
+import {BoxesBackend, newBoxServiceClient} from "./backends/boxesBackend.ts"
 import {NoSession, SessionProvider} from "./backends/session.ts"
 import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient} from "./backends/chatBackend.ts"
@@ -353,6 +354,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         tileClicker: clicker,
         updatesListener: fake,
         bonusListener: fake,
+        boxCatcher: fake,
         quizMaster: fake,
         bomber: fake,
         refiller: fake,
@@ -387,6 +389,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
 } else {
     const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config))
     const quizzes = new QuizzesBackend(newQuizServiceClient(config), backend, backend, session)
+    const boxes = new BoxesBackend(newBoxServiceClient(config), backend, backend, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
     const turn = new ConnectTurnBackend(newGamemasterServiceClient(config))
     const player = new ConnectPlayerBackend(newPlayerServiceClient(config), session, newKeepalivePlayerServiceClient(config))
@@ -412,6 +415,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         tileClicker: backend,
         updatesListener: backend,
         bonusListener: backend,
+        boxCatcher: boxes,
         quizMaster: quizzes,
         bomber: backend,
         refiller: backend,

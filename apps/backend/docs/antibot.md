@@ -8,11 +8,12 @@ check can tell them from a player. The signal that survives is **behavioural**.
 `antibot.NewModule`, listed in `cmd/api`). Its root publishes `Config` and `NewModule` and nothing else; the watchdogs, the jury, the bans and the
 evidence are under `antibot/internal/`. Planet never imports it and never names it: it tells what callers did in its
 own words, and the antibot hears it, judges, and asks planet to refuse a caller in planet's words. The box facts are the
-offers' since 2026-11-11 (the bonuses module, see [The offers](bonuses.md)), told in their words, with planet's fields.
+boxes' since 2026-11-15 (the boxes module, see [The boxes](boxes-module.md); the bonuses module's from 2026-11-11), told in
+their words, with planet's fields.
 
 ```
 planet ─ ClickTried, MapRead, StreamOpened ──────────────────────────────────────────▶ antibot (listener → guard)
-bonuses ─ BoxCaught, BoxLapsed, ForeignBoxClaimed ───────────────────────────────────▶ antibot (listener → guard)
+boxes ─── BoxCaught, BoxLapsed, ForeignBoxClaimed ───────────────────────────────────▶ antibot (listener → guard)
 planet ◀────────────── RefuseCaller, AdmitCaller (planet's commands, through the antibot's outbox) ── antibot (bans)
 ```
 
@@ -359,9 +360,9 @@ in memory no window of 10m (`suspicionWindow`), 15m (`trackWindow`) or 30m
   watchdog empty; the others load. That is not a failed boot: a changed section
   shape after a deploy should cost one watchdog's windows, not the start.
 - **Each kind of fact is heard once, though Redis delivers it at least once.** Planet tells each kind in order, each
-  at a later time than the one before (`facts.Log`), so the time names the fact; the offers tell the box facts the
-  same way, from a log of their own whose first time is past planet's last (one wall clock), so the move of 2026-11-11
-  skipped none. The listener keeps the latest time it
+  at a later time than the one before (`facts.Log`), so the time names the fact; the boxes tell the box facts the
+  same way, from a log of their own whose first time is past the one before's last (one wall clock), so the moves of
+  2026-11-11 (planet to the bonuses module) and 2026-11-15 (to the boxes module) skipped none. The listener keeps the latest time it
   heard of each kind (`listener.Marks`, the section `heard`) and skips a fact at or before it. The marks are saved with
   the evidence, **as of the same moment**: a flush holds the listener still while it encodes every section
   (`evidence.Holder`). So after a crash, what Redis gives back that the last flush had heard is skipped, and what it had
@@ -663,7 +664,7 @@ gone is one loss, at the take.
 **`catcher`: every box, and fast.** A box is addressed to one caller and flies
 a slow orbit that is rarely in view, so a person has to zoom out to orbit height
 and often drag the globe round to click it, and some boxes go by unseen. A script
-reads `bonus_offered` off the stream and claims at once. Over the last
+reads `box_offered` off the stream and claims at once. Over the last
 `minCatches` boxes offered (5), **all of them must be caught** — one lapse clears
 the caller — and the median delay from offer to claim reads `Suspect` at or under
 `maxMedian` (3s) and `Certain` at or under `certainMedian` (1.5s). Neither half is
@@ -671,10 +672,10 @@ enough alone: a player already zoomed out gets lucky once, and a keen player
 catches a lot.
 
 It is the one watchdog that does not read clicks. The registry reports each box
-through `bonuses.Report` — `Caught(scope, after)` from `Claim`, timed from the
-offer being sent, and `Lapsed(scope)` from the sweep — and the offers tell them as facts (`bonuses.v1.BoxCaught`,
-`BoxLapsed`, through `box_facts` and the bonuses module's own facts log and relay; planet's until 2026-11-11), which the
-listener hands to the guard. The watchdog keeps the outcomes
+through `boxes.Report` — `Caught(scope, after)` from `Claim`, timed from the
+offer being sent, and `Lapsed(scope)` from the sweep — and the boxes tell them as facts (`boxes.v1.BoxCaught`,
+`BoxLapsed`, through `box_facts` and the boxes module's own facts log and relay; planet's until 2026-11-11, the bonuses
+module's until 2026-11-15), which the listener hands to the guard. The watchdog keeps the outcomes
 and answers from them on the caller's next click, since the jury only asks on a
 click. The delay includes the round trip, which only makes a person look slower.
 `bonus_catch_seconds` is the same delay as a histogram, whether the antibot is on or not.

@@ -234,8 +234,10 @@ progression:
     dbName: clickplanet
     sslMode: disable
     schema: progression
+    # Three since the boxes took the fourth (2026-11-15), so the sum below max_connections did not grow: its writes are
+    # the subscribers', which lose nothing by waiting.
     pool:
-      maxOpenConns: 4
+      maxOpenConns: 3
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
@@ -271,8 +273,29 @@ gamemaster:
     address: redis:6379
     password: env://REDIS_PASSWORD
 
-# The boxes, and what a box, a right answer and a sign-in grant. Their rules are the rule sets postgres keeps
-# (bonuses.rule_sets), edited on the backoffice.
+# The boxes each caller is offered. Their rules are the rule sets postgres keeps (boxes.rule_sets), edited on the
+# backoffice.
+boxes:
+  database:
+    host: postgres
+    password: env://POSTGRES_PASSWORD
+    port: "5432"
+    user: clickplanet
+    dbName: clickplanet
+    sslMode: disable
+    schema: boxes
+    # Its rule sets and each box caught, a few hundred an hour. Progression gave it its fourth connection.
+    pool:
+      maxOpenConns: 1
+  redis:
+    address: redis:6379
+    password: env://REDIS_PASSWORD
+  offers:
+    forgetAfter: 5m
+    sweepInterval: 1s
+
+# What a box, a right answer and a sign-in grant. Their rules are the rule sets postgres keeps (bonuses.rule_sets),
+# edited on the backoffice.
 bonuses:
   database:
     host: postgres
@@ -288,9 +311,6 @@ bonuses:
   redis:
     address: redis:6379
     password: env://REDIS_PASSWORD
-  offers:
-    forgetAfter: 5m
-    sweepInterval: 1s
 
 # The quizzes. Their rules are the rule sets postgres keeps (quizzes.rule_sets), edited on the backoffice.
 quizzes:

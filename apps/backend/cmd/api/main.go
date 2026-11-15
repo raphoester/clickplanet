@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/boxes"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat"
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips"
 	"github.com/raphoester/clickplanet.lol-backend/internal/gamemaster"
@@ -42,7 +43,9 @@ type Config struct {
 	Scoring     scoring.Config
 	Gamemaster  gamemaster.Config
 	Missions    missions.Config
-	// The boxes, and what a box, a right answer and a sign-in grant.
+	// The boxes each caller is offered.
+	Boxes boxes.Config
+	// What a box, a right answer and a sign-in grant.
 	Bonuses bonuses.Config
 	// The quizzes, the bank and how hard each question is.
 	Quizzes quizzes.Config
@@ -94,6 +97,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 	return []cpbootstrap.Module{
 		auth.NewModule(config.Auth),
 		planet.NewModule(config.Planet),
+		boxes.NewModule(config.Boxes),
 		bonuses.NewModule(config.Bonuses),
 		quizzes.NewModule(config.Quizzes),
 		antibot.NewModule(config.AntiBot),
@@ -134,6 +138,7 @@ func (c Config) Validate() error {
 		c.Scoring.Validate(),
 		c.Gamemaster.Validate(),
 		c.Missions.Validate(),
+		c.Boxes.Validate(),
 		c.Bonuses.Validate(),
 		c.Quizzes.Validate(),
 		c.Support.Validate(),

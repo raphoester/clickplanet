@@ -3,8 +3,9 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it} from "vitest"
 import {FakeAdmin} from "../fakeAdmin.ts"
-import {GetRulesResponse, RuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
-import {Rules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
+import {GetRulesResponse as BonusesGetRulesResponse, RuleSet as BonusesRuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
+import {GetRulesResponse, RuleSet} from "../gen/grpc/boxes/v1/admin_pb.ts"
+import {Rules} from "../gen/grpc/boxes/v1/rules_pb.ts"
 import {GetRulesResponse as QuizzesGetRulesResponse, RuleSet as QuizzesRuleSet} from "../gen/grpc/quizzes/v1/admin_pb.ts"
 import {Rules as QuizzesRules} from "../gen/grpc/quizzes/v1/rules_pb.ts"
 import {BonusRulesPanel} from "./BonusRulesPanel.tsx"
@@ -12,6 +13,7 @@ import {BonusRulesPanel} from "./BonusRulesPanel.tsx"
 afterEach(cleanup)
 
 const boxes = () => screen.getByRole("region", {name: "Boxes"})
+const holds = () => screen.getByRole("region", {name: "What a box or a right answer holds"})
 const quizzes = () => screen.getByRole("region", {name: "Quizzes"})
 
 const rowOf = (set: string, list = boxes()) =>
@@ -29,28 +31,32 @@ const save = () => {
     fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
 }
 
-const sent = (admin: FakeAdmin) => (admin.askedFor("saveBonusRuleSet") as {set: RuleSet}[]).at(-1)?.set
+const sent = (admin: FakeAdmin) => (admin.askedFor("saveBoxRuleSet") as {set: RuleSet}[]).at(-1)?.set
+const bonusSent = (admin: FakeAdmin) => (admin.askedFor("saveBonusRuleSet") as {set: BonusesRuleSet}[]).at(-1)?.set
 
 const pick = (label: string, value: "default" | "yes" | "no") =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
 const FROZEN = "Frozen: no box is offered or caught"
 
-const show = (admin: FakeAdmin) => render(<BonusRulesPanel bonuses={admin.bonuses} quizzes={admin.quizzes}/>)
+const show = (admin: FakeAdmin) =>
+    render(<BonusRulesPanel bonuses={admin.bonuses} boxes={admin.boxes} quizzes={admin.quizzes}/>)
 
-// A set that holds only fewer boxes an hour and no sign-in refill, and plays default's for the rest.
+// A set that holds only fewer boxes an hour, and plays default's for the rest.
 function withQuiet(): FakeAdmin {
     const admin = new FakeAdmin()
-    const quiet = new RuleSet({name: "quiet", rules: Rules.fromJson({boxes: {maxChargesPerHour: 6}, signInRefill: false})})
-    admin.bonusRules = new GetRulesResponse({sets: [admin.bonusRules.sets[0], quiet], playing: "default"})
+    const quiet = new RuleSet({name: "quiet", rules: Rules.fromJson({maxBoxesPerHour: 6})})
+    admin.boxRules = new GetRulesResponse({sets: [admin.boxRules.sets[0], quiet], playing: "default"})
     return admin
 }
 
 // A second set, kept beside default and not playing, that holds every value.
 function withCalm(): FakeAdmin {
     const admin = new FakeAdmin()
-    const calm = new RuleSet({name: "calm", rules: admin.bonusRules.sets[0].rules?.clone()})
-    admin.bonusRules = new GetRulesResponse({sets: [admin.bonusRules.sets[0], calm], playing: "default"})
+    const calm = new RuleSet({name: "calm", rules: admin.boxRules.sets[0].rules?.clone()})
+    admin.boxRules = new GetRulesResponse({sets: [admin.boxRules.sets[0], calm], playing: "default"})
+    const reward = new BonusesRuleSet({name: "calm", rules: admin.bonusRules.sets[0].rules?.clone()})
+    admin.bonusRules = new BonusesGetRulesResponse({sets: [admin.bonusRules.sets[0], reward], playing: "default"})
     return admin
 }
 
@@ -87,7 +93,7 @@ describe("the box rules", () => {
 
         await waitFor(() => expect(sent(admin)?.name).toBe("default"))
         expect(Number(sent(admin)?.rules?.offerTtl?.seconds)).toBe(20)
-        expect(sent(admin)?.rules?.boxes?.maxChargesPerHour).toBe(12)
+        expect(sent(admin)?.rules?.maxBoxesPerHour).toBe(12)
     })
 
     it("edits a set once confirmed, asks with what changes, and reads the rules again", async () => {
@@ -96,24 +102,22 @@ describe("the box rules", () => {
 
         fireEvent.click(await button("Edit calm"))
         expect(screen.queryByRole("region", {name: "Quizzes"})).toBeNull()
+        expect(screen.queryByRole("region", {name: "What a box or a right answer holds"})).toBeNull()
         expect((screen.getByLabelText("Name") as HTMLInputElement).disabled).toBe(true)
         expect(saveButton().disabled).toBe(true)
         expect(screen.getByText("No change yet")).toBeTruthy()
         type("Shortest box wait (s)", "120")
-        type("Charges an hour, at most", "30")
-        type("Bomb, weight", "1.0")
-        type("Shields a box, at most", "25")
-        type("Refill, weight", "6")
-        expect(screen.getByText("4 changes")).toBeTruthy()
+        type("Boxes an hour, at most", "30")
+        type("First box after (s)", "30")
+        expect(screen.getByText("3 changes")).toBeTruthy()
         expect(screen.getByText("2 min · was 4 min")).toBeTruthy()
         fireEvent.click(saveButton())
 
         const changes = within(screen.getByRole("list", {name: "What changes"})).getAllByRole("listitem")
         expect(changes.map(change => change.textContent)).toEqual([
             "Boxes · Shortest box wait (s) 4 min → 2 min",
-            "Boxes · Charges an hour, at most 12 → 30",
-            "What a box or a right answer is · Refill, weight 5 → 6",
-            "What it grants · Shields a box, at most 20 → 25",
+            "Boxes · Boxes an hour, at most 12 → 30",
+            "New accounts · First box after (s) 1 min → 30 s",
         ])
         expect(screen.queryByText("It plays now: it takes over at once.")).toBeNull()
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
@@ -121,27 +125,24 @@ describe("the box rules", () => {
         await waitFor(() => expect(within(rowOf("calm")).getByText("Every 2 min to 8 min, 30 an hour at most")).toBeTruthy())
         const rules = sent(admin)?.rules
         expect(sent(admin)?.name).toBe("calm")
-        expect(Number(rules?.boxes?.minInterval?.seconds)).toBe(120)
-        expect(rules?.shield?.maxPerBox).toBe(25)
-        expect(rules?.kinds?.refill).toBe(6)
-        expect(rules?.kinds?.bomb).toBe(1)
+        expect(Number(rules?.minInterval?.seconds)).toBe(120)
+        expect(Number(rules?.welcome?.boxAfter?.seconds)).toBe(30)
         expect(screen.queryByRole("region", {name: "Edit calm"})).toBeNull()
         expect(await within(quizzes()).findByRole("button", {name: "Edit default"})).toBeTruthy()
+        expect(admin.askedFor("saveBonusRuleSet")).toEqual([])
     })
 
-    it("freezes a set, and switches the sign-in refill off", async () => {
+    it("freezes a set", async () => {
         const admin = withCalm()
         show(admin)
 
         fireEvent.click(await button("Edit calm"))
         pick(FROZEN, "yes")
-        pick("Refill at first sign-in", "no")
-        expect(screen.getByText("2 changes")).toBeTruthy()
+        expect(screen.getByText("1 change")).toBeTruthy()
         save()
 
         await waitFor(() => expect(within(rowOf("calm")).getByText("Frozen")).toBeTruthy())
         expect(sent(admin)?.rules?.frozen).toBe(true)
-        expect(sent(admin)?.rules?.signInRefill).toBe(false)
     })
 
     it("makes a new set from a copy of default, which holds only what is typed", async () => {
@@ -158,7 +159,7 @@ describe("the box rules", () => {
         save()
 
         await waitFor(() => expect(rowOf("rush")).toBeTruthy())
-        expect(sent(admin)?.rules?.toJson()).toEqual({boxes: {minInterval: "60s", maxInterval: "60s"}})
+        expect(sent(admin)?.rules?.toJson()).toEqual({minInterval: "60s", maxInterval: "60s"})
         expect(within(rowOf("rush")).getByText("Every 1 min, 12 an hour at most")).toBeTruthy()
     })
 
@@ -171,14 +172,12 @@ describe("the box rules", () => {
         expect((screen.getByLabelText("Shortest box wait (s)") as HTMLInputElement).placeholder).toBe("240")
         expect(screen.getAllByText("default: 4 min").length).toBeGreaterThan(0)
         expect((screen.getByLabelText(FROZEN) as HTMLSelectElement).value).toBe("default")
-        expect((screen.getByLabelText("Refill at first sign-in") as HTMLSelectElement).value).toBe("no")
-        type("Spread clicks a box, at most", "0")
-        pick("Refill at first sign-in", "default")
-        fireEvent.click(screen.getByRole("button", {name: "Charges an hour, at most: use default"}))
+        type("Box flight (s)", "20")
+        fireEvent.click(screen.getByRole("button", {name: "Boxes an hour, at most: use default"}))
         save()
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
-        expect(sent(admin)?.rules?.toJson()).toEqual({spread: {maxPerBox: 0}})
+        expect(sent(admin)?.rules?.toJson()).toEqual({offerTtl: "20s"})
     })
 
     it("edits default with a box for each switch and every value needed", async () => {
@@ -186,7 +185,6 @@ describe("the box rules", () => {
 
         fireEvent.click(await button("Edit default"))
         expect((screen.getByLabelText(FROZEN) as HTMLInputElement).type).toBe("checkbox")
-        expect((screen.getByLabelText("Refill at first sign-in") as HTMLInputElement).checked).toBe(true)
         expect(screen.queryByText("An empty value plays default's.")).toBeNull()
         type("Box flight (s)", "")
         expect(saveButton().disabled).toBe(true)
@@ -196,11 +194,11 @@ describe("the box rules", () => {
 
     it("quotes the server's refusal and keeps the form", async () => {
         const admin = withCalm()
-        admin.refuse("saveBonusRuleSet", Code.InvalidArgument)
+        admin.refuse("saveBoxRuleSet", Code.InvalidArgument)
         show(admin)
 
         fireEvent.click(await button("Edit calm"))
-        type("Shields a box, at least", "50")
+        type("Boxes an hour, at most", "0")
         save()
 
         expect((await screen.findByRole("alert")).textContent).toContain("The server refused it")
@@ -209,15 +207,58 @@ describe("the box rules", () => {
 
     it("says a read that failed, and reads again", async () => {
         const admin = new FakeAdmin()
-        admin.refuse("getBonusRules", Code.Unavailable)
+        admin.refuse("getBoxRules", Code.Unavailable)
         show(admin)
 
         const again = await button("Try again")
         expect(await button("Copy default", quizzes())).toBeTruthy()
-        admin.refusals.delete("getBonusRules")
+        admin.refusals.delete("getBoxRules")
         fireEvent.click(again)
 
         expect(await button("Copy default")).toBeTruthy()
+    })
+})
+
+describe("what a box or a right answer holds", () => {
+    it("lists every set with the kinds a win is drawn as", async () => {
+        show(new FakeAdmin())
+
+        await button("Copy default", holds())
+        const row = rowOf("default", holds())
+        expect(row.getAttribute("aria-current")).toBe("true")
+        expect(within(row).getByText("refill 5, spread 3, enclose 2, bomb 1, shields 3")).toBeTruthy()
+    })
+
+    it("edits a set once confirmed, with no frozen switch, and saves it to the bonuses module", async () => {
+        const admin = withCalm()
+        show(admin)
+
+        fireEvent.click(await button("Edit calm", holds()))
+        expect(screen.queryByRole("region", {name: "Boxes"})).toBeNull()
+        expect(screen.queryByLabelText(FROZEN)).toBeNull()
+        type("Bomb, weight", "1.0")
+        type("Shields a box, at most", "25")
+        type("Refill, weight", "6")
+        pick("Refill at first sign-in", "no")
+        expect(screen.getByText("3 changes")).toBeTruthy()
+        fireEvent.click(saveButton())
+
+        const changes = within(screen.getByRole("list", {name: "What changes"})).getAllByRole("listitem")
+        expect(changes.map(change => change.textContent)).toEqual([
+            "What a box or a right answer is · Refill, weight 5 → 6",
+            "What it grants · Shields a box, at most 20 → 25",
+            "Refill at first sign-in yes → no",
+        ])
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(within(rowOf("calm", holds())).getByText("refill 6, spread 3, enclose 2, bomb 1, shields 3"))
+            .toBeTruthy())
+        const rules = bonusSent(admin)?.rules
+        expect(bonusSent(admin)?.name).toBe("calm")
+        expect(rules?.shield?.maxPerBox).toBe(25)
+        expect(rules?.kinds?.refill).toBe(6)
+        expect(rules?.signInRefill).toBe(false)
+        expect(admin.askedFor("saveBoxRuleSet")).toEqual([])
     })
 })
 
@@ -234,7 +275,7 @@ function withQuietQuizzes(): FakeAdmin {
 }
 
 describe("the quiz rules", () => {
-    it("lists both modules' sets on the one page, each as it plays", async () => {
+    it("lists every module's sets on the one page, each as it plays", async () => {
         show(withQuietQuizzes())
 
         await button("Copy default")
@@ -275,7 +316,7 @@ describe("the quiz rules", () => {
         expect(quizSent(admin)?.toJson()).toEqual({
             name: "quiet", rules: {enabled: true, answerWindow: "6s", maxRightAnswersPerHour: 20},
         })
-        expect(admin.askedFor("saveBonusRuleSet")).toEqual([])
+        expect(admin.askedFor("saveBoxRuleSet")).toEqual([])
         expect(await button("Edit default")).toBeTruthy()
     })
 

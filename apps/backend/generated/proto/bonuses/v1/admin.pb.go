@@ -61,7 +61,7 @@ type GetRulesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Every set postgres keeps, "default" first, as kept: one that cannot play too, so it can be mended.
 	Sets []*RuleSet `protobuf:"bytes,1,rep,name=sets,proto3" json:"sets,omitempty"`
-	// The set the offers play now: the one the schedule played last, or "default".
+	// The set the bonuses module plays now: the one the schedule played last, or "default".
 	Playing       string `protobuf:"bytes,2,opt,name=playing,proto3" json:"playing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

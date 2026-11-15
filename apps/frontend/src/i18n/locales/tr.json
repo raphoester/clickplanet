@@ -606,6 +606,7 @@
   "bonus.shield": "Kalkan",
   "bonus.spread.switchOn": "Yayılımı aç: her tık çevresindeki kareleri de alır",
   "bonus.gotIt": "Anladım",
+  "bonus.inventoryFull": "Envanterin zaten dolu",
   "reward.refill.detail": "Tıklarını istediğin an tamamen doldurur",
   "reward.spreadClicks": "{clicks, plural, one {+# yayılım tıkı} other {+# yayılım tıkı}}",
   "reward.bomb.detail": "Bir alandaki kareleri sıfırlar. Envanterinden nişan al",

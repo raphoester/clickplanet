@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/durationpb"
 
-	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	boxesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/boxes/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	promov1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/promo/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/promo/internal/backgrounds"
@@ -36,7 +36,7 @@ var (
 	points = backgrounds.BackgroundID{15: 2}
 	urf    = placeholders.Played{
 		Planet: &planetv1.Rules{Clicks: &planetv1.ClickRules{Tempo: proto.Float64(3)}},
-		Offers: &bonusesv1.Rules{Boxes: &bonusesv1.BoxPace{MinInterval: durationpb.New(time.Minute)}},
+		Boxes:  &boxesv1.Rules{MinInterval: durationpb.New(time.Minute)},
 	}
 )
 
@@ -104,7 +104,7 @@ func url(id backgrounds.BackgroundID) string {
 func TestABattlesCardsAreFilledWithWhatItsSetPlays(t *testing.T) {
 	db := seeded(t, map[cards.SetName][]cards.Draft{"urf": {
 		{Background: war, Headline: "Clicks refill {clicks.tempo}× faster", Line: "Every country at once."},
-		{Background: points, Headline: "A box every {bonuses.boxes.minInterval}"},
+		{Background: points, Headline: "A box every {boxes.minInterval}"},
 	}})
 
 	for _, battle := range []string{"tonight", "season-1/finale"} {

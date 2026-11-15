@@ -122,18 +122,13 @@ export type KnockOut = {
     version: MapVersion
 }
 
-export type BonusOffer = {
+// A box in flight: a question mark, since what it holds is drawn when it is caught.
+export type BoxOffer = {
     token: string
 
     seed: number
 
-    reward: BonusReward
-
     expiresAt: number
-}
-
-export type BonusCatch = {
-    countryId: string
 }
 
 export type Enclosure = {
@@ -154,8 +149,6 @@ export type SpreadClick = {
 }
 
 export type BonusHandlers = {
-    onOffered: (offer: BonusOffer) => void
-    onTaken: (taken: BonusCatch) => void
     onEnclosed: (enclosure: Enclosure) => void
     onSpread: (spread: SpreadClick) => void
     onCharges: (charges: Charges) => void
@@ -169,8 +162,15 @@ export type ClaimedBonus = {
 
 export interface BonusListener {
     listenForBonuses(handlers: BonusHandlers): () => void
+}
 
-    claimBonus(token: string, countryId: string): Promise<ClaimedBonus>
+// The boxes offered to the page, on a stream of their own. A box caught pays nothing itself: what it held is a grant
+// on planet's stream a moment after.
+export interface BoxCatcher {
+    listenForBoxes(onOffered: (offer: BoxOffer) => void): () => void
+
+    // What the box held, as planet's stream tells it; undefined when the hand had room for none.
+    claimBox(token: string): Promise<BonusReward | undefined>
 }
 
 // For a charge granted elsewhere, as a mission's reward: the holder tells its listeners again.

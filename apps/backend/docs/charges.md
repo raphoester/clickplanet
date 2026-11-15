@@ -1,9 +1,9 @@
 # Charges (refill, bomb, enclose, spread, shields)
 
 **The charges are the wallet, `internal/planet/internal/charges/`**: what an account holds and spends. What grants them,
-a box, a right answer or a guest's first sign-in, is the offers', the bonuses module since 2026-11-11, which reaches the
-wallet only through planet's internal calls, in planet's words (`GrantCharges`, `GetRoom`, `GetChargesOf`): see
-[The offers](bonuses.md) and [Offers and the wallet](offers-and-wallet.md).
+a box caught, a right answer or a guest's first sign-in, is the bonuses module's, which reaches the wallet only through
+planet's internal calls, in planet's words (`GrantCharges`, `GetRoom`): see [The bonuses](bonuses.md) and [Offers and the
+wallet](offers-and-wallet.md). The boxes are the boxes module's ([The boxes](boxes-module.md)).
 
 A timer rewarded speed rather than planning: with a bank of clicks, a 10s spread
 let a player dump the whole bank at seven tiles a click, more than a bomb, and a
@@ -37,19 +37,16 @@ its own.
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
   stack to the rule set's `charges.enclose.held` (3), spread clicks pool to `charges.spread.clicks`
   (8) and shields stack to `charges.shield.held` (30) (see [Rules](rules.md)). A box draws its amount evenly from 1 to
-  the offers' `maxPerBox`, or from their `shield.minPerBox` for shields (`bonuses.amountOf`, `crypto/rand`), and the
-  grant caps it at the size: the cap is the wallet's. The claim answers
-  `bonuses.v1.ClaimBonusResponse.amount` as **what was kept**: `Charges.Grant` answers the hand before and after it
-  (`charges.Gain`), both read under the lock of its one transaction, so a player is never told of clicks that did not
-  fit, and a spend in another tab cannot change the number. The offers get both from `InternalService/GrantCharges`
-  (`kept`, `charges`), which runs the wallet's payment (`pay_usecase`).
-- **The schedule offers no kind that is full** for any account that clicked as
-  the entrant within `activeWithin` (`Registry.offerable`): the linked account
-  itself, or every guest behind the scope. The schedule is by entrant and a charge
-  is by account, so the offers hear both off every click planet tells (`planet.v1.ClickTried`: the scope, the
-  account, linked), and ask planet's `GetRoom`, outside their lock, which kinds each of those accounts has no room
-  for: a hand planet cannot tell is offered nothing (see
-  [The offers](bonuses.md#what-it-asks-of-planet-in-planets-words)).
+  the bonuses' `maxPerBox`, or from their `shield.minPerBox` for shields (`bonuses.amountOf`, `crypto/rand`), and the
+  grant caps it at the size: the cap is the wallet's. **What was kept** reaches the page as the grant's `gained`, on
+  planet's stream (`charges_granted`, below): `Charges.Grant` answers the hand before and after it (`charges.Gain`), both
+  read under the lock of its one transaction, so a player is never told of clicks that did not fit, and a spend in
+  another tab cannot change the number. The bonuses module's `InternalService/GrantCharges` runs the wallet's payment
+  (`pay_usecase`). Until 2026-11-15 the claim's own answer said what was kept.
+- **The schedule offers a box whatever the hand holds** (since 2026-11-15). The schedule is by entrant and a charge
+  is by account, and the boxes know no kind and ask no room ([The boxes](boxes-module.md#what-it-asks-of-planet)). The
+  kind is drawn at the catch, among the kinds the claiming account's hand has room for then, and a full hand is paid
+  nothing ([A box caught](bonuses.md#a-box-caught)).
 - **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
   the player switched on for this click, and `click_usecase.In` carries them.
   `spread_click` spends a spread click only with `Spread`, once the click is accepted (see [Spread](spread.md)),
@@ -64,7 +61,8 @@ its own.
   nothing. `missions` pays its rewards this way.
 - **Or with a call answered at once**, `InternalService/GrantCharges{grant_id, account_id, kind, amount, lasting}`
   (`internal_grant_charges_handler`, then `pay_usecase`, the command's path with an answer: what the stack kept and
-  the hand after). The offers pay a box, a right answer the quizzes told and a new player's refill this way. With `lasting`
+  the hand after). The bonuses module pays a box the boxes told caught, a right answer the quizzes told and a new player's refill this
+  way. With `lasting`
   the grant id is kept for good in `charge_grants`, as a command's: the refill, once per account, from player's
   `PlayerCreated` ([A guest's first sign-in](sign-in-refill.md)). Without it, ten minutes in memory
   (`inmemory_grant_store`): a box's or an answer's id is its token's, which lives minutes and never outlives a
@@ -76,7 +74,8 @@ its own.
   `pay_usecase`, whose grant told again sends nothing. **It reaches every stream whose session names the account
   granted, a guest's too** (`notices.Board.Attend` keys a stream by the account its token names): a guest's token names
   its own account, which the others behind its address do not share. A stream with no token hears none. The page shows
-  a right answer's reward from it, since `AnswerQuiz` pays nothing ([The quizzes](quizzes-module.md)). Delivery is at
+  a right answer's reward and a box's from it, since `AnswerQuiz` and `ClaimBox` pay nothing ([The
+  quizzes](quizzes-module.md), [The boxes](boxes-module.md)). Delivery is at
   most once; the client reads the charges again when its stream comes back.
 - **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
   `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
@@ -86,23 +85,23 @@ its own.
   `shields`). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
   runs one transaction under `pg_advisory_xact_lock` on the account. An empty hand
   is no row. A failing database fails the call; a spread click fails with its tile
-  taken. A deleted account's row stays until something removes it. The offers'
-  state (schedules, offers, the hourly caps) is memory only, in the bonuses module, so
+  taken. A deleted account's row stays until something removes it. The boxes'
+  state (schedules, offers, the hourly caps) is memory only, in the boxes module, so
   a restart gives everyone a fresh schedule.
 - **Each spend is atomic**: `Charges.Spend` checks and takes in one `Change`, so two
   tabs racing for the last one get one, and the other `charges.ErrNotHeld`.
   `charges.StoreContractSuite` runs on postgres and on `MemoryStore` (behind the tag).
-- **A box is taken from memory before its grant**, so a grant that fails (the database down, or planet's
-  `GrantCharges` failing) loses it. That failure is not a refusal: `NotFound` is only for a token that is not the
-  caller's or not there, and a failed grant goes to the error net (logged, answered `internal`). `bonus_claims_total`
-  counts it `failed`, apart from `refused`. Once the offer is taken, the grant does not stop when the page leaves: it runs
-  on `context.WithoutCancel` for at most 5 s. A right answer is paid from the quizzes' `QuizAnswered`, which the bus
-  tries again until planet answers.
+- **A box is taken from memory before it is told caught**, so a record that fails (the boxes' database down) loses it.
+  That failure is not a refusal: `NotFound` is only for a token that is not the caller's or not there, and a failed
+  record goes to the error net (logged, answered `internal`). `bonus_claims_total` counts it `failed`, apart from
+  `refused`. Once the box is taken, the record does not stop when the page leaves: it runs on `context.WithoutCancel` for
+  at most 5 s. A box caught is paid from the boxes' `BoxClaimed`, and a right answer from the quizzes' `QuizAnswered`,
+  which the bus tries again until planet answers.
 - **A return undoes a spend**: `Charges.Return` puts back what a spend took, and reads no rule, since it grants
   nothing. Only a shield the map refused comes back this way (see [A shield's way](placements.md)).
 - **Only a grant pushes them** (`charges_granted`, above). Otherwise they are not live news: `GetCharges` answers what the
   caller holds, read by the client at load and when its account changes, and
-  `bonuses.v1.ClaimBonusResponse.charges` answers the claim, `PlaceShieldResponse.charges` a
+  `PlaceShieldResponse.charges` answers a
   shield placed. After that the client follows
   its own calls: a drop spends the bomb, an accepted click sent with spread on a
   spread click (not while spreads are unlimited), its own `tiles_enclosed` (`yours`) an enclosure. A charge spent in another
