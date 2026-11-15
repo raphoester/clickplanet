@@ -54,15 +54,12 @@
    gold fill grows under it; a click or an early release does nothing. Then it calls `acknowledgeWarning` and closes
    when the call succeeds; a failed call keeps it open.
 
-   **`NoticeModal` reminds the rule once when another account played from the same connection** at the same time
-   (the antibot's notice, which bans nothing: see the backend's
-   [Two accounts on one connection](../../backend/docs/antibot.md#two-accounts-on-one-connection-a-notice-never-a-ban)).
-   The same stream sends it (`useWarningFeed` puts it in `useWarning.noticed`). It says another account plays from
-   the connection, that several accounts, a guest one included, is cheating and gets paused, and that someone else at
-   home, school or work plays too, each on their own account. No ×, and Escape and the backdrop leave it open: a click
-   on "I understand these rules" calls `acknowledgeNotice`, and it closes when the call succeeds. It was held 3 seconds
-   until 2026-11-15, and a player whose hold never took was stuck behind it, so it is a plain button now. While a
-   warning is up it waits behind it.
+   **The antibot's notice is shown nowhere.** The same stream still sends it when another account played from the
+   same connection (see the backend's
+   [Two accounts on one connection](../../backend/docs/antibot.md#two-accounts-on-one-connection-a-notice-never-a-ban)),
+   and `useWarningFeed` still puts it in `useWarning.noticed`, but no component reads it. Its modal, `NoticeModal`,
+   shipped on 2026-11-15 and was deleted the same day: a player could not close it, neither with its 3-second hold
+   nor with the plain button that replaced it, and was stuck behind it.
 
 6. `ClickBudgetMeter` shows what is left of the bucket, in the dock at the bottom
    (see [The screen](screen.md)). It warns
