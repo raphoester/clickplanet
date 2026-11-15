@@ -11,8 +11,8 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
 
 - **The component that shows the state reads the store itself.** `SettingsPlace` reads the display settings, the
   board reads its guide, the phone's tab bar the chat's unread count, `ScheduleChip`, its sheets and `Moments` the
-  schedule, the clicks meter and panel the click budget, and `WarningModal` the antibot's warning (`useWarning`,
-  `warning/warningStore.ts`). `PlayScreen` reads a store only for what it draws or
+  schedule, the clicks meter and panel the click budget, and `WarningModal` and `NoticeModal` the antibot's warning and notice
+  (`useWarning`, `warning/warningStore.ts`). `PlayScreen` reads a store only for what it draws or
   hands a hook itself, such as the two display fields it gives the globe, and never to pass a value down. It reads
   plain fields where it can (the budget's sign-in multiplier, freeze and fast start, not the reading), so a store
   that changes often does not render the whole screen.

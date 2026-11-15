@@ -8,6 +8,7 @@ import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
@@ -24,6 +25,8 @@ func NewInMemory(
 	enforcer *bans.MemoryEnforcer,
 	warned *warnings.MemoryStore,
 	feed *warnings.MemoryFeed,
+	noticed *notices.MemoryStore,
+	noticeFeed *notices.MemoryFeed,
 	evidences *evidence.MemoryPersistence,
 	heard ...evidence.Section,
 ) *Guard {
@@ -31,7 +34,9 @@ func NewInMemory(
 		scopeBans, accountBans, cpatomic.FakeTransactioner{}, enforcer)
 	warner := warnings.NewBook(book, clock, warned, feed)
 
-	return New(config, inForce, clock, observer, book, warner, evidences, heard...)
+	noticer := notices.NewBook(clock, noticed, noticeFeed)
+
+	return New(config, inForce, clock, observer, book, warner, noticer, evidences, heard...)
 }
 
 func (g *Guard) EnforcedSentence(ctx context.Context, scope, account string) (Sentence, bool) {

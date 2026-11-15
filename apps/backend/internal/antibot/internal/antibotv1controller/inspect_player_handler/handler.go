@@ -66,6 +66,9 @@ func encode(out guard.Examination) *antibotv1.InspectPlayerResponse {
 		WarnedAt:      timestampOrNil(out.WarnedAt),
 
 		WarningAcknowledgedAt: timestampOrNil(out.WarningAcknowledgedAt),
+		NoticedAt:             timestampOrNil(out.NoticedAt),
+		NoticedAlongside:      out.NoticedAlongside,
+		NoticeAcknowledgedAt:  timestampOrNil(out.NoticeAcknowledgedAt),
 		Readings:              readings,
 		Suspects:              uint32(out.Suspects),    //nolint:gosec // bounded by the watchdogs.
 		MinSuspects:           uint32(out.MinSuspects), //nolint:gosec // defaulted to at least one.

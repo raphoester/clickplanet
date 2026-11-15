@@ -56,6 +56,12 @@ export class AntibotEvent extends Message<AntibotEvent> {
      */
     value: Warning;
     case: "warning";
+  } | {
+    /**
+     * @generated from field: antibot.v1.Notice notice = 3;
+     */
+    value: Notice;
+    case: "notice";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<AntibotEvent>) {
@@ -68,6 +74,7 @@ export class AntibotEvent extends Message<AntibotEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 2, name: "warning", kind: "message", T: Warning, oneof: "event" },
+    { no: 3, name: "notice", kind: "message", T: Notice, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AntibotEvent {
@@ -152,6 +159,40 @@ export class Warning extends Message<Warning> {
 }
 
 /**
+ * Another account played from the caller's connection at the same time as it: the caller is reminded that one player
+ * plays one account. Nothing follows from it: no ban counts it.
+ *
+ * @generated from message antibot.v1.Notice
+ */
+export class Notice extends Message<Notice> {
+  constructor(data?: PartialMessage<Notice>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.Notice";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Notice {
+    return new Notice().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Notice {
+    return new Notice().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Notice {
+    return new Notice().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Notice | PlainMessage<Notice> | undefined, b: Notice | PlainMessage<Notice> | undefined): boolean {
+    return proto3.util.equals(Notice, a, b);
+  }
+}
+
+/**
  * @generated from message antibot.v1.AcknowledgeWarningRequest
  */
 export class AcknowledgeWarningRequest extends Message<AcknowledgeWarningRequest> {
@@ -210,6 +251,68 @@ export class AcknowledgeWarningResponse extends Message<AcknowledgeWarningRespon
 
   static equals(a: AcknowledgeWarningResponse | PlainMessage<AcknowledgeWarningResponse> | undefined, b: AcknowledgeWarningResponse | PlainMessage<AcknowledgeWarningResponse> | undefined): boolean {
     return proto3.util.equals(AcknowledgeWarningResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.AcknowledgeNoticeRequest
+ */
+export class AcknowledgeNoticeRequest extends Message<AcknowledgeNoticeRequest> {
+  constructor(data?: PartialMessage<AcknowledgeNoticeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.AcknowledgeNoticeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AcknowledgeNoticeRequest {
+    return new AcknowledgeNoticeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AcknowledgeNoticeRequest {
+    return new AcknowledgeNoticeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AcknowledgeNoticeRequest {
+    return new AcknowledgeNoticeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AcknowledgeNoticeRequest | PlainMessage<AcknowledgeNoticeRequest> | undefined, b: AcknowledgeNoticeRequest | PlainMessage<AcknowledgeNoticeRequest> | undefined): boolean {
+    return proto3.util.equals(AcknowledgeNoticeRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message antibot.v1.AcknowledgeNoticeResponse
+ */
+export class AcknowledgeNoticeResponse extends Message<AcknowledgeNoticeResponse> {
+  constructor(data?: PartialMessage<AcknowledgeNoticeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.AcknowledgeNoticeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AcknowledgeNoticeResponse {
+    return new AcknowledgeNoticeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AcknowledgeNoticeResponse {
+    return new AcknowledgeNoticeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AcknowledgeNoticeResponse {
+    return new AcknowledgeNoticeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AcknowledgeNoticeResponse | PlainMessage<AcknowledgeNoticeResponse> | undefined, b: AcknowledgeNoticeResponse | PlainMessage<AcknowledgeNoticeResponse> | undefined): boolean {
+    return proto3.util.equals(AcknowledgeNoticeResponse, a, b);
   }
 }
 

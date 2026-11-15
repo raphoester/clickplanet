@@ -94,6 +94,11 @@ func New(logger *slog.Logger, registerer prometheus.Registerer) guard.Observer {
 		Help: "Accounts warned that playing several accounts is refused, before any ban for it",
 	})
 
+	noticed := factory.NewCounter(prometheus.CounterOpts{
+		Name: "antibot_notices_total",
+		Help: "Accounts shown that another account played from their connection at the same time; no ban follows",
+	})
+
 	opinions := factory.NewCounterVec(prometheus.CounterOpts{
 		Name: "antibot_opinions_total",
 		Help: "Times a watchdog's reading of a caller rose to a level it had not held within jury.suspicionWindow; suspect includes certain",
@@ -174,6 +179,16 @@ func New(logger *slog.Logger, registerer prometheus.Registerer) guard.Observer {
 			}
 
 			logger.Warn("antibot warning", fields...)
+		},
+
+		OnNotice: func(scope string, notice guard.Notice) {
+			noticed.Inc()
+
+			logger.Info("antibot notice",
+				slog.String("scope", scope),
+				slog.String("account", notice.Account),
+				slog.String("alongside", notice.Alongside),
+			)
 		},
 
 		OnRise: func(watchdog, level string) {

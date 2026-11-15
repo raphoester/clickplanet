@@ -73,6 +73,11 @@ export class Rules extends Message<Rules> {
    */
   rotator?: RotatorRules;
 
+  /**
+   * @generated from field: antibot.v1.SharingRules sharing = 13;
+   */
+  sharing?: SharingRules;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -93,6 +98,7 @@ export class Rules extends Message<Rules> {
     { no: 10, name: "churner", kind: "message", T: ChurnerRules },
     { no: 11, name: "hopper", kind: "message", T: HopperRules },
     { no: 12, name: "rotator", kind: "message", T: RotatorRules },
+    { no: 13, name: "sharing", kind: "message", T: SharingRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -1319,6 +1325,65 @@ export class RotatorRules extends Message<RotatorRules> {
 
   static equals(a: RotatorRules | PlainMessage<RotatorRules> | undefined, b: RotatorRules | PlainMessage<RotatorRules> | undefined): boolean {
     return proto3.util.equals(RotatorRules, a, b);
+  }
+}
+
+/**
+ * Not a watchdog: it never bans. Two accounts that play in turns from one scope are each shown a notice, once.
+ *
+ * @generated from message antibot.v1.SharingRules
+ */
+export class SharingRules extends Message<SharingRules> {
+  /**
+   * Off, nobody is noticed.
+   *
+   * @generated from field: optional bool enabled = 1;
+   */
+  enabled?: boolean;
+
+  /**
+   * How far back an account's tries on a scope count: two accounts play together when one tried between two tries of
+   * the other inside it.
+   *
+   * @generated from field: google.protobuf.Duration window = 2;
+   */
+  window?: Duration;
+
+  /**
+   * A scope where more accounts tried inside the window is a shared network (a school, a carrier's address): nobody on
+   * it is noticed.
+   *
+   * @generated from field: optional uint32 max_accounts = 3;
+   */
+  maxAccounts?: number;
+
+  constructor(data?: PartialMessage<SharingRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "antibot.v1.SharingRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "window", kind: "message", T: Duration },
+    { no: 3, name: "max_accounts", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SharingRules {
+    return new SharingRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SharingRules {
+    return new SharingRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SharingRules {
+    return new SharingRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SharingRules | PlainMessage<SharingRules> | undefined, b: SharingRules | PlainMessage<SharingRules> | undefined): boolean {
+    return proto3.util.equals(SharingRules, a, b);
   }
 }
 

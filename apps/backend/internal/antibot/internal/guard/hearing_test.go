@@ -13,6 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/warnings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
@@ -56,7 +57,7 @@ func TestTheLastFlushWaitsForWhatTheFeedsStillHandle(t *testing.T) {
 	inForce.Enforce(set)
 	watchdogs := guard.NewInMemory(guard.Config{}, inForce, cptime.NewFixedClock(time.Now()), guard.Observer{},
 		bans.NewMemoryStore(), bans.NewMemoryStore(), &bans.MemoryEnforcer{}, warnings.NewMemoryStore(), &warnings.MemoryFeed{},
-		evidence.NewMemoryPersistence(), seen)
+		notices.NewMemoryStore(), &notices.MemoryFeed{}, evidence.NewMemoryPersistence(), seen)
 
 	hearing := watchdogs.Hearing(lateFeed{handled: handled})
 	ctx, cancel := context.WithCancel(t.Context())

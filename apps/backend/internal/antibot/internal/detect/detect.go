@@ -155,6 +155,10 @@ type Examination struct {
 
 	WarningAcknowledgedAt time.Time
 
+	NoticedAt            time.Time
+	NoticedAlongside     string
+	NoticeAcknowledgedAt time.Time
+
 	Readings []Reading
 
 	Suspects    int

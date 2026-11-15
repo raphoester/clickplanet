@@ -132,10 +132,11 @@ most`, `boxesOf`); Quizzes with its offers and its quizzes (`Every 4 min to 8 mi
 (the backend's [antibot rules](../../backend/docs/antibot-rules.md)): every set postgres keeps, `default` first, with
 whether it enforces its bans, the watchdogs it turns off (`<watchdog>.enabled` false: the jury reads them as clear), and its
 crowd (`cohort.certainMembers`). The watchdogs are the parts of `antibot.v1.Rules` that have an `enabled` field, read
-off the proto, so a new one shows with no edit here.
+off the proto, so a new one shows with no edit here, but `sharing`, whose notice bans nothing: it has a part of its own
+in the form, and is never listed as a watchdog turned off.
 
-- **A form read off the proto** (`PARTS`, `LEAVES`): a set holds 94 values in a dozen parts, so each part (Bans,
-  Jury, each watchdog) is folded under one line that says whether it is on and how many of its values the form
+- **A form read off the proto** (`PARTS`, `LEAVES`): a set holds 98 values in a dozen parts, so each part (Bans,
+  Jury, each watchdog, Sharing) is folded under one line that says whether it is on and how many of its values the form
   changed. Inside, its switch first, then a field per value, labelled from its name ("minReactions" → "Min
   reactions", the whole place as the field's name: "Metronome · Min reactions"), and its inner parts (Shape, Clock…)
   framed. A value the proto gains shows with no edit here; a kind of value the form has no field for (an enum, a map,

@@ -112,7 +112,8 @@ rings: the fake takes the tiles within 2.3 tile spacings), `unlimitSpreads(true,
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
 minutes, as a ban does, and `fakeBackend.ban(0)` lifts it.
 `fakeAntibot.warn()` warns this player for playing several accounts, as the antibot does, and holding the warning
-modal's "Hold to confirm" acknowledges it.
+modal's "Hold to confirm" acknowledges it. `fakeAntibot.notice()` shows the notice that another account played from
+this connection, and holding "I understand these rules" 3 seconds acknowledges it.
 `fakeBackend.setTempo(3)` refills the bank three times as fast, as a rule set
 of the server can, and `fakeBackend.setTempo(1)` puts it back.
 `fakeBackend.fastStart(true)` plays a new guest's fast start (the signed-in pace, "Sign in: keep this speed"), and

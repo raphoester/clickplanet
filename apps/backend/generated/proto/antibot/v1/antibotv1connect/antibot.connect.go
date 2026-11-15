@@ -39,6 +39,9 @@ const (
 	// AntibotServiceAcknowledgeWarningProcedure is the fully-qualified name of the AntibotService's
 	// AcknowledgeWarning RPC.
 	AntibotServiceAcknowledgeWarningProcedure = "/antibot.v1.AntibotService/AcknowledgeWarning"
+	// AntibotServiceAcknowledgeNoticeProcedure is the fully-qualified name of the AntibotService's
+	// AcknowledgeNotice RPC.
+	AntibotServiceAcknowledgeNoticeProcedure = "/antibot.v1.AntibotService/AcknowledgeNotice"
 )
 
 // AntibotServiceClient is a client for the antibot.v1.AntibotService service.
@@ -48,6 +51,8 @@ type AntibotServiceClient interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.AntibotEvent], error)
 	// The caller read its warning, so the stream stops telling it. A caller with no warning changes nothing.
 	AcknowledgeWarning(context.Context, *connect.Request[v1.AcknowledgeWarningRequest]) (*connect.Response[v1.AcknowledgeWarningResponse], error)
+	// The caller read its notice, so the stream stops telling it. A caller with no notice changes nothing.
+	AcknowledgeNotice(context.Context, *connect.Request[v1.AcknowledgeNoticeRequest]) (*connect.Response[v1.AcknowledgeNoticeResponse], error)
 }
 
 // NewAntibotServiceClient constructs a client for the antibot.v1.AntibotService service. By
@@ -73,6 +78,12 @@ func NewAntibotServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(antibotServiceMethods.ByName("AcknowledgeWarning")),
 			connect.WithClientOptions(opts...),
 		),
+		acknowledgeNotice: connect.NewClient[v1.AcknowledgeNoticeRequest, v1.AcknowledgeNoticeResponse](
+			httpClient,
+			baseURL+AntibotServiceAcknowledgeNoticeProcedure,
+			connect.WithSchema(antibotServiceMethods.ByName("AcknowledgeNotice")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -80,6 +91,7 @@ func NewAntibotServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 type antibotServiceClient struct {
 	listenForEvents    *connect.Client[v1.ListenForEventsRequest, v1.AntibotEvent]
 	acknowledgeWarning *connect.Client[v1.AcknowledgeWarningRequest, v1.AcknowledgeWarningResponse]
+	acknowledgeNotice  *connect.Client[v1.AcknowledgeNoticeRequest, v1.AcknowledgeNoticeResponse]
 }
 
 // ListenForEvents calls antibot.v1.AntibotService.ListenForEvents.
@@ -92,6 +104,11 @@ func (c *antibotServiceClient) AcknowledgeWarning(ctx context.Context, req *conn
 	return c.acknowledgeWarning.CallUnary(ctx, req)
 }
 
+// AcknowledgeNotice calls antibot.v1.AntibotService.AcknowledgeNotice.
+func (c *antibotServiceClient) AcknowledgeNotice(ctx context.Context, req *connect.Request[v1.AcknowledgeNoticeRequest]) (*connect.Response[v1.AcknowledgeNoticeResponse], error) {
+	return c.acknowledgeNotice.CallUnary(ctx, req)
+}
+
 // AntibotServiceHandler is an implementation of the antibot.v1.AntibotService service.
 type AntibotServiceHandler interface {
 	// The caller's warning while it is not acknowledged: once as the stream opens, then as it is given. Unauthenticated
@@ -99,6 +116,8 @@ type AntibotServiceHandler interface {
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.AntibotEvent]) error
 	// The caller read its warning, so the stream stops telling it. A caller with no warning changes nothing.
 	AcknowledgeWarning(context.Context, *connect.Request[v1.AcknowledgeWarningRequest]) (*connect.Response[v1.AcknowledgeWarningResponse], error)
+	// The caller read its notice, so the stream stops telling it. A caller with no notice changes nothing.
+	AcknowledgeNotice(context.Context, *connect.Request[v1.AcknowledgeNoticeRequest]) (*connect.Response[v1.AcknowledgeNoticeResponse], error)
 }
 
 // NewAntibotServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -120,12 +139,20 @@ func NewAntibotServiceHandler(svc AntibotServiceHandler, opts ...connect.Handler
 		connect.WithSchema(antibotServiceMethods.ByName("AcknowledgeWarning")),
 		connect.WithHandlerOptions(opts...),
 	)
+	antibotServiceAcknowledgeNoticeHandler := connect.NewUnaryHandler(
+		AntibotServiceAcknowledgeNoticeProcedure,
+		svc.AcknowledgeNotice,
+		connect.WithSchema(antibotServiceMethods.ByName("AcknowledgeNotice")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/antibot.v1.AntibotService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AntibotServiceListenForEventsProcedure:
 			antibotServiceListenForEventsHandler.ServeHTTP(w, r)
 		case AntibotServiceAcknowledgeWarningProcedure:
 			antibotServiceAcknowledgeWarningHandler.ServeHTTP(w, r)
+		case AntibotServiceAcknowledgeNoticeProcedure:
+			antibotServiceAcknowledgeNoticeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -141,4 +168,8 @@ func (UnimplementedAntibotServiceHandler) ListenForEvents(context.Context, *conn
 
 func (UnimplementedAntibotServiceHandler) AcknowledgeWarning(context.Context, *connect.Request[v1.AcknowledgeWarningRequest]) (*connect.Response[v1.AcknowledgeWarningResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AntibotService.AcknowledgeWarning is not implemented"))
+}
+
+func (UnimplementedAntibotServiceHandler) AcknowledgeNotice(context.Context, *connect.Request[v1.AcknowledgeNoticeRequest]) (*connect.Response[v1.AcknowledgeNoticeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("antibot.v1.AntibotService.AcknowledgeNotice is not implemented"))
 }

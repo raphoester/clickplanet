@@ -13,7 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-// Seeded is the set the migrations keep as default: production's rules on 26 October 2026, and the rotator's certain level of 3 November.
+// Seeded is the set the migrations keep as default: production's rules on 26 October 2026, the rotator's certain level of
+// 3 November, and the sharing notice of 15 November.
 func Seeded() cprules.Snapshot[*antibotv1.Rules] {
 	d := durationpb.New
 	return cprules.Snapshot[*antibotv1.Rules]{
@@ -110,6 +111,7 @@ func Seeded() cprules.Snapshot[*antibotv1.Rules] {
 				CertainSlots:    proto.Uint32(48),
 				CertainByChance: proto.Float64(300),
 			},
+			Sharing: &antibotv1.SharingRules{Enabled: proto.Bool(true), Window: d(time.Hour), MaxAccounts: proto.Uint32(3)},
 		},
 	}
 }

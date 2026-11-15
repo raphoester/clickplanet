@@ -11,6 +11,7 @@ import (
 	antibotv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/antibot/v1/antibotv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/acknowledge_notice_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/acknowledge_warning_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/ban_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/antibotv1controller/get_rule_set_names_handler"
@@ -28,9 +29,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/guard"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/listener"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/notices"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/notices/inprocess_notice_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/observer"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_ban_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_evidence_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_notice_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/postgres_warning_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/ban_player_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/usecases/ban_player_usecase/audit_ban"
@@ -87,6 +91,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				db, outbox_planet_enforcer.New(cpoutbox.New(db)))
 			feed := inprocess_warning_feed.New()
 			warner := warnings.NewBook(book, clock, postgres_warning_store.New(db), feed)
+			noticeFeed := inprocess_notice_feed.New()
+			noticer := notices.NewBook(clock, postgres_notice_store.New(db), noticeFeed)
 
 			// The bans running at a deploy reach planet's refused callers with no hand migration.
 			players := cprules.NewPlayUseCase(ruleSets, cprules.NewPostgresChoices(db), inForce, book.Restate)
@@ -99,7 +105,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			marks := listener.NewMarks()
 			watchdogs := guard.New(config.Config, inForce, clock, observer.New(props.Logger, props.Metrics), book, warner,
-				postgres_evidence_store.New(db), marks)
+				noticer, postgres_evidence_store.New(db), marks)
 			if err := watchdogs.Load(ctx); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the antibot state: %w", err)
@@ -138,8 +144,9 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			antibotService := antibotv1controller.AntibotService{
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_warnings_usecase.New(feed, warner, props.Server.StreamHeartbeat)),
+					listen_for_warnings_usecase.New(feed, warner, noticeFeed, noticer, props.Server.StreamHeartbeat)),
 				AcknowledgeWarningHandler: acknowledge_warning_handler.New(warner),
+				AcknowledgeNoticeHandler:  acknowledge_notice_handler.New(noticer),
 			}
 			if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return antibotv1connect.NewAntibotServiceHandler(antibotService, options...)

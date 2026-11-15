@@ -18,7 +18,9 @@ planet ◀────────────── RefuseCaller, AdmitCaller (
 
 - **Its own block, `antiBot`** (`antibot.Config`: `enabled`, `database`, `redis`, and the watchdogs' blocks squashed
   in), its own `antibot` schema and pool, its own Redis connection, and its own `antibot.v1.AdminService`
-  (`BanPlayer`, `UnbanPlayer`, `WarnPlayer`, `InspectPlayer`, `GetRules`, `SaveRuleSet`; see [Operator tools](admin.md)). The block
+  (`BanPlayer`, `UnbanPlayer`, `WarnPlayer`, `InspectPlayer`, `GetRules`, `SaveRuleSet`; see [Operator tools](admin.md)), and
+  a notice to two accounts that play in turns from one connection, which bans nothing (see [Two accounts on one
+  connection](#two-accounts-on-one-connection-a-notice-never-a-ban)). The block
   holds the machine only: **every bound below is a rule of the set in force**, kept in postgres and edited from the
   backoffice since 2026-10-26 ([The antibot's rules](antibot-rules.md)). A bound named here by its key (`minSuspects`,
   `bans.enforce`) is that rule.
@@ -161,6 +163,38 @@ the rule, before any ban.
   the jury; `TestAnOperatorsWarningBansTheRingOnTwoHoursOfTurnsAfterIt` the operator's warning; `TestThePairOfNovember3OnOneAddressIsWarnedThenBanned`, `TestARingThatStopsAtItsWarningPlaysOn` and
   `TestABootForgetsTheTurnsBeforeAWarningTheEvidenceStillHeld` the guard; `listen_for_warnings_usecase`'s tests the
   stream.
+
+## Two accounts on one connection: a notice, never a ban
+
+**Since 2026-11-15, two accounts that play in turns from one scope are each shown a notice, once.** The rule is one
+player, one account, and the alt is most often a guest in a second browser beside the main account. An address shared
+proves nothing (a household, a school, a carrier's NAT), so nothing is judged from it: the notice reminds the rule to
+both, before any rotator reading, and says that each person on a shared connection plays their own account.
+
+- **`sharing` is not a watchdog** (`antibot/internal/sharing`, the `Tracker`): it reads no level, the jury never hears
+  it, no ban and no warning counts it. It keeps, per scope, each account's first and last try inside `sharing.window`
+  (1 hour in `default`), in memory: a restart forgets it, and the next turns find the pair again.
+- **In turns, not one after the other**: the account that tries is found with another when the other tried after the
+  caller's first try inside the window, then the caller tried again (A, B, A). A guest that signs in to its account is
+  a new account that follows the guest (G, G, B, B) and is never found, nor is a player whose guest lapsed. A sign-out
+  and a sign-in back inside the hour is the one hand-off that reads as turns (B, G, B).
+- **Every try but a refused one counts** (`Guard.Played`, from the listener after the watchdogs): a throttled click or
+  one on another flag is a person playing. A banned caller's tries tell nothing.
+- **A crowd is no pair**: a scope where more than `sharing.maxAccounts` accounts (3) tried inside the window is a school
+  or a carrier's address, and nobody on it is noticed.
+- **Each account once, ever** (`antibot.notices`, one row per account, the first kept with the account it played
+  beside), and the tracker answers each account's span once, so a pair that plays on asks postgres nothing more. An
+  account warned before is not noticed: its warning says more. A notice that cannot be kept is logged
+  (`antibot state not persisted`) and lost until the account's span lapses.
+- **The page hears it on the warnings' stream**: `AntibotEvent.notice`, sent as the stream opens while it is not
+  acknowledged and as it is given (`inprocess_notice_feed`), and `AcknowledgeNotice` keeps `acknowledged_at`. The page
+  shows "One account per player", held 3 seconds on "I understand these rules" (see the frontend's
+  [Data flow](../../frontend/docs/data-flow.md)). It costs no stream more.
+- **The operator sees it**: the `antibot notice` log line (`scope`, `account`, `alongside`), the counter
+  `antibot_notices_total`, and `noticed_at`, `noticed_alongside` and `notice_acknowledged_at` in `InspectPlayer`.
+- Off (`sharing.enabled`), nobody is noticed and the tracker keeps watching, so it finds the pairs at once when on.
+- `sharing`'s tests pin the turns, the hand-off and the crowd; `notice_test.go` the guard's whole path (once each, no
+  ban, a warned account skipped); `listen_for_warnings_usecase`'s tests the stream.
 
 ## Ten watchdogs, one jury
 

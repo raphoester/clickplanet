@@ -19,6 +19,7 @@ type Guard interface {
 	Attempted(click guard.Click)
 	Inspect(ctx context.Context, click guard.Click)
 	Committed(click guard.Click)
+	Played(ctx context.Context, click guard.Click)
 	Caught(scope string, after time.Duration)
 	Missed(scope string)
 	Foreign(scope string)
@@ -66,6 +67,7 @@ func (l *Listener) tried(ctx context.Context, fact *planetv1.ClickTried) error {
 
 	switch outcome := fact.GetOutcome(); outcome {
 	case planetv1.ClickOutcome_CLICK_OUTCOME_REFUSED:
+		return nil
 	case planetv1.ClickOutcome_CLICK_OUTCOME_THROTTLED, planetv1.ClickOutcome_CLICK_OUTCOME_OTHER_FLAG,
 		planetv1.ClickOutcome_CLICK_OUTCOME_OUT_OF_REACH:
 		l.guard.Attempted(click)
@@ -80,6 +82,7 @@ func (l *Listener) tried(ctx context.Context, fact *planetv1.ClickTried) error {
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownOutcome, outcome)
 	}
+	l.guard.Played(ctx, click)
 	return nil
 }
 
