@@ -641,6 +641,7 @@ export class DemoAdmin extends FakeAdmin {
         getProgress: (request: PartialMessage<AdminGetProgressRequest>) =>
             this.answer("getProgress", request, this.progressOf(request.accountId ?? "")),
         reconcileTitles: this.progression.reconcileTitles.bind(this.progression),
+        backfillDaysPlayed: this.progression.backfillDaysPlayed.bind(this.progression),
     }
 
     readonly demoAntibot = {
