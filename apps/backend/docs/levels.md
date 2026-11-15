@@ -73,12 +73,11 @@ history counts once it links is open in the slice doc; the record is the whole s
 
 ## The record
 
-**`Record` is what the level reads: the stats row's counts.** `stats.Stats` already answers five of them under the same
-names (`TilesTaken`, `BombsDropped`, `BonusesClaimed`, `RightAnswers`, `TilesFortified`). The two others come with
-changes in progress:
+**`Record` is what the level reads: the stats row's counts.** `stats.Stats` answers six of them under the same names
+(`TilesTaken`, `DaysPlayed`, `BombsDropped`, `BonusesClaimed`, `RightAnswers`, `TilesFortified`); the days played are
+in [Progression](progression.md#the-days-played). The seventh comes with a change in progress:
 
-- `DaysPlayed()`: the days played, a stat of its own with its backfill from planet's ledger.
 - `MissionGoals(kind)`: the goals of the missions paid, summed per kind, from `missions.v1.MissionsPaid.by_kind`.
 
-Until both are in the stats, nothing hands a `stats.Stats` to the scale. The stats cannot name `levels.MissionKind`
-(levels reads the stats, never the other way), so the change that wires the level maps the stats' own kinds to it.
+Until it is in the stats, nothing hands a `stats.Stats` to the scale. The stats cannot name `levels.MissionKind` (levels
+reads the stats, never the other way), so the change that wires the level maps the stats' own kinds to it.

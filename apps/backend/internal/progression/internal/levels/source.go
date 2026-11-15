@@ -3,8 +3,8 @@ package levels
 // XP is how far an account went, in one number. It is never stored: it is computed from the stats row at each read.
 type XP uint64
 
-// Record is what an account did, as its stats row keeps it. stats.Stats already answers the counts it keeps under the
-// same names; the days played and the missions paid by kind come with the changes that add them to the stats.
+// Record is what an account did, as its stats row keeps it. stats.Stats answers every count under the same name but the
+// missions paid by kind, which come with the change that adds them to the stats.
 type Record interface {
 	TilesTaken() uint64
 	DaysPlayed() uint64

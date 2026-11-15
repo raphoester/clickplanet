@@ -18,15 +18,11 @@ var (
 	guest  = accounts.AccountOf(false, time.Time{})
 )
 
-// The stats row answers what it already counts; the days played and the missions by kind are added beside it until
-// the stats count them.
+// The stats row answers every count but the missions by kind, added beside it until the stats count them.
 type record struct {
 	stats.Stats
-	days     uint64
 	missions map[levels.MissionKind]uint64
 }
-
-func (r record) DaysPlayed() uint64 { return r.days }
 
 func (r record) MissionGoals(kind levels.MissionKind) uint64 { return r.missions[kind] }
 
@@ -34,13 +30,13 @@ func (r record) MissionGoals(kind levels.MissionKind) uint64 { return r.missions
 var firstDay = record{
 	Stats: stats.StatsSnapshot{
 		TilesTaken:     600,
+		DaysPlayed:     1,
 		BombsDropped:   3,
 		BonusesClaimed: 4,
 		RightAnswers:   2,
 		TilesFortified: 1_234,
 		MessagesSent:   40,
 	}.Restore(),
-	days:     1,
 	missions: map[levels.MissionKind]uint64{"take_for": 180, "catch_boxes": 4, "answer_quizzes": 2},
 }
 
