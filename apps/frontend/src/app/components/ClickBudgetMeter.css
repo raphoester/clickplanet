@@ -14,15 +14,14 @@
     transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
-.click-budget-dock:has(> .click-budget-footer > *) {
-    padding-bottom: calc(var(--space-2) + 16px);
+.click-budget-footer {
+    order: 1;
+    flex: 1 0 100%;
+    min-width: 0;
 }
 
-.click-budget-footer {
-    position: absolute;
-    left: var(--space-4);
-    right: var(--space-4);
-    bottom: var(--space-2);
+.click-budget-footer:empty {
+    display: none;
 }
 
 .click-budget-shell {
@@ -237,7 +236,7 @@
     animation: click-budget-popover-in 0.18s ease-out;
 }
 
-/* A tray opens as a row of its own above the clicks: the dock grows upward, and what stacks on it follows its drawn height. */
+/* A tray opens as a row of its own above the clicks, the level's line below them: the dock grows, and what stacks on it follows its drawn height. */
 .click-budget-tray {
     order: -1;
     flex: 1 0 100%;
@@ -248,11 +247,13 @@
     display: none;
 }
 
-.click-budget-dock:has(> .click-budget-tray:not(:empty)) {
+.click-budget-dock:has(> .click-budget-tray:not(:empty)),
+.click-budget-dock:has(> .click-budget-footer:not(:empty)) {
     flex-wrap: wrap;
 }
 
-.click-budget-dock:has(> .click-budget-tray:not(:empty)) .click-budget-shell {
+.click-budget-dock:has(> .click-budget-tray:not(:empty)) .click-budget-shell,
+.click-budget-dock:has(> .click-budget-footer:not(:empty)) .click-budget-shell {
     flex-basis: 0;
 }
 
@@ -303,15 +304,6 @@
         min-height: 72px;
         gap: 10px;
         padding: var(--space-2) var(--space-3);
-    }
-
-    .click-budget-dock:has(> .click-budget-footer > *) {
-        padding-bottom: calc(var(--space-2) + 16px);
-    }
-
-    .click-budget-footer {
-        left: var(--space-3);
-        right: var(--space-3);
     }
 
     .click-budget {

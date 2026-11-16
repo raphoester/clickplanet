@@ -250,8 +250,24 @@
         height: 22px;
     }
 
-    .inventory-slots .inventory-name {
+    .inventory-slots .inventory-name,
+    .inventory-slots .inventory-state {
         display: none;
+    }
+
+    .inventory-slots .inventory-slot--new .inventory-state {
+        display: block;
+        top: -6px;
+        right: -6px;
+        left: auto;
+        box-sizing: border-box;
+        width: 14px;
+        height: 14px;
+        padding: 0;
+        overflow: hidden;
+        border-radius: 50%;
+        transform: none;
+        color: transparent;
     }
 
     .inventory-slots .inventory-count {
