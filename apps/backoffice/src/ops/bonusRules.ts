@@ -18,6 +18,7 @@ export const GROUPS: Group[] = [
         {path: "kinds.encloseClicks", label: "Enclose, weight", kind: "number"},
         {path: "kinds.bomb", label: "Bomb, weight", kind: "number"},
         {path: "kinds.shields", label: "Shields, weight", kind: "number"},
+        {path: "kinds.virus", label: "Virus, weight", kind: "number"},
     ]},
     {title: "What it grants", switches: [], fields: [
         {path: "spread.maxPerBox", label: "Spread clicks a box, at most", kind: "whole"},
@@ -67,7 +68,7 @@ export async function saveRuleSet(bonuses: BonusesAdmin, draft: Draft): Promise<
 
 const KINDS: {path: keyof NonNullable<Rules["kinds"]>, short: string}[] = [
     {path: "refill", short: "refill"}, {path: "spreadClicks", short: "spread"}, {path: "encloseClicks", short: "enclose"},
-    {path: "bomb", short: "bomb"}, {path: "shields", short: "shields"},
+    {path: "bomb", short: "bomb"}, {path: "shields", short: "shields"}, {path: "virus", short: "virus"},
 ]
 
 // The kinds a box or a right answer may be, and each one's weight: "refill 5, spread 3, shields 4".

@@ -54,7 +54,10 @@ import {
     VPNBlockedError,
     FrozenError,
     OutOfReachError,
+    Infector,
+    VirusRefusedError,
 } from "../../backends/backend.ts";
+import {InfectionChange, infectionMarksOf} from "../../domain/infections.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange} from "../../domain/tileOwnership.ts";
@@ -249,6 +252,8 @@ export type GlobeOptions = {
     bomber?: Bomber
     onBombDropped: (drop: BombDrop, land: string | undefined) => void
     onArmedChange: (armed: boolean) => void
+    infector?: Infector
+    onVirusAimChange?: (aimed: boolean) => void
     shielder?: Shielder
     onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
@@ -274,6 +279,7 @@ export type Globe = {
     setHalo(halo: Halo): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
+    setVirusAimed(aimed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
     territoryOf(landmass: number): Territory
@@ -325,6 +331,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         bomber,
         onBombDropped,
         onArmedChange,
+        infector,
+        onVirusAimChange = () => {},
         shielder,
         onNotice = () => {},
         onClickAccepted = () => {},
@@ -510,6 +518,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const pulsing = (camera: THREE.Camera) => {
+        if (tiles.infections.count() > 0) return true
         for (const landmass of targets.landmasses()) {
             const at = landmass * 5
             const along = camera.position.x * borders.frames[at] + camera.position.y * borders.frames[at + 1] + camera.position.z * borders.frames[at + 2]
@@ -592,7 +601,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const noChanges = (): TileChanges => ({owners: [], shields: []})
+    const noChanges = (): TileChanges => ({owners: [], shields: [], infections: []})
+
+    const markInfections = (changes: readonly InfectionChange[]) => {
+        if (changes.length === 0) return
+        const {on, off} = infectionMarksOf(changes)
+        field.setInfectedMarks(off, false)
+        field.setInfectedMarks(on, true)
+        invalidate()
+    }
 
     const recount = ({countries, landmasses}: Recount, live: boolean) => {
         if (landmasses.length > 0) {
@@ -634,12 +651,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let armed: {radius: number} | undefined
 
+    let virusAimed = false
+
     let restSwitchedOff = false
 
     const enclosuresUnlimited = () => rules?.enclosuresUnlimited ?? false
 
     const switchTo = (next: Switches) => {
-        const settled = atRest(next, restSwitchedOff || armed ? undefined : restingSwitch(rules))
+        const settled = atRest(next, restSwitchedOff || armed || virusAimed ? undefined : restingSwitch(rules))
         if (sameSwitches(settled, switches)) return
         switches = settled
         onSwitchesChange(settled)
@@ -958,8 +977,30 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         switchTo(switches)
     }
 
+    const stopAimingVirus = () => {
+        if (!virusAimed) return
+        virusAimed = false
+        eventTarget.classList.remove("viewer-canvas--infecting")
+        onVirusAimChange(false)
+    }
+
+    const putVirusAway = () => {
+        stopAimingVirus()
+        switchTo(switches)
+    }
+
+    const aimVirus = () => {
+        if (virusAimed || !charges.virus || !infector) return
+        disarm()
+        virusAimed = true
+        eventTarget.classList.add("viewer-canvas--infecting")
+        onVirusAimChange(true)
+        switchTo(ALL_OFF)
+    }
+
     const arm = () => {
         if (armed || !charges.bomb || !bomber || !rules || rules.bombsOff) return
+        stopAimingVirus()
         armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
         onArmedChange(true)
@@ -969,6 +1010,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const takeCharges = (held: Charges) => {
         charges = held
         if (!held.bomb) disarm()
+        if (!held.virus) stopAimingVirus()
         switchTo(switchesHeld(switches, held, rules))
         onCharges(held)
     }
@@ -1000,11 +1042,22 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             tiles.applyEnclosure(enclosure.countryId, taken, enclosure.struck, enclosure.version, changes)
             applyChanges(changes.owners)
             showShields(changes.shields)
+            markInfections(changes.infections)
             playShields(changes.shields)
             enclosures.play(enclosure)
             if (!enclosure.yours) return
             playSound("enclose")
             ownEnclosures.record(enclosure.closingTile, enclosure.countryId, performance.now() / 1000)
+        },
+        onVirusSpread: (spread) => {
+            releaseGhosts([...spread.taken, ...spread.struck.map(({tile}) => tile)])
+            if (spread.victimCountryId === country.code) lost = spread.taken[0] ?? lost
+            const changes = noChanges()
+            tiles.applyInfection(spread, changes)
+            applyChanges(changes.owners)
+            showShields(changes.shields)
+            playShields(changes.shields)
+            markInfections(changes.infections)
         },
         onSpread: (spread) => {
             bonusClicks.playSpread(spread)
@@ -1052,6 +1105,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tiles.applyBlast(cleared, struck, version, changes)
         applyChanges(changes.owners)
         showShields(changes.shields)
+        markInfections(changes.infections)
         playShields(changes.shields)
     }
 
@@ -1088,6 +1142,25 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const landmass = landmassOf(drop.tile)
         onBombDropped(drop, landmass === undefined ? undefined : translator().landmass(landmass, borders.codes[landmass]))
     })
+
+    // A tile of no other flag, or with a shield, is refused here before the virus leaves the hand; the server checks again.
+    const infect = (tile: number, owner: string | undefined, shields: number) => {
+        if (!infector) return
+        if (owner === undefined || owner === country.code || shields > 0) {
+            onNotice("virusNoEnemy")
+            playSound("refused")
+            return
+        }
+        putVirusAway()
+        playSound("click")
+        infector.useVirus(tile, country.code).catch((e) => {
+            if (lifetime.signal.aborted) return
+            if (e instanceof VirusRefusedError) onNotice("virusNoEnemy")
+            else if (e instanceof OutOfReachError) onOutOfReach()
+            else if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
+            else reportClaimFailure(e, {onSessionUnavailable, onBanned})
+        })
+    }
 
     const placeShield = (tile: number) => {
         if (!shielder) return
@@ -1200,7 +1273,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }, listenerOptions);
 
     window.addEventListener('keydown', (event: KeyboardEvent) => {
-        if (event.key === "Escape") putAway()
+        if (event.key !== "Escape") return
+        putAway()
+        putVirusAway()
     }, listenerOptions);
 
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
@@ -1308,6 +1383,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
+        if (virusAimed) {
+            infect(tile, owner, shields)
+            return
+        }
+
         if (switches.shield && shielder) {
             const placement = placementOf(owner, country.code, shields, rules?.tileShields, fixedCapitals()?.has(tile) ?? false)
             if (placement === "full") {
@@ -1385,6 +1465,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tiles.applyUpdates(updates, changes)
         applyChanges(changes.owners)
         showShields(changes.shields)
+        markInfections(changes.infections)
         playShields(changes.shields)
 
         const seconds = performance.now() / 1000
@@ -1415,6 +1496,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tiles.read(batch, changes)
         applyChanges(changes.owners, false)
         showShields(changes.shields)
+        markInfections(changes.infections)
         if (capitals) publishStanding()
         if (tracking) targets.touch(rangeTiles(batch.range))
         if (!loaded) {
@@ -1508,6 +1590,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         tiles.applyKnockOut(knockOut.countryId, knockOut.cleared, knockOut.version, changes)
         applyChanges(changes.owners)
         showShields(changes.shields)
+        markInfections(changes.infections)
         publishStanding()
     })
 
@@ -1637,10 +1720,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         takeReward,
         setArmed: (on: boolean) => on ? arm() : putAway(),
+        setVirusAimed: (on: boolean) => on ? aimVirus() : putVirusAway(),
         setSwitch: (name: keyof Switches, on: boolean) => {
             if (name === restingSwitch(rules)) restSwitchedOff = !on
             const next = switchesHeld(switched(switches, name, on), charges, rules)
-            if (next[name]) disarm()
+            if (next[name]) {
+                disarm()
+                stopAimingVirus()
+            }
             switchTo(next)
         },
         setClickHue: (hue: number | undefined) => plainClicks.setOwnHue(hue),

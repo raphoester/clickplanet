@@ -8,6 +8,8 @@ uniform float highlight;
 
 // A tile a flag close to fortifying still misses; the fragment shader beats at the same rate.
 const float PULSE_RATE = 6.2831853 / 1.1;
+// A tile a live virus infects swells at the fragment shader's beat.
+const float VIRUS_RATE = 6.2831853 / 0.9;
 
 varying float vGlow;
 varying float vScorch;
@@ -69,6 +71,7 @@ void main() {
 
     float swell = effects.swell;
     if (mod(pulse, 4.0) > 0.5) swell = max(swell, 0.12 * (0.5 + 0.5 * sin(time * PULSE_RATE)));
+    if (mod(floor(pulse / 16.0), 2.0) > 0.5) swell = max(swell, 0.18 * (0.5 + 0.5 * sin(time * VIRUS_RATE)));
 
     vSpriteSize = pointSize * (1.0 + motion * swell);
     gl_PointSize = vSpriteSize;

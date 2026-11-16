@@ -509,6 +509,7 @@ async function choose(): Promise<Chosen> {
         backend.listenForBombs((drop) => drop.cleared.forEach((tile) => own(tile, undefined)))
         backend.listenForBonuses({
             onEnclosed: (enclosure) => takenOf(enclosure).forEach((tile) => own(tile, enclosure.countryId)),
+            onVirusSpread: (spread) => spread.taken.forEach((tile) => own(tile, spread.countryId)),
             onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 

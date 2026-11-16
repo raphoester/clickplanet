@@ -10,6 +10,7 @@ type BonusStore = {
     rules?: BonusRules
     switches: Switches
     bombArmed: boolean
+    virusAimed: boolean
     win: (reward: BonusReward) => void
     winNothing: () => void
     notify: (notice: BonusNotice) => void
@@ -19,12 +20,14 @@ type BonusStore = {
     setRules: (rules: BonusRules) => void
     setSwitches: (switches: Switches) => void
     setBombArmed: (armed: boolean) => void
+    setVirusAimed: (aimed: boolean) => void
 }
 
 export const useBonus = create<BonusStore>()((set) => ({
     charges: NO_CHARGES,
     switches: ALL_OFF,
     bombArmed: false,
+    virusAimed: false,
     emptyBox: false,
     win: (award) => set({award, emptyBox: false}),
     winNothing: () => set({award: undefined, emptyBox: true}),
@@ -35,4 +38,5 @@ export const useBonus = create<BonusStore>()((set) => ({
     setRules: (rules) => set({rules}),
     setSwitches: (switches) => set({switches}),
     setBombArmed: (bombArmed) => set({bombArmed}),
+    setVirusAimed: (virusAimed) => set({virusAimed}),
 }))

@@ -35,6 +35,9 @@ import {
     Update,
     UpdatesListener,
     FrozenError,
+    Infector,
+    VirusRefusedError,
+    VirusSpread,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
@@ -98,6 +101,9 @@ const BOT_BOMB_EVERY_MS = 25_000
 
 const BOT_CLICKS_PER_SECOND = 4
 const ENCLOSE_MAX_TILES = 25
+// Faster than the server's 20 s, so a virus can be watched in the fake.
+const VIRUS_EVERY_MS = 4_000
+const VIRUS_INFECTIONS = 32
 const LINKED_MULTIPLIER = 2
 
 const RULES: BonusRules = {
@@ -124,7 +130,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
@@ -147,6 +153,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private rewardCallbacks: Map<string, (reward: BonusReward) => void> = new Map()
     private fortificationCallbacks: Map<string, (fortification: Fortification) => void> = new Map()
     private shields: Map<number, number> = new Map()
+    private readonly viruses = new Map<string, {flag: string, victim: string, infected: number[], infections: number}>()
     private fortresses: FakeFortresses | undefined
 
     private charges: Charges = NO_CHARGES
@@ -292,6 +299,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return this.charges.spreadClicksLeft >= SPREAD_CLICKS
             case "shields":
                 return this.charges.shields >= SHIELDS
+            case "virus":
+                return this.charges.virus
         }
     }
 
@@ -328,6 +337,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 this.hold({...held, shields})
                 return {reward: rewardOfKind(kind, shields - held.shields), charges: this.charges}
             }
+            case "virus":
+                this.hold({...held, virus: true})
+                return {reward: rewardOfKind(kind), charges: this.charges}
         }
     }
 
@@ -614,6 +626,71 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (shields > 1) this.shields.set(tile, shields - 1)
         else this.shields.delete(tile)
         return shields - 1
+    }
+
+    public async useVirus(tileId: number, countryId: string): Promise<void> {
+        this.refuseBanned()
+        this.play(countryId)
+        if (!this.charges.virus) throw new BonusLostError()
+        const owner = this.tileBindings.get(tileId)
+        if (owner === undefined || owner === countryId || this.shields.has(tileId)) throw new VirusRefusedError()
+
+        this.hold({...this.charges, virus: false})
+        const virus = UUIDv4()
+        this.viruses.set(virus, {flag: countryId, victim: owner, infected: [], infections: 0})
+        this.infect(virus, [tileId])
+        const timer = setInterval(() => {
+            if (!this.viruses.has(virus)) {
+                clearInterval(timer)
+                return
+            }
+            void this.spreadVirus(virus)
+        }, VIRUS_EVERY_MS)
+        this.timers.push(timer)
+    }
+
+    private async spreadVirus(id: string) {
+        const virus = this.viruses.get(id)
+        if (!virus || !this.tilePositions) return
+        const positions = await this.loadPositions()
+        virus.infected = virus.infected.filter((tile) => this.tileBindings.get(tile) === virus.flag)
+        const targets: number[] = []
+        for (const from of virus.infected) {
+            if (virus.infections + targets.length >= VIRUS_INFECTIONS) break
+            const victims = tilesWithin(positions, from, SPREAD_RING * 1.3)
+                .filter((tile) => this.tileBindings.get(tile) === virus.victim && !targets.includes(tile))
+            if (victims.length > 0) targets.push(victims[Math.floor(Math.random() * victims.length)])
+        }
+        this.infect(id, targets)
+    }
+
+    // Each target is taken, or loses a shield; the virus ends when it infected nothing or made its most infections.
+    private infect(id: string, targets: readonly number[]) {
+        const virus = this.viruses.get(id)
+        if (!virus) return
+        const taken: number[] = []
+        const struck: {tile: number, shields: number}[] = []
+        for (const tile of targets) {
+            virus.infections++
+            const left = this.strike(tile)
+            if (left !== undefined) {
+                struck.push({tile, shields: left})
+                continue
+            }
+            this.tileBindings.set(tile, virus.flag)
+            this.holders.set(tile, {accountId: FAKE_YOU, countryCode: virus.flag, takenAt: Date.now()})
+            this.tally?.moved(tile, virus.victim, virus.flag)
+            taken.push(tile)
+        }
+        virus.infected.push(...taken)
+        const ended = targets.length === 0 || virus.infected.length === 0 || virus.infections >= VIRUS_INFECTIONS
+        if (ended) this.viruses.delete(id)
+
+        const spread: VirusSpread = {
+            virus: id, countryId: virus.flag, victimCountryId: virus.victim, taken, struck, ended, version: this.write(),
+        }
+        this.flushUpdates()
+        this.bonusCallbacks.forEach(handlers => handlers.onVirusSpread(spread))
     }
 
     public async placeShield(tileId: number, countryId: string): Promise<void> {
@@ -917,7 +994,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 const held = this.shields.get(tile)
                 if (held) shields.set(tile, held)
             }
-            callback({range, version: this.version(), bindings, shields, knockedOut: []})
+            const infected = new Map<number, string>()
+            for (const [virus, {flag, infected: tiles}] of this.viruses) {
+                for (const tile of tiles) {
+                    if (tile >= range.start && tile <= range.end && this.tileBindings.get(tile) === flag) infected.set(tile, virus)
+                }
+            }
+            callback({range, version: this.version(), bindings, shields, knockedOut: [], infected})
         }
     }
 }
@@ -942,5 +1025,7 @@ function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
             return {kind}
         case "shields":
             return {kind, shields: amount}
+        case "virus":
+            return {kind}
     }
 }

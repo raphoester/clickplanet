@@ -25,6 +25,10 @@ const float HIGHLIGHT_FLOOR = 0.35;
 const vec3 MISSION = vec3(0.784, 0.341, 0.298);
 const float MISSION_RING_PX = 2.5;
 
+// A tile a live virus infects: --virus, beating, so a defender sees what to take back.
+const vec3 VIRUS = vec3(0.608, 0.302, 0.878);
+const float VIRUS_BEAT_SECONDS = 0.9;
+
 // A capital still standing: a crown on the top of the tile, drawn last, over its flag, its shield and every ring.
 const vec2 CROWN_AT = vec2(0.0, -0.34);
 const float CROWN_SIZE = 0.4;
@@ -116,6 +120,12 @@ void main() {
         vec3 tint = mod(rings, 2.0) > 0.5 ? gold : vec3(1.0);
         colour.rgb = mix(colour.rgb, tint, ring * (0.5 + 0.5 * beat));
         colour.a = max(colour.a, ring * (0.6 + 0.4 * beat));
+    }
+
+    if (marked(16.0)) {
+        float beat = 0.5 + 0.5 * sin(time * 6.2831853 / VIRUS_BEAT_SECONDS);
+        colour.rgb = mix(colour.rgb, VIRUS, (0.3 + 0.4 * beat) * shown);
+        colour.a = max(colour.a, (0.7 + 0.3 * beat) * shown);
     }
 
     colour = steeled(colour, vFortify * shown);

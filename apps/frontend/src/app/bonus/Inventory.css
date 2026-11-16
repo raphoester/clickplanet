@@ -192,6 +192,25 @@
         width: 44px;
         min-height: 44px;
     }
+
+    /* A virus held is a sixth slot: the row keeps the five slots' width (243px against 240px). */
+    .inventory-slots:has(.inventory-slot--virus) {
+        gap: 3px;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) .inventory-slot {
+        width: 38px;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) .inventory-box {
+        width: 28px;
+        height: 28px;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) .inventory-box .bonus-icon {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

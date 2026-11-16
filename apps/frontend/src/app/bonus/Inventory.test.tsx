@@ -28,12 +28,13 @@ type Held = {
     rules?: BonusRules
     switches?: Switches
     bombArmed?: boolean
+    virusAimed?: boolean
 }
 
-function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, ...props}: Partial<InventoryProps> & Held = {}) {
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
-        useBonus.setState({notice, charges, rules, switches, bombArmed})
+        useBonus.setState({notice, charges, rules, switches, bombArmed, virusAimed})
     })
     return <Inventory onToggle={() => {}}
                       onToggleBomb={() => {}}
@@ -67,6 +68,35 @@ describe("Inventory", () => {
         expect(toggle).not.toHaveBeenCalled()
         expect(toggleBomb).not.toHaveBeenCalled()
         expect(bubble()).toBe("Catch a ? box or win a quiz to get one")
+    })
+
+    it("shows a virus slot only while a virus is held or aimed", () => {
+        render(inventory())
+        expect(screen.queryByRole("button", {name: /^Virus/})).toBeNull()
+        cleanup()
+
+        const toggleVirus = vi.fn()
+        render(inventory({charges: {...NO_CHARGES, virus: true}, onToggleVirus: toggleVirus}))
+        fireEvent.click(slot(/^Virus/))
+
+        expect(toggleVirus).toHaveBeenCalledOnce()
+        expect(bubble()).toBe("Tap an enemy tile with no shield")
+    })
+
+    it("says the virus is aimed, and how to put it away", () => {
+        render(inventory({charges: {...NO_CHARGES, virus: true}, virusAimed: true}))
+
+        expect(slot(/^Virus/).getAttribute("aria-label")).toBe("Virus, Aim")
+        expect(slot(/^Virus/).getAttribute("aria-pressed")).toBe("true")
+    })
+
+    it("says a virus takes only an enemy tile with no shield, over its slot", () => {
+        const charges = {...NO_CHARGES, virus: true}
+        const {rerender} = render(inventory({charges}))
+
+        rerender(inventory({charges, notice: {notice: "virusNoEnemy", seq: 1}}))
+
+        expect(bubble()).toBe("A virus takes only an enemy tile with no shield")
     })
 
     it("shows no bomb while bombs are off, held or not", () => {
