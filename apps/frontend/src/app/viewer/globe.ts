@@ -1116,14 +1116,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             markMines(changes.mines)
         },
         onMinesExploded: (explosion) => {
-            const taken = explosion.blasts.flatMap((blast) => blast.taken)
-            releaseGhosts(taken)
+            releaseGhosts(explosion.blasts.flatMap((blast) => [...blast.taken, ...blast.struck.map(({tile}) => tile)]))
             lost = explosion.blasts.filter((blast) => blast.countryId !== country.code)
                 .flatMap((blast) => blast.taken).find((tile) => ownership.ownerOf(tile) === country.code) ?? lost
             const changes = noChanges()
             tiles.applyExplosion(explosion, changes)
             applyChanges(changes.owners)
             showShields(changes.shields)
+            playShields(changes.shields)
             markInfections(changes.infections)
             markMines(changes.mines)
             explode(explosion.blasts.map((blast) => blast.tile), explosion.blasts.some((blast) => blast.countryId === country.code))

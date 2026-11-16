@@ -114,6 +114,23 @@ function rotatingSession(tokens: string[]) {
     }
 }
 
+function renewingSession(first: string) {
+    let current = first
+    const listeners = new Set<(token: string) => void>()
+    return {
+        token: async () => current, held: () => current, identity: async () => current, heldIdentity: () => current,
+        invalidate: () => {},
+        listenForTokens(onToken: (token: string) => void) {
+            listeners.add(onToken)
+            return () => listeners.delete(onToken)
+        },
+        renew(next: string) {
+            current = next
+            listeners.forEach((listener) => listener(next))
+        },
+    }
+}
+
 function failingSession(): SessionProvider {
     return {
         token: async () => {
@@ -2036,6 +2053,54 @@ describe("PlanetBackend allegiance", () => {
         backend.close()
     })
 
+    it("reads the flag again under the token the session renews, so a kept token the server refuses costs no click", async () => {
+        // A token kept from another network is read as nobody's, who holds no flag.
+        const getAllegiance = vi.fn(async (_req: object, {headers}: {headers: Headers}) =>
+            headers.get(SESSION_HEADER) === "identity-2" ? held("fr") : new GetAllegianceResponse())
+        const session = renewingSession("identity-1")
+        const backend = new PlanetBackend(clientWith({getAllegiance}), 1_000, session)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalledOnce())
+
+        session.renew("identity-2")
+
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({countryId: "fr"}))
+        backend.close()
+    })
+
+    it("follows no token once closed", async () => {
+        const getAllegiance = vi.fn().mockResolvedValue(held("fr"))
+        const session = renewingSession("identity-1")
+        const backend = new PlanetBackend(clientWith({getAllegiance}), 1_000, session)
+        await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalledOnce())
+        backend.close()
+
+        session.renew("identity-2")
+
+        expect(getAllegiance).toHaveBeenCalledOnce()
+    })
+
+    it("keeps the flag a pledge gave when a read sent before it answers late", async () => {
+        let land: (res: GetAllegianceResponse) => void = () => {}
+        const getAllegiance = vi.fn()
+            .mockImplementationOnce(() => new Promise(resolve => land = resolve))
+            .mockResolvedValueOnce(new GetAllegianceResponse())
+            .mockResolvedValue(held("de"))
+        const pledgeAllegiance = vi.fn().mockResolvedValue(new PledgeAllegianceResponse())
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getAllegiance, pledgeAllegiance, click}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(getAllegiance).toHaveBeenCalledOnce())
+        await backend.clickTile(7, "de")
+        expect(seen.at(-1)).toEqual({countryId: "de"})
+
+        land(new GetAllegianceResponse())
+        await new Promise(resolve => setTimeout(resolve, 0))
+
+        expect(seen.at(-1)).toEqual({countryId: "de"})
+        backend.close()
+    })
+
     it("reads the flag again when the rules change, so a lock shows with no reload", async () => {
         const getAllegiance = vi.fn()
             .mockResolvedValueOnce(held("fr"))
@@ -2319,14 +2384,17 @@ describe("the mines' events", () => {
     it("reads each blast of an explosion in order, and its version", () => {
         const event = new PlanetEvent({event: {case: "minesExploded", value: new MinesExplodedMessage({
             blasts: [
-                new MineBlastMessage({tileId: 5, countryId: "fr", takenTileIds: [5, 4]}),
+                new MineBlastMessage({tileId: 5, countryId: "fr", takenTileIds: [5, 4], struck: [{tileId: 6, shields: 2}]}),
                 new MineBlastMessage({tileId: 9, countryId: "de"}),
             ],
             version: versionAt(44),
         })}})
 
         expect(minesExplodedOf(event)).toEqual({
-            blasts: [{tile: 5, countryId: "fr", taken: [5, 4]}, {tile: 9, countryId: "de", taken: []}],
+            blasts: [
+                {tile: 5, countryId: "fr", taken: [5, 4], struck: [{tile: 6, shields: 2}]},
+                {tile: 9, countryId: "de", taken: [], struck: []},
+            ],
             version: {epoch: versionAt(44).epoch, seq: 44},
         })
         expect(minesExplodedOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()

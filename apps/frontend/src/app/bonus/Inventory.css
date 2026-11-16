@@ -136,19 +136,29 @@
 }
 
 .inventory-slot--locked .inventory-box {
+    filter: saturate(0.5) brightness(0.6);
+}
+
+/* A locked kind's level sits in front of its icon, in the chip the player's own level wears on the dock: what to chase. In the corner's pill it went unread. */
+.inventory-slot .inventory-unlock {
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    gap: 2px;
+    min-width: 0;
+    height: 18px;
+    padding: 2px 4px 0;
+    transform: translateX(-50%);
+}
+
+.inventory-unlock svg {
+    margin-top: -2px;
+}
+
+.inventory-slot .inventory-unlock--never {
     border-color: color-mix(in srgb, var(--text-faint) 50%, var(--ink));
     background: var(--panel-sunk);
-}
-
-.inventory-slot--locked .bonus-icon {
-    filter: grayscale(1);
-    opacity: 0.4;
-}
-
-.inventory-lock {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
+    box-shadow: none;
     color: var(--text-soft);
 }
 

@@ -1665,8 +1665,8 @@ export class MineLaid extends Message<MineLaid> {
 }
 
 /**
- * The one event of the mines a take set off, every mine each blast reached going off too: each blast took its tiles for
- * its mine's flag, in order. Its fortifies and knock-outs follow as their own events.
+ * The one event of the mines a take set off, every mine each blast reached going off too: each blast took or struck its
+ * tiles for its mine's flag, in order. Its fortifies and knock-outs follow as their own events.
  *
  * @generated from message planet.v1.MinesExploded
  */
@@ -1733,6 +1733,13 @@ export class MineBlast extends Message<MineBlast> {
    */
   takenTileIds: number[] = [];
 
+  /**
+   * Each lost one shield and kept its flag: with the shields it kept.
+   *
+   * @generated from field: repeated planet.v1.TileShields struck = 4;
+   */
+  struck: TileShields[] = [];
+
   constructor(data?: PartialMessage<MineBlast>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1744,6 +1751,7 @@ export class MineBlast extends Message<MineBlast> {
     { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "taken_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 4, name: "struck", kind: "message", T: TileShields, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MineBlast {

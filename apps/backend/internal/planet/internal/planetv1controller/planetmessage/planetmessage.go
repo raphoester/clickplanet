@@ -185,7 +185,13 @@ func VirusSpread(infection *clicks.Infection, version clicks.MapVersion) *planet
 func MinesExploded(explosion *clicks.Explosion, version clicks.MapVersion) *planetv1.PlanetEvent {
 	blasts := make([]*planetv1.MineBlast, len(explosion.Blasts))
 	for i, blast := range explosion.Blasts {
-		blasts[i] = &planetv1.MineBlast{TileId: blast.Mine.Tile, CountryId: blast.Mine.Flag, TakenTileIds: blast.Taken}
+		struck := make([]*planetv1.TileShields, len(blast.Struck))
+		for j, tile := range blast.Struck {
+			struck[j] = &planetv1.TileShields{TileId: tile.Tile, Shields: uint32(tile.Shields)} //nolint:gosec // a byte in the tile storage.
+		}
+		blasts[i] = &planetv1.MineBlast{
+			TileId: blast.Mine.Tile, CountryId: blast.Mine.Flag, TakenTileIds: blast.Taken, Struck: struck,
+		}
 	}
 
 	return &planetv1.PlanetEvent{

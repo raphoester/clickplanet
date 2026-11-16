@@ -86,6 +86,18 @@ could read this could mint one of its own off that cookie. A token restored on
 another network is refused, which is the case a click already retries against a
 fresh mint; a read that carries it answers for nobody, exactly as no token did.
 
+**Each token it starts holding is told** (`listenForTokens`), minted or resumed,
+and `PlanetBackend` follows it as it follows a click's: the stream opens again
+under it, and the flag and the charges are read again. A refused token comes out
+on whatever acts first — the missions' stream, a post, a click — which drops it,
+and whichever module mints or resumes the next one tells the planet. Before, the
+planet followed only a token its own act sent, so a page that loaded on a phone
+whose address had changed read no flag, and showed no flag's tab in the chat,
+until the player's first click went through (Nov 2026: 29 page loads a day, 26
+on phones). **Each read of the flag is numbered as it goes out**, and one that
+answers after a newer one is dropped: the read a new token starts can land after
+the pledge of a first click, and would put back "no flag".
+
 **The store is injected, not read in the client.** `SessionClient` stays the
 half with no DOM and no network — the same split as `turnstileAttester` — so
 every rule about what is kept and when is under test without a browser.
