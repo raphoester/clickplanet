@@ -22,12 +22,18 @@ type BombUnlock struct{}
 func (BombUnlock) Kind() Kind   { return "bomb" }
 func (BombUnlock) Level() Level { return 5 }
 
+// VirusUnlock comes once the bomb and the enclosure are known: the first charge that plays on its own.
+type VirusUnlock struct{}
+
+func (VirusUnlock) Kind() Kind   { return "virus" }
+func (VirusUnlock) Level() Level { return 6 }
+
 // Ladder is every kind a level unlocks. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses'
 // open kinds.
 type Ladder struct{}
 
 func (Ladder) Unlocks() []Unlock {
-	return []Unlock{EncloseUnlock{}, BombUnlock{}}
+	return []Unlock{EncloseUnlock{}, BombUnlock{}, VirusUnlock{}}
 }
 
 // UnlockedAt is every kind unlocked at the level, in the ladder's order: none for no level.

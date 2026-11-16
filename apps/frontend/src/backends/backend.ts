@@ -25,6 +25,8 @@ export type Ownerships = {
     shields: Map<number, number>
     // The flags knocked out on the map read.
     knockedOut: readonly string[]
+    // The virus that infects each tile of the range a live one infects.
+    infected: Map<number, string>
 }
 
 // A read lists every row; a change lists the rows that changed, a flag that left the map at 0.
@@ -150,6 +152,7 @@ export type SpreadClick = {
 
 export type BonusHandlers = {
     onEnclosed: (enclosure: Enclosure) => void
+    onVirusSpread: (spread: VirusSpread) => void
     onSpread: (spread: SpreadClick) => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
@@ -224,6 +227,30 @@ export interface Bomber {
     dropBomb(target: GlobePoint, countryId: string): Promise<void>
 }
 
+// One use or tick of a virus: no tile update comes for its tiles.
+export type VirusSpread = {
+    virus: string
+
+    // The flag it takes tiles for, and the flag whose land it spreads into.
+    countryId: string
+    victimCountryId: string
+
+    // Each is countryId's now, and infected.
+    taken: number[]
+
+    // Each lost a shield and kept its flag.
+    struck: {tile: number, shields: number}[]
+
+    // It spreads no more: every tile it infects is cured.
+    ended: boolean
+
+    version: MapVersion
+}
+
+export interface Infector {
+    useVirus(tileId: number, countryId: string): Promise<void>
+}
+
 export interface Refiller {
     useRefill(countryId: string): Promise<void>
 }
@@ -251,6 +278,14 @@ export class ShieldRefusedError extends Error {
     constructor(options?: ErrorOptions) {
         super("the tile is not this player's, or holds all the shields it can", options)
         this.name = "ShieldRefusedError"
+    }
+}
+
+// The tile was no enemy tile, or held a shield: the virus stays in the hand.
+export class VirusRefusedError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("a virus takes only an enemy tile with no shield", options)
+        this.name = "VirusRefusedError"
     }
 }
 

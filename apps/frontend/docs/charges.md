@@ -1,7 +1,8 @@
 # Charges
 
 A bonus box holds a **charge**, which has no clock and is never used on its own:
-a refill (the click bank, filled when the player presses it), a bomb (one drop), a
+a refill (the click bank, filled when the player presses it), a bomb (one drop), a virus (one use, see
+[Virus](virus.md)), a
 stack of enclosures (one click each, which fills every shape it closes, `maxTiles` at most a shape), a pool of spread
 clicks and a pool of shields. The server keeps them per account, in postgres:
 a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
@@ -87,7 +88,8 @@ stops. In the fake, `encloseOff()` plays it and `encloseOff(false)` stops it.
 `bonus/Inventory.tsx` is the section that shows them, the **right half of
 the dock** (the meter takes it as `children`, and shows it even with no budget).
 It draws no border or background of its own: the one panel is `.click-budget-dock`.
-One slot per kind, always shown (but the bomb while bombs are off, and Enclose while enclosures are off), each drawn
+One slot per kind, always shown (but the bomb while bombs are off, Enclose while enclosures are off, and the virus,
+shown only while one is held or aimed: see [Virus](virus.md)), each drawn
 with its box's
 icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement). An empty slot is dimmed, and a
@@ -102,6 +104,7 @@ its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
   server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
   nothing.
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
+- **Virus** aims it, or puts it away (`Globe.setVirusAimed`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
   `aria-pressed`.
 - **Enclose, while enclosures are unlimited**, and **Spread, while spreads are unlimited**, count `∞`, are never empty
@@ -141,7 +144,7 @@ stays up** until "Got it" or Escape (`BonusAward`'s `kept`): the passing award
 lasts 2.9s and a tap anywhere closes it, which in a clicking game is before the
 line under it is read. Later boxes of that kind pass as before.
 
-**It does not fold**: five slots are one row, labelled from 1280px and icons
+**It does not fold**: five slots (six with a virus) are one row, labelled from 1280px and icons
 with their counts below that (the name stays in `aria-label`). A fold on a row
 this small hid the one thing that says the next click does more than paint.
 The dock glows while something is on or aimed.

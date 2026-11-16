@@ -52,6 +52,18 @@ const DRAWINGS: Record<BonusReward["kind"], React.ReactNode> = {
                  points="24,18 25.5,22.5 30,24 25.5,25.5 24,30 22.5,25.5 18,24 22.5,22.5"/>
     </>,
 
+    virus: <>
+        {around(24, 24, 1, 8).map(([x, y]) =>
+            <line key={`${x},${y}`} className="bonus-icon-fuse"
+                  x1={24 + 10 * (x - 24)} y1={24 + 10 * (y - 24)} x2={24 + 17 * (x - 24)} y2={24 + 17 * (y - 24)}/>)}
+        {around(24, 24, 18, 8).map(([x, y]) =>
+            <circle key={`${x},${y}`} className="bonus-icon-ink" cx={x} cy={y} r={3.4}/>)}
+        <circle className="bonus-icon-ink" cx={24} cy={24} r={11.5}/>
+        <circle className="bonus-icon-ink bonus-icon-ink--soft" cx={20} cy={21} r={3.2}/>
+        <circle className="bonus-icon-ink bonus-icon-ink--soft" cx={28.5} cy={26} r={2.4}/>
+        <circle className="bonus-icon-ink bonus-icon-ink--soft" cx={22} cy={29.5} r={1.8}/>
+    </>,
+
     shields: <>
         <path className="bonus-icon-ink" d="M24 5 L39 10 V22 C39 32 32 39 24 43 C16 39 9 32 9 22 V10 Z"/>
         <path className="bonus-icon-ink bonus-icon-ink--soft" d="M24 11 L33 14 V22 C33 28 29 33 24 36 Z"/>

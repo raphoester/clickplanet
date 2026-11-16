@@ -109,6 +109,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   rival's tiles ringed in red), the progress line, a mission paid, and the fake.
 - [Quizzes](docs/quizzes.md), [Bombs](docs/bombs.md), [Shields](docs/shields.md), [Fortify](docs/fortify.md) —
   each bonus on the client.
+- [Virus](docs/virus.md) — aimed from a slot shown only while one is held, a tap on an enemy tile with no shield, one
+  `virus_spread` per tick, each tile's virus a versioned tile value cured by any change of owner, the purple beat.
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link; every share carries the
   player's address, `clickplanet.lol/<flag>/<name>`, or the flag alone for a guest.
 - [Player videos](docs/player-videos.md) — "Make my video": the flag's 24 hours as an 8 s video made in the browser,

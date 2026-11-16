@@ -16,7 +16,8 @@ func TestEachKindIsUnlockedFromItsLevelOn(t *testing.T) {
 		3:  {},
 		4:  {"enclose_clicks"},
 		5:  {"enclose_clicks", "bomb"},
-		40: {"enclose_clicks", "bomb"},
+		6:  {"enclose_clicks", "bomb", "virus"},
+		40: {"enclose_clicks", "bomb", "virus"},
 	} {
 		assert.Equal(t, kinds, levels.Ladder{}.UnlockedAt(level), "level %d", level)
 	}

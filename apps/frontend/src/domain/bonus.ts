@@ -19,6 +19,9 @@ export type BonusReward =
     kind: "shields"
     shields: number
 }
+    | {
+    kind: "virus"
+}
 
 export type Charges = {
     refill: boolean
@@ -26,9 +29,10 @@ export type Charges = {
     enclosures: number
     spreadClicksLeft: number
     shields: number
+    virus: boolean
 }
 
-export const NO_CHARGES: Charges = {refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0, shields: 0}
+export const NO_CHARGES: Charges = {refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0, shields: 0, virus: false}
 
 export type ChargeKind = BonusReward["kind"]
 
@@ -70,7 +74,7 @@ export function sameSwitches(a: Switches, b: Switches): boolean {
     return a.spread === b.spread && a.enclose === b.enclose && a.shield === b.shield
 }
 
-export type BonusNotice = "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed"
+export type BonusNotice = "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy"
 
 export type BonusNoticeEvent = {
     notice: BonusNotice
@@ -78,7 +82,17 @@ export type BonusNoticeEvent = {
 }
 
 export function slotOf(notice: BonusNotice): ChargeKind {
-    return notice === "nothingEnclosed" ? "encloseClicks" : "shields"
+    switch (notice) {
+        case "nothingEnclosed":
+            return "encloseClicks"
+        case "virusNoEnemy":
+            return "virus"
+        case "shieldFull":
+        case "shieldCapital":
+        case "shieldTaken":
+        case "shieldNotYours":
+            return "shields"
+    }
 }
 
 export type BonusRules = {

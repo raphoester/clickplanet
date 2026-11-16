@@ -2,6 +2,7 @@ package get_charge_rules_handler_test
 
 import (
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	rules.Shield.Held = 12
 	rules.Shield.PerTile = 20
 	rules.Bomb.Off = true
+	rules.Virus = charges.VirusRules{Infections: 16, Every: 15 * time.Second}
 	got := answered(t, handler)
 
 	assert.InDelta(t, 0.02, got.GetBlastRadius(), 1e-9)
@@ -51,6 +53,8 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	assert.Equal(t, uint32(12), got.GetShields())
 	assert.Equal(t, uint32(20), got.GetTileShields())
 	assert.True(t, got.GetBombsOff())
+	assert.Equal(t, uint32(16), got.GetVirusInfections())
+	assert.Equal(t, uint32(15_000), got.GetVirusEveryMs())
 	assert.Empty(t, got.GetTollSteps())
 }
 

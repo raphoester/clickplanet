@@ -52,6 +52,11 @@ export class LedgerTotals extends Message<LedgerTotals> {
    */
   accounts = protoInt64.zero;
 
+  /**
+   * @generated from field: uint64 viruses = 9;
+   */
+  viruses = protoInt64.zero;
+
   constructor(data?: PartialMessage<LedgerTotals>) {
     super();
     proto3.util.initPartial(data, this);
@@ -68,6 +73,7 @@ export class LedgerTotals extends Message<LedgerTotals> {
     { no: 6, name: "shields", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 7, name: "fortifies", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 8, name: "accounts", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 9, name: "viruses", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LedgerTotals {

@@ -20,15 +20,15 @@ type PostgresQuery struct {
 	db cppg.Conn
 }
 
-// The UTC days of the events the relay tells as TilesTaken: a take's own row, and a spread or an enclose that took a
-// tile. A bomb's and a knock-out's tiles are taken for nobody, and a strike, a shield or a fortify takes none. A
+// The UTC days of the events the relay tells as TilesTaken: a take's own row, and a spread, an enclose or a virus that
+// took a tile. A bomb's and a knock-out's tiles are taken for nobody, and a strike, a shield or a fortify takes none. A
 // reverted event still counts, as the stats never take a tile back.
 const playDays = `
 	SELECT account, array_agg(
 		DISTINCT to_char(taken_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') ORDER BY to_char(taken_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')
 	)
 	FROM ledger_events
-	WHERE account = ANY($1::uuid[]) AND kind IN ('take', 'spread', 'enclose') AND country <> ''
+	WHERE account = ANY($1::uuid[]) AND kind IN ('take', 'spread', 'enclose', 'virus') AND country <> ''
 		AND (kind = 'take' OR jsonb_array_length(COALESCE(payload->'taken', '[]'::jsonb)) > 0)
 	GROUP BY account
 	ORDER BY account

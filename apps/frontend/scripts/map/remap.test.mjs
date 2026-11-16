@@ -68,6 +68,10 @@ describe("remapSQL", () => {
         expect(sql).not.toMatch(/t\.shields|t\.holder/)
     })
 
+    it("ends every live virus, whose tiles the new map numbers again", () => {
+        expect(remapSQL(plan)).toContain("DELETE FROM viruses;")
+    })
+
     it("deletes the ledger's takes on tiles the new map does not have", () => {
         expect(remapSQL(plan)).toContain("DELETE FROM ledger_events e\nWHERE e.payload IS NULL")
     })

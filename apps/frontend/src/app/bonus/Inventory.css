@@ -128,6 +128,15 @@
     line-height: 1.2;
 }
 
+/* A virus held is a sixth slot: the row keeps the five slots' width, and the meter its room. */
+.inventory-slots:has(.inventory-slot--virus) {
+    gap: 4px;
+}
+
+.inventory-slots:has(.inventory-slot--virus) .inventory-slot {
+    min-width: 60px;
+}
+
 @keyframes inventory-on {
     50% {
         box-shadow: 0 0 10px var(--bonus-accent);
@@ -172,6 +181,21 @@
         display: none;
     }
 
+    .inventory-slots:has(.inventory-slot--virus) .inventory-slot {
+        width: 40px;
+        min-width: 0;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) .inventory-box {
+        width: 28px;
+        height: 28px;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) .inventory-box .bonus-icon {
+        width: 20px;
+        height: 20px;
+    }
+
     .inventory-count {
         top: auto;
         right: -7px;
@@ -191,6 +215,14 @@
     .inventory-slot {
         width: 44px;
         min-height: 44px;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) {
+        gap: 3px;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) .inventory-slot {
+        width: 38px;
     }
 }
 

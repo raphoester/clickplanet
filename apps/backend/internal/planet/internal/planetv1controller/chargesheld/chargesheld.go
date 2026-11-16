@@ -12,6 +12,7 @@ func Encode(held charges.Held) *planetv1.ChargesHeld {
 		Enclosures:       uint32(held.Enclosures),
 		SpreadClicksLeft: uint32(held.SpreadClicks),
 		Shields:          uint32(held.Shields),
+		Virus:            held.Virus,
 	}
 }
 

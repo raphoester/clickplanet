@@ -140,7 +140,9 @@ func TestEveryAccountOfAPageIsToldToTheBonusesWithWhatItsLevelUnlocks(t *testing
 		DecidedAt: timestamppb.New(now),
 	}, told[account(6).String()]), "level 5: %v", told[account(6).String()])
 	assert.Empty(t, told[account(4).String()].GetKinds(), "level 3 unlocks nothing")
-	assert.Len(t, told[account(3).String()].GetKinds(), 2, "level 7, kept: the stats reach 3 only")
+	assert.Equal(t, []planetv1.BonusKind{
+		planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, planetv1.BonusKind_BONUS_KIND_BOMB, planetv1.BonusKind_BONUS_KIND_VIRUS,
+	}, told[account(3).String()].GetKinds(), "level 7, kept: the stats reach 3 only")
 	assert.Empty(t, told[account(5).String()].GetKinds(), "a guest has nothing unlocked")
 }
 
