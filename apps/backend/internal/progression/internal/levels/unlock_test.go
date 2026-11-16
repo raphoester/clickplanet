@@ -13,15 +13,19 @@ func TestEachKindIsUnlockedFromItsLevelOn(t *testing.T) {
 	for level, kinds := range map[levels.Level][]levels.Kind{
 		0:  {},
 		1:  {},
-		3:  {},
-		4:  {"enclose_clicks"},
-		5:  {"enclose_clicks", "bomb"},
-		6:  {"enclose_clicks", "bomb", "virus"},
-		7:  {"enclose_clicks", "bomb", "virus"},
-		8:  {"enclose_clicks", "bomb", "virus", "mine"},
-		9:  {"enclose_clicks", "bomb", "virus", "mine"},
-		10: {"enclose_clicks", "bomb", "virus", "mine", "rally"},
-		40: {"enclose_clicks", "bomb", "virus", "mine", "rally"},
+		2:  {"spread_clicks"},
+		3:  {"spread_clicks", "shields"},
+		4:  {"spread_clicks", "shields"},
+		5:  {"spread_clicks", "shields", "enclose_clicks"},
+		6:  {"spread_clicks", "shields", "enclose_clicks"},
+		7:  {"spread_clicks", "shields", "enclose_clicks", "bomb"},
+		9:  {"spread_clicks", "shields", "enclose_clicks", "bomb"},
+		10: {"spread_clicks", "shields", "enclose_clicks", "bomb", "virus"},
+		12: {"spread_clicks", "shields", "enclose_clicks", "bomb", "virus"},
+		13: {"spread_clicks", "shields", "enclose_clicks", "bomb", "virus", "mine"},
+		14: {"spread_clicks", "shields", "enclose_clicks", "bomb", "virus", "mine"},
+		15: {"spread_clicks", "shields", "enclose_clicks", "bomb", "virus", "mine", "rally"},
+		40: {"spread_clicks", "shields", "enclose_clicks", "bomb", "virus", "mine", "rally"},
 	} {
 		assert.Equal(t, kinds, levels.Ladder{}.UnlockedAt(level), "level %d", level)
 	}

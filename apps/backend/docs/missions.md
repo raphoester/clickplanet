@@ -100,7 +100,9 @@ internal/missions/internal/
     3 tiles to 10 shields (`wallShields`, planet's `charges.shield.perTile`), fortify 20 to 60 tiles, drop 1 or 2
     bombs on a big ground (drawn as the third mission's is, so it may be the same), and take 40 to 80 tiles from a
     rival on a ground where it holds 300 tiles or more (`raidAtLeast`, the ground drawn evenly among every rival's).
-    A world with no ground or no such rival leaves the bomb or the raid out. The goals are sized for a player who
+    A world with no ground or no such rival leaves the bomb or the raid out. **The draw knows no level**: a player below
+    the bomb's or the shields' rung ([Levels](levels.md#the-unlocks)) can be briefed a bomb or a shield mission it
+    draws no charge for while the bonuses' gates are on; a charge held still counts. The goals are sized for a player who
     clicks and plays the boxes: a box and a quiz come every 4 to 8 minutes, a bomb is 1 in 14 of them, a shield box
     holds 5 to 20. Until 2026-10-28 the extras were more rivals and grounds, and a day had 3 to 5 missions, all of
     tiles. The goals were a fixed 60, 40 and 200 until 2026-10-26, when a

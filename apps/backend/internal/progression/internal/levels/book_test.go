@@ -64,23 +64,25 @@ func setUpBook() (levels.Book, *inmemory_level_store.Store, *bonuses) {
 func TestARaiseTellsTheBonusesEveryKindItsLevelUnlocksInItsTransaction(t *testing.T) {
 	book, _, bonuses := setUpBook()
 
-	previous, err := book.Raise(t.Context(), ada, 4, monday)
+	previous, err := book.Raise(t.Context(), ada, 5, monday)
 	require.NoError(t, err)
 
 	assert.Equal(t, levels.Level(0), previous)
-	assert.Equal(t, []told{{account: ada, kinds: []levels.Kind{"enclose_clicks"}, at: monday}}, bonuses.told)
+	assert.Equal(t, []told{{
+		account: ada, kinds: []levels.Kind{"spread_clicks", "shields", "enclose_clicks"}, at: monday,
+	}}, bonuses.told)
 }
 
 func TestARaiseThatUnlocksNothingNewStillTellsTheWholeList(t *testing.T) {
 	book, _, bonuses := setUpBook()
 
-	_, err := book.Raise(t.Context(), ada, 2, monday)
+	_, err := book.Raise(t.Context(), ada, 3, monday)
 	require.NoError(t, err)
-	_, err = book.Raise(t.Context(), ada, 3, monday.Add(time.Minute))
+	_, err = book.Raise(t.Context(), ada, 4, monday.Add(time.Minute))
 	require.NoError(t, err)
 
 	require.Len(t, bonuses.told, 2)
-	assert.Empty(t, bonuses.told[1].kinds)
+	assert.Equal(t, []levels.Kind{"spread_clicks", "shields"}, bonuses.told[1].kinds)
 }
 
 func TestARaiseAnotherWriteBeatTellsNothing(t *testing.T) {
@@ -109,10 +111,12 @@ func TestARaiseTheStoreRefusesTellsNothing(t *testing.T) {
 func TestARaisePaysOneLevelUpWithWhatTheLevelUnlocks(t *testing.T) {
 	book, _, bonuses := setUpBook()
 
-	_, err := book.Raise(t.Context(), ada, 4, monday)
+	_, err := book.Raise(t.Context(), ada, 5, monday)
 	require.NoError(t, err)
 
-	assert.Equal(t, []paid{{account: ada, level: 4, unlocked: []levels.Kind{"enclose_clicks"}}}, bonuses.paid)
+	assert.Equal(t, []paid{{
+		account: ada, level: 5, unlocked: []levels.Kind{"spread_clicks", "shields", "enclose_clicks"},
+	}}, bonuses.paid)
 }
 
 func TestAJumpOfSeveralLevelsIsOneLevelUp(t *testing.T) {

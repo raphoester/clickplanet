@@ -137,6 +137,6 @@ virus. `use_virus_handler`'s codes and details; the sink, `GetMap` and `GetCharg
 
 ## Its level
 
-Level 6 unlocks it (`VirusUnlock`, [Levels](levels.md#the-unlocks)), and the bonuses' gates (#829) draw it only for an
+Level 10 unlocks it (`VirusUnlock`, [Levels](levels.md#the-unlocks)), and the bonuses' gates (#829) draw it only for an
 account that unlocked it, once they are on. Left: a small weight in `kinds.virus`, in `default` and in the battles' sets
 that want it.

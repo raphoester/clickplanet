@@ -102,11 +102,11 @@ and says what is in it. Read the doc before you change its area.
   takes reach `TilesTaken`.
 - [Mine](docs/mine.md) — a charge laid on a flag's own tile that only its players see; any enemy take sets it off and
   its 2-ring blast takes the tiles for the flag, every mine reached going off too; a bomb clears it; dormant (weighed 0),
-  level 8; map state flushed with the tiles; one `mines_exploded`, `mine_laid` to the flag's streams alone; ledger kind
+  level 13; map state flushed with the tiles; one `mines_exploded`, `mine_laid` to the flag's streams alone; ledger kind
   `mine`, whose takes reach `TilesTaken`.
 - [Rally](docs/rally.md) — a charge that calls a ring on any point of the globe, seen by every player: for 3 minutes a
   click of its flag inside costs half a click (`charges.rally.cost`, from every bucket, `ClickBudget.spent`); one on at a
-  time, a stack of 3; dormant (weighed 0), level 10; a row in postgres, not map state, that a remap keeps;
+  time, a stack of 3; dormant (weighed 0), level 15; a row in postgres, not map state, that a remap keeps;
   `rally_called` on every stream, `GetRallies`; chat's `rally` line in the flag's room, naming the landmass; no ledger
   kind: the takes inside are plain clicks.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, the bank's lean on planet's board, and the charge a

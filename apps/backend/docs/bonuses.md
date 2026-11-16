@@ -113,9 +113,11 @@ the account**; off, from every kind (`Rules.MayDraw`). The ladder is progression
 type per rung ([Levels](levels.md#the-unlocks)). The bonuses module knows no level, only the kinds it was told.
 
 - **`gates.on`**, and **`gates.open.*`**, a switch per kind: the kinds anyone may be drawn while the gates are on, a
-  guest too. `default` holds `on: false`, with refill, spread and shields open (migration `…_unlocks`; the virus closed,
-  `…_virus_offers`, the mine, `…_mine_offers`, and the rally, `…_rally_offers`): **every set has the gates off until the levels are shown**, so no draw changes. A battle's set keeps
-  them off: newcomers who come for a battle fight with every kind. That is data, not code.
+  guest too. The migrations seed `default` with `on: false`, refill, spread and shields open (`…_unlocks`; the virus
+  closed, `…_virus_offers`, the mine, `…_mine_offers`, and the rally, `…_rally_offers`). The operator turned the gates
+  on at the reveal; since spread and shields became rungs of the ladder (2026-11-16), refill alone is open in `default`,
+  closed after a `ReconcileLevels` ([Levels](levels.md#the-unlocks)). A battle's set keeps them off: newcomers who come
+  for a battle fight with every kind. That is data, not code.
 - **A guest has nothing unlocked**: progression keeps no level for one, so it draws the open kinds alone.
 - **Gates decide only what is drawn.** A charge held stays usable whatever the gates: planet checks no level.
 - **A win whose kinds it may be drawn all weigh 0 pays nothing**, as a full hand does; a box's metric counts it
