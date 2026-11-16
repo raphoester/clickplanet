@@ -7,6 +7,8 @@ import {
     BoxCatcher,
     BonusLostError,
     ChargesRefresher,
+    GrantRulesRefresher,
+    SessionSource,
     OwnershipsGetter,
     QuizMaster,
     Refiller,
@@ -67,7 +69,8 @@ import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {usePresence} from "../players/usePresence.ts";
 import {useRosterFeed} from "../players/useRosterFeed.ts";
 import {useTitlesEarned} from "../titles/useTitlesEarned.ts";
-import {TitlesListener} from "../../backends/progression.ts";
+import {LadderReader, TitlesListener} from "../../backends/progression.ts";
+import {useGatesFeed} from "../bonus/ladderStore.ts";
 import {WarningAcknowledger, WarningsListener} from "../../backends/antibot.ts";
 import {useWarningFeed} from "../warning/useWarningFeed.ts";
 import {useBadges} from "../badges/badgesStore.ts";
@@ -176,6 +179,10 @@ export type Backends = {
     support: SupportBackend
     missions: MissionsBackend
     chargesRefresher: ChargesRefresher
+    grantRules: GrantRulesRefresher
+    sessions: SessionSource
+    // The player's level and the level each gated bonus opens at.
+    ladder: LadderReader
     clips: ClipsBackend & ClipsNameBackend
     // A battle's teaser cards.
     promo: PromoBackend
@@ -263,6 +270,7 @@ export default function PlayScreen(props: PlayScreenProps) {
     const race = useRace((standings) => standings.race)
     const [accepted] = useState(acceptedClicks)
     useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
+    useGatesFeed(backends, {accountId: ownAccountId, linked, listenForClicks: accepted.listenForClicks})
     const mood = moodOf(turn, frozen)
     useMood(mood)
     const battleOver = useBattleOver(battle, debrief)

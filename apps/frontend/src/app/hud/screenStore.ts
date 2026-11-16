@@ -4,7 +4,7 @@ export type MenuTab = "board" | "missions" | "share" | "invite" | "settings"
 
 export type SheetName = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings" | "season" | "battle" | "clicks"
 
-export type PopoverName = "season" | "battle" | "clicks"
+export type PopoverName = "season" | "battle" | "clicks" | "bonuses"
 
 export const MENU_OPEN_KEY = "clickplanet-menu-open"
 
@@ -28,7 +28,10 @@ type ScreenStore = {
     closeAll: () => void
 }
 
-const NO_POPOVER = {season: false, battle: false, clicks: false}
+const NO_POPOVER = {season: false, battle: false, clicks: false, bonuses: false}
+
+// The dock's two popovers open from the same bar, one over the other.
+const OVER_THE_DOCK: readonly PopoverName[] = ["clicks", "bonuses"]
 
 export function storedOpen(key: string, storage: () => Pick<Storage, "getItem"> = () => window.localStorage): boolean | undefined {
     try {
@@ -54,13 +57,18 @@ export const useScreen = create<ScreenStore>()((set) => ({
     popovers: NO_POPOVER,
     menuOpen: storedOpen(MENU_OPEN_KEY),
     chatOpen: storedOpen(CHAT_OPEN_KEY),
-    openSheet: (sheet) => set({sheet}),
-    toggleSheet: (sheet) => set((state) => ({sheet: state.sheet === sheet ? undefined : sheet})),
+    openSheet: (sheet) => set(({popovers}) => ({sheet, popovers: {...popovers, bonuses: false}})),
+    toggleSheet: (sheet) => set(({sheet: open, popovers}) => open === sheet
+        ? {sheet: undefined}
+        : {sheet, popovers: {...popovers, bonuses: false}}),
     closeSheet: () => set({sheet: undefined}),
     setMenuTab: (menuTab) => set({menuTab}),
     setMenuOpen: (menuOpen) => set({menuOpen}),
     setChatOpen: (chatOpen) => set({chatOpen}),
-    togglePopover: (popover) => set(({popovers}) => ({popovers: {...popovers, [popover]: !popovers[popover]}})),
+    togglePopover: (popover) => set(({popovers}) => {
+        const shut = OVER_THE_DOCK.includes(popover) ? Object.fromEntries(OVER_THE_DOCK.map((other) => [other, false])) : {}
+        return {popovers: {...popovers, ...shut, [popover]: !popovers[popover]}}
+    }),
     closePopover: (popover) => set(({popovers}) => ({popovers: {...popovers, [popover]: false}})),
     closeAll: () => set({sheet: undefined, popovers: NO_POPOVER}),
 }))

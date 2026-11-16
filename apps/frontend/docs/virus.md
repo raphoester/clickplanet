@@ -12,11 +12,9 @@ of no other flag, or with a shield, before the call ("A virus takes only an enem
 refusal. The backend takes it off the hand at once and gives it back unless the server says it holds none: a
 `VirusRefusal` (a shield placed meanwhile) is `VirusRefusedError`, said with the same notice.
 
-**The slot shows only while a virus is held or aimed.** The bar keeps its five slots for everyone else, so it needed no
-phone redesign. **A sixth slot shrinks the slots, never widens the dock** (`Inventory.css`, `:has`): the dock's width
-sets the chat's room (`--dock-width`), and the click count never shrinks, so a row wider than five slots slid under it.
-From 1280px the slots are 60px at least with a 4px gap (439px against 421px in French, the widest names); below, 40px
-with a 4px gap; on a phone, 38px with a 3px gap (243px against 240px), and the meter keeps its bar at 360px wide.
+**Its slot is a kind like the others** (see [Charges](charges.md#the-inventory)): on the bar while one is held, in All's
+tray always, after the shields among kinds of one level. The bar holds the kinds held up to its room, so a sixth kind
+needs no smaller slot.
 
 **One `virus_spread` event per use or tick, and no tile update for its tiles** (`virusSpreadOf`, heard as
 `BonusHandlers.onVirusSpread`, after the updates that came before it). `MapTiles.applyInfection` gives the tiles it took

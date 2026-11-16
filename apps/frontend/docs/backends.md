@@ -314,10 +314,13 @@ of a server restart opens it again 500 ms later.
   goes out, and answers the first one after it as what the box held, or nothing when none comes in
   `BOX_REWARD_WAIT_MS` (2.5 s): the hand had room for no kind the rules weigh, and the award card says the inventory is
   full. A grant of another kind in that window (a mission paid) would be taken for the box's, as for a right answer.
-- **Whether a first sign-in earns a refill** is the bonuses module's rule (`GetGrantRules`, a GET as `GetChargeRules`).
-  `PlanetBackend` reads it once a load and tells it as `BonusRules.signInRefill`, with planet's rules, through `onRules`,
-  nothing before planet's are read. The bonuses module has no stream since 2026-11-15: only its `default` sets the rule,
-  and every deploy reloads the page.
+- **Whether a first sign-in earns a refill, and the gates** are the bonuses module's rules (`GetGrantRules`, a GET as
+  `GetChargeRules`). `PlanetBackend` reads them at load and tells them as `BonusRules.signInRefill`, `gatesOn` and
+  `openKinds`, with planet's rules, through `onRules`, nothing before planet's are read. The bonuses module has no stream
+  since 2026-11-15, so `refreshGrantRules` reads them again when the gamemaster's turn moves to another entry, and tells
+  them only when they changed (see [Charges](charges.md#the-inventory)).
+- **The ladder** is progression's `GetLevel`: `ConnectProgressionBackend.ladder()` reads the player's level and each
+  gated kind's opening level with the session held, and nothing with none, so it never makes one.
 - **The fakes have no such stream**: `FakeBackend` implements `BoxCatcher` itself, pays a box a moment after its catch,
   and `ReplayBackend` offers none.
 

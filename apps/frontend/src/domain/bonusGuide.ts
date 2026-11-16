@@ -1,10 +1,8 @@
-import {ChargeKind} from "./bonus.ts"
+import {CHARGE_KINDS, ChargeKind} from "./bonus.ts"
 
 export const BONUS_GUIDE_STORAGE_KEY = "clickplanet-bonus-guide"
 
 export const LEARNING_USES = 3
-
-const KINDS: readonly ChargeKind[] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields"]
 
 export type BonusGuide = {
     won: readonly ChargeKind[]
@@ -26,7 +24,7 @@ export function parseBonusGuide(raw: string | null): BonusGuide {
 
     const {won, uses} = stored as {won?: unknown, uses?: unknown}
     return {
-        won: Array.isArray(won) ? KINDS.filter(kind => won.includes(kind)) : [],
+        won: Array.isArray(won) ? CHARGE_KINDS.filter(kind => won.includes(kind)) : [],
         uses: usesFrom(uses),
     }
 }
@@ -35,7 +33,7 @@ function usesFrom(raw: unknown): Partial<Record<ChargeKind, number>> {
     if (typeof raw !== "object" || raw === null) return {}
 
     const uses: Partial<Record<ChargeKind, number>> = {}
-    for (const kind of KINDS) {
+    for (const kind of CHARGE_KINDS) {
         const count = (raw as Record<string, unknown>)[kind]
         if (typeof count === "number" && Number.isInteger(count) && count > 0) uses[kind] = Math.min(count, LEARNING_USES)
     }

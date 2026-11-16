@@ -36,6 +36,56 @@ export const NO_CHARGES: Charges = {refill: false, bomb: false, enclosures: 0, s
 
 export type ChargeKind = BonusReward["kind"]
 
+export const CHARGE_KINDS: readonly ChargeKind[] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields", "virus"]
+
+// A guest's level, and an account's before it has one: it holds only the open kinds.
+export const NO_LEVEL = 0
+
+export type UnlockLevels = Readonly<Partial<Record<ChargeKind, number>>>
+
+export type Gates = {
+    on: boolean
+    open: readonly ChargeKind[]
+    unlocks: UnlockLevels
+}
+
+export const NO_GATES: Gates = {on: false, open: [], unlocks: {}}
+
+// Progression's half of the gates: the player's level and the level each gated kind opens at.
+export type Ladder = {
+    level: number
+    unlocks: UnlockLevels
+}
+
+export const NO_LADDER: Ladder = {level: NO_LEVEL, unlocks: {}}
+
+export function gatesOf(rules: Pick<BonusRules, "gatesOn" | "openKinds"> | undefined, ladder: Ladder): Gates {
+    return {on: rules?.gatesOn ?? false, open: rules?.openKinds ?? [], unlocks: ladder.unlocks}
+}
+
+// The level of a gated kind the ladder names none for: it opens at no level.
+export const NEVER = Number.POSITIVE_INFINITY
+
+function openingLevel(kind: ChargeKind, gates: Gates): number {
+    return gates.open.includes(kind) ? NO_LEVEL : gates.unlocks[kind] ?? NEVER
+}
+
+// The level a gated kind opens at, NEVER for one the ladder omits, while the player is below it.
+export function lockedAt(kind: ChargeKind, gates: Gates, level: number): number | undefined {
+    if (!gates.on) return undefined
+    const at = openingLevel(kind, gates)
+    return at > level ? at : undefined
+}
+
+// The order given while no open kind is told: the ladder alone would put the gated kinds first.
+export function inUnlockOrder(kinds: readonly ChargeKind[], gates: Gates): ChargeKind[] {
+    if (gates.open.length === 0) return [...kinds]
+    return [...kinds].sort((a, b) => {
+        const [x, y] = [openingLevel(a, gates), openingLevel(b, gates)]
+        return Number(x > y) - Number(x < y)
+    })
+}
+
 export type Switches = {
     spread: boolean
     enclose: boolean
@@ -116,4 +166,7 @@ export type BonusRules = {
     spreadUnlimited: boolean
     // No enclosure closes a shape or is offered: the page hides the enclose slot.
     enclosuresOff: boolean
+    // Bonuses' gates: while on, a kind not open is locked under the level progression's ladder opens it at.
+    gatesOn: boolean
+    openKinds: readonly ChargeKind[]
 }

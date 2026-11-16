@@ -1611,7 +1611,7 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
-            enclosuresOff: false,
+            enclosuresOff: false, gatesOn: false, openKinds: [],
         }))
         backend.close()
     })
@@ -1659,7 +1659,27 @@ describe("the rules", () => {
         backend.close()
     })
 
-    it("reads the bonuses' rules once a load: planet's rules read again leave them be", async () => {
+    it("tells the gates the bonuses' rules say, read again on a refresh, and nothing when they did not change", async () => {
+        const getGrantRules = vi.fn()
+            .mockResolvedValueOnce(new GetGrantRulesResponse())
+            .mockResolvedValue(new GetGrantRulesResponse({
+                gatesOn: true, openKinds: [BonusKind.REFILL, BonusKind.SHIELDS, BonusKind.UNSPECIFIED],
+            }))
+        const backend = new PlanetBackend(clientWith({}), 1_000, new NoSession(), bonusesWith({getGrantRules}))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)).toMatchObject({gatesOn: false, openKinds: []}))
+        await vi.waitFor(() => expect(getGrantRules).toHaveBeenCalledOnce())
+
+        await backend.refreshGrantRules()
+        expect(seen.at(-1)).toMatchObject({gatesOn: true, openKinds: ["refill", "shields"]})
+
+        const told = seen.length
+        await backend.refreshGrantRules()
+        expect(seen).toHaveLength(told)
+        backend.close()
+    })
+
+    it("leaves the bonuses' rules be when planet's are read again: the turn reads those", async () => {
         const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({enclosureMaxTiles: 25}))
         const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
         let changeRules = () => {}
