@@ -9,6 +9,11 @@ here for what the apps share, `apps/<app>/docs/` for each app. Read the doc of t
 change it. When you change how something works, update its doc. When you add a topic, write a new doc and add
 one line for it to the `CLAUDE.md` that indexes it. Never write the details into a `CLAUDE.md`.
 
+## PR rule
+
+**Every PR is a vertical slice: one deliverable unit, never a layer alone.** After its deploy, someone can do or check
+something new. Read [Every PR is a vertical slice](docs/vertical-slices.md) before you plan a PR.
+
 ## Structure
 
 A monorepo with three independent apps. Each app's `CLAUDE.md` is the index of its docs:
