@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import {afterEach, describe, expect, it, vi} from 'vitest'
+import {afterEach, describe, expect, it, onTestFinished, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import {ReactElement} from 'react'
 import ClickBudgetMeter, {DOCK_DRAWN_HEIGHT} from './ClickBudgetMeter.tsx'
@@ -37,6 +37,17 @@ function budgeted(budget: ClickBudget, element: ReactElement): ReactElement {
 
 function reading(overrides: Partial<ClickBudget> = {}): ClickBudget {
     return {tokens: 4, capacity: 10, perSecond: 1, readAt: performance.now(), ...overrides}
+}
+
+const STOPPED_AT_MS = 60_000
+
+// The meter draws the bank at the clock's time, which runs on after the reading: on a loaded run, past a fraction's
+// margin. Stopped at a whole millisecond, the clock steps by exact seconds: from 12345.678, 3s on was 2.9999999s, and
+// the bank 4.9999999.
+function stoppedClock() {
+    const clock = vi.spyOn(performance, "now").mockReturnValue(STOPPED_AT_MS)
+    onTestFinished(() => clock.mockRestore())
+    return clock
 }
 
 const meter = () => screen.getByRole("meter")
@@ -124,8 +135,9 @@ describe("ClickBudgetMeter", () => {
     })
 
     it("hands the fraction to the CSS, which is what fills the next pip", () => {
+        stoppedClock()
         render(budgeted(reading({tokens: 3.5}), <ClickBudgetMeter/>))
-        expect(Number(tokens())).toBeCloseTo(3.5, 1)
+        expect(Number(tokens())).toBe(3.5)
     })
 
     it("each pip knows which click it stands for", () => {
@@ -179,22 +191,20 @@ describe("ClickBudgetMeter", () => {
     })
 
     it("fills a strip under a long bar once per click", () => {
+        stoppedClock()
         render(budgeted(reading({tokens: 20.5, capacity: 60, perSecond: 0.2}), <ClickBudgetMeter/>))
 
-        expect(Number(meter().style.getPropertyValue("--click-budget-next"))).toBeCloseTo(0.5, 1)
+        expect(Number(meter().style.getPropertyValue("--click-budget-next"))).toBe(0.5)
     })
 
     it("replays the refill between two readings instead of waiting for one", async () => {
-        const start = performance.now()
-        vi.spyOn(performance, "now").mockReturnValue(start)
+        const clock = stoppedClock()
 
-        render(budgeted(reading({tokens: 2, readAt: start}), <ClickBudgetMeter/>))
+        render(budgeted(reading({tokens: 2}), <ClickBudgetMeter/>))
         expect(screen.getByText("2")).toBeTruthy()
 
-        vi.spyOn(performance, "now").mockReturnValue(start + 3_000)
+        clock.mockReturnValue(STOPPED_AT_MS + 3_000)
         await vi.waitFor(() => expect(screen.getByText("5")).toBeTruthy())
-
-        vi.restoreAllMocks()
     })
 })
 
