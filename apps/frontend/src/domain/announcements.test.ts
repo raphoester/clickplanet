@@ -27,6 +27,7 @@ const results: Announcement = {kind: "results", closed: {...closed, number: 1, m
 describe("the announcements", () => {
     it("are keyed by what they announce", () => {
         expect(announcementKeyOf(unlock)).toBe("title:warlord")
+        expect(announcementKeyOf({kind: "level", level: {level: 12, xp: 18_700, levelXp: 18_634, nextLevelXp: 24_192}})).toBe("level:12")
         expect(announcementKeyOf(start)).toBe("battle:entry-1")
         expect(announcementKeyOf(teaser)).toBe("teaser:season-0/finale")
         expect(announcementKeyOf(clip)).toBe("clip:post-1")

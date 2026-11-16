@@ -37,6 +37,9 @@ export interface ProgressionBackend {
     wearTitle(id: string): Promise<PlayerTitle | undefined>
 
     fronts(): Promise<Fronts>
+
+    // The caller's own level, none for a guest or an account no fact has raised yet.
+    level(): Promise<PlayerLevel | undefined>
 }
 
 // The level kept, on its bar: the XP can pass nextLevelXp until the raise lands.
@@ -65,9 +68,14 @@ export interface ProgressReader {
     progress(accountId: string): Promise<Progress | undefined>
 }
 
-export interface TitlesListener {
+export type ProgressionEvents = {
+    titleEarned: (title: PlayerTitle) => void
+    levelReached: (level: PlayerLevel) => void
+}
+
+export interface ProgressionListener {
     heldIdentity(): string | undefined
 
-    // The titles the account of the token held earns. A refused token stops it for good: a new token needs a new one.
-    listenForTitles(onEarned: (title: PlayerTitle) => void): () => void
+    // What the account of the token held earns. A refused token stops it for good: a new token needs a new one.
+    listenForProgression(on: ProgressionEvents): () => void
 }

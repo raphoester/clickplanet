@@ -12,7 +12,7 @@ import {
     Track as TrackPb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/progression/v1/title_pb.ts"
-import {PlayerTitle} from "./progression.ts"
+import {PlayerLevel, PlayerTitle} from "./progression.ts"
 import {ConnectProgressionBackend} from "./progressionBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
@@ -223,6 +223,8 @@ describe("ConnectProgressionBackend public card", () => {
     })
 })
 
+const ignoring = {titleEarned: () => {}, levelReached: () => {}}
+
 const failingWith = (error: ConnectError) => (): AsyncIterable<ProgressionEventPb> => ({
     [Symbol.asyncIterator]: () => ({
         next: async () => {
@@ -231,7 +233,22 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<ProgressionEventP
     }),
 })
 
-describe("ConnectProgressionBackend titles earned", () => {
+describe("ConnectProgressionBackend own level", () => {
+    it("reads the caller's level with the click token", async () => {
+        const getLevel = vi.fn(async () => ({level: new LevelPb({level: 3, xp: 222n, levelXp: 112n, nextLevelXp: 378n}), missionRates: []}))
+
+        expect(await backendWith({getLevel}).level()).toEqual({level: 3, xp: 222, levelXp: 112, nextLevelXp: 378})
+        expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
+    })
+
+    it("reads an unset level as none, as a guest's", async () => {
+        const getLevel = vi.fn(async () => ({missionRates: []}))
+
+        expect(await backendWith({getLevel}).level()).toBeUndefined()
+    })
+})
+
+describe("ConnectProgressionBackend progression stream", () => {
     it("opens the stream with the token held, never a mint, hands each title earned and skips the heartbeats", async () => {
         const session = holding("identity-1")
         const listenForEvents = vi.fn(async function* () {
@@ -241,7 +258,10 @@ describe("ConnectProgressionBackend titles earned", () => {
         })
         const titles: PlayerTitle[] = []
 
-        const stop = backendWith({listenForEvents}, session).listenForTitles((title) => titles.push(title))
+        const stop = backendWith({listenForEvents}, session).listenForProgression({
+            titleEarned: (title) => titles.push(title),
+            levelReached: () => {},
+        })
         await vi.waitFor(() => expect(titles).toEqual([settler]))
         stop()
 
@@ -251,12 +271,27 @@ describe("ConnectProgressionBackend titles earned", () => {
         expect(session.token).not.toHaveBeenCalled()
     })
 
+    it("hands each level reached", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new ProgressionEventPb({event: {case: "levelReached", value: new LevelPb({level: 9, xp: 7200n, levelXp: 7168n, nextLevelXp: 10206n})}})
+            await new Promise(() => {})
+        })
+        const levels: PlayerLevel[] = []
+
+        const stop = backendWith({listenForEvents}, holding("identity-1")).listenForProgression({
+            titleEarned: () => {},
+            levelReached: (level) => levels.push(level),
+        })
+        await vi.waitFor(() => expect(levels).toEqual([{level: 9, xp: 7200, levelXp: 7168, nextLevelXp: 10206}]))
+        stop()
+    })
+
     it("stops for good on a refused token", async () => {
         vi.useFakeTimers()
         const listenForEvents = vi.fn(failingWith(new ConnectError("no", Code.Unauthenticated)))
         const session = holding("expired")
 
-        backendWith({listenForEvents}, session).listenForTitles(() => {})
+        backendWith({listenForEvents}, session).listenForProgression(ignoring)
         await vi.advanceTimersByTimeAsync(60_000)
 
         expect(listenForEvents).toHaveBeenCalledTimes(1)
@@ -268,7 +303,7 @@ describe("ConnectProgressionBackend titles earned", () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const listenForEvents = vi.fn(failingWith(new ConnectError("down", Code.Unavailable)))
 
-        const stop = backendWith({listenForEvents}, holding("identity-1")).listenForTitles(() => {})
+        const stop = backendWith({listenForEvents}, holding("identity-1")).listenForProgression(ignoring)
         await vi.advanceTimersByTimeAsync(1_000)
         stop()
 

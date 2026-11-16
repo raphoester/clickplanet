@@ -16,9 +16,10 @@ import {
     PlayerTitle,
     Progress,
     ProgressionBackend,
+    ProgressionEvents,
+    ProgressionListener,
     ProgressReader,
     TitleDashboard,
-    TitlesListener,
     TitleTrack,
 } from "./progression.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
@@ -35,7 +36,7 @@ export function newProgressionServiceClient(config: Config): PromiseClient<typeo
     }))
 }
 
-export class ConnectProgressionBackend implements ProgressionBackend, ProgressReader, BadgesBackend, TitlesListener {
+export class ConnectProgressionBackend implements ProgressionBackend, ProgressReader, BadgesBackend, ProgressionListener {
     constructor(
         private readonly client: PromiseClient<typeof ProgressionService>,
         private readonly session: SessionProvider,
@@ -63,6 +64,12 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
         return {playsFor: res.playsFor.map(countryTilesOf), playsAgainst: res.playsAgainst.map(countryTilesOf)}
     }
 
+    public async level(): Promise<PlayerLevel | undefined> {
+        const res = await this.authenticated((headers) =>
+            retrying(() => this.client.getLevel({}, {headers}), "GetLevel"))
+        return levelOf(res.level)
+    }
+
     public async progress(accountId: string): Promise<Progress | undefined> {
         try {
             const res = await retrying(() => this.client.getProgress({accountId}), "GetProgress")
@@ -87,7 +94,7 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
         return this.session.heldIdentity()
     }
 
-    public listenForTitles(onEarned: (title: PlayerTitle) => void): () => void {
+    public listenForProgression(on: ProgressionEvents): () => void {
         const client = this.client
         const session = this.session
         return openStream(
@@ -97,11 +104,8 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
                 if (token) headers.set(SESSION_HEADER, token)
                 return client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT, headers})
             },
-            (event) => {
-                const title = titleEarnedOf(event)
-                if (title) onEarned(title)
-            },
-            "titles",
+            (event) => tell(event, on),
+            "progression",
             {stopsOn: (e) => e instanceof ConnectError && e.code === Code.Unauthenticated},
         )
     }
@@ -126,8 +130,22 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
     }
 }
 
-function titleEarnedOf(event: ProgressionEvent): PlayerTitle | undefined {
-    return event.event.case === "titleEarned" ? titleOf(event.event.value.title) : undefined
+function tell(event: ProgressionEvent, on: ProgressionEvents): void {
+    switch (event.event.case) {
+        case "titleEarned": {
+            const title = titleOf(event.event.value.title)
+            if (title) on.titleEarned(title)
+            return
+        }
+        case "levelReached": {
+            const level = levelOf(event.event.value)
+            if (level) on.levelReached(level)
+            return
+        }
+        case "heartbeat":
+        case undefined:
+            return
+    }
 }
 
 function progressOf(progress: ProgressPb | undefined): Progress {

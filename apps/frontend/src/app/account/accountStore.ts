@@ -11,7 +11,7 @@ import {
     SignInOutcome,
 } from "../../backends/account.ts"
 import {NameColor, PlayerBackend, PlayerFailure, playerFailureOf, RenameTooSoonError} from "../../backends/player.ts"
-import {Fronts, PlayerTitle, ProgressionBackend, TitleDashboard} from "../../backends/progression.ts"
+import {Fronts, PlayerLevel, PlayerTitle, ProgressionBackend, TitleDashboard} from "../../backends/progression.ts"
 import {SessionProvider} from "../../backends/session.ts"
 import {useBadges} from "../badges/badgesStore.ts"
 import {CrazyGamesUser} from "../../backends/crazyGames.ts"
@@ -94,6 +94,8 @@ export class AccountStore {
     }
 
     public fronts = (): Promise<Fronts> => this.progression.fronts()
+
+    public level = (): Promise<PlayerLevel | undefined> => this.progression.level()
 
     public subscribe = (listener: () => void): (() => void) => {
         this.listeners.add(listener)

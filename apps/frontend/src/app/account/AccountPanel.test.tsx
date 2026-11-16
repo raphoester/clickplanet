@@ -36,6 +36,7 @@ async function signedIn(profile: ColoredProfile, setName: (name: string) => Prom
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
+        level: vi.fn(async () => undefined),
     } satisfies ProgressionBackend
     const crazyGames = provider === "crazygames"
         ? {token: vi.fn(async () => "the-jwt"), prompt: vi.fn(async () => true), listenForSignIn: vi.fn(() => () => undefined)}

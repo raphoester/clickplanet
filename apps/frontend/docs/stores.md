@@ -33,7 +33,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
   and `useConnection`.
 - **What a backend sends goes into its store from where its inputs are.** A hook that `PlayScreen` calls with the
   backend and what it knows links the two (`useQuizMaster`, `useRosterFeed`, `useRaceFeed`, `useScheduleFeed`,
-  `useMissionsFeed`, `useClickBudgetFeed`, `useWarningFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
+  `useMissionsFeed`, `useClickBudgetFeed`, `useWarningFeed`, `useLevelFeed`): it subscribes, writes the store, and puts the store back to its start once it stops, so nothing
   stale shows after it and StrictMode's second run follows one stream. `PlayScreen` reads back only what it hands the
   globe or a hook itself, such as the roster's count, the race it ranks the countries by for the anthem, the turn it
   makes the mood and the globe's halo from, or the missions it draws on the globe. Or the place where a card shows does it, given its inputs as props (`PlayerCardPlace`,

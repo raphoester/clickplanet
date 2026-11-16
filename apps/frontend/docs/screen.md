@@ -18,7 +18,7 @@ that does not.
 |---|---|---|
 | **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays) | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top, centred in the room right of the menu (`BattleChip` while a battle plays) |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
-| **Play** | the dock (`ClickBudgetMeter` + `Inventory`) above the tab bar, the chat's peek above it | the dock at the bottom centre |
+| **Play** | the dock (`ClickBudgetMeter` + `Inventory`, and the player's level and its bar across the dock under them) above the tab bar, the chat's peek above it | the dock at the bottom centre, the same |
 | **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings), each a `hud/Sheet` | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
 
 - **What is open is one store**, `useScreen` (`hud/screenStore.ts`, see

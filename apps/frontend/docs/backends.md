@@ -20,14 +20,12 @@ Beside them: `session.ts` (the click token, see [Sessions](sessions.md)),
 playing](who-is-playing.md)) and `PlayerReader`, who a player is on its card.
 `playerBackend.ts` implements them against `player.v1.PlayerService`.
 `progression.ts` is what a player earned: `ProgressionBackend` (its own titles,
-the title it wears and its fronts), `ProgressReader` (a player's progress on its
-card) and `TitlesListener` (the titles it earns, live). `progressionBackend.ts`
-implements them, and the badges, against `progression.v1.ProgressionService`
-(see [Titles](titles.md) and [Badges](badges.md)). The card's `Progress.level`
-is the level the server keeps, on its bar (`PlayerLevel`), or none when it keeps
-none; nothing draws it until the level's reveal, and the page neither calls
-`GetLevel` nor reads the stream's `level_reached` yet (see the backend's
-[Levels](../../backend/docs/levels.md#the-public-reads)). `playerCards.ts` reads the
+the title it wears, its fronts and its level, `GetLevel`), `ProgressReader` (a player's progress on its
+card) and `ProgressionListener` (the titles it earns and the levels it reaches, live, on one stream).
+`progressionBackend.ts` implements them, and the badges, against `progression.v1.ProgressionService`
+(see [Titles](titles.md), [The level](level.md) and [Badges](badges.md)). A level, on the card's `Progress.level`,
+`GetLevel` and the stream's `level_reached`, is the level the server keeps on its bar (`PlayerLevel`), or none when it
+keeps none (see the backend's [Levels](../../backend/docs/levels.md#the-public-reads)). `playerCards.ts` reads the
 two halves of a public card side by side (see [Who is playing](who-is-playing.md)).
 `support.ts` is what a player sends the operator —
 see [Support](support.md). `clips.ts` is the clips that name the player — see [In a

@@ -3,7 +3,7 @@ import {CALLBACK_PATH} from "../domain/signInCallback.ts"
 import {FAKE_YOU} from "./fakeAccounts.ts"
 import {Nameplate} from "./nameplates.ts"
 import {ColoredProfile, NameColor, PlayerBackend, PlayerError, Profile} from "./player.ts"
-import {Fronts, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
+import {Fronts, PlayerLevel, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
 
 // Offers no provider until offerSignIn(). completeSignIn takes the code for the name to sign in with: the console's
 // signIn() calls it, as the callback page would.
@@ -11,6 +11,7 @@ import {Fronts, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progres
 export type FakeCareer = {
     ownDashboard(): TitleDashboard
     ownFronts(): Fronts
+    ownLevel(): PlayerLevel
     wear(id: string): PlayerTitle | undefined
 }
 
@@ -113,6 +114,11 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
 
     public async fronts(): Promise<Fronts> {
         return this.career?.ownFronts() ?? {playsFor: [], playsAgainst: []}
+    }
+
+    // A guest has no level.
+    public async level(): Promise<PlayerLevel | undefined> {
+        return this.linked.length > 0 ? this.career?.ownLevel() : undefined
     }
 
     private requireSignedIn() {

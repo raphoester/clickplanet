@@ -21,6 +21,7 @@ import RoundReveal from "../season/RoundReveal.tsx"
 import {useRoundReveal} from "../season/useRoundReveal.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleUnlocked from "../titles/TitleUnlocked.tsx"
+import LevelUp from "../level/LevelUp.tsx"
 import VideoMoment from "../video/VideoMoment.tsx"
 import {wonTheDay} from "../../domain/roundReveal.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
@@ -100,6 +101,8 @@ export default function Moments(props: MomentsProps) {
                                   play={props.play}
                                   onWear={props.onWear}
                                   onClose={dismiss}/>
+        case "level":
+            return <LevelUp key={key} level={current.level} play={props.play} onClose={dismiss}/>
         case "round":
         case "results":
             return <RoundReveal key={key}

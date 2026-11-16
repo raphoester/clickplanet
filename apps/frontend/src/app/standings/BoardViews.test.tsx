@@ -466,6 +466,7 @@ async function guestStore() {
         titles: vi.fn(async () => ({wearable: [], tracks: []})),
         fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
+        level: vi.fn(async () => undefined),
     } satisfies ProgressionBackend
     const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
     await store.load()

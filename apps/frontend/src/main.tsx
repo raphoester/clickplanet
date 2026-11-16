@@ -275,6 +275,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         giveTitle: (id?: string) => fakePresence.earnTitle(id)
             ? "a title is unlocked"
             : "no page listens: a guest earns no title, signIn() first",
+        giveXp: (xp = 500) => {
+            const {level, heard} = fakePresence.giveXp(xp)
+            if (heard) return `level ${level.level} reached`
+            return `${level.xp} XP at level ${level.level}: the bar shows it at the next read, after a run of clicks or on the next load`
+        },
         finishMissions: () => {
             fakeMissions.prime()
             return "every mission is one tile from done: take a tile for your flag to finish and get them"
