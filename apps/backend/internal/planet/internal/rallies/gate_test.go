@@ -42,31 +42,28 @@ func newGateParts() gateParts {
 	return gateParts{store: rallies.NewMemoryStore(), clock: cptime.NewFixedClock(calledAt.Add(time.Minute))}
 }
 
-func (p gateParts) call(t *testing.T, tile uint32, country string) error {
+func (p gateParts) call(t *testing.T, country string) error {
 	t.Helper()
-	gate := rallies.NewGate(clicks.NewBoard(100), cpcountries.New(), p.flags, p.refusals, p.store, p.clock)
-	return gate.Call(t.Context(), clicks.Payer{Account: alice.String()}, alice, tile, country) //nolint:wrapcheck // the test reads the gate's own error.
+	gate := rallies.NewGate(cpcountries.New(), p.flags, p.refusals, p.store, p.clock)
+	return gate.Call(t.Context(), clicks.Payer{Account: alice.String()}, alice, country) //nolint:wrapcheck // the test reads the gate's own error.
 }
 
-func TestARallyGoesOnAnyTileOfTheMapWhoeverHoldsIt(t *testing.T) {
-	require.NoError(t, newGateParts().call(t, 7, "fr"))
+func TestARallyGoesAnywhereForTheCallersFlag(t *testing.T) {
+	require.NoError(t, newGateParts().call(t, "fr"))
 }
 
-func TestARallyGoesOnNoTileOffTheMapAndForNoFlagThatIsNoCountry(t *testing.T) {
-	parts := newGateParts()
-
-	require.ErrorIs(t, parts.call(t, 101, "fr"), clicks.ErrTileOutOfRange)
-	require.ErrorIs(t, parts.call(t, 7, "zz"), clicks.ErrUnknownCountry)
+func TestARallyIsForNoFlagThatIsNoCountry(t *testing.T) {
+	require.ErrorIs(t, newGateParts().call(t, "zz"), clicks.ErrUnknownCountry)
 }
 
 func TestARallyIsForTheFlagTheCallerPlaysFor(t *testing.T) {
 	parts := newGateParts()
 	parts.flags = flags{err: allegiances.ErrOtherFlag}
 
-	require.ErrorIs(t, parts.call(t, 7, "de"), allegiances.ErrOtherFlag)
+	require.ErrorIs(t, parts.call(t, "de"), allegiances.ErrOtherFlag)
 
 	parts.flags = flags{err: fmt.Errorf("%w: postgres down", allegiances.ErrUnread)}
-	require.NoError(t, parts.call(t, 7, "de"), "a flag that cannot be read refuses nothing, as for a click")
+	require.NoError(t, parts.call(t, "de"), "a flag that cannot be read refuses nothing, as for a click")
 }
 
 func TestABannedCallerCallsNoRally(t *testing.T) {
@@ -74,21 +71,21 @@ func TestABannedCallerCallsNoRally(t *testing.T) {
 	parts.refusals = refusals{refusal: clicks.NewRefusal(calledAt.Add(time.Hour)), refused: true}
 
 	var refusal clicks.Refusal
-	require.ErrorAs(t, parts.call(t, 7, "fr"), &refusal)
+	require.ErrorAs(t, parts.call(t, "fr"), &refusal)
 
 	parts.refusals = refusals{err: errors.New("postgres down")}
-	require.NoError(t, parts.call(t, 7, "fr"), "refusals that cannot be read refuse nothing")
+	require.NoError(t, parts.call(t, "fr"), "refusals that cannot be read refuse nothing")
 }
 
 func TestARallyOfTheCallerStillOnRefusesTheNext(t *testing.T) {
 	parts := newGateParts()
 	keep(t, parts.store, rallyOf(alice, "fr", 10, calledAt))
 
-	require.ErrorIs(t, parts.call(t, 20, "fr"), rallies.ErrRallyOn)
+	require.ErrorIs(t, parts.call(t, "fr"), rallies.ErrRallyOn)
 
 	parts.clock.Advance(2 * time.Minute)
-	require.NoError(t, parts.call(t, 20, "fr"), "once it ended")
+	require.NoError(t, parts.call(t, "fr"), "once it ended")
 
 	parts.store.FailWith(errors.New("postgres down"))
-	assert.NoError(t, parts.call(t, 20, "fr"), "a last that cannot be read refuses nothing: the call checks again")
+	assert.NoError(t, parts.call(t, "fr"), "a last that cannot be read refuses nothing: the call checks again")
 }

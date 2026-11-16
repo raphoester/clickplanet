@@ -51,11 +51,12 @@ func (s *Store) Change(
 
 		kept := next.TakeSnapshot()
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO rallies (account, id, flag, tile, radius, called_at, ends_at) VALUES ($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT (account) DO UPDATE SET id = EXCLUDED.id, flag = EXCLUDED.flag, tile = EXCLUDED.tile,
-				radius = EXCLUDED.radius, called_at = EXCLUDED.called_at, ends_at = EXCLUDED.ends_at
-		`, account.String(), kept.ID.String(), kept.Flag, int64(kept.Tile), kept.Radius, kept.CalledAt.UTC(),
-			kept.EndsAt.UTC()); err != nil {
+			INSERT INTO rallies (account, id, flag, x, y, z, radius, called_at, ends_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (account) DO UPDATE SET id = EXCLUDED.id, flag = EXCLUDED.flag, x = EXCLUDED.x, y = EXCLUDED.y,
+				z = EXCLUDED.z, radius = EXCLUDED.radius, called_at = EXCLUDED.called_at, ends_at = EXCLUDED.ends_at
+		`, account.String(), kept.ID.String(), kept.Flag, kept.Centre.X, kept.Centre.Y, kept.Centre.Z, kept.Radius,
+			kept.CalledAt.UTC(), kept.EndsAt.UTC()); err != nil {
 			return fmt.Errorf("failed to write the rally: %w", err)
 		}
 		return nil
@@ -64,7 +65,7 @@ func (s *Store) Change(
 
 func (s *Store) On(ctx context.Context, flag string, at time.Time) ([]rallies.Rally, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT account, id, flag, tile, radius, called_at, ends_at FROM rallies WHERE flag = $1 AND ends_at > $2
+		SELECT account, id, flag, x, y, z, radius, called_at, ends_at FROM rallies WHERE flag = $1 AND ends_at > $2
 	`, flag, at.UTC())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the rallies on: %w", err)
@@ -87,7 +88,7 @@ func (s *Store) On(ctx context.Context, flag string, at time.Time) ([]rallies.Ra
 
 func lastOf(ctx context.Context, db cppg.Querier, account cpsession.AccountID) (rallies.Rally, error) {
 	kept, err := scan(db.QueryRowContext(ctx,
-		`SELECT account, id, flag, tile, radius, called_at, ends_at FROM rallies WHERE account = $1`, account.String()))
+		`SELECT account, id, flag, x, y, z, radius, called_at, ends_at FROM rallies WHERE account = $1`, account.String()))
 	if errors.Is(err, sql.ErrNoRows) {
 		return rallies.Rally{}, nil
 	}
@@ -105,14 +106,14 @@ func scan(row scanner) (rallies.Snapshot, error) {
 	var (
 		account, id uuid.UUID
 		kept        rallies.Snapshot
-		tile        int64
 	)
-	if err := row.Scan(&account, &id, &kept.Flag, &tile, &kept.Radius, &kept.CalledAt, &kept.EndsAt); err != nil {
+	if err := row.Scan(&account, &id, &kept.Flag, &kept.Centre.X, &kept.Centre.Y, &kept.Centre.Z, &kept.Radius, &kept.CalledAt,
+		&kept.EndsAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return rallies.Snapshot{}, err //nolint:wrapcheck // the caller tells no rally from a failure by it.
 		}
 		return rallies.Snapshot{}, fmt.Errorf("failed to read a rally: %w", err)
 	}
-	kept.Account, kept.ID, kept.Tile = cpsession.AccountID(account), rallies.RallyID(id), uint32(tile) //nolint:gosec // a tile id.
+	kept.Account, kept.ID = cpsession.AccountID(account), rallies.RallyID(id)
 	return kept, nil
 }

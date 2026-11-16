@@ -19,7 +19,7 @@ var ErrNoRally = errors.New("no rally to call")
 const returnTimeout = 5 * time.Second
 
 type Gate interface {
-	Call(ctx context.Context, payer clicks.Payer, account cpsession.AccountID, tile uint32, country string) error
+	Call(ctx context.Context, payer clicks.Payer, account cpsession.AccountID, country string) error
 }
 
 type Hands interface {
@@ -28,7 +28,7 @@ type Hands interface {
 }
 
 type Muster interface {
-	Rally(account cpsession.AccountID, flag string, tile uint32) (rallies.Rally, error)
+	Rally(account cpsession.AccountID, flag string, point clicks.Vec3) (rallies.Rally, error)
 }
 
 type Calls interface {
@@ -36,7 +36,8 @@ type Calls interface {
 }
 
 type In struct {
-	TileID    uint32
+	// Any point of the globe, of any length.
+	Point     clicks.Vec3
 	CountryID string
 }
 
@@ -62,7 +63,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (rallies.Rally, error) {
 	}
 	account := cpsession.AccountID(id)
 
-	if err := u.gate.Call(ctx, payer, account, in.TileID, in.CountryID); err != nil {
+	point, err := rallies.PointOf(in.Point)
+	if err != nil {
+		return rallies.Rally{}, err //nolint:wrapcheck // PointOf names it.
+	}
+	if err := u.gate.Call(ctx, payer, account, in.CountryID); err != nil {
 		return rallies.Rally{}, err //nolint:wrapcheck // the gate names why.
 	}
 
@@ -74,7 +79,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (rallies.Rally, error) {
 		return rallies.Rally{}, err //nolint:wrapcheck // the wallet names it.
 	}
 
-	rally, err := u.muster.Rally(account, in.CountryID, in.TileID)
+	rally, err := u.muster.Rally(account, in.CountryID, point)
 	if err == nil {
 		err = u.calls.Change(ctx, account, func(last rallies.Rally) (rallies.Rally, error) { return last.Called(rally) })
 	}

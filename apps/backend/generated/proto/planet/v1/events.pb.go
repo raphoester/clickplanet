@@ -1096,14 +1096,15 @@ func (x *AllegiancePledged) GetPledgedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// A rally a player called for its flag, on a tile of ground's landmass: the chat tells the flag's room.
+// A rally a player called for its flag, around a point of the globe: the chat tells the flag's room.
 type RallyCalled struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	RallyId   string                 `protobuf:"bytes,1,opt,name=rally_id,json=rallyId,proto3" json:"rally_id,omitempty"`
 	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Country   string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
-	TileId    uint32                 `protobuf:"varint,4,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
-	// The country whose ground the tile is, and its landmass, which the line names.
+	Point     *GlobePoint            `protobuf:"bytes,4,opt,name=point,proto3" json:"point,omitempty"`
+	// The landmass of the tile nearest the point, when it is inside the ring, and the country whose ground it is, which the
+	// line names. None for a ring on open sea.
 	Ground        string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
 	LandmassId    uint32                 `protobuf:"varint,6,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
 	CalledAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=called_at,json=calledAt,proto3" json:"called_at,omitempty"`
@@ -1162,11 +1163,11 @@ func (x *RallyCalled) GetCountry() string {
 	return ""
 }
 
-func (x *RallyCalled) GetTileId() uint32 {
+func (x *RallyCalled) GetPoint() *GlobePoint {
 	if x != nil {
-		return x.TileId
+		return x.Point
 	}
-	return 0
+	return nil
 }
 
 func (x *RallyCalled) GetGround() string {
@@ -1289,13 +1290,13 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\acountry\x18\x02 \x01(\tR\acountry\x12\x1a\n" +
 	"\bprevious\x18\x03 \x01(\tR\bprevious\x129\n" +
 	"\n" +
-	"pledged_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tpledgedAt\"\xec\x01\n" +
+	"pledged_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tpledgedAt\"\x80\x02\n" +
 	"\vRallyCalled\x12\x19\n" +
 	"\brally_id\x18\x01 \x01(\tR\arallyId\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\tR\taccountId\x12\x18\n" +
-	"\acountry\x18\x03 \x01(\tR\acountry\x12\x17\n" +
-	"\atile_id\x18\x04 \x01(\rR\x06tileId\x12\x16\n" +
+	"\acountry\x18\x03 \x01(\tR\acountry\x12+\n" +
+	"\x05point\x18\x04 \x01(\v2\x15.planet.v1.GlobePointR\x05point\x12\x16\n" +
 	"\x06ground\x18\x05 \x01(\tR\x06ground\x12\x1f\n" +
 	"\vlandmass_id\x18\x06 \x01(\rR\n" +
 	"landmassId\x127\n" +
@@ -1362,12 +1363,13 @@ var file_planet_v1_events_proto_depIdxs = []int32{
 	14, // 12: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
 	14, // 13: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
 	14, // 14: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
-	14, // 15: planet.v1.RallyCalled.called_at:type_name -> google.protobuf.Timestamp
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	15, // 15: planet.v1.RallyCalled.point:type_name -> planet.v1.GlobePoint
+	14, // 16: planet.v1.RallyCalled.called_at:type_name -> google.protobuf.Timestamp
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }

@@ -38,7 +38,7 @@ func call(t *testing.T, useCase call_rally_handler.UseCase) (*planetv1.CallRally
 	t.Helper()
 
 	res, err := call_rally_handler.New(useCase).CallRally(t.Context(), connect.NewRequest(&planetv1.CallRallyRequest{
-		TileId: 8, CountryId: "fr",
+		Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8}, CountryId: "fr",
 	}))
 	if err != nil {
 		return nil, fmt.Errorf("call refused: %w", err)
@@ -58,7 +58,7 @@ func detailOf(t *testing.T, err error) proto.Message {
 
 func TestARallyCalledIsAnsweredWithAllItsTimeLeft(t *testing.T) {
 	useCase := &stubUseCase{rally: rallies.Snapshot{
-		ID: rallies.RallyID(uuid.MustParse("00000000-0000-7000-8000-000000000001")), Flag: "fr", Tile: 8, Radius: 0.072,
+		ID: rallies.RallyID(uuid.MustParse("00000000-0000-7000-8000-000000000001")), Flag: "fr", Centre: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.072,
 		Account:  cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")),
 		CalledAt: calledAt, EndsAt: calledAt.Add(3 * time.Minute),
 	}.Restore()}
@@ -66,10 +66,10 @@ func TestARallyCalledIsAnsweredWithAllItsTimeLeft(t *testing.T) {
 	answer, err := call(t, useCase)
 
 	require.NoError(t, err)
-	assert.Equal(t, call_rally_usecase.In{TileID: 8, CountryID: "fr"}, useCase.in)
+	assert.Equal(t, call_rally_usecase.In{Point: clicks.Vec3{X: 0.6, Z: 0.8}, CountryID: "fr"}, useCase.in)
 	assert.True(t, proto.Equal(&planetv1.Rally{
 		RallyId: "00000000-0000-7000-8000-000000000001", AccountId: "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f", CountryId: "fr",
-		TileId: 8, Radius: 0.072, LeftMs: 180_000,
+		Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8}, Radius: 0.072, LeftMs: 180_000,
 	}, answer.GetRally()), "%v", answer)
 }
 
@@ -101,7 +101,7 @@ func TestARallyForAnotherFlagIsRefusedWithTheFlagHeld(t *testing.T) {
 }
 
 func TestAMalformedCallIsAnInvalidArgument(t *testing.T) {
-	for _, cause := range []error{clicks.ErrUnknownCountry, clicks.ErrTileOutOfRange} {
+	for _, cause := range []error{clicks.ErrUnknownCountry, rallies.ErrNoPoint} {
 		_, err := call(t, &stubUseCase{err: fmt.Errorf("%w: detail", cause)})
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	}

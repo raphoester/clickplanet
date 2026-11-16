@@ -506,8 +506,8 @@ func NewModule(config Config) cpbootstrap.Module {
 					mines.NewGate(tilesStorage, capitalPlay, countries, flags, refusing), hands, minefield, board)),
 				GetMinesHandler: get_mines_handler.New(mines_query.NewMemoryQuery(tilesStorage, book)),
 				CallRallyHandler: call_rally_handler.New(call_rally_usecase.New(
-					rallies.NewGate(tilesChecker, countries, flags, refusing, rallyStore, clock), hands, muster, rallyStore,
-					rallies.Tellers{rally_streams.New(board), rally_facts.New(told, borders)})),
+					rallies.NewGate(countries, flags, refusing, rallyStore, clock), hands, muster, rallyStore,
+					rallies.Tellers{rally_streams.New(board), rally_facts.New(told, borders, geography)})),
 				GetRalliesHandler:    get_rallies_handler.New(rallies_query.NewPostgresQuery(db, clock)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),

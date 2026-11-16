@@ -11,10 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Tiles interface {
-	CheckTile(tile uint32) bool
-}
-
 type Countries interface {
 	CheckCountry(country string) bool
 }
@@ -31,17 +27,14 @@ type Calls interface {
 	Last(ctx context.Context, account cpsession.AccountID) (Rally, error)
 }
 
-func NewGate(
-	tiles Tiles, countries Countries, allegiances Allegiances, refusals Refusals, calls Calls, clock cptime.Clock,
-) Gate {
-	return Gate{tiles: tiles, countries: countries, allegiances: allegiances, refusals: refusals, calls: calls, clock: clock}
+func NewGate(countries Countries, allegiances Allegiances, refusals Refusals, calls Calls, clock cptime.Clock) Gate {
+	return Gate{countries: countries, allegiances: allegiances, refusals: refusals, calls: calls, clock: clock}
 }
 
-// Gate refuses a rally before it leaves the hand: a banned caller, a flag it does not play for, a tile off the map, and
-// a rally of the caller still on. Any tile of the map takes one, whoever holds it. The call checks the last again
-// under its lock.
+// Gate refuses a rally before it leaves the hand: a banned caller, a flag it does not play for, and a rally of the caller
+// still on. Any point of the globe takes one, land or sea, whoever holds the tiles around it. The call checks the last
+// again under its lock.
 type Gate struct {
-	tiles       Tiles
 	countries   Countries
 	allegiances Allegiances
 	refusals    Refusals
@@ -50,15 +43,12 @@ type Gate struct {
 }
 
 // A failed read of the refusals, of the flag or of the last rally refuses nothing, as for a click.
-func (g Gate) Call(ctx context.Context, payer clicks.Payer, account cpsession.AccountID, tile uint32, country string) error {
+func (g Gate) Call(ctx context.Context, payer clicks.Payer, account cpsession.AccountID, country string) error {
 	if refusal, refused, err := g.refusals.Refusal(ctx, payer); err == nil && refused {
 		return refusal
 	}
 	if !g.countries.CheckCountry(country) {
 		return fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, country)
-	}
-	if !g.tiles.CheckTile(tile) {
-		return fmt.Errorf("%w: %d", clicks.ErrTileOutOfRange, tile)
 	}
 	if err := g.allegiances.PlayError(ctx, payer, country); err != nil && !errors.Is(err, allegiances.ErrUnread) {
 		return err //nolint:wrapcheck // the book names the flag the caller plays for.

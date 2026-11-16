@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
@@ -33,7 +34,7 @@ func contractAccount(n byte) cpsession.AccountID {
 func contractRally(n byte, flag string, endsAt time.Time) Snapshot {
 	return Snapshot{
 		ID: RallyID(uuid.UUID{0x01, 0x93, 0, 0, 0, 0, 0x70, 0, 0x80, 0, 0, 0, 0, 0, 0, n}), Account: contractAccount(n), Flag: flag,
-		Tile: 40 + uint32(n), Radius: 0.072, CalledAt: endsAt.Add(-3 * time.Minute), EndsAt: endsAt,
+		Centre: clicks.Vec3{X: 0.6, Y: 0.8, Z: float64(n) / 1000}, Radius: 0.072, CalledAt: endsAt.Add(-3 * time.Minute), EndsAt: endsAt,
 	}
 }
 

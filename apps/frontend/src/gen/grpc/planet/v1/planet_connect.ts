@@ -156,7 +156,8 @@ export const ClickService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Calls a rally on a tile, for the caller's flag: for a while, a click of that flag inside its ring costs less.
+     * Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
+     * ring costs less.
      *
      * @generated from rpc planet.v1.ClickService.CallRally
      */

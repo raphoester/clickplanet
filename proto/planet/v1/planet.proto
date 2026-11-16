@@ -48,7 +48,8 @@ service ClickService {
   // now, and a cached one lies.
   rpc GetMines(GetMinesRequest) returns (GetMinesResponse);
 
-  // Calls a rally on a tile, for the caller's flag: for a while, a click of that flag inside its ring costs less.
+  // Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
+  // ring costs less.
   rpc CallRally(CallRallyRequest) returns (CallRallyResponse);
 
   // Every rally still on, of every flag. Not NO_SIDE_EFFECTS: each says the time it has left, and a cached one lies.
@@ -334,8 +335,8 @@ message Rally {
 
   string country_id = 3;
 
-  // The ring's centre.
-  uint32 tile_id = 4;
+  // The ring's centre, a point of the globe, not a tile: the ring is what it covers.
+  GlobePoint point = 4;
 
   // The ring's radius, in radians of arc on the unit globe: a tile whose centre is that close or closer is inside.
   double radius = 5;
@@ -735,7 +736,8 @@ message GetMinesResponse {
 }
 
 message CallRallyRequest {
-  uint32 tile_id = 1;
+  // Where the ring goes: any point of the globe, the sea too. Its length does not matter.
+  GlobePoint point = 1;
 
   string country_id = 2;
 }

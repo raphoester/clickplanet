@@ -23,11 +23,12 @@ const alice charges.Holder = "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"
 var (
 	aliceID  = cpsession.AccountID{0x01, 0x92, 0x6c, 0x6e, 0x7a, 0x4b, 0x7c, 0x3d, 0x8e, 0x9f, 0x0a, 0x1b, 0x2c, 0x3d, 0x4e, 0x5f}
 	calledAt = time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	north    = clicks.Vec3{Y: 1}
 )
 
 type gate struct{ err error }
 
-func (g gate) Call(context.Context, clicks.Payer, cpsession.AccountID, uint32, string) error {
+func (g gate) Call(context.Context, clicks.Payer, cpsession.AccountID, string) error {
 	return g.err
 }
 
@@ -56,14 +57,14 @@ func calling(t *testing.T) context.Context {
 func TestARallyLeavesTheHandIsKeptAndIsToldOnce(t *testing.T) {
 	useCase, p := setup(nil, charges.Held{Rallies: 2, Shields: 2})
 
-	rally, err := useCase.Execute(calling(t), call_rally_usecase.In{TileID: 8, CountryID: "fr"})
+	rally, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
 	require.NoError(t, err)
 
 	kept := rally.TakeSnapshot()
 	assert.Equal(t, charges.Held{Rallies: 1, Shields: 2}, p.hands.Kept(alice))
 	assert.Equal(t, aliceID, kept.Account)
 	assert.Equal(t, "fr", kept.Flag)
-	assert.Equal(t, uint32(8), kept.Tile)
+	assert.Equal(t, north, kept.Centre)
 	assert.Equal(t, calledAt.Add(3*time.Minute), kept.EndsAt)
 	last, err := p.calls.Last(t.Context(), aliceID)
 	require.NoError(t, err)
@@ -74,7 +75,7 @@ func TestARallyLeavesTheHandIsKeptAndIsToldOnce(t *testing.T) {
 func TestARallyTheGateRefusesStaysInTheHand(t *testing.T) {
 	useCase, p := setup(rallies.ErrRallyOn, charges.Held{Rallies: 1})
 
-	_, err := useCase.Execute(calling(t), call_rally_usecase.In{TileID: 8, CountryID: "fr"})
+	_, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
 
 	require.ErrorIs(t, err, rallies.ErrRallyOn)
 	assert.Equal(t, charges.Held{Rallies: 1}, p.hands.Kept(alice))
@@ -83,11 +84,11 @@ func TestARallyTheGateRefusesStaysInTheHand(t *testing.T) {
 
 func TestARallyStillOnUnderTheLockGivesTheSpentOneBack(t *testing.T) {
 	useCase, p := setup(nil, charges.Held{Rallies: 2})
-	_, err := useCase.Execute(calling(t), call_rally_usecase.In{TileID: 8, CountryID: "fr"})
+	_, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
 	require.NoError(t, err)
 
 	p.clock.Advance(time.Minute)
-	_, err = useCase.Execute(calling(t), call_rally_usecase.In{TileID: 9, CountryID: "fr"})
+	_, err = useCase.Execute(calling(t), call_rally_usecase.In{Point: clicks.Vec3{X: 1}, CountryID: "fr"})
 
 	require.ErrorIs(t, err, rallies.ErrRallyOn, "the gate let it through, as a second tab's would")
 	assert.Equal(t, charges.Held{Rallies: 1}, p.hands.Kept(alice))
@@ -96,11 +97,11 @@ func TestARallyStillOnUnderTheLockGivesTheSpentOneBack(t *testing.T) {
 
 func TestAnotherRallyOnceTheLastEnded(t *testing.T) {
 	useCase, p := setup(nil, charges.Held{Rallies: 2})
-	_, err := useCase.Execute(calling(t), call_rally_usecase.In{TileID: 8, CountryID: "fr"})
+	_, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
 	require.NoError(t, err)
 
 	p.clock.Advance(3 * time.Minute)
-	_, err = useCase.Execute(calling(t), call_rally_usecase.In{TileID: 9, CountryID: "fr"})
+	_, err = useCase.Execute(calling(t), call_rally_usecase.In{Point: clicks.Vec3{X: 1}, CountryID: "fr"})
 
 	require.NoError(t, err)
 	assert.Equal(t, charges.Held{}, p.hands.Kept(alice))
@@ -110,7 +111,7 @@ func TestAnotherRallyOnceTheLastEnded(t *testing.T) {
 func TestNoRallyHeldIsNoRally(t *testing.T) {
 	useCase, p := setup(nil, charges.Held{Bomb: true})
 
-	_, err := useCase.Execute(calling(t), call_rally_usecase.In{TileID: 8, CountryID: "fr"})
+	_, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
 
 	require.ErrorIs(t, err, call_rally_usecase.ErrNoRally)
 	assert.Empty(t, p.told.Told())
@@ -119,7 +120,7 @@ func TestNoRallyHeldIsNoRally(t *testing.T) {
 func TestACallerWithNoAccountHoldsNoRally(t *testing.T) {
 	useCase, _ := setup(nil, charges.Held{Rallies: 1})
 
-	_, err := useCase.Execute(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), call_rally_usecase.In{TileID: 8, CountryID: "fr"})
+	_, err := useCase.Execute(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), call_rally_usecase.In{Point: north, CountryID: "fr"})
 
 	require.ErrorIs(t, err, call_rally_usecase.ErrNoRally)
 }
@@ -128,9 +129,28 @@ func TestARallyThatCannotBeKeptComesBack(t *testing.T) {
 	useCase, p := setup(nil, charges.Held{Rallies: 1})
 	p.calls.FailWith(errors.New("postgres down"))
 
-	_, err := useCase.Execute(calling(t), call_rally_usecase.In{TileID: 8, CountryID: "fr"})
+	_, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
 
 	require.Error(t, err)
 	assert.Equal(t, charges.Held{Rallies: 1}, p.hands.Kept(alice))
 	assert.Empty(t, p.told.Told())
+}
+
+func TestARallyOnNoPointStaysInTheHand(t *testing.T) {
+	useCase, p := setup(nil, charges.Held{Rallies: 1})
+
+	_, err := useCase.Execute(calling(t), call_rally_usecase.In{CountryID: "fr"})
+
+	require.ErrorIs(t, err, rallies.ErrNoPoint)
+	assert.Equal(t, charges.Held{Rallies: 1}, p.hands.Kept(alice))
+	assert.Empty(t, p.told.Told())
+}
+
+func TestARallyIsOnThePointOfTheGlobeUnderTheTap(t *testing.T) {
+	useCase, _ := setup(nil, charges.Held{Rallies: 1})
+
+	rally, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: clicks.Vec3{Z: 2}, CountryID: "fr"})
+
+	require.NoError(t, err)
+	assert.Equal(t, clicks.Vec3{Z: 1}, rally.TakeSnapshot().Centre, "on the unit globe")
 }

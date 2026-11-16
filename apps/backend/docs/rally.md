@@ -1,10 +1,10 @@
 # The rally
 
 **A rally is a charge that calls the player's flag to one place** (the design "Player Level and Unlocks", the owner,
-2026-11-16). The player taps Rally, then a tile. A ring appears there, about the size of France: `charges.rally.rings`
-tile spacings wide (18, about 1,000 tiles). Every player sees it. For `charges.rally.lasts` (3 minutes), a click of the
-rally's flag on a tile inside the ring takes `charges.rally.cost` (half a click) from the bank instead of one. The chat
-tells the flag's room: "le professeur calls a rally in Tasmania".
+2026-11-16). The player taps Rally, then a point of the globe. A ring appears there, about the size of France:
+`charges.rally.rings` tile spacings wide (18, about 1,000 tiles). Every player sees it. For `charges.rally.lasts`
+(3 minutes), a click of the rally's flag on a tile inside the ring takes `charges.rally.cost` (half a click) from the
+bank instead of one. The chat tells the flag's room: "le professeur calls a rally in Tasmania".
 
 **It is built and dormant**: no box and no right answer is a rally yet, as the bonuses' `kinds.rally` weighs 0 in
 `default` and `gates.open.rally` is off there (migration `20261116152259_rally_offers`), and no other set holds either.
@@ -15,9 +15,11 @@ The operator's `GrantCharges` (`rallies`) gives some, and so does the fake on th
 
 - **A hand holds 3 rallies at most** (`charges.rally.held`), a stack as mines: a grant caps at it. A box gives one once it
   weighs above 0 (the bonuses' `rally.maxPerBox`, 1).
-- **The ring is a circle on the globe**: every tile whose centre is within `charges.rally.rings` × the map's tile spacing
-  of the arc of its centre tile, as the bomb's blast (1 to 50, 18 in `default`). It is not a walk over neighbours: it
-  covers an island just offshore.
+- **The ring is a circle on the globe around a point, not a tile**: every tile whose centre is within
+  `charges.rally.rings` × the map's tile spacing of the arc of the point tapped (1 to 50, 18 in `default`). It is not a
+  walk over neighbours: it covers an island just offshore. **Why a point**: the area is what counts, and no tile at its
+  centre gets anything the others do not (the owner, 2026-11-16). So the ring sits where the finger was, and a ring on
+  the sea that reaches a coast is a ring.
 - **It lasts `charges.rally.lasts`** (10 s to 30 min, 3 min in `default`).
 - **A click inside a ring of its flag takes `charges.rally.cost` from the bank** (0.1 to 1, 0.5 in `default`), from every
   bucket the click spends from: the account's, the network's guests' and the network's.
@@ -40,8 +42,8 @@ The owner's answers (2026-11-16):
 
 Chosen where the design is silent:
 
-- **Any tile of the map takes a rally, whoever holds it**: a blank one, the flag's, an enemy's, a shielded one, a capital.
-  A rally to attack or to defend. A call is no take, so the reach does not hold it.
+- **Any point of the globe takes a rally**, on land or sea, whoever holds the tiles under it. A rally to attack or to
+  defend. A call is no take, so the reach does not hold it.
 - **A ring belongs to the flag it was called for.** A caller who pledges another flag leaves it to the old flag's
   players, and calls no other until it ends.
 - **A ring keeps the radius and the end it was called with**: a change of the rules reaches the next one. The cost is
@@ -51,11 +53,13 @@ Chosen where the design is silent:
 
 ## The call (`CallRally`)
 
-`ClickService/CallRally{tile_id, country_id}`, session-gated and frozen like `LayMine`, and not throttled: holding a
-rally the server granted is the gate. `rallies.Gate` refuses before the rally leaves the hand, in this order: a banned
-caller (`BanRefusal`), an unknown flag or a tile off the map (`InvalidArgument`), a flag the caller does not play for
-(the allegiance's refusal), and a rally of the caller still on (`RallyRefusal`, `rallies.ErrRallyOn`). A failed read of
-the refusals, the flag or the last rally refuses nothing, as for a click.
+`ClickService/CallRally{point, country_id}`, session-gated and frozen like `LayMine`, and not throttled: holding a
+rally the server granted is the gate. `point` is a `GlobePoint`, as the bomb's: any vector of some length, put on the unit
+globe (`rallies.PointOf`); none, a zero or a NaN is `InvalidArgument` (`rallies.ErrNoPoint`) before anything is read.
+`rallies.Gate` refuses before the rally leaves the hand, in this order: a banned caller (`BanRefusal`), an unknown flag
+(`InvalidArgument`), a flag the caller does not play for (the allegiance's refusal), and a rally of the caller still on
+(`RallyRefusal`, `rallies.ErrRallyOn`). A failed read of the refusals, the flag or the last rally refuses nothing, as for
+a click.
 
 Then `call_rally_usecase` spends one rally (`Held.AfterRally`; none held, or no account, is `NotFound`), makes it by the
 rules in force (`rallies.Muster`: an id, the ring's radius, its end) and keeps it as the account's last under a lock on
@@ -63,8 +67,9 @@ the account (`Store.Change`, `Rally.Called`), which refuses it again if a second
 back to the hand (`Held.WithRallyBack`, with no cap). The answer is the rally with all its time left.
 
 **Each rally called is told twice** (`rallies.Tellers`): to every stream open (`rally_streams`, below) and to the other
-modules as `planet.v1.RallyCalled` (`rally_facts`, through planet's facts log), with the ground and the landmass of its
-tile read off `clicks.Borders`.
+modules as `planet.v1.RallyCalled` (`rally_facts`, through planet's facts log), with its point, and the ground and the
+landmass of the tile nearest it (`Geography.Nearest`, read off `clicks.Borders`) when that tile is inside the ring. A ring
+with no tile inside names none, and the room line names no place.
 
 ## The price of a click
 
@@ -106,14 +111,12 @@ second before its relay loses the line, never the rally.
 ## A restart
 
 **A rally is a row in postgres, not map state** (`planet.rallies`: the account's last rally, on or ended, one row per
-account, upserted by each call). Nothing of it is in memory, so a restart loses nothing.
+account, upserted by each call; its centre in `x`, `y`, `z`). Nothing of it is in memory, so a restart loses nothing.
 
 ## Arenas, resets and remaps
 
-- **A ring is a place on the globe and a time**, not a tile's state: it lasts through an arena's open and close and a
-  reset, which keep the same globe, until its end.
-- **A remap ends every rally** (`DELETE FROM rallies` in `scripts/map/remap.mjs`): its centre is a tile id the new map
-  numbers again, and it lasts minutes.
+- **A ring is a point on the globe and a time**, not a tile's state: it lasts through an arena's open and close, a
+  reset and a remap, which keep the same globe, until its end. `scripts/map/remap.mjs` leaves `rallies` alone.
 - **A freeze refuses a call** (`FrozenRefusal`). A ring called before goes on, and no click is taken while frozen.
 - **A knock-out leaves a ring of the flag out**: its players must pick another flag, and the ring helps no click of it.
 
@@ -134,11 +137,11 @@ told as a fact, as a mine's lay writes no ledger event either.
 
 ## Tests
 
-`rallies`' `rally_test.go` (on, one at a time, the ring), `muster_test.go` (the rules as it is called), `gate_test.go`
-(any tile, the flag, a ban, one still on, the failed reads), `discount_test.go` (inside, outside, another flag, rings
-that overlap, a ring ended, the cost read at each click, a failed read) and the store's contract on memory and on
-postgres; `call_rally_usecase` (the spend, the rally kept and told once, the gate's refusal, a second tab, none held, no
-account, a store down). `throttle_click`'s cost and `try_click`'s tempo; `notices`' board (a rally to every stream); the
-sink; `call_rally_handler`'s codes; `rallies_query`; `rally_facts`; `GetChargeRules`. The planet rules' bounds, and the
-bonuses' rules pin that `default` weighs the rally 0 and gives one. Chat's announcement, `announce_rally_usecase` and the
-subscriber.
+`rallies`' `rally_test.go` (on, one at a time, the ring around a point between tiles, `PointOf`), `muster_test.go` (the
+rules as it is called), `gate_test.go` (any point, the flag, a ban, one still on, the failed reads), `discount_test.go`
+(inside, outside, another flag, rings that overlap, a ring ended, the cost read at each click, a failed read) and the
+store's contract on memory and on postgres; `call_rally_usecase` (the spend, the rally kept and told once, the gate's
+refusal, a second tab, none held, no account, a store down, no point). `throttle_click`'s cost and `try_click`'s tempo;
+`notices`' board (a rally to every stream); the sink; `call_rally_handler`'s codes; `rallies_query`; `rally_facts` (the
+landmass inside the ring, none beyond); `GetChargeRules`. The planet rules' bounds, and the bonuses' rules pin that
+`default` weighs the rally 0 and gives one. Chat's announcement, `announce_rally_usecase` and the subscriber.

@@ -27,7 +27,7 @@ type PostgresQuery struct {
 func (q *PostgresQuery) Rallies(ctx context.Context) (*planetv1.GetRalliesResponse, error) {
 	now := q.clock.Now()
 	rows, err := q.db.On(ctx).QueryContext(ctx, `
-		SELECT account, id, flag, tile, radius, called_at, ends_at FROM rallies WHERE ends_at > $1 ORDER BY ends_at, id
+		SELECT account, id, flag, x, y, z, radius, called_at, ends_at FROM rallies WHERE ends_at > $1 ORDER BY ends_at, id
 	`, now.UTC())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the rallies on: %w", err)
@@ -38,13 +38,13 @@ func (q *PostgresQuery) Rallies(ctx context.Context) (*planetv1.GetRalliesRespon
 	for rows.Next() {
 		var (
 			account, id uuid.UUID
-			tile        int64
 			rally       rallies.Snapshot
 		)
-		if err := rows.Scan(&account, &id, &rally.Flag, &tile, &rally.Radius, &rally.CalledAt, &rally.EndsAt); err != nil {
+		if err := rows.Scan(&account, &id, &rally.Flag, &rally.Centre.X, &rally.Centre.Y, &rally.Centre.Z, &rally.Radius,
+			&rally.CalledAt, &rally.EndsAt); err != nil {
 			return nil, fmt.Errorf("failed to read a rally: %w", err)
 		}
-		rally.Account, rally.ID, rally.Tile = cpsession.AccountID(account), rallies.RallyID(id), uint32(tile) //nolint:gosec // a tile id.
+		rally.Account, rally.ID = cpsession.AccountID(account), rallies.RallyID(id)
 		answer.Rallies = append(answer.Rallies, planetmessage.Rally(rally, rally.EndsAt.Sub(now)))
 	}
 	if err := rows.Err(); err != nil {

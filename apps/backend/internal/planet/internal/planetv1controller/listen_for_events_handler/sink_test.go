@@ -328,7 +328,7 @@ func TestASinkFramesARallyWithTheTimeItHasLeft(t *testing.T) {
 	stream := &recorder{}
 	at := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	rally := rallies.Snapshot{
-		ID: rallies.RallyID(uuid.MustParse("00000000-0000-7000-8000-000000000001")), Flag: "fr", Tile: 9, Radius: 0.072,
+		ID: rallies.RallyID(uuid.MustParse("00000000-0000-7000-8000-000000000001")), Flag: "fr", Centre: clicks.Vec3{X: 0.6, Z: 0.8}, Radius: 0.072,
 		Account:  cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")),
 		CalledAt: at, EndsAt: at.Add(3 * time.Minute),
 	}
@@ -340,6 +340,6 @@ func TestASinkFramesARallyWithTheTimeItHasLeft(t *testing.T) {
 	require.Len(t, stream.sent, 1)
 	assert.True(t, proto.Equal(&planetv1.Rally{
 		RallyId: "00000000-0000-7000-8000-000000000001", AccountId: "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f", CountryId: "fr",
-		TileId: 9, Radius: 0.072, LeftMs: 180_000,
+		Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8}, Radius: 0.072, LeftMs: 180_000,
 	}, stream.sent[0].GetRallyCalled()), "%v", stream.sent[0])
 }

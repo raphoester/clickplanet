@@ -1558,11 +1558,11 @@ export class Rally extends Message<Rally> {
   countryId = "";
 
   /**
-   * The ring's centre.
+   * The ring's centre, a point of the globe, not a tile: the ring is what it covers.
    *
-   * @generated from field: uint32 tile_id = 4;
+   * @generated from field: planet.v1.GlobePoint point = 4;
    */
-  tileId = 0;
+  point?: GlobePoint;
 
   /**
    * The ring's radius, in radians of arc on the unit globe: a tile whose centre is that close or closer is inside.
@@ -1589,7 +1589,7 @@ export class Rally extends Message<Rally> {
     { no: 1, name: "rally_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "point", kind: "message", T: GlobePoint },
     { no: 5, name: "radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 6, name: "left_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
@@ -3668,9 +3668,11 @@ export class GetMinesResponse extends Message<GetMinesResponse> {
  */
 export class CallRallyRequest extends Message<CallRallyRequest> {
   /**
-   * @generated from field: uint32 tile_id = 1;
+   * Where the ring goes: any point of the globe, the sea too. Its length does not matter.
+   *
+   * @generated from field: planet.v1.GlobePoint point = 1;
    */
-  tileId = 0;
+  point?: GlobePoint;
 
   /**
    * @generated from field: string country_id = 2;
@@ -3685,7 +3687,7 @@ export class CallRallyRequest extends Message<CallRallyRequest> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.CallRallyRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "point", kind: "message", T: GlobePoint },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
