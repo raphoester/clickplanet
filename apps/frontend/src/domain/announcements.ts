@@ -1,6 +1,6 @@
 import {Appearance} from "../backends/clips.ts"
 import {FlagMission} from "../backends/missions.ts"
-import {PlayerTitle} from "../backends/progression.ts"
+import {PlayerLevel, PlayerTitle} from "../backends/progression.ts"
 import {TeaserCard} from "../backends/promo.ts"
 import {BattleToCome} from "../backends/turn.ts"
 import {Battle, battleKeyOf} from "./battle.ts"
@@ -11,6 +11,7 @@ import {VideoStory} from "./video/story.ts"
 
 export type Announcement =
     | {kind: "title", title: PlayerTitle}
+    | {kind: "level", level: PlayerLevel}
     | {kind: "battle", battle: Battle}
     // A battle's teaser, due by its time rules, or asked for by the player (`asked`): then it plays no entrance.
     | {kind: "teaser", battle: BattleToCome, cards: readonly TeaserCard[], asked?: boolean}
@@ -25,6 +26,8 @@ export function announcementKeyOf(announcement: Announcement): string {
     switch (announcement.kind) {
         case "title":
             return `title:${announcement.title.id}`
+        case "level":
+            return `level:${announcement.level.level}`
         case "battle":
             return `battle:${battleKeyOf(announcement.battle)}`
         case "teaser":

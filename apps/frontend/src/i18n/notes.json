@@ -256,5 +256,8 @@
   "support.size.bytes": "A file size in bytes",
   "support.size.kilobytes": "A file size in kilobytes",
   "support.size.megabytes": "A file size in megabytes",
-  "support.failure.rejected": "The server refused the message or report"
+  "support.failure.rejected": "The server refused the message or report",
+  "level.xp": "The XP gained on the current level, of the XP the level asks in all, as on a game's XP bar. Keep \"XP\" as games in the language write it.",
+  "level.xpBar": "The name of the player's XP bar, read by a screen reader: the XP that leads to the next level.",
+  "level.up": "The big line of the moment a player reaches a new level, as in a game."
 }

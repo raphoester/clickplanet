@@ -52,8 +52,9 @@ is the player's own view.
   has a username. Tiles taken counts each take at once
   (`useOwnTakes`): `GetPlayer` and `GetProgress` are cached 10s (`public, max-age=10`), so the card is read only once.
 - **The unlock moment is live.** Progression's stream (`ListenForEvents`,
-  `TitlesListener.listenForTitles`) carries `titleEarned` to the account of the token it was
-  opened with. `useTitlesEarned`, which `PlayScreen` calls, opens it only for a signed-in account,
+  `ProgressionListener.listenForProgression`) carries `titleEarned` to the account of the token it was
+  opened with, and the level reached on the same stream (see [The level](level.md)). `useProgressionEvents`, which
+  `PlayScreen` calls, opens it only for a signed-in account,
   since a guest earns no title, and only while the page holds a token (`heldIdentity()`, never
   a mint). The server reads the token when the stream opens, so the hook checks it every
   second (`useHeldIdentity`, `TOKEN_CHECK_MS`, which the antibot's warning stream shares) and opens the stream again

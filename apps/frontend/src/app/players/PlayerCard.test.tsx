@@ -41,6 +41,20 @@ describe("PlayerCard", () => {
         expect(backend.playerInfo).toHaveBeenCalledWith("account-ana")
     })
 
+    it("shows the player's level beside the name, and none when the server keeps none", async () => {
+        const info = {name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}
+        const view = render(<PlayerCard player={ana}
+                                        backend={backendAnswering(async () => ({...info, level: {level: 12, xp: 20_000, levelXp: 18_634, nextLevelXp: 24_192}}))}
+                                        onClose={() => {}}/>)
+
+        expect(await screen.findByRole("img", {name: "Level 12"})).toBeDefined()
+        view.unmount()
+
+        render(<PlayerCard player={ana} backend={backendAnswering(async () => info)} onClose={() => {}}/>)
+        await screen.findByText("Tiles taken")
+        expect(screen.queryByRole("img", {name: /Level/})).toBeNull()
+    })
+
     it("leaves out a creation date the server does not know", async () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}))}

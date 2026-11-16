@@ -150,7 +150,7 @@ bonus opens inside the dock, which grows, and what stacks on the dock moves with
 |---|---|---|
 | **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar. Desktop: the menu's head, the season at the top centre |
 | **Moments** | Something that just happened: the quiz, a bomb, a caught box. One at a time, then gone | Under the status zone |
-| **Play** | What every click needs: the clicks left, the slowdown, the bonuses held, and All, which opens every bonus in the bar | One bar, at the bottom |
+| **Play** | What every click needs: the clicks left, the slowdown, the bonuses held, and All, which opens every bonus in the bar; and under them, across the bar, the player's level and its XP, which every take fills | One bar, at the bottom |
 | **Places** | Everything read or set: the board, the chat, the account, sharing, the settings. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
 
 - **Ask in this order.** A moment? Moments. Needed on every click? Play, and that

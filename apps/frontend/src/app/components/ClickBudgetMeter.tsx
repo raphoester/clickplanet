@@ -31,6 +31,8 @@ export const DOCK_DRAWN_HEIGHT = "--dock-drawn-height"
 
 export type ClickBudgetMeterProps = {
     children?: ReactNode
+    // A line across the whole dock, under the clicks and what the children hold.
+    footer?: ReactNode
     onSignIn?: () => void
     compact?: boolean
     popover?: ReactNode
@@ -50,6 +52,7 @@ const STEP_MS = 250
 
 export default function ClickBudgetMeter({
     children,
+    footer,
     onSignIn,
     compact = false,
     popover,
@@ -243,6 +246,8 @@ export default function ClickBudgetMeter({
 
         <DockTray.Provider value={tray}>{children}</DockTray.Provider>
         <div ref={setTray} className="click-budget-tray"/>
+
+        {footer && <div className="click-budget-footer">{footer}</div>}
 
         {lockedOut && <Bubble key={lockedOut.id} anchor={root}>{heldLine(lockedOut.allegiance, Date.now())}</Bubble>}
 

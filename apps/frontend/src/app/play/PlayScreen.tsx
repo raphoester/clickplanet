@@ -68,9 +68,11 @@ import TerritoryCardPlace from "../territory/TerritoryCardPlace.tsx";
 import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {usePresence} from "../players/usePresence.ts";
 import {useRosterFeed} from "../players/useRosterFeed.ts";
-import {useTitlesEarned} from "../titles/useTitlesEarned.ts";
-import {LadderReader, TitlesListener} from "../../backends/progression.ts";
-import {useGatesFeed} from "../bonus/ladderStore.ts";
+import {useProgressionEvents} from "../account/useProgressionEvents.ts";
+import {LevelReader, ProgressionListener} from "../../backends/progression.ts";
+import {useGatesFeed} from "../bonus/gatesFeed.ts";
+import {useLevel, useLevelFeed} from "../level/levelStore.ts";
+import LevelLine from "../level/LevelLine.tsx";
 import {WarningAcknowledger, WarningsListener} from "../../backends/antibot.ts";
 import {useWarningFeed} from "../warning/useWarningFeed.ts";
 import {useBadges} from "../badges/badgesStore.ts";
@@ -170,7 +172,7 @@ export type Backends = {
     playerInfo: PlayerInfoBackend
     badges: BadgesBackend
     nameplates: NameplatesBackend
-    titles: TitlesListener
+    titles: ProgressionListener
     warnings: WarningsListener & WarningAcknowledger
     tileHolders: TileHolders
     landmasses: LandmassReader
@@ -181,8 +183,8 @@ export type Backends = {
     chargesRefresher: ChargesRefresher
     grantRules: GrantRulesRefresher
     sessions: SessionSource
-    // The player's level and the level each gated bonus opens at.
-    ladder: LadderReader
+    // The player's level on its bar, and the level each gated bonus opens at.
+    levels: LevelReader
     clips: ClipsBackend & ClipsNameBackend
     // A battle's teaser cards.
     promo: PromoBackend
@@ -251,10 +253,16 @@ export default function PlayScreen(props: PlayScreenProps) {
     useNameplatesFeed(backends.nameplates)
     useOwnNameplate(ownAccountId, username, color)
     useRosterFeed(backends.presence)
-    useTitlesEarned(backends.titles, linked, (title) => {
-        announce({kind: "title", title})
-        // The title worn may follow the one earned: the next read of this player's badge says.
-        if (ownAccountId) useBadges.getState().expire(ownAccountId)
+    useProgressionEvents(backends.titles, linked, {
+        titleEarned: (title) => {
+            announce({kind: "title", title})
+            // The title worn may follow the one earned: the next read of this player's badge says.
+            if (ownAccountId) useBadges.getState().expire(ownAccountId)
+        },
+        levelReached: (level) => {
+            useLevel.getState().reached(level)
+            announce({kind: "level", level})
+        },
     })
     useWarningFeed(backends.warnings)
     const crowd = useRoster(onlineCount)
@@ -270,7 +278,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     const race = useRace((standings) => standings.race)
     const [accepted] = useState(acceptedClicks)
     useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
-    useGatesFeed(backends, {accountId: ownAccountId, linked, listenForClicks: accepted.listenForClicks})
+    useLevelFeed(backends.levels, backends.sessions, {accountId: ownAccountId, linked, listenForClicks: accepted.listenForClicks})
+    useGatesFeed(backends.grantRules)
     const mood = moodOf(turn, frozen)
     useMood(mood)
     const battleOver = useBattleOver(battle, debrief)
@@ -500,7 +509,8 @@ export default function PlayScreen(props: PlayScreenProps) {
                                     discord={discord}
                                     onSignIn={openPitch}
                                     compact={compact}
-                                    popover={clicks}>
+                                    popover={clicks}
+                                    footer={<LevelLine/>}>
             <Inventory onToggle={toggleSwitch}
                        onToggleBomb={toggleBomb}
                        onToggleVirus={toggleVirus}

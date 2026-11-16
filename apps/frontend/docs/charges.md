@@ -121,13 +121,14 @@ kind held is never drawn locked. The gates are off until the reveal and in battl
 
 The gates are facts from two modules, put together by `gatesOf`: whether they are on and the open kinds (refill, spread,
 shields) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`, in `BonusRules`), and the **ladder** from progression's
-`GetLevel`: the player's level and the level each gated kind opens at (`unlocks`), in `useLadder`
-(`bonus/ladderStore.ts`). `useGatesFeed` reads the ladder (`LadderReader.ladder`) at load, on each new session
-(`listenForSessions`: a guest's first click makes one) or account, and, signed in, once its clicks settle. With no session
-held it reads nothing, so a page that has not clicked makes none, and a gated kind shows "Locked for now" until then. A
-guest, or an account no fact has raised yet, is level 0 (`NO_LEVEL`) and holds only the open kinds. The level UI reads
-the same `GetLevel` for its bar: whichever of the two lands second folds them into one read. In the fake the ladder is
-enclose at 4 and the bomb at 5 at level 0, and `playGates()` turns the gates on, `playGates(false)` off.
+`GetLevel`: the player's level and the level each gated kind opens at (`unlocks`), in the level's store (`useLevel`,
+`level/levelStore.ts`), read once for the whole page by `useLevelFeed` (see [The level](level.md#the-numbers)): at
+load, on each new session (`listenForSessions`: a guest's first click makes one) or account, and, signed in, once its
+clicks settle. A level reached on the stream opens the kinds at once. With no session held it reads nothing, so a page
+that has not clicked makes none, and a gated kind shows "Locked for now" until then. A guest, or an account no fact has
+raised yet, is level 0 (`NO_LEVEL`) and holds only the open kinds. In the fake the ladder is
+enclose at 4 and the bomb at 5, a guest at level 0 and a signed-in player at its fake level (`giveXp()` raises it), and
+`playGates()` turns the gates on, `playGates(false)` off.
 
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is

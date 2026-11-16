@@ -1,5 +1,5 @@
 import {PlayerTitle} from "./title.ts"
-import {Ladder} from "../domain/bonus.ts"
+import {UnlockLevels} from "../domain/bonus.ts"
 
 export type {PlayerTitle, TitleRank} from "./title.ts"
 
@@ -32,9 +32,17 @@ export type CountryTiles = {
     tiles: number
 }
 
-export interface LadderReader {
+// What GetLevel answers the caller, read once for every part of the page that shows it.
+export type LevelRead = {
+    // None for a guest, or an account no fact has raised yet.
+    level?: PlayerLevel
+    // The level each gated kind opens at.
+    unlocks: UnlockLevels
+}
+
+export interface LevelReader {
     // None until the page holds a session: the read never makes one.
-    ladder(): Promise<Ladder | undefined>
+    readLevel(): Promise<LevelRead | undefined>
 }
 
 export interface ProgressionBackend {
@@ -71,9 +79,14 @@ export interface ProgressReader {
     progress(accountId: string): Promise<Progress | undefined>
 }
 
-export interface TitlesListener {
+export type ProgressionEvents = {
+    titleEarned: (title: PlayerTitle) => void
+    levelReached: (level: PlayerLevel) => void
+}
+
+export interface ProgressionListener {
     heldIdentity(): string | undefined
 
-    // The titles the account of the token held earns. A refused token stops it for good: a new token needs a new one.
-    listenForTitles(onEarned: (title: PlayerTitle) => void): () => void
+    // What the account of the token held earns. A refused token stops it for good: a new token needs a new one.
+    listenForProgression(on: ProgressionEvents): () => void
 }
