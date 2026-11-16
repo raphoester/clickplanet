@@ -51,6 +51,11 @@ const float MINE_RIM = 0.19;
 const float MINE_STUD_AT = 0.31;
 const float MINE_STUD = 0.055;
 const float MINE_LIT = 0.07;
+// On a shielded tile the mine steps down to the shield's tip as the count fades in, half its size, so both read. Its
+// light grows there: at that size it is what says "mine".
+const vec2 MINE_FOOT = vec2(0.0, 0.34);
+const float MINE_FOOT_SIZE = 0.5;
+const float MINE_FOOT_LIT = 0.1;
 
 // A capital still standing: a crown on the top of the tile, drawn last, over its flag, its shield and every ring.
 const vec2 CROWN_AT = vec2(0.0, -0.34);
@@ -91,10 +96,13 @@ vec4 shieldMark(float cell, vec2 coordinates) {
     return texture(shieldMarks, vec2(at.x / shieldCells.x, 1.0 - at.y / shieldCells.y));
 }
 
+float countShown() {
+    return smoothstep(16.0, 22.0, vSpriteSize / pixelRatio);
+}
+
 vec4 shielded(vec4 colour, vec2 coordinates) {
     float count = clamp(floor(vShield + 0.5), 1.0, shieldMost);
-    float counted = smoothstep(16.0, 22.0, vSpriteSize / pixelRatio);
-    vec4 mark = mix(shieldMark(0.0, coordinates), shieldMark(count, coordinates), counted);
+    vec4 mark = mix(shieldMark(0.0, coordinates), shieldMark(count, coordinates), countShown());
 
     float cover = mark.a * (1.0 - flagPaint);
     return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
@@ -109,8 +117,11 @@ vec4 crowned(vec4 colour, vec2 coordinates, float shown) {
     return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
 }
 
-vec4 mined(vec4 colour, vec2 coordinates, float shown) {
-    float pixel = 1.0 / vSpriteSize;
+vec4 mined(vec4 colour, vec2 tile, float shown) {
+    float foot = vShield > 0.5 ? countShown() : 0.0;
+    float size = mix(1.0, MINE_FOOT_SIZE, foot);
+    vec2 coordinates = (tile - MINE_FOOT * foot) / size;
+    float pixel = 1.0 / (vSpriteSize * size);
     float r = length(coordinates);
     float body = 1.0 - smoothstep(MINE_BODY - pixel, MINE_BODY + pixel, r);
     float rim = smoothstep(MINE_RIM - pixel, MINE_RIM + pixel, r) * body;
@@ -120,7 +131,8 @@ vec4 mined(vec4 colour, vec2 coordinates, float shown) {
         vec2 at = vec2(cos(angle), sin(angle)) * MINE_STUD_AT;
         studs = max(studs, 1.0 - smoothstep(MINE_STUD - pixel, MINE_STUD + pixel, length(coordinates - at)));
     }
-    float lit = 1.0 - smoothstep(MINE_LIT - pixel, MINE_LIT + pixel, r);
+    float light = mix(MINE_LIT, MINE_FOOT_LIT, foot);
+    float lit = 1.0 - smoothstep(light - pixel, light + pixel, r);
     float dark = max(body, studs) * shown;
     vec3 rgb = mix(colour.rgb, MINE_DARK, dark);
     rgb = mix(rgb, MINE, rim * shown);

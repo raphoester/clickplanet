@@ -79,7 +79,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
 - [The level](docs/level.md) — a signed-in player's level: its bar across the dock, on the public card, in the Progress
-  tab and the profile, the level-up moment; read from `GetLevel`, the stream and the card; nothing for a guest. Held
+  tab and the profile, the bubble on what the bar is and how to gain XP, the level-up moment; read from `GetLevel`, the stream and the card; nothing for a guest. Held
   for the reveal.
 - [Nameplates](docs/nameplates.md) — a player's name, color and crown, read by account id from one store that batches,
   knows the roster and the page's own name at once, and holds a chat message until its names are read; the readers.
@@ -116,7 +116,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   each bonus on the client.
 - [Virus](docs/virus.md) — aimed from a slot shown only while one is held, a tap on an enemy tile with no shield, one
   `virus_spread` per tick, each tile's virus a versioned tile value cured by any change of owner, the purple beat.
-- [Mine](docs/mine.md) — aimed from its slot, a tap on a tile of the flag lays one; only the flag's players see it
+- [Mine](docs/mine.md) — aimed from its slot, a tap on a tile of the flag lays one, on another flag's takes it first; only the flag's players see it
   (`GetMines` at each stream open and flag change, `mine_laid`), each kept at the map version it is known at and taken
   off by any change of its tile; `mines_exploded` drawn as a bomb's blast with no fall; the still olive dome.
 - [Rally](docs/rally.md) — aimed from its slot, a tap on any point of the globe calls a ring every page sees

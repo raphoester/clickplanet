@@ -139,7 +139,7 @@ export function sameSwitches(a: Switches, b: Switches): boolean {
 }
 
 export type BonusNotice =
-    "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy" | "mineNotYours"
+    "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy" | "mineTaken" | "mineNotYours"
     | "rallyOn"
 
 export type BonusNoticeEvent = {
@@ -153,6 +153,7 @@ export function slotOf(notice: BonusNotice): ChargeKind {
             return "encloseClicks"
         case "virusNoEnemy":
             return "virus"
+        case "mineTaken":
         case "mineNotYours":
             return "mine"
         case "rallyOn":

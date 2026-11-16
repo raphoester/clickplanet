@@ -65,7 +65,7 @@ import {clickCostOf, Rallies, WHOLE_CLICK} from "../../domain/rallies.ts";
 import {createRallyMarks, RallyCallers} from "./rallyMarks.ts";
 import {createRallyPops} from "./rallyPops.ts";
 import {InfectionChange, infectionMarksOf} from "../../domain/infections.ts";
-import {MineChange, mineMarksOf} from "../../domain/mines.ts";
+import {layingOf, MineChange, mineMarksOf} from "../../domain/mines.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange} from "../../domain/tileOwnership.ts";
@@ -1308,15 +1308,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         })
     }
 
-    // A tile not the flag's, a mined one, or a capital the knock-out plays on is refused here before the mine leaves the
-    // hand; the server checks again. The mine stays aimed while one is held, so mines are laid together.
-    const layMine = (tile: number, owner: string | undefined) => {
+    // The tap decides the tile first (`layingOf`); the server checks again. The mine stays aimed while one is held, so
+    // mines are laid together.
+    const layMine = (tile: number) => {
         if (!miner) return
-        if (owner !== country.code || tiles.mines.has(tile) || (rules?.knockOut && capitals?.has(tile))) {
-            onNotice("mineNotYours")
-            playSound("refused")
-            return
-        }
         playSound("click")
         plainClicks.playOwnClick(tile, camera)
         miner.layMine(tile, country.code).catch((e) => {
@@ -1592,9 +1587,17 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
-        if (mineAimed) {
-            layMine(tile, owner)
-            return
+        if (mineAimed && miner) {
+            const laying = layingOf(owner, country.code, tiles.mines.has(tile), (rules?.knockOut && capitals?.has(tile)) ?? false)
+            if (laying === "refused") {
+                onNotice("mineNotYours")
+                playSound("refused")
+                return
+            }
+            if (laying === "lay") {
+                layMine(tile)
+                return
+            }
         }
 
         if (switches.shield && shielder) {
@@ -1640,12 +1643,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const clicked = country.code
         const shielding = switches.shield && shielder !== undefined
+        const mining = mineAimed && miner !== undefined
         const enclosing = switches.enclose && outcome === "taken" && !enclosuresUnlimited()
         tileClicker.clickTile(tile, clicked, switches, cost).then(() => {
             if (lifetime.signal.aborted) return
             if (outcome === "taken") endTap()
             onClickAccepted({country: clicked, took: outcome === "taken"})
             if (shielding) onNotice(outcome === "taken" ? "shieldTaken" : "shieldNotYours")
+            if (mining) onNotice(outcome === "taken" ? "mineTaken" : "mineNotYours")
             if (enclosing) setTimeout(() => {
                 if (lifetime.signal.aborted || ownEnclosures.has(tile, clicked, performance.now() / 1000)) return
                 onNotice("nothingEnclosed")

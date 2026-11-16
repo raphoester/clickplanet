@@ -148,7 +148,7 @@ describe("Inventory", () => {
         fireEvent.click(slot(/^Mine/))
 
         expect(toggleMine).toHaveBeenCalledOnce()
-        expect(bubble()).toBe("Tap your tile. Only your flag sees the mine")
+        expect(bubble()).toBe("Tap one of your tiles: if an enemy takes it, the mine explodes and takes the tiles around it")
     })
 
     it("says the mines are aimed, and that a mine goes only on the flag's tile with no mine", () => {
@@ -159,6 +159,15 @@ describe("Inventory", () => {
         rerender(inventory({charges, mineAimed: true, notice: {notice: "mineNotYours", seq: 1}}))
 
         expect(bubble()).toBe("A mine goes only on your flag's tile with no mine")
+    })
+
+    it("says where the mine goes when a tap with a mine aimed took another flag's tile", () => {
+        const charges = {...NO_CHARGES, mines: 1}
+        const {rerender} = render(inventory({charges, mineAimed: true}))
+
+        rerender(inventory({charges, mineAimed: true, notice: {notice: "mineTaken", seq: 1}}))
+
+        expect(bubble()).toBe("Tile taken. Tap it again to lay a mine")
     })
 
     it("shows no bomb while bombs are off, held or not", () => {
