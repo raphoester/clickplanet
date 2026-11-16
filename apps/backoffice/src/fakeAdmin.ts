@@ -410,6 +410,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     // The bonuses module's set the migration keeps: what a box caught or a right answer grants, and the sign-in refill.
     bonusRules = new BonusesGetRulesResponse({sets: [new BonusesRuleSet({name: "default", rules: BonusesRules.fromJson({
         kinds: {refill: 5, spreadClicks: 3, encloseClicks: 2, bomb: 1, shields: 3},
+        gates: {on: false, open: {refill: true, spreadClicks: true, encloseClicks: false, bomb: false, shields: true}},
         spread: {maxPerBox: 4},
         enclose: {maxPerBox: 3},
         shield: {minPerBox: 5, maxPerBox: 20},

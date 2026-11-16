@@ -227,6 +227,20 @@ describe("what a box or a right answer holds", () => {
         const row = rowOf("default", holds())
         expect(row.getAttribute("aria-current")).toBe("true")
         expect(within(row).getByText("refill 5, spread 3, enclose 2, bomb 1, shields 3")).toBeTruthy()
+        expect(within(row).getByText("off")).toBeTruthy()
+    })
+
+    it("turns the gates on in a set", async () => {
+        const admin = withCalm()
+        show(admin)
+
+        fireEvent.click(await button("Edit calm", holds()))
+        pick("Gates on", "yes")
+        fireEvent.click(saveButton())
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(within(rowOf("calm", holds())).getByText("on, open: refill, spread, shields")).toBeTruthy())
+        expect(bonusSent(admin)?.rules?.gates?.on).toBe(true)
     })
 
     it("edits a set once confirmed, with no frozen switch, and saves it to the bonuses module", async () => {

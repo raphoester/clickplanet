@@ -15,6 +15,7 @@ const BOX_COLUMNS: Column<BoxesRuleSet>[] = [
 
 const BONUS_COLUMNS: Column<BonusesRuleSet>[] = [
     {title: "Drawn as", of: set => bonusRules.kindsOf(set.rules)},
+    {title: "Gates", of: set => bonusRules.gatesOf(set.rules)},
 ]
 
 const QUIZ_COLUMNS: Column<QuizzesRuleSet>[] = [

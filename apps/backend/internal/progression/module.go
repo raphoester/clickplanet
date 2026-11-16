@@ -24,6 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/finales/usecases/record_finale_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inprocess_level_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/outbox_bonuses_unlocks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/postgres_level_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/forget_level_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/raise_level_usecase"
@@ -89,6 +90,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing/usecases/forget_worn_title_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing/usecases/wear_title_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -143,6 +145,8 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	nameplateStore := postgres_nameplate_store.New(db)
 	departureStore := postgres_departure_store.New(db)
 	levelStore := postgres_level_store.New(db)
+	// What a level unlocked goes to the bonuses module as a command in its words, in the transaction that writes it.
+	levelBook := levels.NewBook(db, levelStore, outbox_bonuses_unlocks.New(cpoutbox.New(db)))
 
 	careers := titles.NewCareers(accounts, fightStore)
 	catalog := titles.NewCatalog()
@@ -155,7 +159,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	levelFeed := inprocess_level_feed.New()
 	recordStats := record_stats_usecase.New(statsStore, streams)
 	decideDeparture := decide_departure_usecase.New(departureStore)
-	raiseLevel := raise_level_usecase.New(statsStore, accounts, levelStore, levelFeed, clock)
+	raiseLevel := raise_level_usecase.New(statsStore, accounts, levelBook, levelFeed, clock)
 
 	var subscribeErr error
 	subscribed := func(runner cpbootstrap.Runner, err error) cpbootstrap.Runner {
@@ -188,6 +192,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-nameplates-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_nameplate_usecase.New(nameplateStore)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-departures-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_departure_usecase.New(departureStore)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-levels-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_level_usecase.New(levelStore)), props.Logger))),
+		cpoutbox.NewRelay("progression-outbox", db, streams.Commands(), props.Logger),
 	}
 	if subscribeErr != nil {
 		_ = streams.Close()
@@ -228,7 +233,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			backfill_days_played_usecase.New(statsStore, playDays), props.Logger,
 		)),
 		ReconcileLevelsHandler: reconcile_levels_handler.New(audit_reconcile_levels.New(
-			reconcile_levels_usecase.New(statsStore, accounts, levelStore, clock), props.Logger,
+			reconcile_levels_usecase.New(statsStore, accounts, levelBook, clock), props.Logger,
 		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
