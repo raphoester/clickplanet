@@ -1,4 +1,4 @@
-# Charges (refill, bomb, enclose, spread, shields)
+# Charges (refill, bomb, enclose, spread, shields, virus)
 
 **The charges are the wallet, `internal/planet/internal/charges/`**: what an account holds and spends. What grants them,
 a box caught, a right answer or a guest's first sign-in, is the bonuses module's, which reaches the wallet only through
@@ -33,7 +33,7 @@ its own.
   no hand has room for one, and the stack held is kept. See [Enclosures off](enclose.md#enclosures-off-chargesencloseoff).
 - **A rule set may make spreads unlimited** (`charges.spread.unlimited`): spread then spends no charge, and the pool
   held is left as it is. See [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited).
-- **How much fits.** A refill and a bomb are one: a second replaces the first,
+- **How much fits.** A refill, a bomb and a virus are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
   stack to the rule set's `charges.enclose.held` (3), spread clicks pool to `charges.spread.clicks`
   (8) and shields stack to `charges.shield.held` (30) (see [Rules](rules.md)). A box draws its amount evenly from 1 to

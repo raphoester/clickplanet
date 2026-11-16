@@ -177,3 +177,17 @@ func TestNoHandHasRoomForAnEnclosureWhileEnclosuresAreOff(t *testing.T) {
 	assert.Equal(t, []Kind{KindEncloseClicks}, Held{}.Full(off), "an empty hand takes no enclosure")
 	assert.Equal(t, []Kind{KindEncloseClicks}, Held{Enclosures: 3}.Full(off), "and a full one is full of them once")
 }
+
+func TestAVirusIsKeptUntilItIsUsedAndAHandHoldsOne(t *testing.T) {
+	held := Held{}.Granted(KindVirus, 1, chargeRules)
+	require.Equal(t, Held{Virus: true}, held)
+	assert.Equal(t, []Kind{KindVirus}, held.Full(chargeRules), "no box pays a second one")
+	assert.Equal(t, held, held.Granted(KindVirus, 1, chargeRules))
+
+	used, ok := held.AfterVirus()
+	require.True(t, ok)
+	assert.True(t, used.Empty())
+	_, again := used.AfterVirus()
+	assert.False(t, again)
+	assert.Equal(t, held, used.WithVirusBack(), "a virus the map refused comes back")
+}

@@ -39,6 +39,12 @@
     --bonus-box: var(--shield);
 }
 
+.bonus-award--virus,
+.inventory-slot--virus {
+    --bonus-accent: var(--virus-light);
+    --bonus-box: var(--virus);
+}
+
 .bonus-award-card {
     display: flex;
     flex-direction: column;

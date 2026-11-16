@@ -84,6 +84,8 @@ export function awardOf(reward: MissionReward, rules: Pick<BonusRules, "blastRad
             return {kind: "encloseClicks", shapes: reward.amount, maxTiles: rules.enclosureMaxTiles}
         case "shields":
             return {kind: "shields", shields: reward.amount}
+        case "virus":
+            return {kind: "virus"}
     }
 }
 

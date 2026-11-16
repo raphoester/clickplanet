@@ -40,6 +40,7 @@ var weighed = []struct {
 	{KindEncloseClicks, "encloseClicks"},
 	{KindBomb, "bomb"},
 	{KindShields, "shields"},
+	{KindVirus, "virus"},
 }
 
 func weightsProblem(r Rules) error {

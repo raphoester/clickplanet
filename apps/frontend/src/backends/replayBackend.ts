@@ -257,7 +257,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
                 const held = this.shields.get(tile)
                 if (held) shields.set(tile, held)
             }
-            callback({range, version: this.version(), bindings, shields, knockedOut: []})
+            callback({range, version: this.version(), bindings, shields, knockedOut: [], infected: new Map()})
         }
     }
 

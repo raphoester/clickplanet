@@ -25,6 +25,7 @@ type memoryMap struct {
 	holders    map[uint32]cpsession.AccountID
 	landmasses map[string]map[clicks.LandmassID]string
 	out        map[string]OutFlag
+	viruses    []clicks.VirusSnapshot
 }
 
 func newMemoryMap() *memoryMap {
@@ -32,6 +33,38 @@ func newMemoryMap() *memoryMap {
 		rows: map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
 		landmasses: map[string]map[clicks.LandmassID]string{}, out: map[string]OutFlag{},
 	}
+}
+
+func (m *MemoryPersistence) LoadViruses(_ context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	for _, virus := range m.mapLocked(played).viruses {
+		visit(virus)
+	}
+	return nil
+}
+
+func (m *MemoryPersistence) SaveViruses(_ context.Context, played clicks.MapID, live []clicks.VirusSnapshot) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	m.mapLocked(played).viruses = slices.Clone(live)
+	return nil
+}
+
+// StoredVirusesOn is a map's live viruses, as the last flush kept them.
+func (m *MemoryPersistence) StoredVirusesOn(played clicks.MapID) []clicks.VirusSnapshot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return slices.Clone(m.mapLocked(played).viruses)
 }
 
 // NewMemoryPersistence keeps rows as the world's map.

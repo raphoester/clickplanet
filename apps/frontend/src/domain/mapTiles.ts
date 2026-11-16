@@ -1,11 +1,13 @@
-import type {MapVersion, Ownerships, TileRange, Update} from "../backends/backend.ts"
+import type {MapVersion, Ownerships, TileRange, Update, VirusSpread} from "../backends/backend.ts"
 import {MapClock} from "./mapClock.ts"
 import {OwnerChange, TileOwnership} from "./tileOwnership.ts"
 import {ShieldChange, TileShields} from "./shields.ts"
+import {InfectionChange, TileInfections} from "./infections.ts"
 
 export type TileChanges = {
     owners: OwnerChange[]
     shields: ShieldChange[]
+    infections: InfectionChange[]
 }
 
 type Fortifying = {
@@ -26,10 +28,11 @@ export function tileRanges(size: number, batchSize: number): TileRange[] {
     return ranges
 }
 
-// Every tile's flag and shields. Whatever brings a tile's value, a read or the stream, it is taken only when its version is newer than the tile's.
+// Every tile's flag, shields and virus. Whatever brings a tile's value, a read or the stream, it is taken only when its version is newer than the tile's.
 export class MapTiles {
     readonly ownership: TileOwnership
     readonly shields: TileShields
+    readonly infections: TileInfections
     readonly ranges: readonly TileRange[]
     private readonly seen: Float64Array
     private readonly reads: (MapVersion | undefined)[]
@@ -44,6 +47,7 @@ export class MapTiles {
     constructor(size: number, private readonly batchSize: number, private readonly clock: MapClock) {
         this.ownership = new TileOwnership(size)
         this.shields = new TileShields(size)
+        this.infections = new TileInfections(size)
         this.ranges = tileRanges(size, batchSize)
         this.seen = new Float64Array(size + 1).fill(UNKNOWN)
         this.reads = new Array(this.ranges.length)
@@ -97,7 +101,7 @@ export class MapTiles {
     }
 
     // Whether the range is current: else read it again.
-    public read({range, version, bindings, shields, knockedOut}: Ownerships, changes: TileChanges): boolean {
+    public read({range, version, bindings, shields, knockedOut, infected}: Ownerships, changes: TileChanges): boolean {
         if (!this.clock.counts(version)) return false
         const index = this.rangeOf(range.start)
         if (index === undefined) return false
@@ -107,6 +111,7 @@ export class MapTiles {
             if (!this.take(tile, version.seq)) continue
             this.ownership.take(tile, bindings.get(tile), changes.owners)
             this.shields.set(tile, shields.get(tile) ?? 0, changes.shields)
+            this.infections.set(tile, infected.get(tile), changes.infections)
         }
 
         const was = this.reads[index]
@@ -123,11 +128,12 @@ export class MapTiles {
     }
 
     public applyUpdates(updates: readonly Update[], changes: TileChanges): void {
-        for (const {tile, newCountry, shields, version} of updates) {
+        for (const {tile, previousCountry, newCountry, shields, version} of updates) {
             this.heard(version)
             if (!this.clock.counts(version) || !this.take(tile, version.seq)) continue
             this.ownership.set(tile, newCountry, changes.owners)
             this.shields.set(tile, shields, changes.shields)
+            if (newCountry !== previousCountry) this.infections.set(tile, undefined, changes.infections)
         }
     }
 
@@ -137,6 +143,7 @@ export class MapTiles {
             if (!this.take(tile, version.seq)) continue
             this.ownership.set(tile, undefined, changes.owners)
             this.shields.set(tile, 0, changes.shields)
+            this.infections.set(tile, undefined, changes.infections)
         }
         for (const {tile, shields} of struck) {
             if (this.take(tile, version.seq)) this.shields.set(tile, shields, changes.shields)
@@ -144,11 +151,33 @@ export class MapTiles {
     }
 
     public applyEnclosure(flag: string, taken: readonly number[], struck: readonly {tile: number, shields: number}[], version: MapVersion, changes: TileChanges): void {
+        this.applyTakes(flag, undefined, taken, struck, version, changes)
+    }
+
+    // A virus's use or tick: each tile it took is its flag's and infected. One that ended cures every tile it infects.
+    public applyInfection(
+        {virus, countryId, taken, struck, ended, version}: VirusSpread, changes: TileChanges,
+    ): void {
+        this.heard(version)
+        this.applyTakes(countryId, virus, taken, struck, version, changes)
+        if (!ended || !this.clock.counts(version)) return
+        for (const tile of this.infections.tilesOf(virus)) {
+            if (this.seen[tile] > version.seq) continue
+            this.seen[tile] = version.seq
+            this.infections.set(tile, undefined, changes.infections)
+        }
+    }
+
+    private applyTakes(
+        flag: string, virus: string | undefined, taken: readonly number[], struck: readonly {tile: number, shields: number}[],
+        version: MapVersion, changes: TileChanges,
+    ): void {
         if (!this.clock.counts(version)) return
         for (const tile of taken) {
             if (!this.take(tile, version.seq)) continue
             this.ownership.set(tile, flag, changes.owners)
             this.shields.set(tile, 0, changes.shields)
+            this.infections.set(tile, virus, changes.infections)
         }
         for (const {tile, shields} of struck) {
             if (this.take(tile, version.seq)) this.shields.set(tile, shields, changes.shields)
@@ -163,6 +192,7 @@ export class MapTiles {
             if (!this.take(tile, version.seq)) continue
             this.ownership.set(tile, undefined, changes.owners)
             this.shields.set(tile, 0, changes.shields)
+            this.infections.set(tile, undefined, changes.infections)
         }
     }
 

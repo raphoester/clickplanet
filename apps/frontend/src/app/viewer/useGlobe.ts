@@ -9,7 +9,7 @@ import {OwnershipsGetter, TileClicker, UpdatesListener} from '../../backends/bac
 import {useLeaderboardFeed} from './useLeaderboardFeed.ts';
 import {firstTakeAhead} from '../frontGuide.ts';
 import {Switches} from '../../domain/bonus.ts';
-import {Bomber, BonusListener, BoxCatcher, Shielder} from '../../backends/backend.ts';
+import {Bomber, BonusListener, BoxCatcher, Infector, Shielder} from '../../backends/backend.ts';
 import {PlaySound} from '../sound/soundPlayer.ts';
 import {AcceptedClick} from '../clicks/acceptedClicks.ts';
 import {ClickBudgetSource} from '../../backends/clickBudget.ts';
@@ -41,6 +41,7 @@ export type UseGlobeOptions = {
     boxCatcher?: BoxCatcher
     bomber?: Bomber
     shielder?: Shielder
+    infector?: Infector
     // Must keep its identity: a new one rebuilds the globe.
     playSound?: PlaySound
     // Must keep its identity: a new one rebuilds the globe.
@@ -60,7 +61,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
+    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -144,6 +145,8 @@ export function useGlobe(options: UseGlobeOptions) {
             bomber,
             onBombDropped: news.tellBomb,
             onArmedChange: bonus.setBombArmed,
+            infector,
+            onVirusAimChange: bonus.setVirusAimed,
             shielder,
             onNotice: bonus.notify,
             onClickAccepted,
@@ -183,7 +186,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
+    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
 
     useEffect(() => () => {
         useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)
@@ -241,6 +244,7 @@ export function useGlobe(options: UseGlobeOptions) {
     const flyToMission = useCallback((target: MissionTarget) => globeRef.current?.flyToMission(target), [])
 
     const toggleBomb = useCallback(() => globeRef.current?.setArmed(!useBonus.getState().bombArmed), [])
+    const toggleVirus = useCallback(() => globeRef.current?.setVirusAimed(!useBonus.getState().virusAimed), [])
     const toggleSwitch = useCallback((name: keyof Switches) => globeRef.current?.setSwitch(name, !useBonus.getState().switches[name]), [])
 
     return {
@@ -253,6 +257,7 @@ export function useGlobe(options: UseGlobeOptions) {
         capture,
         graphics,
         toggleBomb,
+        toggleVirus,
         toggleSwitch,
         pointing,
         pointingTerritory,

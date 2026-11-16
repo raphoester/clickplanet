@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"time"
 
@@ -139,6 +140,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_virus_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/log_refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
@@ -149,6 +151,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/subscribers/player_forgotten_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses/usecases/spread_viruses_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses/usecases/spread_viruses_usecase/log_spread_viruses"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses/usecases/use_virus_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/viruses/uuid_virus_ids"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpipblock"
@@ -163,6 +170,7 @@ const (
 	moduleName = "planet"
 
 	ledgerRelayInterval = time.Second
+	virusesInterval     = time.Second
 	factsRelayInterval  = 100 * time.Millisecond
 
 	// How long the wallet knows the id of a grant made at once and not for good: a caller that names its grants by what
@@ -383,6 +391,13 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			freezing := func() clicks.Freeze { return freeze() || inPlay.Freeze() }
+
+			shieldsPerTile := func() int { return chargeRules().Shield.PerTile }
+			infections := ledger.NewVirusRecording(
+				clicks.NewContagion(tilesStorage, geography, rand.IntN, shieldsPerTile), takings, clock) //nolint:gosec // which tile a virus takes is no secret.
+			outbreak := viruses.NewOutbreak(chargeRules, clock)
+			props.Runners.Add(spread_viruses_usecase.NewRunner(virusesInterval, log_spread_viruses.New(
+				spread_viruses_usecase.New(tilesStorage, infections, outbreak, freezing), props.Logger)))
 			internalService := planetv1controller.InternalService{
 				PlayRuleSetHandler: play_rule_set_handler.New(playRules),
 				ResetMapHandler: reset_map_handler.New(
@@ -456,6 +471,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
 					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, chargeRules), escrow, writer),
 					refusing)),
+				UseVirusHandler: use_virus_handler.New(use_virus_usecase.New(
+					viruses.NewGate(tilesStorage, countries, flags, reach, refusing), uuid_virus_ids.Provider{}, hands, infections,
+					outbreak)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),
 				GetLandmassHandler: get_landmass_handler.New(borders,

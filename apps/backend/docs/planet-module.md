@@ -21,6 +21,8 @@ internal/planet/internal/
     postgres_grant_store/
     inmemory_grant_store/
     usecases/
+  viruses/                        a virus's way from the hand to the map, and the runner that spreads each one
+    usecases/
   notices/                        a spread to every stream, a grant to the signed-in account's own
   placements/                     a shield between the hand it left and the map's flush, and the boot that gives it back
     postgres_placement_store/
@@ -124,6 +126,9 @@ internal/planet/internal/
   ([Offers and the wallet](offers-and-wallet.md)). They were the bonuses module, which asks planet in its words
   ([The bonuses](bonuses.md)); the quizzes have a module of their own since 2026-11-13 ([The quizzes](quizzes-module.md))
   and the boxes since 2026-11-15 ([The boxes](boxes-module.md)).
+- **`viruses/`** — a virus's way from the hand to the map (`Gate`, `Outbreak`), the use and the runner that spreads it
+  every 20 s. Its rules are `clicks.Virus` and `clicks.Contagion`, since the tile storage keeps every live virus with its
+  map. See [The virus](virus.md).
 - **`notices/`** — what planet tells the streams open beside the map's changes: a spread to every one, all a
   signed-in account holds after a grant to its own. `ListenForEvents` merges it with the tile feed.
 

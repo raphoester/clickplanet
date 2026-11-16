@@ -111,7 +111,7 @@ func held(t *testing.T, charges *planetv1.ChargesHeld, kind planetv1.BonusKind) 
 			return 1
 		}
 		return 0
-	case planetv1.BonusKind_BONUS_KIND_REFILL, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED:
+	case planetv1.BonusKind_BONUS_KIND_REFILL, planetv1.BonusKind_BONUS_KIND_VIRUS, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED:
 		require.Failf(t, "not a charge a mission pays", "%s", kind)
 	}
 	return 0
