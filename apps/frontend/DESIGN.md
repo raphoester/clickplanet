@@ -67,6 +67,7 @@ system exists to stop.
 | `--action` | The one thing to press on a screen (sign in, send, wear), and the player's own row |
 | `--secondary` | Every other button |
 | `--gold` | Reward and progress: panel headers, title names, progress fills, first place |
+| `--xp` (and `-shade`, `-ink`) | The level: its chip, its bar, "XP to level 13". Not the level-up moment, which is a reward |
 | `--gain`, `--loss` | Tiles won and lost, nowhere else |
 | `--mission` | A mission's place: the ring that names it in a card, the red of the ring and the outline the globe draws for it |
 | `--streak` | The streak flame |

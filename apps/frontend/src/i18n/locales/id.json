@@ -217,6 +217,7 @@
   "title.missionsTo": "{count} misi lagi menuju {next}",
   "title.countTo": "{count} lagi menuju {next}",
   "level.level": "Level {level}",
+  "level.short": "Lv {level}",
   "level.xpBar": "XP menuju level {level}",
   "level.xp": "{gained} / {span} XP",
   "level.up": "Naik level!",
