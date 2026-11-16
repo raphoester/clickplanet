@@ -14,8 +14,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
-// ErrRallyOn is a call while the account's last rally is still on: a player has one at a time.
-var ErrRallyOn = errors.New("a rally the caller called is still on")
+var (
+	// ErrRallyOn is a call while the account's last rally is still on: a player has one at a time.
+	ErrRallyOn = errors.New("a rally the caller called is still on")
+	// ErrNoPoint is a call aimed at no point of the globe: a vector of no length, or not a number.
+	ErrNoPoint = errors.New("a rally names no point of the globe")
+)
 
 type RallyID uuid.UUID
 
@@ -29,12 +33,13 @@ type Ground interface {
 	Position(id uint32) (clicks.Vec3, bool)
 }
 
-// Rally is a ring a player called on the globe for its flag, from calledAt to endsAt.
+// Rally is a ring a player called on the globe for its flag, from calledAt to endsAt, around a point: not a tile, since
+// the ring is what it covers.
 type Rally struct {
 	id       RallyID
 	account  cpsession.AccountID
 	flag     string
-	tile     uint32
+	centre   clicks.Vec3
 	radius   float64
 	calledAt time.Time
 	endsAt   time.Time
@@ -56,17 +61,23 @@ func (r Rally) Called(next Rally) (Rally, error) {
 
 // Covers says whether the tile is inside the ring: its centre within the radius of the ring's, in arc on the globe.
 func (r Rally) Covers(tile uint32, ground Ground) bool {
-	centre, ok := ground.Position(r.tile)
-	if !ok {
-		return false
-	}
-	other, ok := ground.Position(tile)
+	position, ok := ground.Position(tile)
 	if !ok {
 		return false
 	}
 
-	a, b := centre.Unit(), other.Unit()
+	a, b := r.centre.Unit(), position.Unit()
 	return a.X*b.X+a.Y*b.Y+a.Z*b.Z >= math.Cos(r.radius)
+}
+
+// PointOf is a point of the globe for a vector of any length: on the unit globe.
+func PointOf(vector clicks.Vec3) (clicks.Vec3, error) {
+	length := math.Sqrt(vector.X*vector.X + vector.Y*vector.Y + vector.Z*vector.Z)
+	if length == 0 || math.IsNaN(length) || math.IsInf(length, 0) {
+		return clicks.Vec3{}, fmt.Errorf("%w: %+v", ErrNoPoint, vector)
+	}
+
+	return vector.Unit(), nil
 }
 
 // Snapshot is a rally as postgres keeps it and the wire tells it.
@@ -74,7 +85,7 @@ type Snapshot struct {
 	ID       RallyID
 	Account  cpsession.AccountID
 	Flag     string
-	Tile     uint32
+	Centre   clicks.Vec3
 	Radius   float64
 	CalledAt time.Time
 	EndsAt   time.Time
@@ -82,12 +93,12 @@ type Snapshot struct {
 
 func (r Rally) TakeSnapshot() Snapshot {
 	return Snapshot{
-		ID: r.id, Account: r.account, Flag: r.flag, Tile: r.tile, Radius: r.radius, CalledAt: r.calledAt, EndsAt: r.endsAt,
+		ID: r.id, Account: r.account, Flag: r.flag, Centre: r.centre, Radius: r.radius, CalledAt: r.calledAt, EndsAt: r.endsAt,
 	}
 }
 
 func (s Snapshot) Restore() Rally {
 	return Rally{
-		id: s.ID, account: s.Account, flag: s.Flag, tile: s.Tile, radius: s.Radius, calledAt: s.CalledAt, endsAt: s.EndsAt,
+		id: s.ID, account: s.Account, flag: s.Flag, centre: s.Centre, radius: s.Radius, calledAt: s.CalledAt, endsAt: s.EndsAt,
 	}
 }

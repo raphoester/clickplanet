@@ -21,29 +21,35 @@ type Borders interface {
 	LandmassOf(tile uint32) clicks.LandmassID
 }
 
-func New(facts Facts, borders Borders) Calls {
-	return Calls{facts: facts, borders: borders}
+type Nearest interface {
+	Nearest(point clicks.Vec3) (uint32, float64)
 }
 
-// Calls tells the other modules of each rally called, with the ground and the landmass of its tile, which the chat names.
+func New(facts Facts, borders Borders, nearest Nearest) Calls {
+	return Calls{facts: facts, borders: borders, nearest: nearest}
+}
+
+// Calls tells the other modules of each rally called, with the ground and the landmass of the tile nearest its centre
+// when that tile is inside the ring, which the chat names: none for a ring on open sea.
 type Calls struct {
 	facts   Facts
 	borders Borders
+	nearest Nearest
 }
 
 var _ rallies.Teller = Calls{}
 
 func (c Calls) Called(rally rallies.Rally) {
 	kept := rally.TakeSnapshot()
-	c.facts.Tell(func(time.Time) proto.Message {
-		return &planetv1.RallyCalled{
-			RallyId:    kept.ID.String(),
-			AccountId:  kept.Account.String(),
-			Country:    kept.Flag,
-			TileId:     kept.Tile,
-			Ground:     c.borders.CountryOf(kept.Tile),
-			LandmassId: uint32(c.borders.LandmassOf(kept.Tile)),
-			CalledAt:   timestamppb.New(kept.CalledAt),
-		}
-	})
+	called := &planetv1.RallyCalled{
+		RallyId:   kept.ID.String(),
+		AccountId: kept.Account.String(),
+		Country:   kept.Flag,
+		Point:     &planetv1.GlobePoint{X: kept.Centre.X, Y: kept.Centre.Y, Z: kept.Centre.Z},
+		CalledAt:  timestamppb.New(kept.CalledAt),
+	}
+	if tile, arc := c.nearest.Nearest(kept.Centre); tile != 0 && arc <= kept.Radius {
+		called.Ground, called.LandmassId = c.borders.CountryOf(tile), uint32(c.borders.LandmassOf(tile))
+	}
+	c.facts.Tell(func(time.Time) proto.Message { return called })
 }

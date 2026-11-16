@@ -33,7 +33,10 @@ func (h CallRallyHandler) CallRally(
 	ctx context.Context,
 	req *connect.Request[planetv1.CallRallyRequest],
 ) (*connect.Response[planetv1.CallRallyResponse], error) {
-	rally, err := h.useCase.Execute(ctx, call_rally_usecase.In{TileID: req.Msg.GetTileId(), CountryID: req.Msg.GetCountryId()})
+	point := req.Msg.GetPoint()
+	rally, err := h.useCase.Execute(ctx, call_rally_usecase.In{
+		Point: clicks.Vec3{X: point.GetX(), Y: point.GetY(), Z: point.GetZ()}, CountryID: req.Msg.GetCountryId(),
+	})
 
 	if refused, ok := planetrefusal.Refusal(err); ok {
 		return nil, refused
@@ -46,7 +49,7 @@ func (h CallRallyHandler) CallRally(
 	case err == nil:
 		kept := rally.TakeSnapshot()
 		return connect.NewResponse(&planetv1.CallRallyResponse{Rally: planetmessage.Rally(kept, lasts(kept))}), nil
-	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, clicks.ErrTileOutOfRange):
+	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, rallies.ErrNoPoint):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, rallies.ErrRallyOn):
 		return nil, preconditionWith(rallies.ErrRallyOn, &planetv1.RallyRefusal{})

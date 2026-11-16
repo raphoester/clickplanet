@@ -72,8 +72,8 @@ describe("remapSQL", () => {
         expect(remapSQL(plan)).toContain("DELETE FROM viruses;")
     })
 
-    it("ends every rally, whose centre the new map numbers again", () => {
-        expect(remapSQL(plan)).toContain("DELETE FROM rallies;")
+    it("leaves every rally, whose ring is a point of the globe and no tile", () => {
+        expect(remapSQL(plan)).not.toContain("rallies")
     })
 
     it("moves every mine with its tile, and drops one whose tile the new map lost", () => {

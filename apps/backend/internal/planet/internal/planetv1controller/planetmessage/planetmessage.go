@@ -215,7 +215,7 @@ func Rally(rally rallies.Snapshot, left time.Duration) *planetv1.Rally {
 		RallyId:   rally.ID.String(),
 		AccountId: rally.Account.String(),
 		CountryId: rally.Flag,
-		TileId:    rally.Tile,
+		Point:     &planetv1.GlobePoint{X: rally.Centre.X, Y: rally.Centre.Y, Z: rally.Centre.Z},
 		Radius:    rally.Radius,
 		LeftMs:    uint32(max(left, 0).Milliseconds()), //nolint:gosec // a rally lasts minutes.
 	}

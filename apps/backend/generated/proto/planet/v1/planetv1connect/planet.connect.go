@@ -112,7 +112,8 @@ type ClickServiceClient interface {
 	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.
 	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
-	// Calls a rally on a tile, for the caller's flag: for a while, a click of that flag inside its ring costs less.
+	// Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
+	// ring costs less.
 	CallRally(context.Context, *connect.Request[v1.CallRallyRequest]) (*connect.Response[v1.CallRallyResponse], error)
 	// Every rally still on, of every flag. Not NO_SIDE_EFFECTS: each says the time it has left, and a cached one lies.
 	GetRallies(context.Context, *connect.Request[v1.GetRalliesRequest]) (*connect.Response[v1.GetRalliesResponse], error)
@@ -442,7 +443,8 @@ type ClickServiceHandler interface {
 	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
 	// now, and a cached one lies.
 	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
-	// Calls a rally on a tile, for the caller's flag: for a while, a click of that flag inside its ring costs less.
+	// Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
+	// ring costs less.
 	CallRally(context.Context, *connect.Request[v1.CallRallyRequest]) (*connect.Response[v1.CallRallyResponse], error)
 	// Every rally still on, of every flag. Not NO_SIDE_EFFECTS: each says the time it has left, and a cached one lies.
 	GetRallies(context.Context, *connect.Request[v1.GetRalliesRequest]) (*connect.Response[v1.GetRalliesResponse], error)

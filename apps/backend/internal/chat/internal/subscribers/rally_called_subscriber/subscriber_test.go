@@ -27,7 +27,7 @@ func (r *recordedUseCase) Execute(_ context.Context, in announce_rally_usecase.I
 func event() *planetv1.RallyCalled {
 	return &planetv1.RallyCalled{
 		RallyId: "00000000-0000-7000-8000-000000000001", AccountId: "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f", Country: "fr",
-		TileId: 8, Ground: "au", LandmassId: 420, CalledAt: timestamppb.New(at),
+		Point: &planetv1.GlobePoint{Z: 1}, Ground: "au", LandmassId: 420, CalledAt: timestamppb.New(at),
 	}
 }
 

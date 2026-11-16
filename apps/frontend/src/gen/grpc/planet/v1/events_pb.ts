@@ -917,7 +917,7 @@ export class AllegiancePledged extends Message<AllegiancePledged> {
 }
 
 /**
- * A rally a player called for its flag, on a tile of ground's landmass: the chat tells the flag's room.
+ * A rally a player called for its flag, around a point of the globe: the chat tells the flag's room.
  *
  * @generated from message planet.v1.RallyCalled
  */
@@ -938,12 +938,13 @@ export class RallyCalled extends Message<RallyCalled> {
   country = "";
 
   /**
-   * @generated from field: uint32 tile_id = 4;
+   * @generated from field: planet.v1.GlobePoint point = 4;
    */
-  tileId = 0;
+  point?: GlobePoint;
 
   /**
-   * The country whose ground the tile is, and its landmass, which the line names.
+   * The landmass of the tile nearest the point, when it is inside the ring, and the country whose ground it is, which the
+   * line names. None for a ring on open sea.
    *
    * @generated from field: string ground = 5;
    */
@@ -970,7 +971,7 @@ export class RallyCalled extends Message<RallyCalled> {
     { no: 1, name: "rally_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "point", kind: "message", T: GlobePoint },
     { no: 5, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 7, name: "called_at", kind: "message", T: Timestamp },

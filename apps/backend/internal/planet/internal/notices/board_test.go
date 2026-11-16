@@ -138,7 +138,7 @@ func TestARallyReachesEveryStreamWhateverItsFlag(t *testing.T) {
 	enemies, leave := board.Attend(grace, "de")
 	t.Cleanup(leave)
 	nobody := attend(t, board, charges.NoHolder)
-	called := notices.RallyCalled{Rally: rallies.Snapshot{Flag: "fr", Tile: 9, Radius: 0.072}, Left: time.Minute}
+	called := notices.RallyCalled{Rally: rallies.Snapshot{Flag: "fr", Centre: clicks.Vec3{Z: 1}, Radius: 0.072}, Left: time.Minute}
 
 	board.PublishRally(called)
 
