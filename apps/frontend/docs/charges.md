@@ -97,13 +97,15 @@ state of one switched on (`On`, `Aim`) or `New`, so nothing on goes unseen. With
 when a kind runs out or comes in: the bar was chosen over a strip that scrolls sideways and over rows that wrap, on
 screenshots at 5, 8 and 11 kinds (2026-11-16), because the dock keeps its size whatever the number of kinds.
 
-**All opens the tray**, a row of its own inside the dock, above the clicks (`popovers.bonuses` in `useScreen`, see [The
-screen](screen.md)): every kind but the hidden ones (below), in the order they unlock, each with its name at every width.
-**The dock grows upward to hold it and covers nothing**: the meter gives it the row (`DockTray`, `dockTray.ts`, which
-`Inventory` portals the tray into), and what stacks on the dock follows its drawn height (see [The
-screen](screen.md)). A first try floated the tray over the dock, and it covered the chat between 769 and 1099px wide
-(2026-11-16); no HUD piece covers another. The tray is half the screen at most, the dock's own row included, and scrolls
-inside past that (a phone held sideways).
+**All opens the tray**, a panel that floats over the dock, the way "Your clicks" does (`popovers.bonuses` in
+`useScreen`, see [The screen](screen.md)): every kind but the hidden ones (below), in the order they unlock. On a
+desktop it sits over the dock's right end, above All, three kinds a row: as wide as the dock, it read as the dock's own
+row (2026-11-16). On a phone it is as wide as the dock. **The dock keeps its height**: the meter gives the tray its slot (`DockTray`, `dockTray.ts`,
+which `Inventory` portals the tray into), and the slot floats above the dock, so nothing stacked on the dock moves.
+While open it covers what is above the dock, the chat between 769 and 1099px wide too, as "Your clicks" does. The tray
+was a row inside the dock first, and the dock grew to hold it; the desktop board's room then shrank each time it opened,
+which the owner turned down on 2026-11-16. The tray and the dock under it are half the screen at most, and the tray
+scrolls inside past that (a phone held sideways).
 A press on one held uses it, closes the tray and gives the focus back to All; a press on an empty or a locked one says
 why in its bubble, and the tray stays. All again, Escape or a press anywhere outside closes it. The tray and "Your
 clicks" open one at a time, and a sheet that opens closes the tray.
@@ -133,11 +135,13 @@ enclose at 4 and the bomb at 5, a guest at level 0 and a signed-in player at its
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is
 dimmed, and a press on it does nothing but say how to get one. A pool shows its count against its size (`5/8`,
-`2/3`), and a word over the icon says what the slot is doing (`On`, `Aim`, `Full`, or `New` for a kind held and never
-pressed). **On the bar at 1279px wide and under**, where a slot is 38 to 48px and drops its name, it drops that word
-too: a `New` slot wears a dot on its corner, and one switched on keeps its ring and its glow. Two words side by side
-ran over each other there ("Nouveau", "Zapnuto"); the tray and the wide bar keep the words. A slot is shown always, in the tray at least, the virus too (see [Virus](virus.md)), but the bomb while bombs
-are off, and Enclose while enclosures are off.
+`2/3`) in a pill on its corner. **A slot is a square with no word in it**, at every width and in the tray too: 56px,
+48px on the bar under 1280px wide, 38 to 44px on a phone's. Its name is in its `aria-label`, and a mouse's hover says
+how to use it in its bubble. A name drawn under the icon widened its own slot ("Encerclement"), which the owner turned
+down on 2026-11-16. What the slot is doing (`On`, `Aim`, `Full`, `New`) is in its `aria-label` too, not over it: a
+`New` slot wears a dot on its corner, and one switched on keeps its ring and its glow. Two words side by side ran over
+each other ("Nouveau", "Zapnuto"). A slot is shown always, in the tray at least, the virus too (see
+[Virus](virus.md)), but the bomb while bombs are off, and Enclose while enclosures are off.
 
 - **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
   nothing** and says "Full": a refill there would be wasted. The refill a
@@ -187,5 +191,4 @@ stays up** until "Got it" or Escape (`BonusAward`'s `kept`): the passing award
 lasts 2.9s and a tap anywhere closes it, which in a clicking game is before the
 line under it is read. Later boxes of that kind pass as before.
 
-The bar's slots are labelled from 1280px, and icons with their counts below that (the name stays in `aria-label`); the
-tray's are labelled at every width. The dock glows while something is on or aimed.
+The dock glows while something is on or aimed.

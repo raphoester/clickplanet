@@ -624,7 +624,6 @@
   "inventory.empty": "Pegue uma caixa ? ou acerte um quiz para ganhar um",
   "inventory.locked": "Desbloqueia no nível {level}",
   "inventory.lockedForNow": "Bloqueado por enquanto",
-  "inventory.all": "Todos",
   "inventory.all.label": "Todos os bônus",
   "inventory.all.more": "{count, plural, one {Todos os bônus, mais # guardado} many {Todos os bônus, mais # de guardados} other {Todos os bônus, mais # guardados}}",
   "inventory.more": "+{count}",

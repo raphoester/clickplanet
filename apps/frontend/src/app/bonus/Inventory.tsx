@@ -336,7 +336,6 @@ function Bag({button, open, trayId, tucked, guide, said, onPress}: BagProps) {
         {tucked.length > 0 && <span className="inventory-count" aria-hidden="true">
             {t("inventory.more", {count: translator().number(tucked.length)})}
         </span>}
-        <span className="inventory-name" aria-hidden="true">{t("inventory.all")}</span>
         {said && <Bubble anchor={button} gap={STATE_CLEARANCE_PX}>{said.text}</Bubble>}
     </button>
 }
@@ -428,7 +427,6 @@ function Slot({kind, name, held, count, endless, on, state, hint, lockedAt, guid
                 <LockIcon size={11}/>{lockedAt !== NEVER && translator().number(lockedAt)}
             </span>
             : count && <span className="inventory-count" aria-hidden="true">{count}</span>}
-        <span className="inventory-name" aria-hidden="true">{name}</span>
         <span id={described} hidden>{description}</span>
         {said && <Bubble anchor={button} gap={STATE_CLEARANCE_PX}>{said.text}</Bubble>}
     </button>

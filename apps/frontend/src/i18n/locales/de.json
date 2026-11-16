@@ -624,7 +624,6 @@
   "inventory.empty": "Fang eine ?-Kiste oder gewinn ein Quiz für einen Bonus",
   "inventory.locked": "Freigeschaltet ab Level {level}",
   "inventory.lockedForNow": "Vorerst gesperrt",
-  "inventory.all": "Alle",
   "inventory.all.label": "Alle Boni",
   "inventory.all.more": "{count, plural, one {Alle Boni, # weiterer im Besitz} other {Alle Boni, # weitere im Besitz}}",
   "inventory.more": "+{count}",

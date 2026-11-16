@@ -143,8 +143,8 @@ Every title is a medal, and the medals obey the same rules as everything else:
 ## Layout
 
 **The globe is the game, and four zones are all that is drawn over it.** A new
-feature goes in one of them; there is no fifth panel and no new fold. **No piece covers another**: the tray of every
-bonus opens inside the dock, which grows, and what stacks on the dock moves with it.
+feature goes in one of them; there is no fifth panel and no new fold. **No piece covers another**, but a popover while
+it is open: the tray of every bonus floats over the dock as "Your clicks" does, and the dock keeps its height.
 
 | Zone | What goes there | Where |
 |---|---|---|
