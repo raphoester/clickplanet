@@ -26,6 +26,7 @@ import Bubble, {BUBBLE_MS} from '../components/Bubble.tsx'
 import {LockIcon} from '../components/icons.tsx'
 import {useEscape} from '../components/useDialog.ts'
 import {DockTray} from '../components/dockTray.ts'
+import '../level/Level.css'
 import './Inventory.css'
 
 export const NOTICE_MS = 3500
@@ -441,8 +442,9 @@ function Slot({kind, name, held, count, endless, on, state, hint, lockedAt, guid
         <span className="inventory-box"><BonusIcon kind={kind}/></span>
         {shownState && <span className="chip inventory-state" aria-hidden="true">{shownState}</span>}
         {lockedAt
-            ? <span className="inventory-count inventory-lock" aria-hidden="true">
-                <LockIcon size={11}/>{lockedAt !== NEVER && translator().number(lockedAt)}
+            ? <span className={lockedAt === NEVER ? "level-chip inventory-unlock inventory-unlock--never" : "level-chip inventory-unlock"}
+                    aria-hidden="true">
+                <LockIcon size={10}/>{lockedAt !== NEVER && translator().number(lockedAt)}
             </span>
             : count && <span className="inventory-count" aria-hidden="true">{count}</span>}
         <span id={described} hidden>{description}</span>
