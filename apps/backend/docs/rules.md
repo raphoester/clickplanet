@@ -84,6 +84,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   (32), and how long it waits between two spreads, 1 s to 10 min (20 s). See [The virus](virus.md)
 - `charges.mine.held`, `.rings` — the mines a hand holds (3), and the rings of tiles around its own a mine's blast takes,
   1 to 3 (2). See [The mine](mine.md)
+- `charges.rally.held`, `.rings`, `.lasts`, `.cost` — the rallies a hand holds (3), a ring's radius in tile spacings, 1 to
+  50 (18, about 1,000 tiles), how long it lasts, 10 s to 30 min (3 min), and what a click of its flag inside takes from
+  the bank, 0.1 to 1 (0.5). See [The rally](rally.md)
 - **The offers' rules are not here since 2026-11-11**: a box's wait, its kinds and its flight, what a box or a right
   answer grants and the sign-in refill are the bonuses module's own sets (see
   [Its rule sets](bonuses.md#its-rule-sets)), the quizzes the quizzes module's since 2026-11-13 (see
@@ -107,7 +110,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 ## A frozen map
 
 **A set with `frozen` takes no play** (`clicks.Freeze`, part `frozen`): while it is in force,
-`planetv1controller.NewFreezeInterceptor` refuses Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine with `FailedPrecondition`
+`planetv1controller.NewFreezeInterceptor` refuses Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally with `FailedPrecondition`
 and a `planet.v1.FrozenRefusal` detail (`clicks.ErrFrozen`), before any of them spends a click or a charge, and
 `InternalService/GetFreeze` answers frozen. No virus spreads: each waits for the freeze to end. A mine a take set off before the freeze still goes off. The map still loads and streams; tile cards, the board and PledgeAllegiance go on, and so
 do the operator's tools. A freeze is played like any set: the schedule picks it (a plain entry over the break between

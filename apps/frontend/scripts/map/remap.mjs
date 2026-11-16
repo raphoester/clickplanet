@@ -123,6 +123,9 @@ INSERT INTO tiles SELECT * FROM tiles_remapped;
 -- A live virus lasts minutes: a remap ends it, and the tiles it took keep their flag.
 DELETE FROM viruses;
 
+-- A rally lasts minutes too, and its ring is centred on a tile the new map numbers again: a remap ends it.
+DELETE FROM rallies;
+
 -- A mine follows its tile, as the tile's flag does; one on a tile the new map lost goes with it.
 CREATE TEMP TABLE mines_remapped ON COMMIT DROP AS
 SELECT m.*, r.to_id + (m.tile - r.from_id) AS remapped_tile

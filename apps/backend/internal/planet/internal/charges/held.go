@@ -45,6 +45,8 @@ type Held struct {
 	Virus bool
 
 	Mines int
+
+	Rallies int
 }
 
 // Full is every kind the hand has no room for: a stack at its size, a charge held where one is the most, and a bomb
@@ -72,6 +74,9 @@ func (h Held) Full(rules Rules) []Kind {
 	if h.Mines >= rules.Mine.Held {
 		kinds = append(kinds, KindMine)
 	}
+	if h.Rallies >= rules.Rally.Held {
+		kinds = append(kinds, KindRally)
+	}
 
 	return kinds
 }
@@ -92,6 +97,8 @@ func (h Held) Count(kind Kind) int {
 		return oneIf(h.Virus)
 	case KindMine:
 		return h.Mines
+	case KindRally:
+		return h.Rallies
 	}
 
 	return 0
@@ -111,7 +118,7 @@ func (h Held) Empty() bool {
 
 func (h Held) GrantError() error {
 	switch {
-	case h.Enclosures < 0 || h.SpreadClicks < 0 || h.Shields < 0 || h.Mines < 0:
+	case h.Enclosures < 0 || h.SpreadClicks < 0 || h.Shields < 0 || h.Mines < 0 || h.Rallies < 0:
 		return fmt.Errorf("%w: %+v", ErrNegativeGrant, h)
 	case h.Empty():
 		return ErrNothingToGrant
@@ -136,6 +143,8 @@ func GrantOf(kind Kind, amount int) Held {
 		return Held{Virus: amount > 0}
 	case KindMine:
 		return Held{Mines: amount}
+	case KindRally:
+		return Held{Rallies: amount}
 	}
 
 	return Held{}
@@ -158,6 +167,8 @@ func (h Held) Granted(kind Kind, amount int, rules Rules) Held {
 		h.Virus = true
 	case KindMine:
 		h.Mines = stacked(h.Mines, amount, rules.Mine.Held)
+	case KindRally:
+		h.Rallies = stacked(h.Rallies, amount, rules.Rally.Held)
 	}
 
 	return h
@@ -207,6 +218,22 @@ func (h Held) AfterMine() (Held, bool) {
 // WithMineBack undoes AfterMine, for a mine the map refused: the same mine comes back, so no stack size applies.
 func (h Held) WithMineBack() Held {
 	h.Mines++
+
+	return h
+}
+
+func (h Held) AfterRally() (Held, bool) {
+	if h.Rallies <= 0 {
+		return h, false
+	}
+	h.Rallies--
+
+	return h, true
+}
+
+// WithRallyBack undoes AfterRally, for a rally refused once spent: the same rally comes back, so no stack size applies.
+func (h Held) WithRallyBack() Held {
+	h.Rallies++
 
 	return h
 }

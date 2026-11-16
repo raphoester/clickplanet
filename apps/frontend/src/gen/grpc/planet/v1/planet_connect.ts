@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetMinesRequest, GetMinesResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, LayMineRequest, LayMineResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
+import { CallRallyRequest, CallRallyResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetMinesRequest, GetMinesResponse, GetRalliesRequest, GetRalliesResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, LayMineRequest, LayMineResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -153,6 +153,28 @@ export const ClickService = {
       name: "GetMines",
       I: GetMinesRequest,
       O: GetMinesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Calls a rally on a tile, for the caller's flag: for a while, a click of that flag inside its ring costs less.
+     *
+     * @generated from rpc planet.v1.ClickService.CallRally
+     */
+    callRally: {
+      name: "CallRally",
+      I: CallRallyRequest,
+      O: CallRallyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Every rally still on, of every flag. Not NO_SIDE_EFFECTS: each says the time it has left, and a cached one lies.
+     *
+     * @generated from rpc planet.v1.ClickService.GetRallies
+     */
+    getRallies: {
+      name: "GetRallies",
+      I: GetRalliesRequest,
+      O: GetRalliesResponse,
       kind: MethodKind.Unary,
     },
     /**

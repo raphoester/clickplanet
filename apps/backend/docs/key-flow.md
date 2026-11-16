@@ -34,7 +34,8 @@ POST /planet.v1.ClickService/Click   [X-Session-Token: <the minted token>]
   → refusal_click   (a refused caller is PermissionDenied, with a BanRefusal: when the refusal ends)
   → allegiance_click (a flag other than the one pledged, or none pledged, is refused, and spends nothing)
   → reach_click     (while the reach plays, a tile out of the flag's reach is FailedPrecondition with a ReachRefusal, and spends nothing)
-  → throttle_click  (spends from the account's bucket and its scope's together, or refuses)
+  → throttle_click  (spends from the account's bucket and its scope's together, or refuses: one click, or a rally's
+                     cost inside its ring)
   → prom_click      (counts)
   → enclose_click   (with Enclose and an enclosure held: a take that closes a pocket fills it)
   → spread_click    (with Spread: spends a spread click, unless unlimited, and claims its disc too; while the reach

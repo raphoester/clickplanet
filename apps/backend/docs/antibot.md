@@ -623,6 +623,9 @@ under 400ms and it makes 1,080 tries in 30 minutes.
 - **`stamina`'s slice is busy at `clicks` times the fastest tempo it saw** (kept with the slice): a slice at 3× is
   busy at 120 clicks, so busy still means a third of the allowance or more. A player at the full pace of the battle
   is busy, as at the plain pace.
+- **A click inside a rally's ring reads at the tempo its cost makes** (`ClickTried.tempo` is the tempo over what the
+  click took from the bank): half a click at the plain tempo reads 2, so a player clicking twice as fast inside a ring
+  reads as at its bank's pace (see [The rally](rally.md#the-price-of-a-click)).
 - `clock` (unset in production) reads wall time, which a tempo does not change.
 - **The rest read no rate**: `retaker` a reflex, `sequencer` the steps between tiles, `defender` a share of
   retakes, `hopper` angles, `scraper` and `churner` maps read and accounts born, `rotator` 5-minute slots. At 3× they

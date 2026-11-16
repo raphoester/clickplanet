@@ -12,6 +12,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_charge_rules_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type toll []clicks.TollStep
@@ -19,6 +21,10 @@ type toll []clicks.TollStep
 func (t toll) Steps() []clicks.TollStep { return t }
 
 func noReach() clicks.Reaching { return false }
+
+func ringOf(rules func() charges.Rules) rallies.Muster {
+	return rallies.NewMuster(rules, 0.004, &rallies.SequentialIDs{}, cptime.NewFixedClock(time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)))
+}
 
 func noCapitalRule() clicks.CapitalRules { return clicks.CapitalRules{} }
 
@@ -33,7 +39,7 @@ func answered(t *testing.T, handler get_charge_rules_handler.GetChargeRulesHandl
 func TestTheRulesAreThoseInForce(t *testing.T) {
 	rules := charges.TestRules()
 	inForce := func() charges.Rules { return rules }
-	handler := get_charge_rules_handler.New(inForce, charges.NewBombing(inForce, 0.004), toll{}, noReach, noCapitalRule)
+	handler := get_charge_rules_handler.New(inForce, charges.NewBombing(inForce, 0.004), ringOf(inForce), toll{}, noReach, noCapitalRule)
 
 	rules.Bomb.Rings = 5
 	rules.Enclose = charges.EncloseRules{MaxTiles: 40, Held: 4, Unlimited: true}
@@ -43,6 +49,7 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	rules.Bomb.Off = true
 	rules.Virus = charges.VirusRules{Infections: 16, Every: 15 * time.Second}
 	rules.Mine = charges.MineRules{Held: 5, Rings: 3}
+	rules.Rally = charges.RallyRules{Held: 2, Rings: 20, Lasts: 2 * time.Minute, Cost: 0.25}
 	got := answered(t, handler)
 
 	assert.InDelta(t, 0.02, got.GetBlastRadius(), 1e-9)
@@ -58,13 +65,17 @@ func TestTheRulesAreThoseInForce(t *testing.T) {
 	assert.Equal(t, uint32(15_000), got.GetVirusEveryMs())
 	assert.Equal(t, uint32(5), got.GetMines())
 	assert.Equal(t, uint32(3), got.GetMineRings())
+	assert.Equal(t, uint32(2), got.GetRallies())
+	assert.InDelta(t, 0.08, got.GetRallyRadius(), 1e-9, "20 tile spacings")
+	assert.Equal(t, uint32(120_000), got.GetRallyLastsMs())
+	assert.InDelta(t, 0.25, got.GetRallyCost(), 1e-9)
 	assert.Empty(t, got.GetTollSteps())
 }
 
 func TestThePageIsToldEnclosuresAreOff(t *testing.T) {
 	rules := charges.TestRules()
 	inForce := func() charges.Rules { return rules }
-	handler := get_charge_rules_handler.New(inForce, charges.NewBombing(inForce, 0.004), toll{}, noReach, noCapitalRule)
+	handler := get_charge_rules_handler.New(inForce, charges.NewBombing(inForce, 0.004), ringOf(inForce), toll{}, noReach, noCapitalRule)
 
 	on := answered(t, handler)
 	rules.Enclose.Off = true
@@ -76,8 +87,8 @@ func TestThePageIsToldEnclosuresAreOff(t *testing.T) {
 
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
-	got := answered(t, get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, 0.004), steps,
-		noReach, noCapitalRule)).GetTollSteps()
+	got := answered(t, get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, 0.004),
+		ringOf(charges.TestRules), steps, noReach, noCapitalRule)).GetTollSteps()
 
 	require.Len(t, got, 3)
 	for i, step := range steps {
@@ -89,8 +100,8 @@ func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 func TestThePageIsToldTheReachAndTheCapitalRulesInForce(t *testing.T) {
 	reach := clicks.Reaching(false)
 	capitals := clicks.CapitalRules{}
-	handler := get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, 0.004), toll{},
-		func() clicks.Reaching { return reach }, func() clicks.CapitalRules { return capitals })
+	handler := get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, 0.004),
+		ringOf(charges.TestRules), toll{}, func() clicks.Reaching { return reach }, func() clicks.CapitalRules { return capitals })
 
 	off := answered(t, handler)
 	reach, capitals = true, clicks.CapitalRules{KnockOut: true, FixedShields: true}

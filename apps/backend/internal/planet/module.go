@@ -85,6 +85,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/usecases/return_placements_usecase/log_return_placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/uuid_id_provider"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/call_rally_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/close_arena_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
@@ -115,6 +116,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_mines_handler/mines_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler/play_days_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rallies_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rallies_handler/rallies_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
@@ -149,6 +152,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_virus_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies/log_discount"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies/postgres_rally_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies/rally_facts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies/rally_streams"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies/usecases/call_rally_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies/uuid_rally_ids"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/log_refusals"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/refusals/postgres_refusal_store"
@@ -342,7 +352,12 @@ func NewModule(config Config) cpbootstrap.Module {
 			writer := ledger.NewRecording(tilesStorage,
 				clicks.NewClaiming(tilesStorage, func() int { return chargeRules().Shield.PerTile }), takings, clock)
 
-			bombing := charges.NewBombing(chargeRules, geography.Spacing())
+			spacing := geography.Spacing()
+			bombing := charges.NewBombing(chargeRules, spacing)
+
+			rallyStore := postgres_rally_store.New(db)
+			muster := rallies.NewMuster(chargeRules, spacing, uuid_rally_ids.Provider{}, clock)
+			discount := log_discount.New(rallies.NewDiscount(rallyStore, geography, chargeRules, clock), props.Logger)
 
 			var clickUseCase click_usecase.IUseCase = click_usecase.New(tilesChecker, writer, countries)
 			clickUseCase = spread_click.New(clickUseCase, hands, reach, writer, board)
@@ -354,7 +369,7 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			clickUseCase = prom_click.New(clickUseCase, props.Metrics)
 
-			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, buckets)
+			clickUseCase = throttle_click.New(clickUseCase, limiter, pricer, discount, buckets)
 
 			// Outside the throttle, so a click out of the flag's reach in an arena spends nothing.
 			clickUseCase = reach_click.New(clickUseCase, reach)
@@ -479,7 +494,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(hands, limiter, pricer, buckets)),
 				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(hands)),
-				GetChargeRulesHandler: get_charge_rules_handler.New(chargeRules, bombing, pricer,
+				GetChargeRulesHandler: get_charge_rules_handler.New(chargeRules, bombing, muster, pricer,
 					cprules.Reader(inForce, clicks.ReachPart), cprules.Reader(inForce, clicks.CapitalsPart)),
 				PlaceShieldHandler: place_shield_handler.New(refusal_place_shield.New(
 					place_shield_usecase.New(placements.NewGate(tilesStorage, countries, flags, chargeRules), escrow, writer),
@@ -489,7 +504,11 @@ func NewModule(config Config) cpbootstrap.Module {
 					outbreak)),
 				LayMineHandler: lay_mine_handler.New(lay_mine_usecase.New(
 					mines.NewGate(tilesStorage, capitalPlay, countries, flags, refusing), hands, minefield, board)),
-				GetMinesHandler:      get_mines_handler.New(mines_query.NewMemoryQuery(tilesStorage, book)),
+				GetMinesHandler: get_mines_handler.New(mines_query.NewMemoryQuery(tilesStorage, book)),
+				CallRallyHandler: call_rally_handler.New(call_rally_usecase.New(
+					rallies.NewGate(tilesChecker, countries, flags, refusing, rallyStore, clock), hands, muster, rallyStore,
+					rallies.Tellers{rally_streams.New(board), rally_facts.New(told, borders)})),
+				GetRalliesHandler:    get_rallies_handler.New(rallies_query.NewPostgresQuery(db, clock)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),
 				GetLandmassHandler: get_landmass_handler.New(borders,

@@ -47,6 +47,29 @@ func (p *fakePricer) Price(country string) clicks.Price {
 
 func onePrice() *fakePricer { return &fakePricer{price: clicks.Price{Slowdown: 1}} }
 
+// wholeClicks prices every click a whole one: no rally anywhere.
+type wholeClicks struct{}
+
+func (wholeClicks) Cost(context.Context, string, uint32) (float64, error) { return 1, nil }
+
+// aRally prices a click on its tile for its flag at its cost, or fails to read.
+type aRally struct {
+	flag string
+	tile uint32
+	cost float64
+	err  error
+}
+
+func (r aRally) Cost(_ context.Context, flag string, tile uint32) (float64, error) {
+	if r.err != nil {
+		return 1, r.err
+	}
+	if flag == r.flag && tile == r.tile {
+		return r.cost, nil
+	}
+	return 1, nil
+}
+
 var buckets = clicks.NewBuckets(clicks.TestThrottle, cptime.NewFixedClock(time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)))
 
 type fakeClick struct {
@@ -66,7 +89,7 @@ func TestThrottleClick(t *testing.T) {
 	t.Run("lets an allowed click through and says what is left", func(t *testing.T) {
 		inner := &fakeClick{}
 
-		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice(), buckets).
+		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice(), wholeClicks{}, buckets).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
 
 		require.NoError(t, err)
@@ -78,7 +101,7 @@ func TestThrottleClick(t *testing.T) {
 	t.Run("refuses a click over the limit without touching the map", func(t *testing.T) {
 		inner := &fakeClick{}
 
-		out, err := throttle_click.New(inner, &fakeLimiter{allow: false, state: state}, onePrice(), buckets).
+		out, err := throttle_click.New(inner, &fakeLimiter{allow: false, state: state}, onePrice(), wholeClicks{}, buckets).
 			Execute(t.Context(), click_usecase.In{TileID: 1, CountryID: "fr"})
 
 		require.ErrorIs(t, err, clicks.ErrThrottled)
@@ -91,7 +114,7 @@ func TestThrottleClick(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
 		ctx := cpctx.AddIPToContext(t.Context(), "2001:db8::dead:beef")
 
-		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), buckets).Execute(ctx, click_usecase.In{})
+		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), wholeClicks{}, buckets).Execute(ctx, click_usecase.In{})
 
 		require.NoError(t, err)
 		assert.Equal(t, [][]cpratelimit.Key{{{Name: "2001:db8::/64", Scale: 1, Pace: 1}}}, limiter.keys,
@@ -102,7 +125,7 @@ func TestThrottleClick(t *testing.T) {
 		limiter := &fakeLimiter{allow: true}
 		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
-		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), buckets).Execute(ctx, click_usecase.In{})
+		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), wholeClicks{}, buckets).Execute(ctx, click_usecase.In{})
 
 		require.NoError(t, err)
 		assert.Equal(t, [][]cpratelimit.Key{{
@@ -115,7 +138,7 @@ func TestThrottleClick(t *testing.T) {
 	t.Run("still reports the allowance when the click itself failed", func(t *testing.T) {
 		inner := &fakeClick{err: errors.New("disk on fire")}
 
-		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice(), buckets).
+		out, err := throttle_click.New(inner, &fakeLimiter{allow: true, state: state}, onePrice(), wholeClicks{}, buckets).
 			Execute(t.Context(), click_usecase.In{})
 
 		require.Error(t, err)
@@ -129,7 +152,7 @@ func TestThrottleClick(t *testing.T) {
 		pricer := &fakePricer{price: clicks.Price{Slowdown: 1.5, Share: 0.4}}
 		ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
-		out, err := throttle_click.New(&fakeClick{}, limiter, pricer, buckets).
+		out, err := throttle_click.New(&fakeClick{}, limiter, pricer, wholeClicks{}, buckets).
 			Execute(ctx, click_usecase.In{TileID: 1, CountryID: "bg"})
 
 		require.NoError(t, err)
@@ -138,5 +161,42 @@ func TestThrottleClick(t *testing.T) {
 		assert.InDelta(t, 1/1.5, limiter.keys[0][0].Pace, 1e-9)
 		assert.Equal(t, state, out.Budget.State, "the reading is the bucket's, not divided")
 		assert.InDelta(t, 1.5, out.Budget.Price.Slowdown, 1e-9)
+	})
+
+	t.Run("takes what a rally's ring prices a click at, and says so", func(t *testing.T) {
+		limiter := &fakeLimiter{allow: true, state: state}
+
+		out, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), aRally{flag: "fr", tile: 7, cost: 0.5}, buckets).
+			Execute(t.Context(), click_usecase.In{TileID: 7, CountryID: "fr"})
+
+		require.NoError(t, err)
+		assert.Equal(t, []float64{0.5}, limiter.spent)
+		assert.InDelta(t, 0.5, out.Budget.Spent, 1e-9)
+	})
+
+	t.Run("takes a whole click outside the ring, or for another flag", func(t *testing.T) {
+		limiter := &fakeLimiter{allow: true, state: state}
+		rally := aRally{flag: "fr", tile: 7, cost: 0.5}
+
+		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), rally, buckets).
+			Execute(t.Context(), click_usecase.In{TileID: 8, CountryID: "fr"})
+		require.NoError(t, err)
+		_, err = throttle_click.New(&fakeClick{}, limiter, onePrice(), rally, buckets).
+			Execute(t.Context(), click_usecase.In{TileID: 7, CountryID: "de"})
+		require.NoError(t, err)
+
+		assert.Equal(t, []float64{1, 1}, limiter.spent)
+	})
+
+	t.Run("takes a whole click when the rallies cannot be read", func(t *testing.T) {
+		inner, limiter := &fakeClick{}, &fakeLimiter{allow: true, state: state}
+
+		out, err := throttle_click.New(inner, limiter, onePrice(), aRally{err: errors.New("postgres down")}, buckets).
+			Execute(t.Context(), click_usecase.In{TileID: 7, CountryID: "fr"})
+
+		require.NoError(t, err, "a failed read stops no click")
+		assert.True(t, inner.ran)
+		assert.Equal(t, []float64{1}, limiter.spent)
+		assert.InDelta(t, 1.0, out.Budget.Spent, 1e-9)
 	})
 }

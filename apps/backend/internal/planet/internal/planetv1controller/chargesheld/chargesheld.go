@@ -14,6 +14,7 @@ func Encode(held charges.Held) *planetv1.ChargesHeld {
 		Shields:          uint32(held.Shields),
 		Virus:            held.Virus,
 		Mines:            uint32(held.Mines),
+		Rallies:          uint32(held.Rallies),
 	}
 }
 

@@ -17,17 +17,23 @@ type Blast interface {
 	Radius() float64
 }
 
+type Ring interface {
+	Radius() float64
+}
+
 // New answers the wallet's rules, how much a hand holds and what each charge does, and the knobs of the map the page
 // shows: the toll, the reach and the capitals.
 func New(
-	rules func() charges.Rules, blast Blast, toll Toll, reach func() clicks.Reaching, capitals func() clicks.CapitalRules,
+	rules func() charges.Rules, blast Blast, ring Ring, toll Toll, reach func() clicks.Reaching,
+	capitals func() clicks.CapitalRules,
 ) GetChargeRulesHandler {
-	return GetChargeRulesHandler{rules: rules, blast: blast, toll: toll, reach: reach, capitals: capitals}
+	return GetChargeRulesHandler{rules: rules, blast: blast, ring: ring, toll: toll, reach: reach, capitals: capitals}
 }
 
 type GetChargeRulesHandler struct {
 	rules    func() charges.Rules
 	blast    Blast
+	ring     Ring
 	toll     Toll
 	reach    func() clicks.Reaching
 	capitals func() clicks.CapitalRules
@@ -63,6 +69,11 @@ func (h GetChargeRulesHandler) GetChargeRules(
 
 		Mines:     uint32(rules.Mine.Held),
 		MineRings: uint32(rules.Mine.Rings),
+
+		Rallies:      uint32(rules.Rally.Held),
+		RallyRadius:  h.ring.Radius(),
+		RallyLastsMs: uint32(rules.Rally.Lasts.Milliseconds()),
+		RallyCost:    rules.Rally.Cost,
 	}), nil
 }
 

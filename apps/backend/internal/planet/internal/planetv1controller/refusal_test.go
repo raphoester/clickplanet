@@ -24,7 +24,7 @@ func TestARefusedCallerIsToldUntilWhenAndSpendsNoToken(t *testing.T) {
 	require.NoError(t, book.Decide(t.Context(), refusals.Caller{Scope: "1.2.3.4"}, refusals.Refused(until, at)))
 	limiter := &fakeLimiter{allow: true}
 	server := clickServerWith(t,
-		refusal_click.New(throttle_click.New(stubService{}, limiter, onePrice, buckets), book, prometheus.NewRegistry()),
+		refusal_click.New(throttle_click.New(stubService{}, limiter, onePrice, wholeClicks{}, buckets), book, prometheus.NewRegistry()),
 		nil, connect.WithInterceptors(errorNet()))
 
 	_, err := clickAs(t, server, "1.2.3.4")

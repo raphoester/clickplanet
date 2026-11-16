@@ -109,7 +109,8 @@ message ClickTried {
   string owner = 9;
   // Unset for a tile off the map.
   GlobePoint position = 10;
-  // How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+  // How many times faster than the plain pace every bucket refilled when the click was tried, over what the click took
+  // from the bank: one inside a rally's ring that took half a click reads twice the tempo. 0 is the plain pace.
   double tempo = 11;
   // The click left the caller's bank empty: less than one click in it.
   bool dry = 12;
@@ -156,4 +157,16 @@ message AllegiancePledged {
   // Empty for the account's first flag.
   string previous = 3;
   google.protobuf.Timestamp pledged_at = 4;
+}
+
+// A rally a player called for its flag, on a tile of ground's landmass: the chat tells the flag's room.
+message RallyCalled {
+  string rally_id = 1;
+  string account_id = 2;
+  string country = 3;
+  uint32 tile_id = 4;
+  // The country whose ground the tile is, and its landmass, which the line names.
+  string ground = 5;
+  uint32 landmass_id = 6;
+  google.protobuf.Timestamp called_at = 7;
 }

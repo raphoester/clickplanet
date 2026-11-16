@@ -72,6 +72,10 @@ describe("remapSQL", () => {
         expect(remapSQL(plan)).toContain("DELETE FROM viruses;")
     })
 
+    it("ends every rally, whose centre the new map numbers again", () => {
+        expect(remapSQL(plan)).toContain("DELETE FROM rallies;")
+    })
+
     it("moves every mine with its tile, and drops one whose tile the new map lost", () => {
         const sql = remapSQL(plan)
         expect(sql).toContain("SELECT m.*, r.to_id + (m.tile - r.from_id) AS remapped_tile\n")

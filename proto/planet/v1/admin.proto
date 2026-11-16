@@ -107,6 +107,9 @@ message GrantChargesRequest {
 
   // Mines, up to what a hand holds.
   uint32 mines = 8;
+
+  // Rallies, up to what a hand holds.
+  uint32 rallies = 9;
 }
 
 message GrantChargesResponse {

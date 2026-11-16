@@ -55,7 +55,7 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 		Country:   in.CountryID,
 		Outcome:   outcomeOf(out, err),
 		Owner:     out.Owner,
-		Tempo:     u.throttle().Tempo,
+		Tempo:     tempoOf(u.throttle().Tempo, out),
 		// The bank the click left: whoever hears the try reads a dry one off it.
 		Dry: out.Limited && out.Budget.Empty(),
 	}
@@ -72,6 +72,15 @@ func (u *UseCase) Execute(ctx context.Context, in click_usecase.In) (click_useca
 	})
 
 	return out, err
+}
+
+// A click inside a rally's ring took less than one from the bank, so it came that much sooner: to whoever reads its pace,
+// the bank refilled that much faster.
+func tempoOf(tempo float64, out click_usecase.Out) float64 {
+	if !out.Limited || out.Budget.Spent <= 0 || out.Budget.Spent >= 1 {
+		return tempo
+	}
+	return max(tempo, 1) / out.Budget.Spent
 }
 
 func outcomeOf(out click_usecase.Out, err error) planetv1.ClickOutcome {

@@ -1,0 +1,63 @@
+package rallies_test
+
+import (
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+)
+
+var (
+	calledAt = time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	alice    = cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f"))
+	bob      = cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e60"))
+)
+
+// rallyOf is a rally of 3 minutes from calledAt, its ring 5 hundredths of a radian wide on the Line ground.
+func rallyOf(account cpsession.AccountID, flag string, tile uint32, at time.Time) rallies.Rally {
+	return rallies.Snapshot{
+		ID: rallies.RallyID(uuid.MustParse("00000000-0000-7000-8000-000000000001")), Account: account, Flag: flag, Tile: tile,
+		Radius: 0.05, CalledAt: at, EndsAt: at.Add(3 * time.Minute),
+	}.Restore()
+}
+
+func TestARallyIsOnUntilItEnds(t *testing.T) {
+	rally := rallyOf(alice, "fr", 10, calledAt)
+
+	assert.True(t, rally.On(calledAt))
+	assert.True(t, rally.On(calledAt.Add(3*time.Minute-time.Nanosecond)))
+	assert.False(t, rally.On(calledAt.Add(3*time.Minute)), "it ends at its end")
+	assert.False(t, rallies.Rally{}.On(calledAt), "an account that never called has none on")
+}
+
+func TestAPlayerHasOneRallyOnAtATime(t *testing.T) {
+	first := rallyOf(alice, "fr", 10, calledAt)
+
+	_, err := first.Called(rallyOf(alice, "fr", 20, calledAt.Add(time.Minute)))
+	require.ErrorIs(t, err, rallies.ErrRallyOn)
+
+	next, err := first.Called(rallyOf(alice, "de", 20, calledAt.Add(3*time.Minute)))
+	require.NoError(t, err, "one that ended is replaced")
+	assert.Equal(t, "de", next.TakeSnapshot().Flag)
+
+	first, err = rallies.Rally{}.Called(first)
+	require.NoError(t, err, "a first rally")
+	assert.Equal(t, rallyOf(alice, "fr", 10, calledAt).TakeSnapshot(), first.TakeSnapshot())
+}
+
+func TestARingCoversEveryTileWithinItsRadiusOfItsCentre(t *testing.T) {
+	rally := rallyOf(alice, "fr", 10, calledAt)
+
+	for _, tile := range []uint32{5, 8, 10, 12, 15} {
+		assert.True(t, rally.Covers(tile, rallies.Line{}), "tile %d", tile)
+	}
+	for _, tile := range []uint32{4, 16, 80} {
+		assert.False(t, rally.Covers(tile, rallies.Line{}), "tile %d", tile)
+	}
+	assert.False(t, rally.Covers(0, rallies.Line{}), "a tile off the map")
+}

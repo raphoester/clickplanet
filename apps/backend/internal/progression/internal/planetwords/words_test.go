@@ -19,7 +19,7 @@ func TestEveryKindOnTheLadderIsOneOfPlanets(t *testing.T) {
 }
 
 func TestAKindPlanetDoesNotNameIsRefused(t *testing.T) {
-	for _, kind := range []levels.Kind{"", "unspecified", "rally"} {
+	for _, kind := range []levels.Kind{"", "unspecified", "bounty"} {
 		_, err := planetwords.BonusKind(kind)
 		require.ErrorIs(t, err, planetwords.ErrUnknownKind, "%q", kind)
 	}

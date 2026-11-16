@@ -122,6 +122,11 @@ func (p stubPricer) Price(string) clicks.Price { return clicks.Price(p) }
 
 var onePrice = stubPricer{Slowdown: 1}
 
+// wholeClicks prices every click a whole one: no rally anywhere.
+type wholeClicks struct{}
+
+func (wholeClicks) Cost(context.Context, string, uint32) (float64, error) { return 1, nil }
+
 var buckets = clicks.NewBuckets(clicks.TestThrottle, cptime.SystemClock{})
 
 type fakeRequest struct {

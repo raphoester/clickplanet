@@ -25,6 +25,7 @@ message Rules {
   optional bool sign_in_refill = 11;
   GateRules gates = 13;
   MineRules mine = 14;
+  RallyRules rally = 15;
 }
 
 // Whether a box or a right answer is drawn only from the kinds open to everyone and the ones progression unlocked for the
@@ -45,6 +46,7 @@ message OpenKinds {
   optional bool shields = 5;
   optional bool virus = 6;
   optional bool mine = 7;
+  optional bool rally = 8;
 }
 
 // What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
@@ -58,6 +60,7 @@ message KindWeights {
   optional double shields = 5;
   optional double virus = 6;
   optional double mine = 7;
+  optional double rally = 8;
 }
 
 message SpreadRules {
@@ -75,5 +78,9 @@ message ShieldRules {
 }
 
 message MineRules {
+  optional uint32 max_per_box = 1;
+}
+
+message RallyRules {
   optional uint32 max_per_box = 1;
 }

@@ -2,6 +2,7 @@ package planetv1controller
 
 import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/call_rally_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/drop_bomb_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_allegiance_handler"
@@ -13,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_mines_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rallies_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tile_holder_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/lay_mine_handler"
@@ -39,6 +41,8 @@ type ClickService struct {
 	use_virus_handler.UseVirusHandler
 	lay_mine_handler.LayMineHandler
 	get_mines_handler.GetMinesHandler
+	call_rally_handler.CallRallyHandler
+	get_rallies_handler.GetRalliesHandler
 	get_fortresses_handler.GetFortressesHandler
 	get_tile_holder_handler.GetTileHolderHandler
 	get_landmass_handler.GetLandmassHandler

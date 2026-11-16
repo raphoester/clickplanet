@@ -85,6 +85,24 @@ func TestATryNamesWhoClickedWhatAndWhen(t *testing.T) {
 	}, tried), "got %v", tried)
 }
 
+func TestAClickInsideARallysRingIsToldAtTheTempoItsCostMakes(t *testing.T) {
+	half := leaving(10)
+	half.Budget.Spent = 0.5
+	whole := leaving(10)
+	whole.Budget.Spent = 1
+
+	inside, _, err := try(t, t.Context(), answer{out: half}, 42)
+	require.NoError(t, err)
+	outside, _, err := try(t, t.Context(), answer{out: whole}, 42)
+	require.NoError(t, err)
+	unthrottled, _, err := try(t, t.Context(), answer{out: click_usecase.Out{Outcome: clicks.Taken}}, 42)
+	require.NoError(t, err)
+
+	assert.InDelta(t, 6.0, inside.GetTempo(), 1e-9, "half a click at 3x reads as 6x: the antibot's pace stays the bank's")
+	assert.InDelta(t, 3.0, outside.GetTempo(), 1e-9)
+	assert.InDelta(t, 3.0, unthrottled.GetTempo(), 1e-9)
+}
+
 func leaving(tokens float64) click_usecase.Out {
 	return click_usecase.Out{
 		Outcome: clicks.Taken, Budget: clicks.Budget{State: cpratelimit.State{Tokens: tokens, Capacity: 60}}, Limited: true,

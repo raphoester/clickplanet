@@ -2,7 +2,9 @@ package listen_for_events_handler_test
 
 import (
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -13,6 +15,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
 
 type recorder struct {
@@ -312,4 +316,24 @@ func TestASinkFramesAMineLaidWithTheVersionItWasLaidAt(t *testing.T) {
 	assert.True(t, proto.Equal(&planetv1.MineLaid{
 		CountryId: "fr", TileId: 9, Version: &planetv1.MapVersion{Epoch: 7, Seq: 3},
 	}, stream.sent[0].GetMineLaid()), "%v", stream.sent[0])
+}
+
+func TestASinkFramesARallyWithTheTimeItHasLeft(t *testing.T) {
+	stream := &recorder{}
+	at := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	rally := rallies.Snapshot{
+		ID: rallies.RallyID(uuid.MustParse("00000000-0000-7000-8000-000000000001")), Flag: "fr", Tile: 9, Radius: 0.072,
+		Account:  cpsession.AccountID(uuid.MustParse("01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f")),
+		CalledAt: at, EndsAt: at.Add(3 * time.Minute),
+	}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Rally: &notices.RallyCalled{Rally: rally, Left: 3 * time.Minute},
+	}))
+
+	require.Len(t, stream.sent, 1)
+	assert.True(t, proto.Equal(&planetv1.Rally{
+		RallyId: "00000000-0000-7000-8000-000000000001", AccountId: "01926c6e-7a4b-7c3d-8e9f-0a1b2c3d4e5f", CountryId: "fr",
+		TileId: 9, Radius: 0.072, LeftMs: 180_000,
+	}, stream.sent[0].GetRallyCalled()), "%v", stream.sent[0])
 }

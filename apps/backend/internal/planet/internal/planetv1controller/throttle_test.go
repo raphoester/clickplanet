@@ -42,7 +42,7 @@ func pricedServer(t *testing.T, config cpratelimit.Config, pricer stubPricer) (*
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	limiter := cpratelimit.New("test", config, clock)
 
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, pricer, buckets), limiter,
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, pricer, wholeClicks{}, buckets), limiter,
 		connect.WithInterceptors(errorNet()))
 
 	return server, clock
@@ -64,7 +64,7 @@ func (farAway) Refuses(string, uint32) error { return clicks.ErrOutOfReach }
 func TestAClickOutOfReachSpendsNoToken(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 1, Burst: 1}, clock)
-	throttled := throttle_click.New(stubService{}, limiter, onePrice, buckets)
+	throttled := throttle_click.New(stubService{}, limiter, onePrice, wholeClicks{}, buckets)
 	far := clickServerWith(t, reach_click.New(throttled, farAway{}), limiter, connect.WithInterceptors(errorNet()))
 	near := clickServerWith(t, throttled, limiter, connect.WithInterceptors(errorNet()))
 
@@ -75,6 +75,28 @@ func TestAClickOutOfReachSpendsNoToken(t *testing.T) {
 
 	_, err := clickAs(t, near, "1.2.3.4")
 	require.NoError(t, err, "the one token is still in the bucket")
+}
+
+// halfClicks prices every click half a click: every tile is inside a rally's ring.
+type halfClicks struct{}
+
+func (halfClicks) Cost(context.Context, string, uint32) (float64, error) { return 0.5, nil }
+
+func TestAClickInsideARallysRingTakesHalfAClickOverHTTP(t *testing.T) {
+	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 0.001, Burst: 2}, clock)
+	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice, halfClicks{}, buckets), limiter,
+		connect.WithInterceptors(errorNet()))
+
+	for i := range 4 {
+		res, err := clickAs(t, server, "1.2.3.4")
+		require.NoErrorf(t, err, "click %d: a bank of 2 takes 4 clicks at half a click", i)
+		require.InDelta(t, 0.5, res.Msg.GetBudget().GetSpent(), 1e-9)
+		require.InDelta(t, 1.5-0.5*float64(i), res.Msg.GetBudget().GetTokens(), 1e-3)
+	}
+
+	_, err := clickAs(t, server, "1.2.3.4")
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
 }
 
 func TestThrottleOverHTTP(t *testing.T) {
@@ -220,7 +242,7 @@ func refillServer(t *testing.T, change func(*clicks.Throttle), refills *charges.
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
-			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, buckets)),
+			ClickHandler:     click_handler.New(throttle_click.New(stubService{}, limiter, onePrice, wholeClicks{}, buckets)),
 			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(limiter, onePrice, buckets, thawed)),
 			UseRefillHandler: use_refill_handler.New(use_refill_usecase.New(
 				charges.NewCharges(refills, charges.TestRules), limiter, onePrice, buckets)),

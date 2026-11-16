@@ -19,6 +19,7 @@ var playProcedures = []string{
 	planetv1connect.ClickServiceUseRefillProcedure,
 	planetv1connect.ClickServiceUseVirusProcedure,
 	planetv1connect.ClickServiceLayMineProcedure,
+	planetv1connect.ClickServiceCallRallyProcedure,
 }
 
 // NewFreezeInterceptor refuses every play while the rules in force freeze the map, before a call spends anything.

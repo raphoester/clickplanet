@@ -77,7 +77,7 @@ func TestALevelReachedIsALevelUpInTheBonusesWordsNamedByTheAccountAndTheLevel(t 
 
 func TestAKindPlanetDoesNotNameIsRefused(t *testing.T) {
 	err := cpatomic.FakeTransactioner{}.InTx(t.Context(), func(ctx context.Context) error {
-		return outbox_bonuses.New(&cpatomic.FakeOutbox{}).KeepUnlocks(ctx, ada, []levels.Kind{"rally"}, monday)
+		return outbox_bonuses.New(&cpatomic.FakeOutbox{}).KeepUnlocks(ctx, ada, []levels.Kind{"bounty"}, monday)
 	})
 
 	require.Error(t, err)
