@@ -188,16 +188,12 @@
     fill: var(--shield);
 }
 
-/* Above the dock and as wide; its scroll keeps the top row's state chips in its padding. */
+/* Its padding keeps the top row's state chips and the glows inside its scroll. */
 .inventory-tray {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: calc(100% + var(--space-3));
-    max-height: calc(100dvh - 240px);
+    max-height: calc(50dvh - var(--dock-height));
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: var(--space-4) var(--space-3) var(--space-3);
+    padding: var(--space-3) var(--space-1) var(--space-1);
     animation: inventory-tray-in 0.18s ease-out;
 }
 

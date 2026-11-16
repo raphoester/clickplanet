@@ -3,17 +3,20 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen, within} from '@testing-library/react'
 import Inventory, {DESKTOP_BAR_ROOM, InventoryProps, NOT_ENCLOSED_MS, NOTICE_MS} from './Inventory.tsx'
 import {BUBBLE_MS} from '../components/Bubble.tsx'
-import {ALL_OFF, BonusNoticeEvent, BonusRules, Charges, NO_CHARGES, Switches} from "../../domain/bonus.ts"
+import {ALL_OFF, BonusNoticeEvent, BonusRules, CHARGE_KINDS, Charges, Gates, NO_CHARGES, NO_GATES, Switches, UnlockLevels} from "../../domain/bonus.ts"
 import {BonusGuide, FRESH_GUIDE, LEARNING_USES} from "../../domain/bonusGuide.ts"
 import {useBonusGuide} from "./bonusGuideStore.ts"
 import {useBonus} from "./bonusStore.ts"
 import {useScreen} from "../hud/screenStore.ts"
+import {useGates} from "./gatesStore.ts"
+import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx"
 
 afterEach(() => {
     cleanup()
     useBonusGuide.setState({guide: FRESH_GUIDE})
     useBonus.setState(useBonus.getInitialState(), true)
     useScreen.setState(useScreen.getInitialState(), true)
+    useGates.setState(useGates.getInitialState(), true)
     vi.unstubAllGlobals()
 })
 beforeEach(() => window.localStorage.clear())
@@ -21,7 +24,7 @@ beforeEach(() => window.localStorage.clear())
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
-    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, unlocks: {},
+    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false,
 }
 
 type Held = {
@@ -31,12 +34,14 @@ type Held = {
     rules?: BonusRules
     switches?: Switches
     bombArmed?: boolean
+    gates?: Gates
 }
 
-function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, ...props}: Partial<InventoryProps> & Held = {}) {
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, gates = NO_GATES, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
         useBonus.setState({notice, charges, rules, switches, bombArmed})
+        useGates.setState({gates})
     })
     return <Inventory onToggle={() => {}}
                       onToggleBomb={() => {}}
@@ -56,6 +61,8 @@ const inTray = (name: RegExp) => within(tray()!).getByRole("button", {name}) as 
 const onBar = () => [...document.querySelectorAll(".inventory-slots > button")].map((button) => button.getAttribute("aria-label"))
 
 const EVERY = {...NO_CHARGES, refill: true, bomb: true, spreadClicksLeft: 5, enclosures: 2, shields: 7}
+
+const gated = (unlocks: UnlockLevels): Gates => ({on: true, open: CHARGE_KINDS.filter((kind) => !(kind in unlocks)), unlocks})
 
 const bubble = () => screen.queryByRole("status")?.textContent
 
@@ -300,7 +307,7 @@ describe("Inventory", () => {
     })
 
     it("describes each slot to a screen reader", () => {
-        render(inventory({charges: {...NO_CHARGES, bomb: true}, guide: learned, rules: {...RULES, unlocks: {shields: 3}}}))
+        render(inventory({charges: {...NO_CHARGES, bomb: true}, guide: learned, gates: gated({shields: 3})}))
 
         expect(slot(/^Bomb/).getAttribute("aria-describedby")).toBeTruthy()
         expect(screen.getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
@@ -392,7 +399,7 @@ describe("Inventory", () => {
     })
 
     it("lists every kind in the tray, in the order they unlock, a locked one with its level", () => {
-        render(inventory({rules: {...RULES, unlocks: {encloseClicks: 4, bomb: 5}}}))
+        render(inventory({gates: gated({encloseClicks: 4, bomb: 5})}))
 
         fireEvent.click(all())
         expect(all().getAttribute("aria-expanded")).toBe("true")
@@ -405,7 +412,7 @@ describe("Inventory", () => {
 
     it("says the level a locked kind unlocks at, and does nothing else", () => {
         const toggleBomb = vi.fn()
-        render(inventory({rules: {...RULES, unlocks: {bomb: 5}}, onToggleBomb: toggleBomb}))
+        render(inventory({gates: gated({bomb: 5}), onToggleBomb: toggleBomb}))
 
         fireEvent.click(all())
         fireEvent.click(inTray(/^Bomb/))
@@ -415,9 +422,16 @@ describe("Inventory", () => {
         expect(tray()).not.toBeNull()
     })
 
+    it("locks nothing while the gates are off", () => {
+        render(inventory({gates: {...gated({bomb: 5}), on: false}}))
+
+        fireEvent.click(all())
+        expect(inTray(/^Bomb/).getAttribute("aria-label")).toBe("Bomb")
+    })
+
     it("plays a kind still held whatever the level", () => {
         const toggleBomb = vi.fn()
-        render(inventory({rules: {...RULES, unlocks: {bomb: 5}}, charges: {...NO_CHARGES, bomb: true}, onToggleBomb: toggleBomb, guide: learned}))
+        render(inventory({gates: gated({bomb: 5}), charges: {...NO_CHARGES, bomb: true}, onToggleBomb: toggleBomb, guide: learned}))
 
         fireEvent.click(slot(/^Bomb$/))
 
@@ -435,6 +449,14 @@ describe("Inventory", () => {
         expect(tray()).toBeNull()
         expect(document.activeElement).toBe(all())
         expect(bubble()).toBe("Tap one of your tiles to shield it")
+    })
+
+    it("opens the tray as a row inside the dock, which grows rather than cover anything", () => {
+        const {container} = render(<ClickBudgetMeter>{inventory()}</ClickBudgetMeter>)
+
+        fireEvent.click(all())
+
+        expect(container.querySelector(".click-budget-dock > .click-budget-tray > .inventory-tray")).toBe(tray())
     })
 
     it("closes the tray on All, on Escape and on a press outside it", () => {

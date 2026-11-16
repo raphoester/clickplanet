@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {ALL_OFF, atRest, CHARGE_KINDS, FIRST_LEVEL, inUnlockOrder, lockedAt, NO_CHARGES, restingSwitch, switched, switchesHeld} from "./bonus.ts"
+import {ALL_OFF, atRest, CHARGE_KINDS, inUnlockOrder, lockedAt, NO_CHARGES, NO_GATES, NO_LEVEL, restingSwitch, switched, switchesHeld} from "./bonus.ts"
 
 const PAID = {spreadUnlimited: false, enclosuresUnlimited: false, enclosuresOff: false}
 
@@ -101,27 +101,33 @@ function spread() {
 }
 
 describe("lockedAt", () => {
-    const unlocks = {encloseClicks: 4, bomb: 5}
+    const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
 
-    it("names the level a kind opens at while the player is below it", () => {
-        expect(lockedAt("bomb", unlocks, 3)).toBe(5)
-        expect(lockedAt("encloseClicks", unlocks, 3)).toBe(4)
+    it("names the level a gated kind opens at while the player is below it", () => {
+        expect(lockedAt("bomb", gates, 3)).toBe(5)
+        expect(lockedAt("encloseClicks", gates, NO_LEVEL)).toBe(4)
     })
 
-    it("locks nothing at or past its level, nor a kind the rules name no level for", () => {
-        expect(lockedAt("bomb", unlocks, 5)).toBeUndefined()
-        expect(lockedAt("encloseClicks", unlocks, 9)).toBeUndefined()
-        expect(lockedAt("refill", unlocks, FIRST_LEVEL)).toBeUndefined()
+    it("locks no kind at or past its level, nor an open kind", () => {
+        expect(lockedAt("bomb", gates, 5)).toBeUndefined()
+        expect(lockedAt("encloseClicks", gates, 9)).toBeUndefined()
+        expect(lockedAt("refill", gates, NO_LEVEL)).toBeUndefined()
+    })
+
+    it("locks nothing while the gates are off", () => {
+        expect(lockedAt("bomb", {...gates, on: false}, NO_LEVEL)).toBeUndefined()
+        expect(lockedAt("bomb", NO_GATES, NO_LEVEL)).toBeUndefined()
     })
 })
 
 describe("inUnlockOrder", () => {
-    it("puts the kinds by the level they open at, the order given among one level", () => {
-        expect(inUnlockOrder(CHARGE_KINDS, {encloseClicks: 4, bomb: 5}))
-            .toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb"])
+    it("puts the open kinds first, then the gated ones by the level they open at, the order given among one level", () => {
+        const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
+
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb"])
     })
 
-    it("keeps the order given while every kind opens at the first level", () => {
-        expect(inUnlockOrder(CHARGE_KINDS, {})).toEqual(CHARGE_KINDS)
+    it("keeps the order given with no gates", () => {
+        expect(inUnlockOrder(CHARGE_KINDS, NO_GATES)).toEqual(CHARGE_KINDS)
     })
 })

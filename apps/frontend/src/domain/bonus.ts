@@ -34,19 +34,29 @@ export type ChargeKind = BonusReward["kind"]
 
 export const CHARGE_KINDS: readonly ChargeKind[] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields"]
 
-// A guest's level, and the level of a kind the rules open at no other.
-export const FIRST_LEVEL = 1
+// A guest's level, and an account's before it has one: it holds only the open kinds.
+export const NO_LEVEL = 0
 
 export type UnlockLevels = Readonly<Partial<Record<ChargeKind, number>>>
 
-// The level a kind opens at, while the player is below it.
-export function lockedAt(kind: ChargeKind, unlocks: UnlockLevels, level: number): number | undefined {
-    const at = unlocks[kind] ?? FIRST_LEVEL
-    return at > level ? at : undefined
+export type Gates = {
+    on: boolean
+    open: readonly ChargeKind[]
+    unlocks: UnlockLevels
 }
 
-export function inUnlockOrder(kinds: readonly ChargeKind[], unlocks: UnlockLevels): ChargeKind[] {
-    return [...kinds].sort((a, b) => (unlocks[a] ?? FIRST_LEVEL) - (unlocks[b] ?? FIRST_LEVEL))
+export const NO_GATES: Gates = {on: false, open: [], unlocks: {}}
+
+// The level a gated kind opens at, while the player is below it.
+export function lockedAt(kind: ChargeKind, gates: Gates, level: number): number | undefined {
+    if (!gates.on || gates.open.includes(kind)) return undefined
+    const at = gates.unlocks[kind]
+    return at !== undefined && at > level ? at : undefined
+}
+
+export function inUnlockOrder(kinds: readonly ChargeKind[], gates: Gates): ChargeKind[] {
+    const levelOf = (kind: ChargeKind) => gates.open.includes(kind) ? NO_LEVEL : gates.unlocks[kind] ?? NO_LEVEL
+    return [...kinds].sort((a, b) => levelOf(a) - levelOf(b))
 }
 
 export type Switches = {
@@ -119,5 +129,4 @@ export type BonusRules = {
     spreadUnlimited: boolean
     // No enclosure closes a shape or is offered: the page hides the enclose slot.
     enclosuresOff: boolean
-    unlocks: UnlockLevels
 }

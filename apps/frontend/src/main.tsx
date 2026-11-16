@@ -24,6 +24,7 @@ import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
 import {closedOf} from "./domain/debrief.ts"
 import {UnlockLevels} from "./domain/bonus.ts"
+import {useGates} from "./app/bonus/gatesStore.ts"
 import {battleCommands, FakeTurnBackend, seasonRunningAt} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
@@ -242,9 +243,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.unlimitSpreads(on, on ? rings : 1)
             return on ? `spreads are unlimited: spread is on, reaches ${rings} rings and spends nothing` : "spreads are spent again"
         },
-        unlockLevels: (levels: UnlockLevels = {encloseClicks: 4, bomb: 5}) => {
-            fake.setUnlocks(levels)
-            return `the kinds open at ${JSON.stringify(levels)}, the others at level 1; the page plays level 1`
+        playGates: (on = true, unlocks: UnlockLevels = {encloseClicks: 4, bomb: 5}) => {
+            useGates.setState({gates: {on, open: ["refill", "spreadClicks", "shields"], unlocks}})
+            return on
+                ? `the gates are on: ${JSON.stringify(unlocks)} unlock at those levels, and the page plays a guest's level 0`
+                : "the gates are off: every kind is open"
         },
         playReach: (on = true) => {
             fake.playReach(on)

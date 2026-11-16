@@ -1518,7 +1518,7 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
-            enclosuresOff: false, unlocks: {},
+            enclosuresOff: false,
         }))
         backend.close()
     })

@@ -39,9 +39,7 @@ stack's size, the shields' pool size, how many can stand on one tile
 are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
 new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the bonuses module's rule,
-from `BonusService/GetGrantRules`, read once a load, and told with planet's. So is `BonusRules.unlocks`, the level each
-kind opens at (below), once that answer holds them: until then `PlanetBackend` tells `{}`, every kind at level 1, and only
-the fake sets levels.
+from `BonusService/GetGrantRules`, read once a load, and told with planet's.
 
 ## Off by default, one at a time
 
@@ -96,22 +94,32 @@ state of one switched on (`On`, `Aim`) or `New`, so nothing on goes unseen. With
 when a kind runs out or comes in: the bar was chosen over a strip that scrolls sideways and over rows that wrap, on
 screenshots at 5, 8 and 11 kinds (2026-11-16), because the dock keeps its size whatever the number of kinds.
 
-**All opens the tray**, a panel over the dock as wide as it (`popovers.bonuses` in `useScreen`, see [The
+**All opens the tray**, a row of its own inside the dock, above the clicks (`popovers.bonuses` in `useScreen`, see [The
 screen](screen.md)): every kind but the hidden ones (below), in the order they unlock, each with its name at every width.
+**The dock grows upward to hold it and covers nothing**: the meter gives it the row (`DockTray`, `dockTray.ts`, which
+`Inventory` portals the tray into), and what stacks on the dock follows its drawn height (see [The
+screen](screen.md)). A first try floated the tray over the dock, and it covered the chat between 769 and 1099px wide
+(2026-11-16); no HUD piece covers another. The tray is half the screen at most, the dock's own row included, and scrolls
+inside past that (a phone held sideways).
 A press on one held uses it, closes the tray and gives the focus back to All; a press on an empty or a locked one says
 why in its bubble, and the tray stays. All again, Escape or a press anywhere outside closes it. The tray and "Your
-clicks" open one at a time, a sheet that opens closes the tray, and it scrolls inside when the screen is short (a phone
-held sideways). The dock goes over the chat's fold while it is open.
+clicks" open one at a time, and a sheet that opens closes the tray.
 
-**The order is the order they unlock** (`inUnlockOrder`): by the level each kind opens at, `CHARGE_KINDS`' order
-(refill, bomb, spread, enclose, shields) among one level. While every kind opens at level 1 it is that order.
+**The order is the order they unlock** (`inUnlockOrder`): the open kinds, then the gated ones by the level each opens
+at, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields) among one level. With no gates it is that order.
 
-**A kind above the player's level is locked** (`lockedAt`): grey, on a sunk box, a padlock and the level where the
-count goes, "unlocks at level 6" for a screen reader, and "Unlocks at level 6" in its bubble on a press. **A charge held
-stays usable whatever the level**: a kind held is never drawn locked. The levels are `BonusRules.unlocks`; the
-player's level is `FIRST_LEVEL` (a guest's, 1) until the level's store lands on main, then `useLevel`'s
-(`own?.level`, 1 for a guest). In the fake, `unlockLevels()` opens enclose at 4 and the bomb at 5, and
-`unlockLevels({shields: 3})` any table.
+**A kind is locked while the gates are on, it is not an open kind, and its level is above the player's** (`lockedAt`,
+over `Gates`): grey, on a sunk box, a padlock and the level where the count goes, "unlocks at level 6" for a screen
+reader, and "Unlocks at level 6" in its bubble on a press. **A charge held stays usable whatever the level**: a kind held
+is never drawn locked. The gates are off until the reveal and in battles, so nothing shows locked then.
+
+The gates are three facts from two modules, held in `useGates` (`bonus/gatesStore.ts`): whether they are on and the open
+kinds (refill, spread, shields) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`), and each gated kind's level
+from progression's `GetLevel` (`unlocks`), the same answer as the player's level. Until those fields land on main the store
+holds `NO_GATES`, and only the fake's console sets it: `playGates()` opens enclose at 4 and the bomb at 5,
+`playGates(true, {shields: 3})` any table, `playGates(false)` turns them off. The player's level is `NO_LEVEL` (0, a guest's
+and an account's with none yet: it holds only the open kinds) until the level's store lands on main, then `useLevel`'s
+(`own?.level`).
 
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is

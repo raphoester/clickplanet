@@ -1,13 +1,14 @@
-import {PointerEvent, ReactNode, RefObject, useEffect, useId, useRef, useState} from 'react'
+import {PointerEvent, ReactNode, RefObject, useContext, useEffect, useId, useRef, useState} from 'react'
+import {createPortal} from 'react-dom'
 import {
     BonusNotice,
     BonusRules,
     CHARGE_KINDS,
     ChargeKind,
     Charges,
-    FIRST_LEVEL,
     inUnlockOrder,
     lockedAt,
+    NO_LEVEL,
     slotOf,
     Switches,
 } from '../../domain/bonus.ts'
@@ -15,12 +16,14 @@ import {BonusGuide, isLearning, isNew} from '../../domain/bonusGuide.ts'
 import {t, translator} from '../../i18n/page.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
 import {useBonus} from './bonusStore.ts'
+import {useGates} from './gatesStore.ts'
 import {useScreen} from '../hud/screenStore.ts'
 import {useCompact} from '../compact.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import Bubble, {BUBBLE_MS} from '../components/Bubble.tsx'
 import {LockIcon} from '../components/icons.tsx'
 import {useEscape} from '../components/useDialog.ts'
+import {DockTray} from '../components/dockTray.ts'
 import './Inventory.css'
 
 export const NOTICE_MS = 3500
@@ -68,6 +71,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
     const rules = useBonus((bonus) => bonus.rules)
     const switches = useBonus((bonus) => bonus.switches)
     const bombArmed = useBonus((bonus) => bonus.bombArmed)
+    const gates = useGates((store) => store.gates)
     const open = useScreen((screen) => screen.popovers.bonuses)
     const togglePopover = useScreen((screen) => screen.togglePopover)
     const closePopover = useScreen((screen) => screen.closePopover)
@@ -114,8 +118,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
     const max = rules?.enclosureMaxTiles
     const unlimited = rules?.enclosuresUnlimited ?? false
     const spreadUnlimited = rules?.spreadUnlimited ?? false
-    const unlocks = rules?.unlocks ?? {}
-    const level = FIRST_LEVEL
+    const level = NO_LEVEL
 
     const shownOf = (kind: ChargeKind): Omit<Shown, "lockedAt"> | undefined => {
         switch (kind) {
@@ -195,10 +198,10 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
         }
     }
 
-    const every: Shown[] = inUnlockOrder(CHARGE_KINDS, unlocks).flatMap((kind) => {
+    const every: Shown[] = inUnlockOrder(CHARGE_KINDS, gates).flatMap((kind) => {
         const shown = shownOf(kind)
         if (!shown) return []
-        return [{...shown, lockedAt: shown.held ? undefined : lockedAt(kind, unlocks, level)}]
+        return [{...shown, lockedAt: shown.held ? undefined : lockedAt(kind, gates, level)}]
     })
     const held = every.filter((shown) => shown.held)
     const room = compact ? PHONE_BAR_ROOM : DESKTOP_BAR_ROOM
@@ -246,6 +249,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
 function Tray({id, bag, children}: {id: string, bag: RefObject<HTMLButtonElement>, children: ReactNode}) {
     const panel = useRef<HTMLDivElement>(null)
     const closePopover = useScreen((screen) => screen.closePopover)
+    const host = useContext(DockTray)
 
     useEscape(() => {
         if (panel.current?.contains(document.activeElement)) bag.current?.focus()
@@ -262,9 +266,10 @@ function Tray({id, bag, children}: {id: string, bag: RefObject<HTMLButtonElement
         return () => document.removeEventListener("pointerdown", outside)
     }, [bag, closePopover])
 
-    return <div id={id} ref={panel} className="inventory-tray panel" role="group" aria-label={t("inventory.all.label")}>
+    const tray = <div id={id} ref={panel} className="inventory-tray" role="group" aria-label={t("inventory.all.label")}>
         <div className="inventory-tray-slots">{children}</div>
     </div>
+    return host ? createPortal(tray, host) : tray
 }
 
 type BagProps = {

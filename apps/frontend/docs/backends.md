@@ -316,8 +316,7 @@ of a server restart opens it again 500 ms later.
   full. A grant of another kind in that window (a mission paid) would be taken for the box's, as for a right answer.
 - **Whether a first sign-in earns a refill** is the bonuses module's rule (`GetGrantRules`, a GET as `GetChargeRules`).
   `PlanetBackend` reads it once a load and tells it as `BonusRules.signInRefill`, with planet's rules, through `onRules`,
-  nothing before planet's are read. The level each kind opens at goes the same way as `BonusRules.unlocks`, `{}` until
-  the answer holds it (see [Charges](charges.md#the-inventory)). The bonuses module has no stream since 2026-11-15: only its `default` sets the rule,
+  nothing before planet's are read. The bonuses module has no stream since 2026-11-15: only its `default` sets the rule,
   and every deploy reloads the page.
 - **The fakes have no such stream**: `FakeBackend` implements `BoxCatcher` itself, pays a box a moment after its catch,
   and `ReplayBackend` offers none.
