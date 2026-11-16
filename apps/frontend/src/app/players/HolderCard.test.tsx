@@ -152,8 +152,8 @@ describe("HolderCard", () => {
 
     it("names the missions the map draws on the tile, after a ring of their red", () => {
         show(FOX, {missions: {endsAt: 0, missions: [
-            {id: "rival", order: {kind: "takeFrom", country: "fr", goal: 80, taken: 3}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
-            {id: "ground", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+            {id: "rival", order: {kind: "takeFrom", country: "fr", goal: 80, taken: 3}, done: false, paid: false},
+            {id: "ground", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, done: false, paid: false},
         ]}})
 
         const here = screen.getByRole("list", {name: "Your missions here"})
@@ -162,7 +162,7 @@ describe("HolderCard", () => {
 
     it("names no mission on a tile the map draws nothing on", () => {
         show(FOX, {missions: {endsAt: 0, missions: [
-            {id: "ground", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+            {id: "ground", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, done: false, paid: false},
         ]}})
 
         expect(screen.queryByRole("list", {name: "Your missions here"})).toBeNull()

@@ -204,10 +204,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         new FakeAlertsBackend(async () => (await fakeAccount.me()).linked.length > 0, FAKE_JOIN_LANDS_MS), account)
     const fakeClips = new FakeClipsBackend()
     const fakePromo = new FakePromoBackend()
-    const fakeMissions = new FakeMissionsBackend((kind) => {
-        if (kind === "bomb") fake.grantBomb()
-        else fake.grantBonus(kind)
-    }, fake)
+    const fakeMissions = new FakeMissionsBackend(fake)
     const endDayAt = (endedAt: number) => {
         const today = fakeTurn.today()
         if (!today) return "no day runs"
@@ -375,6 +372,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         standings: fakeStandings,
         support: fakeSupport,
         missions: fakeMissions,
+        missionRates: fakeMissions,
         chargesRefresher: fake,
         account,
         clips: fakeClips,
@@ -437,6 +435,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         standings,
         support,
         missions,
+        missionRates: progression,
         chargesRefresher: backend,
         clips,
         promo,

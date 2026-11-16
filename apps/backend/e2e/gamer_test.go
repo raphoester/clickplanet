@@ -196,13 +196,41 @@ func (p *gamer) progression() progressionv1connect.ProgressionServiceClient {
 	return progressionv1connect.NewProgressionServiceClient(http.DefaultClient, p.stack.baseURL)
 }
 
-func (p *gamer) stats() *progressionv1.Stats {
+func (p *gamer) progress() *progressionv1.AdminGetProgressResponse {
 	p.t.Helper()
 
 	res, err := progressionv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.consoleURL).GetProgress(p.t.Context(),
 		connect.NewRequest(&progressionv1.AdminGetProgressRequest{AccountId: p.account()}))
 	require.NoError(p.t, err)
-	return res.Msg.GetStats()
+	return res.Msg
+}
+
+func (p *gamer) stats() *progressionv1.Stats {
+	p.t.Helper()
+
+	return p.progress().GetStats()
+}
+
+func (p *gamer) xp() *progressionv1.XpBreakdown {
+	p.t.Helper()
+
+	return p.progress().GetXp()
+}
+
+func (p *gamer) missionRate(kind missionsv1.MissionKind) *progressionv1.MissionRate {
+	p.t.Helper()
+
+	req := connect.NewRequest(&progressionv1.GetLevelRequest{})
+	p.send(req.Header())
+	res, err := p.progression().GetLevel(p.t.Context(), req)
+	require.NoError(p.t, err)
+	for _, rate := range res.Msg.GetMissionRates() {
+		if rate.GetKind() == kind {
+			return rate
+		}
+	}
+	require.Failf(p.t, "no rate", "%s", kind)
+	return nil
 }
 
 func (p *gamer) track(id string) *progressionv1.Track {

@@ -210,6 +210,7 @@
   "mission.here.flagMission": "A mission the whole flag plays for season points. {order} is its order, as \"Break 300 shields of (flag) Algeria\".",
   "mission.flagMission": "A mission the whole flag plays for season points, not a bonus.",
   "mission.flagDone.order": "{order} is the mission's order, as \"Break 300 shields of (flag) Algeria\".",
+  "mission.xp": "The experience points a mission pays toward the player's level, shown beside it. Keep XP as games write it.",
   "quiz.banner.title": "The title of the banner that offers a quiz.",
   "quiz.left": "The verdict on a quiz question the player left before answering: they switched app or tab, or opened their phone's assistant over the page. Leaving ends the question, so it cannot be looked up.",
   "quiz.theAnswer": "A screen reader reads it on the right choice of a quiz. {choice} is the choice as shown; the words in <hidden> are not shown, only read.",

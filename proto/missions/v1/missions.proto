@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package missions.v1;
 
-import "planet/v1/planet.proto";
-
 service MissionService {
   rpc GetMissions(GetMissionsRequest) returns (GetMissionsResponse);
 
@@ -137,12 +135,14 @@ message BreakShields {
 
 // A client skips a mission whose reward it does not know.
 message MissionReward {
+  reserved 1;
+  reserved "charges";
+
   oneof kind {
-    Charges charges = 1;
+    Xp xp = 2;
   }
 }
 
-message Charges {
-  planet.v1.BonusKind kind = 1;
-  uint32 amount = 2;
-}
+// The mission's goal times its kind's rate, floored: the rates are progression.v1.ProgressionService/GetLevel's
+// mission_rates, so missions sends no amount.
+message Xp {}

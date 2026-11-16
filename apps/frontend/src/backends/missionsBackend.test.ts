@@ -6,7 +6,6 @@ import {
     Mission as MissionPb,
     MissionEvent as MissionEventPb,
 } from "../gen/grpc/missions/v1/missions_pb.ts"
-import {BonusKind as BonusKindPb} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {DayMissions} from "./missions.ts"
 import {ConnectMissionsBackend} from "./missionsBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
@@ -25,6 +24,8 @@ afterEach(() => vi.restoreAllMocks())
 
 const never = () => new Promise<never>(() => {})
 
+const xp = {kind: {case: "xp" as const, value: {}}}
+
 const refusing = (code: Code) => vi.fn((): AsyncIterable<MissionEventPb> => ({
     [Symbol.asyncIterator]: () => ({
         next: async () => {
@@ -41,7 +42,7 @@ describe("ConnectMissionsBackend.follow", () => {
             yield new MissionEventPb({event: {case: "day", value: new GetMissionsResponsePb({endsAtUnixMs: 2_000n, missions: [
                 new MissionPb({
                     id: "m-1", done: true, paid: true, kind: {case: "takeFor", value: {countryId: "fr", goal: 60, taken: 60}},
-                    reward: {kind: {case: "charges", value: {kind: BonusKindPb.BOMB, amount: 1}}},
+                    reward: xp,
                 }),
             ]})}})
             await never()
@@ -57,7 +58,6 @@ describe("ConnectMissionsBackend.follow", () => {
             {endsAt: 1_000, missions: []},
             {endsAt: 2_000, missions: [{
                 id: "m-1", order: {kind: "takeFor", country: "fr", goal: 60, taken: 60}, done: true, paid: true,
-                reward: {kind: "bomb", amount: 1},
             }]},
         ])
     })
@@ -97,9 +97,9 @@ describe("ConnectMissionsBackend", () => {
                 new MissionPb({
                     id: "m-2", done: true, paid: true,
                     kind: {case: "takeFrom", value: {countryId: "dz", goal: 40, taken: 40}},
-                    reward: {kind: {case: "charges", value: {kind: BonusKindPb.SPREAD_CLICKS, amount: 4}}},
+                    reward: xp,
                 }),
-                new MissionPb({id: "m-4", reward: {kind: {case: "charges", value: {kind: BonusKindPb.SHIELDS, amount: 1}}}}),
+                new MissionPb({id: "m-4", reward: xp}),
                 new MissionPb({id: "m-5", kind: {case: "takeFor", value: {countryId: "fr", goal: 60}}}),
             ],
         }))
@@ -112,7 +112,6 @@ describe("ConnectMissionsBackend", () => {
             endsAt: 1_000,
             missions: [{
                 id: "m-2", order: {kind: "takeFrom", country: "dz", goal: 40, taken: 40}, done: true, paid: true,
-                reward: {kind: "spreadClicks", amount: 4},
             }],
         })
     })
@@ -132,7 +131,7 @@ describe("ConnectMissionsBackend", () => {
     })
 
     it("reads each kind of mission in its own shape", async () => {
-        const reward = {kind: {case: "charges" as const, value: {kind: BonusKindPb.BOMB, amount: 1}}}
+        const reward = xp
         const getMissions = vi.fn(async () => new GetMissionsResponsePb({
             missions: [
                 new MissionPb({id: "raid", reward, kind: {case: "takeFromIn", value: {countryId: "dz", groundId: "br", goal: 60, taken: 7}}}),

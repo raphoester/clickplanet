@@ -12,7 +12,6 @@ const now = Date.UTC(2026, 9, 26, 12, 0)
 const mission = (overrides: Partial<Mission>): Mission => ({
     id: "bank",
     order: {kind: "takeFor", country: "fr", goal: 60, taken: 0},
-    reward: {kind: "shields", amount: 10},
     done: false,
     paid: false,
     ...overrides,
@@ -43,8 +42,8 @@ describe("MissionsPlace", () => {
         vi.useFakeTimers({now})
         render(place(day(
             mission({id: "bank", order: {kind: "takeFor", country: "fr", goal: 60, taken: 37}}),
-            mission({id: "rival", order: {kind: "takeFrom", country: "dz", goal: 40, taken: 3}, reward: {kind: "spreadClicks", amount: 4}}),
-            mission({id: "ground", order: {kind: "takeIn", country: "br", goal: 200, taken: 0}, reward: {kind: "bomb", amount: 1}}),
+            mission({id: "rival", order: {kind: "takeFrom", country: "dz", goal: 40, taken: 3}}),
+            mission({id: "ground", order: {kind: "takeIn", country: "br", goal: 200, taken: 0}}),
         )))
 
         expect(screen.getByText("Ends in 9h 00m")).toBeDefined()
@@ -53,6 +52,19 @@ describe("MissionsPlace", () => {
         expect(screen.getByText(/Take 200 tiles in/).textContent).toContain("Brazil")
         expect(screen.getByText("37/60")).toBeDefined()
         expect(screen.queryByRole("button")).toBeNull()
+    })
+
+    it("shows the XP each mission pays, its goal times its kind's rate", () => {
+        useMissions.setState({rates: {takeFor: {xp: 1, per: 1}, takeFrom: {xp: 3, per: 2}}})
+        render(place(day(
+            mission({id: "bank", order: {kind: "takeFor", country: "fr", goal: 60, taken: 0}}),
+            mission({id: "rival", order: {kind: "takeFrom", country: "dz", goal: 80, taken: 0}}),
+            mission({id: "boxes", order: {kind: "catchBoxes", goal: 4, reached: 0}}),
+        )))
+
+        expect(screen.getByText("+60 XP")).toBeDefined()
+        expect(screen.getByText("+120 XP")).toBeDefined()
+        expect(screen.getAllByText(/XP/)).toHaveLength(2)
     })
 
     it("shows the flag's mission above the player's, with the points it gives the flag", () => {

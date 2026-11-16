@@ -95,7 +95,7 @@ on any map, built as [bombs off](bomb.md) was:
   click to the rule as a plain one. It is not refused: an old tab that still sends `enclose` takes its tile.
 - **No hand has room for one**: `Held.Full` lists `KindEncloseClicks` while it plays, so `GetRoom` says so and the
   offers draw no enclosure for a box or a quiz. A grant itself is not refused, as for a bomb while bombs are off: a
-  mission's reward of enclosures, or the operator's `GrantCharges`, still lands, capped at `held`.
+  the operator's `GrantCharges` still lands, capped at `held`.
 - **The enclosures held are kept**, not taken, and are there when the set stops.
 - **`off` and `unlimited` both on is refused**: `charges.Rules.Validate` names `charges.enclose.off`, since an enclosure
   cannot be off and free.

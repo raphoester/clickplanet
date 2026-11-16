@@ -12,17 +12,12 @@ import (
 
 var ErrUnknownKind = errors.New("not a kind of mission")
 
-// Every mission has an id, a kind and a reward; its kind's own fields are its payload, so a new kind is no migration.
+// Every mission has an id and a kind; its kind's own fields are its payload, so a new kind is no migration. A brief
+// drawn before missions paid XP keeps the charge it paid as "reward", which nothing reads.
 type missionRecord struct {
 	ID      uuid.UUID       `json:"id"`
 	Kind    string          `json:"kind"`
-	Reward  rewardRecord    `json:"reward"`
 	Payload json.RawMessage `json:"payload"`
-}
-
-type rewardRecord struct {
-	Charge string `json:"charge"`
-	Amount uint32 `json:"amount"`
 }
 
 const (
@@ -117,10 +112,7 @@ func recordOf(mission missions.MissionSnapshot) (missionRecord, error) {
 	if err != nil {
 		return missionRecord{}, fmt.Errorf("failed to encode a %s mission: %w", kind, err)
 	}
-	return missionRecord{
-		ID: uuid.UUID(mission.ID), Kind: kind, Payload: encoded,
-		Reward: rewardRecord{Charge: string(mission.Reward.Kind), Amount: mission.Reward.Amount},
-	}, nil
+	return missionRecord{ID: uuid.UUID(mission.ID), Kind: kind, Payload: encoded}, nil
 }
 
 func (r missionRecord) snapshot() (missions.MissionSnapshot, error) {
@@ -128,10 +120,7 @@ func (r missionRecord) snapshot() (missions.MissionSnapshot, error) {
 	if err != nil {
 		return missions.MissionSnapshot{}, err
 	}
-	return missions.MissionSnapshot{
-		ID: missions.MissionID(r.ID), Order: order,
-		Reward: missions.Reward{Kind: missions.RewardKind(r.Reward.Charge), Amount: r.Reward.Amount},
-	}, nil
+	return missions.MissionSnapshot{ID: missions.MissionID(r.ID), Order: order}, nil
 }
 
 func (r missionRecord) order() (missions.Order, error) {

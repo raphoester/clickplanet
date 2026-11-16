@@ -1,10 +1,3 @@
-import {ChargeKind} from "../domain/bonus.ts"
-
-export type MissionReward = {
-    kind: ChargeKind
-    amount: number
-}
-
 export type TileOrder = {
     kind: "takeFor" | "takeFrom" | "takeIn"
     country: string
@@ -52,10 +45,10 @@ export type BreakOrder = {
 
 export type FlagMissionOrder = TileOrder | BreakOrder
 
+// A mission pays XP: its goal times its kind's rate, which progression keeps (MissionRates).
 export type Mission = {
     id: string
     order: MissionOrder
-    reward: MissionReward
     done: boolean
     paid: boolean
 }
@@ -79,4 +72,16 @@ export interface MissionsBackend {
 
     // The day at once, then again after each fact of the caller, once a second at most.
     follow(onDay: (day: DayMissions) => void): () => void
+}
+
+// XP for every `per` of a mission's goal, floored, as the server counts it.
+export type MissionRate = {
+    xp: number
+    per: number
+}
+
+export type MissionRates = Readonly<Partial<Record<MissionOrder["kind"], MissionRate>>>
+
+export interface MissionRatesReader {
+    missionRates(): Promise<MissionRates>
 }

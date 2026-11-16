@@ -1,5 +1,6 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
+import {MissionKind} from "../gen/grpc/missions/v1/kind_pb.ts"
 import {ProgressionService} from "../gen/grpc/progression/v1/progression_connect.ts"
 import {
     CountryTiles as CountryTilesPb,
@@ -9,6 +10,7 @@ import {
     Track as TrackPb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {AccountBadge, BadgesBackend} from "./badges.ts"
+import {MissionOrder, MissionRates, MissionRatesReader} from "./missions.ts"
 import {
     CountryTiles,
     Fronts,
@@ -35,7 +37,8 @@ export function newProgressionServiceClient(config: Config): PromiseClient<typeo
     }))
 }
 
-export class ConnectProgressionBackend implements ProgressionBackend, ProgressReader, BadgesBackend, TitlesListener {
+export class ConnectProgressionBackend
+    implements ProgressionBackend, ProgressReader, BadgesBackend, TitlesListener, MissionRatesReader {
     constructor(
         private readonly client: PromiseClient<typeof ProgressionService>,
         private readonly session: SessionProvider,
@@ -83,6 +86,15 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
         }))
     }
 
+    public async missionRates(): Promise<MissionRates> {
+        const res = await this.authenticated((headers) =>
+            retrying(() => this.client.getLevel({}, {headers}), "GetLevel"))
+        return Object.fromEntries(res.missionRates.flatMap((rate) => {
+            const kind = orderKindOf(rate.kind)
+            return kind && rate.per > 0 ? [[kind, {xp: rate.xp, per: rate.per}]] : []
+        }))
+    }
+
     public heldIdentity(): string | undefined {
         return this.session.heldIdentity()
     }
@@ -123,6 +135,31 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
         return headers
+    }
+}
+
+function orderKindOf(kind: MissionKind): MissionOrder["kind"] | undefined {
+    switch (kind) {
+        case MissionKind.TAKE_FOR:
+            return "takeFor"
+        case MissionKind.TAKE_FROM:
+            return "takeFrom"
+        case MissionKind.TAKE_IN:
+            return "takeIn"
+        case MissionKind.TAKE_FROM_IN:
+            return "takeFromIn"
+        case MissionKind.CATCH_BOXES:
+            return "catchBoxes"
+        case MissionKind.ANSWER_QUIZZES:
+            return "answerQuizzes"
+        case MissionKind.BOMB_IN:
+            return "bombIn"
+        case MissionKind.SHIELD_TILES:
+            return "shieldTiles"
+        case MissionKind.FORTIFY_TILES:
+            return "fortifyTiles"
+        case MissionKind.UNSPECIFIED:
+            return undefined
     }
 }
 

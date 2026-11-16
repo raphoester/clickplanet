@@ -1,11 +1,23 @@
-import {ChargeKind} from "../domain/bonus.ts"
 import {AllegianceSource, TileClicker} from "./backend.ts"
-import {DayMissions, FlagMission, Mission, MissionOrder, MissionReward, MissionsBackend} from "./missions.ts"
+import {DayMissions, FlagMission, Mission, MissionOrder, MissionRates, MissionRatesReader, MissionsBackend} from "./missions.ts"
 
 const DAY_MS = 24 * 3600_000
 const CUTOFF_MS = 21 * 3600_000
 
-export class FakeMissionsBackend implements MissionsBackend {
+// Progression's rates, as GetLevel answers them.
+const RATES: MissionRates = {
+    takeFor: {xp: 1, per: 1},
+    takeFrom: {xp: 3, per: 2},
+    takeIn: {xp: 1, per: 1},
+    takeFromIn: {xp: 3, per: 1},
+    catchBoxes: {xp: 50, per: 1},
+    answerQuizzes: {xp: 80, per: 1},
+    shieldTiles: {xp: 80, per: 1},
+    fortifyTiles: {xp: 4, per: 1},
+    bombIn: {xp: 150, per: 1},
+}
+
+export class FakeMissionsBackend implements MissionsBackend, MissionRatesReader {
     private taken = 0
     private flag?: string
     private pledged?: string
@@ -17,7 +29,6 @@ export class FakeMissionsBackend implements MissionsBackend {
     private flagMissionTold = false
 
     constructor(
-        private readonly grant: (kind: ChargeKind) => void,
         allegiance: AllegianceSource,
         private readonly now: () => number = Date.now,
     ) {
@@ -47,6 +58,10 @@ export class FakeMissionsBackend implements MissionsBackend {
         return this.day()
     }
 
+    public async missionRates(): Promise<MissionRates> {
+        return RATES
+    }
+
     public follow(onDay: (day: DayMissions) => void): () => void {
         this.followers.add(onDay)
         onDay(this.day())
@@ -68,9 +83,7 @@ export class FakeMissionsBackend implements MissionsBackend {
     private payDone(): void {
         if (!this.flag) return
         for (const mission of this.brief(this.flag)) {
-            if (!mission.done || this.paid.has(mission.id)) continue
-            this.paid.add(mission.id)
-            this.grant(mission.reward.kind)
+            if (mission.done) this.paid.add(mission.id)
         }
         const flagMission = this.flagMission(this.flag)
         if (flagMission.done && !this.flagMissionTold) {
@@ -96,18 +109,18 @@ export class FakeMissionsBackend implements MissionsBackend {
 
     private brief(flag: string): Mission[] {
         const rival = rivalOf(flag)
-        const mission = (id: string, order: MissionOrder, reward: MissionReward, share: number): Mission => {
+        const mission = (id: string, order: MissionOrder, share: number): Mission => {
             const counted = this.counted(order.goal, share)
             const progressed: MissionOrder = "taken" in order ? {...order, taken: counted} : {...order, reached: counted}
-            return {id, order: progressed, reward, done: counted >= order.goal, paid: this.paid.has(id)}
+            return {id, order: progressed, done: counted >= order.goal, paid: this.paid.has(id)}
         }
 
         return [
-            mission("bank", {kind: "takeFor", country: flag, goal: 180, taken: 0}, {kind: "shields", amount: 20}, 1),
-            mission("rival", {kind: "takeFrom", country: rival, goal: 120, taken: 0}, {kind: "spreadClicks", amount: 6}, 0.5),
-            mission("ground", {kind: "takeIn", country: "br", goal: 450, taken: 0}, {kind: "bomb", amount: 1}, 0.25),
-            mission("raid", {kind: "takeFromIn", country: rival, ground: "br", goal: 60, taken: 0}, {kind: "encloseClicks", amount: 2}, 0.1),
-            mission("walls", {kind: "shieldTiles", shields: 10, goal: 2, reached: 0}, {kind: "shields", amount: 15}, 0.01),
+            mission("bank", {kind: "takeFor", country: flag, goal: 180, taken: 0}, 1),
+            mission("rival", {kind: "takeFrom", country: rival, goal: 120, taken: 0}, 0.5),
+            mission("ground", {kind: "takeIn", country: "br", goal: 450, taken: 0}, 0.25),
+            mission("raid", {kind: "takeFromIn", country: rival, ground: "br", goal: 60, taken: 0}, 0.1),
+            mission("walls", {kind: "shieldTiles", shields: 10, goal: 2, reached: 0}, 0.01),
         ]
     }
 

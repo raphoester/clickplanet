@@ -14,6 +14,7 @@ import (
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
 	chatv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/chat/v1"
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
@@ -78,6 +79,7 @@ func (s *testSuite) TestAGuestDoesAMissionAndIsPaidOnceItSignsIn() {
 	bank := first.GetTakeFor()
 	require.NotNil(t, bank, "missions asks planet for the pledged flag and the map to draw the day")
 	require.Equal(t, "it", bank.GetCountryId())
+	require.NotNil(t, first.GetReward().GetXp(), "a mission pays XP")
 
 	for tile := range bank.GetGoal() {
 		ada.click(1000+tile, "it")
@@ -90,31 +92,10 @@ func (s *testSuite) TestAGuestDoesAMissionAndIsPaidOnceItSignsIn() {
 	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
 		10*time.Second, 20*time.Millisecond, "player tells the sign-in (PlayerSignedIn), and missions pays the mission done")
 
-	reward := first.GetReward().GetCharges()
-	require.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, reward.GetKind(), "the reward is drawn with the day")
-	assert.Eventually(t, func() bool { return held(t, ada.charges(), reward.GetKind()) == reward.GetAmount() },
-		5*time.Second, 20*time.Millisecond, "missions commands planet to grant it")
-}
-
-func held(t *testing.T, charges *planetv1.ChargesHeld, kind planetv1.BonusKind) uint32 {
-	t.Helper()
-
-	switch kind {
-	case planetv1.BonusKind_BONUS_KIND_SHIELDS:
-		return charges.GetShields()
-	case planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS:
-		return charges.GetSpreadClicksLeft()
-	case planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS:
-		return charges.GetEnclosures()
-	case planetv1.BonusKind_BONUS_KIND_BOMB:
-		if charges.GetBomb() {
-			return 1
-		}
-		return 0
-	case planetv1.BonusKind_BONUS_KIND_REFILL, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED:
-		require.Failf(t, "not a charge a mission pays", "%s", kind)
-	}
-	return 0
+	rate := ada.missionRate(missionsv1.MissionKind_MISSION_KIND_TAKE_FOR)
+	assert.Eventually(t, func() bool {
+		return ada.xp().GetMissionsDone() == uint64(bank.GetGoal())*uint64(rate.GetXp())/uint64(rate.GetPer())
+	}, 5*time.Second, 20*time.Millisecond, "missions tells the mission done, and progression pays its goal times its kind's rate")
 }
 
 func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {

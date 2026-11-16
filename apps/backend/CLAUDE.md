@@ -179,7 +179,7 @@ and says what is in it. Read the doc before you change its area.
   of it answered, a refusal for good, a call cut by its timeout, the reset after the book before it, the boot, the cost.
 - [Missions](docs/missions.md) — four or five missions a day per player, in the days the gamemaster tells
   (`DayStarted`), counted from planet's, the boxes' and the quizzes' facts (takes, boxes, right answers, bombs, shields, fortifies), paid once done
-  with a `GrantCharges` command to planet; one flag mission a day per flag, worth season points (`GrantPoints` to
+  in XP, which progression counts, and no charge (the reveal set); one flag mission a day per flag, worth season points (`GrantPoints` to
   scoring), and told done to the chat (`FlagMissionDone`), which announces it in the world and the flag's room; why
   progress is not read from the ledger; the flag mission's numbers, one document the operator edits (`GetRules`,
   `SaveRules`); the operator's reads of what was given and done (`ListFlagDays`, `GetMissionTotals`); `MissionsDone`,

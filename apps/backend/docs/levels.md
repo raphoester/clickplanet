@@ -27,7 +27,7 @@ levels/                            XP, Level, Record, Source, MissionKind (stats
 together, as the reveal:
 
 - the UI: the level and its bar on the page and on the card, from the public reads that already answer them;
-- missions paying XP instead of charges;
+- missions paying XP instead of charges (see [Missions pay XP](missions.md#missions-pay-xp));
 - `LevelReached`, through an outbox, with slice 3's bonus listener: both are added then, so no level gained before the
   reveal pays a bonus;
 - the reconciliation made raise-only, so a level the players saw never goes down.
@@ -69,7 +69,8 @@ name for it: `missions.v1.MissionKind` without its prefix, in lower case, as mis
 | `FortifyTiles`  | `fortify_tiles`  | 4                       |
 | `BombIn`        | `bomb_in`        | 150                     |
 
-The rates are first guesses, sized so a mission pays about the XP of the play it asks for.
+The rates are first guesses, sized so a mission pays about the XP of the play it asks for. Once the reveal ships, it
+is all a mission pays: missions grants no charge (see [Missions pay XP](missions.md#missions-pay-xp)).
 
 **A rate is exact**: `Rate{XP, Per}`, XP for every `Per` units of the goal, floored, so `take_from` is 3 for 2.
 `GetLevel` sends each rate in that form, never as a float, so the page's goal × rate is the server's integer math

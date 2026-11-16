@@ -100,9 +100,7 @@ func (s *StoreContractSuite) TestABriefKeepsAsManyMissionsAsItHas() {
 	}
 	snapshots := make([]MissionSnapshot, 0, len(orders))
 	for n, order := range orders {
-		snapshots = append(snapshots, MissionSnapshot{
-			ID: drawnID(contractDay, s.account(1), n), Order: order, Reward: Reward{Kind: RewardShields, Amount: uint32(n + 1)},
-		})
+		snapshots = append(snapshots, MissionSnapshot{ID: drawnID(contractDay, s.account(1), n), Order: order})
 	}
 	brief, err := BriefOf(snapshots)
 	s.Require().NoError(err)
@@ -248,7 +246,7 @@ func (s *StoreContractSuite) keepEveryKind(day days.Day, account byte, progress 
 	reached := map[MissionID]uint32{}
 	for n, order := range orders {
 		id := drawnID(day, s.account(account), n)
-		snapshots = append(snapshots, MissionSnapshot{ID: id, Order: order, Reward: Reward{Kind: RewardShields, Amount: 1}})
+		snapshots = append(snapshots, MissionSnapshot{ID: id, Order: order})
 		if n < len(progress) && progress[n] > 0 {
 			reached[id] = progress[n]
 		}

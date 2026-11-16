@@ -1,5 +1,4 @@
-import {DayMissions, FlagMission, FlagMissionOrder, Mission, MissionOrder, MissionReward} from "../backends/missions.ts"
-import {BonusReward, BonusRules} from "./bonus.ts"
+import {DayMissions, FlagMission, FlagMissionOrder, Mission, MissionOrder, MissionRates} from "../backends/missions.ts"
 import {Countdown, countdownTo} from "./seasonClock.ts"
 
 export function reachedOf(order: MissionOrder | FlagMissionOrder): number {
@@ -72,19 +71,10 @@ export function newlyDoneFlagMission(before: DayMissions, after: DayMissions): F
     return now
 }
 
-export function awardOf(reward: MissionReward, rules: Pick<BonusRules, "blastRadius" | "enclosureMaxTiles">): BonusReward {
-    switch (reward.kind) {
-        case "refill":
-            return {kind: "refill"}
-        case "spreadClicks":
-            return {kind: "spreadClicks", clicks: reward.amount}
-        case "bomb":
-            return {kind: "bomb", radius: rules.blastRadius}
-        case "encloseClicks":
-            return {kind: "encloseClicks", shapes: reward.amount, maxTiles: rules.enclosureMaxTiles}
-        case "shields":
-            return {kind: "shields", shields: reward.amount}
-    }
+// The server's integer math: the goal times the kind's rate, floored. Unknown with no rate for the kind.
+export function xpOf(order: MissionOrder, rates: MissionRates): number | undefined {
+    const rate = rates[order.kind]
+    return rate && Math.floor(order.goal * rate.xp / rate.per)
 }
 
 export function timeLeft(endsAt: number, now: number): Countdown {

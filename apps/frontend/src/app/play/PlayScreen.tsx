@@ -90,7 +90,7 @@ import {useScreen} from "../hud/screenStore.ts";
 import MissionsPlace, {MissionsPlaceProps} from "../missions/MissionsPlace.tsx";
 import {useMissions} from "../missions/missionsStore.ts";
 import {useMissionsFeed} from "../missions/useMissionsFeed.ts";
-import {MissionsBackend} from "../../backends/missions.ts";
+import {MissionRatesReader, MissionsBackend} from "../../backends/missions.ts";
 import {unseen} from "../../domain/missions.ts";
 import MissionsDone from "../missions/MissionsDone.tsx";
 import {useSeenMissions} from "../missions/seenMissionsStore.ts";
@@ -173,6 +173,8 @@ export type Backends = {
     standings: StandingsBackend
     support: SupportBackend
     missions: MissionsBackend
+    // What each kind of mission pays in XP: progression's.
+    missionRates: MissionRatesReader
     chargesRefresher: ChargesRefresher
     clips: ClipsBackend & ClipsNameBackend
     // A battle's teaser cards.
@@ -281,7 +283,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         closeAll()
     }, [compact, closeAll])
 
-    useMissionsFeed(backends.missions, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
+    useMissionsFeed(backends.missions, backends.missionRates, ownAccountId, allegiance?.countryId, accepted.listenForClicks)
     const missionsState = useMissions((missions) => missions.state)
     const guided = props.showFront ?? false
     const missionTargets = useMissionTargets(missionsState, guided)

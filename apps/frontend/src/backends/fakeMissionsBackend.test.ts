@@ -17,24 +17,29 @@ const clicker: TileClicker = {clickTile: async () => {}}
 
 describe("FakeMissionsBackend", () => {
     it("puts every mission one tile from done, and the next take finishes and pays them all", async () => {
-        const grant = vi.fn()
-        const fake = new FakeMissionsBackend(grant, pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
+        const fake = new FakeMissionsBackend(pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
         const clicking = fake.counting(clicker)
 
         fake.prime()
         const primed = await fake.missions()
         expect(primed.missions.map((mission) => mission.order.goal - reachedOf(mission.order))).toEqual([1, 1, 1, 1, 1])
-        expect(grant).not.toHaveBeenCalled()
+        expect(primed.missions.some((mission) => mission.paid)).toBe(false)
 
         await clicking.clickTile(1, "fr")
         const done = await fake.missions()
 
         expect(done.missions.every((mission) => mission.done && mission.paid)).toBe(true)
-        expect(grant.mock.calls.map(([kind]) => kind)).toEqual(["shields", "spreadClicks", "bomb", "encloseClicks", "shields"])
+    })
+
+    it("answers a rate for every kind of mission it draws", async () => {
+        const fake = new FakeMissionsBackend(pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
+        const rates = await fake.missionRates()
+
+        for (const mission of (await fake.missions()).missions) expect(rates[mission.order.kind]).toBeDefined()
     })
 
     it("tells its flag's mission done once, as the server tells the chat", async () => {
-        const fake = new FakeMissionsBackend(vi.fn(), pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
+        const fake = new FakeMissionsBackend(pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
         const clicking = fake.counting(clicker)
         const onDone = vi.fn()
         fake.listenForFlagMissionsDone(onDone)
@@ -51,7 +56,7 @@ describe("FakeMissionsBackend", () => {
     })
 
     it("hands its followers the day at once, then again after each take, paid or not", async () => {
-        const fake = new FakeMissionsBackend(vi.fn(), pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
+        const fake = new FakeMissionsBackend(pledged("fr"), () => Date.UTC(2026, 9, 26, 12, 0))
         const clicking = fake.counting(clicker)
         const onDay = vi.fn()
 

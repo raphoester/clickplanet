@@ -1,9 +1,12 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
+import {MissionKind as MissionKindPb} from "../gen/grpc/missions/v1/kind_pb.ts"
 import {
     Badge as BadgePb,
     CountryTiles as CountryTilesPb,
+    GetLevelResponse as GetLevelResponsePb,
     Level as LevelPb,
+    MissionRate as MissionRatePb,
     Progress as ProgressPb,
     ProgressionEvent as ProgressionEventPb,
     Stats as StatsPb,
@@ -273,5 +276,22 @@ describe("ConnectProgressionBackend titles earned", () => {
         stop()
 
         expect(listenForEvents.mock.calls.length).toBeGreaterThan(1)
+    })
+})
+
+describe("ConnectProgressionBackend mission rates", () => {
+    it("reads what each kind of mission pays with the click token, and skips a kind it does not name", async () => {
+        const getLevel = vi.fn(async () => new GetLevelResponsePb({missionRates: [
+            new MissionRatePb({kind: MissionKindPb.TAKE_FROM, xp: 3, per: 2}),
+            new MissionRatePb({kind: MissionKindPb.BOMB_IN, xp: 150, per: 1}),
+            new MissionRatePb({kind: MissionKindPb.UNSPECIFIED, xp: 9, per: 1}),
+            new MissionRatePb({kind: 99 as MissionKindPb, xp: 9, per: 1}),
+            new MissionRatePb({kind: MissionKindPb.CATCH_BOXES, xp: 50, per: 0}),
+        ]}))
+
+        const rates = await backendWith({getLevel}).missionRates()
+
+        expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(rates).toEqual({takeFrom: {xp: 3, per: 2}, bombIn: {xp: 150, per: 1}})
     })
 })

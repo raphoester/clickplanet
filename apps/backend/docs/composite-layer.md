@@ -234,7 +234,8 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `player.v1.PlayerSignedIn`: a lost one is the missions a guest finished that day never paid, since that sign-in is told once. `tell_sign_in_usecase` records it on every `auth.v1.SignedIn`, in a transaction of its own.
 - `player.v1.PlayerLeaving` and `PlayerReturned`: a lost one leaves progression showing the badges of an account player hides, or hiding one player shows again, and scoring ranking it or not, for good. `decide_departure_usecase` records one for every decision, in the transaction of the departure.
 - `player.v1.PlayerForgotten`: a lost one keeps a deleted player's data for good in every module that hears it: its stats and titles in progression, its name on its takes in planet, its tallies in scoring, and the rest. `forget_account_usecase` records it in the transaction that deletes the profile and the guest code, for every account auth deleted.
-- `planet.v1.GrantCharges`, a command: a lost one is a mission paid that planet never granted. `missions`' `payroll` records it with the payment.
+- `planet.v1.GrantCharges`, a command: missions sent one with each mission paid until missions paid XP (see
+  [Missions pay XP](missions.md#missions-pay-xp)). Its relay still sends one the binary before left; nothing records it now.
 - `quizzes.v1.QuizAnswered`: a lost right answer is a charge never paid, since the bonuses module pays it from the event.
   `answer_quiz_usecase` records it in a transaction of its own, right after the answer is settled.
 - `boxes.v1.BoxClaimed`: a lost one is a box caught never paid, for the same reason. `claim_box_usecase` records it in a
@@ -247,7 +248,7 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
   report open that the chat acted on, and a lost announcement a mute nobody saw. `judge_report_usecase` records both in
   the transaction that removes, mutes and keeps the judgement; the relay sends the command to support's stream and the
   event to the listeners (`redis_outbox_sender`), from one outbox.
-- `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the grant's transaction. The relay sends the grants as commands and it as an event (`redis_outbox_sender`), from one outbox.
+- `missions.v1.MissionsPaid`: it is told with the payment it counts, so it shares the payment's transaction. The relay sends the flag missions' points as commands and it as an event (`redis_outbox_sender`), from one outbox.
 - `missions.v1.MissionsDone`: it is told in the transaction of the fact that finishes the mission, before the payroll; the operator's `RetellMissionsDone` records it again for every account with a mission done, a page of 500 per transaction.
 - **Not the gamemaster's calls** to scoring, planet, the antibot, the boxes, the bonuses module and the quizzes: each is an RPC answered at once, and the gamemaster
   keeps the answer in its own postgres right after the call (see [The gamemaster's calls](#the-gamemasters-calls)).
@@ -285,7 +286,7 @@ The commands today:
 
 | command | sent by | when | handled by |
 |---|---|---|---|
-| `planet.v1.GrantCharges{grant_id, account_id, kind, amount}` | `missions`, through its outbox | a mission finished: its reward | `planet` (`apply_grant_handler`), which grants what fits the account's stack, once per `grant_id` |
+| `planet.v1.GrantCharges{grant_id, account_id, kind, amount}` | nobody since missions pays XP (see [Missions pay XP](missions.md#missions-pay-xp)); `missions` sent it, through its outbox, for a mission's reward | — | `planet` (`apply_grant_handler`), which grants what fits the account's stack, once per `grant_id` |
 | `scoring.v1.GrantPoints{grant_id, country, points, granted_at}` | `missions`, through its outbox | a flag finished its flag mission: its points | `scoring` (`grant_points_handler`), which counts them in every book open at `granted_at`, once per `grant_id` |
 | `planet.v1.RefuseCaller{scope \| account_id, until, decided_at}`, `AdmitCaller{scope \| account_id, decided_at}` | `antibot`, through its outbox, from `bans.Banner` (a flag, a ban, an unban) and `bans.Book.Restate` (each rule set taken, the first at boot) | a ban changed: refuse the caller until a time, or admit it from now | `planet` (`refuse_caller_handler`, `admit_caller_handler`), which keeps the latest decision on each caller by `decided_at` in `planet.refused_callers` and refuses clicks, bombs and shields from it |
 | `support.v1.DecideReport{report_id, outcome, comment}` | `chat`, through its outbox, from `judge_report_usecase` | the judge acted on a report or dismissed it; a report it leaves open sends none | `support` (`decide_report_handler`), which keeps the decision once per report with `decide_report_usecase`, and leaves one decided already |
@@ -313,7 +314,7 @@ after 8 tries), and a buried answer stalled the game. See [The gamemaster as a r
 - **A call cut by its timeout may still run on its receiver**: scoring keeps a round or book it answered missed, under a
   lock per id, so a late open never lands after it; planet runs a swap of the map (`OpenArena`, `CloseArena`,
   `ResetMap`) on a context detached from the request, so it never stops halfway.
-- The rest stays a command over Redis: `planet.v1.GrantCharges` and `scoring.v1.GrantPoints` from missions,
+- The rest stays a command over Redis: `scoring.v1.GrantPoints` from missions,
   `RefuseCaller` and `AdmitCaller` from the antibot, `support.v1.DecideReport` from the chat. Each is decided in a
   transaction and sent through its sender's outbox, and none waits on an answer.
 
