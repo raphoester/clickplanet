@@ -16,7 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inmemory_level_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/outbox_bonuses_unlocks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/outbox_bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/reconcile_levels_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/inmemory_stats_store"
@@ -51,7 +51,7 @@ func setUp() fixture {
 }
 
 func (f fixture) useCase() *reconcile_levels_usecase.UseCase {
-	book := levels.NewBook(cpatomic.FakeTransactioner{}, f.levels, outbox_bonuses_unlocks.New(f.outbox))
+	book := levels.NewBook(cpatomic.FakeTransactioner{}, f.levels, outbox_bonuses.New(f.outbox))
 	return reconcile_levels_usecase.New(f.stats, f.accounts, book, cptime.NewFixedClock(now))
 }
 
@@ -63,7 +63,7 @@ func (f fixture) player(t *testing.T, i int, tiles uint64, known accounts.Accoun
 	}))
 	f.accounts.Create(account(i), known)
 	if kept > 0 {
-		require.NoError(t, f.levels.Set(t.Context(), levels.ByAccount{account(i): kept}, now))
+		require.NoError(t, f.levels.RaiseAll(t.Context(), levels.ByAccount{account(i): kept}, now))
 	}
 }
 
@@ -97,14 +97,15 @@ func (f fixture) mixed(t *testing.T) {
 	f.player(t, 5, level3Tiles, guest, 4)
 }
 
-func TestEachAccountGetsTheExactLevelAndAGuestLosesIts(t *testing.T) {
+func TestEachAccountIsRaisedNeverLoweredAndAGuestLosesIts(t *testing.T) {
 	f := setUp()
 	f.mixed(t)
 
 	reconciled := f.reconcile(t, false)
 
-	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2, Lowered: 1, Removed: 1}, reconciled)
-	assert.Equal(t, levels.ByAccount{account(1): 3, account(2): 3, account(3): 3, account(4): 3}, f.kept(t, 1, 2, 3, 4, 5))
+	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2, Removed: 1}, reconciled)
+	assert.Equal(t, levels.ByAccount{account(1): 3, account(2): 3, account(3): 7, account(4): 3}, f.kept(t, 1, 2, 3, 4, 5),
+		"a level the players saw stays, though the stats reach 3")
 	assert.Equal(t, reconcile_levels_usecase.Reconciled{}, f.reconcile(t, false), "a second run changes nothing")
 }
 
@@ -114,7 +115,7 @@ func TestADryRunCountsTheSameAndWritesNothing(t *testing.T) {
 
 	reconciled := f.reconcile(t, true)
 
-	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2, Lowered: 1, Removed: 1}, reconciled)
+	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2, Removed: 1}, reconciled)
 	assert.Equal(t, levels.ByAccount{account(2): 2, account(3): 7, account(4): 3, account(5): 4}, f.kept(t, 1, 2, 3, 4, 5))
 	assert.Empty(t, f.outbox.Recorded(), "a dry run tells the bonuses nothing")
 }
@@ -129,7 +130,7 @@ func TestEveryAccountOfAPageIsToldToTheBonusesWithWhatItsLevelUnlocks(t *testing
 	told := map[string]*bonusesv1.KeepUnlocks{}
 	for _, recorded := range f.outbox.Recorded() {
 		command, ok := recorded.(*bonusesv1.KeepUnlocks)
-		require.True(t, ok)
+		require.True(t, ok, "a reconciliation pays no level-up: %T", recorded)
 		told[command.GetAccountId()] = command
 	}
 	require.Len(t, told, 6, "each linked account, changed or not, and the guest whose level went")
@@ -139,6 +140,7 @@ func TestEveryAccountOfAPageIsToldToTheBonusesWithWhatItsLevelUnlocks(t *testing
 		DecidedAt: timestamppb.New(now),
 	}, told[account(6).String()]), "level 5: %v", told[account(6).String()])
 	assert.Empty(t, told[account(4).String()].GetKinds(), "level 3 unlocks nothing")
+	assert.Len(t, told[account(3).String()].GetKinds(), 2, "level 7, kept: the stats reach 3 only")
 	assert.Empty(t, told[account(5).String()].GetKinds(), "a guest has nothing unlocked")
 }
 

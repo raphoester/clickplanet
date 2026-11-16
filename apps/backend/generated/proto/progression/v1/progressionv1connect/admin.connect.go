@@ -57,10 +57,10 @@ type AdminServiceClient interface {
 	// already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
 	// their ledger rows.
 	BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error)
-	// Gives every linked account the exact level its XP reaches, after a deploy that changes what gives XP or the curve:
-	// it raises, lowers one the new rules no longer reach, and removes a guest's. It tells no player, and tells the bonuses
-	// module what every account read unlocks (bonuses.v1.KeepUnlocks), so one run after the deploy that added the unlocks
-	// is their backfill. A second run changes no level. Run it with dry_run first.
+	// Raises every linked account to the level its XP reaches, after a deploy that changes what gives XP or the curve, and
+	// removes a guest's level. It never lowers one: a level the players saw stays. It tells no player and pays no
+	// level-up bonus; it tells the bonuses module what every account read unlocks (bonuses.v1.KeepUnlocks). A second run
+	// changes nothing. Run it with dry_run first.
 	ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
@@ -144,10 +144,10 @@ type AdminServiceHandler interface {
 	// already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
 	// their ledger rows.
 	BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error)
-	// Gives every linked account the exact level its XP reaches, after a deploy that changes what gives XP or the curve:
-	// it raises, lowers one the new rules no longer reach, and removes a guest's. It tells no player, and tells the bonuses
-	// module what every account read unlocks (bonuses.v1.KeepUnlocks), so one run after the deploy that added the unlocks
-	// is their backfill. A second run changes no level. Run it with dry_run first.
+	// Raises every linked account to the level its XP reaches, after a deploy that changes what gives XP or the curve, and
+	// removes a guest's level. It never lowers one: a level the players saw stays. It tells no player and pays no
+	// level-up bonus; it tells the bonuses module what every account read unlocks (bonuses.v1.KeepUnlocks). A second run
+	// changes nothing. Run it with dry_run first.
 	ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.

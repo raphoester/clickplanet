@@ -16,7 +16,7 @@ levels/                            XP, Level, Record, Source, MissionKind (stats
   postgres_level_store/            the Store over progression.levels, under the rows' locks
   inmemory_level_store/            the same port in a map, behind the testing tag
   inprocess_level_feed/            each raise, to the account's open streams, in this process
-  outbox_bonuses_unlocks/          what a level unlocks, as bonuses.v1.KeepUnlocks in progression's outbox
+  outbox_bonuses/                  what a level unlocks and a level-up, as bonuses.v1 commands in progression's outbox
   usecases/raise_level_usecase/    on progression.v1.StatsChanged: the level raised, told to the feed
   usecases/forget_level_usecase/
   usecases/reconcile_levels_usecase/  progression.v1.AdminService/ReconcileLevels
@@ -33,9 +33,9 @@ together, as the reveal:
 - missions paying XP instead of charges;
 - the bonuses' gates on (`gates.on` in `default` and each set that is not a battle's): data the operator sets, while
   every set keeps them off before;
-- the level-up bonus: a command progression sends the bonuses with a live raise (`bonuses.v1.PayLevelUp`), added then, so
-  no level gained before the reveal pays one;
-- the reconciliation made raise-only, so a level the players saw never goes down.
+- the level-up bonus ([The level-up bonus](#the-level-up-bonus)) and the reconciliation made raise-only, so a level the
+  players saw never goes down: one pull request, held as a draft until then, so no level gained before the reveal pays
+  one.
 
 ## What gives XP
 
@@ -133,7 +133,8 @@ port (`StoreContractSuite`, run on postgres and in memory):
   level, all in one transaction. Raises at once never lower and each one tells the level the one before left
   (`TestRaisesAtOnceKeepTheHighestAndEachJumpStartsWhereTheOneBeforeEnded`).
 - **`RaiseAll(levels, at)`** is a page's raise in one upsert, `WHERE kept.level < excluded.level`: it never lowers a
-  level a live raise wrote. **`Set(levels, at)`** writes each level as it is. **`Forget(accounts...)`** deletes.
+  level a live raise wrote. **`Forget(accounts...)`** deletes. Nothing writes a level lower: a level the players saw
+  stays.
 - `reached_at` is the time of the last write that changed the level.
 
 ## Raised live
@@ -147,7 +148,8 @@ the titles' `player-titles`):
 3. Ask player whether the account is linked (`rpc_player_accounts`, as the titles do). A guest stops here.
 4. `Raise`, through the book: in one transaction, the store writes only above the level kept, so a raise another write
    beat writes nothing, and a raise that writes records `bonuses.v1.KeepUnlocks` with every kind its level unlocks
-   ([The unlocks](#the-unlocks)).
+   ([The unlocks](#the-unlocks)) and, from level 2 on, `bonuses.v1.PayLevelUp` ([The level-up
+   bonus](#the-level-up-bonus)).
 5. Hand the raise to `inprocess_level_feed`: the level raised to, on its bar (`Scale.StandingAt`).
 
 - **One write per jump**: from 1 to 9 is one raise, and one `level_reached`. The use case answers the level it raised
@@ -160,21 +162,36 @@ the titles' `player-titles`):
 
 ## The reconciliation
 
-**`progression.v1.AdminService/ReconcileLevels(dry_run)` → `{raised, lowered, removed}`**, by hand, after a deploy that
+**`progression.v1.AdminService/ReconcileLevels(dry_run)` → `{raised, removed}`**, by hand, after a deploy that
 changes the scale or the curve, and once after the one that added the level. Connector tool
 `progression_reconcile_levels`. `reconcile_levels_usecase`, built as `ReconcileTitles`:
 
 - It pages `progression.stats` 500 at a time, asks player the page's accounts (`GetAccounts`, one call) and reads their
-  levels (one query); `Scale.ReconciliationOf` says what to raise, lower and remove.
-- **Every linked account gets the exact level its stats reach**: raised, or lowered where a stricter scale no longer
-  reaches it (`Set`), and a guest's row is removed. It becomes raise-only with the reveal.
-- **Raises go through `RaiseAll`**, so a page never lowers a level a live raise wrote after the page was read. A lowering
-  can still undo one: the account's next fact raises it again.
+  levels (one query); `Scale.ReconciliationOf` says what to raise and remove.
+- **Every linked account is raised to the level its stats reach, and never lowered**: a level the players saw stays,
+  though a stricter scale no longer reaches it. A guest's row is removed. `lowered` is `reserved` in the response.
+- **Raises go through `RaiseAll`**, so a page never lowers a level a live raise wrote after the page was read.
+- **It pays no level-up bonus**: a reconciliation is no play.
 - **It tells no stream.** It records a `bonuses.v1.KeepUnlocks` for every account of a page, in the page's transaction
-  (`Book.Reconcile`): a linked one with what the level its stats reach unlocks, a guest whose row it removed with none.
+  (`Book.Reconcile`): a linked one with what the level it holds after unlocks, a guest whose row it removed with none.
   Its time is the run's start, so a live raise after it wins at the bonuses. One run is the backfill of the bonuses'
   unlocks. `dry_run` counts the same and writes and records nothing; a second run changes no level.
   `audit_reconcile_levels` logs every run at Warn.
+
+## The level-up bonus
+
+**Each raise that writes pays one bonus**, as a box caught: `Book.Raise` records `bonuses.v1.PayLevelUp{grant_id,
+account_id, level, unlocked}` in the raise's transaction, through `outbox_bonuses`, and the bonuses module draws one kind
+among the ones the account may be drawn and pays it in a box's amounts ([The bonuses](bonuses.md#a-level-reached)).
+
+- **One per raise, however many levels it jumps**: from 1 to 9 is one bonus.
+- **Reaching level 1 is no level-up**: a linked account starts there. A first raise to 2 or more pays, a guest's history
+  counted once it links too.
+- **A reconciliation pays none**, and a raise another write beat pays none: a fact told twice raises once.
+- **The grant is named by the account and the level** (a SHA-1 uuid in `outbox_bonuses`), so a command told twice, or a
+  level reached again after a forget, pays once: planet keeps the grant for good.
+- **The kinds the level unlocks travel with it** (`unlocked`): `KeepUnlocks` comes on a stream of its own, in no order
+  with this one, so the draw does not wait on it.
 
 ## The unlocks
 
@@ -195,7 +212,7 @@ while its set's gates are on ([The bonuses](bonuses.md#the-gates)).
 - **The bonuses are told as a command in their words**, `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}`, not an
   event: the gamemaster plays the bonuses' rule sets and progression hears the gamemaster, so the bonuses may not hear
   progression. `levels.Book` holds the transactioner, the store and the `Bonuses` port: each raise that writes and each
-  reconciliation page record it in the transaction that writes the levels, through `outbox_bonuses_unlocks` and
+  reconciliation page record it in the transaction that writes the levels, through `outbox_bonuses` and
   progression's outbox (`progression.outbox`, its `outbox_event` enum, the relay `progression-outbox` on the commands'
   streams). A level kept is never told late or lost; a raise whose command fails is not kept
   (`TestARaiseWhoseCommandFailsIsNotKept`, on postgres).
@@ -241,7 +258,8 @@ level, writes every linked account with stats. Only a linked account that never 
 
 **The XP can sit past the bar.** Between a fact counted and the raise that follows it (milliseconds, or the retries of
 a failed raise), `xp` is above `next_level_xp`: the bar shows full, then `level_reached` comes. After a deploy that
-makes the scale stricter and before `ReconcileLevels`, `xp` can be below `level_xp`: the bar shows empty. The server
+makes the scale stricter, `xp` can be below `level_xp` until the account's play catches up, since no level goes down:
+the bar shows empty. The server
 sends the numbers as they are, and the page clamps the bar.
 
 ## The operator's read

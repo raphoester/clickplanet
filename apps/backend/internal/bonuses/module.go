@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/grant_sign_in_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/pay_caught_box_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/pay_caught_box_usecase/prom_pay_caught_box"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/pay_level_up_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses/usecases/pay_right_answer_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/get_grant_rules_handler"
@@ -28,6 +29,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/play_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonusesv1controller/save_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/commands/keep_unlocks_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/commands/pay_level_up_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/subscribers/box_claimed_subscriber"
@@ -96,15 +98,16 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	}
 	winRules := cprules.Reader(inForce, bonuses.Part)
 
-	// A box's or a right answer's payment is named by its token, which planet knows in memory; the refill's, for good.
+	// A box's or a right answer's payment is named by its token, which planet knows in memory; the refill's and a
+	// level-up's, for good.
 	winsWallet := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForAWhile)
-	signInWallet := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForGood)
+	lastingWallet := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForGood)
 	unlockStore := postgres_unlock_store.New(db)
 
 	// Planet's group name, kept: the group goes on where planet's subscriber left the stream.
 	newPlayers, err := cpredis.Subscribe(ctx, streams, "planet-charges-players",
 		log_subscriber.New(player_created_subscriber.New(
-			grant_sign_in_refill_usecase.New(signInWallet, winRules)), props.Logger))
+			grant_sign_in_refill_usecase.New(lastingWallet, winRules)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the sign-in refill to player.v1.PlayerCreated: %w", err)
@@ -133,6 +136,12 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to handle bonuses.v1.KeepUnlocks: %w", err)
 	}
+	levelUps, err := cpredis.Handle(ctx, streams,
+		log_subscriber.New(pay_level_up_handler.New(pay_level_up_usecase.New(lastingWallet, lastingWallet, winRules)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to handle bonuses.v1.PayLevelUp: %w", err)
+	}
 	forgotten, err := cpredis.Subscribe(ctx, streams, "bonuses-unlocks-forgotten",
 		log_subscriber.New(player_forgotten_subscriber.New(forget_unlocks_usecase.New(unlockStore)), props.Logger))
 	if err != nil {
@@ -142,7 +151,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not closers: the subscribers outlive the server.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, cpredis.CloseAfter(streams, props.Logger,
-		newPlayers, rightAnswers, boxesCaught, keptUnlocks, forgotten)))
+		newPlayers, rightAnswers, boxesCaught, keptUnlocks, levelUps, forgotten)))
 
 	service := bonusesv1controller.BonusService{
 		GetGrantRulesHandler: get_grant_rules_handler.New(winRules),
