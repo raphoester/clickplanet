@@ -11,6 +11,7 @@ type BonusStore = {
     switches: Switches
     bombArmed: boolean
     virusAimed: boolean
+    mineAimed: boolean
     win: (reward: BonusReward) => void
     winNothing: () => void
     notify: (notice: BonusNotice) => void
@@ -21,6 +22,7 @@ type BonusStore = {
     setSwitches: (switches: Switches) => void
     setBombArmed: (armed: boolean) => void
     setVirusAimed: (aimed: boolean) => void
+    setMineAimed: (aimed: boolean) => void
 }
 
 export const useBonus = create<BonusStore>()((set) => ({
@@ -28,6 +30,7 @@ export const useBonus = create<BonusStore>()((set) => ({
     switches: ALL_OFF,
     bombArmed: false,
     virusAimed: false,
+    mineAimed: false,
     emptyBox: false,
     win: (award) => set({award, emptyBox: false}),
     winNothing: () => set({award: undefined, emptyBox: true}),
@@ -39,4 +42,5 @@ export const useBonus = create<BonusStore>()((set) => ({
     setSwitches: (switches) => set({switches}),
     setBombArmed: (bombArmed) => set({bombArmed}),
     setVirusAimed: (virusAimed) => set({virusAimed}),
+    setMineAimed: (mineAimed) => set({mineAimed}),
 }))

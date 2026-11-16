@@ -22,6 +22,10 @@ export type BonusReward =
     | {
     kind: "virus"
 }
+    | {
+    kind: "mine"
+    mines: number
+}
 
 export type Charges = {
     refill: boolean
@@ -30,13 +34,16 @@ export type Charges = {
     spreadClicksLeft: number
     shields: number
     virus: boolean
+    mines: number
 }
 
-export const NO_CHARGES: Charges = {refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0, shields: 0, virus: false}
+export const NO_CHARGES: Charges = {
+    refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0, shields: 0, virus: false, mines: 0,
+}
 
 export type ChargeKind = BonusReward["kind"]
 
-export const CHARGE_KINDS: readonly ChargeKind[] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields", "virus"]
+export const CHARGE_KINDS: readonly ChargeKind[] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields", "virus", "mine"]
 
 // A guest's level, and an account's before it has one: it holds only the open kinds.
 export const NO_LEVEL = 0
@@ -124,7 +131,8 @@ export function sameSwitches(a: Switches, b: Switches): boolean {
     return a.spread === b.spread && a.enclose === b.enclose && a.shield === b.shield
 }
 
-export type BonusNotice = "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy"
+export type BonusNotice =
+    "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy" | "mineNotYours"
 
 export type BonusNoticeEvent = {
     notice: BonusNotice
@@ -137,6 +145,8 @@ export function slotOf(notice: BonusNotice): ChargeKind {
             return "encloseClicks"
         case "virusNoEnemy":
             return "virus"
+        case "mineNotYours":
+            return "mine"
         case "shieldFull":
         case "shieldCapital":
         case "shieldTaken":
@@ -169,4 +179,7 @@ export type BonusRules = {
     // Bonuses' gates: while on, a kind not open is locked under the level progression's ladder opens it at.
     gatesOn: boolean
     openKinds: readonly ChargeKind[]
+    // How many mines a hand holds, and the rings of tiles around its own a mine's blast takes.
+    mines: number
+    mineRings: number
 }

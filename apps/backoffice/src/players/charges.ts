@@ -15,6 +15,7 @@ export function grantWords(charges: Grant): string {
         plural(charges.spreadClicks, "spread click"),
         plural(charges.shields, "shield"),
         charges.virus && "a virus",
+        plural(charges.mines, "mine"),
     ])
 }
 
@@ -26,6 +27,7 @@ export function heldWords(held: ChargesHeld): string {
         plural(held.spreadClicksLeft, "spread click"),
         plural(held.shields, "shield"),
         held.virus && "a virus",
+        plural(held.mines, "mine"),
     ])
 }
 

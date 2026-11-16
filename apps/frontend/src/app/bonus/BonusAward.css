@@ -45,6 +45,12 @@
     --bonus-box: var(--virus);
 }
 
+.bonus-award--mine,
+.inventory-slot--mine {
+    --bonus-accent: var(--mine-light);
+    --bonus-box: var(--mine);
+}
+
 .bonus-award-card {
     display: flex;
     flex-direction: column;

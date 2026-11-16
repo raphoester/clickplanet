@@ -77,7 +77,8 @@
 }
 
 .viewer-canvas--armed,
-.viewer-canvas--infecting {
+.viewer-canvas--infecting,
+.viewer-canvas--mining {
     cursor: crosshair;
     -webkit-touch-callout: none;
     -webkit-user-select: none;

@@ -86,6 +86,8 @@ export function awardOf(reward: MissionReward, rules: Pick<BonusRules, "blastRad
             return {kind: "shields", shields: reward.amount}
         case "virus":
             return {kind: "virus"}
+        case "mine":
+            return {kind: "mine", mines: reward.amount}
     }
 }
 

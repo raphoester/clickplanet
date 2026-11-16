@@ -20,6 +20,7 @@ const REWARD_LABELS: Record<ChargeKind, Key> = {
     encloseClicks: "mission.reward.encloseClicks",
     shields: "mission.reward.shields",
     virus: "mission.reward.virus",
+    mine: "mission.reward.mine",
 }
 
 export type MissionsPlaceProps = {
