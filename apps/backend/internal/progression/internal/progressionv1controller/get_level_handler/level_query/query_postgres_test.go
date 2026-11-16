@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
@@ -95,4 +96,12 @@ func (s *testSuite) TestEveryAnswerTellsWhatEachKindOfMissionPays() {
 
 	s.Len(rates, len(missionsv1.MissionKind_name)-1)
 	s.True(proto.Equal(&progressionv1.MissionRate{Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FROM, Xp: 3, Per: 2}, rates[1]))
+}
+
+func (s *testSuite) TestEveryAnswerTellsTheLevelEachKindUnlocksAt() {
+	unlocks := s.level(ada).GetUnlocks()
+
+	s.Require().Len(unlocks, 2)
+	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, Level: 4}, unlocks[0]))
+	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_BOMB, Level: 5}, unlocks[1]))
 }

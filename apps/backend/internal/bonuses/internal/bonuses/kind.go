@@ -31,10 +31,11 @@ type Reward struct {
 	Amount int
 }
 
-// drawReward draws a kind among those a hand has room for, by their weights, and its amount; a welcome draws its one
-// kind or nothing. It is false when there is nothing the win could be worth.
-func drawReward(rules Rules, full []Kind, welcome Kind) (Reward, bool) {
-	kinds := rules.roomFor(full)
+// drawReward draws a kind among those the account may be drawn and its hand has room for, by their weights, and its
+// amount; a welcome draws its one kind or nothing. It is false when there is nothing the win could be worth: a full
+// hand, or kinds it may be drawn that all weigh 0.
+func drawReward(rules Rules, full []Kind, unlocked Unlocked, welcome Kind) (Reward, bool) {
+	kinds := rules.drawable(full, unlocked)
 	if welcome != "" {
 		kinds = drawable(welcome, kinds)
 	}
@@ -46,12 +47,12 @@ func drawReward(rules Rules, full []Kind, welcome Kind) (Reward, bool) {
 	return Reward{Kind: kind, Amount: amountOf(kind, rules)}, true
 }
 
-// roomFor is every kind weighed above 0 but those a hand has no room for.
-func (r Rules) roomFor(full []Kind) *cpcolls.Set[Kind] {
+// drawable is every kind weighed above 0 that the account may be drawn, but those a hand has no room for.
+func (r Rules) drawable(full []Kind, unlocked Unlocked) *cpcolls.Set[Kind] {
 	kept := cpcolls.NewSet(full...)
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 	for _, kind := range Kinds {
-		if r.Offered(kind) && !kept.Contains(kind) {
+		if r.Offered(kind) && r.MayDraw(kind, unlocked) && !kept.Contains(kind) {
 			kinds.Add(kind)
 		}
 	}

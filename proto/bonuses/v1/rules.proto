@@ -23,10 +23,31 @@ message Rules {
   ShieldRules shield = 8;
   // A guest's first sign-in earns a refill, once per account.
   optional bool sign_in_refill = 11;
+  GateRules gates = 13;
+}
+
+// Whether a box or a right answer is drawn only from the kinds open to everyone and the ones progression unlocked for the
+// account (bonuses.v1.KeepUnlocks), or from every kind. A guest has none unlocked. Off in every set until the levels are
+// shown; a battle's set keeps them off. They decide only what is drawn: a charge held stays usable.
+message GateRules {
+  optional bool on = 1;
+  // The kinds anyone may be drawn while the gates are on, a guest too. While they are on, one of them must weigh above
+  // 0, or a guest's box could be nothing.
+  OpenKinds open = 2;
+}
+
+message OpenKinds {
+  optional bool refill = 1;
+  optional bool spread_clicks = 2;
+  optional bool enclose_clicks = 3;
+  optional bool bomb = 4;
+  optional bool shields = 5;
+  optional bool virus = 6;
 }
 
 // What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
-// planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off.
+// planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off, nor a kind the
+// account may not be drawn while the gates are on (gates).
 message KindWeights {
   optional double refill = 1;
   optional double spread_clicks = 2;

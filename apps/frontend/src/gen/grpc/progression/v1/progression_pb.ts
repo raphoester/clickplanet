@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { Title } from "./title_pb.js";
+import { BonusKind } from "../../planet/v1/planet_pb.js";
 import { MissionKind } from "../../missions/v1/kind_pb.js";
 
 /**
@@ -813,6 +814,14 @@ export class GetLevelResponse extends Message<GetLevelResponse> {
    */
   missionRates: MissionRate[] = [];
 
+  /**
+   * Each kind a level unlocks, at its level, for the page to draw a locked kind. A kind not here unlocks at no level:
+   * whether anyone may draw it is the bonuses' open_kinds (bonuses.v1.GetGrantRulesResponse).
+   *
+   * @generated from field: repeated progression.v1.Unlock unlocks = 3;
+   */
+  unlocks: Unlock[] = [];
+
   constructor(data?: PartialMessage<GetLevelResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -823,6 +832,7 @@ export class GetLevelResponse extends Message<GetLevelResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "level", kind: "message", T: Level },
     { no: 2, name: "mission_rates", kind: "message", T: MissionRate, repeated: true },
+    { no: 3, name: "unlocks", kind: "message", T: Unlock, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLevelResponse {
@@ -839,6 +849,51 @@ export class GetLevelResponse extends Message<GetLevelResponse> {
 
   static equals(a: GetLevelResponse | PlainMessage<GetLevelResponse> | undefined, b: GetLevelResponse | PlainMessage<GetLevelResponse> | undefined): boolean {
     return proto3.util.equals(GetLevelResponse, a, b);
+  }
+}
+
+/**
+ * From this level on, a box or a right answer may be drawn as this kind while the bonuses' gates are on.
+ *
+ * @generated from message progression.v1.Unlock
+ */
+export class Unlock extends Message<Unlock> {
+  /**
+   * @generated from field: planet.v1.BonusKind kind = 1;
+   */
+  kind = BonusKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 level = 2;
+   */
+  level = 0;
+
+  constructor(data?: PartialMessage<Unlock>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.Unlock";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
+    { no: 2, name: "level", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Unlock {
+    return new Unlock().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Unlock {
+    return new Unlock().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Unlock {
+    return new Unlock().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Unlock | PlainMessage<Unlock> | undefined, b: Unlock | PlainMessage<Unlock> | undefined): boolean {
+    return proto3.util.equals(Unlock, a, b);
   }
 }
 

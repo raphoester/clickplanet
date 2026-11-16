@@ -3,6 +3,7 @@ syntax = "proto3";
 package progression.v1;
 
 import "missions/v1/kind.proto";
+import "planet/v1/planet.proto";
 import "progression/v1/title.proto";
 
 service ProgressionService {
@@ -129,6 +130,15 @@ message GetLevelResponse {
   // Unset when none is kept: a guest, or an account no fact has raised yet.
   Level level = 1;
   repeated MissionRate mission_rates = 2;
+  // Each kind a level unlocks, at its level, for the page to draw a locked kind. A kind not here unlocks at no level:
+  // whether anyone may draw it is the bonuses' open_kinds (bonuses.v1.GetGrantRulesResponse).
+  repeated Unlock unlocks = 3;
+}
+
+// From this level on, a box or a right answer may be drawn as this kind while the bonuses' gates are on.
+message Unlock {
+  planet.v1.BonusKind kind = 1;
+  uint32 level = 2;
 }
 
 // A mission of this kind pays goal × xp / per XP, floored.

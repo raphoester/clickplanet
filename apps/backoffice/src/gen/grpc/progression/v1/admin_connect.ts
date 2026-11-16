@@ -42,8 +42,9 @@ export const AdminService = {
     },
     /**
      * Gives every linked account the exact level its XP reaches, after a deploy that changes what gives XP or the curve:
-     * it raises, lowers one the new rules no longer reach, and removes a guest's. It tells nobody. A second run changes
-     * nothing. Run it with dry_run first.
+     * it raises, lowers one the new rules no longer reach, and removes a guest's. It tells no player, and tells the bonuses
+     * module what every account read unlocks (bonuses.v1.KeepUnlocks), so one run after the deploy that added the unlocks
+     * is their backfill. A second run changes no level. Run it with dry_run first.
      *
      * @generated from rpc progression.v1.AdminService.ReconcileLevels
      */
