@@ -2,6 +2,7 @@ package clicks
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
@@ -57,8 +58,8 @@ func (c Contagion) Start(ctx context.Context, virus Virus, most int, next time.T
 			return err
 		}
 		virus = virus.Infected(impact).Ticked(true, most, next)
-		impacts, err = knockedOutAll(ctx, tiles, virus.flag, []Impact{impact})
 		tiles.Keep(virus)
+		impacts, err = knockedOutAll(ctx, tiles, virus.flag, []Impact{impact})
 
 		return err
 	})
@@ -81,34 +82,45 @@ func (c Contagion) Spread(ctx context.Context, id VirusID, most int, next time.T
 		}
 		ctx := cpctx.AddAccountToContext(ctx, virus.account.String())
 
+		// A failure stops the tick, and what it wrote before is kept and told all the same.
+		var failed error
 		for _, from := range virus.infecting() {
 			if virus.spent(most) {
 				break
 			}
-			target, ok, err := c.target(tiles, from, virus.victim)
+			impact, infected, err := c.infect(ctx, tiles, from, virus, shields)
 			if err != nil {
-				return err
+				failed = err
+				break
 			}
-			if !ok {
-				continue
+			if infected {
+				virus = virus.Infected(impact)
+				impacts = append(impacts, impact)
 			}
-			impact, err := claim(ctx, tiles, target, virus.flag, Claimable.Set, shields)
-			if err != nil {
-				return err
-			}
-			virus = virus.Infected(impact)
-			impacts = append(impacts, impact)
 		}
 
 		virus = virus.Ticked(len(impacts) > 0, most, next)
+		tiles.Keep(virus)
 		var err error
 		impacts, err = knockedOutAll(ctx, tiles, virus.flag, impacts)
-		tiles.Keep(virus)
 
-		return err
+		return errors.Join(failed, err)
 	})
 
 	return virus, impacts, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
+}
+
+// infect claims a tile of the flag the virus hit next to the tile; false when it has none.
+func (c Contagion) infect(ctx context.Context, tiles Claimable, from uint32, virus Virus, shields int) (Impact, bool, error) {
+	target, ok, err := c.target(tiles, from, virus.victim)
+	if err != nil || !ok {
+		return Impact{}, false, err
+	}
+	impact, err := claim(ctx, tiles, target, virus.flag, Claimable.Set, shields)
+	if err != nil {
+		return Impact{}, false, err
+	}
+	return impact, true, nil
 }
 
 // target is a tile of the victim next to the tile, picked at random; false for none.

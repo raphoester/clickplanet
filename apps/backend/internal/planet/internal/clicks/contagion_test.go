@@ -216,3 +216,33 @@ func tileHeld(tiles *inmemory_tile_storage.Storage, id uint32) (clicks.TileSnaps
 	})
 	return held, err //nolint:wrapcheck // the test reads the storage's own error.
 }
+
+// A line whose tile 4 also touches a tile off the map: a read of it fails.
+type brokenLine struct{ line }
+
+func (b brokenLine) Neighbours(id uint32) []uint32 {
+	if id == 4 {
+		return []uint32{3, 1000}
+	}
+	return b.line.Neighbours(id)
+}
+
+func TestATickCutByAFailureKeepsAndTellsWhatItTook(t *testing.T) {
+	tiles := claimable(t, map[uint32]string{3: "de", 4: "de", 5: "de", 6: "de"})
+	broken := clicks.NewContagion(tiles, brokenLine{}, first, tenAShield)
+	_, _, err := broken.Start(t.Context(), aimedAt(5), 32, noon)
+	require.NoError(t, err)
+	_, _, err = broken.Spread(t.Context(), "v-1", 32, noon)
+	require.NoError(t, err, "tile 5 spreads to 4")
+	changes := infections(t, tiles)
+
+	virus, impacts, err := broken.Spread(t.Context(), "v-1", 32, noon)
+
+	require.ErrorIs(t, err, clicks.ErrTileOutOfRange)
+	assert.Len(t, impacts, 1, "tile 5 took tile 6 before tile 4 failed")
+	assert.Equal(t, []uint32{5, 4, 6}, virus.TakeSnapshot().Infected)
+	assert.Equal(t, []uint32{5, 4, 6}, tiles.Viruses()[0].TakeSnapshot().Infected, "the map keeps it")
+	infection := next(t, changes).Infection
+	require.NotNil(t, infection, "and every page hears it")
+	assert.Equal(t, []uint32{6}, infection.Taken)
+}
