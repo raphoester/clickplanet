@@ -76,7 +76,7 @@ was caught.
 - **What the box holds is drawn at the catch** (`bonuses.CaughtBox.Reward`), as it was drawn at the offer before: a kind
   from `kinds`, among those planet's room says the account's hand has room for (`GetRoom`, one account) and, while the
   gates are on, those the account may be drawn ([The gates](#the-gates)), and its amount from `spread`, `enclose` and
-  `shield`. **A newcomer's early box pays a spread or nothing** (`BoxClaimed.welcome`):
+  `shield`. **A newcomer's early box pays a spread or nothing** (`BoxClaimed.welcome`), whatever the gates:
   never a refill or a bomb, as before.
 - **A box may pay nothing**, which it could not before: the boxes know no kind and ask no room, so a box comes to a full
   hand, or to one with room only for kinds weighed 0, as a quiz is asked of one. Counted in
@@ -90,7 +90,7 @@ was caught.
 
 **The bonuses module pays the right answers the quizzes tell** (`quizzes.v1.QuizAnswered`, group `bonuses-right-answers`,
 `pay_right_answer_usecase`), the same way: a kind drawn from `kinds` among those the hand has room for and the gates
-let (`bonuses.Answer.Reward`), **shields or nothing for a newcomer's first quiz**, under the quiz's token. A wrong answer pays
+let (`bonuses.Answer.Reward`), **shields or nothing for a newcomer's first quiz**, whatever the gates, under the quiz's token. A wrong answer pays
 nothing.
 
 ## A level reached
@@ -122,8 +122,10 @@ type per rung ([Levels](levels.md#the-unlocks)). The bonuses module knows no lev
 - **Gates decide only what is drawn.** A charge held stays usable whatever the gates: planet checks no level.
 - **A win whose kinds it may be drawn all weigh 0 pays nothing**, as a full hand does; a box's metric counts it
   `nothing`. **A set with the gates on whose open kinds all weigh 0 is refused**: a guest's box could never be anything.
-- **A newcomer's welcome is its one kind or nothing**: a box's spread, a quiz's shields, each only if the account may be
-  drawn it.
+- **A newcomer's welcome is its one kind whatever the gates** (`welcomeReward`): a box's spread, a quiz's shields, so a
+  guest gets one of each though both are rungs of the ladder. Nothing only when the set weighs the kind 0 or the hand
+  has no room for it. Until 2026-11-16 the welcome passed the gates like any draw; the owner chose this when spread and
+  shields left the open kinds, since a newcomer is a guest and its welcomes would have paid nothing.
 
 **The kinds unlocked are kept per account** (`unlocks.Unlocks`, `bonuses.unlocks(account_id, kinds unlocked_kind[],
 decided_at)`): what progression decided last. `bonuses.v1.KeepUnlocks` names the whole list at a time, never one change;

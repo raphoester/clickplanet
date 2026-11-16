@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -113,13 +114,31 @@ func TestAWinWhoseKindsAllWeighZeroIsWorthNothing(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestAWelcomeOfAKindNotOpenIsWorthNothing(t *testing.T) {
+func TestAGuestsWelcomeIsItsKindThoughTheGatesCloseIt(t *testing.T) {
 	rules := TestGated()
 	rules.Gates.Open[KindSpreadClicks] = false
+	rules.Gates.Open[KindShields] = false
 
-	_, ok := CaughtBox{Welcome: true}.Reward(rules, nil, nil)
+	box, ok := CaughtBox{Welcome: true}.Reward(rules, nil, nil)
+	require.True(t, ok)
+	assert.Equal(t, KindSpreadClicks, box.Kind)
 
-	assert.False(t, ok)
+	answer, ok := Answer{Welcome: true}.Reward(rules, nil, nil)
+	require.True(t, ok)
+	assert.Equal(t, KindShields, answer.Kind)
+
+	_, ok = CaughtBox{}.Reward(rules, []Kind{KindRefill}, nil)
+	assert.False(t, ok, "past the welcome, a guest holding a refill is drawn nothing")
+}
+
+func TestAWelcomeOfAKindWeighed0OrWithNoRoomIsWorthNothing(t *testing.T) {
+	rules := TestGated()
+	rules.Kinds[KindShields] = 0
+
+	_, ok := Answer{Welcome: true}.Reward(rules, nil, nil)
+	assert.False(t, ok, "weighed 0")
+	_, ok = CaughtBox{Welcome: true}.Reward(rules, []Kind{KindSpreadClicks}, nil)
+	assert.False(t, ok, "no room")
 }
 
 func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.T) {

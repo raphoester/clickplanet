@@ -3,6 +3,7 @@ package bonuses
 import (
 	"crypto/rand"
 	"math/big"
+	"slices"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -36,13 +37,10 @@ type Reward struct {
 }
 
 // drawReward draws a kind among those the account may be drawn and its hand has room for, by their weights, and its
-// amount; a welcome draws its one kind or nothing. It is false when there is nothing the win could be worth: a full
-// hand, or kinds it may be drawn that all weigh 0.
-func drawReward(rules Rules, full []Kind, unlocked Unlocked, welcome Kind) (Reward, bool) {
+// amount. It is false when there is nothing the win could be worth: a full hand, or kinds it may be drawn that all weigh
+// 0.
+func drawReward(rules Rules, full []Kind, unlocked Unlocked) (Reward, bool) {
 	kinds := rules.drawable(full, unlocked)
-	if welcome != "" {
-		kinds = drawable(welcome, kinds)
-	}
 	if kinds.Empty() {
 		return Reward{}, false
 	}
@@ -64,12 +62,14 @@ func (r Rules) drawable(full []Kind, unlocked Unlocked) *cpcolls.Set[Kind] {
 	return kinds
 }
 
-func drawable(owed Kind, kinds *cpcolls.Set[Kind]) *cpcolls.Set[Kind] {
-	if kinds.Contains(owed) {
-		return cpcolls.NewSet(owed)
+// welcomeReward is its one kind whatever the gates, since a newcomer is a guest: false when the set weighs it 0 or the
+// hand has no room for it.
+func welcomeReward(rules Rules, full []Kind, kind Kind) (Reward, bool) {
+	if !rules.Offered(kind) || slices.Contains(full, kind) {
+		return Reward{}, false
 	}
 
-	return cpcolls.NewSet[Kind]()
+	return Reward{Kind: kind, Amount: amountOf(kind, rules)}, true
 }
 
 func drawKind(kinds *cpcolls.Set[Kind], weights map[Kind]float64) Kind {
