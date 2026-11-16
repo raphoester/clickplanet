@@ -4,7 +4,7 @@ import {FakeAdmin} from "../fakeAdmin.ts"
 import {RuleSet} from "../gen/grpc/bonuses/v1/admin_pb.ts"
 import {Rules} from "../gen/grpc/bonuses/v1/rules_pb.ts"
 import {
-    BOOK, changesOf, complete, copyOf, draftOf, GROUPS, kindsOf, playedOf, ruleSetOf, saveRuleSet,
+    BOOK, changesOf, complete, copyOf, draftOf, gatesOf, GROUPS, kindsOf, playedOf, ruleSetOf, saveRuleSet,
 } from "./bonusRules.ts"
 
 const played = () => new FakeAdmin().bonusRules.sets[0]
@@ -30,6 +30,14 @@ describe("what a box or a right answer holds", () => {
         expect(kindsOf(undefined)).toBe("—")
     })
 
+    it("says whether the gates are on, and the kinds open to all while they are", () => {
+        expect(gatesOf(played().rules)).toBe("off")
+        expect(gatesOf(Rules.fromJson({gates: {on: true, open: {refill: true, shields: true, bomb: false}}})))
+            .toBe("on, open: refill, shields")
+        expect(gatesOf(Rules.fromJson({gates: {on: true}}))).toBe("on, open: none")
+        expect(gatesOf(Rules.fromJson({}))).toBe("—")
+    })
+
     it("edits every value of a set, and has no frozen set: the boxes and the quizzes freeze", () => {
         const edited = new Set(GROUPS.flatMap(group => [...group.switches, ...group.fields].map(each => each.path)))
 
@@ -46,7 +54,10 @@ describe("what a box or a right answer holds", () => {
         expect(draft.name).toBe("rush")
         expect(draft.values["kinds.bomb"]).toBe("3")
         expect(draft.values["shield.maxPerBox"]).toBe("30")
-        expect(draft.switches).toEqual({"signInRefill": true})
+        expect(draft.switches).toEqual({
+            "gates.on": false, "gates.open.refill": true, "gates.open.spreadClicks": true,
+            "gates.open.encloseClicks": false, "gates.open.bomb": false, "gates.open.shields": true, "signInRefill": true,
+        })
         expect(ruleSetOf(draft).equals(rush())).toBe(true)
     })
 

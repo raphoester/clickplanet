@@ -8,6 +8,7 @@ import (
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/planetwords"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
@@ -54,6 +55,20 @@ func (s Scale) MissionRates() ([]*progressionv1.MissionRate, error) {
 			Xp:   uint32(rate.Rate().XP),  //nolint:gosec // a few hundred XP at most.
 			Per:  uint32(rate.Rate().Per), //nolint:gosec // as above.
 		})
+	}
+	return encoded, nil
+}
+
+// Unlocks is the ladder in planet's words: each kind a level unlocks, at its level.
+func (s Scale) Unlocks() ([]*progressionv1.Unlock, error) {
+	ladder := levels.Ladder{}.Unlocks()
+	encoded := make([]*progressionv1.Unlock, 0, len(ladder))
+	for _, unlock := range ladder {
+		kind, err := planetwords.BonusKind(unlock.Kind())
+		if err != nil {
+			return nil, err //nolint:wrapcheck // the sentinel names the kind.
+		}
+		encoded = append(encoded, &progressionv1.Unlock{Kind: kind, Level: uint32(unlock.Level())})
 	}
 	return encoded, nil
 }

@@ -7,7 +7,8 @@
 package progressionv1
 
 import (
-	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
+	v11 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
+	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -974,8 +975,11 @@ func (*GetLevelRequest) Descriptor() ([]byte, []int) {
 type GetLevelResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unset when none is kept: a guest, or an account no fact has raised yet.
-	Level         *Level         `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
-	MissionRates  []*MissionRate `protobuf:"bytes,2,rep,name=mission_rates,json=missionRates,proto3" json:"mission_rates,omitempty"`
+	Level        *Level         `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	MissionRates []*MissionRate `protobuf:"bytes,2,rep,name=mission_rates,json=missionRates,proto3" json:"mission_rates,omitempty"`
+	// Each kind a level unlocks, at its level, for the page to draw a locked kind. A kind not here unlocks at no level:
+	// whether anyone may draw it is the bonuses' open_kinds (bonuses.v1.GetGrantRulesResponse).
+	Unlocks       []*Unlock `protobuf:"bytes,3,rep,name=unlocks,proto3" json:"unlocks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1024,10 +1028,70 @@ func (x *GetLevelResponse) GetMissionRates() []*MissionRate {
 	return nil
 }
 
+func (x *GetLevelResponse) GetUnlocks() []*Unlock {
+	if x != nil {
+		return x.Unlocks
+	}
+	return nil
+}
+
+// From this level on, a box or a right answer may be drawn as this kind while the bonuses' gates are on.
+type Unlock struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          v1.BonusKind           `protobuf:"varint,1,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
+	Level         uint32                 `protobuf:"varint,2,opt,name=level,proto3" json:"level,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Unlock) Reset() {
+	*x = Unlock{}
+	mi := &file_progression_v1_progression_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Unlock) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Unlock) ProtoMessage() {}
+
+func (x *Unlock) ProtoReflect() protoreflect.Message {
+	mi := &file_progression_v1_progression_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Unlock.ProtoReflect.Descriptor instead.
+func (*Unlock) Descriptor() ([]byte, []int) {
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *Unlock) GetKind() v1.BonusKind {
+	if x != nil {
+		return x.Kind
+	}
+	return v1.BonusKind(0)
+}
+
+func (x *Unlock) GetLevel() uint32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
 // A mission of this kind pays goal × xp / per XP, floored.
 type MissionRate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          v1.MissionKind         `protobuf:"varint,1,opt,name=kind,proto3,enum=missions.v1.MissionKind" json:"kind,omitempty"`
+	Kind          v11.MissionKind        `protobuf:"varint,1,opt,name=kind,proto3,enum=missions.v1.MissionKind" json:"kind,omitempty"`
 	Xp            uint32                 `protobuf:"varint,2,opt,name=xp,proto3" json:"xp,omitempty"`
 	Per           uint32                 `protobuf:"varint,3,opt,name=per,proto3" json:"per,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1036,7 +1100,7 @@ type MissionRate struct {
 
 func (x *MissionRate) Reset() {
 	*x = MissionRate{}
-	mi := &file_progression_v1_progression_proto_msgTypes[19]
+	mi := &file_progression_v1_progression_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1048,7 +1112,7 @@ func (x *MissionRate) String() string {
 func (*MissionRate) ProtoMessage() {}
 
 func (x *MissionRate) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[19]
+	mi := &file_progression_v1_progression_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1061,14 +1125,14 @@ func (x *MissionRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MissionRate.ProtoReflect.Descriptor instead.
 func (*MissionRate) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{19}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *MissionRate) GetKind() v1.MissionKind {
+func (x *MissionRate) GetKind() v11.MissionKind {
 	if x != nil {
 		return x.Kind
 	}
-	return v1.MissionKind(0)
+	return v11.MissionKind(0)
 }
 
 func (x *MissionRate) GetXp() uint32 {
@@ -1093,7 +1157,7 @@ type ListenForEventsRequest struct {
 
 func (x *ListenForEventsRequest) Reset() {
 	*x = ListenForEventsRequest{}
-	mi := &file_progression_v1_progression_proto_msgTypes[20]
+	mi := &file_progression_v1_progression_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1105,7 +1169,7 @@ func (x *ListenForEventsRequest) String() string {
 func (*ListenForEventsRequest) ProtoMessage() {}
 
 func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[20]
+	mi := &file_progression_v1_progression_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1118,7 +1182,7 @@ func (x *ListenForEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListenForEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListenForEventsRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{20}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{21}
 }
 
 type ProgressionEvent struct {
@@ -1135,7 +1199,7 @@ type ProgressionEvent struct {
 
 func (x *ProgressionEvent) Reset() {
 	*x = ProgressionEvent{}
-	mi := &file_progression_v1_progression_proto_msgTypes[21]
+	mi := &file_progression_v1_progression_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1147,7 +1211,7 @@ func (x *ProgressionEvent) String() string {
 func (*ProgressionEvent) ProtoMessage() {}
 
 func (x *ProgressionEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[21]
+	mi := &file_progression_v1_progression_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1160,7 +1224,7 @@ func (x *ProgressionEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProgressionEvent.ProtoReflect.Descriptor instead.
 func (*ProgressionEvent) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{21}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ProgressionEvent) GetEvent() isProgressionEvent_Event {
@@ -1227,7 +1291,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_progression_v1_progression_proto_msgTypes[22]
+	mi := &file_progression_v1_progression_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1239,7 +1303,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[22]
+	mi := &file_progression_v1_progression_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1252,7 +1316,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{22}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{23}
 }
 
 type TitleEarned struct {
@@ -1264,7 +1328,7 @@ type TitleEarned struct {
 
 func (x *TitleEarned) Reset() {
 	*x = TitleEarned{}
-	mi := &file_progression_v1_progression_proto_msgTypes[23]
+	mi := &file_progression_v1_progression_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1276,7 +1340,7 @@ func (x *TitleEarned) String() string {
 func (*TitleEarned) ProtoMessage() {}
 
 func (x *TitleEarned) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_progression_proto_msgTypes[23]
+	mi := &file_progression_v1_progression_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1289,7 +1353,7 @@ func (x *TitleEarned) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TitleEarned.ProtoReflect.Descriptor instead.
 func (*TitleEarned) Descriptor() ([]byte, []int) {
-	return file_progression_v1_progression_proto_rawDescGZIP(), []int{23}
+	return file_progression_v1_progression_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *TitleEarned) GetTitle() *Title {
@@ -1303,7 +1367,7 @@ var File_progression_v1_progression_proto protoreflect.FileDescriptor
 
 const file_progression_v1_progression_proto_rawDesc = "" +
 	"\n" +
-	" progression/v1/progression.proto\x12\x0eprogression.v1\x1a\x16missions/v1/kind.proto\x1a\x1aprogression/v1/title.proto\"\x98\x01\n" +
+	" progression/v1/progression.proto\x12\x0eprogression.v1\x1a\x16missions/v1/kind.proto\x1a\x16planet/v1/planet.proto\x1a\x1aprogression/v1/title.proto\"\x98\x01\n" +
 	"\x05Stats\x12\x1f\n" +
 	"\vtiles_taken\x18\x01 \x01(\x04R\n" +
 	"tilesTaken\x12%\n" +
@@ -1366,10 +1430,14 @@ const file_progression_v1_progression_proto_rawDesc = "" +
 	"\x02xp\x18\x02 \x01(\x04R\x02xp\x12\x19\n" +
 	"\blevel_xp\x18\x03 \x01(\x04R\alevelXp\x12\"\n" +
 	"\rnext_level_xp\x18\x04 \x01(\x04R\vnextLevelXp\"\x11\n" +
-	"\x0fGetLevelRequest\"\x81\x01\n" +
+	"\x0fGetLevelRequest\"\xb3\x01\n" +
 	"\x10GetLevelResponse\x12+\n" +
 	"\x05level\x18\x01 \x01(\v2\x15.progression.v1.LevelR\x05level\x12@\n" +
-	"\rmission_rates\x18\x02 \x03(\v2\x1b.progression.v1.MissionRateR\fmissionRates\"]\n" +
+	"\rmission_rates\x18\x02 \x03(\v2\x1b.progression.v1.MissionRateR\fmissionRates\x120\n" +
+	"\aunlocks\x18\x03 \x03(\v2\x16.progression.v1.UnlockR\aunlocks\"H\n" +
+	"\x06Unlock\x12(\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x14\n" +
+	"\x05level\x18\x02 \x01(\rR\x05level\"]\n" +
 	"\vMissionRate\x12,\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x18.missions.v1.MissionKindR\x04kind\x12\x0e\n" +
 	"\x02xp\x18\x02 \x01(\rR\x02xp\x12\x10\n" +
@@ -1405,7 +1473,7 @@ func file_progression_v1_progression_proto_rawDescGZIP() []byte {
 	return file_progression_v1_progression_proto_rawDescData
 }
 
-var file_progression_v1_progression_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_progression_v1_progression_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_progression_v1_progression_proto_goTypes = []any{
 	(*Stats)(nil),                  // 0: progression.v1.Stats
 	(*CountryTiles)(nil),           // 1: progression.v1.CountryTiles
@@ -1426,58 +1494,62 @@ var file_progression_v1_progression_proto_goTypes = []any{
 	(*Level)(nil),                  // 16: progression.v1.Level
 	(*GetLevelRequest)(nil),        // 17: progression.v1.GetLevelRequest
 	(*GetLevelResponse)(nil),       // 18: progression.v1.GetLevelResponse
-	(*MissionRate)(nil),            // 19: progression.v1.MissionRate
-	(*ListenForEventsRequest)(nil), // 20: progression.v1.ListenForEventsRequest
-	(*ProgressionEvent)(nil),       // 21: progression.v1.ProgressionEvent
-	(*Heartbeat)(nil),              // 22: progression.v1.Heartbeat
-	(*TitleEarned)(nil),            // 23: progression.v1.TitleEarned
-	(*Title)(nil),                  // 24: progression.v1.Title
-	(v1.MissionKind)(0),            // 25: missions.v1.MissionKind
+	(*Unlock)(nil),                 // 19: progression.v1.Unlock
+	(*MissionRate)(nil),            // 20: progression.v1.MissionRate
+	(*ListenForEventsRequest)(nil), // 21: progression.v1.ListenForEventsRequest
+	(*ProgressionEvent)(nil),       // 22: progression.v1.ProgressionEvent
+	(*Heartbeat)(nil),              // 23: progression.v1.Heartbeat
+	(*TitleEarned)(nil),            // 24: progression.v1.TitleEarned
+	(*Title)(nil),                  // 25: progression.v1.Title
+	(v1.BonusKind)(0),              // 26: planet.v1.BonusKind
+	(v11.MissionKind)(0),           // 27: missions.v1.MissionKind
 }
 var file_progression_v1_progression_proto_depIdxs = []int32{
 	1,  // 0: progression.v1.GetFrontsResponse.plays_for:type_name -> progression.v1.CountryTiles
 	1,  // 1: progression.v1.GetFrontsResponse.plays_against:type_name -> progression.v1.CountryTiles
-	24, // 2: progression.v1.GetTitlesResponse.worn:type_name -> progression.v1.Title
-	24, // 3: progression.v1.GetTitlesResponse.wearable:type_name -> progression.v1.Title
+	25, // 2: progression.v1.GetTitlesResponse.worn:type_name -> progression.v1.Title
+	25, // 3: progression.v1.GetTitlesResponse.wearable:type_name -> progression.v1.Title
 	6,  // 4: progression.v1.GetTitlesResponse.tracks:type_name -> progression.v1.Track
 	7,  // 5: progression.v1.Track.steps:type_name -> progression.v1.Step
-	24, // 6: progression.v1.Step.title:type_name -> progression.v1.Title
-	24, // 7: progression.v1.WearTitleResponse.worn:type_name -> progression.v1.Title
+	25, // 6: progression.v1.Step.title:type_name -> progression.v1.Title
+	25, // 7: progression.v1.WearTitleResponse.worn:type_name -> progression.v1.Title
 	12, // 8: progression.v1.GetBadgesResponse.badges:type_name -> progression.v1.Badge
-	24, // 9: progression.v1.Badge.worn_title:type_name -> progression.v1.Title
+	25, // 9: progression.v1.Badge.worn_title:type_name -> progression.v1.Title
 	15, // 10: progression.v1.GetProgressResponse.progress:type_name -> progression.v1.Progress
 	0,  // 11: progression.v1.Progress.stats:type_name -> progression.v1.Stats
-	24, // 12: progression.v1.Progress.titles:type_name -> progression.v1.Title
-	24, // 13: progression.v1.Progress.worn_title:type_name -> progression.v1.Title
+	25, // 12: progression.v1.Progress.titles:type_name -> progression.v1.Title
+	25, // 13: progression.v1.Progress.worn_title:type_name -> progression.v1.Title
 	1,  // 14: progression.v1.Progress.plays_for:type_name -> progression.v1.CountryTiles
 	1,  // 15: progression.v1.Progress.plays_against:type_name -> progression.v1.CountryTiles
 	16, // 16: progression.v1.Progress.level:type_name -> progression.v1.Level
 	16, // 17: progression.v1.GetLevelResponse.level:type_name -> progression.v1.Level
-	19, // 18: progression.v1.GetLevelResponse.mission_rates:type_name -> progression.v1.MissionRate
-	25, // 19: progression.v1.MissionRate.kind:type_name -> missions.v1.MissionKind
-	22, // 20: progression.v1.ProgressionEvent.heartbeat:type_name -> progression.v1.Heartbeat
-	23, // 21: progression.v1.ProgressionEvent.title_earned:type_name -> progression.v1.TitleEarned
-	16, // 22: progression.v1.ProgressionEvent.level_reached:type_name -> progression.v1.Level
-	24, // 23: progression.v1.TitleEarned.title:type_name -> progression.v1.Title
-	4,  // 24: progression.v1.ProgressionService.GetTitles:input_type -> progression.v1.GetTitlesRequest
-	8,  // 25: progression.v1.ProgressionService.WearTitle:input_type -> progression.v1.WearTitleRequest
-	2,  // 26: progression.v1.ProgressionService.GetFronts:input_type -> progression.v1.GetFrontsRequest
-	10, // 27: progression.v1.ProgressionService.GetBadges:input_type -> progression.v1.GetBadgesRequest
-	13, // 28: progression.v1.ProgressionService.GetProgress:input_type -> progression.v1.GetProgressRequest
-	17, // 29: progression.v1.ProgressionService.GetLevel:input_type -> progression.v1.GetLevelRequest
-	20, // 30: progression.v1.ProgressionService.ListenForEvents:input_type -> progression.v1.ListenForEventsRequest
-	5,  // 31: progression.v1.ProgressionService.GetTitles:output_type -> progression.v1.GetTitlesResponse
-	9,  // 32: progression.v1.ProgressionService.WearTitle:output_type -> progression.v1.WearTitleResponse
-	3,  // 33: progression.v1.ProgressionService.GetFronts:output_type -> progression.v1.GetFrontsResponse
-	11, // 34: progression.v1.ProgressionService.GetBadges:output_type -> progression.v1.GetBadgesResponse
-	14, // 35: progression.v1.ProgressionService.GetProgress:output_type -> progression.v1.GetProgressResponse
-	18, // 36: progression.v1.ProgressionService.GetLevel:output_type -> progression.v1.GetLevelResponse
-	21, // 37: progression.v1.ProgressionService.ListenForEvents:output_type -> progression.v1.ProgressionEvent
-	31, // [31:38] is the sub-list for method output_type
-	24, // [24:31] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	20, // 18: progression.v1.GetLevelResponse.mission_rates:type_name -> progression.v1.MissionRate
+	19, // 19: progression.v1.GetLevelResponse.unlocks:type_name -> progression.v1.Unlock
+	26, // 20: progression.v1.Unlock.kind:type_name -> planet.v1.BonusKind
+	27, // 21: progression.v1.MissionRate.kind:type_name -> missions.v1.MissionKind
+	23, // 22: progression.v1.ProgressionEvent.heartbeat:type_name -> progression.v1.Heartbeat
+	24, // 23: progression.v1.ProgressionEvent.title_earned:type_name -> progression.v1.TitleEarned
+	16, // 24: progression.v1.ProgressionEvent.level_reached:type_name -> progression.v1.Level
+	25, // 25: progression.v1.TitleEarned.title:type_name -> progression.v1.Title
+	4,  // 26: progression.v1.ProgressionService.GetTitles:input_type -> progression.v1.GetTitlesRequest
+	8,  // 27: progression.v1.ProgressionService.WearTitle:input_type -> progression.v1.WearTitleRequest
+	2,  // 28: progression.v1.ProgressionService.GetFronts:input_type -> progression.v1.GetFrontsRequest
+	10, // 29: progression.v1.ProgressionService.GetBadges:input_type -> progression.v1.GetBadgesRequest
+	13, // 30: progression.v1.ProgressionService.GetProgress:input_type -> progression.v1.GetProgressRequest
+	17, // 31: progression.v1.ProgressionService.GetLevel:input_type -> progression.v1.GetLevelRequest
+	21, // 32: progression.v1.ProgressionService.ListenForEvents:input_type -> progression.v1.ListenForEventsRequest
+	5,  // 33: progression.v1.ProgressionService.GetTitles:output_type -> progression.v1.GetTitlesResponse
+	9,  // 34: progression.v1.ProgressionService.WearTitle:output_type -> progression.v1.WearTitleResponse
+	3,  // 35: progression.v1.ProgressionService.GetFronts:output_type -> progression.v1.GetFrontsResponse
+	11, // 36: progression.v1.ProgressionService.GetBadges:output_type -> progression.v1.GetBadgesResponse
+	14, // 37: progression.v1.ProgressionService.GetProgress:output_type -> progression.v1.GetProgressResponse
+	18, // 38: progression.v1.ProgressionService.GetLevel:output_type -> progression.v1.GetLevelResponse
+	22, // 39: progression.v1.ProgressionService.ListenForEvents:output_type -> progression.v1.ProgressionEvent
+	33, // [33:40] is the sub-list for method output_type
+	26, // [26:33] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_progression_v1_progression_proto_init() }
@@ -1486,7 +1558,7 @@ func file_progression_v1_progression_proto_init() {
 		return
 	}
 	file_progression_v1_title_proto_init()
-	file_progression_v1_progression_proto_msgTypes[21].OneofWrappers = []any{
+	file_progression_v1_progression_proto_msgTypes[22].OneofWrappers = []any{
 		(*ProgressionEvent_Heartbeat)(nil),
 		(*ProgressionEvent_TitleEarned)(nil),
 		(*ProgressionEvent_LevelReached)(nil),
@@ -1497,7 +1569,7 @@ func file_progression_v1_progression_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_progression_v1_progression_proto_rawDesc), len(file_progression_v1_progression_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

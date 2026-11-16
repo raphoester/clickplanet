@@ -7,13 +7,20 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inmemory_level_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/outbox_bonuses_unlocks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/reconcile_levels_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/inmemory_stats_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -33,10 +40,19 @@ type fixture struct {
 	stats    *inmemory_stats_store.Store
 	accounts *accounts.FakeAccounts
 	levels   *inmemory_level_store.Store
+	outbox   *cpatomic.FakeOutbox
 }
 
 func setUp() fixture {
-	return fixture{stats: inmemory_stats_store.New(), accounts: accounts.NewFakeAccounts(), levels: inmemory_level_store.New()}
+	return fixture{
+		stats: inmemory_stats_store.New(), accounts: accounts.NewFakeAccounts(), levels: inmemory_level_store.New(),
+		outbox: &cpatomic.FakeOutbox{},
+	}
+}
+
+func (f fixture) useCase() *reconcile_levels_usecase.UseCase {
+	book := levels.NewBook(cpatomic.FakeTransactioner{}, f.levels, outbox_bonuses_unlocks.New(f.outbox))
+	return reconcile_levels_usecase.New(f.stats, f.accounts, book, cptime.NewFixedClock(now))
 }
 
 func (f fixture) player(t *testing.T, i int, tiles uint64, known accounts.Account, kept levels.Level) {
@@ -54,7 +70,7 @@ func (f fixture) player(t *testing.T, i int, tiles uint64, known accounts.Accoun
 func (f fixture) reconcile(t *testing.T, dryRun bool) reconcile_levels_usecase.Reconciled {
 	t.Helper()
 
-	reconciled, err := reconcile_levels_usecase.New(f.stats, f.accounts, f.levels, cptime.NewFixedClock(now)).Execute(t.Context(), dryRun)
+	reconciled, err := f.useCase().Execute(t.Context(), dryRun)
 	require.NoError(t, err)
 	return reconciled
 }
@@ -100,6 +116,30 @@ func TestADryRunCountsTheSameAndWritesNothing(t *testing.T) {
 
 	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2, Lowered: 1, Removed: 1}, reconciled)
 	assert.Equal(t, levels.ByAccount{account(2): 2, account(3): 7, account(4): 3, account(5): 4}, f.kept(t, 1, 2, 3, 4, 5))
+	assert.Empty(t, f.outbox.Recorded(), "a dry run tells the bonuses nothing")
+}
+
+func TestEveryAccountOfAPageIsToldToTheBonusesWithWhatItsLevelUnlocks(t *testing.T) {
+	f := setUp()
+	f.mixed(t)
+	f.player(t, 6, 1_000, linked, 0)
+
+	f.reconcile(t, false)
+
+	told := map[string]*bonusesv1.KeepUnlocks{}
+	for _, recorded := range f.outbox.Recorded() {
+		command, ok := recorded.(*bonusesv1.KeepUnlocks)
+		require.True(t, ok)
+		told[command.GetAccountId()] = command
+	}
+	require.Len(t, told, 6, "each linked account, changed or not, and the guest whose level went")
+	assert.True(t, proto.Equal(&bonusesv1.KeepUnlocks{
+		AccountId: account(6).String(),
+		Kinds:     []planetv1.BonusKind{planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, planetv1.BonusKind_BONUS_KIND_BOMB},
+		DecidedAt: timestamppb.New(now),
+	}, told[account(6).String()]), "level 5: %v", told[account(6).String()])
+	assert.Empty(t, told[account(4).String()].GetKinds(), "level 3 unlocks nothing")
+	assert.Empty(t, told[account(5).String()].GetKinds(), "a guest has nothing unlocked")
 }
 
 func TestEveryPageIsReconciled(t *testing.T) {
@@ -125,7 +165,7 @@ func TestAFailureToAskPlayerWritesNothing(t *testing.T) {
 	f.mixed(t)
 	f.accounts.FailWith(errors.New("player is down"))
 
-	_, err := reconcile_levels_usecase.New(f.stats, f.accounts, f.levels, cptime.NewFixedClock(now)).Execute(t.Context(), false)
+	_, err := f.useCase().Execute(t.Context(), false)
 
 	require.ErrorContains(t, err, "player is down")
 	assert.Equal(t, levels.ByAccount{account(2): 2, account(3): 7, account(4): 3, account(5): 4}, f.kept(t, 1, 2, 3, 4, 5))

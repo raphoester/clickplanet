@@ -4,7 +4,8 @@ A question-mark box flies past the planet every so often; whoever catches it
 gets one of five bonuses. **The boxes module offers it** ([The boxes](boxes-module.md)) and knows nothing of what it holds;
 **the bonuses module draws its kind when it is caught**, from its rule set's `kinds` (see
 [Its rule sets](bonuses.md#its-rule-sets)), a weight per kind — a kind's chance is its weight over the sum of the weights, so the
-strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 4):
+strong ones can be made rare (production runs 5 : 3 : 1 : 2 : 4). While the set's gates are on, only the kinds open to
+all and the ones the player's level unlocked are drawn ([The gates](bonuses.md#the-gates)):
 
 - **`refill`** — a charge: fills the caller's click bank to full, when the
   caller chooses, and gives the network's bucket as much. Up to one bank, 60 clicks. See [What a refill does to the bucket](refill.md).
