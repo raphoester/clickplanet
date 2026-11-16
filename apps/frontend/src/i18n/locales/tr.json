@@ -680,6 +680,7 @@
   "inventory.notice.notEnclosedMax": "{max, plural, one {Şekil kapalı değil ya da çok büyük (en fazla # kare)} other {Şekil kapalı değil ya da çok büyük (en fazla # kare)}}",
   "inventory.notice.virusNoEnemy": "Virüs yalnızca kalkanı olmayan bir düşman karesini alır",
   "inventory.notice.mineNotYours": "Mayın yalnızca bayrağının mayınsız bir karesine konur",
+  "inventory.notice.mineTaken": "Kare alındı. Mayın koymak için tekrar dokun",
   "mission.order.takeFor": "{goal, plural, one {{flag} için bir kare al} other {{flag} için # kare al}}",
   "mission.order.takeFrom": "{goal, plural, one {{flag} bayrağından bir kare al} other {{flag} bayrağından # kare al}}",
   "mission.order.takeIn": "{goal, plural, one {{where} bir kare al} other {{where} # kare al}}",

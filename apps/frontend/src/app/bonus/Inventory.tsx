@@ -378,6 +378,8 @@ function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Sa
             return {text: t("inventory.notice.shieldNotYours"), ms: NOTICE_MS}
         case "virusNoEnemy":
             return {text: t("inventory.notice.virusNoEnemy"), ms: NOTICE_MS}
+        case "mineTaken":
+            return {text: t("inventory.notice.mineTaken"), ms: NOTICE_MS}
         case "mineNotYours":
             return {text: t("inventory.notice.mineNotYours"), ms: NOTICE_MS}
         case "nothingEnclosed": {

@@ -680,6 +680,7 @@
   "inventory.notice.notEnclosedMax": "{max, plural, one {Shape is not closed or is too big (# tile max)} other {Shape is not closed or is too big (# tiles max)}}",
   "inventory.notice.virusNoEnemy": "A virus takes only an enemy tile with no shield",
   "inventory.notice.mineNotYours": "A mine goes only on your flag's tile with no mine",
+  "inventory.notice.mineTaken": "Tile taken. Tap it again to lay a mine",
   "mission.order.takeFor": "{goal, plural, one {Take a tile for {flag}} other {Take # tiles for {flag}}}",
   "mission.order.takeFrom": "{goal, plural, one {Take a tile from {flag}} other {Take # tiles from {flag}}}",
   "mission.order.takeIn": "{goal, plural, one {Take a tile {where}} other {Take # tiles {where}}}",

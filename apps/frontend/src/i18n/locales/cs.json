@@ -680,6 +680,7 @@
   "inventory.notice.notEnclosedMax": "{max, plural, one {Tvar není uzavřený nebo je moc velký (max. # pole)} few {Tvar není uzavřený nebo je moc velký (max. # pole)} many {Tvar není uzavřený nebo je moc velký (max. # pole)} other {Tvar není uzavřený nebo je moc velký (max. # polí)}}",
   "inventory.notice.virusNoEnemy": "Virus obsadí jen nepřátelské pole bez štítu",
   "inventory.notice.mineNotYours": "Mina se dává jen na pole tvé vlajky bez miny",
+  "inventory.notice.mineTaken": "Pole obsazeno. Klepni znovu a polož na něj minu",
   "mission.order.takeFor": "{goal, plural, one {Obsaď pole pro vlajku {flag}} few {Obsaď # pole pro vlajku {flag}} many {Obsaď # pole pro vlajku {flag}} other {Obsaď # polí pro vlajku {flag}}}",
   "mission.order.takeFrom": "{goal, plural, one {Obsaď pole, které drží {flag}} few {Obsaď # pole, která drží {flag}} many {Obsaď # pole, která drží {flag}} other {Obsaď # polí, která drží {flag}}}",
   "mission.order.takeIn": "{goal, plural, one {Obsaď pole {where}} few {Obsaď # pole {where}} many {Obsaď # pole {where}} other {Obsaď # polí {where}}}",

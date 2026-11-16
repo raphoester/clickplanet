@@ -680,6 +680,7 @@
   "inventory.notice.notEnclosedMax": "{max, plural, one {La forme n’est pas fermée ou est trop grande (# case max)} many {La forme n’est pas fermée ou est trop grande (# de cases max)} other {La forme n’est pas fermée ou est trop grande (# cases max)}}",
   "inventory.notice.virusNoEnemy": "Un virus ne prend qu'une case ennemie sans bouclier",
   "inventory.notice.mineNotYours": "Une mine se pose seulement sur une case de ton drapeau sans mine",
+  "inventory.notice.mineTaken": "Case prise. Touche-la encore pour y poser une mine",
   "mission.order.takeFor": "{goal, plural, one {Prends une case pour {flag}} many {Prends # de cases pour {flag}} other {Prends # cases pour {flag}}}",
   "mission.order.takeFrom": "{goal, plural, one {Prends une case à {flag}} many {Prends # de cases à {flag}} other {Prends # cases à {flag}}}",
   "mission.order.takeIn": "{goal, plural, one {Prends une case {where}} many {Prends # de cases {where}} other {Prends # cases {where}}}",

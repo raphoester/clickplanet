@@ -680,6 +680,7 @@
   "inventory.notice.notEnclosedMax": "Bentuk belum tertutup atau terlalu besar (maks. {max} petak)",
   "inventory.notice.virusNoEnemy": "Virus hanya merebut petak musuh tanpa perisai",
   "inventory.notice.mineNotYours": "Ranjau hanya dipasang di petak benderamu tanpa ranjau",
+  "inventory.notice.mineTaken": "Petak direbut. Ketuk lagi untuk memasang ranjau",
   "mission.order.takeFor": "Rebut {goal} petak untuk {flag}",
   "mission.order.takeFrom": "Rebut {goal} petak dari {flag}",
   "mission.order.takeIn": "Rebut {goal} petak {where}",

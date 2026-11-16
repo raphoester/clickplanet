@@ -3,6 +3,15 @@ export type MineChange = {
     mined: boolean
 }
 
+export type Laying = "lay" | "refused" | "click"
+
+// What a tap does while a mine is aimed: a tile of another flag, or of none, is clicked first, as with shield on; a tile
+// of the flag takes the mine unless one is on it already, or it is a capital whose take would knock the flag out.
+export function layingOf(owner: string | undefined, flag: string, mined: boolean, knockOutCapital: boolean): Laying {
+    if (owner !== flag) return "click"
+    return mined || knockOutCapital ? "refused" : "lay"
+}
+
 // The tiles to mark and unmark for a list of changes: a tile's last change is what it is.
 export function mineMarksOf(changes: readonly MineChange[]): {on: number[], off: number[]} {
     const last = new Map(changes.map(({tile, mined}) => [tile, mined]))
