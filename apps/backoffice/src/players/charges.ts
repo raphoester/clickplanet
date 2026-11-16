@@ -16,6 +16,7 @@ export function grantWords(charges: Grant): string {
         plural(charges.shields, "shield"),
         charges.virus && "a virus",
         plural(charges.mines, "mine"),
+        plural(charges.rallies, "rally", "rallies"),
     ])
 }
 
@@ -28,11 +29,12 @@ export function heldWords(held: ChargesHeld): string {
         plural(held.shields, "shield"),
         held.virus && "a virus",
         plural(held.mines, "mine"),
+        plural(held.rallies, "rally", "rallies"),
     ])
 }
 
-function plural(n: number, noun: string): string | false {
-    return n > 0 && (n === 1 ? `1 ${noun}` : `${n} ${noun}s`)
+function plural(n: number, noun: string, nouns = `${noun}s`): string | false {
+    return n > 0 && (n === 1 ? `1 ${noun}` : `${n} ${nouns}`)
 }
 
 function listOf(parts: (string | false)[]): string {

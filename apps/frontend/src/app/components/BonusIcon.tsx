@@ -75,6 +75,13 @@ const DRAWINGS: Record<BonusReward["kind"], React.ReactNode> = {
         <circle className="bonus-icon-spark" cx="24" cy="26" r="3.5"/>
     </>,
 
+    rally: <>
+        <ellipse className="bonus-icon-line" cx={24} cy={38} rx={17} ry={5.5}/>
+        <path className="bonus-icon-fuse" d="M18 38 V6"/>
+        <path className="bonus-icon-ink" d="M18 7 L39 13.5 L18 20 Z"/>
+        <circle className="bonus-icon-spark" cx={18} cy={38} r={3}/>
+    </>,
+
     shields: <>
         <path className="bonus-icon-ink" d="M24 5 L39 10 V22 C39 32 32 39 24 43 C16 39 9 32 9 22 V10 Z"/>
         <path className="bonus-icon-ink bonus-icon-ink--soft" d="M24 11 L33 14 V22 C33 28 29 33 24 36 Z"/>

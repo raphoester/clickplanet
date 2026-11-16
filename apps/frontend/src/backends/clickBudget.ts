@@ -16,6 +16,10 @@ export type ClickBudget = {
 
     fastStart?: boolean
 
+    // The last click answered took less than a whole click, inside a rally's ring of its flag: what it took, and until when
+    // (the page's clock) a ring of that flag is on.
+    rally?: {cost: number, until: number}
+
     readAt: number
 }
 
@@ -40,8 +44,13 @@ export function tokensAt(budget: ClickBudget, at: number): number {
     return Math.max(0, Math.min(budget.capacity, refilled))
 }
 
-export function canClick(budget: ClickBudget | undefined, at: number): boolean {
-    return budget === undefined || tokensAt(budget, at) >= 1
+export function canClick(budget: ClickBudget | undefined, at: number, cost = 1): boolean {
+    return budget === undefined || tokensAt(budget, at) >= cost
+}
+
+// The bank says the clicks cost less: the last one answered was inside a ring of its flag, and a ring of it is still on.
+export function rallied(budget: ClickBudget, at: number): boolean {
+    return budget.rally !== undefined && at < budget.rally.until
 }
 
 export function nextClickProgress(budget: ClickBudget, at: number): number {

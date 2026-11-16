@@ -72,7 +72,7 @@ system exists to stop.
 | `--mission` | A mission's place: the ring that names it in a card, the red of the ring and the outline the globe draws for it |
 | `--streak` | The streak flame |
 | `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment; the Final Battle to come: its face and tape on the season chip, the home page's panel; a battle to come: its teaser, its cards' dots. Nowhere else |
-| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield`, `--virus`, `--mine` (and `-light`) | A bonus kind: its box, its slot, its reward line; All's four small boxes |
+| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield`, `--virus`, `--mine`, `--rally` (and `-light`) | A bonus kind: its box, its slot, its reward line; All's four small boxes. `--rally` is also its halo on the globe, its pin's edge, a rallied click's "−0.5" and the bank's "0.5 per click" |
 | `--bronze` … `--pumpkin-glow`, `--conquest` … `--halloween-enamel` | Medals only (below) |
 
 - **A name's color is only a hue.** `hueOf` reads it off the pick; the saturation

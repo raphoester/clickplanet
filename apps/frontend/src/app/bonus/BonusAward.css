@@ -51,6 +51,12 @@
     --bonus-box: var(--mine);
 }
 
+.bonus-award--rally,
+.inventory-slot--rally {
+    --bonus-accent: var(--rally-light);
+    --bonus-box: var(--rally);
+}
+
 .bonus-award-card {
     display: flex;
     flex-direction: column;

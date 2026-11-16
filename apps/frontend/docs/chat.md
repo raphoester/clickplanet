@@ -206,7 +206,7 @@ for it read and write. The server checks the flag on every call (the backend's
 - **The seen mark is per room**: `MarkSeen` and `GetHistory` name the room, and
   `useSeenMark` starts again from zero for a new one.
 - **A flag room shows the announcements told in it**: today a flag mission its
-  flag finished, which the World shows too. The bombs, rounds, mutes, fortifies
+  flag finished and a rally one of its players called, which the World shows too. The bombs, rounds, mutes, fortifies
   and champions are the World's alone. Each room's `useRoomLog` takes what its
   own history and stream carry, so nothing on the client picks the room.
 - **`FailedPrecondition` is `ChatNotInRoomError`**: the player does not play for
@@ -350,13 +350,14 @@ is the list, and the backend refuses any other.
 ## Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Seven kinds today:
+and `GetHistoryResponse.announcements` beside the messages. Eight kinds today:
 `bomb`, every bomb that went off, `mute`, every mute an operator gave,
 `round`, every round of a season that closed, `fortify`, every landmass of 50
 tiles or more a flag fortified, `champion`, the country that won a season,
 `flag_mission`, every flag that finished its mission of the day, in the World
-and in that flag's room, and `knock_out`, every flag an arena knocked out
-("👑 Germany knocked out France", `KnockOutLine`).
+and in that flag's room, `knock_out`, every flag an arena knocked out
+("👑 Germany knocked out France", `KnockOutLine`), and `rally`, every rally a player called, in its flag's room
+("📣 le professeur calls a rally in Tasmania", `RallyLine`, the landmass named as a fortify's; see [Rally](rally.md)).
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not

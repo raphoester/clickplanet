@@ -405,6 +405,23 @@ describe("decodedAnnouncement", () => {
         expect(decodedAnnouncement(bomb(`{"by":"de"}`, "knock_out"))).toBeUndefined()
     })
 
+    it("reads a rally: who called it, its flag, and the landmass when the server names one", () => {
+        expect(decodedAnnouncement(bomb(`{"name":"le professeur","country":"fr","ground":"au","landmass":420}`, "rally"))).toEqual({
+            kind: "rally",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            name: "le professeur",
+            country: "fr",
+            ground: "au",
+            landmass: 420,
+        })
+        expect(decodedAnnouncement(bomb(`{"name":"le professeur","country":"fr"}`, "rally"))).toMatchObject({
+            ground: undefined, landmass: undefined,
+        })
+        expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "rally"))).toBeUndefined()
+        expect(decodedAnnouncement(bomb(`{"name":"le professeur"}`, "rally"))).toBeUndefined()
+    })
+
     it("drops a kind it does not know, and a payload that is not the kind's", () => {
         expect(decodedAnnouncement(bomb(`{"country":"fr"}`, "meteor"))).toBeUndefined()
         expect(decodedAnnouncement(bomb(`not json`))).toBeUndefined()

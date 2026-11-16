@@ -1,9 +1,11 @@
 import {BonusReward, BonusRules, Charges, Switches} from "../domain/bonus.ts"
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts"
 import {Allegiance} from "../domain/allegiance.ts"
+import {Rally} from "../domain/rallies.ts"
 
 export interface TileClicker {
-    clickTile(tileId: number, countryId: string, switches?: Switches): Promise<void>
+    // cost is what the page counts the click takes from the bank until the server answers: less inside a rally's ring.
+    clickTile(tileId: number, countryId: string, switches?: Switches, cost?: number): Promise<void>
 }
 
 // Every write of the map counts one in seq; epoch is the second the server started, when seq started from 0.
@@ -158,6 +160,10 @@ export type BonusHandlers = {
     // A mine a player of the page's flag laid: no other flag hears of it.
     onMineLaid: (laid: MineLaid) => void
     onMinesExploded: (explosion: MinesExploded) => void
+    // Every rally still on, of every flag: read again as each stream opens.
+    onRallies: (rallies: Rally[]) => void
+    // A rally a player called, whatever its flag.
+    onRallyCalled: (rally: Rally) => void
     onSpread: (spread: SpreadClick) => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
@@ -296,6 +302,10 @@ export interface Miner {
     layMine(tileId: number, countryId: string): Promise<void>
 }
 
+export interface Rallier {
+    callRally(point: GlobePoint, countryId: string): Promise<Rally>
+}
+
 export interface Refiller {
     useRefill(countryId: string): Promise<void>
 }
@@ -339,6 +349,14 @@ export class MineRefusedError extends Error {
     constructor(options?: ErrorOptions) {
         super("a mine goes only on a tile of your flag with no mine", options)
         this.name = "MineRefusedError"
+    }
+}
+
+// A rally the caller called is still on: the rally stays in the hand.
+export class RallyRefusedError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("a rally of yours is still on", options)
+        this.name = "RallyRefusedError"
     }
 }
 

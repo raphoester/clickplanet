@@ -150,7 +150,7 @@
     flex-wrap: wrap;
     row-gap: 0;
 }
-.click-budget-line:empty {
+.click-budget-line:not(:has(> :not([hidden]))) {
     display: none;
 }
 
@@ -164,6 +164,19 @@
 }
 
 .click-budget-next:empty {
+    display: none;
+}
+
+.click-budget-rally {
+    flex-shrink: 0;
+    border-radius: var(--radius-pill);
+    background: var(--rally);
+    color: var(--ink);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.click-budget-rally[hidden] {
     display: none;
 }
 

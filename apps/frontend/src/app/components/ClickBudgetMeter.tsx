@@ -1,5 +1,5 @@
 import {ReactNode, useEffect, useRef, useState} from 'react'
-import {ClickBudget, nextClickProgress, now, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
+import {ClickBudget, nextClickProgress, now, rallied, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {DiscordIcon, HourglassIcon, LockIcon, UsersIcon} from "./icons.tsx"
 import {timeLeftTo} from "../../domain/seasonClock.ts"
@@ -48,7 +48,8 @@ const LOW_WATER = 3
 
 const COUNTDOWN_FROM_S = 1.5
 
-const STEP_MS = 250
+// The bank shows tenths of a click, so a click inside a rally's ring that takes half of one shows.
+const STEP_MS = 100
 
 export default function ClickBudgetMeter({
     children,
@@ -67,6 +68,7 @@ export default function ClickBudgetMeter({
     const root = useRef<HTMLDivElement>(null)
     const count = useRef<HTMLSpanElement>(null)
     const wait = useRef<HTMLSpanElement>(null)
+    const rally = useRef<HTMLSpanElement>(null)
     const narrow = useNarrowDock()
     const [dock, setDock] = useState<HTMLElement | null>(null)
     const [tray, setTray] = useState<HTMLElement | null>(null)
@@ -99,6 +101,7 @@ export default function ClickBudgetMeter({
 
         let shown = -1
         let shownWait = ""
+        let shownRally: boolean | undefined
 
         const bar = budget.capacity > MAX_PIPS
 
@@ -119,11 +122,18 @@ export default function ClickBudgetMeter({
                 }
             }
 
-            if (whole === shown) return
-            shown = whole
+            const isRallied = rallied(budget, at)
+            if (rally.current && isRallied !== shownRally) {
+                shownRally = isRallied
+                rally.current.hidden = !isRallied
+            }
 
-            label.textContent = String(whole)
-            box.setAttribute("aria-valuenow", String(whole))
+            const tenths = tenthsOf(tokens)
+            if (tenths === shown) return
+            shown = tenths
+
+            label.textContent = clicksText(tenths)
+            box.setAttribute("aria-valuenow", String(tenths / 10))
             box.classList.toggle("click-budget-empty", whole === 0)
             box.classList.toggle("click-budget-low", whole > 0 && whole <= LOW_WATER)
             box.classList.toggle("click-budget-full", whole >= budget.capacity)
@@ -177,7 +187,10 @@ export default function ClickBudgetMeter({
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
-    const whole = Math.floor(tokensAt(budget, now()))
+    const tenths = tenthsOf(tokensAt(budget, now()))
+
+    // What a click takes inside the ring: "0.5 per click", the price, never a multiplier.
+    const rallyCost = budget.rally && costText(budget.rally.cost)
 
     const slowdown = budget.price && budget.price.slowdown > 1 ? budget.price.slowdown : undefined
 
@@ -192,13 +205,13 @@ export default function ClickBudgetMeter({
                 className="click-budget"
                 role="meter"
                 aria-valuemin={0}
-                aria-valuenow={whole}
+                aria-valuenow={tenths / 10}
                 aria-valuemax={budget.capacity}
                 aria-label={t("clicks.meter")}
                 style={{"--click-budget-capacity": budget.capacity} as React.CSSProperties}>
                 <div className="click-budget-count">
                     {rich("clicks.left", {
-                        count: <span ref={count} className="click-budget-number">{whole}</span>,
+                        count: <span ref={count} className="click-budget-number">{clicksText(tenths)}</span>,
                         unit: (words) => <span className="click-budget-unit">{words}</span>,
                     })}
                 </div>
@@ -216,6 +229,14 @@ export default function ClickBudgetMeter({
             </div>
 
             <div className="click-budget-line">
+                <span ref={rally}
+                      className="chip click-budget-rally"
+                      role="img"
+                      aria-label={rallyCost && t("clicks.ralliedLabel", {cost: rallyCost})}
+                      title={rallyCost && t("clicks.ralliedLabel", {cost: rallyCost})}
+                      hidden={!rallied(budget, now())}>
+                    <span aria-hidden="true">{rallyCost && t("clicks.ralliedCost", {cost: rallyCost})}</span>
+                </span>
                 {slowdown && <span className="chip click-budget-toll"
                                    role="img"
                                    aria-label={t("clicks.refillsSlower", {factor: factor(slowdown)})}>
@@ -260,6 +281,19 @@ export default function ClickBudgetMeter({
 function Popover({children, onClose}: {children: ReactNode, onClose: () => void}) {
     useEscape(onClose)
     return <div className="click-budget-popover panel">{children}</div>
+}
+
+// The bank in tenths of a click, never more than it holds.
+function tenthsOf(tokens: number): number {
+    return Math.floor(tokens * 10 + 1e-9)
+}
+
+export function costText(cost: number): string {
+    return translator().number(cost, {maximumFractionDigits: 2})
+}
+
+function clicksText(tenths: number): string {
+    return translator().number(tenths / 10, {minimumFractionDigits: 1, maximumFractionDigits: 1})
 }
 
 function slow(budget: ClickBudget): boolean {

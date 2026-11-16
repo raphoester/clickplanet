@@ -108,11 +108,37 @@ describe("ClickBudgetMeter", () => {
         expect(container.innerHTML).toBe("")
     })
 
-    it("shows the clicks in hand", () => {
-        render(budgeted(reading({tokens: 6.4}), <ClickBudgetMeter/>))
+    it("shows the clicks in hand, to a tenth of a click", () => {
+        stoppedClock()
+        render(budgeted(reading({tokens: 6.47}), <ClickBudgetMeter/>))
 
-        expect(screen.getByText("6")).toBeTruthy()
-        expect(meter().getAttribute("aria-valuenow")).toBe("6")
+        expect(screen.getByText("6.4")).toBeTruthy()
+        expect(meter().getAttribute("aria-valuenow")).toBe("6.4")
+    })
+
+    it("shows a whole bank with its tenth too", () => {
+        stoppedClock()
+        render(budgeted(reading({tokens: 6}), <ClickBudgetMeter/>))
+
+        expect(screen.getByText("6.0")).toBeTruthy()
+    })
+
+    it("says the price of a click while the last one took half a click inside a ring still on", () => {
+        const clock = stoppedClock()
+        render(budgeted(reading({rally: {cost: 0.5, until: STOPPED_AT_MS + 1_000}}), <ClickBudgetMeter/>))
+
+        const chip = screen.getByRole("img", {name: "Rally: inside the ring, a click costs 0.5"})
+        expect(chip.textContent).toBe("0.5 per click")
+        expect(chip.hidden).toBe(false)
+
+        clock.mockReturnValue(STOPPED_AT_MS + 1_000)
+        return vi.waitFor(() => expect(chip.hidden).toBe(true))
+    })
+
+    it("says nothing of a rally when the last click took a whole one", () => {
+        render(budgeted(reading(), <ClickBudgetMeter/>))
+
+        expect(document.querySelector<HTMLElement>(".click-budget-rally")?.hidden).toBe(true)
     })
 
     it("draws one pip per click the server will bank", () => {
@@ -153,9 +179,10 @@ describe("ClickBudgetMeter", () => {
     })
 
     it("says so when there is nothing left", () => {
+        stoppedClock()
         render(budgeted(reading({tokens: 0}), <ClickBudgetMeter/>))
 
-        expect(screen.getByText("0")).toBeTruthy()
+        expect(screen.getByText("0.0")).toBeTruthy()
         expect(meter().classList.contains("click-budget-empty")).toBe(true)
     })
 
@@ -201,10 +228,10 @@ describe("ClickBudgetMeter", () => {
         const clock = stoppedClock()
 
         render(budgeted(reading({tokens: 2}), <ClickBudgetMeter/>))
-        expect(screen.getByText("2")).toBeTruthy()
+        expect(screen.getByText("2.0")).toBeTruthy()
 
-        clock.mockReturnValue(STOPPED_AT_MS + 3_000)
-        await vi.waitFor(() => expect(screen.getByText("5")).toBeTruthy())
+        clock.mockReturnValue(STOPPED_AT_MS + 2_500)
+        await vi.waitFor(() => expect(screen.getByText("4.5")).toBeTruthy())
     })
 })
 

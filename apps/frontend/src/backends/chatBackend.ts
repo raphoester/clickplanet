@@ -400,6 +400,18 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 country: values.country,
                 by: values.by,
             }
+        case "rally":
+            if (typeof values.name !== "string" || values.name === "") return undefined
+            if (typeof values.country !== "string" || values.country === "") return undefined
+            return {
+                kind: "rally",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                name: values.name,
+                country: values.country,
+                ground: typeof values.ground === "string" && values.ground !== "" ? values.ground : undefined,
+                landmass: typeof values.landmass === "number" && values.landmass > 0 ? values.landmass : undefined,
+            }
         default:
             return undefined
     }
