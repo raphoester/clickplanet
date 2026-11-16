@@ -187,7 +187,6 @@
   "inventory.empty": "The \"?\" box is a bonus box that floats over the map; \"one\" is a bonus.",
   "inventory.locked": "Said over a bonus the player's level has not unlocked yet.",
   "inventory.lockedForNow": "Said over a bonus no level unlocks yet.",
-  "inventory.all": "On the button that opens every bonus, under its icon: one short word.",
   "inventory.all.label": "What a screen reader says for the button that opens every bonus, and the name of the panel it opens.",
   "inventory.all.more": "What a screen reader says for the button that opens every bonus, when the player holds bonuses the bar has no room for: how many.",
   "inventory.more": "On the button that opens every bonus: how many bonuses the player holds that the bar has no room for.",

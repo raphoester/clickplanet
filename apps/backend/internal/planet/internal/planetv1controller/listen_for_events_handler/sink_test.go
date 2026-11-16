@@ -279,3 +279,37 @@ func TestASinkFramesAVirusSpreadAsOneEventWithItsTilesAndItsVersion(t *testing.T
 	assert.True(t, spread.GetEnded())
 	assert.Equal(t, uint64(43), spread.GetVersion().GetSeq())
 }
+
+func TestASinkFramesAnExplosionAsOneEventWithEachBlastInOrder(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Version: clicks.MapVersion{Epoch: 7, Seq: 44},
+		Explosion: &clicks.Explosion{Blasts: []clicks.MineBlast{
+			{Mine: clicks.MineSnapshot{Tile: 5, Flag: "fr"}, Taken: []uint32{5, 4}},
+			{Mine: clicks.MineSnapshot{Tile: 9, Flag: "de"}},
+		}},
+	}))
+
+	require.Len(t, stream.sent, 1)
+	assert.True(t, proto.Equal(&planetv1.MinesExploded{
+		Blasts: []*planetv1.MineBlast{
+			{TileId: 5, CountryId: "fr", TakenTileIds: []uint32{5, 4}},
+			{TileId: 9, CountryId: "de"},
+		},
+		Version: &planetv1.MapVersion{Epoch: 7, Seq: 44},
+	}, stream.sent[0].GetMinesExploded()), "%v", stream.sent[0])
+}
+
+func TestASinkFramesAMineLaidWithTheVersionItWasLaidAt(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		MineLaid: &notices.MineLaid{Flag: "fr", Tile: 9, Version: clicks.MapVersion{Epoch: 7, Seq: 3}},
+	}))
+
+	require.Len(t, stream.sent, 1)
+	assert.True(t, proto.Equal(&planetv1.MineLaid{
+		CountryId: "fr", TileId: 9, Version: &planetv1.MapVersion{Epoch: 7, Seq: 3},
+	}, stream.sent[0].GetMineLaid()), "%v", stream.sent[0])
+}

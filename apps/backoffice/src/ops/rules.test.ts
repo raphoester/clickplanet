@@ -43,6 +43,7 @@ describe("the rules", () => {
         expect(paths.filter(path => path.startsWith("charges."))).toEqual([
             "charges.spread.clicks", "charges.spread.rings", "charges.bomb.rings", "charges.enclose.maxTiles", "charges.enclose.held",
             "charges.shield.held", "charges.shield.perTile", "charges.virus.infections", "charges.virus.every",
+            "charges.mine.held", "charges.mine.rings",
         ])
         expect(paths.filter(path => /box|quiz|kinds|welcome|offer/i.test(path))).toEqual([])
     })

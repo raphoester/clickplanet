@@ -1,4 +1,4 @@
-# Charges (refill, bomb, enclose, spread, shields, virus)
+# Charges (refill, bomb, enclose, spread, shields, virus, mine)
 
 **The charges are the wallet, `internal/planet/internal/charges/`**: what an account holds and spends. What grants them,
 a box caught, a right answer or a guest's first sign-in, is the bonuses module's, which reaches the wallet only through
@@ -36,7 +36,7 @@ its own.
 - **How much fits.** A refill, a bomb and a virus are one: a second replaces the first,
   which is what stops a stockpile of bombs being dropped all at once. Enclosures
   stack to the rule set's `charges.enclose.held` (3), spread clicks pool to `charges.spread.clicks`
-  (8) and shields stack to `charges.shield.held` (30) (see [Rules](rules.md)). A box draws its amount evenly from 1 to
+  (8), shields stack to `charges.shield.held` (30) and mines to `charges.mine.held` (3) (see [Rules](rules.md)). A box draws its amount evenly from 1 to
   the bonuses' `maxPerBox`, or from their `shield.minPerBox` for shields (`bonuses.amountOf`, `crypto/rand`), and the
   grant caps it at the size: the cap is the wallet's. **What was kept** reaches the page as the grant's `gained`, on
   planet's stream (`charges_granted`, below): `Charges.Grant` answers the hand before and after it (`charges.Gain`), both
@@ -83,7 +83,7 @@ its own.
   keeping what was still in time. `bonus.chargeTTL` is gone.
 - **No memory copy: every grant, spend and read goes to postgres**, one row per
   account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`,
-  `shields`). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
+  `shields`, `virus`, `mines`). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
   runs one transaction under `pg_advisory_xact_lock` on the account. An empty hand
   is no row. A failing database fails the call; a spread click fails with its tile
   taken. A deleted account's row stays until something removes it. The boxes'

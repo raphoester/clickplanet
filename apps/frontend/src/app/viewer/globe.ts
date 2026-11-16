@@ -56,12 +56,15 @@ import {
     OutOfReachError,
     Infector,
     VirusRefusedError,
+    Miner,
+    MineRefusedError,
 } from "../../backends/backend.ts";
 import {InfectionChange, infectionMarksOf} from "../../domain/infections.ts";
+import {MineChange, mineMarksOf} from "../../domain/mines.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
 import {LeaderboardEntry, rankCountries} from "../../domain/leaderboard.ts";
 import {OwnerChange} from "../../domain/tileOwnership.ts";
-import {MapTiles, TileChanges} from "../../domain/mapTiles.ts";
+import {MapTiles, noTileChanges} from "../../domain/mapTiles.ts";
 import {MapClock} from "../../domain/mapClock.ts";
 import {Holdings, Recount} from "../../domain/holdings.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
@@ -76,7 +79,7 @@ import {createClickGlints} from "./clickGlints.ts";
 import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, restingSwitch, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {canClick, ClickBudget, ClickBudgetSource, now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
-import {IMPACT_DELAY} from "../../domain/blast.ts";
+import {BLAST_TIMELINE, IMPACT_DELAY, mineBlastRadius} from "../../domain/blast.ts";
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
@@ -254,6 +257,8 @@ export type GlobeOptions = {
     onArmedChange: (armed: boolean) => void
     infector?: Infector
     onVirusAimChange?: (aimed: boolean) => void
+    miner?: Miner
+    onMineAimChange?: (aimed: boolean) => void
     shielder?: Shielder
     onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
@@ -280,6 +285,7 @@ export type Globe = {
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
     setVirusAimed(aimed: boolean): void
+    setMineAimed(aimed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
     territoryOf(landmass: number): Territory
@@ -333,6 +339,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onArmedChange,
         infector,
         onVirusAimChange = () => {},
+        miner,
+        onMineAimChange = () => {},
         shielder,
         onNotice = () => {},
         onClickAccepted = () => {},
@@ -601,13 +609,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const noChanges = (): TileChanges => ({owners: [], shields: [], infections: []})
+    const noChanges = noTileChanges
 
     const markInfections = (changes: readonly InfectionChange[]) => {
         if (changes.length === 0) return
         const {on, off} = infectionMarksOf(changes)
         field.setInfectedMarks(off, false)
         field.setInfectedMarks(on, true)
+        invalidate()
+    }
+
+    const markMines = (changes: readonly MineChange[]) => {
+        if (changes.length === 0) return
+        const {on, off} = mineMarksOf(changes)
+        field.setMineMarks(off, false)
+        field.setMineMarks(on, true)
         invalidate()
     }
 
@@ -652,13 +668,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let armed: {radius: number} | undefined
 
     let virusAimed = false
+    let mineAimed = false
 
     let restSwitchedOff = false
 
     const enclosuresUnlimited = () => rules?.enclosuresUnlimited ?? false
 
     const switchTo = (next: Switches) => {
-        const settled = atRest(next, restSwitchedOff || armed || virusAimed ? undefined : restingSwitch(rules))
+        const settled = atRest(next, restSwitchedOff || armed || virusAimed || mineAimed ? undefined : restingSwitch(rules))
         if (sameSwitches(settled, switches)) return
         switches = settled
         onSwitchesChange(settled)
@@ -989,9 +1006,32 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         switchTo(switches)
     }
 
+    const stopAimingMine = () => {
+        if (!mineAimed) return
+        mineAimed = false
+        eventTarget.classList.remove("viewer-canvas--mining")
+        onMineAimChange(false)
+    }
+
+    const putMineAway = () => {
+        stopAimingMine()
+        switchTo(switches)
+    }
+
+    const aimMine = () => {
+        if (mineAimed || charges.mines === 0 || !miner) return
+        disarm()
+        stopAimingVirus()
+        mineAimed = true
+        eventTarget.classList.add("viewer-canvas--mining")
+        onMineAimChange(true)
+        switchTo(ALL_OFF)
+    }
+
     const aimVirus = () => {
         if (virusAimed || !charges.virus || !infector) return
         disarm()
+        stopAimingMine()
         virusAimed = true
         eventTarget.classList.add("viewer-canvas--infecting")
         onVirusAimChange(true)
@@ -1001,6 +1041,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const arm = () => {
         if (armed || !charges.bomb || !bomber || !rules || rules.bombsOff) return
         stopAimingVirus()
+        stopAimingMine()
         armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
         onArmedChange(true)
@@ -1011,6 +1052,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         charges = held
         if (!held.bomb) disarm()
         if (!held.virus) stopAimingVirus()
+        if (held.mines === 0) stopAimingMine()
         switchTo(switchesHeld(switches, held, rules))
         onCharges(held)
     }
@@ -1043,6 +1085,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             applyChanges(changes.owners)
             showShields(changes.shields)
             markInfections(changes.infections)
+            markMines(changes.mines)
             playShields(changes.shields)
             enclosures.play(enclosure)
             if (!enclosure.yours) return
@@ -1051,13 +1094,39 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         onVirusSpread: (spread) => {
             releaseGhosts([...spread.taken, ...spread.struck.map(({tile}) => tile)])
-            if (spread.victimCountryId === country.code) lost = spread.taken[0] ?? lost
+            lost = spread.taken.find((tile) => ownership.ownerOf(tile) === country.code) ?? lost
             const changes = noChanges()
             tiles.applyInfection(spread, changes)
             applyChanges(changes.owners)
             showShields(changes.shields)
             playShields(changes.shields)
             markInfections(changes.infections)
+            markMines(changes.mines)
+        },
+        onMines: (read) => {
+            const changes = noChanges()
+            if (read.countryId === country.code) tiles.readMines(read, changes)
+            else tiles.forgetMines(changes)
+            markMines(changes.mines)
+        },
+        onMineLaid: (laid) => {
+            if (laid.countryId !== country.code) return
+            const changes = noChanges()
+            tiles.applyMineLaid(laid, changes)
+            markMines(changes.mines)
+        },
+        onMinesExploded: (explosion) => {
+            const taken = explosion.blasts.flatMap((blast) => blast.taken)
+            releaseGhosts(taken)
+            lost = explosion.blasts.filter((blast) => blast.countryId !== country.code)
+                .flatMap((blast) => blast.taken).find((tile) => ownership.ownerOf(tile) === country.code) ?? lost
+            const changes = noChanges()
+            tiles.applyExplosion(explosion, changes)
+            applyChanges(changes.owners)
+            showShields(changes.shields)
+            markInfections(changes.infections)
+            markMines(changes.mines)
+            explode(explosion.blasts.map((blast) => blast.tile), explosion.blasts.some((blast) => blast.countryId === country.code))
         },
         onSpread: (spread) => {
             bonusClicks.playSpread(spread)
@@ -1106,6 +1175,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners)
         showShields(changes.shields)
         markInfections(changes.infections)
+        markMines(changes.mines)
         playShields(changes.shields)
     }
 
@@ -1142,6 +1212,37 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const landmass = landmassOf(drop.tile)
         onBombDropped(drop, landmass === undefined ? undefined : translator().landmass(landmass, borders.codes[landmass]))
     })
+
+    // Each blast drawn as a bomb's at its impact, with no fall: the take that set it off was the fall.
+    const explode = (mines: readonly number[], ours: boolean) => {
+        const seconds = performance.now() / 1000
+        const radius = mineBlastRadius(rules?.mineRings ?? 0)
+        for (const tile of mines) {
+            const {x, y, z} = pointOf(geometryData.positions, tile)
+            blasts.start(new THREE.Vector3(x, y, z), radius, seconds - BLAST_TIMELINE.fall)
+        }
+        invalidate()
+        playSound("bomb", {volume: ours ? 1 : DISTANT_BOMB_VOLUME})
+    }
+
+    // A tile not the flag's, a mined one, or a capital the knock-out plays on is refused here before the mine leaves the
+    // hand; the server checks again. The mine stays aimed while one is held, so mines are laid together.
+    const layMine = (tile: number, owner: string | undefined) => {
+        if (!miner) return
+        if (owner !== country.code || tiles.mines.has(tile) || (rules?.knockOut && capitals?.has(tile))) {
+            onNotice("mineNotYours")
+            playSound("refused")
+            return
+        }
+        playSound("click")
+        plainClicks.playOwnClick(tile, camera)
+        miner.layMine(tile, country.code).catch((e) => {
+            if (lifetime.signal.aborted) return
+            if (e instanceof MineRefusedError) onNotice("mineNotYours")
+            else if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
+            else reportClaimFailure(e, {onSessionUnavailable, onBanned})
+        })
+    }
 
     // A tile of no other flag, or with a shield, is refused here before the virus leaves the hand; the server checks again.
     const infect = (tile: number, owner: string | undefined, shields: number) => {
@@ -1276,6 +1377,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (event.key !== "Escape") return
         putAway()
         putVirusAway()
+        putMineAway()
     }, listenerOptions);
 
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
@@ -1388,6 +1490,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
+        if (mineAimed) {
+            layMine(tile, owner)
+            return
+        }
+
         if (switches.shield && shielder) {
             const placement = placementOf(owner, country.code, shields, rules?.tileShields, fixedCapitals()?.has(tile) ?? false)
             if (placement === "full") {
@@ -1466,6 +1573,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners)
         showShields(changes.shields)
         markInfections(changes.infections)
+        markMines(changes.mines)
         playShields(changes.shields)
 
         const seconds = performance.now() / 1000
@@ -1497,6 +1605,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners, false)
         showShields(changes.shields)
         markInfections(changes.infections)
+        markMines(changes.mines)
         if (capitals) publishStanding()
         if (tracking) targets.touch(rangeTiles(batch.range))
         if (!loaded) {
@@ -1591,6 +1700,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         applyChanges(changes.owners)
         showShields(changes.shields)
         markInfections(changes.infections)
+        markMines(changes.mines)
         publishStanding()
     })
 
@@ -1634,7 +1744,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (!army || inBattle || virusAtWork || crowd === undefined || crowd >= GHOSTS_BELOW || orbiting()) return
         const sight = ghostSight()
         const take = sight && army.march(now, sight)
-        if (take) ghostTook(take)
+        if (take && !tiles.mines.has(take.tile)) ghostTook(take)
     }
 
     const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, director, pilot, () => mapView, () => {
@@ -1700,7 +1810,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setCountry: (newCountry: Country) => {
             const changed = newCountry.code !== country.code
             country = newCountry
-            if (changed) lost = undefined
+            if (changed) {
+                lost = undefined
+                const changes = noChanges()
+                tiles.forgetMines(changes)
+                markMines(changes.mines)
+            }
             if (front && changed) lightFront(front.follow(newCountry.code))
         },
         setCrowd: (count: number | undefined) => {
@@ -1723,12 +1838,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         takeReward,
         setArmed: (on: boolean) => on ? arm() : putAway(),
         setVirusAimed: (on: boolean) => on ? aimVirus() : putVirusAway(),
+        setMineAimed: (on: boolean) => on ? aimMine() : putMineAway(),
         setSwitch: (name: keyof Switches, on: boolean) => {
             if (name === restingSwitch(rules)) restSwitchedOff = !on
             const next = switchesHeld(switched(switches, name, on), charges, rules)
             if (next[name]) {
                 disarm()
                 stopAimingVirus()
+                stopAimingMine()
             }
             switchTo(next)
         },

@@ -191,3 +191,19 @@ func TestAVirusIsKeptUntilItIsUsedAndAHandHoldsOne(t *testing.T) {
 	assert.False(t, again)
 	assert.Equal(t, held, used.WithVirusBack(), "a virus the map refused comes back")
 }
+
+func TestMinesStackToWhatAHandHoldsAndEachIsSpentAlone(t *testing.T) {
+	held := Held{}.Granted(KindMine, 2, chargeRules).Granted(KindMine, 2, chargeRules)
+	require.Equal(t, Held{Mines: 3}, held, "a hand holds 3")
+	assert.Equal(t, []Kind{KindMine}, held.Full(chargeRules))
+	assert.Equal(t, 3, held.Count(KindMine))
+
+	used, ok := held.AfterMine()
+	require.True(t, ok)
+	assert.Equal(t, Held{Mines: 2}, used)
+	assert.Empty(t, used.Full(chargeRules))
+	_, none := Held{}.AfterMine()
+	assert.False(t, none)
+	assert.Equal(t, held, used.WithMineBack(), "a mine the map refused comes back")
+	assert.ErrorIs(t, Held{Mines: -1}.GrantError(), ErrNegativeGrant)
+}

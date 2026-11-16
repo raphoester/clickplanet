@@ -178,3 +178,24 @@ func VirusSpread(infection *clicks.Infection, version clicks.MapVersion) *planet
 		},
 	}
 }
+
+func MinesExploded(explosion *clicks.Explosion, version clicks.MapVersion) *planetv1.PlanetEvent {
+	blasts := make([]*planetv1.MineBlast, len(explosion.Blasts))
+	for i, blast := range explosion.Blasts {
+		blasts[i] = &planetv1.MineBlast{TileId: blast.Mine.Tile, CountryId: blast.Mine.Flag, TakenTileIds: blast.Taken}
+	}
+
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_MinesExploded{
+			MinesExploded: &planetv1.MinesExploded{Blasts: blasts, Version: Version(version)},
+		},
+	}
+}
+
+func MineLaid(flag string, tile uint32, version clicks.MapVersion) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_MineLaid{
+			MineLaid: &planetv1.MineLaid{CountryId: flag, TileId: tile, Version: Version(version)},
+		},
+	}
+}

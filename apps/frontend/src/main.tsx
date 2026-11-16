@@ -268,6 +268,15 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             globe.takeReward(fake.grantBonus("virus"))
             return "a virus in your inventory — aim it at an enemy tile with no shield"
         },
+        giveMine: () => {
+            const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
+            if (!globe) return "the globe is not loaded yet"
+            globe.takeReward(fake.grantBonus("mine"))
+            return "a mine in your inventory — lay it on a tile of your flag"
+        },
+        tripMine: () => fake.tripMine()
+            ? "an enemy took one of your mines"
+            : "lay a mine first",
         giveBox: () => fake.offerBox()
             ? "a box is flying round the globe — catch it"
             : "every stack is full: no box flies",
@@ -374,6 +383,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         refiller: fake,
         shielder: fake,
         infector: fake,
+        miner: fake,
         allegiance: fake,
         clickBudgetSource: fake,
         connection,
@@ -439,6 +449,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         refiller: backend,
         shielder: backend,
         infector: backend,
+        miner: backend,
         allegiance: backend,
         clickBudgetSource: backend,
         connection,

@@ -76,6 +76,7 @@ func (s *Storage) knockOutLocked(ctx context.Context, tile uint32, flag string) 
 		}
 	}
 
+	s.mines.dropTripped(country)
 	at := s.clock.Now().UTC()
 	s.out.add(OutFlag{Flag: country, By: flag, At: at})
 

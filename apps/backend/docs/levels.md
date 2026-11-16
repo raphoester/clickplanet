@@ -12,7 +12,7 @@ reveal](#the-reveal)).
 ```
 levels/                            XP, Level, Record, Source, MissionKind (stats.MissionKind), MissionRate, Curve, Standing,
                                    Scale (XPOf, Reach, StandingOf, ReconciliationOf), ByAccount; the ladder (Kind, Unlock,
-                                   EncloseUnlock, BombUnlock, VirusUnlock, Ladder); Book, the store and the bonuses told in one
+                                   EncloseUnlock, BombUnlock, VirusUnlock, MineUnlock, Ladder); Book, the store and the bonuses told in one
                                    transaction; the Store port and its contract suite
   postgres_level_store/            the Store over progression.levels, under the rows' locks
   inmemory_level_store/            the same port in a map, behind the testing tag
@@ -206,8 +206,9 @@ while its set's gates are on ([The bonuses](bonuses.md#the-gates)).
 | `EncloseUnlock` | `enclose_clicks` | 4     |
 | `BombUnlock`    | `bomb`           | 5     |
 | `VirusUnlock`   | `virus`          | 6     |
+| `MineUnlock`    | `mine`           | 8     |
 
-- **Only the kinds that exist are on it.** Mine goes on at 8 and Rally at 10 once they are. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses' `gates.open`. Refill,
+- **Only the kinds that exist are on it.** Rally goes on at 10 once it is. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses' `gates.open`. Refill,
   spread and shields are open there.
 - **A `Kind` is planet's word**: `planet.v1.BonusKind` without its prefix, in lower case. `planetwords.BonusKind` maps
   it strictly, and `TestEveryKindOnTheLadderIsOneOfPlanets` fails for a rung planet does not name.

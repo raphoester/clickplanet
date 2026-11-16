@@ -19,6 +19,12 @@ type TileStorage interface {
 	Infect(ctx context.Context, write func(tiles Infecting) error) error
 	// Every live virus of the map in play.
 	Viruses() []Virus
+	Lay(ctx context.Context, write func(tiles Laying) error) (MapVersion, error)
+	Explode(ctx context.Context, write func(tiles Exploding) error) error
+	// The tiles the flag's mines are on, and the map's version as they were read.
+	MinesOf(flag string) ([]uint32, MapVersion)
+	// A value each time a take sets a mine off: the explosion waits for Explode.
+	Fuse() <-chan struct{}
 	Fortresses() map[LandmassID]string
 	// A player's take holds its tile for the account in its context; any other write leaves the tile held by nobody.
 	HoldingsOf(landmass LandmassID) []Holding

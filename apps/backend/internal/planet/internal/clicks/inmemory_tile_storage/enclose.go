@@ -61,6 +61,10 @@ func (e *insideEnclosure) put(tile clicks.Tile) error {
 	return err
 }
 
+func (e *insideEnclosure) Trip(tile uint32) {
+	e.storage.tripLocked(tile)
+}
+
 func (e *insideEnclosure) Fortify(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
 	fortification, err := e.storage.fortifyLocked(ctx, tile, flag, most)
 	if err != nil {

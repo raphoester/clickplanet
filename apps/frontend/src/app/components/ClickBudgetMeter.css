@@ -14,15 +14,14 @@
     transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
-.click-budget-dock:has(> .click-budget-footer > *) {
-    padding-bottom: calc(var(--space-2) + 16px);
+.click-budget-footer {
+    order: 1;
+    flex: 1 0 100%;
+    min-width: 0;
 }
 
-.click-budget-footer {
-    position: absolute;
-    left: var(--space-4);
-    right: var(--space-4);
-    bottom: var(--space-2);
+.click-budget-footer:empty {
+    display: none;
 }
 
 .click-budget-shell {
@@ -237,22 +236,26 @@
     animation: click-budget-popover-in 0.18s ease-out;
 }
 
-/* A tray opens as a row of its own above the clicks: the dock grows upward, and what stacks on it follows its drawn height. */
+/* A tray floats over the dock, the way "Your clicks" does: the dock keeps its height, and nothing stacked on it moves.
+   On a desktop it is as wide as what it holds, over the dock's right end, where All opens it: as wide as the dock, it read as the dock's own row. */
 .click-budget-tray {
-    order: -1;
-    flex: 1 0 100%;
-    min-width: 0;
+    position: absolute;
+    right: calc(-1 * var(--outline));
+    bottom: calc(100% + var(--space-3));
+    padding: var(--space-2) var(--space-3);
+    animation: click-budget-popover-in 0.18s ease-out;
 }
 
 .click-budget-tray:empty {
     display: none;
 }
 
-.click-budget-dock:has(> .click-budget-tray:not(:empty)) {
+/* The level's line is a row of its own below the clicks: the dock grows, and what stacks on it follows its drawn height. */
+.click-budget-dock:has(> .click-budget-footer:not(:empty)) {
     flex-wrap: wrap;
 }
 
-.click-budget-dock:has(> .click-budget-tray:not(:empty)) .click-budget-shell {
+.click-budget-dock:has(> .click-budget-footer:not(:empty)) .click-budget-shell {
     flex-basis: 0;
 }
 
@@ -305,15 +308,6 @@
         padding: var(--space-2) var(--space-3);
     }
 
-    .click-budget-dock:has(> .click-budget-footer > *) {
-        padding-bottom: calc(var(--space-2) + 16px);
-    }
-
-    .click-budget-footer {
-        left: var(--space-3);
-        right: var(--space-3);
-    }
-
     .click-budget {
         gap: var(--space-2);
     }
@@ -339,6 +333,10 @@
 
     .click-budget-bar {
         height: 12px;
+    }
+
+    .click-budget-tray {
+        left: calc(-1 * var(--outline));
     }
 }
 
@@ -386,7 +384,8 @@
         animation-name: click-budget-refused-still;
     }
 
-    .click-budget-popover {
+    .click-budget-popover,
+    .click-budget-tray {
         animation: none;
     }
 }

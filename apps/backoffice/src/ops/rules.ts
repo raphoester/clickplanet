@@ -48,6 +48,8 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "charges.shield.perTile", label: "Shields on a tile, at most", kind: "whole"},
         {path: "charges.virus.infections", label: "Virus infections, at most", kind: "whole"},
         {path: "charges.virus.every", label: "Virus spreads every (s)", kind: "seconds"},
+        {path: "charges.mine.held", label: "Mines held", kind: "whole"},
+        {path: "charges.mine.rings", label: "Mine blast rings, 1 to 3", kind: "whole"},
     ]},
     {title: "Arena", fields: [
         {path: "arena.freeze", label: "No play after the fresh map and before the end (s)", kind: "seconds"},

@@ -14,6 +14,7 @@ import {
     Refiller,
     Shielder,
     Infector,
+    Miner,
     TileClicker,
     TileHolders,
     LandmassReader,
@@ -165,6 +166,7 @@ export type Backends = {
     refiller: Refiller
     shielder: Shielder
     infector: Infector
+    miner: Miner
     allegiance: AllegianceSource
     chatBackend: ChatRooms
     account: AccountStore
@@ -318,6 +320,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         graphics,
         toggleBomb,
         toggleVirus,
+        toggleMine,
         toggleSwitch,
         pointing,
         pointingTerritory,
@@ -338,6 +341,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         bomber: backends.bomber,
         shielder: backends.shielder,
         infector: backends.infector,
+        miner: backends.miner,
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
@@ -514,6 +518,7 @@ export default function PlayScreen(props: PlayScreenProps) {
             <Inventory onToggle={toggleSwitch}
                        onToggleBomb={toggleBomb}
                        onToggleVirus={toggleVirus}
+                       onToggleMine={toggleMine}
                        onUseRefill={spendRefill}
                        onToggleShield={() => toggleSwitch("shield")}/>
         </ClickBudgetMeter>}

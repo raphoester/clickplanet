@@ -36,15 +36,31 @@ func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks
 
 type silentNotices struct{}
 
-func (silentNotices) Attend(charges.Holder) (<-chan notices.Event, func()) {
+func (silentNotices) Attend(charges.Holder, string) (<-chan notices.Event, func()) {
 	return nil, func() {}
 }
 
 type addressedNotices map[charges.Holder]chan notices.Event
 
-func (f addressedNotices) Attend(holder charges.Holder) (<-chan notices.Event, func()) {
+func (f addressedNotices) Attend(holder charges.Holder, _ string) (<-chan notices.Event, func()) {
 	return f[holder], func() {}
 }
+
+// flagNotices hears the flag each stream attends with.
+type flagNotices struct {
+	news  chan notices.Event
+	flags chan string
+}
+
+func (f flagNotices) Attend(_ charges.Holder, flag string) (<-chan notices.Event, func()) {
+	f.flags <- flag
+	return f.news, func() {}
+}
+
+// playsFor is the flag every caller plays for.
+type playsFor string
+
+func (p playsFor) FlagOf(context.Context, clicks.Payer) (string, error) { return string(p), nil }
 
 type quietRules struct{}
 
@@ -103,7 +119,7 @@ func TestAnUpdateIsCarriedToTheSink(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -135,7 +151,7 @@ func TestAnEnclosureIsCarriedToTheSinkAsOneFrameAndOnlyItsCloserIsToldItIsTheirs
 		sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 		done := make(chan error, 1)
 		go func() {
-			done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 		}()
 
 		<-sink.fed
@@ -159,7 +175,7 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -179,7 +195,7 @@ func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 			Execute(ctx, sink)
 	}()
 
@@ -202,7 +218,7 @@ func TestAGrantToTheCallersAccountIsCarriedToTheSinkAGuestsToo(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedNotices{"acc-1": news}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, addressedNotices{"acc-1": news}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -223,7 +239,7 @@ func TestASpreadIsCarriedToTheSink(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(stubSubscriber{updates: make(chan clicks.Change)}, time.Hour,
-			addressedNotices{charges.NoHolder: news}, quietRules{},
+			addressedNotices{charges.NoHolder: news}, playsFor(""), quietRules{},
 			facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
@@ -245,7 +261,7 @@ func TestATallyIsCarriedToTheSinkAtItsVersion(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	<-sink.fed
@@ -265,7 +281,7 @@ func TestAHeartbeatSaysTheVersionOfTheLastChangeTheStreamSent(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Millisecond, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Millisecond, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -305,7 +321,7 @@ func TestTheOpeningHeartbeatComesOnceTheMapIsFollowed(t *testing.T) {
 	subscriber := &watchedSubscriber{}
 	sink := &witness{subscriber: subscriber}
 
-	require.NoError(t, listen_for_events_usecase.New(subscriber, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(t.Context(), sink))
+	require.NoError(t, listen_for_events_usecase.New(subscriber, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(t.Context(), sink))
 
 	assert.Equal(t, []bool{true}, sink.followed, "a client resyncs on it, so nothing after it may be missed")
 }
@@ -316,7 +332,7 @@ func TestASilentFeedKeepsSendingHeartbeats(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		done <- listen_for_events_usecase.New(
-			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+			stubSubscriber{updates: make(chan clicks.Change)}, time.Millisecond, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
 	for range 3 {
@@ -334,7 +350,7 @@ func TestTheFeedEndsWhenTheSubscriptionCloses(t *testing.T) {
 	updates := make(chan clicks.Change)
 	close(updates)
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 		Execute(t.Context(), &recorder{})
 
 	require.NoError(t, err, "the map going away is not the caller's error")
@@ -345,7 +361,7 @@ func TestAFailedSendEndsTheFeed(t *testing.T) {
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
 	sink := &recorder{err: assert.AnError, accepted: 1}
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 		Execute(t.Context(), sink)
 
 	require.ErrorIs(t, err, assert.AnError)
@@ -360,7 +376,7 @@ func TestAFailedOpeningHeartbeatEndsTheFeed(t *testing.T) {
 	updates <- clicks.Change{Update: &clicks.TileUpdate{Tile: 1}}
 	sink := &recorder{err: assert.AnError}
 
-	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
+	err := listen_for_events_usecase.New(stubSubscriber{updates: updates}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).
 		Execute(t.Context(), sink)
 
 	require.ErrorIs(t, err, assert.AnError)
@@ -371,7 +387,7 @@ func TestAStreamIsToldWhenItOpensEvenOneThatFails(t *testing.T) {
 	log := facts.NewLog(cptime.NewFixedClock(at))
 	cause := errors.New("subscriber gone")
 
-	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentNotices{}, quietRules{}, log).
+	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, time.Hour, silentNotices{}, playsFor(""), quietRules{}, log).
 		Execute(cpctx.AddIPToContext(t.Context(), "2001:db8::9"), &recorder{})
 
 	require.ErrorIs(t, err, cause)
@@ -391,7 +407,7 @@ func TestAChangeOfRulesIsCarriedToTheSink(t *testing.T) {
 	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
 	done := make(chan error, 1)
 	go func() {
-		done <- listen_for_events_usecase.New(stubSubscriber{}, time.Hour, silentNotices{}, changingRules{changes: changes},
+		done <- listen_for_events_usecase.New(stubSubscriber{}, time.Hour, silentNotices{}, playsFor(""), changingRules{changes: changes},
 			facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
 	}()
 
@@ -401,4 +417,27 @@ func TestAChangeOfRulesIsCarriedToTheSink(t *testing.T) {
 	require.NoError(t, <-done)
 
 	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {RulesChanged: true}}, sink.seen())
+}
+
+func TestAStreamHearsTheMinesOfTheFlagItsCallerPlaysFor(t *testing.T) {
+	news := make(chan notices.Event, 1)
+	laid := &notices.MineLaid{Flag: "fr", Tile: 9, Version: clicks.MapVersion{Epoch: 7, Seq: 2}}
+	news <- notices.Event{MineLaid: laid}
+	attended := flagNotices{news: news, flags: make(chan string, 1)}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sink := &recorder{fed: make(chan struct{}), stopped: ctx.Done()}
+	done := make(chan error, 1)
+	go func() {
+		done <- listen_for_events_usecase.New(stubSubscriber{updates: make(chan clicks.Change)}, time.Hour, attended,
+			playsFor("fr"), quietRules{}, facts.NewLog(cptime.NewFixedClock(at))).Execute(ctx, sink)
+	}()
+
+	<-sink.fed
+	<-sink.fed
+	cancel()
+	require.NoError(t, <-done)
+
+	assert.Equal(t, "fr", <-attended.flags)
+	assert.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true, Version: opening}, {MineLaid: laid}}, sink.seen())
 }

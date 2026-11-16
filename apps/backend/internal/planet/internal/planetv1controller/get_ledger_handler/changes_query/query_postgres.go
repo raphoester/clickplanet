@@ -71,7 +71,7 @@ const changes = `
 		UNION ALL
 		SELECT (taken->>'tile')::bigint, e.country, COALESCE(taken->>'owner', ''), false, 0, (taken->>'tile')::bigint
 		FROM jsonb_array_elements(COALESCE(e.payload->'taken', '[]'::jsonb)) taken
-		WHERE e.kind IN ('spread', 'enclose', 'virus')
+		WHERE e.kind IN ('spread', 'enclose', 'virus', 'mine')
 		UNION ALL
 		SELECT (struck->>'tile')::bigint, COALESCE(struck->>'owner', ''), COALESCE(struck->>'owner', ''), false,
 			(struck->>'shields')::int, (struck->>'tile')::bigint

@@ -29,6 +29,7 @@ func RulesOf(m *planetv1.ChargeRules) Rules {
 		},
 		Shield: ShieldRules{Held: int(m.GetShield().GetHeld()), PerTile: int(m.GetShield().GetPerTile())},
 		Virus:  VirusRules{Infections: int(m.GetVirus().GetInfections()), Every: m.GetVirus().GetEvery().AsDuration()},
+		Mine:   MineRules{Held: int(m.GetMine().GetHeld()), Rings: int(m.GetMine().GetRings())},
 	}
 }
 
@@ -41,6 +42,7 @@ var kinds = map[Kind]planetv1.BonusKind{
 	KindEncloseClicks: planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS,
 	KindShields:       planetv1.BonusKind_BONUS_KIND_SHIELDS,
 	KindVirus:         planetv1.BonusKind_BONUS_KIND_VIRUS,
+	KindMine:          planetv1.BonusKind_BONUS_KIND_MINE,
 }
 
 // KindOf is the wallet's kind for planet.v1's word for it.

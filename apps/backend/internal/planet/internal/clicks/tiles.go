@@ -42,6 +42,7 @@ type Change struct {
 	Fortification *Fortification
 	KnockOut      *KnockOut
 	Infection     *Infection
+	Explosion     *Explosion
 	// The rows the writes since the last tally changed, each whole: a flag at zero is listed.
 	Tally *Tally
 }

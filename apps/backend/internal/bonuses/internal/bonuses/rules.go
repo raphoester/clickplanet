@@ -15,6 +15,7 @@ type Rules struct {
 	Spread  SpreadRules
 	Enclose EncloseRules
 	Shield  ShieldRules
+	Mine    MineRules
 
 	SignInRefill bool
 }
@@ -27,6 +28,7 @@ func (r Rules) Validate() error {
 		positive("enclose.maxPerBox", r.Enclose.MaxPerBox),
 		positive("shield.minPerBox", r.Shield.MinPerBox),
 		atLeast("shield.maxPerBox", r.Shield.MaxPerBox, "shield.minPerBox", r.Shield.MinPerBox),
+		positive("mine.maxPerBox", r.Mine.MaxPerBox),
 	)
 }
 
@@ -41,6 +43,7 @@ var weighed = []struct {
 	{KindBomb, "bomb"},
 	{KindShields, "shields"},
 	{KindVirus, "virus"},
+	{KindMine, "mine"},
 }
 
 func weightsProblem(r Rules) error {
@@ -101,5 +104,9 @@ type EncloseRules struct {
 
 type ShieldRules struct {
 	MinPerBox int
+	MaxPerBox int
+}
+
+type MineRules struct {
 	MaxPerBox int
 }

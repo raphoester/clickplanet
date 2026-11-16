@@ -41,6 +41,10 @@ func (c *insideClaim) put(tile clicks.Tile, clicked bool) error {
 	return err
 }
 
+func (c *insideClaim) Trip(tile uint32) {
+	c.storage.tripLocked(tile)
+}
+
 func (c *insideClaim) Fortify(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
 	fortification, err := c.storage.fortifyLocked(ctx, tile, flag, most)
 	if err != nil {

@@ -11,7 +11,9 @@ the rest of the reveal (missions paying XP, the level-up bonus, the unlock level
 ## Where it shows
 
 - **The dock**: `LevelLine`, the level's chip and its bar across the whole dock, under the clicks and the bonuses
-  (`ClickBudgetMeter`'s `footer`). The dock grows by the line's height, 16px, and only while there is a level. Picked by
+  (`ClickBudgetMeter`'s `footer`). The line is a row of its own in the dock's flow: the dock grows
+by its height and a gap, and only while there is a level. Drawn over the dock's bottom padding, it ran under the bonus
+slots, which are taller than the clicks. Picked by
   the owner on 2026-11-16 over three placements shot at phone and desktop width: on the You button (a bar 40px wide
   barely moves), under the clicks alone, and along the status bar. A bar as wide as the dock moves visibly as the
   player takes tiles.

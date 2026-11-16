@@ -510,7 +510,8 @@ async function choose(): Promise<Chosen> {
         backend.listenForBonuses({
             onEnclosed: (enclosure) => takenOf(enclosure).forEach((tile) => own(tile, enclosure.countryId)),
             onVirusSpread: (spread) => spread.taken.forEach((tile) => own(tile, spread.countryId)),
-            onSpread: () => {}, onCharges: () => {}, onRules: () => {},
+            onMinesExploded: (explosion) => explosion.blasts.forEach((blast) => blast.taken.forEach((tile) => own(tile, blast.countryId))),
+            onMines: () => {}, onMineLaid: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
         const words = wordsOf(story, written, params.get("headline") ?? undefined)

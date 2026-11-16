@@ -153,6 +153,11 @@ export type SpreadClick = {
 export type BonusHandlers = {
     onEnclosed: (enclosure: Enclosure) => void
     onVirusSpread: (spread: VirusSpread) => void
+    // The mines of the flag the server says the page plays for: read again as each stream opens and the flag changes.
+    onMines: (mines: Minefield) => void
+    // A mine a player of the page's flag laid: no other flag hears of it.
+    onMineLaid: (laid: MineLaid) => void
+    onMinesExploded: (explosion: MinesExploded) => void
     onSpread: (spread: SpreadClick) => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
@@ -236,7 +241,7 @@ export interface Bomber {
 export type VirusSpread = {
     virus: string
 
-    // The flag it takes tiles for, and the flag whose land it spreads into.
+    // The flag it takes tiles for, and the flag of the tile it was used on: it spreads into every enemy flag's land.
     countryId: string
     victimCountryId: string
 
@@ -254,6 +259,38 @@ export type VirusSpread = {
 
 export interface Infector {
     useVirus(tileId: number, countryId: string): Promise<void>
+}
+
+export type Minefield = {
+    // The flag the server says the page plays for; empty for none.
+    countryId: string
+    tiles: number[]
+    version: MapVersion
+}
+
+// A mine laid changes no tile: its tile holds it while the tile has not changed since version.
+export type MineLaid = {
+    countryId: string
+    tile: number
+    version: MapVersion
+}
+
+// The mines a take set off, every mine a blast reached going off too, in order: no tile update comes for their tiles.
+export type MinesExploded = {
+    blasts: MineBlast[]
+    version: MapVersion
+}
+
+export type MineBlast = {
+    // The tile the mine was on.
+    tile: number
+    // The mine's flag, whose each tile taken is now.
+    countryId: string
+    taken: number[]
+}
+
+export interface Miner {
+    layMine(tileId: number, countryId: string): Promise<void>
 }
 
 export interface Refiller {
@@ -291,6 +328,14 @@ export class VirusRefusedError extends Error {
     constructor(options?: ErrorOptions) {
         super("a virus takes only an enemy tile with no shield", options)
         this.name = "VirusRefusedError"
+    }
+}
+
+// The tile was not the flag's, held a mine already, or was a capital the knock-out plays on: the mine stays in the hand.
+export class MineRefusedError extends Error {
+    constructor(options?: ErrorOptions) {
+        super("a mine goes only on a tile of your flag with no mine", options)
+        this.name = "MineRefusedError"
     }
 }
 

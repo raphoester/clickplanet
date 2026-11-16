@@ -15,12 +15,15 @@ type Rules struct {
 	Enclose EncloseRules
 	Shield  ShieldRules
 	Virus   VirusRules
+	Mine    MineRules
 }
 
 // A tile keeps its shields in a byte.
 const mostShieldsOnATile = 255
 
 const MostSpreadRings = 3
+
+const MostMineRings = 3
 
 const (
 	mostVirusInfections = 1024
@@ -44,6 +47,9 @@ func (r Rules) Validate() error {
 		rules.AtMost("virus.infections", r.Virus.Infections, "the most a virus makes", mostVirusInfections),
 		rules.AtLeast("virus.every", r.Virus.Every, "a second", quickestVirus),
 		rules.AtMost("virus.every", r.Virus.Every, "ten minutes", slowestVirus),
+		rules.Positive("mine.held", r.Mine.Held),
+		rules.Positive("mine.rings", r.Mine.Rings),
+		rules.AtMost("mine.rings", r.Mine.Rings, "the widest blast", MostMineRings),
 	)
 }
 
@@ -80,6 +86,12 @@ func (r EncloseRules) validate() error {
 type VirusRules struct {
 	Infections int
 	Every      time.Duration
+}
+
+// MineRules: a hand holds Held mines at most, and a mine's blast takes Rings rings of tiles around its own.
+type MineRules struct {
+	Held  int
+	Rings int
 }
 
 type ShieldRules struct {

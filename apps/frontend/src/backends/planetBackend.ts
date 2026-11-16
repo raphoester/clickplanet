@@ -40,6 +40,11 @@ import {
     SessionSource,
     VirusRefusedError,
     VirusSpread,
+    Miner,
+    MineRefusedError,
+    MineLaid,
+    Minefield,
+    MinesExploded,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {Allegiance} from "../domain/allegiance.ts";
@@ -59,6 +64,7 @@ import {
     ReachRefusal,
     SharedWith,
     VirusRefusal,
+    MineRefusal,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
@@ -90,7 +96,7 @@ function sameGrant(a: GrantRules, b: GrantRules): boolean {
     return a.signInRefill === b.signInRefill && a.gatesOn === b.gatesOn && a.openKinds.join() === b.openKinds.join()
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -442,6 +448,22 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                const explosion = minesExplodedOf(event)
+                if (explosion) {
+                    // The take that set the mines off goes first.
+                    this.flushUpdates()
+                    this.streamVersion = explosion.version
+                    this.bonusCallbacks.forEach(handlers => handlers.onMinesExploded(explosion))
+                    return
+                }
+
+                // A mine laid counts no version: the stream's own stays as it is.
+                const laid = mineLaidOf(event)
+                if (laid) {
+                    this.bonusCallbacks.forEach(handlers => handlers.onMineLaid(laid))
+                    return
+                }
+
                 const granted = grantedOf(event)
                 if (granted) {
                     this.holdCharges(granted)
@@ -474,6 +496,25 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.flushUpdates()
         this.streamVersion = version
         this.openingCallbacks.forEach(callback => callback(version))
+        // A gap may have hidden a mine laid, and a new session may play for another flag.
+        void this.readMines()
+    }
+
+    // The mines of the flag the server says the caller plays for: no other flag's.
+    private async readMines(): Promise<void> {
+        const token = this.streamToken ?? this.session.heldIdentity()
+        const headers = new Headers()
+        if (token) headers.set(SESSION_HEADER, token)
+
+        try {
+            const res = await retrying(() => this.client.getMines({}, {headers}), "getMines")
+            if (token !== (this.streamToken ?? this.session.heldIdentity())) return
+            const mines: Minefield = {countryId: res.countryId, tiles: [...res.tileIds], version: versionOf(res.version)}
+            this.bonusCallbacks.forEach(handlers => handlers.onMines(mines))
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            console.error("could not read the flag's mines", e)
+        }
     }
 
     // A returning player is named from load on, with no Turnstile check.
@@ -517,6 +558,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 bombsOff: res.bombsOff,
                 enclosuresOff: res.enclosuresOff,
                 spreadUnlimited: res.spreadUnlimited,
+                virusInfections: res.virusInfections,
+                mines: res.mines,
+                mineRings: res.mineRings,
             }
             this.holdRules(rules)
         } catch (e) {
@@ -653,8 +697,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private holdAllegiance(allegiance: Allegiance | undefined, asked = ++this.allegianceAsked): boolean {
         if (asked < this.allegianceHeld) return false
         this.allegianceHeld = asked
+        const moved = allegiance?.countryId !== this.allegiance?.countryId
         this.allegiance = allegiance
         this.allegianceCallbacks.forEach(callback => callback(allegiance))
+        if (moved) void this.readMines()
         return true
     }
 
@@ -847,6 +893,50 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
+    // The mine leaves the hand at once, and comes back unless the server says it holds none.
+    public async layMine(tileId: number, countryId: string): Promise<void> {
+        this.holdCharges({...this.charges, mines: Math.max(0, this.charges.mines - 1)})
+
+        try {
+            await this.layRetried(tileId, countryId)
+        } catch (e) {
+            this.holdCharges({...this.charges, mines: e instanceof BonusLostError ? 0 : this.charges.mines + 1})
+            throw e
+        }
+    }
+
+    private async layRetried(tileId: number, countryId: string): Promise<void> {
+        try {
+            await this.lay(tileId, countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asMineError(e)
+
+            this.session.invalidate()
+
+            try {
+                await this.lay(tileId, countryId)
+            } catch (retried) {
+                throw asMineError(retried)
+            }
+        }
+    }
+
+    private async lay(tileId: number, countryId: string): Promise<void> {
+        const sessionToken = await this.session.token()
+        await this.ensureFlag(sessionToken, countryId)
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        try {
+            await this.client.layMine({tileId, countryId}, {headers})
+            this.followSession(sessionToken)
+        } catch (e) {
+            this.holdRefusal(e)
+            throw e
+        }
+    }
+
     public async placeShield(tileId: number, countryId: string): Promise<void> {
         this.holdCharges({...this.charges, shields: Math.max(0, this.charges.shields - 1)})
 
@@ -913,6 +1003,23 @@ export function virusSpreadOf(event: PlanetEvent): VirusSpread | undefined {
         ended: spread.ended,
         version: versionOf(spread.version),
     }
+}
+
+export function minesExplodedOf(event: PlanetEvent): MinesExploded | undefined {
+    if (event.event.case !== "minesExploded") return undefined
+
+    const exploded = event.event.value
+    return {
+        blasts: exploded.blasts.map(({tileId, countryId, takenTileIds}) => ({tile: tileId, countryId, taken: [...takenTileIds]})),
+        version: versionOf(exploded.version),
+    }
+}
+
+export function mineLaidOf(event: PlanetEvent): MineLaid | undefined {
+    if (event.event.case !== "mineLaid") return undefined
+
+    const laid = event.event.value
+    return {countryId: laid.countryId, tile: laid.tileId, version: versionOf(laid.version)}
 }
 
 export function enclosureOf(event: PlanetEvent): Enclosure | undefined {
@@ -990,6 +1097,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
         spreadClicksLeft: held.spreadClicksLeft,
         shields: held.shields,
         virus: held.virus,
+        mines: held.mines,
     }
 }
 
@@ -1040,6 +1148,17 @@ export function asVirusError(e: unknown): unknown {
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) {
         if (e.findDetails(VirusRefusal).length > 0) return new VirusRefusedError({cause: e})
         if (e.findDetails(ReachRefusal).length > 0) return new OutOfReachError({cause: e})
+        if (e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
+    }
+
+    return asBonusError(e)
+}
+
+export function asMineError(e: unknown): unknown {
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) {
+        if (e.findDetails(MineRefusal).length > 0) return new MineRefusedError({cause: e})
         if (e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
     }
 

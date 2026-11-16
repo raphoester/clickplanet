@@ -279,6 +279,9 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 		if _, err := tx.ExecContext(ctx, `DELETE FROM viruses WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the viruses: %w", err)
 		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM mines WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the mines: %w", err)
+		}
 		wiped = true
 		return nil
 	})
@@ -292,6 +295,9 @@ func (s *Store) ForgetHolder(ctx context.Context, account cpsession.AccountID) e
 	if _, err := s.db.On(ctx).ExecContext(ctx, `UPDATE tiles SET holder = NULL WHERE holder = $1`,
 		uuid.UUID(account)); err != nil {
 		return fmt.Errorf("failed to forget a holder: %w", err)
+	}
+	if _, err := s.db.On(ctx).ExecContext(ctx, `DELETE FROM mines WHERE account = $1`, uuid.UUID(account)); err != nil {
+		return fmt.Errorf("failed to take a holder's mines off: %w", err)
 	}
 	return nil
 }

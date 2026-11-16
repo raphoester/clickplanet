@@ -71,7 +71,7 @@ system exists to stop.
 | `--mission` | A mission's place: the ring that names it in a card, the red of the ring and the outline the globe draws for it |
 | `--streak` | The streak flame |
 | `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment; the Final Battle to come: its face and tape on the season chip, the home page's panel; a battle to come: its teaser, its cards' dots. Nowhere else |
-| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield`, `--virus` (and `-light`) | A bonus kind: its box, its slot, its reward line; All's four small boxes |
+| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield`, `--virus`, `--mine` (and `-light`) | A bonus kind: its box, its slot, its reward line; All's four small boxes |
 | `--bronze` … `--pumpkin-glow`, `--conquest` … `--halloween-enamel` | Medals only (below) |
 
 - **A name's color is only a hue.** `hueOf` reads it off the pick; the saturation
@@ -143,8 +143,8 @@ Every title is a medal, and the medals obey the same rules as everything else:
 ## Layout
 
 **The globe is the game, and four zones are all that is drawn over it.** A new
-feature goes in one of them; there is no fifth panel and no new fold. **No piece covers another**: the tray of every
-bonus opens inside the dock, which grows, and what stacks on the dock moves with it.
+feature goes in one of them; there is no fifth panel and no new fold. **No piece covers another**, but a popover while
+it is open: the tray of every bonus floats over the dock as "Your clicks" does, and the dock keeps its height.
 
 | Zone | What goes there | Where |
 |---|---|---|

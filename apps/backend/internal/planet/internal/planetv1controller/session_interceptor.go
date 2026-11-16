@@ -36,6 +36,7 @@ func NewSessionInterceptor(
 		cpconnect.Attested(planetv1connect.ClickServiceUseRefillProcedure),
 		cpconnect.Attested(planetv1connect.ClickServicePlaceShieldProcedure),
 		cpconnect.Attested(planetv1connect.ClickServiceUseVirusProcedure),
+		cpconnect.Attested(planetv1connect.ClickServiceLayMineProcedure),
 	)
 }
 
@@ -43,6 +44,7 @@ func NewSessionReaderInterceptor(verifier ClickSessionVerifier, clock cptime.Clo
 	return cpconnect.NewSessionReaderInterceptor(verifier, clock,
 		cpconnect.Identified(planetv1connect.ClickServiceGetBudgetProcedure),
 		cpconnect.Identified(planetv1connect.ClickServiceGetChargesProcedure),
+		cpconnect.Identified(planetv1connect.ClickServiceGetMinesProcedure),
 		cpconnect.Identified(planetv1connect.ClickServiceListenForEventsProcedure),
 		cpconnect.Identified(planetv1connect.ClickServiceGetAllegianceProcedure),
 		cpconnect.Identified(planetv1connect.ClickServicePledgeAllegianceProcedure),

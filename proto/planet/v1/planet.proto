@@ -41,6 +41,13 @@ service ClickService {
   // Infects an enemy tile with no shield: it becomes the caller's flag's, and the virus spreads from it on its own.
   rpc UseVirus(UseVirusRequest) returns (UseVirusResponse);
 
+  // Lays a mine on a tile of the caller's flag with no mine: a take by another flag sets it off.
+  rpc LayMine(LayMineRequest) returns (LayMineResponse);
+
+  // The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+  // now, and a cached one lies.
+  rpc GetMines(GetMinesRequest) returns (GetMinesResponse);
+
   rpc GetFortresses(GetFortressesRequest) returns (GetFortressesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -143,8 +150,8 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill and UseVirus answer while the rules
-// in force freeze the map, or an arena's freeze holds it.
+// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine answer while
+// the rules in force freeze the map, or an arena's freeze holds it.
 message FrozenRefusal {}
 
 // The detail of the FailedPrecondition that Click answers while the reach plays, for a tile that touches none of the
@@ -159,7 +166,11 @@ message BombRefusal {}
 // virus stays held.
 message VirusRefusal {}
 
-// The detail of a PermissionDenied that Click, DropBomb, PlaceShield and UseVirus answer a banned caller.
+// The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine already, or
+// is a capital while the knock-out plays: the mine stays held.
+message MineRefusal {}
+
+// The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus and LayMine answer a banned caller.
 message BanRefusal {
   int64 banned_until_unix_ms = 1;
 }
@@ -288,7 +299,40 @@ message PlanetEvent {
     KnockOut knock_out = 13;
 
     VirusSpread virus_spread = 14;
+
+    // Only on a stream whose caller plays for the mine's flag: no other flag hears of it.
+    MineLaid mine_laid = 15;
+
+    MinesExploded mines_exploded = 16;
   }
+}
+
+// A mine a player of the flag laid. The tile holds it only while it has not changed since version.
+message MineLaid {
+  string country_id = 1;
+
+  uint32 tile_id = 2;
+
+  // The map's version as it was laid: no change, so streams count none.
+  MapVersion version = 3;
+}
+
+// The one event of the mines a take set off, every mine each blast reached going off too: each blast took its tiles for
+// its mine's flag, in order. Its fortifies and knock-outs follow as their own events.
+message MinesExploded {
+  repeated MineBlast blasts = 1;
+
+  MapVersion version = 2;
+}
+
+message MineBlast {
+  // The tile the mine was on.
+  uint32 tile_id = 1;
+
+  // The mine's flag, whose each tile taken is now.
+  string country_id = 2;
+
+  repeated uint32 taken_tile_ids = 3;
 }
 
 // The one event of a virus's use or tick: every tile it took is the flag's now and infected, but those in struck.
@@ -298,7 +342,7 @@ message VirusSpread {
   // The flag the virus takes tiles for.
   string country_id = 2;
 
-  // The flag whose land it spreads into.
+  // The flag of the tile it was used on. It spreads into every enemy flag's land, not only this one's.
   string victim_country_id = 3;
 
   // Each is country_id's now, and infected.
@@ -436,6 +480,8 @@ message ChargesHeld {
   uint32 shields = 5;
 
   bool virus = 6;
+
+  uint32 mines = 7;
 }
 
 message GetChargesRequest {}
@@ -497,6 +543,12 @@ message GetChargeRulesResponse {
 
   // How long a virus waits between two spreads.
   uint32 virus_every_ms = 19;
+
+  // How many mines a hand holds at most.
+  uint32 mines = 20;
+
+  // How many rings of tiles around its own a mine's blast takes.
+  uint32 mine_rings = 21;
 }
 
 message TollStep {
@@ -522,6 +574,8 @@ enum BonusKind {
   BONUS_KIND_SHIELDS = 6;
 
   BONUS_KIND_VIRUS = 7;
+
+  BONUS_KIND_MINE = 8;
 }
 
 message UseRefillRequest {
@@ -603,6 +657,26 @@ message UseVirusRequest {
 }
 
 message UseVirusResponse {}
+
+message LayMineRequest {
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+}
+
+message LayMineResponse {}
+
+message GetMinesRequest {}
+
+message GetMinesResponse {
+  // The flag the caller plays for, whose mines these are: empty for no flag, and no mine.
+  string country_id = 1;
+
+  repeated uint32 tile_ids = 2;
+
+  // The map's version as they were read: a tile changed after it holds no mine.
+  MapVersion version = 3;
+}
 
 message PlaceShieldRequest {
   uint32 tile_id = 1;

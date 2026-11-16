@@ -83,6 +83,10 @@ func everyKind() []ledger.Event {
 			{Tile: 15, Owner: "de", Outcome: clicks.Taken},
 			{Tile: 16, Owner: "de", Outcome: clicks.Shielded, Shields: 1},
 		}},
+		ledger.Mining{Tile: 17, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
+			{Tile: 17, Owner: "pl", Outcome: clicks.Taken},
+			{Tile: 18, Outcome: clicks.Taken},
+		}},
 		ledger.Bombing{Scope: "203.0.113.7", Account: ada, At: at, Blast: clicks.Blast{
 			Tile: 9, CountryID: "fr", Cleared: []uint32{9, 10}, Owners: []string{"de", "de"},
 		}},
@@ -101,8 +105,10 @@ func (s *testSuite) TestAnAccountTookTilesForEachFlagAndFromTheFlagsThatHeldThem
 	s.record(everyKind()...)
 
 	s.True(proto.Equal(&planetv1.GetTakesByCountryResponse{
-		TakenFor:  []*planetv1.CountryTakes{{CountryId: "fr", Tiles: 6}, {CountryId: "it", Tiles: 2}},
-		TakenFrom: []*planetv1.CountryTakes{{CountryId: "de", Tiles: 3}, {CountryId: "fr", Tiles: 2}, {CountryId: "es", Tiles: 1}},
+		TakenFor: []*planetv1.CountryTakes{{CountryId: "fr", Tiles: 8}, {CountryId: "it", Tiles: 2}},
+		TakenFrom: []*planetv1.CountryTakes{
+			{CountryId: "de", Tiles: 3}, {CountryId: "fr", Tiles: 2}, {CountryId: "es", Tiles: 1}, {CountryId: "pl", Tiles: 1},
+		},
 	}, s.takes(ada)), "%v", s.takes(ada))
 }
 
@@ -127,7 +133,7 @@ func (s *testSuite) TestTheQueryCountsExactlyTheTakesTheLedgerReplaysForTheAccou
 }
 
 func (s *testSuite) TestAnAccountThatTookNothingTookFromNobody() {
-	s.record(everyKind()[8:]...)
+	s.record(everyKind()[9:]...)
 
 	answer := s.takes(ada)
 

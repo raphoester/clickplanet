@@ -12,5 +12,6 @@ func TestRules() Rules {
 		Enclose: EncloseRules{MaxTiles: 25, Held: 3},
 		Shield:  ShieldRules{Held: 30, PerTile: 10},
 		Virus:   VirusRules{Infections: 32, Every: 20 * time.Second},
+		Mine:    MineRules{Held: 3, Rings: 2},
 	}
 }
