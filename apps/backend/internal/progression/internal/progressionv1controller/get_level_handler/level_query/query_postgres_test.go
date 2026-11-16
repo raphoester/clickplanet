@@ -63,7 +63,7 @@ func (s *testSuite) took(account accounts.AccountID) {
 
 func (s *testSuite) TestALinkedAccountReadsItsLevelKeptWithTheXPItsStatsGiveNow() {
 	s.took(ada)
-	s.Require().NoError(s.levels.Set(s.T().Context(), levels.ByAccount{ada: 4}, monday))
+	s.Require().NoError(s.levels.RaiseAll(s.T().Context(), levels.ByAccount{ada: 4}, monday))
 
 	level := s.level(ada).GetLevel()
 
@@ -86,7 +86,7 @@ func (s *testSuite) TestAGuestReadsNoLevelWhateverItDid() {
 }
 
 func (s *testSuite) TestALevelKeptWithNoStatsIsOnItsBarWithNoXP() {
-	s.Require().NoError(s.levels.Set(s.T().Context(), levels.ByAccount{ada: 1}, monday))
+	s.Require().NoError(s.levels.RaiseAll(s.T().Context(), levels.ByAccount{ada: 1}, monday))
 
 	s.True(proto.Equal(&progressionv1.Level{Level: 1, NextLevelXp: 14}, s.level(ada).GetLevel()))
 }

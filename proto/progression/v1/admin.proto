@@ -17,10 +17,10 @@ service AdminService {
   // their ledger rows.
   rpc BackfillDaysPlayed(BackfillDaysPlayedRequest) returns (BackfillDaysPlayedResponse);
 
-  // Gives every linked account the exact level its XP reaches, after a deploy that changes what gives XP or the curve:
-  // it raises, lowers one the new rules no longer reach, and removes a guest's. It tells no player, and tells the bonuses
-  // module what every account read unlocks (bonuses.v1.KeepUnlocks), so one run after the deploy that added the unlocks
-  // is their backfill. A second run changes no level. Run it with dry_run first.
+  // Raises every linked account to the level its XP reaches, after a deploy that changes what gives XP or the curve, and
+  // removes a guest's level. It never lowers one: a level the players saw stays. It tells no player and pays no
+  // level-up bonus; it tells the bonuses module what every account read unlocks (bonuses.v1.KeepUnlocks). A second run
+  // changes nothing. Run it with dry_run first.
   rpc ReconcileLevels(ReconcileLevelsRequest) returns (ReconcileLevelsResponse);
 
   // What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
@@ -55,10 +55,12 @@ message ReconcileLevelsRequest {
 }
 
 message ReconcileLevelsResponse {
+  // The run never lowers a level since the levels are shown.
+  reserved 2;
+  reserved "lowered";
+
   // The accounts whose level went up, or would.
   uint32 raised = 1;
-  // The accounts whose level went down, or would: the new rules no longer reach it.
-  uint32 lowered = 2;
   // The guests whose level was taken off, or would be.
   uint32 removed = 3;
 }

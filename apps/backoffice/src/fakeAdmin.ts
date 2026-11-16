@@ -753,7 +753,7 @@ export class FakeProgression implements ProgressionAdmin {
     }
 
     reconcileLevels(request: PartialMessage<ReconcileLevelsRequest>): Promise<ReconcileLevelsResponse> {
-        return this.admin.answer("reconcileLevels", request, new ReconcileLevelsResponse({raised: 2700, lowered: 12, removed: 3}))
+        return this.admin.answer("reconcileLevels", request, new ReconcileLevelsResponse({raised: 2700, removed: 3}))
     }
 
     getProgress(request: PartialMessage<AdminGetProgressRequest>): Promise<AdminGetProgressResponse> {

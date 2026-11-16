@@ -72,19 +72,8 @@ func (s *StoreContractSuite) TestRaiseAllRaisesEachAccountAndLowersNone() {
 	s.Equal(ByAccount{{15: 1}: 9, {15: 2}: 5, {15: 3}: 1}, s.levels(1, 2, 3))
 }
 
-func (s *StoreContractSuite) TestSetKeepsEachLevelAsItIsLowerOrHigher() {
-	s.raise(1, 9)
-	s.raise(2, 2)
-
-	s.Require().NoError(s.store.Set(s.T().Context(), ByAccount{{15: 1}: 4, {15: 2}: 5, {15: 3}: 1}, contractAt))
-
-	s.Equal(ByAccount{{15: 1}: 4, {15: 2}: 5, {15: 3}: 1}, s.levels(1, 2, 3))
-	s.Equal(Level(4), s.raise(1, 6), "a raise reads the level set")
-}
-
-func (s *StoreContractSuite) TestNothingToRaiseOrSetIsNotAnError() {
+func (s *StoreContractSuite) TestNothingToRaiseIsNotAnError() {
 	s.Require().NoError(s.store.RaiseAll(s.T().Context(), ByAccount{}, contractAt))
-	s.Require().NoError(s.store.Set(s.T().Context(), ByAccount{}, contractAt))
 }
 
 func (s *StoreContractSuite) TestAForgottenAccountHasNoLevelAndTheOthersKeepTheirs() {

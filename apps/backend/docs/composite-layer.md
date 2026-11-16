@@ -209,6 +209,7 @@ The proto sits beside the public one in the module's package (`proto/auth/v1/int
 | `alerts-names`, `alerts-names-leaving`, `alerts-names-returns` | each event names the account alone, and `links.Namer` asks player the name it shows now and renames only a user that does not wear it (`links.name`), so a second delivery, or one heard after a later one of another stream, changes nothing |
 | `alerts-joins` | joins only an account not linked to that Discord user yet (`links.Link.Joins`); a second delivery finds the link the first kept, and names the user only if it does not wear its name yet. Auth keeps the grant for ten minutes and deletes nothing on a read, so a try again reads it again |
 | `chat-judge-reports` | the judge keeps a judgement per report (`chat.judgements`, in the transaction that acts on it): a report told again finds it and does nothing; many reports of one message are judged once, by the first that judged it |
+| `commands:bonuses.v1.PayLevelUp` (the bonuses module's `handler`) | pays through planet's `GrantCharges` under progression's `grant_id`, one per account and level, which planet keeps for good in `charge_grants` (`lasting`) |
 | `commands:bonuses.v1.KeepUnlocks` (the bonuses module's `handler`) | each command names the whole list and when it was decided; the bonuses module keeps the latest per account (`unlocks.Unlocks.Decided`), under an advisory lock, so one sent again, late or out of order changes nothing |
 | `commands:support.v1.DecideReport` (support's `handler`) | the report's id is the command's: `SaveOnce` keeps a decision only for a report not decided yet, so one told again, or one the operator decided first, changes nothing |
 
@@ -254,6 +255,8 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `bonuses.v1.KeepUnlocks`, a command from progression: a lost one is a kind a level unlocked that the bonuses never
   draw for the account, while their gates are on, until its next raise. `levels.Book` records it in the transaction that
   raises the level, and `ReconcileLevels` once per account of each page, in the page's transaction.
+- `bonuses.v1.PayLevelUp`, a command from progression: a lost one is a level-up never paid, since a level is reached
+  once. `levels.Book` records it beside `KeepUnlocks`, in the transaction that raises the level.
 - **Not the gamemaster's calls** to scoring, planet, the antibot, the boxes, the bonuses module and the quizzes: each is an RPC answered at once, and the gamemaster
   keeps the answer in its own postgres right after the call (see [The gamemaster's calls](#the-gamemasters-calls)).
 - **Not the bonuses module's payments** to planet (`planet.v1.InternalService/GrantCharges`): an RPC answered at once,
@@ -294,6 +297,7 @@ The commands today:
 | `scoring.v1.GrantPoints{grant_id, country, points, granted_at}` | `missions`, through its outbox | a flag finished its flag mission: its points | `scoring` (`grant_points_handler`), which counts them in every book open at `granted_at`, once per `grant_id` |
 | `planet.v1.RefuseCaller{scope \| account_id, until, decided_at}`, `AdmitCaller{scope \| account_id, decided_at}` | `antibot`, through its outbox, from `bans.Banner` (a flag, a ban, an unban) and `bans.Book.Restate` (each rule set taken, the first at boot) | a ban changed: refuse the caller until a time, or admit it from now | `planet` (`refuse_caller_handler`, `admit_caller_handler`), which keeps the latest decision on each caller by `decided_at` in `planet.refused_callers` and refuses clicks, bombs and shields from it |
 | `support.v1.DecideReport{report_id, outcome, comment}` | `chat`, through its outbox, from `judge_report_usecase` | the judge acted on a report or dismissed it; a report it leaves open sends none | `support` (`decide_report_handler`), which keeps the decision once per report with `decide_report_usecase`, and leaves one decided already |
+| `bonuses.v1.PayLevelUp{grant_id, account_id, level, unlocked}` | `progression`, through its outbox, from `levels.Book` | a raise by play that wrote a level of 2 or more: one per raise, however many levels it jumps; never for a reconciliation | the bonuses module (`pay_level_up_handler`), which draws one kind as for a box, among the kinds the account may be drawn (`unlocked` with the open ones), and pays it through planet's `GrantCharges`, once per `grant_id` kept for good |
 | `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}` | `progression`, through its outbox, from `levels.Book` | a raise that wrote a level, with every kind it unlocks; each account of a `ReconcileLevels` page, at the level its stats reach (none for a guest) | the bonuses module (`keep_unlocks_handler`), which keeps the latest list per account by `decided_at` in `bonuses.unlocks`, and draws from it while its set's gates are on |
 
 ### The gamemaster's calls
@@ -321,7 +325,7 @@ after 8 tries), and a buried answer stalled the game. See [The gamemaster as a r
   `ResetMap`) on a context detached from the request, so it never stops halfway.
 - The rest stays a command over Redis: `scoring.v1.GrantPoints` from missions,
   `RefuseCaller` and `AdmitCaller` from the antibot, `support.v1.DecideReport` from the chat, `bonuses.v1.KeepUnlocks`
-  from progression. Each is decided in a
+  and `PayLevelUp` from progression. Each is decided in a
   transaction and sent through its sender's outbox, and none waits on an answer.
 
 **In process still, on purpose**: the live fanouts to open browser streams (the tile map, the chat feed, the roster and the titles, the season boards and the race) are not module-to-module; they are lossy by design, and a client reads again when its stream reopens.

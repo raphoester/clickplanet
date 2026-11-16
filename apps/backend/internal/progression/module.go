@@ -24,7 +24,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/finales/usecases/record_finale_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inprocess_level_feed"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/outbox_bonuses_unlocks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/outbox_bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/postgres_level_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/forget_level_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/raise_level_usecase"
@@ -146,7 +146,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	departureStore := postgres_departure_store.New(db)
 	levelStore := postgres_level_store.New(db)
 	// What a level unlocked goes to the bonuses module as a command in its words, in the transaction that writes it.
-	levelBook := levels.NewBook(db, levelStore, outbox_bonuses_unlocks.New(cpoutbox.New(db)))
+	levelBook := levels.NewBook(db, levelStore, outbox_bonuses.New(cpoutbox.New(db)))
 
 	careers := titles.NewCareers(accounts, fightStore)
 	catalog := titles.NewCatalog()

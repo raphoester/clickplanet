@@ -31,7 +31,6 @@ type Executor interface {
 
 type Reconciled struct {
 	Raised  int
-	Lowered int
 	Removed int
 }
 
@@ -82,7 +81,6 @@ func (u *UseCase) Execute(ctx context.Context, dryRun bool) (Reconciled, error) 
 			}
 		}
 		reconciled.Raised += len(reconciliation.Raised())
-		reconciled.Lowered += len(reconciliation.Lowered())
 		reconciled.Removed += len(reconciliation.Removed())
 
 		if len(page) < pageSize {
