@@ -2,7 +2,8 @@ syntax = "proto3";
 
 package progression.v1;
 
-// A take, a message, a bomb, a fortify, a box, a right answer or missions paid was counted on the account's stats.
+// A take, a message, a bomb, a fortify, a box, a right answer or missions paid or done was counted on the account's
+// stats.
 message StatsChanged {
   string account_id = 1;
 }

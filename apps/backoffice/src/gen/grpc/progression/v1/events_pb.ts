@@ -7,7 +7,8 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * A take, a message, a bomb, a fortify, a box, a right answer or missions paid was counted on the account's stats.
+ * A take, a message, a bomb, a fortify, a box, a right answer or missions paid or done was counted on the account's
+ * stats.
  *
  * @generated from message progression.v1.StatsChanged
  */

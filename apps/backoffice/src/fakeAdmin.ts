@@ -186,6 +186,8 @@ import {
     AdminGetProgressResponse,
     BackfillDaysPlayedRequest,
     BackfillDaysPlayedResponse,
+    ReconcileLevelsRequest,
+    ReconcileLevelsResponse,
     ReconcileTitlesRequest,
     ReconcileTitlesResponse,
 } from "./gen/grpc/progression/v1/admin_pb.ts"
@@ -746,6 +748,10 @@ export class FakeProgression implements ProgressionAdmin {
 
     backfillDaysPlayed(request: PartialMessage<BackfillDaysPlayedRequest>): Promise<BackfillDaysPlayedResponse> {
         return this.admin.answer("backfillDaysPlayed", request, new BackfillDaysPlayedResponse({accounts: 1200, changed: 37}))
+    }
+
+    reconcileLevels(request: PartialMessage<ReconcileLevelsRequest>): Promise<ReconcileLevelsResponse> {
+        return this.admin.answer("reconcileLevels", request, new ReconcileLevelsResponse({raised: 2700, lowered: 12, removed: 3}))
     }
 
     getProgress(request: PartialMessage<AdminGetProgressRequest>): Promise<AdminGetProgressResponse> {

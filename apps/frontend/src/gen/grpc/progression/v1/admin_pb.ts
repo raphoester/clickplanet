@@ -169,6 +169,100 @@ export class BackfillDaysPlayedResponse extends Message<BackfillDaysPlayedRespon
 }
 
 /**
+ * @generated from message progression.v1.ReconcileLevelsRequest
+ */
+export class ReconcileLevelsRequest extends Message<ReconcileLevelsRequest> {
+  /**
+   * Counts what would change, and writes nothing.
+   *
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<ReconcileLevelsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.ReconcileLevelsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReconcileLevelsRequest {
+    return new ReconcileLevelsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReconcileLevelsRequest {
+    return new ReconcileLevelsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReconcileLevelsRequest {
+    return new ReconcileLevelsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReconcileLevelsRequest | PlainMessage<ReconcileLevelsRequest> | undefined, b: ReconcileLevelsRequest | PlainMessage<ReconcileLevelsRequest> | undefined): boolean {
+    return proto3.util.equals(ReconcileLevelsRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message progression.v1.ReconcileLevelsResponse
+ */
+export class ReconcileLevelsResponse extends Message<ReconcileLevelsResponse> {
+  /**
+   * The accounts whose level went up, or would.
+   *
+   * @generated from field: uint32 raised = 1;
+   */
+  raised = 0;
+
+  /**
+   * The accounts whose level went down, or would: the new rules no longer reach it.
+   *
+   * @generated from field: uint32 lowered = 2;
+   */
+  lowered = 0;
+
+  /**
+   * The guests whose level was taken off, or would be.
+   *
+   * @generated from field: uint32 removed = 3;
+   */
+  removed = 0;
+
+  constructor(data?: PartialMessage<ReconcileLevelsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.ReconcileLevelsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "raised", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "lowered", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "removed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReconcileLevelsResponse {
+    return new ReconcileLevelsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReconcileLevelsResponse {
+    return new ReconcileLevelsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReconcileLevelsResponse {
+    return new ReconcileLevelsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReconcileLevelsResponse | PlainMessage<ReconcileLevelsResponse> | undefined, b: ReconcileLevelsResponse | PlainMessage<ReconcileLevelsResponse> | undefined): boolean {
+    return proto3.util.equals(ReconcileLevelsResponse, a, b);
+  }
+}
+
+/**
  * @generated from message progression.v1.AdminGetProgressRequest
  */
 export class AdminGetProgressRequest extends Message<AdminGetProgressRequest> {
@@ -240,11 +334,32 @@ export class AdminGetProgressResponse extends Message<AdminGetProgressResponse> 
   playsAgainst: CountryTiles[] = [];
 
   /**
+   * The level kept, 0 for none: a guest, or an account no fact has raised yet.
+   *
+   * @generated from field: uint32 level = 7;
+   */
+  level = 0;
+
+  /**
    * The UTC days with at least one take.
    *
    * @generated from field: uint64 days_played = 8;
    */
   daysPlayed = protoInt64.zero;
+
+  /**
+   * The XP the stats give, a guest's too, though a guest has no level.
+   *
+   * @generated from field: progression.v1.XpBreakdown xp = 9;
+   */
+  xp?: XpBreakdown;
+
+  /**
+   * The missions done, by kind, as missions told them: a guest's too, paid or not.
+   *
+   * @generated from field: repeated progression.v1.MissionTally missions_by_kind = 10;
+   */
+  missionsByKind: MissionTally[] = [];
 
   constructor(data?: PartialMessage<AdminGetProgressResponse>) {
     super();
@@ -260,7 +375,10 @@ export class AdminGetProgressResponse extends Message<AdminGetProgressResponse> 
     { no: 4, name: "worn_title", kind: "message", T: Title },
     { no: 5, name: "plays_for", kind: "message", T: CountryTiles, repeated: true },
     { no: 6, name: "plays_against", kind: "message", T: CountryTiles, repeated: true },
+    { no: 7, name: "level", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "days_played", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 9, name: "xp", kind: "message", T: XpBreakdown },
+    { no: 10, name: "missions_by_kind", kind: "message", T: MissionTally, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminGetProgressResponse {
@@ -277,6 +395,142 @@ export class AdminGetProgressResponse extends Message<AdminGetProgressResponse> 
 
   static equals(a: AdminGetProgressResponse | PlainMessage<AdminGetProgressResponse> | undefined, b: AdminGetProgressResponse | PlainMessage<AdminGetProgressResponse> | undefined): boolean {
     return proto3.util.equals(AdminGetProgressResponse, a, b);
+  }
+}
+
+/**
+ * The XP an account's stats give, by source. A message gives none, so it has no field.
+ *
+ * @generated from message progression.v1.XpBreakdown
+ */
+export class XpBreakdown extends Message<XpBreakdown> {
+  /**
+   * @generated from field: uint64 total = 1;
+   */
+  total = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 tiles_taken = 2;
+   */
+  tilesTaken = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 days_played = 3;
+   */
+  daysPlayed = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 missions_done = 4;
+   */
+  missionsDone = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 bombs_dropped = 5;
+   */
+  bombsDropped = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 boxes_caught = 6;
+   */
+  boxesCaught = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 right_answers = 7;
+   */
+  rightAnswers = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 tiles_fortified = 8;
+   */
+  tilesFortified = protoInt64.zero;
+
+  constructor(data?: PartialMessage<XpBreakdown>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.XpBreakdown";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "total", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 2, name: "tiles_taken", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "days_played", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 4, name: "missions_done", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 5, name: "bombs_dropped", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 6, name: "boxes_caught", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 7, name: "right_answers", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 8, name: "tiles_fortified", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): XpBreakdown {
+    return new XpBreakdown().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): XpBreakdown {
+    return new XpBreakdown().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): XpBreakdown {
+    return new XpBreakdown().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: XpBreakdown | PlainMessage<XpBreakdown> | undefined, b: XpBreakdown | PlainMessage<XpBreakdown> | undefined): boolean {
+    return proto3.util.equals(XpBreakdown, a, b);
+  }
+}
+
+/**
+ * The missions of one kind an account has done in all.
+ *
+ * @generated from message progression.v1.MissionTally
+ */
+export class MissionTally extends Message<MissionTally> {
+  /**
+   * The kind as missions names it in its briefs: missions.v1.MissionKind without its prefix, in lower case.
+   *
+   * @generated from field: string kind = 1;
+   */
+  kind = "";
+
+  /**
+   * @generated from field: uint64 done = 2;
+   */
+  done = protoInt64.zero;
+
+  /**
+   * Their goals, summed: what the kind's XP is paid on.
+   *
+   * @generated from field: uint64 goals = 3;
+   */
+  goals = protoInt64.zero;
+
+  constructor(data?: PartialMessage<MissionTally>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.MissionTally";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "done", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "goals", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MissionTally {
+    return new MissionTally().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MissionTally {
+    return new MissionTally().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MissionTally {
+    return new MissionTally().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MissionTally | PlainMessage<MissionTally> | undefined, b: MissionTally | PlainMessage<MissionTally> | undefined): boolean {
+    return proto3.util.equals(MissionTally, a, b);
   }
 }
 

@@ -11,8 +11,11 @@ import (
 
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/postgres_level_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/admin_get_progress_handler/admin_progress_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_level_scale"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
@@ -45,6 +48,7 @@ type testSuite struct {
 	stats  *postgres_stats_store.Store
 	titles *postgres_title_store.Store
 	worn   *postgres_worn_title_store.Store
+	levels *postgres_level_store.Store
 	fronts *fakeFronts
 }
 
@@ -58,6 +62,7 @@ func (s *testSuite) SetupSuite() {
 	s.stats = postgres_stats_store.New(s.db)
 	s.titles = postgres_title_store.New(s.db)
 	s.worn = postgres_worn_title_store.New(s.db)
+	s.levels = postgres_level_store.New(s.db)
 }
 
 func (s *testSuite) SetupTest() {
@@ -66,7 +71,8 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) query() *admin_progress_query.PostgresQuery {
-	return admin_progress_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), s.fronts, cptime.NewFixedClock(monday))
+	return admin_progress_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()),
+		inprocess_level_scale.New(levels.Scale{}), s.fronts, cptime.NewFixedClock(monday))
 }
 
 func (s *testSuite) progress(account accounts.AccountID) *progressionv1.AdminGetProgressResponse {
@@ -89,6 +95,7 @@ func (s *testSuite) TestEverythingTheGameKeepsIsRead() {
 		Stats:        &progressionv1.Stats{TilesTaken: 2, StreakCurrent: 2, StreakBest: 2, StreakLastDay: "2026-09-14"},
 		MessagesSent: 1,
 		DaysPlayed:   2,
+		Xp:           &progressionv1.XpBreakdown{Total: 202, TilesTaken: 2, DaysPlayed: 200},
 		Titles:       progressionmessage.Titles([]titles.Standing{og, settler}),
 		WornTitle:    progressionmessage.Title(og),
 	}, s.progress(ada)), "%v", s.progress(ada))
@@ -111,9 +118,42 @@ func (s *testSuite) TestTheDaysPlayedAreTheOnesKept() {
 	s.Equal(uint64(3), s.progress(ada).GetDaysPlayed(), "not the streak: the days need not follow each other")
 }
 
+func (s *testSuite) TestTheLevelKeptTheXPTheStatsGiveAndTheMissionsByKindAreRead() {
+	ctx := s.T().Context()
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.TakeAt(0, 0, monday)))
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.BombAt(1)))
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.FortifyAt(2, 50)))
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.BonusAt(monday)))
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.RightAnswerAt(monday)))
+	s.Require().NoError(s.stats.Record(ctx, ada, stats.MissionsDone(map[stats.MissionKind]stats.MissionTally{
+		"take_for": {Done: 2, Goals: 360}, "bomb_in": {Done: 1, Goals: 1},
+	})))
+	_, err := s.levels.Raise(ctx, ada, 4, monday)
+	s.Require().NoError(err)
+
+	progress := s.progress(ada)
+
+	s.Equal(uint32(4), progress.GetLevel(), "the level kept, not the one the XP reaches")
+	s.True(proto.Equal(&progressionv1.XpBreakdown{
+		Total: 1 + 100 + 360 + 150 + 50 + 30 + 30 + 10, TilesTaken: 1, DaysPlayed: 100, MissionsDone: 360 + 150, BombsDropped: 50,
+		BoxesCaught: 30, RightAnswers: 30, TilesFortified: 10,
+	}, progress.GetXp()), "%v", progress.GetXp())
+	s.True(proto.Equal(&progressionv1.AdminGetProgressResponse{MissionsByKind: []*progressionv1.MissionTally{
+		{Kind: "bomb_in", Done: 1, Goals: 1}, {Kind: "take_for", Done: 2, Goals: 360},
+	}}, &progressionv1.AdminGetProgressResponse{MissionsByKind: progress.GetMissionsByKind()}), "%v", progress.GetMissionsByKind())
+}
+
+func (s *testSuite) TestAGuestHasXPAndNoLevel() {
+	s.Require().NoError(s.stats.Record(s.T().Context(), ada, stats.TakeAt(0, 0, monday)))
+
+	s.Zero(s.progress(ada).GetLevel())
+	s.Equal(uint64(101), s.progress(ada).GetXp().GetTotal(), "what the operator reads is the stats' XP")
+}
+
 func (s *testSuite) TestAnAccountTheGameKeepsNothingAboutIsZeros() {
-	s.True(proto.Equal(&progressionv1.AdminGetProgressResponse{Stats: &progressionv1.Stats{}, Titles: []*progressionv1.Title{}},
-		s.progress(accounts.AccountID{15: 9})))
+	s.True(proto.Equal(&progressionv1.AdminGetProgressResponse{
+		Stats: &progressionv1.Stats{}, Titles: []*progressionv1.Title{}, Xp: &progressionv1.XpBreakdown{},
+	}, s.progress(accounts.AccountID{15: 9})))
 }
 
 func (s *testSuite) TestEveryCountryThePlayerPlaysForAndAgainstIsRead() {

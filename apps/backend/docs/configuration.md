@@ -150,7 +150,7 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.database.*` — profiles, guest codes, departures and the operator's renames, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `player.renameRetention`, `player.pruneInterval` — how long an operator's rename is kept (`ListRenames`, default 90
   days), and how often the older ones are deleted (1h)
-- `progression.database.*` — the stats, the titles, the titles worn, the finales fought, the nameplates and the departures, same shape as `database`, schema `progression`; required. `progression.database.password` belongs in the environment. Its first migration moves four tables out of schema `player`, so its user must own them, as production's one user does (see [Progression](progression.md#the-tables-and-their-move))
+- `progression.database.*` — the levels, the stats, the titles, the titles worn, the finales fought, the nameplates and the departures, same shape as `database`, schema `progression`; required. `progression.database.password` belongs in the environment. Its first migration moves four tables out of schema `player`, so its user must own them, as production's one user does (see [Progression](progression.md#the-tables-and-their-move))
 - `bonuses.database.*` — the bonuses' rule sets and the set they play, same shape as `database`, schema `bonuses`, one
   connection in production; required. `bonuses.database.password` belongs in the environment. See [The
   bonuses](bonuses.md)

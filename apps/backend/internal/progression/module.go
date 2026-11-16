@@ -22,6 +22,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/finales/rpc_scoring_finales"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/finales/usecases/forget_fights_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/finales/usecases/record_finale_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/postgres_level_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/forget_level_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/raise_level_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/reconcile_levels_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/reconcile_levels_usecase/audit_reconcile_levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/nameplates/postgres_nameplate_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/nameplates/usecases/forget_nameplate_usecase"
@@ -37,8 +43,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler/progress_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler/titles_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_level_scale"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/reconcile_levels_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/reconcile_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/rpc_planet_fronts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/rpc_planet_fronts/caching_fronts"
@@ -54,6 +62,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/fortified_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/message_sent_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/missions_done_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/missions_paid_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/player_created_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/player_forgotten_subscriber"
@@ -130,6 +139,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	wornTitleStore := postgres_worn_title_store.New(db)
 	nameplateStore := postgres_nameplate_store.New(db)
 	departureStore := postgres_departure_store.New(db)
+	levelStore := postgres_level_store.New(db)
 
 	careers := titles.NewCareers(accounts, fightStore)
 	catalog := titles.NewCatalog()
@@ -140,6 +150,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	titleCards := inprocess_title_catalog.New(catalog)
 	recordStats := record_stats_usecase.New(statsStore, streams)
 	decideDeparture := decide_departure_usecase.New(departureStore)
+	raiseLevel := raise_level_usecase.New(statsStore, accounts, levelStore, clock)
 
 	var subscribeErr error
 	subscribed := func(runner cpbootstrap.Runner, err error) cpbootstrap.Runner {
@@ -158,7 +169,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		subscribed(cpredis.SubscribeMoved(ctx, streams, "bonuses.v1.QuizAnswered", "player-stats-quizzes",
 			log_subscriber.New(quiz_answered_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-stats-missions", log_subscriber.New(missions_paid_subscriber.New(recordStats), props.Logger))),
+		subscribed(cpredis.Subscribe(ctx, streams, "progression-stats-missions-done", log_subscriber.New(missions_done_subscriber.New(recordStats), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-titles", log_subscriber.New(stats_changed_subscriber.New(award), props.Logger))),
+		subscribed(cpredis.Subscribe(ctx, streams, "progression-levels", log_subscriber.New(stats_changed_subscriber.New(raiseLevel), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "player-finale-fights", log_subscriber.New(season_ended_subscriber.New(record_finale_usecase.New(scoring, fightStore, award)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-nameplates", log_subscriber.New(player_created_subscriber.New(keep_nameplate_usecase.New(nameplateStore)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-departures-leaving", log_subscriber.New(player_leaving_subscriber.New(decideDeparture), props.Logger))),
@@ -169,6 +182,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-finales-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_fights_usecase.New(fightStore)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-nameplates-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_nameplate_usecase.New(nameplateStore)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-departures-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_departure_usecase.New(departureStore)), props.Logger))),
+		subscribed(cpredis.Subscribe(ctx, streams, "progression-levels-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_level_usecase.New(levelStore)), props.Logger))),
 	}
 	if subscribeErr != nil {
 		_ = streams.Close()
@@ -202,10 +216,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			reconcile_titles_usecase.New(statsStore, careers, titleStore, catalog, clock), props.Logger,
 		)),
 		AdminGetProgressHandler: admin_get_progress_handler.New(
-			admin_progress_query.NewPostgresQuery(db, titleCards, fronts, clock),
+			admin_progress_query.NewPostgresQuery(db, titleCards, inprocess_level_scale.New(levels.Scale{}), fronts, clock),
 		),
 		BackfillDaysPlayedHandler: backfill_days_played_handler.New(audit_backfill_days_played.New(
 			backfill_days_played_usecase.New(statsStore, playDays), props.Logger,
+		)),
+		ReconcileLevelsHandler: reconcile_levels_handler.New(audit_reconcile_levels.New(
+			reconcile_levels_usecase.New(statsStore, accounts, levelStore, clock), props.Logger,
 		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

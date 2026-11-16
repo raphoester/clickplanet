@@ -9,6 +9,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/reconcile_levels_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/reconcile_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/wear_title_handler"
 )
@@ -28,6 +29,7 @@ type AdminService struct {
 	reconcile_titles_handler.ReconcileTitlesHandler
 	admin_get_progress_handler.AdminGetProgressHandler
 	backfill_days_played_handler.BackfillDaysPlayedHandler
+	reconcile_levels_handler.ReconcileLevelsHandler
 }
 
 var _ progressionv1connect.AdminServiceHandler = AdminService{}

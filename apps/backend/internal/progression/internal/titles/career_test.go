@@ -38,7 +38,7 @@ func TestEachCareerIsItsStatsWhatAuthSaysOfItsAccountAndTheFinalesItFought(t *te
 func TestCareersReadTheAccountAndItsFights(t *testing.T) {
 	ada := accounts.AccountID{15: 1}
 	known := accounts.AccountOf(true, time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC))
-	asked, fights := titles.NewFakeAccounts(), inmemory_fight_store.New()
+	asked, fights := accounts.NewFakeAccounts(), inmemory_fight_store.New()
 	asked.Create(ada, known)
 	fight, err := finales.FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 2}.Restore()
 	require.NoError(t, err)

@@ -35,14 +35,14 @@ func account(i int) accounts.AccountID {
 type fixture struct {
 	stats    *inmemory_stats_store.Store
 	titles   *inmemory_title_store.Store
-	accounts *titles.FakeAccounts
+	accounts *accounts.FakeAccounts
 	fights   *inmemory_fight_store.Store
 	taken    *uint64
 }
 
 func setUp() fixture {
 	return fixture{
-		stats: inmemory_stats_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts(), fights: inmemory_fight_store.New(),
+		stats: inmemory_stats_store.New(), titles: inmemory_title_store.New(), accounts: accounts.NewFakeAccounts(), fights: inmemory_fight_store.New(),
 		taken: new(uint64),
 	}
 }

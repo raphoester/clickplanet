@@ -21,7 +21,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// A take, a message, a bomb, a fortify, a box, a right answer or missions paid was counted on the account's stats.
+// A take, a message, a bomb, a fortify, a box, a right answer or missions paid or done was counted on the account's
+// stats.
 type StatsChanged struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
