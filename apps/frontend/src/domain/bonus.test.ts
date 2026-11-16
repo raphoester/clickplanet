@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {ALL_OFF, atRest, NO_CHARGES, restingSwitch, switched, switchesHeld} from "./bonus.ts"
+import {ALL_OFF, atRest, CHARGE_KINDS, inUnlockOrder, lockedAt, NEVER, NO_CHARGES, NO_GATES, NO_LEVEL, restingSwitch, switched, switchesHeld} from "./bonus.ts"
 
 const PAID = {spreadUnlimited: false, enclosuresUnlimited: false, enclosuresOff: false}
 
@@ -99,3 +99,57 @@ describe("switched", () => {
 function spread() {
     return {...ALL_OFF, spread: true}
 }
+
+describe("lockedAt", () => {
+    const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
+
+    it("names the level a gated kind opens at while the player is below it", () => {
+        expect(lockedAt("bomb", gates, 3)).toBe(5)
+        expect(lockedAt("encloseClicks", gates, NO_LEVEL)).toBe(4)
+    })
+
+    it("locks no kind at or past its level, nor an open kind", () => {
+        expect(lockedAt("bomb", gates, 5)).toBeUndefined()
+        expect(lockedAt("encloseClicks", gates, 9)).toBeUndefined()
+        expect(lockedAt("refill", gates, NO_LEVEL)).toBeUndefined()
+    })
+
+    it("locks a gated kind the ladder names no level for at every level", () => {
+        const omitted = {...gates, unlocks: {encloseClicks: 4}}
+
+        expect(lockedAt("bomb", omitted, 99)).toBe(NEVER)
+    })
+
+    it("locks nothing while the gates are off", () => {
+        expect(lockedAt("bomb", {...gates, on: false}, NO_LEVEL)).toBeUndefined()
+        expect(lockedAt("bomb", NO_GATES, NO_LEVEL)).toBeUndefined()
+    })
+})
+
+describe("inUnlockOrder", () => {
+    it("puts the open kinds first, then the gated ones by the level they open at, the order given among one level", () => {
+        const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
+
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb", "virus"])
+    })
+
+    it("puts last a gated kind the ladder names no level for", () => {
+        const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {bomb: 5}}
+
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "bomb", "encloseClicks", "virus"])
+    })
+
+    it("keeps the order given while no open kind is told, whatever the ladder", () => {
+        expect(inUnlockOrder(CHARGE_KINDS, {on: false, open: [], unlocks: {encloseClicks: 4, bomb: 5}})).toEqual(CHARGE_KINDS)
+    })
+
+    it("orders by the ladder with the gates off too", () => {
+        const gates = {on: false, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
+
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb", "virus"])
+    })
+
+    it("keeps the order given with no gates", () => {
+        expect(inUnlockOrder(CHARGE_KINDS, NO_GATES)).toEqual(CHARGE_KINDS)
+    })
+})

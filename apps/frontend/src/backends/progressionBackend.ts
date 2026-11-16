@@ -5,15 +5,19 @@ import {ProgressionService} from "../gen/grpc/progression/v1/progression_connect
 import {
     CountryTiles as CountryTilesPb,
     Level as LevelPb,
+    Unlock as UnlockPb,
     Progress as ProgressPb,
     ProgressionEvent,
     Track as TrackPb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {AccountBadge, BadgesBackend} from "./badges.ts"
+import {Ladder, NO_LEVEL, UnlockLevels} from "../domain/bonus.ts"
+import {chargeKindOf} from "./bonusKind.ts"
 import {MissionOrder, MissionRates, MissionRatesReader} from "./missions.ts"
 import {
     CountryTiles,
     Fronts,
+    LadderReader,
     PlayerLevel,
     PlayerTitle,
     Progress,
@@ -38,7 +42,7 @@ export function newProgressionServiceClient(config: Config): PromiseClient<typeo
 }
 
 export class ConnectProgressionBackend
-    implements ProgressionBackend, ProgressReader, BadgesBackend, TitlesListener, MissionRatesReader {
+    implements ProgressionBackend, ProgressReader, BadgesBackend, TitlesListener, LadderReader, MissionRatesReader {
     constructor(
         private readonly client: PromiseClient<typeof ProgressionService>,
         private readonly session: SessionProvider,
@@ -64,6 +68,15 @@ export class ConnectProgressionBackend
         const res = await this.authenticated((headers) =>
             retrying(() => this.client.getFronts({}, {headers}), "GetFronts"))
         return {playsFor: res.playsFor.map(countryTilesOf), playsAgainst: res.playsAgainst.map(countryTilesOf)}
+    }
+
+    public async ladder(): Promise<Ladder | undefined> {
+        const token = this.session.heldIdentity()
+        if (!token) return undefined
+
+        const headers = new Headers({[SESSION_HEADER]: token})
+        const res = await retrying(() => this.client.getLevel({}, {headers}), "GetLevel")
+        return {level: res.level?.level ?? NO_LEVEL, unlocks: unlocksOf(res.unlocks)}
     }
 
     public async progress(accountId: string): Promise<Progress | undefined> {
@@ -183,6 +196,13 @@ function progressOf(progress: ProgressPb | undefined): Progress {
 function levelOf(level: LevelPb | undefined): PlayerLevel | undefined {
     if (!level) return undefined
     return {level: level.level, xp: Number(level.xp), levelXp: Number(level.levelXp), nextLevelXp: Number(level.nextLevelXp)}
+}
+
+function unlocksOf(unlocks: UnlockPb[]): UnlockLevels {
+    return Object.fromEntries(unlocks.flatMap(({kind, level}) => {
+        const charge = chargeKindOf(kind)
+        return charge ? [[charge, level]] : []
+    }))
 }
 
 function countryTilesOf(country: CountryTilesPb): CountryTiles {

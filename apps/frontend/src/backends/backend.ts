@@ -181,6 +181,11 @@ export interface ChargesRefresher {
     refreshCharges(): Promise<void>
 }
 
+// Bonuses has no stream: its rules are read again when the set in force changes.
+export interface GrantRulesRefresher {
+    refreshGrantRules(): Promise<void>
+}
+
 export interface QuizMaster {
     listenForQuizzes(onOffered: (offer: QuizOffer) => void): () => void
 
