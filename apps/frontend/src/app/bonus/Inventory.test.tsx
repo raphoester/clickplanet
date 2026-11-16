@@ -26,6 +26,7 @@ const RULES = {
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
     reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, virusInfections: 128,
     gatesOn: false, openKinds: [], mines: 3, mineRings: 2,
+    rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
 }
 
 type Held = {
@@ -39,12 +40,13 @@ type Held = {
     level?: number
     virusAimed?: boolean
     mineAimed?: boolean
+    rallyAimed?: boolean
 }
 
-function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, mineAimed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, mineAimed = false, rallyAimed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
-        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed, mineAimed})
+        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed, mineAimed, rallyAimed})
         useLevel.setState({own: level === NO_LEVEL ? undefined : {level, xp: 0, levelXp: 0, nextLevelXp: 0}, unlocks: gates.unlocks})
     })
     return <Inventory onToggle={() => {}}
@@ -383,7 +385,7 @@ describe("Inventory", () => {
 
         fireEvent.click(all())
         expect(within(tray()!).getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
-        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(5)
+        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(6)
         expect(within(tray()!).getByText("Unlocks at level 3")).toBeTruthy()
     })
 
@@ -397,6 +399,19 @@ describe("Inventory", () => {
 
         rerender(inventory({charges, onToggleBomb: toggle, guide: learned, bombArmed: true}))
         expect(slot(/^Bomb, Aim/).getAttribute("aria-pressed")).toBe("true")
+    })
+
+    it("aims a rally and puts it away, with what the hand holds of them", () => {
+        const toggle = vi.fn()
+        const charges = {...NO_CHARGES, rallies: 2}
+        const {rerender} = render(inventory({charges, onToggleRally: toggle, guide: learned}))
+
+        fireEvent.click(slot(/^Rally, 2\/3/))
+        expect(toggle).toHaveBeenCalledTimes(1)
+
+        rerender(inventory({charges, onToggleRally: toggle, guide: learned, rallyAimed: true}))
+        expect(slot(/^Rally, 2\/3, Aim/).getAttribute("aria-pressed")).toBe("true")
+        expect(screen.getByText("Put the rally away (Esc)")).toBeTruthy()
     })
 
     it("fills the bank on a press, and says so when it is already full", () => {
@@ -473,7 +488,7 @@ describe("Inventory", () => {
         fireEvent.click(all())
         expect(all().getAttribute("aria-expanded")).toBe("true")
         expect(within(tray()!).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
-            "Refill", "Spread, 0/8", "Shield, 0/12", "Virus", "Mine, 0/3", "Enclose, unlocks at level 4",
+            "Refill", "Spread, 0/8", "Shield, 0/12", "Virus", "Mine, 0/3", "Rally, 0/3", "Enclose, unlocks at level 4",
             "Bomb, unlocks at level 5",
         ])
         expect(inTray(/^Bomb/).className).toContain("inventory-slot--locked")

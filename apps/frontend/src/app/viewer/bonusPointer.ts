@@ -1,6 +1,7 @@
 import * as THREE from "three"
 import {isBehindGlobe} from "./bonusBox.ts"
 import {blastMarkSvg} from "./blastMark.ts"
+import {rallyMarkSvg} from "./rallyMark.ts"
 import {questionMarkSvg} from "./questionMark.ts"
 import "./bonusPointer.css"
 
@@ -38,7 +39,7 @@ export type BonusPointer = {
     dispose(): void
 }
 
-export function createBonusPointer(container: HTMLElement, variant?: "blast"): BonusPointer {
+export function createBonusPointer(container: HTMLElement, variant?: "blast" | "rally"): BonusPointer {
     const root = document.createElement("div")
     root.className = variant ? `bonus-pointer bonus-pointer--${variant}` : "bonus-pointer"
     root.hidden = true
@@ -50,7 +51,9 @@ export function createBonusPointer(container: HTMLElement, variant?: "blast"): B
     badge.className = "bonus-pointer-badge"
     badge.append(variant === "blast"
         ? blastMarkSvg("bonus-pointer-mark")
-        : questionMarkSvg("bonus-pointer-mark", "var(--cream)"))
+        : variant === "rally"
+            ? rallyMarkSvg("bonus-pointer-mark")
+            : questionMarkSvg("bonus-pointer-mark", "var(--cream)"))
 
     root.append(arrow, badge)
     container.append(root)
@@ -67,13 +70,15 @@ export function createBonusPointer(container: HTMLElement, variant?: "blast"): B
 
             camera.getWorldDirection(toCamera).negate()
 
-            if (isBehindGlobe(position, toCamera)) {
+            // A box behind the globe flies round to the front; a rally's ring stays where it is, so its arrow points round.
+            const behind = isBehindGlobe(position, toCamera)
+            if (behind && variant !== "rally") {
                 root.hidden = true
                 return
             }
 
             const ndc = projected.copy(position).project(camera)
-            if (!offScreen(ndc)) {
+            if (!behind && !offScreen(ndc)) {
                 root.hidden = true
                 return
             }

@@ -119,6 +119,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Mine](docs/mine.md) — aimed from its slot, a tap on a tile of the flag lays one; only the flag's players see it
   (`GetMines` at each stream open and flag change, `mine_laid`), each kept at the map version it is known at and taken
   off by any change of its tile; `mines_exploded` drawn as a bomb's blast with no fall; the still olive dome.
+- [Rally](docs/rally.md) — aimed from its slot, a tap on any tile calls a ring every page sees (`GetRallies` at each
+  stream open, `rally_called`); a click of its flag inside costs half, counted so on the page; the teal ring and its
+  arrow; the bank in tenths and its "2×"; the chat's line naming the landmass.
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link; every share carries the
   player's address, `clickplanet.lol/<flag>/<name>`, or the flag alone for a guest.
 - [Player videos](docs/player-videos.md) — "Make my video": the flag's 24 hours as an 8 s video made in the browser,

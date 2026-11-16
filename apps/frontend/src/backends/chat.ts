@@ -42,7 +42,7 @@ export type ChatQuote = {
 }
 
 export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement | ChampionAnnouncement
-    | FlagMissionAnnouncement | KnockOutAnnouncement
+    | FlagMissionAnnouncement | KnockOutAnnouncement | RallyAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -118,6 +118,18 @@ export type KnockOutAnnouncement = {
     announcedAt: number
     country: string
     by: string
+}
+
+// A rally a player of country called on a landmass: told in the flag's room, which the World shows too.
+export type RallyAnnouncement = {
+    kind: "rally"
+    id: string
+    announcedAt: number
+    name: string
+    country: string
+    // None for a tile the server names no landmass of.
+    ground?: string
+    landmass?: number
 }
 
 export type ChatHistory = {

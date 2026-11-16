@@ -58,7 +58,11 @@ import {
     VirusRefusedError,
     Miner,
     MineRefusedError,
+    Rallier,
+    RallyRefusedError,
 } from "../../backends/backend.ts";
+import {clickCostOf, Rallies} from "../../domain/rallies.ts";
+import {createRallyRings} from "./rallyRings.ts";
 import {InfectionChange, infectionMarksOf} from "../../domain/infections.ts";
 import {MineChange, mineMarksOf} from "../../domain/mines.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
@@ -259,6 +263,8 @@ export type GlobeOptions = {
     onVirusAimChange?: (aimed: boolean) => void
     miner?: Miner
     onMineAimChange?: (aimed: boolean) => void
+    rallier?: Rallier
+    onRallyAimChange?: (aimed: boolean) => void
     shielder?: Shielder
     onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
@@ -286,6 +292,7 @@ export type Globe = {
     setArmed(armed: boolean): void
     setVirusAimed(aimed: boolean): void
     setMineAimed(aimed: boolean): void
+    setRallyAimed(aimed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
     territoryOf(landmass: number): Territory
@@ -341,6 +348,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onVirusAimChange = () => {},
         miner,
         onMineAimChange = () => {},
+        rallier,
+        onRallyAimChange = () => {},
         shielder,
         onNotice = () => {},
         onClickAccepted = () => {},
@@ -659,6 +668,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     scene.add(blasts.object)
     const blastPointer = createBonusPointer(eventTarget, "blast")
 
+    // Every rally on, of every flag; the page's flag's rings in the rally's colour, with an arrow to the newest.
+    const rallies = new Rallies()
+    const rallyRings = createRallyRings(eventTarget)
+    scene.add(rallyRings.object)
+    const showRallies = () => {
+        rallyRings.show(rallies.on(monotonicNow()), country.code, geometryData.positions)
+        invalidate()
+    }
+
     let charges: Charges = NO_CHARGES
 
     let switches: Switches = ALL_OFF
@@ -669,13 +687,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let virusAimed = false
     let mineAimed = false
+    let rallyAimed = false
 
     let restSwitchedOff = false
 
     const enclosuresUnlimited = () => rules?.enclosuresUnlimited ?? false
 
     const switchTo = (next: Switches) => {
-        const settled = atRest(next, restSwitchedOff || armed || virusAimed || mineAimed ? undefined : restingSwitch(rules))
+        const settled = atRest(next, restSwitchedOff || armed || virusAimed || mineAimed || rallyAimed ? undefined : restingSwitch(rules))
         if (sameSwitches(settled, switches)) return
         switches = settled
         onSwitchesChange(settled)
@@ -1018,10 +1037,34 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         switchTo(switches)
     }
 
+    const stopAimingRally = () => {
+        if (!rallyAimed) return
+        rallyAimed = false
+        eventTarget.classList.remove("viewer-canvas--rallying")
+        onRallyAimChange(false)
+    }
+
+    const putRallyAway = () => {
+        stopAimingRally()
+        switchTo(switches)
+    }
+
+    const aimRally = () => {
+        if (rallyAimed || charges.rallies === 0 || !rallier) return
+        disarm()
+        stopAimingVirus()
+        stopAimingMine()
+        rallyAimed = true
+        eventTarget.classList.add("viewer-canvas--rallying")
+        onRallyAimChange(true)
+        switchTo(ALL_OFF)
+    }
+
     const aimMine = () => {
         if (mineAimed || charges.mines === 0 || !miner) return
         disarm()
         stopAimingVirus()
+        stopAimingRally()
         mineAimed = true
         eventTarget.classList.add("viewer-canvas--mining")
         onMineAimChange(true)
@@ -1032,6 +1075,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (virusAimed || !charges.virus || !infector) return
         disarm()
         stopAimingMine()
+        stopAimingRally()
         virusAimed = true
         eventTarget.classList.add("viewer-canvas--infecting")
         onVirusAimChange(true)
@@ -1042,6 +1086,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (armed || !charges.bomb || !bomber || !rules || rules.bombsOff) return
         stopAimingVirus()
         stopAimingMine()
+        stopAimingRally()
         armed = {radius: rules.blastRadius}
         eventTarget.classList.add("viewer-canvas--armed")
         onArmedChange(true)
@@ -1053,6 +1098,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (!held.bomb) disarm()
         if (!held.virus) stopAimingVirus()
         if (held.mines === 0) stopAimingMine()
+        if (held.rallies === 0) stopAimingRally()
         switchTo(switchesHeld(switches, held, rules))
         onCharges(held)
     }
@@ -1114,6 +1160,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             const changes = noChanges()
             tiles.applyMineLaid(laid, changes)
             markMines(changes.mines)
+        },
+        onRallies: (read) => {
+            rallies.replace(read)
+            showRallies()
+        },
+        onRallyCalled: (rally) => {
+            rallies.keep(rally)
+            showRallies()
         },
         onMinesExploded: (explosion) => {
             const taken = explosion.blasts.flatMap((blast) => blast.taken)
@@ -1225,6 +1279,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("bomb", {volume: ours ? 1 : DISTANT_BOMB_VOLUME})
     }
 
+    // Any tile takes a rally. A rally of the caller still on is refused by the server alone: the rally stays held.
+    const callRally = (tile: number) => {
+        if (!rallier) return
+        putRallyAway()
+        playSound("click")
+        plainClicks.playOwnClick(tile, camera)
+        rallier.callRally(tile, country.code).catch((e) => {
+            if (lifetime.signal.aborted) return
+            if (e instanceof RallyRefusedError) onNotice("rallyOn")
+            else if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
+            else reportClaimFailure(e, {onSessionUnavailable, onBanned})
+        })
+    }
+
     // A tile not the flag's, a mined one, or a capital the knock-out plays on is refused here before the mine leaves the
     // hand; the server checks again. The mine stays aimed while one is held, so mines are laid together.
     const layMine = (tile: number, owner: string | undefined) => {
@@ -1279,6 +1347,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const driveBlasts = (seconds: number) => {
         let drawing = blasts.update(seconds, camera)
         blastPointer.update(blasts.newest(seconds), camera)
+        if (rallyRings.update(monotonicNow(), camera)) drawing = true
         if (flushClears(seconds)) drawing = true
 
         if (armed) {
@@ -1378,6 +1447,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         putAway()
         putVirusAway()
         putMineAway()
+        putRallyAway()
     }, listenerOptions);
 
     eventTarget.addEventListener('pointermove', (event: PointerEvent) => {
@@ -1473,8 +1543,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const shields = shielded.shieldsOf(tile)
         const ghost = ghosts.flagOf(tile)
 
+        // Half a click, or what the rules say, inside a ring of the flag: the server decides, the page counts it until then.
+        const cost = clickCostOf(tile, country.code, rallies.on(monotonicNow()), geometryData.positions, rules?.rallyCost)
+
         if (ghost !== undefined && owner === country.code) {
-            if (!canClick(budget, monotonicNow())) {
+            if (!canClick(budget, monotonicNow(), cost)) {
                 onRateLimited()
                 playSound("refused")
                 return
@@ -1495,6 +1568,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             return
         }
 
+        if (rallyAimed) {
+            callRally(tile)
+            return
+        }
+
         if (switches.shield && shielder) {
             const placement = placementOf(owner, country.code, shields, rules?.tileShields, fixedCapitals()?.has(tile) ?? false)
             if (placement === "full") {
@@ -1511,7 +1589,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             }
         }
 
-        if (!canClick(budget, monotonicNow())) {
+        if (!canClick(budget, monotonicNow(), cost)) {
             onRateLimited()
             playSound("refused")
             return
@@ -1537,7 +1615,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const clicked = country.code
         const shielding = switches.shield && shielder !== undefined
         const enclosing = switches.enclose && outcome === "taken" && !enclosuresUnlimited()
-        tileClicker.clickTile(tile, clicked, switches).then(() => {
+        tileClicker.clickTile(tile, clicked, switches, cost).then(() => {
             if (lifetime.signal.aborted) return
             if (outcome === "taken") endTap()
             onClickAccepted({country: clicked, took: outcome === "taken"})
@@ -1815,6 +1893,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 const changes = noChanges()
                 tiles.forgetMines(changes)
                 markMines(changes.mines)
+                showRallies()
             }
             if (front && changed) lightFront(front.follow(newCountry.code))
         },
@@ -1839,6 +1918,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setArmed: (on: boolean) => on ? arm() : putAway(),
         setVirusAimed: (on: boolean) => on ? aimVirus() : putVirusAway(),
         setMineAimed: (on: boolean) => on ? aimMine() : putMineAway(),
+        setRallyAimed: (on: boolean) => on ? aimRally() : putRallyAway(),
         setSwitch: (name: keyof Switches, on: boolean) => {
             if (name === restingSwitch(rules)) restSwitchedOff = !on
             const next = switchesHeld(switched(switches, name, on), charges, rules)
@@ -1846,6 +1926,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 disarm()
                 stopAimingVirus()
                 stopAimingMine()
+                stopAimingRally()
             }
             switchTo(next)
         },
@@ -1913,6 +1994,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             picker.dispose()
             bonusPointer.dispose()
             blastPointer.dispose()
+            rallyRings.dispose()
             tapPointer?.dispose()
             blasts.dispose()
             field.dispose()

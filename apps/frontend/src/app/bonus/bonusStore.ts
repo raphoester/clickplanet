@@ -12,6 +12,7 @@ type BonusStore = {
     bombArmed: boolean
     virusAimed: boolean
     mineAimed: boolean
+    rallyAimed: boolean
     win: (reward: BonusReward) => void
     winNothing: () => void
     notify: (notice: BonusNotice) => void
@@ -23,6 +24,7 @@ type BonusStore = {
     setBombArmed: (armed: boolean) => void
     setVirusAimed: (aimed: boolean) => void
     setMineAimed: (aimed: boolean) => void
+    setRallyAimed: (aimed: boolean) => void
 }
 
 export const useBonus = create<BonusStore>()((set) => ({
@@ -31,6 +33,7 @@ export const useBonus = create<BonusStore>()((set) => ({
     bombArmed: false,
     virusAimed: false,
     mineAimed: false,
+    rallyAimed: false,
     emptyBox: false,
     win: (award) => set({award, emptyBox: false}),
     winNothing: () => set({award: undefined, emptyBox: true}),
@@ -43,4 +46,5 @@ export const useBonus = create<BonusStore>()((set) => ({
     setBombArmed: (bombArmed) => set({bombArmed}),
     setVirusAimed: (virusAimed) => set({virusAimed}),
     setMineAimed: (mineAimed) => set({mineAimed}),
+    setRallyAimed: (rallyAimed) => set({rallyAimed}),
 }))

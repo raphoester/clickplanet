@@ -23,5 +23,7 @@ export function describeReward(reward: BonusReward): {
             return {title: t("bonus.virus"), detail: t("reward.virus.detail")}
         case "mine":
             return {title: t("reward.mines", {mines: reward.mines}), detail: t("reward.mines.detail")}
+        case "rally":
+            return {title: t("reward.rallies", {rallies: reward.rallies}), detail: t("reward.rallies.detail")}
     }
 }

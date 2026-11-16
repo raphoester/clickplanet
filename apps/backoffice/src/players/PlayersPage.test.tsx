@@ -415,7 +415,7 @@ describe("one player", () => {
 
         expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: ACCOUNT, refill: false, bomb: true, enclosures: 3, spreadClicks: 0, shields: 0, virus: false, mines: 0,
+            accountId: ACCOUNT, refill: false, bomb: true, enclosures: 3, spreadClicks: 0, shields: 0, virus: false, mines: 0, rallies: 0,
         }])
     })
 
@@ -430,7 +430,7 @@ describe("one player", () => {
 
         expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: ACCOUNT, refill: true, bomb: true, enclosures: 99, spreadClicks: 99, shields: 99, virus: true, mines: 99,
+            accountId: ACCOUNT, refill: true, bomb: true, enclosures: 99, spreadClicks: 99, shields: 99, virus: true, mines: 99, rallies: 99,
         }])
     })
 

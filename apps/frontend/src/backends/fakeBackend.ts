@@ -40,6 +40,8 @@ import {
     VirusRefusedError,
     VirusSpread,
     Miner,
+    Rallier,
+    RallyRefusedError,
     MineBlast,
     MineRefusedError,
 } from "./backend.ts";
@@ -50,6 +52,7 @@ import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} 
 import {v4 as UUIDv4} from 'uuid';
 import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
+import {clickCostOf, Rallies, Rally} from "../domain/rallies.ts";
 import {FakeFortresses} from "./fakeFortresses.ts";
 import {FakeTally} from "./fakeTally.ts";
 import {FAKE_TAKERS, FAKE_YOU} from "./fakeAccounts.ts";
@@ -74,6 +77,11 @@ const ENCLOSURES_PER_BOX = 3
 const MINES = 3
 const MINES_PER_BOX = 2
 const MINE_RINGS = 2
+const RALLIES = 3
+// The server's 18 tile spacings, and 3 minutes; a click inside takes half of one.
+const RALLY_RADIUS = 18 * 0.004
+const RALLY_LASTS_MS = 180_000
+const RALLY_COST = 0.5
 const SHIELDS = 30
 const SHIELDS_MIN_PER_BOX = 5
 const SHIELDS_PER_BOX = 20
@@ -134,6 +142,10 @@ const RULES: BonusRules = {
     openKinds: ["refill", "spreadClicks", "shields"],
     mines: MINES,
     mineRings: MINE_RINGS,
+    rallies: RALLIES,
+    rallyRadius: RALLY_RADIUS,
+    rallyLastsMs: RALLY_LASTS_MS,
+    rallyCost: RALLY_COST,
 }
 
 export type FakeBackendOptions = {
@@ -142,7 +154,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, Miner, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
@@ -168,6 +180,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private readonly viruses = new Map<string, {flag: string, victim: string, infected: number[], infections: number}>()
     // Each mine's tile, and its flag.
     private readonly mines = new Map<number, string>()
+    private readonly rallies = new Rallies()
     private fortresses: FakeFortresses | undefined
 
     private charges: Charges = NO_CHARGES
@@ -182,6 +195,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     private readonly timers: ReturnType<typeof setInterval>[] = []
     private tokens = CLICK_BURST
+    // What the last click took, as the server's answer says.
+    private spent = 1
     private lastRefillMs = Date.now()
     private pace = 1
     private tempo = 1
@@ -281,7 +296,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
 
-        const allowed = this.allow(countryId)
+        const cost = this.tilePositions
+            ? clickCostOf(tileId, countryId, this.rallies.on(budgetNow()), await this.loadPositions(), this.rules.rallyCost)
+            : 1
+        const allowed = this.allow(countryId, cost)
         this.reportBudget()
 
         if (!allowed) throw new RateLimitedError()
@@ -317,6 +335,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return this.charges.virus
             case "mine":
                 return this.charges.mines >= MINES
+            case "rally":
+                return this.charges.rallies >= RALLIES
         }
     }
 
@@ -360,6 +380,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 const mines = Math.min(held.mines + drawUpTo(MINES_PER_BOX), MINES)
                 this.hold({...held, mines})
                 return {reward: rewardOfKind(kind, mines - held.mines), charges: this.charges}
+            }
+            case "rally": {
+                const rallies = Math.min(held.rallies + 1, RALLIES)
+                this.hold({...held, rallies})
+                return {reward: rewardOfKind(kind, rallies - held.rallies), charges: this.charges}
             }
         }
     }
@@ -504,6 +529,39 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.forEach(handlers => handlers.onMineLaid(laid))
     }
 
+    // One on at a time: the fake's player is the only caller it knows.
+    public async callRally(tileId: number, countryId: string): Promise<Rally> {
+        this.refuseBanned()
+        if (this.frozen) throw new FrozenError()
+        this.play(countryId)
+        if (this.charges.rallies === 0) throw new BonusLostError()
+        const now = budgetNow()
+        if (this.rallies.on(now).some((rally) => rally.accountId === FAKE_YOU)) throw new RallyRefusedError()
+
+        this.hold({...this.charges, rallies: this.charges.rallies - 1})
+        return this.tellRally({
+            id: UUIDv4(), accountId: FAKE_YOU, countryId, tile: tileId, radius: RALLY_RADIUS, endsAt: now + RALLY_LASTS_MS,
+        })
+    }
+
+    private tellRally(rally: Rally): Rally {
+        this.rallies.keep(rally)
+        this.bonusCallbacks.forEach(handlers => handlers.onRallyCalled(rally))
+        return rally
+    }
+
+    // Another flag calls a rally on a tile of the page's flag, so the other flags' rings can be watched.
+    public callEnemyRally(): boolean {
+        const flag = this.allegiance?.countryId
+        const tile = [...this.tileBindings].find(([, owner]) => owner === flag)?.[0] ?? (this.tileCount > 0 ? 1 : undefined)
+        if (tile === undefined) return false
+        this.tellRally({
+            id: UUIDv4(), accountId: "fake-enemy", countryId: flag === "de" ? "fr" : "de", tile, radius: RALLY_RADIUS,
+            endsAt: budgetNow() + RALLY_LASTS_MS,
+        })
+        return true
+    }
+
     // An enemy takes one of the page's flag's mines, so it can be watched going off.
     public tripMine(): boolean {
         const flag = this.allegiance?.countryId
@@ -622,6 +680,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.reportBudget()
     }
 
+    private discount(): ClickBudget["rally"] {
+        if (this.spent >= 1) return undefined
+        const ends = this.rallies.on(budgetNow()).filter((rally) => rally.countryId === this.budgetCountry).map((rally) => rally.endsAt)
+        return ends.length > 0 ? {cost: this.spent, until: Math.max(...ends)} : undefined
+    }
+
     private budget(): ClickBudget {
         this.refill()
 
@@ -634,6 +698,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             sharedWith: this.sharedWith,
             frozen: this.frozen,
             fastStart: this.fast,
+            rally: this.discount(),
             readAt: budgetNow(),
         }
     }
@@ -814,12 +879,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return true
     }
 
-    private allow(countryId: string): boolean {
+    private allow(countryId: string, cost: number): boolean {
         this.refill()
 
         this.pace = 1 / this.price(countryId).slowdown
-        if (this.tokens < 1) return false
-        this.tokens -= 1
+        this.spent = cost
+        if (this.tokens < cost) return false
+        this.tokens -= cost
         return true
     }
 
@@ -838,6 +904,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         handlers.onRules(this.rules)
         handlers.onCharges(this.charges)
         handlers.onMines(this.minefield())
+        handlers.onRallies(this.rallies.on(budgetNow()))
 
         return () => this.bonusCallbacks.delete(identifier)
     }
@@ -1135,5 +1202,7 @@ function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
             return {kind}
         case "mine":
             return {kind, mines: amount}
+        case "rally":
+            return {kind, rallies: amount}
     }
 }

@@ -249,7 +249,12 @@ a train read 25 refusals as a Polish bot retaking Antarctica in
 seconds. What it costs is the click a counter at 0 would still have won, when a
 click in flight fails. With no reading, nothing is held.
 
-**One bank, one click per token.** The bank's size never moves: not with the
+**A click inside a rally's ring of its flag takes half a token** (`charges.rally.cost`): the globe asks the bank for
+that much (`canClick(budget, at, cost)`), `clickTile` counts the click in flight at it, and the answer's
+`ClickBudget.spent` says what it took, so the reading carries `rally` while a ring of the flag is on. The bank is shown
+in tenths. See [Rally](rally.md).
+
+**One bank, one token per click elsewhere.** The bank's size never moves: not with the
 country, a bonus or signing in. The more of the map a country holds, the slower
 its players refill; signing in refills faster, and a refill charge fills the bank. The
 server sets that pace on each click, from the country clicked for, so a switch

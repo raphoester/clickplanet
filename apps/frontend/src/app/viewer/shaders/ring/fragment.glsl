@@ -2,6 +2,8 @@ uniform vec3 colour;
 uniform float opacity;
 uniform float edgeAt;
 uniform float progress;
+// How narrow the edge is: the bomb's aim is soft, a rally's ring crisp.
+uniform float sharpness;
 
 varying vec2 vUv;
 
@@ -11,7 +13,7 @@ void main() {
     vec2 p = (vUv - 0.5) * 2.0 / edgeAt;
     float r = length(p);
 
-    float edge = exp(-pow((r - 1.0) * 8.0, 2.0));
+    float edge = exp(-pow((r - 1.0) * sharpness, 2.0));
     float fill = (1.0 - smoothstep(0.8, 1.0, r)) * (0.16 + 0.3 * progress);
 
     float turn = fract(atan(p.x, p.y) / TAU);

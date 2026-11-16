@@ -274,6 +274,15 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             globe.takeReward(fake.grantBonus("mine"))
             return "a mine in your inventory — lay it on a tile of your flag"
         },
+        giveRally: () => {
+            const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
+            if (!globe) return "the globe is not loaded yet"
+            globe.takeReward(fake.grantBonus("rally"))
+            return "a rally in your inventory — call it on any tile"
+        },
+        enemyRally: () => fake.callEnemyRally()
+            ? "another flag called a rally near your land"
+            : "the map is not read yet",
         tripMine: () => fake.tripMine()
             ? "an enemy took one of your mines"
             : "lay a mine first",
@@ -384,6 +393,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shielder: fake,
         infector: fake,
         miner: fake,
+        rallier: fake,
         allegiance: fake,
         clickBudgetSource: fake,
         connection,
@@ -450,6 +460,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         shielder: backend,
         infector: backend,
         miner: backend,
+        rallier: backend,
         allegiance: backend,
         clickBudgetSource: backend,
         connection,
