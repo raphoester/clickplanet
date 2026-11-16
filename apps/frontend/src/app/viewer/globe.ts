@@ -105,7 +105,7 @@ import {saveGhostTakes, savedGhostTakes} from "./ghostStore.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
-import {t, translator} from "../../i18n/page.ts";
+import {translator} from "../../i18n/page.ts";
 import {Fortified, isNews} from "../../domain/fortify.ts";
 import {FortifyTargets} from "../../domain/fortifyTargets.ts";
 import {createFortifyWaves, FortifyUniforms, fortifyUniforms} from "./fortifyWaves.ts";
@@ -674,7 +674,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     // Every rally on, of every flag; the page's flag's rings in the rally's colour, with an arrow to the newest.
     const rallies = new Rallies()
-    const rallyMarks = createRallyMarks(eventTarget, rallyCallers)
+    const rallyMarks = createRallyMarks(eventTarget, rallyCallers, () => rules)
     scene.add(rallyMarks.object)
     const rallyPops = createRallyPops(eventTarget)
     const pointAt = (tile: number) => {
@@ -1621,7 +1621,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         } else {
             plainClicks.playOwnClick(tile, camera)
         }
-        if (cost < WHOLE_CLICK) rallyPops.pop(pointAt(tile), camera, t("clicks.rallied"))
+        // What the click took from the bank, which the bank shows in tenths: "-0.5", never a multiplier.
+        if (cost < WHOLE_CLICK) rallyPops.pop(pointAt(tile), camera, translator().number(-cost, {maximumFractionDigits: 2}))
 
         const clicked = country.code
         const shielding = switches.shield && shielder !== undefined

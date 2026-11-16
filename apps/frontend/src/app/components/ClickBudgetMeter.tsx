@@ -189,6 +189,9 @@ export default function ClickBudgetMeter({
 
     const tenths = tenthsOf(tokensAt(budget, now()))
 
+    // What a click takes inside the ring: "0.5 per click", the price, never a multiplier.
+    const rallyCost = budget.rally && costText(budget.rally.cost)
+
     const slowdown = budget.price && budget.price.slowdown > 1 ? budget.price.slowdown : undefined
 
     const speedUp = onSignIn && budget.linkedMultiplier
@@ -229,10 +232,10 @@ export default function ClickBudgetMeter({
                 <span ref={rally}
                       className="chip click-budget-rally"
                       role="img"
-                      aria-label={t("clicks.ralliedLabel")}
-                      title={t("clicks.ralliedLabel")}
+                      aria-label={rallyCost && t("clicks.ralliedLabel", {cost: rallyCost})}
+                      title={rallyCost && t("clicks.ralliedLabel", {cost: rallyCost})}
                       hidden={!rallied(budget, now())}>
-                    <span aria-hidden="true">{t("clicks.rallied")}</span>
+                    <span aria-hidden="true">{rallyCost && t("clicks.ralliedCost", {cost: rallyCost})}</span>
                 </span>
                 {slowdown && <span className="chip click-budget-toll"
                                    role="img"
@@ -283,6 +286,10 @@ function Popover({children, onClose}: {children: ReactNode, onClose: () => void}
 // The bank in tenths of a click, never more than it holds.
 function tenthsOf(tokens: number): number {
     return Math.floor(tokens * 10 + 1e-9)
+}
+
+export function costText(cost: number): string {
+    return translator().number(cost, {maximumFractionDigits: 2})
 }
 
 function clicksText(tenths: number): string {
