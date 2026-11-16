@@ -37,3 +37,10 @@ func (s Scale) StandingOf(account accounts.Account, record Record) Standing {
 	}
 	return Curve{}.StandingOf(s.XPOf(record))
 }
+
+func (s Scale) StandingAt(kept Level, record Record) Standing {
+	if kept == 0 {
+		return Standing{}
+	}
+	return Curve{}.StandingAt(kept, s.XPOf(record))
+}

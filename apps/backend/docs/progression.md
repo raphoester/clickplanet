@@ -2,7 +2,7 @@
 
 **How far an account went: the tiles it took, the countries it took them for and from, its daily streak, what it did
 with the bonuses, the titles it earned on each track, the title it wears, the season finales it fought, the badges
-the page draws beside its name, and its level, hidden for now ([Levels](levels.md)).** It makes no account and names nobody: [Player](player.md) says who an account is,
+the page draws beside its name, and its level, which the page does not draw yet ([Levels](levels.md)).** It makes no account and names nobody: [Player](player.md) says who an account is,
 and tells progression when one becomes a player, leaves, comes back or is forgotten. Always on. Schema `progression`.
 It was part of `player` until 2026-11-04.
 
@@ -28,16 +28,17 @@ internal/progression/internal/
     postgres_title_store/           the Store over progression.titles
     inmemory_title_store/           the same port in maps, behind the testing tag
     inprocess_title_feed/           the titles each account was just granted, to its open streams, in this process
-    usecases/award_titles_usecase/  forget_titles_usecase/  listen_for_titles_usecase/
+    usecases/award_titles_usecase/  forget_titles_usecase/
       award_titles_usecase/notifying_award_titles/  publishes what was granted to the feed
     usecases/reconcile_titles_usecase/  — every account the titles the rules give it, no more; progression.v1.AdminService/ReconcileTitles
       reconcile_titles_usecase/audit_reconcile_titles/  logs every reconciliation at Warn
   levels/                           XP, Level, Record, Source (one type per XP source), MissionKind, MissionRate (one type per
-                                    kind), Curve, Standing, Scale, Visibility, Reconciliation; the Store port and its contract
-                                    suite (docs/levels.md)
+                                    kind) and its exact Rate, Curve, Standing, Scale, Reconciliation; the Store port and its
+                                    contract suite (docs/levels.md)
     postgres_level_store/           the Store over progression.levels
     inmemory_level_store/           the same port in a map, behind the testing tag
-    usecases/raise_level_usecase/   — on StatsChanged: the level raised, told to nobody
+    inprocess_level_feed/           each raise, to the account's open streams, in this process
+    usecases/raise_level_usecase/   — on StatsChanged: the level raised, told to the feed
     usecases/forget_level_usecase/
     usecases/reconcile_levels_usecase/  — every linked account the level its stats reach; AdminService/ReconcileLevels
       reconcile_levels_usecase/audit_reconcile_levels/  logs every reconciliation at Warn
@@ -63,21 +64,24 @@ internal/progression/internal/
     postgres_departure_store/       the Store over progression.departures, under an advisory lock per account
     inmemory_departure_store/       the same port in maps, behind the testing tag
     usecases/decide_departure_usecase/  forget_departure_usecase/
+  usecases/listen_for_events_usecase/  — the caller's titles and levels, as it gets them: both feeds, one stream
   progressionv1controller/          ProgressionService and AdminService (bags), the session interceptor, the stream's session reader
     get_titles_handler/  wear_title_handler/  get_fronts_handler/  get_badges_handler/
-    get_progress_handler/  listen_for_events_handler/
+    get_progress_handler/  get_level_handler/  listen_for_events_handler/
     reconcile_titles_handler/  admin_get_progress_handler/  backfill_days_played_handler/  reconcile_levels_handler/
                                     AdminService's own
       admin_get_progress_handler/admin_progress_query/   PostgresQuery: what progression keeps of one account, a guest's too
     get_titles_handler/titles_query/  get_badges_handler/badges_query/
-    get_progress_handler/progress_query/
+    get_progress_handler/progress_query/  get_level_handler/level_query/
                                     PostgresQuery: the response straight from SQL
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
-    inprocess_level_scale/          the XP port of the operator's GetProgress: each source's XP, from levels.Scale
+    inprocess_level_scale/          the level's port, from levels.Scale: each source's XP for the operator's GetProgress,
+                                    the level kept on its bar and the missions' rates for the public reads
     rpc_planet_fronts/              the countries played for and against, from planet.v1.InternalService/GetTakesByCountry:
                                     GetFronts' port, AdminService/GetProgress' too, and GetProgress' through caching_fronts/
       caching_fronts/               one answer per account for 30s
-    progressionread/                what the queries share and that knows only the wire: StreakNow, Career
+    progressionread/                what the queries share and that knows only the wire: StreakNow, Career, Record and
+                                    RecordColumns
     caller/                         the account on the context, or Unauthenticated
     progressionmessage/             Title and Titles as progression.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
@@ -118,7 +122,7 @@ key, so progression's code never names auth.
 
 `progression.v1.ProgressionService` is public; Caddy routes `/progression.v1.ProgressionService/*`.
 
-- **The caller is the account in the token.** `GetTitles` and `GetFronts` sit behind
+- **The caller is the account in the token.** `GetTitles`, `GetFronts` and `GetLevel` sit behind
   `NewSessionInterceptor` (`cpconnect.NewSessionInterceptor`, always enforcing) as `Identified`: they read only the
   caller's own, so the identity token resumed from the cookie is enough. `WearTitle` is `Attested`: it changes what
   the other players see, so it takes the click token. No token, a bad one, or one with no account is
@@ -129,10 +133,11 @@ key, so progression's code never names auth.
 - **`WearTitle(title_id)`** (`wear_title_usecase`) answers the title now worn, which the page draws beside its own
   name at once. A title the caller does not show is `InvalidArgument` (`wearing.ErrNotWearable`).
 - **`GetFronts`** is the caller's every country, for and against, uncached (see [The fronts](#the-fronts)).
+- **`GetLevel`** is the caller's level kept, on its bar, and what each kind of mission pays: see [Levels](levels.md#the-public-reads).
 - **`GetBadges(account_ids)`** and **`GetProgress(account_id)`** are what anybody may read of a player: see [The
   badges](#the-badges) and [The public card](#the-public-card).
-- **`ListenForEvents`** is the titles the caller earns, as it earns them: see [A title earned reaches the player at
-  once](#a-title-earned-reaches-the-player-at-once).
+- **`ListenForEvents`** is the titles the caller earns and the levels it reaches, as it gets them: see [A title earned
+  reaches the player at once](#a-title-earned-reaches-the-player-at-once).
 
 `progression.v1.AdminService` is the operator's (see [Operator tools](admin.md)), on the console and admin listeners:
 
@@ -365,22 +370,26 @@ through the store, not the award, so it is never announced.
 
 ### A title earned reaches the player at once
 
-**`ListenForEvents` is the caller's titles, as it earns them.** `notifying_award_titles` wraps the award and hands
-what it granted to `inprocess_title_feed`, keyed by account. The stream sits behind `NewStreamSessionReader`
+**`ListenForEvents` is the caller's titles and levels, as it gets them.** `notifying_award_titles` wraps the award and
+hands what it granted to `inprocess_title_feed`, keyed by account; `raise_level_usecase` hands each raise to
+`inprocess_level_feed` itself (see [Levels](levels.md#raised-live)). The stream sits behind `NewStreamSessionReader`
 (`cpconnect.NewSessionReaderInterceptor`, `Identified`): the token is read once, from the headers that open the stream,
 and the account stays on the context while it is open. **A stream with no account is refused `Unauthenticated`**
-(`caller.ErrNoAccount`): all it says is the caller's own. The handler runs `listen_for_titles_usecase`:
+(`caller.ErrNoAccount`): all it says is the caller's own. The handler runs `listen_for_events_usecase`, a use case of
+the module rather than of a concept, since it follows both feeds into one stream:
 
-- **A `heartbeat` at once** when the stream follows the feed, which the page reads as the stream being live, then
+- **A `heartbeat` at once** when the stream follows both feeds, which the page reads as the stream being live, then
   every `httpServer.streamHeartbeat` (see [The live streams](live-streams.md)).
 - **A `title_earned` for each title of a grant that `Catalog.Shown` keeps**: a take that earns `Raider` and `Warlord`
   together says `Warlord`.
-- **At most once.** The feed drops for a stream 8 grants behind (`subscriberBuffer`), and an account with no stream
-  open hears nothing: its titles are still kept.
+- **A `level_reached` for each raise**: the `Level` raised to, on its bar. The page ignores it until the reveal.
+- **At most once.** Each feed drops for a stream 8 grants or raises behind (`subscriberBuffer`), and an account with no
+  stream open hears nothing: its titles and its level are still kept.
 
 The web client opens it only for a signed-in account, and opens it again when its token changes (see the frontend's
-[Titles](../../frontend/docs/titles.md)). `TestAStreamWithAnAccountSaysItIsLiveThenSendsTheTitlesItEarns` and
-`TestAStreamWithNoAccountIsRefused` pin the handler. Until 2026-11-04 the titles came on player's roster stream, to a
+[Titles](../../frontend/docs/titles.md)). `TestAStreamWithAnAccountSaysItIsLiveThenSendsTheTitlesItEarns`,
+`TestALevelReachedGoesToTheCallersStreamAsItsBar` and `TestAStreamWithNoAccountIsRefused` pin the handler. The use case
+was `titles`' `listen_for_titles_usecase` until the levels joined it. Until 2026-11-04 the titles came on player's roster stream, to a
 stream opened with a token.
 
 ## The badges
@@ -409,8 +418,8 @@ undo what the page learns of its own badges. `get_badges_handler`, `badges_query
 ## The public card
 
 **`GetProgress(account_id)` is how far a player went, on its public card**, beside player's `GetPlayer`, which says who
-it is (see [Player](player.md)): its stats as of today, the titles shown and the one worn, and the top 3 countries of
-each front through `caching_fronts`. The page asks both, side by side (see the frontend's [Who is
+it is (see [Player](player.md)): its stats as of today, the titles shown and the one worn, the top 3 countries of
+each front through `caching_fronts`, and the level kept, unset for none (see [Levels](levels.md#the-public-reads)). The page asks both, side by side (see the frontend's [Who is
 playing](../../frontend/docs/who-is-playing.md)). `get_progress_handler`, `progress_query`.
 
 - **It needs no token** (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers

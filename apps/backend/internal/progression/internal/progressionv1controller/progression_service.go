@@ -6,6 +6,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/backfill_days_played_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_fronts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_level_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/listen_for_events_handler"
@@ -20,6 +21,7 @@ type ProgressionService struct {
 	get_fronts_handler.GetFrontsHandler
 	get_badges_handler.GetBadgesHandler
 	get_progress_handler.GetProgressHandler
+	get_level_handler.GetLevelHandler
 	listen_for_events_handler.ListenForEventsHandler
 }
 

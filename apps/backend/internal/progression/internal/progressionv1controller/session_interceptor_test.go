@@ -88,6 +88,7 @@ func TestTheReadsOfTheCallerTakeTheIdentityTokenOfAResumedSession(t *testing.T) 
 	for _, procedure := range []string{
 		progressionv1connect.ProgressionServiceGetTitlesProcedure,
 		progressionv1connect.ProgressionServiceGetFrontsProcedure,
+		progressionv1connect.ProgressionServiceGetLevelProcedure,
 	} {
 		account, ran, err := run(t, procedure, "an-identity-token")
 		require.NoError(t, err, procedure)

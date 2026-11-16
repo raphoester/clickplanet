@@ -48,6 +48,9 @@ const (
 	// ProgressionServiceGetProgressProcedure is the fully-qualified name of the ProgressionService's
 	// GetProgress RPC.
 	ProgressionServiceGetProgressProcedure = "/progression.v1.ProgressionService/GetProgress"
+	// ProgressionServiceGetLevelProcedure is the fully-qualified name of the ProgressionService's
+	// GetLevel RPC.
+	ProgressionServiceGetLevelProcedure = "/progression.v1.ProgressionService/GetLevel"
 	// ProgressionServiceListenForEventsProcedure is the fully-qualified name of the
 	// ProgressionService's ListenForEvents RPC.
 	ProgressionServiceListenForEventsProcedure = "/progression.v1.ProgressionService/ListenForEvents"
@@ -63,7 +66,9 @@ type ProgressionServiceClient interface {
 	// A player's progression on its public card, beside player.v1's GetPlayer. NotFound for an account the other
 	// players do not see: a guest, one asked deleted, one never named.
 	GetProgress(context.Context, *connect.Request[v1.GetProgressRequest]) (*connect.Response[v1.GetProgressResponse], error)
-	// The titles the caller earns, as it earns them. Unauthenticated without a token.
+	// The caller's own level, with what each kind of mission pays.
+	GetLevel(context.Context, *connect.Request[v1.GetLevelRequest]) (*connect.Response[v1.GetLevelResponse], error)
+	// The titles the caller earns and the levels it reaches, as it gets them. Unauthenticated without a token.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ProgressionEvent], error)
 }
 
@@ -110,6 +115,13 @@ func NewProgressionServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getLevel: connect.NewClient[v1.GetLevelRequest, v1.GetLevelResponse](
+			httpClient,
+			baseURL+ProgressionServiceGetLevelProcedure,
+			connect.WithSchema(progressionServiceMethods.ByName("GetLevel")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		listenForEvents: connect.NewClient[v1.ListenForEventsRequest, v1.ProgressionEvent](
 			httpClient,
 			baseURL+ProgressionServiceListenForEventsProcedure,
@@ -126,6 +138,7 @@ type progressionServiceClient struct {
 	getFronts       *connect.Client[v1.GetFrontsRequest, v1.GetFrontsResponse]
 	getBadges       *connect.Client[v1.GetBadgesRequest, v1.GetBadgesResponse]
 	getProgress     *connect.Client[v1.GetProgressRequest, v1.GetProgressResponse]
+	getLevel        *connect.Client[v1.GetLevelRequest, v1.GetLevelResponse]
 	listenForEvents *connect.Client[v1.ListenForEventsRequest, v1.ProgressionEvent]
 }
 
@@ -154,6 +167,11 @@ func (c *progressionServiceClient) GetProgress(ctx context.Context, req *connect
 	return c.getProgress.CallUnary(ctx, req)
 }
 
+// GetLevel calls progression.v1.ProgressionService.GetLevel.
+func (c *progressionServiceClient) GetLevel(ctx context.Context, req *connect.Request[v1.GetLevelRequest]) (*connect.Response[v1.GetLevelResponse], error) {
+	return c.getLevel.CallUnary(ctx, req)
+}
+
 // ListenForEvents calls progression.v1.ProgressionService.ListenForEvents.
 func (c *progressionServiceClient) ListenForEvents(ctx context.Context, req *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.ProgressionEvent], error) {
 	return c.listenForEvents.CallServerStream(ctx, req)
@@ -169,7 +187,9 @@ type ProgressionServiceHandler interface {
 	// A player's progression on its public card, beside player.v1's GetPlayer. NotFound for an account the other
 	// players do not see: a guest, one asked deleted, one never named.
 	GetProgress(context.Context, *connect.Request[v1.GetProgressRequest]) (*connect.Response[v1.GetProgressResponse], error)
-	// The titles the caller earns, as it earns them. Unauthenticated without a token.
+	// The caller's own level, with what each kind of mission pays.
+	GetLevel(context.Context, *connect.Request[v1.GetLevelRequest]) (*connect.Response[v1.GetLevelResponse], error)
+	// The titles the caller earns and the levels it reaches, as it gets them. Unauthenticated without a token.
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ProgressionEvent]) error
 }
 
@@ -212,6 +232,13 @@ func NewProgressionServiceHandler(svc ProgressionServiceHandler, opts ...connect
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	progressionServiceGetLevelHandler := connect.NewUnaryHandler(
+		ProgressionServiceGetLevelProcedure,
+		svc.GetLevel,
+		connect.WithSchema(progressionServiceMethods.ByName("GetLevel")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	progressionServiceListenForEventsHandler := connect.NewServerStreamHandler(
 		ProgressionServiceListenForEventsProcedure,
 		svc.ListenForEvents,
@@ -230,6 +257,8 @@ func NewProgressionServiceHandler(svc ProgressionServiceHandler, opts ...connect
 			progressionServiceGetBadgesHandler.ServeHTTP(w, r)
 		case ProgressionServiceGetProgressProcedure:
 			progressionServiceGetProgressHandler.ServeHTTP(w, r)
+		case ProgressionServiceGetLevelProcedure:
+			progressionServiceGetLevelHandler.ServeHTTP(w, r)
 		case ProgressionServiceListenForEventsProcedure:
 			progressionServiceListenForEventsHandler.ServeHTTP(w, r)
 		default:
@@ -259,6 +288,10 @@ func (UnimplementedProgressionServiceHandler) GetBadges(context.Context, *connec
 
 func (UnimplementedProgressionServiceHandler) GetProgress(context.Context, *connect.Request[v1.GetProgressRequest]) (*connect.Response[v1.GetProgressResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.ProgressionService.GetProgress is not implemented"))
+}
+
+func (UnimplementedProgressionServiceHandler) GetLevel(context.Context, *connect.Request[v1.GetLevelRequest]) (*connect.Response[v1.GetLevelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.ProgressionService.GetLevel is not implemented"))
 }
 
 func (UnimplementedProgressionServiceHandler) ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.ProgressionEvent]) error {

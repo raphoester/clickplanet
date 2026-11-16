@@ -28,6 +28,7 @@ func NewSessionInterceptor(verifier cpconnect.SessionVerifier, clock cptime.Cloc
 		cpconnect.Identified(progressionv1connect.ProgressionServiceGetTitlesProcedure),
 		cpconnect.Attested(progressionv1connect.ProgressionServiceWearTitleProcedure),
 		cpconnect.Identified(progressionv1connect.ProgressionServiceGetFrontsProcedure),
+		cpconnect.Identified(progressionv1connect.ProgressionServiceGetLevelProcedure),
 	)
 }
 

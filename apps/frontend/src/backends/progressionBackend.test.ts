@@ -3,6 +3,7 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {
     Badge as BadgePb,
     CountryTiles as CountryTilesPb,
+    Level as LevelPb,
     Progress as ProgressPb,
     ProgressionEvent as ProgressionEventPb,
     Stats as StatsPb,
@@ -181,6 +182,24 @@ describe("ConnectProgressionBackend public card", () => {
         expect(await backendWith({getProgress}).progress("account-1")).toEqual({
             tilesTaken: 0, streakCurrent: 0, streakBest: 0, titles: [], wornTitle: undefined, playsFor: [], playsAgainst: [],
         })
+    })
+
+    it("reads the level kept on its bar", async () => {
+        const getProgress = vi.fn(async () => ({
+            progress: new ProgressPb({level: new LevelPb({level: 3, xp: 222n, levelXp: 112n, nextLevelXp: 378n})}),
+        }))
+
+        expect((await backendWith({getProgress}).progress("account-1"))?.level)
+            .toEqual({level: 3, xp: 222, levelXp: 112, nextLevelXp: 378})
+    })
+
+    it("reads an unset level as none", async () => {
+        const getProgress = vi.fn(async () => ({progress: new ProgressPb({stats: new StatsPb({tilesTaken: 5n})})}))
+
+        const progress = await backendWith({getProgress}).progress("account-1")
+
+        expect(progress).toBeDefined()
+        expect(progress?.level).toBeUndefined()
     })
 
     it("answers undefined for an account the other players do not see", async () => {
