@@ -1439,7 +1439,7 @@ export class VirusSpread extends Message<VirusSpread> {
   countryId = "";
 
   /**
-   * The flag whose land it spreads into.
+   * The flag of the tile it was used on. It spreads into every enemy flag's land, not only this one's.
    *
    * @generated from field: string victim_country_id = 3;
    */

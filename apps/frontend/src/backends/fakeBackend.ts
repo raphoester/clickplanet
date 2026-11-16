@@ -670,9 +670,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const targets: number[] = []
         for (const from of virus.infected) {
             if (virus.infections + targets.length >= VIRUS_INFECTIONS) break
-            const victims = tilesWithin(positions, from, SPREAD_RING * 1.3)
-                .filter((tile) => this.tileBindings.get(tile) === virus.victim && !targets.includes(tile))
-            if (victims.length > 0) targets.push(victims[Math.floor(Math.random() * victims.length)])
+            const enemies = tilesWithin(positions, from, SPREAD_RING * 1.3).filter((tile) => {
+                const owner = this.tileBindings.get(tile)
+                return owner !== undefined && owner !== virus.flag && !targets.includes(tile)
+            })
+            if (enemies.length > 0) targets.push(enemies[Math.floor(Math.random() * enemies.length)])
         }
         this.infect(id, targets)
     }
@@ -690,9 +692,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 struck.push({tile, shields: left})
                 continue
             }
+            const owner = this.tileBindings.get(tile)
             this.tileBindings.set(tile, virus.flag)
             this.holders.set(tile, {accountId: FAKE_YOU, countryCode: virus.flag, takenAt: Date.now()})
-            this.tally?.moved(tile, virus.victim, virus.flag)
+            this.tally?.moved(tile, owner, virus.flag)
             taken.push(tile)
         }
         virus.infected.push(...taken)

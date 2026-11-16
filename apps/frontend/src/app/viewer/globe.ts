@@ -1051,7 +1051,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         onVirusSpread: (spread) => {
             releaseGhosts([...spread.taken, ...spread.struck.map(({tile}) => tile)])
-            if (spread.victimCountryId === country.code) lost = spread.taken[0] ?? lost
+            lost = spread.taken.find((tile) => ownership.ownerOf(tile) === country.code) ?? lost
             const changes = noChanges()
             tiles.applyInfection(spread, changes)
             applyChanges(changes.owners)

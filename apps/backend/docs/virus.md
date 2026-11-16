@@ -2,7 +2,7 @@
 
 **A virus is a charge that takes one enemy tile, then spreads on its own** (the design "Player Level and Unlocks", the
 owner, 2026-11-16). The player taps Virus, then an enemy tile: the tile becomes the player's flag's and is infected.
-Every 20 s each infected tile infects one tile of the flag it hit next to it, so it doubles: 1, 2, 4, 8, 16, 32. A
+Every 20 s each infected tile infects one enemy tile next to it, of any flag, so it doubles: 1, 2, 4, 8, 16, 32. A
 defender who takes an infected tile back cures that tile, and it spreads no more.
 
 **It is built and dormant**: no box and no right answer is a virus yet, as the bonuses' `kinds.virus` weighs 0 in
@@ -17,11 +17,13 @@ defender who takes an infected tile back cures that tile, and it spreads no more
   64; the owner launched it at 32.
 - **A spread every `charges.virus.every`** (20 s in `default`, 1 s to 10 min), from the tiles the virus infected before
   that tick. A tile it takes at a tick spreads from the next one.
-- **Each infected tile picks one tile of the flag it hit next to it, at random** (`clicks.Contagion.target`). A shield
+- **Each infected tile picks one enemy tile next to it, of any flag, at random** (`clicks.Contagion.target`). A shield
   absorbs the infection as it absorbs a click: one shield struck, the tile keeps its flag, and the infection counts.
-- **Only the flag it hit**: a virus spreads into the land of the flag of the tile it was aimed at (`victim`), and no
-  other. It never crosses water: it walks `Geography.Neighbours`.
-- **It ends** at the tick it infects nothing (no tile of the flag it hit next to any tile it holds), when no tile it
+- **Any enemy flag, never a blank tile**: a virus crosses borders. It spreads into the land of every flag next to its
+  tiles but its own, not only the flag of the tile it was aimed at (`victim`, kept for the stream). **Why** (the owner,
+  2026-11-16): the first rule, the flag it hit alone, stopped a virus at the first border. It never crosses water: it
+  walks `Geography.Neighbours`.
+- **It ends** at the tick it infects nothing (no enemy tile next to any tile it holds), when no tile it
   infected is still its flag's, or once it made its most infections. The end is told: every page stops drawing it.
 - **The aim must be an enemy tile with no shield**, else the virus stays in the hand: `FailedPrecondition` with a
   `planet.v1.VirusRefusal` (`clicks.ErrNotInfectable`). A blank tile has no flag to spread into.
@@ -123,7 +125,7 @@ have clicked that day. A virus lasts about two minutes, so it is rare.
 ## Tests
 
 `clicks`' `virus_test.go` pins the aim, the infections, the end and the cure; `contagion_test.go`, on the real tile
-storage, the use as one change, a refused aim that changes nothing, the doubling, the victim's land alone, a shield that
+storage, the use as one change, a refused aim that changes nothing, the doubling, any enemy flag's land and never a blank tile, a shield that
 absorbs and counts, the cap and the end told, a cure, a virus with nowhere to go, and its takes held for its player.
 `inmemory_tile_storage`'s `viruses_test.go` the flush and the boot, a virus that ended with no row, a flush with no virus
 changed, a bomb's cure, a wipe and an arena; `postgres_tile_store`'s the rows of each map, replaced as a whole and
