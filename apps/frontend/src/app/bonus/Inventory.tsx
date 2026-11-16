@@ -8,6 +8,7 @@ import {
     Charges,
     inUnlockOrder,
     lockedAt,
+    NEVER,
     NO_LEVEL,
     slotOf,
     Switches,
@@ -225,7 +226,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
                                                        onHint={(text) => setSaid((now) => now?.ms !== undefined ? now : {kind: shown.kind, text, place})}
                                                        onUnhint={() => unsay(shown.kind)}
                                                        onEmpty={() => say(shown.kind, t("inventory.empty"), BUBBLE_MS, undefined, place)}
-                                                       onLocked={(at) => say(shown.kind, t("inventory.locked", {level: at}), BUBBLE_MS, undefined, place)}/>
+                                                       onLocked={(at) => say(shown.kind, lockedLine(at), BUBBLE_MS, undefined, place)}/>
 
     const bagSaid = said && saidAt === "bar" && !onBar.some((shown) => shown.kind === said.kind) ? said : undefined
 
@@ -371,8 +372,8 @@ function Slot({kind, name, held, count, endless, on, state, hint, lockedAt, guid
         fresh && !state && "inventory-slot--new",
     ].filter(Boolean).join(" ")
 
-    const label = lockedAt ? t("inventory.slot.locked", {name, level: lockedAt}) : labelOf(name, count, shownState)
-    const description = held ? hint : lockedAt ? t("inventory.locked", {level: lockedAt}) : t("inventory.empty")
+    const label = lockedAt ? lockedLabel(name, lockedAt) : labelOf(name, count, shownState)
+    const description = held ? hint : lockedAt ? lockedLine(lockedAt) : t("inventory.empty")
 
     const mouse = (event: PointerEvent) => event.pointerType === "mouse"
 
@@ -398,13 +399,21 @@ function Slot({kind, name, held, count, endless, on, state, hint, lockedAt, guid
         {shownState && <span className="chip inventory-state" aria-hidden="true">{shownState}</span>}
         {lockedAt
             ? <span className="inventory-count inventory-lock" aria-hidden="true">
-                <LockIcon size={11}/>{translator().number(lockedAt)}
+                <LockIcon size={11}/>{lockedAt !== NEVER && translator().number(lockedAt)}
             </span>
             : count && <span className="inventory-count" aria-hidden="true">{count}</span>}
         <span className="inventory-name" aria-hidden="true">{name}</span>
         <span id={described} hidden>{description}</span>
         {said && <Bubble anchor={button} gap={STATE_CLEARANCE_PX}>{said.text}</Bubble>}
     </button>
+}
+
+function lockedLabel(name: string, level: number): string {
+    return level === NEVER ? t("inventory.slot.lockedForNow", {name}) : t("inventory.slot.locked", {name, level})
+}
+
+function lockedLine(level: number): string {
+    return level === NEVER ? t("inventory.lockedForNow") : t("inventory.locked", {level})
 }
 
 function labelOf(name: string, count: string | undefined, state: string | undefined): string {

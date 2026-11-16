@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {ALL_OFF, atRest, CHARGE_KINDS, inUnlockOrder, lockedAt, NO_CHARGES, NO_GATES, NO_LEVEL, restingSwitch, switched, switchesHeld} from "./bonus.ts"
+import {ALL_OFF, atRest, CHARGE_KINDS, inUnlockOrder, lockedAt, NEVER, NO_CHARGES, NO_GATES, NO_LEVEL, restingSwitch, switched, switchesHeld} from "./bonus.ts"
 
 const PAID = {spreadUnlimited: false, enclosuresUnlimited: false, enclosuresOff: false}
 
@@ -114,6 +114,12 @@ describe("lockedAt", () => {
         expect(lockedAt("refill", gates, NO_LEVEL)).toBeUndefined()
     })
 
+    it("locks a gated kind the ladder names no level for at every level", () => {
+        const omitted = {...gates, unlocks: {encloseClicks: 4}}
+
+        expect(lockedAt("bomb", omitted, 99)).toBe(NEVER)
+    })
+
     it("locks nothing while the gates are off", () => {
         expect(lockedAt("bomb", {...gates, on: false}, NO_LEVEL)).toBeUndefined()
         expect(lockedAt("bomb", NO_GATES, NO_LEVEL)).toBeUndefined()
@@ -125,6 +131,12 @@ describe("inUnlockOrder", () => {
         const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
 
         expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb"])
+    })
+
+    it("puts last a gated kind the ladder names no level for", () => {
+        const gates = {on: true, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {bomb: 5}}
+
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "bomb", "encloseClicks"])
     })
 
     it("keeps the order given with no gates", () => {

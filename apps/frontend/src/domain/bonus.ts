@@ -47,16 +47,25 @@ export type Gates = {
 
 export const NO_GATES: Gates = {on: false, open: [], unlocks: {}}
 
-// The level a gated kind opens at, while the player is below it.
+// The level of a gated kind the ladder names none for: it opens at no level.
+export const NEVER = Number.POSITIVE_INFINITY
+
+function openingLevel(kind: ChargeKind, gates: Gates): number {
+    return gates.open.includes(kind) ? NO_LEVEL : gates.unlocks[kind] ?? NEVER
+}
+
+// The level a gated kind opens at, NEVER for one the ladder omits, while the player is below it.
 export function lockedAt(kind: ChargeKind, gates: Gates, level: number): number | undefined {
-    if (!gates.on || gates.open.includes(kind)) return undefined
-    const at = gates.unlocks[kind]
-    return at !== undefined && at > level ? at : undefined
+    if (!gates.on) return undefined
+    const at = openingLevel(kind, gates)
+    return at > level ? at : undefined
 }
 
 export function inUnlockOrder(kinds: readonly ChargeKind[], gates: Gates): ChargeKind[] {
-    const levelOf = (kind: ChargeKind) => gates.open.includes(kind) ? NO_LEVEL : gates.unlocks[kind] ?? NO_LEVEL
-    return [...kinds].sort((a, b) => levelOf(a) - levelOf(b))
+    return [...kinds].sort((a, b) => {
+        const [x, y] = [openingLevel(a, gates), openingLevel(b, gates)]
+        return Number(x > y) - Number(x < y)
+    })
 }
 
 export type Switches = {

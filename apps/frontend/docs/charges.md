@@ -106,12 +106,14 @@ why in its bubble, and the tray stays. All again, Escape or a press anywhere out
 clicks" open one at a time, and a sheet that opens closes the tray.
 
 **The order is the order they unlock** (`inUnlockOrder`): the open kinds, then the gated ones by the level each opens
-at, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields) among one level. With no gates it is that order.
+at, a gated kind the ladder omits last, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields) among one level.
+With no gates it is that order.
 
 **A kind is locked while the gates are on, it is not an open kind, and its level is above the player's** (`lockedAt`,
 over `Gates`): grey, on a sunk box, a padlock and the level where the count goes, "unlocks at level 6" for a screen
-reader, and "Unlocks at level 6" in its bubble on a press. **A charge held stays usable whatever the level**: a kind held
-is never drawn locked. The gates are off until the reveal and in battles, so nothing shows locked then.
+reader, and "Unlocks at level 6" in its bubble on a press. A gated kind the ladder names no level for is locked at every
+level (`NEVER`): a padlock alone, "locked", and "Locked for now". **A charge held stays usable whatever the level**: a
+kind held is never drawn locked. The gates are off until the reveal and in battles, so nothing shows locked then.
 
 The gates are three facts from two modules, held in `useGates` (`bonus/gatesStore.ts`): whether they are on and the open
 kinds (refill, spread, shields) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`), and each gated kind's level
@@ -119,7 +121,8 @@ from progression's `GetLevel` (`unlocks`), the same answer as the player's level
 holds `NO_GATES`, and only the fake's console sets it: `playGates()` opens enclose at 4 and the bomb at 5,
 `playGates(true, {shields: 3})` any table, `playGates(false)` turns them off. The player's level is `NO_LEVEL` (0, a guest's
 and an account's with none yet: it holds only the open kinds) until the level's store lands on main, then `useLevel`'s
-(`own?.level`).
+(`own?.level`). `GetGrantRules` is read once a load today; once it tells the gates it must be read again whenever the
+set in force changes, since bonuses has no stream: the gamemaster's turn on its stream is the signal.
 
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is

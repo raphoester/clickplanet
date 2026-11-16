@@ -422,6 +422,15 @@ describe("Inventory", () => {
         expect(tray()).not.toBeNull()
     })
 
+    it("locks for now a gated kind the ladder names no level for", () => {
+        render(inventory({gates: {on: true, open: ["refill", "spreadClicks", "shields"], unlocks: {encloseClicks: 4}}}))
+
+        fireEvent.click(all())
+        expect(inTray(/^Bomb/).getAttribute("aria-label")).toBe("Bomb, locked")
+        fireEvent.click(inTray(/^Bomb/))
+        expect(bubble()).toBe("Locked for now")
+    })
+
     it("locks nothing while the gates are off", () => {
         render(inventory({gates: {...gated({bomb: 5}), on: false}}))
 
