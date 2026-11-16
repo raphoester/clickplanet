@@ -22,9 +22,11 @@ const (
 	KindVirus Kind = "virus"
 
 	KindMine Kind = "mine"
+
+	KindRally Kind = "rally"
 )
 
-var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindShields, KindVirus, KindMine}
+var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindShields, KindVirus, KindMine, KindRally}
 
 // Reward is what a box caught or a right answer pays: a kind, and how many of it.
 type Reward struct {
@@ -112,6 +114,8 @@ func amountOf(kind Kind, rules Rules) int {
 		least, most = rules.Shield.MinPerBox, rules.Shield.MaxPerBox
 	case KindMine:
 		most = rules.Mine.MaxPerBox
+	case KindRally:
+		most = rules.Rally.MaxPerBox
 	case KindRefill, KindBomb, KindVirus:
 	}
 

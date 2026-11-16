@@ -29,6 +29,8 @@ type Budget struct {
 	LinkedMultiplier float64
 	FastStart        bool
 	Frozen           Freeze
+	// What the click answered took from every bucket: a whole one, or less inside a rally's ring. None for a reading.
+	Spent float64
 }
 
 func (b Budget) Empty() bool {

@@ -2,9 +2,11 @@ package notices
 
 import (
 	"sync"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
 )
 
 // Spread is the tiles a spread click took, told to every stream at once.
@@ -23,11 +25,19 @@ type MineLaid struct {
 	Version clicks.MapVersion
 }
 
-// Event is one notice: a spread, what a grant added to an account's hand and all it holds after, or a mine laid.
+// RallyCalled is a rally a player called, told to every stream at once with the time it has left.
+type RallyCalled struct {
+	Rally rallies.Snapshot
+	Left  time.Duration
+}
+
+// Event is one notice: a spread, what a grant added to an account's hand and all it holds after, a mine laid, or a
+// rally called.
 type Event struct {
 	Spread   *Spread
 	Granted  *charges.Gain
 	MineLaid *MineLaid
+	Rally    *RallyCalled
 }
 
 const buffer = 32
@@ -101,6 +111,11 @@ func (b *Board) PublishGranted(holder charges.Holder, gain charges.Gain) {
 		return
 	}
 	b.send(func(each stream) bool { return each.holder == holder }, Event{Granted: &gain})
+}
+
+// A rally reaches every stream: every flag sees the ring.
+func (b *Board) PublishRally(called RallyCalled) {
+	b.send(func(stream) bool { return true }, Event{Rally: &called})
 }
 
 // A mine laid reaches only the streams of the players of its flag: the others never learn of it.

@@ -62,13 +62,15 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 ## Announcements
 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
-without a bubble. Seven kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
+without a bubble. Eight kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
 mute an operator gave (see [Mutes](#mutes)), `round`, every day and battle of a season scoring scored, `fortify`, every
 landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
 from its own table, `ground` for a country's main one; see [Fortify](fortify.md)), `champion`, the country that
 won a season, and `flag_mission`, every flag that finished its mission of the day (see
-[The flag's mission](missions.md#the-flags-mission)), told in that flag's room too, and `knock_out`, every flag an
-arena knocked out (`{country, by}`; see [The knock-out](capitals.md#the-knock-out-capitalsknockout)).
+[The flag's mission](missions.md#the-flags-mission)), told in that flag's room too, `knock_out`, every flag an
+arena knocked out (`{country, by}`; see [The knock-out](capitals.md#the-knock-out-capitalsknockout)), and `rally`, every
+rally a player called, in its flag's room (`{name, country, ground, landmass}`, the caller named by player as it is told,
+the landmass as a fortify's; see [The rally](rally.md#the-line-in-the-flags-room)).
 
 - **A separate type and a separate table, not a message with no author.** An announcement has no name, tag, IP,
   text or reactions, and a message has no kind or payload; sharing a base would make every column of one

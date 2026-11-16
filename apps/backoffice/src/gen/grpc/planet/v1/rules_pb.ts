@@ -25,8 +25,8 @@ export class Rules extends Message<Rules> {
   toll?: TollRules;
 
   /**
-   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine are refused, no virus spreads,
-   * and GetFreeze answers frozen. The map still loads and streams.
+   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally are refused, no
+   * virus spreads, and GetFreeze answers frozen. The map still loads and streams.
    *
    * @generated from field: optional bool frozen = 4;
    */
@@ -459,6 +459,11 @@ export class ChargeRules extends Message<ChargeRules> {
    */
   mine?: MineRules;
 
+  /**
+   * @generated from field: planet.v1.RallyRules rally = 7;
+   */
+  rally?: RallyRules;
+
   constructor(data?: PartialMessage<ChargeRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -473,6 +478,7 @@ export class ChargeRules extends Message<ChargeRules> {
     { no: 4, name: "shield", kind: "message", T: ShieldRules },
     { no: 5, name: "virus", kind: "message", T: VirusRules },
     { no: 6, name: "mine", kind: "message", T: MineRules },
+    { no: 7, name: "rally", kind: "message", T: RallyRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeRules {
@@ -795,6 +801,69 @@ export class MineRules extends Message<MineRules> {
 
   static equals(a: MineRules | PlainMessage<MineRules> | undefined, b: MineRules | PlainMessage<MineRules> | undefined): boolean {
     return proto3.util.equals(MineRules, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.RallyRules
+ */
+export class RallyRules extends Message<RallyRules> {
+  /**
+   * How many rallies a hand holds at most.
+   *
+   * @generated from field: optional uint32 held = 1;
+   */
+  held?: number;
+
+  /**
+   * The ring's radius, in tile spacings. 1 to 50.
+   *
+   * @generated from field: optional double rings = 2;
+   */
+  rings?: number;
+
+  /**
+   * How long a rally lasts. 10 s to 30 min.
+   *
+   * @generated from field: google.protobuf.Duration lasts = 3;
+   */
+  lasts?: Duration;
+
+  /**
+   * What a click inside a rally's ring of its flag takes from the bank, in clicks. 0.1 to 1.
+   *
+   * @generated from field: optional double cost = 4;
+   */
+  cost?: number;
+
+  constructor(data?: PartialMessage<RallyRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RallyRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 2, name: "rings", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 3, name: "lasts", kind: "message", T: Duration },
+    { no: 4, name: "cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RallyRules {
+    return new RallyRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RallyRules {
+    return new RallyRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RallyRules {
+    return new RallyRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RallyRules | PlainMessage<RallyRules> | undefined, b: RallyRules | PlainMessage<RallyRules> | undefined): boolean {
+    return proto3.util.equals(RallyRules, a, b);
   }
 }
 

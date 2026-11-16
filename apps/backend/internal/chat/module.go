@@ -21,6 +21,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/rpc_scoring_results"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_champion_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_mute_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_rally_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_round_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/chatv1controller"
@@ -102,6 +103,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/player_reported_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/rally_called_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/season_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpanthropic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
@@ -233,6 +235,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to chat.v1.AccountMuted: %w", err)
 	}
 
+	rallies, err := cpredis.Subscribe(ctx, streams, "chat-announcements-rallies",
+		log_subscriber.New(rally_called_subscriber.New(announce_rally_usecase.New(authors, announce)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to planet.v1.RallyCalled: %w", err)
+	}
+
 	days, err := cpredis.Subscribe(ctx, streams, "chat-announcements-days",
 		log_subscriber.New(day_ended_subscriber.New(announce_round_usecase.New(results, announce)), props.Logger))
 	if err != nil {
@@ -293,7 +302,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
-		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, knockOuts, flagMissions, deletions, forgottenModeration, mutings,
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, knockOuts, flagMissions, deletions, forgottenModeration, mutings, rallies,
 			days, battles, champions, departures, reports,
 			cpoutbox.NewRelay("chat-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))))
 

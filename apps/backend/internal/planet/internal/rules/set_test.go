@@ -76,6 +76,15 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"charges.mine.held":                func(r *planetv1.Rules) { r.Charges.Mine.Held = proto.Uint32(0) },
 		"charges.mine.rings is 0":          func(r *planetv1.Rules) { r.Charges.Mine.Rings = proto.Uint32(0) },
 		"charges.mine.rings is 4":          func(r *planetv1.Rules) { r.Charges.Mine.Rings = proto.Uint32(4) },
+		"charges.rally.held":               func(r *planetv1.Rules) { r.Charges.Rally.Held = proto.Uint32(0) },
+		"charges.rally.rings is 0":         func(r *planetv1.Rules) { r.Charges.Rally.Rings = proto.Float64(0) },
+		"charges.rally.rings is 51":        func(r *planetv1.Rules) { r.Charges.Rally.Rings = proto.Float64(51) },
+		"charges.rally.lasts is 9s":        func(r *planetv1.Rules) { r.Charges.Rally.Lasts = d(9 * time.Second) },
+		"charges.rally.lasts is 30m1s": func(r *planetv1.Rules) {
+			r.Charges.Rally.Lasts = d(30*time.Minute + time.Second)
+		},
+		"charges.rally.cost is 0.09": func(r *planetv1.Rules) { r.Charges.Rally.Cost = proto.Float64(0.09) },
+		"charges.rally.cost is 1.5":  func(r *planetv1.Rules) { r.Charges.Rally.Cost = proto.Float64(1.5) },
 		"charges.enclose.off is on with enclose.unlimited": func(r *planetv1.Rules) {
 			r.Charges.Enclose.Off, r.Charges.Enclose.Unlimited = proto.Bool(true), proto.Bool(true)
 		},

@@ -23,6 +23,8 @@ type Hand struct {
 	Virus bool
 
 	Mines int
+
+	Rallies int
 }
 
 // FakeWallet stands for planet's wallet in the bonuses module's tests: it pays each grant once, a refill or a bomb as one
@@ -118,6 +120,8 @@ func (w *FakeWallet) Pay(ctx context.Context, payment Payment) error {
 		hand.Virus = true
 	case KindMine:
 		hand.Mines = w.stacked(hand.Mines, payment)
+	case KindRally:
+		hand.Rallies = w.stacked(hand.Rallies, payment)
 	}
 	w.hands[payment.Account] = hand
 
@@ -152,6 +156,7 @@ func (w *FakeWallet) Full(_ context.Context, accounts []Account) (map[Account][]
 			{KindSpreadClicks, hand.SpreadClicks},
 			{KindShields, hand.Shields},
 			{KindMine, hand.Mines},
+			{KindRally, hand.Rallies},
 		} {
 			if size, ok := w.sizes[stack.kind]; ok && stack.held >= size {
 				full[account] = append(full[account], stack.kind)

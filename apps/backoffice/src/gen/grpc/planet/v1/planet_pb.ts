@@ -84,6 +84,11 @@ export enum BonusKind {
    * @generated from enum value: BONUS_KIND_MINE = 8;
    */
   MINE = 8,
+
+  /**
+   * @generated from enum value: BONUS_KIND_RALLY = 9;
+   */
+  RALLY = 9,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
@@ -95,6 +100,7 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 6, name: "BONUS_KIND_SHIELDS" },
   { no: 7, name: "BONUS_KIND_VIRUS" },
   { no: 8, name: "BONUS_KIND_MINE" },
+  { no: 9, name: "BONUS_KIND_RALLY" },
 ]);
 
 /**
@@ -354,6 +360,14 @@ export class ClickBudget extends Message<ClickBudget> {
    */
   fastStart = false;
 
+  /**
+   * What the click answered took from the bank: 1, or charges.rally.cost inside a rally's ring of its flag. Set by
+   * Click alone.
+   *
+   * @generated from field: double spent = 14;
+   */
+  spent = 0;
+
   constructor(data?: PartialMessage<ClickBudget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -373,6 +387,7 @@ export class ClickBudget extends Message<ClickBudget> {
     { no: 11, name: "shared_with", kind: "enum", T: proto3.getEnumType(SharedWith) },
     { no: 12, name: "frozen", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 13, name: "fast_start", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 14, name: "spent", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClickBudget {
@@ -485,8 +500,8 @@ export class ClickResponse extends Message<ClickResponse> {
 }
 
 /**
- * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine answer while
- * the rules in force freeze the map, or an arena's freeze holds it.
+ * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally
+ * answer while the rules in force freeze the map, or an arena's freeze holds it.
  *
  * @generated from message planet.v1.FrozenRefusal
  */
@@ -655,7 +670,42 @@ export class MineRefusal extends Message<MineRefusal> {
 }
 
 /**
- * The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus and LayMine answer a banned caller.
+ * The detail of the FailedPrecondition that CallRally answers while a rally the caller called is still on: the rally
+ * stays held.
+ *
+ * @generated from message planet.v1.RallyRefusal
+ */
+export class RallyRefusal extends Message<RallyRefusal> {
+  constructor(data?: PartialMessage<RallyRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RallyRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RallyRefusal {
+    return new RallyRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RallyRefusal {
+    return new RallyRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RallyRefusal {
+    return new RallyRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RallyRefusal | PlainMessage<RallyRefusal> | undefined, b: RallyRefusal | PlainMessage<RallyRefusal> | undefined): boolean {
+    return proto3.util.equals(RallyRefusal, a, b);
+  }
+}
+
+/**
+ * The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus, LayMine and CallRally answer a banned
+ * caller.
  *
  * @generated from message planet.v1.BanRefusal
  */
@@ -1434,6 +1484,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: MinesExploded;
     case: "minesExploded";
+  } | {
+    /**
+     * @generated from field: planet.v1.Rally rally_called = 17;
+     */
+    value: Rally;
+    case: "rallyCalled";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1457,6 +1513,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 14, name: "virus_spread", kind: "message", T: VirusSpread, oneof: "event" },
     { no: 15, name: "mine_laid", kind: "message", T: MineLaid, oneof: "event" },
     { no: 16, name: "mines_exploded", kind: "message", T: MinesExploded, oneof: "event" },
+    { no: 17, name: "rally_called", kind: "message", T: Rally, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1473,6 +1530,84 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * A rally a player called for its flag: until it ends, a click of that flag on a tile inside the ring costs
+ * charges.rally.cost. Every flag sees it.
+ *
+ * @generated from message planet.v1.Rally
+ */
+export class Rally extends Message<Rally> {
+  /**
+   * @generated from field: string rally_id = 1;
+   */
+  rallyId = "";
+
+  /**
+   * Who called it.
+   *
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country_id = 3;
+   */
+  countryId = "";
+
+  /**
+   * The ring's centre, a point of the globe, not a tile: the ring is what it covers.
+   *
+   * @generated from field: planet.v1.GlobePoint point = 4;
+   */
+  point?: GlobePoint;
+
+  /**
+   * The ring's radius, in radians of arc on the unit globe: a tile whose centre is that close or closer is inside.
+   *
+   * @generated from field: double radius = 5;
+   */
+  radius = 0;
+
+  /**
+   * How long it has left as it was told.
+   *
+   * @generated from field: uint32 left_ms = 6;
+   */
+  leftMs = 0;
+
+  constructor(data?: PartialMessage<Rally>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.Rally";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rally_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "point", kind: "message", T: GlobePoint },
+    { no: 5, name: "radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 6, name: "left_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rally {
+    return new Rally().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Rally {
+    return new Rally().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Rally {
+    return new Rally().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Rally | PlainMessage<Rally> | undefined, b: Rally | PlainMessage<Rally> | undefined): boolean {
+    return proto3.util.equals(Rally, a, b);
   }
 }
 
@@ -2513,6 +2648,11 @@ export class ChargesHeld extends Message<ChargesHeld> {
    */
   mines = 0;
 
+  /**
+   * @generated from field: uint32 rallies = 8;
+   */
+  rallies = 0;
+
   constructor(data?: PartialMessage<ChargesHeld>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2528,6 +2668,7 @@ export class ChargesHeld extends Message<ChargesHeld> {
     { no: 5, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 7, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "rallies", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesHeld {
@@ -2764,6 +2905,34 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   mineRings = 0;
 
+  /**
+   * How many rallies a hand holds at most.
+   *
+   * @generated from field: uint32 rallies = 22;
+   */
+  rallies = 0;
+
+  /**
+   * A rally's ring, in radians of arc on the unit globe: the page draws the aim at it.
+   *
+   * @generated from field: double rally_radius = 23;
+   */
+  rallyRadius = 0;
+
+  /**
+   * How long a rally lasts.
+   *
+   * @generated from field: uint32 rally_lasts_ms = 24;
+   */
+  rallyLastsMs = 0;
+
+  /**
+   * What a click inside a rally's ring of its flag takes from the bank.
+   *
+   * @generated from field: double rally_cost = 25;
+   */
+  rallyCost = 0;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2790,6 +2959,10 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 19, name: "virus_every_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 20, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 21, name: "mine_rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 22, name: "rallies", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 23, name: "rally_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 24, name: "rally_lasts_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 25, name: "rally_cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {
@@ -3487,6 +3660,156 @@ export class GetMinesResponse extends Message<GetMinesResponse> {
 
   static equals(a: GetMinesResponse | PlainMessage<GetMinesResponse> | undefined, b: GetMinesResponse | PlainMessage<GetMinesResponse> | undefined): boolean {
     return proto3.util.equals(GetMinesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.CallRallyRequest
+ */
+export class CallRallyRequest extends Message<CallRallyRequest> {
+  /**
+   * Where the ring goes: any point of the globe, the sea too. Its length does not matter.
+   *
+   * @generated from field: planet.v1.GlobePoint point = 1;
+   */
+  point?: GlobePoint;
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<CallRallyRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CallRallyRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "point", kind: "message", T: GlobePoint },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CallRallyRequest {
+    return new CallRallyRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CallRallyRequest {
+    return new CallRallyRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CallRallyRequest {
+    return new CallRallyRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CallRallyRequest | PlainMessage<CallRallyRequest> | undefined, b: CallRallyRequest | PlainMessage<CallRallyRequest> | undefined): boolean {
+    return proto3.util.equals(CallRallyRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.CallRallyResponse
+ */
+export class CallRallyResponse extends Message<CallRallyResponse> {
+  /**
+   * @generated from field: planet.v1.Rally rally = 1;
+   */
+  rally?: Rally;
+
+  constructor(data?: PartialMessage<CallRallyResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CallRallyResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rally", kind: "message", T: Rally },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CallRallyResponse {
+    return new CallRallyResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CallRallyResponse {
+    return new CallRallyResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CallRallyResponse {
+    return new CallRallyResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CallRallyResponse | PlainMessage<CallRallyResponse> | undefined, b: CallRallyResponse | PlainMessage<CallRallyResponse> | undefined): boolean {
+    return proto3.util.equals(CallRallyResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetRalliesRequest
+ */
+export class GetRalliesRequest extends Message<GetRalliesRequest> {
+  constructor(data?: PartialMessage<GetRalliesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetRalliesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRalliesRequest {
+    return new GetRalliesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRalliesRequest {
+    return new GetRalliesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRalliesRequest {
+    return new GetRalliesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRalliesRequest | PlainMessage<GetRalliesRequest> | undefined, b: GetRalliesRequest | PlainMessage<GetRalliesRequest> | undefined): boolean {
+    return proto3.util.equals(GetRalliesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetRalliesResponse
+ */
+export class GetRalliesResponse extends Message<GetRalliesResponse> {
+  /**
+   * @generated from field: repeated planet.v1.Rally rallies = 1;
+   */
+  rallies: Rally[] = [];
+
+  constructor(data?: PartialMessage<GetRalliesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetRalliesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rallies", kind: "message", T: Rally, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRalliesResponse {
+    return new GetRalliesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRalliesResponse {
+    return new GetRalliesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRalliesResponse {
+    return new GetRalliesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRalliesResponse | PlainMessage<GetRalliesResponse> | undefined, b: GetRalliesResponse | PlainMessage<GetRalliesResponse> | undefined): boolean {
+    return proto3.util.equals(GetRalliesResponse, a, b);
   }
 }
 

@@ -207,3 +207,20 @@ func TestMinesStackToWhatAHandHoldsAndEachIsSpentAlone(t *testing.T) {
 	assert.Equal(t, held, used.WithMineBack(), "a mine the map refused comes back")
 	assert.ErrorIs(t, Held{Mines: -1}.GrantError(), ErrNegativeGrant)
 }
+
+func TestRalliesStackToWhatAHandHoldsAndEachIsSpentAlone(t *testing.T) {
+	held := Held{}.Granted(KindRally, 2, chargeRules).Granted(KindRally, 2, chargeRules)
+	require.Equal(t, Held{Rallies: 3}, held, "a hand holds 3")
+	assert.Equal(t, []Kind{KindRally}, held.Full(chargeRules))
+	assert.Equal(t, 3, held.Count(KindRally))
+	assert.Equal(t, Held{Rallies: 2}, GrantOf(KindRally, 2))
+
+	used, ok := held.AfterRally()
+	require.True(t, ok)
+	assert.Equal(t, Held{Rallies: 2}, used)
+	assert.Empty(t, used.Full(chargeRules))
+	_, none := Held{}.AfterRally()
+	assert.False(t, none)
+	assert.Equal(t, held, used.WithRallyBack(), "a rally refused once spent comes back")
+	assert.ErrorIs(t, Held{Rallies: -1}.GrantError(), ErrNegativeGrant)
+}

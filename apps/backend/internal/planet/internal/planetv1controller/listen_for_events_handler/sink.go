@@ -48,6 +48,8 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(planetmessage.VirusSpread(event.Infection, event.Version))
 	case event.Explosion != nil:
 		return s.stream.Send(planetmessage.MinesExploded(event.Explosion, event.Version))
+	case event.Rally != nil:
+		return s.stream.Send(planetmessage.RallyCalled(event.Rally.Rally, event.Rally.Left))
 	case event.MineLaid != nil:
 		return s.stream.Send(planetmessage.MineLaid(event.MineLaid.Flag, event.MineLaid.Tile, event.MineLaid.Version))
 	case event.Enclosure != nil:

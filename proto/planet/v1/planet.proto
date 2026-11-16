@@ -48,6 +48,13 @@ service ClickService {
   // now, and a cached one lies.
   rpc GetMines(GetMinesRequest) returns (GetMinesResponse);
 
+  // Calls a rally on a point of the globe, for the caller's flag: for a while, a click of that flag on a tile inside its
+  // ring costs less.
+  rpc CallRally(CallRallyRequest) returns (CallRallyResponse);
+
+  // Every rally still on, of every flag. Not NO_SIDE_EFFECTS: each says the time it has left, and a cached one lies.
+  rpc GetRallies(GetRalliesRequest) returns (GetRalliesResponse);
+
   rpc GetFortresses(GetFortressesRequest) returns (GetFortressesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -125,6 +132,10 @@ message ClickBudget {
 
   // A guest in its fast start: it refills at the signed-in pace until this is false again.
   bool fast_start = 13;
+
+  // What the click answered took from the bank: 1, or charges.rally.cost inside a rally's ring of its flag. Set by
+  // Click alone.
+  double spent = 14;
 }
 
 enum SharedWith {
@@ -150,8 +161,8 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine answer while
-// the rules in force freeze the map, or an arena's freeze holds it.
+// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine and CallRally
+// answer while the rules in force freeze the map, or an arena's freeze holds it.
 message FrozenRefusal {}
 
 // The detail of the FailedPrecondition that Click answers while the reach plays, for a tile that touches none of the
@@ -170,7 +181,12 @@ message VirusRefusal {}
 // is a capital while the knock-out plays: the mine stays held.
 message MineRefusal {}
 
-// The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus and LayMine answer a banned caller.
+// The detail of the FailedPrecondition that CallRally answers while a rally the caller called is still on: the rally
+// stays held.
+message RallyRefusal {}
+
+// The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus, LayMine and CallRally answer a banned
+// caller.
 message BanRefusal {
   int64 banned_until_unix_ms = 1;
 }
@@ -304,7 +320,29 @@ message PlanetEvent {
     MineLaid mine_laid = 15;
 
     MinesExploded mines_exploded = 16;
+
+    Rally rally_called = 17;
   }
+}
+
+// A rally a player called for its flag: until it ends, a click of that flag on a tile inside the ring costs
+// charges.rally.cost. Every flag sees it.
+message Rally {
+  string rally_id = 1;
+
+  // Who called it.
+  string account_id = 2;
+
+  string country_id = 3;
+
+  // The ring's centre, a point of the globe, not a tile: the ring is what it covers.
+  GlobePoint point = 4;
+
+  // The ring's radius, in radians of arc on the unit globe: a tile whose centre is that close or closer is inside.
+  double radius = 5;
+
+  // How long it has left as it was told.
+  uint32 left_ms = 6;
 }
 
 // A mine a player of the flag laid. The tile holds it only while it has not changed since version.
@@ -485,6 +523,8 @@ message ChargesHeld {
   bool virus = 6;
 
   uint32 mines = 7;
+
+  uint32 rallies = 8;
 }
 
 message GetChargesRequest {}
@@ -552,6 +592,18 @@ message GetChargeRulesResponse {
 
   // How many rings of tiles around its own a mine's blast takes.
   uint32 mine_rings = 21;
+
+  // How many rallies a hand holds at most.
+  uint32 rallies = 22;
+
+  // A rally's ring, in radians of arc on the unit globe: the page draws the aim at it.
+  double rally_radius = 23;
+
+  // How long a rally lasts.
+  uint32 rally_lasts_ms = 24;
+
+  // What a click inside a rally's ring of its flag takes from the bank.
+  double rally_cost = 25;
 }
 
 message TollStep {
@@ -579,6 +631,8 @@ enum BonusKind {
   BONUS_KIND_VIRUS = 7;
 
   BONUS_KIND_MINE = 8;
+
+  BONUS_KIND_RALLY = 9;
 }
 
 message UseRefillRequest {
@@ -679,6 +733,23 @@ message GetMinesResponse {
 
   // The map's version as they were read: a tile changed after it holds no mine.
   MapVersion version = 3;
+}
+
+message CallRallyRequest {
+  // Where the ring goes: any point of the globe, the sea too. Its length does not matter.
+  GlobePoint point = 1;
+
+  string country_id = 2;
+}
+
+message CallRallyResponse {
+  Rally rally = 1;
+}
+
+message GetRalliesRequest {}
+
+message GetRalliesResponse {
+  repeated Rally rallies = 1;
 }
 
 message PlaceShieldRequest {

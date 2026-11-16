@@ -787,7 +787,8 @@ type ClickTried struct {
 	Owner string `protobuf:"bytes,9,opt,name=owner,proto3" json:"owner,omitempty"`
 	// Unset for a tile off the map.
 	Position *GlobePoint `protobuf:"bytes,10,opt,name=position,proto3" json:"position,omitempty"`
-	// How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+	// How many times faster than the plain pace every bucket refilled when the click was tried, over what the click took
+	// from the bank: one inside a rally's ring that took half a click reads twice the tempo. 0 is the plain pace.
 	Tempo float64 `protobuf:"fixed64,11,opt,name=tempo,proto3" json:"tempo,omitempty"`
 	// The click left the caller's bank empty: less than one click in it.
 	Dry           bool `protobuf:"varint,12,opt,name=dry,proto3" json:"dry,omitempty"`
@@ -1095,6 +1096,101 @@ func (x *AllegiancePledged) GetPledgedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// A rally a player called for its flag, around a point of the globe: the chat tells the flag's room.
+type RallyCalled struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	RallyId   string                 `protobuf:"bytes,1,opt,name=rally_id,json=rallyId,proto3" json:"rally_id,omitempty"`
+	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Country   string                 `protobuf:"bytes,3,opt,name=country,proto3" json:"country,omitempty"`
+	Point     *GlobePoint            `protobuf:"bytes,4,opt,name=point,proto3" json:"point,omitempty"`
+	// The landmass of the tile nearest the point, when it is inside the ring, and the country whose ground it is, which the
+	// line names. None for a ring on open sea.
+	Ground        string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
+	LandmassId    uint32                 `protobuf:"varint,6,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
+	CalledAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=called_at,json=calledAt,proto3" json:"called_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RallyCalled) Reset() {
+	*x = RallyCalled{}
+	mi := &file_planet_v1_events_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RallyCalled) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RallyCalled) ProtoMessage() {}
+
+func (x *RallyCalled) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_events_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RallyCalled.ProtoReflect.Descriptor instead.
+func (*RallyCalled) Descriptor() ([]byte, []int) {
+	return file_planet_v1_events_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RallyCalled) GetRallyId() string {
+	if x != nil {
+		return x.RallyId
+	}
+	return ""
+}
+
+func (x *RallyCalled) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *RallyCalled) GetCountry() string {
+	if x != nil {
+		return x.Country
+	}
+	return ""
+}
+
+func (x *RallyCalled) GetPoint() *GlobePoint {
+	if x != nil {
+		return x.Point
+	}
+	return nil
+}
+
+func (x *RallyCalled) GetGround() string {
+	if x != nil {
+		return x.Ground
+	}
+	return ""
+}
+
+func (x *RallyCalled) GetLandmassId() uint32 {
+	if x != nil {
+		return x.LandmassId
+	}
+	return 0
+}
+
+func (x *RallyCalled) GetCalledAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CalledAt
+	}
+	return nil
+}
+
 var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
@@ -1194,7 +1290,17 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\acountry\x18\x02 \x01(\tR\acountry\x12\x1a\n" +
 	"\bprevious\x18\x03 \x01(\tR\bprevious\x129\n" +
 	"\n" +
-	"pledged_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tpledgedAt*\xa8\x02\n" +
+	"pledged_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tpledgedAt\"\x80\x02\n" +
+	"\vRallyCalled\x12\x19\n" +
+	"\brally_id\x18\x01 \x01(\tR\arallyId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12\x18\n" +
+	"\acountry\x18\x03 \x01(\tR\acountry\x12+\n" +
+	"\x05point\x18\x04 \x01(\v2\x15.planet.v1.GlobePointR\x05point\x12\x16\n" +
+	"\x06ground\x18\x05 \x01(\tR\x06ground\x12\x1f\n" +
+	"\vlandmass_id\x18\x06 \x01(\rR\n" +
+	"landmassId\x127\n" +
+	"\tcalled_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bcalledAt*\xa8\x02\n" +
 	"\fClickOutcome\x12\x1d\n" +
 	"\x19CLICK_OUTCOME_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13CLICK_OUTCOME_TAKEN\x10\x01\x12\x18\n" +
@@ -1222,7 +1328,7 @@ func file_planet_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_planet_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_planet_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_planet_v1_events_proto_goTypes = []any{
 	(ClickOutcome)(0),             // 0: planet.v1.ClickOutcome
 	(*TilesTaken)(nil),            // 1: planet.v1.TilesTaken
@@ -1237,30 +1343,33 @@ var file_planet_v1_events_proto_goTypes = []any{
 	(*MapRead)(nil),               // 10: planet.v1.MapRead
 	(*StreamOpened)(nil),          // 11: planet.v1.StreamOpened
 	(*AllegiancePledged)(nil),     // 12: planet.v1.AllegiancePledged
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
-	(*GlobePoint)(nil),            // 14: planet.v1.GlobePoint
+	(*RallyCalled)(nil),           // 13: planet.v1.RallyCalled
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(*GlobePoint)(nil),            // 15: planet.v1.GlobePoint
 }
 var file_planet_v1_events_proto_depIdxs = []int32{
-	13, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
+	14, // 0: planet.v1.TilesTaken.taken_at:type_name -> google.protobuf.Timestamp
 	2,  // 1: planet.v1.TilesTaken.tiles:type_name -> planet.v1.TakenTile
-	14, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
-	13, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
-	13, // 4: planet.v1.FlagKnockedOut.knocked_out_at:type_name -> google.protobuf.Timestamp
-	13, // 5: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
-	13, // 6: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
-	13, // 7: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
+	15, // 2: planet.v1.TakenTile.point:type_name -> planet.v1.GlobePoint
+	14, // 3: planet.v1.BombLanded.landed_at:type_name -> google.protobuf.Timestamp
+	14, // 4: planet.v1.FlagKnockedOut.knocked_out_at:type_name -> google.protobuf.Timestamp
+	14, // 5: planet.v1.Fortified.fortified_at:type_name -> google.protobuf.Timestamp
+	14, // 6: planet.v1.ShieldPlaced.placed_at:type_name -> google.protobuf.Timestamp
+	14, // 7: planet.v1.ShieldsStruck.struck_at:type_name -> google.protobuf.Timestamp
 	8,  // 8: planet.v1.ShieldsStruck.tiles:type_name -> planet.v1.StruckTile
-	13, // 9: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
+	14, // 9: planet.v1.ClickTried.tried_at:type_name -> google.protobuf.Timestamp
 	0,  // 10: planet.v1.ClickTried.outcome:type_name -> planet.v1.ClickOutcome
-	14, // 11: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
-	13, // 12: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
-	13, // 13: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
-	13, // 14: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
-	15, // [15:15] is the sub-list for method output_type
-	15, // [15:15] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	15, // 11: planet.v1.ClickTried.position:type_name -> planet.v1.GlobePoint
+	14, // 12: planet.v1.MapRead.read_at:type_name -> google.protobuf.Timestamp
+	14, // 13: planet.v1.StreamOpened.opened_at:type_name -> google.protobuf.Timestamp
+	14, // 14: planet.v1.AllegiancePledged.pledged_at:type_name -> google.protobuf.Timestamp
+	15, // 15: planet.v1.RallyCalled.point:type_name -> planet.v1.GlobePoint
+	14, // 16: planet.v1.RallyCalled.called_at:type_name -> google.protobuf.Timestamp
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_events_proto_init() }
@@ -1275,7 +1384,7 @@ func file_planet_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_events_proto_rawDesc), len(file_planet_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

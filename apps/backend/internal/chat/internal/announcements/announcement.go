@@ -26,12 +26,13 @@ const (
 	KindChampion    Kind = "champion"
 	KindFlagMission Kind = "flag_mission"
 	KindKnockOut    Kind = "knock_out"
+	KindRally       Kind = "rally"
 )
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
 func Kinds() []Kind {
-	return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion, KindFlagMission, KindKnockOut}
+	return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion, KindFlagMission, KindKnockOut, KindRally}
 }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
@@ -157,6 +158,46 @@ func (k KnockOut) Announcement(at time.Time) (Announcement, error) {
 		return Announcement{}, fmt.Errorf("failed to encode a knock-out announcement: %w", err)
 	}
 	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/knock-out", k.position)), KindKnockOut, at, payload), nil
+}
+
+type RallyID string
+
+var ErrNoRally = errors.New("no rally id")
+
+func RallyIDOf(id string) (RallyID, error) {
+	if id == "" {
+		return "", ErrNoRally
+	}
+	return RallyID(id), nil
+}
+
+// Rally is a player who called a rally for its flag on a landmass: told in the flag's room.
+type Rally struct {
+	id       RallyID
+	name     string
+	country  string
+	ground   string
+	landmass uint32
+}
+
+func RallyOf(id RallyID, name string, country string, ground string, landmass uint32) Rally {
+	return Rally{id: id, name: name, country: country, ground: ground, landmass: landmass}
+}
+
+type rallyPayload struct {
+	Name     string `json:"name"`
+	Country  string `json:"country"`
+	Ground   string `json:"ground,omitempty"`
+	Landmass uint32 `json:"landmass,omitempty"`
+}
+
+func (r Rally) Announcement(at time.Time) (Announcement, error) {
+	payload, err := json.Marshal(rallyPayload{Name: r.name, Country: r.country, Ground: r.ground, Landmass: r.landmass})
+	if err != nil {
+		return Announcement{}, fmt.Errorf("failed to encode a rally announcement: %w", err)
+	}
+	return NewAnnouncement(toldOnce("rallies/"+string(r.id)), KindRally, at, payload).
+		WithRoom(messages.FlagRoom(r.country)), nil
 }
 
 type Muted struct {

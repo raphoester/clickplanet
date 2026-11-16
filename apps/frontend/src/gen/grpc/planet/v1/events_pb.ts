@@ -702,7 +702,8 @@ export class ClickTried extends Message<ClickTried> {
   position?: GlobePoint;
 
   /**
-   * How many times faster than the plain pace every bucket refilled when the click was tried; 0 is the plain pace.
+   * How many times faster than the plain pace every bucket refilled when the click was tried, over what the click took
+   * from the bank: one inside a rally's ring that took half a click reads twice the tempo. 0 is the plain pace.
    *
    * @generated from field: double tempo = 11;
    */
@@ -912,6 +913,84 @@ export class AllegiancePledged extends Message<AllegiancePledged> {
 
   static equals(a: AllegiancePledged | PlainMessage<AllegiancePledged> | undefined, b: AllegiancePledged | PlainMessage<AllegiancePledged> | undefined): boolean {
     return proto3.util.equals(AllegiancePledged, a, b);
+  }
+}
+
+/**
+ * A rally a player called for its flag, around a point of the globe: the chat tells the flag's room.
+ *
+ * @generated from message planet.v1.RallyCalled
+ */
+export class RallyCalled extends Message<RallyCalled> {
+  /**
+   * @generated from field: string rally_id = 1;
+   */
+  rallyId = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string country = 3;
+   */
+  country = "";
+
+  /**
+   * @generated from field: planet.v1.GlobePoint point = 4;
+   */
+  point?: GlobePoint;
+
+  /**
+   * The landmass of the tile nearest the point, when it is inside the ring, and the country whose ground it is, which the
+   * line names. None for a ring on open sea.
+   *
+   * @generated from field: string ground = 5;
+   */
+  ground = "";
+
+  /**
+   * @generated from field: uint32 landmass_id = 6;
+   */
+  landmassId = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp called_at = 7;
+   */
+  calledAt?: Timestamp;
+
+  constructor(data?: PartialMessage<RallyCalled>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RallyCalled";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rally_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "country", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "point", kind: "message", T: GlobePoint },
+    { no: 5, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "called_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RallyCalled {
+    return new RallyCalled().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RallyCalled {
+    return new RallyCalled().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RallyCalled {
+    return new RallyCalled().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RallyCalled | PlainMessage<RallyCalled> | undefined, b: RallyCalled | PlainMessage<RallyCalled> | undefined): boolean {
+    return proto3.util.equals(RallyCalled, a, b);
   }
 }
 

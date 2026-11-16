@@ -18,6 +18,7 @@ func Encode(budget clicks.Budget) *planetv1.ClickBudget {
 		SharedWith:       sharedWith[budget.SharedWith],
 		Frozen:           bool(budget.Frozen),
 		FastStart:        budget.FastStart,
+		Spent:            budget.Spent,
 	}
 }
 

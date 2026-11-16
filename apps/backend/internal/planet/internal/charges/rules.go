@@ -16,6 +16,7 @@ type Rules struct {
 	Shield  ShieldRules
 	Virus   VirusRules
 	Mine    MineRules
+	Rally   RallyRules
 }
 
 // A tile keeps its shields in a byte.
@@ -24,6 +25,14 @@ const mostShieldsOnATile = 255
 const MostSpreadRings = 3
 
 const MostMineRings = 3
+
+const (
+	widestRally   = 50
+	shortestRally = 10 * time.Second
+	longestRally  = 30 * time.Minute
+	// A click inside a ring costs at least a tenth of one: ten times the clicks at most.
+	cheapestRallyClick = 0.1
+)
 
 const (
 	mostVirusInfections = 1024
@@ -50,6 +59,13 @@ func (r Rules) Validate() error {
 		rules.Positive("mine.held", r.Mine.Held),
 		rules.Positive("mine.rings", r.Mine.Rings),
 		rules.AtMost("mine.rings", r.Mine.Rings, "the widest blast", MostMineRings),
+		rules.Positive("rally.held", r.Rally.Held),
+		rules.Positive("rally.rings", r.Rally.Rings), rules.Finite("rally.rings", r.Rally.Rings),
+		rules.AtMost("rally.rings", r.Rally.Rings, "the widest ring", widestRally),
+		rules.AtLeast("rally.lasts", r.Rally.Lasts, "ten seconds", shortestRally),
+		rules.AtMost("rally.lasts", r.Rally.Lasts, "thirty minutes", longestRally),
+		rules.AtLeast("rally.cost", r.Rally.Cost, "a tenth of a click", cheapestRallyClick),
+		rules.AtMost("rally.cost", r.Rally.Cost, "a whole click", 1),
 	)
 }
 
@@ -92,6 +108,15 @@ type VirusRules struct {
 type MineRules struct {
 	Held  int
 	Rings int
+}
+
+// RallyRules: a hand holds Held rallies at most. A rally's ring is Rings tile spacings wide and lasts Lasts, and a click
+// of its flag inside it takes Cost from the bank.
+type RallyRules struct {
+	Held  int
+	Rings float64
+	Lasts time.Duration
+	Cost  float64
 }
 
 type ShieldRules struct {

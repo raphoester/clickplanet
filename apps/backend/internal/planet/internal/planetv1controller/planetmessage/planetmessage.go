@@ -1,8 +1,11 @@
 package planetmessage
 
 import (
+	"time"
+
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
 )
 
 func Version(version clicks.MapVersion) *planetv1.MapVersion {
@@ -204,4 +207,20 @@ func MineLaid(flag string, tile uint32, version clicks.MapVersion) *planetv1.Pla
 			MineLaid: &planetv1.MineLaid{CountryId: flag, TileId: tile, Version: Version(version)},
 		},
 	}
+}
+
+// Rally is a rally as every flag sees it, with the time it has left as it is told.
+func Rally(rally rallies.Snapshot, left time.Duration) *planetv1.Rally {
+	return &planetv1.Rally{
+		RallyId:   rally.ID.String(),
+		AccountId: rally.Account.String(),
+		CountryId: rally.Flag,
+		Point:     &planetv1.GlobePoint{X: rally.Centre.X, Y: rally.Centre.Y, Z: rally.Centre.Z},
+		Radius:    rally.Radius,
+		LeftMs:    uint32(max(left, 0).Milliseconds()), //nolint:gosec // a rally lasts minutes.
+	}
+}
+
+func RallyCalled(rally rallies.Snapshot, left time.Duration) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{Event: &planetv1.PlanetEvent_RallyCalled{RallyCalled: Rally(rally, left)}}
 }

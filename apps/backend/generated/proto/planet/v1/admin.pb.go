@@ -273,7 +273,9 @@ type GrantChargesRequest struct {
 	// One virus: a hand holds one at most.
 	Virus bool `protobuf:"varint,7,opt,name=virus,proto3" json:"virus,omitempty"`
 	// Mines, up to what a hand holds.
-	Mines         uint32 `protobuf:"varint,8,opt,name=mines,proto3" json:"mines,omitempty"`
+	Mines uint32 `protobuf:"varint,8,opt,name=mines,proto3" json:"mines,omitempty"`
+	// Rallies, up to what a hand holds.
+	Rallies       uint32 `protobuf:"varint,9,opt,name=rallies,proto3" json:"rallies,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -360,6 +362,13 @@ func (x *GrantChargesRequest) GetVirus() bool {
 func (x *GrantChargesRequest) GetMines() uint32 {
 	if x != nil {
 		return x.Mines
+	}
+	return 0
+}
+
+func (x *GrantChargesRequest) GetRallies() uint32 {
+	if x != nil {
+		return x.Rallies
 	}
 	return 0
 }
@@ -1237,7 +1246,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"i\n" +
 	"\rReplayedEvent\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
-	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\xeb\x01\n" +
+	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\x85\x02\n" +
 	"\x13GrantChargesRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
@@ -1249,7 +1258,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\rspread_clicks\x18\x05 \x01(\rR\fspreadClicks\x12\x18\n" +
 	"\ashields\x18\x06 \x01(\rR\ashields\x12\x14\n" +
 	"\x05virus\x18\a \x01(\bR\x05virus\x12\x14\n" +
-	"\x05mines\x18\b \x01(\rR\x05mines\"\x93\x01\n" +
+	"\x05mines\x18\b \x01(\rR\x05mines\x12\x18\n" +
+	"\arallies\x18\t \x01(\rR\arallies\"\x93\x01\n" +
 	"\x14GrantChargesResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +

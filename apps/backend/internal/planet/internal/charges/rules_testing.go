@@ -13,5 +13,6 @@ func TestRules() Rules {
 		Shield:  ShieldRules{Held: 30, PerTile: 10},
 		Virus:   VirusRules{Infections: 32, Every: 20 * time.Second},
 		Mine:    MineRules{Held: 3, Rings: 2},
+		Rally:   RallyRules{Held: 3, Rings: 18, Lasts: 3 * time.Minute, Cost: 0.5},
 	}
 }

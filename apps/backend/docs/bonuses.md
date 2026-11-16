@@ -114,7 +114,7 @@ type per rung ([Levels](levels.md#the-unlocks)). The bonuses module knows no lev
 
 - **`gates.on`**, and **`gates.open.*`**, a switch per kind: the kinds anyone may be drawn while the gates are on, a
   guest too. `default` holds `on: false`, with refill, spread and shields open (migration `…_unlocks`; the virus closed,
-  `…_virus_offers`, and the mine, `…_mine_offers`): **every set has the gates off until the levels are shown**, so no draw changes. A battle's set keeps
+  `…_virus_offers`, the mine, `…_mine_offers`, and the rally, `…_rally_offers`): **every set has the gates off until the levels are shown**, so no draw changes. A battle's set keeps
   them off: newcomers who come for a battle fight with every kind. That is data, not code.
 - **A guest has nothing unlocked**: progression keeps no level for one, so it draws the open kinds alone.
 - **Gates decide only what is drawn.** A charge held stays usable whatever the gates: planet checks no level.
@@ -139,12 +139,14 @@ holds every value, another set only what it changes, and plays default's for the
 `bonuses.v1.Rules`:
 
 - `kinds.*` — what a box or a right answer is drawn as: a weight per kind, `refill`, `spreadClicks`, `encloseClicks`,
-  `bomb`, `shields`, `virus`, `mine`. 0 is never drawn, nor a kind planet says a hand has no room for. `virus` and
-  `mine` weigh 0 in `default` until the operator weighs them ([The virus](virus.md), [The mine](mine.md))
-- `spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `shield.maxPerBox`, `mine.maxPerBox` — what a box or a
-  right answer grants at most (and at least): a mine box holds 1 or 2 (`mine.maxPerBox` 2). The stacks those fill are planet's `charges.*`
+  `bomb`, `shields`, `virus`, `mine`, `rally`. 0 is never drawn, nor a kind planet says a hand has no room for. `virus`,
+  `mine` and `rally` weigh 0 in `default` until the operator weighs them ([The virus](virus.md), [The mine](mine.md),
+  [The rally](rally.md))
+- `spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `shield.maxPerBox`, `mine.maxPerBox`, `rally.maxPerBox` —
+  what a box or a right answer grants at most (and at least): a mine box holds 1 or 2 (`mine.maxPerBox` 2), a rally box
+  one (`rally.maxPerBox` 1). The stacks those fill are planet's `charges.*`
 - `signInRefill` — a guest's first sign-in earns a refill ([A guest's first sign-in earns a refill](sign-in-refill.md))
-- `gates.on`, `gates.open.refill`, `spreadClicks`, `encloseClicks`, `bomb`, `shields`, `virus`, `mine` — whether a win is drawn
+- `gates.on`, `gates.open.refill`, `spreadClicks`, `encloseClicks`, `bomb`, `shields`, `virus`, `mine`, `rally` — whether a win is drawn
   only from the open kinds and the ones the account unlocked ([The gates](#the-gates))
 - `quiz` (10) — `reserved` since 2026-11-13: the quizzes' rules are `quizzes.v1.Rules`
 - `boxes`, `offerTtl`, `missRetry`, `activeWithin`, `welcome`, `frozen` (1, 3, 4, 5, 9, 12) — `reserved` since

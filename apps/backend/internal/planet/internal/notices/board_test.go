@@ -2,6 +2,7 @@ package notices_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -9,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
 )
 
 const (
@@ -127,4 +129,22 @@ func TestAPledgeMovesEveryStreamOfTheAccountToItsNewFlag(t *testing.T) {
 	assert.Equal(t, uint32(4), (<-tab).MineLaid.Tile, "it hears its new flag's mines, and no more its old flag's")
 	require.Len(t, other, 1)
 	assert.Equal(t, uint32(3), (<-other).MineLaid.Tile)
+}
+
+func TestARallyReachesEveryStreamWhateverItsFlag(t *testing.T) {
+	board := notices.New()
+	theFlags, another := board.Attend(ada, "fr")
+	t.Cleanup(another)
+	enemies, leave := board.Attend(grace, "de")
+	t.Cleanup(leave)
+	nobody := attend(t, board, charges.NoHolder)
+	called := notices.RallyCalled{Rally: rallies.Snapshot{Flag: "fr", Centre: clicks.Vec3{Z: 1}, Radius: 0.072}, Left: time.Minute}
+
+	board.PublishRally(called)
+
+	for _, events := range []<-chan notices.Event{theFlags, enemies, nobody} {
+		rally := (<-events).Rally
+		require.NotNil(t, rally)
+		assert.Equal(t, called, *rally)
+	}
 }

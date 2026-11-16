@@ -116,3 +116,23 @@ func TestAFlagMissionWithNoIDIsRefused(t *testing.T) {
 
 	assert.ErrorIs(t, err, announcements.ErrNoFlagMission)
 }
+
+func TestARallyIsToldInItsFlagsRoomNamingTheCallerAndTheLandmass(t *testing.T) {
+	rally, err := announcements.RallyIDOf("00000000-0000-7000-8000-000000000001")
+	require.NoError(t, err)
+
+	announcement, err := announcements.RallyOf(rally, "le professeur", "fr", "au", 420).Announcement(at)
+	require.NoError(t, err)
+	again, err := announcements.RallyOf(rally, "le professeur", "fr", "au", 420).Announcement(at.Add(time.Second))
+	require.NoError(t, err)
+
+	assert.Equal(t, announcements.KindRally, announcement.Kind())
+	assert.Equal(t, messages.FlagRoom("fr"), announcement.Room())
+	assert.True(t, announcement.In(messages.World), "the world shows every one")
+	assert.False(t, announcement.In(messages.FlagRoom("de")))
+	assert.JSONEq(t, `{"name":"le professeur","country":"fr","ground":"au","landmass":420}`, string(announcement.Payload()))
+	assert.Equal(t, announcement.ID(), again.ID(), "a rally told twice is one line")
+
+	_, err = announcements.RallyIDOf("")
+	require.ErrorIs(t, err, announcements.ErrNoRally)
+}

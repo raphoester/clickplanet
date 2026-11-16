@@ -42,6 +42,7 @@ type Event struct {
 	Spread   *notices.Spread
 	Granted  *charges.Gain
 	MineLaid *notices.MineLaid
+	Rally    *notices.RallyCalled
 }
 
 // Notices is planet's own news for the caller: every spread, what a grant added to its account's hand, and the mines its
@@ -155,7 +156,9 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 
 		case notice := <-news:
-			if err := sink.Send(Event{Spread: notice.Spread, Granted: notice.Granted, MineLaid: notice.MineLaid}); err != nil {
+			if err := sink.Send(Event{
+				Spread: notice.Spread, Granted: notice.Granted, MineLaid: notice.MineLaid, Rally: notice.Rally,
+			}); err != nil {
 				return err
 			}
 		}

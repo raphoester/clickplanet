@@ -83,7 +83,8 @@ number of the old `cost`, whose meaning it replaces.
   The whole table goes out once per page load, in `GetChargeRules.toll_steps`.
 - **Bonuses compose with it.** A refill fills the bank to its size and leaves the
   pace alone. A spread is one click. A bomb is not throttled, and lowers the
-  share of whoever it hits.
+  share of whoever it hits. A click inside a rally's ring of its flag costs `charges.rally.cost` (half a click) from
+  every bucket instead of one, at whatever pace (see [The rally](rally.md)).
 
 `GetBudget` takes the country, for the slowdown it answers. Known risk, not
 handled yet: a country sitting on a step can cross it back and forth click to click.

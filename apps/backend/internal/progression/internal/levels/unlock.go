@@ -34,12 +34,18 @@ type MineUnlock struct{}
 func (MineUnlock) Kind() Kind   { return "mine" }
 func (MineUnlock) Level() Level { return 8 }
 
+// RallyUnlock comes last of the three, about day 7 for a regular player: the first charge a flag plays together.
+type RallyUnlock struct{}
+
+func (RallyUnlock) Kind() Kind   { return "rally" }
+func (RallyUnlock) Level() Level { return 10 }
+
 // Ladder is every kind a level unlocks. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses'
 // open kinds.
 type Ladder struct{}
 
 func (Ladder) Unlocks() []Unlock {
-	return []Unlock{EncloseUnlock{}, BombUnlock{}, VirusUnlock{}, MineUnlock{}}
+	return []Unlock{EncloseUnlock{}, BombUnlock{}, VirusUnlock{}, MineUnlock{}, RallyUnlock{}}
 }
 
 // UnlockedAt is every kind unlocked at the level, in the ladder's order: none for no level.

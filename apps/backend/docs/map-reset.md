@@ -44,7 +44,7 @@ memory the same way (`Storage.Blank`), but keeps the world's rows and plays its 
   has no reset code of its own.
 
 **What goes with the map**: every live virus and every mine, deleted in the wipe's transaction (see [The virus](virus.md)
-and [The mine](mine.md)).
+and [The mine](mine.md)). A rally is no map state and lasts its few minutes (see [The rally](rally.md)).
 
 **What stays**: accounts, allegiances, charges in hand, titles, stats, bans, chat, missions, and the ledger. Scoring's
 books are the gamemaster's: season 1's book opens at the same second (see [The gamemaster](gamemaster.md)).
