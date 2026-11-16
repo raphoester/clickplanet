@@ -10,6 +10,7 @@ import {useLevel, useLevelFeed} from "./levelStore.ts"
 const eleven: PlayerLevel = {level: 11, xp: 14_000, levelXp: 14_000, nextLevelXp: 18_634}
 const twelve: PlayerLevel = {level: 12, xp: 18_700, levelXp: 18_634, nextLevelXp: 24_192}
 const unlocks = {encloseClicks: 4, bomb: 5}
+const missionRates = {takeFrom: {xp: 3, per: 2}}
 
 const answering = (...reads: (LevelRead | undefined)[]) => {
     const readLevel = vi.fn<() => Promise<LevelRead | undefined>>(async () => reads[reads.length - 1])
@@ -43,16 +44,17 @@ afterEach(() => {
 
 describe("useLevelFeed", () => {
     it("reads the level and the ladder in one call", async () => {
-        const reader = answering({level: eleven, unlocks})
+        const reader = answering({level: eleven, unlocks, missionRates})
         render(<Harness reader={reader} linked/>)
 
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
         expect(useLevel.getState().unlocks).toEqual(unlocks)
+        expect(useLevel.getState().missionRates).toEqual(missionRates)
         expect(reader.readLevel).toHaveBeenCalledTimes(1)
     })
 
     it("reads a guest's ladder, which has no level", async () => {
-        render(<Harness reader={answering({unlocks})} linked={false}/>)
+        render(<Harness reader={answering({unlocks, missionRates})} linked={false}/>)
 
         await vi.waitFor(() => expect(useLevel.getState().unlocks).toEqual(unlocks))
         expect(useLevel.getState().own).toBeUndefined()
@@ -62,11 +64,11 @@ describe("useLevelFeed", () => {
         render(<Harness reader={answering(undefined)} linked={false}/>)
         await act(async () => {})
 
-        expect(useLevel.getState()).toMatchObject({own: undefined, unlocks: {}})
+        expect(useLevel.getState()).toMatchObject({own: undefined, unlocks: {}, missionRates: {}})
     })
 
     it("forgets the level and the ladder when the account signs out or changes, and reads again", async () => {
-        const reader = answering({level: eleven, unlocks}, {unlocks})
+        const reader = answering({level: eleven, unlocks, missionRates}, {unlocks, missionRates})
         const view = render(<Harness reader={reader} linked/>)
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
 
@@ -82,7 +84,7 @@ describe("useLevelFeed", () => {
         render(<Harness reader={reader} linked/>)
 
         act(() => useLevel.getState().reached(twelve))
-        await act(async () => answer({level: eleven, unlocks}))
+        await act(async () => answer({level: eleven, unlocks, missionRates}))
 
         expect(useLevel.getState().own).toEqual(twelve)
         expect(useLevel.getState().unlocks).toEqual(unlocks)
@@ -91,8 +93,8 @@ describe("useLevelFeed", () => {
     it("reads again once a signed-in player's clicks settle, a guest's never", async () => {
         vi.useFakeTimers()
         const clicks = acceptedClicks()
-        const signedIn = answering({level: eleven, unlocks})
-        const guest = answering({unlocks})
+        const signedIn = answering({level: eleven, unlocks, missionRates})
+        const guest = answering({unlocks, missionRates})
         render(<Harness reader={signedIn} linked listenForClicks={clicks.listenForClicks}/>)
         render(<Harness reader={guest} accountId="guest-1" linked={false} listenForClicks={clicks.listenForClicks}/>)
         await act(async () => {})
@@ -105,7 +107,7 @@ describe("useLevelFeed", () => {
     })
 
     it("reads again on a new session, as a guest's first click makes one", async () => {
-        const reader = answering({unlocks})
+        const reader = answering({unlocks, missionRates})
         const {sessions, tell} = sessionsOf()
         render(<Harness reader={reader} linked={false} sessions={sessions}/>)
         await act(async () => {})
@@ -119,7 +121,7 @@ describe("useLevelFeed", () => {
     })
 
     it("keeps the level read in StrictMode", async () => {
-        render(<StrictMode><Harness reader={answering({level: eleven, unlocks})} linked/></StrictMode>)
+        render(<StrictMode><Harness reader={answering({level: eleven, unlocks, missionRates})} linked/></StrictMode>)
 
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
     })

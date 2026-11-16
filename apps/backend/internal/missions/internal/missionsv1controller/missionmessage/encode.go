@@ -7,7 +7,6 @@ import (
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/flagmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/get_missions_usecase"
 )
 
@@ -37,12 +36,10 @@ func Day(day get_missions_usecase.Out) (*missionsv1.GetMissionsResponse, error) 
 
 func Mission(status missions.MissionStatus) (*missionsv1.Mission, error) {
 	encoded := &missionsv1.Mission{
-		Id:   status.Mission.ID.String(),
-		Done: status.Done,
-		Paid: status.Paid,
-		Reward: &missionsv1.MissionReward{Kind: &missionsv1.MissionReward_Charges{Charges: &missionsv1.Charges{
-			Kind: planetgrant.KindOf(status.Mission.Reward.Kind), Amount: status.Mission.Reward.Amount,
-		}}},
+		Id:     status.Mission.ID.String(),
+		Done:   status.Done,
+		Paid:   status.Paid,
+		Reward: &missionsv1.MissionReward{Kind: &missionsv1.MissionReward_Xp{Xp: &missionsv1.Xp{}}},
 	}
 
 	switch order := status.Mission.Order.(type) {

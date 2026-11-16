@@ -1,14 +1,15 @@
 # Missions (`internal/missions/`)
 
-**Every player has four or five missions a day of its own, and each pays itself once done. Every flag has one more,
+**Every player has four or five missions a day of its own, and each pays XP once done. Every flag has one more,
 which all its players do together, and which gives the flag season points** (see [The flag's mission](#the-flags-mission)).
 It reads planet's facts (`TilesTaken`, `BombLanded`, `ShieldPlaced`, `Fortified`, `ShieldsStruck`, `GetTerritories`,
 `GetCountrySizes`, `GetAllegianceOf`), the boxes' (`BoxClaimed`, planet's `BonusClaimed` until 2026-11-11 and the bonuses module's until 2026-11-15), the quizzes' (`QuizAnswered`, the offers' until 2026-11-13), the
 gamemaster's days (`DayStarted`), player's
-word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands planet to grant a reward
-(`planet.v1.GrantCharges`) and scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as scoring asks planet
-what each country holds: neither ever imports, calls or hears missions. It tells what it did (`MissionsPaid`,
-`FlagMissionDone`) to whoever listens: progression and the chat.
+word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands scoring to grant points
+(`scoring.v1.GrantPoints`), over Redis, as scoring asks planet what each country holds: neither ever imports, calls or
+hears missions. It tells what it did (`MissionsDone`, `MissionsPaid`, `FlagMissionDone`) to whoever listens:
+progression, which turns the missions done into XP, and the chat. Missions grants no charge (see
+[Missions pay XP](#missions-pay-xp)).
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
 ```
@@ -29,10 +30,9 @@ internal/missions/internal/
     rpc_planet_world/               what each flag holds and each ground's size, from planet.v1.InternalService
     rpc_planet_allegiance/          the flag an account pledged, from planet.v1.InternalService/GetAllegianceOf
     rpc_player_accounts/            whether an account is signed in, from player.v1.InternalService/GetAccounts (2s timeout)
-    payroll/                        pays each mission done once: the payments and their grants, in one transaction
-    planetgrant/                    a payment as the planet.v1.GrantCharges command
+    payroll/                        pays each mission done once: the payments and MissionsPaid, in one transaction
     donemessage/                    what an account has done in all as the missions.v1.MissionsDone event
-    redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid,
+    redis_outbox_sender/            what the outbox relay sends with: the points as commands, MissionsPaid,
                                     MissionsDone and FlagMissionDone as events
     inprocess_day_feed/             wakes the account's open streams when its day changed, in this process
     usecases/record_fact_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
@@ -76,7 +76,7 @@ internal/missions/internal/
   **A fact can come before its day**: the day and the facts come on separate streams, so a take of the first second or
   so of a day may find no day yet and count nothing (the owner chose it over asking the gamemaster each fact,
   2026-10-29). Migration `20261029110000_gamemaster_days` named every row kept before by its date as season 0's day.
-  **The rules are objects**: a `Mission` is an id, an `Order` and a reward, and nothing else.
+  **The rules are objects**: a `Mission` is an id and an `Order`, and nothing else.
   **An order is one kind of mission**, a type of its own with its own fields: `TakeFor{Flag, Goal}` (tiles for the
   flag), `TakeFrom{Flag, Goal}` (tiles another flag held), `TakeIn{Ground, Goal}` (tiles on a country's land),
   `TakeFromIn{Flag, Ground, Goal}` (tiles another flag held on a country's land), `CatchBoxes{Goal}`,
@@ -108,11 +108,9 @@ internal/missions/internal/
     attacked the same flag, and a flag could be sent to a ground it already held whole. The world is planet's
     (`GetTerritories`: what each flag holds, and how many tiles of it on each country's land; `GetCountrySizes`,
     `clicks.Borders.CountrySizes`).
-  - **The rewards are drawn with the day too** (`draw.rewards`, from the `purses`): the four charges in a random
-    order, each once before any twice, so a day of five pays one charge twice, each as much as its purse gives: 15 to
-    30 shields, 4 to 8 spread clicks, one bomb, or 2 to 3 enclosures. A purse starts above what a box gives and tops
-    at the stack planet keeps (`bonus.*.held`), since a grant past it is lost. **Never a refill**: a mission pays
-    what multiplies or guards clicks, not clicks.
+  - **A mission pays XP: its goal times its kind's rate.** The rates are progression's (see
+    [What a mission pays](levels.md#what-a-mission-pays)); the draw draws no reward. See
+    [Missions pay XP](#missions-pay-xp).
   - **`Briefing.Of(day, account)` draws once and keeps it**, at the account's first read or take of the day, for the
     flag it pledged then (`rpc_planet_allegiance`, planet's `GetAllegianceOf`); an account that never pledged one has
     no missions. The store's first `KeepBrief` wins, so two takes racing to draw an account's day read one brief, and a
@@ -122,13 +120,15 @@ internal/missions/internal/
     brief (`drawnID`), so the same draw names it the same. Progress and payments point at it,
     and nothing caps how many missions a brief holds.
   - **A brief is one `jsonb` array per day and account** (`mission_briefs.missions`), the missions in the order drawn.
-    Each is `{id, kind, reward, payload}`; the payload is the kind's own fields (`{"flag", "goal"}` for `take_for`,
-    `{"goal"}` for `catch_boxes`).
+    Each is `{id, kind, payload}`; the payload is the kind's own fields (`{"flag", "goal"}` for `take_for`,
+    `{"goal"}` for `catch_boxes`). A brief drawn while missions paid charges also keeps `reward`, the charge it paid,
+    which nothing reads.
     A kind with other fields, or none, needs code and no migration. A kind the store does not know is an error.
   - **`GetMissions` answers each mission in its kind's own message** (`missionmessage`, `Sheet.Statuses`): what every
     mission has is its id, its reward, `done` and `paid`; what it asks is a `oneof`, a message per kind with its own
     fields, its goal and how far it went. A client skips a kind it does not know, so a new kind
-    reaches an old client as nothing. The reward is a `oneof` too (`charges` today).
+    reaches an old client as nothing. The reward is a `oneof` too: `xp`, with no amount (the page computes it, see
+    [Missions pay XP](#missions-pay-xp)); `charges`, field 1, is `reserved`.
   - **A fact counts on every mission it fits, whatever flag it is for** (`Sheet.WithFact`): after a change of flag the
     day's rivals and grounds still count, and its tiles for the old flag stop. A change of flag gets no second set,
     since an account has one day. The client never names the flag. **Progress is counted from planet's events and the
@@ -153,17 +153,15 @@ internal/missions/internal/
     what it counted. Each kind has its own mark because each comes on its own stream, in no order with the others. Two
     boxes or answers of one account in the same microsecond count once.
   - **A mission done is paid at once, with no claim** (`payroll.Pay`, `Sheet.WithPayments`). The fact that finishes it
-    writes the payment (`mission_payments`) and records the `planet.v1.GrantCharges` command in missions' outbox, in
-    the transaction that counts it: both are kept, or neither and the fact is told again. A batch of takes pays once:
-    its transaction compares what is due before its takes and after them. `missions-outbox`
-    sends it to planet, which grants it once per `grant_id` (`planetgrant.Of`: the account and the mission, so a
-    payment told twice names one grant). **What does not fit the stack is lost**, as planet grants any charge: no
-    reply comes back.
-  - **The payment is told too**: with the grants, the payroll records `missions.v1.MissionsPaid`, how many missions the
-    account was paid in all (`Store.PaidInAll`, a count of `mission_payments` under the sheet's lock), these included.
-    `progression` keeps it for the Missions title track. A running total, not one event per mission: told twice or late it
-    changes nothing, and the first one brings every payment before it. So one outbox holds a command and an event, and
-    `redis_outbox_sender` sends each on its own kind of stream.
+    writes the payment (`mission_payments`) in the transaction that counts it, and grants nothing: the XP is
+    progression's, from `MissionsDone`. A batch of takes pays once: its transaction compares what is due before its
+    takes and after them.
+  - **The payment is told**: the payroll records `missions.v1.MissionsPaid`, how many missions the account was paid in
+    all (`Store.PaidInAll`, a count of `mission_payments` under the sheet's lock), these included, with the payments:
+    both are kept, or neither and the fact is told again. `progression` keeps it for the Missions title track. A running
+    total, not one event per mission: told twice or late it changes nothing, and the first one brings every payment
+    before it. One outbox holds the flag missions' commands and the events, and `redis_outbox_sender` sends each on its
+    own kind of stream.
   - **What was done is told apart from what was paid** (`missions.v1.MissionsDone`): the fact that finishes one or more
     missions records, in its transaction and before the payroll, how many missions the account has done in all and, by
     `MissionKind`, how many and their goals summed (`Store.DoneBy`, `missions.Done`, `donemessage`). A mission is done
@@ -172,7 +170,7 @@ internal/missions/internal/
     not, and whether a guest's mission is worth anything is the listener's call (the owner, 2026-11-16, when the player
     level's first slice was reviewed). Missions knows no XP: what a mission done is worth, and to whom, is the
     rewarder's word, as bonuses decides what a box or a right answer pays.
-    `MissionsPaid` stays the payment's own fact, true while missions pays charges. Totals again, so twice, late or lost
+    `MissionsPaid` stays the payment's own fact, which the Missions title track counts. Totals again, so twice, late or lost
     changes nothing, and missions done before the event existed reach the listeners by `RetellMissionsDone` (see
     [The missions done, told again](#the-missions-done-told-again)). Progression hears it
     (`progression-stats-missions-done`) for the level's XP; its Missions title track still counts `MissionsPaid`.
@@ -187,8 +185,7 @@ internal/missions/internal/
     clicks would read the day once per take; what changes during the wait is in the day read after it. That is what
     the game's progress line reads (see the frontend's [Missions](../../frontend/docs/missions.md)). A payment wakes it
     too: missions hears its own `MissionsPaid` (`missions-streams`, `missions_paid_subscriber`), so the day is read once
-    the payment is committed, and the same relay pass sends the grant to planet: the card and the charges come within
-    about a second of each other, about 2 to 4 s after the act that finished the mission, whatever its kind.
+    the payment is committed: the card comes about 2 to 4 s after the act that finished the mission, whatever its kind.
     `inprocess_day_feed` wakes each open stream of the account; changes told while a stream reads its day are one more
     read, not one each. Delivery is at most once, and a stream that opens again starts from the whole day. Until
     2026-11-05 only a payment woke the stream, and progress came with the read 2 s after a run of clicks.
@@ -196,7 +193,8 @@ internal/missions/internal/
     quiz, a shield or a bomb: a mission those finished showed paid only after the next run of clicks, up to a minute
     later (the owner: "it's perceived as a bug"). The stream needs an account: `NewStreamSessionReader` reads the token,
     since the unary session interceptor does not wrap streams, and a stream with none is refused `Unauthenticated`.
-  - **A guest's progress counts and is kept, and its pay waits for sign-in.** `payroll` asks player whether the account
+  - **A guest's progress counts and is kept, and its payment waits for sign-in** (its XP does not, see
+    [Missions pay XP](#missions-pay-xp)). `payroll` asks player whether the account
     is signed in (`rpc_player_accounts`, `player.v1.InternalService/GetAccounts`, which says what auth says: an
     account player does not answer is not signed in) only when a take finishes a mission. `player.v1.PlayerSignedIn`
     (`missions-signed-in`, `pay_signed_in_usecase`), which player tells at every sign-in and link, pays the day's
@@ -212,6 +210,31 @@ internal/missions/internal/
   - **`GetMissions` and `ListenForEvents` are `Identified`**, and say which missions are paid. `player.v1.PlayerForgotten`,
     which player tells for every account auth deletes, deletes the account's briefs, sheets, progress and payments
     (`missions-forgotten`).
+
+## Missions pay XP
+
+**A player's mission pays XP only: its goal times its kind's rate.** Progression owns the rates and counts the XP
+from `MissionsDone` (see [What a mission pays](levels.md#what-a-mission-pays)); missions knows no XP and grants no
+charge. It ships in the reveal set, with the level on the page (see [The reveal](levels.md#the-reveal)): before it,
+nothing showed the XP, and missions paid charges too. A flag's mission still gives season points.
+
+- **On the wire**, a mission's reward is `MissionReward.xp {}`, with no amount. The page reads the rates once from
+  progression's `GetLevel.mission_rates` (`xp` for every `per` of the goal) and shows goal × xp ÷ per, floored, the
+  server's integer math.
+- **A brief drawn before the deploy pays XP like any other.** A mission is an id and an order, so the store reads an
+  old brief's orders and leaves its `reward` key: what it does not do, it pays in XP, never the charge it was drawn
+  with. A mission done before the deploy was paid its charge, and counted XP too, as every mission done has since
+  `MissionsDone`.
+- **A guest's sign-in still pays the day's missions done** (`pay_signed_in_usecase`): the payments and `MissionsPaid`,
+  which the Missions title track counts, and no charge. The XP does not wait for it: progression counts a guest's
+  missions done once the account links, any day.
+- **The charge code is gone**: the purses, the draw of rewards, `Reward`, `planetgrant` and the charge on the wire.
+  Two things stay. `redis_outbox_sender` still sends a `planet.v1.GrantCharges` the binary before left in the outbox:
+  the relay empties it at shutdown, but a fact counted in the last moment can leave one. It can go once the reveal
+  deploy ran. And planet still handles the command (`apply_grant_handler`), though nothing sends it now.
+- **A rollback is a revert of the reveal set.** The briefs drawn while it ran have no `reward`: the code before reads
+  them as a charge of no kind, planet refuses its grant (`ErrUnknownKind`) and the old page skips the mission, for the
+  rest of that day. The next day's briefs pay charges again.
 
 ## The flag's mission
 
@@ -285,7 +308,7 @@ day and a flag), so it has its own package and store (`flagmissions`).
 - **The fact that finishes it gives the points, once** (`Day.WithTake`, `WithStrike`, `Done`): in the transaction
   that counts it, the use case records `scoring.v1.GrantPoints` in missions' outbox (`scoringgrant.Of`): the mission's id
   as `grant_id`, the flag, the points, and the fact's time (`Done.At`, not the batch's last) as `granted_at`, so
-  scoring counts them in the books open then. `missions-outbox` sends it with the charges.
+  scoring counts them in the books open then. `missions-outbox` sends it with the events.
 - **And tells it, once** (`flagmessage.Done`): in the same transaction, `missions.v1.FlagMissionDone`, the flag, the
   mission as `GetMissions` shows it, done (`flagmessage.Mission`, the one encoder of a flag mission), and the fact's time
   as `done_at`. The chat hears it and announces it in the world and in the flag's room (see the chat's
@@ -305,8 +328,8 @@ day and a flag), so it has its own package and store (`flagmissions`).
 by the connector (`missions_save_rules`), not constants in the code (the owner, 2026-11-06: "we should be able to handle
 this directly from the backoffice"). Only the flag mission's for now: `missions.v1.Rules.flag_missions`, the goal's
 percent of the day before (1 to 100), the least goal (10 or more), and the points for the biggest flag (1 or more) and
-for a flag holding no tile (that to 100). A player mission's spans and rewards are still code; they would join the same
-document.
+for a flag holding no tile (that to 100). A player mission's spans are still code; they would join the same document,
+and what it pays is progression's.
 
 - **One document, no sets and no schedule**: unlike planet's and the antibot's rules, nothing switches it, since a
   battle runs between two days and no mission runs then. `missions.rules` holds one row (`singleton`), the document as

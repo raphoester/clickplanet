@@ -166,6 +166,8 @@ export type BonusRules = {
     spreadUnlimited: boolean
     // No enclosure closes a shape or is offered: the page hides the enclose slot.
     enclosuresOff: boolean
+    // The most a virus infects, a tile taken or a shield struck each.
+    virusInfections: number
     // Bonuses' gates: while on, a kind not open is locked under the level progression's ladder opens it at.
     gatesOn: boolean
     openKinds: readonly ChargeKind[]

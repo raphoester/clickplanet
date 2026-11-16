@@ -123,6 +123,7 @@ const RULES: BonusRules = {
     bombsOff: false,
     spreadUnlimited: false,
     enclosuresOff: false,
+    virusInfections: VIRUS_INFECTIONS,
     gatesOn: false,
     openKinds: ["refill", "spreadClicks", "shields"],
 }

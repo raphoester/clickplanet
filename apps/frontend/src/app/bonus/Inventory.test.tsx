@@ -24,8 +24,8 @@ beforeEach(() => window.localStorage.clear())
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
-    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, gatesOn: false,
-    openKinds: [],
+    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, virusInfections: 128,
+    gatesOn: false, openKinds: [],
 }
 
 type Held = {
@@ -106,7 +106,19 @@ describe("Inventory", () => {
         fireEvent.click(slot(/^Virus/))
 
         expect(toggleVirus).toHaveBeenCalledOnce()
-        expect(bubble()).toBe("Tap an enemy tile with no shield")
+        expect(bubble()).toBe("Tap an enemy tile: the virus takes it, then spreads into their land on its own, up to 128 tiles")
+    })
+
+    it("says what a virus does on a hover, with its size once the rules are read", () => {
+        const charges = {...NO_CHARGES, virus: true}
+        render(inventory({charges, rules: {...RULES, virusInfections: 0}}))
+        fireEvent.pointerEnter(slot(/^Virus/), {pointerType: "mouse"})
+        expect(bubble()).toBe("Aim the virus at an enemy tile: it takes it, then spreads into their land on its own")
+        cleanup()
+
+        render(inventory({charges}))
+        fireEvent.pointerEnter(slot(/^Virus/), {pointerType: "mouse"})
+        expect(bubble()).toBe("Aim the virus at an enemy tile: it takes it, then spreads into their land on its own, up to 128 tiles")
     })
 
     it("says the virus is aimed, and how to put it away", () => {

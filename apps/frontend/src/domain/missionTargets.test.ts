@@ -15,7 +15,7 @@ function groundOf(tiles: Tile[]): MissionGround {
 }
 
 function mission(order: MissionOrder, done = false): Mission {
-    return {id: order.kind, order, reward: {kind: "bomb", amount: 1}, done, paid: done}
+    return {id: order.kind, order, done, paid: done}
 }
 
 describe("targetOf", () => {

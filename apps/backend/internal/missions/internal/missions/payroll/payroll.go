@@ -5,12 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
-
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -35,7 +32,8 @@ type Payroll struct {
 	outbox   cpatomic.Outbox
 }
 
-// Pay runs in a transaction: the grants are recorded with the payments, or neither is.
+// Pay runs in a transaction: MissionsPaid is recorded with the payments, or neither is. A mission pays XP, which
+// progression counts from MissionsDone: nothing is granted here.
 func (p Payroll) Pay(ctx context.Context, day days.Day, account missions.AccountID) error {
 	brief, err := p.store.Brief(ctx, day, account)
 	if errors.Is(err, missions.ErrNoBrief) {
@@ -60,7 +58,7 @@ func (p Payroll) Pay(ctx context.Context, day days.Day, account missions.Account
 		return nil
 	}
 
-	var paid []missions.Payment
+	var paid []missions.MissionID
 	if err := p.store.ChangeSheet(ctx, day, account, func(sheet missions.Sheet) missions.Sheet {
 		next, payments := sheet.WithPayments(brief)
 		paid = payments
@@ -77,13 +75,8 @@ func (p Payroll) Pay(ctx context.Context, day days.Day, account missions.Account
 		return fmt.Errorf("failed to count the account's missions paid: %w", err)
 	}
 
-	told := make([]proto.Message, 0, len(paid)+1)
-	for _, payment := range paid {
-		told = append(told, planetgrant.Of(account, payment))
-	}
-	told = append(told, &missionsv1.MissionsPaid{AccountId: account.String(), PaidInAll: inAll})
-	if err := p.outbox.Record(ctx, told...); err != nil {
-		return fmt.Errorf("failed to record the day's grants: %w", err)
+	if err := p.outbox.Record(ctx, &missionsv1.MissionsPaid{AccountId: account.String(), PaidInAll: inAll}); err != nil {
+		return fmt.Errorf("failed to tell the day's payments: %w", err)
 	}
 	return nil
 }

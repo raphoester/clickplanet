@@ -35,7 +35,7 @@ struck tile's too: the counter to a mine (see [The mine](mine.md)).
 aim and the spend: the bomb stays held, and the drop is `FailedPrecondition` with a `planet.v1.BombRefusal` detail. A
 drop has no throttle, so no token is spent either. No hand has room for a bomb while it is off (`Held.Full`, which
 `InternalService/GetRoom` answers), so no box or quiz offers one, and a
-bomb granted another way (a mission's pay, an operator's grant) is kept until a set plays bombs again. The page learns
+bomb granted another way (an operator's grant) is kept until a set plays bombs again. The page learns
 it from `GetChargeRules.bombs_off` and hides the bomb. The offers' set may weigh bombs anything: none is drawn. Until
 2026-11-11 the offers read `bomb.off` themselves (`Rules.Offered`), and a set whose only kind weighed above 0 was the
 bomb could not play; now each of its slots finds no room and is lost.

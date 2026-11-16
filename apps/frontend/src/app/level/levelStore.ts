@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react"
 import {create} from "zustand"
 import {SessionSource} from "../../backends/backend.ts"
+import {MissionRates} from "../../backends/missions.ts"
 import {LevelRead, LevelReader, PlayerLevel} from "../../backends/progression.ts"
 import {UnlockLevels} from "../../domain/bonus.ts"
 import {newerLevel} from "../../domain/level.ts"
@@ -8,25 +9,30 @@ import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useReadsAfterClicks} from "../clicks/useAcceptedClicks.ts"
 
 // What GetLevel answered, for every part of the page that shows it: the dock's bar, the Progress tab, the profile and
-// the bonus bar's locks. `own` is none for a guest, or before the server keeps a level.
+// the bonus bar's locks and the XP of each mission. `own` is none for a guest, or before the server keeps a level.
 type LevelStore = {
     own?: PlayerLevel
     unlocks: UnlockLevels
+    missionRates: MissionRates
     read: (read: LevelRead) => void
     reached: (level: PlayerLevel) => void
     forget: () => void
 }
 
 const NO_UNLOCKS: UnlockLevels = {}
+const NO_RATES: MissionRates = {}
 
 export const useLevel = create<LevelStore>()((set) => ({
     unlocks: NO_UNLOCKS,
-    read: (read) => set((state) => ({own: newerLevel(state.own, read.level), unlocks: read.unlocks})),
+    missionRates: NO_RATES,
+    read: (read) => set((state) => ({
+        own: newerLevel(state.own, read.level), unlocks: read.unlocks, missionRates: read.missionRates,
+    })),
     reached: (level) => set((state) => {
         const own = newerLevel(state.own, level)
         return own === state.own ? state : {own}
     }),
-    forget: () => set({own: undefined, unlocks: NO_UNLOCKS}),
+    forget: () => set({own: undefined, unlocks: NO_UNLOCKS, missionRates: NO_RATES}),
 }))
 
 export type LevelCaller = {
