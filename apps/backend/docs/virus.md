@@ -133,8 +133,8 @@ the replay, the strikes, the entry and the recording; the relay's `TilesTaken`; 
 virus. `use_virus_handler`'s codes and details; the sink, `GetMap` and `GetChargeRules`. The bonuses' rules pin that
 `default` weighs the virus 0.
 
-## Left for the levels
+## Its level
 
-The bonuses' gates (#829) draw the virus only for an account that unlocked it, once they are on. Left: the virus's rung
-on progression's ladder at level 6 ([Levels](levels.md#the-unlocks), `VirusUnlock`), then a small weight in
-`kinds.virus`, in `default` and in the battles' sets that want it.
+Level 6 unlocks it (`VirusUnlock`, [Levels](levels.md#the-unlocks)), and the bonuses' gates (#829) draw it only for an
+account that unlocked it, once they are on. Left: a small weight in `kinds.virus`, in `default` and in the battles' sets
+that want it.
