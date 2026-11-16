@@ -2,6 +2,7 @@ package progressionmessage
 
 import (
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles"
 )
 
@@ -28,4 +29,16 @@ func Titles(standings []titles.Standing) []*progressionv1.Title {
 		encoded = append(encoded, Title(standing))
 	}
 	return encoded
+}
+
+func Level(standing levels.Standing) *progressionv1.Level {
+	if standing.Empty() {
+		return nil
+	}
+	return &progressionv1.Level{
+		Level:       uint32(standing.Level()),
+		Xp:          uint64(standing.XP()),
+		LevelXp:     uint64(standing.LevelXP()),
+		NextLevelXp: uint64(standing.NextLevelXP()),
+	}
 }

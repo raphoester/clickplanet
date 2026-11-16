@@ -41,7 +41,7 @@ func (MissionsDone) Rates() []MissionRate {
 func (m MissionsDone) XP(record Record) XP {
 	var xp XP
 	for _, rate := range m.Rates() {
-		xp += rate.XP(record.MissionGoals(rate.Kind()))
+		xp += rate.Rate().XPOf(record.MissionGoals(rate.Kind()))
 	}
 	return xp
 }

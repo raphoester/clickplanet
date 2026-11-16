@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inmemory_level_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inprocess_level_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/raise_level_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/inmemory_stats_store"
@@ -32,12 +33,18 @@ type fixture struct {
 	stats    *inmemory_stats_store.Store
 	accounts *accounts.FakeAccounts
 	levels   *inmemory_level_store.Store
+	feed     *inprocess_level_feed.Feed
+	stream   <-chan levels.Standing
 }
 
 func setUp(t *testing.T, linked bool) fixture {
 	t.Helper()
 
-	f := fixture{stats: inmemory_stats_store.New(), accounts: accounts.NewFakeAccounts(), levels: inmemory_level_store.New()}
+	f := fixture{
+		stats: inmemory_stats_store.New(), accounts: accounts.NewFakeAccounts(), levels: inmemory_level_store.New(),
+		feed: inprocess_level_feed.New(),
+	}
+	f.stream = f.feed.Subscribe(t.Context(), ada)
 	f.accounts.Create(ada, accounts.AccountOf(linked, now))
 	return f
 }
@@ -53,7 +60,17 @@ func (f fixture) took(t *testing.T, tiles uint64) {
 func (f fixture) raise(t *testing.T, store raise_level_usecase.Levels) (levels.Level, error) {
 	t.Helper()
 
-	return raise_level_usecase.New(f.stats, f.accounts, store, cptime.NewFixedClock(now)).Execute(t.Context(), ada) //nolint:wrapcheck // the tests read the use case's error.
+	return raise_level_usecase.New(f.stats, f.accounts, store, f.feed, cptime.NewFixedClock(now)).Execute(t.Context(), ada) //nolint:wrapcheck // the tests read the use case's error.
+}
+
+func (f fixture) told(t *testing.T) []levels.Standing {
+	t.Helper()
+
+	var told []levels.Standing
+	for len(f.stream) > 0 {
+		told = append(told, <-f.stream)
+	}
+	return told
 }
 
 func (f fixture) kept(t *testing.T) levels.ByAccount {
@@ -73,6 +90,7 @@ func TestALinkedAccountIsRaisedToTheLevelItsStatsReach(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, levels.Level(3), raised)
 	assert.Equal(t, levels.ByAccount{ada: 3}, f.kept(t))
+	assert.Equal(t, []levels.Standing{levels.Curve{}.StandingOf(level3Tiles)}, f.told(t))
 }
 
 func TestAJumpOfManyLevelsIsOneRaise(t *testing.T) {
@@ -85,6 +103,7 @@ func TestAJumpOfManyLevelsIsOneRaise(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, levels.Level(9), raised)
 	assert.Equal(t, levels.ByAccount{ada: 9}, f.kept(t))
+	assert.Equal(t, []levels.Standing{levels.Curve{}.StandingOf(level9Tiles)}, f.told(t), "one jump is told once")
 }
 
 func TestAGuestGetsNoLevel(t *testing.T) {
@@ -97,6 +116,7 @@ func TestAGuestGetsNoLevel(t *testing.T) {
 	assert.Zero(t, raised)
 	assert.Empty(t, f.kept(t))
 	assert.Equal(t, []accounts.AccountID{ada}, f.accounts.Asked())
+	assert.Empty(t, f.told(t))
 }
 
 func TestNoRiseAsksPlayerNothingAndWritesNothing(t *testing.T) {
@@ -110,6 +130,7 @@ func TestNoRiseAsksPlayerNothingAndWritesNothing(t *testing.T) {
 	assert.Zero(t, raised)
 	assert.Empty(t, f.accounts.Asked())
 	assert.Equal(t, levels.ByAccount{ada: 3}, f.kept(t))
+	assert.Empty(t, f.told(t))
 }
 
 func TestAnAccountWithNoStatsIsNotRaised(t *testing.T) {
@@ -131,6 +152,7 @@ func TestAFailureToAskPlayerWritesNothingAndTheNextTryRaises(t *testing.T) {
 
 	require.ErrorContains(t, err, "player is down")
 	assert.Empty(t, f.kept(t))
+	assert.Empty(t, f.told(t))
 
 	f.accounts.FailWith(nil)
 	raised, err := f.raise(t, f.levels)
@@ -161,6 +183,7 @@ func TestARaiseThatFindsAHigherLevelKeptRaisesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, raised)
 	assert.Equal(t, levels.ByAccount{ada: 9}, f.kept(t))
+	assert.Empty(t, f.told(t), "the raise that wrote it tells it")
 }
 
 func TestAFailureToRaiseIsAnError(t *testing.T) {
@@ -171,4 +194,5 @@ func TestAFailureToRaiseIsAnError(t *testing.T) {
 	_, err := f.raise(t, f.levels)
 
 	require.ErrorContains(t, err, "postgres is down")
+	assert.Empty(t, f.told(t))
 }

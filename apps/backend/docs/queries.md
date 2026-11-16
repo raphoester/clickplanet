@@ -3,7 +3,7 @@
 **A read endpoint does not go through the write model.** Domain types are built for the rules a write checks, and
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`, `GetMessage`, `ListMessages`, `ListModeration`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `AdminService/GetRoster`, `ListRenames`, `AdminService/SearchPlayersByEmail`), progression
-(`GetTitles`, `GetBadges`, `GetProgress`, `AdminService/GetProgress`), planet
+(`GetTitles`, `GetBadges`, `GetProgress`, `GetLevel`, `AdminService/GetProgress`), planet
 (`GetTakesByCountry`, `GetPlayDays`, `GetLedgerTotals`, `GetMapHistory`, `GetRecentMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`, `GetTiles`), vandalsquad (`AdminService/ListGraffiti`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), missions (`AdminService/ListFlagDays`,
 `AdminService/GetMissionTotals`, `AdminService/GetRules`), quizzes (`AdminService/ListQuizQuestions`, of memory), auth
@@ -32,7 +32,8 @@ through ports of plain values (`Names()`, `PublicKey()`) and stay as they are.
   An adapter the commands already use is reused rather than copied: `player_query.Accounts` is
   `players/rpc_account_reader`. **The adapter is the only bridge to the domain**: the titles catalog is game rules as
   objects, so progression's `GetTitles`, `GetBadges` and both `GetProgress` reach it through a `Titles` port that takes the ids
-  SQL read and answers `*progression.v1.Title`, implemented by `progressionv1controller/inprocess_title_catalog`; the roster is state in
+  SQL read and answers `*progression.v1.Title`, implemented by `progressionv1controller/inprocess_title_catalog`; the
+  level's scale the same way, through `inprocess_level_scale` (the XP, the level kept on its bar, the missions' rates); the roster is state in
   memory, reached through `roster_query.Lines`, implemented by `roster_query/inmemory_roster`.
 - **Independent parts run at once** (`errgroup`): the messages, the announcements and the seen mark.
 - **The handler only maps**: the caller off the context, the query, the header. It declares the query as its port.

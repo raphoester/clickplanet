@@ -1,17 +1,18 @@
-package listen_for_titles_usecase
+package listen_for_events_usecase
 
 import (
 	"context"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles"
 )
 
 // DefaultHeartbeat stays well under Cloudflare's ~125s idle timeout.
 const DefaultHeartbeat = 30 * time.Second
 
-type Feed interface {
+type TitleFeed interface {
 	Subscribe(ctx context.Context, account accounts.AccountID) <-chan titles.IDs
 }
 
@@ -19,30 +20,37 @@ type Catalog interface {
 	Shown(held titles.IDs) []titles.Standing
 }
 
+type LevelFeed interface {
+	Subscribe(ctx context.Context, account accounts.AccountID) <-chan levels.Standing
+}
+
 type Sink interface {
 	SendTitleEarned(standing titles.Standing) error
+	SendLevelReached(standing levels.Standing) error
 	SendHeartbeat() error
 }
 
 type UseCase struct {
-	feed      Feed
+	titles    TitleFeed
 	catalog   Catalog
+	levels    LevelFeed
 	heartbeat time.Duration
 }
 
-func New(feed Feed, catalog Catalog, heartbeat time.Duration) *UseCase {
+func New(titles TitleFeed, catalog Catalog, levels LevelFeed, heartbeat time.Duration) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
 	}
-	return &UseCase{feed: feed, catalog: catalog, heartbeat: heartbeat}
+	return &UseCase{titles: titles, catalog: catalog, levels: levels, heartbeat: heartbeat}
 }
 
-// The first heartbeat goes once the stream follows the feed: the page reads it as the stream being live.
+// The first heartbeat goes once the stream follows both feeds: the page reads it as the stream being live.
 func (u *UseCase) Execute(ctx context.Context, account accounts.AccountID, sink Sink) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	earned := u.feed.Subscribe(ctx, account)
+	earned := u.titles.Subscribe(ctx, account)
+	reached := u.levels.Subscribe(ctx, account)
 	if err := sink.SendHeartbeat(); err != nil {
 		return err //nolint:wrapcheck // the stream's own error.
 	}
@@ -66,6 +74,13 @@ func (u *UseCase) Execute(ctx context.Context, account accounts.AccountID, sink 
 				if err := sink.SendTitleEarned(standing); err != nil {
 					return err //nolint:wrapcheck // the stream's own error.
 				}
+			}
+		case standing, open := <-reached:
+			if !open {
+				return nil
+			}
+			if err := sink.SendLevelReached(standing); err != nil {
+				return err //nolint:wrapcheck // the stream's own error.
 			}
 		}
 	}

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package progression.v1;
 
+import "missions/v1/kind.proto";
 import "progression/v1/title.proto";
 
 service ProgressionService {
@@ -22,7 +23,12 @@ service ProgressionService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // The titles the caller earns, as it earns them. Unauthenticated without a token.
+  // The caller's own level, with what each kind of mission pays.
+  rpc GetLevel(GetLevelRequest) returns (GetLevelResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
+  // The titles the caller earns and the levels it reaches, as it gets them. Unauthenticated without a token.
   rpc ListenForEvents(ListenForEventsRequest) returns (stream ProgressionEvent);
 }
 
@@ -105,6 +111,31 @@ message Progress {
   Title worn_title = 3;
   repeated CountryTiles plays_for = 4;
   repeated CountryTiles plays_against = 5;
+  // Unset when none is kept: a guest, or an account no fact has raised yet.
+  Level level = 6;
+}
+
+// The level kept and its bar's thresholds, with the XP of now: it can pass next_level_xp until the raise lands.
+message Level {
+  uint32 level = 1;
+  uint64 xp = 2;
+  uint64 level_xp = 3;
+  uint64 next_level_xp = 4;
+}
+
+message GetLevelRequest {}
+
+message GetLevelResponse {
+  // Unset when none is kept: a guest, or an account no fact has raised yet.
+  Level level = 1;
+  repeated MissionRate mission_rates = 2;
+}
+
+// A mission of this kind pays goal × xp / per XP, floored.
+message MissionRate {
+  missions.v1.MissionKind kind = 1;
+  uint32 xp = 2;
+  uint32 per = 3;
 }
 
 message ListenForEventsRequest {}
@@ -113,6 +144,7 @@ message ProgressionEvent {
   oneof event {
     Heartbeat heartbeat = 1;
     TitleEarned title_earned = 2;
+    Level level_reached = 3;
   }
 }
 

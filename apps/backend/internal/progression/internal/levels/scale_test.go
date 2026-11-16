@@ -71,7 +71,7 @@ func TestEachMissionKindPaysItsGoalTimesItsRate(t *testing.T) {
 		{rate: levels.BombIn{}, goals: 2, xp: 300},
 	} {
 		t.Run(string(c.rate.Kind()), func(t *testing.T) {
-			assert.Equal(t, c.xp, c.rate.XP(c.goals))
+			assert.Equal(t, c.xp, c.rate.Rate().XPOf(c.goals))
 		})
 	}
 }
@@ -127,6 +127,32 @@ func TestAGuestHasNoXPAndNoLevel(t *testing.T) {
 			assert.Equal(t, c.empty, standing.Empty())
 			assert.Equal(t, c.level, standing.Level())
 			assert.Equal(t, c.xp, standing.XP())
+		})
+	}
+}
+
+func TestTheLevelKeptIsOnItsOwnBarWhateverTheXP(t *testing.T) {
+	for _, c := range []struct {
+		name         string
+		kept         levels.Level
+		record       levels.Record
+		empty        bool
+		xp, from, to levels.XP
+	}{
+		{name: "none kept is no level, whatever the record", kept: 0, record: firstDay, empty: true},
+		{name: "the level the record reaches", kept: 6, record: firstDay, xp: 1_816, from: 1_750, to: 3_024},
+		{name: "a raise not landed yet: the XP is past the bar", kept: 2, record: firstDay, xp: 1_816, from: 14, to: 112},
+		{name: "a stricter scale not reconciled yet: the XP is short of the bar", kept: 9, record: firstDay, xp: 1_816, from: 7_168, to: 10_206},
+		{name: "a level 1 that did nothing", kept: 1, record: stats.Stats{}, xp: 0, from: 0, to: 14},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			standing := levels.Scale{}.StandingAt(c.kept, c.record)
+
+			assert.Equal(t, c.empty, standing.Empty())
+			assert.Equal(t, c.kept, standing.Level())
+			assert.Equal(t, c.xp, standing.XP())
+			assert.Equal(t, c.from, standing.LevelXP())
+			assert.Equal(t, c.to, standing.NextLevelXP())
 		})
 	}
 }

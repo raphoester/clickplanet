@@ -8,19 +8,19 @@ import (
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/caller"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/listen_for_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/usecases/listen_for_events_usecase"
 )
 
 type UseCase interface {
-	Execute(ctx context.Context, account accounts.AccountID, sink listen_for_titles_usecase.Sink) error
+	Execute(ctx context.Context, account accounts.AccountID, sink listen_for_events_usecase.Sink) error
 }
 
-func New(titles UseCase) ListenForEventsHandler {
-	return ListenForEventsHandler{titles: titles}
+func New(useCase UseCase) ListenForEventsHandler {
+	return ListenForEventsHandler{useCase: useCase}
 }
 
 type ListenForEventsHandler struct {
-	titles UseCase
+	useCase UseCase
 }
 
 func (h ListenForEventsHandler) ListenForEvents(
@@ -32,5 +32,5 @@ func (h ListenForEventsHandler) ListenForEvents(
 	if err != nil {
 		return err //nolint:wrapcheck // already the connect error the caller reads.
 	}
-	return h.titles.Execute(ctx, account, NewSink(stream)) //nolint:wrapcheck // the stream's own error.
+	return h.useCase.Execute(ctx, account, NewSink(stream)) //nolint:wrapcheck // the stream's own error.
 }
