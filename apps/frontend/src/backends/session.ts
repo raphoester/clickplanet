@@ -8,6 +8,9 @@ export interface SessionProvider {
     heldIdentity(): string | undefined
 
     invalidate(): void
+
+    // Each token it starts holding, minted or resumed. A provider whose token never changes has none to tell.
+    listenForTokens?(onToken: (token: string) => void): () => void
 }
 
 export const SESSION_HEADER = "X-Session-Token"
