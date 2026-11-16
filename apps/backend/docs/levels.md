@@ -5,9 +5,8 @@ again at each read, so a change of weights is one reconciliation. Only the level
 has no top. A guest has no XP and no level. The design is [Player level and unlocks](https://claude.ai/artifact/8bvS9FGScmFpbz4kfCVsy2);
 its first slice is [XP slice 1: hidden level bootstrap](https://claude.ai/artifact/Pf6X1m7gNk72F42q5U8n5A).
 
-**The level runs hidden: players see nothing.** Each fact counted raises it, and only the operator reads it
-(`AdminService/GetProgress`). Hidden means no public read answers the level and the page draws none (see [The
-reveal](#the-reveal)).
+**The level runs hidden: players see nothing.** Each fact counted raises it. The public reads answer it (see [The
+public reads](#the-public-reads)), and the page draws none of them until the reveal (see [The reveal](#the-reveal)).
 
 ```
 levels/                            XP, Level, Record, Source, MissionKind (stats.MissionKind), MissionRate, Curve, Standing,
@@ -15,7 +14,8 @@ levels/                            XP, Level, Record, Source, MissionKind (stats
                                    contract suite
   postgres_level_store/            the Store over progression.levels, under the rows' locks
   inmemory_level_store/            the same port in a map, behind the testing tag
-  usecases/raise_level_usecase/    on progression.v1.StatsChanged: the level raised
+  inprocess_level_feed/            each raise, to the account's open streams, in this process
+  usecases/raise_level_usecase/    on progression.v1.StatsChanged: the level raised, told to the feed
   usecases/forget_level_usecase/
   usecases/reconcile_levels_usecase/  progression.v1.AdminService/ReconcileLevels
     reconcile_levels_usecase/audit_reconcile_levels/  logs every reconciliation at Warn
@@ -26,7 +26,7 @@ levels/                            XP, Level, Record, Source, MissionKind (stats
 **No flag: the level stays hidden because nothing a player sees ships before the end.** The pieces that show it ship
 together, as the reveal:
 
-- the UI: the level and its bar on the page and on the card;
+- the UI: the level and its bar on the page and on the card, from the public reads that already answer them;
 - missions paying XP instead of charges;
 - `LevelReached`, through an outbox, with slice 3's bonus listener: both are added then, so no level gained before the
   reveal pays a bonus;
@@ -70,6 +70,12 @@ name for it: `missions.v1.MissionKind` without its prefix, in lower case, as mis
 | `BombIn`        | `bomb_in`        | 150                     |
 
 The rates are first guesses, sized so a mission pays about the XP of the play it asks for.
+
+**A rate is exact**: `Rate{XP, Per}`, XP for every `Per` units of the goal, floored, so `take_from` is 3 for 2.
+`GetLevel` sends each rate in that form, never as a float, so the page's goal × rate is the server's integer math
+(`TestThePagesIntegerMathPaysWhatTheServerDoes`). The server floors once per kind, on the goals summed; a page that
+shows one mission floors that mission. The two agree while a `take_from` goal is even, and missions draws them in
+steps of 10.
 
 ## The curve
 
@@ -135,9 +141,14 @@ the titles' `player-titles`):
    here.
 3. Ask player whether the account is linked (`rpc_player_accounts`, as the titles do). A guest stops here.
 4. `Raise`: the store writes only above the level kept, so a raise another write beat writes nothing.
+5. Hand the raise to `inprocess_level_feed`: the level raised to, on its bar (`Scale.StandingAt`).
 
-- **One write per jump**: from 1 to 9 is one raise. The use case answers the level it raised to, 0 for none.
-- **It tells nobody.** A level-up event comes with the reveal.
+- **One write per jump**: from 1 to 9 is one raise, and one `level_reached`. The use case answers the level it raised
+  to, 0 for none.
+- **It tells only the account's open streams, in this process, at most once**: the feed drops for a stream 8 raises
+  behind, and an account with no stream open hears nothing. Nothing crosses to another module: `LevelReached`, with its
+  outbox, comes with the reveal. The use case calls the feed itself, after the raise: a raise another write beat, a
+  guest and a failure tell nothing.
 - A failure to read or to ask player is an error: the event is tried again, then buried.
 
 ## The reconciliation
@@ -152,7 +163,8 @@ changes the scale or the curve, and once after the one that added the level. Con
   reaches it (`Set`), and a guest's row is removed. It becomes raise-only with the reveal.
 - **Raises go through `RaiseAll`**, so a page never lowers a level a live raise wrote after the page was read. A lowering
   can still undo one: the account's next fact raises it again.
-- **It publishes nothing.** `dry_run` counts the same and writes nothing; a second run changes nothing.
+- **It publishes nothing**, not even to the open streams. `dry_run` counts the same and writes nothing; a second run
+  changes nothing.
   `audit_reconcile_levels` logs every run at Warn.
 
 ## Forgotten
@@ -161,12 +173,45 @@ changes the scale or the curve, and once after the one that added the level. Con
 A raise from a fact read before the forget, or a reconciliation page read before it, can write the row again, as a
 late fact does for the stats.
 
+## The public reads
+
+**The level answered is the one kept** (`Scale.StandingAt`): the level of the `progression.levels` row, the XP its
+stats give now (`Scale.XPOf`), and the two thresholds of the level kept (`level_xp`, `next_level_xp`). So the card,
+`GetLevel` and the stream never disagree: a level shows once a raise or the reconciliation wrote it. They ship before
+the reveal and are harmless: the page draws none of them.
+
+- **`ProgressionService/GetLevel`** → `{level, mission_rates}`, the caller's own: `Identified` behind the session
+  interceptor, `NO_SIDE_EFFECTS` (`get_level_handler`, `level_query`).
+- **`ProgressionService/GetProgress`**, the public card, answers `Progress.level` the same way (`progress_query`).
+- **`ListenForEvents` sends `level_reached`**, a `Level`, to the caller's own open stream at each raise (see
+  [Raised live](#raised-live)).
+- **`mission_rates`: one `{kind, xp, per}` per `missions.v1.MissionKind` but `UNSPECIFIED`**, for the page to pay goal
+  × xp ÷ per at the reveal. The kind is missions' enum, not the lower-case name progression keeps in its stats: the page
+  reads the wire in missions' words and matches it to a mission's kind, and the lower-case name is how a row stores it.
+  `inprocess_level_scale.MissionRates` maps one to the other, strictly: a kind the enum does not name is an error, and
+  `TestEveryKindOfMissionButUnspecifiedHasOneRateOnTheWire` loops the enum.
+
+**A guest has no level.** Neither the raise nor the reconciliation keeps a row for one, so `GetLevel` answers an empty
+`level` (its rates still), and the card is `NotFound` as before: a guest has no nameplate.
+
+**A linked account with no level kept answers none, not level 1.** The level answered is the one kept, so no read
+shows a level the raise has not written, and its first `level_reached` is the level appearing. Level 1 would need the
+linked flag in each read, which is player's to say, and would show 1 while the raise to more is on its way. It does not
+last: any fact raises a linked account to at least 1, and `ReconcileLevels`, run after the deploy that added the
+level, writes every linked account with stats. Only a linked account that never did anything has none.
+
+**The XP can sit past the bar.** Between a fact counted and the raise that follows it (milliseconds, or the retries of
+a failed raise), `xp` is above `next_level_xp`: the bar shows full, then `level_reached` comes. After a deploy that
+makes the scale stricter and before `ReconcileLevels`, `xp` can be below `level_xp`: the bar shows empty. The server
+sends the numbers as they are, and the page clamps the bar.
+
 ## The operator's read
 
 `AdminService/GetProgress` answers `level` (the level kept, 0 for none), `xp` (`XpBreakdown`: the total and one field
 per source, from the stats row, a guest's too) and `missions_by_kind` (`MissionTally{kind, done, goals}`, by kind's
 name). The XP goes through `inprocess_level_scale`, the scale behind a port as `inprocess_title_catalog` puts the
-catalog; its test pins that the fields add up to the total, so a new source with no field fails it.
+catalog; its test pins that the fields add up to the total, so a new source with no field fails it. The public reads
+use the same port: the level kept on its bar (`Level`) and the rates (`MissionRates`).
 
 ## After the deploy that added it
 

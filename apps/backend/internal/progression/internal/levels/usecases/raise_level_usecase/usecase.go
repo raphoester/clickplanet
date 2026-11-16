@@ -25,15 +25,20 @@ type Levels interface {
 	Raise(ctx context.Context, account accounts.AccountID, level levels.Level, at time.Time) (levels.Level, error)
 }
 
+type Feed interface {
+	Publish(account accounts.AccountID, reached levels.Standing)
+}
+
 type UseCase struct {
 	stats    Stats
 	accounts Accounts
 	levels   Levels
+	feed     Feed
 	clock    cptime.Clock
 }
 
-func New(stats Stats, accounts Accounts, levels Levels, clock cptime.Clock) *UseCase {
-	return &UseCase{stats: stats, accounts: accounts, levels: levels, clock: clock}
+func New(stats Stats, accounts Accounts, levels Levels, feed Feed, clock cptime.Clock) *UseCase {
+	return &UseCase{stats: stats, accounts: accounts, levels: levels, feed: feed, clock: clock}
 }
 
 // Execute answers the level it raised the account to, 0 when it raised none.
@@ -71,5 +76,6 @@ func (u *UseCase) Execute(ctx context.Context, account accounts.AccountID) (leve
 	if previous >= reach {
 		return 0, nil
 	}
+	u.feed.Publish(account, scale.StandingAt(reach, counted))
 	return reach, nil
 }

@@ -13,9 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/departures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/departures/postgres_departure_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/postgres_level_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/nameplates/postgres_nameplate_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler/progress_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_level_scale"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_title_catalog"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
@@ -49,6 +52,7 @@ type testSuite struct {
 	nameplates *postgres_nameplate_store.Store
 	titles     *postgres_title_store.Store
 	worn       *postgres_worn_title_store.Store
+	levels     *postgres_level_store.Store
 	fronts     *fakeFronts
 	clock      *cptime.FixedClock
 }
@@ -64,6 +68,7 @@ func (s *testSuite) SetupSuite() {
 	s.nameplates = postgres_nameplate_store.New(s.db)
 	s.titles = postgres_title_store.New(s.db)
 	s.worn = postgres_worn_title_store.New(s.db)
+	s.levels = postgres_level_store.New(s.db)
 }
 
 func (s *testSuite) SetupTest() {
@@ -74,7 +79,9 @@ func (s *testSuite) SetupTest() {
 }
 
 func (s *testSuite) query() *progress_query.PostgresQuery {
-	return progress_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), s.fronts, s.clock)
+	return progress_query.NewPostgresQuery(
+		s.db, inprocess_title_catalog.New(titles.NewCatalog()), inprocess_level_scale.New(levels.Scale{}), s.fronts, s.clock,
+	)
 }
 
 func (s *testSuite) progress(account accounts.AccountID) *progressionv1.Progress {
@@ -95,6 +102,33 @@ func (s *testSuite) TestAPlayersProgressIsItsStatsAsOfToday() {
 
 func (s *testSuite) TestAPlayerThatTookNothingHasEmptyProgress() {
 	s.True(proto.Equal(&progressionv1.Progress{Stats: &progressionv1.Stats{}, Titles: []*progressionv1.Title{}}, s.progress(ada)))
+}
+
+func (s *testSuite) TestALevelKeptIsShownOnItsBarWithTheXPTheStatsGiveNow() {
+	s.Require().NoError(s.stats.Record(s.T().Context(), ada, stats.TakeAt(0, 0, monday)))
+	s.Require().NoError(s.stats.Record(s.T().Context(), ada,
+		stats.MissionsDone(map[stats.MissionKind]stats.MissionTally{"take_from": {Done: 1, Goals: 81}})))
+	s.Require().NoError(s.levels.Set(s.T().Context(), levels.ByAccount{ada: 3}, monday))
+
+	level := s.progress(ada).GetLevel()
+
+	s.True(proto.Equal(&progressionv1.Level{Level: 3, Xp: 1 + 100 + 121, LevelXp: 112, NextLevelXp: 378}, level), "%v", level)
+}
+
+func (s *testSuite) TestAPlayerWithNoLevelKeptShowsNoneWhateverItsStats() {
+	s.Require().NoError(s.stats.Record(s.T().Context(), ada, stats.TakeAt(0, 0, monday)))
+
+	s.Nil(s.progress(ada).GetLevel())
+}
+
+func (s *testSuite) TestAGuestsLevelIsNeverShown() {
+	guest := accounts.AccountID{15: 3}
+	s.Require().NoError(s.stats.Record(s.T().Context(), guest, stats.TakeAt(3, 0, monday)))
+	s.Require().NoError(s.levels.Set(s.T().Context(), levels.ByAccount{guest: 2}, monday))
+
+	_, err := s.query().Progress(s.T().Context(), guest)
+
+	s.ErrorIs(err, progress_query.ErrNotShown)
 }
 
 func (s *testSuite) TestTheStreakIsReadAsOfToday() {
