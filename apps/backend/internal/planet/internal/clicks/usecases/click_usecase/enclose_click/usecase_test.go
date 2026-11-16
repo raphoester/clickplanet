@@ -81,6 +81,8 @@ func (b board) Fortify(context.Context, uint32, string, int) (clicks.Fortificati
 	return clicks.Fortification{}, clicks.ErrNotWhole
 }
 
+func (board) Trip(uint32) {}
+
 func (b board) KnockOut(context.Context, uint32, string) (clicks.KnockOut, error) {
 	return clicks.KnockOut{}, clicks.ErrNoKnockOut
 }

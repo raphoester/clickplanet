@@ -123,6 +123,18 @@ INSERT INTO tiles SELECT * FROM tiles_remapped;
 -- A live virus lasts minutes: a remap ends it, and the tiles it took keep their flag.
 DELETE FROM viruses;
 
+-- A mine follows its tile, as the tile's flag does; one on a tile the new map lost goes with it.
+CREATE TEMP TABLE mines_remapped ON COMMIT DROP AS
+SELECT m.*, r.to_id + (m.tile - r.from_id) AS remapped_tile
+FROM mines m
+JOIN tile_remap r ON m.tile >= r.from_id AND m.tile < r.from_id + r.span;
+
+UPDATE mines_remapped SET tile = remapped_tile;
+ALTER TABLE mines_remapped DROP COLUMN remapped_tile;
+
+DELETE FROM mines;
+INSERT INTO mines SELECT * FROM mines_remapped;
+
 DELETE FROM ledger_events e
 WHERE e.payload IS NULL AND NOT EXISTS (
     SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span

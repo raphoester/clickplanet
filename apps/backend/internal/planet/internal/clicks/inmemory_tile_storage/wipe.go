@@ -43,6 +43,7 @@ func (s *Storage) emptyLocked() {
 	s.landmasses = newLandmasses(borders)
 	s.out = newOutFlags()
 	s.viruses = newVirusBook()
+	s.mines = newMineBook()
 	s.recount = newRecount(borders.Landmasses())
 }
 

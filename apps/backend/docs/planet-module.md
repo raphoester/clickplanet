@@ -23,7 +23,9 @@ internal/planet/internal/
     usecases/
   viruses/                        a virus's way from the hand to the map, and the runner that spreads each one
     usecases/
-  notices/                        a spread to every stream, a grant to the signed-in account's own
+  mines/                          a mine's way from the hand to the map, and the runner that sets off the ones a take tripped
+    usecases/
+  notices/                        a spread to every stream, a grant to the account's own, a mine laid to its flag's
   placements/                     a shield between the hand it left and the map's flush, and the boot that gives it back
     postgres_placement_store/
     usecases/
@@ -129,8 +131,12 @@ internal/planet/internal/
 - **`viruses/`** — a virus's way from the hand to the map (`Gate`, `Outbreak`), the use and the runner that spreads it
   every 20 s. Its rules are `clicks.Virus` and `clicks.Contagion`, since the tile storage keeps every live virus with its
   map. See [The virus](virus.md).
+- **`mines/`** — a mine's way from the hand to the map (`Gate`, `Blasting`), the lay and the runner that sets off the
+  mines a take tripped, woken by the storage's fuse. Its rules are `clicks.Mine` and `clicks.Minefield`, since the tile
+  storage keeps every mine with its map. See [The mine](mine.md).
 - **`notices/`** — what planet tells the streams open beside the map's changes: a spread to every one, all a
-  signed-in account holds after a grant to its own. `ListenForEvents` merges it with the tile feed.
+  signed-in account holds after a grant to its own, a mine laid to the streams of its flag's players alone (each stream
+  knows its caller's flag, and every pledge moves it). `ListenForEvents` merges it with the tile feed.
 
 **A concept's root is its domain.** The use cases under `usecases/` load, call
 the root, and persist; a rule that could be unit-tested without a port belongs

@@ -19,7 +19,8 @@ type PostgresQuery struct {
 	db cppg.Conn
 }
 
-// The tiles ledger.Taking replays for the account: a take's own row, and each tile a spread, an enclose or a virus took.
+// The tiles ledger.Taking replays for the account: a take's own row, and each tile a spread, an enclose, a virus or a
+// mine took.
 const takes = `
 	WITH takes AS (
 		SELECT country, previous FROM ledger_events
@@ -27,7 +28,7 @@ const takes = `
 		UNION ALL
 		SELECT events.country, COALESCE(taken->>'owner', '')
 		FROM ledger_events events, jsonb_array_elements(COALESCE(events.payload->'taken', '[]'::jsonb)) taken
-		WHERE events.account = $1 AND events.kind IN ('spread', 'enclose', 'virus') AND events.country <> ''
+		WHERE events.account = $1 AND events.kind IN ('spread', 'enclose', 'virus', 'mine') AND events.country <> ''
 	)
 	SELECT true, country, count(*) FROM takes GROUP BY country
 	UNION ALL

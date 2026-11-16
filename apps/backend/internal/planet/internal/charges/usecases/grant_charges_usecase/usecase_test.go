@@ -55,13 +55,13 @@ func TestEveryKindCanBeGranted(t *testing.T) {
 
 	out, err := grant(wallet).Execute(t.Context(), grant_charges_usecase.In{
 		Account: account,
-		Grant:   charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7, Virus: true},
+		Grant:   charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7, Virus: true, Mines: 2},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, charges.Holder(account), out.Holder)
 	assert.True(t, out.Before.Empty())
-	assert.Equal(t, charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7, Virus: true}, out.After)
+	assert.Equal(t, charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7, Virus: true, Mines: 2}, out.After)
 	assert.Equal(t, out.After, wallet.Kept(account))
 	for _, kind := range charges.Kinds {
 		assert.Positive(t, out.After.Count(kind), kind)

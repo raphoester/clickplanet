@@ -17,6 +17,7 @@ func RulesOf(m *bonusesv1.Rules) Rules {
 			KindBomb:          kinds.GetBomb(),
 			KindShields:       kinds.GetShields(),
 			KindVirus:         kinds.GetVirus(),
+			KindMine:          kinds.GetMine(),
 		},
 		Gates: GateRules{
 			On: m.GetGates().GetOn(),
@@ -27,11 +28,13 @@ func RulesOf(m *bonusesv1.Rules) Rules {
 				KindBomb:          open.GetBomb(),
 				KindShields:       open.GetShields(),
 				KindVirus:         open.GetVirus(),
+				KindMine:          open.GetMine(),
 			},
 		},
 		Spread:       SpreadRules{MaxPerBox: int(m.GetSpread().GetMaxPerBox())},
 		Enclose:      EncloseRules{MaxPerBox: int(m.GetEnclose().GetMaxPerBox())},
 		Shield:       ShieldRules{MinPerBox: int(m.GetShield().GetMinPerBox()), MaxPerBox: int(m.GetShield().GetMaxPerBox())},
+		Mine:         MineRules{MaxPerBox: int(m.GetMine().GetMaxPerBox())},
 		SignInRefill: m.GetSignInRefill(),
 	}
 }

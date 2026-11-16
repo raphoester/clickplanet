@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
+import { ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetMinesRequest, GetMinesResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, LayMineRequest, LayMineResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -130,6 +130,29 @@ export const ClickService = {
       name: "UseVirus",
       I: UseVirusRequest,
       O: UseVirusResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lays a mine on a tile of the caller's flag with no mine: a take by another flag sets it off.
+     *
+     * @generated from rpc planet.v1.ClickService.LayMine
+     */
+    layMine: {
+      name: "LayMine",
+      I: LayMineRequest,
+      O: LayMineResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+     * now, and a cached one lies.
+     *
+     * @generated from rpc planet.v1.ClickService.GetMines
+     */
+    getMines: {
+      name: "GetMines",
+      I: GetMinesRequest,
+      O: GetMinesResponse,
       kind: MethodKind.Unary,
     },
     /**

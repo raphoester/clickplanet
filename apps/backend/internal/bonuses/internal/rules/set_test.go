@@ -104,6 +104,13 @@ func TestNoBoxAndNoRightAnswerIsAVirusUntilTheLevelsOpenIt(t *testing.T) {
 	assert.False(t, bonuses.RulesOf(set.TakePlayedSnapshot().Rules).Offered(bonuses.KindVirus))
 }
 
+func TestNoBoxAndNoRightAnswerIsAMineUntilTheOperatorWeighsIt(t *testing.T) {
+	played := bonuses.RulesOf(restored(t, rules.Seeded()).TakePlayedSnapshot().Rules)
+
+	assert.False(t, played.Offered(bonuses.KindMine))
+	assert.Equal(t, 2, played.Mine.MaxPerBox, "1 or 2 mines a box once it weighs above 0")
+}
+
 func TestTheGatesAreOffUntilTheLevelsAreShown(t *testing.T) {
 	played := bonuses.RulesOf(restored(t, rules.Seeded()).TakePlayedSnapshot().Rules)
 

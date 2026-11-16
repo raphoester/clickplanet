@@ -15,6 +15,8 @@ const (
 	KindShields Kind = "shields"
 
 	KindVirus Kind = "virus"
+
+	KindMine Kind = "mine"
 )
 
-var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindShields, KindVirus}
+var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindShields, KindVirus, KindMine}

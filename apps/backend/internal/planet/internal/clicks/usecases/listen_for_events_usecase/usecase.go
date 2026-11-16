@@ -34,17 +34,25 @@ type Event struct {
 	Fortification *clicks.Fortification
 	KnockOut      *clicks.KnockOut
 	Infection     *clicks.Infection
+	Explosion     *clicks.Explosion
 	Tally         *clicks.Tally
 	Heartbeat     bool
 	RulesChanged  bool
 
-	Spread  *notices.Spread
-	Granted *charges.Gain
+	Spread   *notices.Spread
+	Granted  *charges.Gain
+	MineLaid *notices.MineLaid
 }
 
-// Notices is planet's own news for the caller: every spread, and what a grant added to its account's hand.
+// Notices is planet's own news for the caller: every spread, what a grant added to its account's hand, and the mines its
+// flag's players laid.
 type Notices interface {
-	Attend(holder charges.Holder) (<-chan notices.Event, func())
+	Attend(holder charges.Holder, flag string) (<-chan notices.Event, func())
+}
+
+// Flags is the flag the caller plays for as its stream opens: the mines it hears are that flag's.
+type Flags interface {
+	FlagOf(ctx context.Context, payer clicks.Payer) (string, error)
 }
 
 type RulesFeed interface {
@@ -60,7 +68,7 @@ type Facts interface {
 }
 
 func New(
-	subscriber UpdatesSubscriber, heartbeat time.Duration, notices Notices, rules RulesFeed, facts Facts,
+	subscriber UpdatesSubscriber, heartbeat time.Duration, notices Notices, flags Flags, rules RulesFeed, facts Facts,
 ) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
@@ -70,6 +78,7 @@ func New(
 		subscriber: subscriber,
 		heartbeat:  heartbeat,
 		notices:    notices,
+		flags:      flags,
 		rules:      rules,
 		facts:      facts,
 	}
@@ -79,6 +88,7 @@ type UseCase struct {
 	subscriber UpdatesSubscriber
 	heartbeat  time.Duration
 	notices    Notices
+	flags      Flags
 	rules      RulesFeed
 	facts      Facts
 }
@@ -98,7 +108,9 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	payer := clicks.PayerOf(ctx)
 	caller := clicks.CallerOf(payer)
 
-	news, stopHearing := u.notices.Attend(charges.HolderOf(payer))
+	// A flag that could not be read hears no mine until the next pledge: the page reads them with GetMines.
+	flag, _ := u.flags.FlagOf(ctx, payer)
+	news, stopHearing := u.notices.Attend(charges.HolderOf(payer), flag)
 	defer stopHearing()
 
 	changes, stopWatching := u.rules.Watch()
@@ -131,7 +143,8 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			if err := sink.Send(Event{
 				Version: change.Version, Update: change.Update, Blast: change.Blast, Enclosure: change.Enclosure,
 				Yours:         change.Enclosure != nil && clicks.CallerOf(change.Enclosure.By) == caller,
-				Fortification: change.Fortification, KnockOut: change.KnockOut, Infection: change.Infection, Tally: change.Tally,
+				Fortification: change.Fortification, KnockOut: change.KnockOut, Infection: change.Infection,
+				Explosion: change.Explosion, Tally: change.Tally,
 			}); err != nil {
 				return err
 			}
@@ -142,7 +155,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			}
 
 		case notice := <-news:
-			if err := sink.Send(Event{Spread: notice.Spread, Granted: notice.Granted}); err != nil {
+			if err := sink.Send(Event{Spread: notice.Spread, Granted: notice.Granted, MineLaid: notice.MineLaid}); err != nil {
 				return err
 			}
 		}

@@ -73,6 +73,9 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"charges.virus.infections is 1025": func(r *planetv1.Rules) { r.Charges.Virus.Infections = proto.Uint32(1025) },
 		"charges.virus.every is 500ms":     func(r *planetv1.Rules) { r.Charges.Virus.Every = d(500 * time.Millisecond) },
 		"charges.virus.every is 10m0.001s": func(r *planetv1.Rules) { r.Charges.Virus.Every = d(10*time.Minute + time.Millisecond) },
+		"charges.mine.held":                func(r *planetv1.Rules) { r.Charges.Mine.Held = proto.Uint32(0) },
+		"charges.mine.rings is 0":          func(r *planetv1.Rules) { r.Charges.Mine.Rings = proto.Uint32(0) },
+		"charges.mine.rings is 4":          func(r *planetv1.Rules) { r.Charges.Mine.Rings = proto.Uint32(4) },
 		"charges.enclose.off is on with enclose.unlimited": func(r *planetv1.Rules) {
 			r.Charges.Enclose.Off, r.Charges.Enclose.Unlimited = proto.Bool(true), proto.Bool(true)
 		},

@@ -16,6 +16,9 @@ under its lock.
 (`FailedPrecondition`, the charge given back), and a fortify raises every tile of the landmass but it
 (`capitalLocked`). A capital keeps the shields it has, the seed's on a fresh map. See [Shields](shields.md).
 
+**No mine goes on a capital while the knock-out plays** (`CapitalPlay.KnocksOut`, `mines.Gate`): its take would clear
+the flag's land, the mine with it, before the mine went off. See [The mine](mine.md).
+
 ## The knock-out (`capitals.knockOut`)
 
 **A take of a flag's capital knocks the flag out: the taker keeps the capital, and every other tile of the flag goes

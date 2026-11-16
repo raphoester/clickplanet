@@ -29,6 +29,15 @@ type Teller interface {
 	Pledged(account Account, flag string, previous string)
 }
 
+// Tellers tells every pledge to each of them.
+type Tellers []Teller
+
+func (t Tellers) Pledged(account Account, flag string, previous string) {
+	for _, each := range t {
+		each.Pledged(account, flag, previous)
+	}
+}
+
 func NewBook(
 	store Store, countries CountryChecker, lock func() Lock, standing Standing, clock cptime.Clock, teller Teller,
 ) Book {
@@ -78,6 +87,23 @@ func (b Book) Release(ctx context.Context, account Account) error {
 	}
 
 	return nil
+}
+
+// FlagOf is the flag the caller's account plays for: none for a caller with no account, or one that pledged none.
+func (b Book) FlagOf(ctx context.Context, payer clicks.Payer) (string, error) {
+	account := AccountOf(payer)
+	if account == NoAccount {
+		return "", nil
+	}
+
+	read, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+	allegiance, err := b.store.Allegiance(read, account)
+	if err != nil {
+		return "", fmt.Errorf("%w: account %s: %w", ErrUnread, account, err)
+	}
+
+	return allegiance.TakeSnapshot().Flag, nil
 }
 
 func (b Book) PlayError(ctx context.Context, payer clicks.Payer, flag string) error {

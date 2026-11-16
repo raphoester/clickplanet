@@ -41,6 +41,8 @@ func New(
 		landmasses:    newLandmasses(borders),
 		out:           newOutFlags(),
 		viruses:       newVirusBook(),
+		mines:         newMineBook(),
+		fuse:          make(chan struct{}, 1),
 		recount:       newRecount(borders.Landmasses()),
 		version:       clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
 		feed:          newFeed(config.SubscriberBuffer, logger),
@@ -69,10 +71,14 @@ type Storage struct {
 	landmasses *landmasses
 	out        *outFlags
 	viruses    *virusBook
+	mines      *mineBook
 	recount    recount
 	version    clicks.MapVersion
 
 	feed *feed
+
+	// A value once a take set a mine off, until the explosion runs.
+	fuse chan struct{}
 }
 
 var _ clicks.TileStorage = (*Storage)(nil)
@@ -118,6 +124,7 @@ func (s *Storage) putLocked(tile uint32, state tileState) {
 	from := s.board.put(tile, state)
 	if from != state.owner {
 		s.viruses.cure(tile)
+		s.mines.take(tile)
 		s.landmasses.moved(tile, from, state.owner)
 		s.recount.moved(s.landmasses.of(tile), from, state.owner)
 	}
@@ -147,6 +154,7 @@ func (s *Storage) Clear(_ context.Context, blast clicks.Blast) (clicks.Blast, er
 	var struckOwners []string
 
 	for _, tile := range blast.Cleared {
+		s.mines.take(tile)
 		if s.board.shieldsOn(tile) > 0 {
 			struck = append(struck, tile)
 			struckOwners = append(struckOwners, s.board.ownerOf(tile))

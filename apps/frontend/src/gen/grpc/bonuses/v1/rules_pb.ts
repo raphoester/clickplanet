@@ -48,6 +48,11 @@ export class Rules extends Message<Rules> {
    */
   gates?: GateRules;
 
+  /**
+   * @generated from field: bonuses.v1.MineRules mine = 14;
+   */
+  mine?: MineRules;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -62,6 +67,7 @@ export class Rules extends Message<Rules> {
     { no: 8, name: "shield", kind: "message", T: ShieldRules },
     { no: 11, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 13, name: "gates", kind: "message", T: GateRules },
+    { no: 14, name: "mine", kind: "message", T: MineRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -165,6 +171,11 @@ export class OpenKinds extends Message<OpenKinds> {
    */
   virus?: boolean;
 
+  /**
+   * @generated from field: optional bool mine = 7;
+   */
+  mine?: boolean;
+
   constructor(data?: PartialMessage<OpenKinds>) {
     super();
     proto3.util.initPartial(data, this);
@@ -179,6 +190,7 @@ export class OpenKinds extends Message<OpenKinds> {
     { no: 4, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 5, name: "shields", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 6, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 7, name: "mine", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenKinds {
@@ -236,6 +248,11 @@ export class KindWeights extends Message<KindWeights> {
    */
   virus?: number;
 
+  /**
+   * @generated from field: optional double mine = 7;
+   */
+  mine?: number;
+
   constructor(data?: PartialMessage<KindWeights>) {
     super();
     proto3.util.initPartial(data, this);
@@ -250,6 +267,7 @@ export class KindWeights extends Message<KindWeights> {
     { no: 4, name: "bomb", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 5, name: "shields", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 6, name: "virus", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 7, name: "mine", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KindWeights {
@@ -385,6 +403,43 @@ export class ShieldRules extends Message<ShieldRules> {
 
   static equals(a: ShieldRules | PlainMessage<ShieldRules> | undefined, b: ShieldRules | PlainMessage<ShieldRules> | undefined): boolean {
     return proto3.util.equals(ShieldRules, a, b);
+  }
+}
+
+/**
+ * @generated from message bonuses.v1.MineRules
+ */
+export class MineRules extends Message<MineRules> {
+  /**
+   * @generated from field: optional uint32 max_per_box = 1;
+   */
+  maxPerBox?: number;
+
+  constructor(data?: PartialMessage<MineRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.MineRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "max_per_box", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MineRules {
+    return new MineRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MineRules {
+    return new MineRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MineRules {
+    return new MineRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MineRules | PlainMessage<MineRules> | undefined, b: MineRules | PlainMessage<MineRules> | undefined): boolean {
+    return proto3.util.equals(MineRules, a, b);
   }
 }
 

@@ -27,6 +27,7 @@ const totals = `
 		count(*) FILTER (WHERE kind = 'shield'),
 		count(*) FILTER (WHERE kind = 'fortify'),
 		count(*) FILTER (WHERE kind = 'virus'),
+		count(*) FILTER (WHERE kind = 'mine'),
 		count(DISTINCT account)
 	FROM ledger_events
 	WHERE taken_at >= $1 AND taken_at < $2
@@ -36,7 +37,7 @@ func (q *PostgresQuery) Totals(ctx context.Context, since, until time.Time) (*pl
 	answer := &planetv1.LedgerTotals{}
 	err := q.db.On(ctx).QueryRowContext(ctx, totals, since, until).Scan(
 		&answer.Takes, &answer.Strikes, &answer.Spreads, &answer.Encloses, &answer.Bombs, &answer.Shields, &answer.Fortifies,
-		&answer.Viruses, &answer.Accounts,
+		&answer.Viruses, &answer.Mines, &answer.Accounts,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count the ledger's events from %s to %s: %w", since, until, err)

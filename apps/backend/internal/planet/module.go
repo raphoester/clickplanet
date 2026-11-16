@@ -15,6 +15,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/allegiance_facts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/allegiance_streams"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/audit_release"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/log_allegiances"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/allegiances/postgres_allegiance_store"
@@ -73,6 +74,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/revert_player_usecase/audit_revert"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines/usecases/detonate_mines_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines/usecases/detonate_mines_usecase/log_detonate_mines"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/mines/usecases/lay_mine_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/placements/postgres_placement_store"
@@ -106,6 +111,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler/history_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_mines_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_mines_handler/mines_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler/play_days_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
@@ -128,6 +135,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tiles_handler/tiles_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_grant_charges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/lay_mine_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_arena_handler"
@@ -171,6 +179,7 @@ const (
 
 	ledgerRelayInterval = time.Second
 	virusesInterval     = time.Second
+	minesInterval       = time.Second
 	factsRelayInterval  = 100 * time.Millisecond
 
 	// How long the wallet knows the id of a grant made at once and not for good: a caller that names its grants by what
@@ -326,7 +335,8 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			pricer := clicks.NewToll(cprules.Reader(inForce, clicks.TollPart), tilesStorage)
 
-			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, tilesStorage, clock, allegiance_facts.New(told))
+			book := allegiances.NewBook(postgres_allegiance_store.New(db), countries, lock, tilesStorage, clock,
+				allegiances.Tellers{allegiance_facts.New(told), allegiance_streams.New(board)})
 			flags := log_allegiances.New(book, props.Logger)
 
 			writer := ledger.NewRecording(tilesStorage,
@@ -398,6 +408,9 @@ func NewModule(config Config) cpbootstrap.Module {
 			outbreak := viruses.NewOutbreak(chargeRules, clock)
 			props.Runners.Add(spread_viruses_usecase.NewRunner(virusesInterval, log_spread_viruses.New(
 				spread_viruses_usecase.New(tilesStorage, infections, outbreak, freezing), props.Logger)))
+			minefield := ledger.NewMineRecording(clicks.NewMinefield(tilesStorage, geography, shieldsPerTile), takings, clock)
+			props.Runners.Add(detonate_mines_usecase.NewRunner(tilesStorage.Fuse(), minesInterval, log_detonate_mines.New(
+				detonate_mines_usecase.New(minefield, mines.NewBlasting(chargeRules)), props.Logger)))
 			internalService := planetv1controller.InternalService{
 				PlayRuleSetHandler: play_rule_set_handler.New(playRules),
 				ResetMapHandler: reset_map_handler.New(
@@ -462,7 +475,7 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
 				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, board, inForce, told)),
+					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, board, book, inForce, told)),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(hands, limiter, pricer, buckets)),
 				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(hands)),
@@ -474,6 +487,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				UseVirusHandler: use_virus_handler.New(use_virus_usecase.New(
 					viruses.NewGate(tilesStorage, countries, flags, reach, refusing), uuid_virus_ids.Provider{}, hands, infections,
 					outbreak)),
+				LayMineHandler: lay_mine_handler.New(lay_mine_usecase.New(
+					mines.NewGate(tilesStorage, capitalPlay, countries, flags, refusing), hands, minefield, board)),
+				GetMinesHandler:      get_mines_handler.New(mines_query.NewMemoryQuery(tilesStorage, book)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),
 				GetLandmassHandler: get_landmass_handler.New(borders,

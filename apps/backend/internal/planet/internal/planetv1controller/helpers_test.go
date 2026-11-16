@@ -89,7 +89,7 @@ func clickServerWith(
 			GetMapHandler:     get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{}, facts.NewLog(cptime.SystemClock{}))),
 			ListenForEventsHandler: listen_for_events_handler.New(
 				listen_for_events_usecase.New(stubSubscriber{}, listen_for_events_usecase.DefaultHeartbeat,
-					noNotices{}, steadyRules{}, facts.NewLog(cptime.SystemClock{}))),
+					noNotices{}, noFlag{}, steadyRules{}, facts.NewLog(cptime.SystemClock{}))),
 		},
 		options...,
 	))
@@ -193,8 +193,12 @@ func (steadyRules) Watch() (<-chan cprules.Set[*planetv1.Rules], func()) {
 
 type noNotices struct{}
 
-func (noNotices) Attend(charges.Holder) (<-chan notices.Event, func()) {
+func (noNotices) Attend(charges.Holder, string) (<-chan notices.Event, func()) {
 	return nil, func() {}
 }
+
+type noFlag struct{}
+
+func (noFlag) FlagOf(context.Context, clicks.Payer) (string, error) { return "", nil }
 
 func thawed() clicks.Freeze { return false }

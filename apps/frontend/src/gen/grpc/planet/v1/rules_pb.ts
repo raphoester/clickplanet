@@ -25,8 +25,8 @@ export class Rules extends Message<Rules> {
   toll?: TollRules;
 
   /**
-   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill and UseVirus are refused, no virus spreads, and
-   * GetFreeze answers frozen. The map still loads and streams.
+   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine are refused, no virus spreads,
+   * and GetFreeze answers frozen. The map still loads and streams.
    *
    * @generated from field: optional bool frozen = 4;
    */
@@ -454,6 +454,11 @@ export class ChargeRules extends Message<ChargeRules> {
    */
   virus?: VirusRules;
 
+  /**
+   * @generated from field: planet.v1.MineRules mine = 6;
+   */
+  mine?: MineRules;
+
   constructor(data?: PartialMessage<ChargeRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -467,6 +472,7 @@ export class ChargeRules extends Message<ChargeRules> {
     { no: 3, name: "enclose", kind: "message", T: EncloseRules },
     { no: 4, name: "shield", kind: "message", T: ShieldRules },
     { no: 5, name: "virus", kind: "message", T: VirusRules },
+    { no: 6, name: "mine", kind: "message", T: MineRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeRules {
@@ -742,6 +748,53 @@ export class VirusRules extends Message<VirusRules> {
 
   static equals(a: VirusRules | PlainMessage<VirusRules> | undefined, b: VirusRules | PlainMessage<VirusRules> | undefined): boolean {
     return proto3.util.equals(VirusRules, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.MineRules
+ */
+export class MineRules extends Message<MineRules> {
+  /**
+   * How many mines a hand holds at most.
+   *
+   * @generated from field: optional uint32 held = 1;
+   */
+  held?: number;
+
+  /**
+   * How many rings of tiles around its own a mine's blast takes. 1 to 3.
+   *
+   * @generated from field: optional uint32 rings = 2;
+   */
+  rings?: number;
+
+  constructor(data?: PartialMessage<MineRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MineRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 2, name: "rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MineRules {
+    return new MineRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MineRules {
+    return new MineRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MineRules {
+    return new MineRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MineRules | PlainMessage<MineRules> | undefined, b: MineRules | PlainMessage<MineRules> | undefined): boolean {
+    return proto3.util.equals(MineRules, a, b);
   }
 }
 

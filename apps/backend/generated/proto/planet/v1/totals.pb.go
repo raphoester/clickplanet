@@ -33,6 +33,7 @@ type LedgerTotals struct {
 	Fortifies     uint64                 `protobuf:"varint,7,opt,name=fortifies,proto3" json:"fortifies,omitempty"`
 	Accounts      uint64                 `protobuf:"varint,8,opt,name=accounts,proto3" json:"accounts,omitempty"`
 	Viruses       uint64                 `protobuf:"varint,9,opt,name=viruses,proto3" json:"viruses,omitempty"`
+	Mines         uint64                 `protobuf:"varint,10,opt,name=mines,proto3" json:"mines,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -130,11 +131,18 @@ func (x *LedgerTotals) GetViruses() uint64 {
 	return 0
 }
 
+func (x *LedgerTotals) GetMines() uint64 {
+	if x != nil {
+		return x.Mines
+	}
+	return 0
+}
+
 var File_planet_v1_totals_proto protoreflect.FileDescriptor
 
 const file_planet_v1_totals_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/totals.proto\x12\tplanet.v1\"\xf8\x01\n" +
+	"\x16planet/v1/totals.proto\x12\tplanet.v1\"\x8e\x02\n" +
 	"\fLedgerTotals\x12\x14\n" +
 	"\x05takes\x18\x01 \x01(\x04R\x05takes\x12\x18\n" +
 	"\astrikes\x18\x02 \x01(\x04R\astrikes\x12\x18\n" +
@@ -144,7 +152,9 @@ const file_planet_v1_totals_proto_rawDesc = "" +
 	"\ashields\x18\x06 \x01(\x04R\ashields\x12\x1c\n" +
 	"\tfortifies\x18\a \x01(\x04R\tfortifies\x12\x1a\n" +
 	"\baccounts\x18\b \x01(\x04R\baccounts\x12\x18\n" +
-	"\aviruses\x18\t \x01(\x04R\avirusesB\xb3\x01\n" +
+	"\aviruses\x18\t \x01(\x04R\aviruses\x12\x14\n" +
+	"\x05mines\x18\n" +
+	" \x01(\x04R\x05minesB\xb3\x01\n" +
 	"\rcom.planet.v1B\vTotalsProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 
