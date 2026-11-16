@@ -20,6 +20,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_flag_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type countingPlanet struct {
@@ -37,8 +38,9 @@ type noPledges struct{}
 func (noPledges) FlagOf(context.Context, missions.AccountID) (string, error) { return "", nil }
 
 var (
-	at    = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
-	today = days.TestingDayAt(at)
+	at       = time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	today    = days.TestingDayAt(at)
+	standing = flagmissions.TestingStanding(map[string]uint32{"de": 120, "fr": 60})
 )
 
 type recordingStreams struct {
@@ -66,10 +68,17 @@ func setUp(planet *countingPlanet, told ...days.Day) (*record_flag_take_usecase.
 func setUpWatched(
 	planet *countingPlanet, told ...days.Day,
 ) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox, *recordingStreams) {
+	return setUpAt(planet, standing, cptime.NewFixedClock(at), told...)
+}
+
+func setUpAt(
+	planet *countingPlanet, standing flagmissions.Standing, clock cptime.Clock, told ...days.Day,
+) (*record_flag_take_usecase.UseCase, *inmemory_flag_day_store.Store, *cpatomic.FakeOutbox, *recordingStreams) {
 	store, outbox, calendar := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, inmemory_day_store.New(append(told, today)...)
 	streams := &recordingStreams{}
-	return record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, planet, noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())), store,
-		cpatomic.FakeTransactioner{}, outbox, streams), store, outbox, streams
+	briefing := flagmissions.NewBriefing(store, calendar, planet, flagmissions.NewFixedStandings(standing), noPledges{},
+		flagmissions.NewFixedSizings(flagmissions.TestingSizing()), clock)
+	return record_flag_take_usecase.New(calendar, briefing, store, cpatomic.FakeTransactioner{}, outbox, streams), store, outbox, streams
 }
 
 func take(position uint64) flagmissions.Take {
@@ -131,9 +140,48 @@ func TestADayClearedOfItsMissionIsDrawnAgainAndKeepsWhatItCounted(t *testing.T) 
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, standing, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
 	assert.Equal(t, uint64(42), day.Snapshot().Takes)
 	assert.Equal(t, uint32(2), day.Snapshot().Progress, "only the takes after the draw count on the mission")
+}
+
+func TestTheMissionIsWorthTheLessTheMoreItsFlagWonInTheSeason(t *testing.T) {
+	useCase, store, _ := setUp(&countingPlanet{})
+
+	require.NoError(t, useCase.Execute(t.Context(), take(1), flagmissions.Take{Flag: "de", Ground: "br", At: at, Position: 2}))
+
+	for flag, points := range map[string]uint32{"fr": 6, "de": 3} {
+		day, err := store.Day(t.Context(), today, flag)
+		require.NoError(t, err)
+		assert.Equal(t, points, day.Snapshot().Mission.Points, "%s: Germany leads with 120, France has half", flag)
+	}
+}
+
+func TestEarlyInTheDayATakeWaitsForTheSeasonsRoundsBeforeItToBeScored(t *testing.T) {
+	planet := &countingPlanet{}
+	unsettled := flagmissions.StandingOf(flagmissions.StandingSnapshot{Points: map[string]uint32{"fr": 60}})
+	useCase, store, outbox, _ := setUpAt(planet, unsettled, cptime.NewFixedClock(today.Snapshot().StartsAt.Add(time.Minute+59*time.Second)))
+	early := take(1)
+	early.At = today.Snapshot().StartsAt
+
+	require.ErrorIs(t, useCase.Execute(t.Context(), early), flagmissions.ErrUnsettled)
+
+	_, err := store.Day(t.Context(), today, "fr")
+	require.ErrorIs(t, err, flagmissions.ErrNoDay, "nothing drawn, nothing counted: the take is told again")
+	assert.Zero(t, planet.asked)
+	assert.Empty(t, outbox.Recorded())
+}
+
+func TestTwoMinutesIntoTheDayItsMissionIsDrawnFromTheTableAsItIs(t *testing.T) {
+	unsettled := flagmissions.StandingOf(flagmissions.StandingSnapshot{Points: map[string]uint32{"fr": 60}})
+	useCase, store, _, _ := setUpAt(&countingPlanet{}, unsettled, cptime.NewFixedClock(today.Snapshot().StartsAt.Add(2*time.Minute)))
+
+	require.NoError(t, useCase.Execute(t.Context(), take(1)))
+
+	day, err := store.Day(t.Context(), today, "fr")
+	require.NoError(t, err)
+	assert.Equal(t, uint32(3), day.Snapshot().Mission.Points, "France leads the table as it is")
+	assert.Equal(t, uint64(1), day.Snapshot().Takes)
 }
 
 func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
@@ -174,7 +222,7 @@ func TestTheGoalIsDrawnFromWhatTheFlagDidTheDayBefore(t *testing.T) {
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, busy, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, standing, busy, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
 }
 
 func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
@@ -187,7 +235,7 @@ func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
 	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.Draw(today, "fr", world, standing, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
 }
 
 func TestATakeWakesTheStreamsOfTheAccountThatTookIt(t *testing.T) {
@@ -203,8 +251,9 @@ func TestATakeWakesTheStreamsOfTheAccountThatTookIt(t *testing.T) {
 func TestABatchCountsEachFlagsTakesOnItsDayInOneTransactionEach(t *testing.T) {
 	store, outbox, planet := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, &countingPlanet{}
 	calendar, transactions, streams := inmemory_day_store.New(today), &countingTransactioner{}, &recordingStreams{}
-	useCase := record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, planet, noPledges{},
-		flagmissions.NewFixedSizings(flagmissions.TestingSizing())), store, transactions, outbox, streams)
+	useCase := record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, planet,
+		flagmissions.NewFixedStandings(standing), noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing()),
+		cptime.NewFixedClock(at)), store, transactions, outbox, streams)
 	ada, grace := missions.AccountID{15: 1}, missions.AccountID{15: 2}
 	german := flagmissions.Take{Account: grace, Flag: "de", Ground: "br", At: at, Position: 2}
 	late := take(4)

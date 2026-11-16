@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tiles_taken_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type recordingUseCase struct {
@@ -99,7 +100,8 @@ func (noStreams) Publish(missions.AccountID) {}
 func TestAnEnclosureToldInPartsAndToldTwiceCountsEachTileOnce(t *testing.T) {
 	store, calendar := inmemory_flag_day_store.New(), inmemory_day_store.New(days.TestingDayAt(at))
 	handler := flag_tiles_taken_subscriber.New(record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar,
-		fixedPlanet{}, noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())), store,
+		fixedPlanet{}, flagmissions.NewFixedStandings(flagmissions.TestingStanding(nil)), noPledges{},
+		flagmissions.NewFixedSizings(flagmissions.TestingSizing()), cptime.NewFixedClock(at)), store,
 		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, noStreams{}))
 	enclosure := []*planetv1.TilesTaken{takes(ada, "fr", 9, 0, 3), takes(ada, "fr", 9, 3, 7)}
 

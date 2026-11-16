@@ -26,7 +26,7 @@ var _ cpredis.Handler[*gamemasterv1.DayStarted] = Subscriber{}
 
 func (s Subscriber) Handle(ctx context.Context, event *gamemasterv1.DayStarted) error {
 	day, err := days.DayOf(days.DaySnapshot{
-		ID: days.DayID(event.GetRoundId()), Season: event.GetSeason(), Number: event.GetDay(),
+		ID: days.DayID(event.GetRoundId()), Book: days.BookID(event.GetBookId()), Season: event.GetSeason(), Number: event.GetDay(),
 		StartsAt: event.GetStartsAt().AsTime(), EndsAt: event.GetEndsAt().AsTime(),
 	})
 	if err != nil {

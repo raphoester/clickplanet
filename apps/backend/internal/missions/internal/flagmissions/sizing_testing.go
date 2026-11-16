@@ -2,7 +2,11 @@
 
 package flagmissions
 
-import "context"
+import (
+	"context"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
+)
 
 // The numbers migration 20261106180000_rules seeds.
 func TestingSizing() Sizing {
@@ -24,4 +28,22 @@ func NewFixedSizings(sizing Sizing) FixedSizings {
 
 func (f FixedSizings) Sizing(context.Context) (Sizing, error) {
 	return f.sizing, nil
+}
+
+// TestingStanding is a season's table with every round before the day scored.
+func TestingStanding(points map[string]uint32) Standing {
+	return StandingOf(StandingSnapshot{Points: points, Settled: true})
+}
+
+// FixedStandings answers the same table at each draw.
+type FixedStandings struct {
+	standing Standing
+}
+
+func NewFixedStandings(standing Standing) FixedStandings {
+	return FixedStandings{standing: standing}
+}
+
+func (f FixedStandings) Standing(context.Context, days.Day) (Standing, error) {
+	return f.standing, nil
 }

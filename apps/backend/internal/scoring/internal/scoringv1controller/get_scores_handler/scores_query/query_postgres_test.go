@@ -143,6 +143,20 @@ func (s *testSuite) TestTheTableOfAnOpenBookIsNotClosedAndHasNoTiebreak() {
 	s.Require().NoError(err)
 	s.False(table.GetClosed())
 	s.Zero(table.GetTable()[0].GetTiebreakPoints())
+	s.Empty(table.GetOpenRoundIds(), "every round of the book is scored")
+}
+
+func (s *testSuite) TestTheTableNamesTheBooksRoundsOpenAndNotScoredYetWhosePointsItLacks() {
+	rounds := postgres_round_store.New(s.db)
+	day25 := books.Round{ID: "season-0/day-25", Book: seasonZero.ID, Times: 1, Ranking: books.GainRanking{}, StartsAt: utc(31, 23)}
+	_, err := rounds.Open(s.T().Context(), day25, books.Start{})
+	s.Require().NoError(err)
+
+	table, err := s.query.Table(s.T().Context(), seasonZero.ID)
+
+	s.Require().NoError(err)
+	s.Equal([]string{"season-0/day-25"}, table.GetOpenRoundIds(), "day 24 and the battle are scored")
+	s.Len(table.GetTable(), 2)
 }
 
 func (s *testSuite) TestTheTableOfABookNeverOpenedIsNone() {

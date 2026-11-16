@@ -67,17 +67,17 @@ func (x *Rules) GetFlagMissions() *FlagMissionRules {
 }
 
 // A flag's mission of the day. Its goal is goal_percent of all its players did the day before, tiles taken and shields
-// broken, at least least_goal, rounded down to 10. It is worth most_points to a flag holding no tile, fewest_points to
-// the biggest flag, and in proportion between.
+// broken, at least least_goal, rounded down to 10. It is worth most_points to a flag with no season points,
+// fewest_points to the season's leader, and in proportion to the leader's points between.
 type FlagMissionRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 1 to 100.
 	GoalPercent uint32 `protobuf:"varint,1,opt,name=goal_percent,json=goalPercent,proto3" json:"goal_percent,omitempty"`
 	// 10 or more.
 	LeastGoal uint32 `protobuf:"varint,2,opt,name=least_goal,json=leastGoal,proto3" json:"least_goal,omitempty"`
-	// 1 or more.
+	// The points for the season's leader: 1 or more.
 	FewestPoints uint32 `protobuf:"varint,3,opt,name=fewest_points,json=fewestPoints,proto3" json:"fewest_points,omitempty"`
-	// fewest_points to 100.
+	// The points for a flag with no season points: fewest_points to 100.
 	MostPoints    uint32 `protobuf:"varint,4,opt,name=most_points,json=mostPoints,proto3" json:"most_points,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

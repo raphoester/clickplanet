@@ -15,7 +15,7 @@ func TestingDayAt(at time.Time) Day {
 	number := int(at.Sub(seasonZero)/(24*time.Hour)) + 1
 	ends := seasonZero.Add(time.Duration(number) * 24 * time.Hour)
 	day, err := DayOf(DaySnapshot{
-		ID: DayID(fmt.Sprintf("season-0/day-%d", number)), Number: uint32(number), //nolint:gosec // a day of 2026.
+		ID: DayID(fmt.Sprintf("season-0/day-%d", number)), Book: "season-0", Number: uint32(number), //nolint:gosec // a day of 2026.
 		StartsAt: ends.Add(-24 * time.Hour), EndsAt: ends,
 	})
 	if err != nil {

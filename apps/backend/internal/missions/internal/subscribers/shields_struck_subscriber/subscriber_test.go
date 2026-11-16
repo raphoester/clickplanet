@@ -18,6 +18,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shields_struck_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type recordingUseCase struct {
@@ -99,7 +100,8 @@ func (noStreams) Publish(missions.AccountID) {}
 func TestABombsStrikesToldInPartsAndToldTwiceCountEachShieldOnce(t *testing.T) {
 	store, calendar := inmemory_flag_day_store.New(), inmemory_day_store.New(days.TestingDayAt(at))
 	handler := shields_struck_subscriber.New(record_strike_usecase.New(calendar, flagmissions.NewBriefing(store, calendar,
-		fixedPlanet{}, noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())), store,
+		fixedPlanet{}, flagmissions.NewFixedStandings(flagmissions.TestingStanding(nil)), noPledges{},
+		flagmissions.NewFixedSizings(flagmissions.TestingSizing()), cptime.NewFixedClock(at)), store,
 		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, noStreams{}))
 	bomb := []*planetv1.ShieldsStruck{struck(ada, "fr", 9, 0, 3), struck(ada, "fr", 9, 3, 7)}
 

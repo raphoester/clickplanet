@@ -25,6 +25,6 @@ describe("the mission rules form", () => {
     it("names a number left empty or not whole", () => {
         expect(flawOf(draftOf(kept))).toBeUndefined()
         expect(flawOf({...draftOf(kept), leastGoal: ""})).toBe("Least goal, tiles or shields: a whole number.")
-        expect(flawOf({...draftOf(kept), mostPoints: "2.5"})).toBe("Points for a flag holding no tile: a whole number.")
+        expect(flawOf({...draftOf(kept), mostPoints: "2.5"})).toBe("Points for a flag with no season points: a whole number.")
     })
 })

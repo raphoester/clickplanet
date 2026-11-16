@@ -7,6 +7,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 var ErrNoDay = errors.New("no day was drawn for the flag")
@@ -25,21 +26,28 @@ type Calendar interface {
 }
 
 func NewBriefing(
-	store Store, calendar Calendar, planet missions.Planet, allegiances missions.Allegiances, sizings Sizings,
+	store Store, calendar Calendar, planet missions.Planet, standings Standings, allegiances missions.Allegiances,
+	sizings Sizings, clock cptime.Clock,
 ) Briefing {
-	return Briefing{store: store, calendar: calendar, planet: planet, allegiances: allegiances, sizings: sizings}
+	return Briefing{
+		store: store, calendar: calendar, planet: planet, standings: standings, allegiances: allegiances,
+		sizings: sizings, clock: clock,
+	}
 }
 
 type Briefing struct {
 	store       Store
 	calendar    Calendar
 	planet      missions.Planet
+	standings   Standings
 	allegiances missions.Allegiances
 	sizings     Sizings
+	clock       cptime.Clock
 }
 
-// Drawn once a day, from the map then and what the flag did the day before. A day kept with no mission, as one an
-// operator's fix cleared, is drawn again.
+// Drawn once a day, from the map then, the season's table and what the flag did the day before. A day kept with no
+// mission, as one an operator's fix cleared, is drawn again. Early in the day, a table that lacks a round before it is
+// ErrUnsettled, and nothing is drawn.
 func (b Briefing) Of(ctx context.Context, day days.Day, flag string) (Day, error) {
 	kept, err := b.store.Day(ctx, day, flag)
 	if err == nil && kept.mission != nil || err != nil && !errors.Is(err, ErrNoDay) {
@@ -50,6 +58,13 @@ func (b Briefing) Of(ctx context.Context, day days.Day, flag string) (Day, error
 	if err != nil {
 		return Day{}, fmt.Errorf("failed to read what %s did the day before: %w", flag, err)
 	}
+	standing, err := b.standings.Standing(ctx, day)
+	if err != nil {
+		return Day{}, fmt.Errorf("failed to read the season's table to draw %s's mission: %w", flag, err)
+	}
+	if !standing.Settled() && b.clock.Now().Before(day.Snapshot().StartsAt.Add(settleWithin)) {
+		return Day{}, fmt.Errorf("%w: %s's mission waits for its points", ErrUnsettled, flag)
+	}
 	world, err := b.planet.World(ctx)
 	if err != nil {
 		return Day{}, fmt.Errorf("failed to read the map to draw %s's mission: %w", flag, err)
@@ -58,7 +73,7 @@ func (b Briefing) Of(ctx context.Context, day days.Day, flag string) (Day, error
 	if err != nil {
 		return Day{}, fmt.Errorf("failed to read the numbers to draw %s's mission with: %w", flag, err)
 	}
-	return b.store.KeepDay(ctx, day, flag, Draw(day, flag, world, yesterday, sizing)) //nolint:wrapcheck // the store named it.
+	return b.store.KeepDay(ctx, day, flag, Draw(day, flag, world, standing, yesterday, sizing)) //nolint:wrapcheck // the store named it.
 }
 
 // A season's first day, or a day the flag did nothing on, has a zero day before.

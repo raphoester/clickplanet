@@ -28,7 +28,7 @@ var (
 	ends   = starts.Add(24 * time.Hour)
 )
 
-func TestADayToldIsKeptByItsRoundsID(t *testing.T) {
+func TestADayToldIsKeptByItsRoundsIDWithItsSeasonsBook(t *testing.T) {
 	useCase := &recordingUseCase{}
 
 	require.NoError(t, day_started_subscriber.New(useCase).Handle(t.Context(), &gamemasterv1.DayStarted{
@@ -39,11 +39,12 @@ func TestADayToldIsKeptByItsRoundsID(t *testing.T) {
 	assert.Equal(t, []days.Day{days.TestingDayAt(starts)}, useCase.days)
 }
 
-func TestADayWithNoIDNoNumberOrNoLengthIsRefused(t *testing.T) {
+func TestADayWithNoIDNoBookNoNumberOrNoLengthIsRefused(t *testing.T) {
 	for _, event := range []*gamemasterv1.DayStarted{
-		{Day: 22, StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
-		{RoundId: "season-0/day-22", StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
-		{RoundId: "season-0/day-22", Day: 22, StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(starts)},
+		{Day: 22, BookId: "season-0", StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
+		{RoundId: "season-0/day-22", Day: 22, StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
+		{RoundId: "season-0/day-22", BookId: "season-0", StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(ends)},
+		{RoundId: "season-0/day-22", BookId: "season-0", Day: 22, StartsAt: timestamppb.New(starts), EndsAt: timestamppb.New(starts)},
 	} {
 		assert.ErrorIs(t, day_started_subscriber.New(&recordingUseCase{}).Handle(t.Context(), event), days.ErrInvalidDay)
 	}

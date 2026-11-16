@@ -33,6 +33,16 @@ func (s *StoreContractSuite) TestADayIsFoundFromItsStartToBeforeItsEnd() {
 	}
 }
 
+func (s *StoreContractSuite) TestADayKeepsTheBookOfItsSeason() {
+	day := TestingDayAt(contractAt)
+	s.Require().NoError(s.store.KeepDay(s.T().Context(), day))
+
+	found, err := s.store.DayAt(s.T().Context(), contractAt)
+
+	s.Require().NoError(err)
+	s.Equal(BookID("season-0"), found.Book())
+}
+
 func (s *StoreContractSuite) TestNoDayRunsBeforeOrAfterTheDaysTold() {
 	day := TestingDayAt(contractAt)
 	s.Require().NoError(s.store.KeepDay(s.T().Context(), day))
@@ -101,7 +111,9 @@ func (s *StoreContractSuite) TestADayCutShortByABattleIsStillTheDayBefore() {
 
 func (s *StoreContractSuite) TestASeasonsFirstDayHasNoDayBeforeEvenRightAfterTheLastSeason() {
 	last := TestingDayAt(contractAt.Add(-24 * time.Hour)).Snapshot()
-	first, err := DayOf(DaySnapshot{ID: "season-1/day-1", Season: 1, Number: 1, StartsAt: last.EndsAt, EndsAt: last.EndsAt.Add(24 * time.Hour)})
+	first, err := DayOf(DaySnapshot{
+		ID: "season-1/day-1", Book: "season-1", Season: 1, Number: 1, StartsAt: last.EndsAt, EndsAt: last.EndsAt.Add(24 * time.Hour),
+	})
 	s.Require().NoError(err)
 	ended, err := DayOf(last)
 	s.Require().NoError(err)

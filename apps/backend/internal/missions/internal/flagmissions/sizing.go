@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
 const (
@@ -23,7 +21,8 @@ type SizingSnapshot struct {
 }
 
 // The numbers a flag mission is drawn with, as the operator set them: its goal is GoalPercent of all the flag did the
-// day before, at least LeastGoal, and it is worth MostPoints to a flag with no tile, FewestPoints to the biggest.
+// day before, at least LeastGoal, and it is worth MostPoints to a flag with no season points, FewestPoints to the
+// season's leader.
 type Sizing struct {
 	goalPercent  uint32
 	leastGoal    uint32
@@ -74,18 +73,14 @@ func (s Sizing) goalOf(yesterday Day) uint32 {
 	return uint32(min(goal, uint64(^uint32(0)))) //nolint:gosec // capped just above.
 }
 
-// mostPoints for a flag with no tiles, fewestPoints for the biggest, and in proportion between, rounded.
-func (s Sizing) pointsOf(flag string, world missions.World) uint32 {
-	var held, biggest uint64
-	for _, territory := range world.Territories {
-		biggest = max(biggest, uint64(territory.Tiles))
-		if territory.Flag == flag {
-			held = uint64(territory.Tiles)
-		}
-	}
-	if biggest == 0 {
+// mostPoints for a flag with no season points, fewestPoints for the season's leader, and in proportion to the leader's
+// points between, rounded.
+func (s Sizing) pointsOf(flag string, standing Standing) uint32 {
+	leader := uint64(standing.leader())
+	if leader == 0 {
 		return s.mostPoints
 	}
+	won := uint64(standing.points[flag])
 	spread := uint64(s.mostPoints - s.fewestPoints)
-	return s.mostPoints - uint32((spread*held*2+biggest)/(2*biggest)) //nolint:gosec // at most mostPoints - fewestPoints.
+	return s.mostPoints - uint32((spread*won*2+leader)/(2*leader)) //nolint:gosec // at most mostPoints - fewestPoints.
 }

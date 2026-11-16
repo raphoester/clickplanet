@@ -128,6 +128,10 @@ func (q *PostgresQuery) Table(ctx context.Context, book books.BookID) (*scoringv
 	if !ledger.found {
 		return nil, fmt.Errorf("%w: %q", ErrNoBook, book)
 	}
+	open, err := q.openRounds(ctx, book)
+	if err != nil {
+		return nil, err
+	}
 	table := ledger.book.Table(ledger.rounds, ledger.grants)
 	places := make([]*scoringv1.TablePlace, 0, len(table))
 	for _, placed := range table {
@@ -139,7 +143,35 @@ func (q *PostgresQuery) Table(ctx context.Context, book books.BookID) (*scoringv
 			TiebreakPoints: uint32(placed.TiebreakPoints), //nolint:gosec // 250 a round at most.
 		})
 	}
-	return &scoringv1.GetTableResponse{Table: places, Closed: ledger.book.Closed}, nil
+	return &scoringv1.GetTableResponse{Table: places, Closed: ledger.book.Closed, OpenRoundIds: open}, nil
+}
+
+// The book's rounds opened and not scored yet, by start: the table counts none of their points.
+func (q *PostgresQuery) openRounds(ctx context.Context, book books.BookID) ([]string, error) {
+	rows, err := q.db.On(ctx).QueryContext(ctx, `
+		SELECT round.round_id
+		FROM rounds AS round
+		LEFT JOIN scored_rounds AS scored USING (round_id)
+		WHERE round.book_id = $1 AND scored.round_id IS NULL
+		ORDER BY round.starts_at, round.round_id
+	`, string(book))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the book's open rounds: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var open []string
+	for rows.Next() {
+		var round string
+		if err := rows.Scan(&round); err != nil {
+			return nil, fmt.Errorf("failed to read an open round: %w", err)
+		}
+		open = append(open, round)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the book's open rounds: %w", err)
+	}
+	return open, nil
 }
 
 type ledger struct {

@@ -38,12 +38,21 @@ var (
 	bob = missions.AccountID{15: 2}
 )
 
+var standing = flagmissions.TestingStanding(map[string]uint32{"pl": 200, "fr": 100})
+
 func setUp(allegiances missions.Allegiances) (*get_missions_usecase.UseCase, *inmemory_mission_store.Store) {
+	return setUpAt(allegiances, standing, cptime.NewFixedClock(now))
+}
+
+func setUpAt(
+	allegiances missions.Allegiances, standing flagmissions.Standing, clock cptime.Clock,
+) (*get_missions_usecase.UseCase, *inmemory_mission_store.Store) {
 	store := inmemory_mission_store.New()
 	calendar := inmemory_day_store.New(days.TestingDayAt(now))
-	return get_missions_usecase.New(calendar, cptime.NewFixedClock(now), store,
+	return get_missions_usecase.New(calendar, clock, store,
 		missions.NewBriefing(store, fixedPlanet{}, allegiances),
-		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, allegiances, flagmissions.NewFixedSizings(flagmissions.TestingSizing()))), store
+		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, flagmissions.NewFixedStandings(standing),
+			allegiances, flagmissions.NewFixedSizings(flagmissions.TestingSizing()), clock)), store
 }
 
 func TestTheFirstReadDrawsTheDayForThePledgedFlag(t *testing.T) {
@@ -97,16 +106,29 @@ func TestThePlayersOfAFlagShareItsMission(t *testing.T) {
 
 	world, err := fixedPlanet{}.World(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(days.TestingDayAt(now), "fr", world, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot(), adas.Flag.Snapshot())
+	assert.Equal(t, flagmissions.Draw(days.TestingDayAt(now), "fr", world, standing, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot(), adas.Flag.Snapshot())
 	assert.Equal(t, adas.Flag.Snapshot(), bobs.Flag.Snapshot())
 	assert.NotEqual(t, adas.Brief.Snapshot(), bobs.Brief.Snapshot(), "each has missions of its own beside it")
+}
+
+func TestWhileTheSeasonsTableWaitsForARoundTheMissionsShowNoFlagMissionYet(t *testing.T) {
+	unsettled := flagmissions.StandingOf(flagmissions.StandingSnapshot{Points: map[string]uint32{"fr": 100}})
+	useCase, _ := setUpAt(pledges{ada: "fr"}, unsettled, cptime.NewFixedClock(days.TestingDayAt(now).Snapshot().StartsAt.Add(time.Second)))
+
+	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, out.Brief.Snapshot(), "the player's own missions are there")
+	_, ok := out.Flag.Status()
+	assert.False(t, ok, "the flag's waits for yesterday's round to be scored")
 }
 
 func TestNoMissionsWhenNoDayRuns(t *testing.T) {
 	store, calendar := inmemory_mission_store.New(), inmemory_day_store.New()
 	useCase := get_missions_usecase.New(calendar, cptime.NewFixedClock(now), store,
 		missions.NewBriefing(store, fixedPlanet{}, pledges{ada: "fr"}),
-		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, pledges{ada: "fr"}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())))
+		flagmissions.NewBriefing(inmemory_flag_day_store.New(), calendar, fixedPlanet{}, flagmissions.NewFixedStandings(standing),
+			pledges{ada: "fr"}, flagmissions.NewFixedSizings(flagmissions.TestingSizing()), cptime.NewFixedClock(now)))
 
 	out, err := useCase.Execute(t.Context(), get_missions_usecase.In{Account: ada})
 

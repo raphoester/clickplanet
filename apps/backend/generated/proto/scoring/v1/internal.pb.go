@@ -418,9 +418,11 @@ func (x *GetTableRequest) GetBookId() string {
 
 // The book ranked now: every country with points. Closed once CloseBook was handled.
 type GetTableResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Table         []*TablePlace          `protobuf:"bytes,1,rep,name=table,proto3" json:"table,omitempty"`
-	Closed        bool                   `protobuf:"varint,2,opt,name=closed,proto3" json:"closed,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Table  []*TablePlace          `protobuf:"bytes,1,rep,name=table,proto3" json:"table,omitempty"`
+	Closed bool                   `protobuf:"varint,2,opt,name=closed,proto3" json:"closed,omitempty"`
+	// The book's rounds opened and not scored yet, by start: their points are not in the table.
+	OpenRoundIds  []string `protobuf:"bytes,3,rep,name=open_round_ids,json=openRoundIds,proto3" json:"open_round_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -467,6 +469,13 @@ func (x *GetTableResponse) GetClosed() bool {
 		return x.Closed
 	}
 	return false
+}
+
+func (x *GetTableResponse) GetOpenRoundIds() []string {
+	if x != nil {
+		return x.OpenRoundIds
+	}
+	return nil
 }
 
 type OpenBookRequest struct {
@@ -986,10 +995,11 @@ const file_scoring_v1_internal_proto_rawDesc = "" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x03 \x01(\x04R\x05tiles\"*\n" +
 	"\x0fGetTableRequest\x12\x17\n" +
-	"\abook_id\x18\x01 \x01(\tR\x06bookId\"X\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\"~\n" +
 	"\x10GetTableResponse\x12,\n" +
 	"\x05table\x18\x01 \x03(\v2\x16.scoring.v1.TablePlaceR\x05table\x12\x16\n" +
-	"\x06closed\x18\x02 \x01(\bR\x06closed\"c\n" +
+	"\x06closed\x18\x02 \x01(\bR\x06closed\x12$\n" +
+	"\x0eopen_round_ids\x18\x03 \x03(\tR\fopenRoundIds\"c\n" +
 	"\x0fOpenBookRequest\x12\x17\n" +
 	"\abook_id\x18\x01 \x01(\tR\x06bookId\x127\n" +
 	"\tstarts_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bstartsAt\"\x12\n" +

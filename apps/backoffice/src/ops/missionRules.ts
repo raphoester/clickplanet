@@ -9,8 +9,8 @@ export type FieldKey = "goalPercent" | "leastGoal" | "mostPoints" | "fewestPoint
 export const FIELDS: {key: FieldKey, label: string}[] = [
     {key: "goalPercent", label: "Goal, % of all the flag did the day before"},
     {key: "leastGoal", label: "Least goal, tiles or shields"},
-    {key: "mostPoints", label: "Points for a flag holding no tile"},
-    {key: "fewestPoints", label: "Points for the biggest flag"},
+    {key: "mostPoints", label: "Points for a flag with no season points"},
+    {key: "fewestPoints", label: "Points for the season's leader"},
 ]
 
 export type Draft = Record<FieldKey, string>

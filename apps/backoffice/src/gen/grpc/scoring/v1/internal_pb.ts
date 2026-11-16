@@ -349,6 +349,13 @@ export class GetTableResponse extends Message<GetTableResponse> {
    */
   closed = false;
 
+  /**
+   * The book's rounds opened and not scored yet, by start: their points are not in the table.
+   *
+   * @generated from field: repeated string open_round_ids = 3;
+   */
+  openRoundIds: string[] = [];
+
   constructor(data?: PartialMessage<GetTableResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -359,6 +366,7 @@ export class GetTableResponse extends Message<GetTableResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "table", kind: "message", T: TablePlace, repeated: true },
     { no: 2, name: "closed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "open_round_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTableResponse {

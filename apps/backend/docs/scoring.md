@@ -296,8 +296,11 @@ id that is not one is `InvalidArgument`.
 - **`GetBookHistory(book_id)`** (`scores_query.History`): each scored round of the book by end, every country it ranked
   with its share and points (`round_results`), and the book's table after it, counted as `Around` counts it. A GET,
   `public, max-age=10`.
-- **`InternalService/GetTable(book_id)`**: the same table with each tiebreak's points, and `closed`; NotFound for a book
-  never opened.
+- **`InternalService/GetTable(book_id)`**: the same table with each tiebreak's points, `closed`, and
+  `open_round_ids`, the book's rounds opened and not scored yet, by start, whose points the table lacks; NotFound for a
+  book never opened. The chat reads it for a closed book's table, progression for a season's finale, and missions for
+  the season's points a flag mission is worth less by, waiting while a round before the day is still open (see
+  [The flag's mission](missions.md#the-flags-mission)).
 - **`InternalService/GetRoundPlayers(round_id)`** (`round_players_query`): every account that took tiles in the round,
   guests too, each under the flag it took the most tiles for there (a tie goes to the country first by code), with
   those tiles; NotFound for a round never opened. Progression reads it for the fighters of a season's finale (see [Season
