@@ -1,5 +1,6 @@
 import LevelChip from "./LevelChip.tsx"
 import XpBar from "./XpBar.tsx"
+import XpHelp from "./XpHelp.tsx"
 import {useLevel} from "./levelStore.ts"
 import "./Level.css"
 
@@ -10,5 +11,6 @@ export default function LevelLine() {
     return <div className="level-line">
         <LevelChip level={own.level}/>
         <XpBar level={own}/>
+        <XpHelp level={own}/>
     </div>
 }

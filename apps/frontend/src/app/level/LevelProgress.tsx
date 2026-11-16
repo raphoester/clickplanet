@@ -2,6 +2,7 @@ import {barOf} from "../../domain/level.ts"
 import {t, translator} from "../../i18n/page.ts"
 import LevelChip from "./LevelChip.tsx"
 import XpBar from "./XpBar.tsx"
+import XpHelp from "./XpHelp.tsx"
 import {useLevel} from "./levelStore.ts"
 import "./Level.css"
 
@@ -21,5 +22,6 @@ export default function LevelProgress() {
             </span>
             <XpBar level={own}/>
         </div>
+        <XpHelp level={own}/>
     </div>
 }

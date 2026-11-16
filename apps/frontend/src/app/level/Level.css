@@ -49,9 +49,45 @@
 }
 
 .level-line {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--space-2);
+}
+
+.xp-help-open {
+    position: absolute;
+    inset: -4px -8px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-m);
+    background: none;
+    cursor: pointer;
+}
+
+.xp-help-open:hover,
+.xp-help-open[aria-expanded="true"] {
+    background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.xp-help-open:focus-visible {
+    outline: var(--outline-thin) solid var(--text);
+    outline-offset: 0;
+}
+
+.xp-help-line {
+    display: block;
+    font-variant-numeric: tabular-nums;
+}
+
+.xp-help-title {
+    margin-top: var(--space-2);
+}
+
+.xp-help-ways {
+    margin: var(--space-1) 0 0;
+    padding: 0;
+    list-style: none;
 }
 
 .level-line .xp-bar {
@@ -69,6 +105,7 @@
 }
 
 .level-progress {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--space-3);
