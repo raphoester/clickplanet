@@ -17,10 +17,11 @@ type Store interface {
 
 	Sheet(ctx context.Context, day days.Day, account AccountID) (Sheet, error)
 	ChangeSheet(ctx context.Context, day days.Day, account AccountID, change func(Sheet) Sheet) error
-	// Every payment of the account, every day.
-	PaidTotals(ctx context.Context, account AccountID) (Paid, error)
-	// The accounts paid at least one mission, after the one given, in order, a page of at most limit.
-	PaidAfter(ctx context.Context, after AccountID, limit int) ([]AccountPaid, error)
+	PaidInAll(ctx context.Context, account AccountID) (uint64, error)
+	// Every mission the account has done, every day, paid or not.
+	DoneBy(ctx context.Context, account AccountID) (Done, error)
+	// The accounts that have done at least one mission, after the one given, in order, a page of at most limit.
+	DoneAfter(ctx context.Context, after AccountID, limit int) ([]AccountDone, error)
 
 	DeleteAccount(ctx context.Context, account AccountID) error
 }

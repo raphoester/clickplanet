@@ -91,17 +91,33 @@ func (s *Store) ChangeSheet(
 	return nil
 }
 
-func (s *Store) PaidTotals(_ context.Context, account missions.AccountID) (missions.Paid, error) {
+func (s *Store) PaidInAll(_ context.Context, account missions.AccountID) (uint64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.failWith != nil {
-		return missions.Paid{}, s.failWith
+		return 0, s.failWith
 	}
-	return s.paidTo(account)
+	var paid uint64
+	for key, sheet := range s.sheets {
+		if key.account == account && sheet.Paid != nil {
+			paid += uint64(sheet.Paid.Len())
+		}
+	}
+	return paid, nil
 }
 
-func (s *Store) PaidAfter(_ context.Context, after missions.AccountID, limit int) ([]missions.AccountPaid, error) {
+func (s *Store) DoneBy(_ context.Context, account missions.AccountID) (missions.Done, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return missions.Done{}, s.failWith
+	}
+	return s.doneBy(account)
+}
+
+func (s *Store) DoneAfter(_ context.Context, after missions.AccountID, limit int) ([]missions.AccountDone, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -109,37 +125,42 @@ func (s *Store) PaidAfter(_ context.Context, after missions.AccountID, limit int
 		return nil, s.failWith
 	}
 	var accounts []missions.AccountID
-	for key, sheet := range s.sheets {
-		if !sheet.Paid.Empty() && bytes.Compare(key.account[:], after[:]) > 0 && !slices.Contains(accounts, key.account) {
+	for key := range s.sheets {
+		if bytes.Compare(key.account[:], after[:]) > 0 && !slices.Contains(accounts, key.account) {
 			accounts = append(accounts, key.account)
 		}
 	}
 	slices.SortFunc(accounts, func(a, b missions.AccountID) int { return bytes.Compare(a[:], b[:]) })
 
-	page := make([]missions.AccountPaid, 0, min(limit, len(accounts)))
-	for _, account := range accounts[:min(limit, len(accounts))] {
-		totals, err := s.paidTo(account)
+	page := make([]missions.AccountDone, 0, limit)
+	for _, account := range accounts {
+		if len(page) == limit {
+			break
+		}
+		done, err := s.doneBy(account)
 		if err != nil {
 			return nil, err
 		}
-		page = append(page, missions.AccountPaid{Account: account, Paid: totals})
+		if done.InAll > 0 {
+			page = append(page, missions.AccountDone{Account: account, Done: done})
+		}
 	}
 	return page, nil
 }
 
-func (s *Store) paidTo(account missions.AccountID) (missions.Paid, error) {
-	paid := missions.NothingPaid()
+func (s *Store) doneBy(account missions.AccountID) (missions.Done, error) {
+	done := missions.NothingDone()
 	for key, sheet := range s.sheets {
 		if key.account != account {
 			continue
 		}
 		brief, err := missions.BriefOf(s.briefs[key])
 		if err != nil {
-			return missions.Paid{}, err //nolint:wrapcheck // the domain named it.
+			return missions.Done{}, err //nolint:wrapcheck // the domain named it.
 		}
-		paid = paid.WithDay(brief, missions.SheetOf(sheet))
+		done = done.WithDay(brief, missions.SheetOf(sheet))
 	}
-	return paid, nil
+	return done, nil
 }
 
 func (s *Store) DeleteAccount(_ context.Context, account missions.AccountID) error {

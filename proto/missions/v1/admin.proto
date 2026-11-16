@@ -37,11 +37,11 @@ service AdminService {
   // InvalidArgument for numbers that cannot play, with every reason.
   rpc SaveRules(SaveRulesRequest) returns (SaveRulesResponse);
 
-  // Tells MissionsPaid once more for every account ever paid a mission: how many in all and, by kind, how many and
-  // their goals summed, as a payment tells them, so the listeners hear the kinds of the missions paid before
-  // MissionsPaid carried them. Run once after that deploy, dry_run first. Players see nothing: no charge is granted,
-  // and a listener keeps the highest totals it heard, so a second run changes nothing.
-  rpc RetellMissionsPaid(RetellMissionsPaidRequest) returns (RetellMissionsPaidResponse);
+  // Tells MissionsDone for every account that has done a mission: how many in all and, by kind, how many and their
+  // goals summed, as a fact that finishes a mission tells them, so the listeners hear the missions done before
+  // MissionsDone was told. Run once after that deploy, dry_run first. Players see nothing: nothing is granted, and a
+  // listener keeps the highest totals it heard, so a second run changes nothing.
+  rpc RetellMissionsDone(RetellMissionsDoneRequest) returns (RetellMissionsDoneResponse);
 }
 
 message ListFlagDaysRequest {
@@ -131,12 +131,12 @@ message SaveRulesRequest {
 
 message SaveRulesResponse {}
 
-message RetellMissionsPaidRequest {
+message RetellMissionsDoneRequest {
   // Counts the accounts it would tell, and tells nothing.
   bool dry_run = 1;
 }
 
-message RetellMissionsPaidResponse {
-  // The accounts told: every one with a mission paid. With dry_run, the ones it would tell.
+message RetellMissionsDoneResponse {
+  // The accounts told: every one with a mission done, guests included. With dry_run, the ones it would tell.
   uint32 accounts = 1;
 }

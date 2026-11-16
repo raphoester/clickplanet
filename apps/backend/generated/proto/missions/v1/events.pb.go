@@ -26,10 +26,7 @@ type MissionsPaid struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// How many missions the account was paid in all, these included: an event told twice or lost, the next one repairs.
-	PaidInAll uint64 `protobuf:"varint,2,opt,name=paid_in_all,json=paidInAll,proto3" json:"paid_in_all,omitempty"`
-	// The same missions by kind, totals too, one per kind paid at least once, in the order of MissionKind. An event told
-	// before the kinds were added has none; RetellMissionsPaid tells every account's once.
-	ByKind        []*KindPaid `protobuf:"bytes,3,rep,name=by_kind,json=byKind,proto3" json:"by_kind,omitempty"`
+	PaidInAll     uint64 `protobuf:"varint,2,opt,name=paid_in_all,json=paidInAll,proto3" json:"paid_in_all,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -78,39 +75,34 @@ func (x *MissionsPaid) GetPaidInAll() uint64 {
 	return 0
 }
 
-func (x *MissionsPaid) GetByKind() []*KindPaid {
-	if x != nil {
-		return x.ByKind
-	}
-	return nil
-}
-
-// The missions of one kind an account was paid in all.
-type KindPaid struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Kind  MissionKind            `protobuf:"varint,1,opt,name=kind,proto3,enum=missions.v1.MissionKind" json:"kind,omitempty"`
-	// How many were paid.
-	Done uint64 `protobuf:"varint,2,opt,name=done,proto3" json:"done,omitempty"`
-	// Their goals, summed, each in its kind's unit: tiles, boxes, right answers or bombs.
-	Goals         uint64 `protobuf:"varint,3,opt,name=goals,proto3" json:"goals,omitempty"`
+// The missions an account has done in all, every day, told each time a fact finishes one or more of them, a guest's
+// too: whether a mission is worth anything is the listener's call. Totals, not one event per mission: told twice, late
+// or lost, they change nothing, and the first one brings every mission done before.
+type MissionsDone struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// How many missions the account has done in all, these included.
+	DoneInAll uint64 `protobuf:"varint,2,opt,name=done_in_all,json=doneInAll,proto3" json:"done_in_all,omitempty"`
+	// The same missions by kind, one per kind done at least once, in the order of MissionKind.
+	ByKind        []*KindDone `protobuf:"bytes,3,rep,name=by_kind,json=byKind,proto3" json:"by_kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *KindPaid) Reset() {
-	*x = KindPaid{}
+func (x *MissionsDone) Reset() {
+	*x = MissionsDone{}
 	mi := &file_missions_v1_events_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *KindPaid) String() string {
+func (x *MissionsDone) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*KindPaid) ProtoMessage() {}
+func (*MissionsDone) ProtoMessage() {}
 
-func (x *KindPaid) ProtoReflect() protoreflect.Message {
+func (x *MissionsDone) ProtoReflect() protoreflect.Message {
 	mi := &file_missions_v1_events_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -122,26 +114,89 @@ func (x *KindPaid) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use KindPaid.ProtoReflect.Descriptor instead.
-func (*KindPaid) Descriptor() ([]byte, []int) {
+// Deprecated: Use MissionsDone.ProtoReflect.Descriptor instead.
+func (*MissionsDone) Descriptor() ([]byte, []int) {
 	return file_missions_v1_events_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *KindPaid) GetKind() MissionKind {
+func (x *MissionsDone) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *MissionsDone) GetDoneInAll() uint64 {
+	if x != nil {
+		return x.DoneInAll
+	}
+	return 0
+}
+
+func (x *MissionsDone) GetByKind() []*KindDone {
+	if x != nil {
+		return x.ByKind
+	}
+	return nil
+}
+
+// The missions of one kind an account has done in all.
+type KindDone struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Kind  MissionKind            `protobuf:"varint,1,opt,name=kind,proto3,enum=missions.v1.MissionKind" json:"kind,omitempty"`
+	// How many.
+	Done uint64 `protobuf:"varint,2,opt,name=done,proto3" json:"done,omitempty"`
+	// Their goals, summed, each in its kind's unit: tiles, boxes, right answers or bombs.
+	Goals         uint64 `protobuf:"varint,3,opt,name=goals,proto3" json:"goals,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *KindDone) Reset() {
+	*x = KindDone{}
+	mi := &file_missions_v1_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *KindDone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*KindDone) ProtoMessage() {}
+
+func (x *KindDone) ProtoReflect() protoreflect.Message {
+	mi := &file_missions_v1_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use KindDone.ProtoReflect.Descriptor instead.
+func (*KindDone) Descriptor() ([]byte, []int) {
+	return file_missions_v1_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *KindDone) GetKind() MissionKind {
 	if x != nil {
 		return x.Kind
 	}
 	return MissionKind_MISSION_KIND_UNSPECIFIED
 }
 
-func (x *KindPaid) GetDone() uint64 {
+func (x *KindDone) GetDone() uint64 {
 	if x != nil {
 		return x.Done
 	}
 	return 0
 }
 
-func (x *KindPaid) GetGoals() uint64 {
+func (x *KindDone) GetGoals() uint64 {
 	if x != nil {
 		return x.Goals
 	}
@@ -161,7 +216,7 @@ type FlagMissionDone struct {
 
 func (x *FlagMissionDone) Reset() {
 	*x = FlagMissionDone{}
-	mi := &file_missions_v1_events_proto_msgTypes[2]
+	mi := &file_missions_v1_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +228,7 @@ func (x *FlagMissionDone) String() string {
 func (*FlagMissionDone) ProtoMessage() {}
 
 func (x *FlagMissionDone) ProtoReflect() protoreflect.Message {
-	mi := &file_missions_v1_events_proto_msgTypes[2]
+	mi := &file_missions_v1_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,7 +241,7 @@ func (x *FlagMissionDone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlagMissionDone.ProtoReflect.Descriptor instead.
 func (*FlagMissionDone) Descriptor() ([]byte, []int) {
-	return file_missions_v1_events_proto_rawDescGZIP(), []int{2}
+	return file_missions_v1_events_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *FlagMissionDone) GetFlag() string {
@@ -214,13 +269,17 @@ var File_missions_v1_events_proto protoreflect.FileDescriptor
 
 const file_missions_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x18missions/v1/events.proto\x12\vmissions.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16missions/v1/kind.proto\x1a\x1amissions/v1/missions.proto\"}\n" +
+	"\x18missions/v1/events.proto\x12\vmissions.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16missions/v1/kind.proto\x1a\x1amissions/v1/missions.proto\"M\n" +
 	"\fMissionsPaid\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1e\n" +
-	"\vpaid_in_all\x18\x02 \x01(\x04R\tpaidInAll\x12.\n" +
-	"\aby_kind\x18\x03 \x03(\v2\x15.missions.v1.KindPaidR\x06byKind\"b\n" +
-	"\bKindPaid\x12,\n" +
+	"\vpaid_in_all\x18\x02 \x01(\x04R\tpaidInAll\"}\n" +
+	"\fMissionsDone\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1e\n" +
+	"\vdone_in_all\x18\x02 \x01(\x04R\tdoneInAll\x12.\n" +
+	"\aby_kind\x18\x03 \x03(\v2\x15.missions.v1.KindDoneR\x06byKind\"b\n" +
+	"\bKindDone\x12,\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x18.missions.v1.MissionKindR\x04kind\x12\x12\n" +
 	"\x04done\x18\x02 \x01(\x04R\x04done\x12\x14\n" +
 	"\x05goals\x18\x03 \x01(\x04R\x05goals\"\x8e\x01\n" +
@@ -242,20 +301,21 @@ func file_missions_v1_events_proto_rawDescGZIP() []byte {
 	return file_missions_v1_events_proto_rawDescData
 }
 
-var file_missions_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_missions_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_missions_v1_events_proto_goTypes = []any{
 	(*MissionsPaid)(nil),          // 0: missions.v1.MissionsPaid
-	(*KindPaid)(nil),              // 1: missions.v1.KindPaid
-	(*FlagMissionDone)(nil),       // 2: missions.v1.FlagMissionDone
-	(MissionKind)(0),              // 3: missions.v1.MissionKind
-	(*FlagMission)(nil),           // 4: missions.v1.FlagMission
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*MissionsDone)(nil),          // 1: missions.v1.MissionsDone
+	(*KindDone)(nil),              // 2: missions.v1.KindDone
+	(*FlagMissionDone)(nil),       // 3: missions.v1.FlagMissionDone
+	(MissionKind)(0),              // 4: missions.v1.MissionKind
+	(*FlagMission)(nil),           // 5: missions.v1.FlagMission
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_missions_v1_events_proto_depIdxs = []int32{
-	1, // 0: missions.v1.MissionsPaid.by_kind:type_name -> missions.v1.KindPaid
-	3, // 1: missions.v1.KindPaid.kind:type_name -> missions.v1.MissionKind
-	4, // 2: missions.v1.FlagMissionDone.mission:type_name -> missions.v1.FlagMission
-	5, // 3: missions.v1.FlagMissionDone.done_at:type_name -> google.protobuf.Timestamp
+	2, // 0: missions.v1.MissionsDone.by_kind:type_name -> missions.v1.KindDone
+	4, // 1: missions.v1.KindDone.kind:type_name -> missions.v1.MissionKind
+	5, // 2: missions.v1.FlagMissionDone.mission:type_name -> missions.v1.FlagMission
+	6, // 3: missions.v1.FlagMissionDone.done_at:type_name -> google.protobuf.Timestamp
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -276,7 +336,7 @@ func file_missions_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_missions_v1_events_proto_rawDesc), len(file_missions_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

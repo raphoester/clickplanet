@@ -19,6 +19,6 @@ func TestTheOutboxKeepsEveryMessageMissionsSends(t *testing.T) {
 
 	require.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error {
 		return cpoutbox.New(db).Record(ctx, &planetv1.GrantCharges{}, &scoringv1.GrantPoints{}, &missionsv1.MissionsPaid{},
-			&missionsv1.FlagMissionDone{})
+			&missionsv1.MissionsDone{}, &missionsv1.FlagMissionDone{})
 	}))
 }

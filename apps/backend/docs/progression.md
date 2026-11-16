@@ -197,9 +197,7 @@ reads player's tables (but once, at its first migration, below).
   missions the account was paid in all, and the stats keep the highest number heard: an event told twice or late
   changes nothing, a lost one is repaired by the next, and the first one an account hears brings every mission it was
   paid before, back to the first day of missions. A guest is paid only once it signs in, so a mission a guest finished
-  and never signed in for does not count. It does not touch the streak, and it is not on the wire as a stat. The event
-  also says the same missions by kind (`by_kind`: how many and their goals summed), which progression does not read
-  yet.
+  and never signed in for does not count. It does not touch the streak, and it is not on the wire as a stat.
 - **The groups kept player's names** when they moved: a group reads its stream from the start, so a new name would
   have counted every fact in the streams again (see [Telling other modules what
   happened](composite-layer.md#telling-other-modules-what-happened)).

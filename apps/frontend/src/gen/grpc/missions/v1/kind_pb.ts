@@ -6,7 +6,7 @@
 import { proto3 } from "@bufbuild/protobuf";
 
 /**
- * The kinds of a player's mission, as Mission's kind names them. The operator's totals and MissionsPaid count by it.
+ * The kinds of a player's mission, as Mission's kind names them. The operator's totals and MissionsDone count by it.
  *
  * @generated from enum missions.v1.MissionKind
  */

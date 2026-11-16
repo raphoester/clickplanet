@@ -1,4 +1,4 @@
-package retell_missions_paid_usecase_test
+package retell_missions_done_usecase_test
 
 import (
 	"context"
@@ -14,11 +14,10 @@ import (
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/donemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/paidmessage"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/retell_missions_paid_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/retell_missions_done_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 var (
@@ -30,61 +29,61 @@ func account(i int) missions.AccountID {
 	return missions.AccountID{14: byte(i >> 8), 15: byte(i)}
 }
 
-// The account's first paid missions of its brief of the day.
-func paid(t *testing.T, store *inmemory_mission_store.Store, i, missionsPaid int) {
+// The account's first missions of its brief of the day taken to their goals, paid or not.
+func done(t *testing.T, store *inmemory_mission_store.Store, i, missionsDone int) {
 	t.Helper()
 
 	brief, err := store.KeepBrief(t.Context(), day, account(i), missions.Draw(day, account(i), "fr", world))
 	require.NoError(t, err)
-	ids := make([]missions.MissionID, 0, missionsPaid)
-	for _, mission := range brief.Snapshot()[:missionsPaid] {
-		ids = append(ids, mission.ID)
+	progress := map[missions.MissionID]uint32{}
+	for _, mission := range brief.Snapshot()[:missionsDone] {
+		progress[mission.ID] = 1_000
 	}
 	require.NoError(t, store.ChangeSheet(t.Context(), day, account(i), func(missions.Sheet) missions.Sheet {
-		return missions.SheetOf(missions.SheetSnapshot{Paid: cpcolls.NewSet(ids...)})
+		return missions.SheetOf(missions.SheetSnapshot{Progress: progress})
 	}))
 }
 
-func retell(t *testing.T, store *inmemory_mission_store.Store, outbox cpatomic.Outbox, dryRun bool) (retell_missions_paid_usecase.Out, error) {
+func retell(t *testing.T, store *inmemory_mission_store.Store, outbox cpatomic.Outbox, dryRun bool) (retell_missions_done_usecase.Out, error) {
 	t.Helper()
 
-	return retell_missions_paid_usecase.New(store, cpatomic.FakeTransactioner{}, outbox). //nolint:wrapcheck // the tests read the error.
-												Execute(t.Context(), retell_missions_paid_usecase.In{DryRun: dryRun})
+	return retell_missions_done_usecase.New(store, cpatomic.FakeTransactioner{}, outbox). //nolint:wrapcheck // the tests read the error.
+												Execute(t.Context(), retell_missions_done_usecase.In{DryRun: dryRun})
 }
 
-func told(outbox *cpatomic.FakeOutbox) []*missionsv1.MissionsPaid {
+func told(outbox *cpatomic.FakeOutbox) []*missionsv1.MissionsDone {
 	recorded := outbox.Recorded()
-	events := make([]*missionsv1.MissionsPaid, 0, len(recorded))
+	events := make([]*missionsv1.MissionsDone, 0, len(recorded))
 	for _, event := range recorded {
-		events = append(events, event.(*missionsv1.MissionsPaid))
+		events = append(events, event.(*missionsv1.MissionsDone))
 	}
 	return events
 }
 
-func TestEveryAccountPaidIsToldWhatItWasPaidInAllByKind(t *testing.T) {
+func TestEveryAccountWithAMissionDoneIsToldWhatItHasDoneInAllByKind(t *testing.T) {
 	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
-	paid(t, store, 1, 2)
-	paid(t, store, 2, 1)
-	paid(t, store, 3, 0)
+	done(t, store, 1, 2)
+	done(t, store, 2, 1)
+	done(t, store, 3, 0)
 
 	out, err := retell(t, store, outbox, false)
 
 	require.NoError(t, err)
-	assert.Equal(t, 2, out.Accounts, "an account with no mission paid is not told")
+	assert.Equal(t, 2, out.Accounts, "an account with no mission done is not told")
 	require.Len(t, told(outbox), 2)
 	for n, i := range []int{1, 2} {
-		totals, err := store.PaidTotals(t.Context(), account(i))
+		totals, err := store.DoneBy(t.Context(), account(i))
 		require.NoError(t, err)
-		assert.True(t, proto.Equal(paidmessage.Of(account(i), totals), told(outbox)[n]), told(outbox)[n])
+		assert.True(t, proto.Equal(donemessage.Of(account(i), totals), told(outbox)[n]), told(outbox)[n])
 		assert.NotEmpty(t, told(outbox)[n].GetByKind())
 	}
-	assert.Equal(t, uint64(2), told(outbox)[0].GetPaidInAll())
+	assert.Equal(t, uint64(2), told(outbox)[0].GetDoneInAll())
 }
 
 func TestADryRunCountsTheAccountsAndTellsNothing(t *testing.T) {
 	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
-	paid(t, store, 1, 1)
-	paid(t, store, 2, 3)
+	done(t, store, 1, 1)
+	done(t, store, 2, 3)
 
 	out, err := retell(t, store, outbox, true)
 
@@ -95,7 +94,7 @@ func TestADryRunCountsTheAccountsAndTellsNothing(t *testing.T) {
 
 func TestASecondRunTellsTheSameTotals(t *testing.T) {
 	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
-	paid(t, store, 1, 2)
+	done(t, store, 1, 2)
 
 	_, err := retell(t, store, outbox, false)
 	require.NoError(t, err)
@@ -110,7 +109,7 @@ func TestEveryPageIsToldEachAccountOnce(t *testing.T) {
 	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
 	const accounts = 1_001
 	for i := range accounts {
-		paid(t, store, i+1, 1)
+		done(t, store, i+1, 1)
 	}
 
 	out, err := retell(t, store, outbox, false)
@@ -127,7 +126,7 @@ func TestEveryPageIsToldEachAccountOnce(t *testing.T) {
 
 func TestAStoreThatFailsTellsNothing(t *testing.T) {
 	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
-	paid(t, store, 1, 1)
+	done(t, store, 1, 1)
 	store.FailWith(errors.New("down"))
 
 	_, err := retell(t, store, outbox, false)
@@ -142,9 +141,9 @@ func (failingOutbox) Record(context.Context, ...proto.Message) error { return er
 
 func TestAnOutboxThatFailsIsAnError(t *testing.T) {
 	store := inmemory_mission_store.New()
-	paid(t, store, 1, 1)
+	done(t, store, 1, 1)
 
 	_, err := retell(t, store, failingOutbox{}, false)
 
-	require.ErrorContains(t, err, "failed to record a page of the missions paid")
+	require.ErrorContains(t, err, "failed to record a page of the missions done")
 }

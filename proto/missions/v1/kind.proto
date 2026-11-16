@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package missions.v1;
 
-// The kinds of a player's mission, as Mission's kind names them. The operator's totals and MissionsPaid count by it.
+// The kinds of a player's mission, as Mission's kind names them. The operator's totals and MissionsDone count by it.
 enum MissionKind {
   MISSION_KIND_UNSPECIFIED = 0;
   MISSION_KIND_TAKE_FOR = 1;

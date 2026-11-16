@@ -743,7 +743,7 @@ func (*SaveRulesResponse) Descriptor() ([]byte, []int) {
 	return file_missions_v1_admin_proto_rawDescGZIP(), []int{12}
 }
 
-type RetellMissionsPaidRequest struct {
+type RetellMissionsDoneRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Counts the accounts it would tell, and tells nothing.
 	DryRun        bool `protobuf:"varint,1,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
@@ -751,20 +751,20 @@ type RetellMissionsPaidRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RetellMissionsPaidRequest) Reset() {
-	*x = RetellMissionsPaidRequest{}
+func (x *RetellMissionsDoneRequest) Reset() {
+	*x = RetellMissionsDoneRequest{}
 	mi := &file_missions_v1_admin_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RetellMissionsPaidRequest) String() string {
+func (x *RetellMissionsDoneRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RetellMissionsPaidRequest) ProtoMessage() {}
+func (*RetellMissionsDoneRequest) ProtoMessage() {}
 
-func (x *RetellMissionsPaidRequest) ProtoReflect() protoreflect.Message {
+func (x *RetellMissionsDoneRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_missions_v1_admin_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -776,40 +776,40 @@ func (x *RetellMissionsPaidRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RetellMissionsPaidRequest.ProtoReflect.Descriptor instead.
-func (*RetellMissionsPaidRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use RetellMissionsDoneRequest.ProtoReflect.Descriptor instead.
+func (*RetellMissionsDoneRequest) Descriptor() ([]byte, []int) {
 	return file_missions_v1_admin_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *RetellMissionsPaidRequest) GetDryRun() bool {
+func (x *RetellMissionsDoneRequest) GetDryRun() bool {
 	if x != nil {
 		return x.DryRun
 	}
 	return false
 }
 
-type RetellMissionsPaidResponse struct {
+type RetellMissionsDoneResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The accounts told: every one with a mission paid. With dry_run, the ones it would tell.
+	// The accounts told: every one with a mission done, guests included. With dry_run, the ones it would tell.
 	Accounts      uint32 `protobuf:"varint,1,opt,name=accounts,proto3" json:"accounts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RetellMissionsPaidResponse) Reset() {
-	*x = RetellMissionsPaidResponse{}
+func (x *RetellMissionsDoneResponse) Reset() {
+	*x = RetellMissionsDoneResponse{}
 	mi := &file_missions_v1_admin_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RetellMissionsPaidResponse) String() string {
+func (x *RetellMissionsDoneResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RetellMissionsPaidResponse) ProtoMessage() {}
+func (*RetellMissionsDoneResponse) ProtoMessage() {}
 
-func (x *RetellMissionsPaidResponse) ProtoReflect() protoreflect.Message {
+func (x *RetellMissionsDoneResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_missions_v1_admin_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -821,12 +821,12 @@ func (x *RetellMissionsPaidResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RetellMissionsPaidResponse.ProtoReflect.Descriptor instead.
-func (*RetellMissionsPaidResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use RetellMissionsDoneResponse.ProtoReflect.Descriptor instead.
+func (*RetellMissionsDoneResponse) Descriptor() ([]byte, []int) {
 	return file_missions_v1_admin_proto_rawDescGZIP(), []int{14}
 }
 
-func (x *RetellMissionsPaidResponse) GetAccounts() uint32 {
+func (x *RetellMissionsDoneResponse) GetAccounts() uint32 {
 	if x != nil {
 		return x.Accounts
 	}
@@ -883,16 +883,16 @@ const file_missions_v1_admin_proto_rawDesc = "" +
 	"\x10SaveRulesRequest\x12(\n" +
 	"\x05rules\x18\x01 \x01(\v2\x12.missions.v1.RulesR\x05rules\"\x13\n" +
 	"\x11SaveRulesResponse\"4\n" +
-	"\x19RetellMissionsPaidRequest\x12\x17\n" +
+	"\x19RetellMissionsDoneRequest\x12\x17\n" +
 	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"8\n" +
-	"\x1aRetellMissionsPaidResponse\x12\x1a\n" +
+	"\x1aRetellMissionsDoneResponse\x12\x1a\n" +
 	"\baccounts\x18\x01 \x01(\rR\baccounts2\xcf\x03\n" +
 	"\fAdminService\x12X\n" +
 	"\fListFlagDays\x12 .missions.v1.ListFlagDaysRequest\x1a!.missions.v1.ListFlagDaysResponse\"\x03\x90\x02\x01\x12d\n" +
 	"\x10GetMissionTotals\x12$.missions.v1.GetMissionTotalsRequest\x1a%.missions.v1.GetMissionTotalsResponse\"\x03\x90\x02\x01\x12L\n" +
 	"\bGetRules\x12\x1c.missions.v1.GetRulesRequest\x1a\x1d.missions.v1.GetRulesResponse\"\x03\x90\x02\x01\x12J\n" +
 	"\tSaveRules\x12\x1d.missions.v1.SaveRulesRequest\x1a\x1e.missions.v1.SaveRulesResponse\x12e\n" +
-	"\x12RetellMissionsPaid\x12&.missions.v1.RetellMissionsPaidRequest\x1a'.missions.v1.RetellMissionsPaidResponseB\xc0\x01\n" +
+	"\x12RetellMissionsDone\x12&.missions.v1.RetellMissionsDoneRequest\x1a'.missions.v1.RetellMissionsDoneResponseB\xc0\x01\n" +
 	"\x0fcom.missions.v1B\n" +
 	"AdminProtoP\x01ZTgithub.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1;missionsv1\xa2\x02\x03MXX\xaa\x02\vMissions.V1\xca\x02\vMissions\\V1\xe2\x02\x17Missions\\V1\\GPBMetadata\xea\x02\fMissions::V1b\x06proto3"
 
@@ -923,8 +923,8 @@ var file_missions_v1_admin_proto_goTypes = []any{
 	(*GetRulesResponse)(nil),           // 10: missions.v1.GetRulesResponse
 	(*SaveRulesRequest)(nil),           // 11: missions.v1.SaveRulesRequest
 	(*SaveRulesResponse)(nil),          // 12: missions.v1.SaveRulesResponse
-	(*RetellMissionsPaidRequest)(nil),  // 13: missions.v1.RetellMissionsPaidRequest
-	(*RetellMissionsPaidResponse)(nil), // 14: missions.v1.RetellMissionsPaidResponse
+	(*RetellMissionsDoneRequest)(nil),  // 13: missions.v1.RetellMissionsDoneRequest
+	(*RetellMissionsDoneResponse)(nil), // 14: missions.v1.RetellMissionsDoneResponse
 	(*timestamppb.Timestamp)(nil),      // 15: google.protobuf.Timestamp
 	(*FlagMission)(nil),                // 16: missions.v1.FlagMission
 	(MissionKind)(0),                   // 17: missions.v1.MissionKind
@@ -951,12 +951,12 @@ var file_missions_v1_admin_proto_depIdxs = []int32{
 	5,  // 17: missions.v1.AdminService.GetMissionTotals:input_type -> missions.v1.GetMissionTotalsRequest
 	9,  // 18: missions.v1.AdminService.GetRules:input_type -> missions.v1.GetRulesRequest
 	11, // 19: missions.v1.AdminService.SaveRules:input_type -> missions.v1.SaveRulesRequest
-	13, // 20: missions.v1.AdminService.RetellMissionsPaid:input_type -> missions.v1.RetellMissionsPaidRequest
+	13, // 20: missions.v1.AdminService.RetellMissionsDone:input_type -> missions.v1.RetellMissionsDoneRequest
 	1,  // 21: missions.v1.AdminService.ListFlagDays:output_type -> missions.v1.ListFlagDaysResponse
 	6,  // 22: missions.v1.AdminService.GetMissionTotals:output_type -> missions.v1.GetMissionTotalsResponse
 	10, // 23: missions.v1.AdminService.GetRules:output_type -> missions.v1.GetRulesResponse
 	12, // 24: missions.v1.AdminService.SaveRules:output_type -> missions.v1.SaveRulesResponse
-	14, // 25: missions.v1.AdminService.RetellMissionsPaid:output_type -> missions.v1.RetellMissionsPaidResponse
+	14, // 25: missions.v1.AdminService.RetellMissionsDone:output_type -> missions.v1.RetellMissionsDoneResponse
 	21, // [21:26] is the sub-list for method output_type
 	16, // [16:21] is the sub-list for method input_type
 	16, // [16:16] is the sub-list for extension type_name

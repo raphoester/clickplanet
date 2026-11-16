@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// The kinds of a player's mission, as Mission's kind names them. The operator's totals and MissionsPaid count by it.
+// The kinds of a player's mission, as Mission's kind names them. The operator's totals and MissionsDone count by it.
 type MissionKind int32
 
 const (

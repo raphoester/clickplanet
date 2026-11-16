@@ -10,15 +10,23 @@ message MissionsPaid {
   string account_id = 1;
   // How many missions the account was paid in all, these included: an event told twice or lost, the next one repairs.
   uint64 paid_in_all = 2;
-  // The same missions by kind, totals too, one per kind paid at least once, in the order of MissionKind. An event told
-  // before the kinds were added has none; RetellMissionsPaid tells every account's once.
-  repeated KindPaid by_kind = 3;
 }
 
-// The missions of one kind an account was paid in all.
-message KindPaid {
+// The missions an account has done in all, every day, told each time a fact finishes one or more of them, a guest's
+// too: whether a mission is worth anything is the listener's call. Totals, not one event per mission: told twice, late
+// or lost, they change nothing, and the first one brings every mission done before.
+message MissionsDone {
+  string account_id = 1;
+  // How many missions the account has done in all, these included.
+  uint64 done_in_all = 2;
+  // The same missions by kind, one per kind done at least once, in the order of MissionKind.
+  repeated KindDone by_kind = 3;
+}
+
+// The missions of one kind an account has done in all.
+message KindDone {
   MissionKind kind = 1;
-  // How many were paid.
+  // How many.
   uint64 done = 2;
   // Their goals, summed, each in its kind's unit: tiles, boxes, right answers or bombs.
   uint64 goals = 3;

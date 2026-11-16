@@ -1,4 +1,4 @@
-package paidmessage
+package donemessage
 
 import (
 	"cmp"
@@ -8,13 +8,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 )
 
-// What an account was paid in all as the missions.v1.MissionsPaid event, its kinds in the order of MissionKind.
-func Of(account missions.AccountID, paid missions.Paid) *missionsv1.MissionsPaid {
-	told := &missionsv1.MissionsPaid{AccountId: account.String(), PaidInAll: paid.InAll}
-	for kind, total := range paid.ByKind {
-		told.ByKind = append(told.ByKind, &missionsv1.KindPaid{Kind: KindOf(kind), Done: total.Done, Goals: total.Goals})
+// What an account has done in all as the missions.v1.MissionsDone event, its kinds in the order of MissionKind.
+func Of(account missions.AccountID, done missions.Done) *missionsv1.MissionsDone {
+	told := &missionsv1.MissionsDone{AccountId: account.String(), DoneInAll: done.InAll}
+	for kind, total := range done.ByKind {
+		told.ByKind = append(told.ByKind, &missionsv1.KindDone{Kind: KindOf(kind), Done: total.Done, Goals: total.Goals})
 	}
-	slices.SortFunc(told.ByKind, func(a, b *missionsv1.KindPaid) int { return cmp.Compare(a.GetKind(), b.GetKind()) })
+	slices.SortFunc(told.ByKind, func(a, b *missionsv1.KindDone) int { return cmp.Compare(a.GetKind(), b.GetKind()) })
 	return told
 }
 

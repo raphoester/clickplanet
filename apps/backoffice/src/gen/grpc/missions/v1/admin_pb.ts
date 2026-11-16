@@ -629,9 +629,9 @@ export class SaveRulesResponse extends Message<SaveRulesResponse> {
 }
 
 /**
- * @generated from message missions.v1.RetellMissionsPaidRequest
+ * @generated from message missions.v1.RetellMissionsDoneRequest
  */
-export class RetellMissionsPaidRequest extends Message<RetellMissionsPaidRequest> {
+export class RetellMissionsDoneRequest extends Message<RetellMissionsDoneRequest> {
   /**
    * Counts the accounts it would tell, and tells nothing.
    *
@@ -639,70 +639,70 @@ export class RetellMissionsPaidRequest extends Message<RetellMissionsPaidRequest
    */
   dryRun = false;
 
-  constructor(data?: PartialMessage<RetellMissionsPaidRequest>) {
+  constructor(data?: PartialMessage<RetellMissionsDoneRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "missions.v1.RetellMissionsPaidRequest";
+  static readonly typeName = "missions.v1.RetellMissionsDoneRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetellMissionsPaidRequest {
-    return new RetellMissionsPaidRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetellMissionsDoneRequest {
+    return new RetellMissionsDoneRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RetellMissionsPaidRequest {
-    return new RetellMissionsPaidRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RetellMissionsDoneRequest {
+    return new RetellMissionsDoneRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RetellMissionsPaidRequest {
-    return new RetellMissionsPaidRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RetellMissionsDoneRequest {
+    return new RetellMissionsDoneRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RetellMissionsPaidRequest | PlainMessage<RetellMissionsPaidRequest> | undefined, b: RetellMissionsPaidRequest | PlainMessage<RetellMissionsPaidRequest> | undefined): boolean {
-    return proto3.util.equals(RetellMissionsPaidRequest, a, b);
+  static equals(a: RetellMissionsDoneRequest | PlainMessage<RetellMissionsDoneRequest> | undefined, b: RetellMissionsDoneRequest | PlainMessage<RetellMissionsDoneRequest> | undefined): boolean {
+    return proto3.util.equals(RetellMissionsDoneRequest, a, b);
   }
 }
 
 /**
- * @generated from message missions.v1.RetellMissionsPaidResponse
+ * @generated from message missions.v1.RetellMissionsDoneResponse
  */
-export class RetellMissionsPaidResponse extends Message<RetellMissionsPaidResponse> {
+export class RetellMissionsDoneResponse extends Message<RetellMissionsDoneResponse> {
   /**
-   * The accounts told: every one with a mission paid. With dry_run, the ones it would tell.
+   * The accounts told: every one with a mission done, guests included. With dry_run, the ones it would tell.
    *
    * @generated from field: uint32 accounts = 1;
    */
   accounts = 0;
 
-  constructor(data?: PartialMessage<RetellMissionsPaidResponse>) {
+  constructor(data?: PartialMessage<RetellMissionsDoneResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "missions.v1.RetellMissionsPaidResponse";
+  static readonly typeName = "missions.v1.RetellMissionsDoneResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "accounts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetellMissionsPaidResponse {
-    return new RetellMissionsPaidResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetellMissionsDoneResponse {
+    return new RetellMissionsDoneResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RetellMissionsPaidResponse {
-    return new RetellMissionsPaidResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RetellMissionsDoneResponse {
+    return new RetellMissionsDoneResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RetellMissionsPaidResponse {
-    return new RetellMissionsPaidResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RetellMissionsDoneResponse {
+    return new RetellMissionsDoneResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RetellMissionsPaidResponse | PlainMessage<RetellMissionsPaidResponse> | undefined, b: RetellMissionsPaidResponse | PlainMessage<RetellMissionsPaidResponse> | undefined): boolean {
-    return proto3.util.equals(RetellMissionsPaidResponse, a, b);
+  static equals(a: RetellMissionsDoneResponse | PlainMessage<RetellMissionsDoneResponse> | undefined, b: RetellMissionsDoneResponse | PlainMessage<RetellMissionsDoneResponse> | undefined): boolean {
+    return proto3.util.equals(RetellMissionsDoneResponse, a, b);
   }
 }
 
