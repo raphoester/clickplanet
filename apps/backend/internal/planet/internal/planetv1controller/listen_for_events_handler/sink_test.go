@@ -254,3 +254,28 @@ func TestASinkFramesAKnockOutAsOneEventWithItsTilesAndVersion(t *testing.T) {
 		Version: &planetv1.MapVersion{Epoch: 1_790_000_000, Seq: 9},
 	}, stream.sent[0].GetKnockOut()))
 }
+
+func TestASinkFramesAVirusSpreadAsOneEventWithItsTilesAndItsVersion(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Version: clicks.MapVersion{Epoch: 7, Seq: 43},
+		Infection: &clicks.Infection{
+			Virus:  clicks.VirusSnapshot{ID: "v-1", Flag: "fr", Victim: "de", Tile: 5, Infected: []uint32{5, 4}, Ended: true},
+			Taken:  []uint32{4},
+			Struck: []clicks.TileShields{{Tile: 6, Shields: 2}},
+		},
+	}))
+
+	require.Len(t, stream.sent, 1)
+	spread := stream.sent[0].GetVirusSpread()
+	require.NotNil(t, spread)
+	assert.Equal(t, "v-1", spread.GetVirusId())
+	assert.Equal(t, "fr", spread.GetCountryId())
+	assert.Equal(t, "de", spread.GetVictimCountryId())
+	assert.Equal(t, []uint32{4}, spread.GetTakenTileIds())
+	require.Len(t, spread.GetStruck(), 1)
+	assert.Equal(t, uint32(2), spread.GetStruck()[0].GetShields())
+	assert.True(t, spread.GetEnded())
+	assert.Equal(t, uint64(43), spread.GetVersion().GetSeq())
+}

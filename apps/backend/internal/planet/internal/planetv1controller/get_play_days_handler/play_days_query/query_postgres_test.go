@@ -81,7 +81,7 @@ func (s *testSuite) playDays(accounts ...string) *planetv1.GetPlayDaysResponse {
 	return answer
 }
 
-// Every kind of event, by ada on day 0 to 9, one kind a day.
+// Every kind of event, by ada on day 0 to 8, one kind a day, and two viruses' on day 10 and 11.
 func everyKind() []ledger.Event {
 	return []ledger.Event{
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "fr", Previous: "de", At: onDay(0)},
@@ -107,6 +107,12 @@ func everyKind() []ledger.Event {
 		ledger.KnockingOut{Tile: 13, Scope: "203.0.113.7", Account: ada, Country: "fr", Out: "de", At: onDay(8), Cleared: []uint32{14}},
 		ledger.Taking{Tile: 15, Scope: "198.51.100.4", Account: bob, Country: "de", Previous: "fr", At: onDay(9)},
 		ledger.Taking{Tile: 16, Scope: "198.51.100.4", Country: "fr", Previous: "de", At: onDay(9)},
+		ledger.Infecting{Tile: 17, Scope: "203.0.113.7", Account: ada, Country: "fr", At: onDay(10), Impacts: []clicks.Impact{
+			{Tile: 17, Owner: "de", Outcome: clicks.Taken},
+		}},
+		ledger.Infecting{Tile: 17, Scope: "203.0.113.7", Account: ada, Country: "fr", At: onDay(11), Impacts: []clicks.Impact{
+			{Tile: 18, Owner: "de", Outcome: clicks.Shielded, Shields: 1},
+		}},
 	}
 }
 
@@ -114,7 +120,7 @@ func (s *testSuite) TestEachAccountsDaysAreTheDaysOfTheEventsThatTookATile() {
 	s.record(everyKind()...)
 
 	s.True(proto.Equal(&planetv1.GetPlayDaysResponse{Accounts: []*planetv1.AccountPlayDays{
-		{AccountId: ada, Days: []string{"2026-10-08", "2026-10-09", "2026-10-11"}},
+		{AccountId: ada, Days: []string{"2026-10-08", "2026-10-09", "2026-10-11", "2026-10-18"}},
 		{AccountId: bob, Days: []string{"2026-10-17"}},
 	}}, s.playDays(ada, bob)), "%v", s.playDays(ada, bob))
 }

@@ -13,9 +13,11 @@ func everyKind() *cpcolls.Set[Kind] {
 }
 
 func TestEveryKindWeighedIsDrawn(t *testing.T) {
+	weights := TestRules().Kinds
+	weights[KindVirus] = 1
 	seen := cpcolls.NewSet[Kind]()
-	for range 200 {
-		seen.Add(drawKind(everyKind(), TestRules().Kinds))
+	for range 300 {
+		seen.Add(drawKind(everyKind(), weights))
 	}
 
 	assert.Equal(t, len(Kinds), seen.Len())

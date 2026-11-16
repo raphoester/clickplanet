@@ -25,8 +25,8 @@ export class Rules extends Message<Rules> {
   toll?: TollRules;
 
   /**
-   * The map takes no play: Click, DropBomb, PlaceShield and UseRefill are refused, and GetFreeze answers frozen. The map
-   * still loads and streams.
+   * The map takes no play: Click, DropBomb, PlaceShield, UseRefill and UseVirus are refused, no virus spreads, and
+   * GetFreeze answers frozen. The map still loads and streams.
    *
    * @generated from field: optional bool frozen = 4;
    */
@@ -449,6 +449,11 @@ export class ChargeRules extends Message<ChargeRules> {
    */
   shield?: ShieldRules;
 
+  /**
+   * @generated from field: planet.v1.VirusRules virus = 5;
+   */
+  virus?: VirusRules;
+
   constructor(data?: PartialMessage<ChargeRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -461,6 +466,7 @@ export class ChargeRules extends Message<ChargeRules> {
     { no: 2, name: "bomb", kind: "message", T: BombRules },
     { no: 3, name: "enclose", kind: "message", T: EncloseRules },
     { no: 4, name: "shield", kind: "message", T: ShieldRules },
+    { no: 5, name: "virus", kind: "message", T: VirusRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeRules {
@@ -689,6 +695,53 @@ export class ShieldRules extends Message<ShieldRules> {
 
   static equals(a: ShieldRules | PlainMessage<ShieldRules> | undefined, b: ShieldRules | PlainMessage<ShieldRules> | undefined): boolean {
     return proto3.util.equals(ShieldRules, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.VirusRules
+ */
+export class VirusRules extends Message<VirusRules> {
+  /**
+   * How many infections a virus makes at most, a tile taken or a shield struck each, its first included. 1 to 1024.
+   *
+   * @generated from field: optional uint32 infections = 1;
+   */
+  infections?: number;
+
+  /**
+   * How long a virus waits between two spreads. 1 s to 10 min.
+   *
+   * @generated from field: google.protobuf.Duration every = 2;
+   */
+  every?: Duration;
+
+  constructor(data?: PartialMessage<VirusRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.VirusRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "infections", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 2, name: "every", kind: "message", T: Duration },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VirusRules {
+    return new VirusRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): VirusRules {
+    return new VirusRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): VirusRules {
+    return new VirusRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: VirusRules | PlainMessage<VirusRules> | undefined, b: VirusRules | PlainMessage<VirusRules> | undefined): boolean {
+    return proto3.util.equals(VirusRules, a, b);
   }
 }
 

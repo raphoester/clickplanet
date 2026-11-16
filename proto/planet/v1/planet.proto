@@ -38,6 +38,9 @@ service ClickService {
 
   rpc PlaceShield(PlaceShieldRequest) returns (PlaceShieldResponse);
 
+  // Infects an enemy tile with no shield: it becomes the caller's flag's, and the virus spreads from it on its own.
+  rpc UseVirus(UseVirusRequest) returns (UseVirusResponse);
+
   rpc GetFortresses(GetFortressesRequest) returns (GetFortressesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -140,8 +143,8 @@ message ClickResponse {
   ClickBudget budget = 1;
 }
 
-// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield and UseRefill answer while the rules in force
-// freeze the map, or an arena's freeze holds it.
+// The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill and UseVirus answer while the rules
+// in force freeze the map, or an arena's freeze holds it.
 message FrozenRefusal {}
 
 // The detail of the FailedPrecondition that Click answers while the reach plays, for a tile that touches none of the
@@ -152,7 +155,11 @@ message ReachRefusal {}
 // stays held.
 message BombRefusal {}
 
-// The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
+// The detail of the FailedPrecondition that UseVirus answers for a tile that is no enemy tile, or holds a shield: the
+// virus stays held.
+message VirusRefusal {}
+
+// The detail of a PermissionDenied that Click, DropBomb, PlaceShield and UseVirus answer a banned caller.
 message BanRefusal {
   int64 banned_until_unix_ms = 1;
 }
@@ -192,6 +199,15 @@ message GetMapResponse {
 
   // The flags the arena knocked out: each lost its capital to another flag.
   repeated string knocked_out = 7;
+
+  // The tiles of the range a live virus infects.
+  repeated InfectedTile infected = 8;
+}
+
+message InfectedTile {
+  uint32 tile_id = 1;
+
+  string virus_id = 2;
 }
 
 message MapVersion {
@@ -270,7 +286,31 @@ message PlanetEvent {
     ChargesGranted charges_granted = 12;
 
     KnockOut knock_out = 13;
+
+    VirusSpread virus_spread = 14;
   }
+}
+
+// The one event of a virus's use or tick: every tile it took is the flag's now and infected, but those in struck.
+message VirusSpread {
+  string virus_id = 1;
+
+  // The flag the virus takes tiles for.
+  string country_id = 2;
+
+  // The flag whose land it spreads into.
+  string victim_country_id = 3;
+
+  // Each is country_id's now, and infected.
+  repeated uint32 taken_tile_ids = 4;
+
+  // Each lost one shield and kept its flag: with the shields it kept.
+  repeated TileShields struck = 5;
+
+  // The virus spreads no more: every tile it infects is cured, and keeps its flag.
+  bool ended = 6;
+
+  MapVersion version = 7;
 }
 
 // The one event of a knock-out, after the take that felled the capital: every other tile of the flag went blank, with
@@ -394,6 +434,8 @@ message ChargesHeld {
   uint32 spread_clicks_left = 3;
 
   uint32 shields = 5;
+
+  bool virus = 6;
 }
 
 message GetChargesRequest {}
@@ -449,6 +491,12 @@ message GetChargeRulesResponse {
 
   // No enclosure closes a shape, and none is offered: the page hides the enclose slot.
   bool enclosures_off = 17;
+
+  // How many infections a virus makes at most, a tile taken or a shield struck each, its first included.
+  uint32 virus_infections = 18;
+
+  // How long a virus waits between two spreads.
+  uint32 virus_every_ms = 19;
 }
 
 message TollStep {
@@ -472,6 +520,8 @@ enum BonusKind {
   BONUS_KIND_ENCLOSE_CLICKS = 4;
 
   BONUS_KIND_SHIELDS = 6;
+
+  BONUS_KIND_VIRUS = 7;
 }
 
 message UseRefillRequest {
@@ -545,6 +595,14 @@ message TilesSpread {
 
   repeated uint32 spread_tile_ids = 3;
 }
+
+message UseVirusRequest {
+  uint32 tile_id = 1;
+
+  string country_id = 2;
+}
+
+message UseVirusResponse {}
 
 message PlaceShieldRequest {
   uint32 tile_id = 1;

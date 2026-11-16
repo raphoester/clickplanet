@@ -88,7 +88,8 @@ holds every value, another set only what it changes, and plays default's for the
 `bonuses.v1.Rules`:
 
 - `kinds.*` — what a box or a right answer is drawn as: a weight per kind, `refill`, `spreadClicks`, `encloseClicks`,
-  `bomb`, `shields`. 0 is never drawn, nor a kind planet says a hand has no room for
+  `bomb`, `shields`, `virus`. 0 is never drawn, nor a kind planet says a hand has no room for. `virus` weighs 0 in
+  `default` until the levels open it ([The virus](virus.md))
 - `spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `shield.maxPerBox` — what a box or a right answer
   grants at most (and at least). The stacks those fill are planet's `charges.*`
 - `signInRefill` — a guest's first sign-in earns a refill ([A guest's first sign-in earns a refill](sign-in-refill.md))

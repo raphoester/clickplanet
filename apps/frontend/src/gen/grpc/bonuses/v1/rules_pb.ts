@@ -107,6 +107,11 @@ export class KindWeights extends Message<KindWeights> {
    */
   shields?: number;
 
+  /**
+   * @generated from field: optional double virus = 6;
+   */
+  virus?: number;
+
   constructor(data?: PartialMessage<KindWeights>) {
     super();
     proto3.util.initPartial(data, this);
@@ -120,6 +125,7 @@ export class KindWeights extends Message<KindWeights> {
     { no: 3, name: "enclose_clicks", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 4, name: "bomb", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 5, name: "shields", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 6, name: "virus", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KindWeights {

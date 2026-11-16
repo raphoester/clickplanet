@@ -41,6 +41,8 @@ type Held struct {
 	SpreadClicks int
 
 	Shields int
+
+	Virus bool
 }
 
 // Full is every kind the hand has no room for: a stack at its size, a charge held where one is the most, and a bomb
@@ -62,6 +64,9 @@ func (h Held) Full(rules Rules) []Kind {
 	if h.Shields >= rules.Shield.Held {
 		kinds = append(kinds, KindShields)
 	}
+	if h.Virus {
+		kinds = append(kinds, KindVirus)
+	}
 
 	return kinds
 }
@@ -78,6 +83,8 @@ func (h Held) Count(kind Kind) int {
 		return h.SpreadClicks
 	case KindShields:
 		return h.Shields
+	case KindVirus:
+		return oneIf(h.Virus)
 	}
 
 	return 0
@@ -118,6 +125,8 @@ func GrantOf(kind Kind, amount int) Held {
 		return Held{SpreadClicks: amount}
 	case KindShields:
 		return Held{Shields: amount}
+	case KindVirus:
+		return Held{Virus: amount > 0}
 	}
 
 	return Held{}
@@ -136,6 +145,8 @@ func (h Held) Granted(kind Kind, amount int, rules Rules) Held {
 		h.SpreadClicks = stacked(h.SpreadClicks, amount, rules.Spread.Clicks)
 	case KindShields:
 		h.Shields = stacked(h.Shields, amount, rules.Shield.Held)
+	case KindVirus:
+		h.Virus = true
 	}
 
 	return h
@@ -157,6 +168,20 @@ func (h Held) AfterBomb() (Held, bool) {
 	h.Bomb = false
 
 	return h, ok
+}
+
+func (h Held) AfterVirus() (Held, bool) {
+	ok := h.Virus
+	h.Virus = false
+
+	return h, ok
+}
+
+// WithVirusBack undoes AfterVirus, for a virus the map refused.
+func (h Held) WithVirusBack() Held {
+	h.Virus = true
+
+	return h
 }
 
 func (h Held) AfterEnclose() (Held, bool) {

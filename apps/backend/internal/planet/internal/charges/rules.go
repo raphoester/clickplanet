@@ -2,6 +2,7 @@ package charges
 
 import (
 	"errors"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 )
@@ -13,12 +14,19 @@ type Rules struct {
 	Bomb    BombRules
 	Enclose EncloseRules
 	Shield  ShieldRules
+	Virus   VirusRules
 }
 
 // A tile keeps its shields in a byte.
 const mostShieldsOnATile = 255
 
 const MostSpreadRings = 3
+
+const (
+	mostVirusInfections = 1024
+	quickestVirus       = time.Second
+	slowestVirus        = 10 * time.Minute
+)
 
 func (r Rules) Validate() error {
 	return errors.Join(
@@ -32,6 +40,10 @@ func (r Rules) Validate() error {
 		rules.Positive("shield.perTile", r.Shield.PerTile),
 		rules.AtMost("shield.perTile", r.Shield.PerTile, "what a tile keeps", mostShieldsOnATile),
 		r.Enclose.validate(),
+		rules.Positive("virus.infections", r.Virus.Infections),
+		rules.AtMost("virus.infections", r.Virus.Infections, "the most a virus makes", mostVirusInfections),
+		rules.AtLeast("virus.every", r.Virus.Every, "a second", quickestVirus),
+		rules.AtMost("virus.every", r.Virus.Every, "ten minutes", slowestVirus),
 	)
 }
 
@@ -61,6 +73,13 @@ func (r EncloseRules) validate() error {
 		return errors.New("enclose.off is on with enclose.unlimited: an enclosure cannot be off and free")
 	}
 	return nil
+}
+
+// VirusRules: a virus makes Infections at most, a tile taken or a shield struck each, its first included, one spread
+// every Every.
+type VirusRules struct {
+	Infections int
+	Every      time.Duration
 }
 
 type ShieldRules struct {

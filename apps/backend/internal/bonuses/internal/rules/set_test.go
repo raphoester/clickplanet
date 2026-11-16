@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
@@ -91,4 +92,10 @@ func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
 
 	_, err := set.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
+}
+
+func TestNoBoxAndNoRightAnswerIsAVirusUntilTheLevelsOpenIt(t *testing.T) {
+	set := restored(t, rules.Seeded())
+
+	assert.False(t, bonuses.RulesOf(set.TakePlayedSnapshot().Rules).Offered(bonuses.KindVirus))
 }

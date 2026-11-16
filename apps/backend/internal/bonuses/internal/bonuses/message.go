@@ -16,6 +16,7 @@ func RulesOf(m *bonusesv1.Rules) Rules {
 			KindEncloseClicks: kinds.GetEncloseClicks(),
 			KindBomb:          kinds.GetBomb(),
 			KindShields:       kinds.GetShields(),
+			KindVirus:         kinds.GetVirus(),
 		},
 		Spread:       SpreadRules{MaxPerBox: int(m.GetSpread().GetMaxPerBox())},
 		Enclose:      EncloseRules{MaxPerBox: int(m.GetEnclose().GetMaxPerBox())},

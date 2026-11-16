@@ -33,6 +33,7 @@ message KindWeights {
   optional double enclose_clicks = 3;
   optional double bomb = 4;
   optional double shields = 5;
+  optional double virus = 6;
 }
 
 message SpreadRules {
