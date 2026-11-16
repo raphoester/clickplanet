@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
@@ -51,7 +52,18 @@ type Stats struct {
 	bonusesClaimed uint64
 	rightAnswers   uint64
 	missionsDone   uint64
+	missionsByKind map[MissionKind]MissionTally
 	counted        Counted
+}
+
+// MissionKind names a kind of mission as missions names it in its briefs: missions.v1.MissionKind without its prefix,
+// in lower case.
+type MissionKind string
+
+// MissionTally is the missions of one kind an account has done in all, and their goals summed.
+type MissionTally struct {
+	Done  uint64
+	Goals uint64
 }
 
 // A fact can be told twice: one before its kind's mark was counted already. Ledger facts come in ledger order, then index order.
@@ -76,6 +88,7 @@ type StatsSnapshot struct {
 	BonusesClaimed uint64
 	RightAnswers   uint64
 	MissionsDone   uint64
+	MissionsByKind map[MissionKind]MissionTally
 	Counted        Counted
 }
 
@@ -92,6 +105,7 @@ func (s StatsSnapshot) Restore() Stats {
 		bonusesClaimed: s.BonusesClaimed,
 		rightAnswers:   s.RightAnswers,
 		missionsDone:   s.MissionsDone,
+		missionsByKind: talliesOf(s.MissionsByKind),
 		counted:        s.Counted,
 	}
 }
@@ -109,6 +123,7 @@ func (s Stats) TakeSnapshot() StatsSnapshot {
 		BonusesClaimed: s.bonusesClaimed,
 		RightAnswers:   s.rightAnswers,
 		MissionsDone:   s.missionsDone,
+		MissionsByKind: talliesOf(s.missionsByKind),
 		Counted:        s.counted,
 	}
 }
@@ -146,7 +161,21 @@ func (s Stats) BonusesClaimed() uint64 { return s.bonusesClaimed }
 
 func (s Stats) RightAnswers() uint64 { return s.rightAnswers }
 
+// MissionsDone is how many missions the account was paid in all, which the Missions title track counts.
 func (s Stats) MissionsDone() uint64 { return s.missionsDone }
+
+// MissionGoals is the goals of the missions of the kind the account has done, summed, a guest's too.
+func (s Stats) MissionGoals(kind MissionKind) uint64 { return s.missionsByKind[kind].Goals }
+
+func (s Stats) MissionsByKind() map[MissionKind]MissionTally { return talliesOf(s.missionsByKind) }
+
+// A copy, so no two stats share one map; none when it holds no kind, so a row read back equals the one recorded.
+func talliesOf(tallies map[MissionKind]MissionTally) map[MissionKind]MissionTally {
+	if len(tallies) == 0 {
+		return nil
+	}
+	return maps.Clone(tallies)
+}
 
 type TakeMark struct {
 	Position uint64
@@ -197,6 +226,10 @@ func RightAnswerAt(at time.Time) func(Stats) Stats {
 
 func MissionsPaid(inAll uint64) func(Stats) Stats {
 	return func(s Stats) Stats { return s.WithMissionsPaid(inAll) }
+}
+
+func MissionsDone(byKind map[MissionKind]MissionTally) func(Stats) Stats {
+	return func(s Stats) Stats { return s.WithMissionsDone(byKind) }
 }
 
 func PlayDays(days []Day) func(Stats) Stats {
@@ -281,6 +314,24 @@ func (s Stats) WithRightAnswer(at time.Time) Stats {
 // Missions tells how many it paid in all, so a payment told twice or late counts nothing more.
 func (s Stats) WithMissionsPaid(inAll uint64) Stats {
 	s.missionsDone = max(s.missionsDone, inAll)
+	return s
+}
+
+// Missions tells what was done in all, by kind, so a total told twice, late or lost changes nothing: each kind keeps the
+// highest it heard.
+func (s Stats) WithMissionsDone(byKind map[MissionKind]MissionTally) Stats {
+	tallies := talliesOf(s.missionsByKind)
+	for kind, told := range byKind {
+		if told == (MissionTally{}) {
+			continue
+		}
+		if tallies == nil {
+			tallies = map[MissionKind]MissionTally{}
+		}
+		kept := tallies[kind]
+		tallies[kind] = MissionTally{Done: max(kept.Done, told.Done), Goals: max(kept.Goals, told.Goals)}
+	}
+	s.missionsByKind = tallies
 	return s
 }
 

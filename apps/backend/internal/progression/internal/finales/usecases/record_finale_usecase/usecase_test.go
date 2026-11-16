@@ -48,7 +48,7 @@ func (s stubScoring) Fighters(context.Context, finales.RoundID) ([]finales.Fight
 type fixture struct {
 	stats    *inmemory_stats_store.Store
 	titles   *inmemory_title_store.Store
-	accounts *titles.FakeAccounts
+	accounts *accounts.FakeAccounts
 	fights   *inmemory_fight_store.Store
 }
 
@@ -57,7 +57,7 @@ func setUp(t *testing.T) fixture {
 
 	f := fixture{
 		stats: inmemory_stats_store.New(), titles: inmemory_title_store.New(),
-		accounts: titles.NewFakeAccounts(), fights: inmemory_fight_store.New(),
+		accounts: accounts.NewFakeAccounts(), fights: inmemory_fight_store.New(),
 	}
 	for i, account := range []accounts.AccountID{ada, bob, carol, guest} {
 		require.NoError(t, f.stats.Record(t.Context(), account, stats.TakeAt(uint64(i), 0, november)))

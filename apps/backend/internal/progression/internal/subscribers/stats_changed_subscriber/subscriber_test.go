@@ -21,8 +21,8 @@ import (
 
 var now = time.Date(2026, 10, 2, 12, 0, 0, 0, time.UTC)
 
-func subscriber(counted *inmemory_stats_store.Store, held *inmemory_title_store.Store, linked accounts.AccountID) stats_changed_subscriber.Subscriber {
-	asked := titles.NewFakeAccounts()
+func subscriber(counted *inmemory_stats_store.Store, held *inmemory_title_store.Store, linked accounts.AccountID) stats_changed_subscriber.Subscriber[titles.IDs] {
+	asked := accounts.NewFakeAccounts()
 	asked.Create(linked, accounts.AccountOf(true, now))
 	book := titles.NewBook(held, titles.CatalogOf([]titles.Standalone{titles.FakeTitle{Key: "first", Tiles: 1}}))
 	careers := titles.NewCareers(asked, inmemory_fight_store.New())

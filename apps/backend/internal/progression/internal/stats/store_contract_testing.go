@@ -141,6 +141,18 @@ func (s *StoreContractSuite) TestTheDaysPlayedReadBack() {
 		WithPlayDays([]Day{DayOf(contractAt.Add(-72 * time.Hour)), DayOf(contractAt)}), s.stats(1))
 }
 
+func (s *StoreContractSuite) TestTheMissionsByKindReadBackWithTheHighestTotalsOfEachKind() {
+	s.record(1, MissionsDone(map[MissionKind]MissionTally{"take_for": {Done: 2, Goals: 360}, "bomb_in": {Done: 1, Goals: 2}}))
+	s.record(1, MissionsDone(map[MissionKind]MissionTally{"take_for": {Done: 1, Goals: 180}, "catch_boxes": {Done: 1, Goals: 4}}))
+	s.recordTake(2, 0, contractAt)
+
+	s.Equal(map[MissionKind]MissionTally{
+		"take_for": {Done: 2, Goals: 360}, "bomb_in": {Done: 1, Goals: 2}, "catch_boxes": {Done: 1, Goals: 4},
+	}, s.stats(1).MissionsByKind())
+	s.Nil(s.stats(2).MissionsByKind(), "an account that did no mission keeps no kind")
+	s.Equal(NewStats(accounts.AccountID{15: 2}).WithTake(0, 0, contractAt), s.stats(2))
+}
+
 func (s *StoreContractSuite) TestEachTakeOfASpreadIsCountedOnceThoughTheyShareAPosition() {
 	for range 2 {
 		for index := range uint32(3) {

@@ -194,3 +194,7 @@ publishing:
     dbName: postgres
     sslMode: disable
     schema: publishing
+
+# Whether the players see their level (apps/backend/docs/levels.md). The boot refuses true until a level unlocks something.
+levels:
+  shown: false

@@ -18,27 +18,19 @@ var (
 	guest  = accounts.AccountOf(false, time.Time{})
 )
 
-// The stats row answers every count but the missions by kind, added beside it until the stats count them.
-type record struct {
-	stats.Stats
-	missions map[levels.MissionKind]uint64
-}
-
-func (r record) MissionGoals(kind levels.MissionKind) uint64 { return r.missions[kind] }
-
 // A regular player's first day: each count differs from the others, so a source that reads the wrong one shows.
-var firstDay = record{
-	Stats: stats.StatsSnapshot{
-		TilesTaken:     600,
-		DaysPlayed:     1,
-		BombsDropped:   3,
-		BonusesClaimed: 4,
-		RightAnswers:   2,
-		TilesFortified: 1_234,
-		MessagesSent:   40,
-	}.Restore(),
-	missions: map[levels.MissionKind]uint64{"take_for": 180, "catch_boxes": 4, "answer_quizzes": 2},
-}
+var firstDay = stats.StatsSnapshot{
+	TilesTaken:     600,
+	DaysPlayed:     1,
+	BombsDropped:   3,
+	BonusesClaimed: 4,
+	RightAnswers:   2,
+	TilesFortified: 1_234,
+	MessagesSent:   40,
+	MissionsByKind: map[stats.MissionKind]stats.MissionTally{
+		"take_for": {Done: 1, Goals: 180}, "catch_boxes": {Done: 1, Goals: 4}, "answer_quizzes": {Done: 1, Goals: 2},
+	},
+}.Restore()
 
 func TestEachSourceGivesItsOwnXP(t *testing.T) {
 	for _, c := range []struct {
@@ -109,6 +101,12 @@ func TestTheLevelIsTheSumOfEverySourceOnTheCurve(t *testing.T) {
 	assert.Equal(t, levels.XP(3_024), standing.NextLevelXP())
 }
 
+func TestAGuestsRecordReachesTheLevelItWouldHaveOnceLinked(t *testing.T) {
+	assert.Equal(t, levels.XP(1_816), levels.Scale{}.XPOf(firstDay))
+	assert.Equal(t, levels.Level(6), levels.Scale{}.Reach(firstDay))
+	assert.Equal(t, levels.Level(1), levels.Scale{}.Reach(stats.Stats{}))
+}
+
 func TestAGuestHasNoXPAndNoLevel(t *testing.T) {
 	for _, c := range []struct {
 		name    string
@@ -118,9 +116,9 @@ func TestAGuestHasNoXPAndNoLevel(t *testing.T) {
 		level   levels.Level
 		xp      levels.XP
 	}{
-		{name: "a guest that did nothing", account: guest, record: record{}, empty: true},
+		{name: "a guest that did nothing", account: guest, record: stats.Stats{}, empty: true},
 		{name: "a guest that played a whole day", account: guest, record: firstDay, empty: true},
-		{name: "a player that did nothing is at level 1", account: member, record: record{}, level: 1},
+		{name: "a player that did nothing is at level 1", account: member, record: stats.Stats{}, level: 1},
 		{name: "a player that played a whole day", account: member, record: firstDay, level: 6, xp: 1_816},
 	} {
 		t.Run(c.name, func(t *testing.T) {

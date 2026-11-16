@@ -14,3 +14,14 @@ type Career struct {
 	RightAnswers   uint64
 	MissionsDone   uint64
 }
+
+// Record is what the level's XP is read from, as the stats row keeps it: each kind of mission's goals by its name.
+type Record struct {
+	TilesTaken     uint64
+	DaysPlayed     uint64
+	MissionGoals   map[string]uint64
+	BombsDropped   uint64
+	BonusesClaimed uint64
+	RightAnswers   uint64
+	TilesFortified uint64
+}

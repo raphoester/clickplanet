@@ -19,6 +19,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconfigs"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -115,7 +116,7 @@ func TestEveryPlanetKeyIsOneTheConfigReads(t *testing.T) {
 	}
 }
 
-func authBlock(t *testing.T, secret string) string {
+func authBlock(t *testing.T, secret string, more ...string) string {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "config.yaml")
@@ -169,7 +170,7 @@ auth:
   ttl: 2h
   database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: auth}
   redis: {address: localhost:6379}
-`, secret), 0o600))
+%s`, secret, strings.Join(more, "")), 0o600))
 
 	return path
 }
@@ -195,6 +196,28 @@ func TestASecretThatIsNotASeedIsRefused(t *testing.T) {
 	var config Config
 	err := cpconfigs.Load(&config, cpconfigs.FromFile(authBlock(t, "not-a-seed")))
 	require.ErrorContains(t, err, "auth.secret")
+}
+
+func TestThePlayersSeeNoLevelInAnyConfig(t *testing.T) {
+	for _, path := range []string{"example.yaml", "../../../../deploy/vps/backend.yaml", "../../../../deploy/backend.yaml"} {
+		t.Run(path, func(t *testing.T) {
+			file := koanf.New(".")
+			require.NoError(t, file.Load(kfile.Provider(path), yaml.Parser()))
+
+			assert.True(t, file.Exists("levels.shown"), "the key the reveal flips is written down")
+			assert.False(t, file.Bool("levels.shown"))
+		})
+	}
+}
+
+func TestABootThatShowsTheLevelsIsRefusedWhileNoLevelUnlocksAnything(t *testing.T) {
+	secret, _ := cpsession.TestKeyPair()
+
+	var config Config
+	err := cpconfigs.Load(&config, cpconfigs.FromFile(authBlock(t, secret, "levels:\n  shown: true\n")))
+
+	require.ErrorIs(t, err, cpconfigs.ErrValidation)
+	require.ErrorIs(t, err, progression.ErrNoUnlockLadder)
 }
 
 func TestTheExampleConfigReachesTheDatabaseBlock(t *testing.T) {

@@ -53,6 +53,7 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: one switch and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
 - `progression.Config` — an incomplete `progression.database` or `progression.redis` block
+- `progression.Levels` — `levels.shown: true` while no level unlocks anything (`ErrNoUnlockLadder`)
 - `bonuses.Config` — an incomplete `bonuses.database` or `bonuses.redis` block
 - `boxes.Config` — an incomplete `boxes.database` or `boxes.redis` block
 - `support.Config` — an incomplete `support.database` block; with `support.attachments.enabled`, an incomplete bucket block, or a link good for more than 7 days. Every other support setting has a usable default
@@ -150,7 +151,10 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `player.database.*` — profiles, guest codes, departures and the operator's renames, same shape as `database`, schema `player`; required. `player.database.password` belongs in the environment
 - `player.renameRetention`, `player.pruneInterval` — how long an operator's rename is kept (`ListRenames`, default 90
   days), and how often the older ones are deleted (1h)
-- `progression.database.*` — the stats, the titles, the titles worn, the finales fought, the nameplates and the departures, same shape as `database`, schema `progression`; required. `progression.database.password` belongs in the environment. Its first migration moves four tables out of schema `player`, so its user must own them, as production's one user does (see [Progression](progression.md#the-tables-and-their-move))
+- `levels.shown` — whether the players see their level, `false` in every file; top-level because more than one module
+  changes with it, so `cmd/api` reads it once (`LevelsConfig`) and hands each module its own words
+  (`progression.Levels`). See [Levels](levels.md#the-flag-levelsshown)
+- `progression.database.*` — the levels, the stats, the titles, the titles worn, the finales fought, the nameplates and the departures, same shape as `database`, schema `progression`; required. `progression.database.password` belongs in the environment. Its first migration moves four tables out of schema `player`, so its user must own them, as production's one user does (see [Progression](progression.md#the-tables-and-their-move))
 - `bonuses.database.*` — the bonuses' rule sets and the set they play, same shape as `database`, schema `bonuses`, one
   connection in production; required. `bonuses.database.password` belongs in the environment. See [The
   bonuses](bonuses.md)

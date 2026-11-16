@@ -39,6 +39,9 @@ const (
 	// AdminServiceBackfillDaysPlayedProcedure is the fully-qualified name of the AdminService's
 	// BackfillDaysPlayed RPC.
 	AdminServiceBackfillDaysPlayedProcedure = "/progression.v1.AdminService/BackfillDaysPlayed"
+	// AdminServiceReconcileLevelsProcedure is the fully-qualified name of the AdminService's
+	// ReconcileLevels RPC.
+	AdminServiceReconcileLevelsProcedure = "/progression.v1.AdminService/ReconcileLevels"
 	// AdminServiceGetProgressProcedure is the fully-qualified name of the AdminService's GetProgress
 	// RPC.
 	AdminServiceGetProgressProcedure = "/progression.v1.AdminService/GetProgress"
@@ -54,6 +57,11 @@ type AdminServiceClient interface {
 	// already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
 	// their ledger rows.
 	BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error)
+	// Gives every linked account the level its XP reaches, after a deploy that changes what gives XP or the curve, and
+	// removes a guest's. While the players see no level it sets the exact level, lowering one the new rules no longer
+	// reach; once they see it, it only raises. It tells nobody: no level-up is announced or rewarded. A second run
+	// changes nothing. Run it with dry_run first.
+	ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
 	GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error)
@@ -82,6 +90,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("BackfillDaysPlayed")),
 			connect.WithClientOptions(opts...),
 		),
+		reconcileLevels: connect.NewClient[v1.ReconcileLevelsRequest, v1.ReconcileLevelsResponse](
+			httpClient,
+			baseURL+AdminServiceReconcileLevelsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ReconcileLevels")),
+			connect.WithClientOptions(opts...),
+		),
 		getProgress: connect.NewClient[v1.AdminGetProgressRequest, v1.AdminGetProgressResponse](
 			httpClient,
 			baseURL+AdminServiceGetProgressProcedure,
@@ -96,6 +110,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	reconcileTitles    *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
 	backfillDaysPlayed *connect.Client[v1.BackfillDaysPlayedRequest, v1.BackfillDaysPlayedResponse]
+	reconcileLevels    *connect.Client[v1.ReconcileLevelsRequest, v1.ReconcileLevelsResponse]
 	getProgress        *connect.Client[v1.AdminGetProgressRequest, v1.AdminGetProgressResponse]
 }
 
@@ -107,6 +122,11 @@ func (c *adminServiceClient) ReconcileTitles(ctx context.Context, req *connect.R
 // BackfillDaysPlayed calls progression.v1.AdminService.BackfillDaysPlayed.
 func (c *adminServiceClient) BackfillDaysPlayed(ctx context.Context, req *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error) {
 	return c.backfillDaysPlayed.CallUnary(ctx, req)
+}
+
+// ReconcileLevels calls progression.v1.AdminService.ReconcileLevels.
+func (c *adminServiceClient) ReconcileLevels(ctx context.Context, req *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error) {
+	return c.reconcileLevels.CallUnary(ctx, req)
 }
 
 // GetProgress calls progression.v1.AdminService.GetProgress.
@@ -124,6 +144,11 @@ type AdminServiceHandler interface {
 	// already. A second run changes nothing. Run it with dry_run first, off-peak: each page of 500 accounts is a scan of
 	// their ledger rows.
 	BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error)
+	// Gives every linked account the level its XP reaches, after a deploy that changes what gives XP or the curve, and
+	// removes a guest's. While the players see no level it sets the exact level, lowering one the new rules no longer
+	// reach; once they see it, it only raises. It tells nobody: no level-up is announced or rewarded. A second run
+	// changes nothing. Run it with dry_run first.
+	ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
 	GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error)
@@ -148,6 +173,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("BackfillDaysPlayed")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceReconcileLevelsHandler := connect.NewUnaryHandler(
+		AdminServiceReconcileLevelsProcedure,
+		svc.ReconcileLevels,
+		connect.WithSchema(adminServiceMethods.ByName("ReconcileLevels")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceGetProgressHandler := connect.NewUnaryHandler(
 		AdminServiceGetProgressProcedure,
 		svc.GetProgress,
@@ -161,6 +192,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceReconcileTitlesHandler.ServeHTTP(w, r)
 		case AdminServiceBackfillDaysPlayedProcedure:
 			adminServiceBackfillDaysPlayedHandler.ServeHTTP(w, r)
+		case AdminServiceReconcileLevelsProcedure:
+			adminServiceReconcileLevelsHandler.ServeHTTP(w, r)
 		case AdminServiceGetProgressProcedure:
 			adminServiceGetProgressHandler.ServeHTTP(w, r)
 		default:
@@ -178,6 +211,10 @@ func (UnimplementedAdminServiceHandler) ReconcileTitles(context.Context, *connec
 
 func (UnimplementedAdminServiceHandler) BackfillDaysPlayed(context.Context, *connect.Request[v1.BackfillDaysPlayedRequest]) (*connect.Response[v1.BackfillDaysPlayedResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.AdminService.BackfillDaysPlayed is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.AdminService.ReconcileLevels is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error) {

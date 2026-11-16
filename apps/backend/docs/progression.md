@@ -1,8 +1,8 @@
 # Progression (`internal/progression/`)
 
 **How far an account went: the tiles it took, the countries it took them for and from, its daily streak, what it did
-with the bonuses, the titles it earned on each track, the title it wears, the season finales it fought, and the badges
-the page draws beside its name.** It makes no account and names nobody: [Player](player.md) says who an account is,
+with the bonuses, the titles it earned on each track, the title it wears, the season finales it fought, the badges
+the page draws beside its name, and its level, hidden for now ([Levels](levels.md)).** It makes no account and names nobody: [Player](player.md) says who an account is,
 and tells progression when one becomes a player, leaves, comes back or is forgotten. Always on. Schema `progression`.
 It was part of `player` until 2026-11-04.
 
@@ -33,8 +33,14 @@ internal/progression/internal/
     usecases/reconcile_titles_usecase/  — every account the titles the rules give it, no more; progression.v1.AdminService/ReconcileTitles
       reconcile_titles_usecase/audit_reconcile_titles/  logs every reconciliation at Warn
   levels/                           XP, Level, Record, Source (one type per XP source), MissionKind, MissionRate (one type per
-                                    kind), Curve, Standing, Scale (StandingOf): the domain alone, nothing calls it yet
-                                    (docs/levels.md)
+                                    kind), Curve, Standing, Scale, Visibility, Reconciliation; the Store port and its contract
+                                    suite (docs/levels.md)
+    postgres_level_store/           the Store over progression.levels
+    inmemory_level_store/           the same port in a map, behind the testing tag
+    usecases/raise_level_usecase/   — on StatsChanged: the level raised, then progression.v1.LevelReached in the outbox
+    usecases/forget_level_usecase/
+    usecases/reconcile_levels_usecase/  — every linked account the level its stats reach; AdminService/ReconcileLevels
+      reconcile_levels_usecase/audit_reconcile_levels/  logs every reconciliation at Warn
   wearing/                          the title a player wears: WornOf, Wearable, Showcase (ShowcaseOf), Wardrobe; the Store port and
                                     its contract suite
     postgres_worn_title_store/      the Store over progression.worn_titles
@@ -60,12 +66,14 @@ internal/progression/internal/
   progressionv1controller/          ProgressionService and AdminService (bags), the session interceptor, the stream's session reader
     get_titles_handler/  wear_title_handler/  get_fronts_handler/  get_badges_handler/
     get_progress_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  admin_get_progress_handler/  backfill_days_played_handler/   AdminService's own
+    reconcile_titles_handler/  admin_get_progress_handler/  backfill_days_played_handler/  reconcile_levels_handler/
+                                    AdminService's own
       admin_get_progress_handler/admin_progress_query/   PostgresQuery: what progression keeps of one account, a guest's too
     get_titles_handler/titles_query/  get_badges_handler/badges_query/
     get_progress_handler/progress_query/
                                     PostgresQuery: the response straight from SQL
     inprocess_title_catalog/        the Titles port of three queries: shown, worn and each track, from titles.Catalog
+    inprocess_level_scale/          the XP port of the operator's GetProgress: each source's XP, from levels.Scale
     rpc_planet_fronts/              the countries played for and against, from planet.v1.InternalService/GetTakesByCountry:
                                     GetFronts' port, AdminService/GetProgress' too, and GetProgress' through caching_fronts/
       caching_fronts/               one answer per account for 30s
@@ -74,7 +82,8 @@ internal/progression/internal/
     progressionmessage/             Title and Titles as progression.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
     tiles_taken_subscriber/  message_sent_subscriber/  bomb_landed_subscriber/  fortified_subscriber/  bonus_claimed_subscriber/
-    quiz_answered_subscriber/  missions_paid_subscriber/  stats_changed_subscriber/  season_ended_subscriber/
+    quiz_answered_subscriber/  missions_paid_subscriber/  missions_done_subscriber/  stats_changed_subscriber/
+    season_ended_subscriber/
     player_created_subscriber/  player_leaving_subscriber/  player_returned_subscriber/  player_forgotten_subscriber/
     log_subscriber/
   migrations/
@@ -130,9 +139,11 @@ key, so progression's code never names auth.
 - **`ReconcileTitles`** (see [The reconciliation](#the-reconciliation)). It moved from `player.v1.AdminService` with no
   change of behaviour.
 - **`BackfillDaysPlayed(dry_run)`** (see [The days played](#the-days-played)).
+- **`ReconcileLevels(dry_run)`** (see [Levels](levels.md#the-reconciliation)).
 - **`GetProgress(account_id)`** (`admin_get_progress_handler`, `admin_progress_query`) is what progression keeps of
   one account, a guest's too: the stats as kept (a guest's streak too, which the game never shows), `messages_sent`,
-  `days_played`,
+  `days_played`, the level kept (`level`, 0 for none), the XP its stats give by source (`xp`, a guest's too), the
+  missions done by kind (`missions_by_kind`),
   the titles shown and the one worn, and **every** country it plays for and against, uncached (`rpc_planet_fronts`,
   not `caching_fronts`): the public card's cut to three is for the public wire. **It is zeros for an account it keeps
   nothing about, never `NotFound`**: whether the account is one is player's to say (`player.v1.AdminService/GetPlayer`).
@@ -201,6 +212,10 @@ reads player's tables (but once, at its first migration, below).
   changes nothing, a lost one is repaired by the next, and the first one an account hears brings every mission it was
   paid before, back to the first day of missions. A guest is paid only once it signs in, so a mission a guest finished
   and never signed in for does not count. It does not touch the streak, and it is not on the wire as a stat.
+  **What was done, by kind, comes from `missions.v1.MissionsDone`** (`progression-stats-missions-done`,
+  `Stats.WithMissionsDone`, the `missions_by_kind` jsonb column, migration `20261116092732_missions_by_kind`): a
+  guest's too, paid or not, each kind's highest total heard. It is the level's XP from missions (see
+  [Levels](levels.md#the-record)), never the Missions track's.
 - **The groups kept player's names** when they moved: a group reads its stream from the start, so a new name would
   have counted every fact in the streams again (see [Telling other modules what
   happened](composite-layer.md#telling-other-modules-what-happened)).
@@ -439,7 +454,8 @@ and planet answers from one SQL statement (`takes_query`). Both lists (`plays_fo
 its own forget use case: `progression-stats-forgotten` (`forget_stats_usecase`), `progression-titles-forgotten`
 (`forget_titles_usecase`), `progression-wearing-forgotten` (`forget_worn_title_usecase`),
 `progression-finales-forgotten` (`forget_fights_usecase`), `progression-nameplates-forgotten`
-(`forget_nameplate_usecase`) and `progression-departures-forgotten` (`forget_departure_usecase`). Each deletes what is
+(`forget_nameplate_usecase`), `progression-departures-forgotten` (`forget_departure_usecase`) and
+`progression-levels-forgotten` (`forget_level_usecase`). Each deletes what is
 left, which is nothing the second time. Player tells it for every account auth deleted, even one player kept nothing
 about, since progression may keep its stats (a guest's takes). A fact that arrives after, from a token minted before
 the delete, makes a new stats row; the token lives an hour at most. A grant that lands after the forget, from a take
@@ -458,18 +474,21 @@ happened](composite-layer.md#telling-other-modules-what-happened)):
 | `player-stats-messages` | `chat.v1.MessageSent` | counts the message |
 | `player-stats-bombs`, `player-stats-fortifies`, `player-stats-bonuses`, `player-stats-quizzes` | `planet.v1.BombLanded`, `Fortified`, `boxes.v1.BoxClaimed` (`bonuses.v1.BonusClaimed` until 2026-11-15, read first), `quizzes.v1.QuizAnswered` (`bonuses.v1`'s until 2026-11-13, read first) | counts the bomb, the tiles fortified, the box, the right answer |
 | `player-stats-missions` | `missions.v1.MissionsPaid` | keeps the missions paid in all |
+| `progression-stats-missions-done` | `missions.v1.MissionsDone` | keeps each kind's missions done and their goals |
 | `player-titles` | `progression.v1.StatsChanged` | grants the titles the stats now earn |
+| `progression-levels` | `progression.v1.StatsChanged` | raises the level the stats now reach, and records `LevelReached` ([Levels](levels.md#raised-live)) |
 | `player-finale-fights` | `gamemaster.v1.SeasonEnded` | records the finale's fights, then awards each fighter ([Season titles](season-titles.md)) |
 | `progression-nameplates` | `player.v1.PlayerCreated` | keeps a nameplate |
 | `progression-departures-leaving`, `progression-departures-returns` | `player.v1.PlayerLeaving`, `PlayerReturned` | keeps the latest decision |
-| `progression-*-forgotten` (six) | `player.v1.PlayerForgotten` | forgets what it keeps |
+| `progression-*-forgotten` (seven) | `player.v1.PlayerForgotten` | forgets what it keeps |
 
 **Each event's write has a 5s timeout** (`subscribers.Timeout`; a season's end, a minute), so a stuck database cannot
 hold a subscriber. **Errors are real errors**: absence is `ErrNoStats`, which the use cases answer as nothing to
 count or grant; on a request a database error is the error net's `internal`; on an event it is counted in
 `events_failed_total`, logged by `log_subscriber`, and the event tried again, then buried in `events:dead`.
-**`StatsChanged` is published, not put in an outbox**: a lost one only delays a title to the account's next fact, and
-a reconciliation grants anything missed.
+**`StatsChanged` is published, not put in an outbox**: a lost one only delays a title or a level to the account's next
+fact, and a reconciliation grants anything missed. **`LevelReached` goes through progression's outbox** (`outbox`,
+relay `progression-outbox`, migration `20261116092733_levels`): see [Levels](levels.md#raised-live).
 
 ## The tables and their move
 

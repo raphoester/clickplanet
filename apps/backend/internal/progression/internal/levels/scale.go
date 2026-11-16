@@ -18,14 +18,22 @@ func (Scale) Sources() []Source {
 	}
 }
 
+func (s Scale) XPOf(record Record) XP {
+	var xp XP
+	for _, source := range s.Sources() {
+		xp += source.XP(record)
+	}
+	return xp
+}
+
+func (s Scale) Reach(record Record) Level {
+	return Curve{}.LevelOf(s.XPOf(record))
+}
+
 // StandingOf is where the account's record puts it. A guest has no XP and no level, whatever it did.
 func (s Scale) StandingOf(account accounts.Account, record Record) Standing {
 	if !account.Linked() {
 		return Standing{}
 	}
-	var xp XP
-	for _, source := range s.Sources() {
-		xp += source.XP(record)
-	}
-	return Curve{}.StandingOf(xp)
+	return Curve{}.StandingOf(s.XPOf(record))
 }

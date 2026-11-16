@@ -3,6 +3,7 @@ package postgres_stats_store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -25,7 +26,7 @@ type Store struct {
 const statsColumns = `account_id, tiles_taken, streak_current, streak_best, streak_last_day, messages_sent,
 	bombs_dropped, tiles_fortified, bonuses_claimed, right_answers, missions_done, counted_takes_below, counted_bombs_below,
 	counted_fortifies_below, counted_messages_until, counted_bonuses_until, counted_answers_until, counted_takes_below_index,
-	days_played`
+	days_played, missions_by_kind`
 
 func (s *Store) Stats(ctx context.Context, account accounts.AccountID) (stats.Stats, error) {
 	return statsOf(s.db.On(ctx).QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
@@ -50,9 +51,13 @@ func (s *Store) Record(ctx context.Context, account accounts.AccountID, change f
 		}
 
 		next := change(current).TakeSnapshot()
+		missions, err := json.Marshal(missionsOf(next.MissionsByKind))
+		if err != nil {
+			return fmt.Errorf("failed to write the missions by kind: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO stats (`+statsColumns+`)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 			ON CONFLICT (account_id) DO UPDATE SET
 				tiles_taken = excluded.tiles_taken,
 				streak_current = excluded.streak_current,
@@ -71,7 +76,8 @@ func (s *Store) Record(ctx context.Context, account accounts.AccountID, change f
 				counted_bonuses_until = excluded.counted_bonuses_until,
 				counted_answers_until = excluded.counted_answers_until,
 				counted_takes_below_index = excluded.counted_takes_below_index,
-				days_played = excluded.days_played
+				days_played = excluded.days_played,
+				missions_by_kind = excluded.missions_by_kind
 		`, uuid.UUID(account), int64(next.TilesTaken), //nolint:gosec // counted an act at a time: never past int64.
 			int64(next.Streak.Days()), int64(next.StreakBest), nullableDay(next.Streak.LastDay()),
 			int64(next.MessagesSent), int64(next.BombsDropped), int64(next.TilesFortified), //nolint:gosec // as above.
@@ -79,7 +85,7 @@ func (s *Store) Record(ctx context.Context, account accounts.AccountID, change f
 			int64(next.Counted.TakesBelow.Position), int64(next.Counted.BombsBelow), int64(next.Counted.FortifiesBelow), //nolint:gosec // ledger positions fit in int64.
 			nullableTime(next.Counted.MessagesUntil), nullableTime(next.Counted.BonusesUntil),
 			nullableTime(next.Counted.AnswersUntil), int64(next.Counted.TakesBelow.Index),
-			int64(next.DaysPlayed)); err != nil { //nolint:gosec // one a day: never past int64.
+			int64(next.DaysPlayed), missions); err != nil { //nolint:gosec // one a day: never past int64.
 			return fmt.Errorf("failed to save the stats: %w", err)
 		}
 		return nil
@@ -120,14 +126,20 @@ func statsOf(row scanner) (stats.Stats, error) {
 		tiles, current, best, played, messages, bombs, fortified, claimed, right, missions int64
 		takesPosition, takesIndex, bombsBelow, fortifiesBelow                              int64
 		lastDay, messagesUntil, bonusesUntil, answersUntil                                 sql.NullTime
+		byKind                                                                             []byte
 	)
 	err := row.Scan(&account, &tiles, &current, &best, &lastDay, &messages, &bombs, &fortified, &claimed, &right, &missions,
-		&takesPosition, &bombsBelow, &fortifiesBelow, &messagesUntil, &bonusesUntil, &answersUntil, &takesIndex, &played)
+		&takesPosition, &bombsBelow, &fortifiesBelow, &messagesUntil, &bonusesUntil, &answersUntil, &takesIndex, &played,
+		&byKind)
 	if errors.Is(err, sql.ErrNoRows) {
 		return stats.Stats{}, stats.ErrNoStats
 	}
 	if err != nil {
 		return stats.Stats{}, fmt.Errorf("failed to read the stats: %w", err)
+	}
+	var tallies map[string]tally
+	if err := json.Unmarshal(byKind, &tallies); err != nil {
+		return stats.Stats{}, fmt.Errorf("failed to read the missions by kind: %w", err)
 	}
 
 	takesBelow := stats.TakeMark{Position: uint64(takesPosition), Index: uint32(takesIndex)} //nolint:gosec // every mark has a CHECK (>= 0).
@@ -147,6 +159,7 @@ func statsOf(row scanner) (stats.Stats, error) {
 		BonusesClaimed: uint64(claimed),                      //nolint:gosec // as above.
 		RightAnswers:   uint64(right),                        //nolint:gosec // as above.
 		MissionsDone:   uint64(missions),                     //nolint:gosec // as above.
+		MissionsByKind: talliesOf(tallies),
 		Counted: stats.Counted{
 			TakesBelow:     takesBelow,
 			BombsBelow:     uint64(bombsBelow),     //nolint:gosec // as above.
@@ -156,6 +169,28 @@ func statsOf(row scanner) (stats.Stats, error) {
 			AnswersUntil:   timeOf(answersUntil),
 		},
 	}.Restore(), nil
+}
+
+// tally is a kind's missions as missions_by_kind keeps them, under the kind's name.
+type tally struct {
+	Done  uint64 `json:"done"`
+	Goals uint64 `json:"goals"`
+}
+
+func missionsOf(tallies map[stats.MissionKind]stats.MissionTally) map[string]tally {
+	kept := make(map[string]tally, len(tallies))
+	for kind, done := range tallies {
+		kept[string(kind)] = tally{Done: done.Done, Goals: done.Goals}
+	}
+	return kept
+}
+
+func talliesOf(kept map[string]tally) map[stats.MissionKind]stats.MissionTally {
+	tallies := make(map[stats.MissionKind]stats.MissionTally, len(kept))
+	for kind, done := range kept {
+		tallies[stats.MissionKind(kind)] = stats.MissionTally{Done: done.Done, Goals: done.Goals}
+	}
+	return tallies
 }
 
 func timeOf(at sql.NullTime) time.Time {

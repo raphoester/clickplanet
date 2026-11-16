@@ -162,6 +162,34 @@ func TestTheMissionsDoneAreTheMostMissionsTellsItPaid(t *testing.T) {
 	assert.Equal(t, stats.Streak{}, counted.Streak())
 }
 
+func TestEachKindOfMissionKeepsTheHighestTotalsMissionsTold(t *testing.T) {
+	first := stats.Stats{}.WithMissionsDone(map[stats.MissionKind]stats.MissionTally{
+		"take_for": {Done: 2, Goals: 360}, "bomb_in": {Done: 1, Goals: 2},
+	})
+
+	counted := first.WithMissionsDone(map[stats.MissionKind]stats.MissionTally{
+		"take_for": {Done: 1, Goals: 180}, "catch_boxes": {Done: 1, Goals: 4},
+	})
+
+	assert.Equal(t, map[stats.MissionKind]stats.MissionTally{
+		"take_for": {Done: 2, Goals: 360}, "bomb_in": {Done: 1, Goals: 2}, "catch_boxes": {Done: 1, Goals: 4},
+	}, counted.MissionsByKind(), "a total told late lowers nothing, and a kind told alone keeps the others")
+	assert.Equal(t, uint64(360), counted.MissionGoals("take_for"))
+	assert.Zero(t, counted.MissionGoals("take_in"), "a kind never done")
+	assert.Equal(t, counted, counted.WithMissionsDone(counted.MissionsByKind()), "told twice, it changes nothing")
+	assert.Equal(t, map[stats.MissionKind]stats.MissionTally{"take_for": {Done: 2, Goals: 360}, "bomb_in": {Done: 1, Goals: 2}},
+		first.MissionsByKind(), "the stats before the change are not changed")
+}
+
+func TestMissionsDoneTouchNeitherTheStreakNorTheMissionsPaid(t *testing.T) {
+	counted := stats.Stats{}.WithMissionsDone(map[stats.MissionKind]stats.MissionTally{"take_for": {Done: 1, Goals: 180}})
+
+	assert.Zero(t, counted.MissionsDone(), "the Missions track counts what was paid")
+	assert.Equal(t, stats.Streak{}, counted.Streak())
+	assert.Zero(t, counted.DaysPlayed())
+	assert.Equal(t, stats.Stats{}, stats.Stats{}.WithMissionsDone(nil), "nothing told keeps no kind")
+}
+
 func TestATakeOnANewUTCDayAddsADayPlayed(t *testing.T) {
 	assert.Equal(t, uint64(1), taken(beforeMidnight).DaysPlayed(), "the first take is the first day")
 	assert.Equal(t, uint64(2), taken(beforeMidnight, beforeMidnight.Add(2*time.Second)).DaysPlayed(),

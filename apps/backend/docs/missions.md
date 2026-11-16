@@ -174,8 +174,8 @@ internal/missions/internal/
     rewarder's word, as bonuses decides what a box or a right answer pays.
     `MissionsPaid` stays the payment's own fact, true while missions pays charges. Totals again, so twice, late or lost
     changes nothing, and missions done before the event existed reach the listeners by `RetellMissionsDone` (see
-    [The missions done, told again](#the-missions-done-told-again)). Nobody hears it yet: progression will, for the
-    Missions title track and the level.
+    [The missions done, told again](#the-missions-done-told-again)). Progression hears it
+    (`progression-stats-missions-done`) for the level's XP; its Missions title track still counts `MissionsPaid`.
   - **The player hears its progress and its payments on a stream, with no read** (`MissionService.ListenForEvents`,
     `stream MissionEvent`). The stream sends the caller's day as `GetMissions` answers it (`day`, `missionmessage.Day`)
     as it opens, then again after each fact or batch of takes of the caller is counted, and a `heartbeat` every
@@ -355,8 +355,8 @@ the missions done before the event existed.** A one-off call on `missions.v1.Adm
   `audit_retell_missions_done` logs each run at Warn.
 - **Twice changes nothing.** The totals only grow, and a listener keeps the highest it heard: a second run, or a run
   beside a live fact whose higher totals land first, tells nothing new.
-- **The cost**: one event per account with a mission done, which the relay sends 100 at a time. Nobody listens yet,
-  so they only fill `events:missions.v1.MissionsDone` up to `redis.maxLen`.
+- **The cost**: one event per account with a mission done, which the relay sends 100 at a time, and one stats write each
+  in progression.
 - **Order**: after the deploy, with `dry_run`, then for real. It must run before a listener that reads the event is
-  trusted (progression, later); a listener added after it reads the stream from its start, retold totals included,
+  trusted (progression's level); a listener added after it reads the stream from its start, retold totals included,
   as long as the stream still holds them.

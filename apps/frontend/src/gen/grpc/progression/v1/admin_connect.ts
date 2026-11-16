@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetProgressRequest, AdminGetProgressResponse, BackfillDaysPlayedRequest, BackfillDaysPlayedResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { AdminGetProgressRequest, AdminGetProgressResponse, BackfillDaysPlayedRequest, BackfillDaysPlayedResponse, ReconcileLevelsRequest, ReconcileLevelsResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -38,6 +38,20 @@ export const AdminService = {
       name: "BackfillDaysPlayed",
       I: BackfillDaysPlayedRequest,
       O: BackfillDaysPlayedResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gives every linked account the level its XP reaches, after a deploy that changes what gives XP or the curve, and
+     * removes a guest's. While the players see no level it sets the exact level, lowering one the new rules no longer
+     * reach; once they see it, it only raises. It tells nobody: no level-up is announced or rewarded. A second run
+     * changes nothing. Run it with dry_run first.
+     *
+     * @generated from rpc progression.v1.AdminService.ReconcileLevels
+     */
+    reconcileLevels: {
+      name: "ReconcileLevels",
+      I: ReconcileLevelsRequest,
+      O: ReconcileLevelsResponse,
       kind: MethodKind.Unary,
     },
     /**

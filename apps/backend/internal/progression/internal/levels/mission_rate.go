@@ -1,7 +1,8 @@
 package levels
 
-// MissionKind names a kind of mission as missions names it: missions.v1.MissionKind without its prefix, in lower case.
-type MissionKind string
+import "github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
+
+type MissionKind = stats.MissionKind
 
 // A mission rate is the XP a mission of its kind pays per unit of its goal, so a bigger goal pays more. Missions tells
 // the goals; progression owns the rates. A new kind of mission is a new type.

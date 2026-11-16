@@ -28,12 +28,12 @@ var (
 type fixture struct {
 	stats    *inmemory_stats_store.Store
 	titles   *inmemory_title_store.Store
-	accounts *titles.FakeAccounts
+	accounts *accounts.FakeAccounts
 	fights   *inmemory_fight_store.Store
 }
 
 func setUp() fixture {
-	f := fixture{stats: inmemory_stats_store.New(), titles: inmemory_title_store.New(), accounts: titles.NewFakeAccounts(), fights: inmemory_fight_store.New()}
+	f := fixture{stats: inmemory_stats_store.New(), titles: inmemory_title_store.New(), accounts: accounts.NewFakeAccounts(), fights: inmemory_fight_store.New()}
 	f.accounts.Create(ada, accounts.AccountOf(true, monday))
 	return f
 }

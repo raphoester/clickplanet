@@ -17,6 +17,12 @@ service AdminService {
   // their ledger rows.
   rpc BackfillDaysPlayed(BackfillDaysPlayedRequest) returns (BackfillDaysPlayedResponse);
 
+  // Gives every linked account the level its XP reaches, after a deploy that changes what gives XP or the curve, and
+  // removes a guest's. While the players see no level it sets the exact level, lowering one the new rules no longer
+  // reach; once they see it, it only raises. It tells nobody: no level-up is announced or rewarded. A second run
+  // changes nothing. Run it with dry_run first.
+  rpc ReconcileLevels(ReconcileLevelsRequest) returns (ReconcileLevelsResponse);
+
   // What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
   // An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
   rpc GetProgress(AdminGetProgressRequest) returns (AdminGetProgressResponse) {
@@ -43,6 +49,20 @@ message BackfillDaysPlayedResponse {
   uint32 changed = 2;
 }
 
+message ReconcileLevelsRequest {
+  // Counts what would change, and writes nothing.
+  bool dry_run = 1;
+}
+
+message ReconcileLevelsResponse {
+  // The accounts whose level went up, or would.
+  uint32 raised = 1;
+  // The accounts whose level went down, or would: only while the players see no level.
+  uint32 lowered = 2;
+  // The guests whose level was taken off, or would be: only while the players see no level.
+  uint32 removed = 3;
+}
+
 message AdminGetProgressRequest {
   string account_id = 1;
 }
@@ -54,6 +74,33 @@ message AdminGetProgressResponse {
   Title worn_title = 4;
   repeated CountryTiles plays_for = 5;
   repeated CountryTiles plays_against = 6;
+  // The level kept, 0 for none: a guest, or an account no fact has raised yet.
+  uint32 level = 7;
   // The UTC days with at least one take.
   uint64 days_played = 8;
+  // The XP the stats give, a guest's too, though a guest has no level.
+  XpBreakdown xp = 9;
+  // The missions done, by kind, as missions told them: a guest's too, paid or not.
+  repeated MissionTally missions_by_kind = 10;
+}
+
+// The XP an account's stats give, by source. A message gives none, so it has no field.
+message XpBreakdown {
+  uint64 total = 1;
+  uint64 tiles_taken = 2;
+  uint64 days_played = 3;
+  uint64 missions_done = 4;
+  uint64 bombs_dropped = 5;
+  uint64 boxes_caught = 6;
+  uint64 right_answers = 7;
+  uint64 tiles_fortified = 8;
+}
+
+// The missions of one kind an account has done in all.
+message MissionTally {
+  // The kind as missions names it in its briefs: missions.v1.MissionKind without its prefix, in lower case.
+  string kind = 1;
+  uint64 done = 2;
+  // Their goals, summed: what the kind's XP is paid on.
+  uint64 goals = 3;
 }
