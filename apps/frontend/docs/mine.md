@@ -35,6 +35,11 @@ the bomb's sound, full for a mine of the page's flag. So the enemy sees why its 
 rim in `--mine` olive, four studs and a red light. It is still: a mine can wait days, and a beat would keep the loop
 drawing all that time (see [Drawing only when something changed](render-on-demand.md)).
 
+**On a shielded tile the mine steps down to the shield's tip**, at half its size, as the count fades in (16 to 22px,
+see [Shields](shields.md)). In the middle it covered the count. Its light grows there, as at that size the red dot is
+what says "mine". Under 16px the shield shows no count, so the mine stays in the middle. A capital's tile stacks the
+crown, the count and the mine, top to bottom.
+
 **No ghost on a mine** (see [Ghosts](ghosts.md)).
 
 **In the fake**, every take by another flag sets a mine off a moment after, its blast 2 rings across the tiles within a
