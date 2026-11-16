@@ -31,6 +31,11 @@ func (t Tile) TakeSnapshot() TileSnapshot {
 	return TileSnapshot{ID: t.id, Owner: t.owner, Shields: t.shields, Holder: t.holder}
 }
 
+// enemyOf is whether the tile wears a flag other than this one: a blank tile is no flag's enemy.
+func (t Tile) enemyOf(flag string) bool {
+	return t.owner != "" && t.owner != flag
+}
+
 func (t Tile) Claimed(flag string, by cpsession.AccountID) (Tile, Impact) {
 	impact := Impact{Tile: t.id, Owner: t.owner, Outcome: OutcomeOf(t.owner, flag, t.shields)}
 	switch impact.Outcome {
