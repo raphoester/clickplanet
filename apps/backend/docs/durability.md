@@ -31,6 +31,7 @@ fails or takes longer refuses nothing (see [Anti-bot](antibot.md) and [Allegianc
   - `bomb`: one blast; `country` is empty, `previous` the owner of the tile it emptied (tile 0 in the sea), and `{flag, point, radius, cleared, struck}` the rest.
   - `shield`: a shield placed; `{shields}` is what the tile holds now.
   - `fortify`: a landmass fortified, on the tile whose take made it whole; `{landmass, raised}` lists each tile that gained a shield with the shields it holds now.
+  - `virus`: one use or tick of a virus, on the tile it was used on; `{taken, struck}` as a spread's. See [The virus](virus.md).
 
   Each tile a payload lists is `{tile, owner}`, and `shields` too when a shield kept it, so a remap of the map moves every tile id in it (`PAYLOAD_TILE_LISTS` in the frontend's `scripts/map/remap.mjs` names the lists). A refill, a box and a quiz change no tile, and are not kept. Migration `20261006130000_ledger_events` renamed `ledger_takes` and made every row before it a `take`; its down deletes the bombs. Migration `20261012120000_ledger_event_kind` made `kind` the type, which rewrote the table once. `ledger_head` is one row: the oldest position memory keeps, so positions carry on past a window the retention emptied. `ledger_forgotten` is a reverted scope's mark, and `ledger_forgotten_accounts` a reverted account's. `ledger_relayed` is the relay's cursor (below). **`forgotten` on a row says a revert forgot it, for good**: a mark leaves with the head, and an account's leaves its rows with no account once it is deleted, but the column stays, so `GetTileHolder` skips a reverted take whatever its age. Migration `20261110140000_ledger_events_forgotten` filled it once from the marks still live.
 - **Boot loads from the head**: the takes from `ledger_head` on, in position order, then the marks. So memory and the boot time stay bounded by the window, however long the table grows. **A failed load refuses the boot.** Measured at 1M takes on a laptop: 0.8s to load, 1.3s to copy in — so ~3s and ~5s at the 4M cap.
@@ -51,7 +52,9 @@ map plays one at a time: the boot loads it, the flush writes it, and the others'
 saves what changed first, under the flush lock, then plays the arena's empty map; closing it deletes the arena's rows and
 loads the world's again, so no flush of the arena's map lands after it. The flags an arena knocked out are kept the same
 way, in `knockouts`, by the flush that writes the tiles they left blank, and deleted with their map. See
-[Arena battles](arenas.md).
+[Arena battles](arenas.md). So are the live viruses, in `viruses`: the flush writes every live virus of the map in the
+transaction that writes the tiles, whenever one changed, so a crash loses the last second of both together (see
+[The virus](virus.md)).
 
 **The charges have no memory copy**: every call reads and writes `planet.charges`, on the same pool. See [Charges](charges.md).
 A shield placed is the one write of both: the flush that saves its tile ends its row in `planet.placements`, in the same

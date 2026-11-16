@@ -74,6 +74,11 @@ export enum BonusKind {
    * @generated from enum value: BONUS_KIND_SHIELDS = 6;
    */
   SHIELDS = 6,
+
+  /**
+   * @generated from enum value: BONUS_KIND_VIRUS = 7;
+   */
+  VIRUS = 7,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
@@ -83,6 +88,7 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 3, name: "BONUS_KIND_BOMB" },
   { no: 4, name: "BONUS_KIND_ENCLOSE_CLICKS" },
   { no: 6, name: "BONUS_KIND_SHIELDS" },
+  { no: 7, name: "BONUS_KIND_VIRUS" },
 ]);
 
 /**
@@ -473,8 +479,8 @@ export class ClickResponse extends Message<ClickResponse> {
 }
 
 /**
- * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield and UseRefill answer while the rules in force
- * freeze the map, or an arena's freeze holds it.
+ * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill and UseVirus answer while the rules
+ * in force freeze the map, or an arena's freeze holds it.
  *
  * @generated from message planet.v1.FrozenRefusal
  */
@@ -575,7 +581,41 @@ export class BombRefusal extends Message<BombRefusal> {
 }
 
 /**
- * The detail of a PermissionDenied that Click, DropBomb and PlaceShield answer a banned caller.
+ * The detail of the FailedPrecondition that UseVirus answers for a tile that is no enemy tile, or holds a shield: the
+ * virus stays held.
+ *
+ * @generated from message planet.v1.VirusRefusal
+ */
+export class VirusRefusal extends Message<VirusRefusal> {
+  constructor(data?: PartialMessage<VirusRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.VirusRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VirusRefusal {
+    return new VirusRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): VirusRefusal {
+    return new VirusRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): VirusRefusal {
+    return new VirusRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: VirusRefusal | PlainMessage<VirusRefusal> | undefined, b: VirusRefusal | PlainMessage<VirusRefusal> | undefined): boolean {
+    return proto3.util.equals(VirusRefusal, a, b);
+  }
+}
+
+/**
+ * The detail of a PermissionDenied that Click, DropBomb, PlaceShield and UseVirus answer a banned caller.
  *
  * @generated from message planet.v1.BanRefusal
  */
@@ -834,6 +874,13 @@ export class GetMapResponse extends Message<GetMapResponse> {
    */
   knockedOut: string[] = [];
 
+  /**
+   * The tiles of the range a live virus infects.
+   *
+   * @generated from field: repeated planet.v1.InfectedTile infected = 8;
+   */
+  infected: InfectedTile[] = [];
+
   constructor(data?: PartialMessage<GetMapResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -848,6 +895,7 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 4, name: "shields", kind: "message", T: TileShields, repeated: true },
     { no: 5, name: "version", kind: "message", T: MapVersion },
     { no: 7, name: "knocked_out", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 8, name: "infected", kind: "message", T: InfectedTile, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {
@@ -864,6 +912,49 @@ export class GetMapResponse extends Message<GetMapResponse> {
 
   static equals(a: GetMapResponse | PlainMessage<GetMapResponse> | undefined, b: GetMapResponse | PlainMessage<GetMapResponse> | undefined): boolean {
     return proto3.util.equals(GetMapResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.InfectedTile
+ */
+export class InfectedTile extends Message<InfectedTile> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string virus_id = 2;
+   */
+  virusId = "";
+
+  constructor(data?: PartialMessage<InfectedTile>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.InfectedTile";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "virus_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InfectedTile {
+    return new InfectedTile().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): InfectedTile {
+    return new InfectedTile().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): InfectedTile {
+    return new InfectedTile().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: InfectedTile | PlainMessage<InfectedTile> | undefined, b: InfectedTile | PlainMessage<InfectedTile> | undefined): boolean {
+    return proto3.util.equals(InfectedTile, a, b);
   }
 }
 
@@ -1283,6 +1374,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: KnockOut;
     case: "knockOut";
+  } | {
+    /**
+     * @generated from field: planet.v1.VirusSpread virus_spread = 14;
+     */
+    value: VirusSpread;
+    case: "virusSpread";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1303,6 +1400,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 11, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
     { no: 12, name: "charges_granted", kind: "message", T: ChargesGranted, oneof: "event" },
     { no: 13, name: "knock_out", kind: "message", T: KnockOut, oneof: "event" },
+    { no: 14, name: "virus_spread", kind: "message", T: VirusSpread, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1319,6 +1417,91 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * The one event of a virus's use or tick: every tile it took is the flag's now and infected, but those in struck.
+ *
+ * @generated from message planet.v1.VirusSpread
+ */
+export class VirusSpread extends Message<VirusSpread> {
+  /**
+   * @generated from field: string virus_id = 1;
+   */
+  virusId = "";
+
+  /**
+   * The flag the virus takes tiles for.
+   *
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * The flag whose land it spreads into.
+   *
+   * @generated from field: string victim_country_id = 3;
+   */
+  victimCountryId = "";
+
+  /**
+   * Each is country_id's now, and infected.
+   *
+   * @generated from field: repeated uint32 taken_tile_ids = 4;
+   */
+  takenTileIds: number[] = [];
+
+  /**
+   * Each lost one shield and kept its flag: with the shields it kept.
+   *
+   * @generated from field: repeated planet.v1.TileShields struck = 5;
+   */
+  struck: TileShields[] = [];
+
+  /**
+   * The virus spreads no more: every tile it infects is cured, and keeps its flag.
+   *
+   * @generated from field: bool ended = 6;
+   */
+  ended = false;
+
+  /**
+   * @generated from field: planet.v1.MapVersion version = 7;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<VirusSpread>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.VirusSpread";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "virus_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "victim_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "taken_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 5, name: "struck", kind: "message", T: TileShields, repeated: true },
+    { no: 6, name: "ended", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VirusSpread {
+    return new VirusSpread().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): VirusSpread {
+    return new VirusSpread().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): VirusSpread {
+    return new VirusSpread().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: VirusSpread | PlainMessage<VirusSpread> | undefined, b: VirusSpread | PlainMessage<VirusSpread> | undefined): boolean {
+    return proto3.util.equals(VirusSpread, a, b);
   }
 }
 
@@ -2104,6 +2287,11 @@ export class ChargesHeld extends Message<ChargesHeld> {
    */
   shields = 0;
 
+  /**
+   * @generated from field: bool virus = 6;
+   */
+  virus = false;
+
   constructor(data?: PartialMessage<ChargesHeld>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2117,6 +2305,7 @@ export class ChargesHeld extends Message<ChargesHeld> {
     { no: 2, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "spread_clicks_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesHeld {
@@ -2325,6 +2514,20 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   enclosuresOff = false;
 
+  /**
+   * How many infections a virus makes at most, a tile taken or a shield struck each, its first included.
+   *
+   * @generated from field: uint32 virus_infections = 18;
+   */
+  virusInfections = 0;
+
+  /**
+   * How long a virus waits between two spreads.
+   *
+   * @generated from field: uint32 virus_every_ms = 19;
+   */
+  virusEveryMs = 0;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2347,6 +2550,8 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 14, name: "bombs_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 16, name: "spread_unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 17, name: "enclosures_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 18, name: "virus_infections", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 19, name: "virus_every_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {
@@ -2812,6 +3017,80 @@ export class TilesSpread extends Message<TilesSpread> {
 
   static equals(a: TilesSpread | PlainMessage<TilesSpread> | undefined, b: TilesSpread | PlainMessage<TilesSpread> | undefined): boolean {
     return proto3.util.equals(TilesSpread, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.UseVirusRequest
+ */
+export class UseVirusRequest extends Message<UseVirusRequest> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<UseVirusRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UseVirusRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UseVirusRequest {
+    return new UseVirusRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UseVirusRequest {
+    return new UseVirusRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UseVirusRequest {
+    return new UseVirusRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UseVirusRequest | PlainMessage<UseVirusRequest> | undefined, b: UseVirusRequest | PlainMessage<UseVirusRequest> | undefined): boolean {
+    return proto3.util.equals(UseVirusRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.UseVirusResponse
+ */
+export class UseVirusResponse extends Message<UseVirusResponse> {
+  constructor(data?: PartialMessage<UseVirusResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.UseVirusResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UseVirusResponse {
+    return new UseVirusResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UseVirusResponse {
+    return new UseVirusResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UseVirusResponse {
+    return new UseVirusResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UseVirusResponse | PlainMessage<UseVirusResponse> | undefined, b: UseVirusResponse | PlainMessage<UseVirusResponse> | undefined): boolean {
+    return proto3.util.equals(UseVirusResponse, a, b);
   }
 }
 

@@ -263,13 +263,15 @@ func (x *ReplayedEvent) GetEvent() *PlanetEvent {
 }
 
 type GrantChargesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Refill        bool                   `protobuf:"varint,2,opt,name=refill,proto3" json:"refill,omitempty"`
-	Bomb          bool                   `protobuf:"varint,3,opt,name=bomb,proto3" json:"bomb,omitempty"`
-	Enclosures    uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
-	SpreadClicks  uint32                 `protobuf:"varint,5,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
-	Shields       uint32                 `protobuf:"varint,6,opt,name=shields,proto3" json:"shields,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	AccountId    string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Refill       bool                   `protobuf:"varint,2,opt,name=refill,proto3" json:"refill,omitempty"`
+	Bomb         bool                   `protobuf:"varint,3,opt,name=bomb,proto3" json:"bomb,omitempty"`
+	Enclosures   uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	SpreadClicks uint32                 `protobuf:"varint,5,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
+	Shields      uint32                 `protobuf:"varint,6,opt,name=shields,proto3" json:"shields,omitempty"`
+	// One virus: a hand holds one at most.
+	Virus         bool `protobuf:"varint,7,opt,name=virus,proto3" json:"virus,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -344,6 +346,13 @@ func (x *GrantChargesRequest) GetShields() uint32 {
 		return x.Shields
 	}
 	return 0
+}
+
+func (x *GrantChargesRequest) GetVirus() bool {
+	if x != nil {
+		return x.Virus
+	}
+	return false
 }
 
 type GrantChargesResponse struct {
@@ -1219,7 +1228,7 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"i\n" +
 	"\rReplayedEvent\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
-	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\xbf\x01\n" +
+	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\xd5\x01\n" +
 	"\x13GrantChargesRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
@@ -1229,7 +1238,8 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"enclosures\x18\x04 \x01(\rR\n" +
 	"enclosures\x12#\n" +
 	"\rspread_clicks\x18\x05 \x01(\rR\fspreadClicks\x12\x18\n" +
-	"\ashields\x18\x06 \x01(\rR\ashields\"\x93\x01\n" +
+	"\ashields\x18\x06 \x01(\rR\ashields\x12\x14\n" +
+	"\x05virus\x18\a \x01(\bR\x05virus\"\x93\x01\n" +
 	"\x14GrantChargesResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +

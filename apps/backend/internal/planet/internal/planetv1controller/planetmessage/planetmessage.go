@@ -146,5 +146,35 @@ func Map(batch clicks.DenseBatch) *planetv1.GetMapResponse {
 		Shields:     shields,
 		Version:     Version(batch.Version),
 		KnockedOut:  batch.KnockedOut,
+		Infected:    infectedOf(batch.Infected),
+	}
+}
+
+func infectedOf(tiles []clicks.InfectedTile) []*planetv1.InfectedTile {
+	infected := make([]*planetv1.InfectedTile, len(tiles))
+	for i, tile := range tiles {
+		infected[i] = &planetv1.InfectedTile{TileId: tile.Tile, VirusId: string(tile.Virus)}
+	}
+	return infected
+}
+
+func VirusSpread(infection *clicks.Infection, version clicks.MapVersion) *planetv1.PlanetEvent {
+	struck := make([]*planetv1.TileShields, len(infection.Struck))
+	for i, tile := range infection.Struck {
+		struck[i] = &planetv1.TileShields{TileId: tile.Tile, Shields: uint32(tile.Shields)} //nolint:gosec // a byte in the tile storage.
+	}
+
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_VirusSpread{
+			VirusSpread: &planetv1.VirusSpread{
+				VirusId:         string(infection.Virus.ID),
+				CountryId:       infection.Virus.Flag,
+				VictimCountryId: infection.Virus.Victim,
+				TakenTileIds:    infection.Taken,
+				Struck:          struck,
+				Ended:           infection.Virus.Ended,
+				Version:         Version(version),
+			},
+		},
 	}
 }

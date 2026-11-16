@@ -41,6 +41,7 @@ type Change struct {
 	Enclosure     *Enclosure
 	Fortification *Fortification
 	KnockOut      *KnockOut
+	Infection     *Infection
 	// The rows the writes since the last tally changed, each whole: a flag at zero is listed.
 	Tally *Tally
 }
@@ -56,6 +57,9 @@ type DenseBatch struct {
 
 	// The flags knocked out.
 	KnockedOut []string
+
+	// The tiles of the range a live virus infects.
+	Infected []InfectedTile
 }
 
 type TileShields struct {

@@ -99,9 +99,9 @@ the account**; off, from every kind (`Rules.MayDraw`). The ladder is progression
 type per rung ([Levels](levels.md#the-unlocks)). The bonuses module knows no level, only the kinds it was told.
 
 - **`gates.on`**, and **`gates.open.*`**, a switch per kind: the kinds anyone may be drawn while the gates are on, a
-  guest too. `default` holds `on: false`, with refill, spread and shields open (migration `…_unlocks`): **every set has
-  the gates off until the levels are shown**, so no draw changes. A battle's set keeps them off: newcomers who come for a
-  battle fight with every kind. That is data, not code.
+  guest too. `default` holds `on: false`, with refill, spread and shields open (migration `…_unlocks`; the virus closed,
+  `…_virus_offers`): **every set has the gates off until the levels are shown**, so no draw changes. A battle's set keeps
+  them off: newcomers who come for a battle fight with every kind. That is data, not code.
 - **A guest has nothing unlocked**: progression keeps no level for one, so it draws the open kinds alone.
 - **Gates decide only what is drawn.** A charge held stays usable whatever the gates: planet checks no level.
 - **A win whose kinds it may be drawn all weigh 0 pays nothing**, as a full hand does; a box's metric counts it
@@ -125,12 +125,13 @@ holds every value, another set only what it changes, and plays default's for the
 `bonuses.v1.Rules`:
 
 - `kinds.*` — what a box or a right answer is drawn as: a weight per kind, `refill`, `spreadClicks`, `encloseClicks`,
-  `bomb`, `shields`. 0 is never drawn, nor a kind planet says a hand has no room for
+  `bomb`, `shields`, `virus`. 0 is never drawn, nor a kind planet says a hand has no room for. `virus` weighs 0 in
+  `default` until the levels open it ([The virus](virus.md))
 - `spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `shield.maxPerBox` — what a box or a right answer
   grants at most (and at least). The stacks those fill are planet's `charges.*`
 - `signInRefill` — a guest's first sign-in earns a refill ([A guest's first sign-in earns a refill](sign-in-refill.md))
-- `gates.on`, `gates.open.refill`, `spreadClicks`, `encloseClicks`, `bomb`, `shields` — whether a win is drawn only from
-  the open kinds and the ones the account unlocked ([The gates](#the-gates))
+- `gates.on`, `gates.open.refill`, `spreadClicks`, `encloseClicks`, `bomb`, `shields`, `virus` — whether a win is drawn
+  only from the open kinds and the ones the account unlocked ([The gates](#the-gates))
 - `quiz` (10) — `reserved` since 2026-11-13: the quizzes' rules are `quizzes.v1.Rules`
 - `boxes`, `offerTtl`, `missRetry`, `activeWithin`, `welcome`, `frozen` (1, 3, 4, 5, 9, 12) — `reserved` since
   2026-11-15: the boxes' rules are `boxes.v1.Rules`, copied from here ([The boxes](boxes-module.md#its-rule-sets)). A set

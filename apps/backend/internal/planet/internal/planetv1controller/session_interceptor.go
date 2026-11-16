@@ -35,6 +35,7 @@ func NewSessionInterceptor(
 		cpconnect.Attested(planetv1connect.ClickServiceDropBombProcedure),
 		cpconnect.Attested(planetv1connect.ClickServiceUseRefillProcedure),
 		cpconnect.Attested(planetv1connect.ClickServicePlaceShieldProcedure),
+		cpconnect.Attested(planetv1connect.ClickServiceUseVirusProcedure),
 	)
 }
 

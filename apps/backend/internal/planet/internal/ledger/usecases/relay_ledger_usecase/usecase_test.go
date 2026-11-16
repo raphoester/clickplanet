@@ -283,3 +283,22 @@ func TestClicksForOneFlagOnOneTileAtOnceTellOneTake(t *testing.T) {
 		}, events.sent[0]), "%v", events.sent[0])
 	}
 }
+
+func TestAVirusTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
+	storage := flushed(t,
+		ledger.Infecting{Tile: 5, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
+			{Tile: 4, Owner: "de", Outcome: clicks.Taken},
+			{Tile: 6, Owner: "de", Outcome: clicks.Shielded, Shields: 1},
+		}},
+	)
+	events := &sender{}
+
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, events.sent, 2)
+	assert.True(t, proto.Equal(&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
+		{TileId: 4, Previous: "de"},
+	}}, events.sent[0]), "%v", events.sent[0])
+	assert.IsType(t, &planetv1.ShieldsStruck{}, events.sent[1])
+}

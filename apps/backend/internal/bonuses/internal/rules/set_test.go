@@ -98,6 +98,12 @@ func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestNoBoxAndNoRightAnswerIsAVirusUntilTheLevelsOpenIt(t *testing.T) {
+	set := restored(t, rules.Seeded())
+
+	assert.False(t, bonuses.RulesOf(set.TakePlayedSnapshot().Rules).Offered(bonuses.KindVirus))
+}
+
 func TestTheGatesAreOffUntilTheLevelsAreShown(t *testing.T) {
 	played := bonuses.RulesOf(restored(t, rules.Seeded()).TakePlayedSnapshot().Rules)
 
