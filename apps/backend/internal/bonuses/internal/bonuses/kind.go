@@ -3,7 +3,6 @@ package bonuses
 import (
 	"crypto/rand"
 	"math/big"
-	"slices"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -36,11 +35,11 @@ type Reward struct {
 	Amount int
 }
 
-// drawReward draws a kind among those the account may be drawn and its hand has room for, by their weights, and its
-// amount. It is false when there is nothing the win could be worth: a full hand, or kinds it may be drawn that all weigh
-// 0.
-func drawReward(rules Rules, full []Kind, unlocked Unlocked) (Reward, bool) {
-	kinds := rules.drawable(full, unlocked)
+// drawReward draws a kind among those the account may be drawn, by their weights, and its amount, whatever the hand
+// holds: the wallet keeps what fits, so holding every other kind full never makes the draw any surer. It is false when
+// the kinds it may be drawn all weigh 0.
+func drawReward(rules Rules, unlocked Unlocked) (Reward, bool) {
+	kinds := rules.drawable(unlocked)
 	if kinds.Empty() {
 		return Reward{}, false
 	}
@@ -49,12 +48,11 @@ func drawReward(rules Rules, full []Kind, unlocked Unlocked) (Reward, bool) {
 	return Reward{Kind: kind, Amount: amountOf(kind, rules)}, true
 }
 
-// drawable is every kind weighed above 0 that the account may be drawn, but those a hand has no room for.
-func (r Rules) drawable(full []Kind, unlocked Unlocked) *cpcolls.Set[Kind] {
-	kept := cpcolls.NewSet(full...)
+// drawable is every kind weighed above 0 that the account may be drawn.
+func (r Rules) drawable(unlocked Unlocked) *cpcolls.Set[Kind] {
 	kinds := cpcolls.NewSetWithCapacity[Kind](len(Kinds))
 	for _, kind := range Kinds {
-		if r.Offered(kind) && r.MayDraw(kind, unlocked) && !kept.Contains(kind) {
+		if r.Offered(kind) && r.MayDraw(kind, unlocked) {
 			kinds.Add(kind)
 		}
 	}
@@ -62,10 +60,9 @@ func (r Rules) drawable(full []Kind, unlocked Unlocked) *cpcolls.Set[Kind] {
 	return kinds
 }
 
-// welcomeReward is its one kind whatever the gates, since a newcomer is a guest: false when the set weighs it 0 or the
-// hand has no room for it.
-func welcomeReward(rules Rules, full []Kind, kind Kind) (Reward, bool) {
-	if !rules.Offered(kind) || slices.Contains(full, kind) {
+// welcomeReward is its one kind whatever the gates, since a newcomer is a guest: false when the set weighs it 0.
+func welcomeReward(rules Rules, kind Kind) (Reward, bool) {
+	if !rules.Offered(kind) {
 		return Reward{}, false
 	}
 

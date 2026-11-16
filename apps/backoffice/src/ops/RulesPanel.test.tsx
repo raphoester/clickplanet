@@ -25,8 +25,8 @@ const sent = (admin: FakeAdmin) => (admin.askedFor("saveRuleSet") as {set: RuleS
 const pick = (label: string, value: "default" | "yes" | "no") =>
     fireEvent.change(screen.getByLabelText(label), {target: {value}})
 
-const BOMBS_OFF = "Bombs off: no box offers one, and none is dropped"
-const ENCLOSE_OFF = "Enclose off: no box offers one, and none is used"
+const BOMBS_OFF = "Bombs off: no hand takes one, and none is dropped"
+const ENCLOSE_OFF = "Enclose off: no hand takes one, and none is used"
 
 // A set that holds only a slower refill, and plays default's for the rest.
 function withSlow(): FakeAdmin {
@@ -62,8 +62,9 @@ describe("the game rules page", () => {
         fireEvent.click(await screen.findByRole("button", {name: "Edit default"}))
         const charges = within(screen.getByRole("group", {name: "Charges"}))
         expect(charges.getAllByRole("spinbutton").map(field => field.closest("label")?.textContent)).toEqual([
-            "Spread clicks held", "Spread rings, 1 to 3", "Bomb rings", "Enclose tiles, at most", "Enclosures held", "Shields held",
-            "Shields on a tile, at most", "Virus infections, at most", "Virus spreads every (s)", "Mines held",
+            "Refills held", "Spread clicks held", "Spread rings, 1 to 3", "Bombs held", "Bomb rings", "Enclose tiles, at most",
+            "Enclosures held", "Shields held", "Shields on a tile, at most", "Viruses held", "Virus infections, at most",
+            "Virus spreads every (s)", "Mines held",
             "Mine blast rings, 1 to 3", "Rallies held", "Rally ring, in tile spacings, 1 to 50", "Rally lasts (s)",
             "A click inside a rally costs, 0.1 to 1",
         ])
@@ -106,6 +107,49 @@ describe("the game rules page", () => {
         expect(rules?.charges?.enclose?.held).toBe(5)
         expect(rules?.clicks?.burst).toBe(60)
         expect(screen.queryByRole("region", {name: "Edit calm"})).toBeNull()
+    })
+
+    it("edits how many refills, bombs and viruses a hand holds, beside the mines and the rallies", async () => {
+        const admin = withCalm()
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        expect((screen.getByLabelText("Refills held") as HTMLInputElement).value).toBe("1")
+        expect((screen.getByLabelText("Bombs held") as HTMLInputElement).value).toBe("1")
+        expect((screen.getByLabelText("Viruses held") as HTMLInputElement).value).toBe("1")
+        type("Refills held", "2")
+        type("Bombs held", "3.4")
+        type("Viruses held", "2")
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+
+        const changes = within(screen.getByRole("list", {name: "What changes"})).getAllByRole("listitem")
+        expect(changes.map(change => change.textContent)).toEqual([
+            "Charges · Refills held 1 → 2",
+            "Charges · Bombs held 1 → 3.4",
+            "Charges · Viruses held 1 → 2",
+        ])
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+
+        await waitFor(() => expect(sent(admin)?.name).toBe("calm"))
+        const charges = sent(admin)?.rules?.charges
+        expect(charges?.refill?.held).toBe(2)
+        expect(charges?.bomb?.held).toBe(3)
+        expect(charges?.bomb?.rings).toBe(4)
+        expect(charges?.virus?.held).toBe(2)
+        expect(charges?.mine?.held).toBe(3)
+    })
+
+    it("plays default's refills, bombs and viruses held in a set that holds none", async () => {
+        const admin = withSlow()
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit slow"}))
+        expect((screen.getByLabelText("Bombs held") as HTMLInputElement).placeholder).toBe("1")
+        type("Bombs held", "2")
+        save()
+
+        await waitFor(() => expect(sent(admin)?.name).toBe("slow"))
+        expect(sent(admin)?.rules?.toJson()).toEqual({clicks: {tempo: 0.5}, charges: {bomb: {held: 2}}})
     })
 
     it("asks to save with what changes, each value changed saying what it was", async () => {

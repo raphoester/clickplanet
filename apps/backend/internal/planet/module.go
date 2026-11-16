@@ -121,7 +121,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_replay_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_room_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler/rule_set_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler"
@@ -448,7 +447,6 @@ func NewModule(config Config) cpbootstrap.Module {
 				GrantChargesHandler: internal_grant_charges_handler.New(
 					pay_usecase.New(db, inmemory_grant_store.New(briefGrantsKept), hands, board, clock),
 					pay_usecase.New(db, grantStore, hands, board, clock)),
-				GetRoomHandler:   get_room_handler.New(hands, chargeRules),
 				GetFreezeHandler: get_freeze_handler.New(freezing),
 				GetTilesHandler:  get_tiles_handler.New(tilesChecker, tiles_query.NewMemoryQuery(tilesStorage, geography)),
 			}

@@ -36,9 +36,9 @@ type fixture struct {
 	useCase *use_refill_usecase.UseCase
 }
 
-func setup(held bool) fixture {
+func setup(held int) fixture {
 	refills := charges.NewMemoryStore()
-	refills.Keep("a-guest", charges.Held{Refill: held})
+	refills.Keep("a-guest", charges.Held{Refills: held})
 	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 0.2, Burst: 60}, cptime.NewFixedClock(epoch))
 
 	return fixture{
@@ -65,7 +65,7 @@ func (f fixture) spend(t *testing.T, account string, n int) {
 }
 
 func TestARefillFillsTheBankAndIsSpent(t *testing.T) {
-	f := setup(true)
+	f := setup(1)
 	f.spend(t, "a-guest", 50)
 
 	out, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
@@ -78,16 +78,16 @@ func TestARefillFillsTheBankAndIsSpent(t *testing.T) {
 }
 
 func TestAFullBankIsRefusedAndSpendsNothing(t *testing.T) {
-	f := setup(true)
+	f := setup(1)
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull)
-	assert.True(t, f.refills.Kept("a-guest").Refill, "a press on a full meter wastes nothing")
+	assert.Equal(t, 1, f.refills.Kept("a-guest").Refills, "a press on a full meter wastes nothing")
 }
 
 func TestNoRefillFillsNothing(t *testing.T) {
-	f := setup(false)
+	f := setup(0)
 	f.spend(t, "a-guest", 50)
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
@@ -98,12 +98,12 @@ func TestNoRefillFillsNothing(t *testing.T) {
 }
 
 func TestACallerWithNoAccountHasNoRefill(t *testing.T) {
-	f := setup(true)
+	f := setup(1)
 
 	_, err := f.useCase.Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), use_refill_usecase.In{})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrNoRefill)
-	assert.True(t, f.refills.Kept("a-guest").Refill)
+	assert.Equal(t, 1, f.refills.Kept("a-guest").Refills)
 }
 
 var scope = buckets.Ceiling(clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"})[0]
@@ -116,7 +116,7 @@ func (f fixture) drainScope(t *testing.T, n float64) {
 }
 
 func TestTheScopesBucketIsGivenWhatTheRefillGave(t *testing.T) {
-	f := setup(true)
+	f := setup(1)
 	f.drainScope(t, 200)
 	f.spend(t, "a-guest", 50)
 
@@ -128,7 +128,7 @@ func TestTheScopesBucketIsGivenWhatTheRefillGave(t *testing.T) {
 }
 
 func TestARefillFillsWhatTheScopeLacksWhenItIsTheTighter(t *testing.T) {
-	f := setup(true)
+	f := setup(1)
 	f.drainScope(t, 576)
 
 	out, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
@@ -137,22 +137,22 @@ func TestARefillFillsWhatTheScopeLacksWhenItIsTheTighter(t *testing.T) {
 	assert.InDelta(t, 60, out.Budget.Tokens, 1e-9, "a full bank to spend")
 	assert.Equal(t, 60, out.Budget.Capacity, "read against its own bank, not the scope's 600")
 	assert.InDelta(t, 60, f.limiter.Peek(scope).Tokens, 1e-9, "the scope is given the 36 the player lacked, no more")
-	assert.False(t, f.refills.Kept("a-guest").Refill, "the refill is spent")
+	assert.Zero(t, f.refills.Kept("a-guest").Refills, "the refill is spent")
 }
 
 func TestAFullBankOnAScopeHoldingABankIsRefused(t *testing.T) {
-	f := setup(true)
+	f := setup(1)
 	f.drainScope(t, 540)
 
 	_, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})
 
 	require.ErrorIs(t, err, use_refill_usecase.ErrBankFull, "the scope still holds the bank the player can spend")
 	assert.InDelta(t, 60, f.limiter.Peek(scope).Tokens, 1e-9)
-	assert.True(t, f.refills.Kept("a-guest").Refill)
+	assert.Equal(t, 1, f.refills.Kept("a-guest").Refills)
 }
 
 func TestARefillFillsTheBucketTheScopesGuestsShare(t *testing.T) {
-	f := setup(true)
+	f := setup(1)
 	f.spend(t, "another-guest", 50)
 
 	out, err := f.useCase.Execute(played(t), use_refill_usecase.In{CountryID: "fr"})

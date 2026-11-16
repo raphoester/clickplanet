@@ -20,14 +20,14 @@ func (s stubCharges) Held(_ context.Context, holder charges.Holder) (charges.Hel
 
 func TestTheChargesReadAreTheAccounts(t *testing.T) {
 	wallet := stubCharges{
-		"a-guest":        {Bomb: true},
+		"a-guest":        {Bombs: 1},
 		charges.NoHolder: {SpreadClicks: 3},
 	}
 	ctx := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "a-guest")
 
 	held, err := get_charges_usecase.New(wallet).Execute(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, charges.Held{Bomb: true}, held)
+	assert.Equal(t, charges.Held{Bombs: 1}, held)
 }
 
 func TestWithNoAccountNothingIsHeld(t *testing.T) {

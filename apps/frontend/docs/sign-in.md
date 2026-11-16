@@ -176,8 +176,8 @@ sign-in buttons (`SignInButtons`, which `SignInPitchModal` uses too).
 
 - **It opens on a dry tap**: a tap the globe refuses for an empty bank
   (`dryTaps` from `useRefusedClicks`; a tap out of an arena's reach shakes the meter but is not one), from a guest the server offers sign-in to, with
-  its multiplier, on a map that is not frozen, holding no refill (a refill is a
-  full bank already, and the server gives a guest one at most).
+  its multiplier, on a map that is not frozen, holding no refill (`charges.refills` is 0: a refill is a
+  full bank already).
 - **And when the fast start ends**: a budget that says `fastStart`, then one
   that does not, for a guest it is offered to as above. A page loaded after the
   fast start never saw one, and is not asked. A quiz up then holds it until the

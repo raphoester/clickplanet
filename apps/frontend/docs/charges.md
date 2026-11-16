@@ -1,16 +1,18 @@
 # Charges
 
 A bonus box holds a **charge**, which has no clock and is never used on its own:
-a refill (the click bank, filled when the player presses it), a bomb (one drop), a virus (one use, see
-[Virus](virus.md)), a stack of mines (one laid each, see [Mine](mine.md)), a stack of rallies (one called each, see
+a stack of refills (the click bank, filled when the player presses one), a stack of bombs (one drop each), a stack of
+viruses (one use each, see [Virus](virus.md)), a stack of mines (one laid each, see [Mine](mine.md)), a stack of rallies (one called each, see
 [Rally](rally.md)), a
 stack of enclosures (one click each, which fills every shape it closes, `maxTiles` at most a shape), a pool of spread
-clicks and a pool of shields. The server keeps them per account, in postgres:
-a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
-30 shields. A box adds a random 1 to 3 enclosures, 1 to 4 spread clicks or 5
-to 20 shields, capped at the size; the reward it announces
+clicks and a pool of shields. **Every kind is a count** (`Charges.refills`, `bombs`, `viruses`, `mines`, …, as
+`ChargesHeld` says it), which the server keeps per account, in postgres, up to what the rules let a hand hold: one
+refill, one bomb and one virus in production for now (the operator may raise them), up to 3 enclosures, up to 8 spread
+clicks and up to 30 shields. "Is one held" is a count above 0. A box adds a random 1 to 3 enclosures, 1 to 4 spread
+clicks or 5 to 20 shields, capped at the size; the reward it announces
 is what was kept (`+2 spread clicks`), which planet's stream tells as the grant's `gained` about a second after the
-catch. The boxes are the boxes module's (`boxes.v1.BoxService`, on a stream of its own: see
+catch. A refill, a bomb or a virus kept alone is announced by its name (`Bomb`), several by their count (`+2 bombs`,
+an operator's grant: `BonusReward`'s `refills`, `bombs`, `viruses`). The boxes are the boxes module's (`boxes.v1.BoxService`, on a stream of its own: see
 [The boxes stream](backends.md#the-boxes-stream)), the quizzes the quizzes' ([The quizzes
 stream](backends.md#the-quizzes-stream)); what they hold is drawn by the bonuses module, and the charges are planet's.
 A box that held nothing (the hand had room for no kind the rules weigh) shows the award card's "Your inventory is
@@ -28,15 +30,17 @@ added (`gainedOf`), which the grant listeners hear (a box's or a right answer's 
 it follows its own calls: an accepted click **sent with spread on** takes a spread
 click off (not while spreads are unlimited), this player's own `tilesEnclosed` takes an enclosure off (not while enclosures are unlimited; the event
 also brings the tiles it took, see [Viewer](viewer.md)), and a drop
-takes the bomb off at once and gives it back unless the server says it holds
-none (a ban refusal gives it back too); a shield is taken off the same way. The click answer says nothing about charges, on purpose (see the backend's
+takes one bomb off at once and gives that one back unless the server says it holds
+none, which leaves none (a ban refusal gives it back too); a virus used, a mine laid and a rally called are taken off
+the same way, and a shield too. The click answer says nothing about charges, on purpose (see the backend's
 [Charges](../../backend/docs/charges.md)). A charge spent in another tab stays on screen until the next read. It
 reaches the globe through `BonusHandlers.onCharges`, and `useGlobe` puts it in the bonus store (`useBonus`, see
 [Stores](stores.md)), which the inventory reads.
 
 **The sizes are rules**: `GetChargeRules` (a GET no cache keeps) answers the
 blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
-stack's size, the shields' pool size, how many can stand on one tile
+stack's size, the shields' pool size, how many refills, bombs and viruses a hand holds (`refills`, `bombs`,
+`viruses`, as `mines` and `rallies`), how many shields can stand on one tile
 (`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) or off (`enclosuresOff`) and whether spreads
 are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
@@ -139,7 +143,11 @@ enclose at 4 and the bomb at 5, a guest at level 0 and a signed-in player at its
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is
 dimmed, and a press on it does nothing but say how to get one. A pool shows its count against its size (`5/8`,
-`2/3`) in a pill on its corner. **A slot is a square with no word in it**, at every width and in the tray too: 56px,
+`2/3`) in a pill on its corner. **The refills, the bombs and the viruses are counted the same way once they stack**
+(`stackCountOf`): while the rules let a hand hold one at most and it holds no more (production for now), their slot
+shows no count, as when each was held or not; once a hand holds more than one, or may, the pill says it (`2/3`, an
+empty one `0/3`), so two bombs read as 2. A drop or a use spends one and puts the bomb or the virus away: the next
+is aimed again from its slot, where the mines stay aimed. **A slot is a square with no word in it**, at every width and in the tray too: 56px,
 48px on the bar under 1280px wide, 38 to 44px on a phone's. Its name is in its `aria-label`, and a mouse's hover says
 how to use it in its bubble. A name drawn under the icon widened its own slot ("Encerclement"), which the owner turned
 down on 2026-11-16. What the slot is doing (`On`, `Aim`, `Full`, `New`) is in its `aria-label` too, not over it: a
@@ -147,14 +155,14 @@ down on 2026-11-16. What the slot is doing (`On`, `Aim`, `Full`, `New`) is in it
 each other ("Nouveau", "Zapnuto"). A slot is shown always, in the tray at least, the virus too (see
 [Virus](virus.md)), but the bomb while bombs are off, and Enclose while enclosures are off.
 
-- **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
+- **Refill** fills the bank with one refill (`Refiller.useRefill`). **On a full bank it sends
   nothing** and says "Full": a refill there would be wasted. The refill a
   guest's first sign-in earns is spent by the game, through the same call (see
   [Sign-in](sign-in.md#the-refill-a-first-sign-in-earns)). The
   server refuses it too, `FailedPrecondition`, read as `BankFullError`, and spends
   nothing.
-- **Bomb** aims it, or puts it away (`Globe.setArmed`).
-- **Virus** aims it, or puts it away (`Globe.setVirusAimed`).
+- **Bomb** aims one, or puts it away (`Globe.setArmed`), counted once they stack (`2/3`).
+- **Virus** aims one, or puts it away (`Globe.setVirusAimed`), counted the same way.
 - **Mine** aims the mines, or puts them away (`Globe.setMineAimed`), counted against the most a hand holds (`2/3`).
 - **Rally** aims a rally, or puts it away (`Globe.setRallyAimed`), counted the same way (`1/3`). See [Rally](rally.md).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),

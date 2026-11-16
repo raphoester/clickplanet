@@ -55,14 +55,14 @@ type parts struct {
 	clearer *stubClearer
 }
 
-func setup(held bool, arc float64) (*drop_bomb_usecase.UseCase, parts) {
+func setup(held int, arc float64) (*drop_bomb_usecase.UseCase, parts) {
 	p := parts{
 		bombs:   charges.NewMemoryStore(),
 		geo:     &stubMap{nearest: 10, arc: arc},
 		clearer: &stubClearer{},
 	}
 
-	p.bombs.Keep(bomber, charges.Held{Bomb: held})
+	p.bombs.Keep(bomber, charges.Held{Bombs: held})
 
 	return drop_bomb_usecase.New(charges.NewCharges(p.bombs, inForce), p.geo, p.clearer, countries{}, rules), p
 }
@@ -76,7 +76,7 @@ func dropping(t *testing.T) context.Context {
 }
 
 func TestABombOnLandClearsACircleAroundTheTileHit(t *testing.T) {
-	useCase, p := setup(true, 0.001)
+	useCase, p := setup(1, 0.001)
 
 	blast, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
 	require.NoError(t, err)
@@ -90,17 +90,26 @@ func TestABombOnLandClearsACircleAroundTheTileHit(t *testing.T) {
 	assert.Equal(t, charges.Held{}, p.bombs.Kept(bomber))
 }
 
+func TestADropSpendsOneBombOfSeveral(t *testing.T) {
+	useCase, p := setup(3, 0.001)
+
+	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
+	require.NoError(t, err)
+
+	assert.Equal(t, charges.Held{Bombs: 2}, p.bombs.Kept(bomber), "the others wait for their moment")
+}
+
 func TestACallerWithNoAccountHasNoBomb(t *testing.T) {
-	useCase, p := setup(true, 0.001)
+	useCase, p := setup(1, 0.001)
 
 	_, err := useCase.Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
 	require.ErrorIs(t, err, drop_bomb_usecase.ErrNoBomb, "a caller with no account holds no bomb")
 
-	assert.Equal(t, charges.Held{Bomb: true}, p.bombs.Kept(bomber))
+	assert.Equal(t, charges.Held{Bombs: 1}, p.bombs.Kept(bomber))
 }
 
 func TestABombInTheSeaIsSpentAndClearsNothing(t *testing.T) {
-	useCase, p := setup(true, 0.2)
+	useCase, p := setup(1, 0.2)
 
 	blast, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "fr"})
 	require.NoError(t, err)
@@ -113,7 +122,7 @@ func TestABombInTheSeaIsSpentAndClearsNothing(t *testing.T) {
 }
 
 func TestNoBombNoBlast(t *testing.T) {
-	useCase, p := setup(false, 0.001)
+	useCase, p := setup(0, 0.001)
 
 	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 1}, CountryID: "fr"})
 
@@ -122,7 +131,7 @@ func TestNoBombNoBlast(t *testing.T) {
 }
 
 func TestAMalformedDropDoesNotCostTheBomb(t *testing.T) {
-	useCase, p := setup(true, 0.001)
+	useCase, p := setup(1, 0.001)
 
 	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 1}, CountryID: "xx"})
 	require.ErrorIs(t, err, clicks.ErrUnknownCountry)
@@ -131,11 +140,11 @@ func TestAMalformedDropDoesNotCostTheBomb(t *testing.T) {
 	_, err = useCase.Execute(dropping(t), drop_bomb_usecase.In{CountryID: "fr"})
 	require.ErrorIs(t, err, clicks.ErrTileOutOfRange)
 
-	assert.Equal(t, charges.Held{Bomb: true}, p.bombs.Kept(bomber), "a malformed drop is refused before the bomb is touched")
+	assert.Equal(t, charges.Held{Bombs: 1}, p.bombs.Kept(bomber), "a malformed drop is refused before the bomb is touched")
 }
 
 func TestAStoreThatFailsFailsTheDropWithoutSayingThereIsNoBomb(t *testing.T) {
-	useCase, p := setup(true, 0.001)
+	useCase, p := setup(1, 0.001)
 	down := errors.New("postgres is down")
 	p.bombs.FailWith(down)
 
@@ -151,7 +160,7 @@ func TestWhileBombsAreOffADropIsRefusedAndTheBombStaysHeld(t *testing.T) {
 	off.Bomb.Rings, off.Bomb.Off = 6, true
 	offRules := func() charges.Rules { return off }
 	bombs := charges.NewMemoryStore()
-	bombs.Keep(bomber, charges.Held{Bomb: true})
+	bombs.Keep(bomber, charges.Held{Bombs: 1})
 	clearer := &stubClearer{}
 	useCase := drop_bomb_usecase.New(charges.NewCharges(bombs, offRules), &stubMap{nearest: 10, arc: 0.001}, clearer,
 		countries{}, charges.NewBombing(offRules, 0.005))
@@ -159,6 +168,6 @@ func TestWhileBombsAreOffADropIsRefusedAndTheBombStaysHeld(t *testing.T) {
 	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "xx"})
 
 	require.ErrorIs(t, err, charges.ErrBombsOff, "refused before anything else, a malformed drop too")
-	assert.Equal(t, charges.Held{Bomb: true}, bombs.Kept(bomber), "the bomb stays held")
+	assert.Equal(t, charges.Held{Bombs: 1}, bombs.Kept(bomber), "the bomb stays held")
 	assert.Empty(t, clearer.cleared)
 }

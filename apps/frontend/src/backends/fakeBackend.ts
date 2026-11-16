@@ -70,6 +70,10 @@ const TOLL_STEPS = [
 
 const BONUS_EVERY_MS = 20_000
 const BONUS_OFFER_TTL_MS = 15_000
+// A hand holds one refill and one virus, as on the server; two bombs, so the fake shows a stack of them too.
+const REFILLS = 1
+const BOMBS = 2
+const VIRUSES = 1
 const SPREAD_CLICKS = 8
 const SPREAD_PER_BOX = 4
 const ENCLOSURES = 3
@@ -138,6 +142,9 @@ const RULES: BonusRules = {
     spreadUnlimited: false,
     enclosuresOff: false,
     virusInfections: VIRUS_INFECTIONS,
+    refills: REFILLS,
+    bombs: BOMBS,
+    viruses: VIRUSES,
     gatesOn: false,
     openKinds: ["refill", "spreadClicks", "shields"],
     mines: MINES,
@@ -322,9 +329,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private full(kind: BonusReward["kind"]): boolean {
         switch (kind) {
             case "refill":
-                return this.charges.refill
+                return this.charges.refills >= REFILLS
             case "bomb":
-                return this.charges.bomb
+                return this.charges.bombs >= BOMBS
             case "encloseClicks":
                 return this.charges.enclosures >= ENCLOSURES
             case "spreadClicks":
@@ -332,7 +339,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             case "shields":
                 return this.charges.shields >= SHIELDS
             case "virus":
-                return this.charges.virus
+                return this.charges.viruses >= VIRUSES
             case "mine":
                 return this.charges.mines >= MINES
             case "rally":
@@ -352,12 +359,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private grant(kind: BonusReward["kind"]): ClaimedBonus {
         const held = this.charges
         switch (kind) {
-            case "refill":
-                this.hold({...held, refill: true})
-                return {reward: rewardOfKind(kind), charges: this.charges}
-            case "bomb":
-                this.hold({...held, bomb: true})
-                return {reward: rewardOfKind(kind), charges: this.charges}
+            case "refill": {
+                const refills = Math.min(held.refills + 1, REFILLS)
+                this.hold({...held, refills})
+                return {reward: rewardOfKind(kind, refills - held.refills), charges: this.charges}
+            }
+            case "bomb": {
+                const bombs = Math.min(held.bombs + 1, BOMBS)
+                this.hold({...held, bombs})
+                return {reward: rewardOfKind(kind, bombs - held.bombs), charges: this.charges}
+            }
             case "encloseClicks": {
                 const enclosures = Math.min(held.enclosures + drawUpTo(ENCLOSURES_PER_BOX), ENCLOSURES)
                 this.hold({...held, enclosures})
@@ -373,9 +384,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 this.hold({...held, shields})
                 return {reward: rewardOfKind(kind, shields - held.shields), charges: this.charges}
             }
-            case "virus":
-                this.hold({...held, virus: true})
-                return {reward: rewardOfKind(kind), charges: this.charges}
+            case "virus": {
+                const viruses = Math.min(held.viruses + 1, VIRUSES)
+                this.hold({...held, viruses})
+                return {reward: rewardOfKind(kind, viruses - held.viruses), charges: this.charges}
+            }
             case "mine": {
                 const mines = Math.min(held.mines + drawUpTo(MINES_PER_BOX), MINES)
                 this.hold({...held, mines})
@@ -390,13 +403,13 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     public async useRefill(): Promise<void> {
-        if (!this.charges.refill) throw new BonusLostError()
+        if (this.charges.refills === 0) throw new BonusLostError()
 
         this.refill()
         if (this.tokens >= CLICK_BURST) throw new BankFullError()
 
         this.tokens = CLICK_BURST
-        this.hold({...this.charges, refill: false})
+        this.hold({...this.charges, refills: this.charges.refills - 1})
         this.reportBudget()
     }
 
@@ -805,11 +818,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public async useVirus(tileId: number, countryId: string): Promise<void> {
         this.refuseBanned()
         this.play(countryId)
-        if (!this.charges.virus) throw new BonusLostError()
+        if (this.charges.viruses === 0) throw new BonusLostError()
         const owner = this.tileBindings.get(tileId)
         if (owner === undefined || owner === countryId || this.shields.has(tileId)) throw new VirusRefusedError()
 
-        this.hold({...this.charges, virus: false})
+        this.hold({...this.charges, viruses: this.charges.viruses - 1})
         const virus = UUIDv4()
         this.viruses.set(virus, {flag: countryId, victim: owner, infected: [], infections: 0})
         this.infect(virus, [tileId])
@@ -1032,9 +1045,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
         this.refuseBanned()
-        if (!this.charges.bomb) throw new BonusLostError()
+        if (this.charges.bombs === 0) throw new BonusLostError()
 
-        this.hold({...this.charges, bomb: false})
+        this.hold({...this.charges, bombs: this.charges.bombs - 1})
         await this.explode(target, countryId)
     }
 
@@ -1198,17 +1211,17 @@ function drawBetween(least: number, most: number): number {
 function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
     switch (kind) {
         case "bomb":
-            return {kind, radius: BOMB_RADIUS}
+            return {kind, radius: BOMB_RADIUS, bombs: amount}
         case "encloseClicks":
             return {kind, shapes: amount, maxTiles: ENCLOSE_MAX_TILES}
         case "spreadClicks":
             return {kind, clicks: amount}
         case "refill":
-            return {kind}
+            return {kind, refills: amount}
         case "shields":
             return {kind, shields: amount}
         case "virus":
-            return {kind}
+            return {kind, viruses: amount}
         case "mine":
             return {kind, mines: amount}
         case "rally":

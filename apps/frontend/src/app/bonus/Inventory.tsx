@@ -137,7 +137,8 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                 return {
                     kind,
                     name: t("bonus.refill"),
-                    held: charges.refill,
+                    held: charges.refills > 0,
+                    count: stackCountOf(charges.refills, rules?.refills),
                     hint: t("inventory.refill.hint"),
                     onPress: onUseRefill && (() => {
                         markUsed("refill")
@@ -150,7 +151,8 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                 return {
                     kind,
                     name: t("bonus.bomb"),
-                    held: charges.bomb,
+                    held: charges.bombs > 0,
+                    count: stackCountOf(charges.bombs, rules?.bombs),
                     on: bombArmed,
                     state: bombArmed ? t("inventory.state.aim") : undefined,
                     hint: bombArmed ? t("inventory.bomb.putAway") : t("inventory.bomb.hint"),
@@ -211,7 +213,8 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                 return {
                     kind,
                     name: t("bonus.virus"),
-                    held: charges.virus,
+                    held: charges.viruses > 0,
+                    count: stackCountOf(charges.viruses, rules?.viruses),
                     on: virusAimed,
                     state: virusAimed ? t("inventory.state.aim") : undefined,
                     hint: virusAimed
@@ -490,9 +493,9 @@ function labelOf(name: string, count: string | undefined, state: string | undefi
 function amountOf(charges: Charges, kind: ChargeKind): number {
     switch (kind) {
         case "refill":
-            return charges.refill ? 1 : 0
+            return charges.refills
         case "bomb":
-            return charges.bomb ? 1 : 0
+            return charges.bombs
         case "spreadClicks":
             return charges.spreadClicksLeft
         case "encloseClicks":
@@ -500,7 +503,7 @@ function amountOf(charges: Charges, kind: ChargeKind): number {
         case "shields":
             return charges.shields
         case "virus":
-            return charges.virus ? 1 : 0
+            return charges.viruses
         case "mine":
             return charges.mines
         case "rally":
@@ -510,4 +513,9 @@ function amountOf(charges: Charges, kind: ChargeKind): number {
 
 function countOf(held: number, most: number | undefined): string {
     return most ? t("inventory.heldOfMost", {held, most}) : translator().number(held)
+}
+
+// A kind a hand holds one of at most, and holds no more of, shows no count; once it stacks it is counted as a pool.
+function stackCountOf(held: number, most: number | undefined): string | undefined {
+    return held > 1 || (most ?? 0) > 1 ? countOf(held, most) : undefined
 }

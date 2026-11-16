@@ -263,15 +263,17 @@ func (x *ReplayedEvent) GetEvent() *PlanetEvent {
 }
 
 type GrantChargesRequest struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	AccountId    string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Refill       bool                   `protobuf:"varint,2,opt,name=refill,proto3" json:"refill,omitempty"`
-	Bomb         bool                   `protobuf:"varint,3,opt,name=bomb,proto3" json:"bomb,omitempty"`
-	Enclosures   uint32                 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
-	SpreadClicks uint32                 `protobuf:"varint,5,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
-	Shields      uint32                 `protobuf:"varint,6,opt,name=shields,proto3" json:"shields,omitempty"`
-	// One virus: a hand holds one at most.
-	Virus bool `protobuf:"varint,7,opt,name=virus,proto3" json:"virus,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Refills, up to what a hand holds.
+	Refills uint32 `protobuf:"varint,10,opt,name=refills,proto3" json:"refills,omitempty"`
+	// Bombs, up to what a hand holds.
+	Bombs        uint32 `protobuf:"varint,11,opt,name=bombs,proto3" json:"bombs,omitempty"`
+	Enclosures   uint32 `protobuf:"varint,4,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
+	SpreadClicks uint32 `protobuf:"varint,5,opt,name=spread_clicks,json=spreadClicks,proto3" json:"spread_clicks,omitempty"`
+	Shields      uint32 `protobuf:"varint,6,opt,name=shields,proto3" json:"shields,omitempty"`
+	// Viruses, up to what a hand holds.
+	Viruses uint32 `protobuf:"varint,12,opt,name=viruses,proto3" json:"viruses,omitempty"`
 	// Mines, up to what a hand holds.
 	Mines uint32 `protobuf:"varint,8,opt,name=mines,proto3" json:"mines,omitempty"`
 	// Rallies, up to what a hand holds.
@@ -317,18 +319,18 @@ func (x *GrantChargesRequest) GetAccountId() string {
 	return ""
 }
 
-func (x *GrantChargesRequest) GetRefill() bool {
+func (x *GrantChargesRequest) GetRefills() uint32 {
 	if x != nil {
-		return x.Refill
+		return x.Refills
 	}
-	return false
+	return 0
 }
 
-func (x *GrantChargesRequest) GetBomb() bool {
+func (x *GrantChargesRequest) GetBombs() uint32 {
 	if x != nil {
-		return x.Bomb
+		return x.Bombs
 	}
-	return false
+	return 0
 }
 
 func (x *GrantChargesRequest) GetEnclosures() uint32 {
@@ -352,11 +354,11 @@ func (x *GrantChargesRequest) GetShields() uint32 {
 	return 0
 }
 
-func (x *GrantChargesRequest) GetVirus() bool {
+func (x *GrantChargesRequest) GetViruses() uint32 {
 	if x != nil {
-		return x.Virus
+		return x.Viruses
 	}
-	return false
+	return 0
 }
 
 func (x *GrantChargesRequest) GetMines() uint32 {
@@ -1246,20 +1248,21 @@ const file_planet_v1_admin_proto_rawDesc = "" +
 	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"i\n" +
 	"\rReplayedEvent\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
-	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\x85\x02\n" +
+	"\x05event\x18\x02 \x01(\v2\x16.planet.v1.PlanetEventR\x05event\"\xb4\x02\n" +
 	"\x13GrantChargesRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\x12\x16\n" +
-	"\x06refill\x18\x02 \x01(\bR\x06refill\x12\x12\n" +
-	"\x04bomb\x18\x03 \x01(\bR\x04bomb\x12\x1e\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x18\n" +
+	"\arefills\x18\n" +
+	" \x01(\rR\arefills\x12\x14\n" +
+	"\x05bombs\x18\v \x01(\rR\x05bombs\x12\x1e\n" +
 	"\n" +
 	"enclosures\x18\x04 \x01(\rR\n" +
 	"enclosures\x12#\n" +
 	"\rspread_clicks\x18\x05 \x01(\rR\fspreadClicks\x12\x18\n" +
-	"\ashields\x18\x06 \x01(\rR\ashields\x12\x14\n" +
-	"\x05virus\x18\a \x01(\bR\x05virus\x12\x14\n" +
+	"\ashields\x18\x06 \x01(\rR\ashields\x12\x18\n" +
+	"\aviruses\x18\f \x01(\rR\aviruses\x12\x14\n" +
 	"\x05mines\x18\b \x01(\rR\x05mines\x12\x18\n" +
-	"\arallies\x18\t \x01(\rR\arallies\"\x93\x01\n" +
+	"\arallies\x18\t \x01(\rR\aralliesJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\a\x10\bR\x06refillR\x04bombR\x05virus\"\x93\x01\n" +
 	"\x14GrantChargesResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +

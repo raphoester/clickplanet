@@ -221,14 +221,18 @@ export class GrantChargesRequest extends Message<GrantChargesRequest> {
   accountId = "";
 
   /**
-   * @generated from field: bool refill = 2;
+   * Refills, up to what a hand holds.
+   *
+   * @generated from field: uint32 refills = 10;
    */
-  refill = false;
+  refills = 0;
 
   /**
-   * @generated from field: bool bomb = 3;
+   * Bombs, up to what a hand holds.
+   *
+   * @generated from field: uint32 bombs = 11;
    */
-  bomb = false;
+  bombs = 0;
 
   /**
    * @generated from field: uint32 enclosures = 4;
@@ -246,11 +250,11 @@ export class GrantChargesRequest extends Message<GrantChargesRequest> {
   shields = 0;
 
   /**
-   * One virus: a hand holds one at most.
+   * Viruses, up to what a hand holds.
    *
-   * @generated from field: bool virus = 7;
+   * @generated from field: uint32 viruses = 12;
    */
-  virus = false;
+  viruses = 0;
 
   /**
    * Mines, up to what a hand holds.
@@ -275,12 +279,12 @@ export class GrantChargesRequest extends Message<GrantChargesRequest> {
   static readonly typeName = "planet.v1.GrantChargesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 10, name: "refills", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 11, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 7, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 12, name: "viruses", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 9, name: "rallies", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);

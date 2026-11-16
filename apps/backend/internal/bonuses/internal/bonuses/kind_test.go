@@ -53,64 +53,57 @@ func TestAKindLeftOutOrAtZeroIsNeverDrawn(t *testing.T) {
 		rules := TestRules()
 		rules.Kinds = kinds
 
-		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), rules.drawable(nil, nil))
+		assert.Equal(t, cpcolls.NewSet(KindSpreadClicks), rules.drawable(nil))
 	}
-}
-
-func TestAKindAHandHasNoRoomForIsLeftOut(t *testing.T) {
-	assert.Equal(t, cpcolls.NewSet(KindSpreadClicks, KindEncloseClicks, KindShields),
-		TestRules().drawable([]Kind{KindRefill, KindBomb}, nil))
 }
 
 func TestWithTheGatesOnAKindIsDrawnOnlyOpenOrUnlocked(t *testing.T) {
 	open := []Kind{KindRefill, KindSpreadClicks, KindShields}
 
-	assert.Equal(t, cpcolls.NewSet(open...), TestGated().drawable(nil, nil), "a guest has nothing unlocked")
+	assert.Equal(t, cpcolls.NewSet(open...), TestGated().drawable(nil), "a guest has nothing unlocked")
 	assert.Equal(t, cpcolls.NewSet(append(open[:3:3], KindEncloseClicks)...),
-		TestGated().drawable(nil, Unlocked{KindEncloseClicks}))
-	assert.Equal(t, testWeighed(), TestGated().drawable(nil, Unlocked{KindEncloseClicks, KindBomb}))
+		TestGated().drawable(Unlocked{KindEncloseClicks}))
+	assert.Equal(t, testWeighed(), TestGated().drawable(Unlocked{KindEncloseClicks, KindBomb}))
 }
 
 func TestAVirusWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	rules := TestGated()
 	rules.Kinds[KindVirus] = 1
 
-	assert.False(t, rules.drawable(nil, Unlocked{KindEncloseClicks, KindBomb}).Contains(KindVirus))
-	assert.True(t, rules.drawable(nil, Unlocked{KindVirus}).Contains(KindVirus))
+	assert.False(t, rules.drawable(Unlocked{KindEncloseClicks, KindBomb}).Contains(KindVirus))
+	assert.True(t, rules.drawable(Unlocked{KindVirus}).Contains(KindVirus))
 }
 
 func TestAMineWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	rules := TestGated()
 	rules.Kinds[KindMine] = 1
 
-	assert.False(t, rules.drawable(nil, Unlocked{KindEncloseClicks, KindBomb, KindVirus}).Contains(KindMine))
-	assert.True(t, rules.drawable(nil, Unlocked{KindMine}).Contains(KindMine))
-	assert.False(t, rules.drawable([]Kind{KindMine}, Unlocked{KindMine}).Contains(KindMine), "a hand of 3 has no room")
+	assert.False(t, rules.drawable(Unlocked{KindEncloseClicks, KindBomb, KindVirus}).Contains(KindMine))
+	assert.True(t, rules.drawable(Unlocked{KindMine}).Contains(KindMine))
 }
 
 func TestARallyWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	rules := TestGated()
 	rules.Kinds[KindRally] = 1
 
-	assert.False(t, rules.drawable(nil, Unlocked{KindEncloseClicks, KindBomb, KindVirus, KindMine}).Contains(KindRally))
-	assert.True(t, rules.drawable(nil, Unlocked{KindRally}).Contains(KindRally))
-	assert.False(t, rules.drawable([]Kind{KindRally}, Unlocked{KindRally}).Contains(KindRally), "a hand of 3 has no room")
+	assert.False(t, rules.drawable(Unlocked{KindEncloseClicks, KindBomb, KindVirus, KindMine}).Contains(KindRally))
+	assert.True(t, rules.drawable(Unlocked{KindRally}).Contains(KindRally))
 }
 
 func TestWithTheGatesOffEveryKindIsDrawnToAGuest(t *testing.T) {
-	assert.Equal(t, testWeighed(), TestRules().drawable(nil, nil), "a battle's set keeps the gates off")
+	assert.Equal(t, testWeighed(), TestRules().drawable(nil), "a battle's set keeps the gates off")
 }
 
 func TestAWinWhoseKindsAllWeighZeroIsWorthNothing(t *testing.T) {
 	rules := TestGated()
 	rules.Kinds = map[Kind]float64{KindBomb: 1, KindEncloseClicks: 1}
 
-	_, ok := CaughtBox{}.Reward(rules, nil, Unlocked{KindEncloseClicks})
+	_, ok := CaughtBox{}.Reward(rules, Unlocked{KindEncloseClicks})
 	assert.True(t, ok)
 
-	_, ok = CaughtBox{}.Reward(rules, nil, nil)
-	assert.False(t, ok, "the box pays nothing, as for a full hand: never a kind the account may not be drawn")
-	_, ok = Answer{}.Reward(rules, nil, nil)
+	_, ok = CaughtBox{}.Reward(rules, nil)
+	assert.False(t, ok, "the box pays nothing: never a kind the account may not be drawn")
+	_, ok = Answer{}.Reward(rules, nil)
 	assert.False(t, ok)
 }
 
@@ -119,26 +112,25 @@ func TestAGuestsWelcomeIsItsKindThoughTheGatesCloseIt(t *testing.T) {
 	rules.Gates.Open[KindSpreadClicks] = false
 	rules.Gates.Open[KindShields] = false
 
-	box, ok := CaughtBox{Welcome: true}.Reward(rules, nil, nil)
+	box, ok := CaughtBox{Welcome: true}.Reward(rules, nil)
 	require.True(t, ok)
 	assert.Equal(t, KindSpreadClicks, box.Kind)
 
-	answer, ok := Answer{Welcome: true}.Reward(rules, nil, nil)
+	answer, ok := Answer{Welcome: true}.Reward(rules, nil)
 	require.True(t, ok)
 	assert.Equal(t, KindShields, answer.Kind)
 
-	_, ok = CaughtBox{}.Reward(rules, []Kind{KindRefill}, nil)
-	assert.False(t, ok, "past the welcome, a guest holding a refill is drawn nothing")
+	box, ok = CaughtBox{}.Reward(rules, nil)
+	require.True(t, ok)
+	assert.Equal(t, KindRefill, box.Kind, "past the welcome, a guest is drawn the open kinds alone")
 }
 
-func TestAWelcomeOfAKindWeighed0OrWithNoRoomIsWorthNothing(t *testing.T) {
+func TestAWelcomeOfAKindWeighed0IsWorthNothing(t *testing.T) {
 	rules := TestGated()
 	rules.Kinds[KindShields] = 0
 
-	_, ok := Answer{Welcome: true}.Reward(rules, nil, nil)
-	assert.False(t, ok, "weighed 0")
-	_, ok = CaughtBox{Welcome: true}.Reward(rules, []Kind{KindSpreadClicks}, nil)
-	assert.False(t, ok, "no room")
+	_, ok := Answer{Welcome: true}.Reward(rules, nil)
+	assert.False(t, ok)
 }
 
 func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.T) {
@@ -161,11 +153,11 @@ func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.
 
 func TestAWelcomeBoxIsASpreadAndAWelcomeAnswerShields(t *testing.T) {
 	for range 50 {
-		box, ok := CaughtBox{Welcome: true}.Reward(TestRules(), nil, nil)
+		box, ok := CaughtBox{Welcome: true}.Reward(TestRules(), nil)
 		assert.True(t, ok)
 		assert.Equal(t, KindSpreadClicks, box.Kind)
 
-		answer, ok := Answer{Welcome: true}.Reward(TestRules(), nil, nil)
+		answer, ok := Answer{Welcome: true}.Reward(TestRules(), nil)
 		assert.True(t, ok)
 		assert.Equal(t, KindShields, answer.Kind)
 	}

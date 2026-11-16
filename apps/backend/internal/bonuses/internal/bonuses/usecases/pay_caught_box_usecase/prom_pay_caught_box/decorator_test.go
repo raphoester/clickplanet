@@ -40,7 +40,7 @@ func TestABoxThatPaysNothingIsCountedApartFromOnePaidAndOneFailed(t *testing.T) 
 	}
 
 	require.NoError(t, testutil.GatherAndCompare(registry, strings.NewReader(`
-# HELP bonus_box_rewards_total Boxes caught the bonuses module drew a reward for, by outcome: paid, nothing when the hand had room for no kind weighed, or failed
+# HELP bonus_box_rewards_total Boxes caught the bonuses module drew a reward for, by outcome: paid, nothing when the wallet kept none of the kind drawn or no kind was weighed, or failed
 # TYPE bonus_box_rewards_total counter
 bonus_box_rewards_total{outcome="failed"} 1
 bonus_box_rewards_total{outcome="nothing"} 1

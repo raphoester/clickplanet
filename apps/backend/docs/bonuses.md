@@ -55,17 +55,24 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
 
 | port | planet's answer | when |
 |---|---|---|
-| `Room.Full` | `InternalService/GetRoom` | once per box caught and per right answer |
 | `Wallet.Pay` | `InternalService/GrantCharges` | each box caught, right answer, level reached, sign-in refill |
 
-- **Room.** Planet answers, for each account asked, the kinds its hand has no room for: a full stack, a charge held
-  where one is the most, and **a bomb while planet's `charges.bomb.off` is on**, or an enclosure while its
-  `charges.enclose.off` is on. So `bomb.off` and `enclose.off` are planet's rules alone: no hand has room for one then.
-  An error is tried again by the bus.
-- **Pay.** Planet grants once per grant id. A box's or an answer's id is its token's (`OfferGrantOf`) and planet keeps it
+- **No room asked** (since 2026-11-16). The draw ignores the hand, and planet's wallet keeps what fits: a kind drawn
+  into a full stack is kept none of, and so is **a bomb while planet's `charges.bomb.off` is on**, or an enclosure
+  while its `charges.enclose.off` is on. So the stacks' sizes, `bomb.off` and `enclose.off` are planet's rules alone.
+  Until then the module asked `InternalService/GetRoom` before each draw and drew only the kinds a hand had room for: a
+  player who kept every other kind full was drawn the one kind left at every box, which players used to farm the kind
+  they wanted. The owner's call.
+- **A set weighs 0 a kind its planet set turns off**: a bomb drawn while bombs are off pays nothing. The bonuses module
+  cannot see planet's switches, so the operator keeps the two sets in step. Migration
+  `20261116193433_off_kinds_weigh_nothing` weighed 0 the bombs and enclosures of each set whose planet set of the same
+  name turned them off (`capital-siege`'s bombs).
+- **Pay.** Planet grants once per grant id, and answers how many of the kind it kept (`kept`): fewer than drawn for a
+  stack it filled, none for a full stack, a kind turned off or a grant paid before. A box's or an answer's id is its token's (`OfferGrantOf`) and planet keeps it
   10 minutes in memory (`lasting` unset): a retry never outlives a restart, and no table grows. The sign-in refill's
   (`SignInGrantOf`) is kept for good in planet's `charge_grants` (`lasting`). A caller with no account is paid nothing
   and planet is not asked. The pay answers no hand: the page reads the grant on planet's stream.
+  An error is tried again by the bus.
 
 ## A box caught
 
@@ -74,13 +81,13 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
 was caught.
 
 - **What the box holds is drawn at the catch** (`bonuses.CaughtBox.Reward`), as it was drawn at the offer before: a kind
-  from `kinds`, among those planet's room says the account's hand has room for (`GetRoom`, one account) and, while the
-  gates are on, those the account may be drawn ([The gates](#the-gates)), and its amount from `spread`, `enclose` and
-  `shield`. **A newcomer's early box pays a spread or nothing** (`BoxClaimed.welcome`), whatever the gates:
+  from `kinds`, whatever the hand holds, among those the account may be drawn while the gates are on ([The
+  gates](#the-gates)), and its amount from `spread`, `enclose` and `shield`. **A newcomer's early box pays a spread or nothing** (`BoxClaimed.welcome`), whatever the gates:
   never a refill or a bomb, as before.
-- **A box may pay nothing**, which it could not before: the boxes know no kind and ask no room, so a box comes to a full
-  hand, or to one with room only for kinds weighed 0, as a quiz is asked of one. Counted in
-  `bonus_box_rewards_total{outcome}` (`paid`, `nothing`, `failed`), by `prom_pay_caught_box`.
+- **A box may pay nothing**: a kind drawn into a full stack, or one planet's rules turn off, is kept none of, and a box
+  whose kinds the account may be drawn all weigh 0 draws nothing. Counted in `bonus_box_rewards_total{outcome}`
+  (`paid`, `nothing` when planet kept none, `failed`), by `prom_pay_caught_box`. A box told again also counts
+  `nothing`: planet pays its grant once.
 - **The grant id is the box's token's** (`OfferGrantOf`, as before the cut): the bus may tell a catch twice, and planet
   pays it once. A redraw on a second telling changes nothing.
 - **The reward reaches the page on planet's stream** (`charges_granted`, with what it added): `ClaimBox` answers before
@@ -89,22 +96,22 @@ was caught.
 ## A right answer
 
 **The bonuses module pays the right answers the quizzes tell** (`quizzes.v1.QuizAnswered`, group `bonuses-right-answers`,
-`pay_right_answer_usecase`), the same way: a kind drawn from `kinds` among those the hand has room for and the gates
-let (`bonuses.Answer.Reward`), **shields or nothing for a newcomer's first quiz**, whatever the gates, under the quiz's token. A wrong answer pays
+`pay_right_answer_usecase`), the same way: a kind drawn from `kinds` among those the gates let, whatever the hand holds
+(`bonuses.Answer.Reward`), **shields or nothing for a newcomer's first quiz**, whatever the gates, under the quiz's token. A wrong answer pays
 nothing.
 
 ## A level reached
 
 **The bonuses module pays each level-up progression sends** (`bonuses.v1.PayLevelUp`, `commands:bonuses.v1.PayLevelUp`,
-`pay_level_up_usecase`), as a box caught: one kind drawn from `kinds` among those the hand has room for and the gates
-let (`bonuses.LevelUp.Reward`), in a box's amounts. Progression sends one per raise, however many levels it jumps, from
+`pay_level_up_usecase`), as a box caught: one kind drawn from `kinds` among those the gates let, whatever the hand
+holds (`bonuses.LevelUp.Reward`), in a box's amounts. Progression sends one per raise, however many levels it jumps, from
 level 2 on, and none for a reconciliation ([Levels](levels.md#the-level-up-bonus)).
 
 - **The kinds the level unlocks come with the command** (`unlocked`): the draw does not read the unlocks kept, which
   `KeepUnlocks` brings on another stream, in no order with this one.
 - **The grant is progression's** (`grant_id`, one per account and level), paid with `lasting`: planet keeps it for good
   in `charge_grants`, so a command told again any day pays nothing more.
-- A level-up whose kinds all weigh 0, or a full hand, pays nothing, as a box.
+- A level-up whose kinds all weigh 0, or drawn into a full stack, pays nothing, as a box.
 
 ## The gates
 
@@ -120,11 +127,11 @@ type per rung ([Levels](levels.md#the-unlocks)). The bonuses module knows no lev
   for a battle fight with every kind. That is data, not code.
 - **A guest has nothing unlocked**: progression keeps no level for one, so it draws the open kinds alone.
 - **Gates decide only what is drawn.** A charge held stays usable whatever the gates: planet checks no level.
-- **A win whose kinds it may be drawn all weigh 0 pays nothing**, as a full hand does; a box's metric counts it
+- **A win whose kinds it may be drawn all weigh 0 pays nothing**, as one drawn into a full stack does; a box's metric counts it
   `nothing`. **A set with the gates on whose open kinds all weigh 0 is refused**: a guest's box could never be anything.
 - **A newcomer's welcome is its one kind whatever the gates** (`welcomeReward`): a box's spread, a quiz's shields, so a
-  guest gets one of each though both are rungs of the ladder. Nothing only when the set weighs the kind 0 or the hand
-  has no room for it. Until 2026-11-16 the welcome passed the gates like any draw; the owner chose this when spread and
+  guest gets one of each though both are rungs of the ladder. Nothing only when the set weighs the kind 0 or the wallet keeps
+  none of it (a full stack). Until 2026-11-16 the welcome passed the gates like any draw; the owner chose this when spread and
   shields left the open kinds, since a newcomer is a guest and its welcomes would have paid nothing.
 
 **The kinds unlocked are kept per account** (`unlocks.Unlocks`, `bonuses.unlocks(account_id, kinds unlocked_kind[],
@@ -143,7 +150,7 @@ holds every value, another set only what it changes, and plays default's for the
 `bonuses.v1.Rules`:
 
 - `kinds.*` — what a box or a right answer is drawn as: a weight per kind, `refill`, `spreadClicks`, `encloseClicks`,
-  `bomb`, `shields`, `virus`, `mine`, `rally`. 0 is never drawn, nor a kind planet says a hand has no room for. `virus`,
+  `bomb`, `shields`, `virus`, `mine`, `rally`. 0 is never drawn; any other weight is drawn whatever the hand holds. `virus`,
   `mine` and `rally` weigh 0 in `default` until the operator weighs them ([The virus](virus.md), [The mine](mine.md),
   [The rally](rally.md))
 - `spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `shield.maxPerBox`, `mine.maxPerBox`, `rally.maxPerBox` —
@@ -194,8 +201,8 @@ account (`SignInGrantOf`, the same id as before, so a grant planet made before t
 
 The kinds' draw and amounts, a box's and an answer's welcome kind, a level-up's draw and grant, the gates (a kind not unlocked never drawn, a guest
 drawn the open kinds, a set with the gates off giving a guest a bomb, a win whose kinds all weigh 0, the charges held
-untouched), the use cases' (a box's and a right answer's reward, the welcome's spread and shields, a hand with no room, a
-box that pays nothing), the unlocks (the latest decision kept, its stores' contract suite on postgres and in memory, the
+untouched), the use cases' (a box's and a right answer's reward, the welcome's spread and shields, a draw that ignores the hand, a
+kind drawn into a full stack, a box that pays nothing), the unlocks (the latest decision kept, its stores' contract suite on postgres and in memory, the
 command's handler, the forget), the box's metric, `planetwords'`
 (`TestTheOffersAndTheWalletNameTheSameKinds`), the wallet's adapter, the subscribers', and the rules package's (its values,
 a set kept with the boxes' half, and `cprules`' contract suites on its migrations).

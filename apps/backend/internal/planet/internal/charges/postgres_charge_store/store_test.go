@@ -47,7 +47,7 @@ func TestAnEmptyHandIsNoRow(t *testing.T) {
 		}))
 	}
 
-	keep(charges.Held{Bomb: true})
+	keep(charges.Held{Bombs: 1})
 	require.Equal(t, 1, rows())
 
 	keep(charges.Held{})

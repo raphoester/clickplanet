@@ -41,8 +41,9 @@ describe("the rules", () => {
         const paths = GROUPS.flatMap(group => group.fields.map(field => field.path))
 
         expect(paths.filter(path => path.startsWith("charges."))).toEqual([
-            "charges.spread.clicks", "charges.spread.rings", "charges.bomb.rings", "charges.enclose.maxTiles", "charges.enclose.held",
-            "charges.shield.held", "charges.shield.perTile", "charges.virus.infections", "charges.virus.every",
+            "charges.refill.held", "charges.spread.clicks", "charges.spread.rings", "charges.bomb.held", "charges.bomb.rings",
+            "charges.enclose.maxTiles", "charges.enclose.held", "charges.shield.held", "charges.shield.perTile",
+            "charges.virus.held", "charges.virus.infections", "charges.virus.every",
             "charges.mine.held", "charges.mine.rings",
             "charges.rally.held", "charges.rally.rings", "charges.rally.lasts", "charges.rally.cost",
         ])
@@ -57,6 +58,9 @@ describe("the rules", () => {
         expect(draft.values["charges.bomb.rings"]).toBe("6")
         expect(draft.values["clicks.perSecond"]).toBe("0.2")
         expect(draft.values["charges.shield.held"]).toBe("30")
+        expect(draft.values["charges.refill.held"]).toBe("1")
+        expect(draft.values["charges.bomb.held"]).toBe("1")
+        expect(draft.values["charges.virus.held"]).toBe("1")
         expect(draft.bombsOff).toBe(false)
         expect(draft.toll).toEqual([{share: "10", slowdown: "1.5"}, {share: "20", slowdown: "2.5"}, {share: "30", slowdown: "4"}])
         expect(ruleSetOf(draft).equals(rush())).toBe(true)

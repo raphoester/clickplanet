@@ -3196,12 +3196,12 @@ func (x *LandmassFortified) GetVersion() *MapVersion {
 
 type ChargesHeld struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
-	Refill           bool                   `protobuf:"varint,4,opt,name=refill,proto3" json:"refill,omitempty"`
-	Bomb             bool                   `protobuf:"varint,1,opt,name=bomb,proto3" json:"bomb,omitempty"`
+	Refills          uint32                 `protobuf:"varint,9,opt,name=refills,proto3" json:"refills,omitempty"`
+	Bombs            uint32                 `protobuf:"varint,10,opt,name=bombs,proto3" json:"bombs,omitempty"`
 	Enclosures       uint32                 `protobuf:"varint,2,opt,name=enclosures,proto3" json:"enclosures,omitempty"`
 	SpreadClicksLeft uint32                 `protobuf:"varint,3,opt,name=spread_clicks_left,json=spreadClicksLeft,proto3" json:"spread_clicks_left,omitempty"`
 	Shields          uint32                 `protobuf:"varint,5,opt,name=shields,proto3" json:"shields,omitempty"`
-	Virus            bool                   `protobuf:"varint,6,opt,name=virus,proto3" json:"virus,omitempty"`
+	Viruses          uint32                 `protobuf:"varint,11,opt,name=viruses,proto3" json:"viruses,omitempty"`
 	Mines            uint32                 `protobuf:"varint,7,opt,name=mines,proto3" json:"mines,omitempty"`
 	Rallies          uint32                 `protobuf:"varint,8,opt,name=rallies,proto3" json:"rallies,omitempty"`
 	unknownFields    protoimpl.UnknownFields
@@ -3238,18 +3238,18 @@ func (*ChargesHeld) Descriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{53}
 }
 
-func (x *ChargesHeld) GetRefill() bool {
+func (x *ChargesHeld) GetRefills() uint32 {
 	if x != nil {
-		return x.Refill
+		return x.Refills
 	}
-	return false
+	return 0
 }
 
-func (x *ChargesHeld) GetBomb() bool {
+func (x *ChargesHeld) GetBombs() uint32 {
 	if x != nil {
-		return x.Bomb
+		return x.Bombs
 	}
-	return false
+	return 0
 }
 
 func (x *ChargesHeld) GetEnclosures() uint32 {
@@ -3273,11 +3273,11 @@ func (x *ChargesHeld) GetShields() uint32 {
 	return 0
 }
 
-func (x *ChargesHeld) GetVirus() bool {
+func (x *ChargesHeld) GetViruses() uint32 {
 	if x != nil {
-		return x.Virus
+		return x.Viruses
 	}
-	return false
+	return 0
 }
 
 func (x *ChargesHeld) GetMines() uint32 {
@@ -3428,7 +3428,7 @@ type GetChargeRulesResponse struct {
 	KnockOut bool `protobuf:"varint,12,opt,name=knock_out,json=knockOut,proto3" json:"knock_out,omitempty"`
 	// No shield goes on a capital.
 	CapitalShieldsFixed bool `protobuf:"varint,13,opt,name=capital_shields_fixed,json=capitalShieldsFixed,proto3" json:"capital_shields_fixed,omitempty"`
-	// No bomb is dropped, and none is offered: the page hides the bomb.
+	// No bomb is dropped, and no hand takes one: the page hides the bomb.
 	BombsOff bool `protobuf:"varint,14,opt,name=bombs_off,json=bombsOff,proto3" json:"bombs_off,omitempty"`
 	// Spread needs no charge and spends none.
 	SpreadUnlimited bool `protobuf:"varint,16,opt,name=spread_unlimited,json=spreadUnlimited,proto3" json:"spread_unlimited,omitempty"`
@@ -3449,7 +3449,13 @@ type GetChargeRulesResponse struct {
 	// How long a rally lasts.
 	RallyLastsMs uint32 `protobuf:"varint,24,opt,name=rally_lasts_ms,json=rallyLastsMs,proto3" json:"rally_lasts_ms,omitempty"`
 	// What a click inside a rally's ring of its flag takes from the bank.
-	RallyCost     float64 `protobuf:"fixed64,25,opt,name=rally_cost,json=rallyCost,proto3" json:"rally_cost,omitempty"`
+	RallyCost float64 `protobuf:"fixed64,25,opt,name=rally_cost,json=rallyCost,proto3" json:"rally_cost,omitempty"`
+	// How many refills a hand holds at most.
+	Refills uint32 `protobuf:"varint,26,opt,name=refills,proto3" json:"refills,omitempty"`
+	// How many bombs a hand holds at most.
+	Bombs uint32 `protobuf:"varint,27,opt,name=bombs,proto3" json:"bombs,omitempty"`
+	// How many viruses a hand holds at most.
+	Viruses       uint32 `protobuf:"varint,28,opt,name=viruses,proto3" json:"viruses,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3634,6 +3640,27 @@ func (x *GetChargeRulesResponse) GetRallyLastsMs() uint32 {
 func (x *GetChargeRulesResponse) GetRallyCost() float64 {
 	if x != nil {
 		return x.RallyCost
+	}
+	return 0
+}
+
+func (x *GetChargeRulesResponse) GetRefills() uint32 {
+	if x != nil {
+		return x.Refills
+	}
+	return 0
+}
+
+func (x *GetChargeRulesResponse) GetBombs() uint32 {
+	if x != nil {
+		return x.Bombs
+	}
+	return 0
+}
+
+func (x *GetChargeRulesResponse) GetViruses() uint32 {
+	if x != nil {
+		return x.Viruses
 	}
 	return 0
 }
@@ -5078,22 +5105,23 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12\x17\n" +
 	"\atile_id\x18\x03 \x01(\rR\x06tileId\x12/\n" +
-	"\aversion\x18\x04 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\xf0\x01\n" +
-	"\vChargesHeld\x12\x16\n" +
-	"\x06refill\x18\x04 \x01(\bR\x06refill\x12\x12\n" +
-	"\x04bomb\x18\x01 \x01(\bR\x04bomb\x12\x1e\n" +
+	"\aversion\x18\x04 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\x9f\x02\n" +
+	"\vChargesHeld\x12\x18\n" +
+	"\arefills\x18\t \x01(\rR\arefills\x12\x14\n" +
+	"\x05bombs\x18\n" +
+	" \x01(\rR\x05bombs\x12\x1e\n" +
 	"\n" +
 	"enclosures\x18\x02 \x01(\rR\n" +
 	"enclosures\x12,\n" +
 	"\x12spread_clicks_left\x18\x03 \x01(\rR\x10spreadClicksLeft\x12\x18\n" +
-	"\ashields\x18\x05 \x01(\rR\ashields\x12\x14\n" +
-	"\x05virus\x18\x06 \x01(\bR\x05virus\x12\x14\n" +
+	"\ashields\x18\x05 \x01(\rR\ashields\x12\x18\n" +
+	"\aviruses\x18\v \x01(\rR\aviruses\x12\x14\n" +
 	"\x05mines\x18\a \x01(\rR\x05mines\x12\x18\n" +
-	"\arallies\x18\b \x01(\rR\aralliesR\aenclose\"\x13\n" +
+	"\arallies\x18\b \x01(\rR\aralliesJ\x04\b\x01\x10\x02J\x04\b\x04\x10\x05J\x04\b\x06\x10\aR\x06refillR\x04bombR\x05virusR\aenclose\"\x13\n" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x17\n" +
-	"\x15GetChargeRulesRequest\"\xed\x06\n" +
+	"\x15GetChargeRulesRequest\"\xb7\a\n" +
 	"\x16GetChargeRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -5122,7 +5150,10 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\frally_radius\x18\x17 \x01(\x01R\vrallyRadius\x12$\n" +
 	"\x0erally_lasts_ms\x18\x18 \x01(\rR\frallyLastsMs\x12\x1d\n" +
 	"\n" +
-	"rally_cost\x18\x19 \x01(\x01R\trallyCostJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
+	"rally_cost\x18\x19 \x01(\x01R\trallyCost\x12\x18\n" +
+	"\arefills\x18\x1a \x01(\rR\arefills\x12\x14\n" +
+	"\x05bombs\x18\x1b \x01(\rR\x05bombs\x12\x18\n" +
+	"\aviruses\x18\x1c \x01(\rR\avirusesJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
 	"J\x04\b\x0f\x10\x10R\thome_soilR\x0esign_in_refillR\fspread_rings\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +

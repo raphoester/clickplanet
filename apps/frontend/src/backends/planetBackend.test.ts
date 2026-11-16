@@ -1415,48 +1415,64 @@ describe("PlanetBackend viruses", () => {
     }
 
     it("uses the virus on the tile with the session token, and takes it off the hand", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({virus: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({viruses: 1})})
         const useVirus = vi.fn().mockResolvedValue({})
         const backend = new PlanetBackend(clientWith({getCharges, useVirus}), 1_000, fixedSession("session-1"))
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.virus).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.viruses).toBe(1))
 
         await backend.useVirus(7, "fr")
 
         expect(useVirus).toHaveBeenCalledWith({tileId: 7, countryId: "fr"}, expect.anything())
         expect((useVirus.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
-        expect(seen.at(-1)?.virus).toBe(false)
+        expect(seen.at(-1)?.viruses).toBe(0)
         backend.close()
     })
 
     it("gives the virus back when the server refused the tile", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({virus: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({viruses: 1})})
         const refused = new ConnectError("shielded", Code.FailedPrecondition, undefined, [new VirusRefusal()])
         const useVirus = vi.fn().mockRejectedValue(refused)
         const backend = new PlanetBackend(clientWith({getCharges, useVirus}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.virus).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.viruses).toBe(1))
 
         const using = backend.useVirus(7, "fr")
-        expect(seen.at(-1)?.virus).toBe(false)
+        expect(seen.at(-1)?.viruses).toBe(0)
         await expect(using).rejects.toBeInstanceOf(VirusRefusedError)
 
-        expect(seen.at(-1)?.virus).toBe(true)
+        expect(seen.at(-1)?.viruses).toBe(1)
+        backend.close()
+    })
+
+    it("takes one virus of several off the hand, and gives it back when the server refused the tile", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({viruses: 2})})
+        const refused = new ConnectError("shielded", Code.FailedPrecondition, undefined, [new VirusRefusal()])
+        const useVirus = vi.fn().mockResolvedValueOnce({}).mockRejectedValueOnce(refused)
+        const backend = new PlanetBackend(clientWith({getCharges, useVirus}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.viruses).toBe(2))
+
+        await backend.useVirus(7, "fr")
+        expect(seen.at(-1)?.viruses).toBe(1)
+
+        await expect(backend.useVirus(8, "fr")).rejects.toBeInstanceOf(VirusRefusedError)
+        expect(seen.at(-1)?.viruses).toBe(1)
         backend.close()
     })
 
     it("tells a tile out of reach, and keeps the virus off when the server holds none", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({virus: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({viruses: 1})})
         const outOfReach = new ConnectError("far", Code.FailedPrecondition, undefined, [new ReachRefusal()])
         const useVirus = vi.fn().mockRejectedValueOnce(outOfReach).mockRejectedValueOnce(new ConnectError("none", Code.NotFound))
         const backend = new PlanetBackend(clientWith({getCharges, useVirus}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.virus).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.viruses).toBe(1))
 
         await expect(backend.useVirus(7, "fr")).rejects.toBeInstanceOf(OutOfReachError)
-        expect(seen.at(-1)?.virus).toBe(true)
+        expect(seen.at(-1)?.viruses).toBe(1)
         await expect(backend.useVirus(7, "fr")).rejects.toBeInstanceOf(BonusLostError)
-        expect(seen.at(-1)?.virus).toBe(false)
+        expect(seen.at(-1)?.viruses).toBe(0)
         backend.close()
     })
 
@@ -1644,7 +1660,8 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
-            virusInfections: 32, mines: 3, mineRings: 2, rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
+            virusInfections: 32, refills: 1, bombs: 2, viruses: 3,
+            mines: 3, mineRings: 2, rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
         }))
         const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
         const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), bonusesWith({getGrantRules}))
@@ -1655,8 +1672,8 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
-            enclosuresOff: false, virusInfections: 32, gatesOn: false, openKinds: [], mines: 3, mineRings: 2,
-            rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
+            enclosuresOff: false, virusInfections: 32, refills: 1, bombs: 2, viruses: 3, gatesOn: false, openKinds: [],
+            mines: 3, mineRings: 2, rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
         }))
         backend.close()
     })
@@ -1793,11 +1810,11 @@ describe("the charges held", () => {
     }
 
     it("reads them once at load, and hands them to whoever listens", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true, spreadClicksLeft: 2, shields: 5})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bombs: 1, spreadClicksLeft: 2, shields: 5})})
         const backend = new PlanetBackend(clientWith({getCharges}), 1_000)
 
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5, virus: false, mines: 0, rallies: 0}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refills: 0, bombs: 1, enclosures: 0, spreadClicksLeft: 2, shields: 5, viruses: 0, mines: 0, rallies: 0}))
 
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
@@ -1809,7 +1826,7 @@ describe("the charges held", () => {
         const listenForEvents = vi.fn(async function* () {
             yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
             await new Promise<void>(resolve => grant = resolve)
-            yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({charges: new ChargesHeld({bomb: true, shields: 25})})}})
+            yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({charges: new ChargesHeld({bombs: 1, shields: 25})})}})
             await new Promise(() => {})
         })
         const backend = new PlanetBackend(clientWith({getCharges, listenForEvents}), 1_000)
@@ -1818,7 +1835,7 @@ describe("the charges held", () => {
 
         grant()
 
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25, virus: false, mines: 0, rallies: 0}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refills: 0, bombs: 1, enclosures: 0, spreadClicksLeft: 0, shields: 25, viruses: 0, mines: 0, rallies: 0}))
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
     })
@@ -1827,7 +1844,7 @@ describe("the charges held", () => {
         const listenForEvents = vi.fn(async function* () {
             yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
             yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({
-                charges: new ChargesHeld({bomb: true, shields: 25}),
+                charges: new ChargesHeld({bombs: 1, shields: 25}),
                 gained: [
                     new ChargeGained({kind: BonusKind.SHIELDS, amount: 20}),
                     new ChargeGained({kind: BonusKind.UNSPECIFIED, amount: 1}),
@@ -1933,44 +1950,67 @@ describe("the charges held", () => {
     })
 
     it("takes the bomb off at once on a drop, and gives it back when the drop never reached the server", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bombs: 1})})
         const dropBomb = vi.fn().mockRejectedValue(new ConnectError("down", Code.Internal))
         const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.bomb).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.bombs).toBe(1))
 
         const dropping = backend.dropBomb({x: 0, y: 0, z: 1}, "fr")
-        expect(seen.at(-1)?.bomb).toBe(false)
+        expect(seen.at(-1)?.bombs).toBe(0)
         await expect(dropping).rejects.toBeDefined()
 
-        expect(seen.at(-1)?.bomb).toBe(true)
+        expect(seen.at(-1)?.bombs).toBe(1)
         backend.close()
     })
 
     it("gives the bomb back when bombs are off, and says so with a BombRefusedError", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bombs: 1})})
         const dropBomb = vi.fn().mockRejectedValue(new ConnectError("bombs are off", Code.FailedPrecondition, undefined,
             [new BombRefusal()]))
         const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.bomb).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.bombs).toBe(1))
 
         await expect(backend.dropBomb({x: 0, y: 0, z: 1}, "fr")).rejects.toBeInstanceOf(BombRefusedError)
 
-        expect(seen.at(-1)?.bomb).toBe(true)
+        expect(seen.at(-1)?.bombs).toBe(1)
         backend.close()
     })
 
     it("keeps the bomb gone when the server had none to drop", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bomb: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bombs: 1})})
         const dropBomb = vi.fn().mockRejectedValue(new ConnectError("no bomb", Code.NotFound))
         const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.bomb).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.bombs).toBe(1))
 
         await expect(backend.dropBomb({x: 0, y: 0, z: 1}, "fr")).rejects.toBeInstanceOf(BonusLostError)
 
-        expect(seen.at(-1)?.bomb).toBe(false)
+        expect(seen.at(-1)?.bombs).toBe(0)
+        backend.close()
+    })
+
+    it("takes one bomb of several off on a drop, gives that one back on a refusal, and holds none when the server has none", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bombs: 2})})
+        const dropBomb = vi.fn()
+            .mockResolvedValueOnce({})
+            .mockRejectedValueOnce(new ConnectError("bombs are off", Code.FailedPrecondition, undefined, [new BombRefusal()]))
+            .mockRejectedValueOnce(new ConnectError("no bomb", Code.NotFound))
+        const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.bombs).toBe(2))
+
+        await backend.dropBomb({x: 0, y: 0, z: 1}, "fr")
+        expect(seen.at(-1)?.bombs).toBe(1)
+
+        const refused = backend.dropBomb({x: 0, y: 0, z: 1}, "fr")
+        expect(seen.at(-1)?.bombs).toBe(0)
+        await expect(refused).rejects.toBeInstanceOf(BombRefusedError)
+        expect(seen.at(-1)?.bombs).toBe(1)
+
+        await expect(backend.dropBomb({x: 0, y: 0, z: 1}, "fr")).rejects.toBeInstanceOf(BonusLostError)
+        expect(seen.at(-1)?.bombs).toBe(0)
         backend.close()
     })
 
@@ -2012,11 +2052,11 @@ describe("the refill", () => {
     }
 
     it("fills the meter from the answer and takes the refill off the charges", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refill: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refills: 1})})
         const useRefill = vi.fn().mockResolvedValue({budget: new ClickBudgetMessage({tokens: 60, capacity: 60, refillPerSecond: 0.2}), charges: new ChargesHeld()})
         const backend = new PlanetBackend(clientWith({getCharges, useRefill}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.refill).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.refills).toBe(1))
         const tokens: number[] = []
         backend.watchClickBudget(b => tokens.push(b.tokens))
 
@@ -2024,33 +2064,33 @@ describe("the refill", () => {
 
         expect(useRefill).toHaveBeenCalledWith({countryId: "fr"}, expect.anything())
         expect(tokens.at(-1)).toBe(60)
-        expect(seen.at(-1)?.refill).toBe(false)
+        expect(seen.at(-1)?.refills).toBe(0)
         backend.close()
     })
 
     it("reads a full bank as BankFullError and keeps the refill", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refill: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refills: 1})})
         const useRefill = vi.fn().mockRejectedValue(new ConnectError("full", Code.FailedPrecondition))
         const backend = new PlanetBackend(clientWith({getCharges, useRefill}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.refill).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.refills).toBe(1))
 
         await expect(backend.useRefill("fr")).rejects.toBeInstanceOf(BankFullError)
 
-        expect(seen.at(-1)?.refill).toBe(true)
+        expect(seen.at(-1)?.refills).toBe(1)
         backend.close()
     })
 
     it("reads no refill as BonusLostError and takes it off the charges", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refill: true})})
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({refills: 1})})
         const useRefill = vi.fn().mockRejectedValue(new ConnectError("none", Code.NotFound))
         const backend = new PlanetBackend(clientWith({getCharges, useRefill}), 1_000)
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.refill).toBe(true))
+        await vi.waitFor(() => expect(seen.at(-1)?.refills).toBe(1))
 
         await expect(backend.useRefill("fr")).rejects.toBeInstanceOf(BonusLostError)
 
-        expect(seen.at(-1)?.refill).toBe(false)
+        expect(seen.at(-1)?.refills).toBe(0)
         backend.close()
     })
 })

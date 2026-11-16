@@ -399,9 +399,9 @@ export default function PlayScreen(props: PlayScreenProps) {
     const signInRefill = rules?.signInRefill === true
     // CrazyGames forbids a sign-in that pops up or is the main call to action.
     const nudge = useSignInNudge(
-        !backends.crazyGames && guest && linkedMultiplier !== undefined && !frozen && !charges.refill && !pitchOpen,
+        !backends.crazyGames && guest && linkedMultiplier !== undefined && !frozen && charges.refills === 0 && !pitchOpen,
         dryTaps, fastStart)
-    useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refill,
+    useSignInRefill(account.kind === 'ready' && account.guestLinked === true && signInRefill, charges.refills > 0,
         () => void backends.chargesRefresher.refreshCharges().catch((e) => console.error("could not read the charges held", e)),
         () => void spendRefill())
 

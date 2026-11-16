@@ -29,8 +29,8 @@ at the moment it ran dry. The client asks a guest to sign in at that moment (the
   bounded by what that shared bank let through: one bank, refilled at 0.2 clicks a second, or at the signed-in pace
   while a guest in its fast start clicks. An account made at sign-in already
   starts with `clicks.newAccountClicks`, so its refill is one more bank for one more identity.
-- **It is the refill, nothing new.** The grant is a refill charge, and a player holds one at most: a guest that
-  already holds one gets nothing more. It is spent through `UseRefill` ([Refill](refill.md)) with the click token
+- **It is the refill, nothing new.** The grant is a refill charge, kept up to what a hand holds
+  (`charges.refill.held`, 1 in `default`): a guest whose hand is full of them gets nothing more. It is spent through `UseRefill` ([Refill](refill.md)) with the click token
   that the client mints after the sign-in. That token is linked, so the refill fills the account's own bank and its
   scope's, never the guests' shared bank.
 - **The client spends it at once** after a guest's first link, so the meter shows a full bank when the guest is

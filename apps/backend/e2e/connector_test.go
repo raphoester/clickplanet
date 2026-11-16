@@ -217,12 +217,12 @@ func (s *testSuite) TestClaudeConnectsWithTheOperatorsYesAndCallsAToolAsTheOpera
 	assert.NotContains(t, listed, "auth_approve_connection")
 
 	_, answer = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":3,"method":"tools/call",
-		"params":{"name":"planet_grant_charges","arguments":{"accountId":"`+operator.account()+`","bomb":true}}}`)
+		"params":{"name":"planet_grant_charges","arguments":{"accountId":"`+operator.account()+`","bombs":1}}}`)
 	text, refused := toolText(t, answer)
 	require.False(t, refused, text)
 	var granted planetv1.GrantChargesResponse
 	require.NoError(t, protojson.Unmarshal([]byte(text), &granted))
-	assert.True(t, granted.GetAfter().GetBomb(), "the operator's own account got its bomb")
+	assert.Equal(t, uint32(1), granted.GetAfter().GetBombs(), "the operator's own account got its bomb")
 
 	_, answer = claude.mcp(claude.access, `{"jsonrpc":"2.0","id":4,"method":"tools/call",
 		"params":{"name":"antibot_unban_player","arguments":{"accountId":"`+operator.account()+`"}}}`)

@@ -7,12 +7,12 @@ import (
 
 func Encode(held charges.Held) *planetv1.ChargesHeld {
 	return &planetv1.ChargesHeld{
-		Refill:           held.Refill,
-		Bomb:             held.Bomb,
+		Refills:          uint32(held.Refills),
+		Bombs:            uint32(held.Bombs),
 		Enclosures:       uint32(held.Enclosures),
 		SpreadClicksLeft: uint32(held.SpreadClicks),
 		Shields:          uint32(held.Shields),
-		Virus:            held.Virus,
+		Viruses:          uint32(held.Viruses),
 		Mines:            uint32(held.Mines),
 		Rallies:          uint32(held.Rallies),
 	}

@@ -93,9 +93,10 @@ on any map, built as [bombs off](bomb.md) was:
 
 - **A click sent with enclose on closes nothing and spends nothing**: `enclose_click` reads the rule first and hands the
   click to the rule as a plain one. It is not refused: an old tab that still sends `enclose` takes its tile.
-- **No hand has room for one**: `Held.Full` lists `KindEncloseClicks` while it plays, so `GetRoom` says so and the
-  offers draw no enclosure for a box or a quiz. A grant itself is not refused, as for a bomb while bombs are off: a
-  the operator's `GrantCharges` still lands, capped at `held`.
+- **A grant keeps none** (`Rules.Off`, in `Held.Granted`), a box's, a quiz's or the operator's `GrantCharges` alike,
+  as for a bomb while bombs are off. The bonuses' set should weigh enclosures 0 while its planet set turns them off, or
+  a box drawn an enclosure pays nothing. Until 2026-11-16 planet's `GetRoom` kept the bonuses module from drawing one,
+  and an operator's grant still landed.
 - **The enclosures held are kept**, not taken, and are there when the set stops.
 - **`off` and `unlimited` both on is refused**: `charges.Rules.Validate` names `charges.enclose.off`, since an enclosure
   cannot be off and free.

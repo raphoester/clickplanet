@@ -74,6 +74,10 @@ func (h GetChargeRulesHandler) GetChargeRules(
 		RallyRadius:  h.ring.Radius(),
 		RallyLastsMs: uint32(rules.Rally.Lasts.Milliseconds()),
 		RallyCost:    rules.Rally.Cost,
+
+		Refills: uint32(rules.Refill.Held),
+		Bombs:   uint32(rules.Bomb.Held),
+		Viruses: uint32(rules.Virus.Held),
 	}), nil
 }
 

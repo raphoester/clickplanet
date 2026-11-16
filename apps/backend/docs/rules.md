@@ -69,19 +69,22 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   [The disc](spread.md#the-disc-chargesspreadrings)
 - `charges.spread.unlimited` — a click with spread on needs no charge and spends none (off). See
   [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited)
-- `charges.bomb.rings` — the blast's radius in tile spacings (4). See [Bomb](bomb.md)
-- `charges.bomb.off` — no bomb: a bomb held is not dropped, and no hand has room for one, so no box or quiz offers one
-  (off). See [Bomb](bomb.md)
+- `charges.refill.held` — how many refills a hand holds (1). See [Refill](refill.md)
+- `charges.bomb.rings`, `.held` — the blast's radius in tile spacings, and how many bombs a hand holds (4, 1). See
+  [Bomb](bomb.md)
+- `charges.bomb.off` — no bomb: a bomb held is not dropped, and a grant keeps none; the bombs held are kept (off). See
+  [Bomb](bomb.md)
 - `charges.enclose.maxTiles`, `.held` — the biggest shape and the stack (25, 3). See [Enclose](enclose.md)
 - `charges.enclose.unlimited` — a click with enclose on needs no charge and spends none (off). See
   [Unlimited enclosures](enclose.md#unlimited-enclosures-chargesencloseunlimited)
-- `charges.enclose.off` — no enclosure: a click with enclose on closes nothing and spends nothing, and no hand has room
-  for one, so no box or quiz offers one; the enclosures held are kept (off). Never with `unlimited`. See
+- `charges.enclose.off` — no enclosure: a click with enclose on closes nothing and spends nothing, and a grant keeps
+  none; the enclosures held are kept (off). Never with `unlimited`. See
   [Enclosures off](enclose.md#enclosures-off-chargesencloseoff)
 - `charges.shield.held`, `.perTile` — the stack and a tile's most (30, 10; a tile keeps them in a byte, so 255 at
   most). See [Shields](shields.md)
-- `charges.virus.infections`, `.every` — the most infections a virus makes, a take or a shield struck each, 1 to 1,024
-  (32), and how long it waits between two spreads, 1 s to 10 min (20 s). See [The virus](virus.md)
+- `charges.virus.infections`, `.every`, `.held` — the most infections a virus makes, a take or a shield struck each, 1
+  to 1,024 (32), how long it waits between two spreads, 1 s to 10 min (20 s), and how many viruses a hand holds (1). See
+  [The virus](virus.md)
 - `charges.mine.held`, `.rings` — the mines a hand holds (3), and the rings of tiles around its own a mine's blast takes,
   1 to 3 (2). See [The mine](mine.md)
 - `charges.rally.held`, `.rings`, `.lasts`, `.cost` — the rallies a hand holds (3), a ring's radius in tile spacings, 1 to
@@ -163,8 +166,7 @@ The readers call it where they use the rules, not when they are built: a set tak
   `InternalService/GetFreeze`, which the offers ask.
 - `allegiances.LockPart` — `allegiances.Book` (a pledge and a click for another flag) and `allegiance_query`
   (`Allegiance.locked`).
-- `charges.Part` — `charges.Charges` (the stacks, a grant capped at them, and the room `GetRoom` answers, a bomb while
-  bombs are off included), `charges.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`,
+- `charges.Part` — `charges.Charges` (the stacks, and a grant capped at them, none of a kind turned off), `charges.Bombing` (the radius, and the refusal while bombs are off), `enclose_click`,
   `place_shield_usecase`, `clicks.Claiming` (a tile's most shields, for a fortify) and the rest of `GetChargeRules`.
 - `arenas.Part` and `seeds.Part` — read from the set an arena is opened for, never from the set in force: `arenas.Setups`
   takes the freeze, which the opening keeps, and `seeds.Catalog` the seed (`cprules.PartOf.Of(set)`).
@@ -200,8 +202,8 @@ A value read where it is used applies from the next use. **A value that carries 
   over. A bucket follows its key's scale from its next take, so a new scope multiplier reaches a busy address at its
   next click.
 - **The toll** is set by each click: a new step slows a player from its next click.
-- **Charges held above a smaller stack** are kept: `Held.Granted` never takes from a stack, and a full or fuller stack
-  has no room for its kind (`GetRoom`), so the offers grant none.
+- **Charges held above a smaller stack** are kept: `Held.Granted` never takes from a stack, and a grant adds none to a
+  full or fuller one.
 - **Shields on a tile above a smaller `perTile`** stay: a placement is refused (`ErrTileFull`) and a fortify adds none
   until the tile is under it.
 - **A box or a quiz due later than the new longest wait**, in the offers' or the quizzes' sets, is brought in to a wait at the new pace, at the next sweep

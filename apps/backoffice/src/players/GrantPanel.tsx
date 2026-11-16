@@ -6,17 +6,19 @@ import {grantWords, heldWords, wholeOf} from "./charges.ts"
 
 type Props = {planet: PlanetAdmin, accountId: string, who: string}
 
-type Count = "enclosures" | "spreadClicks" | "shields" | "mines" | "rallies"
-
-const COUNTS: {key: Count, label: string}[] = [
+// Every kind a count, as GrantChargesRequest lists them.
+const COUNTS: {key: keyof Grant, label: string}[] = [
+    {key: "refills", label: "Refills"},
+    {key: "bombs", label: "Bombs"},
     {key: "enclosures", label: "Enclosures"},
     {key: "spreadClicks", label: "Spread clicks"},
     {key: "shields", label: "Shields"},
+    {key: "viruses", label: "Viruses"},
     {key: "mines", label: "Mines"},
     {key: "rallies", label: "Rallies"},
 ]
 
-// Charges as a box gives them. The caps hold, so the answer says what fit; the player sees it at its next page load.
+// Charges as a box gives them. What a hand holds caps each kind, so the answer says what fit; the player sees it at once.
 function heldSaid(granted: Granted): string {
     return `It held ${heldWords(granted.before)}. It holds ${heldWords(granted.after)}.`
 }
@@ -27,20 +29,6 @@ export function GrantPanel({planet, accountId, who}: Props) {
 
     return (
         <div className="tool-body">
-            <div className="checks">
-                <label className="check">
-                    <input type="checkbox" checked={charges.refill} onChange={e => set({refill: e.target.checked})}/>
-                    Refill
-                </label>
-                <label className="check">
-                    <input type="checkbox" checked={charges.bomb} onChange={e => set({bomb: e.target.checked})}/>
-                    Bomb
-                </label>
-                <label className="check">
-                    <input type="checkbox" checked={charges.virus} onChange={e => set({virus: e.target.checked})}/>
-                    Virus
-                </label>
-            </div>
             <div className="fields">
                 {COUNTS.map(({key, label}) => (
                     <label key={key} className="field">

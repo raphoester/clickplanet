@@ -2,6 +2,7 @@ package pay_caught_box_usecase_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func setUpOn(
 ) (*pay_caught_box_usecase.UseCase, *bonuses.FakeWallet, *bonuses.FakeUnlocks) {
 	rules.Kinds = kinds
 	wallet, unlocks := bonuses.NewFakeWallet(), bonuses.NewFakeUnlocks()
-	return pay_caught_box_usecase.New(wallet, wallet, unlocks, func() bonuses.Rules { return rules }), wallet, unlocks
+	return pay_caught_box_usecase.New(wallet, unlocks, func() bonuses.Rules { return rules }), wallet, unlocks
 }
 
 func TestABoxCaughtIsPaidAKindDrawnFromTheWeightsUnderItsToken(t *testing.T) {
@@ -64,32 +65,39 @@ func TestABoxToldAgainIsPaidOnce(t *testing.T) {
 	_, err = useCase.Execute(t.Context(), box)
 	require.NoError(t, err)
 
-	assert.False(t, wallet.Kept(ada).Refill, "the wallet pays each grant once")
+	assert.Zero(t, wallet.Kept(ada).Refills, "the wallet pays each grant once")
 }
 
-func TestAKindTheHandHasNoRoomForIsNotDrawn(t *testing.T) {
-	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindBomb: 100, bonuses.KindRefill: 1})
-	wallet.Keep(ada, bonuses.Hand{Bomb: true})
+func TestTheDrawIgnoresTheHand(t *testing.T) {
+	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindBomb: 1, bonuses.KindRefill: 1})
+	wallet.Size(bonuses.KindRefill, 1)
+	wallet.Keep(ada, bonuses.Hand{Refills: 1})
 
-	for range 20 {
-		_, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: "a-token"})
+	for i := range 60 {
+		_, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: fmt.Sprintf("token-%d", i)})
 		require.NoError(t, err)
 	}
 
+	drawn := map[bonuses.Kind]int{}
 	for _, payment := range wallet.Payments() {
-		require.Equal(t, bonuses.KindRefill, payment.Kind, "a second bomb would be a stockpile")
+		drawn[payment.Kind]++
 	}
+	assert.Positive(t, drawn[bonuses.KindRefill], "a full stack never steers the draw to another kind")
+	assert.Positive(t, drawn[bonuses.KindBomb])
 }
 
-func TestAHandWithRoomForNoKindTheRulesWeighIsPaidNothing(t *testing.T) {
-	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1, bonuses.KindShields: 0})
-	wallet.Keep(ada, bonuses.Hand{Refill: true})
+func TestAKindDrawnIntoAFullStackIsPaidNothing(t *testing.T) {
+	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindBomb: 1, bonuses.KindShields: 0})
+	wallet.Size(bonuses.KindBomb, 1)
+	wallet.Keep(ada, bonuses.Hand{Bombs: 1})
 
 	out, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: "a-token"})
 	require.NoError(t, err)
 
-	assert.False(t, out.Paid, "the boxes offered it, since the hand had room for shields, which weigh 0")
-	assert.Empty(t, wallet.Payments())
+	assert.False(t, out.Paid, "the wallet kept none of it")
+	require.Len(t, wallet.Payments(), 1)
+	assert.Equal(t, bonuses.KindBomb, wallet.Payments()[0].Kind)
+	assert.Equal(t, bonuses.Hand{Bombs: 1}, wallet.Kept(ada))
 }
 
 func TestANewcomersFirstBoxPaysASpread(t *testing.T) {
@@ -130,11 +138,13 @@ func TestANewcomersFirstBoxWithNoSpreadToPayIsPaidNothing(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.False(t, out.Paid)
-		assert.Empty(t, wallet.Payments(), "never a refill or a bomb for a newcomer")
+		for _, payment := range wallet.Payments() {
+			assert.Equal(t, bonuses.KindSpreadClicks, payment.Kind, "never a refill or a bomb for a newcomer")
+		}
 	}
 }
 
-func TestARoomTheWalletCannotTellIsTriedAgain(t *testing.T) {
+func TestAPaymentTheWalletCannotMakeIsTriedAgain(t *testing.T) {
 	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1})
 	wallet.FailWith(errors.New("planet is gone"))
 
@@ -167,7 +177,7 @@ func TestWithTheGatesOnAKindUnlockedIsDrawn(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.True(t, out.Paid)
-	assert.True(t, wallet.Kept(ada).Bomb)
+	assert.Equal(t, 1, wallet.Kept(ada).Bombs)
 }
 
 func TestWithTheGatesOnAGuestIsDrawnOnlyTheOpenKinds(t *testing.T) {
@@ -191,7 +201,7 @@ func TestWithTheGatesOffAGuestGetsABomb(t *testing.T) {
 	_, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: "a-token"})
 	require.NoError(t, err)
 
-	assert.True(t, wallet.Kept(ada).Bomb, "a battle's set keeps the gates off")
+	assert.Equal(t, 1, wallet.Kept(ada).Bombs, "a battle's set keeps the gates off")
 }
 
 func TestABoxWhoseKindsItMayBeAllWeighZeroIsPaidNothing(t *testing.T) {
@@ -207,12 +217,12 @@ func TestABoxWhoseKindsItMayBeAllWeighZeroIsPaidNothing(t *testing.T) {
 
 func TestTheChargesHeldStayWhateverTheGates(t *testing.T) {
 	useCase, wallet, _ := setUpOn(bonuses.TestGated(), map[bonuses.Kind]float64{bonuses.KindRefill: 1})
-	wallet.Keep(ada, bonuses.Hand{Bomb: true, Enclosures: 3})
+	wallet.Keep(ada, bonuses.Hand{Bombs: 1, Enclosures: 3})
 
 	_, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: "a-token"})
 	require.NoError(t, err)
 
-	assert.Equal(t, bonuses.Hand{Refill: true, Bomb: true, Enclosures: 3}, wallet.Kept(ada),
+	assert.Equal(t, bonuses.Hand{Refills: 1, Bombs: 1, Enclosures: 3}, wallet.Kept(ada),
 		"a gate decides what is drawn, never what is held")
 }
 

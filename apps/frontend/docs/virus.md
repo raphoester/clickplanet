@@ -2,14 +2,15 @@
 
 A virus (`BonusReward` kind `virus`) takes one enemy tile, then spreads on its own into the land of every enemy flag next to it: the server's
 rules, in the backend's [The virus](../../backend/docs/virus.md). No box draws one yet; the operator's grant, and the
-fake's `giveVirus()`, give one.
+fake's `giveVirus()`, give one. A hand holds as many as the rules say (`BonusRules.viruses`, one in production for
+now), `Charges.viruses`, counted on the slot once they stack, and a use spends one.
 
 **It is aimed or put away, like the bomb.** The inventory's virus slot aims it (`Globe.setVirusAimed`), the slot or
 Escape puts it away, and aiming it puts the bomb away and turns every switch off (and the reverse). While aimed, a tap on
 a tile uses it instead of clicking: `Infector.useVirus(tile, flag)`, `ClickService/UseVirus`. The globe refuses a tile
 of no other flag, or with a shield, before the call ("A virus takes only an enemy tile with no shield", the notice
 `virusNoEnemy` over the slot), and the reach refuses a tile out of it as for a click. The virus stays aimed after a
-refusal. The backend takes it off the hand at once and gives it back unless the server says it holds none: a
+refusal. The backend takes one off the hand at once and gives that one back unless the server says it holds none: a
 `VirusRefusal` (a shield placed meanwhile) is `VirusRefusedError`, said with the same notice.
 
 **Its hint says what it does**, on a hover and in the bubble of its first uses: it takes the tile, then spreads into

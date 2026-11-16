@@ -2,7 +2,7 @@
 
 **The charges are the wallet, `internal/planet/internal/charges/`**: what an account holds and spends. What grants them,
 a box caught, a right answer or a guest's first sign-in, is the bonuses module's, which reaches the wallet only through
-planet's internal calls, in planet's words (`GrantCharges`, `GetRoom`): see [The bonuses](bonuses.md) and [Offers and the
+planet's internal call, in planet's words (`GrantCharges`): see [The bonuses](bonuses.md) and [Offers and the
 wallet](offers-and-wallet.md). The boxes are the boxes module's ([The boxes](boxes-module.md)).
 
 A timer rewarded speed rather than planning: with a bank of clicks, a 10s spread
@@ -18,25 +18,25 @@ its own.
   no account is `NoHolder`: it holds nothing, and a scope where no account plays
   is offered nothing. Every client mints a guest account, so this leaves
   out only a caller with no token at all.
-- **The rules are a value, `charges.Held`**: a refill and a bomb (held or not), a
-  stack of enclosures, a pool of spread clicks and a stack of shields. `Granted`,
-  `AfterRefill`, `AfterBomb`, `AfterEnclose`, `AfterSpreadClick` and `AfterShield`
-  build a new `Held` and change
-  nothing; `charges.Charges` writes it. `Count(kind)` is how many of a kind are held,
-  and `Full(rules)` the kinds a hand has no room for, a bomb while bombs are off and an enclosure while enclosures
-  are off included, which
-  `InternalService/GetRoom` answers. The sizes are the wallet's rules (`charges.Rules`, `charges.*` in a set); the
-  offers never read one.
+- **The rules are a value, `charges.Held`**: **every kind is a count** (`Refills`, `Bombs`, `Enclosures`,
+  `SpreadClicks`, `Shields`, `Viruses`, `Mines`, `Rallies`), with one path for all of them: `Granted` stacks a kind up
+  to its size (`Rules.Size(kind)`), the `After…` spends take one, the `With…Back` returns give one back. They build a new
+  `Held` and change nothing; `charges.Charges` writes it. `Count(kind)` is how many of a kind are held. The sizes are
+  the wallet's rules (`charges.Rules`, `charges.*` in a set); the bonuses module never reads one. Until 2026-11-16 a
+  refill, a bomb and a virus were booleans, held or not, with a path of their own each.
 - **A rule set may make enclosures unlimited** (`charges.enclose.unlimited`): enclose then spends no charge, and
   the stack held is left as it is. See [Unlimited enclosures](enclose.md#unlimited-enclosures-chargesencloseunlimited).
 - **A rule set may turn enclosures off** (`charges.enclose.off`): an enclose click closes nothing and spends nothing,
   no hand has room for one, and the stack held is kept. See [Enclosures off](enclose.md#enclosures-off-chargesencloseoff).
 - **A rule set may make spreads unlimited** (`charges.spread.unlimited`): spread then spends no charge, and the pool
   held is left as it is. See [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited).
-- **How much fits.** A refill, a bomb and a virus are one: a second replaces the first,
-  which is what stops a stockpile of bombs being dropped all at once. Enclosures
-  stack to the rule set's `charges.enclose.held` (3), spread clicks pool to `charges.spread.clicks`
-  (8), shields stack to `charges.shield.held` (30) mines to `charges.mine.held` (3) and rallies to `charges.rally.held` (3) (see [Rules](rules.md)). A box draws its amount evenly from 1 to
+- **How much fits.** Each kind stacks to its size in the rule set: refills to `charges.refill.held`, bombs to
+  `charges.bomb.held` and viruses to `charges.virus.held` (1 each, which is what stops a stockpile of bombs being
+  dropped all at once; the operator may raise them), enclosures to `charges.enclose.held` (3), spread clicks to
+  `charges.spread.clicks` (8), shields to `charges.shield.held` (30), mines to `charges.mine.held` (3) and rallies to
+  `charges.rally.held` (3) (see [Rules](rules.md); the numbers are the migrations' `default`). **A kind the rules turn
+  off is kept none of** (`Rules.Off`: a bomb while `charges.bomb.off`, an enclosure while `charges.enclose.off`), a
+  box's, a quiz's or an operator's grant alike; what is held of it stays. A box draws its amount evenly from 1 to
   the bonuses' `maxPerBox`, or from their `shield.minPerBox` for shields (`bonuses.amountOf`, `crypto/rand`), and the
   grant caps it at the size: the cap is the wallet's. **What was kept** reaches the page as the grant's `gained`, on
   planet's stream (`charges_granted`, below): `Charges.Grant` answers the hand before and after it (`charges.Gain`), both
@@ -45,8 +45,10 @@ its own.
   (`pay_usecase`). Until 2026-11-15 the claim's own answer said what was kept.
 - **The schedule offers a box whatever the hand holds** (since 2026-11-15). The schedule is by entrant and a charge
   is by account, and the boxes know no kind and ask no room ([The boxes](boxes-module.md#what-it-asks-of-planet)). The
-  kind is drawn at the catch, among the kinds the claiming account's hand has room for then, and a full hand is paid
-  nothing ([A box caught](bonuses.md#a-box-caught)).
+  kind is drawn at the catch **whatever the hand holds** (since 2026-11-16), and the wallet keeps what fits: a kind
+  drawn into a full stack, or one the rules turn off, is paid nothing ([A box caught](bonuses.md#a-box-caught)).
+  **Nobody asks planet what a hand has room for**: `InternalService/GetRoom` is gone. While it was asked, a player who
+  kept every other kind full was drawn the one kind left at every box.
 - **Off by default, one at a time.** `ClickRequest.spread` and `enclose` say what
   the player switched on for this click, and `click_usecase.In` carries them.
   `spread_click` spends a spread click only with `Spread`, once the click is accepted (see [Spread](spread.md)),
@@ -80,10 +82,12 @@ its own.
   most once; the client reads the charges again when its stream comes back.
 - **Nothing lapses.** Migration `20260919120000_charges_never_lapse` replaced the
   `*_until` columns with `refill` and `bomb` booleans and an `enclosures` count,
-  keeping what was still in time. `bonus.chargeTTL` is gone.
+  keeping what was still in time. `bonus.chargeTTL` is gone. Migration `20261116191131_charge_counts` made the
+  booleans `refills`, `bombs` and `viruses` counts (a hand that held one holds 1), and gave `default` a `held` of 1 for
+  each.
 - **No memory copy: every grant, spend and read goes to postgres**, one row per
-  account in `planet.charges` (`refill`, `bomb`, `enclosures`, `spread_clicks`,
-  `shields`, `virus`, `mines`, `rallies`). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
+  account in `planet.charges` (`refills`, `bombs`, `enclosures`, `spread_clicks`,
+  `shields`, `viruses`, `mines`, `rallies`, each a count that cannot go below 0). `charges.Charges` holds the sizes and the `Store` port, whose `Change`
   runs one transaction under `pg_advisory_xact_lock` on the account. An empty hand
   is no row. A failing database fails the call; a spread click fails with its tile
   taken. A deleted account's row stays until something removes it. The boxes'
@@ -113,11 +117,11 @@ its own.
   which the offers answer on in planet's words (`planet.v1.ChargesHeld`, through `planetwords`).
 - **How big a charge is, is a rule, not state.** `GetChargeRules` (`GetBonusRules` until 2026-11-11) answers the
   blast radius, the enclose's `maxTiles`, the spread pool's size and whether it is unlimited
-  (`spread_unlimited`), and the
+  (`spread_unlimited`), how many refills, bombs and viruses a hand holds (`refills`, `bombs`, `viruses`), the
   enclosure stack's size, how many shields a player holds and a tile takes
   (`shields`, `tile_shields`), and every step of the toll (`toll_steps`, from
   `clicks.Toll.Steps`), all read from the rule set in force (see [Rules](rules.md)), so the client can show the
   whole table and the slowdown of a country it does not play for. It is
   `NO_SIDE_EFFECTS`, a GET no cache keeps: the client reads it at load and again on each `rules_changed`.
 - **A stack held above a smaller size is kept** (`Held.Granted` never takes from a stack): a hand of 12 shields
-  under a new stack of 5 keeps 12, is offered no shield box, and a grant adds none until it is under 5.
+  under a new stack of 5 keeps 12, and a grant adds none until it is under 5.

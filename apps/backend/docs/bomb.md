@@ -33,12 +33,15 @@ struck tile's too: the counter to a mine (see [The mine](mine.md)).
 **No bomb while the rules in force hold `charges.bomb.off`** (Capital Siege slice 4; a knob of its own, on any map,
 2026-11-10). `Bombing.Refuses` answers `ErrBombsOff`, and `drop_bomb_usecase` asks it first, before the country, the
 aim and the spend: the bomb stays held, and the drop is `FailedPrecondition` with a `planet.v1.BombRefusal` detail. A
-drop has no throttle, so no token is spent either. No hand has room for a bomb while it is off (`Held.Full`, which
-`InternalService/GetRoom` answers), so no box or quiz offers one, and a
-bomb granted another way (an operator's grant) is kept until a set plays bombs again. The page learns
-it from `GetChargeRules.bombs_off` and hides the bomb. The offers' set may weigh bombs anything: none is drawn. Until
-2026-11-11 the offers read `bomb.off` themselves (`Rules.Offered`), and a set whose only kind weighed above 0 was the
-bomb could not play; now each of its slots finds no room and is lost.
+drop has no throttle, so no token is spent either. **A grant keeps no bomb while it is off** (`Rules.Off`, in
+`Held.Granted`), a box's, a quiz's or an operator's alike, and the bombs held are kept until a set plays bombs again.
+The page learns it from `GetChargeRules.bombs_off` and hides the bomb. The bonuses' set should weigh bombs 0 while its
+planet set turns them off, or a box drawn a bomb pays nothing ([The bonuses](bonuses.md#what-it-asks-of-planet-in-planets-words)).
+Until 2026-11-11 the offers read `bomb.off` themselves (`Rules.Offered`); until 2026-11-16 planet's `GetRoom` told the
+bonuses module no hand had room for one, so none was drawn, and an operator's grant still landed.
+
+**A hand holds `charges.bomb.held` bombs** (1 in `default`), each dropped alone: `Held.AfterBomb` takes one. Until
+2026-11-16 a bomb was held or not, and a second grant replaced the first.
 
 `drop_bomb_usecase` checks the country and the target **before** taking the bomb, so a
 malformed request does not cost one. The drop does not move the schedule: the next

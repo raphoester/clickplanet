@@ -584,6 +584,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 enclosuresOff: res.enclosuresOff,
                 spreadUnlimited: res.spreadUnlimited,
                 virusInfections: res.virusInfections,
+                refills: res.refills,
+                bombs: res.bombs,
+                viruses: res.viruses,
                 mines: res.mines,
                 mineRings: res.mineRings,
                 rallies: res.rallies,
@@ -810,13 +813,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.bombCallbacks.delete(id)
     }
 
+    // The bomb leaves the hand at once, and comes back unless the server says it holds none.
     public async dropBomb(target: GlobePoint, countryId: string): Promise<void> {
-        this.holdCharges({...this.charges, bomb: false})
+        this.holdCharges({...this.charges, bombs: Math.max(0, this.charges.bombs - 1)})
 
         try {
             await this.dropRetried(target, countryId)
         } catch (e) {
-            if (!(e instanceof BonusLostError) && !this.charges.bomb) this.holdCharges({...this.charges, bomb: true})
+            this.holdCharges({...this.charges, bombs: e instanceof BonusLostError ? 0 : this.charges.bombs + 1})
             throw e
         }
     }
@@ -861,7 +865,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     error = asRefillError(retried)
                 }
             }
-            if (error instanceof BonusLostError) this.holdCharges({...this.charges, refill: false})
+            if (error instanceof BonusLostError) this.holdCharges({...this.charges, refills: 0})
             throw error
         }
     }
@@ -880,12 +884,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     // The virus leaves the hand at once, and comes back unless the server says it holds none.
     public async useVirus(tileId: number, countryId: string): Promise<void> {
-        this.holdCharges({...this.charges, virus: false})
+        this.holdCharges({...this.charges, viruses: Math.max(0, this.charges.viruses - 1)})
 
         try {
             await this.infectRetried(tileId, countryId)
         } catch (e) {
-            if (!(e instanceof BonusLostError) && !this.charges.virus) this.holdCharges({...this.charges, virus: true})
+            this.holdCharges({...this.charges, viruses: e instanceof BonusLostError ? 0 : this.charges.viruses + 1})
             throw e
         }
     }
@@ -1190,12 +1194,12 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
     if (!held) return NO_CHARGES
 
     return {
-        refill: held.refill,
-        bomb: held.bomb,
+        refills: held.refills,
+        bombs: held.bombs,
         enclosures: held.enclosures,
         spreadClicksLeft: held.spreadClicksLeft,
         shields: held.shields,
-        virus: held.virus,
+        viruses: held.viruses,
         mines: held.mines,
         rallies: held.rallies,
     }

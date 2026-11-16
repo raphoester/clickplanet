@@ -30,8 +30,8 @@ func TestANewPlayerEarnsARefill(t *testing.T) {
 
 	require.NoError(t, subscriber.Handle(t.Context(), &playerv1.PlayerCreated{AccountId: guest}))
 
-	assert.True(t, wallet.Kept(guest).Refill)
-	assert.False(t, wallet.Kept(other).Refill)
+	assert.Equal(t, 1, wallet.Kept(guest).Refills)
+	assert.Zero(t, wallet.Kept(other).Refills)
 }
 
 func TestAnEventThatNamesNoAccountIsRefused(t *testing.T) {

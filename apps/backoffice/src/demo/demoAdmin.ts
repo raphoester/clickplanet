@@ -299,7 +299,9 @@ export class DemoAdmin extends FakeAdmin {
             planetDefault,
             new RuleSet({name: "calm", rules: PlanetRules.fromJson({clicks: {tempo: 0.5}})}),
             new RuleSet({name: "frozen", rules: PlanetRules.fromJson({frozen: true})}),
-            new RuleSet({name: "rush", rules: PlanetRules.fromJson({clicks: {tempo: 3}, allegianceLocked: true})}),
+            new RuleSet({name: "rush", rules: PlanetRules.fromJson({
+                clicks: {tempo: 3}, charges: {bomb: {held: 3}}, allegianceLocked: true,
+            })}),
         ]})
         this.promo.backgrounds = DEMO_BACKGROUNDS
         this.promo.decks.set("rush", [

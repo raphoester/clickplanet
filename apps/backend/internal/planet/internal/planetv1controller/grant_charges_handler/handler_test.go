@@ -44,13 +44,15 @@ func TestEveryChargeAskedReachesTheUseCase(t *testing.T) {
 	useCase := &stubUseCase{}
 
 	_, err := grant(t, useCase, &planetv1.GrantChargesRequest{
-		AccountId: account, Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5,
+		AccountId: account, Refills: 2, Bombs: 3, Enclosures: 2, SpreadClicks: 5, Shields: 6, Viruses: 1, Mines: 2, Rallies: 1,
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, grant_charges_usecase.In{
 		Account: account,
-		Grant:   charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5},
+		Grant: charges.Held{
+			Refills: 2, Bombs: 3, Enclosures: 2, SpreadClicks: 5, Shields: 6, Viruses: 1, Mines: 2, Rallies: 1,
+		},
 	}, useCase.in)
 }
 
@@ -58,17 +60,17 @@ func TestTheAnswerSaysWhatWasHeldBeforeAndAfter(t *testing.T) {
 	useCase := &stubUseCase{out: grant_charges_usecase.Out{
 		Holder: account,
 		Before: charges.Held{SpreadClicks: 7},
-		After:  charges.Held{Bomb: true, SpreadClicks: 8},
+		After:  charges.Held{Bombs: 1, SpreadClicks: 8},
 	}}
 
-	res, err := grant(t, useCase, &planetv1.GrantChargesRequest{AccountId: account, Bomb: true, SpreadClicks: 4})
+	res, err := grant(t, useCase, &planetv1.GrantChargesRequest{AccountId: account, Bombs: 1, SpreadClicks: 4})
 	require.NoError(t, err)
 
 	assert.Equal(t, account, res.GetAccountId())
 	assert.Equal(t, uint32(7), res.GetBefore().GetSpreadClicksLeft())
-	assert.False(t, res.GetBefore().GetBomb())
+	assert.Zero(t, res.GetBefore().GetBombs())
 	assert.Equal(t, uint32(8), res.GetAfter().GetSpreadClicksLeft())
-	assert.True(t, res.GetAfter().GetBomb())
+	assert.Equal(t, uint32(1), res.GetAfter().GetBombs())
 }
 
 func TestErrorsMapToTheirCodes(t *testing.T) {

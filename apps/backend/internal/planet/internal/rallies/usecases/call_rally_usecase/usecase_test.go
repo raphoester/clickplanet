@@ -109,7 +109,7 @@ func TestAnotherRallyOnceTheLastEnded(t *testing.T) {
 }
 
 func TestNoRallyHeldIsNoRally(t *testing.T) {
-	useCase, p := setup(nil, charges.Held{Bomb: true})
+	useCase, p := setup(nil, charges.Held{Bombs: 1})
 
 	_, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
 

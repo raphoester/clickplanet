@@ -9,12 +9,12 @@ export function wholeOf(typed: string): number {
 
 export function grantWords(charges: Grant): string {
     return listOf([
-        charges.refill && "a refill",
-        charges.bomb && "a bomb",
+        plural(charges.refills, "refill"),
+        plural(charges.bombs, "bomb"),
         plural(charges.enclosures, "enclosure"),
         plural(charges.spreadClicks, "spread click"),
         plural(charges.shields, "shield"),
-        charges.virus && "a virus",
+        plural(charges.viruses, "virus", "viruses"),
         plural(charges.mines, "mine"),
         plural(charges.rallies, "rally", "rallies"),
     ])
@@ -22,12 +22,12 @@ export function grantWords(charges: Grant): string {
 
 export function heldWords(held: ChargesHeld): string {
     return listOf([
-        held.refill && "a refill",
-        held.bomb && "a bomb",
+        plural(held.refills, "refill"),
+        plural(held.bombs, "bomb"),
         plural(held.enclosures, "enclosure"),
         plural(held.spreadClicksLeft, "spread click"),
         plural(held.shields, "shield"),
-        held.virus && "a virus",
+        plural(held.viruses, "virus", "viruses"),
         plural(held.mines, "mine"),
         plural(held.rallies, "rally", "rallies"),
     ])

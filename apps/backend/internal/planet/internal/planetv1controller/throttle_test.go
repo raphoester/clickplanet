@@ -389,7 +389,7 @@ func TestARefillGivesABankWhenTheNetworksBucketIsTheTighter(t *testing.T) {
 	refills := charges.NewMemoryStore()
 	server, _, clock := refillServer(t, func(throttle *clicks.Throttle) { throttle.V6ScopeMultiplier = 2 }, refills)
 	me, partner := linkedPrefix+accountNumber(0).String(), linkedPrefix+accountNumber(1).String()
-	refills.Keep(charges.Holder(accountNumber(0).String()), charges.Held{Refill: true})
+	refills.Keep(charges.Holder(accountNumber(0).String()), charges.Held{Refills: 1})
 
 	for _, token := range []string{me, partner} {
 		for click := range 10 {

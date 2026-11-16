@@ -85,7 +85,7 @@ func TestTheStreamsAreToldWhatTheGrantAddedAndAllTheAccountHolds(t *testing.T) {
 	}
 
 	require.Len(t, streams.told, 2)
-	assert.Equal(t, charges.Held{Bomb: true, Shields: 10}, streams.told[1].gain.After)
+	assert.Equal(t, charges.Held{Bombs: 1, Shields: 10}, streams.told[1].gain.After)
 	assert.Equal(t, 10, streams.told[1].gain.Count(charges.KindShields))
 	assert.Zero(t, streams.told[1].gain.Count(charges.KindBomb), "the bomb was the first grant's")
 }

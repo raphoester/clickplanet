@@ -223,9 +223,10 @@ export class OpenKinds extends Message<OpenKinds> {
 }
 
 /**
- * What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
- * planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off, nor a kind the
- * account may not be drawn while the gates are on (gates).
+ * What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be, whatever
+ * the hand holds. A kind the account may not be drawn while the gates are on (gates) is never drawn for it. Planet's
+ * wallet keeps what fits: a kind drawn into a full stack, or one planet's rules turn off, pays nothing, so a set weighs
+ * 0 a kind planet turns off when it plays.
  *
  * @generated from message bonuses.v1.KindWeights
  */

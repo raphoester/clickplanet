@@ -64,7 +64,7 @@ func calling(t *testing.T) context.Context {
 }
 
 func TestAVirusLeavesTheHandAndStartsOnTheTileForTheCallersFlag(t *testing.T) {
-	useCase, p := setup(nil, charges.Held{Virus: true, Shields: 2})
+	useCase, p := setup(nil, charges.Held{Viruses: 1, Shields: 2})
 
 	require.NoError(t, useCase.Execute(calling(t), use_virus_usecase.In{TileID: 8, CountryID: "fr"}))
 
@@ -77,17 +77,17 @@ func TestAVirusLeavesTheHandAndStartsOnTheTileForTheCallersFlag(t *testing.T) {
 }
 
 func TestAVirusTheGateRefusesStaysInTheHand(t *testing.T) {
-	useCase, p := setup(clicks.ErrNotInfectable, charges.Held{Virus: true})
+	useCase, p := setup(clicks.ErrNotInfectable, charges.Held{Viruses: 1})
 
 	err := useCase.Execute(calling(t), use_virus_usecase.In{TileID: 9, CountryID: "fr"})
 
 	require.ErrorIs(t, err, clicks.ErrNotInfectable)
-	assert.Equal(t, charges.Held{Virus: true}, p.hands.Kept(alice))
+	assert.Equal(t, charges.Held{Viruses: 1}, p.hands.Kept(alice))
 	assert.Empty(t, p.contagion.started)
 }
 
 func TestNoVirusHeldStartsNone(t *testing.T) {
-	useCase, p := setup(nil, charges.Held{Bomb: true})
+	useCase, p := setup(nil, charges.Held{Bombs: 1})
 
 	require.ErrorIs(t, useCase.Execute(calling(t), use_virus_usecase.In{TileID: 8, CountryID: "fr"}), use_virus_usecase.ErrNoVirus)
 	require.ErrorIs(t, useCase.Execute(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), use_virus_usecase.In{TileID: 8, CountryID: "fr"}),
@@ -96,17 +96,17 @@ func TestNoVirusHeldStartsNone(t *testing.T) {
 }
 
 func TestAVirusTheMapRefusesAfterAllComesBack(t *testing.T) {
-	useCase, p := setup(nil, charges.Held{Virus: true})
+	useCase, p := setup(nil, charges.Held{Viruses: 1})
 	p.contagion.err = clicks.ErrNotInfectable
 
 	err := useCase.Execute(calling(t), use_virus_usecase.In{TileID: 8, CountryID: "fr"})
 
 	require.ErrorIs(t, err, clicks.ErrNotInfectable)
-	assert.Equal(t, charges.Held{Virus: true}, p.hands.Kept(alice), "a shield placed meanwhile costs no virus")
+	assert.Equal(t, charges.Held{Viruses: 1}, p.hands.Kept(alice), "a shield placed meanwhile costs no virus")
 }
 
 func TestAWalletThatFailsFailsTheUseWithoutSayingThereIsNoVirus(t *testing.T) {
-	useCase, p := setup(nil, charges.Held{Virus: true})
+	useCase, p := setup(nil, charges.Held{Viruses: 1})
 	down := errors.New("postgres is down")
 	p.hands.FailWith(down)
 

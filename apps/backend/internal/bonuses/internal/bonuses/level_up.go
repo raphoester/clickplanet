@@ -26,8 +26,8 @@ type LevelUp struct {
 	Unlocked Unlocked
 }
 
-// Reward is drawn as a box's is, among the kinds the account may be drawn and the hand has room for. It is false when
+// Reward is drawn as a box's is, among the kinds the account may be drawn, whatever the hand holds. It is false when
 // there is nothing the level-up could be worth.
-func (l LevelUp) Reward(rules Rules, full []Kind) (Reward, bool) {
-	return drawReward(rules, full, l.Unlocked)
+func (l LevelUp) Reward(rules Rules) (Reward, bool) {
+	return drawReward(rules, l.Unlocked)
 }
