@@ -39,6 +39,9 @@ import {
     Infector,
     VirusRefusedError,
     VirusSpread,
+    Miner,
+    MineBlast,
+    MineRefusedError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
@@ -68,6 +71,9 @@ const SPREAD_CLICKS = 8
 const SPREAD_PER_BOX = 4
 const ENCLOSURES = 3
 const ENCLOSURES_PER_BOX = 3
+const MINES = 3
+const MINES_PER_BOX = 2
+const MINE_RINGS = 2
 const SHIELDS = 30
 const SHIELDS_MIN_PER_BOX = 5
 const SHIELDS_PER_BOX = 20
@@ -126,6 +132,8 @@ const RULES: BonusRules = {
     virusInfections: VIRUS_INFECTIONS,
     gatesOn: false,
     openKinds: ["refill", "spreadClicks", "shields"],
+    mines: MINES,
+    mineRings: MINE_RINGS,
 }
 
 export type FakeBackendOptions = {
@@ -134,7 +142,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, Miner, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
@@ -158,6 +166,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private fortificationCallbacks: Map<string, (fortification: Fortification) => void> = new Map()
     private shields: Map<number, number> = new Map()
     private readonly viruses = new Map<string, {flag: string, victim: string, infected: number[], infections: number}>()
+    // Each mine's tile, and its flag.
+    private readonly mines = new Map<number, string>()
     private fortresses: FakeFortresses | undefined
 
     private charges: Charges = NO_CHARGES
@@ -305,6 +315,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return this.charges.shields >= SHIELDS
             case "virus":
                 return this.charges.virus
+            case "mine":
+                return this.charges.mines >= MINES
         }
     }
 
@@ -344,6 +356,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             case "virus":
                 this.hold({...held, virus: true})
                 return {reward: rewardOfKind(kind), charges: this.charges}
+            case "mine": {
+                const mines = Math.min(held.mines + drawUpTo(MINES_PER_BOX), MINES)
+                this.hold({...held, mines})
+                return {reward: rewardOfKind(kind, mines - held.mines), charges: this.charges}
+            }
         }
     }
 
@@ -394,6 +411,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.holders.set(id, {accountId: FAKE_YOU, countryCode: countryId, takenAt: Date.now()})
             this.shields.delete(id)
             this.tally?.moved(id, owner, countryId)
+            this.trip(id, countryId)
         }
 
         if (!unlimited) this.hold({...this.charges, enclosures: this.charges.enclosures - 1})
@@ -463,6 +481,74 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private holdAllegiance(allegiance: Allegiance): void {
         this.allegiance = allegiance
         this.allegianceCallbacks.forEach(callback => callback(allegiance))
+        const mines = this.minefield()
+        this.bonusCallbacks.forEach(handlers => handlers.onMines(mines))
+    }
+
+    private minefield() {
+        const flag = this.allegiance?.countryId ?? ""
+        const tiles = [...this.mines].filter(([, mine]) => mine === flag).map(([tile]) => tile)
+        return {countryId: flag, tiles, version: this.version()}
+    }
+
+    public async layMine(tileId: number, countryId: string): Promise<void> {
+        this.refuseBanned()
+        if (this.frozen) throw new FrozenError()
+        this.play(countryId)
+        if (this.charges.mines === 0) throw new BonusLostError()
+        if (this.tileBindings.get(tileId) !== countryId || this.mines.has(tileId)) throw new MineRefusedError()
+
+        this.hold({...this.charges, mines: this.charges.mines - 1})
+        this.mines.set(tileId, countryId)
+        const laid = {countryId, tile: tileId, version: this.version()}
+        this.bonusCallbacks.forEach(handlers => handlers.onMineLaid(laid))
+    }
+
+    // An enemy takes one of the page's flag's mines, so it can be watched going off.
+    public tripMine(): boolean {
+        const flag = this.allegiance?.countryId
+        const mined = [...this.mines].find(([, mine]) => mine === flag)
+        if (!mined) return false
+        this.applyClick(mined[0], flag === "de" ? "fr" : "de")
+        return true
+    }
+
+    // A take by another flag sets the tile's mine off once the take is told.
+    private trip(tile: number, taker: string) {
+        const flag = this.mines.get(tile)
+        if (flag === undefined || flag === taker) return
+        this.mines.delete(tile)
+        setTimeout(() => void this.detonate(tile, flag), 0)
+    }
+
+    // Each blast takes its tile and the rings around it for its flag, but a shielded tile or the flag's own, and every
+    // mine it reaches goes off after it.
+    private async detonate(tile: number, flag: string) {
+        const positions = await this.loadPositions()
+        const waiting = [{tile, flag}]
+        const blasts: MineBlast[] = []
+        for (let mine = waiting.shift(); mine; mine = waiting.shift()) {
+            const reach = (MINE_RINGS + 0.3) * SPREAD_RING
+            const disc = [mine.tile, ...tilesWithin(positions, mine.tile, reach).filter((each) => each !== mine.tile)]
+            const taken: number[] = []
+            for (const each of disc) {
+                const other = this.mines.get(each)
+                if (other !== undefined) {
+                    this.mines.delete(each)
+                    waiting.push({tile: each, flag: other})
+                }
+                const owner = this.tileBindings.get(each)
+                if (owner === mine.flag || this.shields.has(each)) continue
+                this.tileBindings.set(each, mine.flag)
+                this.holders.set(each, {accountId: FAKE_YOU, countryCode: mine.flag, takenAt: Date.now()})
+                this.tally?.moved(each, owner, mine.flag)
+                taken.push(each)
+            }
+            blasts.push({tile: mine.tile, countryId: mine.flag, taken})
+        }
+        const version = this.write()
+        this.flushUpdates()
+        this.bonusCallbacks.forEach(handlers => handlers.onMinesExploded({blasts, version}))
     }
 
     public ban(minutes = 60): void {
@@ -583,6 +669,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.holders.set(tileId, {accountId: by, countryCode: countryId, takenAt: Date.now()})
         this.shields.delete(tileId)
         this.tally?.moved(tileId, prev, countryId)
+        this.trip(tileId, countryId)
         const version = this.write()
         this.updateListeners.forEach(l => l({
             tile: tileId,
@@ -696,6 +783,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             this.tileBindings.set(tile, virus.flag)
             this.holders.set(tile, {accountId: FAKE_YOU, countryCode: virus.flag, takenAt: Date.now()})
             this.tally?.moved(tile, owner, virus.flag)
+            this.trip(tile, virus.flag)
             taken.push(tile)
         }
         virus.infected.push(...taken)
@@ -749,6 +837,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.bonusCallbacks.set(identifier, handlers)
         handlers.onRules(this.rules)
         handlers.onCharges(this.charges)
+        handlers.onMines(this.minefield())
 
         return () => this.bonusCallbacks.delete(identifier)
     }
@@ -890,6 +979,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const cleared: number[] = []
         const struck: {tile: number, shields: number}[] = []
         for (const id of onLand ? tilesWithin(positions, tile, BOMB_RADIUS) : []) {
+            this.mines.delete(id)
             const owner = this.tileBindings.get(id)
             if (owner === undefined) continue
             const left = this.strike(id)
@@ -1043,5 +1133,7 @@ function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
             return {kind, shields: amount}
         case "virus":
             return {kind}
+        case "mine":
+            return {kind, mines: amount}
     }
 }

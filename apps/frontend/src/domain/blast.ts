@@ -5,6 +5,14 @@ export const BLAST_TIMELINE = {fall: 0.8, shock: 1.2, scorch: 5} as const
 
 export const IMPACT_DELAY = BLAST_TIMELINE.fall
 
+// The map's mean arc between two tiles that touch.
+const TILE_SPACING = 0.004
+
+// A mine's blast takes its tile and `rings` rings of tiles around it: drawn a half tile past the last.
+export function mineBlastRadius(rings: number): number {
+    return (rings + 0.5) * TILE_SPACING
+}
+
 export type Blast =
     | {kind: "ocean"}
     | {kind: "land", land: string}

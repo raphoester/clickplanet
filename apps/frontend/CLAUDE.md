@@ -116,6 +116,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   each bonus on the client.
 - [Virus](docs/virus.md) — aimed from a slot shown only while one is held, a tap on an enemy tile with no shield, one
   `virus_spread` per tick, each tile's virus a versioned tile value cured by any change of owner, the purple beat.
+- [Mine](docs/mine.md) — aimed from its slot, a tap on a tile of the flag lays one; only the flag's players see it
+  (`GetMines` at each stream open and flag change, `mine_laid`), each kept at the map version it is known at and taken
+  off by any change of its tile; `mines_exploded` drawn as a bomb's blast with no fall; the still olive dome.
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link; every share carries the
   player's address, `clickplanet.lol/<flag>/<name>`, or the flag alone for a guest.
 - [Player videos](docs/player-videos.md) — "Make my video": the flag's 24 hours as an 8 s video made in the browser,

@@ -10,7 +10,7 @@ const at = (seq: number, epoch = START): MapVersion => ({epoch, seq})
 // Two ranges: tiles 1 to 4, and 5 to 6.
 const tilesOf = () => new MapTiles(6, 4, new MapClock())
 
-const changes = (): TileChanges => ({owners: [], shields: [], infections: []})
+const changes = (): TileChanges => ({owners: [], shields: [], infections: [], mines: []})
 
 const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, knockedOut: string[] = []): Ownerships => ({
     range: {start, end},
@@ -191,7 +191,7 @@ describe("a server that started again", () => {
         const tiles = tilesOf()
         tiles.opened(at(10, START + 60))
 
-        expect(read(tiles, batch(1, 4, at(900), {1: "fr"}))).toEqual({current: false, owners: [], shields: [], infections: []})
+        expect(read(tiles, batch(1, 4, at(900), {1: "fr"}))).toEqual({current: false, owners: [], shields: [], infections: [], mines: []})
         expect(live(tiles, update(2, "fr", at(901))).owners).toEqual([])
     })
 
@@ -347,5 +347,82 @@ describe("a virus", () => {
         const taken = read(tiles, {...batch(1, 4, at(10), {1: "fr", 2: "fr"}), infected: new Map([[2, "v-1"]])})
 
         expect(taken.infections).toEqual([{tile: 2, virus: "v-1"}])
+    })
+})
+
+describe("the flag's mines", () => {
+    const opened = () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {1: "fr", 2: "fr", 3: "fr", 4: "de"}))
+        return tiles
+    }
+
+    const mines = (tiles: MapTiles) => tiles.mines.tiles().sort()
+
+    it("reads the flag's mines, and a read replaces the ones known before it", () => {
+        const tiles = opened()
+
+        const first = changes()
+        tiles.readMines({countryId: "fr", tiles: [1, 2], version: at(10)}, first)
+        expect(first.mines).toEqual([{tile: 1, mined: true}, {tile: 2, mined: true}])
+
+        const second = changes()
+        tiles.readMines({countryId: "fr", tiles: [2, 3], version: at(11)}, second)
+        expect(second.mines).toEqual([{tile: 1, mined: false}, {tile: 3, mined: true}])
+        expect(mines(tiles)).toEqual([2, 3])
+    })
+
+    it("keeps a mine laid only while its tile has not changed since", () => {
+        const tiles = opened()
+        live(tiles, {...update(2, "fr", at(12), 1), previousCountry: "fr"})
+
+        tiles.applyMineLaid({countryId: "fr", tile: 1, version: at(11)}, changes())
+        tiles.applyMineLaid({countryId: "fr", tile: 2, version: at(11)}, changes())
+
+        expect(mines(tiles)).toEqual([1])
+    })
+
+    it("takes a mine off at any change of its tile's owner after it, and at no change of its shields", () => {
+        const tiles = opened()
+        tiles.readMines({countryId: "fr", tiles: [1, 2, 3], version: at(10)}, changes())
+
+        const taken = live(tiles,
+            {...update(1, "de", at(11)), previousCountry: "fr"},
+            {...update(2, "fr", at(12), 3), previousCountry: "fr", clicked: false})
+        expect(taken.mines).toEqual([{tile: 1, mined: false}])
+
+        const bombed = changes()
+        tiles.applyBlast([], [{tile: 3, shields: 0}], at(13), bombed)
+        expect(bombed.mines).toEqual([{tile: 3, mined: false}])
+        expect(mines(tiles)).toEqual([2])
+    })
+
+    it("gives each blast's tiles to its flag, the last blast's when two took one, and takes every mine off", () => {
+        const tiles = opened()
+        tiles.readMines({countryId: "fr", tiles: [1, 3], version: at(10)}, changes())
+        live(tiles, {...update(1, "de", at(11)), previousCountry: "fr"})
+
+        const exploded = changes()
+        tiles.applyExplosion({blasts: [
+            {tile: 1, countryId: "fr", taken: [1, 2, 4]},
+            {tile: 3, countryId: "fr", taken: []},
+            {tile: 4, countryId: "de", taken: [4]},
+        ], version: at(12)}, exploded)
+
+        expect(tiles.ownership.ownerOf(1)).toBe("fr")
+        expect(tiles.ownership.ownerOf(4)).toBe("de")
+        expect(mines(tiles)).toEqual([])
+    })
+
+    it("forgets the mines of a map of another epoch", () => {
+        const tiles = opened()
+        tiles.readMines({countryId: "fr", tiles: [1], version: at(10)}, changes())
+
+        tiles.opened(at(0, START + 1))
+        const restarted = changes()
+        tiles.applyMineLaid({countryId: "fr", tile: 2, version: at(0, START + 1)}, restarted)
+
+        expect(restarted.mines).toEqual([{tile: 1, mined: false}, {tile: 2, mined: true}])
     })
 })

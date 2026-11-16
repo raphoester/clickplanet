@@ -15,6 +15,8 @@ export function chargeKindOf(kind: BonusKind): ChargeKind | undefined {
             return "shields"
         case BonusKind.VIRUS:
             return "virus"
+        case BonusKind.MINE:
+            return "mine"
         default:
             return undefined
     }
@@ -42,6 +44,8 @@ export function rewardOf(
             return {kind: "shields", shields: amount}
         case BonusKind.VIRUS:
             return {kind: "virus"}
+        case BonusKind.MINE:
+            return {kind: "mine", mines: amount}
         default:
             return undefined
     }

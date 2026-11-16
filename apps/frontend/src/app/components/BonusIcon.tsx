@@ -64,6 +64,17 @@ const DRAWINGS: Record<BonusReward["kind"], React.ReactNode> = {
         <circle className="bonus-icon-ink bonus-icon-ink--soft" cx={22} cy={29.5} r={1.8}/>
     </>,
 
+    mine: <>
+        <path className="bonus-icon-fuse" d="M24 18 V9 M14 22 L8.5 16 M34 22 L39.5 16"/>
+        <circle className="bonus-icon-dark" cx="24" cy="9" r="2.5"/>
+        <circle className="bonus-icon-dark" cx="8.5" cy="16" r="2.5"/>
+        <circle className="bonus-icon-dark" cx="39.5" cy="16" r="2.5"/>
+        <path className="bonus-icon-dark" d="M9 32 A 15 13 0 0 1 39 32 Z"/>
+        <rect className="bonus-icon-dark" x="6" y="31" width="36" height="7" rx="3.5"/>
+        <path className="bonus-icon-shine" d="M15 28 A 9 8 0 0 1 21 22"/>
+        <circle className="bonus-icon-spark" cx="24" cy="26" r="3.5"/>
+    </>,
+
     shields: <>
         <path className="bonus-icon-ink" d="M24 5 L39 10 V22 C39 32 32 39 24 43 C16 39 9 32 9 22 V10 Z"/>
         <path className="bonus-icon-ink bonus-icon-ink--soft" d="M24 11 L33 14 V22 C33 28 29 33 24 36 Z"/>

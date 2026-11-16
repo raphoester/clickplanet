@@ -41,6 +41,17 @@ const float VIRUS_STALK = 0.08;
 const float VIRUS_TURN = 0.3;
 const float VIRUS_BEAT = 3.5;
 
+// A mine of the page's flag, which only its players see: a dark dome over the flag, its rim in --mine, four studs and a
+// red light. Still, so a mine keeps no frame drawing. Sizes are in the tile's radius of 0.5.
+const vec3 MINE = vec3(0.373, 0.455, 0.196);
+const vec3 MINE_DARK = vec3(0.09, 0.11, 0.07);
+const vec3 MINE_LIGHT = vec3(1.0, 0.33, 0.2);
+const float MINE_BODY = 0.25;
+const float MINE_RIM = 0.19;
+const float MINE_STUD_AT = 0.31;
+const float MINE_STUD = 0.055;
+const float MINE_LIT = 0.07;
+
 // A capital still standing: a crown on the top of the tile, drawn last, over its flag, its shield and every ring.
 const vec2 CROWN_AT = vec2(0.0, -0.34);
 const float CROWN_SIZE = 0.4;
@@ -98,6 +109,25 @@ vec4 crowned(vec4 colour, vec2 coordinates, float shown) {
     return vec4(mix(colour.rgb, mark.rgb, cover), mix(colour.a, 1.0, cover));
 }
 
+vec4 mined(vec4 colour, vec2 coordinates, float shown) {
+    float pixel = 1.0 / vSpriteSize;
+    float r = length(coordinates);
+    float body = 1.0 - smoothstep(MINE_BODY - pixel, MINE_BODY + pixel, r);
+    float rim = smoothstep(MINE_RIM - pixel, MINE_RIM + pixel, r) * body;
+    float studs = 0.0;
+    for (int i = 0; i < 4; i++) {
+        float angle = float(i) * 1.5707963 + 0.7853982;
+        vec2 at = vec2(cos(angle), sin(angle)) * MINE_STUD_AT;
+        studs = max(studs, 1.0 - smoothstep(MINE_STUD - pixel, MINE_STUD + pixel, length(coordinates - at)));
+    }
+    float lit = 1.0 - smoothstep(MINE_LIT - pixel, MINE_LIT + pixel, r);
+    float dark = max(body, studs) * shown;
+    vec3 rgb = mix(colour.rgb, MINE_DARK, dark);
+    rgb = mix(rgb, MINE, rim * shown);
+    rgb = mix(rgb, MINE_LIGHT, lit * shown);
+    return vec4(rgb, max(colour.a, dark));
+}
+
 // Everything a tile shows, in a disc of radius 0.5.
 vec4 tileColour(vec2 coordinates, float shown) {
     vec4 colour = shown > 0.0 ? ownColour(coordinates) : vec4(0.0);
@@ -132,6 +162,8 @@ vec4 tileColour(vec2 coordinates, float shown) {
 
     colour = steeled(colour, vFortify * shown);
     colour = heated(colour, vGlow * shown);
+
+    if (marked(32.0)) colour = mined(colour, coordinates, shown);
 
     float capital = marked(8.0) ? shown * smoothstep(10.0, 16.0, vSpriteSize / pixelRatio) : 0.0;
     if (capital > 0.0) colour = crowned(colour, coordinates, capital);

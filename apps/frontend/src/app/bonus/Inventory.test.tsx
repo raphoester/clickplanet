@@ -25,7 +25,7 @@ const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
     reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, virusInfections: 128,
-    gatesOn: false, openKinds: [],
+    gatesOn: false, openKinds: [], mines: 3, mineRings: 2,
 }
 
 type Held = {
@@ -38,12 +38,13 @@ type Held = {
     gates?: Gates
     level?: number
     virusAimed?: boolean
+    mineAimed?: boolean
 }
 
-function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, mineAimed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
-        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed})
+        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed, mineAimed})
         useLevel.setState({own: level === NO_LEVEL ? undefined : {level, xp: 0, levelXp: 0, nextLevelXp: 0}, unlocks: gates.unlocks})
     })
     return <Inventory onToggle={() => {}}
@@ -135,6 +136,27 @@ describe("Inventory", () => {
         rerender(inventory({charges, notice: {notice: "virusNoEnemy", seq: 1}}))
 
         expect(bubble()).toBe("A virus takes only an enemy tile with no shield")
+    })
+
+    it("counts the mines held, aims them and says how", () => {
+        const toggleMine = vi.fn()
+        render(inventory({charges: {...NO_CHARGES, mines: 2}, onToggleMine: toggleMine}))
+
+        expect(slot(/^Mine/).getAttribute("aria-label")).toBe("Mine, 2/3, New")
+        fireEvent.click(slot(/^Mine/))
+
+        expect(toggleMine).toHaveBeenCalledOnce()
+        expect(bubble()).toBe("Tap your tile. Only your flag sees the mine")
+    })
+
+    it("says the mines are aimed, and that a mine goes only on the flag's tile with no mine", () => {
+        const charges = {...NO_CHARGES, mines: 1}
+        const {rerender} = render(inventory({charges, mineAimed: true}))
+        expect(slot(/^Mine/).getAttribute("aria-pressed")).toBe("true")
+
+        rerender(inventory({charges, mineAimed: true, notice: {notice: "mineNotYours", seq: 1}}))
+
+        expect(bubble()).toBe("A mine goes only on your flag's tile with no mine")
     })
 
     it("shows no bomb while bombs are off, held or not", () => {
@@ -361,7 +383,7 @@ describe("Inventory", () => {
 
         fireEvent.click(all())
         expect(within(tray()!).getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
-        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(4)
+        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(5)
         expect(within(tray()!).getByText("Unlocks at level 3")).toBeTruthy()
     })
 
@@ -451,7 +473,8 @@ describe("Inventory", () => {
         fireEvent.click(all())
         expect(all().getAttribute("aria-expanded")).toBe("true")
         expect(within(tray()!).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
-            "Refill", "Spread, 0/8", "Shield, 0/12", "Virus", "Enclose, unlocks at level 4", "Bomb, unlocks at level 5",
+            "Refill", "Spread, 0/8", "Shield, 0/12", "Virus", "Mine, 0/3", "Enclose, unlocks at level 4",
+            "Bomb, unlocks at level 5",
         ])
         expect(inTray(/^Bomb/).className).toContain("inventory-slot--locked")
         expect(inTray(/^Bomb/).textContent).toContain("5")

@@ -2,7 +2,7 @@
 
 A bonus box holds a **charge**, which has no clock and is never used on its own:
 a refill (the click bank, filled when the player presses it), a bomb (one drop), a virus (one use, see
-[Virus](virus.md)), a
+[Virus](virus.md)), a stack of mines (one laid each, see [Mine](mine.md)), a
 stack of enclosures (one click each, which fills every shape it closes, `maxTiles` at most a shape), a pool of spread
 clicks and a pool of shields. The server keeps them per account, in postgres:
 a refill and a bomb at most, up to 3 enclosures, up to 8 spread clicks and up to
@@ -109,7 +109,7 @@ why in its bubble, and the tray stays. All again, Escape or a press anywhere out
 clicks" open one at a time, and a sheet that opens closes the tray.
 
 **The order is the order they unlock** (`inUnlockOrder`): the open kinds, then the gated ones by the level each opens
-at, a gated kind the ladder omits last, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields, virus) among one level.
+at, a gated kind the ladder omits last, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields, virus, mine) among one level.
 The gates on or off, the order is the ladder's; while no open kind is told (before `GetGrantRules` answers) it is
 `CHARGE_KINDS`' order alone.
 
@@ -147,6 +147,7 @@ are off, and Enclose while enclosures are off.
   nothing.
 - **Bomb** aims it, or puts it away (`Globe.setArmed`).
 - **Virus** aims it, or puts it away (`Globe.setVirusAimed`).
+- **Mine** aims the mines, or puts them away (`Globe.setMineAimed`), counted against the most a hand holds (`2/3`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
   `aria-pressed`.
 - **Enclose, while enclosures are unlimited**, and **Spread, while spreads are unlimited**, count `∞`, are held, never

@@ -226,7 +226,7 @@ describe("what a box or a right answer holds", () => {
         await button("Copy default", holds())
         const row = rowOf("default", holds())
         expect(row.getAttribute("aria-current")).toBe("true")
-        expect(within(row).getByText("refill 5, spread 3, enclose 2, bomb 1, shields 3, virus 0")).toBeTruthy()
+        expect(within(row).getByText("refill 5, spread 3, enclose 2, bomb 1, shields 3, virus 0, mine 0")).toBeTruthy()
         expect(within(row).getByText("off")).toBeTruthy()
     })
 
@@ -265,7 +265,7 @@ describe("what a box or a right answer holds", () => {
         ])
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
 
-        await waitFor(() => expect(within(rowOf("calm", holds())).getByText("refill 6, spread 3, enclose 2, bomb 1, shields 3, virus 0"))
+        await waitFor(() => expect(within(rowOf("calm", holds())).getByText("refill 6, spread 3, enclose 2, bomb 1, shields 3, virus 0, mine 0"))
             .toBeTruthy())
         const rules = bonusSent(admin)?.rules
         expect(bonusSent(admin)?.name).toBe("calm")

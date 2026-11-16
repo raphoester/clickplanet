@@ -5,8 +5,8 @@ import {grantWords, heldWords, wholeOf} from "./charges.ts"
 
 describe("grantWords", () => {
     it("lists every charge asked, in words", () => {
-        expect(grantWords({refill: true, bomb: true, enclosures: 3, spreadClicks: 1, shields: 2, virus: true}))
-            .toBe("a refill, a bomb, 3 enclosures, 1 spread click, 2 shields and a virus")
+        expect(grantWords({refill: true, bomb: true, enclosures: 3, spreadClicks: 1, shields: 2, virus: true, mines: 2}))
+            .toBe("a refill, a bomb, 3 enclosures, 1 spread click, 2 shields, a virus and 2 mines")
         expect(grantWords({...NO_GRANT, shields: 1})).toBe("1 shield")
         expect(grantWords(NO_GRANT)).toBe("nothing")
     })
@@ -16,6 +16,7 @@ describe("heldWords", () => {
     it("says what an account holds", () => {
         expect(heldWords(new ChargesHeld({bomb: true, spreadClicksLeft: 8}))).toBe("a bomb and 8 spread clicks")
         expect(heldWords(new ChargesHeld({virus: true}))).toBe("a virus")
+        expect(heldWords(new ChargesHeld({mines: 1}))).toBe("1 mine")
         expect(heldWords(new ChargesHeld())).toBe("nothing")
     })
 })

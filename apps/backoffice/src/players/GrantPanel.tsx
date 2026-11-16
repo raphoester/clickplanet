@@ -6,12 +6,13 @@ import {grantWords, heldWords, wholeOf} from "./charges.ts"
 
 type Props = {planet: PlanetAdmin, accountId: string, who: string}
 
-type Count = "enclosures" | "spreadClicks" | "shields"
+type Count = "enclosures" | "spreadClicks" | "shields" | "mines"
 
 const COUNTS: {key: Count, label: string}[] = [
     {key: "enclosures", label: "Enclosures"},
     {key: "spreadClicks", label: "Spread clicks"},
     {key: "shields", label: "Shields"},
+    {key: "mines", label: "Mines"},
 ]
 
 // Charges as a box gives them. The caps hold, so the answer says what fit; the player sees it at its next page load.
