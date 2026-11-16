@@ -37,9 +37,9 @@ The admin page is `apps/backoffice` (its [`CLAUDE.md`](../../backoffice/CLAUDE.m
 
 ## `GrantCharges`
 
-`GrantCharges(account_id, refill, bomb, enclosures, spread_clicks, shields)` runs `charges/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the five charges, as a box would.
+`GrantCharges(account_id, refill, bomb, enclosures, spread_clicks, shields, virus)` runs `charges/usecases/grant_charges_usecase`, wrapped in `audit_grant_charges`: it gives one account any of the six charges, as a box would. It is the one way to give a virus while no box draws one ([The virus](virus.md)).
 
-- **The caps hold**: `Held.Granted` is the rule, so a refill and a bomb are one, enclosures stop at the rule set's `charges.enclose.held`, spread clicks at `charges.spread.clicks` and shields at `charges.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
+- **The caps hold**: `Held.Granted` is the rule, so a refill, a bomb and a virus are one, enclosures stop at the rule set's `charges.enclose.held`, spread clicks at `charges.spread.clicks` and shields at `charges.shield.held`. The answer is what the account held `before` and `after`, so the operator sees what fit.
 - **An account id, never a scope**: a charge is an account's (`charges.ParseHolder`). A grant of nothing is `InvalidArgument` (`ErrNothingToGrant`). Planet does not know which accounts exist, so an id nobody holds gets a row nobody reads.
 - **Nothing pushes it**: the player sees it on the next `GetCharges`, at its next page load.
 

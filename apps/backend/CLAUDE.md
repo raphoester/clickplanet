@@ -97,6 +97,9 @@ and says what is in it. Read the doc before you change its area.
   the kinds it grants (drawn by the bonuses module at the catch), `ClaimBox`, `box_offered` and the hourly cap.
 - [Spread](docs/spread.md), [Bomb](docs/bomb.md), [Enclose](docs/enclose.md), [Refill](docs/refill.md) — what
   each charge does to a click or to the bucket.
+- [Virus](docs/virus.md) — a charge that takes an enemy tile and spreads every 20 s into that flag's land, 32 infections
+  at most; dormant (weighed 0); map state flushed with the tiles; one `virus_spread` a tick; ledger kind `virus`, whose
+  takes reach `TilesTaken`.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, the bank's lean on planet's board, and the charge a
   right answer gives (the bonuses module's, from the quizzes' `QuizAnswered`).
 - [The boxes module](docs/boxes-module.md) — the boxes left bonuses (2026-11-15): the schedule, the offer and the claim,

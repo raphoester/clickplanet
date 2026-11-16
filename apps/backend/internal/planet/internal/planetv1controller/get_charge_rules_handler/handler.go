@@ -57,6 +57,9 @@ func (h GetChargeRulesHandler) GetChargeRules(
 
 		SpreadUnlimited: rules.Spread.Unlimited,
 		EnclosuresOff:   rules.Enclose.Off,
+
+		VirusInfections: uint32(rules.Virus.Infections),
+		VirusEveryMs:    uint32(rules.Virus.Every.Milliseconds()),
 	}), nil
 }
 

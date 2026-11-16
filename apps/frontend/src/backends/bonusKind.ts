@@ -13,6 +13,8 @@ export function chargeKindOf(kind: BonusKind): ChargeKind | undefined {
             return "encloseClicks"
         case BonusKind.SHIELDS:
             return "shields"
+        case BonusKind.VIRUS:
+            return "virus"
         default:
             return undefined
     }
@@ -38,6 +40,8 @@ export function rewardOf(
             return {kind: "encloseClicks", shapes: amount, maxTiles}
         case BonusKind.SHIELDS:
             return {kind: "shields", shields: amount}
+        case BonusKind.VIRUS:
+            return {kind: "virus"}
         default:
             return undefined
     }

@@ -25,7 +25,7 @@ function leaves(json: JsonValue, path = ""): string[] {
 
 describe("what a box or a right answer holds", () => {
     it("says what a box may be drawn as, and each kind's weight", () => {
-        expect(kindsOf(played().rules)).toBe("refill 5, spread 3, enclose 2, bomb 1, shields 3")
+        expect(kindsOf(played().rules)).toBe("refill 5, spread 3, enclose 2, bomb 1, shields 3, virus 0")
         expect(kindsOf(Rules.fromJson({kinds: {bomb: 0}}))).toBe("bomb 0")
         expect(kindsOf(undefined)).toBe("—")
     })
@@ -56,7 +56,8 @@ describe("what a box or a right answer holds", () => {
         expect(draft.values["shield.maxPerBox"]).toBe("30")
         expect(draft.switches).toEqual({
             "gates.on": false, "gates.open.refill": true, "gates.open.spreadClicks": true,
-            "gates.open.encloseClicks": false, "gates.open.bomb": false, "gates.open.shields": true, "signInRefill": true,
+            "gates.open.encloseClicks": false, "gates.open.bomb": false, "gates.open.shields": true, "gates.open.virus": false,
+            "signInRefill": true,
         })
         expect(ruleSetOf(draft).equals(rush())).toBe(true)
     })

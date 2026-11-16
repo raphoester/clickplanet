@@ -12,6 +12,7 @@ import {
     PlanetBackend,
     spreadOf,
     updateOf,
+    virusSpreadOf,
 } from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
@@ -51,8 +52,11 @@ import {
     TileShields,
     TilesSpread,
     TileUpdate,
+    InfectedTile,
+    VirusRefusal,
+    VirusSpread as VirusSpreadMessage,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BombRefusedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BombRefusedError, BonusLostError, FrozenError, OutOfReachError, ShieldRefusedError, RateLimitedError, VirusRefusedError, VPNBlockedError} from "./backend.ts"
 import {GetGrantRulesResponse} from "../gen/grpc/bonuses/v1/bonuses_pb.ts"
 import {NoSession, SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
@@ -671,7 +675,7 @@ describe("PlanetBackend click budget", () => {
         backend.watchClickBudget(b => rates.push(b.perSecond))
         const sizes: number[] = []
         const stop = backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: rules => sizes.push(rules.enclosureMaxTiles),
         })
         await vi.waitFor(() => expect(rates).toEqual([0.2]))
@@ -968,6 +972,21 @@ describe("enclosureOf", () => {
     })
 })
 
+describe("virusSpreadOf", () => {
+    it("reads the virus, its two flags, what it took and struck, its end and its version", () => {
+        const event = new PlanetEvent({event: {case: "virusSpread", value: new VirusSpreadMessage({
+            virusId: "v-1", countryId: "fr", victimCountryId: "de", takenTileIds: [4, 5],
+            struck: [new TileShields({tileId: 6, shields: 1})], ended: true, version: versionAt(43),
+        })}})
+
+        expect(virusSpreadOf(event)).toEqual({
+            virus: "v-1", countryId: "fr", victimCountryId: "de", taken: [4, 5], struck: [{tile: 6, shields: 1}], ended: true,
+            version: {epoch: versionAt(43).epoch, seq: 43},
+        })
+        expect(virusSpreadOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
 describe("spreadOf", () => {
     it("reads the tile clicked and the tiles it spread onto", () => {
         const event = new PlanetEvent({
@@ -1164,7 +1183,7 @@ describe("PlanetBackend bombs", () => {
         const order: string[] = []
         backend.listenForUpdatesBatch(() => order.push("updates"))
         backend.listenForBonuses({
-            onEnclosed: () => order.push("enclosure"),
+            onVirusSpread: () => {}, onEnclosed: () => order.push("enclosure"),
             onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
@@ -1263,7 +1282,7 @@ describe("PlanetBackend shields", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -1337,6 +1356,80 @@ describe("PlanetBackend shields", () => {
         expect(session.invalidated).toBe(1)
         expect(placeShield.mock.calls.map(([, options]) => (options as {headers: Headers}).headers.get(SESSION_HEADER)))
             .toEqual(["stale", "fresh"])
+        backend.close()
+    })
+})
+
+describe("PlanetBackend viruses", () => {
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
+
+    const follow = (backend: PlanetBackend) => {
+        const seen: Charges[] = []
+        backend.listenForBonuses({
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onCharges: (charges) => seen.push(charges),
+        })
+        return seen
+    }
+
+    it("uses the virus on the tile with the session token, and takes it off the hand", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({virus: true})})
+        const useVirus = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getCharges, useVirus}), 1_000, fixedSession("session-1"))
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.virus).toBe(true))
+
+        await backend.useVirus(7, "fr")
+
+        expect(useVirus).toHaveBeenCalledWith({tileId: 7, countryId: "fr"}, expect.anything())
+        expect((useVirus.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+        expect(seen.at(-1)?.virus).toBe(false)
+        backend.close()
+    })
+
+    it("gives the virus back when the server refused the tile", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({virus: true})})
+        const refused = new ConnectError("shielded", Code.FailedPrecondition, undefined, [new VirusRefusal()])
+        const useVirus = vi.fn().mockRejectedValue(refused)
+        const backend = new PlanetBackend(clientWith({getCharges, useVirus}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.virus).toBe(true))
+
+        const using = backend.useVirus(7, "fr")
+        expect(seen.at(-1)?.virus).toBe(false)
+        await expect(using).rejects.toBeInstanceOf(VirusRefusedError)
+
+        expect(seen.at(-1)?.virus).toBe(true)
+        backend.close()
+    })
+
+    it("tells a tile out of reach, and keeps the virus off when the server holds none", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({virus: true})})
+        const outOfReach = new ConnectError("far", Code.FailedPrecondition, undefined, [new ReachRefusal()])
+        const useVirus = vi.fn().mockRejectedValueOnce(outOfReach).mockRejectedValueOnce(new ConnectError("none", Code.NotFound))
+        const backend = new PlanetBackend(clientWith({getCharges, useVirus}), 1_000)
+        const seen = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.virus).toBe(true))
+
+        await expect(backend.useVirus(7, "fr")).rejects.toBeInstanceOf(OutOfReachError)
+        expect(seen.at(-1)?.virus).toBe(true)
+        await expect(backend.useVirus(7, "fr")).rejects.toBeInstanceOf(BonusLostError)
+        expect(seen.at(-1)?.virus).toBe(false)
+        backend.close()
+    })
+
+    it("reads the tiles a live virus infects with the map", async () => {
+        const getMap = vi.fn().mockResolvedValue(new GetMapResponse({
+            startTileId: 1, codes: ["", "fr"], tiles: new Uint8Array([1, 0, 1, 0]),
+            infected: [new InfectedTile({tileId: 2, virusId: "v-1"})], version: versionAt(5),
+        }))
+        const backend = new PlanetBackend(clientWith({getMap}), 2, fixedSession("session-1"))
+        const read: Map<number, string>[] = []
+
+        await backend.getOwnerships([{start: 1, end: 2}], (ownerships) => read.push(ownerships.infected))
+
+        expect(read).toEqual([new Map([[2, "v-1"]])])
         backend.close()
     })
 })
@@ -1497,7 +1590,7 @@ describe("the rules", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: BonusRules[] = []
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => seen.push(rules),
         })
         return seen
@@ -1528,7 +1621,7 @@ describe("the rules", () => {
         const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000)
         let off = false
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => off = rules.enclosuresOff,
         })
 
@@ -1602,7 +1695,7 @@ describe("the rules", () => {
         const backend = new PlanetBackend(clientWith({getChargeRules, listenForEvents}), 1_000)
         const radii: number[] = []
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => radii.push(rules.blastRadius),
         })
         await vi.waitFor(() => expect(radii.at(-1)).toBe(0.03))
@@ -1622,7 +1715,7 @@ describe("the charges held", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -1633,7 +1726,7 @@ describe("the charges held", () => {
         const backend = new PlanetBackend(clientWith({getCharges}), 1_000)
 
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5, virus: false}))
 
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
@@ -1654,7 +1747,7 @@ describe("the charges held", () => {
 
         grant()
 
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25, virus: false}))
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
     })
@@ -1708,7 +1801,7 @@ describe("the charges held", () => {
         const seen = follow(backend)
         let unlimited = false
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => unlimited = rules.spreadUnlimited,
         })
         await vi.waitFor(() => expect(seen.at(-1)?.spreadClicksLeft).toBe(2))
@@ -1837,7 +1930,7 @@ describe("the refill", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -2058,7 +2151,7 @@ describe("PlanetBackend allegiance", () => {
         const seen = follow(backend)
         const charges: Charges[] = []
         backend.listenForBonuses({
-            onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (held) => charges.push(held),
         })
         await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(3))

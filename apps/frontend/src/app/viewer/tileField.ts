@@ -20,11 +20,13 @@ export const TILE_COLUMNS = 512
 
 const UNOWNED = 0
 
-// The pulse slot holds four marks, one bit each: the display shaders read them back with floor and mod.
+// The pulse slot holds five marks, one bit each: the display shaders read them back with floor and mod.
 const FORTIFY_PULSE = 1
 const FRONT_PULSE = 2
 const MISSION_MARK = 4
 const CAPITAL_MARK = 8
+// Must match marked(16.0) in shaders/display.
+const INFECTED_MARK = 16
 
 const RECTANGLE = 4
 
@@ -150,6 +152,10 @@ export class TileField {
 
     setCapitalMarks(tiles: readonly number[], on: boolean) {
         this.mark(tiles, CAPITAL_MARK, on)
+    }
+
+    setInfectedMarks(tiles: readonly number[], on: boolean) {
+        this.mark(tiles, INFECTED_MARK, on)
     }
 
     setLandmasses(assignment: Uint16Array) {

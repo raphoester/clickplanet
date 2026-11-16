@@ -276,6 +276,9 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 		if _, err := tx.ExecContext(ctx, `DELETE FROM knockouts WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the flags out: %w", err)
 		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM viruses WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the viruses: %w", err)
+		}
 		wiped = true
 		return nil
 	})

@@ -44,6 +44,8 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(planetmessage.KnockOut(event.KnockOut, event.Version))
 	case event.Tally != nil:
 		return s.stream.Send(planetmessage.HoldingsChanged(event.Tally, event.Version))
+	case event.Infection != nil:
+		return s.stream.Send(planetmessage.VirusSpread(event.Infection, event.Version))
 	case event.Enclosure != nil:
 		return s.stream.Send(planetmessage.TilesEnclosed(event.Enclosure, event.Version, event.Yours))
 	case event.Spread != nil:

@@ -12,10 +12,17 @@ func everyKind() *cpcolls.Set[Kind] {
 	return cpcolls.NewSet(Kinds...)
 }
 
+// testWeighed is every kind TestRules weighs above 0: all but the virus.
+func testWeighed() *cpcolls.Set[Kind] {
+	return cpcolls.NewSet(KindRefill, KindSpreadClicks, KindEncloseClicks, KindBomb, KindShields)
+}
+
 func TestEveryKindWeighedIsDrawn(t *testing.T) {
+	weights := TestRules().Kinds
+	weights[KindVirus] = 1
 	seen := cpcolls.NewSet[Kind]()
-	for range 200 {
-		seen.Add(drawKind(everyKind(), TestRules().Kinds))
+	for range 300 {
+		seen.Add(drawKind(everyKind(), weights))
 	}
 
 	assert.Equal(t, len(Kinds), seen.Len())
@@ -58,11 +65,19 @@ func TestWithTheGatesOnAKindIsDrawnOnlyOpenOrUnlocked(t *testing.T) {
 	assert.Equal(t, cpcolls.NewSet(open...), TestGated().drawable(nil, nil), "a guest has nothing unlocked")
 	assert.Equal(t, cpcolls.NewSet(append(open[:3:3], KindEncloseClicks)...),
 		TestGated().drawable(nil, Unlocked{KindEncloseClicks}))
-	assert.Equal(t, everyKind(), TestGated().drawable(nil, Unlocked{KindEncloseClicks, KindBomb}))
+	assert.Equal(t, testWeighed(), TestGated().drawable(nil, Unlocked{KindEncloseClicks, KindBomb}))
+}
+
+func TestAVirusWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
+	rules := TestGated()
+	rules.Kinds[KindVirus] = 1
+
+	assert.False(t, rules.drawable(nil, Unlocked{KindEncloseClicks, KindBomb}).Contains(KindVirus))
+	assert.True(t, rules.drawable(nil, Unlocked{KindVirus}).Contains(KindVirus))
 }
 
 func TestWithTheGatesOffEveryKindIsDrawnToAGuest(t *testing.T) {
-	assert.Equal(t, everyKind(), TestRules().drawable(nil, nil), "a battle's set keeps the gates off")
+	assert.Equal(t, testWeighed(), TestRules().drawable(nil, nil), "a battle's set keeps the gates off")
 }
 
 func TestAWinWhoseKindsAllWeighZeroIsWorthNothing(t *testing.T) {

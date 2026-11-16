@@ -120,6 +120,9 @@ ALTER TABLE tiles_remapped DROP COLUMN remapped_id;
 DELETE FROM tiles;
 INSERT INTO tiles SELECT * FROM tiles_remapped;
 
+-- A live virus lasts minutes: a remap ends it, and the tiles it took keep their flag.
+DELETE FROM viruses;
+
 DELETE FROM ledger_events e
 WHERE e.payload IS NULL AND NOT EXISTS (
     SELECT 1 FROM tile_remap r WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span

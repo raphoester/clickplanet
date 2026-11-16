@@ -175,6 +175,7 @@ type OpenKinds struct {
 	EncloseClicks *bool                  `protobuf:"varint,3,opt,name=enclose_clicks,json=encloseClicks,proto3,oneof" json:"enclose_clicks,omitempty"`
 	Bomb          *bool                  `protobuf:"varint,4,opt,name=bomb,proto3,oneof" json:"bomb,omitempty"`
 	Shields       *bool                  `protobuf:"varint,5,opt,name=shields,proto3,oneof" json:"shields,omitempty"`
+	Virus         *bool                  `protobuf:"varint,6,opt,name=virus,proto3,oneof" json:"virus,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -244,6 +245,13 @@ func (x *OpenKinds) GetShields() bool {
 	return false
 }
 
+func (x *OpenKinds) GetVirus() bool {
+	if x != nil && x.Virus != nil {
+		return *x.Virus
+	}
+	return false
+}
+
 // What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
 // planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off, nor a kind the
 // account may not be drawn while the gates are on (gates).
@@ -254,6 +262,7 @@ type KindWeights struct {
 	EncloseClicks *float64               `protobuf:"fixed64,3,opt,name=enclose_clicks,json=encloseClicks,proto3,oneof" json:"enclose_clicks,omitempty"`
 	Bomb          *float64               `protobuf:"fixed64,4,opt,name=bomb,proto3,oneof" json:"bomb,omitempty"`
 	Shields       *float64               `protobuf:"fixed64,5,opt,name=shields,proto3,oneof" json:"shields,omitempty"`
+	Virus         *float64               `protobuf:"fixed64,6,opt,name=virus,proto3,oneof" json:"virus,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -319,6 +328,13 @@ func (x *KindWeights) GetBomb() float64 {
 func (x *KindWeights) GetShields() float64 {
 	if x != nil && x.Shields != nil {
 		return *x.Shields
+	}
+	return 0
+}
+
+func (x *KindWeights) GetVirus() float64 {
+	if x != nil && x.Virus != nil {
+		return *x.Virus
 	}
 	return 0
 }
@@ -484,31 +500,35 @@ const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\tGateRules\x12\x13\n" +
 	"\x02on\x18\x01 \x01(\bH\x00R\x02on\x88\x01\x01\x12)\n" +
 	"\x04open\x18\x02 \x01(\v2\x15.bonuses.v1.OpenKindsR\x04openB\x05\n" +
-	"\x03_on\"\xfb\x01\n" +
+	"\x03_on\"\xa0\x02\n" +
 	"\tOpenKinds\x12\x1b\n" +
 	"\x06refill\x18\x01 \x01(\bH\x00R\x06refill\x88\x01\x01\x12(\n" +
 	"\rspread_clicks\x18\x02 \x01(\bH\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
 	"\x0eenclose_clicks\x18\x03 \x01(\bH\x02R\rencloseClicks\x88\x01\x01\x12\x17\n" +
 	"\x04bomb\x18\x04 \x01(\bH\x03R\x04bomb\x88\x01\x01\x12\x1d\n" +
-	"\ashields\x18\x05 \x01(\bH\x04R\ashields\x88\x01\x01B\t\n" +
+	"\ashields\x18\x05 \x01(\bH\x04R\ashields\x88\x01\x01\x12\x19\n" +
+	"\x05virus\x18\x06 \x01(\bH\x05R\x05virus\x88\x01\x01B\t\n" +
 	"\a_refillB\x10\n" +
 	"\x0e_spread_clicksB\x11\n" +
 	"\x0f_enclose_clicksB\a\n" +
 	"\x05_bombB\n" +
 	"\n" +
-	"\b_shields\"\xfd\x01\n" +
+	"\b_shieldsB\b\n" +
+	"\x06_virus\"\xa2\x02\n" +
 	"\vKindWeights\x12\x1b\n" +
 	"\x06refill\x18\x01 \x01(\x01H\x00R\x06refill\x88\x01\x01\x12(\n" +
 	"\rspread_clicks\x18\x02 \x01(\x01H\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
 	"\x0eenclose_clicks\x18\x03 \x01(\x01H\x02R\rencloseClicks\x88\x01\x01\x12\x17\n" +
 	"\x04bomb\x18\x04 \x01(\x01H\x03R\x04bomb\x88\x01\x01\x12\x1d\n" +
-	"\ashields\x18\x05 \x01(\x01H\x04R\ashields\x88\x01\x01B\t\n" +
+	"\ashields\x18\x05 \x01(\x01H\x04R\ashields\x88\x01\x01\x12\x19\n" +
+	"\x05virus\x18\x06 \x01(\x01H\x05R\x05virus\x88\x01\x01B\t\n" +
 	"\a_refillB\x10\n" +
 	"\x0e_spread_clicksB\x11\n" +
 	"\x0f_enclose_clicksB\a\n" +
 	"\x05_bombB\n" +
 	"\n" +
-	"\b_shields\"B\n" +
+	"\b_shieldsB\b\n" +
+	"\x06_virus\"B\n" +
 	"\vSpreadRules\x12#\n" +
 	"\vmax_per_box\x18\x01 \x01(\rH\x00R\tmaxPerBox\x88\x01\x01B\x0e\n" +
 	"\f_max_per_box\"C\n" +

@@ -11,6 +11,7 @@ import {
     QuizMaster,
     Refiller,
     Shielder,
+    Infector,
     TileClicker,
     TileHolders,
     LandmassReader,
@@ -158,6 +159,7 @@ export type Backends = {
     bomber: Bomber
     refiller: Refiller
     shielder: Shielder
+    infector: Infector
     allegiance: AllegianceSource
     chatBackend: ChatRooms
     account: AccountStore
@@ -300,6 +302,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         capture,
         graphics,
         toggleBomb,
+        toggleVirus,
         toggleSwitch,
         pointing,
         pointingTerritory,
@@ -319,6 +322,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         boxCatcher: backends.boxCatcher,
         bomber: backends.bomber,
         shielder: backends.shielder,
+        infector: backends.infector,
         playSound: sound.play,
         onClickAccepted: accepted.record,
         country: countryState,
@@ -493,6 +497,7 @@ export default function PlayScreen(props: PlayScreenProps) {
                                     popover={clicks}>
             <Inventory onToggle={toggleSwitch}
                        onToggleBomb={toggleBomb}
+                       onToggleVirus={toggleVirus}
                        onUseRefill={spendRefill}
                        onToggleShield={() => toggleSwitch("shield")}/>
         </ClickBudgetMeter>}

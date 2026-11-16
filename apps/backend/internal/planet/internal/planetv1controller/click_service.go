@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/place_shield_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/pledge_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_virus_handler"
 )
 
 type ClickService struct {
@@ -33,6 +34,7 @@ type ClickService struct {
 	get_charge_rules_handler.GetChargeRulesHandler
 	use_refill_handler.UseRefillHandler
 	place_shield_handler.PlaceShieldHandler
+	use_virus_handler.UseVirusHandler
 	get_fortresses_handler.GetFortressesHandler
 	get_tile_holder_handler.GetTileHolderHandler
 	get_landmass_handler.GetLandmassHandler

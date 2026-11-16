@@ -40,6 +40,7 @@ func New(
 		board:         newBoard(borders.Tiles()),
 		landmasses:    newLandmasses(borders),
 		out:           newOutFlags(),
+		viruses:       newVirusBook(),
 		recount:       newRecount(borders.Landmasses()),
 		version:       clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
 		feed:          newFeed(config.SubscriberBuffer, logger),
@@ -67,6 +68,7 @@ type Storage struct {
 	board      *board
 	landmasses *landmasses
 	out        *outFlags
+	viruses    *virusBook
 	recount    recount
 	version    clicks.MapVersion
 
@@ -115,6 +117,7 @@ func (s *Storage) moveLocked(tile uint32, to uint16) {
 func (s *Storage) putLocked(tile uint32, state tileState) {
 	from := s.board.put(tile, state)
 	if from != state.owner {
+		s.viruses.cure(tile)
 		s.landmasses.moved(tile, from, state.owner)
 		s.recount.moved(s.landmasses.of(tile), from, state.owner)
 	}
@@ -242,6 +245,7 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 	batch := s.board.batch(start, end)
 	batch.Version = s.version
 	batch.KnockedOut = s.out.flags()
+	batch.Infected = s.viruses.infectedIn(start, end)
 
 	return batch, nil
 }

@@ -34,7 +34,7 @@ export type Unbanned = {offence: number, until: Date | undefined, pardonedUntil:
 // `already`: the account was warned before, at `at`, and nothing changed.
 export type Warned = {at: Date, already: boolean, acknowledgedAt: Date | undefined}
 export type Reverted = {touched: number, held: number, restored: number}
-export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadClicks: number, shields: number}
+export type Grant = {refill: boolean, bomb: boolean, enclosures: number, spreadClicks: number, shields: number, virus: boolean}
 export type Granted = {before: ChargesHeld, after: ChargesHeld}
 export type Released = {locked: boolean}
 export type Players = {players: Player[], total: number}
@@ -48,9 +48,9 @@ export type Matches = {players: PlayerMatch[], total: number}
 export type Profile = {identity: AdminGetPlayerResponse | undefined, progress: AdminGetProgressResponse}
 
 export const MOST = 99
-export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0}
+export const NO_GRANT: Grant = {refill: false, bomb: false, enclosures: 0, spreadClicks: 0, shields: 0, virus: false}
 // The server caps each count at its stack, so this fills every charge and the answer says what fit.
-export const MAX_GRANT: Grant = {refill: true, bomb: true, enclosures: MOST, spreadClicks: MOST, shields: MOST}
+export const MAX_GRANT: Grant = {refill: true, bomb: true, enclosures: MOST, spreadClicks: MOST, shields: MOST, virus: true}
 
 // What each kind of mute takes away, as the page says it: its choice, the account it holds in a sentence, and what
 // was done. A mute of the GIFs leaves the player its text and its reactions.
@@ -186,7 +186,8 @@ export function dateOf(at: {toDate(): Date} | undefined): Date {
 }
 
 export function grantsAnything(charges: Grant): boolean {
-    return charges.refill || charges.bomb || charges.enclosures > 0 || charges.spreadClicks > 0 || charges.shields > 0
+    return charges.refill || charges.bomb || charges.virus || charges.enclosures > 0 || charges.spreadClicks > 0 ||
+        charges.shields > 0
 }
 
 // Most takes first, then most tiles held, over every flag and the whole map.

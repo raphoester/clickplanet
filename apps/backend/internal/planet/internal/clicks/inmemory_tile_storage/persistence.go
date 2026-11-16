@@ -18,11 +18,14 @@ type Persistence interface {
 	LoadLandmasses(ctx context.Context, played clicks.MapID, asset string,
 		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
 	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
+	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
 	Save(ctx context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass, out []OutFlag) error
+	// SaveViruses keeps a map's live viruses in place of the ones it kept before.
+	SaveViruses(ctx context.Context, played clicks.MapID, live []clicks.VirusSnapshot) error
 	// Open writes a map's first tiles in one transaction with keep, once keep says to.
 	Open(ctx context.Context, played clicks.MapID, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
-	// Wipe deletes every tile, every landmass's lock and every flag out of a map, in one transaction with keep, once
-	// keep says to.
+	// Wipe deletes every tile, every landmass's lock, every flag out and every virus of a map, in one transaction with
+	// keep, once keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
 	// ForgetHolder takes an account off every tile of every map.
 	ForgetHolder(ctx context.Context, account cpsession.AccountID) error
@@ -117,6 +120,11 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 		return fmt.Errorf("failed to read the stored flags out: %w", err)
 	}
 
+	err = s.persistence.LoadViruses(ctx, s.playing, s.viruses.restore)
+	if err != nil {
+		return fmt.Errorf("failed to read the stored viruses: %w", err)
+	}
+
 	s.landmasses.each(s.settleLandmassLocked)
 
 	if outside > 0 {
@@ -127,7 +135,8 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 	}
 
 	s.logger.Info("loaded the tile map", slog.String("map", string(s.playing)), slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
-		slog.Int("fortifiedLandmasses", fortified), slog.Int("flagsOut", len(s.out.flags())))
+		slog.Int("fortifiedLandmasses", fortified), slog.Int("flagsOut", len(s.out.flags())),
+		slog.Int("viruses", len(s.viruses.live)))
 
 	return nil
 }
@@ -194,23 +203,30 @@ type unsaved struct {
 	tiles      []Tile
 	landmasses []Landmass
 	out        []OutFlag
+	viruses    Viruses
 	placed     []clicks.PlacementID
 }
 
 func (s *Storage) drainLocked() unsaved {
 	return unsaved{
 		tiles: s.board.drainDirty(), landmasses: s.landmasses.drainDirty(s.board.nameOf), out: s.out.drainUnsaved(),
-		placed: s.drainPlacedLocked(),
+		viruses: s.viruses.drainUnsaved(), placed: s.drainPlacedLocked(),
 	}
 }
 
 func (s *Storage) save(ctx context.Context, playing clicks.MapID, changes unsaved) error {
-	if len(changes.tiles) == 0 && len(changes.landmasses) == 0 && len(changes.out) == 0 && len(changes.placed) == 0 {
+	if len(changes.tiles) == 0 && len(changes.landmasses) == 0 && len(changes.out) == 0 && len(changes.placed) == 0 &&
+		!changes.viruses.Changed {
 		return nil
 	}
 	if err := s.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if err := s.persistence.Save(ctx, playing, changes.tiles, changes.landmasses, changes.out); err != nil {
 			return err //nolint:wrapcheck // wrapped once below.
+		}
+		if changes.viruses.Changed {
+			if err := s.persistence.SaveViruses(ctx, playing, changes.viruses.Live); err != nil {
+				return err //nolint:wrapcheck // wrapped once below.
+			}
 		}
 		return s.placements.Confirm(ctx, changes.placed) //nolint:wrapcheck // wrapped once below.
 	}); err != nil {
@@ -228,6 +244,7 @@ func (s *Storage) markDirtyLocked(changes unsaved) {
 		s.landmasses.markDirty(landmass.ID)
 	}
 	s.out.markUnsaved(changes.out)
+	s.viruses.markUnsaved(changes.viruses)
 	s.placed = append(s.placed, changes.placed...)
 }
 

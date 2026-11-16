@@ -42,6 +42,7 @@ func (s *Storage) emptyLocked() {
 	s.board = newBoard(s.board.last())
 	s.landmasses = newLandmasses(borders)
 	s.out = newOutFlags()
+	s.viruses = newVirusBook()
 	s.recount = newRecount(borders.Landmasses())
 }
 

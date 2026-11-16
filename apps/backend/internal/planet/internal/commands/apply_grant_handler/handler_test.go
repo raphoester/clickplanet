@@ -31,6 +31,7 @@ func TestEachKindIsGrantedAsItsCharge(t *testing.T) {
 		planetv1.BonusKind_BONUS_KIND_BOMB:           charges.KindBomb,
 		planetv1.BonusKind_BONUS_KIND_REFILL:         charges.KindRefill,
 		planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS: charges.KindEncloseClicks,
+		planetv1.BonusKind_BONUS_KIND_VIRUS:          charges.KindVirus,
 	} {
 		useCase := &recordingUseCase{}
 

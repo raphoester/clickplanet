@@ -6,7 +6,7 @@ package bonuses
 // are shown.
 func TestRules() Rules {
 	return Rules{
-		Kinds:   map[Kind]float64{KindRefill: 5, KindSpreadClicks: 3, KindEncloseClicks: 2, KindBomb: 1, KindShields: 3},
+		Kinds:   map[Kind]float64{KindRefill: 5, KindSpreadClicks: 3, KindEncloseClicks: 2, KindBomb: 1, KindShields: 3, KindVirus: 0},
 		Gates:   GateRules{Open: map[Kind]bool{KindRefill: true, KindSpreadClicks: true, KindShields: true}},
 		Spread:  SpreadRules{MaxPerBox: 4},
 		Enclose: EncloseRules{MaxPerBox: 3},
