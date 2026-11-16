@@ -48,25 +48,16 @@ func (m Mine) Laid(tile Tile, mined bool) (Mine, error) {
 	return m, nil
 }
 
-// blasted is a tile the blast reached: one with a shield, or of the mine's flag, stays as it is; any other is taken for
-// the flag, held by the mine's player.
-func (m Mine) blasted(tile Tile) (Tile, Impact) {
-	if tile.shields > 0 {
-		return tile, Impact{Tile: tile.id, Owner: tile.owner, Outcome: Unchanged, Shields: tile.shields}
-	}
-
-	return tile.Claimed(m.flag, m.account)
-}
-
 // Explosion is the mines a take set off, every mine a blast reached going off after it, in order.
 type Explosion struct {
 	Blasts []MineBlast
 }
 
-// MineBlast is one mine gone off: the tiles it took for its flag.
+// MineBlast is one mine gone off: the tiles it took for its flag, and the ones that lost a shield and kept their flag.
 type MineBlast struct {
-	Mine  MineSnapshot
-	Taken []uint32
+	Mine   MineSnapshot
+	Taken  []uint32
+	Struck []TileShields
 }
 
 // Detonation is one mine gone off, with what its blast changed, for its player's record.

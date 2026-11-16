@@ -303,11 +303,12 @@ func TestAVirusTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
 	assert.IsType(t, &planetv1.ShieldsStruck{}, events.sent[1])
 }
 
-func TestAMinesTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
+func TestAMinesTakesAndStrikesAreToldAsTheActsOfItsPlayer(t *testing.T) {
 	storage := flushed(t,
 		ledger.Mining{Tile: 5, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
 			{Tile: 4, Owner: "de", Outcome: clicks.Taken},
 			{Tile: 5, Owner: "de", Outcome: clicks.Taken},
+			{Tile: 6, Owner: "de", Outcome: clicks.Shielded, Shields: 1},
 		}},
 	)
 	events := &sender{}
@@ -315,8 +316,13 @@ func TestAMinesTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
 	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
 	require.NoError(t, err)
 
-	require.Len(t, events.sent, 1, "a blast strikes no shield")
+	require.Len(t, events.sent, 2)
 	assert.True(t, proto.Equal(&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
 		{TileId: 4, Previous: "de"}, {TileId: 5, Index: 1, Previous: "de"},
 	}}, events.sent[0]), "%v", events.sent[0])
+	struck, ok := events.sent[1].(*planetv1.ShieldsStruck)
+	require.True(t, ok, "%v", events.sent[1])
+	assert.Equal(t, ada, struck.GetAccountId())
+	require.Len(t, struck.GetTiles(), 1)
+	assert.Equal(t, uint32(6), struck.GetTiles()[0].GetTileId())
 }

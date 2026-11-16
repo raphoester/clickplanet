@@ -405,14 +405,31 @@ describe("the flag's mines", () => {
 
         const exploded = changes()
         tiles.applyExplosion({blasts: [
-            {tile: 1, countryId: "fr", taken: [1, 2, 4]},
-            {tile: 3, countryId: "fr", taken: []},
-            {tile: 4, countryId: "de", taken: [4]},
+            {tile: 1, countryId: "fr", taken: [1, 2, 4], struck: []},
+            {tile: 3, countryId: "fr", taken: [], struck: []},
+            {tile: 4, countryId: "de", taken: [4], struck: []},
         ], version: at(12)}, exploded)
 
         expect(tiles.ownership.ownerOf(1)).toBe("fr")
         expect(tiles.ownership.ownerOf(4)).toBe("de")
         expect(mines(tiles)).toEqual([])
+    })
+
+    it("leaves a tile a blast struck with its flag and the shields the last blast left it", () => {
+        const tiles = opened()
+        live(tiles, update(5, "de", at(10), 3), update(6, "de", at(11), 1))
+
+        const exploded = changes()
+        tiles.applyExplosion({blasts: [
+            {tile: 1, countryId: "fr", taken: [1], struck: [{tile: 5, shields: 2}, {tile: 6, shields: 0}]},
+            {tile: 7, countryId: "fr", taken: [6], struck: [{tile: 5, shields: 1}]},
+        ], version: at(12)}, exploded)
+
+        expect(tiles.ownership.ownerOf(5)).toBe("de")
+        expect(tiles.shields.shieldsOf(5)).toBe(1)
+        expect(tiles.ownership.ownerOf(6)).toBe("fr")
+        expect(tiles.shields.shieldsOf(6)).toBe(0)
+        expect(exploded.shields).toContainEqual({tile: 5, shields: 1, was: 3})
     })
 
     it("forgets the mines of a map of another epoch", () => {

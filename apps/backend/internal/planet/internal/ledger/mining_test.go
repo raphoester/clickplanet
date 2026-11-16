@@ -16,9 +16,10 @@ import (
 var mining = ledger.Mining{Tile: 5, Scope: "A", Account: "guest", Country: "fr", At: start, Impacts: []clicks.Impact{
 	{Tile: 4, Outcome: clicks.Taken},
 	{Tile: 5, Owner: "de", Outcome: clicks.Taken},
+	{Tile: 6, Owner: "it", Outcome: clicks.Shielded, Shields: 2},
 }}
 
-func TestAMineGoneOffReplaysAsOneTakePerTileItsBlastTookAndStrikesNothing(t *testing.T) {
+func TestAMineGoneOffReplaysAsOneTakePerTileItsBlastTookAndOneStrikePerShieldItStruck(t *testing.T) {
 	assert.Equal(t, []ledger.Taking{
 		{Tile: 4, Scope: "A", Account: "guest", Country: "fr", At: start},
 		{Tile: 5, Scope: "A", Account: "guest", Country: "fr", Previous: "de", At: start},
@@ -26,7 +27,7 @@ func TestAMineGoneOffReplaysAsOneTakePerTileItsBlastTookAndStrikesNothing(t *tes
 
 	var strikes []ledger.Strike
 	mining.Strikes(func(strike ledger.Strike) { strikes = append(strikes, strike) })
-	assert.Empty(t, strikes)
+	assert.Equal(t, []ledger.Strike{{Tile: 6, Account: "guest", Country: "fr", Owner: "it", At: start}}, strikes)
 }
 
 func TestAMineGoneOffIsWrittenDownOnItsTileAndReadBack(t *testing.T) {
@@ -60,7 +61,7 @@ func detonationOf(tile uint32, scope string, impacts ...clicks.Impact) clicks.De
 	}
 }
 
-func TestEachMineGoneOffIsRecordedAsItsPlayersActWithItsFortifiesAndKnockOuts(t *testing.T) {
+func TestEveryBlastIsRecordedAsItsPlayersActBeforeTheFortifiesAndTheKnockOuts(t *testing.T) {
 	events := &recordedEvents{}
 	fortified := &clicks.Fortification{Landmass: 3, Country: "fr", Tile: 4, Tiles: 2}
 	knocked := &clicks.KnockOut{Country: "de", By: "fr", Tile: 6, Cleared: []uint32{8}}
@@ -77,23 +78,23 @@ func TestEachMineGoneOffIsRecordedAsItsPlayersActWithItsFortifiesAndKnockOuts(t 
 		Tile: 5, Scope: "203.0.113.7", Account: carrier.String(), Country: "fr", At: start,
 		Impacts: []clicks.Impact{{Tile: 4, Owner: "de", Outcome: clicks.Taken, Fortified: fortified}},
 	}, events.appended[0])
-	assert.IsType(t, ledger.Fortifying{}, events.appended[1])
-	assert.IsType(t, ledger.Mining{}, events.appended[2])
+	assert.IsType(t, ledger.Mining{}, events.appended[1], "a later blast was written before the fortify")
+	assert.IsType(t, ledger.Fortifying{}, events.appended[2])
 	assert.IsType(t, ledger.KnockingOut{}, events.appended[3])
 }
 
-func TestABlastThatTookNoTileRecordsNothingAndAFailureStillRecordsWhatWentOff(t *testing.T) {
+func TestABlastThatChangedNoTileRecordsNothingAndAFailureStillRecordsWhatWentOff(t *testing.T) {
 	events := &recordedEvents{}
 	down := errors.New("tile out of range")
 	recording := ledger.NewMineRecording(minefield{detonations: []clicks.Detonation{
-		detonationOf(5, "203.0.113.7"),
-		detonationOf(7, "203.0.113.7", clicks.Impact{Tile: 6, Owner: "de", Outcome: clicks.Taken}),
+		detonationOf(5, "203.0.113.7", clicks.Impact{Tile: 5, Owner: "fr", Outcome: clicks.Unchanged}),
+		detonationOf(7, "203.0.113.7", clicks.Impact{Tile: 6, Owner: "de", Outcome: clicks.Shielded, Shields: 1}),
 	}, err: down}, events, cptime.NewFixedClock(start))
 
 	detonations, err := recording.Detonate(t.Context(), 2)
 
 	require.ErrorIs(t, err, down)
 	assert.Len(t, detonations, 2)
-	require.Len(t, events.appended, 1)
+	require.Len(t, events.appended, 1, "a shield struck is a change")
 	assert.Equal(t, uint32(7), events.appended[0].(ledger.Mining).Tile)
 }

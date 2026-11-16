@@ -2384,14 +2384,17 @@ describe("the mines' events", () => {
     it("reads each blast of an explosion in order, and its version", () => {
         const event = new PlanetEvent({event: {case: "minesExploded", value: new MinesExplodedMessage({
             blasts: [
-                new MineBlastMessage({tileId: 5, countryId: "fr", takenTileIds: [5, 4]}),
+                new MineBlastMessage({tileId: 5, countryId: "fr", takenTileIds: [5, 4], struck: [{tileId: 6, shields: 2}]}),
                 new MineBlastMessage({tileId: 9, countryId: "de"}),
             ],
             version: versionAt(44),
         })}})
 
         expect(minesExplodedOf(event)).toEqual({
-            blasts: [{tile: 5, countryId: "fr", taken: [5, 4]}, {tile: 9, countryId: "de", taken: []}],
+            blasts: [
+                {tile: 5, countryId: "fr", taken: [5, 4], struck: [{tile: 6, shields: 2}]},
+                {tile: 9, countryId: "de", taken: [], struck: []},
+            ],
             version: {epoch: versionAt(44).epoch, seq: 44},
         })
         expect(minesExplodedOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()

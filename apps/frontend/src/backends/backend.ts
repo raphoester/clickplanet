@@ -287,6 +287,9 @@ export type MineBlast = {
     // The mine's flag, whose each tile taken is now.
     countryId: string
     taken: number[]
+
+    // Each lost a shield and kept its flag.
+    struck: {tile: number, shields: number}[]
 }
 
 export interface Miner {
