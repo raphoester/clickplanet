@@ -241,7 +241,7 @@ export interface Bomber {
 export type VirusSpread = {
     virus: string
 
-    // The flag it takes tiles for, and the flag whose land it spreads into.
+    // The flag it takes tiles for, and the flag of the tile it was used on: it spreads into every enemy flag's land.
     countryId: string
     victimCountryId: string
 

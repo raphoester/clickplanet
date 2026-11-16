@@ -95,7 +95,7 @@ func TestAVirusAimedAtNoEnemyTileOrAShieldedOneChangesNothing(t *testing.T) {
 	assert.Empty(t, tiles.Viruses())
 }
 
-func TestEachInfectedTileInfectsOneTileOfTheFlagHitAtEachTick(t *testing.T) {
+func TestEachInfectedTileInfectsOneEnemyTileAtEachTick(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{3: "de", 4: "de", 5: "de", 6: "de", 7: "de"})
 	started(t, tiles, 5, 32)
 
@@ -112,14 +112,14 @@ func TestEachInfectedTileInfectsOneTileOfTheFlagHitAtEachTick(t *testing.T) {
 	assert.Equal(t, 4, virus.TakeSnapshot().Infections)
 }
 
-func TestAVirusSpreadsOnlyIntoTheLandOfTheFlagItHit(t *testing.T) {
-	tiles := claimable(t, map[uint32]string{4: "it", 5: "de", 6: "de"})
+func TestAVirusSpreadsIntoAnyEnemyFlagButNeverABlankTile(t *testing.T) {
+	tiles := claimable(t, map[uint32]string{5: "de", 6: "it"})
 	started(t, tiles, 5, 32)
 
 	_, _, err := contagion(tiles).Spread(t.Context(), "v-1", 32, noon)
 	require.NoError(t, err)
 
-	assert.Equal(t, []string{"it", "fr", "fr"}, owners(tiles, 4, 5, 6))
+	assert.Equal(t, []string{"", "fr", "fr"}, owners(tiles, 4, 5, 6), "it crosses from the flag it hit into another")
 }
 
 func TestAShieldAbsorbsAnInfectionWhichCountsTowardTheMost(t *testing.T) {
@@ -174,7 +174,7 @@ func TestATileTakenBackIsCuredAndSpreadsNoMore(t *testing.T) {
 }
 
 func TestAVirusWithNowhereToGoEnds(t *testing.T) {
-	tiles := claimable(t, map[uint32]string{4: "fr", 5: "de", 6: "it"})
+	tiles := claimable(t, map[uint32]string{4: "fr", 5: "de"})
 	started(t, tiles, 5, 32)
 	changes := infections(t, tiles)
 

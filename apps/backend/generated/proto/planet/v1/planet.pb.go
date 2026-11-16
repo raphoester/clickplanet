@@ -2054,7 +2054,7 @@ type VirusSpread struct {
 	VirusId string                 `protobuf:"bytes,1,opt,name=virus_id,json=virusId,proto3" json:"virus_id,omitempty"`
 	// The flag the virus takes tiles for.
 	CountryId string `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	// The flag whose land it spreads into.
+	// The flag of the tile it was used on. It spreads into every enemy flag's land, not only this one's.
 	VictimCountryId string `protobuf:"bytes,3,opt,name=victim_country_id,json=victimCountryId,proto3" json:"victim_country_id,omitempty"`
 	// Each is country_id's now, and infected.
 	TakenTileIds []uint32 `protobuf:"varint,4,rep,packed,name=taken_tile_ids,json=takenTileIds,proto3" json:"taken_tile_ids,omitempty"`
