@@ -15,22 +15,26 @@ import (
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1/progressionv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/listen_for_titles_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 )
 
-type stubTitles struct {
-	earned chan titles.Standing
-	asked  chan accounts.AccountID
+type stubEvents struct {
+	earned  chan titles.Standing
+	reached chan levels.Standing
+	asked   chan accounts.AccountID
 }
 
-func newStubTitles() stubTitles {
-	return stubTitles{earned: make(chan titles.Standing, 1), asked: make(chan accounts.AccountID, 1)}
+func newStubEvents() stubEvents {
+	return stubEvents{
+		earned: make(chan titles.Standing, 1), reached: make(chan levels.Standing, 1), asked: make(chan accounts.AccountID, 1),
+	}
 }
 
-func (s stubTitles) Execute(ctx context.Context, account accounts.AccountID, sink listen_for_titles_usecase.Sink) error {
+func (s stubEvents) Execute(ctx context.Context, account accounts.AccountID, sink listen_for_events_usecase.Sink) error {
 	s.asked <- account
 	if err := sink.SendHeartbeat(); err != nil {
 		return err //nolint:wrapcheck // the stream's own error.
@@ -44,11 +48,15 @@ func (s stubTitles) Execute(ctx context.Context, account accounts.AccountID, sin
 			if err := sink.SendTitleEarned(standing); err != nil {
 				return err //nolint:wrapcheck // the stream's own error.
 			}
+		case standing := <-s.reached:
+			if err := sink.SendLevelReached(standing); err != nil {
+				return err //nolint:wrapcheck // the stream's own error.
+			}
 		}
 	}
 }
 
-func routes(earner stubTitles) http.Handler {
+func routes(earner stubEvents) http.Handler {
 	handler := listen_for_events_handler.New(earner)
 	mux := http.NewServeMux()
 	mux.Handle(progressionv1connect.ProgressionServiceListenForEventsProcedure, connect.NewServerStreamHandler(
@@ -79,7 +87,7 @@ func listen(t *testing.T, handler http.Handler) *connect.ServerStreamForClient[p
 }
 
 func TestAStreamWithNoAccountIsRefused(t *testing.T) {
-	earner := newStubTitles()
+	earner := newStubEvents()
 	stream := listen(t, routes(earner))
 
 	require.False(t, stream.Receive())
@@ -88,7 +96,7 @@ func TestAStreamWithNoAccountIsRefused(t *testing.T) {
 }
 
 func TestAStreamWithAnAccountSaysItIsLiveThenSendsTheTitlesItEarns(t *testing.T) {
-	earner := newStubTitles()
+	earner := newStubEvents()
 	stream := listen(t, signedIn(routes(earner)))
 
 	require.True(t, stream.Receive(), stream.Err())
@@ -102,4 +110,16 @@ func TestAStreamWithAnAccountSaysItIsLiveThenSendsTheTitlesItEarns(t *testing.T)
 		Feat: "Took 100,000 tiles",
 	}, stream.Msg().GetTitleEarned().GetTitle()), "%v", stream.Msg())
 	assert.Equal(t, accounts.AccountID{15: 1}, <-earner.asked)
+}
+
+func TestALevelReachedGoesToTheCallersStreamAsItsBar(t *testing.T) {
+	earner := newStubEvents()
+	stream := listen(t, signedIn(routes(earner)))
+
+	require.True(t, stream.Receive(), stream.Err())
+	earner.reached <- levels.Curve{}.StandingOf(900)
+
+	require.True(t, stream.Receive(), stream.Err())
+	assert.True(t, proto.Equal(&progressionv1.Level{Level: 5, Xp: 900, LevelXp: 896, NextLevelXp: 1_750},
+		stream.Msg().GetLevelReached()), "%v", stream.Msg())
 }

@@ -3,6 +3,7 @@ import {createConnectTransport} from "@connectrpc/connect-web"
 import {ProgressionService} from "../gen/grpc/progression/v1/progression_connect.ts"
 import {
     CountryTiles as CountryTilesPb,
+    Level as LevelPb,
     Progress as ProgressPb,
     ProgressionEvent,
     Track as TrackPb,
@@ -11,6 +12,7 @@ import {AccountBadge, BadgesBackend} from "./badges.ts"
 import {
     CountryTiles,
     Fronts,
+    PlayerLevel,
     PlayerTitle,
     Progress,
     ProgressionBackend,
@@ -137,7 +139,13 @@ function progressOf(progress: ProgressPb | undefined): Progress {
         wornTitle: titleOf(progress?.wornTitle),
         playsFor: (progress?.playsFor ?? []).map(countryTilesOf),
         playsAgainst: (progress?.playsAgainst ?? []).map(countryTilesOf),
+        level: levelOf(progress?.level),
     }
+}
+
+function levelOf(level: LevelPb | undefined): PlayerLevel | undefined {
+    if (!level) return undefined
+    return {level: level.level, xp: Number(level.xp), levelXp: Number(level.levelXp), nextLevelXp: Number(level.nextLevelXp)}
 }
 
 function countryTilesOf(country: CountryTilesPb): CountryTiles {

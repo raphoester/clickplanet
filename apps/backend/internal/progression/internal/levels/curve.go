@@ -36,7 +36,10 @@ func (c Curve) LevelOf(xp XP) Level {
 }
 
 func (c Curve) StandingOf(xp XP) Standing {
-	level := c.LevelOf(xp)
+	return c.StandingAt(c.LevelOf(xp), xp)
+}
+
+func (c Curve) StandingAt(level Level, xp XP) Standing {
 	return Standing{level: level, xp: xp, levelXP: c.Threshold(level), nextLevelXP: c.Threshold(level + 1)}
 }
 

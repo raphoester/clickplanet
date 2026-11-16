@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetBadgesRequest, GetBadgesResponse, GetFrontsRequest, GetFrontsResponse, GetProgressRequest, GetProgressResponse, GetTitlesRequest, GetTitlesResponse, ListenForEventsRequest, ProgressionEvent, WearTitleRequest, WearTitleResponse } from "./progression_pb.js";
+import { GetBadgesRequest, GetBadgesResponse, GetFrontsRequest, GetFrontsResponse, GetLevelRequest, GetLevelResponse, GetProgressRequest, GetProgressResponse, GetTitlesRequest, GetTitlesResponse, ListenForEventsRequest, ProgressionEvent, WearTitleRequest, WearTitleResponse } from "./progression_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -65,7 +65,19 @@ export const ProgressionService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * The titles the caller earns, as it earns them. Unauthenticated without a token.
+     * The caller's own level, with what each kind of mission pays.
+     *
+     * @generated from rpc progression.v1.ProgressionService.GetLevel
+     */
+    getLevel: {
+      name: "GetLevel",
+      I: GetLevelRequest,
+      O: GetLevelResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * The titles the caller earns and the levels it reaches, as it gets them. Unauthenticated without a token.
      *
      * @generated from rpc progression.v1.ProgressionService.ListenForEvents
      */

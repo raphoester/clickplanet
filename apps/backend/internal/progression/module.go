@@ -23,6 +23,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/finales/usecases/forget_fights_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/finales/usecases/record_finale_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inprocess_level_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/postgres_level_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/forget_level_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/usecases/raise_level_usecase"
@@ -39,6 +40,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler/badges_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_fronts_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_level_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_level_handler/level_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_progress_handler/progress_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_titles_handler"
@@ -78,9 +81,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/award_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/award_titles_usecase/notifying_award_titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/forget_titles_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/listen_for_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/reconcile_titles_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/usecases/reconcile_titles_usecase/audit_reconcile_titles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing/postgres_worn_title_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing/usecases/forget_worn_title_usecase"
@@ -148,9 +151,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	award := notifying_award_titles.New(award_titles_usecase.New(statsStore, careers, titleBook, clock), titleFeed)
 	wardrobe := wearing.NewWardrobe(wornTitleStore, titleBook, catalog)
 	titleCards := inprocess_title_catalog.New(catalog)
+	levelBars := inprocess_level_scale.New(levels.Scale{})
+	levelFeed := inprocess_level_feed.New()
 	recordStats := record_stats_usecase.New(statsStore, streams)
 	decideDeparture := decide_departure_usecase.New(departureStore)
-	raiseLevel := raise_level_usecase.New(statsStore, accounts, levelStore, clock)
+	raiseLevel := raise_level_usecase.New(statsStore, accounts, levelStore, levelFeed, clock)
 
 	var subscribeErr error
 	subscribed := func(runner cpbootstrap.Runner, err error) cpbootstrap.Runner {
@@ -198,10 +203,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetFrontsHandler: get_fronts_handler.New(fronts),
 		GetBadgesHandler: get_badges_handler.New(badges_query.NewPostgresQuery(db, titleCards, clock)),
 		GetProgressHandler: get_progress_handler.New(progress_query.NewPostgresQuery(
-			db, titleCards, caching_fronts.New(fronts, frontsKeptFor, clock), clock,
+			db, titleCards, levelBars, caching_fronts.New(fronts, frontsKeptFor, clock), clock,
 		)),
+		GetLevelHandler: get_level_handler.New(level_query.NewPostgresQuery(db, levelBars)),
 		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_titles_usecase.New(titleFeed, catalog, props.Server.StreamHeartbeat),
+			listen_for_events_usecase.New(titleFeed, catalog, levelFeed, props.Server.StreamHeartbeat),
 		),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -216,7 +222,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 			reconcile_titles_usecase.New(statsStore, careers, titleStore, catalog, clock), props.Logger,
 		)),
 		AdminGetProgressHandler: admin_get_progress_handler.New(
-			admin_progress_query.NewPostgresQuery(db, titleCards, inprocess_level_scale.New(levels.Scale{}), fronts, clock),
+			admin_progress_query.NewPostgresQuery(db, titleCards, levelBars, fronts, clock),
 		),
 		BackfillDaysPlayedHandler: backfill_days_played_handler.New(audit_backfill_days_played.New(
 			backfill_days_played_usecase.New(statsStore, playDays), props.Logger,

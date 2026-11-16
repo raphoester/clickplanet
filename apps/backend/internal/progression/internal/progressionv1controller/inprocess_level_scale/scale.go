@@ -1,11 +1,19 @@
 package inprocess_level_scale
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 )
+
+var ErrUnknownKind = errors.New("a kind of mission the wire does not name")
 
 func New(scale levels.Scale) Scale {
 	return Scale{scale: scale}
@@ -16,20 +24,7 @@ type Scale struct {
 }
 
 func (s Scale) XP(read progressionread.Record) *progressionv1.XpBreakdown {
-	byKind := make(map[stats.MissionKind]stats.MissionTally, len(read.MissionGoals))
-	for kind, goals := range read.MissionGoals {
-		byKind[stats.MissionKind(kind)] = stats.MissionTally{Goals: goals}
-	}
-	record := stats.StatsSnapshot{
-		TilesTaken:     read.TilesTaken,
-		DaysPlayed:     read.DaysPlayed,
-		MissionsByKind: byKind,
-		BombsDropped:   read.BombsDropped,
-		BonusesClaimed: read.BonusesClaimed,
-		RightAnswers:   read.RightAnswers,
-		TilesFortified: read.TilesFortified,
-	}.Restore()
-
+	record := recordOf(read)
 	return &progressionv1.XpBreakdown{
 		Total:          uint64(s.scale.XPOf(record)),
 		TilesTaken:     uint64(levels.TilesTaken{}.XP(record)),
@@ -40,4 +35,41 @@ func (s Scale) XP(read progressionread.Record) *progressionv1.XpBreakdown {
 		RightAnswers:   uint64(levels.RightAnswers{}.XP(record)),
 		TilesFortified: uint64(levels.TilesFortified{}.XP(record)),
 	}
+}
+
+func (s Scale) Level(read progressionread.Record, kept uint32) *progressionv1.Level {
+	return progressionmessage.Level(s.scale.StandingAt(levels.Level(kept), recordOf(read)))
+}
+
+func (s Scale) MissionRates() ([]*progressionv1.MissionRate, error) {
+	rates := levels.MissionsDone{}.Rates()
+	encoded := make([]*progressionv1.MissionRate, 0, len(rates))
+	for _, rate := range rates {
+		kind, known := missionsv1.MissionKind_value["MISSION_KIND_"+strings.ToUpper(string(rate.Kind()))]
+		if !known {
+			return nil, fmt.Errorf("%w: %q", ErrUnknownKind, rate.Kind())
+		}
+		encoded = append(encoded, &progressionv1.MissionRate{
+			Kind: missionsv1.MissionKind(kind),
+			Xp:   uint32(rate.Rate().XP),  //nolint:gosec // a few hundred XP at most.
+			Per:  uint32(rate.Rate().Per), //nolint:gosec // as above.
+		})
+	}
+	return encoded, nil
+}
+
+func recordOf(read progressionread.Record) stats.Stats {
+	byKind := make(map[stats.MissionKind]stats.MissionTally, len(read.MissionGoals))
+	for kind, goals := range read.MissionGoals {
+		byKind[stats.MissionKind(kind)] = stats.MissionTally{Goals: goals}
+	}
+	return stats.StatsSnapshot{
+		TilesTaken:     read.TilesTaken,
+		DaysPlayed:     read.DaysPlayed,
+		MissionsByKind: byKind,
+		BombsDropped:   read.BombsDropped,
+		BonusesClaimed: read.BonusesClaimed,
+		RightAnswers:   read.RightAnswers,
+		TilesFortified: read.TilesFortified,
+	}.Restore()
 }

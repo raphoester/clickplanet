@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { Title } from "./title_pb.js";
+import { MissionKind } from "../../missions/v1/kind_pb.js";
 
 /**
  * @generated from message progression.v1.Stats
@@ -668,6 +669,13 @@ export class Progress extends Message<Progress> {
    */
   playsAgainst: CountryTiles[] = [];
 
+  /**
+   * Unset when none is kept: a guest, or an account no fact has raised yet.
+   *
+   * @generated from field: progression.v1.Level level = 6;
+   */
+  level?: Level;
+
   constructor(data?: PartialMessage<Progress>) {
     super();
     proto3.util.initPartial(data, this);
@@ -681,6 +689,7 @@ export class Progress extends Message<Progress> {
     { no: 3, name: "worn_title", kind: "message", T: Title },
     { no: 4, name: "plays_for", kind: "message", T: CountryTiles, repeated: true },
     { no: 5, name: "plays_against", kind: "message", T: CountryTiles, repeated: true },
+    { no: 6, name: "level", kind: "message", T: Level },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Progress {
@@ -697,6 +706,190 @@ export class Progress extends Message<Progress> {
 
   static equals(a: Progress | PlainMessage<Progress> | undefined, b: Progress | PlainMessage<Progress> | undefined): boolean {
     return proto3.util.equals(Progress, a, b);
+  }
+}
+
+/**
+ * The level kept and its bar's thresholds, with the XP of now: it can pass next_level_xp until the raise lands.
+ *
+ * @generated from message progression.v1.Level
+ */
+export class Level extends Message<Level> {
+  /**
+   * @generated from field: uint32 level = 1;
+   */
+  level = 0;
+
+  /**
+   * @generated from field: uint64 xp = 2;
+   */
+  xp = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 level_xp = 3;
+   */
+  levelXp = protoInt64.zero;
+
+  /**
+   * @generated from field: uint64 next_level_xp = 4;
+   */
+  nextLevelXp = protoInt64.zero;
+
+  constructor(data?: PartialMessage<Level>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.Level";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "level", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "xp", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "level_xp", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 4, name: "next_level_xp", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Level {
+    return new Level().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Level {
+    return new Level().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Level {
+    return new Level().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Level | PlainMessage<Level> | undefined, b: Level | PlainMessage<Level> | undefined): boolean {
+    return proto3.util.equals(Level, a, b);
+  }
+}
+
+/**
+ * @generated from message progression.v1.GetLevelRequest
+ */
+export class GetLevelRequest extends Message<GetLevelRequest> {
+  constructor(data?: PartialMessage<GetLevelRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.GetLevelRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLevelRequest {
+    return new GetLevelRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLevelRequest {
+    return new GetLevelRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLevelRequest {
+    return new GetLevelRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLevelRequest | PlainMessage<GetLevelRequest> | undefined, b: GetLevelRequest | PlainMessage<GetLevelRequest> | undefined): boolean {
+    return proto3.util.equals(GetLevelRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message progression.v1.GetLevelResponse
+ */
+export class GetLevelResponse extends Message<GetLevelResponse> {
+  /**
+   * Unset when none is kept: a guest, or an account no fact has raised yet.
+   *
+   * @generated from field: progression.v1.Level level = 1;
+   */
+  level?: Level;
+
+  /**
+   * @generated from field: repeated progression.v1.MissionRate mission_rates = 2;
+   */
+  missionRates: MissionRate[] = [];
+
+  constructor(data?: PartialMessage<GetLevelResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.GetLevelResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "level", kind: "message", T: Level },
+    { no: 2, name: "mission_rates", kind: "message", T: MissionRate, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLevelResponse {
+    return new GetLevelResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetLevelResponse {
+    return new GetLevelResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetLevelResponse {
+    return new GetLevelResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetLevelResponse | PlainMessage<GetLevelResponse> | undefined, b: GetLevelResponse | PlainMessage<GetLevelResponse> | undefined): boolean {
+    return proto3.util.equals(GetLevelResponse, a, b);
+  }
+}
+
+/**
+ * A mission of this kind pays goal × xp / per XP, floored.
+ *
+ * @generated from message progression.v1.MissionRate
+ */
+export class MissionRate extends Message<MissionRate> {
+  /**
+   * @generated from field: missions.v1.MissionKind kind = 1;
+   */
+  kind = MissionKind.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 xp = 2;
+   */
+  xp = 0;
+
+  /**
+   * @generated from field: uint32 per = 3;
+   */
+  per = 0;
+
+  constructor(data?: PartialMessage<MissionRate>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.MissionRate";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(MissionKind) },
+    { no: 2, name: "xp", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "per", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MissionRate {
+    return new MissionRate().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MissionRate {
+    return new MissionRate().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MissionRate {
+    return new MissionRate().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MissionRate | PlainMessage<MissionRate> | undefined, b: MissionRate | PlainMessage<MissionRate> | undefined): boolean {
+    return proto3.util.equals(MissionRate, a, b);
   }
 }
 
@@ -750,6 +943,12 @@ export class ProgressionEvent extends Message<ProgressionEvent> {
      */
     value: TitleEarned;
     case: "titleEarned";
+  } | {
+    /**
+     * @generated from field: progression.v1.Level level_reached = 3;
+     */
+    value: Level;
+    case: "levelReached";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ProgressionEvent>) {
@@ -762,6 +961,7 @@ export class ProgressionEvent extends Message<ProgressionEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 2, name: "title_earned", kind: "message", T: TitleEarned, oneof: "event" },
+    { no: 3, name: "level_reached", kind: "message", T: Level, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProgressionEvent {

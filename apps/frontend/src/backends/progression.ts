@@ -39,12 +39,21 @@ export interface ProgressionBackend {
     fronts(): Promise<Fronts>
 }
 
+// The level kept, on its bar: the XP can pass nextLevelXp until the raise lands.
+export type PlayerLevel = {
+    level: number
+    xp: number
+    levelXp: number
+    nextLevelXp: number
+}
+
 export type Progress = {
     tilesTaken: number
     streakCurrent: number
     streakBest: number
     titles: PlayerTitle[]
     wornTitle?: PlayerTitle
+    level?: PlayerLevel
 } & Fronts
 
 export const NO_PROGRESS: Progress = {
