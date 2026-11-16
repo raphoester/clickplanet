@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package bonuses.v1;
 
+import "planet/v1/planet.proto";
+
 // What a box caught, a right answer or a sign-in grants: planet's charges. The bonuses module draws and pays them
 // through planet's wallet; the reward comes on planet's stream (planet.v1.ChargesGranted). The boxes are the boxes
 // module's since 2026-11-15 (boxes.v1.BoxService).
@@ -17,4 +19,9 @@ message GetGrantRulesRequest {}
 message GetGrantRulesResponse {
   // A guest's first sign-in earns a refill.
   bool sign_in_refill = 1;
+  // A win is drawn only from open_kinds and the kinds progression unlocked for the account; off, from every kind. The
+  // level each kind unlocks at is progression's (progression.v1.GetLevelResponse.unlocks).
+  bool gates_on = 2;
+  // The kinds anyone may be drawn while the gates are on, a guest too.
+  repeated planet.v1.BonusKind open_kinds = 3;
 }

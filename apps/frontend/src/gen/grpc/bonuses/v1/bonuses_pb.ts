@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
+import { BonusKind } from "../../planet/v1/planet_pb.js";
 
 /**
  * @generated from message bonuses.v1.GetGrantRulesRequest
@@ -48,6 +49,21 @@ export class GetGrantRulesResponse extends Message<GetGrantRulesResponse> {
    */
   signInRefill = false;
 
+  /**
+   * A win is drawn only from open_kinds and the kinds progression unlocked for the account; off, from every kind. The
+   * level each kind unlocks at is progression's (progression.v1.GetLevelResponse.unlocks).
+   *
+   * @generated from field: bool gates_on = 2;
+   */
+  gatesOn = false;
+
+  /**
+   * The kinds anyone may be drawn while the gates are on, a guest too.
+   *
+   * @generated from field: repeated planet.v1.BonusKind open_kinds = 3;
+   */
+  openKinds: BonusKind[] = [];
+
   constructor(data?: PartialMessage<GetGrantRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -57,6 +73,8 @@ export class GetGrantRulesResponse extends Message<GetGrantRulesResponse> {
   static readonly typeName = "bonuses.v1.GetGrantRulesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "gates_on", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "open_kinds", kind: "enum", T: proto3.getEnumType(BonusKind), repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetGrantRulesResponse {

@@ -98,6 +98,15 @@ func TestNothingButTheBrowserAndTheOperatorTalksToProgression(t *testing.T) {
 	}
 }
 
+// Progression tells the bonuses module what each account unlocked, in the bonuses' words, as commands: the gamemaster
+// plays the bonuses' rule sets and progression hears the gamemaster, so progression is downstream of the bonuses.
+func TestProgressionTellsTheBonusesWhatEachAccountUnlocked(t *testing.T) {
+	edges := moduleEdges(t)
+
+	assert.Contains(t, edges["progression"], "bonuses")
+	assert.NotContains(t, edges["bonuses"], "progression", "the bonuses module knows no level")
+}
+
 func TestOnlyPlayerAlertsAndTheConnectorSpeakAuthsLanguage(t *testing.T) {
 	var speakers []string
 	for module, upstream := range moduleEdges(t) {

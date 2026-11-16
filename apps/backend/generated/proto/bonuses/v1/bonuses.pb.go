@@ -7,6 +7,7 @@
 package bonusesv1
 
 import (
+	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -60,7 +61,12 @@ func (*GetGrantRulesRequest) Descriptor() ([]byte, []int) {
 type GetGrantRulesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// A guest's first sign-in earns a refill.
-	SignInRefill  bool `protobuf:"varint,1,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
+	SignInRefill bool `protobuf:"varint,1,opt,name=sign_in_refill,json=signInRefill,proto3" json:"sign_in_refill,omitempty"`
+	// A win is drawn only from open_kinds and the kinds progression unlocked for the account; off, from every kind. The
+	// level each kind unlocks at is progression's (progression.v1.GetLevelResponse.unlocks).
+	GatesOn bool `protobuf:"varint,2,opt,name=gates_on,json=gatesOn,proto3" json:"gates_on,omitempty"`
+	// The kinds anyone may be drawn while the gates are on, a guest too.
+	OpenKinds     []v1.BonusKind `protobuf:"varint,3,rep,packed,name=open_kinds,json=openKinds,proto3,enum=planet.v1.BonusKind" json:"open_kinds,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -102,15 +108,32 @@ func (x *GetGrantRulesResponse) GetSignInRefill() bool {
 	return false
 }
 
+func (x *GetGrantRulesResponse) GetGatesOn() bool {
+	if x != nil {
+		return x.GatesOn
+	}
+	return false
+}
+
+func (x *GetGrantRulesResponse) GetOpenKinds() []v1.BonusKind {
+	if x != nil {
+		return x.OpenKinds
+	}
+	return nil
+}
+
 var File_bonuses_v1_bonuses_proto protoreflect.FileDescriptor
 
 const file_bonuses_v1_bonuses_proto_rawDesc = "" +
 	"\n" +
 	"\x18bonuses/v1/bonuses.proto\x12\n" +
-	"bonuses.v1\"\x16\n" +
-	"\x14GetGrantRulesRequest\"=\n" +
+	"bonuses.v1\x1a\x16planet/v1/planet.proto\"\x16\n" +
+	"\x14GetGrantRulesRequest\"\x8d\x01\n" +
 	"\x15GetGrantRulesResponse\x12$\n" +
-	"\x0esign_in_refill\x18\x01 \x01(\bR\fsignInRefill2i\n" +
+	"\x0esign_in_refill\x18\x01 \x01(\bR\fsignInRefill\x12\x19\n" +
+	"\bgates_on\x18\x02 \x01(\bR\agatesOn\x123\n" +
+	"\n" +
+	"open_kinds\x18\x03 \x03(\x0e2\x14.planet.v1.BonusKindR\topenKinds2i\n" +
 	"\fBonusService\x12Y\n" +
 	"\rGetGrantRules\x12 .bonuses.v1.GetGrantRulesRequest\x1a!.bonuses.v1.GetGrantRulesResponse\"\x03\x90\x02\x01B\xbb\x01\n" +
 	"\x0ecom.bonuses.v1B\fBonusesProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1;bonusesv1\xa2\x02\x03BXX\xaa\x02\n" +
@@ -133,15 +156,17 @@ var file_bonuses_v1_bonuses_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_bonuses_v1_bonuses_proto_goTypes = []any{
 	(*GetGrantRulesRequest)(nil),  // 0: bonuses.v1.GetGrantRulesRequest
 	(*GetGrantRulesResponse)(nil), // 1: bonuses.v1.GetGrantRulesResponse
+	(v1.BonusKind)(0),             // 2: planet.v1.BonusKind
 }
 var file_bonuses_v1_bonuses_proto_depIdxs = []int32{
-	0, // 0: bonuses.v1.BonusService.GetGrantRules:input_type -> bonuses.v1.GetGrantRulesRequest
-	1, // 1: bonuses.v1.BonusService.GetGrantRules:output_type -> bonuses.v1.GetGrantRulesResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: bonuses.v1.GetGrantRulesResponse.open_kinds:type_name -> planet.v1.BonusKind
+	0, // 1: bonuses.v1.BonusService.GetGrantRules:input_type -> bonuses.v1.GetGrantRulesRequest
+	1, // 2: bonuses.v1.BonusService.GetGrantRules:output_type -> bonuses.v1.GetGrantRulesResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_bonuses_proto_init() }

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	bonusesv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
@@ -43,6 +44,10 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"enclose.maxPerBox":                     func(r *bonusesv1.Rules) { r.Enclose.MaxPerBox = proto.Uint32(0) },
 		"shield.minPerBox":                      func(r *bonusesv1.Rules) { r.Shield.MinPerBox = proto.Uint32(0) },
 		"shield.maxPerBox":                      func(r *bonusesv1.Rules) { r.Shield.MaxPerBox = proto.Uint32(4) },
+		"gates.on with no kind gates.open opens weighed above 0": func(r *bonusesv1.Rules) {
+			r.Gates.On = proto.Bool(true)
+			r.Kinds = &bonusesv1.KindWeights{Bomb: proto.Float64(1), EncloseClicks: proto.Float64(1)}
+		},
 	}
 	for reason, breaks := range broken {
 		t.Run(reason, func(t *testing.T) {
@@ -91,4 +96,29 @@ func TestEveryValueThatCanBeZeroIsADefault(t *testing.T) {
 
 	_, err := set.Restore(parts.All(), rules.Seeded())
 	require.NoError(t, err)
+}
+
+func TestTheGatesAreOffUntilTheLevelsAreShown(t *testing.T) {
+	played := bonuses.RulesOf(restored(t, rules.Seeded()).TakePlayedSnapshot().Rules)
+
+	for _, kind := range bonuses.Kinds {
+		assert.True(t, played.MayDraw(kind, nil), "%s", kind)
+	}
+}
+
+func TestASetPlaysDefaultsGatesUnlessItHoldsItsOwn(t *testing.T) {
+	battle := cprules.Snapshot[*bonusesv1.Rules]{Name: "battle", Rules: &bonusesv1.Rules{
+		Gates: &bonusesv1.GateRules{On: proto.Bool(false)},
+	}}
+	gated := rules.Named(cprules.Default, func(r *bonusesv1.Rules) { r.Gates.On = proto.Bool(true) })
+
+	set, err := battle.Restore(parts.All(), gated)
+	require.NoError(t, err)
+	assert.True(t, bonuses.RulesOf(set.TakePlayedSnapshot().Rules).MayDraw(bonuses.KindBomb, nil), "the battle keeps them off")
+
+	plain, err := cprules.Snapshot[*bonusesv1.Rules]{Name: "plain", Rules: &bonusesv1.Rules{}}.Restore(parts.All(), gated)
+	require.NoError(t, err)
+	played := bonuses.RulesOf(plain.TakePlayedSnapshot().Rules)
+	assert.False(t, played.MayDraw(bonuses.KindBomb, nil))
+	assert.True(t, played.MayDraw(bonuses.KindRefill, nil), "default's open kinds")
 }
