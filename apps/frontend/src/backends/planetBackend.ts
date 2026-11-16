@@ -508,6 +508,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 bombsOff: res.bombsOff,
                 enclosuresOff: res.enclosuresOff,
                 spreadUnlimited: res.spreadUnlimited,
+                virusInfections: res.virusInfections,
             }
             this.holdRules(rules)
         } catch (e) {
