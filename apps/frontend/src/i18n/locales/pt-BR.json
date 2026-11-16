@@ -679,6 +679,7 @@
   "inventory.notice.notEnclosedMax": "{max, plural, one {A forma não está fechada ou é grande demais (máx. # casa)} many {A forma não está fechada ou é grande demais (máx. # de casas)} other {A forma não está fechada ou é grande demais (máx. # casas)}}",
   "inventory.notice.virusNoEnemy": "Um vírus só toma uma casa inimiga sem escudo",
   "inventory.notice.mineNotYours": "Uma mina só vai numa casa da sua bandeira sem mina",
+  "inventory.notice.mineTaken": "Casa tomada. Toque de novo para pôr uma mina",
   "mission.order.takeFor": "{goal, plural, one {Tome uma casa para {flag}} many {Tome # de casas para {flag}} other {Tome # casas para {flag}}}",
   "mission.order.takeFrom": "{goal, plural, one {Tome uma casa de {flag}} many {Tome # de casas de {flag}} other {Tome # casas de {flag}}}",
   "mission.order.takeIn": "{goal, plural, one {Tome uma casa {where}} many {Tome # de casas {where}} other {Tome # casas {where}}}",

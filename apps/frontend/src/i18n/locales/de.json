@@ -679,6 +679,7 @@
   "inventory.notice.notEnclosedMax": "{max, plural, one {Form ist nicht geschlossen oder zu groß (max. # Feld)} other {Form ist nicht geschlossen oder zu groß (max. # Felder)}}",
   "inventory.notice.virusNoEnemy": "Ein Virus nimmt nur ein feindliches Feld ohne Schild",
   "inventory.notice.mineNotYours": "Eine Mine kommt nur auf ein Feld deiner Flagge ohne Mine",
+  "inventory.notice.mineTaken": "Feld erobert. Tipp nochmal drauf, um eine Mine zu legen",
   "mission.order.takeFor": "{goal, plural, one {Erobere ein Feld für {flag}} other {Erobere # Felder für {flag}}}",
   "mission.order.takeFrom": "{goal, plural, one {Erobere ein Feld von {flag}} other {Erobere # Felder von {flag}}}",
   "mission.order.takeIn": "{goal, plural, one {Erobere ein Feld {where}} other {Erobere # Felder {where}}}",

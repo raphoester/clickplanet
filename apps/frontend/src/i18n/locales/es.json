@@ -679,6 +679,7 @@
   "inventory.notice.notEnclosedMax": "{max, plural, one {La forma no está cerrada o es demasiado grande (# casilla máx.)} many {La forma no está cerrada o es demasiado grande (# de casillas máx.)} other {La forma no está cerrada o es demasiado grande (# casillas máx.)}}",
   "inventory.notice.virusNoEnemy": "Un virus solo toma una casilla enemiga sin escudo",
   "inventory.notice.mineNotYours": "Una mina solo va en una casilla de tu bandera sin mina",
+  "inventory.notice.mineTaken": "Casilla tomada. Tócala otra vez para poner una mina",
   "mission.order.takeFor": "{goal, plural, one {Toma una casilla para {flag}} many {Toma # de casillas para {flag}} other {Toma # casillas para {flag}}}",
   "mission.order.takeFrom": "{goal, plural, one {Toma una casilla de {flag}} many {Toma # de casillas de {flag}} other {Toma # casillas de {flag}}}",
   "mission.order.takeIn": "{goal, plural, one {Toma una casilla {where}} many {Toma # de casillas {where}} other {Toma # casillas {where}}}",
