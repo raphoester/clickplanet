@@ -5,12 +5,3 @@ CREATE TABLE IF NOT EXISTS levels (
     level      integer     NOT NULL CHECK (level >= 1),
     reached_at timestamptz NOT NULL
 );
-
--- LevelReached waits here with the level kept until Redis takes it: a level-up told is a level-up rewarded.
-CREATE TYPE outbox_event AS ENUM ('progression.v1.LevelReached');
-
-CREATE TABLE outbox (
-    position bigserial    PRIMARY KEY,
-    event    outbox_event NOT NULL,
-    payload  bytea        NOT NULL
-);

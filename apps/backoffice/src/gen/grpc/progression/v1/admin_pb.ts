@@ -219,14 +219,14 @@ export class ReconcileLevelsResponse extends Message<ReconcileLevelsResponse> {
   raised = 0;
 
   /**
-   * The accounts whose level went down, or would: only while the players see no level.
+   * The accounts whose level went down, or would: the new rules no longer reach it.
    *
    * @generated from field: uint32 lowered = 2;
    */
   lowered = 0;
 
   /**
-   * The guests whose level was taken off, or would be: only while the players see no level.
+   * The guests whose level was taken off, or would be.
    *
    * @generated from field: uint32 removed = 3;
    */

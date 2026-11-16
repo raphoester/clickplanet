@@ -6,13 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"google.golang.org/protobuf/types/known/timestamppb"
-
-	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -30,23 +26,14 @@ type Levels interface {
 }
 
 type UseCase struct {
-	stats         Stats
-	accounts      Accounts
-	levels        Levels
-	transactioner cpatomic.Transactioner
-	outbox        cpatomic.Outbox
-	clock         cptime.Clock
-	visibility    levels.Visibility
+	stats    Stats
+	accounts Accounts
+	levels   Levels
+	clock    cptime.Clock
 }
 
-func New(
-	stats Stats, accounts Accounts, levels Levels, transactioner cpatomic.Transactioner, outbox cpatomic.Outbox,
-	clock cptime.Clock, visibility levels.Visibility,
-) *UseCase {
-	return &UseCase{
-		stats: stats, accounts: accounts, levels: levels, transactioner: transactioner, outbox: outbox, clock: clock,
-		visibility: visibility,
-	}
+func New(stats Stats, accounts Accounts, levels Levels, clock cptime.Clock) *UseCase {
+	return &UseCase{stats: stats, accounts: accounts, levels: levels, clock: clock}
 }
 
 // Execute answers the level it raised the account to, 0 when it raised none.
@@ -77,30 +64,12 @@ func (u *UseCase) Execute(ctx context.Context, account accounts.AccountID) (leve
 		return 0, nil
 	}
 
-	at := u.clock.Now()
-	var raised levels.Level
-	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
-		previous, err := u.levels.Raise(ctx, account, reach, at)
-		if err != nil {
-			return fmt.Errorf("failed to raise the level: %w", err)
-		}
-		if previous >= reach {
-			return nil
-		}
-		raised = reach
-		if err := u.outbox.Record(ctx, &progressionv1.LevelReached{
-			AccountId: account.String(),
-			Level:     uint32(reach),
-			Previous:  uint32(previous),
-			ReachedAt: timestamppb.New(at),
-			Silent:    u.visibility.Silent(),
-		}); err != nil {
-			return fmt.Errorf("failed to record the level reached: %w", err)
-		}
-		return nil
-	})
+	previous, err := u.levels.Raise(ctx, account, reach, u.clock.Now())
 	if err != nil {
-		return 0, err //nolint:wrapcheck // each step named it.
+		return 0, fmt.Errorf("failed to raise the level: %w", err)
 	}
-	return raised, nil
+	if previous >= reach {
+		return 0, nil
+	}
+	return reach, nil
 }

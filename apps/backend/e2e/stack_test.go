@@ -152,7 +152,7 @@ func startGame(t *testing.T) gameStack {
 				quizzes.NewModule(quizzesConfig),
 				antibot.NewModule(antibotConfig),
 				player.NewModule(playerConfig),
-				progression.NewModule(progressionConfig, progression.Levels{}),
+				progression.NewModule(progressionConfig),
 				chat.NewModule(chatConfig), scoring.NewModule(scoringConfig), support.NewModule(supportConfig),
 				missions.NewModule(missionsConfig), gamemaster.NewModule(gamemasterConfig), promo.NewModule(promoConfig),
 				mcp.NewModule(mcp.Config{Enabled: true, URL: "http://" + server.AdminBindAddress + "/mcp"}),

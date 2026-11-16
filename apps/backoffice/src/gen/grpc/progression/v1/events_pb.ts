@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
  * A take, a message, a bomb, a fortify, a box, a right answer or missions paid or done was counted on the account's
@@ -43,74 +43,6 @@ export class StatsChanged extends Message<StatsChanged> {
 
   static equals(a: StatsChanged | PlainMessage<StatsChanged> | undefined, b: StatsChanged | PlainMessage<StatsChanged> | undefined): boolean {
     return proto3.util.equals(StatsChanged, a, b);
-  }
-}
-
-/**
- * A linked account reached a higher level. Told once per raise, through progression's outbox, with the level kept: a
- * jump from 1 to 9 is one event, previous 1. A guest has no level and is never told.
- *
- * @generated from message progression.v1.LevelReached
- */
-export class LevelReached extends Message<LevelReached> {
-  /**
-   * @generated from field: string account_id = 1;
-   */
-  accountId = "";
-
-  /**
-   * @generated from field: uint32 level = 2;
-   */
-  level = 0;
-
-  /**
-   * The level kept before, 0 for an account that had none.
-   *
-   * @generated from field: uint32 previous = 3;
-   */
-  previous = 0;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp reached_at = 4;
-   */
-  reachedAt?: Timestamp;
-
-  /**
-   * Told while the players see no level (levels.shown off): nothing shows it, and a listener rewards none.
-   *
-   * @generated from field: bool silent = 5;
-   */
-  silent = false;
-
-  constructor(data?: PartialMessage<LevelReached>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "progression.v1.LevelReached";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "level", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 3, name: "previous", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 4, name: "reached_at", kind: "message", T: Timestamp },
-    { no: 5, name: "silent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LevelReached {
-    return new LevelReached().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LevelReached {
-    return new LevelReached().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LevelReached {
-    return new LevelReached().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: LevelReached | PlainMessage<LevelReached> | undefined, b: LevelReached | PlainMessage<LevelReached> | undefined): boolean {
-    return proto3.util.equals(LevelReached, a, b);
   }
 }
 

@@ -2,22 +2,8 @@ syntax = "proto3";
 
 package progression.v1;
 
-import "google/protobuf/timestamp.proto";
-
 // A take, a message, a bomb, a fortify, a box, a right answer or missions paid or done was counted on the account's
 // stats.
 message StatsChanged {
   string account_id = 1;
-}
-
-// A linked account reached a higher level. Told once per raise, through progression's outbox, with the level kept: a
-// jump from 1 to 9 is one event, previous 1. A guest has no level and is never told.
-message LevelReached {
-  string account_id = 1;
-  uint32 level = 2;
-  // The level kept before, 0 for an account that had none.
-  uint32 previous = 3;
-  google.protobuf.Timestamp reached_at = 4;
-  // Told while the players see no level (levels.shown off): nothing shows it, and a listener rewards none.
-  bool silent = 5;
 }

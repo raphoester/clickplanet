@@ -61,16 +61,6 @@ type Config struct {
 	Publishing publishing.Config
 	// The squad that flags the swastikas players paint on the map.
 	VandalSquad vandalsquad.Config
-	// Whether the players see their level: one key for every module it changes.
-	Levels LevelsConfig
-}
-
-type LevelsConfig struct {
-	Shown bool
-}
-
-func (c LevelsConfig) Validate() error {
-	return progression.Levels{Shown: c.Shown}.Validate()
 }
 
 func main() {
@@ -113,7 +103,7 @@ func describeModules(config Config) []cpbootstrap.Module {
 		antibot.NewModule(config.AntiBot),
 		chat.NewModule(config.Chat),
 		player.NewModule(config.Player),
-		progression.NewModule(config.Progression, progression.Levels{Shown: config.Levels.Shown}),
+		progression.NewModule(config.Progression),
 		scoring.NewModule(config.Scoring),
 		gamemaster.NewModule(config.Gamemaster),
 		missions.NewModule(config.Missions),
@@ -158,6 +148,5 @@ func (c Config) Validate() error {
 		c.Publishing.Validate(),
 		c.VandalSquad.Validate(),
 		c.MCP.Validate(),
-		c.Levels.Validate(),
 	)
 }

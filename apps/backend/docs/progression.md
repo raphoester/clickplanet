@@ -37,7 +37,7 @@ internal/progression/internal/
                                     suite (docs/levels.md)
     postgres_level_store/           the Store over progression.levels
     inmemory_level_store/           the same port in a map, behind the testing tag
-    usecases/raise_level_usecase/   — on StatsChanged: the level raised, then progression.v1.LevelReached in the outbox
+    usecases/raise_level_usecase/   — on StatsChanged: the level raised, told to nobody
     usecases/forget_level_usecase/
     usecases/reconcile_levels_usecase/  — every linked account the level its stats reach; AdminService/ReconcileLevels
       reconcile_levels_usecase/audit_reconcile_levels/  logs every reconciliation at Warn
@@ -476,7 +476,7 @@ happened](composite-layer.md#telling-other-modules-what-happened)):
 | `player-stats-missions` | `missions.v1.MissionsPaid` | keeps the missions paid in all |
 | `progression-stats-missions-done` | `missions.v1.MissionsDone` | keeps each kind's missions done and their goals |
 | `player-titles` | `progression.v1.StatsChanged` | grants the titles the stats now earn |
-| `progression-levels` | `progression.v1.StatsChanged` | raises the level the stats now reach, and records `LevelReached` ([Levels](levels.md#raised-live)) |
+| `progression-levels` | `progression.v1.StatsChanged` | raises the level the stats now reach ([Levels](levels.md#raised-live)) |
 | `player-finale-fights` | `gamemaster.v1.SeasonEnded` | records the finale's fights, then awards each fighter ([Season titles](season-titles.md)) |
 | `progression-nameplates` | `player.v1.PlayerCreated` | keeps a nameplate |
 | `progression-departures-leaving`, `progression-departures-returns` | `player.v1.PlayerLeaving`, `PlayerReturned` | keeps the latest decision |
@@ -487,8 +487,7 @@ hold a subscriber. **Errors are real errors**: absence is `ErrNoStats`, which th
 count or grant; on a request a database error is the error net's `internal`; on an event it is counted in
 `events_failed_total`, logged by `log_subscriber`, and the event tried again, then buried in `events:dead`.
 **`StatsChanged` is published, not put in an outbox**: a lost one only delays a title or a level to the account's next
-fact, and a reconciliation grants anything missed. **`LevelReached` goes through progression's outbox** (`outbox`,
-relay `progression-outbox`, migration `20261116092733_levels`): see [Levels](levels.md#raised-live).
+fact, and a reconciliation grants anything missed.
 
 ## The tables and their move
 

@@ -86,7 +86,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing/usecases/forget_worn_title_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/wearing/usecases/wear_title_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpbootstrap"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpoutbox"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -96,17 +95,17 @@ const moduleName = "progression"
 
 const frontsKeptFor = 30 * time.Second
 
-func NewModule(config Config, shown Levels) cpbootstrap.Module {
+func NewModule(config Config) cpbootstrap.Module {
 	return cpbootstrap.Module{
 		Name:    moduleName,
 		Enabled: true,
 		DiSequence: func(ctx context.Context, props cpbootstrap.Props) error {
-			return build(ctx, config, levels.Visibility(shown.Shown), props)
+			return build(ctx, config, props)
 		},
 	}
 }
 
-func build(ctx context.Context, config Config, visibility levels.Visibility, props cpbootstrap.Props) error {
+func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	clock := cptime.SystemClock{}
 
 	internal, baseURL, err := props.Internal.Dial()
@@ -151,7 +150,7 @@ func build(ctx context.Context, config Config, visibility levels.Visibility, pro
 	titleCards := inprocess_title_catalog.New(catalog)
 	recordStats := record_stats_usecase.New(statsStore, streams)
 	decideDeparture := decide_departure_usecase.New(departureStore)
-	raiseLevel := raise_level_usecase.New(statsStore, accounts, levelStore, db, cpoutbox.New(db), clock, visibility)
+	raiseLevel := raise_level_usecase.New(statsStore, accounts, levelStore, clock)
 
 	var subscribeErr error
 	subscribed := func(runner cpbootstrap.Runner, err error) cpbootstrap.Runner {
@@ -184,7 +183,6 @@ func build(ctx context.Context, config Config, visibility levels.Visibility, pro
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-nameplates-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_nameplate_usecase.New(nameplateStore)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-departures-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_departure_usecase.New(departureStore)), props.Logger))),
 		subscribed(cpredis.Subscribe(ctx, streams, "progression-levels-forgotten", log_subscriber.New(player_forgotten_subscriber.New(forget_level_usecase.New(levelStore)), props.Logger))),
-		cpoutbox.NewRelay("progression-outbox", db, streams, props.Logger),
 	}
 	if subscribeErr != nil {
 		_ = streams.Close()
@@ -224,7 +222,7 @@ func build(ctx context.Context, config Config, visibility levels.Visibility, pro
 			backfill_days_played_usecase.New(statsStore, playDays), props.Logger,
 		)),
 		ReconcileLevelsHandler: reconcile_levels_handler.New(audit_reconcile_levels.New(
-			reconcile_levels_usecase.New(statsStore, accounts, levelStore, clock, visibility), props.Logger,
+			reconcile_levels_usecase.New(statsStore, accounts, levelStore, clock), props.Logger,
 		)),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
@@ -233,7 +231,7 @@ func build(ctx context.Context, config Config, visibility levels.Visibility, pro
 		return fmt.Errorf("failed to mount progression.v1.AdminService: %w", err)
 	}
 
-	props.Logger.Info("progression built", slog.String("schema", config.Database.Schema), slog.Bool("levels_shown", bool(visibility)))
+	props.Logger.Info("progression built", slog.String("schema", config.Database.Schema))
 
 	return nil
 }
@@ -241,20 +239,6 @@ func build(ctx context.Context, config Config, visibility levels.Visibility, pro
 type Config struct {
 	Database cppg.Config
 	Redis    cpredis.Config
-}
-
-// Levels is levels.shown, which cmd/api reads once for every module it changes.
-type Levels struct {
-	Shown bool
-}
-
-var ErrNoUnlockLadder = errors.New("the players may see their level only once a level unlocks something, and nothing does yet")
-
-func (l Levels) Validate() error {
-	if l.Shown {
-		return fmt.Errorf("levels.shown: %w", ErrNoUnlockLadder)
-	}
-	return nil
 }
 
 func (c Config) Validate() error {

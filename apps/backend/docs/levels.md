@@ -5,33 +5,32 @@ again at each read, so a change of weights is one reconciliation. Only the level
 has no top. A guest has no XP and no level. The design is [Player level and unlocks](https://claude.ai/artifact/8bvS9FGScmFpbz4kfCVsy2);
 its first slice is [XP slice 1: hidden level bootstrap](https://claude.ai/artifact/Pf6X1m7gNk72F42q5U8n5A).
 
-**The level runs hidden: players see nothing.** Each fact counted raises it, each raise is told silent, and only the
-operator reads it (`AdminService/GetProgress`). No public read, no stream and no reward know it yet.
+**The level runs hidden: players see nothing.** Each fact counted raises it, and only the operator reads it
+(`AdminService/GetProgress`). Hidden means no public read answers the level and the page draws none (see [The
+reveal](#the-reveal)).
 
 ```
 levels/                            XP, Level, Record, Source, MissionKind (stats.MissionKind), MissionRate, Curve, Standing,
-                                   Scale (XPOf, Reach, StandingOf, ReconciliationOf), Visibility, ByAccount; the Store port and
-                                   its contract suite
+                                   Scale (XPOf, Reach, StandingOf, ReconciliationOf), ByAccount; the Store port and its
+                                   contract suite
   postgres_level_store/            the Store over progression.levels, under the rows' locks
   inmemory_level_store/            the same port in a map, behind the testing tag
-  usecases/raise_level_usecase/    on progression.v1.StatsChanged: the level raised, then progression.v1.LevelReached
+  usecases/raise_level_usecase/    on progression.v1.StatsChanged: the level raised
   usecases/forget_level_usecase/
   usecases/reconcile_levels_usecase/  progression.v1.AdminService/ReconcileLevels
     reconcile_levels_usecase/audit_reconcile_levels/  logs every reconciliation at Warn
 ```
 
-## The flag: `levels.shown`
+## The reveal
 
-**A top-level YAML key, `levels: {shown: false}`, read once by `cmd/api`** (`LevelsConfig`) and handed to each module it
-changes in that module's words: `progression.NewModule(config.Progression, progression.Levels{Shown: …})`, which
-progression reads as a `levels.Visibility` (`Hidden`, `Shown`). It is in `deploy/vps/backend.yaml`, `deploy/backend.yaml`
-and `cmd/api/example.yaml`; `TestThePlayersSeeNoLevelInAnyConfig` pins `false` in each. A flip is an edit and a deploy,
-and the restart reloads every page (see [A server restart reloads the page](../../../docs/reload-on-restart.md)).
+**No flag: the level stays hidden because nothing a player sees ships before the end.** The pieces that show it ship
+together, as the reveal:
 
-- **The boot refuses `shown: true`** (`progression.Levels.Validate`, `ErrNoUnlockLadder`): no level is shown before a
-  level unlocks something. Nothing does yet, so the guard is that alone.
-- **While hidden, a level-up is silent** (`LevelReached.silent`) and the reconciliation sets the exact level, lower too.
-  **Once shown, a level never goes down.**
+- the UI: the level and its bar on the page and on the card;
+- missions paying XP instead of charges;
+- `LevelReached`, through an outbox, with slice 3's bonus listener: both are added then, so no level gained before the
+  reveal pays a bonus;
+- the reconciliation made raise-only, so a level the players saw never goes down.
 
 ## What gives XP
 
@@ -92,7 +91,7 @@ The rates are first guesses, sized so a mission pays about the XP of the play it
 
 ## Guests
 
-**A guest's standing is empty** (`Standing.Empty`): no XP, no level, no row and no `LevelReached`, whatever it did. The
+**A guest's standing is empty** (`Standing.Empty`): no XP, no level and no row, whatever it did. The
 test is the titles' one: `accounts.Account.Linked`, as player tells it. A linked account that did nothing is at level 1.
 **A guest's history counts once it links** (the owner, 2026-11-16): a link keeps the account row, so its next fact
 raises it on the whole stats row, as its titles are earned on its whole career. A guest that signs in to another
@@ -135,16 +134,10 @@ the titles' `player-titles`):
 2. The level the stats reach (`Scale.Reach`) not above the level kept: stop. No call to player, no write. Most facts end
    here.
 3. Ask player whether the account is linked (`rpc_player_accounts`, as the titles do). A guest stops here.
-4. In one transaction, `Raise`, and record `progression.v1.LevelReached{account_id, level, previous, reached_at,
-   silent}` in progression's outbox, only when `Raise` answered a level below: a raise another write beat writes and
-   tells nothing.
+4. `Raise`: the store writes only above the level kept, so a raise another write beat writes nothing.
 
-- **One event per jump**: from 1 to 9 is one event, `previous: 1`. `silent` is `!levels.shown`.
-- **Through an outbox** (`cpoutbox`, relay `progression-outbox`), because the rewards to come pay one bonus per
-  `LevelReached` that is not silent: a lost one would be lost for good. See [What may not be
-  lost](composite-layer.md#what-may-not-be-lost-the-outbox).
-- **Nobody listens yet**, so `events:progression.v1.LevelReached` fills up to `redis.maxLen`. A listener added later
-  reads it from its start, the silent ones too, which is why each says it.
+- **One write per jump**: from 1 to 9 is one raise. The use case answers the level it raised to, 0 for none.
+- **It tells nobody.** A level-up event comes with the reveal.
 - A failure to read or to ask player is an error: the event is tried again, then buried.
 
 ## The reconciliation
@@ -155,12 +148,12 @@ changes the scale or the curve, and once after the one that added the level. Con
 
 - It pages `progression.stats` 500 at a time, asks player the page's accounts (`GetAccounts`, one call) and reads their
   levels (one query); `Scale.ReconciliationOf` says what to raise, lower and remove.
-- **Hidden**: every linked account gets the exact level its stats reach, lowered where a stricter scale no longer
-  reaches it (`Set`), and a guest's row is removed. **Shown**: it only raises.
+- **Every linked account gets the exact level its stats reach**: raised, or lowered where a stricter scale no longer
+  reaches it (`Set`), and a guest's row is removed. It becomes raise-only with the reveal.
 - **Raises go through `RaiseAll`**, so a page never lowers a level a live raise wrote after the page was read. A lowering
-  can still undo one, while hidden only: the account's next fact raises it again, silent.
-- **It publishes nothing**: a level it gives is never announced nor rewarded. `dry_run` counts the same and writes
-  nothing; a second run changes nothing. `audit_reconcile_levels` logs every run at Warn.
+  can still undo one: the account's next fact raises it again.
+- **It publishes nothing.** `dry_run` counts the same and writes nothing; a second run changes nothing.
+  `audit_reconcile_levels` logs every run at Warn.
 
 ## Forgotten
 

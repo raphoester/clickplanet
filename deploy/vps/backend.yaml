@@ -502,7 +502,3 @@ publishing:
 # through docker-compose.yaml.
 mcp:
   enabled: true
-
-# Whether the players see their level (apps/backend/docs/levels.md). The boot refuses true until a level unlocks something.
-levels:
-  shown: false

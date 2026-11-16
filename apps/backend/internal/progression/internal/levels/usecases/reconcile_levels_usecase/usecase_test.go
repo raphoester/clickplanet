@@ -51,11 +51,10 @@ func (f fixture) player(t *testing.T, i int, tiles uint64, known accounts.Accoun
 	}
 }
 
-func (f fixture) reconcile(t *testing.T, visibility levels.Visibility, dryRun bool) reconcile_levels_usecase.Reconciled {
+func (f fixture) reconcile(t *testing.T, dryRun bool) reconcile_levels_usecase.Reconciled {
 	t.Helper()
 
-	reconciled, err := reconcile_levels_usecase.New(f.stats, f.accounts, f.levels, cptime.NewFixedClock(now), visibility).
-		Execute(t.Context(), dryRun)
+	reconciled, err := reconcile_levels_usecase.New(f.stats, f.accounts, f.levels, cptime.NewFixedClock(now)).Execute(t.Context(), dryRun)
 	require.NoError(t, err)
 	return reconciled
 }
@@ -82,33 +81,22 @@ func (f fixture) mixed(t *testing.T) {
 	f.player(t, 5, level3Tiles, guest, 4)
 }
 
-func TestWhileHiddenEachAccountGetsTheExactLevelAndAGuestLosesIts(t *testing.T) {
+func TestEachAccountGetsTheExactLevelAndAGuestLosesIts(t *testing.T) {
 	f := setUp()
 	f.mixed(t)
 
-	reconciled := f.reconcile(t, levels.Hidden, false)
+	reconciled := f.reconcile(t, false)
 
 	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2, Lowered: 1, Removed: 1}, reconciled)
 	assert.Equal(t, levels.ByAccount{account(1): 3, account(2): 3, account(3): 3, account(4): 3}, f.kept(t, 1, 2, 3, 4, 5))
-	assert.Equal(t, reconcile_levels_usecase.Reconciled{}, f.reconcile(t, levels.Hidden, false), "a second run changes nothing")
-}
-
-func TestOnceShownALevelIsOnlyRaised(t *testing.T) {
-	f := setUp()
-	f.mixed(t)
-
-	reconciled := f.reconcile(t, levels.Shown, false)
-
-	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2}, reconciled)
-	assert.Equal(t, levels.ByAccount{account(1): 3, account(2): 3, account(3): 7, account(4): 3, account(5): 4}, f.kept(t, 1, 2, 3, 4, 5))
-	assert.Equal(t, reconcile_levels_usecase.Reconciled{}, f.reconcile(t, levels.Shown, false))
+	assert.Equal(t, reconcile_levels_usecase.Reconciled{}, f.reconcile(t, false), "a second run changes nothing")
 }
 
 func TestADryRunCountsTheSameAndWritesNothing(t *testing.T) {
 	f := setUp()
 	f.mixed(t)
 
-	reconciled := f.reconcile(t, levels.Hidden, true)
+	reconciled := f.reconcile(t, true)
 
 	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 2, Lowered: 1, Removed: 1}, reconciled)
 	assert.Equal(t, levels.ByAccount{account(2): 2, account(3): 7, account(4): 3, account(5): 4}, f.kept(t, 1, 2, 3, 4, 5))
@@ -121,14 +109,14 @@ func TestEveryPageIsReconciled(t *testing.T) {
 		f.player(t, i, level3Tiles, linked, 0)
 	}
 
-	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 1_001}, f.reconcile(t, levels.Hidden, false))
+	assert.Equal(t, reconcile_levels_usecase.Reconciled{Raised: 1_001}, f.reconcile(t, false))
 	assert.Equal(t, levels.ByAccount{account(1_001): 3}, f.kept(t, 1_001))
 }
 
 func TestNoStatsAsksNothing(t *testing.T) {
 	f := setUp()
 
-	assert.Equal(t, reconcile_levels_usecase.Reconciled{}, f.reconcile(t, levels.Hidden, false))
+	assert.Equal(t, reconcile_levels_usecase.Reconciled{}, f.reconcile(t, false))
 	assert.Empty(t, f.accounts.Asked())
 }
 
@@ -137,8 +125,7 @@ func TestAFailureToAskPlayerWritesNothing(t *testing.T) {
 	f.mixed(t)
 	f.accounts.FailWith(errors.New("player is down"))
 
-	_, err := reconcile_levels_usecase.New(f.stats, f.accounts, f.levels, cptime.NewFixedClock(now), levels.Hidden).
-		Execute(t.Context(), false)
+	_, err := reconcile_levels_usecase.New(f.stats, f.accounts, f.levels, cptime.NewFixedClock(now)).Execute(t.Context(), false)
 
 	require.ErrorContains(t, err, "player is down")
 	assert.Equal(t, levels.ByAccount{account(2): 2, account(3): 7, account(4): 3, account(5): 4}, f.kept(t, 1, 2, 3, 4, 5))

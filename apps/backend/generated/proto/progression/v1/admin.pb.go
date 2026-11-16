@@ -257,9 +257,9 @@ type ReconcileLevelsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The accounts whose level went up, or would.
 	Raised uint32 `protobuf:"varint,1,opt,name=raised,proto3" json:"raised,omitempty"`
-	// The accounts whose level went down, or would: only while the players see no level.
+	// The accounts whose level went down, or would: the new rules no longer reach it.
 	Lowered uint32 `protobuf:"varint,2,opt,name=lowered,proto3" json:"lowered,omitempty"`
-	// The guests whose level was taken off, or would be: only while the players see no level.
+	// The guests whose level was taken off, or would be.
 	Removed       uint32 `protobuf:"varint,3,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

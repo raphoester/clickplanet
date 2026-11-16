@@ -39,17 +39,16 @@ type Reconciled struct {
 const pageSize = 500
 
 type UseCase struct {
-	stats      Stats
-	accounts   Accounts
-	levels     Levels
-	clock      cptime.Clock
-	visibility levels.Visibility
+	stats    Stats
+	accounts Accounts
+	levels   Levels
+	clock    cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(stats Stats, accounts Accounts, levels Levels, clock cptime.Clock, visibility levels.Visibility) *UseCase {
-	return &UseCase{stats: stats, accounts: accounts, levels: levels, clock: clock, visibility: visibility}
+func New(stats Stats, accounts Accounts, levels Levels, clock cptime.Clock) *UseCase {
+	return &UseCase{stats: stats, accounts: accounts, levels: levels, clock: clock}
 }
 
 func (u *UseCase) Execute(ctx context.Context, dryRun bool) (Reconciled, error) {
@@ -77,7 +76,7 @@ func (u *UseCase) Execute(ctx context.Context, dryRun bool) (Reconciled, error) 
 			return reconciled, fmt.Errorf("failed to read the levels of a page: %w", err)
 		}
 
-		reconciliation := levels.Scale{}.ReconciliationOf(page, known, kept, u.visibility)
+		reconciliation := levels.Scale{}.ReconciliationOf(page, known, kept)
 		if !dryRun {
 			if err := u.write(ctx, reconciliation, at); err != nil {
 				return reconciled, err

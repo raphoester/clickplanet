@@ -29,8 +29,8 @@ var (
 	kept = levels.ByAccount{{15: 1}: 2, {15: 2}: 3, {15: 3}: 7, {15: 5}: 4, {15: 6}: 1}
 )
 
-func TestWhileHiddenEachLinkedAccountGetsTheExactLevelItsStatsReachAndAGuestNone(t *testing.T) {
-	reconciliation := levels.Scale{}.ReconciliationOf(page, known, kept, levels.Hidden)
+func TestEachLinkedAccountGetsTheExactLevelItsStatsReachAndAGuestNone(t *testing.T) {
+	reconciliation := levels.Scale{}.ReconciliationOf(page, known, kept)
 
 	assert.Equal(t, levels.ByAccount{{15: 1}: 3, {15: 4}: 3}, reconciliation.Raised(), "one with no level is raised too")
 	assert.Equal(t, levels.ByAccount{{15: 3}: 3}, reconciliation.Lowered())
@@ -38,23 +38,10 @@ func TestWhileHiddenEachLinkedAccountGetsTheExactLevelItsStatsReachAndAGuestNone
 		"a guest, and an account player does not know")
 }
 
-func TestOnceShownALevelOnlyGoesUp(t *testing.T) {
-	reconciliation := levels.Scale{}.ReconciliationOf(page, known, kept, levels.Shown)
-
-	assert.Equal(t, levels.ByAccount{{15: 1}: 3, {15: 4}: 3}, reconciliation.Raised())
-	assert.Empty(t, reconciliation.Lowered())
-	assert.Empty(t, reconciliation.Removed())
-}
-
 func TestAGuestWithNoLevelIsLeftAlone(t *testing.T) {
-	reconciliation := levels.Scale{}.ReconciliationOf([]stats.Stats{took(5, 5_000)}, known, levels.ByAccount{}, levels.Hidden)
+	reconciliation := levels.Scale{}.ReconciliationOf([]stats.Stats{took(5, 5_000)}, known, levels.ByAccount{})
 
 	assert.Empty(t, reconciliation.Raised())
 	assert.Empty(t, reconciliation.Lowered())
 	assert.Empty(t, reconciliation.Removed())
-}
-
-func TestALevelUpIsSilentWhileThePlayersSeeNoLevel(t *testing.T) {
-	assert.True(t, levels.Hidden.Silent())
-	assert.False(t, levels.Shown.Silent())
 }
