@@ -26,8 +26,14 @@ server's](counts.md)): a map read sets it from `GetMap`'s `infected`, and any ch
 (a tile update whose flag changed, a blast, an enclosure, a knock-out). `infectionMarksOf` turns a list of changes into
 marks with each tile's last change winning, since a virus that ends in the event that took a tile cures it at once.
 
-**An infected tile beats in `--virus`** (the pulse slot's fifth bit, `INFECTED_MARK`, 16): the display shader mixes the
-purple in at a 0.9 s beat and swells the tile. While any tile is infected, the loop keeps drawing (`pulsing`).
+**An infected tile is drawn as the bonus's icon** (the pulse slot's fifth bit, `INFECTED_MARK`, 16): its flag, the same
+size as every tile, in a `--virus` membrane, with 8 stalks and pods past it that turn, each tile from its own angle
+(`vSeed`, from its position), the pods beating one after the other. The sprite is 1.8 times the tile, to hold the pods,
+and is drawn 0.012 nearer the camera, so its pods lie over the tiles next to it whatever their depth or draw order; the
+pods' edges are hard, since a soft edge would write depth where it hardly draws. Under 9 CSS pixels a tile has no room
+for pods: it is washed in `--virus` alone. The owner, 2026-11-16: the first look, a tile washed in purple that swelled,
+was "pretty lame", and a flag shrunk into a smaller body looked smaller than the other tiles and weird. While any tile
+is infected, the loop keeps drawing (`pulsing`).
 
 **No ghost while a virus works**: while one is aimed or any tile is infected, the ghosts stand down and their tiles go
 back (see [Ghosts](ghosts.md)).
