@@ -101,7 +101,8 @@ func (s *testSuite) TestEveryAnswerTellsWhatEachKindOfMissionPays() {
 func (s *testSuite) TestEveryAnswerTellsTheLevelEachKindUnlocksAt() {
 	unlocks := s.level(ada).GetUnlocks()
 
-	s.Require().Len(unlocks, 2)
+	s.Require().Len(unlocks, 3)
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, Level: 4}, unlocks[0]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_BOMB, Level: 5}, unlocks[1]))
+	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_VIRUS, Level: 6}, unlocks[2]))
 }
