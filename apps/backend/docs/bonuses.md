@@ -5,33 +5,43 @@ the charges a player holds and spends are planet's wallet ([Charges](charges.md)
 bonuses module's, holding and spending is planet's.** The module left planet on 2026-11-11 (step B of [Offers and the
 wallet](offers-and-wallet.md)) as "the offers". Since, three cuts leave it with the reward alone: **the quizzes left it on
 2026-11-13** ([The quizzes](quizzes-module.md)) and **the boxes on 2026-11-15** ([The boxes](boxes-module.md)). The last
-cut, the player level, makes it hear progression.
+cut, the player level, does not make it hear progression: progression tells it what each account unlocked, in its words
+(see [The gates](#the-gates)).
 
 It is downstream of planet like [missions](missions.md): it asks planet's wallet, and planet knows nothing of it. **It
 speaks planet's, player's, the boxes' and the quizzes' language alone**: `cmd/api/modules_test.go` pins it
 (`TestTheBonusesSpeakPlanetsPlayersTheBoxesAndTheQuizzesLanguageAlone`, which also pins that planet names no `bonuses`).
+**It knows no level.** The gamemaster plays its rule sets and progression hears the gamemaster, so it may not hear
+progression: progression sends it a command in its words instead (`TestProgressionTellsTheBonusesWhatEachAccountUnlocked`).
 
 ## What it holds
 
 | package | what |
 |---|---|
-| `internal/bonuses` | a kind and its draw (`kind.go`), a box caught (`box.go`) and a right answer (`answer.go`), the ports it asks planet through (`wallet.go`), the sign-in grant (`sign_in.go`), its rules (`rules.go`, `message.go`) and the use cases `pay_caught_box`, `pay_right_answer` and `grant_sign_in_refill` |
+| `internal/bonuses` | a kind and its draw (`kind.go`), a box caught (`box.go`) and a right answer (`answer.go`), the ports it asks planet through (`wallet.go`), the kinds an account unlocked (`unlocked.go`), the sign-in grant (`sign_in.go`), its rules and gates (`rules.go`, `message.go`) and the use cases `pay_caught_box`, `pay_right_answer` and `grant_sign_in_refill` |
+| `internal/unlocks` | what progression last decided an account may be drawn (`Unlocks`, the latest by its time), its stores and the use cases `keep_unlocks` and `forget_unlocks` |
+| `internal/commands` | `bonuses.v1.KeepUnlocks`, handled |
 | `internal/rules` | the list of its parts (`parts.All()`) and its fixtures (`rules.Seeded()`); the machinery is `cprules` ([Shared](shared.md)) |
 | `internal/planetwords` | planet's words for a kind of charge (`planet.v1.BonusKind`) |
-| `internal/subscribers` | the boxes caught heard from the boxes, the answers heard from the quizzes, the new players heard from player |
+| `internal/subscribers` | the boxes caught heard from the boxes, the answers heard from the quizzes, the new and the forgotten players heard from player |
 | `internal/bonusesv1controller` | the handlers |
 
-Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`). Its config is the `bonuses:` block:
+Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`, `bonuses.unlocks`). Its config is the `bonuses:` block:
 `database` and `redis`; `offers.forgetAfter` and `offers.sweepInterval` are the boxes' since 2026-11-15.
 
 ## The wire (`proto/bonuses/v1/`)
 
 - **`BonusService`**, public, routed by Caddy (`/bonuses.v1.BonusService/*`): `GetGrantRules`, what the page shows of the
-  bonuses' rules, `sign_in_refill` today. A GET no cache keeps; the page reads it once a load. **It has no stream since
+  bonuses' rules: `sign_in_refill`, `gates_on`, and `open_kinds` in planet's words (`planet.v1.BonusKind`). The page reads
+  the level each kind unlocks at from progression (`GetLevelResponse.unlocks`) and draws a kind locked while
+  `gates_on`, not in `open_kinds` and above the player's level. A battle's set changes `gates_on`, and the page reads
+  `GetGrantRules` again when the set in force changes. A GET no cache keeps; the page reads it once a load. **It has no stream since
   2026-11-15**: the boxes' went to `boxes.v1.BoxService`, and a `rules_changed` alone was not worth a stream a page (the
   owner's call). Only `default` sets `signInRefill` in production, so a scheduled set never moves it; the operator's edit
   of it reaches an open page at its next load, and every deploy reloads the pages. `ClaimBonus` is the boxes' `ClaimBox`
   since 2026-11-15, `OpenQuiz` and `AnswerQuiz` the quizzes' since 2026-11-13.
+- **Commands**: `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}` (`commands.proto`), which progression sends
+  through its outbox, handled once on `commands:bonuses.v1.KeepUnlocks` (see [The gates](#the-gates)).
 - **Events**: none. `BonusClaimed` and the box facts are the boxes' since 2026-11-15 (`boxes.v1.BoxClaimed`, `BoxCaught`,
   `BoxLapsed`, `ForeignBoxClaimed`), `QuizAnswered` the quizzes' since 2026-11-13.
 - **`InternalService`**: `PlayRuleSet` (the gamemaster's; the latest `decided_at` wins; `FailedPrecondition` for a set
@@ -63,8 +73,9 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
 was caught.
 
 - **What the box holds is drawn at the catch** (`bonuses.CaughtBox.Reward`), as it was drawn at the offer before: a kind
-  from `kinds`, among those planet's room says the account's hand has room for (`GetRoom`, one account), and its amount
-  from `spread`, `enclose` and `shield`. **A newcomer's early box pays a spread or nothing** (`BoxClaimed.welcome`):
+  from `kinds`, among those planet's room says the account's hand has room for (`GetRoom`, one account) and, while the
+  gates are on, those the account may be drawn ([The gates](#the-gates)), and its amount from `spread`, `enclose` and
+  `shield`. **A newcomer's early box pays a spread or nothing** (`BoxClaimed.welcome`):
   never a refill or a bomb, as before.
 - **A box may pay nothing**, which it could not before: the boxes know no kind and ask no room, so a box comes to a full
   hand, or to one with room only for kinds weighed 0, as a quiz is asked of one. Counted in
@@ -77,9 +88,35 @@ was caught.
 ## A right answer
 
 **The bonuses module pays the right answers the quizzes tell** (`quizzes.v1.QuizAnswered`, group `bonuses-right-answers`,
-`pay_right_answer_usecase`), the same way: a kind drawn from `kinds` among those the hand has room for
-(`bonuses.Answer.Reward`), **shields or nothing for a newcomer's first quiz**, under the quiz's token. A wrong answer pays
+`pay_right_answer_usecase`), the same way: a kind drawn from `kinds` among those the hand has room for and the gates
+let (`bonuses.Answer.Reward`), **shields or nothing for a newcomer's first quiz**, under the quiz's token. A wrong answer pays
 nothing.
+
+## The gates
+
+**While a set's gates are on, a win is drawn only from the kinds open to everyone and the ones progression unlocked for
+the account**; off, from every kind (`Rules.MayDraw`). The ladder is progression's: which level unlocks which kind, one
+type per rung ([Levels](levels.md#the-unlocks)). The bonuses module knows no level, only the kinds it was told.
+
+- **`gates.on`**, and **`gates.open.*`**, a switch per kind: the kinds anyone may be drawn while the gates are on, a
+  guest too. `default` holds `on: false`, with refill, spread and shields open (migration `…_unlocks`): **every set has
+  the gates off until the levels are shown**, so no draw changes. A battle's set keeps them off: newcomers who come for a
+  battle fight with every kind. That is data, not code.
+- **A guest has nothing unlocked**: progression keeps no level for one, so it draws the open kinds alone.
+- **Gates decide only what is drawn.** A charge held stays usable whatever the gates: planet checks no level.
+- **A win whose kinds it may be drawn all weigh 0 pays nothing**, as a full hand does; a box's metric counts it
+  `nothing`. **A set with the gates on whose open kinds all weigh 0 is refused**: a guest's box could never be anything.
+- **A newcomer's welcome is its one kind or nothing**: a box's spread, a quiz's shields, each only if the account may be
+  drawn it.
+
+**The kinds unlocked are kept per account** (`unlocks.Unlocks`, `bonuses.unlocks(account_id, kinds unlocked_kind[],
+decided_at)`): what progression decided last. `bonuses.v1.KeepUnlocks` names the whole list at a time, never one change;
+`keep_unlocks_usecase` keeps it only when its `decided_at` is after the one kept, under an advisory lock per account, so a
+command told twice, late or out of order changes nothing, and fewer kinds than before are fewer. Progression sends it with
+each raise and for every account of `ReconcileLevels`, through its outbox. Each draw reads the account's row (a guest has
+none). A kind planet's `BonusKind` names that the bonuses module never draws is refused, and buried after its retries.
+
+A new kind on the ladder needs its value in `unlocked_kind` (a migration) and its switch in `gates.open`.
 
 ## Its rule sets
 
@@ -92,6 +129,8 @@ holds every value, another set only what it changes, and plays default's for the
 - `spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `shield.maxPerBox` — what a box or a right answer
   grants at most (and at least). The stacks those fill are planet's `charges.*`
 - `signInRefill` — a guest's first sign-in earns a refill ([A guest's first sign-in earns a refill](sign-in-refill.md))
+- `gates.on`, `gates.open.refill`, `spreadClicks`, `encloseClicks`, `bomb`, `shields` — whether a win is drawn only from
+  the open kinds and the ones the account unlocked ([The gates](#the-gates))
 - `quiz` (10) — `reserved` since 2026-11-13: the quizzes' rules are `quizzes.v1.Rules`
 - `boxes`, `offerTtl`, `missRetry`, `activeWithin`, `welcome`, `frozen` (1, 3, 4, 5, 9, 12) — `reserved` since
   2026-11-15: the boxes' rules are `boxes.v1.Rules`, copied from here ([The boxes](boxes-module.md#its-rule-sets)). A set
@@ -105,8 +144,8 @@ planet's rules ([Promo](promo.md)).
 
 - **The schedule plays the bonuses' set with planet**: the gamemaster calls `bonuses.v1.InternalService/PlayRuleSet`
   after planet's and the boxes', then the quizzes' (see [The gamemaster](gamemaster.md)). An entry's set must be kept by
-  planet, the antibot, the boxes, the bonuses module and the quizzes. The gamemaster plays the bonuses' set until the
-  player level, when the reward hears progression instead.
+  planet, the antibot, the boxes, the bonuses module and the quizzes. So the bonuses module never hears progression:
+  progression tells it what each account unlocked as a command ([The gates](#the-gates)).
 
 ### Where the sets came from
 
@@ -118,7 +157,10 @@ out of these sets in turn; the halves stay here, read no more, until a later rel
 
 ## A forgotten account
 
-Nothing the bonuses module keeps names an account for longer than a process lives.
+**The kinds unlocked go with the player**: `player.v1.PlayerForgotten` (group `bonuses-unlocks-forgotten`,
+`forget_unlocks_usecase`) deletes the account's row. A `KeepUnlocks` progression recorded before the forget can write it
+again, as a late fact does in progression. Nothing else the bonuses module keeps names an account for longer than a
+process lives.
 
 ## The sign-in refill
 
@@ -129,7 +171,10 @@ account (`SignInGrantOf`, the same id as before, so a grant planet made before t
 
 ## Tests
 
-The kinds' draw and amounts, a box's and an answer's welcome kind, the use cases' (a box's and a right answer's reward, the
-welcome's spread and shields, a hand with no room, a box that pays nothing), the box's metric, `planetwords'`
+The kinds' draw and amounts, a box's and an answer's welcome kind, the gates (a kind not unlocked never drawn, a guest
+drawn the open kinds, a set with the gates off giving a guest a bomb, a win whose kinds all weigh 0, the charges held
+untouched), the use cases' (a box's and a right answer's reward, the welcome's spread and shields, a hand with no room, a
+box that pays nothing), the unlocks (the latest decision kept, its stores' contract suite on postgres and in memory, the
+command's handler, the forget), the box's metric, `planetwords'`
 (`TestTheOffersAndTheWalletNameTheSameKinds`), the wallet's adapter, the subscribers', and the rules package's (its values,
 a set kept with the boxes' half, and `cprules`' contract suites on its migrations).

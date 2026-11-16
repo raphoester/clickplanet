@@ -10,11 +10,13 @@ public reads](#the-public-reads)), and the page draws none of them until the rev
 
 ```
 levels/                            XP, Level, Record, Source, MissionKind (stats.MissionKind), MissionRate, Curve, Standing,
-                                   Scale (XPOf, Reach, StandingOf, ReconciliationOf), ByAccount; the Store port and its
-                                   contract suite
+                                   Scale (XPOf, Reach, StandingOf, ReconciliationOf), ByAccount; the ladder (Kind, Unlock,
+                                   EncloseUnlock, BombUnlock, Ladder); Book, the store and the bonuses told in one
+                                   transaction; the Store port and its contract suite
   postgres_level_store/            the Store over progression.levels, under the rows' locks
   inmemory_level_store/            the same port in a map, behind the testing tag
   inprocess_level_feed/            each raise, to the account's open streams, in this process
+  outbox_bonuses_unlocks/          what a level unlocks, as bonuses.v1.KeepUnlocks in progression's outbox
   usecases/raise_level_usecase/    on progression.v1.StatsChanged: the level raised, told to the feed
   usecases/forget_level_usecase/
   usecases/reconcile_levels_usecase/  progression.v1.AdminService/ReconcileLevels
@@ -26,10 +28,13 @@ levels/                            XP, Level, Record, Source, MissionKind (stats
 **No flag: the level stays hidden because nothing a player sees ships before the end.** The pieces that show it ship
 together, as the reveal:
 
-- the UI: the level and its bar on the page and on the card, from the public reads that already answer them;
+- the UI: the level and its bar on the page and on the card, the locked kinds, from the public reads that already answer
+  them;
 - missions paying XP instead of charges (see [Missions pay XP](missions.md#missions-pay-xp));
-- `LevelReached`, through an outbox, with slice 3's bonus listener: both are added then, so no level gained before the
-  reveal pays a bonus;
+- the bonuses' gates on (`gates.on` in `default` and each set that is not a battle's): data the operator sets, while
+  every set keeps them off before;
+- the level-up bonus: a command progression sends the bonuses with a live raise (`bonuses.v1.PayLevelUp`), added then, so
+  no level gained before the reveal pays one;
 - the reconciliation made raise-only, so a level the players saw never goes down.
 
 ## What gives XP
@@ -141,15 +146,17 @@ the titles' `player-titles`):
 2. The level the stats reach (`Scale.Reach`) not above the level kept: stop. No call to player, no write. Most facts end
    here.
 3. Ask player whether the account is linked (`rpc_player_accounts`, as the titles do). A guest stops here.
-4. `Raise`: the store writes only above the level kept, so a raise another write beat writes nothing.
+4. `Raise`, through the book: in one transaction, the store writes only above the level kept, so a raise another write
+   beat writes nothing, and a raise that writes records `bonuses.v1.KeepUnlocks` with every kind its level unlocks
+   ([The unlocks](#the-unlocks)).
 5. Hand the raise to `inprocess_level_feed`: the level raised to, on its bar (`Scale.StandingAt`).
 
 - **One write per jump**: from 1 to 9 is one raise, and one `level_reached`. The use case answers the level it raised
   to, 0 for none.
 - **It tells only the account's open streams, in this process, at most once**: the feed drops for a stream 8 raises
-  behind, and an account with no stream open hears nothing. Nothing crosses to another module: `LevelReached`, with its
-  outbox, comes with the reveal. The use case calls the feed itself, after the raise: a raise another write beat, a
-  guest and a failure tell nothing.
+  behind, and an account with no stream open hears nothing. Only the bonuses' command crosses to another module: there
+  is no `LevelReached` event. The use case calls the feed itself, after the raise: a raise another write beat, a guest
+  and a failure tell nothing.
 - A failure to read or to ask player is an error: the event is tried again, then buried.
 
 ## The reconciliation
@@ -164,9 +171,40 @@ changes the scale or the curve, and once after the one that added the level. Con
   reaches it (`Set`), and a guest's row is removed. It becomes raise-only with the reveal.
 - **Raises go through `RaiseAll`**, so a page never lowers a level a live raise wrote after the page was read. A lowering
   can still undo one: the account's next fact raises it again.
-- **It publishes nothing**, not even to the open streams. `dry_run` counts the same and writes nothing; a second run
-  changes nothing.
+- **It tells no stream.** It records a `bonuses.v1.KeepUnlocks` for every account of a page, in the page's transaction
+  (`Book.Reconcile`): a linked one with what the level its stats reach unlocks, a guest whose row it removed with none.
+  Its time is the run's start, so a live raise after it wins at the bonuses. One run is the backfill of the bonuses'
+  unlocks. `dry_run` counts the same and writes and records nothing; a second run changes no level.
   `audit_reconcile_levels` logs every run at Warn.
+
+## The unlocks
+
+**Progression keeps the ladder: which level unlocks which kind of bonus, one type per rung** (`levels.Unlock`), as the
+title tracks are. The bonuses module knows no level: it is told the kinds each account unlocked, and draws from them
+while its set's gates are on ([The bonuses](bonuses.md#the-gates)).
+
+| Type            | Kind             | Level |
+| --------------- | ---------------- | ----- |
+| `EncloseUnlock` | `enclose_clicks` | 4     |
+| `BombUnlock`    | `bomb`           | 5     |
+
+- **Only the kinds that exist are on it.** The virus goes on at 6 once it is a kind (#822), Mine at 8 and Rally at 10
+  once they are. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses' `gates.open`. Refill,
+  spread and shields are open there.
+- **A `Kind` is planet's word**: `planet.v1.BonusKind` without its prefix, in lower case. `planetwords.BonusKind` maps
+  it strictly, and `TestEveryKindOnTheLadderIsOneOfPlanets` fails for a rung planet does not name.
+- **The bonuses are told as a command in their words**, `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}`, not an
+  event: the gamemaster plays the bonuses' rule sets and progression hears the gamemaster, so the bonuses may not hear
+  progression. `levels.Book` holds the transactioner, the store and the `Bonuses` port: each raise that writes and each
+  reconciliation page record it in the transaction that writes the levels, through `outbox_bonuses_unlocks` and
+  progression's outbox (`progression.outbox`, its `outbox_event` enum, the relay `progression-outbox` on the commands'
+  streams). A level kept is never told late or lost; a raise whose command fails is not kept
+  (`TestARaiseWhoseCommandFailsIsNotKept`, on postgres).
+- **The list is whole each time**, even on a raise that unlocks nothing new: the bonuses keep the latest by
+  `decided_at`, so a list told twice, late or out of order changes nothing, and a lowering before the reveal is a
+  shorter list.
+
+`ProgressionService/GetLevel` answers the ladder (`unlocks`) for the page to draw a locked kind with its level.
 
 ## Forgotten
 
@@ -181,7 +219,8 @@ stats give now (`Scale.XPOf`), and the two thresholds of the level kept (`level_
 `GetLevel` and the stream never disagree: a level shows once a raise or the reconciliation wrote it. They ship before
 the reveal and are harmless: the page draws none of them.
 
-- **`ProgressionService/GetLevel`** → `{level, mission_rates}`, the caller's own: `Identified` behind the session
+- **`ProgressionService/GetLevel`** → `{level, mission_rates, unlocks}`, the caller's own; `unlocks` is the ladder, one
+  `Unlock{kind, level}` per rung, the kind in planet's words (`planet.v1.BonusKind`): `Identified` behind the session
   interceptor, `NO_SIDE_EFFECTS` (`get_level_handler`, `level_query`).
 - **`ProgressionService/GetProgress`**, the public card, answers `Progress.level` the same way (`progress_query`).
 - **`ListenForEvents` sends `level_reached`**, a `Level`, to the caller's own open stream at each raise (see
@@ -221,3 +260,8 @@ use the same port: the level kept on its bar (`Level`) and the rates (`MissionRa
 2. `progression_reconcile_levels`, dry run, then for real.
 3. Spot-check a few accounts with `progression_get_progress` against the design's ship-day numbers: a median about
    level 9, the top about 29.
+
+## After the deploy that added the unlocks
+
+1. `progression_reconcile_levels`, dry run, then for real: it tells the bonuses every account's unlocks, the backfill.
+2. Nothing changes for a player: every bonuses set keeps `gates.on` off until the reveal.
