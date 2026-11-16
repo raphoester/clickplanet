@@ -69,8 +69,8 @@ import {useTerritoryCard} from "../territory/useTerritoryCard.ts";
 import {usePresence} from "../players/usePresence.ts";
 import {useRosterFeed} from "../players/useRosterFeed.ts";
 import {useProgressionEvents} from "../account/useProgressionEvents.ts";
-import {LadderReader, ProgressionListener} from "../../backends/progression.ts";
-import {useGatesFeed} from "../bonus/ladderStore.ts";
+import {LevelReader, ProgressionListener} from "../../backends/progression.ts";
+import {useGatesFeed} from "../bonus/gatesFeed.ts";
 import {useLevel, useLevelFeed} from "../level/levelStore.ts";
 import LevelLine from "../level/LevelLine.tsx";
 import {WarningAcknowledger, WarningsListener} from "../../backends/antibot.ts";
@@ -183,8 +183,8 @@ export type Backends = {
     chargesRefresher: ChargesRefresher
     grantRules: GrantRulesRefresher
     sessions: SessionSource
-    // The player's level and the level each gated bonus opens at.
-    ladder: LadderReader
+    // The player's level on its bar, and the level each gated bonus opens at.
+    levels: LevelReader
     clips: ClipsBackend & ClipsNameBackend
     // A battle's teaser cards.
     promo: PromoBackend
@@ -260,7 +260,7 @@ export default function PlayScreen(props: PlayScreenProps) {
             if (ownAccountId) useBadges.getState().expire(ownAccountId)
         },
         levelReached: (level) => {
-            useLevel.getState().heard(level)
+            useLevel.getState().reached(level)
             announce({kind: "level", level})
         },
     })
@@ -278,8 +278,8 @@ export default function PlayScreen(props: PlayScreenProps) {
     const race = useRace((standings) => standings.race)
     const [accepted] = useState(acceptedClicks)
     useGuidedTakes(props.showFront ?? false, accepted.listenForClicks)
-    useLevelFeed(backends.account, ownAccountId, linked, accepted.listenForClicks)
-    useGatesFeed(backends, {accountId: ownAccountId, linked, listenForClicks: accepted.listenForClicks})
+    useLevelFeed(backends.levels, backends.sessions, {accountId: ownAccountId, linked, listenForClicks: accepted.listenForClicks})
+    useGatesFeed(backends.grantRules)
     const mood = moodOf(turn, frozen)
     useMood(mood)
     const battleOver = useBattleOver(battle, debrief)

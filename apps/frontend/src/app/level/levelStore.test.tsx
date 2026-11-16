@@ -2,89 +2,124 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {StrictMode} from "react"
-import {PlayerLevel} from "../../backends/progression.ts"
-import {ListenForClicks} from "../clicks/acceptedClicks.ts"
-import {LevelReader, useLevel, useLevelFeed} from "./levelStore.ts"
+import {LevelRead, LevelReader, PlayerLevel} from "../../backends/progression.ts"
+import {acceptedClicks, ListenForClicks} from "../clicks/acceptedClicks.ts"
+import {SETTLE_MS} from "../clicks/useAcceptedClicks.ts"
+import {useLevel, useLevelFeed} from "./levelStore.ts"
 
 const eleven: PlayerLevel = {level: 11, xp: 14_000, levelXp: 14_000, nextLevelXp: 18_634}
 const twelve: PlayerLevel = {level: 12, xp: 18_700, levelXp: 18_634, nextLevelXp: 24_192}
+const unlocks = {encloseClicks: 4, bomb: 5}
 
-type HarnessProps = {reader: LevelReader, accountId?: string, linked: boolean, listenForClicks?: ListenForClicks}
-
-function Harness({reader, accountId = "account-1", linked, listenForClicks = () => () => {}}: HarnessProps) {
-    useLevelFeed(reader, accountId, linked, listenForClicks)
-    return null
+const answering = (...reads: (LevelRead | undefined)[]) => {
+    const readLevel = vi.fn<() => Promise<LevelRead | undefined>>(async () => reads[reads.length - 1])
+    for (const read of reads) readLevel.mockResolvedValueOnce(read)
+    return {readLevel}
 }
 
-const reading = (...levels: (PlayerLevel | undefined)[]) => {
-    const level = vi.fn<() => Promise<PlayerLevel | undefined>>()
-    for (const answer of levels) level.mockResolvedValueOnce(answer)
-    return {level}
+function sessionsOf() {
+    let tell: (token: string) => void = () => {}
+    return {
+        sessions: {listenForSessions: (onSession: (token: string) => void) => {
+            tell = onSession
+            return () => {}
+        }},
+        tell: (token: string) => act(() => tell(token)),
+    }
+}
+
+type HarnessProps = {reader: LevelReader, accountId?: string, linked: boolean, listenForClicks?: ListenForClicks, sessions?: ReturnType<typeof sessionsOf>["sessions"]}
+
+function Harness({reader, accountId = "account-1", linked, listenForClicks = acceptedClicks().listenForClicks, sessions = sessionsOf().sessions}: HarnessProps) {
+    useLevelFeed(reader, sessions, {accountId, linked, listenForClicks})
+    return null
 }
 
 afterEach(() => {
     cleanup()
     useLevel.getState().forget()
+    vi.useRealTimers()
 })
 
 describe("useLevelFeed", () => {
-    it("reads a signed-in account's level into the store", async () => {
-        const reader = reading(eleven)
+    it("reads the level and the ladder in one call", async () => {
+        const reader = answering({level: eleven, unlocks})
         render(<Harness reader={reader} linked/>)
 
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
+        expect(useLevel.getState().unlocks).toEqual(unlocks)
+        expect(reader.readLevel).toHaveBeenCalledTimes(1)
     })
 
-    it("reads nothing for a guest, which has no level", () => {
-        const reader = reading(eleven)
-        render(<Harness reader={reader} linked={false}/>)
+    it("reads a guest's ladder, which has no level", async () => {
+        render(<Harness reader={answering({unlocks})} linked={false}/>)
 
-        expect(reader.level).not.toHaveBeenCalled()
+        await vi.waitFor(() => expect(useLevel.getState().unlocks).toEqual(unlocks))
         expect(useLevel.getState().own).toBeUndefined()
     })
 
-    it("forgets the level when the account signs out", async () => {
-        const reader = reading(eleven)
+    it("keeps nothing while no session is held to read with", async () => {
+        render(<Harness reader={answering(undefined)} linked={false}/>)
+        await act(async () => {})
+
+        expect(useLevel.getState()).toMatchObject({own: undefined, unlocks: {}})
+    })
+
+    it("forgets the level and the ladder when the account signs out or changes, and reads again", async () => {
+        const reader = answering({level: eleven, unlocks}, {unlocks})
         const view = render(<Harness reader={reader} linked/>)
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
 
-        view.rerender(<Harness reader={reader} linked={false}/>)
+        view.rerender(<Harness reader={reader} accountId="account-2" linked={false}/>)
 
         expect(useLevel.getState().own).toBeUndefined()
+        await vi.waitFor(() => expect(reader.readLevel).toHaveBeenCalledTimes(2))
     })
 
     it("keeps a level reached over a read that answers the one before", async () => {
-        let answer: (level: PlayerLevel) => void = () => {}
-        const reader = {level: vi.fn(() => new Promise<PlayerLevel | undefined>((resolve) => answer = resolve))}
+        let answer: (read: LevelRead) => void = () => {}
+        const reader = {readLevel: vi.fn(() => new Promise<LevelRead | undefined>((resolve) => answer = resolve))}
         render(<Harness reader={reader} linked/>)
 
-        act(() => useLevel.getState().heard(twelve))
-        await act(async () => answer(eleven))
+        act(() => useLevel.getState().reached(twelve))
+        await act(async () => answer({level: eleven, unlocks}))
 
         expect(useLevel.getState().own).toEqual(twelve)
+        expect(useLevel.getState().unlocks).toEqual(unlocks)
     })
 
-    it("reads again once a run of clicks settles", async () => {
+    it("reads again once a signed-in player's clicks settle, a guest's never", async () => {
         vi.useFakeTimers()
-        let click = () => {}
-        const listenForClicks: ListenForClicks = (onClick) => {
-            click = () => onClick({tile: 1, countryCode: "fr"} as never)
-            return () => {}
-        }
-        const reader = reading(eleven, {...eleven, xp: 14_200})
-        render(<Harness reader={reader} linked listenForClicks={listenForClicks}/>)
+        const clicks = acceptedClicks()
+        const signedIn = answering({level: eleven, unlocks})
+        const guest = answering({unlocks})
+        render(<Harness reader={signedIn} linked listenForClicks={clicks.listenForClicks}/>)
+        render(<Harness reader={guest} accountId="guest-1" linked={false} listenForClicks={clicks.listenForClicks}/>)
+        await act(async () => {})
 
-        act(() => click())
-        await act(async () => vi.advanceTimersByTimeAsync(60_000))
-        vi.useRealTimers()
+        act(() => clicks.record({country: "fr", took: true}))
+        await act(async () => vi.advanceTimersByTime(SETTLE_MS))
 
-        await vi.waitFor(() => expect(useLevel.getState().own).toEqual({...eleven, xp: 14_200}))
-        expect(reader.level).toHaveBeenCalledTimes(2)
+        expect(signedIn.readLevel).toHaveBeenCalledTimes(2)
+        expect(guest.readLevel).toHaveBeenCalledTimes(1)
+    })
+
+    it("reads again on a new session, as a guest's first click makes one", async () => {
+        const reader = answering({unlocks})
+        const {sessions, tell} = sessionsOf()
+        render(<Harness reader={reader} linked={false} sessions={sessions}/>)
+        await act(async () => {})
+
+        tell("guest-token")
+        await act(async () => {})
+        tell("guest-token")
+        await act(async () => {})
+
+        expect(reader.readLevel).toHaveBeenCalledTimes(2)
     })
 
     it("keeps the level read in StrictMode", async () => {
-        const reader = {level: vi.fn(async () => eleven)}
-        render(<StrictMode><Harness reader={reader} linked/></StrictMode>)
+        render(<StrictMode><Harness reader={answering({level: eleven, unlocks})} linked/></StrictMode>)
 
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
     })

@@ -26,27 +26,31 @@ the rest of the reveal (missions paying XP, the level-up bonus, the unlock level
 
 ## The numbers
 
-- **`useLevel`** (`levelStore.ts`) holds the page's own level. **`useLevelFeed`**, which `PlayScreen` calls, reads
-  `GetLevel` (`AccountStore.level`, with the click token) when a signed-in account loads and again once its clicks
-  settle (`useReadsAfterClicks`, as the titles), and forgets the level when the account signs out or changes. The
-  stream's `level_reached` goes to the same store, from `PlayScreen` (`useProgressionEvents`, the titles' stream).
+- **One read of `GetLevel` serves the whole page.** `LevelReader.readLevel` (`ConnectProgressionBackend`) answers the
+  level on its bar and the level each gated kind opens at (`LevelRead`), with the session held, and nothing with none,
+  so it never makes one. Missions' XP rates come from the same read when they ship: no part of the page calls
+  `GetLevel` itself.
+- **`useLevel`** (`levelStore.ts`) holds it: the page's own level (`own`) and the unlocks, which the dock, the Progress
+  tab, the profile and the bonus bar's locks all read. **`useLevelFeed`**, which `PlayScreen` calls, reads at load, on
+  each new session (`listenForSessions`: a guest's first click makes one) or account, and, signed in, once its clicks
+  settle (`useReadsAfterClicks`, as the titles); it forgets both when the account signs out or changes. The stream's
+  `level_reached` goes to the same store (`reached`), from `PlayScreen` (`useProgressionEvents`, the titles' stream),
+  so a level reached opens the bar's kinds at once.
 - **`newerLevel`** (`domain/level.ts`): a read sent before a raise never takes the level shown back down.
 - **`barOf`** (`domain/level.ts`) is the bar: the XP gained on the level and what the level asks. The server sends the
   XP as it counts it, which passes the next threshold until the raise lands (the bar shows full) or sits under the
   level's own after a stricter scale (empty): the bar clamps.
-- **A guest draws nothing**: no read, an empty store, and its card has no level. A signed-in account the server keeps
+- **A guest draws no level**: the read answers its unlocks alone (the bar locks by them), and its card has no level. A signed-in account the server keeps
   no level for draws nothing either, until its first `level_reached`, which shows the level and plays the moment.
 
 ## Not here
 
-The XP a mission pays (`GetLevel`'s `mission_rates`, which `ProgressionBackend.level` does not map), the locks on the
-bonus slots and the next unlock belong to the missions' and the bonus bar's work. The bonus bar reads `GetLevel` itself
-for its locks (`LadderReader.ladder`, `useGatesFeed`, a guest's too, from the session held): two reads of one call after
-a run of clicks, which one read could serve.
+The XP a mission pays (`mission_rates`, which `readLevel` does not map yet), how the bonus bar draws its locks (see
+[Charges](charges.md#the-inventory)) and the next unlock belong to the missions' and the bonus bar's work.
 
 ## The fake
 
-Every fake player has a level from its seed, on the server's curve (`fakeLevels.ts`, the fake's own copy). The fake's ladder
-answers the same level, so the bar's locks and the dock agree. `giveXp(500)`
+Every fake player has a level from its seed, on the server's curve (`fakeLevels.ts`, the fake's own copy). `FakeAccountBackend.readLevel`
+answers it with enclose at 4 and the bomb at 5, as the server's ladder. `giveXp(500)`
 adds XP to the signed-in player and plays the level-up when it passes a level; XP below a level shows at the next
 read, after a run of clicks (see [Commands](commands.md)).

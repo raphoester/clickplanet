@@ -23,7 +23,6 @@ import {FakeNameplates} from "./backends/fakeNameplates.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
 import {closedOf} from "./domain/debrief.ts"
-import {NO_LEVEL} from "./domain/bonus.ts"
 import {battleCommands, FakeTurnBackend, seasonRunningAt} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
@@ -397,7 +396,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         chargesRefresher: fake,
         grantRules: fake,
         sessions: {listenForSessions: () => () => {}},
-        ladder: {ladder: async () => ({level: (await fakeAccount.level())?.level ?? NO_LEVEL, unlocks: {encloseClicks: 4, bomb: 5}})},
+        levels: fakeAccount,
         account,
         clips: fakeClips,
         promo: fakePromo,
@@ -463,7 +462,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         chargesRefresher: backend,
         grantRules: backend,
         sessions: backend,
-        ladder: progression,
+        levels: progression,
         clips,
         promo,
         crazyGames,

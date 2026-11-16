@@ -235,21 +235,6 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<ProgressionEventP
     }),
 })
 
-describe("ConnectProgressionBackend own level", () => {
-    it("reads the caller's level with the click token", async () => {
-        const getLevel = vi.fn(async () => ({level: new LevelPb({level: 3, xp: 222n, levelXp: 112n, nextLevelXp: 378n}), missionRates: []}))
-
-        expect(await backendWith({getLevel}).level()).toEqual({level: 3, xp: 222, levelXp: 112, nextLevelXp: 378})
-        expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
-    })
-
-    it("reads an unset level as none, as a guest's", async () => {
-        const getLevel = vi.fn(async () => ({missionRates: []}))
-
-        expect(await backendWith({getLevel}).level()).toBeUndefined()
-    })
-})
-
 describe("ConnectProgressionBackend progression stream", () => {
     it("opens the stream with the token held, never a mint, hands each title earned and skips the heartbeats", async () => {
         const session = holding("identity-1")
@@ -313,10 +298,10 @@ describe("ConnectProgressionBackend progression stream", () => {
     })
 })
 
-describe("the ladder", () => {
-    it("reads the level and what each gated kind opens at, with the token held", async () => {
+describe("the level read", () => {
+    it("reads the level on its bar and what each gated kind opens at, in one call with the token held", async () => {
         const getLevel = vi.fn(async () => ({
-            level: new LevelPb({level: 3}),
+            level: new LevelPb({level: 3, xp: 222n, levelXp: 112n, nextLevelXp: 378n}),
             unlocks: [
                 new UnlockPb({kind: BonusKind.ENCLOSE_CLICKS, level: 4}),
                 new UnlockPb({kind: BonusKind.BOMB, level: 5}),
@@ -325,22 +310,26 @@ describe("the ladder", () => {
         }))
         const session = holding("token-1")
 
-        expect(await backendWith({getLevel}, session).ladder()).toEqual({level: 3, unlocks: {encloseClicks: 4, bomb: 5}})
+        expect(await backendWith({getLevel}, session).readLevel()).toEqual({
+            level: {level: 3, xp: 222, levelXp: 112, nextLevelXp: 378},
+            unlocks: {encloseClicks: 4, bomb: 5},
+        })
+        expect(getLevel).toHaveBeenCalledTimes(1)
         expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
         expect(session.token).not.toHaveBeenCalled()
     })
 
-    it("reads a guest's level as 0", async () => {
+    it("reads a guest's as no level, with the ladder all the same", async () => {
         const getLevel = vi.fn(async () => ({unlocks: [new UnlockPb({kind: BonusKind.BOMB, level: 5})]}))
 
-        expect(await backendWith({getLevel}, holding("guest")).ladder()).toEqual({level: 0, unlocks: {bomb: 5}})
+        expect(await backendWith({getLevel}, holding("guest")).readLevel()).toEqual({level: undefined, unlocks: {bomb: 5}})
     })
 
     it("reads nothing, and makes no session, while none is held", async () => {
         const getLevel = vi.fn()
         const session = holding(undefined)
 
-        expect(await backendWith({getLevel}, session).ladder()).toBeUndefined()
+        expect(await backendWith({getLevel}, session).readLevel()).toBeUndefined()
         expect(getLevel).not.toHaveBeenCalled()
         expect(session.token).not.toHaveBeenCalled()
     })

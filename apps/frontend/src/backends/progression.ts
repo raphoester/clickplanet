@@ -1,5 +1,5 @@
 import {PlayerTitle} from "./title.ts"
-import {Ladder} from "../domain/bonus.ts"
+import {UnlockLevels} from "../domain/bonus.ts"
 
 export type {PlayerTitle, TitleRank} from "./title.ts"
 
@@ -32,9 +32,17 @@ export type CountryTiles = {
     tiles: number
 }
 
-export interface LadderReader {
+// What GetLevel answers the caller, read once for every part of the page that shows it.
+export type LevelRead = {
+    // None for a guest, or an account no fact has raised yet.
+    level?: PlayerLevel
+    // The level each gated kind opens at.
+    unlocks: UnlockLevels
+}
+
+export interface LevelReader {
     // None until the page holds a session: the read never makes one.
-    ladder(): Promise<Ladder | undefined>
+    readLevel(): Promise<LevelRead | undefined>
 }
 
 export interface ProgressionBackend {
@@ -43,9 +51,6 @@ export interface ProgressionBackend {
     wearTitle(id: string): Promise<PlayerTitle | undefined>
 
     fronts(): Promise<Fronts>
-
-    // The caller's own level, none for a guest or an account no fact has raised yet.
-    level(): Promise<PlayerLevel | undefined>
 }
 
 // The level kept, on its bar: the XP can pass nextLevelXp until the raise lands.

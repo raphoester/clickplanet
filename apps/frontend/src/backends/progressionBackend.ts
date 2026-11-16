@@ -10,12 +10,13 @@ import {
     Track as TrackPb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {AccountBadge, BadgesBackend} from "./badges.ts"
-import {Ladder, NO_LEVEL, UnlockLevels} from "../domain/bonus.ts"
+import {UnlockLevels} from "../domain/bonus.ts"
 import {chargeKindOf} from "./bonusKind.ts"
 import {
     CountryTiles,
     Fronts,
-    LadderReader,
+    LevelRead,
+    LevelReader,
     PlayerLevel,
     PlayerTitle,
     Progress,
@@ -40,7 +41,7 @@ export function newProgressionServiceClient(config: Config): PromiseClient<typeo
     }))
 }
 
-export class ConnectProgressionBackend implements ProgressionBackend, ProgressReader, BadgesBackend, ProgressionListener, LadderReader {
+export class ConnectProgressionBackend implements ProgressionBackend, ProgressReader, BadgesBackend, ProgressionListener, LevelReader {
     constructor(
         private readonly client: PromiseClient<typeof ProgressionService>,
         private readonly session: SessionProvider,
@@ -68,19 +69,13 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
         return {playsFor: res.playsFor.map(countryTilesOf), playsAgainst: res.playsAgainst.map(countryTilesOf)}
     }
 
-    public async level(): Promise<PlayerLevel | undefined> {
-        const res = await this.authenticated((headers) =>
-            retrying(() => this.client.getLevel({}, {headers}), "GetLevel"))
-        return levelOf(res.level)
-    }
-
-    public async ladder(): Promise<Ladder | undefined> {
+    public async readLevel(): Promise<LevelRead | undefined> {
         const token = this.session.heldIdentity()
         if (!token) return undefined
 
         const headers = new Headers({[SESSION_HEADER]: token})
         const res = await retrying(() => this.client.getLevel({}, {headers}), "GetLevel")
-        return {level: res.level?.level ?? NO_LEVEL, unlocks: unlocksOf(res.unlocks)}
+        return {level: levelOf(res.level), unlocks: unlocksOf(res.unlocks)}
     }
 
     public async progress(accountId: string): Promise<Progress | undefined> {

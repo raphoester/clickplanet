@@ -20,7 +20,8 @@ Beside them: `session.ts` (the click token, see [Sessions](sessions.md)),
 playing](who-is-playing.md)) and `PlayerReader`, who a player is on its card.
 `playerBackend.ts` implements them against `player.v1.PlayerService`.
 `progression.ts` is what a player earned: `ProgressionBackend` (its own titles,
-the title it wears, its fronts and its level, `GetLevel`), `ProgressReader` (a player's progress on its
+the title it wears and its fronts), `LevelReader` (its level and what each gated kind opens at, one `GetLevel` for the
+whole page), `ProgressReader` (a player's progress on its
 card) and `ProgressionListener` (the titles it earns and the levels it reaches, live, on one stream).
 `progressionBackend.ts` implements them, and the badges, against `progression.v1.ProgressionService`
 (see [Titles](titles.md), [The level](level.md) and [Badges](badges.md)). A level, on the card's `Progress.level`,
@@ -317,8 +318,9 @@ of a server restart opens it again 500 ms later.
   `openKinds`, with planet's rules, through `onRules`, nothing before planet's are read. The bonuses module has no stream
   since 2026-11-15, so `refreshGrantRules` reads them again when the gamemaster's turn moves to another entry, and tells
   them only when they changed (see [Charges](charges.md#the-inventory)).
-- **The ladder** is progression's `GetLevel`: `ConnectProgressionBackend.ladder()` reads the player's level and each
-  gated kind's opening level with the session held, and nothing with none, so it never makes one.
+- **The ladder** is progression's `GetLevel`: `ConnectProgressionBackend.readLevel()` reads the player's level and each
+  gated kind's opening level with the session held, and nothing with none, so it never makes one (see [The
+  level](level.md#the-numbers), which reads it once for the whole page).
 - **The fakes have no such stream**: `FakeBackend` implements `BoxCatcher` itself, pays a box a moment after its catch,
   and `ReplayBackend` offers none.
 

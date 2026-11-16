@@ -3,7 +3,7 @@ import {CALLBACK_PATH} from "../domain/signInCallback.ts"
 import {FAKE_YOU} from "./fakeAccounts.ts"
 import {Nameplate} from "./nameplates.ts"
 import {ColoredProfile, NameColor, PlayerBackend, PlayerError, Profile} from "./player.ts"
-import {Fronts, PlayerLevel, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
+import {Fronts, LevelRead, LevelReader, PlayerLevel, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
 
 // Offers no provider until offerSignIn(). completeSignIn takes the code for the name to sign in with: the console's
 // signIn() calls it, as the callback page would.
@@ -15,7 +15,10 @@ export type FakeCareer = {
     wear(id: string): PlayerTitle | undefined
 }
 
-export class FakeAccountBackend implements AccountBackend, PlayerBackend, ProgressionBackend {
+// The server's ladder: enclose opens at level 4, the bomb at 5.
+const FAKE_UNLOCKS = {encloseClicks: 4, bomb: 5}
+
+export class FakeAccountBackend implements AccountBackend, PlayerBackend, ProgressionBackend, LevelReader {
     constructor(private readonly career?: FakeCareer) {
     }
 
@@ -116,9 +119,9 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
         return this.career?.ownFronts() ?? {playsFor: [], playsAgainst: []}
     }
 
-    // A guest has no level.
-    public async level(): Promise<PlayerLevel | undefined> {
-        return this.linked.length > 0 ? this.career?.ownLevel() : undefined
+    // A guest has no level, but the ladder all the same.
+    public async readLevel(): Promise<LevelRead> {
+        return {level: this.linked.length > 0 ? this.career?.ownLevel() : undefined, unlocks: FAKE_UNLOCKS}
     }
 
     private requireSignedIn() {

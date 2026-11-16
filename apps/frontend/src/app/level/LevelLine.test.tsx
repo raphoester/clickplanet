@@ -18,7 +18,7 @@ describe("LevelLine", () => {
 
     it("draws the level and the XP gained on its bar", () => {
         render(<LevelLine/>)
-        act(() => useLevel.getState().heard({level: 12, xp: 20_000, levelXp: 18_634, nextLevelXp: 24_192}))
+        act(() => useLevel.getState().reached({level: 12, xp: 20_000, levelXp: 18_634, nextLevelXp: 24_192}))
 
         expect(screen.getByRole("img", {name: "Level 12"})).toBeDefined()
         const bar = screen.getByRole("meter", {name: "XP to level 13"})

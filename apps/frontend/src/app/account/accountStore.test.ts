@@ -42,7 +42,6 @@ function fakeProgression(): FakeProgression {
         titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
         fronts: vi.fn(async (): Promise<Fronts> => ({playsFor: [], playsAgainst: []})),
         wearTitle: vi.fn(async () => undefined),
-        level: vi.fn(async () => undefined),
     }
 }
 

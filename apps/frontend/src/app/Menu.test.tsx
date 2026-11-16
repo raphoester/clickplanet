@@ -808,7 +808,6 @@ describe("Menu", () => {
                 titles: vi.fn(async (): Promise<TitleDashboard> => ({wearable: [], tracks: []})),
                 fronts: vi.fn(async (): Promise<Fronts> => ({playsFor: [], playsAgainst: []})),
                 wearTitle: vi.fn(async (): Promise<PlayerTitle | undefined> => undefined),
-                level: vi.fn(async () => undefined),
             } satisfies ProgressionBackend
             const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate, remember: vi.fn(), claimFlag: vi.fn()})
             const view = render(phone
