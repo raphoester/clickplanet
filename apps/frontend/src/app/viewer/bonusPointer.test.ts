@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {offScreen, placePointer} from "./bonusPointer.ts"
+import {offScreen, placeOnRim, placePointer} from "./bonusPointer.ts"
 
 describe("offScreen", () => {
     it("says nothing when the box is in the frame", () => {
@@ -65,5 +65,37 @@ describe("placePointer", () => {
         expect(Number.isFinite(x)).toBe(true)
         expect(Number.isFinite(y)).toBe(true)
         expect(Number.isFinite(angle)).toBe(true)
+    })
+})
+
+describe("placeOnRim", () => {
+    const margin = 0.12
+    const size = {width: 800, height: 800}
+
+    it("puts the arrow just past the globe's edge, on the point's side, facing out", () => {
+        const {x, y, angle} = placeOnRim({x: 0.3, y: 0}, {x: 0, y: 0, radius: 200}, size, margin)
+
+        expect(x).toBeCloseTo(222 / 400, 6)
+        expect(y).toBeCloseTo(0, 6)
+        expect(angle).toBeCloseTo(0, 6)
+    })
+
+    it("holds it inside the screen when the edge is off it", () => {
+        const {x, y, angle} = placeOnRim({x: 0, y: 0.5}, {x: 0, y: 0, radius: 2_000}, size, margin)
+
+        expect(x).toBeCloseTo(0, 6)
+        expect(y).toBeCloseTo(0.88, 6)
+        expect(angle).toBeCloseTo(-90, 6)
+    })
+
+    it("does not divide by a point at the globe's centre, nor by a screen with no size", () => {
+        for (const placed of [
+            placeOnRim({x: 0, y: 0}, {x: 0, y: 0, radius: 200}, size, margin),
+            placeOnRim({x: 0.3, y: 0}, {x: 0, y: 0, radius: 200}, {width: 0, height: 0}, margin),
+        ]) {
+            expect(Number.isFinite(placed.x)).toBe(true)
+            expect(Number.isFinite(placed.y)).toBe(true)
+            expect(Number.isFinite(placed.angle)).toBe(true)
+        }
     })
 })

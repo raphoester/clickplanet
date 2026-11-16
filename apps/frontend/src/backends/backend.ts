@@ -303,7 +303,7 @@ export interface Miner {
 }
 
 export interface Rallier {
-    callRally(tileId: number, countryId: string): Promise<Rally>
+    callRally(point: GlobePoint, countryId: string): Promise<Rally>
 }
 
 export interface Refiller {

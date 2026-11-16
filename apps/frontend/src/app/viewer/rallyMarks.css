@@ -105,3 +105,35 @@
         animation: none;
     }
 }
+
+/* The flag and its name take a hover or a tap, which opens the card; the rest of the pin lets the globe have them. */
+.rally-pin-pole,
+.rally-pin-cloth,
+.rally-pin-name {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* The card: who called it, for which flag, what a click inside costs, and the time left, one line each. */
+.rally-pin-tip {
+    position: absolute;
+    bottom: 90px;
+    left: 0;
+    width: max-content;
+    max-width: 220px;
+    padding: 6px 10px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel);
+    box-shadow: var(--drop-s);
+    color: var(--text);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: pre-line;
+    transform: translateX(-50%);
+}
+
+.rally-pin-tip[hidden] {
+    display: none;
+}

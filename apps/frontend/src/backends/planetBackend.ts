@@ -968,11 +968,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     // The rally leaves the hand at once, and comes back unless the server says it holds none. Its ring is known at once
     // from the answer; the stream tells it again, which changes nothing.
-    public async callRally(tileId: number, countryId: string): Promise<Rally> {
+    public async callRally(point: GlobePoint, countryId: string): Promise<Rally> {
         this.holdCharges({...this.charges, rallies: Math.max(0, this.charges.rallies - 1)})
 
         try {
-            const rally = await this.callRetried(tileId, countryId)
+            const rally = await this.callRetried(point, countryId)
             this.keepRally(rally)
             return rally
         } catch (e) {
@@ -981,23 +981,23 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    private async callRetried(tileId: number, countryId: string): Promise<Rally> {
+    private async callRetried(point: GlobePoint, countryId: string): Promise<Rally> {
         try {
-            return await this.call(tileId, countryId)
+            return await this.call(point, countryId)
         } catch (e) {
             if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asRallyError(e)
 
             this.session.invalidate()
 
             try {
-                return await this.call(tileId, countryId)
+                return await this.call(point, countryId)
             } catch (retried) {
                 throw asRallyError(retried)
             }
         }
     }
 
-    private async call(tileId: number, countryId: string): Promise<Rally> {
+    private async call(point: GlobePoint, countryId: string): Promise<Rally> {
         const sessionToken = await this.session.token()
         await this.ensureFlag(sessionToken, countryId)
 
@@ -1005,7 +1005,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
 
         try {
-            const res = await this.client.callRally({tileId, countryId}, {headers})
+            const res = await this.client.callRally({point, countryId}, {headers})
             this.followSession(sessionToken)
             if (!res.rally) throw new Error("a rally called with no rally in the answer")
             return rallyOf(res.rally)
@@ -1282,7 +1282,7 @@ export function rallyOf(message: RallyMessage, at = budgetNow()): Rally {
         id: message.rallyId,
         accountId: message.accountId,
         countryId: message.countryId,
-        tile: message.tileId,
+        centre: {x: message.point?.x ?? 0, y: message.point?.y ?? 0, z: message.point?.z ?? 0},
         radius: message.radius,
         endsAt: at + message.leftMs,
     }

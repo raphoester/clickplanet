@@ -2532,7 +2532,8 @@ describe("PlanetBackend rallies", () => {
         ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
 
     const rallyMessage = (fields: Partial<RallyMessage> = {}) => new RallyMessage({
-        rallyId: "r1", accountId: "a1", countryId: "fr", tileId: 9, radius: 0.072, leftMs: 60_000, ...fields,
+        rallyId: "r1", accountId: "a1", countryId: "fr", point: new GlobePoint({x: 0.6, z: 0.8}), radius: 0.072,
+        leftMs: 60_000, ...fields,
     })
 
     const follow = (backend: PlanetBackend) => {
@@ -2553,7 +2554,7 @@ describe("PlanetBackend rallies", () => {
 
         const rally = rallyCalledOf(event)
 
-        expect(rally).toMatchObject({id: "r1", accountId: "a1", countryId: "fr", tile: 9, radius: 0.072})
+        expect(rally).toMatchObject({id: "r1", accountId: "a1", countryId: "fr", centre: {x: 0.6, y: 0, z: 0.8}, radius: 0.072})
         expect(rally!.endsAt).toBeGreaterThanOrEqual(before + 60_000)
         expect(rallyCalledOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
     })
@@ -2565,9 +2566,9 @@ describe("PlanetBackend rallies", () => {
         const {seen, called} = follow(backend)
         await vi.waitFor(() => expect(seen.at(-1)?.rallies).toBe(2))
 
-        const rally = await backend.callRally(9, "fr")
+        const rally = await backend.callRally({x: 0.6, y: 0, z: 0.8}, "fr")
 
-        expect(callRally).toHaveBeenCalledWith({tileId: 9, countryId: "fr"}, expect.anything())
+        expect(callRally).toHaveBeenCalledWith({point: {x: 0.6, y: 0, z: 0.8}, countryId: "fr"}, expect.anything())
         expect((callRally.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
         expect(seen.at(-1)?.rallies).toBe(1)
         expect(called).toEqual([rally])
@@ -2582,9 +2583,9 @@ describe("PlanetBackend rallies", () => {
         const {seen, called} = follow(backend)
         await vi.waitFor(() => expect(seen.at(-1)?.rallies).toBe(2))
 
-        await expect(backend.callRally(9, "fr")).rejects.toBeInstanceOf(RallyRefusedError)
+        await expect(backend.callRally({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(RallyRefusedError)
         expect(seen.at(-1)?.rallies).toBe(2)
-        await expect(backend.callRally(9, "fr")).rejects.toBeInstanceOf(BonusLostError)
+        await expect(backend.callRally({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(BonusLostError)
         expect(seen.at(-1)?.rallies).toBe(0)
         expect(called).toEqual([])
         backend.close()
@@ -2594,14 +2595,14 @@ describe("PlanetBackend rallies", () => {
         const getRallies = vi.fn().mockResolvedValue(new GetRalliesResponse({rallies: [rallyMessage({countryId: "de"})]}))
         const listenForEvents = vi.fn(async function* () {
             yield heartbeatAt(10)
-            yield new PlanetEvent({event: {case: "rallyCalled", value: rallyMessage({rallyId: "r2", tileId: 12})}})
+            yield new PlanetEvent({event: {case: "rallyCalled", value: rallyMessage({rallyId: "r2", point: new GlobePoint({y: 1})})}})
             await new Promise(() => {})
         })
         const backend = new PlanetBackend(clientWith({getRallies, listenForEvents}), 60_000)
         const {read, called} = follow(backend)
 
         await vi.waitFor(() => expect(read.at(-1)?.map((rally) => rally.countryId)).toEqual(["de"]))
-        await vi.waitFor(() => expect(called.map((rally) => rally.tile)).toEqual([12]))
+        await vi.waitFor(() => expect(called.map((rally) => rally.centre)).toEqual([{x: 0, y: 1, z: 0}]))
         backend.close()
     })
 

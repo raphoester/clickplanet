@@ -278,10 +278,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             const globe = (window as {clickplanetGlobe?: Globe}).clickplanetGlobe
             if (!globe) return "the globe is not loaded yet"
             globe.takeReward(fake.grantBonus("rally"))
-            return "a rally in your inventory — call it on any tile"
+            return "a rally in your inventory — call it anywhere on the globe"
         },
-        enemyRally: () => fake.callEnemyRally()
-            ? "another flag called a rally near your land"
+        enemyRally: async () => await fake.callEnemyRally()
+            ? "another flag called a rally on your land"
             : "the map is not read yet",
         tripMine: () => fake.tripMine()
             ? "an enemy took one of your mines"

@@ -676,6 +676,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const rallies = new Rallies()
     const rallyMarks = createRallyMarks(eventTarget, rallyCallers, () => rules)
     scene.add(rallyMarks.object)
+    // In CSS pixels, read off the canvas, so a frame lays nothing out.
+    const canvasSize = () => ({
+        width: renderer.domElement.width / renderer.getPixelRatio(),
+        height: renderer.domElement.height / renderer.getPixelRatio(),
+    })
     const rallyPops = createRallyPops(eventTarget)
     const pointAt = (tile: number) => {
         const at = (tile - 1) * 3
@@ -683,7 +688,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const showRallies = () => {
-        rallyMarks.show(rallies.on(monotonicNow()), country.code, geometryData.positions)
+        rallyMarks.show(rallies.on(monotonicNow()), country.code)
         invalidate()
     }
 
@@ -1289,13 +1294,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         playSound("bomb", {volume: ours ? 1 : DISTANT_BOMB_VOLUME})
     }
 
-    // Any tile takes a rally. A rally of the caller still on is refused by the server alone: the rally stays held.
-    const callRally = (tile: number) => {
+    // Any point of the globe takes a rally, on land or sea. A rally of the caller still on is refused by the server
+    // alone: the rally stays held.
+    const callRally = (point: THREE.Vector3) => {
         if (!rallier) return
         putRallyAway()
         playSound("click")
-        plainClicks.playOwnClick(tile, camera)
-        rallier.callRally(tile, country.code).catch((e) => {
+        rallier.callRally({x: point.x, y: point.y, z: point.z}, country.code).catch((e) => {
             if (lifetime.signal.aborted) return
             if (e instanceof RallyRefusedError) onNotice("rallyOn")
             else if (e instanceof AllegianceLockedError) onAllegianceLocked(e.allegiance)
@@ -1357,7 +1362,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const driveBlasts = (seconds: number) => {
         let drawing = blasts.update(seconds, camera)
         blastPointer.update(blasts.newest(seconds), camera)
-        if (rallyMarks.update(monotonicNow(), camera)) drawing = true
+        if (rallyMarks.update(monotonicNow(), camera, canvasSize())) drawing = true
         if (flushClears(seconds)) drawing = true
 
         if (armed) {
@@ -1520,6 +1525,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         if (armed) return
 
+        // A rally goes on the point tapped, a tile or not; from orbit, a tap flies down first.
+        if (rallyAimed && loaded && !orbiting()) {
+            const point = surfacePoint(x, y)
+            if (point) {
+                if (budget?.frozen) {
+                    onFrozen()
+                    playSound("refused")
+                } else {
+                    callRally(point)
+                }
+                return
+            }
+        }
+
         const tile = picker.pick(camera, x, y)
         if (tile === undefined) return
         peek.clicked()
@@ -1575,11 +1594,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         if (mineAimed) {
             layMine(tile, owner)
-            return
-        }
-
-        if (rallyAimed) {
-            callRally(tile)
             return
         }
 

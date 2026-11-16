@@ -5,7 +5,7 @@ import {timeLeftTo} from "../../domain/seasonClock.ts"
 import {t, translator} from "../../i18n/page.ts"
 import {Region, regions} from "./atlas.ts"
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts"
-import {createBonusPointer, offScreen} from "./bonusPointer.ts"
+import {createBonusPointer, GlobeDisc, globeDiscOf, offScreen, ViewSize} from "./bonusPointer.ts"
 import {isBehindGlobe} from "./bonusBox.ts"
 import haloVertex from "./shaders/rallyHalo/vertex.glsl"
 import haloFragment from "./shaders/rallyHalo/fragment.glsl"
@@ -36,6 +36,13 @@ const TIP_MS = 4_000
 // The cloth of the planted flag, in CSS pixels.
 export const CLOTH = {width: 40, height: 27} as const
 
+// The flag around the pole's foot in CSS pixels, y down: the pole with its knob and shadow, and the cloth. A flag behind
+// the globe shows while some of it rises past the globe's edge.
+const FLAG_BOX = {left: -8, right: 42, top: -60, bottom: 3} as const
+
+// The clip keeps all of a pin this far round its foot, in CSS pixels, but the globe's disc: its card fits.
+const CLIP_REACH = 2_000
+
 // Who called a rally, by account: its name as the page may show it, and the style that paints it in its color.
 export type RallyCallers = {
     ask(accountId: string): void
@@ -50,12 +57,12 @@ export type RallyMarks = {
 
     // Every rally on: a halo over its ring, its flag planted at its centre with its caller's name, the page's flag's in
     // the rally's colour.
-    show(rallies: readonly Rally[], flag: string, positions: ArrayLike<number>): void
+    show(rallies: readonly Rally[], flag: string): void
 
-    // Each mark goes at its rally's end and each clock runs down; each flag follows the camera, and its card says what
-    // the rally does; the arrow points at the newest ring of the page's flag off the screen. True when a halo changed, so
-    // the frame is drawn again.
-    update(now: number, camera: THREE.OrthographicCamera): boolean
+    // Each mark goes at its rally's end and each clock runs down; each flag follows the camera, rises past the globe's
+    // edge from behind it, and its card says what the rally does; the arrow points at the newest ring of the page's flag
+    // whose flag is not seen. True when a halo changed, so the frame is drawn again.
+    update(now: number, camera: THREE.OrthographicCamera, size: ViewSize): boolean
 
     dispose(): void
 }
@@ -71,6 +78,7 @@ type Marked = {
     shownName?: string
     left?: string
     top?: string
+    clip?: string
 }
 
 type Pin = {
@@ -103,14 +111,13 @@ export function createRallyMarks(container: HTMLElement, callers: RallyCallers |
     return {
         object: group,
 
-        show(rallies, flag, positions) {
+        show(rallies, flag) {
             unpin()
             marked = [...rallies]
                 .sort((a, b) => Number(b.countryId === flag) - Number(a.countryId === flag) || b.endsAt - a.endsAt)
                 .slice(0, MAX_RALLIES)
                 .map((rally) => {
-                    const at = (rally.tile - 1) * 3
-                    const centre = new THREE.Vector3(positions[at], positions[at + 1], positions[at + 2])
+                    const centre = new THREE.Vector3(rally.centre.x, rally.centre.y, rally.centre.z).normalize()
                     const own = rally.countryId === flag
                     const pin = createPin(rally.countryId, own)
                     container.append(pin.root)
@@ -131,8 +138,10 @@ export function createRallyMarks(container: HTMLElement, callers: RallyCallers |
             })
         },
 
-        update(now, camera) {
+        update(now, camera, size) {
             camera.getWorldDirection(toCamera).negate()
+            const disc = size.width > 0 && size.height > 0 ? globeDiscOf(camera, size) : undefined
+            let unseen: Marked | undefined
 
             let changed = false
             marked.forEach((each, index) => {
@@ -151,8 +160,15 @@ export function createRallyMarks(container: HTMLElement, callers: RallyCallers |
 
                 const root = each.pin.root
                 const ndc = projected.copy(each.centre).project(camera)
-                root.hidden = !on || isBehindGlobe(each.centre, toCamera) || offScreen(ndc)
-                if (root.hidden) return
+                const clip = isBehindGlobe(each.centre, toCamera) ? disc && peekOf(ndc, disc, size) : ""
+                root.hidden = !on || clip === undefined || offScreen(ndc)
+                if (on && root.hidden && each.own) unseen ??= each
+                if (root.hidden || clip === undefined) return
+
+                if (clip !== each.clip) {
+                    each.clip = clip
+                    root.style.clipPath = clip
+                }
 
                 const left = `${((ndc.x * 0.5 + 0.5) * 100).toFixed(3)}%`
                 const top = `${((-ndc.y * 0.5 + 0.5) * 100).toFixed(3)}%`
@@ -176,7 +192,8 @@ export function createRallyMarks(container: HTMLElement, callers: RallyCallers |
                 if (each.pin.tipping()) tell(each, now, rules()?.rallyCost)
             })
 
-            pointer.update(marked.find((each) => each.own && each.rally.endsAt > now)?.centre, camera)
+            const newest = marked.find((each) => each.own && each.rally.endsAt > now)
+            pointer.update(newest === unseen ? newest?.centre : undefined, camera, size)
 
             return changed
         },
@@ -295,6 +312,25 @@ function tell(each: Marked, now: number, cost: number | undefined) {
     ]
     const text = lines.join("\n")
     if (each.pin.tip.textContent !== text) each.pin.tip.textContent = text
+}
+
+// A flag whose foot is behind the globe shows what rises past the globe's edge, as a pole standing up the screen there
+// would: a clip that cuts the globe's disc out of it, or undefined when it is all behind. The foot is in device
+// coordinates.
+export function peekOf(foot: {x: number, y: number}, disc: GlobeDisc, size: ViewSize): string | undefined {
+    const cx = (disc.x - foot.x) * size.width / 2
+    const cy = (foot.y - disc.y) * size.height / 2
+    const r = disc.radius
+    const corners = [
+        [FLAG_BOX.left, FLAG_BOX.top], [FLAG_BOX.right, FLAG_BOX.top],
+        [FLAG_BOX.left, FLAG_BOX.bottom], [FLAG_BOX.right, FLAG_BOX.bottom],
+    ]
+    if (corners.every(([x, y]) => Math.hypot(x - cx, y - cy) <= r)) return undefined
+
+    const at = (value: number) => value.toFixed(1)
+    const box = `M${-CLIP_REACH} ${-CLIP_REACH}H${CLIP_REACH}V${CLIP_REACH}H${-CLIP_REACH}Z`
+    const round = `M${at(cx - r)} ${at(cy)}A${at(r)} ${at(r)} 0 1 0 ${at(cx + r)} ${at(cy)}A${at(r)} ${at(r)} 0 1 0 ${at(cx - r)} ${at(cy)}Z`
+    return `path(evenodd, "${box}${round}")`
 }
 
 // The clock's step: how much of its time a rally has left, in ARC_STEPS.

@@ -530,7 +530,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     // One on at a time: the fake's player is the only caller it knows.
-    public async callRally(tileId: number, countryId: string): Promise<Rally> {
+    public async callRally(point: GlobePoint, countryId: string): Promise<Rally> {
         this.refuseBanned()
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
@@ -540,7 +540,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         this.hold({...this.charges, rallies: this.charges.rallies - 1})
         return this.tellRally({
-            id: UUIDv4(), accountId: FAKE_YOU, countryId, tile: tileId, radius: RALLY_RADIUS, endsAt: now + RALLY_LASTS_MS,
+            id: UUIDv4(), accountId: FAKE_YOU, countryId, centre: point, radius: RALLY_RADIUS, endsAt: now + RALLY_LASTS_MS,
         })
     }
 
@@ -550,13 +550,16 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return rally
     }
 
-    // Another flag calls a rally on a tile of the page's flag, so the other flags' rings can be watched.
-    public callEnemyRally(): boolean {
+    // Another flag calls a rally on the page's flag's land, so the other flags' rings can be watched.
+    public async callEnemyRally(): Promise<boolean> {
         const flag = this.allegiance?.countryId
         const tile = [...this.tileBindings].find(([, owner]) => owner === flag)?.[0] ?? (this.tileCount > 0 ? 1 : undefined)
         if (tile === undefined) return false
+        const positions = await this.loadPositions()
+        const at = (tile - 1) * 3
         this.tellRally({
-            id: UUIDv4(), accountId: FAKE_TAKERS[1], countryId: flag === "de" ? "fr" : "de", tile, radius: RALLY_RADIUS,
+            id: UUIDv4(), accountId: FAKE_TAKERS[1], countryId: flag === "de" ? "fr" : "de",
+            centre: {x: positions[at], y: positions[at + 1], z: positions[at + 2]}, radius: RALLY_RADIUS,
             endsAt: budgetNow() + RALLY_LASTS_MS,
         })
         return true

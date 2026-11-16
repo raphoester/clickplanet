@@ -123,12 +123,12 @@ describe("ClickBudgetMeter", () => {
         expect(screen.getByText("6.0")).toBeTruthy()
     })
 
-    it("says 2× while the last click took half a click inside a ring still on", () => {
+    it("says the price of a click while the last one took half a click inside a ring still on", () => {
         const clock = stoppedClock()
         render(budgeted(reading({rally: {cost: 0.5, until: STOPPED_AT_MS + 1_000}}), <ClickBudgetMeter/>))
 
-        const chip = screen.getByRole("img", {name: "Rally: inside the ring, a click costs half"})
-        expect(chip.textContent).toBe("2×")
+        const chip = screen.getByRole("img", {name: "Rally: inside the ring, a click costs 0.5"})
+        expect(chip.textContent).toBe("0.5 per click")
         expect(chip.hidden).toBe(false)
 
         clock.mockReturnValue(STOPPED_AT_MS + 1_000)

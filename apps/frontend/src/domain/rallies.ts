@@ -4,9 +4,9 @@ export type Rally = {
     id: string
     accountId: string
     countryId: string
-    // The ring's centre.
-    tile: number
-    // In radians of arc on the unit globe: a tile whose centre is that close to the centre's or closer is inside.
+    // The ring's centre: the point of the globe tapped, on land or sea, not a tile.
+    centre: {x: number, y: number, z: number}
+    // In radians of arc on the unit globe: a tile whose centre is that close to the centre or closer is inside.
     radius: number
     // On the page's own clock (performance.now()), from the time the server said it had left.
     endsAt: number
@@ -46,12 +46,12 @@ export class Rallies {
 }
 
 export function covers(rally: Rally, tile: number, positions: ArrayLike<number>): boolean {
-    const a = (rally.tile - 1) * 3
-    const b = (tile - 1) * 3
-    if (rally.tile < 1 || tile < 1 || b + 2 >= positions.length || a + 2 >= positions.length) return false
+    const at = (tile - 1) * 3
+    if (tile < 1 || at + 2 >= positions.length) return false
 
-    const along = positions[a] * positions[b] + positions[a + 1] * positions[b + 1] + positions[a + 2] * positions[b + 2]
-    const lengths = Math.hypot(positions[a], positions[a + 1], positions[a + 2]) * Math.hypot(positions[b], positions[b + 1], positions[b + 2])
+    const {x, y, z} = rally.centre
+    const along = x * positions[at] + y * positions[at + 1] + z * positions[at + 2]
+    const lengths = Math.hypot(x, y, z) * Math.hypot(positions[at], positions[at + 1], positions[at + 2])
     return lengths > 0 && along / lengths >= Math.cos(rally.radius)
 }
 
