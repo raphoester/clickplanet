@@ -6,10 +6,10 @@ import {
     CHARGE_KINDS,
     ChargeKind,
     Charges,
+    gatesOf,
     inUnlockOrder,
     lockedAt,
     NEVER,
-    NO_LEVEL,
     slotOf,
     Switches,
 } from '../../domain/bonus.ts'
@@ -17,7 +17,7 @@ import {BonusGuide, isLearning, isNew} from '../../domain/bonusGuide.ts'
 import {t, translator} from '../../i18n/page.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
 import {useBonus} from './bonusStore.ts'
-import {useGates} from './gatesStore.ts'
+import {useLadder} from './ladderStore.ts'
 import {useScreen} from '../hud/screenStore.ts'
 import {useCompact} from '../compact.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
@@ -72,7 +72,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
     const rules = useBonus((bonus) => bonus.rules)
     const switches = useBonus((bonus) => bonus.switches)
     const bombArmed = useBonus((bonus) => bonus.bombArmed)
-    const gates = useGates((store) => store.gates)
+    const ladder = useLadder((store) => store.ladder)
     const open = useScreen((screen) => screen.popovers.bonuses)
     const togglePopover = useScreen((screen) => screen.togglePopover)
     const closePopover = useScreen((screen) => screen.closePopover)
@@ -119,7 +119,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
     const max = rules?.enclosureMaxTiles
     const unlimited = rules?.enclosuresUnlimited ?? false
     const spreadUnlimited = rules?.spreadUnlimited ?? false
-    const level = NO_LEVEL
+    const gates = gatesOf(rules, ladder)
 
     const shownOf = (kind: ChargeKind): Omit<Shown, "lockedAt"> | undefined => {
         switch (kind) {
@@ -202,7 +202,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
     const every: Shown[] = inUnlockOrder(CHARGE_KINDS, gates).flatMap((kind) => {
         const shown = shownOf(kind)
         if (!shown) return []
-        return [{...shown, lockedAt: shown.held ? undefined : lockedAt(kind, gates, level)}]
+        return [{...shown, lockedAt: shown.held ? undefined : lockedAt(kind, gates, ladder.level)}]
     })
     const held = every.filter((shown) => shown.held)
     const room = compact ? PHONE_BAR_ROOM : DESKTOP_BAR_ROOM

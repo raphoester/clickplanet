@@ -38,8 +38,10 @@ stack's size, the shields' pool size, how many can stand on one tile
 (`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) or off (`enclosuresOff`) and whether spreads
 are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
-new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the bonuses module's rule,
-from `BonusService/GetGrantRules`, read once a load, and told with planet's.
+new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill`, `gatesOn` and
+`openKinds` are the bonuses module's rules, from `BonusService/GetGrantRules`, told with planet's. Bonuses has no stream,
+so they are read at load and again each time the gamemaster's turn moves to another entry (`useGatesFeed`,
+`refreshGrantRules`), and told again only when they changed.
 
 ## Off by default, one at a time
 
@@ -107,7 +109,8 @@ clicks" open one at a time, and a sheet that opens closes the tray.
 
 **The order is the order they unlock** (`inUnlockOrder`): the open kinds, then the gated ones by the level each opens
 at, a gated kind the ladder omits last, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields) among one level.
-With no gates it is that order.
+The gates on or off, the order is the ladder's; while no open kind is told (before `GetGrantRules` answers) it is
+`CHARGE_KINDS`' order alone.
 
 **A kind is locked while the gates are on, it is not an open kind, and its level is above the player's** (`lockedAt`,
 over `Gates`): grey, on a sunk box, a padlock and the level where the count goes, "unlocks at level 6" for a screen
@@ -115,14 +118,15 @@ reader, and "Unlocks at level 6" in its bubble on a press. A gated kind the ladd
 level (`NEVER`): a padlock alone, "locked", and "Locked for now". **A charge held stays usable whatever the level**: a
 kind held is never drawn locked. The gates are off until the reveal and in battles, so nothing shows locked then.
 
-The gates are three facts from two modules, held in `useGates` (`bonus/gatesStore.ts`): whether they are on and the open
-kinds (refill, spread, shields) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`), and each gated kind's level
-from progression's `GetLevel` (`unlocks`), the same answer as the player's level. Until those fields land on main the store
-holds `NO_GATES`, and only the fake's console sets it: `playGates()` opens enclose at 4 and the bomb at 5,
-`playGates(true, {shields: 3})` any table, `playGates(false)` turns them off. The player's level is `NO_LEVEL` (0, a guest's
-and an account's with none yet: it holds only the open kinds) until the level's store lands on main, then `useLevel`'s
-(`own?.level`). `GetGrantRules` is read once a load today; once it tells the gates it must be read again whenever the
-set in force changes, since bonuses has no stream: the gamemaster's turn on its stream is the signal.
+The gates are facts from two modules, put together by `gatesOf`: whether they are on and the open kinds (refill, spread,
+shields) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`, in `BonusRules`), and the **ladder** from progression's
+`GetLevel`: the player's level and the level each gated kind opens at (`unlocks`), in `useLadder`
+(`bonus/ladderStore.ts`). `useGatesFeed` reads the ladder (`LadderReader.ladder`) at load, on each new session
+(`listenForSessions`: a guest's first click makes one) or account, and, signed in, once its clicks settle. With no session
+held it reads nothing, so a page that has not clicked makes none, and a gated kind shows "Locked for now" until then. A
+guest, or an account no fact has raised yet, is level 0 (`NO_LEVEL`) and holds only the open kinds. The level UI reads
+the same `GetLevel` for its bar: whichever of the two lands second folds them into one read. In the fake the ladder is
+enclose at 4 and the bomb at 5 at level 0, and `playGates()` turns the gates on, `playGates(false)` off.
 
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is

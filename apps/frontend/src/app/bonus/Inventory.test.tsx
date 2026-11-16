@@ -3,12 +3,12 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {act, cleanup, fireEvent, render, screen, within} from '@testing-library/react'
 import Inventory, {DESKTOP_BAR_ROOM, InventoryProps, NOT_ENCLOSED_MS, NOTICE_MS} from './Inventory.tsx'
 import {BUBBLE_MS} from '../components/Bubble.tsx'
-import {ALL_OFF, BonusNoticeEvent, BonusRules, CHARGE_KINDS, Charges, Gates, NO_CHARGES, NO_GATES, Switches, UnlockLevels} from "../../domain/bonus.ts"
+import {ALL_OFF, BonusNoticeEvent, BonusRules, CHARGE_KINDS, Charges, Gates, NO_CHARGES, NO_GATES, NO_LEVEL, Switches, UnlockLevels} from "../../domain/bonus.ts"
 import {BonusGuide, FRESH_GUIDE, LEARNING_USES} from "../../domain/bonusGuide.ts"
 import {useBonusGuide} from "./bonusGuideStore.ts"
 import {useBonus} from "./bonusStore.ts"
 import {useScreen} from "../hud/screenStore.ts"
-import {useGates} from "./gatesStore.ts"
+import {useLadder} from "./ladderStore.ts"
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx"
 
 afterEach(() => {
@@ -16,7 +16,7 @@ afterEach(() => {
     useBonusGuide.setState({guide: FRESH_GUIDE})
     useBonus.setState(useBonus.getInitialState(), true)
     useScreen.setState(useScreen.getInitialState(), true)
-    useGates.setState(useGates.getInitialState(), true)
+    useLadder.setState(useLadder.getInitialState(), true)
     vi.unstubAllGlobals()
 })
 beforeEach(() => window.localStorage.clear())
@@ -24,7 +24,8 @@ beforeEach(() => window.localStorage.clear())
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
-    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false,
+    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, gatesOn: false,
+    openKinds: [],
 }
 
 type Held = {
@@ -35,13 +36,14 @@ type Held = {
     switches?: Switches
     bombArmed?: boolean
     gates?: Gates
+    level?: number
 }
 
-function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, gates = NO_GATES, ...props}: Partial<InventoryProps> & Held = {}) {
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
-        useBonus.setState({notice, charges, rules, switches, bombArmed})
-        useGates.setState({gates})
+        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed})
+        useLadder.setState({ladder: {level, unlocks: gates.unlocks}})
     })
     return <Inventory onToggle={() => {}}
                       onToggleBomb={() => {}}
@@ -429,6 +431,14 @@ describe("Inventory", () => {
         expect(inTray(/^Bomb/).getAttribute("aria-label")).toBe("Bomb, locked")
         fireEvent.click(inTray(/^Bomb/))
         expect(bubble()).toBe("Locked for now")
+    })
+
+    it("opens a gated kind at its level", () => {
+        render(inventory({gates: gated({encloseClicks: 4, bomb: 5}), level: 4}))
+
+        fireEvent.click(all())
+        expect(inTray(/^Enclose/).getAttribute("aria-label")).toBe("Enclose, 0/3")
+        expect(inTray(/^Bomb/).getAttribute("aria-label")).toBe("Bomb, unlocks at level 5")
     })
 
     it("locks nothing while the gates are off", () => {

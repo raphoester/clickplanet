@@ -47,6 +47,18 @@ export type Gates = {
 
 export const NO_GATES: Gates = {on: false, open: [], unlocks: {}}
 
+// Progression's half of the gates: the player's level and the level each gated kind opens at.
+export type Ladder = {
+    level: number
+    unlocks: UnlockLevels
+}
+
+export const NO_LADDER: Ladder = {level: NO_LEVEL, unlocks: {}}
+
+export function gatesOf(rules: Pick<BonusRules, "gatesOn" | "openKinds"> | undefined, ladder: Ladder): Gates {
+    return {on: rules?.gatesOn ?? false, open: rules?.openKinds ?? [], unlocks: ladder.unlocks}
+}
+
 // The level of a gated kind the ladder names none for: it opens at no level.
 export const NEVER = Number.POSITIVE_INFINITY
 
@@ -61,7 +73,9 @@ export function lockedAt(kind: ChargeKind, gates: Gates, level: number): number 
     return at > level ? at : undefined
 }
 
+// The order given while no open kind is told: the ladder alone would put the gated kinds first.
 export function inUnlockOrder(kinds: readonly ChargeKind[], gates: Gates): ChargeKind[] {
+    if (gates.open.length === 0) return [...kinds]
     return [...kinds].sort((a, b) => {
         const [x, y] = [openingLevel(a, gates), openingLevel(b, gates)]
         return Number(x > y) - Number(x < y)
@@ -138,4 +152,7 @@ export type BonusRules = {
     spreadUnlimited: boolean
     // No enclosure closes a shape or is offered: the page hides the enclose slot.
     enclosuresOff: boolean
+    // Bonuses' gates: while on, a kind not open is locked under the level progression's ladder opens it at.
+    gatesOn: boolean
+    openKinds: readonly ChargeKind[]
 }

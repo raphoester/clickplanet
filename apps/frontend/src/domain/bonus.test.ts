@@ -139,6 +139,16 @@ describe("inUnlockOrder", () => {
         expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "bomb", "encloseClicks"])
     })
 
+    it("keeps the order given while no open kind is told, whatever the ladder", () => {
+        expect(inUnlockOrder(CHARGE_KINDS, {on: false, open: [], unlocks: {encloseClicks: 4, bomb: 5}})).toEqual(CHARGE_KINDS)
+    })
+
+    it("orders by the ladder with the gates off too", () => {
+        const gates = {on: false, open: ["refill", "spreadClicks", "shields"] as const, unlocks: {encloseClicks: 4, bomb: 5}}
+
+        expect(inUnlockOrder(CHARGE_KINDS, gates)).toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb"])
+    })
+
     it("keeps the order given with no gates", () => {
         expect(inUnlockOrder(CHARGE_KINDS, NO_GATES)).toEqual(CHARGE_KINDS)
     })
