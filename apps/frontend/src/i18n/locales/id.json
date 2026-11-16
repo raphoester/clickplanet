@@ -627,7 +627,6 @@
   "inventory.empty": "Tangkap kotak ? atau menangkan kuis untuk dapat bonus",
   "inventory.locked": "Terbuka di level {level}",
   "inventory.lockedForNow": "Terkunci untuk sementara",
-  "inventory.all": "Semua",
   "inventory.all.label": "Semua bonus",
   "inventory.all.more": "Semua bonus, {count} lagi dimiliki",
   "inventory.more": "+{count}",

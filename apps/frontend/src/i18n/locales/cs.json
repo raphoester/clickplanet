@@ -627,7 +627,6 @@
   "inventory.empty": "Chyť bednu s ? nebo vyhraj kvíz a nějaký bonus získáš",
   "inventory.locked": "Odemkneš na úrovni {level}",
   "inventory.lockedForNow": "Zatím zamčeno",
-  "inventory.all": "Vše",
   "inventory.all.label": "Všechny bonusy",
   "inventory.all.more": "{count, plural, one {Všechny bonusy, ještě # další} few {Všechny bonusy, ještě # další} many {Všechny bonusy, ještě # dalšího} other {Všechny bonusy, ještě # dalších}}",
   "inventory.more": "+{count}",

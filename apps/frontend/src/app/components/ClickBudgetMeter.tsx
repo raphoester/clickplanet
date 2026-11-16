@@ -172,7 +172,7 @@ export default function ClickBudgetMeter({
 
     if (!budget) return children ? <div ref={setDock} className="click-budget-dock panel">
         <DockTray.Provider value={tray}>{children}</DockTray.Provider>
-        <div ref={setTray} className="click-budget-tray"/>
+        <div ref={setTray} className="click-budget-tray panel"/>
     </div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
@@ -245,7 +245,7 @@ export default function ClickBudgetMeter({
         </div>
 
         <DockTray.Provider value={tray}>{children}</DockTray.Provider>
-        <div ref={setTray} className="click-budget-tray"/>
+        <div ref={setTray} className="click-budget-tray panel"/>
 
         {footer && <div className="click-budget-footer">{footer}</div>}
 

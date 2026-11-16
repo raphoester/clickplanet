@@ -627,7 +627,6 @@
   "inventory.empty": "Catch a ? box or win a quiz to get one",
   "inventory.locked": "Unlocks at level {level}",
   "inventory.lockedForNow": "Locked for now",
-  "inventory.all": "All",
   "inventory.all.label": "All bonuses",
   "inventory.all.more": "{count, plural, one {All bonuses, # more held} other {All bonuses, # more held}}",
   "inventory.more": "+{count}",

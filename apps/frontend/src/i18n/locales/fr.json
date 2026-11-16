@@ -627,7 +627,6 @@
   "inventory.empty": "Attrape une caisse « ? » ou réussis un quiz pour en avoir un",
   "inventory.locked": "Débloqué au niveau {level}",
   "inventory.lockedForNow": "Verrouillé pour l’instant",
-  "inventory.all": "Tout",
   "inventory.all.label": "Tous les bonus",
   "inventory.all.more": "{count, plural, one {Tous les bonus, # autre en main} many {Tous les bonus, # d’autres en main} other {Tous les bonus, # autres en main}}",
   "inventory.more": "+{count}",

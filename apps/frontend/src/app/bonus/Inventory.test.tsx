@@ -538,7 +538,7 @@ describe("Inventory", () => {
         expect(bubble()).toBe("Tap one of your tiles to shield it")
     })
 
-    it("opens the tray as a row inside the dock, which grows rather than cover anything", () => {
+    it("opens the tray in the dock's own slot, which floats over the dock", () => {
         const {container} = render(<ClickBudgetMeter>{inventory()}</ClickBudgetMeter>)
 
         fireEvent.click(all())

@@ -627,7 +627,6 @@
   "inventory.empty": "Złap skrzynkę ? albo wygraj quiz, żeby coś dostać",
   "inventory.locked": "Odblokujesz na poziomie {level}",
   "inventory.lockedForNow": "Na razie zablokowane",
-  "inventory.all": "Wszystko",
   "inventory.all.label": "Wszystkie bonusy",
   "inventory.all.more": "{count, plural, one {Wszystkie bonusy, jeszcze # posiadany} few {Wszystkie bonusy, jeszcze # posiadane} many {Wszystkie bonusy, jeszcze # posiadanych} other {Wszystkie bonusy, jeszcze # posiadanego}}",
   "inventory.more": "+{count}",

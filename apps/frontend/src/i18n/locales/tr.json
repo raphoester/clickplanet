@@ -627,7 +627,6 @@
   "inventory.empty": "Bir tane almak için ? kutusu yakala ya da quiz kazan",
   "inventory.locked": "{level}. seviyede açılır",
   "inventory.lockedForNow": "Şimdilik kilitli",
-  "inventory.all": "Tümü",
   "inventory.all.label": "Tüm bonuslar",
   "inventory.all.more": "{count, plural, one {Tüm bonuslar, # tane daha var} other {Tüm bonuslar, # tane daha var}}",
   "inventory.more": "+{count}",

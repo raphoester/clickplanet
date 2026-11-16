@@ -9,18 +9,16 @@
     gap: var(--space-2);
 }
 
+/* Every slot is one square, its name in its aria-label and its hover's bubble: a name drawn in it widened its own slot ("Encerclement"). */
 .inventory-slot {
     position: relative;
     display: flex;
     flex: none;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-1);
-    /* A name wider than the slot widens its own slot alone ("Encerclement"): the dock keeps its width. */
-    min-width: 72px;
-    min-height: 64px;
-    padding: 6px 0 5px;
+    width: 56px;
+    height: 56px;
+    padding: 0;
     color: var(--text-soft);
     box-shadow: var(--drop-s);
     cursor: pointer;
@@ -77,16 +75,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border: var(--outline-thin) solid var(--ink);
     border-radius: var(--radius-s);
     background: var(--bonus-box);
 }
 
 .inventory-box .bonus-icon {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
 }
 
 .inventory-slot--on .inventory-box {
@@ -97,35 +95,38 @@
     animation: inventory-new 1.4s ease-in-out infinite;
 }
 
-.inventory-state {
+/* No word over a slot: two side by side ran over each other ("Nouveau", "Zapnuto"). New is a dot on the corner; On keeps the ring and the glow. */
+.inventory-slot .inventory-state {
+    display: none;
+}
+
+.inventory-slot--new .inventory-state {
     position: absolute;
-    top: -11px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: var(--ink);
+    top: -6px;
+    right: -6px;
+    display: block;
+    box-sizing: border-box;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
     background: var(--bonus-accent);
-    white-space: nowrap;
+    color: transparent;
 }
 
 .inventory-count {
     position: absolute;
-    top: 24px;
-    right: 4px;
-    padding: 1px 3px;
+    right: -7px;
+    bottom: -7px;
+    padding: 2px 4px;
     border: var(--outline-thin) solid var(--ink);
-    border-radius: var(--radius-xs);
-    background: var(--panel-sunk);
-    color: var(--text);
+    border-radius: var(--radius-pill);
+    background: var(--cream);
+    color: var(--ink);
     font-weight: 700;
     font-size: var(--text-xs);
     line-height: 1;
-}
-
-.inventory-name {
-    padding: 0 var(--space-1);
-    font-weight: 600;
-    font-size: var(--text-xs);
-    line-height: 1.2;
 }
 
 .inventory-slot--locked {
@@ -188,19 +189,19 @@
     fill: var(--shield);
 }
 
-/* Its padding keeps the top row's state chips and the glows inside its scroll. */
+/* Its padding keeps the corners' dots and counts, and the glows, inside its scroll. */
 .inventory-tray {
     max-height: calc(50dvh - var(--dock-height));
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: var(--space-3) var(--space-1) var(--space-1);
-    animation: inventory-tray-in 0.18s ease-out;
+    padding: var(--space-2);
 }
 
+/* Three kinds a row on a desktop: the six kinds make two full rows. A phone's tray fills the dock's width. */
 .inventory-tray-slots {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
-    gap: var(--space-4) var(--space-2);
+    grid-template-columns: repeat(3, max-content);
+    gap: var(--space-3);
 }
 
 @keyframes inventory-on {
@@ -212,13 +213,6 @@
 @keyframes inventory-loop {
     to {
         stroke-dashoffset: -11;
-    }
-}
-
-@keyframes inventory-tray-in {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
     }
 }
 
@@ -235,9 +229,7 @@
 
     .inventory-slots .inventory-slot {
         width: 48px;
-        min-width: 0;
-        min-height: 48px;
-        padding: 0;
+        height: 48px;
     }
 
     .inventory-slots .inventory-box {
@@ -249,46 +241,21 @@
         width: 22px;
         height: 22px;
     }
-
-    .inventory-slots .inventory-name,
-    .inventory-slots .inventory-state {
-        display: none;
-    }
-
-    .inventory-slots .inventory-slot--new .inventory-state {
-        display: block;
-        top: -6px;
-        right: -6px;
-        left: auto;
-        box-sizing: border-box;
-        width: 14px;
-        height: 14px;
-        padding: 0;
-        overflow: hidden;
-        border-radius: 50%;
-        transform: none;
-        color: transparent;
-    }
-
-    .inventory-slots .inventory-count {
-        top: auto;
-        right: -7px;
-        bottom: -7px;
-        padding: 2px 4px;
-        border-radius: var(--radius-pill);
-        background: var(--cream);
-        color: var(--ink);
-    }
 }
 
 @media (max-width: 768px), (max-height: 600px) {
+    .inventory-tray-slots {
+        grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+        justify-items: center;
+    }
+
     .inventory-slots {
         gap: 5px;
     }
 
     .inventory-slots .inventory-slot {
         width: 44px;
-        min-height: 44px;
+        height: 44px;
     }
 
     .inventory-slots:has(.inventory-slot--virus) {
@@ -303,8 +270,7 @@
 @media (prefers-reduced-motion: reduce) {
     .inventory-slot--on .inventory-box,
     .inventory-slot--new,
-    .inventory-loop rect,
-    .inventory-tray {
+    .inventory-loop rect {
         animation: none;
     }
 
