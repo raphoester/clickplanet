@@ -1,4 +1,5 @@
 import {PlayerTitle} from "./title.ts"
+import {Ladder} from "../domain/bonus.ts"
 
 export type {PlayerTitle, TitleRank} from "./title.ts"
 
@@ -29,6 +30,11 @@ export type Fronts = {
 export type CountryTiles = {
     countryCode: string
     tiles: number
+}
+
+export interface LadderReader {
+    // None until the page holds a session: the read never makes one.
+    ladder(): Promise<Ladder | undefined>
 }
 
 export interface ProgressionBackend {

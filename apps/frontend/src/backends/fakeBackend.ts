@@ -11,6 +11,7 @@ import {
     BoxCatcher,
     BoxOffer,
     ChargesRefresher,
+    GrantRulesRefresher,
     ClaimedBonus,
     Counts,
     Enclosure,
@@ -122,6 +123,8 @@ const RULES: BonusRules = {
     bombsOff: false,
     spreadUnlimited: false,
     enclosuresOff: false,
+    gatesOn: false,
+    openKinds: ["refill", "spreadClicks", "shields"],
 }
 
 export type FakeBackendOptions = {
@@ -130,7 +133,7 @@ export type FakeBackendOptions = {
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
     private readonly fortifications = new Map<number, LandmassFortification>()
@@ -492,6 +495,15 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     // The page's side of the reach alone: the bridges drawn and the front rung. The fake refuses no click out of it.
     public playReach(on: boolean): void {
         this.rules = {...this.rules, reach: on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public playGates(on: boolean): void {
+        this.rules = {...this.rules, gatesOn: on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public async refreshGrantRules(): Promise<void> {
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 

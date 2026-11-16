@@ -107,7 +107,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   the Final Battle's debrief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, one flag an hour, and the lock a battle's rule set puts
   on it.
-- [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory.
+- [Charges](docs/charges.md) — what a bonus box holds, off by default and one at a time, and the inventory: the kinds
+  held on the bar, All's tray of every kind in the order they unlock, a kind locked under its level.
 - [Missions](docs/missions.md) — the Missions tab, its badge, Go, the missions drawn on the map (a ground outlined, a
   rival's tiles ringed in red), the progress line, a mission paid, and the fake.
 - [Quizzes](docs/quizzes.md), [Bombs](docs/bombs.md), [Shields](docs/shields.md), [Fortify](docs/fortify.md) —

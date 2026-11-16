@@ -24,6 +24,7 @@ import {t, translator} from "../../i18n/page.ts"
 import {rich} from "../../i18n/rich.tsx"
 import {useNarrowDock} from "../compact.ts"
 import {useEdge} from "./useEdge.ts"
+import {DockTray} from "./dockTray.ts"
 import "./ClickBudgetMeter.css"
 
 export const DOCK_DRAWN_HEIGHT = "--dock-drawn-height"
@@ -68,6 +69,7 @@ export default function ClickBudgetMeter({
     const wait = useRef<HTMLSpanElement>(null)
     const narrow = useNarrowDock()
     const [dock, setDock] = useState<HTMLElement | null>(null)
+    const [tray, setTray] = useState<HTMLElement | null>(null)
     useEdge(dock, DOCK_DRAWN_HEIGHT, "height")
     const open = useScreen((screen) => compact ? screen.sheet === "clicks" : screen.popovers.clicks)
     const toggleSheet = useScreen((screen) => screen.toggleSheet)
@@ -168,7 +170,10 @@ export default function ClickBudgetMeter({
         </div>
     }
 
-    if (!budget) return children ? <div ref={setDock} className="click-budget-dock panel">{children}</div> : null
+    if (!budget) return children ? <div ref={setDock} className="click-budget-dock panel">
+        <DockTray.Provider value={tray}>{children}</DockTray.Provider>
+        <div ref={setTray} className="click-budget-tray"/>
+    </div> : null
 
     const pips = budget.capacity <= MAX_PIPS ? budget.capacity : 0
 
@@ -239,7 +244,8 @@ export default function ClickBudgetMeter({
                                 onClick={toggleOpen}/>}
         </div>
 
-        {children}
+        <DockTray.Provider value={tray}>{children}</DockTray.Provider>
+        <div ref={setTray} className="click-budget-tray"/>
 
         {footer && <div className="click-budget-footer">{footer}</div>}
 

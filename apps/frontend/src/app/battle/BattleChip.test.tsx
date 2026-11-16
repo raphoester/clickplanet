@@ -73,7 +73,7 @@ describe("BattleChip", () => {
 
     it("holds its facts open once pressed", () => {
         vi.useFakeTimers({now})
-        useScreen.setState({popovers: {season: false, battle: true, clicks: false}})
+        useScreen.setState({popovers: {season: false, battle: true, clicks: false, bonuses: false}})
         render(<BattleChip battle={battle} compact={false}/>)
 
         expect(screen.getByText("Triple points.")).toBeDefined()

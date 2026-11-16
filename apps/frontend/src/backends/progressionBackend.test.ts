@@ -10,7 +10,9 @@ import {
     Step as StepPb,
     TitleEarned as TitleEarnedPb,
     Track as TrackPb,
+    Unlock as UnlockPb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
+import {BonusKind} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/progression/v1/title_pb.ts"
 import {PlayerLevel, PlayerTitle} from "./progression.ts"
 import {ConnectProgressionBackend} from "./progressionBackend.ts"
@@ -308,5 +310,38 @@ describe("ConnectProgressionBackend progression stream", () => {
         stop()
 
         expect(listenForEvents.mock.calls.length).toBeGreaterThan(1)
+    })
+})
+
+describe("the ladder", () => {
+    it("reads the level and what each gated kind opens at, with the token held", async () => {
+        const getLevel = vi.fn(async () => ({
+            level: new LevelPb({level: 3}),
+            unlocks: [
+                new UnlockPb({kind: BonusKind.ENCLOSE_CLICKS, level: 4}),
+                new UnlockPb({kind: BonusKind.BOMB, level: 5}),
+                new UnlockPb({kind: BonusKind.UNSPECIFIED, level: 9}),
+            ],
+        }))
+        const session = holding("token-1")
+
+        expect(await backendWith({getLevel}, session).ladder()).toEqual({level: 3, unlocks: {encloseClicks: 4, bomb: 5}})
+        expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
+        expect(session.token).not.toHaveBeenCalled()
+    })
+
+    it("reads a guest's level as 0", async () => {
+        const getLevel = vi.fn(async () => ({unlocks: [new UnlockPb({kind: BonusKind.BOMB, level: 5})]}))
+
+        expect(await backendWith({getLevel}, holding("guest")).ladder()).toEqual({level: 0, unlocks: {bomb: 5}})
+    })
+
+    it("reads nothing, and makes no session, while none is held", async () => {
+        const getLevel = vi.fn()
+        const session = holding(undefined)
+
+        expect(await backendWith({getLevel}, session).ladder()).toBeUndefined()
+        expect(getLevel).not.toHaveBeenCalled()
+        expect(session.token).not.toHaveBeenCalled()
     })
 })

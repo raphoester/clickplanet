@@ -69,6 +69,8 @@ fake's day: scoring scores today's round, its countries with a little luck, the
 fake gamemaster debriefs it and the next day runs, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call
 closes the next day, so the reveal plays again.
+`playGates()` turns the bonuses' gates on and `playGates(false)` off; the fake's ladder opens enclose at level 4 and the
+bomb at 5, and the page plays level 0, so those show locked in the tray (see [Charges](charges.md#the-inventory)).
 `playReach()` plays the reach on the page: the bridges drawn and the front rung across them (see
 [The reach](reach.md)); `playReach(false)` stops it. The fake refuses no click out of reach.
 `startBattle(minutes = 120, description, times = 3)` plays a battle at once, under a

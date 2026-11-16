@@ -237,6 +237,25 @@
     animation: click-budget-popover-in 0.18s ease-out;
 }
 
+/* A tray opens as a row of its own above the clicks: the dock grows upward, and what stacks on it follows its drawn height. */
+.click-budget-tray {
+    order: -1;
+    flex: 1 0 100%;
+    min-width: 0;
+}
+
+.click-budget-tray:empty {
+    display: none;
+}
+
+.click-budget-dock:has(> .click-budget-tray:not(:empty)) {
+    flex-wrap: wrap;
+}
+
+.click-budget-dock:has(> .click-budget-tray:not(:empty)) .click-budget-shell {
+    flex-basis: 0;
+}
+
 .click-budget-dock:has(.inventory--active) {
     border-color: var(--gold);
     box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 16px color-mix(in srgb, var(--gold) 45%, transparent);

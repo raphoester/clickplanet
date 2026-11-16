@@ -23,11 +23,16 @@ that does not.
 
 - **What is open is one store**, `useScreen` (`hud/screenStore.ts`, see
   [Stores](stores.md)): the phone's sheet (`sheet`), the desktop menu's place
-  (`menuTab`), the desktop's popovers (`popovers`: the season, the battle and
-  "Your clicks"), and the player's last open or fold of the desktop menu's panel and of the chat (`menuOpen`,
+  (`menuTab`), the popovers (`popovers`: the desktop's season, battle and
+  "Your clicks", and on both forms the tray of every bonus, which All opens inside the dock; see
+  [Charges](charges.md#the-inventory)), and the player's last open or fold of the desktop menu's panel and of the chat (`menuOpen`,
   `chatOpen`, unset until the player chooses). The tab bar, the status bar, the chips, the dock, the menu and the chat
   read and change it themselves; `PlayScreen` reads the sheet to draw it. A change
-  between the phone and the desktop form closes the sheet and the popovers.
+  between the phone and the desktop form closes the sheet and the popovers. "Your clicks" and the bonuses' tray open one
+  at a time, and a sheet that opens closes the tray: the sheet covers the dock.
+- **No HUD piece covers another.** The dock grows upward when the bonuses' tray opens, and what stacks on it follows
+  its drawn height, `--dock-drawn-height` (`useEdge` on the dock): the chat's balloons over a phone's dock, the chat
+  between 769 and 1099px wide (`--chat-lift`), and the desktop menu's room (`--menu-room`), which shrinks and scrolls.
 - **One sheet at a time on a phone**: the five
   tabs, and the season and "Your clicks", which the status bar and the dock open.
   A tab pressed again closes it. The sheets are the same places the desktop

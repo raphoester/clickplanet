@@ -40,10 +40,13 @@ the rest of the reveal (missions paying XP, the level-up bonus, the unlock level
 ## Not here
 
 The XP a mission pays (`GetLevel`'s `mission_rates`, which `ProgressionBackend.level` does not map), the locks on the
-bonus slots and the next unlock belong to the missions' and the bonus bar's work.
+bonus slots and the next unlock belong to the missions' and the bonus bar's work. The bonus bar reads `GetLevel` itself
+for its locks (`LadderReader.ladder`, `useGatesFeed`, a guest's too, from the session held): two reads of one call after
+a run of clicks, which one read could serve.
 
 ## The fake
 
-Every fake player has a level from its seed, on the server's curve (`fakeLevels.ts`, the fake's own copy). `giveXp(500)`
+Every fake player has a level from its seed, on the server's curve (`fakeLevels.ts`, the fake's own copy). The fake's ladder
+answers the same level, so the bar's locks and the dock agree. `giveXp(500)`
 adds XP to the signed-in player and plays the level-up when it passes a level; XP below a level shows at the next
 read, after a run of clicks (see [Commands](commands.md)).

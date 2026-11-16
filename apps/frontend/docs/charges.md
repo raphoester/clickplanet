@@ -39,8 +39,10 @@ stack's size, the shields' pool size, how many can stand on one tile
 (`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) or off (`enclosuresOff`) and whether spreads
 are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
-new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill` is the bonuses module's rule,
-from `BonusService/GetGrantRules`, read once a load, and told with planet's.
+new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill`, `gatesOn` and
+`openKinds` are the bonuses module's rules, from `BonusService/GetGrantRules`, told with planet's. Bonuses has no stream,
+so they are read at load and again each time the gamemaster's turn moves to another entry (`useGatesFeed`,
+`refreshGrantRules`), and told again only when they changed.
 
 ## Off by default, one at a time
 
@@ -88,14 +90,51 @@ stops. In the fake, `encloseOff()` plays it and `encloseOff(false)` stops it.
 `bonus/Inventory.tsx` is the section that shows them, the **right half of
 the dock** (the meter takes it as `children`, and shows it even with no budget).
 It draws no border or background of its own: the one panel is `.click-budget-dock`.
-One slot per kind, always shown (but the bomb while bombs are off, Enclose while enclosures are off, and the virus,
-shown only while one is held or aimed: see [Virus](virus.md)), each drawn
-with its box's
-icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
-`BonusAward.css`, shared with the announcement). An empty slot is dimmed, and a
-press on it does nothing but say how to get one. A pool shows its count against
-its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
-(`On`, `Aim`, `Full`, or `New` for a kind held and never pressed).
+
+**The bar holds the kinds held, and All.** Up to `PHONE_BAR_ROOM` (3) of them on a phone, `DESKTOP_BAR_ROOM` (4) on a desktop, in the order they
+unlock, then the **All** button. A kind held past that room waits in the tray, and All counts it (`+2`); it wears the
+state of one switched on (`On`, `Aim`) or `New`, so nothing on goes unseen. With nothing held, All is alone. A slot moves
+when a kind runs out or comes in: the bar was chosen over a strip that scrolls sideways and over rows that wrap, on
+screenshots at 5, 8 and 11 kinds (2026-11-16), because the dock keeps its size whatever the number of kinds.
+
+**All opens the tray**, a row of its own inside the dock, above the clicks (`popovers.bonuses` in `useScreen`, see [The
+screen](screen.md)): every kind but the hidden ones (below), in the order they unlock, each with its name at every width.
+**The dock grows upward to hold it and covers nothing**: the meter gives it the row (`DockTray`, `dockTray.ts`, which
+`Inventory` portals the tray into), and what stacks on the dock follows its drawn height (see [The
+screen](screen.md)). A first try floated the tray over the dock, and it covered the chat between 769 and 1099px wide
+(2026-11-16); no HUD piece covers another. The tray is half the screen at most, the dock's own row included, and scrolls
+inside past that (a phone held sideways).
+A press on one held uses it, closes the tray and gives the focus back to All; a press on an empty or a locked one says
+why in its bubble, and the tray stays. All again, Escape or a press anywhere outside closes it. The tray and "Your
+clicks" open one at a time, and a sheet that opens closes the tray.
+
+**The order is the order they unlock** (`inUnlockOrder`): the open kinds, then the gated ones by the level each opens
+at, a gated kind the ladder omits last, `CHARGE_KINDS`' order (refill, bomb, spread, enclose, shields, virus) among one level.
+The gates on or off, the order is the ladder's; while no open kind is told (before `GetGrantRules` answers) it is
+`CHARGE_KINDS`' order alone.
+
+**A kind is locked while the gates are on, it is not an open kind, and its level is above the player's** (`lockedAt`,
+over `Gates`): grey, on a sunk box, a padlock and the level where the count goes, "unlocks at level 6" for a screen
+reader, and "Unlocks at level 6" in its bubble on a press. A gated kind the ladder names no level for is locked at every
+level (`NEVER`): a padlock alone, "locked", and "Locked for now". **A charge held stays usable whatever the level**: a
+kind held is never drawn locked. The gates are off until the reveal and in battles, so nothing shows locked then.
+
+The gates are facts from two modules, put together by `gatesOf`: whether they are on and the open kinds (refill, spread,
+shields) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`, in `BonusRules`), and the **ladder** from progression's
+`GetLevel`: the player's level and the level each gated kind opens at (`unlocks`), in `useLadder`
+(`bonus/ladderStore.ts`). `useGatesFeed` reads the ladder (`LadderReader.ladder`) at load, on each new session
+(`listenForSessions`: a guest's first click makes one) or account, and, signed in, once its clicks settle. With no session
+held it reads nothing, so a page that has not clicked makes none, and a gated kind shows "Locked for now" until then. A
+guest, or an account no fact has raised yet, is level 0 (`NO_LEVEL`) and holds only the open kinds. The level UI reads
+the same `GetLevel` for its bar: whichever of the two lands second folds them into one read. In the fake the ladder is
+enclose at 4 and the bomb at 5 at level 0, and `playGates()` turns the gates on, `playGates(false)` off.
+
+A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
+`BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is
+dimmed, and a press on it does nothing but say how to get one. A pool shows its count against its size (`5/8`,
+`2/3`), and a word over the icon says what the slot is doing (`On`, `Aim`, `Full`, or `New` for a kind held and never
+pressed). A slot is shown always, in the tray at least, the virus too (see [Virus](virus.md)), but the bomb while bombs
+are off, and Enclose while enclosures are off.
 
 - **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
   nothing** and says "Full": a refill there would be wasted. The refill a
@@ -107,18 +146,19 @@ its size (`5/8`, `2/3`), and a word over the icon says what the slot is doing
 - **Virus** aims it, or puts it away (`Globe.setVirusAimed`).
 - **Spread**, **Enclose** and **Shield** switch (`Globe.setSwitch`),
   `aria-pressed`.
-- **Enclose, while enclosures are unlimited**, and **Spread, while spreads are unlimited**, count `∞`, are never empty
-  and never "New" (the game gave it, not a box), and while on, a dashed outline runs round the slot without end
+- **Enclose, while enclosures are unlimited**, and **Spread, while spreads are unlimited**, count `∞`, are held, never
+  empty and never "New" (the game gave it, not a box), and while on, a dashed outline runs round the slot without end
   (`.inventory-loop`, still under `prefers-reduced-motion`): a loop that keeps closing.
 
 **A slot speaks in a bubble, never a `title`.** Most of the players who came from
 TikTok play on a phone, where a `title` never shows, and they asked in the chat
 what enclose and shields do. So `Bubble` (`components/Bubble.tsx`, drawn in a
 portal on the body like the reaction popup) says one line over a slot: what it
-does while a mouse rests on it, how to get one on a press of an empty slot, and
+does while a mouse rests on it, how to get one on a press of an empty slot, the level on a press of a locked one, and
 how to use it on a press that switches it on or aims it, for its first
 `LEARNING_USES` (3). The line goes after a few seconds, or as soon as the slot's
-charge is spent. The same line is in the slot's `aria-describedby`.
+charge is spent. The same line is in the slot's `aria-describedby`. A line said in the tray stays in the tray and goes
+with it; any other is said over the kind's slot on the bar, or over All when the kind waits in the tray.
 
 **The globe says when a bonus did not do what the player meant**
 (`GlobeOptions.onNotice`, a `BonusNotice`, kept in `useBonus`, `bonus/bonusStore.ts`), and the slot says it in
@@ -144,7 +184,5 @@ stays up** until "Got it" or Escape (`BonusAward`'s `kept`): the passing award
 lasts 2.9s and a tap anywhere closes it, which in a clicking game is before the
 line under it is read. Later boxes of that kind pass as before.
 
-**It does not fold**: five slots (six with a virus) are one row, labelled from 1280px and icons
-with their counts below that (the name stays in `aria-label`). A fold on a row
-this small hid the one thing that says the next click does more than paint.
-The dock glows while something is on or aimed.
+The bar's slots are labelled from 1280px, and icons with their counts below that (the name stays in `aria-label`); the
+tray's are labelled at every width. The dock glows while something is on or aimed.

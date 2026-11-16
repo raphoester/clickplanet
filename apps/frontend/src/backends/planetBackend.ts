@@ -10,6 +10,7 @@ import {
     BombRefusedError,
     BonusLostError,
     ChargesRefresher,
+    GrantRulesRefresher,
     Counts,
     Enclosure,
     Fortification,
@@ -62,7 +63,7 @@ import {
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {BonusService} from "../gen/grpc/bonuses/v1/bonuses_connect.ts";
-import {rewardOf} from "./bonusKind.ts";
+import {chargeKindOf, rewardOf} from "./bonusKind.ts";
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect";
 import {createConnectTransport} from "@connectrpc/connect-web";
 import {v4 as generateUUID} from 'uuid';
@@ -81,7 +82,15 @@ export function newClickServiceClient(config: Config): PromiseClient<typeof Clic
     }))
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, TileHolders, LandmassReader {
+type GrantRules = Pick<BonusRules, "signInRefill" | "gatesOn" | "openKinds">
+
+const NO_GRANT: GrantRules = {signInRefill: false, gatesOn: false, openKinds: []}
+
+function sameGrant(a: GrantRules, b: GrantRules): boolean {
+    return a.signInRefill === b.signInRefill && a.gatesOn === b.gatesOn && a.openKinds.join() === b.openKinds.join()
+}
+
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -112,8 +121,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private rules: BonusRules | undefined
 
-    // The bonuses module's rule, read apart from planet's and told inside BonusRules.
-    private signInRefill = false
+    // The bonuses module's rules, read apart from planet's and told inside BonusRules.
+    private grant: GrantRules = NO_GRANT
 
     private charges: Charges = NO_CHARGES
 
@@ -130,7 +139,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     ) {
         void this.readBudget()
         void this.readRules()
-        void this.readGrantRules()
+        void this.refreshGrantRules()
 
         this.stopListening = this.openEventStream()
         void this.followIdentity()
@@ -491,7 +500,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 shields: res.shields,
                 tileShields: res.tileShields,
                 toll: res.tollSteps.map(({share, slowdown}) => ({share, slowdown})),
-                signInRefill: this.signInRefill,
+                ...this.grant,
                 enclosuresUnlimited: res.enclosuresUnlimited,
                 reach: res.reach,
                 knockOut: res.knockOut,
@@ -507,18 +516,19 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
-    // Told with planet's rules: until those are read, there are no rules to tell. Read once a load: only default sets
-    // it, and a restart reloads the page.
-    private async readGrantRules(): Promise<void> {
+    // Told with planet's rules: until those are read, there are no rules to tell.
+    public async refreshGrantRules(): Promise<void> {
         const bonuses = this.bonuses
         if (!bonuses) return
 
         try {
             const res = await retrying(() => bonuses.getGrantRules({}), "getGrantRules")
-            this.signInRefill = res.signInRefill
-            if (this.rules && this.rules.signInRefill !== res.signInRefill) {
-                this.holdRules({...this.rules, signInRefill: res.signInRefill})
+            this.grant = {
+                signInRefill: res.signInRefill,
+                gatesOn: res.gatesOn,
+                openKinds: res.openKinds.flatMap((kind) => chargeKindOf(kind) ?? []),
             }
+            if (this.rules && !sameGrant(this.rules, this.grant)) this.holdRules({...this.rules, ...this.grant})
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
             console.error("could not read the grant rules", e)
