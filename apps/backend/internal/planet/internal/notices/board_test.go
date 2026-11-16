@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 )
 
@@ -18,7 +19,7 @@ const (
 func attend(t *testing.T, board *notices.Board, holder charges.Holder) <-chan notices.Event {
 	t.Helper()
 
-	events, leave := board.Attend(holder)
+	events, leave := board.Attend(holder, "")
 	t.Cleanup(leave)
 
 	return events
@@ -82,10 +83,48 @@ func TestAStreamThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 
 func TestAStreamLeftHearsNothingMore(t *testing.T) {
 	board := notices.New()
-	events, leave := board.Attend(charges.NoHolder)
+	events, leave := board.Attend(charges.NoHolder, "")
 	leave()
 
 	board.PublishSpread(notices.Spread{CountryID: "fr", Tile: 1})
 
 	assert.Empty(t, events)
+}
+
+func attendFor(t *testing.T, board *notices.Board, holder charges.Holder, flag string) <-chan notices.Event {
+	t.Helper()
+
+	events, leave := board.Attend(holder, flag)
+	t.Cleanup(leave)
+
+	return events
+}
+
+func TestAMineLaidReachesTheStreamsOfItsFlagAlone(t *testing.T) {
+	board := notices.New()
+	french, german, none := attendFor(t, board, ada, "fr"), attendFor(t, board, grace, "de"), attend(t, board, charges.NoHolder)
+	laid := notices.MineLaid{Flag: "fr", Tile: 9, Version: clicks.MapVersion{Epoch: 7, Seq: 3}}
+
+	board.PublishMineLaid(laid)
+
+	require.Len(t, french, 1)
+	got := (<-french).MineLaid
+	require.NotNil(t, got)
+	assert.Equal(t, laid, *got)
+	assert.Empty(t, german, "another flag never learns of it")
+	assert.Empty(t, none)
+}
+
+func TestAPledgeMovesEveryStreamOfTheAccountToItsNewFlag(t *testing.T) {
+	board := notices.New()
+	tab, other := attendFor(t, board, ada, "de"), attendFor(t, board, grace, "de")
+
+	board.Pledged(ada, "fr")
+	board.PublishMineLaid(notices.MineLaid{Flag: "de", Tile: 3})
+	board.PublishMineLaid(notices.MineLaid{Flag: "fr", Tile: 4})
+
+	require.Len(t, tab, 1)
+	assert.Equal(t, uint32(4), (<-tab).MineLaid.Tile, "it hears its new flag's mines, and no more its old flag's")
+	require.Len(t, other, 1)
+	assert.Equal(t, uint32(3), (<-other).MineLaid.Tile)
 }

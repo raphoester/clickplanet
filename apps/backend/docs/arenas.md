@@ -108,8 +108,9 @@ map.
 - **Neither writes a ledger event.** The ledger keeps the battle's takes as any other; its readers tell them apart by
   time (see [The ledger's readers](#the-ledgers-readers)).
 - **The viruses stay with their map**: the world's are saved with its tiles as the arena opens and spread again once the
-  world's map is back; the arena's go with its map (see [The virus](virus.md)).
-- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, UseVirus, the boxes'
+  world's map is back; the arena's go with its map (see [The virus](virus.md)). **So do the mines**: the arena's map has
+  none, and the world's come back with it (see [The mine](mine.md)).
+- **The freeze**: while an arena is open, every play (Click, DropBomb, PlaceShield, UseRefill, UseVirus, LayMine, the boxes'
   ClaimBox, and the quizzes' OpenQuiz, AnswerQuiz) is refused, and no virus spreads, with a `FrozenRefusal` for the battle's `arena.freeze` after the map went blank and from it
   before the battle's end until the map is back (`Opening.Freezes`, read through `InPlay`, an atomic pointer loaded at
   boot). The freeze is the opening's, read from the battle's set as it opened and kept in `planet.arenas.freeze_ms`, so

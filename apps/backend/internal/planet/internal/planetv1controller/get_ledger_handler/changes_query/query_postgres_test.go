@@ -107,6 +107,10 @@ func everyKind() []ledger.Event {
 			{Tile: 18, Owner: "pl", Outcome: clicks.Taken},
 			{Tile: 19, Owner: "pl", Outcome: clicks.Shielded, Shields: 1},
 		}},
+		ledger.Mining{Tile: 20, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
+			{Tile: 20, Owner: "pl", Outcome: clicks.Taken},
+			{Tile: 21, Outcome: clicks.Taken},
+		}},
 		ledger.Taking{Tile: 13, Scope: "198.51.100.4", Account: bob, Country: "de", Previous: "fr", At: at},
 		ledger.Taking{Tile: 14, Scope: "198.51.100.4", Country: "fr", Previous: "de", At: at},
 	}
@@ -142,6 +146,8 @@ func (s *testSuite) TestEveryKindGoesOutAsTheStreamShowedItWithWhoMadeIt() {
 		change("account:"+ada, &planetv1.TileUpdate{TileId: 16, PreviousCountryId: "pl"}),
 		change("account:"+ada, &planetv1.TileUpdate{TileId: 18, CountryId: "fr", PreviousCountryId: "pl"}),
 		change("account:"+ada, &planetv1.TileUpdate{TileId: 19, CountryId: "pl", PreviousCountryId: "pl", Shields: 1}),
+		change("account:"+ada, &planetv1.TileUpdate{TileId: 20, CountryId: "fr", PreviousCountryId: "pl"}),
+		change("account:"+ada, &planetv1.TileUpdate{TileId: 21, CountryId: "fr"}),
 		change("account:"+bob, &planetv1.TileUpdate{TileId: 13, CountryId: "de", PreviousCountryId: "fr", Clicked: true}),
 		change("scope:198.51.100.4", &planetv1.TileUpdate{TileId: 14, CountryId: "fr", PreviousCountryId: "de", Clicked: true}),
 	}, s.ledger(at, at.Add(time.Minute)))

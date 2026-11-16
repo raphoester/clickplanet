@@ -28,12 +28,18 @@ type VirusUnlock struct{}
 func (VirusUnlock) Kind() Kind   { return "virus" }
 func (VirusUnlock) Level() Level { return 6 }
 
+// MineUnlock comes after the virus, about day 4 for a regular player: the first charge that waits for the enemy.
+type MineUnlock struct{}
+
+func (MineUnlock) Kind() Kind   { return "mine" }
+func (MineUnlock) Level() Level { return 8 }
+
 // Ladder is every kind a level unlocks. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses'
 // open kinds.
 type Ladder struct{}
 
 func (Ladder) Unlocks() []Unlock {
-	return []Unlock{EncloseUnlock{}, BombUnlock{}, VirusUnlock{}}
+	return []Unlock{EncloseUnlock{}, BombUnlock{}, VirusUnlock{}, MineUnlock{}}
 }
 
 // UnlockedAt is every kind unlocked at the level, in the ladder's order: none for no level.

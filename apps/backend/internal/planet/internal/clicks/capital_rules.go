@@ -37,6 +37,11 @@ func (p CapitalPlay) Fixes(tile uint32) bool {
 	return p.rules().FixedShields && p.capitals.Is(tile)
 }
 
+// KnocksOut is true for a capital whose take knocks its flag out under the rules in force.
+func (p CapitalPlay) KnocksOut(tile uint32) bool {
+	return p.rules().KnockOut && p.capitals.Is(tile)
+}
+
 // Felled is the flag a take of the tile by flag knocks out, given whether a flag is out already: ErrNoKnockOut when it
 // knocks none.
 func (p CapitalPlay) Felled(tile uint32, flag string, out func(flag string) bool) (string, error) {

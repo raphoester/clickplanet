@@ -252,6 +252,13 @@ export class GrantChargesRequest extends Message<GrantChargesRequest> {
    */
   virus = false;
 
+  /**
+   * Mines, up to what a hand holds.
+   *
+   * @generated from field: uint32 mines = 8;
+   */
+  mines = 0;
+
   constructor(data?: PartialMessage<GrantChargesRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -267,6 +274,7 @@ export class GrantChargesRequest extends Message<GrantChargesRequest> {
     { no: 5, name: "spread_clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 7, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GrantChargesRequest {

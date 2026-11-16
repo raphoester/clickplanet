@@ -23,6 +23,8 @@ type Claimable interface {
 	Click(ctx context.Context, tile Tile) error
 	Fortify(ctx context.Context, tile uint32, flag string, most int) (Fortification, error)
 	KnockOut(ctx context.Context, tile uint32, flag string) (KnockOut, error)
+	// Trip sets off the tile's mine, if it holds one: a take by another flag is landing on it.
+	Trip(tile uint32)
 }
 
 type ClaimableTiles interface {
@@ -99,6 +101,9 @@ func claim(ctx context.Context, tiles Claimable, id uint32, flag string, write w
 	}
 
 	claimed, impact := tile.Claimed(flag, holderOf(ctx))
+	if impact.Outcome == Taken {
+		tiles.Trip(id)
+	}
 	if err := write(tiles, ctx, claimed); err != nil {
 		return Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 	}
@@ -106,7 +111,12 @@ func claim(ctx context.Context, tiles Claimable, id uint32, flag string, write w
 		return impact, nil
 	}
 
-	fortification, err := tiles.Fortify(ctx, id, flag, most)
+	return fortifiedAfter(ctx, tiles, impact, flag, most)
+}
+
+// fortifiedAfter is a take with the fortify it earned, when it made its landmass whole.
+func fortifiedAfter(ctx context.Context, tiles Claimable, impact Impact, flag string, most int) (Impact, error) {
+	fortification, err := tiles.Fortify(ctx, impact.Tile, flag, most)
 	switch {
 	case err == nil:
 		return impact.fortified(fortification), nil

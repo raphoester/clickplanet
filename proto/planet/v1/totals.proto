@@ -13,4 +13,5 @@ message LedgerTotals {
   uint64 fortifies = 7;
   uint64 accounts = 8;
   uint64 viruses = 9;
+  uint64 mines = 10;
 }

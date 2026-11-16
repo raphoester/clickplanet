@@ -72,6 +72,13 @@ describe("remapSQL", () => {
         expect(remapSQL(plan)).toContain("DELETE FROM viruses;")
     })
 
+    it("moves every mine with its tile, and drops one whose tile the new map lost", () => {
+        const sql = remapSQL(plan)
+        expect(sql).toContain("SELECT m.*, r.to_id + (m.tile - r.from_id) AS remapped_tile\n")
+        expect(sql).toContain("JOIN tile_remap r ON m.tile >= r.from_id AND m.tile < r.from_id + r.span;")
+        expect(sql).toContain("DELETE FROM mines;\nINSERT INTO mines SELECT * FROM mines_remapped;")
+    })
+
     it("deletes the ledger's takes on tiles the new map does not have", () => {
         expect(remapSQL(plan)).toContain("DELETE FROM ledger_events e\nWHERE e.payload IS NULL")
     })

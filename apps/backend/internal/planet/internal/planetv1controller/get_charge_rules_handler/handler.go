@@ -60,6 +60,9 @@ func (h GetChargeRulesHandler) GetChargeRules(
 
 		VirusInfections: uint32(rules.Virus.Infections),
 		VirusEveryMs:    uint32(rules.Virus.Every.Milliseconds()),
+
+		Mines:     uint32(rules.Mine.Held),
+		MineRings: uint32(rules.Mine.Rings),
 	}), nil
 }
 

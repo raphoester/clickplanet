@@ -12,8 +12,8 @@ message Rules {
   TollRules toll = 2;
   reserved 3;
   reserved "bonuses";
-  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill and UseVirus are refused, no virus spreads, and
-  // GetFreeze answers frozen. The map still loads and streams.
+  // The map takes no play: Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine are refused, no virus spreads,
+  // and GetFreeze answers frozen. The map still loads and streams.
   optional bool frozen = 4;
   // No account changes its flag: PledgeAllegiance refuses another flag to an account that holds one. A first flag is
   // still taken.
@@ -88,6 +88,7 @@ message ChargeRules {
   EncloseRules enclose = 3;
   ShieldRules shield = 4;
   VirusRules virus = 5;
+  MineRules mine = 6;
 }
 
 message SpreadRules {
@@ -136,4 +137,11 @@ message VirusRules {
   optional uint32 infections = 1;
   // How long a virus waits between two spreads. 1 s to 10 min.
   google.protobuf.Duration every = 2;
+}
+
+message MineRules {
+  // How many mines a hand holds at most.
+  optional uint32 held = 1;
+  // How many rings of tiles around its own a mine's blast takes. 1 to 3.
+  optional uint32 rings = 2;
 }

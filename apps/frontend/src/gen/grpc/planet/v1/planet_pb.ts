@@ -79,6 +79,11 @@ export enum BonusKind {
    * @generated from enum value: BONUS_KIND_VIRUS = 7;
    */
   VIRUS = 7,
+
+  /**
+   * @generated from enum value: BONUS_KIND_MINE = 8;
+   */
+  MINE = 8,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BonusKind)
 proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
@@ -89,6 +94,7 @@ proto3.util.setEnumType(BonusKind, "planet.v1.BonusKind", [
   { no: 4, name: "BONUS_KIND_ENCLOSE_CLICKS" },
   { no: 6, name: "BONUS_KIND_SHIELDS" },
   { no: 7, name: "BONUS_KIND_VIRUS" },
+  { no: 8, name: "BONUS_KIND_MINE" },
 ]);
 
 /**
@@ -479,8 +485,8 @@ export class ClickResponse extends Message<ClickResponse> {
 }
 
 /**
- * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill and UseVirus answer while the rules
- * in force freeze the map, or an arena's freeze holds it.
+ * The detail of the FailedPrecondition that Click, DropBomb, PlaceShield, UseRefill, UseVirus and LayMine answer while
+ * the rules in force freeze the map, or an arena's freeze holds it.
  *
  * @generated from message planet.v1.FrozenRefusal
  */
@@ -615,7 +621,41 @@ export class VirusRefusal extends Message<VirusRefusal> {
 }
 
 /**
- * The detail of a PermissionDenied that Click, DropBomb, PlaceShield and UseVirus answer a banned caller.
+ * The detail of the FailedPrecondition that LayMine answers for a tile that is not the flag's, holds a mine already, or
+ * is a capital while the knock-out plays: the mine stays held.
+ *
+ * @generated from message planet.v1.MineRefusal
+ */
+export class MineRefusal extends Message<MineRefusal> {
+  constructor(data?: PartialMessage<MineRefusal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MineRefusal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MineRefusal {
+    return new MineRefusal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MineRefusal {
+    return new MineRefusal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MineRefusal {
+    return new MineRefusal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MineRefusal | PlainMessage<MineRefusal> | undefined, b: MineRefusal | PlainMessage<MineRefusal> | undefined): boolean {
+    return proto3.util.equals(MineRefusal, a, b);
+  }
+}
+
+/**
+ * The detail of a PermissionDenied that Click, DropBomb, PlaceShield, UseVirus and LayMine answer a banned caller.
  *
  * @generated from message planet.v1.BanRefusal
  */
@@ -1380,6 +1420,20 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: VirusSpread;
     case: "virusSpread";
+  } | {
+    /**
+     * Only on a stream whose caller plays for the mine's flag: no other flag hears of it.
+     *
+     * @generated from field: planet.v1.MineLaid mine_laid = 15;
+     */
+    value: MineLaid;
+    case: "mineLaid";
+  } | {
+    /**
+     * @generated from field: planet.v1.MinesExploded mines_exploded = 16;
+     */
+    value: MinesExploded;
+    case: "minesExploded";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1401,6 +1455,8 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 12, name: "charges_granted", kind: "message", T: ChargesGranted, oneof: "event" },
     { no: 13, name: "knock_out", kind: "message", T: KnockOut, oneof: "event" },
     { no: 14, name: "virus_spread", kind: "message", T: VirusSpread, oneof: "event" },
+    { no: 15, name: "mine_laid", kind: "message", T: MineLaid, oneof: "event" },
+    { no: 16, name: "mines_exploded", kind: "message", T: MinesExploded, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1417,6 +1473,158 @@ export class PlanetEvent extends Message<PlanetEvent> {
 
   static equals(a: PlanetEvent | PlainMessage<PlanetEvent> | undefined, b: PlanetEvent | PlainMessage<PlanetEvent> | undefined): boolean {
     return proto3.util.equals(PlanetEvent, a, b);
+  }
+}
+
+/**
+ * A mine a player of the flag laid. The tile holds it only while it has not changed since version.
+ *
+ * @generated from message planet.v1.MineLaid
+ */
+export class MineLaid extends Message<MineLaid> {
+  /**
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId = 0;
+
+  /**
+   * The map's version as it was laid: no change, so streams count none.
+   *
+   * @generated from field: planet.v1.MapVersion version = 3;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<MineLaid>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MineLaid";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MineLaid {
+    return new MineLaid().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MineLaid {
+    return new MineLaid().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MineLaid {
+    return new MineLaid().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MineLaid | PlainMessage<MineLaid> | undefined, b: MineLaid | PlainMessage<MineLaid> | undefined): boolean {
+    return proto3.util.equals(MineLaid, a, b);
+  }
+}
+
+/**
+ * The one event of the mines a take set off, every mine each blast reached going off too: each blast took its tiles for
+ * its mine's flag, in order. Its fortifies and knock-outs follow as their own events.
+ *
+ * @generated from message planet.v1.MinesExploded
+ */
+export class MinesExploded extends Message<MinesExploded> {
+  /**
+   * @generated from field: repeated planet.v1.MineBlast blasts = 1;
+   */
+  blasts: MineBlast[] = [];
+
+  /**
+   * @generated from field: planet.v1.MapVersion version = 2;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<MinesExploded>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MinesExploded";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "blasts", kind: "message", T: MineBlast, repeated: true },
+    { no: 2, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MinesExploded {
+    return new MinesExploded().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MinesExploded {
+    return new MinesExploded().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MinesExploded {
+    return new MinesExploded().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MinesExploded | PlainMessage<MinesExploded> | undefined, b: MinesExploded | PlainMessage<MinesExploded> | undefined): boolean {
+    return proto3.util.equals(MinesExploded, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.MineBlast
+ */
+export class MineBlast extends Message<MineBlast> {
+  /**
+   * The tile the mine was on.
+   *
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * The mine's flag, whose each tile taken is now.
+   *
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: repeated uint32 taken_tile_ids = 3;
+   */
+  takenTileIds: number[] = [];
+
+  constructor(data?: PartialMessage<MineBlast>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.MineBlast";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "taken_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MineBlast {
+    return new MineBlast().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MineBlast {
+    return new MineBlast().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MineBlast {
+    return new MineBlast().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MineBlast | PlainMessage<MineBlast> | undefined, b: MineBlast | PlainMessage<MineBlast> | undefined): boolean {
+    return proto3.util.equals(MineBlast, a, b);
   }
 }
 
@@ -2292,6 +2500,11 @@ export class ChargesHeld extends Message<ChargesHeld> {
    */
   virus = false;
 
+  /**
+   * @generated from field: uint32 mines = 7;
+   */
+  mines = 0;
+
   constructor(data?: PartialMessage<ChargesHeld>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2306,6 +2519,7 @@ export class ChargesHeld extends Message<ChargesHeld> {
     { no: 3, name: "spread_clicks_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 7, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargesHeld {
@@ -2528,6 +2742,20 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   virusEveryMs = 0;
 
+  /**
+   * How many mines a hand holds at most.
+   *
+   * @generated from field: uint32 mines = 20;
+   */
+  mines = 0;
+
+  /**
+   * How many rings of tiles around its own a mine's blast takes.
+   *
+   * @generated from field: uint32 mine_rings = 21;
+   */
+  mineRings = 0;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2552,6 +2780,8 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 17, name: "enclosures_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 18, name: "virus_infections", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 19, name: "virus_every_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 20, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 21, name: "mine_rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {
@@ -3091,6 +3321,164 @@ export class UseVirusResponse extends Message<UseVirusResponse> {
 
   static equals(a: UseVirusResponse | PlainMessage<UseVirusResponse> | undefined, b: UseVirusResponse | PlainMessage<UseVirusResponse> | undefined): boolean {
     return proto3.util.equals(UseVirusResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LayMineRequest
+ */
+export class LayMineRequest extends Message<LayMineRequest> {
+  /**
+   * @generated from field: uint32 tile_id = 1;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: string country_id = 2;
+   */
+  countryId = "";
+
+  constructor(data?: PartialMessage<LayMineRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LayMineRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LayMineRequest {
+    return new LayMineRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LayMineRequest {
+    return new LayMineRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LayMineRequest {
+    return new LayMineRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LayMineRequest | PlainMessage<LayMineRequest> | undefined, b: LayMineRequest | PlainMessage<LayMineRequest> | undefined): boolean {
+    return proto3.util.equals(LayMineRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.LayMineResponse
+ */
+export class LayMineResponse extends Message<LayMineResponse> {
+  constructor(data?: PartialMessage<LayMineResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.LayMineResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LayMineResponse {
+    return new LayMineResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LayMineResponse {
+    return new LayMineResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LayMineResponse {
+    return new LayMineResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: LayMineResponse | PlainMessage<LayMineResponse> | undefined, b: LayMineResponse | PlainMessage<LayMineResponse> | undefined): boolean {
+    return proto3.util.equals(LayMineResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetMinesRequest
+ */
+export class GetMinesRequest extends Message<GetMinesRequest> {
+  constructor(data?: PartialMessage<GetMinesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetMinesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMinesRequest {
+    return new GetMinesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMinesRequest {
+    return new GetMinesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMinesRequest {
+    return new GetMinesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMinesRequest | PlainMessage<GetMinesRequest> | undefined, b: GetMinesRequest | PlainMessage<GetMinesRequest> | undefined): boolean {
+    return proto3.util.equals(GetMinesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetMinesResponse
+ */
+export class GetMinesResponse extends Message<GetMinesResponse> {
+  /**
+   * The flag the caller plays for, whose mines these are: empty for no flag, and no mine.
+   *
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * @generated from field: repeated uint32 tile_ids = 2;
+   */
+  tileIds: number[] = [];
+
+  /**
+   * The map's version as they were read: a tile changed after it holds no mine.
+   *
+   * @generated from field: planet.v1.MapVersion version = 3;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<GetMinesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetMinesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 3, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMinesResponse {
+    return new GetMinesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMinesResponse {
+    return new GetMinesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMinesResponse {
+    return new GetMinesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetMinesResponse | PlainMessage<GetMinesResponse> | undefined, b: GetMinesResponse | PlainMessage<GetMinesResponse> | undefined): boolean {
+    return proto3.util.equals(GetMinesResponse, a, b);
   }
 }
 

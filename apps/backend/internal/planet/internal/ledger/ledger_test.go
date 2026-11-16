@@ -483,6 +483,8 @@ func (s *stubTiles) Fortify(context.Context, uint32, string, int) (clicks.Fortif
 	return *s.fortify, nil
 }
 
+func (*stubTiles) Trip(uint32) {}
+
 func (s *stubTiles) KnockOut(context.Context, uint32, string) (clicks.KnockOut, error) {
 	if s.knockOut == nil {
 		return clicks.KnockOut{}, clicks.ErrNoKnockOut

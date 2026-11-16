@@ -302,3 +302,21 @@ func TestAVirusTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
 	}}, events.sent[0]), "%v", events.sent[0])
 	assert.IsType(t, &planetv1.ShieldsStruck{}, events.sent[1])
 }
+
+func TestAMinesTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
+	storage := flushed(t,
+		ledger.Mining{Tile: 5, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
+			{Tile: 4, Owner: "de", Outcome: clicks.Taken},
+			{Tile: 5, Owner: "de", Outcome: clicks.Taken},
+		}},
+	)
+	events := &sender{}
+
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, events.sent, 1, "a blast strikes no shield")
+	assert.True(t, proto.Equal(&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
+		{TileId: 4, Previous: "de"}, {TileId: 5, Index: 1, Previous: "de"},
+	}}, events.sent[0]), "%v", events.sent[0])
+}

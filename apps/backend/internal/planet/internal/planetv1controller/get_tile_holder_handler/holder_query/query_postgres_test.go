@@ -114,6 +114,10 @@ func everyKind() []ledger.Event {
 			{Tile: 12, Owner: "de", Outcome: clicks.Taken},
 			{Tile: 13, Owner: "de", Outcome: clicks.Taken},
 		}},
+		ledger.Mining{Tile: 14, Scope: "198.51.100.4", Account: bob, Country: "de", At: minute(15), Impacts: []clicks.Impact{
+			{Tile: 14, Owner: "fr", Outcome: clicks.Taken},
+			{Tile: 15, Outcome: clicks.Taken},
+		}},
 	}
 }
 
@@ -138,6 +142,12 @@ func (s *testSuite) TestATileAVirusTookIsHeldByItsPlayer() {
 	s.True(proto.Equal(&planetv1.TileHolder{AccountId: ada, CountryId: "fr", TakenAtUnixMs: minute(14).UnixMilli()}, s.holder(13)))
 	s.True(proto.Equal(&planetv1.TileHolder{AccountId: ada, CountryId: "fr", TakenAtUnixMs: minute(8).UnixMilli()}, s.holder(8)),
 		"a shield a virus struck leaves the tile with its taker")
+}
+
+func (s *testSuite) TestATileAMinesBlastTookIsHeldByItsPlayer() {
+	s.record(everyKind()...)
+
+	s.True(proto.Equal(&planetv1.TileHolder{AccountId: bob, CountryId: "de", TakenAtUnixMs: minute(15).UnixMilli()}, s.holder(15)))
 }
 
 func (s *testSuite) TestATileABombClearedLastIsHeldByNobody() {

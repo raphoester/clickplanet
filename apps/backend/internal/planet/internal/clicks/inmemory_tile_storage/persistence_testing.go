@@ -26,13 +26,58 @@ type memoryMap struct {
 	landmasses map[string]map[clicks.LandmassID]string
 	out        map[string]OutFlag
 	viruses    []clicks.VirusSnapshot
+	mines      map[uint32]clicks.MineSnapshot
 }
 
 func newMemoryMap() *memoryMap {
 	return &memoryMap{
 		rows: map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
 		landmasses: map[string]map[clicks.LandmassID]string{}, out: map[string]OutFlag{},
+		mines: map[uint32]clicks.MineSnapshot{},
 	}
+}
+
+func (m *MemoryPersistence) LoadMines(_ context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	for _, tile := range slices.Sorted(maps.Keys(m.mapLocked(played).mines)) {
+		visit(m.mapLocked(played).mines[tile])
+	}
+	return nil
+}
+
+func (m *MemoryPersistence) SaveMines(_ context.Context, played clicks.MapID, laid []clicks.MineSnapshot, gone []uint32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return m.failing
+	}
+	kept := m.mapLocked(played).mines
+	for _, mine := range laid {
+		kept[mine.Tile] = mine
+	}
+	for _, tile := range gone {
+		delete(kept, tile)
+	}
+	return nil
+}
+
+// StoredMinesOn is a map's mines, in tile order, as the last flush kept them.
+func (m *MemoryPersistence) StoredMinesOn(played clicks.MapID) []clicks.MineSnapshot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	kept := m.mapLocked(played).mines
+	mines := make([]clicks.MineSnapshot, 0, len(kept))
+	for _, tile := range slices.Sorted(maps.Keys(kept)) {
+		mines = append(mines, kept[tile])
+	}
+	return mines
 }
 
 func (m *MemoryPersistence) LoadViruses(_ context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error {
@@ -266,6 +311,11 @@ func (m *MemoryPersistence) ForgetHolder(_ context.Context, account cpsession.Ac
 		return m.failing
 	}
 	for _, kept := range m.maps {
+		for tile, mine := range kept.mines {
+			if mine.Account == account {
+				delete(kept.mines, tile)
+			}
+		}
 		for tile, holder := range kept.holders {
 			if holder == account {
 				delete(kept.holders, tile)

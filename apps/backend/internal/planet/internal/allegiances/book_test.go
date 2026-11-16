@@ -192,3 +192,32 @@ func TestInAnArenaAnAccountWhoseFlagIsOutPicksAFlagStillInAtOnce(t *testing.T) {
 	assert.Equal(t, allegiances.Snapshot{Flag: "de", ChangedAt: at}, store.Kept(alice))
 	assert.Equal(t, []allegiances.RecordedPledge{{Account: alice, Flag: "de", Previous: "fr"}}, told.Told())
 }
+
+func TestTheFlagOfAnAccountIsTheOneItPledgedAndNoneBefore(t *testing.T) {
+	b, _, _ := book()
+	payer := clicks.Payer{Account: alice}
+
+	before, err := b.FlagOf(t.Context(), payer)
+	require.NoError(t, err)
+	assert.Empty(t, before)
+
+	require.NoError(t, b.Pledge(t.Context(), payer, "fr"))
+	after, err := b.FlagOf(t.Context(), payer)
+	require.NoError(t, err)
+	assert.Equal(t, "fr", after)
+
+	none, err := b.FlagOf(t.Context(), clicks.Payer{})
+	require.NoError(t, err)
+	assert.Empty(t, none, "a caller with no account plays for no flag")
+}
+
+func TestEveryTellerHearsEachPledge(t *testing.T) {
+	first, second := &allegiances.RecordedPledges{}, &allegiances.RecordedPledges{}
+	b := allegiances.NewBook(allegiances.NewMemoryStore(), cpcountries.New(), unlocked, allegiances.EveryFlagStands{},
+		cptime.NewFixedClock(at), allegiances.Tellers{first, second})
+
+	require.NoError(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"))
+
+	assert.Equal(t, first.Told(), second.Told())
+	assert.Len(t, first.Told(), 1)
+}

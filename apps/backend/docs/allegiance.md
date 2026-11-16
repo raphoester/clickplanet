@@ -35,7 +35,10 @@ player could paint for one country and defend another click to click. **Only
   flag it left, empty for a first one) through the facts log, as the other facts go. The
   same flag again, a refusal and a release tell nothing. `alerts` hears it to move the
   player's Discord role (see [Discord pings](alerts.md)), and `chat` to end the player's stream of the room of the
-  flag it left (see [Chat](chat.md#rooms)).
+  flag it left (see [Chat](chat.md#rooms)). In planet, the book's `allegiances.Tellers` also tell `notices.Board`
+  (`allegiance_streams`), which moves every planet stream of the account to the new flag's mines (see
+  [The mine](mine.md#who-sees-the-mines)). **`Book.FlagOf`** reads the flag a caller plays for, for a stream as it opens
+  and for `GetMines`.
   **`Book.PlayError(ctx, payer, flag)`** reads the store, with 1s to do it, and asks `PlayError`. A caller
   with no account (`auth` off) is held to nothing, and a flag that
   is no country is left to the click use case, which refuses it.

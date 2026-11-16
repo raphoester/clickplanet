@@ -19,15 +19,18 @@ type Persistence interface {
 		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
 	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
 	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
+	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
 	Save(ctx context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass, out []OutFlag) error
 	// SaveViruses keeps a map's live viruses in place of the ones it kept before.
 	SaveViruses(ctx context.Context, played clicks.MapID, live []clicks.VirusSnapshot) error
+	// SaveMines keeps each mine laid, in place of what its tile kept, and deletes the mine of each tile gone.
+	SaveMines(ctx context.Context, played clicks.MapID, laid []clicks.MineSnapshot, gone []uint32) error
 	// Open writes a map's first tiles in one transaction with keep, once keep says to.
 	Open(ctx context.Context, played clicks.MapID, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
-	// Wipe deletes every tile, every landmass's lock, every flag out and every virus of a map, in one transaction with
-	// keep, once keep says to.
+	// Wipe deletes every tile, every landmass's lock, every flag out, every virus and every mine of a map, in one
+	// transaction with keep, once keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
-	// ForgetHolder takes an account off every tile of every map.
+	// ForgetHolder takes an account off every tile of every map, and takes its mines off them.
 	ForgetHolder(ctx context.Context, account cpsession.AccountID) error
 }
 
@@ -125,6 +128,11 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 		return fmt.Errorf("failed to read the stored viruses: %w", err)
 	}
 
+	err = s.persistence.LoadMines(ctx, s.playing, s.mines.restore)
+	if err != nil {
+		return fmt.Errorf("failed to read the stored mines: %w", err)
+	}
+
 	s.landmasses.each(s.settleLandmassLocked)
 
 	if outside > 0 {
@@ -136,7 +144,7 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 
 	s.logger.Info("loaded the tile map", slog.String("map", string(s.playing)), slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
 		slog.Int("fortifiedLandmasses", fortified), slog.Int("flagsOut", len(s.out.flags())),
-		slog.Int("viruses", len(s.viruses.live)))
+		slog.Int("viruses", len(s.viruses.live)), slog.Int("mines", len(s.mines.laid)))
 
 	return nil
 }
@@ -204,19 +212,20 @@ type unsaved struct {
 	landmasses []Landmass
 	out        []OutFlag
 	viruses    Viruses
+	mines      Mines
 	placed     []clicks.PlacementID
 }
 
 func (s *Storage) drainLocked() unsaved {
 	return unsaved{
 		tiles: s.board.drainDirty(), landmasses: s.landmasses.drainDirty(s.board.nameOf), out: s.out.drainUnsaved(),
-		viruses: s.viruses.drainUnsaved(), placed: s.drainPlacedLocked(),
+		viruses: s.viruses.drainUnsaved(), mines: s.mines.drainUnsaved(), placed: s.drainPlacedLocked(),
 	}
 }
 
 func (s *Storage) save(ctx context.Context, playing clicks.MapID, changes unsaved) error {
 	if len(changes.tiles) == 0 && len(changes.landmasses) == 0 && len(changes.out) == 0 && len(changes.placed) == 0 &&
-		!changes.viruses.Changed {
+		!changes.viruses.Changed && changes.mines.empty() {
 		return nil
 	}
 	if err := s.transactioner.InTx(ctx, func(ctx context.Context) error {
@@ -225,6 +234,11 @@ func (s *Storage) save(ctx context.Context, playing clicks.MapID, changes unsave
 		}
 		if changes.viruses.Changed {
 			if err := s.persistence.SaveViruses(ctx, playing, changes.viruses.Live); err != nil {
+				return err //nolint:wrapcheck // wrapped once below.
+			}
+		}
+		if !changes.mines.empty() {
+			if err := s.persistence.SaveMines(ctx, playing, changes.mines.Laid, changes.mines.Gone); err != nil {
 				return err //nolint:wrapcheck // wrapped once below.
 			}
 		}
@@ -245,6 +259,7 @@ func (s *Storage) markDirtyLocked(changes unsaved) {
 	}
 	s.out.markUnsaved(changes.out)
 	s.viruses.markUnsaved(changes.viruses)
+	s.mines.markUnsaved(changes.mines)
 	s.placed = append(s.placed, changes.placed...)
 }
 

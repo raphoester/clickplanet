@@ -100,6 +100,10 @@ and says what is in it. Read the doc before you change its area.
 - [Virus](docs/virus.md) — a charge that takes an enemy tile and spreads every 20 s into that flag's land, 32 infections
   at most; dormant (weighed 0); map state flushed with the tiles; one `virus_spread` a tick; ledger kind `virus`, whose
   takes reach `TilesTaken`.
+- [Mine](docs/mine.md) — a charge laid on a flag's own tile that only its players see; any enemy take sets it off and
+  its 2-ring blast takes the tiles for the flag, every mine reached going off too; a bomb clears it; dormant (weighed 0),
+  level 8; map state flushed with the tiles; one `mines_exploded`, `mine_laid` to the flag's streams alone; ledger kind
+  `mine`, whose takes reach `TilesTaken`.
 - [Quizzes](docs/quizzes.md) — the quiz banner, its short clock, the bank's lean on planet's board, and the charge a
   right answer gives (the bonuses module's, from the quizzes' `QuizAnswered`).
 - [The boxes module](docs/boxes-module.md) — the boxes left bonuses (2026-11-15): the schedule, the offer and the claim,

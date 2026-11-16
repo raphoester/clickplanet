@@ -12,7 +12,7 @@ func everyKind() *cpcolls.Set[Kind] {
 	return cpcolls.NewSet(Kinds...)
 }
 
-// testWeighed is every kind TestRules weighs above 0: all but the virus.
+// testWeighed is every kind TestRules weighs above 0: all but the virus and the mine.
 func testWeighed() *cpcolls.Set[Kind] {
 	return cpcolls.NewSet(KindRefill, KindSpreadClicks, KindEncloseClicks, KindBomb, KindShields)
 }
@@ -20,8 +20,9 @@ func testWeighed() *cpcolls.Set[Kind] {
 func TestEveryKindWeighedIsDrawn(t *testing.T) {
 	weights := TestRules().Kinds
 	weights[KindVirus] = 1
+	weights[KindMine] = 1
 	seen := cpcolls.NewSet[Kind]()
-	for range 300 {
+	for range 400 {
 		seen.Add(drawKind(everyKind(), weights))
 	}
 
@@ -76,6 +77,15 @@ func TestAVirusWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	assert.True(t, rules.drawable(nil, Unlocked{KindVirus}).Contains(KindVirus))
 }
 
+func TestAMineWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
+	rules := TestGated()
+	rules.Kinds[KindMine] = 1
+
+	assert.False(t, rules.drawable(nil, Unlocked{KindEncloseClicks, KindBomb, KindVirus}).Contains(KindMine))
+	assert.True(t, rules.drawable(nil, Unlocked{KindMine}).Contains(KindMine))
+	assert.False(t, rules.drawable([]Kind{KindMine}, Unlocked{KindMine}).Contains(KindMine), "a hand of 3 has no room")
+}
+
 func TestWithTheGatesOffEveryKindIsDrawnToAGuest(t *testing.T) {
 	assert.Equal(t, testWeighed(), TestRules().drawable(nil, nil), "a battle's set keeps the gates off")
 }
@@ -116,6 +126,7 @@ func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.
 	assert.Equal(t, cpcolls.NewSet(5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20), seen[KindShields], "5 to 20 shields")
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindBomb])
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindRefill])
+	assert.Equal(t, cpcolls.NewSet(1, 2), seen[KindMine], "1 or 2 mines")
 }
 
 func TestAWelcomeBoxIsASpreadAndAWelcomeAnswerShields(t *testing.T) {

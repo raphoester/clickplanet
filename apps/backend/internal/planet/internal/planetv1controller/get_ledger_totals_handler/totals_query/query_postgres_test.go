@@ -85,11 +85,14 @@ func (s *testSuite) TestTheTotalsCountEachKindOfActAndTheAccountsThatMadeThem() 
 			Tile: 12, Landmass: 4, Scope: "203.0.113.7", Account: bob, Country: "de", At: at,
 			Raised: []clicks.TileShields{{Tile: 12, Shields: 4}},
 		},
+		ledger.Mining{Tile: 15, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at, Impacts: []clicks.Impact{
+			{Tile: 15, Owner: "de", Outcome: clicks.Taken},
+		}},
 		ledger.Taking{Tile: 14, Scope: "198.51.100.4", Country: "fr", Previous: "de", At: at},
 	)
 
 	s.True(proto.Equal(&planetv1.LedgerTotals{
-		Takes: 3, Strikes: 1, Spreads: 1, Encloses: 1, Bombs: 1, Shields: 1, Fortifies: 1, Accounts: 2,
+		Takes: 3, Strikes: 1, Spreads: 1, Encloses: 1, Bombs: 1, Shields: 1, Fortifies: 1, Mines: 1, Accounts: 2,
 	}, s.totals()), "%v", s.totals())
 }
 

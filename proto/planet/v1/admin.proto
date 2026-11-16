@@ -104,6 +104,9 @@ message GrantChargesRequest {
 
   // One virus: a hand holds one at most.
   bool virus = 7;
+
+  // Mines, up to what a hand holds.
+  uint32 mines = 8;
 }
 
 message GrantChargesResponse {

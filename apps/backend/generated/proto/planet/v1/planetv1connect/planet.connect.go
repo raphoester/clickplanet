@@ -61,6 +61,10 @@ const (
 	ClickServicePlaceShieldProcedure = "/planet.v1.ClickService/PlaceShield"
 	// ClickServiceUseVirusProcedure is the fully-qualified name of the ClickService's UseVirus RPC.
 	ClickServiceUseVirusProcedure = "/planet.v1.ClickService/UseVirus"
+	// ClickServiceLayMineProcedure is the fully-qualified name of the ClickService's LayMine RPC.
+	ClickServiceLayMineProcedure = "/planet.v1.ClickService/LayMine"
+	// ClickServiceGetMinesProcedure is the fully-qualified name of the ClickService's GetMines RPC.
+	ClickServiceGetMinesProcedure = "/planet.v1.ClickService/GetMines"
 	// ClickServiceGetFortressesProcedure is the fully-qualified name of the ClickService's
 	// GetFortresses RPC.
 	ClickServiceGetFortressesProcedure = "/planet.v1.ClickService/GetFortresses"
@@ -99,6 +103,11 @@ type ClickServiceClient interface {
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	// Infects an enemy tile with no shield: it becomes the caller's flag's, and the virus spreads from it on its own.
 	UseVirus(context.Context, *connect.Request[v1.UseVirusRequest]) (*connect.Response[v1.UseVirusResponse], error)
+	// Lays a mine on a tile of the caller's flag with no mine: a take by another flag sets it off.
+	LayMine(context.Context, *connect.Request[v1.LayMineRequest]) (*connect.Response[v1.LayMineResponse], error)
+	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+	// now, and a cached one lies.
+	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
 	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
@@ -199,6 +208,18 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(clickServiceMethods.ByName("UseVirus")),
 			connect.WithClientOptions(opts...),
 		),
+		layMine: connect.NewClient[v1.LayMineRequest, v1.LayMineResponse](
+			httpClient,
+			baseURL+ClickServiceLayMineProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("LayMine")),
+			connect.WithClientOptions(opts...),
+		),
+		getMines: connect.NewClient[v1.GetMinesRequest, v1.GetMinesResponse](
+			httpClient,
+			baseURL+ClickServiceGetMinesProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetMines")),
+			connect.WithClientOptions(opts...),
+		),
 		getFortresses: connect.NewClient[v1.GetFortressesRequest, v1.GetFortressesResponse](
 			httpClient,
 			baseURL+ClickServiceGetFortressesProcedure,
@@ -256,6 +277,8 @@ type clickServiceClient struct {
 	getChargeRules      *connect.Client[v1.GetChargeRulesRequest, v1.GetChargeRulesResponse]
 	placeShield         *connect.Client[v1.PlaceShieldRequest, v1.PlaceShieldResponse]
 	useVirus            *connect.Client[v1.UseVirusRequest, v1.UseVirusResponse]
+	layMine             *connect.Client[v1.LayMineRequest, v1.LayMineResponse]
+	getMines            *connect.Client[v1.GetMinesRequest, v1.GetMinesResponse]
 	getFortresses       *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
 	getTileHolder       *connect.Client[v1.GetTileHolderRequest, v1.GetTileHolderResponse]
 	getLandmass         *connect.Client[v1.GetLandmassRequest, v1.GetLandmassResponse]
@@ -324,6 +347,16 @@ func (c *clickServiceClient) UseVirus(ctx context.Context, req *connect.Request[
 	return c.useVirus.CallUnary(ctx, req)
 }
 
+// LayMine calls planet.v1.ClickService.LayMine.
+func (c *clickServiceClient) LayMine(ctx context.Context, req *connect.Request[v1.LayMineRequest]) (*connect.Response[v1.LayMineResponse], error) {
+	return c.layMine.CallUnary(ctx, req)
+}
+
+// GetMines calls planet.v1.ClickService.GetMines.
+func (c *clickServiceClient) GetMines(ctx context.Context, req *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error) {
+	return c.getMines.CallUnary(ctx, req)
+}
+
 // GetFortresses calls planet.v1.ClickService.GetFortresses.
 func (c *clickServiceClient) GetFortresses(ctx context.Context, req *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error) {
 	return c.getFortresses.CallUnary(ctx, req)
@@ -372,6 +405,11 @@ type ClickServiceHandler interface {
 	PlaceShield(context.Context, *connect.Request[v1.PlaceShieldRequest]) (*connect.Response[v1.PlaceShieldResponse], error)
 	// Infects an enemy tile with no shield: it becomes the caller's flag's, and the virus spreads from it on its own.
 	UseVirus(context.Context, *connect.Request[v1.UseVirusRequest]) (*connect.Response[v1.UseVirusResponse], error)
+	// Lays a mine on a tile of the caller's flag with no mine: a take by another flag sets it off.
+	LayMine(context.Context, *connect.Request[v1.LayMineRequest]) (*connect.Response[v1.LayMineResponse], error)
+	// The mines of the flag the caller plays for: no other flag's. Not NO_SIDE_EFFECTS: the answer is about one caller
+	// now, and a cached one lies.
+	GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error)
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
 	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
@@ -468,6 +506,18 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(clickServiceMethods.ByName("UseVirus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceLayMineHandler := connect.NewUnaryHandler(
+		ClickServiceLayMineProcedure,
+		svc.LayMine,
+		connect.WithSchema(clickServiceMethods.ByName("LayMine")),
+		connect.WithHandlerOptions(opts...),
+	)
+	clickServiceGetMinesHandler := connect.NewUnaryHandler(
+		ClickServiceGetMinesProcedure,
+		svc.GetMines,
+		connect.WithSchema(clickServiceMethods.ByName("GetMines")),
+		connect.WithHandlerOptions(opts...),
+	)
 	clickServiceGetFortressesHandler := connect.NewUnaryHandler(
 		ClickServiceGetFortressesProcedure,
 		svc.GetFortresses,
@@ -534,6 +584,10 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServicePlaceShieldHandler.ServeHTTP(w, r)
 		case ClickServiceUseVirusProcedure:
 			clickServiceUseVirusHandler.ServeHTTP(w, r)
+		case ClickServiceLayMineProcedure:
+			clickServiceLayMineHandler.ServeHTTP(w, r)
+		case ClickServiceGetMinesProcedure:
+			clickServiceGetMinesHandler.ServeHTTP(w, r)
 		case ClickServiceGetFortressesProcedure:
 			clickServiceGetFortressesHandler.ServeHTTP(w, r)
 		case ClickServiceGetTileHolderProcedure:
@@ -601,6 +655,14 @@ func (UnimplementedClickServiceHandler) PlaceShield(context.Context, *connect.Re
 
 func (UnimplementedClickServiceHandler) UseVirus(context.Context, *connect.Request[v1.UseVirusRequest]) (*connect.Response[v1.UseVirusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.UseVirus is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) LayMine(context.Context, *connect.Request[v1.LayMineRequest]) (*connect.Response[v1.LayMineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.LayMine is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetMines(context.Context, *connect.Request[v1.GetMinesRequest]) (*connect.Response[v1.GetMinesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetMines is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error) {
