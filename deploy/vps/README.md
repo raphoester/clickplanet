@@ -145,12 +145,13 @@ Long-lived server-streaming responses pass through the proxy on the free plan, p
 
 ## 3. The droplet
 
-A **Basic / Regular $6 droplet** (1 vCPU, 1 GB RAM, 25 GB SSD, 1 TB transfer) is
-enough: the Go API holds the whole tile grid in a few MB and there is no
+A **Basic / Regular droplet** with **4 GB of RAM** runs production. It started as the $6 one (1 vCPU, 1 GB RAM,
+25 GB SSD, 1 TB transfer), which stopped holding the load and was resized before the season 0 finale (31 Oct
+2026). The Go API holds the whole tile grid in a few MB and there is no
 database beside it. Pick the Ubuntu LTS image and a region near your players,
 and attach your SSH key at creation.
 
-That 1 GB is enough at rest but has no swap by default, so a transient spike —
+A droplet has no swap by default, so a transient spike —
 an apt upgrade, docker unpacking layers — is an OOM kill rather than a slow
 moment, and the killer picks the biggest process, which is the API holding the
 game state. `bootstrap.sh` adds a 2 GB swap file with `vm.swappiness=10` (an
@@ -878,7 +879,7 @@ A block whose numbers are *lower* than the block above it is where a deploy
 happened and the counters restarted. Subtract within a run, never across one.
 
 It is not a Prometheus, deliberately: a real one is 80–150 MB resident beside a
-1 GB droplet already holding the tile map, and the job here is comparing two
+droplet already holding the tile map (1 GB when this was decided, 4 GB since before the season 0 finale), and the job here is comparing two
 samples a day apart. If this ever needs `histogram_quantile` and proper
 reset-aware `rate()`, that is the moment to spend the memory — the poller is
 then deleted, not extended.

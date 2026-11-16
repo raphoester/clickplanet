@@ -5,7 +5,7 @@
 the codebook). It is a field of the tile, not a view of the ledger: it changes exactly when the owner does, under
 the same lock, and is flushed in the same row. The ledger has the same fact, but reading it for a whole landmass
 means every change of every one of its tiles, and the tiles a spread or an enclose took are only in JSON payloads:
-thousands of index probes, or a scan of the whole ledger, for one card on the 1-vCPU box.
+thousands of index probes, or a scan of the whole ledger, for one card on the production droplet.
 
 - **A player's take sets it**: `clicks.Tile.Claimed` holds a taken tile for the account in the context
   (`cpctx.GetAccount`), as `Fortify` does for `Fortification.Account`. So a click, and each tile a spread or an
