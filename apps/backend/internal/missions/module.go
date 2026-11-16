@@ -32,6 +32,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/pay_signed_in_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/retell_missions_done_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/retell_missions_done_usecase/audit_retell_missions_done"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler/totals_query"
@@ -41,6 +43,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/list_flag_days_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/list_flag_days_handler/flag_days_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/listen_for_events_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/retell_missions_done_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/save_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/postgres_rules_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules/usecases/save_rules_usecase"
@@ -122,7 +125,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to gamemaster.v1.DayStarted: %w", err)
 	}
 	changes := inprocess_day_feed.New()
-	facts, err := subscribeFacts(ctx, streams, record_fact_usecase.New(calendar, briefing, store, db, pay, changes), props.Logger)
+	facts, err := subscribeFacts(ctx, streams, record_fact_usecase.New(calendar, briefing, store, store, db, outbox, pay, changes), props.Logger)
 	if err != nil {
 		closeStores()
 		return err
@@ -183,6 +186,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		GetRulesHandler:         get_rules_handler.New(rules_query.NewPostgresQuery(db)),
 		SaveRulesHandler: save_rules_handler.New(
 			audit_save_rules.New(save_rules_usecase.New(missionRules), props.Logger),
+		),
+		RetellMissionsDoneHandler: retell_missions_done_handler.New(
+			audit_retell_missions_done.New(retell_missions_done_usecase.New(store, db, outbox), props.Logger),
 		),
 	}
 	if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

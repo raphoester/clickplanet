@@ -37,6 +37,19 @@ const (
 	kindFortifyTiles  = "fortify_tiles"
 )
 
+// The kind each record's name keeps.
+var kindOfRecord = map[string]missions.Kind{
+	kindTakeFor:       missions.KindTakeFor,
+	kindTakeFrom:      missions.KindTakeFrom,
+	kindTakeIn:        missions.KindTakeIn,
+	kindTakeFromIn:    missions.KindTakeFromIn,
+	kindCatchBoxes:    missions.KindCatchBoxes,
+	kindAnswerQuizzes: missions.KindAnswerQuizzes,
+	kindBombIn:        missions.KindBombIn,
+	kindShieldTiles:   missions.KindShieldTiles,
+	kindFortifyTiles:  missions.KindFortifyTiles,
+}
+
 type takeForRecord struct {
 	Flag string `json:"flag"`
 	Goal uint32 `json:"goal"`

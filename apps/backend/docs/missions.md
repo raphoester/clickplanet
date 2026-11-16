@@ -21,6 +21,7 @@ internal/missions/internal/
     usecases/keep_day_usecase/
   missions/                         AccountID, Fact (one type per kind) and Counted, MissionID,
                                     Order (one type per kind), Mission, Brief, Draw, World and Ground, Sheet (an account's day), Briefing;
+                                    Kind and Done (what an account has done in all, by kind);
                                     the Store port and its contract suite
     postgres_mission_store/         the Store over missions.mission_briefs, mission_sheets, mission_progress and mission_payments;
                                     records.go is the jsonb format of a mission, one payload per kind
@@ -30,11 +31,12 @@ internal/missions/internal/
     rpc_player_accounts/            whether an account is signed in, from player.v1.InternalService/GetAccounts (2s timeout)
     payroll/                        pays each mission done once: the payments and their grants, in one transaction
     planetgrant/                    a payment as the planet.v1.GrantCharges command
-    redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid and
-                                    FlagMissionDone as events
+    donemessage/                    what an account has done in all as the missions.v1.MissionsDone event
+    redis_outbox_sender/            what the outbox relay sends with: the grants as commands, MissionsPaid,
+                                    MissionsDone and FlagMissionDone as events
     inprocess_day_feed/             wakes the account's open streams when its day changed, in this process
     usecases/record_fact_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
-              listen_for_events_usecase/
+              listen_for_events_usecase/  retell_missions_done_usecase/ (audit_retell_missions_done/)
   flagmissions/                     Take and Strike, Order (TakeIn, BreakShields), MissionID, Day (a flag's day), Done, Draw,
                                     Briefing; the Store port and its contract suite
     postgres_flag_day_store/        the Store over missions.flag_days and flag_missions
@@ -51,7 +53,7 @@ internal/missions/internal/
                                     missionmessage
     get_missions_handler/  listen_for_events_handler/
     list_flag_days_handler/flag_days_query/  get_mission_totals_handler/totals_query/
-    get_rules_handler/rules_query/  save_rules_handler/
+    get_rules_handler/rules_query/  save_rules_handler/  retell_missions_done_handler/
   subscribers/                      tiles_taken_subscriber/  bonus_claimed_subscriber/  quiz_answered_subscriber/
                                     bomb_landed_subscriber/  shield_placed_subscriber/  fortified_subscriber/
                                     day_started_subscriber/  flag_tiles_taken_subscriber/  shields_struck_subscriber/
@@ -162,6 +164,18 @@ internal/missions/internal/
     `progression` keeps it for the Missions title track. A running total, not one event per mission: told twice or late it
     changes nothing, and the first one brings every payment before it. So one outbox holds a command and an event, and
     `redis_outbox_sender` sends each on its own kind of stream.
+  - **What was done is told apart from what was paid** (`missions.v1.MissionsDone`): the fact that finishes one or more
+    missions records, in its transaction and before the payroll, how many missions the account has done in all and, by
+    `MissionKind`, how many and their goals summed (`Store.DoneBy`, `missions.Done`, `donemessage`). A mission is done
+    once its progress reaches its goal, every kind's rule, read from the account's briefs and `mission_progress` as
+    `totals_query` reads them. **A guest's missions are told too**, at once: paying waits for a sign-in, telling does
+    not, and whether a guest's mission is worth anything is the listener's call (the owner, 2026-11-16, when the player
+    level's first slice was reviewed). Missions knows no XP: what a mission done is worth, and to whom, is the
+    rewarder's word, as bonuses decides what a box or a right answer pays.
+    `MissionsPaid` stays the payment's own fact, true while missions pays charges. Totals again, so twice, late or lost
+    changes nothing, and missions done before the event existed reach the listeners by `RetellMissionsDone` (see
+    [The missions done, told again](#the-missions-done-told-again)). Nobody hears it yet: progression will, for the
+    Missions title track and the level.
   - **The player hears its progress and its payments on a stream, with no read** (`MissionService.ListenForEvents`,
     `stream MissionEvent`). The stream sends the caller's day as `GetMissions` answers it (`day`, `missionmessage.Day`)
     as it opens, then again after each fact or batch of takes of the caller is counted, and a `heartbeat` every
@@ -327,3 +341,22 @@ days told that **started** in the window, oldest first, and both are queries (se
   `TestEveryKindIsCountedDoneAndPaidAsTheSheetSaysItIs` keeps one of each kind through `postgres_mission_store` and
   asks for what `Sheet.Statuses` says. A window of 31 days at most.
 - **Neither keeps when a flag mission was done**: `flag_missions` has no time. The chat's announcement has it.
+
+## The missions done, told again
+
+**`RetellMissionsDone(dry_run)` tells `MissionsDone` for every account that has done a mission, so the listeners hear
+the missions done before the event existed.** A one-off call on `missions.v1.AdminService`
+(`missions_retell_missions_done` on the connector), run by hand once after the deploy that added the event.
+
+- **What it does** (`retell_missions_done_usecase`): pages the accounts with at least one mission done, guests
+  included, 500 at a time and in the order of their ids (`Store.DoneAfter`), and records one `MissionsDone` each in the
+  outbox, as a fact that finishes a mission tells it (`donemessage`), a page per transaction. It grants and pays
+  nothing. The answer is how many accounts it told; `dry_run` counts them and records nothing.
+  `audit_retell_missions_done` logs each run at Warn.
+- **Twice changes nothing.** The totals only grow, and a listener keeps the highest it heard: a second run, or a run
+  beside a live fact whose higher totals land first, tells nothing new.
+- **The cost**: one event per account with a mission done, which the relay sends 100 at a time. Nobody listens yet,
+  so they only fill `events:missions.v1.MissionsDone` up to `redis.maxLen`.
+- **Order**: after the deploy, with `dry_run`, then for real. It must run before a listener that reads the event is
+  trusted (progression, later); a listener added after it reads the stream from its start, retold totals included,
+  as long as the stream still holds them.

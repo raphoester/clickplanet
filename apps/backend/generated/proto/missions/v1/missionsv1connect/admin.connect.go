@@ -43,6 +43,9 @@ const (
 	AdminServiceGetRulesProcedure = "/missions.v1.AdminService/GetRules"
 	// AdminServiceSaveRulesProcedure is the fully-qualified name of the AdminService's SaveRules RPC.
 	AdminServiceSaveRulesProcedure = "/missions.v1.AdminService/SaveRules"
+	// AdminServiceRetellMissionsDoneProcedure is the fully-qualified name of the AdminService's
+	// RetellMissionsDone RPC.
+	AdminServiceRetellMissionsDoneProcedure = "/missions.v1.AdminService/RetellMissionsDone"
 )
 
 // AdminServiceClient is a client for the missions.v1.AdminService service.
@@ -64,6 +67,11 @@ type AdminServiceClient interface {
 	// a flag draws its mission once a day, at its first take, shield broken or read, so in practice from the next day.
 	// InvalidArgument for numbers that cannot play, with every reason.
 	SaveRules(context.Context, *connect.Request[v1.SaveRulesRequest]) (*connect.Response[v1.SaveRulesResponse], error)
+	// Tells MissionsDone for every account that has done a mission: how many in all and, by kind, how many and their
+	// goals summed, as a fact that finishes a mission tells them, so the listeners hear the missions done before
+	// MissionsDone was told. Run once after that deploy, dry_run first. Players see nothing: nothing is granted, and a
+	// listener keeps the highest totals it heard, so a second run changes nothing.
+	RetellMissionsDone(context.Context, *connect.Request[v1.RetellMissionsDoneRequest]) (*connect.Response[v1.RetellMissionsDoneResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the missions.v1.AdminService service. By default,
@@ -104,15 +112,22 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("SaveRules")),
 			connect.WithClientOptions(opts...),
 		),
+		retellMissionsDone: connect.NewClient[v1.RetellMissionsDoneRequest, v1.RetellMissionsDoneResponse](
+			httpClient,
+			baseURL+AdminServiceRetellMissionsDoneProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("RetellMissionsDone")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // adminServiceClient implements AdminServiceClient.
 type adminServiceClient struct {
-	listFlagDays     *connect.Client[v1.ListFlagDaysRequest, v1.ListFlagDaysResponse]
-	getMissionTotals *connect.Client[v1.GetMissionTotalsRequest, v1.GetMissionTotalsResponse]
-	getRules         *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
-	saveRules        *connect.Client[v1.SaveRulesRequest, v1.SaveRulesResponse]
+	listFlagDays       *connect.Client[v1.ListFlagDaysRequest, v1.ListFlagDaysResponse]
+	getMissionTotals   *connect.Client[v1.GetMissionTotalsRequest, v1.GetMissionTotalsResponse]
+	getRules           *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
+	saveRules          *connect.Client[v1.SaveRulesRequest, v1.SaveRulesResponse]
+	retellMissionsDone *connect.Client[v1.RetellMissionsDoneRequest, v1.RetellMissionsDoneResponse]
 }
 
 // ListFlagDays calls missions.v1.AdminService.ListFlagDays.
@@ -135,6 +150,11 @@ func (c *adminServiceClient) SaveRules(ctx context.Context, req *connect.Request
 	return c.saveRules.CallUnary(ctx, req)
 }
 
+// RetellMissionsDone calls missions.v1.AdminService.RetellMissionsDone.
+func (c *adminServiceClient) RetellMissionsDone(ctx context.Context, req *connect.Request[v1.RetellMissionsDoneRequest]) (*connect.Response[v1.RetellMissionsDoneResponse], error) {
+	return c.retellMissionsDone.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the missions.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Each day the gamemaster told that started in the window, oldest first, with every flag's day in it: the flag's
@@ -154,6 +174,11 @@ type AdminServiceHandler interface {
 	// a flag draws its mission once a day, at its first take, shield broken or read, so in practice from the next day.
 	// InvalidArgument for numbers that cannot play, with every reason.
 	SaveRules(context.Context, *connect.Request[v1.SaveRulesRequest]) (*connect.Response[v1.SaveRulesResponse], error)
+	// Tells MissionsDone for every account that has done a mission: how many in all and, by kind, how many and their
+	// goals summed, as a fact that finishes a mission tells them, so the listeners hear the missions done before
+	// MissionsDone was told. Run once after that deploy, dry_run first. Players see nothing: nothing is granted, and a
+	// listener keeps the highest totals it heard, so a second run changes nothing.
+	RetellMissionsDone(context.Context, *connect.Request[v1.RetellMissionsDoneRequest]) (*connect.Response[v1.RetellMissionsDoneResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -190,6 +215,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("SaveRules")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceRetellMissionsDoneHandler := connect.NewUnaryHandler(
+		AdminServiceRetellMissionsDoneProcedure,
+		svc.RetellMissionsDone,
+		connect.WithSchema(adminServiceMethods.ByName("RetellMissionsDone")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/missions.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceListFlagDaysProcedure:
@@ -200,6 +231,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetRulesHandler.ServeHTTP(w, r)
 		case AdminServiceSaveRulesProcedure:
 			adminServiceSaveRulesHandler.ServeHTTP(w, r)
+		case AdminServiceRetellMissionsDoneProcedure:
+			adminServiceRetellMissionsDoneHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -223,4 +256,8 @@ func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Reque
 
 func (UnimplementedAdminServiceHandler) SaveRules(context.Context, *connect.Request[v1.SaveRulesRequest]) (*connect.Response[v1.SaveRulesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.AdminService.SaveRules is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) RetellMissionsDone(context.Context, *connect.Request[v1.RetellMissionsDoneRequest]) (*connect.Response[v1.RetellMissionsDoneResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("missions.v1.AdminService.RetellMissionsDone is not implemented"))
 }

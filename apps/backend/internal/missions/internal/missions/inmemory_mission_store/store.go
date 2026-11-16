@@ -3,7 +3,9 @@
 package inmemory_mission_store
 
 import (
+	"bytes"
 	"context"
+	"slices"
 	"sync"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
@@ -103,6 +105,62 @@ func (s *Store) PaidInAll(_ context.Context, account missions.AccountID) (uint64
 		}
 	}
 	return paid, nil
+}
+
+func (s *Store) DoneBy(_ context.Context, account missions.AccountID) (missions.Done, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return missions.Done{}, s.failWith
+	}
+	return s.doneBy(account)
+}
+
+func (s *Store) DoneAfter(_ context.Context, after missions.AccountID, limit int) ([]missions.AccountDone, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.failWith != nil {
+		return nil, s.failWith
+	}
+	var accounts []missions.AccountID
+	for key := range s.sheets {
+		if bytes.Compare(key.account[:], after[:]) > 0 && !slices.Contains(accounts, key.account) {
+			accounts = append(accounts, key.account)
+		}
+	}
+	slices.SortFunc(accounts, func(a, b missions.AccountID) int { return bytes.Compare(a[:], b[:]) })
+
+	page := make([]missions.AccountDone, 0, limit)
+	for _, account := range accounts {
+		if len(page) == limit {
+			break
+		}
+		done, err := s.doneBy(account)
+		if err != nil {
+			return nil, err
+		}
+		if done.InAll > 0 {
+			page = append(page, missions.AccountDone{Account: account, Done: done})
+		}
+	}
+	return page, nil
+}
+
+func (s *Store) doneBy(account missions.AccountID) (missions.Done, error) {
+	done := missions.NothingDone()
+	for key, sheet := range s.sheets {
+		if key.account != account {
+			continue
+		}
+		brief, err := missions.BriefOf(s.briefs[key])
+		if err != nil {
+			return missions.Done{}, err //nolint:wrapcheck // the domain named it.
+		}
+		done = done.WithDay(brief, missions.SheetOf(sheet))
+	}
+	return done, nil
 }
 
 func (s *Store) DeleteAccount(_ context.Context, account missions.AccountID) error {

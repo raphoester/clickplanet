@@ -8,6 +8,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/donemessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -21,6 +22,10 @@ type Briefing interface {
 
 type Sheets interface {
 	ChangeSheet(ctx context.Context, day days.Day, account missions.AccountID, change func(missions.Sheet) missions.Sheet) error
+}
+
+type Done interface {
+	DoneBy(ctx context.Context, account missions.AccountID) (missions.Done, error)
 }
 
 type Payroll interface {
@@ -38,12 +43,12 @@ type In struct {
 }
 
 func New(
-	calendar Calendar, briefing Briefing, sheets Sheets, transactioner cpatomic.Transactioner, payroll Payroll,
-	streams Streams,
+	calendar Calendar, briefing Briefing, sheets Sheets, done Done, transactioner cpatomic.Transactioner,
+	outbox cpatomic.Outbox, payroll Payroll, streams Streams,
 ) *UseCase {
 	return &UseCase{
-		calendar: calendar, briefing: briefing, sheets: sheets, transactioner: transactioner, payroll: payroll,
-		streams: streams,
+		calendar: calendar, briefing: briefing, sheets: sheets, done: done, transactioner: transactioner, outbox: outbox,
+		payroll: payroll, streams: streams,
 	}
 }
 
@@ -51,7 +56,9 @@ type UseCase struct {
 	calendar      Calendar
 	briefing      Briefing
 	sheets        Sheets
+	done          Done
 	transactioner cpatomic.Transactioner
+	outbox        cpatomic.Outbox
 	payroll       Payroll
 	streams       Streams
 }
@@ -102,6 +109,22 @@ func (u *UseCase) record(ctx context.Context, group days.Group[missions.AccountI
 		if !finished {
 			return nil
 		}
+		if err := u.tellDone(ctx, group.Key); err != nil {
+			return err
+		}
 		return u.payroll.Pay(ctx, group.Day, group.Key) //nolint:wrapcheck // the payroll named it.
 	})
+}
+
+// What the account has done in all, these included, told whether or not it is signed in: paying is the payroll's
+// business, and what a mission done is worth the listener's.
+func (u *UseCase) tellDone(ctx context.Context, account missions.AccountID) error {
+	done, err := u.done.DoneBy(ctx, account)
+	if err != nil {
+		return fmt.Errorf("failed to count the account's missions done: %w", err)
+	}
+	if err := u.outbox.Record(ctx, donemessage.Of(account, done)); err != nil {
+		return fmt.Errorf("failed to record the missions done: %w", err)
+	}
+	return nil
 }

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMissionTotalsRequest, GetMissionTotalsResponse, GetRulesRequest, GetRulesResponse, ListFlagDaysRequest, ListFlagDaysResponse, SaveRulesRequest, SaveRulesResponse } from "./admin_pb.js";
+import { GetMissionTotalsRequest, GetMissionTotalsResponse, GetRulesRequest, GetRulesResponse, ListFlagDaysRequest, ListFlagDaysResponse, RetellMissionsDoneRequest, RetellMissionsDoneResponse, SaveRulesRequest, SaveRulesResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -69,6 +69,20 @@ export const AdminService = {
       name: "SaveRules",
       I: SaveRulesRequest,
       O: SaveRulesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Tells MissionsDone for every account that has done a mission: how many in all and, by kind, how many and their
+     * goals summed, as a fact that finishes a mission tells them, so the listeners hear the missions done before
+     * MissionsDone was told. Run once after that deploy, dry_run first. Players see nothing: nothing is granted, and a
+     * listener keeps the highest totals it heard, so a second run changes nothing.
+     *
+     * @generated from rpc missions.v1.AdminService.RetellMissionsDone
+     */
+    retellMissionsDone: {
+      name: "RetellMissionsDone",
+      I: RetellMissionsDoneRequest,
+      O: RetellMissionsDoneResponse,
       kind: MethodKind.Unary,
     },
   }
