@@ -5,6 +5,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_mission_totals_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/get_rules_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/list_flag_days_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/retell_missions_done_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missionsv1controller/save_rules_handler"
 )
 
@@ -13,6 +14,7 @@ type AdminService struct {
 	get_mission_totals_handler.GetMissionTotalsHandler
 	get_rules_handler.GetRulesHandler
 	save_rules_handler.SaveRulesHandler
+	retell_missions_done_handler.RetellMissionsDoneHandler
 }
 
 var _ missionsv1connect.AdminServiceHandler = AdminService{}

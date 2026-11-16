@@ -8,11 +8,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
+	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
+	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/usecases/record_fact_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
@@ -80,8 +84,8 @@ func progressOf(t *testing.T, store *inmemory_mission_store.Store, day days.Day,
 
 func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 	store := inmemory_mission_store.New()
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, &recordingPayroll{}, &recordingStreams{})
 
 	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{
 		Account: ada, At: at, Fact: missions.Take{Flag: "fr", Previous: "dz", Position: 41},
@@ -99,8 +103,8 @@ func TestATakeCountsOnTheMissionsOfItsDay(t *testing.T) {
 
 func TestASpreadCountsEachTileItTookOnce(t *testing.T) {
 	store := inmemory_mission_store.New()
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, &recordingPayroll{}, &recordingStreams{})
 
 	for range 2 {
 		for index := range uint32(7) {
@@ -114,8 +118,8 @@ func TestASpreadCountsEachTileItTookOnce(t *testing.T) {
 func TestABatchToldAgainWholeOrInPartCountsEachTakeOnce(t *testing.T) {
 	store := inmemory_mission_store.New()
 	transactions := &countingTransactioner{}
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		transactions, &recordingPayroll{}, &recordingStreams{})
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		transactions, &cpatomic.FakeOutbox{}, &recordingPayroll{}, &recordingStreams{})
 	enclosure := make([]record_fact_usecase.In, 0, 7)
 	for index := range uint32(7) {
 		enclosure = append(enclosure, take(ada, at, 41, index))
@@ -133,8 +137,8 @@ func TestABatchToldAgainWholeOrInPartCountsEachTakeOnce(t *testing.T) {
 func TestABatchCountsEachAccountsTakesOnItsOwnDayAndWakesEachAccountOnce(t *testing.T) {
 	store, planet, streams := inmemory_mission_store.New(), &countingPlanet{}, &recordingStreams{}
 	transactions := &countingTransactioner{}
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, planet, pledged("fr")), store,
-		transactions, &recordingPayroll{}, streams)
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, planet, pledged("fr")), store, store,
+		transactions, &cpatomic.FakeOutbox{}, &recordingPayroll{}, streams)
 	tomorrow := at.AddDate(0, 0, 1)
 
 	require.NoError(t, useCase.Execute(t.Context(),
@@ -153,8 +157,8 @@ func TestABatchCountsEachAccountsTakesOnItsOwnDayAndWakesEachAccountOnce(t *test
 func TestAnAccountsMissionsAreDrawnOnceADay(t *testing.T) {
 	store := inmemory_mission_store.New()
 	planet := &countingPlanet{}
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, planet, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, planet, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, &recordingPayroll{}, &recordingStreams{})
 
 	for range 3 {
 		require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr"}}))
@@ -166,8 +170,8 @@ func TestAnAccountsMissionsAreDrawnOnceADay(t *testing.T) {
 
 func TestAFactWhenNoDayRunsCountsNothing(t *testing.T) {
 	store, planet := inmemory_mission_store.New(), &countingPlanet{}
-	useCase := record_fact_usecase.New(inmemory_day_store.New(), missions.NewBriefing(store, planet, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
+	useCase := record_fact_usecase.New(inmemory_day_store.New(), missions.NewBriefing(store, planet, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, &recordingPayroll{}, &recordingStreams{})
 
 	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr"}}))
 
@@ -179,8 +183,8 @@ func TestAFactWhenNoDayRunsCountsNothing(t *testing.T) {
 
 func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
 	store := inmemory_mission_store.New()
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{err: errors.New("down")}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{}, &recordingStreams{})
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{err: errors.New("down")}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, &recordingPayroll{}, &recordingStreams{})
 
 	require.Error(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr"}}))
 
@@ -192,8 +196,8 @@ func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
 func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {
 	store := inmemory_mission_store.New()
 	payroll := &recordingPayroll{}
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, payroll, &recordingStreams{})
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, payroll, &recordingStreams{})
 
 	drawn := missions.Draw(days.TestingDayAt(at), ada, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}).Snapshot()
 	goal := drawn[0].Order.(missions.TakeFor).Goal
@@ -213,8 +217,8 @@ func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {
 func TestAMissionFinishedMidBatchIsPaidOnce(t *testing.T) {
 	store := inmemory_mission_store.New()
 	payroll := &recordingPayroll{}
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, payroll, &recordingStreams{})
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, payroll, &recordingStreams{})
 	goal := missions.Draw(days.TestingDayAt(at), ada, "fr", world).Snapshot()[0].Order.(missions.TakeFor).Goal
 	batch := make([]record_fact_usecase.In, 0, goal+10)
 	for index := range goal + 10 {
@@ -230,11 +234,111 @@ func TestAMissionFinishedMidBatchIsPaidOnce(t *testing.T) {
 
 func TestACountedFactWakesTheAccountsStreams(t *testing.T) {
 	store, streams := inmemory_mission_store.New(), &recordingStreams{}
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store,
-		cpatomic.FakeTransactioner{}, &recordingPayroll{}, streams)
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, &recordingPayroll{}, streams)
 
 	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr", Position: 1}}))
 	require.NoError(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at.AddDate(0, 0, 2), Fact: missions.Take{Flag: "fr"}}))
 
 	assert.Equal(t, []missions.AccountID{ada}, streams.woken, "a fact when no day runs wakes nothing")
+}
+
+type signedIn bool
+
+func (s signedIn) Linked(context.Context, missions.AccountID) (bool, error) { return bool(s), nil }
+
+type failingPayroll struct{}
+
+func (failingPayroll) Pay(context.Context, days.Day, missions.AccountID) error {
+	return errors.New("down")
+}
+
+// The bank's goal, and a batch of takes that finishes it.
+func bank(account missions.AccountID) (uint32, []record_fact_usecase.In) {
+	goal := missions.Draw(days.TestingDayAt(at), account, "fr", world).Snapshot()[0].Order.(missions.TakeFor).Goal
+	batch := make([]record_fact_usecase.In, 0, goal)
+	for index := range goal {
+		batch = append(batch, take(account, at, 1, index))
+	}
+	return goal, batch
+}
+
+func doneTold(outbox *cpatomic.FakeOutbox) []*missionsv1.MissionsDone {
+	var told []*missionsv1.MissionsDone
+	for _, event := range outbox.Recorded() {
+		if done, ok := event.(*missionsv1.MissionsDone); ok {
+			told = append(told, done)
+		}
+	}
+	return told
+}
+
+func TestTheFactThatFinishesAMissionTellsWhatTheAccountHasDoneInAll(t *testing.T) {
+	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, outbox, &recordingPayroll{}, &recordingStreams{})
+	goal, batch := bank(ada)
+
+	require.NoError(t, useCase.Execute(t.Context(), batch[:len(batch)-1]...))
+	require.Empty(t, doneTold(outbox), "one short of the bank")
+	require.NoError(t, useCase.Execute(t.Context(), batch[len(batch)-1]))
+	require.NoError(t, useCase.Execute(t.Context(), take(ada, at, 2, 0)))
+
+	require.Len(t, doneTold(outbox), 1, "the take that finished the bank told it, the next nothing")
+	assert.True(t, proto.Equal(&missionsv1.MissionsDone{AccountId: ada.String(), DoneInAll: 1, ByKind: []*missionsv1.KindDone{
+		{Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FOR, Done: 1, Goals: uint64(goal)},
+	}}, doneTold(outbox)[0]), doneTold(outbox)[0])
+}
+
+func TestAMissionFinishedMidBatchIsToldOnce(t *testing.T) {
+	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, outbox, &recordingPayroll{}, &recordingStreams{})
+	_, batch := bank(ada)
+	batch = append(batch, take(ada, at, 2, 0), take(ada, at, 3, 0))
+
+	require.NoError(t, useCase.Execute(t.Context(), batch...))
+	require.NoError(t, useCase.Execute(t.Context(), batch...))
+
+	assert.Len(t, doneTold(outbox), 1, "the batch told again finished nothing")
+}
+
+func TestAGuestIsToldItsMissionsDoneAndIsNotPaid(t *testing.T) {
+	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, outbox, payroll.New(store, signedIn(false), outbox), &recordingStreams{})
+	_, batch := bank(grace)
+
+	require.NoError(t, useCase.Execute(t.Context(), batch...))
+
+	require.Len(t, outbox.Recorded(), 1, "no grant and no MissionsPaid: a guest is paid once it signs in")
+	require.Len(t, doneTold(outbox), 1)
+	assert.Equal(t, uint64(1), doneTold(outbox)[0].GetDoneInAll())
+}
+
+func TestASignedInAccountIsToldItsMissionsDoneThenPaid(t *testing.T) {
+	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, outbox, payroll.New(store, signedIn(true), outbox), &recordingStreams{})
+	_, batch := bank(ada)
+
+	require.NoError(t, useCase.Execute(t.Context(), batch...))
+
+	recorded := outbox.Recorded()
+	require.Len(t, recorded, 3)
+	assert.IsType(t, &missionsv1.MissionsDone{}, recorded[0])
+	assert.IsType(t, &planetv1.GrantCharges{}, recorded[1])
+	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1}, recorded[2]),
+		"MissionsPaid is as before: how many were paid, no kind")
+}
+
+func TestAPaymentThatFailsTellsNothing(t *testing.T) {
+	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
+	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{}, pledged("fr")), store, store,
+		cpatomic.FakeTransactioner{}, outbox, failingPayroll{}, &recordingStreams{})
+	_, batch := bank(ada)
+
+	require.Error(t, useCase.Execute(t.Context(), batch...))
+
+	assert.Empty(t, outbox.Recorded(), "the fact is told again, and tells it then")
 }

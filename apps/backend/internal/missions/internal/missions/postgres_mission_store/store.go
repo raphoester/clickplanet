@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
@@ -211,6 +212,105 @@ func (s *Store) PaidInAll(ctx context.Context, account missions.AccountID) (uint
 		return 0, fmt.Errorf("failed to count the account's payments: %w", err)
 	}
 	return uint64(paid), nil //nolint:gosec // a count is never negative.
+}
+
+func (s *Store) DoneBy(ctx context.Context, account missions.AccountID) (missions.Done, error) {
+	done, err := doneBy(ctx, s.db.On(ctx), []missions.AccountID{account})
+	if err != nil {
+		return missions.Done{}, err
+	}
+	return done[account], nil
+}
+
+func (s *Store) DoneAfter(ctx context.Context, after missions.AccountID, limit int) ([]missions.AccountDone, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT DISTINCT brief.account_id
+		FROM mission_briefs AS brief
+		CROSS JOIN LATERAL jsonb_array_elements(brief.missions) AS m
+		JOIN mission_progress AS p
+			ON p.day = brief.day AND p.account_id = brief.account_id AND p.mission_id = (m->>'id')::uuid
+		WHERE brief.account_id > $1 AND p.progress >= (m->'payload'->>'goal')::bigint
+		ORDER BY brief.account_id LIMIT $2
+	`, uuid.UUID(after), limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read a page of the accounts with a mission done: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var accounts []missions.AccountID
+	for rows.Next() {
+		var account uuid.UUID
+		if err := rows.Scan(&account); err != nil {
+			return nil, fmt.Errorf("failed to read an account with a mission done: %w", err)
+		}
+		accounts = append(accounts, missions.AccountID(account))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read a page of the accounts with a mission done: %w", err)
+	}
+
+	done, err := doneBy(ctx, s.db.On(ctx), accounts)
+	if err != nil {
+		return nil, err
+	}
+	page := make([]missions.AccountDone, 0, len(accounts))
+	for _, account := range accounts {
+		page = append(page, missions.AccountDone{Account: account, Done: done[account]})
+	}
+	return page, nil
+}
+
+// Each account's missions done, by kind, with their goals summed: a mission of a day's brief whose progress reached
+// its goal, every kind's rule, as totals_query reads it. From the account's briefs (mission_briefs_account), each
+// mission's progress by its key.
+const doneByKind = `
+	SELECT brief.account_id, m->>'kind', count(*), sum((m->'payload'->>'goal')::bigint)
+	FROM mission_briefs AS brief
+	CROSS JOIN LATERAL jsonb_array_elements(brief.missions) AS m
+	JOIN mission_progress AS p
+		ON p.day = brief.day AND p.account_id = brief.account_id AND p.mission_id = (m->>'id')::uuid
+	WHERE brief.account_id = ANY($1::uuid[]) AND p.progress >= (m->'payload'->>'goal')::bigint
+	GROUP BY brief.account_id, m->>'kind'`
+
+func doneBy(ctx context.Context, db cppg.Querier, accounts []missions.AccountID) (map[missions.AccountID]missions.Done, error) {
+	done := make(map[missions.AccountID]missions.Done, len(accounts))
+	if len(accounts) == 0 {
+		return done, nil
+	}
+	ids := make([]string, 0, len(accounts))
+	for _, account := range accounts {
+		ids = append(ids, account.String())
+		done[account] = missions.NothingDone()
+	}
+
+	rows, err := db.QueryContext(ctx, doneByKind, pq.Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("failed to count the accounts' missions done: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			account      uuid.UUID
+			name         string
+			count, goals int64
+		)
+		if err := rows.Scan(&account, &name, &count, &goals); err != nil {
+			return nil, fmt.Errorf("failed to count an account's missions done: %w", err)
+		}
+		kind, ok := kindOfRecord[name]
+		if !ok {
+			return nil, fmt.Errorf("%w: %q", ErrUnknownKind, name)
+		}
+		totals := done[missions.AccountID(account)]
+		totals.InAll += uint64(count)                                                      //nolint:gosec // a count is never negative.
+		totals.ByKind[kind] = missions.KindDone{Done: uint64(count), Goals: uint64(goals)} //nolint:gosec // as above, and goals are never negative.
+		done[missions.AccountID(account)] = totals
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to count the accounts' missions done: %w", err)
+	}
+	return done, nil
 }
 
 const countedColumns = `counted_takes_below, counted_bombs_below, counted_shields_below, counted_fortifies_below,

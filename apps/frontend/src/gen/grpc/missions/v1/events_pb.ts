@@ -5,6 +5,7 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { MissionKind } from "./kind_pb.js";
 import { FlagMission } from "./missions_pb.js";
 
 /**
@@ -49,6 +50,118 @@ export class MissionsPaid extends Message<MissionsPaid> {
 
   static equals(a: MissionsPaid | PlainMessage<MissionsPaid> | undefined, b: MissionsPaid | PlainMessage<MissionsPaid> | undefined): boolean {
     return proto3.util.equals(MissionsPaid, a, b);
+  }
+}
+
+/**
+ * The missions an account has done in all, every day, told each time a fact finishes one or more of them, a guest's
+ * too: whether a mission is worth anything is the listener's call. Totals, not one event per mission: told twice, late
+ * or lost, they change nothing, and the first one brings every mission done before.
+ *
+ * @generated from message missions.v1.MissionsDone
+ */
+export class MissionsDone extends Message<MissionsDone> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * How many missions the account has done in all, these included.
+   *
+   * @generated from field: uint64 done_in_all = 2;
+   */
+  doneInAll = protoInt64.zero;
+
+  /**
+   * The same missions by kind, one per kind done at least once, in the order of MissionKind.
+   *
+   * @generated from field: repeated missions.v1.KindDone by_kind = 3;
+   */
+  byKind: KindDone[] = [];
+
+  constructor(data?: PartialMessage<MissionsDone>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.MissionsDone";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "done_in_all", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "by_kind", kind: "message", T: KindDone, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MissionsDone {
+    return new MissionsDone().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MissionsDone {
+    return new MissionsDone().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MissionsDone {
+    return new MissionsDone().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MissionsDone | PlainMessage<MissionsDone> | undefined, b: MissionsDone | PlainMessage<MissionsDone> | undefined): boolean {
+    return proto3.util.equals(MissionsDone, a, b);
+  }
+}
+
+/**
+ * The missions of one kind an account has done in all.
+ *
+ * @generated from message missions.v1.KindDone
+ */
+export class KindDone extends Message<KindDone> {
+  /**
+   * @generated from field: missions.v1.MissionKind kind = 1;
+   */
+  kind = MissionKind.UNSPECIFIED;
+
+  /**
+   * How many.
+   *
+   * @generated from field: uint64 done = 2;
+   */
+  done = protoInt64.zero;
+
+  /**
+   * Their goals, summed, each in its kind's unit: tiles, boxes, right answers or bombs.
+   *
+   * @generated from field: uint64 goals = 3;
+   */
+  goals = protoInt64.zero;
+
+  constructor(data?: PartialMessage<KindDone>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.KindDone";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(MissionKind) },
+    { no: 2, name: "done", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 3, name: "goals", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KindDone {
+    return new KindDone().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KindDone {
+    return new KindDone().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KindDone {
+    return new KindDone().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KindDone | PlainMessage<KindDone> | undefined, b: KindDone | PlainMessage<KindDone> | undefined): boolean {
+    return proto3.util.equals(KindDone, a, b);
   }
 }
 

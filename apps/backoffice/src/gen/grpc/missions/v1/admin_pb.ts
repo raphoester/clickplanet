@@ -6,77 +6,8 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 import { FlagMission } from "./missions_pb.js";
+import { MissionKind } from "./kind_pb.js";
 import { Rules } from "./rules_pb.js";
-
-/**
- * The kinds of a player's mission, as Mission's kind names them.
- *
- * @generated from enum missions.v1.MissionKind
- */
-export enum MissionKind {
-  /**
-   * @generated from enum value: MISSION_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: MISSION_KIND_TAKE_FOR = 1;
-   */
-  TAKE_FOR = 1,
-
-  /**
-   * @generated from enum value: MISSION_KIND_TAKE_FROM = 2;
-   */
-  TAKE_FROM = 2,
-
-  /**
-   * @generated from enum value: MISSION_KIND_TAKE_IN = 3;
-   */
-  TAKE_IN = 3,
-
-  /**
-   * @generated from enum value: MISSION_KIND_TAKE_FROM_IN = 4;
-   */
-  TAKE_FROM_IN = 4,
-
-  /**
-   * @generated from enum value: MISSION_KIND_CATCH_BOXES = 5;
-   */
-  CATCH_BOXES = 5,
-
-  /**
-   * @generated from enum value: MISSION_KIND_ANSWER_QUIZZES = 6;
-   */
-  ANSWER_QUIZZES = 6,
-
-  /**
-   * @generated from enum value: MISSION_KIND_BOMB_IN = 7;
-   */
-  BOMB_IN = 7,
-
-  /**
-   * @generated from enum value: MISSION_KIND_SHIELD_TILES = 8;
-   */
-  SHIELD_TILES = 8,
-
-  /**
-   * @generated from enum value: MISSION_KIND_FORTIFY_TILES = 9;
-   */
-  FORTIFY_TILES = 9,
-}
-// Retrieve enum metadata with: proto3.getEnumType(MissionKind)
-proto3.util.setEnumType(MissionKind, "missions.v1.MissionKind", [
-  { no: 0, name: "MISSION_KIND_UNSPECIFIED" },
-  { no: 1, name: "MISSION_KIND_TAKE_FOR" },
-  { no: 2, name: "MISSION_KIND_TAKE_FROM" },
-  { no: 3, name: "MISSION_KIND_TAKE_IN" },
-  { no: 4, name: "MISSION_KIND_TAKE_FROM_IN" },
-  { no: 5, name: "MISSION_KIND_CATCH_BOXES" },
-  { no: 6, name: "MISSION_KIND_ANSWER_QUIZZES" },
-  { no: 7, name: "MISSION_KIND_BOMB_IN" },
-  { no: 8, name: "MISSION_KIND_SHIELD_TILES" },
-  { no: 9, name: "MISSION_KIND_FORTIFY_TILES" },
-]);
 
 /**
  * @generated from message missions.v1.ListFlagDaysRequest
@@ -694,6 +625,84 @@ export class SaveRulesResponse extends Message<SaveRulesResponse> {
 
   static equals(a: SaveRulesResponse | PlainMessage<SaveRulesResponse> | undefined, b: SaveRulesResponse | PlainMessage<SaveRulesResponse> | undefined): boolean {
     return proto3.util.equals(SaveRulesResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.RetellMissionsDoneRequest
+ */
+export class RetellMissionsDoneRequest extends Message<RetellMissionsDoneRequest> {
+  /**
+   * Counts the accounts it would tell, and tells nothing.
+   *
+   * @generated from field: bool dry_run = 1;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<RetellMissionsDoneRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.RetellMissionsDoneRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetellMissionsDoneRequest {
+    return new RetellMissionsDoneRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RetellMissionsDoneRequest {
+    return new RetellMissionsDoneRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RetellMissionsDoneRequest {
+    return new RetellMissionsDoneRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RetellMissionsDoneRequest | PlainMessage<RetellMissionsDoneRequest> | undefined, b: RetellMissionsDoneRequest | PlainMessage<RetellMissionsDoneRequest> | undefined): boolean {
+    return proto3.util.equals(RetellMissionsDoneRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message missions.v1.RetellMissionsDoneResponse
+ */
+export class RetellMissionsDoneResponse extends Message<RetellMissionsDoneResponse> {
+  /**
+   * The accounts told: every one with a mission done, guests included. With dry_run, the ones it would tell.
+   *
+   * @generated from field: uint32 accounts = 1;
+   */
+  accounts = 0;
+
+  constructor(data?: PartialMessage<RetellMissionsDoneResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "missions.v1.RetellMissionsDoneResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "accounts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RetellMissionsDoneResponse {
+    return new RetellMissionsDoneResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RetellMissionsDoneResponse {
+    return new RetellMissionsDoneResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RetellMissionsDoneResponse {
+    return new RetellMissionsDoneResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RetellMissionsDoneResponse | PlainMessage<RetellMissionsDoneResponse> | undefined, b: RetellMissionsDoneResponse | PlainMessage<RetellMissionsDoneResponse> | undefined): boolean {
+    return proto3.util.equals(RetellMissionsDoneResponse, a, b);
   }
 }
 
