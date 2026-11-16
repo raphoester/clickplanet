@@ -4,7 +4,8 @@
 and after its deploy someone can do or check something they could not before: a player, the operator, or a module
 that calls it. A horizontal slice (a domain package, a store, a proto or a component alone, waiting for a later PR
 to call it) is forbidden. It brings no value on its own, it cannot be checked in production, and code that nothing
-calls fails `make deadcode` (see [Git hooks](git-hooks.md)).
+calls fails the backend's `make deadcode`, in CI and before a push (see
+[Testing](../apps/backend/docs/testing.md)).
 
 - **The test before writing code:** what can someone do or check after the merge and the deploy that they could not
   before? If the answer is nothing, the work is a layer. Make it part of the slice that calls it.
