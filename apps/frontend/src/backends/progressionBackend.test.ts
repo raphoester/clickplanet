@@ -17,7 +17,7 @@ import {
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {BonusKind} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/progression/v1/title_pb.ts"
-import {PlayerTitle} from "./progression.ts"
+import {PlayerLevel, PlayerTitle} from "./progression.ts"
 import {ConnectProgressionBackend} from "./progressionBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
@@ -228,6 +228,8 @@ describe("ConnectProgressionBackend public card", () => {
     })
 })
 
+const ignoring = {titleEarned: () => {}, levelReached: () => {}}
+
 const failingWith = (error: ConnectError) => (): AsyncIterable<ProgressionEventPb> => ({
     [Symbol.asyncIterator]: () => ({
         next: async () => {
@@ -236,7 +238,7 @@ const failingWith = (error: ConnectError) => (): AsyncIterable<ProgressionEventP
     }),
 })
 
-describe("ConnectProgressionBackend titles earned", () => {
+describe("ConnectProgressionBackend progression stream", () => {
     it("opens the stream with the token held, never a mint, hands each title earned and skips the heartbeats", async () => {
         const session = holding("identity-1")
         const listenForEvents = vi.fn(async function* () {
@@ -246,7 +248,10 @@ describe("ConnectProgressionBackend titles earned", () => {
         })
         const titles: PlayerTitle[] = []
 
-        const stop = backendWith({listenForEvents}, session).listenForTitles((title) => titles.push(title))
+        const stop = backendWith({listenForEvents}, session).listenForProgression({
+            titleEarned: (title) => titles.push(title),
+            levelReached: () => {},
+        })
         await vi.waitFor(() => expect(titles).toEqual([settler]))
         stop()
 
@@ -256,12 +261,27 @@ describe("ConnectProgressionBackend titles earned", () => {
         expect(session.token).not.toHaveBeenCalled()
     })
 
+    it("hands each level reached", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new ProgressionEventPb({event: {case: "levelReached", value: new LevelPb({level: 9, xp: 7200n, levelXp: 7168n, nextLevelXp: 10206n})}})
+            await new Promise(() => {})
+        })
+        const levels: PlayerLevel[] = []
+
+        const stop = backendWith({listenForEvents}, holding("identity-1")).listenForProgression({
+            titleEarned: () => {},
+            levelReached: (level) => levels.push(level),
+        })
+        await vi.waitFor(() => expect(levels).toEqual([{level: 9, xp: 7200, levelXp: 7168, nextLevelXp: 10206}]))
+        stop()
+    })
+
     it("stops for good on a refused token", async () => {
         vi.useFakeTimers()
         const listenForEvents = vi.fn(failingWith(new ConnectError("no", Code.Unauthenticated)))
         const session = holding("expired")
 
-        backendWith({listenForEvents}, session).listenForTitles(() => {})
+        backendWith({listenForEvents}, session).listenForProgression(ignoring)
         await vi.advanceTimersByTimeAsync(60_000)
 
         expect(listenForEvents).toHaveBeenCalledTimes(1)
@@ -273,7 +293,7 @@ describe("ConnectProgressionBackend titles earned", () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const listenForEvents = vi.fn(failingWith(new ConnectError("down", Code.Unavailable)))
 
-        const stop = backendWith({listenForEvents}, holding("identity-1")).listenForTitles(() => {})
+        const stop = backendWith({listenForEvents}, holding("identity-1")).listenForProgression(ignoring)
         await vi.advanceTimersByTimeAsync(1_000)
         stop()
 
@@ -281,51 +301,50 @@ describe("ConnectProgressionBackend titles earned", () => {
     })
 })
 
-describe("ConnectProgressionBackend mission rates", () => {
-    it("reads what each kind of mission pays with the click token, and skips a kind it does not name", async () => {
-        const getLevel = vi.fn(async () => new GetLevelResponsePb({missionRates: [
-            new MissionRatePb({kind: MissionKindPb.TAKE_FROM, xp: 3, per: 2}),
-            new MissionRatePb({kind: MissionKindPb.BOMB_IN, xp: 150, per: 1}),
-            new MissionRatePb({kind: MissionKindPb.UNSPECIFIED, xp: 9, per: 1}),
-            new MissionRatePb({kind: 99 as MissionKindPb, xp: 9, per: 1}),
-            new MissionRatePb({kind: MissionKindPb.CATCH_BOXES, xp: 50, per: 0}),
-        ]}))
-
-        const rates = await backendWith({getLevel}).missionRates()
-
-        expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
-        expect(rates).toEqual({takeFrom: {xp: 3, per: 2}, bombIn: {xp: 150, per: 1}})
-    })
-})
-
-describe("the ladder", () => {
-    it("reads the level and what each gated kind opens at, with the token held", async () => {
+describe("the level read", () => {
+    it("reads the level on its bar and what each gated kind opens at, in one call with the token held", async () => {
         const getLevel = vi.fn(async () => ({
-            level: new LevelPb({level: 3}),
+            level: new LevelPb({level: 3, xp: 222n, levelXp: 112n, nextLevelXp: 378n}),
             unlocks: [
                 new UnlockPb({kind: BonusKind.ENCLOSE_CLICKS, level: 4}),
                 new UnlockPb({kind: BonusKind.BOMB, level: 5}),
                 new UnlockPb({kind: BonusKind.UNSPECIFIED, level: 9}),
             ],
+            missionRates: [
+                new MissionRatePb({kind: MissionKindPb.TAKE_FROM, xp: 3, per: 2}),
+                new MissionRatePb({kind: MissionKindPb.BOMB_IN, xp: 150, per: 1}),
+                new MissionRatePb({kind: MissionKindPb.UNSPECIFIED, xp: 9, per: 1}),
+                new MissionRatePb({kind: 99 as MissionKindPb, xp: 9, per: 1}),
+                new MissionRatePb({kind: MissionKindPb.CATCH_BOXES, xp: 50, per: 0}),
+            ],
         }))
         const session = holding("token-1")
 
-        expect(await backendWith({getLevel}, session).ladder()).toEqual({level: 3, unlocks: {encloseClicks: 4, bomb: 5}})
+        expect(await backendWith({getLevel}, session).readLevel()).toEqual({
+            level: {level: 3, xp: 222, levelXp: 112, nextLevelXp: 378},
+            unlocks: {encloseClicks: 4, bomb: 5},
+            missionRates: {takeFrom: {xp: 3, per: 2}, bombIn: {xp: 150, per: 1}},
+        })
+        expect(getLevel).toHaveBeenCalledTimes(1)
         expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
         expect(session.token).not.toHaveBeenCalled()
     })
 
-    it("reads a guest's level as 0", async () => {
-        const getLevel = vi.fn(async () => ({unlocks: [new UnlockPb({kind: BonusKind.BOMB, level: 5})]}))
+    it("reads a guest's as no level, with the ladder all the same", async () => {
+        const getLevel = vi.fn(async () => new GetLevelResponsePb({
+            unlocks: [new UnlockPb({kind: BonusKind.BOMB, level: 5})],
+            missionRates: [new MissionRatePb({kind: MissionKindPb.TAKE_FOR, xp: 1, per: 1})],
+        }))
 
-        expect(await backendWith({getLevel}, holding("guest")).ladder()).toEqual({level: 0, unlocks: {bomb: 5}})
+        expect(await backendWith({getLevel}, holding("guest")).readLevel())
+            .toEqual({level: undefined, unlocks: {bomb: 5}, missionRates: {takeFor: {xp: 1, per: 1}}})
     })
 
     it("reads nothing, and makes no session, while none is held", async () => {
         const getLevel = vi.fn()
         const session = holding(undefined)
 
-        expect(await backendWith({getLevel}, session).ladder()).toBeUndefined()
+        expect(await backendWith({getLevel}, session).readLevel()).toBeUndefined()
         expect(getLevel).not.toHaveBeenCalled()
         expect(session.token).not.toHaveBeenCalled()
     })

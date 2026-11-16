@@ -2,6 +2,7 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import MissionsPlace, {MissionsPlaceProps} from "./MissionsPlace.tsx"
+import {useLevel} from "../level/levelStore.ts"
 import {MissionsState, NO_MISSIONS, useMissions} from "./missionsStore.ts"
 import {useSeenMissions} from "./seenMissionsStore.ts"
 import {DayMissions, Mission} from "../../backends/missions.ts"
@@ -34,6 +35,7 @@ afterEach(() => {
     localStorage.clear()
     useSeenMissions.setState({seen: {}})
     useMissions.setState(NO_MISSIONS)
+    useLevel.getState().forget()
     vi.useRealTimers()
 })
 
@@ -55,7 +57,7 @@ describe("MissionsPlace", () => {
     })
 
     it("shows the XP each mission pays, its goal times its kind's rate", () => {
-        useMissions.setState({rates: {takeFor: {xp: 1, per: 1}, takeFrom: {xp: 3, per: 2}}})
+        useLevel.setState({missionRates: {takeFor: {xp: 1, per: 1}, takeFrom: {xp: 3, per: 2}}})
         render(place(day(
             mission({id: "bank", order: {kind: "takeFor", country: "fr", goal: 60, taken: 0}}),
             mission({id: "rival", order: {kind: "takeFrom", country: "dz", goal: 80, taken: 0}}),

@@ -6,6 +6,7 @@ import {t, translator} from "../../i18n/page.ts"
 import {TargetIcon} from "../components/icons.tsx"
 import {useNow} from "../season/useNow.ts"
 import {partsOf} from "./orderParts.tsx"
+import {useLevel} from "../level/levelStore.ts"
 import {useMissions} from "./missionsStore.ts"
 import {useSeenMissions} from "./seenMissionsStore.ts"
 import "./Missions.css"
@@ -69,7 +70,7 @@ type MissionRowProps = {
 
 function MissionRow({mission, onSignIn, onGo}: MissionRowProps) {
     const parts = partsOf(mission.order)
-    const xp = useMissions((missions) => xpOf(mission.order, missions.rates))
+    const xp = useLevel((level) => xpOf(mission.order, level.missionRates))
 
     return <li className={`panel-box mission${mission.paid ? " mission--paid" : ""}`}>
         <div className="mission-head">

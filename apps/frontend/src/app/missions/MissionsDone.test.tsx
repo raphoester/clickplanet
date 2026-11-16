@@ -4,12 +4,14 @@ import {act, cleanup, render, screen} from "@testing-library/react"
 import MissionsDone from "./MissionsDone.tsx"
 import {Mission, MissionRates} from "../../backends/missions.ts"
 import {AWARD_MS} from "../bonus/BonusAward.tsx"
+import {useLevel} from "../level/levelStore.ts"
 import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
 
 const rates: MissionRates = {takeFor: {xp: 1, per: 1}, takeIn: {xp: 1, per: 1}}
 
 function paid(...missions: Mission[]) {
-    useMissions.setState({paid: missions, rates})
+    useMissions.setState({paid: missions})
+    useLevel.setState({missionRates: rates})
     return <MissionsDone/>
 }
 
@@ -30,6 +32,7 @@ const ground: Mission = {
 afterEach(() => {
     cleanup()
     useMissions.setState(NO_MISSIONS)
+    useLevel.getState().forget()
     vi.useRealTimers()
 })
 

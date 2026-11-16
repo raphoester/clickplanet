@@ -5,8 +5,9 @@ again at each read, so a change of weights is one reconciliation. Only the level
 has no top. A guest has no XP and no level. The design is [Player level and unlocks](https://claude.ai/artifact/8bvS9FGScmFpbz4kfCVsy2);
 its first slice is [XP slice 1: hidden level bootstrap](https://claude.ai/artifact/Pf6X1m7gNk72F42q5U8n5A).
 
-**The level runs hidden: players see nothing.** Each fact counted raises it. The public reads answer it (see [The
-public reads](#the-public-reads)), and the page draws none of them until the reveal (see [The reveal](#the-reveal)).
+**Each fact counted raises it.** The public reads answer it (see [The public reads](#the-public-reads)), and the page
+draws them (the frontend's [The level](../../frontend/docs/level.md)), merged with the rest of the reveal (see [The
+reveal](#the-reveal)).
 
 ```
 levels/                            XP, Level, Record, Source, MissionKind (stats.MissionKind), MissionRate, Curve, Standing,
@@ -28,8 +29,8 @@ levels/                            XP, Level, Record, Source, MissionKind (stats
 **No flag: the level stays hidden because nothing a player sees ships before the end.** The pieces that show it ship
 together, as the reveal:
 
-- the UI: the level and its bar on the page and on the card, the locked kinds, from the public reads that already answer
-  them;
+- the UI: the level and its bar on the page and on the card, the locked kinds, from the public reads (the frontend's
+  [The level](../../frontend/docs/level.md));
 - missions paying XP instead of charges (see [Missions pay XP](missions.md#missions-pay-xp));
 - the bonuses' gates on (`gates.on` in `default` and each set that is not a battle's): data the operator sets, while
   every set keeps them off before;
@@ -216,8 +217,8 @@ late fact does for the stats.
 
 **The level answered is the one kept** (`Scale.StandingAt`): the level of the `progression.levels` row, the XP its
 stats give now (`Scale.XPOf`), and the two thresholds of the level kept (`level_xp`, `next_level_xp`). So the card,
-`GetLevel` and the stream never disagree: a level shows once a raise or the reconciliation wrote it. They ship before
-the reveal and are harmless: the page draws none of them.
+`GetLevel` and the stream never disagree: a level shows once a raise or the reconciliation wrote it. The page draws
+them: see the frontend's [The level](../../frontend/docs/level.md).
 
 - **`ProgressionService/GetLevel`** → `{level, mission_rates, unlocks}`, the caller's own; `unlocks` is the ladder, one
   `Unlock{kind, level}` per rung, the kind in planet's words (`planet.v1.BonusKind`): `Identified` behind the session

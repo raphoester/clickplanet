@@ -1,4 +1,4 @@
-import {PointerEvent, ReactNode, RefObject, useContext, useEffect, useId, useRef, useState} from 'react'
+import {PointerEvent, ReactNode, RefObject, useContext, useEffect, useId, useMemo, useRef, useState} from 'react'
 import {createPortal} from 'react-dom'
 import {
     BonusNotice,
@@ -10,6 +10,7 @@ import {
     inUnlockOrder,
     lockedAt,
     NEVER,
+    NO_LEVEL,
     slotOf,
     Switches,
 } from '../../domain/bonus.ts'
@@ -17,7 +18,7 @@ import {BonusGuide, isLearning, isNew} from '../../domain/bonusGuide.ts'
 import {t, translator} from '../../i18n/page.ts'
 import {useBonusGuide} from './bonusGuideStore.ts'
 import {useBonus} from './bonusStore.ts'
-import {useLadder} from './ladderStore.ts'
+import {useLevel} from '../level/levelStore.ts'
 import {useScreen} from '../hud/screenStore.ts'
 import {useCompact} from '../compact.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
@@ -74,7 +75,9 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onUseR
     const switches = useBonus((bonus) => bonus.switches)
     const bombArmed = useBonus((bonus) => bonus.bombArmed)
     const virusAimed = useBonus((bonus) => bonus.virusAimed)
-    const ladder = useLadder((store) => store.ladder)
+    const level = useLevel((store) => store.own?.level ?? NO_LEVEL)
+    const unlocks = useLevel((store) => store.unlocks)
+    const ladder = useMemo(() => ({level, unlocks}), [level, unlocks])
     const open = useScreen((screen) => screen.popovers.bonuses)
     const togglePopover = useScreen((screen) => screen.togglePopover)
     const closePopover = useScreen((screen) => screen.closePopover)

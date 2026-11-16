@@ -14,6 +14,17 @@
     transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
+.click-budget-dock:has(> .click-budget-footer > *) {
+    padding-bottom: calc(var(--space-2) + 16px);
+}
+
+.click-budget-footer {
+    position: absolute;
+    left: var(--space-4);
+    right: var(--space-4);
+    bottom: var(--space-2);
+}
+
 .click-budget-shell {
     position: relative;
     display: flex;
@@ -292,6 +303,15 @@
         min-height: 72px;
         gap: 10px;
         padding: var(--space-2) var(--space-3);
+    }
+
+    .click-budget-dock:has(> .click-budget-footer > *) {
+        padding-bottom: calc(var(--space-2) + 16px);
+    }
+
+    .click-budget-footer {
+        left: var(--space-3);
+        right: var(--space-3);
     }
 
     .click-budget {

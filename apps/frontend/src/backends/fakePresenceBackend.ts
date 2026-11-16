@@ -7,12 +7,15 @@ import {NameColor, Player, PlayerReader, Presence, PresenceBackend, RosterEntry,
 import {
     CountryTiles,
     Fronts,
+    PlayerLevel,
     PlayerTitle,
     Progress,
+    ProgressionEvents,
+    ProgressionListener,
     ProgressReader,
     TitleDashboard,
-    TitlesListener,
 } from "./progression.ts"
+import {fakeLevelOf, fakeXpOf} from "./fakeLevels.ts"
 
 const SHIFT_MS = 25_000
 
@@ -93,11 +96,13 @@ const PLAYERS: FakePlayer[] = [
     {key: "8", accountId: fakeAccountId("guest_7e21c9"), name: "guest_7e21c9", countryCode: "ng", guest: true, admin: false, color: NameColor.UNSPECIFIED, streak: 0},
 ]
 
-export class FakePresenceBackend implements PresenceBackend, PlayerReader, ProgressReader, TitlesListener {
+export class FakePresenceBackend implements PresenceBackend, PlayerReader, ProgressReader, ProgressionListener {
     private own?: {presence: Presence, at: number}
     // The title the signed-in player chose to wear, if any.
     private ownChoice?: string
-    private readonly titleListeners = new Set<(title: PlayerTitle) => void>()
+    // The signed-in player's XP: giveXp() adds to it.
+    private ownXp?: number
+    private readonly listeners = new Set<ProgressionEvents>()
 
     constructor(private readonly now: () => number = () => Date.now()) {
     }
@@ -125,13 +130,27 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
         const title = trackIndex === -1
             ? OG_TITLE
             : rankedTitle(trackIndex, TRACKS[trackIndex].ranks.findIndex((rank) => rank.id === id))
-        this.titleListeners.forEach((listener) => listener(title))
-        return this.titleListeners.size > 0
+        this.listeners.forEach((listener) => listener.titleEarned(title))
+        return this.listeners.size > 0
     }
 
-    public listenForTitles(onEarned: (title: PlayerTitle) => void): () => void {
-        this.titleListeners.add(onEarned)
-        return () => this.titleListeners.delete(onEarned)
+    // As the server: the XP counted, and one level_reached for a jump of any size. Whether a page heard a raise.
+    public giveXp(xp: number): {level: PlayerLevel, heard: boolean} {
+        const before = this.ownLevel()
+        this.ownXp = before.xp + Math.max(0, Math.floor(xp))
+        const level = this.ownLevel()
+        if (level.level === before.level) return {level, heard: false}
+        this.listeners.forEach((listener) => listener.levelReached(level))
+        return {level, heard: this.listeners.size > 0}
+    }
+
+    public ownLevel(): PlayerLevel {
+        return fakeLevelOf(this.ownXp ?? this.career(YOU).xp)
+    }
+
+    public listenForProgression(on: ProgressionEvents): () => void {
+        this.listeners.add(on)
+        return () => this.listeners.delete(on)
     }
 
     public listenForRoster(onEvent: (event: RosterEvent) => void): () => void {
@@ -192,6 +211,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
             wornTitle: player === YOU ? this.ownWorn() : career.wornTitle,
             playsFor: career.playsFor.slice(0, SHOWN_FRONTS),
             playsAgainst: career.playsAgainst.slice(0, SHOWN_FRONTS),
+            level: player === YOU ? this.ownLevel() : fakeLevelOf(career.xp),
         }
     }
 
@@ -242,6 +262,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
         const titles = shownTitles(tilesTaken, streakBest, createdAt)
         return {
             tilesTaken, streakBest, createdAt, titles, wornTitle: titles.find((title) => title.rank) ?? titles[0],
+            xp: fakeXpOf(seed),
             playsFor: fronts([player.countryCode, ...rivals(player.countryCode, seed, seed % 4)], tilesTaken, 6),
             playsAgainst: fronts(rivals(player.countryCode, seed >>> 3, 2 + seed % 9), Math.floor(tilesTaken * 0.7), 2),
         }

@@ -26,6 +26,7 @@ import ProfileTracks from "./ProfileTracks.tsx"
 import {useFronts, useTitles} from "./useProgress.ts"
 import DeleteAccountModal from "./DeleteAccountModal.tsx"
 import {t, translator} from "../../i18n/page.ts"
+import LevelProgress from "../level/LevelProgress.tsx"
 import "./ProfileModal.css"
 
 type Ready = Extract<AccountState, {kind: "ready"}>
@@ -108,6 +109,7 @@ function Profile({account, store, country, stats, listenForClicks, aside}: Profi
                 {country && <span className="profile-hero-country">
                     <CountryFlag code={country.code}/>{t("profile.playsFor", {country: translator().country(country.code)})}
                 </span>}
+                <LevelProgress/>
             </div>
             {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
         </div>

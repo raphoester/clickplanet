@@ -79,10 +79,9 @@ rules; the client only shows them: a mission done pays itself, with nothing to p
   paid (`paid`) until the card goes. The mission's progress line waits while the card shows. A mission grants no
   charge.
 - **The XP is the page's sum: the goal times the kind's rate** (`xpOf` in `domain/missions.ts`), floored as the
-  server does it. The rates are progression's, read once at load from `GetLevel.mission_rates`
-  (`MissionRatesReader`, `ConnectProgressionBackend.missionRates`), each `xp` for every `per` of the goal, never a float,
-  so the page's number is the server's. `useMissionsFeed` keeps them in the store (`rates`). A kind with no rate, or
-  rates not read yet, shows no XP. The wire's reward is `xp` with no amount; until the reveal it was a charge, drawn with
+  server does it. The rates are progression's, from the page's one read of `GetLevel` (`readLevel`, `mission_rates`,
+  see [The level](level.md)), each `xp` for every `per` of the goal, never a float, so the page's number is the
+  server's. `useLevel` keeps them (`missionRates`). A kind with no rate, or rates not read yet, shows no XP. The wire's reward is `xp` with no amount; until the reveal it was a charge, drawn with
   the day.
 - **A `Mission` is its id, its `order`, `done` and `paid`.** The order is one shape per kind
   (`MissionOrder`: `TileOrder` and `RaidOrder` count `taken`, `BombOrder`, `ShieldOrder` and `CountOrder` count
@@ -91,6 +90,6 @@ rules; the client only shows them: a mission done pays itself, with nothing to p
   reward is not `xp`.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
-  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once (no charge), answers progression's rates (`missionRates`) and hands its followers the day after each take, and `finishMissions()` in the console puts
+  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once (no charge), keeps progression's rates for the fake level read (`FAKE_MISSION_RATES`) and hands its followers the day after each take, and `finishMissions()` in the console puts
   every mission one tile from done: the next take finishes and pays them all, as a take does on the server, and
   cheers the flag's, which it tells the fake chat once (`listenForFlagMissionsDone`). The fake has no missions before the tab's first take: take a tile, then call it.

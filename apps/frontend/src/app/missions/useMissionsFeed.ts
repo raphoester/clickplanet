@@ -1,12 +1,11 @@
 import {useEffect, useRef, useState} from "react"
-import {MissionRatesReader, MissionsBackend} from "../../backends/missions.ts"
+import {MissionsBackend} from "../../backends/missions.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useReadsAfterClicks} from "../clicks/useAcceptedClicks.ts"
 import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
 
 export function useMissionsFeed(
     backend: MissionsBackend,
-    rates: MissionRatesReader,
     account: string | undefined,
     pledged: string | undefined,
     listenForClicks: ListenForClicks | undefined,
@@ -33,19 +32,6 @@ export function useMissionsFeed(
             stale = true
         }
     }, [backend, account, pledged, read, reads])
-
-    useEffect(() => {
-        let stale = false
-        rates.missionRates().then(
-            (read) => {
-                if (!stale) useMissions.getState().hearRates(read)
-            },
-            (e) => console.error("Could not read what the missions pay", e),
-        )
-        return () => {
-            stale = true
-        }
-    }, [rates])
 
     useEffect(() => {
         if (!account) return

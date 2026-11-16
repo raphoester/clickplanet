@@ -2,6 +2,7 @@ import {Mission, MissionRates} from "../../backends/missions.ts"
 import {xpOf} from "../../domain/missions.ts"
 import {t} from "../../i18n/page.ts"
 import {usePassing} from "../bonus/BonusAward.tsx"
+import {useLevel} from "../level/levelStore.ts"
 import {useMissions} from "./missionsStore.ts"
 import {partsOf} from "./orderParts.tsx"
 import "../bonus/BonusAward.css"
@@ -9,7 +10,7 @@ import "./Missions.css"
 
 export default function MissionsDone() {
     const paid = useMissions((missions) => missions.paid)
-    const rates = useMissions((missions) => missions.rates)
+    const rates = useLevel((level) => level.missionRates)
     const dismissPaid = useMissions((missions) => missions.dismissPaid)
 
     return paid ? <Card missions={paid} rates={rates} onDone={dismissPaid}/> : null

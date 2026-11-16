@@ -5,26 +5,29 @@ import {ProgressionService} from "../gen/grpc/progression/v1/progression_connect
 import {
     CountryTiles as CountryTilesPb,
     Level as LevelPb,
+    MissionRate as MissionRatePb,
     Unlock as UnlockPb,
     Progress as ProgressPb,
     ProgressionEvent,
     Track as TrackPb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {AccountBadge, BadgesBackend} from "./badges.ts"
-import {Ladder, NO_LEVEL, UnlockLevels} from "../domain/bonus.ts"
+import {UnlockLevels} from "../domain/bonus.ts"
 import {chargeKindOf} from "./bonusKind.ts"
-import {MissionOrder, MissionRates, MissionRatesReader} from "./missions.ts"
+import {MissionOrder, MissionRates} from "./missions.ts"
 import {
     CountryTiles,
     Fronts,
-    LadderReader,
+    LevelRead,
+    LevelReader,
     PlayerLevel,
     PlayerTitle,
     Progress,
     ProgressionBackend,
+    ProgressionEvents,
+    ProgressionListener,
     ProgressReader,
     TitleDashboard,
-    TitlesListener,
     TitleTrack,
 } from "./progression.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
@@ -41,8 +44,7 @@ export function newProgressionServiceClient(config: Config): PromiseClient<typeo
     }))
 }
 
-export class ConnectProgressionBackend
-    implements ProgressionBackend, ProgressReader, BadgesBackend, TitlesListener, LadderReader, MissionRatesReader {
+export class ConnectProgressionBackend implements ProgressionBackend, ProgressReader, BadgesBackend, ProgressionListener, LevelReader {
     constructor(
         private readonly client: PromiseClient<typeof ProgressionService>,
         private readonly session: SessionProvider,
@@ -70,13 +72,13 @@ export class ConnectProgressionBackend
         return {playsFor: res.playsFor.map(countryTilesOf), playsAgainst: res.playsAgainst.map(countryTilesOf)}
     }
 
-    public async ladder(): Promise<Ladder | undefined> {
+    public async readLevel(): Promise<LevelRead | undefined> {
         const token = this.session.heldIdentity()
         if (!token) return undefined
 
         const headers = new Headers({[SESSION_HEADER]: token})
         const res = await retrying(() => this.client.getLevel({}, {headers}), "GetLevel")
-        return {level: res.level?.level ?? NO_LEVEL, unlocks: unlocksOf(res.unlocks)}
+        return {level: levelOf(res.level), unlocks: unlocksOf(res.unlocks), missionRates: missionRatesOf(res.missionRates)}
     }
 
     public async progress(accountId: string): Promise<Progress | undefined> {
@@ -99,20 +101,11 @@ export class ConnectProgressionBackend
         }))
     }
 
-    public async missionRates(): Promise<MissionRates> {
-        const res = await this.authenticated((headers) =>
-            retrying(() => this.client.getLevel({}, {headers}), "GetLevel"))
-        return Object.fromEntries(res.missionRates.flatMap((rate) => {
-            const kind = orderKindOf(rate.kind)
-            return kind && rate.per > 0 ? [[kind, {xp: rate.xp, per: rate.per}]] : []
-        }))
-    }
-
     public heldIdentity(): string | undefined {
         return this.session.heldIdentity()
     }
 
-    public listenForTitles(onEarned: (title: PlayerTitle) => void): () => void {
+    public listenForProgression(on: ProgressionEvents): () => void {
         const client = this.client
         const session = this.session
         return openStream(
@@ -122,11 +115,8 @@ export class ConnectProgressionBackend
                 if (token) headers.set(SESSION_HEADER, token)
                 return client.listenForEvents({}, {signal, timeoutMs: NO_TIMEOUT, headers})
             },
-            (event) => {
-                const title = titleEarnedOf(event)
-                if (title) onEarned(title)
-            },
-            "titles",
+            (event) => tell(event, on),
+            "progression",
             {stopsOn: (e) => e instanceof ConnectError && e.code === Code.Unauthenticated},
         )
     }
@@ -149,6 +139,13 @@ export class ConnectProgressionBackend
         if (token) headers.set(SESSION_HEADER, token)
         return headers
     }
+}
+
+function missionRatesOf(rates: MissionRatePb[]): MissionRates {
+    return Object.fromEntries(rates.flatMap((rate) => {
+        const kind = orderKindOf(rate.kind)
+        return kind && rate.per > 0 ? [[kind, {xp: rate.xp, per: rate.per}]] : []
+    }))
 }
 
 function orderKindOf(kind: MissionKind): MissionOrder["kind"] | undefined {
@@ -176,8 +173,22 @@ function orderKindOf(kind: MissionKind): MissionOrder["kind"] | undefined {
     }
 }
 
-function titleEarnedOf(event: ProgressionEvent): PlayerTitle | undefined {
-    return event.event.case === "titleEarned" ? titleOf(event.event.value.title) : undefined
+function tell(event: ProgressionEvent, on: ProgressionEvents): void {
+    switch (event.event.case) {
+        case "titleEarned": {
+            const title = titleOf(event.event.value.title)
+            if (title) on.titleEarned(title)
+            return
+        }
+        case "levelReached": {
+            const level = levelOf(event.event.value)
+            if (level) on.levelReached(level)
+            return
+        }
+        case "heartbeat":
+        case undefined:
+            return
+    }
 }
 
 function progressOf(progress: ProgressPb | undefined): Progress {

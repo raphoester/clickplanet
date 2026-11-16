@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, renderHook} from "@testing-library/react"
-import {DayMissions, MissionRatesReader, MissionsBackend} from "../../backends/missions.ts"
+import {DayMissions, MissionsBackend} from "../../backends/missions.ts"
 import {acceptedClicks} from "../clicks/acceptedClicks.ts"
 import {SETTLE_MS} from "../clicks/useAcceptedClicks.ts"
 import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
@@ -28,8 +28,6 @@ function followable(missions: MissionsBackend["missions"]) {
 
 const state = () => useMissions.getState().state
 
-const noRates: MissionRatesReader = {missionRates: async () => ({})}
-
 afterEach(() => {
     cleanup()
     useMissions.setState(NO_MISSIONS)
@@ -41,7 +39,7 @@ describe("useMissionsFeed", () => {
         vi.useFakeTimers({now: Date.UTC(2026, 9, 26, 12, 0)})
         const {backend} = followable(async () => day)
         const clicks = acceptedClicks()
-        renderHook(() => useMissionsFeed(backend, noRates, "acc-1", "fr", clicks.listenForClicks))
+        renderHook(() => useMissionsFeed(backend, "acc-1", "fr", clicks.listenForClicks))
         await act(async () => {})
         expect(backend.missions).toHaveBeenCalledTimes(1)
 
@@ -55,7 +53,7 @@ describe("useMissionsFeed", () => {
 
     it("shows each day the stream sends, and follows the account again when it changes", async () => {
         const {backend, stop, send} = followable(async () => day)
-        const {rerender} = renderHook(({account}) => useMissionsFeed(backend, noRates, account, "fr", undefined),
+        const {rerender} = renderHook(({account}) => useMissionsFeed(backend, account, "fr", undefined),
             {initialProps: {account: "acc-1"}})
         await act(async () => {})
 
@@ -70,7 +68,7 @@ describe("useMissionsFeed", () => {
     it("follows nothing before the account is known", () => {
         const {backend} = followable(async () => day)
 
-        renderHook(() => useMissionsFeed(backend, noRates, undefined, "fr", undefined))
+        renderHook(() => useMissionsFeed(backend, undefined, "fr", undefined))
 
         expect(backend.follow).not.toHaveBeenCalled()
     })
@@ -80,7 +78,7 @@ describe("useMissionsFeed", () => {
         const {backend, send} = followable(() => new Promise((resolve) => {
             answer = resolve
         }))
-        renderHook(() => useMissionsFeed(backend, noRates, "acc-1", "fr", undefined))
+        renderHook(() => useMissionsFeed(backend, "acc-1", "fr", undefined))
 
         send(paid)
         await act(async () => answer(day))
@@ -88,23 +86,9 @@ describe("useMissionsFeed", () => {
         expect(state()).toEqual({kind: "ready", day: paid})
     })
 
-    it("reads what each kind of mission pays once, whatever the account", async () => {
-        const {backend} = followable(async () => day)
-        const rates: MissionRatesReader = {missionRates: vi.fn(async () => ({takeFrom: {xp: 3, per: 2}}))}
-        const {rerender} = renderHook(({account}) => useMissionsFeed(backend, rates, account, "fr", undefined),
-            {initialProps: {account: "acc-1"}})
-        await act(async () => {})
-
-        rerender({account: "acc-2"})
-        await act(async () => {})
-
-        expect(rates.missionRates).toHaveBeenCalledTimes(1)
-        expect(useMissions.getState().rates).toEqual({takeFrom: {xp: 3, per: 2}})
-    })
-
     it("puts the store back once it stops", async () => {
         const {backend} = followable(async () => day)
-        const {unmount} = renderHook(() => useMissionsFeed(backend, noRates, "acc-1", "fr", undefined))
+        const {unmount} = renderHook(() => useMissionsFeed(backend, "acc-1", "fr", undefined))
         await act(async () => {})
         expect(state()).toEqual({kind: "ready", day})
 

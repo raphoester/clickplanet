@@ -8,7 +8,7 @@ import {BonusGuide, FRESH_GUIDE, LEARNING_USES} from "../../domain/bonusGuide.ts
 import {useBonusGuide} from "./bonusGuideStore.ts"
 import {useBonus} from "./bonusStore.ts"
 import {useScreen} from "../hud/screenStore.ts"
-import {useLadder} from "./ladderStore.ts"
+import {useLevel} from "../level/levelStore.ts"
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx"
 
 afterEach(() => {
@@ -16,7 +16,7 @@ afterEach(() => {
     useBonusGuide.setState({guide: FRESH_GUIDE})
     useBonus.setState(useBonus.getInitialState(), true)
     useScreen.setState(useScreen.getInitialState(), true)
-    useLadder.setState(useLadder.getInitialState(), true)
+    useLevel.setState(useLevel.getInitialState(), true)
     vi.unstubAllGlobals()
 })
 beforeEach(() => window.localStorage.clear())
@@ -44,7 +44,7 @@ function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = R
     act(() => {
         useBonusGuide.setState({guide})
         useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed})
-        useLadder.setState({ladder: {level, unlocks: gates.unlocks}})
+        useLevel.setState({own: level === NO_LEVEL ? undefined : {level, xp: 0, levelXp: 0, nextLevelXp: 0}, unlocks: gates.unlocks})
     })
     return <Inventory onToggle={() => {}}
                       onToggleBomb={() => {}}

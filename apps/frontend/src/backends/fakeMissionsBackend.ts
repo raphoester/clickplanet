@@ -1,11 +1,11 @@
 import {AllegianceSource, TileClicker} from "./backend.ts"
-import {DayMissions, FlagMission, Mission, MissionOrder, MissionRates, MissionRatesReader, MissionsBackend} from "./missions.ts"
+import {DayMissions, FlagMission, Mission, MissionOrder, MissionRates, MissionsBackend} from "./missions.ts"
 
 const DAY_MS = 24 * 3600_000
 const CUTOFF_MS = 21 * 3600_000
 
 // Progression's rates, as GetLevel answers them.
-const RATES: MissionRates = {
+export const FAKE_MISSION_RATES: MissionRates = {
     takeFor: {xp: 1, per: 1},
     takeFrom: {xp: 3, per: 2},
     takeIn: {xp: 1, per: 1},
@@ -17,7 +17,7 @@ const RATES: MissionRates = {
     bombIn: {xp: 150, per: 1},
 }
 
-export class FakeMissionsBackend implements MissionsBackend, MissionRatesReader {
+export class FakeMissionsBackend implements MissionsBackend {
     private taken = 0
     private flag?: string
     private pledged?: string
@@ -56,10 +56,6 @@ export class FakeMissionsBackend implements MissionsBackend, MissionRatesReader 
 
     public async missions(): Promise<DayMissions> {
         return this.day()
-    }
-
-    public async missionRates(): Promise<MissionRates> {
-        return RATES
     }
 
     public follow(onDay: (day: DayMissions) => void): () => void {

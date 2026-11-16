@@ -1,6 +1,7 @@
 import {useId, useState} from "react"
 import {Me} from "../../backends/account.ts"
 import {PlayerInfoBackend} from "../../backends/player.ts"
+import LevelProgress from "../level/LevelProgress.tsx"
 import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
 import TrackPath from "../titles/TrackPath.tsx"
@@ -68,6 +69,8 @@ export default function ProgressTab({store, me, stats, listenForClicks}: Progres
 
     return <div className="account-progress">
         {worn && <TitleBanner title={worn} compact/>}
+
+        <LevelProgress/>
 
         {stats && <OwnStats {...stats} listenForClicks={listenForClicks}/>}
 

@@ -10,6 +10,7 @@ import CountryFlag from "../components/CountryFlag.tsx"
 import Modal from "../components/Modal.tsx"
 import {StatTile, StatTiles} from "../components/StatTiles.tsx"
 import ReportPlayerModal from "../support/ReportPlayerModal.tsx"
+import LevelChip from "../level/LevelChip.tsx"
 import OgStamp from "../titles/OgStamp.tsx"
 import TitleBanner from "../titles/TitleBanner.tsx"
 import TitleEmblem from "../titles/TitleEmblem.tsx"
@@ -42,6 +43,7 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
     const color = state.kind === "ready" ? state.info.color : player.color
     const info = state.kind === "ready" ? state.info : undefined
     const title = <span className="player-card-title" style={authorStyle({...player, color})}>
+        {info?.level && <LevelChip level={info.level.level}/>}
         {truncate(words.masked(player.name), NAME_MAX_LENGTH)}
         {admin && <AdminCrown size={20}/>}
         {info?.titles.some((held) => held.id === OG) && <OgStamp/>}

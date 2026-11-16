@@ -81,7 +81,3 @@ export type MissionRate = {
 }
 
 export type MissionRates = Readonly<Partial<Record<MissionOrder["kind"], MissionRate>>>
-
-export interface MissionRatesReader {
-    missionRates(): Promise<MissionRates>
-}

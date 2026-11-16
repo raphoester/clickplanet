@@ -23,7 +23,6 @@ import {FakeNameplates} from "./backends/fakeNameplates.ts"
 import {FakeMissionsBackend} from "./backends/fakeMissionsBackend.ts"
 import {newScoringServiceClient} from "./backends/scoringBackend.ts"
 import {closedOf} from "./domain/debrief.ts"
-import {NO_LEVEL} from "./domain/bonus.ts"
 import {battleCommands, FakeTurnBackend, seasonRunningAt} from "./backends/fakeTurnBackend.ts"
 import {ConnectTurnBackend, newGamemasterServiceClient} from "./backends/turnBackend.ts"
 import {API_BASE_URL} from "./backends/transport.ts"
@@ -285,6 +284,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         giveTitle: (id?: string) => fakePresence.earnTitle(id)
             ? "a title is unlocked"
             : "no page listens: a guest earns no title, signIn() first",
+        giveXp: (xp = 500) => {
+            const {level, heard} = fakePresence.giveXp(xp)
+            if (heard) return `level ${level.level} reached`
+            return `${level.xp} XP at level ${level.level}: the bar shows it at the next read, after a run of clicks or on the next load`
+        },
         finishMissions: () => {
             fakeMissions.prime()
             return "every mission is one tile from done: take a tile for your flag to finish and get them"
@@ -386,11 +390,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         standings: fakeStandings,
         support: fakeSupport,
         missions: fakeMissions,
-        missionRates: fakeMissions,
         chargesRefresher: fake,
         grantRules: fake,
         sessions: {listenForSessions: () => () => {}},
-        ladder: {ladder: async () => ({level: NO_LEVEL, unlocks: {encloseClicks: 4, bomb: 5}})},
+        levels: fakeAccount,
         account,
         clips: fakeClips,
         promo: fakePromo,
@@ -453,11 +456,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         standings,
         support,
         missions,
-        missionRates: progression,
         chargesRefresher: backend,
         grantRules: backend,
         sessions: backend,
-        ladder: progression,
+        levels: progression,
         clips,
         promo,
         crazyGames,
