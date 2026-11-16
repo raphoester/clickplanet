@@ -44,7 +44,7 @@ func paidDay(t *testing.T) get_missions_usecase.Out {
 	t.Helper()
 
 	brief, err := missions.BriefOf([]missions.MissionSnapshot{
-		{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 60}, Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10}},
+		{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 60}},
 	})
 	require.NoError(t, err)
 	return get_missions_usecase.Out{

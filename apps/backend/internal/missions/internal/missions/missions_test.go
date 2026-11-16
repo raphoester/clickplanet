@@ -254,60 +254,6 @@ func TestWithNothingToAimAtADayStillHasItsFeats(t *testing.T) {
 	}
 }
 
-var purses = map[missions.RewardKind][2]uint32{
-	missions.RewardShields:       {15, 30},
-	missions.RewardSpreadClicks:  {4, 8},
-	missions.RewardBomb:          {1, 1},
-	missions.RewardEncloseClicks: {2, 3},
-}
-
-func TestAMissionPaysAsMuchOfAChargeAsItsPurseHolds(t *testing.T) {
-	amounts := map[missions.RewardKind]*cpcolls.Set[uint32]{}
-	for kind := range purses {
-		amounts[kind] = cpcolls.NewSet[uint32]()
-	}
-	for d := range briefs(60) {
-		for _, mission := range d.brief {
-			purse, known := purses[mission.Reward.Kind]
-			require.True(t, known, "%s pays %s: never a refill", d, mission.Reward.Kind)
-			assert.GreaterOrEqual(t, mission.Reward.Amount, purse[0], "%s: %+v", d, mission.Reward)
-			assert.LessOrEqual(t, mission.Reward.Amount, purse[1], "%s: %+v", d, mission.Reward)
-			amounts[mission.Reward.Kind].Add(mission.Reward.Amount)
-		}
-	}
-
-	for kind, purse := range purses {
-		assert.Equal(t, int(purse[1]-purse[0]+1), amounts[kind].Len(), "%s pays every amount of its purse over 240 briefs", kind)
-	}
-}
-
-func TestADayPaysEveryChargeOnceBeforeAnyTwice(t *testing.T) {
-	for d := range briefs(30) {
-		kinds := cpcolls.NewSet[missions.RewardKind]()
-		for _, mission := range d.brief {
-			kinds.Add(mission.Reward.Kind)
-		}
-
-		assert.Equal(t, min(len(d.brief), len(purses)), kinds.Len(), d)
-	}
-}
-
-func TestEachMissionPaysEveryChargeOnSomeDay(t *testing.T) {
-	kinds := make([]*cpcolls.Set[missions.RewardKind], 3)
-	for n := range kinds {
-		kinds[n] = cpcolls.NewSet[missions.RewardKind]()
-	}
-	for d := range briefs(30) {
-		for n, mission := range d.brief[:len(kinds)] {
-			kinds[n].Add(mission.Reward.Kind)
-		}
-	}
-
-	for n, drawn := range kinds {
-		assert.Equal(t, len(purses), drawn.Len(), "mission %d pays only some of the charges over 120 briefs", n+1)
-	}
-}
-
 func TestTheSameDayAndAccountDrawTheSameBrief(t *testing.T) {
 	day := days.TestingDayAt(monday)
 
@@ -322,7 +268,7 @@ func TestTwoPlayersOfAFlagDrawTheirOwnDays(t *testing.T) {
 		at := days.TestingDayAt(monday.AddDate(0, 0, day))
 		adas, bobs := missions.Draw(at, ada, "fr", world).Snapshot(), missions.Draw(at, bob, "fr", world).Snapshot()
 		for n := range min(len(adas), len(bobs)) {
-			if adas[n].Order != bobs[n].Order || adas[n].Reward != bobs[n].Reward {
+			if adas[n].Order != bobs[n].Order {
 				differ++
 				break
 			}
@@ -507,21 +453,18 @@ func TestABoxOrAnAnswerToldAgainCountsOnce(t *testing.T) {
 }
 
 func TestEachMissionDoneIsPaidOnce(t *testing.T) {
-	shields := missions.Reward{Kind: missions.RewardShields, Amount: 10}
-	bomb := missions.Reward{Kind: missions.RewardBomb, Amount: 1}
 	brief := briefOf(
 		t,
-		missions.MissionSnapshot{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 2}, Reward: shields},
-		missions.MissionSnapshot{ID: rival, Order: missions.TakeFrom{Flag: "dz", Goal: 5}, Reward: bomb},
-		missions.MissionSnapshot{ID: ground, Order: missions.TakeIn{Ground: "br", Goal: 5}, Reward: bomb},
+		missions.MissionSnapshot{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 2}},
+		missions.MissionSnapshot{ID: rival, Order: missions.TakeFrom{Flag: "dz", Goal: 5}},
+		missions.MissionSnapshot{ID: ground, Order: missions.TakeIn{Ground: "br", Goal: 5}},
 	)
 	sheet := missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{bank: 2, rival: 5, ground: 4}})
 
 	paid, payments := sheet.WithPayments(brief)
 	_, again := paid.WithPayments(brief)
 
-	assert.Equal(t, []missions.Payment{{Mission: bank, Reward: shields}, {Mission: rival, Reward: bomb}}, payments,
-		"4 of 5 is not done")
+	assert.Equal(t, []missions.MissionID{bank, rival}, payments, "4 of 5 is not done")
 	assert.Empty(t, again)
 	assert.Equal(t, cpcolls.NewSet(bank, rival), paid.Snapshot().Paid)
 	assert.True(t, sheet.Snapshot().Paid.Empty(), "the sheet it was called on is left alone")

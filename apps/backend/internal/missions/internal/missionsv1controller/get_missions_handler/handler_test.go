@@ -11,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
@@ -50,14 +49,12 @@ func ask(t *testing.T, useCase *stubUseCase) (*missionsv1.GetMissionsResponse, e
 	return res.Msg, nil
 }
 
-func charges(kind planetv1.BonusKind, amount uint32) *missionsv1.MissionReward {
-	return &missionsv1.MissionReward{Kind: &missionsv1.MissionReward_Charges{Charges: &missionsv1.Charges{Kind: kind, Amount: amount}}}
-}
+var xp = &missionsv1.MissionReward{Kind: &missionsv1.MissionReward_Xp{Xp: &missionsv1.Xp{}}}
 
-func TestEachMissionIsAnsweredInItsKindsOwnMessage(t *testing.T) {
+func TestEachMissionIsAnsweredInItsKindsOwnMessageAndPaysXP(t *testing.T) {
 	brief, err := missions.BriefOf([]missions.MissionSnapshot{
-		{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 60}, Reward: missions.Reward{Kind: missions.RewardShields, Amount: 10}},
-		{ID: ground, Order: missions.TakeIn{Ground: "br", Goal: 200}, Reward: missions.Reward{Kind: missions.RewardBomb, Amount: 1}},
+		{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 60}},
+		{ID: ground, Order: missions.TakeIn{Ground: "br", Goal: 200}},
 	})
 	require.NoError(t, err)
 	useCase := &stubUseCase{out: get_missions_usecase.Out{
@@ -74,11 +71,11 @@ func TestEachMissionIsAnsweredInItsKindsOwnMessage(t *testing.T) {
 		EndsAtUnixMs: time.Date(2026, 10, 26, 21, 0, 0, 0, time.UTC).UnixMilli(),
 		Missions: []*missionsv1.Mission{
 			{
-				Id: bank.String(), Done: true, Paid: true, Reward: charges(planetv1.BonusKind_BONUS_KIND_SHIELDS, 10),
+				Id: bank.String(), Done: true, Paid: true, Reward: xp,
 				Kind: &missionsv1.Mission_TakeFor{TakeFor: &missionsv1.TakeFor{CountryId: "fr", Goal: 60, Taken: 60}},
 			},
 			{
-				Id: ground.String(), Reward: charges(planetv1.BonusKind_BONUS_KIND_BOMB, 1),
+				Id: ground.String(), Reward: xp,
 				Kind: &missionsv1.Mission_TakeIn{TakeIn: &missionsv1.TakeIn{CountryId: "br", Goal: 200, Taken: 12}},
 			},
 		},
@@ -114,7 +111,7 @@ func TestEachKindOfMissionHasItsMessage(t *testing.T) {
 	progress := map[missions.MissionID]uint32{}
 	for n, order := range orders {
 		id := missions.MissionID{15: byte(n + 1)}
-		snapshots = append(snapshots, missions.MissionSnapshot{ID: id, Order: order, Reward: missions.Reward{Kind: missions.RewardBomb, Amount: 1}})
+		snapshots = append(snapshots, missions.MissionSnapshot{ID: id, Order: order})
 		progress[id] = 1
 	}
 	brief, err := missions.BriefOf(snapshots)

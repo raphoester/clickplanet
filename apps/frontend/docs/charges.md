@@ -19,7 +19,7 @@ already full" (`bonus.winNothing`).
 It reads `GetCharges` at load, with the token in hand and never a fresh one, again
 when a click goes out under a new token (`followSession`), and when its stream comes
 back after a gap: the charges are the account's. A grant from outside the player's
-own clicks (a box caught, a right answer, a mission paid, an operator's) comes on the planet stream of the account,
+own clicks (a box caught, a right answer, an operator's) comes on the planet stream of the account,
 a guest's too, as `charges_granted`: all it holds now (`grantedOf`), which replaces them with no read, and what it
 added (`gainedOf`), which the grant listeners hear (a box's or a right answer's reward).
 `UseRefillResponse.charges` replaces them on a refill, which also brings the full budget, and

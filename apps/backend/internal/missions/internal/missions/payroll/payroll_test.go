@@ -11,12 +11,10 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/inmemory_mission_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/payroll"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/planetgrant"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -61,16 +59,14 @@ func pay(t *testing.T, paying payroll.Payroll) error {
 	})
 }
 
-func TestASignedInAccountIsGrantedEachMissionDoneOnce(t *testing.T) {
+func TestASignedInAccountIsPaidEachMissionDoneOnceAndGrantedNoCharge(t *testing.T) {
 	paying, store, outbox := setUp(t, &accounts{linked: true}, bankGoal)
 
 	require.NoError(t, pay(t, paying))
 	require.NoError(t, pay(t, paying))
 
-	require.Len(t, outbox.Recorded(), 2)
-	assert.True(t, proto.Equal(planetgrant.Of(ada, missions.Payment{Mission: bank.ID, Reward: bank.Reward}), outbox.Recorded()[0]))
-	assert.NotEqual(t, planetv1.BonusKind_BONUS_KIND_UNSPECIFIED, outbox.Recorded()[0].(*planetv1.GrantCharges).GetKind())
-	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1}, outbox.Recorded()[1]))
+	require.Len(t, outbox.Recorded(), 1, "a mission pays XP, which progression counts: no planet.v1.GrantCharges")
+	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1}, outbox.Recorded()[0]))
 	sheet, err := store.Sheet(t.Context(), day, ada)
 	require.NoError(t, err)
 	assert.True(t, sheet.Snapshot().Paid.Contains(bank.ID))
@@ -85,7 +81,7 @@ func TestTheMissionsPaidCountEveryDayOfTheAccount(t *testing.T) {
 
 	require.NoError(t, pay(t, paying))
 
-	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 3}, outbox.Recorded()[1]))
+	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 3}, outbox.Recorded()[0]))
 }
 
 func TestAGuestIsNotPaidYet(t *testing.T) {

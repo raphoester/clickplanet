@@ -33,6 +33,7 @@ func (o Outbox) Send(ctx context.Context, messages ...proto.Message) error {
 	var events, commands []proto.Message
 	for _, message := range messages {
 		switch message.(type) {
+		// Missions grants no charge since it pays XP: a planetv1.GrantCharges is one the binary before left unsent.
 		case *planetv1.GrantCharges, *scoringv1.GrantPoints:
 			commands = append(commands, message)
 		case *missionsv1.MissionsPaid, *missionsv1.MissionsDone, *missionsv1.FlagMissionDone:

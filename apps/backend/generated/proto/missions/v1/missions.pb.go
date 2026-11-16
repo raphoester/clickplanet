@@ -7,7 +7,6 @@
 package missionsv1
 
 import (
-	v1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1209,7 +1208,7 @@ type MissionReward struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:
 	//
-	//	*MissionReward_Charges
+	//	*MissionReward_Xp
 	Kind          isMissionReward_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1252,10 +1251,10 @@ func (x *MissionReward) GetKind() isMissionReward_Kind {
 	return nil
 }
 
-func (x *MissionReward) GetCharges() *Charges {
+func (x *MissionReward) GetXp() *Xp {
 	if x != nil {
-		if x, ok := x.Kind.(*MissionReward_Charges); ok {
-			return x.Charges
+		if x, ok := x.Kind.(*MissionReward_Xp); ok {
+			return x.Xp
 		}
 	}
 	return nil
@@ -1265,34 +1264,34 @@ type isMissionReward_Kind interface {
 	isMissionReward_Kind()
 }
 
-type MissionReward_Charges struct {
-	Charges *Charges `protobuf:"bytes,1,opt,name=charges,proto3,oneof"`
+type MissionReward_Xp struct {
+	Xp *Xp `protobuf:"bytes,2,opt,name=xp,proto3,oneof"`
 }
 
-func (*MissionReward_Charges) isMissionReward_Kind() {}
+func (*MissionReward_Xp) isMissionReward_Kind() {}
 
-type Charges struct {
+// The mission's goal times its kind's rate, floored: the rates are progression.v1.ProgressionService/GetLevel's
+// mission_rates, so missions sends no amount.
+type Xp struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Kind          v1.BonusKind           `protobuf:"varint,1,opt,name=kind,proto3,enum=planet.v1.BonusKind" json:"kind,omitempty"`
-	Amount        uint32                 `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Charges) Reset() {
-	*x = Charges{}
+func (x *Xp) Reset() {
+	*x = Xp{}
 	mi := &file_missions_v1_missions_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Charges) String() string {
+func (x *Xp) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Charges) ProtoMessage() {}
+func (*Xp) ProtoMessage() {}
 
-func (x *Charges) ProtoReflect() protoreflect.Message {
+func (x *Xp) ProtoReflect() protoreflect.Message {
 	mi := &file_missions_v1_missions_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1304,30 +1303,16 @@ func (x *Charges) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Charges.ProtoReflect.Descriptor instead.
-func (*Charges) Descriptor() ([]byte, []int) {
+// Deprecated: Use Xp.ProtoReflect.Descriptor instead.
+func (*Xp) Descriptor() ([]byte, []int) {
 	return file_missions_v1_missions_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *Charges) GetKind() v1.BonusKind {
-	if x != nil {
-		return x.Kind
-	}
-	return v1.BonusKind(0)
-}
-
-func (x *Charges) GetAmount() uint32 {
-	if x != nil {
-		return x.Amount
-	}
-	return 0
 }
 
 var File_missions_v1_missions_proto protoreflect.FileDescriptor
 
 const file_missions_v1_missions_proto_rawDesc = "" +
 	"\n" +
-	"\x1amissions/v1/missions.proto\x12\vmissions.v1\x1a\x16planet/v1/planet.proto\"\x14\n" +
+	"\x1amissions/v1/missions.proto\x12\vmissions.v1\"\x14\n" +
 	"\x12GetMissionsRequest\"\x18\n" +
 	"\x16ListenForEventsRequest\"\x85\x01\n" +
 	"\fMissionEvent\x124\n" +
@@ -1412,12 +1397,10 @@ const file_missions_v1_missions_proto_rawDesc = "" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x12\n" +
 	"\x04goal\x18\x02 \x01(\rR\x04goal\x12\x16\n" +
 	"\x06broken\x18\x03 \x01(\rR\x06broken\"I\n" +
-	"\rMissionReward\x120\n" +
-	"\acharges\x18\x01 \x01(\v2\x14.missions.v1.ChargesH\x00R\achargesB\x06\n" +
-	"\x04kind\"K\n" +
-	"\aCharges\x12(\n" +
-	"\x04kind\x18\x01 \x01(\x0e2\x14.planet.v1.BonusKindR\x04kind\x12\x16\n" +
-	"\x06amount\x18\x02 \x01(\rR\x06amount2\xb7\x01\n" +
+	"\rMissionReward\x12!\n" +
+	"\x02xp\x18\x02 \x01(\v2\x0f.missions.v1.XpH\x00R\x02xpB\x06\n" +
+	"\x04kindJ\x04\b\x01\x10\x02R\acharges\"\x04\n" +
+	"\x02Xp2\xb7\x01\n" +
 	"\x0eMissionService\x12P\n" +
 	"\vGetMissions\x12\x1f.missions.v1.GetMissionsRequest\x1a .missions.v1.GetMissionsResponse\x12S\n" +
 	"\x0fListenForEvents\x12#.missions.v1.ListenForEventsRequest\x1a\x19.missions.v1.MissionEvent0\x01B\xc3\x01\n" +
@@ -1455,8 +1438,7 @@ var file_missions_v1_missions_proto_goTypes = []any{
 	(*FlagMission)(nil),            // 15: missions.v1.FlagMission
 	(*BreakShields)(nil),           // 16: missions.v1.BreakShields
 	(*MissionReward)(nil),          // 17: missions.v1.MissionReward
-	(*Charges)(nil),                // 18: missions.v1.Charges
-	(v1.BonusKind)(0),              // 19: planet.v1.BonusKind
+	(*Xp)(nil),                     // 18: missions.v1.Xp
 }
 var file_missions_v1_missions_proto_depIdxs = []int32{
 	4,  // 0: missions.v1.MissionEvent.day:type_name -> missions.v1.GetMissionsResponse
@@ -1475,17 +1457,16 @@ var file_missions_v1_missions_proto_depIdxs = []int32{
 	14, // 13: missions.v1.Mission.fortify_tiles:type_name -> missions.v1.FortifyTiles
 	8,  // 14: missions.v1.FlagMission.take_in:type_name -> missions.v1.TakeIn
 	16, // 15: missions.v1.FlagMission.break_shields:type_name -> missions.v1.BreakShields
-	18, // 16: missions.v1.MissionReward.charges:type_name -> missions.v1.Charges
-	19, // 17: missions.v1.Charges.kind:type_name -> planet.v1.BonusKind
-	0,  // 18: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
-	1,  // 19: missions.v1.MissionService.ListenForEvents:input_type -> missions.v1.ListenForEventsRequest
-	4,  // 20: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
-	2,  // 21: missions.v1.MissionService.ListenForEvents:output_type -> missions.v1.MissionEvent
-	20, // [20:22] is the sub-list for method output_type
-	18, // [18:20] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	18, // 16: missions.v1.MissionReward.xp:type_name -> missions.v1.Xp
+	0,  // 17: missions.v1.MissionService.GetMissions:input_type -> missions.v1.GetMissionsRequest
+	1,  // 18: missions.v1.MissionService.ListenForEvents:input_type -> missions.v1.ListenForEventsRequest
+	4,  // 19: missions.v1.MissionService.GetMissions:output_type -> missions.v1.GetMissionsResponse
+	2,  // 20: missions.v1.MissionService.ListenForEvents:output_type -> missions.v1.MissionEvent
+	19, // [19:21] is the sub-list for method output_type
+	17, // [17:19] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_missions_v1_missions_proto_init() }
@@ -1513,7 +1494,7 @@ func file_missions_v1_missions_proto_init() {
 		(*FlagMission_BreakShields)(nil),
 	}
 	file_missions_v1_missions_proto_msgTypes[17].OneofWrappers = []any{
-		(*MissionReward_Charges)(nil),
+		(*MissionReward_Xp)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

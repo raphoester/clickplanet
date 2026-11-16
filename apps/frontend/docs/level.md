@@ -27,11 +27,11 @@ the rest of the reveal (missions paying XP, the level-up bonus, the unlock level
 ## The numbers
 
 - **One read of `GetLevel` serves the whole page.** `LevelReader.readLevel` (`ConnectProgressionBackend`) answers the
-  level on its bar and the level each gated kind opens at (`LevelRead`), with the session held, and nothing with none,
-  so it never makes one. Missions' XP rates come from the same read when they ship: no part of the page calls
-  `GetLevel` itself.
-- **`useLevel`** (`levelStore.ts`) holds it: the page's own level (`own`) and the unlocks, which the dock, the Progress
-  tab, the profile and the bonus bar's locks all read. **`useLevelFeed`**, which `PlayScreen` calls, reads at load, on
+  level on its bar, the level each gated kind opens at and what each kind of mission pays (`LevelRead`), with the
+  session held, and nothing with none, so it never makes one. No other part of the page calls `GetLevel`.
+- **`useLevel`** (`levelStore.ts`) holds it: the page's own level (`own`), the unlocks, which the dock, the Progress
+  tab, the profile and the bonus bar's locks all read, and the missions' rates (`missionRates`, see
+  [Missions](missions.md)). **`useLevelFeed`**, which `PlayScreen` calls, reads at load, on
   each new session (`listenForSessions`: a guest's first click makes one) or account, and, signed in, once its clicks
   settle (`useReadsAfterClicks`, as the titles); it forgets both when the account signs out or changes. The stream's
   `level_reached` goes to the same store (`reached`), from `PlayScreen` (`useProgressionEvents`, the titles' stream),
@@ -45,7 +45,7 @@ the rest of the reveal (missions paying XP, the level-up bonus, the unlock level
 
 ## Not here
 
-The XP a mission pays (`mission_rates`, which `readLevel` does not map yet), how the bonus bar draws its locks (see
+How a mission shows its XP (see [Missions](missions.md)), how the bonus bar draws its locks (see
 [Charges](charges.md#the-inventory)) and the next unlock belong to the missions' and the bonus bar's work.
 
 ## The fake

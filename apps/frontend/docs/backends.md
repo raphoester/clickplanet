@@ -312,7 +312,7 @@ of a server restart opens it again 500 ms later.
   `BoxesBackend.claimBox` listens to the grants (`PlanetBackend.listenForGrants`, a `GrantSource`) from before the claim
   goes out, and answers the first one after it as what the box held, or nothing when none comes in
   `BOX_REWARD_WAIT_MS` (2.5 s): the hand had room for no kind the rules weigh, and the award card says the inventory is
-  full. A grant of another kind in that window (a mission paid) would be taken for the box's, as for a right answer.
+  full. A grant of another kind in that window (an operator's) would be taken for the box's, as for a right answer.
 - **Whether a first sign-in earns a refill, and the gates** are the bonuses module's rules (`GetGrantRules`, a GET as
   `GetChargeRules`). `PlanetBackend` reads them at load and tells them as `BonusRules.signInRefill`, `gatesOn` and
   `openKinds`, with planet's rules, through `onRules`, nothing before planet's are read. The bonuses module has no stream

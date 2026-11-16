@@ -1,6 +1,7 @@
 import {AccountBackend, AuthError, Me, OAuthProvider, Provider, SignInOutcome} from "./account.ts"
 import {CALLBACK_PATH} from "../domain/signInCallback.ts"
 import {FAKE_YOU} from "./fakeAccounts.ts"
+import {FAKE_MISSION_RATES} from "./fakeMissionsBackend.ts"
 import {Nameplate} from "./nameplates.ts"
 import {ColoredProfile, NameColor, PlayerBackend, PlayerError, Profile} from "./player.ts"
 import {Fronts, LevelRead, LevelReader, PlayerLevel, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
@@ -121,7 +122,11 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
 
     // A guest has no level, but the ladder all the same.
     public async readLevel(): Promise<LevelRead> {
-        return {level: this.linked.length > 0 ? this.career?.ownLevel() : undefined, unlocks: FAKE_UNLOCKS}
+        return {
+            level: this.linked.length > 0 ? this.career?.ownLevel() : undefined,
+            unlocks: FAKE_UNLOCKS,
+            missionRates: FAKE_MISSION_RATES,
+        }
     }
 
     private requireSignedIn() {

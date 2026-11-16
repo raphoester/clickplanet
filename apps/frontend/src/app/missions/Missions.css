@@ -75,36 +75,6 @@
     text-shadow: var(--text-drop);
 }
 
-.mission-reward .bonus-icon {
-    width: 26px;
-    height: 26px;
-    padding: 3px;
-    border: var(--outline-thin) solid var(--ink);
-    border-radius: var(--radius-s);
-    background: var(--bonus-box);
-    box-shadow: var(--drop-xs);
-}
-
-.mission-reward--shields {
-    --bonus-box: var(--shield);
-}
-
-.mission-reward--spreadClicks {
-    --bonus-box: var(--spread);
-}
-
-.mission-reward--bomb {
-    --bonus-box: var(--bomb);
-}
-
-.mission-reward--refill {
-    --bonus-box: var(--refill);
-}
-
-.mission-reward--encloseClicks {
-    --bonus-box: var(--enclose);
-}
-
 .mission-bar {
     flex: 1;
     height: 12px;
@@ -160,14 +130,6 @@
     font-weight: 700;
     font-size: clamp(var(--text-m), 1.8vw, var(--text-l));
     color: var(--text);
-}
-
-.missions-done-reward .bonus-icon {
-    width: 16px;
-    height: 16px;
-    padding: 2px;
-    border-radius: var(--radius-xs);
-    background: var(--bonus-box);
 }
 
 .bomb-news-line.mission-progress-line {

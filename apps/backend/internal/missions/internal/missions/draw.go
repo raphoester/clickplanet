@@ -58,19 +58,6 @@ const (
 	mostMissions   = 5
 )
 
-// A purse is a charge a mission may pay and how much of it: what multiplies or guards clicks, never clicks.
-type purse struct {
-	kind        RewardKind
-	least, most uint32
-}
-
-var purses = []purse{
-	{kind: RewardShields, least: 15, most: 30},
-	{kind: RewardSpreadClicks, least: 4, most: 8},
-	{kind: RewardBomb, least: 1, most: 1},
-	{kind: RewardEncloseClicks, least: 2, most: 3},
-}
-
 func Draw(day days.Day, account AccountID, flag string, world World) Brief {
 	seed := fnv.New64a()
 	_, _ = seed.Write([]byte(day.String() + "/" + account.String()))
@@ -80,11 +67,10 @@ func Draw(day days.Day, account AccountID, flag string, world World) Brief {
 	orders := d.takes(d.ranked(world.RivalsOf(flag)), grounds)
 	count := fewestMissions + d.random.IntN(mostMissions-fewestMissions+1)
 	orders = append(orders, d.feats(grounds, raidsOf(flag, world), count-len(orders))...)
-	rewards := d.rewards(len(orders))
 
 	missions := make([]Mission, 0, len(orders))
 	for n, order := range orders {
-		missions = append(missions, Mission{id: drawnID(day, account, n+1), order: order, reward: rewards[n]})
+		missions = append(missions, Mission{id: drawnID(day, account, n+1), order: order})
 	}
 	return Brief{missions: missions}
 }
@@ -221,20 +207,4 @@ func (d draw) feats(grounds []Ground, raids []raid, count int) []Order {
 	}
 	d.random.Shuffle(len(feats), func(i, j int) { feats[i], feats[j] = feats[j], feats[i] })
 	return feats[:count]
-}
-
-// Every charge once before any twice, in a random order, each as much as its purse gives.
-func (d draw) rewards(count int) []Reward {
-	rewards := make([]Reward, 0, count)
-	for len(rewards) < count {
-		drawn := slices.Clone(purses)
-		d.random.Shuffle(len(drawn), func(i, j int) { drawn[i], drawn[j] = drawn[j], drawn[i] })
-		for _, purse := range drawn {
-			if len(rewards) == count {
-				break
-			}
-			rewards = append(rewards, Reward{Kind: purse.kind, Amount: purse.least + d.random.Uint32N(purse.most-purse.least+1)})
-		}
-	}
-	return rewards
 }

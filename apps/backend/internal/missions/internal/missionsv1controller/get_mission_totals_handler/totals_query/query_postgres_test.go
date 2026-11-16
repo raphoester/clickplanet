@@ -38,7 +38,6 @@ var (
 	ada, bob, cleo = missions.AccountID{15: 1}, missions.AccountID{15: 2}, missions.AccountID{15: 3}
 	firstStart     = time.Date(2026, 11, 1, 6, 0, 0, 0, time.UTC)
 	now            = firstStart.Add(72 * time.Hour)
-	reward         = missions.Reward{Kind: missions.RewardShields, Amount: 15}
 )
 
 func (s *testSuite) SetupSuite() {
@@ -76,7 +75,7 @@ func (s *testSuite) played(day days.Day, account missions.AccountID, orders []mi
 	}
 	for n, order := range orders {
 		id := missions.MissionID{0: account[15], 15: byte(n + 1)}
-		snapshots = append(snapshots, missions.MissionSnapshot{ID: id, Order: order, Reward: reward})
+		snapshots = append(snapshots, missions.MissionSnapshot{ID: id, Order: order})
 		if progress[n] > 0 {
 			sheet.Progress[id] = progress[n]
 		}

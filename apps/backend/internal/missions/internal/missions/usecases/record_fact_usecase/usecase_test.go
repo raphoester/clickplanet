@@ -11,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
@@ -325,10 +324,9 @@ func TestASignedInAccountIsToldItsMissionsDoneThenPaid(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), batch...))
 
 	recorded := outbox.Recorded()
-	require.Len(t, recorded, 3)
+	require.Len(t, recorded, 2, "no charge granted: progression turns MissionsDone into XP")
 	assert.IsType(t, &missionsv1.MissionsDone{}, recorded[0])
-	assert.IsType(t, &planetv1.GrantCharges{}, recorded[1])
-	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1}, recorded[2]),
+	assert.True(t, proto.Equal(&missionsv1.MissionsPaid{AccountId: ada.String(), PaidInAll: 1}, recorded[1]),
 		"MissionsPaid is as before: how many were paid, no kind")
 }
 

@@ -210,8 +210,8 @@ describe("TerritoryCard", () => {
 
     it("names the missions on its ground or on a rival holding some of it, the flag's included", () => {
         show(SICILY, {missions: {endsAt: 0, missions: [
-            {id: "ground", order: {kind: "takeIn", country: "it", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
-            {id: "far", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, reward: {kind: "bomb", amount: 1}, done: false, paid: false},
+            {id: "ground", order: {kind: "takeIn", country: "it", goal: 300, taken: 0}, done: false, paid: false},
+            {id: "far", order: {kind: "takeIn", country: "br", goal: 300, taken: 0}, done: false, paid: false},
         ], flagMission: {id: "flag", order: {kind: "breakShields", country: "es", goal: 30, reached: 0}, points: 5, done: false}}})
 
         const lines = within(screen.getByRole("list", {name: "Your missions here"})).getAllByRole("listitem")

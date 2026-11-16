@@ -8,14 +8,12 @@ import {
     MissionEvent,
     MissionReward as MissionRewardPb,
 } from "../gen/grpc/missions/v1/missions_pb.ts"
-import {chargeKindOf} from "./bonusKind.ts"
 import {
     DayMissions,
     FlagMission,
     FlagMissionOrder,
     Mission,
     MissionOrder,
-    MissionReward,
     MissionsBackend,
 } from "./missions.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
@@ -99,9 +97,8 @@ function dayOf(res: GetMissionsResponse): DayMissions {
 
 function missionOf(mission: MissionPb): Mission | undefined {
     const order = orderOf(mission.kind)
-    const reward = rewardOf(mission.reward)
-    if (!order || !reward) return undefined
-    return {id: mission.id, order, reward, done: mission.done, paid: mission.paid}
+    if (!order || !paysXp(mission.reward)) return undefined
+    return {id: mission.id, order, done: mission.done, paid: mission.paid}
 }
 
 function orderOf(kind: MissionPb["kind"]): MissionOrder | undefined {
@@ -146,13 +143,11 @@ function flagOrderOf(kind: FlagMissionPb["kind"]): FlagMissionOrder | undefined 
     }
 }
 
-function rewardOf(reward: MissionRewardPb | undefined): MissionReward | undefined {
+function paysXp(reward: MissionRewardPb | undefined): boolean {
     switch (reward?.kind.case) {
-        case "charges": {
-            const kind = chargeKindOf(reward.kind.value.kind)
-            return kind && {kind, amount: reward.kind.value.amount}
-        }
+        case "xp":
+            return true
         case undefined:
-            return undefined
+            return false
     }
 }

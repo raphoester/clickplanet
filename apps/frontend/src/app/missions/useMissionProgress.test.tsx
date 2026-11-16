@@ -7,7 +7,7 @@ import {PROGRESS_LINE_MS, useMissionProgress} from "./useMissionProgress.ts"
 import {MissionsState} from "./missionsStore.ts"
 
 function mission(id: string, order: MissionOrder, done = false): Mission {
-    return {id, order, reward: {kind: "bomb", amount: 1}, done, paid: done}
+    return {id, order, done, paid: done}
 }
 
 const rival = (taken: number, done = false) => mission("rival", {kind: "takeFrom", country: "ie", goal: 80, taken}, done)

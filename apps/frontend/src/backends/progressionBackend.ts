@@ -1,9 +1,11 @@
 import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrpc/connect"
 import {createConnectTransport} from "@connectrpc/connect-web"
+import {MissionKind} from "../gen/grpc/missions/v1/kind_pb.ts"
 import {ProgressionService} from "../gen/grpc/progression/v1/progression_connect.ts"
 import {
     CountryTiles as CountryTilesPb,
     Level as LevelPb,
+    MissionRate as MissionRatePb,
     Unlock as UnlockPb,
     Progress as ProgressPb,
     ProgressionEvent,
@@ -12,6 +14,7 @@ import {
 import {AccountBadge, BadgesBackend} from "./badges.ts"
 import {UnlockLevels} from "../domain/bonus.ts"
 import {chargeKindOf} from "./bonusKind.ts"
+import {MissionOrder, MissionRates} from "./missions.ts"
 import {
     CountryTiles,
     Fronts,
@@ -75,7 +78,7 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
 
         const headers = new Headers({[SESSION_HEADER]: token})
         const res = await retrying(() => this.client.getLevel({}, {headers}), "GetLevel")
-        return {level: levelOf(res.level), unlocks: unlocksOf(res.unlocks)}
+        return {level: levelOf(res.level), unlocks: unlocksOf(res.unlocks), missionRates: missionRatesOf(res.missionRates)}
     }
 
     public async progress(accountId: string): Promise<Progress | undefined> {
@@ -135,6 +138,38 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
         return headers
+    }
+}
+
+function missionRatesOf(rates: MissionRatePb[]): MissionRates {
+    return Object.fromEntries(rates.flatMap((rate) => {
+        const kind = orderKindOf(rate.kind)
+        return kind && rate.per > 0 ? [[kind, {xp: rate.xp, per: rate.per}]] : []
+    }))
+}
+
+function orderKindOf(kind: MissionKind): MissionOrder["kind"] | undefined {
+    switch (kind) {
+        case MissionKind.TAKE_FOR:
+            return "takeFor"
+        case MissionKind.TAKE_FROM:
+            return "takeFrom"
+        case MissionKind.TAKE_IN:
+            return "takeIn"
+        case MissionKind.TAKE_FROM_IN:
+            return "takeFromIn"
+        case MissionKind.CATCH_BOXES:
+            return "catchBoxes"
+        case MissionKind.ANSWER_QUIZZES:
+            return "answerQuizzes"
+        case MissionKind.BOMB_IN:
+            return "bombIn"
+        case MissionKind.SHIELD_TILES:
+            return "shieldTiles"
+        case MissionKind.FORTIFY_TILES:
+            return "fortifyTiles"
+        case MissionKind.UNSPECIFIED:
+            return undefined
     }
 }
 

@@ -1,11 +1,10 @@
 import {describe, expect, it} from "vitest"
 import {DayMissions, FlagMission, Mission} from "../backends/missions.ts"
-import {awardOf, newlyDoneFlagMission, newlyPaid, parseSeenMissions, reachedOf, seenNow, timeLeft, unseen} from "./missions.ts"
+import {newlyDoneFlagMission, newlyPaid, parseSeenMissions, reachedOf, seenNow, timeLeft, unseen, xpOf} from "./missions.ts"
 
 const mission = (overrides: Partial<Mission> = {}): Mission => ({
     id: "bank",
     order: {kind: "takeFor", country: "fr", goal: 60, taken: 0},
-    reward: {kind: "shields", amount: 10},
     done: false,
     paid: false,
     ...overrides,
@@ -85,13 +84,17 @@ describe("newlyPaid", () => {
     })
 })
 
-describe("awardOf", () => {
-    const rules = {blastRadius: 0.05, enclosureMaxTiles: 25}
+describe("xpOf", () => {
+    const rates = {takeFrom: {xp: 3, per: 2}, catchBoxes: {xp: 50, per: 1}}
 
-    it("is the box a caught reward would show", () => {
-        expect(awardOf({kind: "shields", amount: 7}, rules)).toEqual({kind: "shields", shields: 7})
-        expect(awardOf({kind: "spreadClicks", amount: 4}, rules)).toEqual({kind: "spreadClicks", clicks: 4})
-        expect(awardOf({kind: "bomb", amount: 1}, rules)).toEqual({kind: "bomb", radius: 0.05})
+    it("is the goal times the kind's rate, floored as the server floors it", () => {
+        expect(xpOf({kind: "takeFrom", country: "dz", goal: 80, taken: 0}, rates)).toBe(120)
+        expect(xpOf({kind: "takeFrom", country: "dz", goal: 85, taken: 0}, rates)).toBe(127)
+        expect(xpOf({kind: "catchBoxes", goal: 4, reached: 1}, rates)).toBe(200)
+    })
+
+    it("is unknown for a kind with no rate", () => {
+        expect(xpOf({kind: "bombIn", country: "br", goal: 2, reached: 0}, rates)).toBeUndefined()
     })
 })
 

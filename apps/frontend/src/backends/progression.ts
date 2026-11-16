@@ -1,5 +1,6 @@
 import {PlayerTitle} from "./title.ts"
 import {UnlockLevels} from "../domain/bonus.ts"
+import {MissionRates} from "./missions.ts"
 
 export type {PlayerTitle, TitleRank} from "./title.ts"
 
@@ -38,6 +39,8 @@ export type LevelRead = {
     level?: PlayerLevel
     // The level each gated kind opens at.
     unlocks: UnlockLevels
+    // What each kind of mission pays in XP.
+    missionRates: MissionRates
 }
 
 export interface LevelReader {

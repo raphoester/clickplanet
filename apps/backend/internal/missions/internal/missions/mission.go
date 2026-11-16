@@ -12,20 +12,6 @@ type MissionID uuid.UUID
 
 func (id MissionID) String() string { return uuid.UUID(id).String() }
 
-type RewardKind string
-
-const (
-	RewardShields       RewardKind = "shields"
-	RewardSpreadClicks  RewardKind = "spread_clicks"
-	RewardBomb          RewardKind = "bomb"
-	RewardEncloseClicks RewardKind = "enclose_clicks"
-)
-
-type Reward struct {
-	Kind   RewardKind
-	Amount uint32
-}
-
 // An order is one kind of mission: its own fields, and its own progress from 0. A new kind is a new type.
 type Order interface {
 	advanced(progress uint32, fact Fact) uint32
@@ -165,26 +151,24 @@ func oneMore(progress, goal uint32, counts bool) uint32 {
 }
 
 type MissionSnapshot struct {
-	ID     MissionID
-	Order  Order
-	Reward Reward
+	ID    MissionID
+	Order Order
 }
 
 type Mission struct {
-	id     MissionID
-	order  Order
-	reward Reward
+	id    MissionID
+	order Order
 }
 
 func MissionOf(snapshot MissionSnapshot) (Mission, error) {
 	if snapshot.Order == nil {
 		return Mission{}, ErrNoOrder
 	}
-	return Mission{id: snapshot.ID, order: snapshot.Order, reward: snapshot.Reward}, nil
+	return Mission{id: snapshot.ID, order: snapshot.Order}, nil
 }
 
 func (m Mission) Snapshot() MissionSnapshot {
-	return MissionSnapshot{ID: m.id, Order: m.order, Reward: m.reward}
+	return MissionSnapshot{ID: m.id, Order: m.order}
 }
 
 type Brief struct {
