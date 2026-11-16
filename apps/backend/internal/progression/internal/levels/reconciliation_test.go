@@ -29,21 +29,19 @@ var (
 	kept = levels.ByAccount{{15: 1}: 2, {15: 2}: 3, {15: 3}: 7, {15: 5}: 4, {15: 6}: 1}
 )
 
-func TestEachLinkedAccountGetsTheExactLevelItsStatsReachAndAGuestNone(t *testing.T) {
+func TestEachLinkedAccountIsRaisedToTheLevelItsStatsReachNeverLoweredAndAGuestHasNone(t *testing.T) {
 	reconciliation := levels.Scale{}.ReconciliationOf(page, known, kept)
 
 	assert.Equal(t, levels.ByAccount{{15: 1}: 3, {15: 4}: 3}, reconciliation.Raised(), "one with no level is raised too")
-	assert.Equal(t, levels.ByAccount{{15: 3}: 3}, reconciliation.Lowered())
 	assert.ElementsMatch(t, []accounts.AccountID{{15: 5}, {15: 6}}, reconciliation.Removed(),
 		"a guest, and an account player does not know")
-	assert.Equal(t, levels.ByAccount{{15: 1}: 3, {15: 2}: 3, {15: 3}: 3, {15: 4}: 3}, reconciliation.Reached(),
-		"every linked account, changed or not")
+	assert.Equal(t, levels.ByAccount{{15: 1}: 3, {15: 2}: 3, {15: 3}: 7, {15: 4}: 3}, reconciliation.Reached(),
+		"every linked account, changed or not, at the level it holds after")
 }
 
 func TestAGuestWithNoLevelIsLeftAlone(t *testing.T) {
 	reconciliation := levels.Scale{}.ReconciliationOf([]stats.Stats{took(5, 5_000)}, known, levels.ByAccount{})
 
 	assert.Empty(t, reconciliation.Raised())
-	assert.Empty(t, reconciliation.Lowered())
 	assert.Empty(t, reconciliation.Removed())
 }

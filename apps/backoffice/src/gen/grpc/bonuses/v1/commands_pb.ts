@@ -60,3 +60,65 @@ export class KeepUnlocks extends Message<KeepUnlocks> {
   }
 }
 
+/**
+ * A level an account reached by playing: one bonus, drawn as a box is among the kinds the account may be drawn, in a box's
+ * amounts. A jump of several levels is one; a reconciliation sends none. The bonuses module pays it once per grant_id,
+ * which planet keeps for good.
+ *
+ * @generated from message bonuses.v1.PayLevelUp
+ */
+export class PayLevelUp extends Message<PayLevelUp> {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: uint32 level = 3;
+   */
+  level = 0;
+
+  /**
+   * Every kind the level unlocks, as KeepUnlocks tells them: the draw reads them here, since KeepUnlocks comes on a
+   * stream of its own, in no order with this one.
+   *
+   * @generated from field: repeated planet.v1.BonusKind unlocked = 4;
+   */
+  unlocked: BonusKind[] = [];
+
+  constructor(data?: PartialMessage<PayLevelUp>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.PayLevelUp";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grant_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "level", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "unlocked", kind: "enum", T: proto3.getEnumType(BonusKind), repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PayLevelUp {
+    return new PayLevelUp().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PayLevelUp {
+    return new PayLevelUp().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PayLevelUp {
+    return new PayLevelUp().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PayLevelUp | PlainMessage<PayLevelUp> | undefined, b: PayLevelUp | PlainMessage<PayLevelUp> | undefined): boolean {
+    return proto3.util.equals(PayLevelUp, a, b);
+  }
+}
+

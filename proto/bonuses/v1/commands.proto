@@ -13,3 +13,15 @@ message KeepUnlocks {
   repeated planet.v1.BonusKind kinds = 2;
   google.protobuf.Timestamp decided_at = 3;
 }
+
+// A level an account reached by playing: one bonus, drawn as a box is among the kinds the account may be drawn, in a box's
+// amounts. A jump of several levels is one; a reconciliation sends none. The bonuses module pays it once per grant_id,
+// which planet keeps for good.
+message PayLevelUp {
+  string grant_id = 1;
+  string account_id = 2;
+  uint32 level = 3;
+  // Every kind the level unlocks, as KeepUnlocks tells them: the draw reads them here, since KeepUnlocks comes on a
+  // stream of its own, in no order with this one.
+  repeated planet.v1.BonusKind unlocked = 4;
+}

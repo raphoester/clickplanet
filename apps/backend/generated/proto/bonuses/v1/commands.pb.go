@@ -86,6 +86,79 @@ func (x *KeepUnlocks) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// A level an account reached by playing: one bonus, drawn as a box is among the kinds the account may be drawn, in a box's
+// amounts. A jump of several levels is one; a reconciliation sends none. The bonuses module pays it once per grant_id,
+// which planet keeps for good.
+type PayLevelUp struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	GrantId   string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Level     uint32                 `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`
+	// Every kind the level unlocks, as KeepUnlocks tells them: the draw reads them here, since KeepUnlocks comes on a
+	// stream of its own, in no order with this one.
+	Unlocked      []v1.BonusKind `protobuf:"varint,4,rep,packed,name=unlocked,proto3,enum=planet.v1.BonusKind" json:"unlocked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PayLevelUp) Reset() {
+	*x = PayLevelUp{}
+	mi := &file_bonuses_v1_commands_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PayLevelUp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PayLevelUp) ProtoMessage() {}
+
+func (x *PayLevelUp) ProtoReflect() protoreflect.Message {
+	mi := &file_bonuses_v1_commands_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PayLevelUp.ProtoReflect.Descriptor instead.
+func (*PayLevelUp) Descriptor() ([]byte, []int) {
+	return file_bonuses_v1_commands_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *PayLevelUp) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+func (x *PayLevelUp) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *PayLevelUp) GetLevel() uint32 {
+	if x != nil {
+		return x.Level
+	}
+	return 0
+}
+
+func (x *PayLevelUp) GetUnlocked() []v1.BonusKind {
+	if x != nil {
+		return x.Unlocked
+	}
+	return nil
+}
+
 var File_bonuses_v1_commands_proto protoreflect.FileDescriptor
 
 const file_bonuses_v1_commands_proto_rawDesc = "" +
@@ -97,7 +170,14 @@ const file_bonuses_v1_commands_proto_rawDesc = "" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12*\n" +
 	"\x05kinds\x18\x02 \x03(\x0e2\x14.planet.v1.BonusKindR\x05kinds\x129\n" +
 	"\n" +
-	"decided_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAtB\xbc\x01\n" +
+	"decided_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\"\x8e\x01\n" +
+	"\n" +
+	"PayLevelUp\x12\x19\n" +
+	"\bgrant_id\x18\x01 \x01(\tR\agrantId\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\tR\taccountId\x12\x14\n" +
+	"\x05level\x18\x03 \x01(\rR\x05level\x120\n" +
+	"\bunlocked\x18\x04 \x03(\x0e2\x14.planet.v1.BonusKindR\bunlockedB\xbc\x01\n" +
 	"\x0ecom.bonuses.v1B\rCommandsProtoP\x01ZRgithub.com/raphoester/clickplanet.lol-backend/generated/proto/bonuses/v1;bonusesv1\xa2\x02\x03BXX\xaa\x02\n" +
 	"Bonuses.V1\xca\x02\n" +
 	"Bonuses\\V1\xe2\x02\x16Bonuses\\V1\\GPBMetadata\xea\x02\vBonuses::V1b\x06proto3"
@@ -114,20 +194,22 @@ func file_bonuses_v1_commands_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_commands_proto_rawDescData
 }
 
-var file_bonuses_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_bonuses_v1_commands_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_bonuses_v1_commands_proto_goTypes = []any{
 	(*KeepUnlocks)(nil),           // 0: bonuses.v1.KeepUnlocks
-	(v1.BonusKind)(0),             // 1: planet.v1.BonusKind
-	(*timestamppb.Timestamp)(nil), // 2: google.protobuf.Timestamp
+	(*PayLevelUp)(nil),            // 1: bonuses.v1.PayLevelUp
+	(v1.BonusKind)(0),             // 2: planet.v1.BonusKind
+	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
 }
 var file_bonuses_v1_commands_proto_depIdxs = []int32{
-	1, // 0: bonuses.v1.KeepUnlocks.kinds:type_name -> planet.v1.BonusKind
-	2, // 1: bonuses.v1.KeepUnlocks.decided_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	2, // 0: bonuses.v1.KeepUnlocks.kinds:type_name -> planet.v1.BonusKind
+	3, // 1: bonuses.v1.KeepUnlocks.decided_at:type_name -> google.protobuf.Timestamp
+	2, // 2: bonuses.v1.PayLevelUp.unlocked:type_name -> planet.v1.BonusKind
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_commands_proto_init() }
@@ -141,7 +223,7 @@ func file_bonuses_v1_commands_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_commands_proto_rawDesc), len(file_bonuses_v1_commands_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

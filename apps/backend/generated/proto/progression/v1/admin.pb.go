@@ -257,8 +257,6 @@ type ReconcileLevelsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The accounts whose level went up, or would.
 	Raised uint32 `protobuf:"varint,1,opt,name=raised,proto3" json:"raised,omitempty"`
-	// The accounts whose level went down, or would: the new rules no longer reach it.
-	Lowered uint32 `protobuf:"varint,2,opt,name=lowered,proto3" json:"lowered,omitempty"`
 	// The guests whose level was taken off, or would be.
 	Removed       uint32 `protobuf:"varint,3,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -298,13 +296,6 @@ func (*ReconcileLevelsResponse) Descriptor() ([]byte, []int) {
 func (x *ReconcileLevelsResponse) GetRaised() uint32 {
 	if x != nil {
 		return x.Raised
-	}
-	return 0
-}
-
-func (x *ReconcileLevelsResponse) GetLowered() uint32 {
-	if x != nil {
-		return x.Lowered
 	}
 	return 0
 }
@@ -659,11 +650,10 @@ const file_progression_v1_admin_proto_rawDesc = "" +
 	"\baccounts\x18\x01 \x01(\rR\baccounts\x12\x18\n" +
 	"\achanged\x18\x02 \x01(\rR\achanged\"1\n" +
 	"\x16ReconcileLevelsRequest\x12\x17\n" +
-	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"e\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"Z\n" +
 	"\x17ReconcileLevelsResponse\x12\x16\n" +
 	"\x06raised\x18\x01 \x01(\rR\x06raised\x12\x18\n" +
-	"\alowered\x18\x02 \x01(\rR\alowered\x12\x18\n" +
-	"\aremoved\x18\x03 \x01(\rR\aremoved\"8\n" +
+	"\aremoved\x18\x03 \x01(\rR\aremovedJ\x04\b\x02\x10\x03R\alowered\"8\n" +
 	"\x17AdminGetProgressRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\xfb\x03\n" +

@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inmemory_level_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -21,10 +22,25 @@ type told struct {
 	at      time.Time
 }
 
+type paid struct {
+	account  accounts.AccountID
+	level    levels.Level
+	unlocked []levels.Kind
+}
+
 // bonuses keeps what it is told only in a transaction, as the outbox does.
 type bonuses struct {
 	outbox *cpatomic.FakeOutbox
 	told   []told
+	paid   []paid
+}
+
+func (b *bonuses) PayLevelUp(ctx context.Context, account accounts.AccountID, level levels.Level, unlocked []levels.Kind) error {
+	if err := b.outbox.Record(ctx); err != nil {
+		return err //nolint:wrapcheck // the test reads it.
+	}
+	b.paid = append(b.paid, paid{account: account, level: level, unlocked: unlocked})
+	return nil
 }
 
 func (b *bonuses) KeepUnlocks(ctx context.Context, account accounts.AccountID, kinds []levels.Kind, at time.Time) error {
@@ -69,13 +85,14 @@ func TestARaiseThatUnlocksNothingNewStillTellsTheWholeList(t *testing.T) {
 
 func TestARaiseAnotherWriteBeatTellsNothing(t *testing.T) {
 	book, store, bonuses := setUpBook()
-	require.NoError(t, store.Set(t.Context(), levels.ByAccount{ada: 6}, monday))
+	require.NoError(t, store.RaiseAll(t.Context(), levels.ByAccount{ada: 6}, monday))
 
 	previous, err := book.Raise(t.Context(), ada, 5, monday)
 	require.NoError(t, err)
 
 	assert.Equal(t, levels.Level(6), previous)
 	assert.Empty(t, bonuses.told)
+	assert.Empty(t, bonuses.paid, "a fact told twice raises once, and pays once")
 }
 
 func TestARaiseTheStoreRefusesTellsNothing(t *testing.T) {
@@ -86,4 +103,48 @@ func TestARaiseTheStoreRefusesTellsNothing(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Empty(t, bonuses.told)
+	assert.Empty(t, bonuses.paid)
+}
+
+func TestARaisePaysOneLevelUpWithWhatTheLevelUnlocks(t *testing.T) {
+	book, _, bonuses := setUpBook()
+
+	_, err := book.Raise(t.Context(), ada, 4, monday)
+	require.NoError(t, err)
+
+	assert.Equal(t, []paid{{account: ada, level: 4, unlocked: []levels.Kind{"enclose_clicks"}}}, bonuses.paid)
+}
+
+func TestAJumpOfSeveralLevelsIsOneLevelUp(t *testing.T) {
+	book, store, bonuses := setUpBook()
+	require.NoError(t, store.RaiseAll(t.Context(), levels.ByAccount{ada: 1}, monday))
+
+	_, err := book.Raise(t.Context(), ada, 9, monday)
+	require.NoError(t, err)
+
+	require.Len(t, bonuses.paid, 1)
+	assert.Equal(t, levels.Level(9), bonuses.paid[0].level)
+}
+
+func TestReachingLevelOneIsNoLevelUp(t *testing.T) {
+	book, _, bonuses := setUpBook()
+
+	_, err := book.Raise(t.Context(), ada, 1, monday)
+	require.NoError(t, err)
+
+	assert.Len(t, bonuses.told, 1, "its unlocks are told all the same")
+	assert.Empty(t, bonuses.paid)
+}
+
+func TestAReconciliationPaysNoLevelUp(t *testing.T) {
+	book, _, bonuses := setUpBook()
+	reconciliation := levels.Scale{}.ReconciliationOf(
+		[]stats.Stats{stats.StatsSnapshot{Account: ada, TilesTaken: 5_000}.Restore()},
+		map[accounts.AccountID]accounts.Account{ada: accounts.AccountOf(true, monday)}, levels.ByAccount{},
+	)
+
+	require.NoError(t, book.Reconcile(t.Context(), reconciliation, monday))
+
+	assert.Len(t, bonuses.told, 1)
+	assert.Empty(t, bonuses.paid)
 }

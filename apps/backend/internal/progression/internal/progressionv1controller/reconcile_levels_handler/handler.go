@@ -27,7 +27,6 @@ func (h ReconcileLevelsHandler) ReconcileLevels(
 	}
 	return connect.NewResponse(&progressionv1.ReconcileLevelsResponse{
 		Raised:  uint32(reconciled.Raised),  //nolint:gosec // counted from the stats' rows, never negative or past 2^32.
-		Lowered: uint32(reconciled.Lowered), //nolint:gosec // as above.
 		Removed: uint32(reconciled.Removed), //nolint:gosec // as above.
 	}), nil
 }

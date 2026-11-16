@@ -219,13 +219,6 @@ export class ReconcileLevelsResponse extends Message<ReconcileLevelsResponse> {
   raised = 0;
 
   /**
-   * The accounts whose level went down, or would: the new rules no longer reach it.
-   *
-   * @generated from field: uint32 lowered = 2;
-   */
-  lowered = 0;
-
-  /**
    * The guests whose level was taken off, or would be.
    *
    * @generated from field: uint32 removed = 3;
@@ -241,7 +234,6 @@ export class ReconcileLevelsResponse extends Message<ReconcileLevelsResponse> {
   static readonly typeName = "progression.v1.ReconcileLevelsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "raised", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "lowered", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "removed", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 

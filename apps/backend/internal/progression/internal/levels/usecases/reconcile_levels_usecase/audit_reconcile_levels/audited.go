@@ -22,7 +22,7 @@ func (a *Audited) Execute(ctx context.Context, dryRun bool) (reconcile_levels_us
 	reconciled, err := a.inner.Execute(ctx, dryRun)
 
 	attrs := []any{
-		slog.Bool("dry_run", dryRun), slog.Int("raised", reconciled.Raised), slog.Int("lowered", reconciled.Lowered),
+		slog.Bool("dry_run", dryRun), slog.Int("raised", reconciled.Raised),
 		slog.Int("removed", reconciled.Removed),
 	}
 	if err != nil {

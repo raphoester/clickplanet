@@ -32,14 +32,14 @@ func run(t *testing.T, inner stubExecutor, dryRun bool) (string, error) {
 }
 
 func TestEveryReconciliationIsLoggedWithWhatItChanged(t *testing.T) {
-	logs, err := run(t, stubExecutor{reconciled: reconcile_levels_usecase.Reconciled{Raised: 42, Lowered: 7, Removed: 1}}, true)
+	logs, err := run(t, stubExecutor{reconciled: reconcile_levels_usecase.Reconciled{Raised: 42, Removed: 1}}, true)
 
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="admin level reconciliation" dry_run=true raised=42 lowered=7 removed=1`)
+	assert.Contains(t, logs, `level=WARN msg="admin level reconciliation" dry_run=true raised=42 removed=1`)
 
 	logs, err = run(t, stubExecutor{}, false)
 	require.NoError(t, err)
-	assert.Contains(t, logs, `level=WARN msg="admin level reconciliation" dry_run=false raised=0 lowered=0 removed=0`,
+	assert.Contains(t, logs, `level=WARN msg="admin level reconciliation" dry_run=false raised=0 removed=0`,
 		"one that changed nothing is logged too")
 }
 
@@ -49,5 +49,5 @@ func TestAFailureIsLoggedWithWhatWasDoneBeforeIt(t *testing.T) {
 	logs, err := run(t, stubExecutor{reconciled: reconcile_levels_usecase.Reconciled{Raised: 500}, err: cause}, false)
 
 	require.ErrorIs(t, err, cause)
-	assert.Contains(t, logs, `level=WARN msg="admin level reconciliation failed" dry_run=false raised=500 lowered=0 removed=0`)
+	assert.Contains(t, logs, `level=WARN msg="admin level reconciliation failed" dry_run=false raised=500 removed=0`)
 }

@@ -98,15 +98,7 @@ func (s *Store) Raise(ctx context.Context, account accounts.AccountID, level lev
 	return previous, nil
 }
 
-func (s *Store) RaiseAll(ctx context.Context, raised levels.ByAccount, at time.Time) error {
-	return s.write(ctx, raised, at, `WHERE kept.level < excluded.level`)
-}
-
-func (s *Store) Set(ctx context.Context, set levels.ByAccount, at time.Time) error {
-	return s.write(ctx, set, at, ``)
-}
-
-func (s *Store) write(ctx context.Context, written levels.ByAccount, at time.Time, onlyIf string) error {
+func (s *Store) RaiseAll(ctx context.Context, written levels.ByAccount, at time.Time) error {
 	if len(written) == 0 {
 		return nil
 	}
@@ -122,7 +114,8 @@ func (s *Store) write(ctx context.Context, written levels.ByAccount, at time.Tim
 		SELECT written.account_id, written.level, $3
 		FROM unnest($1::uuid[], $2::integer[]) AS written (account_id, level)
 		ON CONFLICT (account_id) DO UPDATE SET level = excluded.level, reached_at = excluded.reached_at
-		`+onlyIf, pq.Array(ids), pq.Array(values), at.UTC()); err != nil {
+		WHERE kept.level < excluded.level
+		`, pq.Array(ids), pq.Array(values), at.UTC()); err != nil {
 		return fmt.Errorf("failed to write the levels: %w", err)
 	}
 	return nil
