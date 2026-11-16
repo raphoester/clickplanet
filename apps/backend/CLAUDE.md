@@ -159,6 +159,9 @@ and says what is in it. Read the doc before you change its area.
 - [Progression](docs/progression.md) — how far an account went: stats, streaks, titles and their tracks, the title
   worn, the fronts, the badges, the title-earned stream and the reconciliation; why it left `player`, and its tables
   moved from schema `player`.
+- [Levels](docs/levels.md) — a level per linked account, from XP computed from the stats row and never stored: one type
+  per XP source and per mission kind's rate, the curve 14 × (L − 1)³ with no top, no XP and no level for a guest; the
+  domain alone, nothing calls it yet.
 - [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze, Battle Top 1-3 and Veteran: who fought the
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells
   `SeasonEnded`; Season 0 Top 1-3, its best players, given once by hand.
