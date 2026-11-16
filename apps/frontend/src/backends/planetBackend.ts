@@ -128,7 +128,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private allegiance: Allegiance | undefined
 
+    // Each read of the flag is numbered as it goes out: one that answers after a newer one is dropped.
+    private allegianceAsked = 0
+    private allegianceHeld = 0
+
     private flagged: {token: string, ready: Promise<void>} | undefined
+
+    private readonly stopFollowingTokens: () => void
 
     // With no bonuses client, as in a test of the map alone, a sign-in earns no refill the page says.
     constructor(
@@ -143,6 +149,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
         this.stopListening = this.openEventStream()
         void this.followIdentity()
+        // A kept token the server refuses reads as nobody's: the flag, the charges and the stream wait for the next one.
+        this.stopFollowingTokens = session.listenForTokens?.((token) => this.followSession(token)) ?? (() => {})
 
         this.listenForUpdates((update) => {
             this.pendingUpdates.push(update)
@@ -161,6 +169,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     public close() {
         clearInterval(this.flushTimer)
         this.stopListening()
+        this.stopFollowingTokens()
         this.updateBatchCallbacks.clear()
         this.updateCallbacks.clear()
         this.bonusCallbacks.clear()
@@ -566,12 +575,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private async readAllegiance(token: string | undefined): Promise<void> {
         const headers = new Headers()
         if (token) headers.set(SESSION_HEADER, token)
+        const asked = ++this.allegianceAsked
 
         try {
             const res = await retrying(() => this.client.getAllegiance({}, {headers}), "getAllegiance")
             if (token !== this.streamToken && token !== this.session.heldIdentity()) return
             const held = allegianceOfMessage(res.allegiance)
-            this.holdAllegiance(held)
+            if (!this.holdAllegiance(held, asked)) return
             if (held && token) this.flagged = {token, ready: Promise.resolve()}
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return
@@ -612,9 +622,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private async heldFor(token: string): Promise<Allegiance | undefined> {
         const headers = new Headers({[SESSION_HEADER]: token})
+        const asked = ++this.allegianceAsked
         const res = await retrying(() => this.client.getAllegiance({}, {headers}), "getAllegiance")
         const held = allegianceOfMessage(res.allegiance)
-        this.holdAllegiance(held)
+        this.holdAllegiance(held, asked)
         return held
     }
 
@@ -639,9 +650,12 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         if (locked) this.holdAllegiance(locked)
     }
 
-    private holdAllegiance(allegiance: Allegiance | undefined): void {
+    private holdAllegiance(allegiance: Allegiance | undefined, asked = ++this.allegianceAsked): boolean {
+        if (asked < this.allegianceHeld) return false
+        this.allegianceHeld = asked
         this.allegiance = allegiance
         this.allegianceCallbacks.forEach(callback => callback(allegiance))
+        return true
     }
 
     public listenForAllegiance(callback: (allegiance: Allegiance | undefined) => void): () => void {

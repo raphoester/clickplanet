@@ -54,6 +54,7 @@ export class SessionClient implements SessionProvider {
     private pending?: Promise<string>
     private resuming?: Promise<string | undefined>
     private generation = 0
+    private readonly tokenListeners = new Set<(token: string) => void>()
 
     private readonly refreshMarginMs: number
     private readonly now: () => number
@@ -92,6 +93,11 @@ export class SessionClient implements SessionProvider {
         return this.fresh()?.value
     }
 
+    public listenForTokens(onToken: (token: string) => void): () => void {
+        this.tokenListeners.add(onToken)
+        return () => this.tokenListeners.delete(onToken)
+    }
+
     public invalidate(): void {
         this.current = undefined
         this.pending = undefined
@@ -123,8 +129,7 @@ export class SessionClient implements SessionProvider {
 
             // A click token minted meanwhile names the same account and proves more: it stays.
             if (generation === this.generation && !this.fresh()) {
-                this.current = {value: res.token, expiresAt: Number(res.expiresAtUnixMs), identity: true}
-                this.store.write(this.current)
+                this.hold({value: res.token, expiresAt: Number(res.expiresAtUnixMs), identity: true})
             }
 
             return res.token
@@ -151,11 +156,7 @@ export class SessionClient implements SessionProvider {
             const res = await this.client.createSession({attestationToken, landing: await this.landing})
 
             if (generation === this.generation) {
-                this.current = {
-                    value: res.token,
-                    expiresAt: Number(res.expiresAtUnixMs),
-                }
-                this.store.write(this.current)
+                this.hold({value: res.token, expiresAt: Number(res.expiresAtUnixMs)})
             }
 
             return res.token
@@ -166,6 +167,19 @@ export class SessionClient implements SessionProvider {
             }
             throw new SessionUnavailableError({cause: e})
         }
+    }
+
+    // A listener that fails must not fail the mint or the resume that told it.
+    private hold(session: HeldSession): void {
+        this.current = session
+        this.store.write(session)
+        this.tokenListeners.forEach((listener) => {
+            try {
+                listener(session.value)
+            } catch (e) {
+                console.error("A listener of the session's tokens failed", e)
+            }
+        })
     }
 }
 
