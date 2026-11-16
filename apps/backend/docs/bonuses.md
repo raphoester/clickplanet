@@ -1,6 +1,6 @@
 # The bonuses (`internal/bonuses/`)
 
-**The bonuses module grants what a box caught, a right answer or a guest's first sign-in is worth.** It holds no charge:
+**The bonuses module grants what a box caught, a right answer, a level reached or a guest's first sign-in is worth.** It holds no charge:
 the charges a player holds and spends are planet's wallet ([Charges](charges.md)). The rule of the cut: **granting is the
 bonuses module's, holding and spending is planet's.** The module left planet on 2026-11-11 (step B of [Offers and the
 wallet](offers-and-wallet.md)) as "the offers". Since, three cuts leave it with the reward alone: **the quizzes left it on
@@ -18,9 +18,9 @@ progression: progression sends it a command in its words instead (`TestProgressi
 
 | package | what |
 |---|---|
-| `internal/bonuses` | a kind and its draw (`kind.go`), a box caught (`box.go`) and a right answer (`answer.go`), the ports it asks planet through (`wallet.go`), the kinds an account unlocked (`unlocked.go`), the sign-in grant (`sign_in.go`), its rules and gates (`rules.go`, `message.go`) and the use cases `pay_caught_box`, `pay_right_answer` and `grant_sign_in_refill` |
+| `internal/bonuses` | a kind and its draw (`kind.go`), a box caught (`box.go`), a right answer (`answer.go`) and a level reached (`level_up.go`), the ports it asks planet through (`wallet.go`), the kinds an account unlocked (`unlocked.go`), the sign-in grant (`sign_in.go`), its rules and gates (`rules.go`, `message.go`) and the use cases `pay_caught_box`, `pay_right_answer`, `pay_level_up` and `grant_sign_in_refill` |
 | `internal/unlocks` | what progression last decided an account may be drawn (`Unlocks`, the latest by its time), its stores and the use cases `keep_unlocks` and `forget_unlocks` |
-| `internal/commands` | `bonuses.v1.KeepUnlocks`, handled |
+| `internal/commands` | `bonuses.v1.KeepUnlocks` and `PayLevelUp`, handled |
 | `internal/rules` | the list of its parts (`parts.All()`) and its fixtures (`rules.Seeded()`); the machinery is `cprules` ([Shared](shared.md)) |
 | `internal/planetwords` | planet's words for a kind of charge (`planet.v1.BonusKind`) |
 | `internal/subscribers` | the boxes caught heard from the boxes, the answers heard from the quizzes, the new and the forgotten players heard from player |
@@ -40,8 +40,9 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
   owner's call). Only `default` sets `signInRefill` in production, so a scheduled set never moves it; the operator's edit
   of it reaches an open page at its next load, and every deploy reloads the pages. `ClaimBonus` is the boxes' `ClaimBox`
   since 2026-11-15, `OpenQuiz` and `AnswerQuiz` the quizzes' since 2026-11-13.
-- **Commands**: `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}` (`commands.proto`), which progression sends
-  through its outbox, handled once on `commands:bonuses.v1.KeepUnlocks` (see [The gates](#the-gates)).
+- **Commands**: `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}` and `PayLevelUp{grant_id, account_id, level,
+  unlocked}` (`commands.proto`), which progression sends through its outbox, each handled on its own stream
+  (`commands:bonuses.v1.…`, see [The gates](#the-gates) and [A level reached](#a-level-reached)).
 - **Events**: none. `BonusClaimed` and the box facts are the boxes' since 2026-11-15 (`boxes.v1.BoxClaimed`, `BoxCaught`,
   `BoxLapsed`, `ForeignBoxClaimed`), `QuizAnswered` the quizzes' since 2026-11-13.
 - **`InternalService`**: `PlayRuleSet` (the gamemaster's; the latest `decided_at` wins; `FailedPrecondition` for a set
@@ -55,7 +56,7 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
 | port | planet's answer | when |
 |---|---|---|
 | `Room.Full` | `InternalService/GetRoom` | once per box caught and per right answer |
-| `Wallet.Pay` | `InternalService/GrantCharges` | each box caught, right answer, sign-in refill |
+| `Wallet.Pay` | `InternalService/GrantCharges` | each box caught, right answer, level reached, sign-in refill |
 
 - **Room.** Planet answers, for each account asked, the kinds its hand has no room for: a full stack, a charge held
   where one is the most, and **a bomb while planet's `charges.bomb.off` is on**, or an enclosure while its
@@ -91,6 +92,19 @@ was caught.
 `pay_right_answer_usecase`), the same way: a kind drawn from `kinds` among those the hand has room for and the gates
 let (`bonuses.Answer.Reward`), **shields or nothing for a newcomer's first quiz**, under the quiz's token. A wrong answer pays
 nothing.
+
+## A level reached
+
+**The bonuses module pays each level-up progression sends** (`bonuses.v1.PayLevelUp`, `commands:bonuses.v1.PayLevelUp`,
+`pay_level_up_usecase`), as a box caught: one kind drawn from `kinds` among those the hand has room for and the gates
+let (`bonuses.LevelUp.Reward`), in a box's amounts. Progression sends one per raise, however many levels it jumps, from
+level 2 on, and none for a reconciliation ([Levels](levels.md#the-level-up-bonus)).
+
+- **The kinds the level unlocks come with the command** (`unlocked`): the draw does not read the unlocks kept, which
+  `KeepUnlocks` brings on another stream, in no order with this one.
+- **The grant is progression's** (`grant_id`, one per account and level), paid with `lasting`: planet keeps it for good
+  in `charge_grants`, so a command told again any day pays nothing more.
+- A level-up whose kinds all weigh 0, or a full hand, pays nothing, as a box.
 
 ## The gates
 
@@ -172,7 +186,7 @@ account (`SignInGrantOf`, the same id as before, so a grant planet made before t
 
 ## Tests
 
-The kinds' draw and amounts, a box's and an answer's welcome kind, the gates (a kind not unlocked never drawn, a guest
+The kinds' draw and amounts, a box's and an answer's welcome kind, a level-up's draw and grant, the gates (a kind not unlocked never drawn, a guest
 drawn the open kinds, a set with the gates off giving a guest a bomb, a win whose kinds all weigh 0, the charges held
 untouched), the use cases' (a box's and a right answer's reward, the welcome's spread and shields, a hand with no room, a
 box that pays nothing), the unlocks (the latest decision kept, its stores' contract suite on postgres and in memory, the

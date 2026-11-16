@@ -108,7 +108,7 @@ func (s *testSuite) TestALevelKeptIsShownOnItsBarWithTheXPTheStatsGiveNow() {
 	s.Require().NoError(s.stats.Record(s.T().Context(), ada, stats.TakeAt(0, 0, monday)))
 	s.Require().NoError(s.stats.Record(s.T().Context(), ada,
 		stats.MissionsDone(map[stats.MissionKind]stats.MissionTally{"take_from": {Done: 1, Goals: 81}})))
-	s.Require().NoError(s.levels.Set(s.T().Context(), levels.ByAccount{ada: 3}, monday))
+	s.Require().NoError(s.levels.RaiseAll(s.T().Context(), levels.ByAccount{ada: 3}, monday))
 
 	level := s.progress(ada).GetLevel()
 
@@ -124,7 +124,7 @@ func (s *testSuite) TestAPlayerWithNoLevelKeptShowsNoneWhateverItsStats() {
 func (s *testSuite) TestAGuestsLevelIsNeverShown() {
 	guest := accounts.AccountID{15: 3}
 	s.Require().NoError(s.stats.Record(s.T().Context(), guest, stats.TakeAt(3, 0, monday)))
-	s.Require().NoError(s.levels.Set(s.T().Context(), levels.ByAccount{guest: 2}, monday))
+	s.Require().NoError(s.levels.RaiseAll(s.T().Context(), levels.ByAccount{guest: 2}, monday))
 
 	_, err := s.query().Progress(s.T().Context(), guest)
 

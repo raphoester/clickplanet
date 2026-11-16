@@ -16,7 +16,7 @@ import (
 func TestAForgottenAccountLosesItsLevelTwiceOver(t *testing.T) {
 	store := inmemory_level_store.New()
 	ada, bob := accounts.AccountID{15: 1}, accounts.AccountID{15: 2}
-	require.NoError(t, store.Set(t.Context(), levels.ByAccount{ada: 4, bob: 2}, time.Now()))
+	require.NoError(t, store.RaiseAll(t.Context(), levels.ByAccount{ada: 4, bob: 2}, time.Now()))
 
 	for range 2 {
 		require.NoError(t, forget_level_usecase.New(store).Execute(t.Context(), ada))

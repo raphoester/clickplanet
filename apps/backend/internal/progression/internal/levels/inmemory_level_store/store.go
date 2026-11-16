@@ -71,19 +71,6 @@ func (s *Store) RaiseAll(_ context.Context, raised levels.ByAccount, _ time.Time
 	return nil
 }
 
-func (s *Store) Set(_ context.Context, set levels.ByAccount, _ time.Time) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.failWith != nil {
-		return s.failWith
-	}
-	for account, level := range set {
-		s.kept[account] = level
-	}
-	return nil
-}
-
 func (s *Store) Forget(_ context.Context, forgotten ...accounts.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

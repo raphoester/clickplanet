@@ -34,13 +34,12 @@ func reconcile(t *testing.T, useCase stubUseCase, dryRun bool) (*connect.Respons
 
 func TestTheAnswerSaysHowManyLevelsWentUpDownAndAway(t *testing.T) {
 	dryRuns := []bool{}
-	useCase := stubUseCase{reconciled: reconcile_levels_usecase.Reconciled{Raised: 2_700, Lowered: 12, Removed: 3}, dryRuns: &dryRuns}
+	useCase := stubUseCase{reconciled: reconcile_levels_usecase.Reconciled{Raised: 2_700, Removed: 3}, dryRuns: &dryRuns}
 
 	res, err := reconcile(t, useCase, true)
 
 	require.NoError(t, err)
 	assert.Equal(t, uint32(2_700), res.Msg.GetRaised())
-	assert.Equal(t, uint32(12), res.Msg.GetLowered())
 	assert.Equal(t, uint32(3), res.Msg.GetRemoved())
 
 	_, err = reconcile(t, useCase, false)

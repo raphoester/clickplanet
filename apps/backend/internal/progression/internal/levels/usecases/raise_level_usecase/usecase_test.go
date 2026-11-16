@@ -95,7 +95,7 @@ func TestALinkedAccountIsRaisedToTheLevelItsStatsReach(t *testing.T) {
 
 func TestAJumpOfManyLevelsIsOneRaise(t *testing.T) {
 	f := setUp(t, true)
-	require.NoError(t, f.levels.Set(t.Context(), levels.ByAccount{ada: 1}, now))
+	require.NoError(t, f.levels.RaiseAll(t.Context(), levels.ByAccount{ada: 1}, now))
 	f.took(t, level9Tiles)
 
 	raised, err := f.raise(t, f.levels)
@@ -121,7 +121,7 @@ func TestAGuestGetsNoLevel(t *testing.T) {
 
 func TestNoRiseAsksPlayerNothingAndWritesNothing(t *testing.T) {
 	f := setUp(t, true)
-	require.NoError(t, f.levels.Set(t.Context(), levels.ByAccount{ada: 3}, now))
+	require.NoError(t, f.levels.RaiseAll(t.Context(), levels.ByAccount{ada: 3}, now))
 	f.took(t, level3Tiles)
 
 	raised, err := f.raise(t, f.levels)
