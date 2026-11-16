@@ -134,7 +134,9 @@ A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--b
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is
 dimmed, and a press on it does nothing but say how to get one. A pool shows its count against its size (`5/8`,
 `2/3`), and a word over the icon says what the slot is doing (`On`, `Aim`, `Full`, or `New` for a kind held and never
-pressed). A slot is shown always, in the tray at least, the virus too (see [Virus](virus.md)), but the bomb while bombs
+pressed). **On the bar at 1279px wide and under**, where a slot is 38 to 48px and drops its name, it drops that word
+too: a `New` slot wears a dot on its corner, and one switched on keeps its ring and its glow. Two words side by side
+ran over each other there ("Nouveau", "Zapnuto"); the tray and the wide bar keep the words. A slot is shown always, in the tray at least, the virus too (see [Virus](virus.md)), but the bomb while bombs
 are off, and Enclose while enclosures are off.
 
 - **Refill** fills the bank (`Refiller.useRefill`). **On a full bank it sends
