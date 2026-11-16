@@ -37,12 +37,13 @@ type Held = {
     bombArmed?: boolean
     gates?: Gates
     level?: number
+    virusAimed?: boolean
 }
 
-function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
+function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = RULES, switches = ALL_OFF, bombArmed = false, virusAimed = false, gates = NO_GATES, level = NO_LEVEL, ...props}: Partial<InventoryProps> & Held = {}) {
     act(() => {
         useBonusGuide.setState({guide})
-        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed})
+        useBonus.setState({notice, charges, rules: {...rules, gatesOn: gates.on, openKinds: gates.open}, switches, bombArmed, virusAimed})
         useLadder.setState({ladder: {level, unlocks: gates.unlocks}})
     })
     return <Inventory onToggle={() => {}}
@@ -90,6 +91,38 @@ describe("Inventory", () => {
         expect(toggle).not.toHaveBeenCalled()
         expect(toggleBomb).not.toHaveBeenCalled()
         expect(bubble()).toBe("Catch a ? box or win a quiz to get one")
+    })
+
+    it("puts the virus on the bar while one is held, and in the tray always", () => {
+        render(inventory())
+        expect(onBar()).toEqual(["All bonuses"])
+        fireEvent.click(all())
+        expect(inTray(/^Virus/).getAttribute("aria-disabled")).toBe("true")
+        fireEvent.click(all())
+        cleanup()
+
+        const toggleVirus = vi.fn()
+        render(inventory({charges: {...NO_CHARGES, virus: true}, onToggleVirus: toggleVirus}))
+        fireEvent.click(slot(/^Virus/))
+
+        expect(toggleVirus).toHaveBeenCalledOnce()
+        expect(bubble()).toBe("Tap an enemy tile with no shield")
+    })
+
+    it("says the virus is aimed, and how to put it away", () => {
+        render(inventory({charges: {...NO_CHARGES, virus: true}, virusAimed: true}))
+
+        expect(slot(/^Virus/).getAttribute("aria-label")).toBe("Virus, Aim")
+        expect(slot(/^Virus/).getAttribute("aria-pressed")).toBe("true")
+    })
+
+    it("says a virus takes only an enemy tile with no shield, over its slot", () => {
+        const charges = {...NO_CHARGES, virus: true}
+        const {rerender} = render(inventory({charges}))
+
+        rerender(inventory({charges, notice: {notice: "virusNoEnemy", seq: 1}}))
+
+        expect(bubble()).toBe("A virus takes only an enemy tile with no shield")
     })
 
     it("shows no bomb while bombs are off, held or not", () => {
@@ -316,7 +349,7 @@ describe("Inventory", () => {
 
         fireEvent.click(all())
         expect(within(tray()!).getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
-        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(3)
+        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(4)
         expect(within(tray()!).getByText("Unlocks at level 3")).toBeTruthy()
     })
 
@@ -406,7 +439,7 @@ describe("Inventory", () => {
         fireEvent.click(all())
         expect(all().getAttribute("aria-expanded")).toBe("true")
         expect(within(tray()!).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
-            "Refill", "Spread, 0/8", "Shield, 0/12", "Enclose, unlocks at level 4", "Bomb, unlocks at level 5",
+            "Refill", "Spread, 0/8", "Shield, 0/12", "Virus", "Enclose, unlocks at level 4", "Bomb, unlocks at level 5",
         ])
         expect(inTray(/^Bomb/).className).toContain("inventory-slot--locked")
         expect(inTray(/^Bomb/).textContent).toContain("5")

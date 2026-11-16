@@ -10,7 +10,7 @@ const at = (seq: number, epoch = START): MapVersion => ({epoch, seq})
 // Two ranges: tiles 1 to 4, and 5 to 6.
 const tilesOf = () => new MapTiles(6, 4, new MapClock())
 
-const changes = (): TileChanges => ({owners: [], shields: []})
+const changes = (): TileChanges => ({owners: [], shields: [], infections: []})
 
 const batch = (start: number, end: number, version: MapVersion, owners: Record<number, string>, shields: Record<number, number> = {}, knockedOut: string[] = []): Ownerships => ({
     range: {start, end},
@@ -18,6 +18,7 @@ const batch = (start: number, end: number, version: MapVersion, owners: Record<n
     bindings: new Map(Object.entries(owners).map(([tile, owner]) => [Number(tile), owner])),
     shields: new Map(Object.entries(shields).map(([tile, count]) => [Number(tile), count])),
     knockedOut,
+    infected: new Map(),
 })
 
 const update = (tile: number, newCountry: string | undefined, version: MapVersion, shields = 0): Update =>
@@ -190,7 +191,7 @@ describe("a server that started again", () => {
         const tiles = tilesOf()
         tiles.opened(at(10, START + 60))
 
-        expect(read(tiles, batch(1, 4, at(900), {1: "fr"}))).toEqual({current: false, owners: [], shields: []})
+        expect(read(tiles, batch(1, 4, at(900), {1: "fr"}))).toEqual({current: false, owners: [], shields: [], infections: []})
         expect(live(tiles, update(2, "fr", at(901))).owners).toEqual([])
     })
 
@@ -288,5 +289,63 @@ describe("a fortify adds a shield to each tile of the landmass its flag holds", 
         read(tiles, batch(5, 6, at(13), {5: "fr"}, {5: 1}))
 
         expect(tiles.shields.shieldsOf(5)).toBe(1)
+    })
+})
+
+describe("a virus", () => {
+    const spread = (version: MapVersion, taken: number[], ended = false, struck: {tile: number, shields: number}[] = []) =>
+        ({virus: "v-1", countryId: "fr", victimCountryId: "de", taken, struck, ended, version})
+
+    const opened = () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {1: "de", 2: "de", 3: "de"}, {3: 2}))
+        return tiles
+    }
+
+    it("gives the tiles it took to its flag and infects them, and strikes the shields it met", () => {
+        const tiles = opened()
+
+        const infected = changes()
+        tiles.applyInfection(spread(at(11), [1, 2], false, [{tile: 3, shields: 1}]), infected)
+
+        expect(infected.owners).toEqual([{tile: 1, country: "fr"}, {tile: 2, country: "fr"}])
+        expect(infected.infections).toEqual([{tile: 1, virus: "v-1"}, {tile: 2, virus: "v-1"}])
+        expect(tiles.shields.shieldsOf(3)).toBe(1)
+        expect(tiles.infections.count()).toBe(2)
+    })
+
+    it("cures a tile at any change of its owner, and at no change of its shields", () => {
+        const tiles = opened()
+        tiles.applyInfection(spread(at(11), [1, 2]), changes())
+
+        const cured = live(tiles,
+            {...update(1, "de", at(12)), previousCountry: "fr"},
+            {...update(2, "fr", at(13), 1), previousCountry: "fr", clicked: false})
+
+        expect(cured.infections).toEqual([{tile: 1, virus: undefined}])
+        expect(tiles.infections.virusOf(2)).toBe("v-1")
+    })
+
+    it("cures every tile it infects once it ended, and a read from before the end infects none again", () => {
+        const tiles = opened()
+        tiles.applyInfection(spread(at(11), [1]), changes())
+
+        const ended = changes()
+        tiles.applyInfection(spread(at(12), [2], true), ended)
+        expect(tiles.infections.count()).toBe(0)
+        expect(ended.owners).toEqual([{tile: 2, country: "fr"}])
+
+        read(tiles, {...batch(1, 4, at(11), {1: "fr", 2: "de", 3: "de"}), infected: new Map([[1, "v-1"]])})
+        expect(tiles.infections.count()).toBe(0)
+    })
+
+    it("reads the tiles a live virus infects with the map", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+
+        const taken = read(tiles, {...batch(1, 4, at(10), {1: "fr", 2: "fr"}), infected: new Map([[2, "v-1"]])})
+
+        expect(taken.infections).toEqual([{tile: 2, virus: "v-1"}])
     })
 })

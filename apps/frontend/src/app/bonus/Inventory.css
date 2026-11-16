@@ -274,6 +274,14 @@
         width: 44px;
         min-height: 44px;
     }
+
+    .inventory-slots:has(.inventory-slot--virus) {
+        gap: 3px;
+    }
+
+    .inventory-slots:has(.inventory-slot--virus) .inventory-slot {
+        width: 38px;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -73,6 +73,17 @@ func TestGetMapSaysTheFlagsKnockedOut(t *testing.T) {
 	assert.Equal(t, []string{"de", "fr"}, res.Msg.GetKnockedOut())
 }
 
+func TestGetMapSaysWhichVirusInfectsEachTile(t *testing.T) {
+	useCase := &stubUseCase{batch: clicks.DenseBatch{Infected: []clicks.InfectedTile{{Tile: 4, Virus: "v-1"}, {Tile: 5, Virus: "v-1"}}}}
+
+	res, err := getMap(t, useCase, &planetv1.GetMapRequest{})
+
+	require.NoError(t, err)
+	require.Len(t, res.Msg.GetInfected(), 2)
+	assert.Equal(t, uint32(5), res.Msg.GetInfected()[1].GetTileId())
+	assert.Equal(t, "v-1", res.Msg.GetInfected()[1].GetVirusId())
+}
+
 func TestGetMapMapsTheErrors(t *testing.T) {
 	t.Run("a span the map cannot answer is the caller's fault", func(t *testing.T) {
 		_, err := getMap(t, &stubUseCase{err: clicks.ErrInvalidTileRange}, &planetv1.GetMapRequest{})

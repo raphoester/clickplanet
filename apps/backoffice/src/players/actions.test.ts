@@ -200,7 +200,7 @@ describe("grant", () => {
         expect(granted.before.enclosures).toBe(2)
         expect(granted.after.bomb).toBe(true)
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: "account-reported", refill: false, bomb: true, enclosures: 3, spreadClicks: 0, shields: 0,
+            accountId: "account-reported", refill: false, bomb: true, enclosures: 3, spreadClicks: 0, shields: 0, virus: false,
         }])
     })
 

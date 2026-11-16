@@ -29,8 +29,8 @@ type PostgresQuery struct {
 	clock  cptime.Clock
 }
 
-// The last of the changes ledger.Taking replays for the tile on the map that plays: a take, a tile a spread or an
-// enclose took, or a bomb's clear, after $2 and in none of the gaps ($3, $4).
+// The last of the changes ledger.Taking replays for the tile on the map that plays: a take, a tile a spread, an enclose or
+// a virus took, or a bomb's clear, after $2 and in none of the gaps ($3, $4). Each kind of payload reads its own index.
 const lastChange = `
 	WITH gap AS (SELECT * FROM unnest($3::timestamptz[], $4::timestamptz[]) AS gap (after, before))
 	SELECT COALESCE(account::text, ''), country, taken_at FROM (
@@ -41,6 +41,12 @@ const lastChange = `
 		UNION ALL
 		(SELECT position, account, country, taken_at FROM ledger_events e
 		WHERE kind IN ('spread', 'enclose') AND NOT forgotten AND taken_at > $2
+			AND payload @> jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
+			AND NOT EXISTS (SELECT 1 FROM gap WHERE e.taken_at > gap.after AND e.taken_at < gap.before)
+		ORDER BY position DESC LIMIT 1)
+		UNION ALL
+		(SELECT position, account, country, taken_at FROM ledger_events e
+		WHERE kind = 'virus' AND NOT forgotten AND taken_at > $2
 			AND payload @> jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
 			AND NOT EXISTS (SELECT 1 FROM gap WHERE e.taken_at > gap.after AND e.taken_at < gap.before)
 		ORDER BY position DESC LIMIT 1)

@@ -15,6 +15,9 @@ newcomer's page only. The newcomer must not notice it: every reading on the page
   `PlayScreen` passes the battle that runs (`battle`, from the schedule's store) to `useGlobe`, which hands it to
   `Globe.setBattle`: no raid starts while it runs, and every ghost tile goes back to the server's flag at once,
   the ones a reload paints from storage too.
+- **Never while a virus works**: a ghost on the land a virus spreads into hid its takes, and a ghost on an infected
+  tile drew a fake flag over its beat. While a virus is aimed or any tile on the map is infected (see
+  [Virus](virus.md)), no raid starts and every ghost tile goes back to the server's flag at once (`driveGhosts`).
 - **A raid** (`domain/ghostArmy.ts`, `GhostArmy`): within what the screen shows (70% of its shorter half around its
   middle, `GHOSTS_SIGHT`), it lands on a tile of the player's flag that touches a tile of another flag or a free one,
   3 times in 4 when there is one, else on the edge of another flag. It plays the flag next door, else the nearest

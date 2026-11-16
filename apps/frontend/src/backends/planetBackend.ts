@@ -35,8 +35,11 @@ import {
     VPNBlockedError,
     FrozenError,
     GrantSource,
+    Infector,
     OutOfReachError,
     SessionSource,
+    VirusRefusedError,
+    VirusSpread,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
 import {Allegiance} from "../domain/allegiance.ts";
@@ -55,6 +58,7 @@ import {
     PlanetEvent,
     ReachRefusal,
     SharedWith,
+    VirusRefusal,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
@@ -86,7 +90,7 @@ function sameGrant(a: GrantRules, b: GrantRules): boolean {
     return a.signInRefill === b.signInRefill && a.gatesOn === b.gatesOn && a.openKinds.join() === b.openKinds.join()
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -417,6 +421,15 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                         this.holdCharges({...this.charges, enclosures: this.charges.enclosures - 1})
                     }
                     this.bonusCallbacks.forEach(handlers => handlers.onEnclosed(enclosure))
+                    return
+                }
+
+                const virus = virusSpreadOf(event)
+                if (virus) {
+                    // Earlier tile updates go first, or they repaint over the tiles it took.
+                    this.flushUpdates()
+                    this.streamVersion = virus.version
+                    this.bonusCallbacks.forEach(handlers => handlers.onVirusSpread(virus))
                     return
                 }
 
@@ -776,6 +789,50 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdCharges(chargesOfMessage(res.charges))
     }
 
+    // The virus leaves the hand at once, and comes back unless the server says it holds none.
+    public async useVirus(tileId: number, countryId: string): Promise<void> {
+        this.holdCharges({...this.charges, virus: false})
+
+        try {
+            await this.infectRetried(tileId, countryId)
+        } catch (e) {
+            if (!(e instanceof BonusLostError) && !this.charges.virus) this.holdCharges({...this.charges, virus: true})
+            throw e
+        }
+    }
+
+    private async infectRetried(tileId: number, countryId: string): Promise<void> {
+        try {
+            await this.infect(tileId, countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asVirusError(e)
+
+            this.session.invalidate()
+
+            try {
+                await this.infect(tileId, countryId)
+            } catch (retried) {
+                throw asVirusError(retried)
+            }
+        }
+    }
+
+    private async infect(tileId: number, countryId: string): Promise<void> {
+        const sessionToken = await this.session.token()
+        await this.ensureFlag(sessionToken, countryId)
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        try {
+            await this.client.useVirus({tileId, countryId}, {headers})
+            this.followSession(sessionToken)
+        } catch (e) {
+            this.holdRefusal(e)
+            throw e
+        }
+    }
+
     public async placeShield(tileId: number, countryId: string): Promise<void> {
         this.holdCharges({...this.charges, shields: Math.max(0, this.charges.shields - 1)})
 
@@ -826,6 +883,21 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         const id = generateUUID()
         this.updateBatchCallbacks.set(id, callback)
         return () => this.updateBatchCallbacks.delete(id)
+    }
+}
+
+export function virusSpreadOf(event: PlanetEvent): VirusSpread | undefined {
+    if (event.event.case !== "virusSpread") return undefined
+
+    const spread = event.event.value
+    return {
+        virus: spread.virusId,
+        countryId: spread.countryId,
+        victimCountryId: spread.victimCountryId,
+        taken: [...spread.takenTileIds],
+        struck: spread.struck.map(({tileId, shields}) => ({tile: tileId, shields})),
+        ended: spread.ended,
+        version: versionOf(spread.version),
     }
 }
 
@@ -903,6 +975,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
         enclosures: held.enclosures,
         spreadClicksLeft: held.spreadClicksLeft,
         shields: held.shields,
+        virus: held.virus,
     }
 }
 
@@ -943,6 +1016,18 @@ export function asShieldError(e: unknown): unknown {
     const locked = allegianceDetailOf(e)
     if (locked) return new AllegianceLockedError(locked, {cause: e})
     if (e instanceof ConnectError && e.code === Code.FailedPrecondition) return new ShieldRefusedError({cause: e})
+
+    return asBonusError(e)
+}
+
+export function asVirusError(e: unknown): unknown {
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) {
+        if (e.findDetails(VirusRefusal).length > 0) return new VirusRefusedError({cause: e})
+        if (e.findDetails(ReachRefusal).length > 0) return new OutOfReachError({cause: e})
+        if (e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
+    }
 
     return asBonusError(e)
 }
@@ -1016,7 +1101,7 @@ export function versionOf(version: MapVersionMessage | undefined): MapVersion {
 export function ownershipsOf(res: GetMapResponse, range: TileRange): Ownerships {
     return {
         range, version: versionOf(res.version), bindings: bindingsOf(res), shields: shieldsOf(res),
-        knockedOut: res.knockedOut,
+        knockedOut: res.knockedOut, infected: new Map(res.infected.map(({tileId, virusId}) => [tileId, virusId])),
     }
 }
 

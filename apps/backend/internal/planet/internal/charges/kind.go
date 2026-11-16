@@ -13,6 +13,8 @@ const (
 	KindEncloseClicks Kind = "enclose_clicks"
 
 	KindShields Kind = "shields"
+
+	KindVirus Kind = "virus"
 )
 
-var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindShields}
+var Kinds = []Kind{KindRefill, KindSpreadClicks, KindBomb, KindEncloseClicks, KindShields, KindVirus}

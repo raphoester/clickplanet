@@ -16,6 +16,9 @@ type TileStorage interface {
 	Shield(ctx context.Context, tile uint32, country string, most int, placement PlacementID) (int, error)
 	Claim(ctx context.Context, write func(tiles Claimable) error) error
 	Enclose(ctx context.Context, enclosure Enclosure, write func(tiles Claimable) error) error
+	Infect(ctx context.Context, write func(tiles Infecting) error) error
+	// Every live virus of the map in play.
+	Viruses() []Virus
 	Fortresses() map[LandmassID]string
 	// A player's take holds its tile for the account in its context; any other write leaves the tile held by nobody.
 	HoldingsOf(landmass LandmassID) []Holding
