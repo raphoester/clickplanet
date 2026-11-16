@@ -16,11 +16,11 @@ func (b CaughtBox) Grant() GrantID {
 	return OfferGrantOf(b.Token)
 }
 
-// Reward is drawn among the kinds the hand has room for; a welcome is a spread or nothing. It is false when there is
-// nothing the box could be worth.
-func (b CaughtBox) Reward(rules Rules, full []Kind) (Reward, bool) {
+// Reward is drawn among the kinds the account may be drawn and the hand has room for; a welcome is a spread or nothing. It is
+// false when there is nothing the box could be worth.
+func (b CaughtBox) Reward(rules Rules, full []Kind, unlocked Unlocked) (Reward, bool) {
 	if b.Welcome {
-		return drawReward(rules, full, welcomeBox)
+		return drawReward(rules, full, unlocked, welcomeBox)
 	}
-	return drawReward(rules, full, "")
+	return drawReward(rules, full, unlocked, "")
 }

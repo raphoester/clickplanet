@@ -19,11 +19,10 @@ type Accounts interface {
 	Accounts(ctx context.Context, accounts []accounts.AccountID) (map[accounts.AccountID]accounts.Account, error)
 }
 
+// Levels is the book: it writes a page's reconciliation and tells the bonuses what each account unlocked, at once.
 type Levels interface {
 	Levels(ctx context.Context, accounts []accounts.AccountID) (levels.ByAccount, error)
-	RaiseAll(ctx context.Context, levels levels.ByAccount, at time.Time) error
-	Set(ctx context.Context, levels levels.ByAccount, at time.Time) error
-	Forget(ctx context.Context, accounts ...accounts.AccountID) error
+	Reconcile(ctx context.Context, reconciliation levels.Reconciliation, at time.Time) error
 }
 
 type Executor interface {
@@ -78,8 +77,8 @@ func (u *UseCase) Execute(ctx context.Context, dryRun bool) (Reconciled, error) 
 
 		reconciliation := levels.Scale{}.ReconciliationOf(page, known, kept)
 		if !dryRun {
-			if err := u.write(ctx, reconciliation, at); err != nil {
-				return reconciled, err
+			if err := u.levels.Reconcile(ctx, reconciliation, at); err != nil {
+				return reconciled, fmt.Errorf("failed to write a page's levels: %w", err)
 			}
 		}
 		reconciled.Raised += len(reconciliation.Raised())
@@ -91,17 +90,4 @@ func (u *UseCase) Execute(ctx context.Context, dryRun bool) (Reconciled, error) 
 		}
 		after = page[len(page)-1].Account()
 	}
-}
-
-func (u *UseCase) write(ctx context.Context, reconciliation levels.Reconciliation, at time.Time) error {
-	if err := u.levels.RaiseAll(ctx, reconciliation.Raised(), at); err != nil {
-		return fmt.Errorf("failed to raise the levels: %w", err)
-	}
-	if err := u.levels.Set(ctx, reconciliation.Lowered(), at); err != nil {
-		return fmt.Errorf("failed to lower the levels: %w", err)
-	}
-	if err := u.levels.Forget(ctx, reconciliation.Removed()...); err != nil {
-		return fmt.Errorf("failed to remove the guests' levels: %w", err)
-	}
-	return nil
 }

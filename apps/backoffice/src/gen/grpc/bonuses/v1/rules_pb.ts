@@ -43,6 +43,11 @@ export class Rules extends Message<Rules> {
    */
   signInRefill?: boolean;
 
+  /**
+   * @generated from field: bonuses.v1.GateRules gates = 13;
+   */
+  gates?: GateRules;
+
   constructor(data?: PartialMessage<Rules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -56,6 +61,7 @@ export class Rules extends Message<Rules> {
     { no: 7, name: "enclose", kind: "message", T: EncloseRules },
     { no: 8, name: "shield", kind: "message", T: ShieldRules },
     { no: 11, name: "sign_in_refill", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 13, name: "gates", kind: "message", T: GateRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Rules {
@@ -76,8 +82,120 @@ export class Rules extends Message<Rules> {
 }
 
 /**
+ * Whether a box or a right answer is drawn only from the kinds open to everyone and the ones progression unlocked for the
+ * account (bonuses.v1.KeepUnlocks), or from every kind. A guest has none unlocked. Off in every set until the levels are
+ * shown; a battle's set keeps them off. They decide only what is drawn: a charge held stays usable.
+ *
+ * @generated from message bonuses.v1.GateRules
+ */
+export class GateRules extends Message<GateRules> {
+  /**
+   * @generated from field: optional bool on = 1;
+   */
+  on?: boolean;
+
+  /**
+   * The kinds anyone may be drawn while the gates are on, a guest too. While they are on, one of them must weigh above
+   * 0, or a guest's box could be nothing.
+   *
+   * @generated from field: bonuses.v1.OpenKinds open = 2;
+   */
+  open?: OpenKinds;
+
+  constructor(data?: PartialMessage<GateRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.GateRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "on", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "open", kind: "message", T: OpenKinds },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GateRules {
+    return new GateRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GateRules {
+    return new GateRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GateRules {
+    return new GateRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GateRules | PlainMessage<GateRules> | undefined, b: GateRules | PlainMessage<GateRules> | undefined): boolean {
+    return proto3.util.equals(GateRules, a, b);
+  }
+}
+
+/**
+ * @generated from message bonuses.v1.OpenKinds
+ */
+export class OpenKinds extends Message<OpenKinds> {
+  /**
+   * @generated from field: optional bool refill = 1;
+   */
+  refill?: boolean;
+
+  /**
+   * @generated from field: optional bool spread_clicks = 2;
+   */
+  spreadClicks?: boolean;
+
+  /**
+   * @generated from field: optional bool enclose_clicks = 3;
+   */
+  encloseClicks?: boolean;
+
+  /**
+   * @generated from field: optional bool bomb = 4;
+   */
+  bomb?: boolean;
+
+  /**
+   * @generated from field: optional bool shields = 5;
+   */
+  shields?: boolean;
+
+  constructor(data?: PartialMessage<OpenKinds>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "bonuses.v1.OpenKinds";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "refill", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 2, name: "spread_clicks", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 3, name: "enclose_clicks", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 4, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "shields", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenKinds {
+    return new OpenKinds().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): OpenKinds {
+    return new OpenKinds().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): OpenKinds {
+    return new OpenKinds().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: OpenKinds | PlainMessage<OpenKinds> | undefined, b: OpenKinds | PlainMessage<OpenKinds> | undefined): boolean {
+    return proto3.util.equals(OpenKinds, a, b);
+  }
+}
+
+/**
  * What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
- * planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off.
+ * planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off, nor a kind the
+ * account may not be drawn while the gates are on (gates).
  *
  * @generated from message bonuses.v1.KindWeights
  */

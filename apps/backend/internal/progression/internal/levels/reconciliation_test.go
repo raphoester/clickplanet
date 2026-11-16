@@ -36,6 +36,8 @@ func TestEachLinkedAccountGetsTheExactLevelItsStatsReachAndAGuestNone(t *testing
 	assert.Equal(t, levels.ByAccount{{15: 3}: 3}, reconciliation.Lowered())
 	assert.ElementsMatch(t, []accounts.AccountID{{15: 5}, {15: 6}}, reconciliation.Removed(),
 		"a guest, and an account player does not know")
+	assert.Equal(t, levels.ByAccount{{15: 1}: 3, {15: 2}: 3, {15: 3}: 3, {15: 4}: 3}, reconciliation.Reached(),
+		"every linked account, changed or not")
 }
 
 func TestAGuestWithNoLevelIsLeftAlone(t *testing.T) {
