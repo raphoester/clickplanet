@@ -20,7 +20,8 @@ describe("LevelLine", () => {
         render(<LevelLine/>)
         act(() => useLevel.getState().reached({level: 12, xp: 20_000, levelXp: 18_634, nextLevelXp: 24_192}))
 
-        expect(screen.getByRole("img", {name: "Level 12"})).toBeDefined()
+        expect(screen.getByRole("img", {name: "Level 12"}).textContent).toBe("Lv 12")
+        expect(screen.getByText(`${(1366).toLocaleString()} / ${(5558).toLocaleString()} XP`)).toBeDefined()
         const bar = screen.getByRole("meter", {name: "XP to level 13"})
         expect(bar.getAttribute("aria-valuenow")).toBe("1366")
         expect(bar.getAttribute("aria-valuemax")).toBe("5558")

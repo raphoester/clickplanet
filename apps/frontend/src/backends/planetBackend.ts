@@ -42,6 +42,8 @@ import {
     VirusSpread,
     Miner,
     MineRefusedError,
+    Rallier,
+    RallyRefusedError,
     MineLaid,
     Minefield,
     MinesExploded,
@@ -65,8 +67,11 @@ import {
     SharedWith,
     VirusRefusal,
     MineRefusal,
+    RallyRefusal,
+    Rally as RallyMessage,
 } from "../gen/grpc/planet/v1/planet_pb.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
+import {Rallies, Rally, WHOLE_CLICK} from "../domain/rallies.ts";
 import {ClickService} from "../gen/grpc/planet/v1/planet_connect.ts";
 import {BonusService} from "../gen/grpc/bonuses/v1/bonuses_connect.ts";
 import {chargeKindOf, rewardOf} from "./bonusKind.ts";
@@ -96,7 +101,7 @@ function sameGrant(a: GrantRules, b: GrantRules): boolean {
     return a.signInRefill === b.signInRefill && a.gatesOn === b.gatesOn && a.openKinds.join() === b.openKinds.join()
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -121,7 +126,11 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private budgetAnchor: ClickBudget | undefined
 
+    // What the clicks in flight take from the bank, as the page counts them.
     private inFlight = 0
+
+    // Every rally on, of every flag: what says until when a click's discount lasts.
+    private readonly rallies = new Rallies()
 
     private budgetCountry = ""
 
@@ -191,8 +200,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.pendingUpdates = []
     }
 
-    public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF) {
-        this.inFlight++
+    public async clickTile(tileId: number, countryId: string, switches: Switches = ALL_OFF, cost = WHOLE_CLICK) {
+        this.inFlight += cost
         this.reportBudget()
 
         try {
@@ -210,7 +219,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 throw asClickError(retried)
             }
         } finally {
-            this.inFlight--
+            this.inFlight -= cost
             this.reportBudget()
         }
     }
@@ -265,6 +274,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
             perSecond: budget.refillPerSecond,
             price: priced ? priceOf(budget) : this.budgetAnchor?.price,
             linkedMultiplier: budget.linkedMultiplier > 1 ? budget.linkedMultiplier : undefined,
+            rally: this.discountOf(budget.spent, countryId),
             sharedWith: SHARED_BY[budget.sharedWith],
             frozen: budget.frozen,
             fastStart: budget.fastStart,
@@ -272,6 +282,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
 
         this.reportBudget()
+    }
+
+    // A click that took less than a whole one was inside a ring of its flag: the bank says so while a ring of it is on.
+    private discountOf(spent: number, countryId: string): ClickBudget["rally"] {
+        if (spent <= 0 || spent >= WHOLE_CLICK) return undefined
+        const ends = this.rallies.on(budgetNow()).filter((rally) => rally.countryId === countryId).map((rally) => rally.endsAt)
+        return ends.length > 0 ? {cost: spent, until: Math.max(...ends)} : undefined
     }
 
     public priceFor(countryId: string): void {
@@ -457,6 +474,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     return
                 }
 
+                // A rally changes no tile, so it counts no version either.
+                const called = rallyCalledOf(event)
+                if (called) {
+                    this.keepRally(called)
+                    return
+                }
+
                 // A mine laid counts no version: the stream's own stays as it is.
                 const laid = mineLaidOf(event)
                 if (laid) {
@@ -496,8 +520,9 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.flushUpdates()
         this.streamVersion = version
         this.openingCallbacks.forEach(callback => callback(version))
-        // A gap may have hidden a mine laid, and a new session may play for another flag.
+        // A gap may have hidden a mine laid or a rally called, and a new session may play for another flag.
         void this.readMines()
+        void this.readRallies()
     }
 
     // The mines of the flag the server says the caller plays for: no other flag's.
@@ -561,6 +586,10 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 virusInfections: res.virusInfections,
                 mines: res.mines,
                 mineRings: res.mineRings,
+                rallies: res.rallies,
+                rallyRadius: res.rallyRadius,
+                rallyLastsMs: res.rallyLastsMs,
+                rallyCost: res.rallyCost,
             }
             this.holdRules(rules)
         } catch (e) {
@@ -937,6 +966,74 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         }
     }
 
+    // The rally leaves the hand at once, and comes back unless the server says it holds none. Its ring is known at once
+    // from the answer; the stream tells it again, which changes nothing.
+    public async callRally(point: GlobePoint, countryId: string): Promise<Rally> {
+        this.holdCharges({...this.charges, rallies: Math.max(0, this.charges.rallies - 1)})
+
+        try {
+            const rally = await this.callRetried(point, countryId)
+            this.keepRally(rally)
+            return rally
+        } catch (e) {
+            this.holdCharges({...this.charges, rallies: e instanceof BonusLostError ? 0 : this.charges.rallies + 1})
+            throw e
+        }
+    }
+
+    private async callRetried(point: GlobePoint, countryId: string): Promise<Rally> {
+        try {
+            return await this.call(point, countryId)
+        } catch (e) {
+            if (!(e instanceof ConnectError) || e.code !== Code.Unauthenticated) throw asRallyError(e)
+
+            this.session.invalidate()
+
+            try {
+                return await this.call(point, countryId)
+            } catch (retried) {
+                throw asRallyError(retried)
+            }
+        }
+    }
+
+    private async call(point: GlobePoint, countryId: string): Promise<Rally> {
+        const sessionToken = await this.session.token()
+        await this.ensureFlag(sessionToken, countryId)
+
+        const headers = new Headers()
+        if (sessionToken) headers.set(SESSION_HEADER, sessionToken)
+
+        try {
+            const res = await this.client.callRally({point, countryId}, {headers})
+            this.followSession(sessionToken)
+            if (!res.rally) throw new Error("a rally called with no rally in the answer")
+            return rallyOf(res.rally)
+        } catch (e) {
+            this.holdRefusal(e)
+            throw e
+        }
+    }
+
+    private keepRally(rally: Rally): void {
+        this.rallies.keep(rally)
+        this.bonusCallbacks.forEach(handlers => handlers.onRallyCalled(rally))
+    }
+
+    // Every rally still on, of every flag: public, so no token.
+    private async readRallies(): Promise<void> {
+        try {
+            const res = await retrying(() => this.client.getRallies({}), "getRallies")
+            const at = budgetNow()
+            const rallies = res.rallies.map((rally) => rallyOf(rally, at))
+            this.rallies.replace(rallies)
+            this.bonusCallbacks.forEach(handlers => handlers.onRallies(rallies))
+        } catch (e) {
+            if (e instanceof ConnectError && e.code === Code.Unimplemented) return
+            console.error("could not read the rallies", e)
+        }
+    }
+
     public async placeShield(tileId: number, countryId: string): Promise<void> {
         this.holdCharges({...this.charges, shields: Math.max(0, this.charges.shields - 1)})
 
@@ -1100,6 +1197,7 @@ export function chargesOfMessage(held: ChargesHeld | undefined): Charges {
         shields: held.shields,
         virus: held.virus,
         mines: held.mines,
+        rallies: held.rallies,
     }
 }
 
@@ -1165,6 +1263,34 @@ export function asMineError(e: unknown): unknown {
     }
 
     return asBonusError(e)
+}
+
+export function asRallyError(e: unknown): unknown {
+    const locked = allegianceDetailOf(e)
+    if (locked) return new AllegianceLockedError(locked, {cause: e})
+    if (e instanceof ConnectError && e.code === Code.FailedPrecondition) {
+        if (e.findDetails(RallyRefusal).length > 0) return new RallyRefusedError({cause: e})
+        if (e.findDetails(FrozenRefusal).length > 0) return new FrozenError({cause: e})
+    }
+
+    return asBonusError(e)
+}
+
+// A rally as the wire tells it, its end on the page's clock: the time it had left as it was told.
+export function rallyOf(message: RallyMessage, at = budgetNow()): Rally {
+    return {
+        id: message.rallyId,
+        accountId: message.accountId,
+        countryId: message.countryId,
+        centre: {x: message.point?.x ?? 0, y: message.point?.y ?? 0, z: message.point?.z ?? 0},
+        radius: message.radius,
+        endsAt: at + message.leftMs,
+    }
+}
+
+export function rallyCalledOf(event: PlanetEvent): Rally | undefined {
+    if (event.event.case !== "rallyCalled") return undefined
+    return rallyOf(event.event.value)
 }
 
 export function asRefillError(e: unknown): unknown {

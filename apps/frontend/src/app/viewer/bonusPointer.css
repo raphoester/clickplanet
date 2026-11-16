@@ -59,6 +59,16 @@
     animation: none;
 }
 
+.bonus-pointer--rally .bonus-pointer-badge {
+    background: var(--rally);
+    animation: none;
+}
+
+.bonus-pointer--rally .bonus-pointer-arrow {
+    border-left-color: var(--rally-light);
+    animation: none;
+}
+
 @keyframes bonus-pointer-badge-colours {
     0%, 100% {
         background-color: var(--enclose);

@@ -15,6 +15,7 @@ import {
     virusSpreadOf,
     minesExplodedOf,
     mineLaidOf,
+    rallyCalledOf,
 } from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
@@ -58,16 +59,22 @@ import {
     VirusRefusal,
     VirusSpread as VirusSpreadMessage,
     GetMinesResponse,
+    GetRalliesResponse,
+    CallRallyResponse,
+    Rally as RallyMessage,
+    RallyRefusal,
     MineBlast as MineBlastMessage,
     MineLaid as MineLaidMessage,
     MineRefusal,
     MinesExploded as MinesExplodedMessage,
 } from "../gen/grpc/planet/v1/planet_pb.ts"
-import {AllegianceLockedError, BankFullError, BannedError, BombRefusedError, BonusLostError, FrozenError, MineRefusedError, Minefield, OutOfReachError, ShieldRefusedError, RateLimitedError, VirusRefusedError, VPNBlockedError} from "./backend.ts"
+import {AllegianceLockedError, BankFullError, BannedError, BombRefusedError, BonusLostError, FrozenError, MineRefusedError, Minefield, OutOfReachError, RallyRefusedError, ShieldRefusedError, RateLimitedError, VirusRefusedError, VPNBlockedError} from "./backend.ts"
 import {GetGrantRulesResponse} from "../gen/grpc/bonuses/v1/bonuses_pb.ts"
 import {NoSession, SESSION_HEADER, type SessionProvider, SessionUnavailableError} from "./session.ts"
 import type {ClickBudget} from "./clickBudget.ts"
 import type {BonusReward, BonusRules, Charges} from "../domain/bonus.ts"
+import {ALL_OFF} from "../domain/bonus.ts"
+import type {Rally} from "../domain/rallies.ts"
 import type {Allegiance} from "../domain/allegiance.ts"
 import {tileRanges} from "../domain/mapTiles.ts"
 import type {Counts, MapVersion} from "./backend.ts"
@@ -244,6 +251,7 @@ function bonusReads() {
         getAllegiance: vi.fn().mockResolvedValue(new GetAllegianceResponse({allegiance: new AllegianceMessage({countryId: "fr"})})),
         pledgeAllegiance: vi.fn().mockResolvedValue(new PledgeAllegianceResponse()),
         getMines: vi.fn().mockResolvedValue(new GetMinesResponse()),
+        getRallies: vi.fn().mockResolvedValue(new GetRalliesResponse()),
     }
 }
 
@@ -700,7 +708,9 @@ describe("PlanetBackend click budget", () => {
         backend.watchClickBudget(b => rates.push(b.perSecond))
         const sizes: number[] = []
         const stop = backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: rules => sizes.push(rules.enclosureMaxTiles),
         })
         await vi.waitFor(() => expect(rates).toEqual([0.2]))
@@ -1208,7 +1218,9 @@ describe("PlanetBackend bombs", () => {
         const order: string[] = []
         backend.listenForUpdatesBatch(() => order.push("updates"))
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => order.push("enclosure"),
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => order.push("enclosure"),
             onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
@@ -1307,7 +1319,9 @@ describe("PlanetBackend shields", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -1392,7 +1406,9 @@ describe("PlanetBackend viruses", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -1615,7 +1631,9 @@ describe("the rules", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: BonusRules[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => seen.push(rules),
         })
         return seen
@@ -1626,7 +1644,7 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             tollSteps: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
-            virusInfections: 32, mines: 3, mineRings: 2,
+            virusInfections: 32, mines: 3, mineRings: 2, rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
         }))
         const getGrantRules = vi.fn().mockResolvedValue(new GetGrantRulesResponse({signInRefill: true}))
         const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000, new NoSession(), bonusesWith({getGrantRules}))
@@ -1638,6 +1656,7 @@ describe("the rules", () => {
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
             enclosuresOff: false, virusInfections: 32, gatesOn: false, openKinds: [], mines: 3, mineRings: 2,
+            rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
         }))
         backend.close()
     })
@@ -1647,7 +1666,9 @@ describe("the rules", () => {
         const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000)
         let off = false
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => off = rules.enclosuresOff,
         })
 
@@ -1741,7 +1762,9 @@ describe("the rules", () => {
         const backend = new PlanetBackend(clientWith({getChargeRules, listenForEvents}), 1_000)
         const radii: number[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => radii.push(rules.blastRadius),
         })
         await vi.waitFor(() => expect(radii.at(-1)).toBe(0.03))
@@ -1761,7 +1784,9 @@ describe("the charges held", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -1772,7 +1797,7 @@ describe("the charges held", () => {
         const backend = new PlanetBackend(clientWith({getCharges}), 1_000)
 
         const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5, virus: false, mines: 0}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 2, shields: 5, virus: false, mines: 0, rallies: 0}))
 
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
@@ -1793,7 +1818,7 @@ describe("the charges held", () => {
 
         grant()
 
-        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25, virus: false, mines: 0}))
+        await vi.waitFor(() => expect(seen.at(-1)).toEqual({refill: false, bomb: true, enclosures: 0, spreadClicksLeft: 0, shields: 25, virus: false, mines: 0, rallies: 0}))
         expect(getCharges).toHaveBeenCalledTimes(1)
         backend.close()
     })
@@ -1847,7 +1872,9 @@ describe("the charges held", () => {
         const seen = follow(backend)
         let unlimited = false
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => unlimited = rules.spreadUnlimited,
         })
         await vi.waitFor(() => expect(seen.at(-1)?.spreadClicksLeft).toBe(2))
@@ -1976,7 +2003,9 @@ describe("the refill", () => {
     const follow = (backend: PlanetBackend) => {
         const seen: Charges[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (charges) => seen.push(charges),
         })
         return seen
@@ -2245,7 +2274,9 @@ describe("PlanetBackend allegiance", () => {
         const seen = follow(backend)
         const charges: Charges[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onRules: () => {},
             onCharges: (held) => charges.push(held),
         })
         await vi.waitFor(() => expect(charges.at(-1)?.shields).toBe(3))
@@ -2417,7 +2448,9 @@ describe("PlanetBackend mines", () => {
         const seen: Charges[] = []
         const fields: Minefield[] = []
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {}, onSpread: () => {},
+            onVirusSpread: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {},
             onRules: () => {}, onCharges: (charges) => seen.push(charges), onMines: (mines) => fields.push(mines),
         })
         return {seen, fields}
@@ -2484,11 +2517,121 @@ describe("PlanetBackend mines", () => {
         const order: string[] = []
         backend.listenForUpdatesBatch(() => order.push("updates"))
         backend.listenForBonuses({
-            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => order.push("explosion"),
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onRallies: () => {}, onRallyCalled: () => {},
+            onMinesExploded: () => order.push("explosion"),
             onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {}, onRules: () => {},
         })
 
         await vi.waitFor(() => expect(order).toEqual(["updates", "explosion"]))
+        backend.close()
+    })
+})
+
+describe("PlanetBackend rallies", () => {
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
+
+    const rallyMessage = (fields: Partial<RallyMessage> = {}) => new RallyMessage({
+        rallyId: "r1", accountId: "a1", countryId: "fr", point: new GlobePoint({x: 0.6, z: 0.8}), radius: 0.072,
+        leftMs: 60_000, ...fields,
+    })
+
+    const follow = (backend: PlanetBackend) => {
+        const seen: Charges[] = []
+        const read: Rally[][] = []
+        const called: Rally[] = []
+        backend.listenForBonuses({
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {}, onEnclosed: () => {},
+            onSpread: () => {}, onRules: () => {}, onCharges: (charges) => seen.push(charges),
+            onRallies: (rallies) => read.push(rallies), onRallyCalled: (rally) => called.push(rally),
+        })
+        return {seen, read, called}
+    }
+
+    it("reads a rally called with its end on the page's clock", () => {
+        const event = new PlanetEvent({event: {case: "rallyCalled", value: rallyMessage()}})
+        const before = performance.now()
+
+        const rally = rallyCalledOf(event)
+
+        expect(rally).toMatchObject({id: "r1", accountId: "a1", countryId: "fr", centre: {x: 0.6, y: 0, z: 0.8}, radius: 0.072})
+        expect(rally!.endsAt).toBeGreaterThanOrEqual(before + 60_000)
+        expect(rallyCalledOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+
+    it("calls a rally with the session token, takes one off the hand, and tells its ring at once", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({rallies: 2})})
+        const callRally = vi.fn().mockResolvedValue(new CallRallyResponse({rally: rallyMessage({leftMs: 180_000})}))
+        const backend = new PlanetBackend(clientWith({getCharges, callRally}), 1_000, fixedSession("session-1"))
+        const {seen, called} = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.rallies).toBe(2))
+
+        const rally = await backend.callRally({x: 0.6, y: 0, z: 0.8}, "fr")
+
+        expect(callRally).toHaveBeenCalledWith({point: {x: 0.6, y: 0, z: 0.8}, countryId: "fr"}, expect.anything())
+        expect((callRally.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
+        expect(seen.at(-1)?.rallies).toBe(1)
+        expect(called).toEqual([rally])
+        backend.close()
+    })
+
+    it("gives the rally back while one of the caller's is still on, and holds none when the server says so", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({rallies: 2})})
+        const refused = new ConnectError("still on", Code.FailedPrecondition, undefined, [new RallyRefusal()])
+        const callRally = vi.fn().mockRejectedValueOnce(refused).mockRejectedValueOnce(new ConnectError("none", Code.NotFound))
+        const backend = new PlanetBackend(clientWith({getCharges, callRally}), 1_000)
+        const {seen, called} = follow(backend)
+        await vi.waitFor(() => expect(seen.at(-1)?.rallies).toBe(2))
+
+        await expect(backend.callRally({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(RallyRefusedError)
+        expect(seen.at(-1)?.rallies).toBe(2)
+        await expect(backend.callRally({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(BonusLostError)
+        expect(seen.at(-1)?.rallies).toBe(0)
+        expect(called).toEqual([])
+        backend.close()
+    })
+
+    it("reads every rally on as the stream opens, and hears each one called on it", async () => {
+        const getRallies = vi.fn().mockResolvedValue(new GetRalliesResponse({rallies: [rallyMessage({countryId: "de"})]}))
+        const listenForEvents = vi.fn(async function* () {
+            yield heartbeatAt(10)
+            yield new PlanetEvent({event: {case: "rallyCalled", value: rallyMessage({rallyId: "r2", point: new GlobePoint({y: 1})})}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({getRallies, listenForEvents}), 60_000)
+        const {read, called} = follow(backend)
+
+        await vi.waitFor(() => expect(read.at(-1)?.map((rally) => rally.countryId)).toEqual(["de"]))
+        await vi.waitFor(() => expect(called.map((rally) => rally.centre)).toEqual([{x: 0, y: 1, z: 0}]))
+        backend.close()
+    })
+
+    it("counts a click in flight at its cost, and says the bank's clicks cost half while the flag's ring is on", async () => {
+        let answer: (value: unknown) => void = () => {}
+        const click = vi.fn(() => new Promise((resolve) => {
+            answer = resolve
+        }))
+        const listenForEvents = vi.fn(async function* () {
+            yield heartbeatAt(1)
+            yield new PlanetEvent({event: {case: "rallyCalled", value: rallyMessage()}})
+            await new Promise(() => {})
+        })
+        const getBudget = vi.fn().mockResolvedValue({budget: new ClickBudgetMessage({tokens: 4, capacity: 10, refillPerSecond: 0})})
+        const backend = new PlanetBackend(clientWith({click, getBudget, listenForEvents}), 60_000)
+        const {called} = follow(backend)
+        const budgets: ClickBudget[] = []
+        backend.watchClickBudget((budget) => budgets.push(budget))
+        await vi.waitFor(() => expect(called).toHaveLength(1))
+        await vi.waitFor(() => expect(budgets.at(-1)?.tokens).toBe(4))
+
+        const clicked = backend.clickTile(9, "fr", ALL_OFF, 0.5)
+        await vi.waitFor(() => expect(budgets.at(-1)?.tokens).toBe(3.5))
+        await vi.waitFor(() => expect(click).toHaveBeenCalled())
+        answer({budget: new ClickBudgetMessage({tokens: 3.5, capacity: 10, refillPerSecond: 0, spent: 0.5})})
+        await clicked
+
+        expect(budgets.at(-1)?.tokens).toBe(3.5)
+        expect(budgets.at(-1)?.rally).toEqual({cost: 0.5, until: called[0].endsAt})
         backend.close()
     })
 })

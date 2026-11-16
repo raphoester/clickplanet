@@ -7,11 +7,14 @@ No box draws one yet; the operator's grant, and the fake's `giveMine()`, give so
 
 **It is aimed or put away, like the virus.** The inventory's Mine slot (`2/3`, against `GetChargeRules.mines`) aims
 it (`Globe.setMineAimed`), the slot or Escape puts it away, and aiming it puts the bomb and the virus away and turns
-every switch off (and the reverse). While aimed, a tap on a tile lays a mine (`Miner.layMine`, `ClickService/LayMine`)
-instead of clicking, and **it stays aimed while a mine is held**, so mines are laid together. The globe refuses a tile
-not the flag's, one mined already, or a capital while the knock-out plays, before the call ("A mine goes only on your
-flag's tile with no mine", the notice `mineNotYours` over the slot). The backend takes one mine off the hand at once and
-gives it back unless the server says it holds none: a `MineRefusal` is `MineRefusedError`, said with the same notice.
+every switch off (and the reverse). While aimed, a tap on a tile of the flag lays a mine (`Miner.layMine`,
+`ClickService/LayMine`) instead of clicking, and **it stays aimed while a mine is held**, so mines are laid together.
+**A tap on a tile of another flag, or of none, is a plain click**, as with shield on (`layingOf` in `domain/mines.ts`):
+it takes the tile, "Tile taken. Tap it again to lay a mine" (`mineTaken`) over the slot, and the next tap lays the
+mine; a click a shield stopped says `mineNotYours`. The globe refuses a tile of the flag mined already, or a capital
+while the knock-out plays, before the call ("A mine goes only on your flag's tile with no mine", the notice
+`mineNotYours`). The backend takes one mine off the hand at once and gives it back unless the server says it holds
+none: a `MineRefusal` is `MineRefusedError`, said with the same notice.
 
 **The flag's mines are read, never public.** `GetMap` carries none. The planet backend reads `GetMines` as each stream
 opens and each time the flag it plays for changes, and hands the answer to the globe (`BonusHandlers.onMines`); the
@@ -34,6 +37,11 @@ the bomb's sound, full for a mine of the page's flag. So the enemy sees why its 
 **A mined tile is drawn with its mine** (the pulse slot's sixth bit, `MINE_MARK`, 32): a dark dome over the flag, its
 rim in `--mine` olive, four studs and a red light. It is still: a mine can wait days, and a beat would keep the loop
 drawing all that time (see [Drawing only when something changed](render-on-demand.md)).
+
+**On a shielded tile the mine steps down to the shield's tip**, at half its size, as the count fades in (16 to 22px,
+see [Shields](shields.md)). In the middle it covered the count. Its light grows there, as at that size the red dot is
+what says "mine". Under 16px the shield shows no count, so the mine stays in the middle. A capital's tile stacks the
+crown, the count and the mine, top to bottom.
 
 **No ghost on a mine** (see [Ghosts](ghosts.md)).
 

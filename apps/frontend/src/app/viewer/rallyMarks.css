@@ -1,0 +1,139 @@
+/* A flag planted at a rally's centre: the pole's foot is the point, the cloth flies right of it, the caller's name above. */
+.rally-pin {
+    position: absolute;
+    z-index: 90;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.rally-pin[hidden] {
+    display: none;
+}
+
+.rally-pin-pole {
+    position: absolute;
+    bottom: 0;
+    left: -2px;
+    width: 4px;
+    height: 54px;
+    border-radius: 2px;
+    background: var(--ink);
+}
+
+.rally-pin-pole::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: -3px;
+    width: 10px;
+    height: 10px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 50%;
+    background: var(--gold);
+}
+
+.rally-pin-pole::after {
+    content: "";
+    position: absolute;
+    bottom: -3px;
+    left: -6px;
+    width: 16px;
+    height: 6px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--ink) 45%, transparent);
+}
+
+.rally-pin-cloth {
+    position: absolute;
+    bottom: 25px;
+    left: 1px;
+    width: 40px;
+    height: 27px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: 2px 5px 5px 2px;
+    background-color: var(--cream);
+    background-repeat: no-repeat;
+    box-shadow: var(--drop-xs);
+    transform-origin: left center;
+    animation: rally-pin-wave 2.4s ease-in-out infinite;
+}
+
+.rally-pin--own .rally-pin-cloth {
+    outline: 2px solid var(--rally-light);
+    outline-offset: 1px;
+}
+
+.rally-pin-name {
+    position: absolute;
+    bottom: 64px;
+    left: 0;
+    padding: 1px 7px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--panel);
+    box-shadow: var(--drop-xs);
+    color: hsl(var(--author-hue, 0) calc(var(--author-saturation) * var(--author-chroma, 1)) var(--author-name-lightness));
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transform: translateX(-50%);
+}
+
+.rally-pin-name[hidden] {
+    display: none;
+}
+
+.rally-pin--own .rally-pin-name {
+    border-color: var(--rally);
+}
+
+@keyframes rally-pin-wave {
+    0%, 100% {
+        transform: skewY(-4deg) scaleX(1);
+    }
+    50% {
+        transform: skewY(4deg) scaleX(0.92);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rally-pin-cloth {
+        animation: none;
+    }
+}
+
+/* The flag and its name take a hover or a tap, which opens the card; the rest of the pin lets the globe have them. */
+.rally-pin-pole,
+.rally-pin-cloth,
+.rally-pin-name {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* The card: who called it, for which flag, what a click inside costs, and the time left, one line each. */
+.rally-pin-tip {
+    position: absolute;
+    bottom: 90px;
+    left: 0;
+    width: max-content;
+    max-width: 220px;
+    padding: 6px 10px;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-s);
+    background: var(--panel);
+    box-shadow: var(--drop-s);
+    color: var(--text);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    line-height: 1.4;
+    white-space: pre-line;
+    transform: translateX(-50%);
+}
+
+.rally-pin-tip[hidden] {
+    display: none;
+}

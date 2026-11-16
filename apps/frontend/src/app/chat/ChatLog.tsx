@@ -1,6 +1,6 @@
 import {Fragment, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FlagMissionAnnouncement,
-    FortifyAnnouncement, KnockOutAnnouncement, MuteAnnouncement, MuteKind, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+    FortifyAnnouncement, KnockOutAnnouncement, RallyAnnouncement, MuteAnnouncement, MuteKind, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import Streak from "../badges/Streak.tsx";
@@ -354,7 +354,25 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
             return <FlagMissionLine announcement={announcement}/>
         case "knock_out":
             return <KnockOutLine announcement={announcement}/>
+        case "rally":
+            return <RallyLine announcement={announcement}/>
     }
+}
+
+function RallyLine({announcement}: {announcement: RallyAnnouncement}) {
+    const words = useWordFilter()
+    const player = <strong>{words.masked(announcement.name)}</strong>
+
+    return <li className="chat-announcement" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">📣</span>
+        <CountryFlag code={announcement.country}/>
+        <span className="chat-announcement-text">
+            {announcement.landmass === undefined
+                ? rich("announcement.rally", {player})
+                : rich("announcement.rallyOn", {player, landmass: translator().landmass(announcement.landmass, announcement.ground)})}
+        </span>
+        <AnnouncedAt at={announcement.announcedAt}/>
+    </li>
 }
 
 function KnockOutLine({announcement}: {announcement: KnockOutAnnouncement}) {

@@ -26,6 +26,10 @@ export type BonusReward =
     kind: "mine"
     mines: number
 }
+    | {
+    kind: "rally"
+    rallies: number
+}
 
 export type Charges = {
     refill: boolean
@@ -35,15 +39,18 @@ export type Charges = {
     shields: number
     virus: boolean
     mines: number
+    rallies: number
 }
 
 export const NO_CHARGES: Charges = {
-    refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0, shields: 0, virus: false, mines: 0,
+    refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0, shields: 0, virus: false, mines: 0, rallies: 0,
 }
 
 export type ChargeKind = BonusReward["kind"]
 
-export const CHARGE_KINDS: readonly ChargeKind[] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields", "virus", "mine"]
+export const CHARGE_KINDS: readonly ChargeKind[] = [
+    "refill", "bomb", "spreadClicks", "encloseClicks", "shields", "virus", "mine", "rally",
+]
 
 // A guest's level, and an account's before it has one: it holds only the open kinds.
 export const NO_LEVEL = 0
@@ -132,7 +139,8 @@ export function sameSwitches(a: Switches, b: Switches): boolean {
 }
 
 export type BonusNotice =
-    "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy" | "mineNotYours"
+    "shieldFull" | "shieldCapital" | "shieldTaken" | "shieldNotYours" | "nothingEnclosed" | "virusNoEnemy" | "mineTaken" | "mineNotYours"
+    | "rallyOn"
 
 export type BonusNoticeEvent = {
     notice: BonusNotice
@@ -145,8 +153,11 @@ export function slotOf(notice: BonusNotice): ChargeKind {
             return "encloseClicks"
         case "virusNoEnemy":
             return "virus"
+        case "mineTaken":
         case "mineNotYours":
             return "mine"
+        case "rallyOn":
+            return "rally"
         case "shieldFull":
         case "shieldCapital":
         case "shieldTaken":
@@ -184,4 +195,10 @@ export type BonusRules = {
     // How many mines a hand holds, and the rings of tiles around its own a mine's blast takes.
     mines: number
     mineRings: number
+    // How many rallies a hand holds; a ring's radius in radians and how long it lasts; what a click inside one of the
+    // flag's takes from the bank.
+    rallies: number
+    rallyRadius: number
+    rallyLastsMs: number
+    rallyCost: number
 }

@@ -35,6 +35,9 @@
     --gold-light: #FFE58A;
     --gold-shade: #E09A12;
     --gold-ink: #4A2C02;
+    --xp: #3CCFF5;
+    --xp-shade: #1A93C2;
+    --xp-ink: #04303E;
     --gain: #3BD16F;
     --gain-ink: #0B3D25;
     --loss: #FF6B5B;
@@ -99,6 +102,8 @@
     --virus-light: #D3A6FF;
     --mine: #5F7432;
     --mine-light: #CFDF94;
+    --rally: #0FA3B1;
+    --rally-light: #7FE3EC;
 
     --war: #FF5A1F;
     --tape: repeating-linear-gradient(45deg, var(--war) 0 12px, var(--ink) 12px 24px);

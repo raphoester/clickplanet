@@ -50,6 +50,10 @@ export const GROUPS: {title: string, fields: Field[]}[] = [
         {path: "charges.virus.every", label: "Virus spreads every (s)", kind: "seconds"},
         {path: "charges.mine.held", label: "Mines held", kind: "whole"},
         {path: "charges.mine.rings", label: "Mine blast rings, 1 to 3", kind: "whole"},
+        {path: "charges.rally.held", label: "Rallies held", kind: "whole"},
+        {path: "charges.rally.rings", label: "Rally ring, in tile spacings, 1 to 50", kind: "number"},
+        {path: "charges.rally.lasts", label: "Rally lasts (s)", kind: "seconds"},
+        {path: "charges.rally.cost", label: "A click inside a rally costs, 0.1 to 1", kind: "number"},
     ]},
     {title: "Arena", fields: [
         {path: "arena.freeze", label: "No play after the fresh map and before the end (s)", kind: "seconds"},

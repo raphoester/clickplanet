@@ -78,7 +78,8 @@
 
 .viewer-canvas--armed,
 .viewer-canvas--infecting,
-.viewer-canvas--mining {
+.viewer-canvas--mining,
+.viewer-canvas--rallying {
     cursor: crosshair;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
