@@ -996,7 +996,9 @@ export function minesExplodedOf(event: PlanetEvent): MinesExploded | undefined {
 
     const exploded = event.event.value
     return {
-        blasts: exploded.blasts.map(({tileId, countryId, takenTileIds}) => ({tile: tileId, countryId, taken: [...takenTileIds]})),
+        blasts: exploded.blasts.map(({tileId, countryId, takenTileIds, struck}) => ({
+            tile: tileId, countryId, taken: [...takenTileIds], struck: struck.map(({tileId, shields}) => ({tile: tileId, shields})),
+        })),
         version: versionOf(exploded.version),
     }
 }

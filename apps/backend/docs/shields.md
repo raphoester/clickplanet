@@ -53,13 +53,13 @@ to the jury.
   the ledger flushed the placement. A fortify's shields are not told this way.
 - **Every strike is told too**, as `planet.v1.ShieldsStruck`, by the ledger relay: one fact per ledger event, with the
   flag that struck and, for each tile, the flag whose shield it was (`owner`) and its index in its event. A click strikes
-  one; a spread, an enclose and a bomb (`Blast.StruckOwners`) may strike several at one position
+  one; a spread, an enclose, a virus, a mine's blast and a bomb (`Blast.StruckOwners`) may strike several at one position
   (`ledger.Event.Strikes`), told together.
 - **`click_usecase.Out.Outcome`** says what the rule did, for the decorators around
   it: `enclose_click` closes a shape only with `Taken`, and `prom_click`
   counts `clicks_shielded_total{country_id}` by the flag clicked. **It never reaches
   the wire**. The client predicts it from the shields it holds.
 
-What a spread, an enclose, a bomb and the antibot do with a shielded tile is in their
+What a spread, an enclose, a bomb, a virus, a mine and the antibot do with a shielded tile is in their
 own sections: [spread](spread.md), [enclose](enclose.md),
-[bomb](bomb.md), [antibot](antibot.md#the-parts-that-are-easy-to-get-wrong).
+[bomb](bomb.md), [virus](virus.md), [mine](mine.md), [antibot](antibot.md#the-parts-that-are-easy-to-get-wrong).

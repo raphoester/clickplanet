@@ -3,7 +3,8 @@
 **A mine is a charge laid on a tile of the player's flag, a trap only that flag sees** (the design "Player Level and
 Unlocks", the owner, 2026-11-16). The player taps Mine, then one of the flag's tiles. When another flag takes that tile,
 the mine goes off: the tile and the two rings of tiles around it, about 19 tiles, go to the mine's flag, whoever held
-them. Shielded tiles stay. Every mine the blast reaches goes off too, so mines laid together go off together.
+them. A shielded tile loses one shield and keeps its flag. Every mine the blast reaches goes off too, so mines laid
+together go off together.
 
 **It is built and dormant**: no box and no right answer is a mine yet, as the bonuses' `kinds.mine` weighs 0 in `default`
 and `gates.open.mine` is off there (migration `20261116135208_mine_offers`), and no other set holds either.
@@ -18,8 +19,10 @@ From the design:
   once it weighs above 0 (the bonuses' `mine.maxPerBox`, 2).
 - **A blast takes `charges.mine.rings` rings** around the mine's tile (2 in `default`, 1 to 3): `clicks.Disc`, a walk on
   the map's own neighbours as a spread's, so it never crosses water. Its own tile first, then the nearest ring.
-- **A shielded tile in a blast stays as it is**, with its shields: a blast strikes none. A tile of the mine's flag stays
-  too. Every other tile, blank or another flag's, goes to the mine's flag, held by the mine's player.
+- **A blast meets each tile as a click of the mine's flag would** (`Tile.Claimed`): a shielded tile loses one shield
+  and keeps its flag, whatever its count, and a tile of the mine's flag stays as it is. Every other tile, blank or another
+  flag's, goes to the mine's flag, held by the mine's player. Until 2026-11-16 a shielded tile stayed with all its
+  shields; the owner asked that a blast break one, as a click, a spread, a virus and a bomb do.
 - **One mine a tile**, on a tile of the flag the caller plays for.
 - **A bomb takes off the mines it hits, with no blast**, a shielded tile's too.
 
@@ -71,12 +74,17 @@ one). So the claim's own change and its events go out as before, whatever the mi
 
 `detonate_mines_usecase`, run by `planet-mines` as soon as the fuse is lit, and every second for a mine a failure left
 waiting: `ledger.MineRecording.Detonate` takes every mine set off, under one lock of the tiles (`TileStorage.Explode`).
-Each blast takes its tiles nearest first, every mine it reaches goes off after it, and when none is left, each take that
-felled a capital knocks its flag out. **The map's freeze does not hold it back**: the take that set the mines off was
-played before.
+Each blast takes or strikes its tiles nearest first, and every mine it reaches goes off after it. When none is left,
+each take that made its landmass whole fortifies it, then each take that felled a capital knocks its flag out. **The
+map's freeze does not hold it back**: the take that set the mines off was played before.
 
 - **One `mines_exploded` event per explosion**, at one map version, with each blast in order (the mine's tile, its flag,
-  the tiles it took). Its fortifies and knock-outs follow as their own events, as a virus's.
+  the tiles it took, and the tiles it struck with the shields each kept). Its fortifies and knock-outs follow as their
+  own events, as a virus's.
+- **The fortifies wait for the last blast.** Two mines of two flags can go off in one explosion. A fortify between their
+  blasts would raise a shield that the second blast then struck, but every stream hears the fortify after the whole
+  explosion, so the page would raise that shield again. Judged at the end, a landmass a later blast broke earns no
+  fortify, and the ledger keeps every blast before the fortifies too.
 - **The enemy's take lands first**: its `tile_update` (or its enclosure, spread or virus event) is published under the
   claim's lock, and the explosion under the next one. A write that slips between the two is read by the blast as it is.
 - **A mine of a flag knocked out goes with its land**: the clear takes the laid ones off, and the ones set off and still
@@ -115,8 +123,9 @@ hard kill is lost**, with no blast, and a mine laid then too, as a bomb dropped:
 
 ## The ledger: kind `mine`, and its takes count
 
-**Each mine gone off that took a tile is one `mine` event** on its tile, its payload `{taken}` as a spread's, under the
-mine's player's account and scope (kept with the mine, since an explosion has no request). Migration
+**Each mine gone off that took a tile or struck a shield is one `mine` event** on its tile, its payload `{taken,
+struck}` as a spread's, under the mine's player's account and scope (kept with the mine, since an explosion has no
+request). Every blast is recorded before the explosion's fortifies, then its knock-outs, the order they were written in. Migration
 `20261116135204_ledger_mine` adds the value to `ledger_event_kind`; `20261116135205_ledger_mine_tiles` indexes its
 payloads for `GetTileHolder`.
 
@@ -126,8 +135,9 @@ count takes, scoring's tiles taken, the attack pings and the days played. Every 
 virus**: a virus lasts two minutes, a mine can wait days, so a mine that goes off on a day its player did not play counts
 that day as played, and keeps a streak. A mine goes off once, so it keeps a streak a day or two at most.
 
-`GetLedgerTotals` counts the `mine` events (`mines`). `GetLedger`, the holder query, `GetTakesByCountry` and
-`GetPlayDays` read its takes as a spread's. A blast strikes no shield, so it tells no `ShieldsStruck`.
+`GetLedgerTotals` counts the `mine` events (`mines`). `GetLedger` reads its takes and its strikes as a spread's; the
+holder query, `GetTakesByCountry` and `GetPlayDays` read its takes. **Its strikes are told as `ShieldsStruck`**, under
+the mine's player, as a virus's.
 
 ## Known gaps
 
@@ -138,10 +148,10 @@ that day as played, and keeps a streak. A mine goes off once, so it keeps a stre
 ## Tests
 
 `clicks`' `minefield_test.go`, on the real tile storage: a lay that changes no tile, a tile not the flag's or mined
-refused, a take that sets the mine off and its blast as one change nearest first, a shielded tile and the flag's own left
-as they are, mines that go off together whatever their flag, a spread's, an enclosure's and a virus's take setting one
-off, a bomb and a revert that take it off with no blast, the blast's takes held for its player and the fortify they
-earn. `inmemory_tile_storage`'s `mines_test.go`: the flush and the boot, a mine gone with no row, a failed flush kept
+refused, a take that sets the mine off and its blast as one change nearest first, a shielded tile struck once and the
+flag's own left as it is, mines that go off together whatever their flag, a spread's, an enclosure's and a virus's take
+setting one off, a bomb and a revert that take it off with no blast, the blast's takes held for its player and the
+fortify they earn, and a landmass a later blast broke earning none. `inmemory_tile_storage`'s `mines_test.go`: the flush and the boot, a mine gone with no row, a failed flush kept
 for the next, a wipe, an arena, a deleted account, a knock-out (laid and set off). `postgres_tile_store`'s: the rows
 upserted and deleted, a wipe, a forgotten holder. The ledger's `mining_test.go` and the relay's `TilesTaken`; the SQL
 readers' parity tests each hold a mine. `mines`' gate, `lay_mine_usecase` (the spend, the mine back, none held, a wallet

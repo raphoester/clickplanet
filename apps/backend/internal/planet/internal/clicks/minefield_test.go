@@ -104,22 +104,50 @@ func TestATakeByAnotherFlagSetsTheMineOffAndItsBlastTakesTheTilesAroundForItsFla
 	assert.Empty(t, detonated(t, tiles), "and the next explosion finds none")
 }
 
-func TestABlastLeavesAShieldedTileAndItsFlagsOwnTilesAsTheyAre(t *testing.T) {
+func TestABlastStrikesOneShieldOfAShieldedTileAndLeavesItsFlagsOwnTilesAsTheyAre(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{3: "de", 4: "de", 5: "fr", 6: "fr", 7: "de"})
 	shield(t, tiles, 4, "de", 2)
 	laid(t, tiles, "fr", 5)
+	changes := infections(t, tiles)
 
 	enemyTakes(t, tiles, 5, "de")
+	next(t, changes)
 	detonations := detonated(t, tiles)
 
 	assert.Equal(t, []string{"fr", "de", "fr", "fr", "fr"}, owners(tiles, 3, 4, 5, 6, 7))
-	assert.Equal(t, 2, tiles.Shields(4), "a blast strikes no shield")
+	assert.Equal(t, 1, tiles.Shields(4), "one shield struck, and the tile kept its flag")
+	explosion := next(t, changes).Explosion
+	require.NotNil(t, explosion)
+	require.Len(t, explosion.Blasts, 1)
+	assert.Equal(t, []uint32{5, 3, 7}, explosion.Blasts[0].Taken)
+	assert.Equal(t, []clicks.TileShields{{Tile: 4, Shields: 1}}, explosion.Blasts[0].Struck)
 	require.Len(t, detonations, 1)
-	taken := make([]uint32, 0, len(detonations[0].Impacts))
-	for _, impact := range detonations[0].Impacts {
-		taken = append(taken, impact.Tile)
+	assert.Equal(t, []clicks.Impact{
+		{Tile: 5, Owner: "de", Outcome: clicks.Taken},
+		{Tile: 4, Owner: "de", Outcome: clicks.Shielded, Shields: 1},
+		{Tile: 3, Owner: "de", Outcome: clicks.Taken},
+		{Tile: 7, Owner: "de", Outcome: clicks.Taken},
+	}, detonations[0].Impacts)
+}
+
+func TestTheFortifiesWaitForTheLastBlastSoALandmassALaterBlastBrokeEarnsNone(t *testing.T) {
+	tiles := claimable(t, map[uint32]string{19: "de", 20: "fr", 21: "fr", 22: "de", 23: "de", 24: "de", 25: "de"})
+	laid(t, tiles, "fr", 21)
+	laid(t, tiles, "de", 23)
+
+	enemyTakes(t, tiles, 21, "de")
+	detonations := detonated(t, tiles)
+
+	require.Len(t, detonations, 2, "the French blast takes 22 and makes 20-22 whole, and sets the German mine off")
+	assert.Equal(t, []string{"fr", "fr", "de", "de", "de"}, owners(tiles, 19, 20, 21, 22, 23),
+		"the German blast takes 21 and 22 back")
+	assert.Equal(t, []int{0, 0, 0}, []int{tiles.Shields(20), tiles.Shields(21), tiles.Shields(22)},
+		"no fortify raised a shield between the two blasts")
+	for _, detonation := range detonations {
+		for _, impact := range detonation.Impacts {
+			assert.Nil(t, impact.Fortified, "tile %d", impact.Tile)
+		}
 	}
-	assert.Equal(t, []uint32{5, 3, 7}, taken)
 }
 
 func TestEveryMineABlastReachesGoesOffTooEachForItsOwnFlag(t *testing.T) {

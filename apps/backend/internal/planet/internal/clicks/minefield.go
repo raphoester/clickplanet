@@ -60,9 +60,9 @@ func (f Minefield) Lay(ctx context.Context, mine Mine) (MapVersion, error) {
 	})
 }
 
-// Detonate sets off every mine a take tripped. Each blast takes the tiles within rings of its own for its mine's flag,
-// nearest first, and every mine it reaches goes off after it, whatever its flag. A capital a blast took knocks its flag
-// out once every blast is written. A failure stops the explosion, and what it wrote before is kept and told all the same.
+// Detonate sets off every mine a take tripped. Each blast claims the tiles within rings of its own for its mine's flag,
+// nearest first, and every mine it reaches goes off after it, whatever its flag. Fortifies, then knock-outs, wait for the
+// last blast: a stream hears them after the one change. A failure stops it, and what it wrote is kept and told.
 func (f Minefield) Detonate(ctx context.Context, rings int) ([]Detonation, error) {
 	most := f.shieldsPerTile()
 	var detonations []Detonation
@@ -79,7 +79,7 @@ func (f Minefield) Detonate(ctx context.Context, rings int) ([]Detonation, error
 			mine := waiting[0]
 			waiting = waiting[1:]
 
-			detonation, reached, err := f.blast(ctx, tiles, mine, rings, most)
+			detonation, reached, err := f.blast(ctx, tiles, mine, rings)
 			if err != nil {
 				return err
 			}
@@ -87,6 +87,14 @@ func (f Minefield) Detonate(ctx context.Context, rings int) ([]Detonation, error
 			waiting = append(waiting, reached...)
 		}
 
+		for i := range detonations {
+			ctx := cpctx.AddAccountToContext(ctx, detonations[i].Mine.Account.String())
+			impacts, err := fortifiedAll(ctx, tiles, detonations[i].Mine.Flag, detonations[i].Impacts, most)
+			detonations[i].Impacts = impacts
+			if err != nil {
+				return err
+			}
+		}
 		for i := range detonations {
 			ctx := cpctx.AddAccountToContext(ctx, detonations[i].Mine.Account.String())
 			impacts, err := knockedOutAll(ctx, tiles, detonations[i].Mine.Flag, detonations[i].Impacts)
@@ -103,12 +111,13 @@ func (f Minefield) Detonate(ctx context.Context, rings int) ([]Detonation, error
 }
 
 // blast is one mine gone off: every tile within rings of its own, its own first, and the mines it reached.
-func (f Minefield) blast(ctx context.Context, tiles Exploding, mine Mine, rings, most int) (Detonation, []Mine, error) {
+func (f Minefield) blast(ctx context.Context, tiles Exploding, mine Mine, rings int) (Detonation, []Mine, error) {
 	ctx = cpctx.AddAccountToContext(ctx, mine.account.String())
 	var (
 		reached []Mine
 		impacts []Impact
 		taken   []uint32
+		struck  []TileShields
 	)
 	for _, id := range append([]uint32{mine.tile}, Disc(f.ground, mine.tile, rings)...) {
 		if other, ok := tiles.SetOff(id); ok {
@@ -118,23 +127,39 @@ func (f Minefield) blast(ctx context.Context, tiles Exploding, mine Mine, rings,
 		if err != nil {
 			return Detonation{}, nil, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 		}
-		blasted, impact := mine.blasted(tile)
-		if impact.Outcome != Taken {
+		blasted, impact := tile.Claimed(mine.flag, mine.account)
+		switch impact.Outcome {
+		case Unchanged:
 			continue
+		case Shielded:
+			struck = append(struck, TileShields{Tile: id, Shields: impact.Shields})
+		case Taken:
+			taken = append(taken, id)
 		}
 		if err := tiles.Set(ctx, blasted); err != nil {
 			return Detonation{}, nil, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 		}
-		impact, err = fortifiedAfter(ctx, tiles, impact, mine.flag, most)
-		if err != nil {
-			return Detonation{}, nil, err
-		}
 		impacts = append(impacts, impact)
-		taken = append(taken, id)
 	}
 
 	kept := mine.TakeSnapshot()
-	tiles.Blasted(MineBlast{Mine: kept, Taken: taken})
+	tiles.Blasted(MineBlast{Mine: kept, Taken: taken, Struck: struck})
 
 	return Detonation{Mine: kept, Impacts: impacts}, reached, nil
+}
+
+// fortifiedAll asks each take whether it made its landmass whole.
+func fortifiedAll(ctx context.Context, tiles Claimable, flag string, impacts []Impact, most int) ([]Impact, error) {
+	for i := range impacts {
+		if impacts[i].Outcome != Taken {
+			continue
+		}
+		fortified, err := fortifiedAfter(ctx, tiles, impacts[i], flag, most)
+		if err != nil {
+			return impacts, err
+		}
+		impacts[i] = fortified
+	}
+
+	return impacts, nil
 }
