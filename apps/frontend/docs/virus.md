@@ -13,8 +13,10 @@ refusal. The backend takes it off the hand at once and gives it back unless the 
 `VirusRefusal` (a shield placed meanwhile) is `VirusRefusedError`, said with the same notice.
 
 **The slot shows only while a virus is held or aimed.** The bar keeps its five slots for everyone else, so it needed no
-phone redesign. A sixth slot on a phone shrinks every slot to 38px with a 3px gap (`Inventory.css`, `:has`), so the row is
-243px against 240px for five, and the click meter keeps its bar at 360px wide.
+phone redesign. **A sixth slot shrinks the slots, never widens the dock** (`Inventory.css`, `:has`): the dock's width
+sets the chat's room (`--dock-width`), and the click count never shrinks, so a row wider than five slots slid under it.
+From 1280px the slots are 60px at least with a 4px gap (439px against 421px in French, the widest names); below, 40px
+with a 4px gap; on a phone, 38px with a 3px gap (243px against 240px), and the meter keeps its bar at 360px wide.
 
 **One `virus_spread` event per use or tick, and no tile update for its tiles** (`virusSpreadOf`, heard as
 `BonusHandlers.onVirusSpread`, after the updates that came before it). `MapTiles.applyInfection` gives the tiles it took
@@ -26,5 +28,8 @@ marks with each tile's last change winning, since a virus that ends in the event
 
 **An infected tile beats in `--virus`** (the pulse slot's fifth bit, `INFECTED_MARK`, 16): the display shader mixes the
 purple in at a 0.9 s beat and swells the tile. While any tile is infected, the loop keeps drawing (`pulsing`).
+
+**No ghost while a virus works**: while one is aimed or any tile is infected, the ghosts stand down and their tiles go
+back (see [Ghosts](ghosts.md)).
 
 **In the fake**, a virus spreads every 4 s, over the tiles within a spread's ring, up to 32 infections.

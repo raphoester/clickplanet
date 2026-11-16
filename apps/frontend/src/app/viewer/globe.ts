@@ -1629,7 +1629,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             publishBoard(true)
         }
 
-        if (!army || inBattle || crowd === undefined || crowd >= GHOSTS_BELOW || orbiting()) return
+        const virusAtWork = virusAimed || tiles.infections.count() > 0
+        if (virusAtWork) releaseGhosts(ghosts.snapshot().map(({tile}) => tile))
+        if (!army || inBattle || virusAtWork || crowd === undefined || crowd >= GHOSTS_BELOW || orbiting()) return
         const sight = ghostSight()
         const take = sight && army.march(now, sight)
         if (take) ghostTook(take)
