@@ -21,6 +21,12 @@ import {Peek} from '../../domain/tilePeek.ts';
 import {Territory, TerritoryPeek} from '../../domain/territory.ts';
 import {Shot} from '../../domain/clip/camera.ts';
 import {MissionTarget} from '../../domain/missionTargets.ts';
+import {RallyCallers} from './rallyMarks.ts';
+import {useNameplates} from '../nameplates/nameplatesStore.ts';
+import {nameOf, paintOf} from '../nameplates/nameplate.ts';
+import {authorStyle} from '../chat/authorStyle.ts';
+import {useWordFilter} from '../crazygames/wordFilter.ts';
+import {WordFilter} from '../../domain/wordFilter.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -83,6 +89,22 @@ export function useGlobe(options: UseGlobeOptions) {
     const endTerritoryPeek = useCallback(() => setPointingTerritory(undefined), [])
 
     const globeRef = useRef<Globe | null>(null)
+
+    // A rally's flag on the globe carries its caller's name, as the chat shows it: from the nameplates, masked.
+    const filter = useWordFilter()
+    const words = useRef<WordFilter>(filter)
+    words.current = filter
+    const rallyCallers = useRef<RallyCallers>({
+        ask: (accountId) => useNameplates.getState().ask(accountId),
+        nameplateOf: (accountId) => {
+            const nameplate = useNameplates.getState().nameplates[accountId]
+            if (nameplate === undefined) return undefined
+            return {
+                name: words.current.masked(nameOf(nameplate)),
+                style: authorStyle(paintOf(nameplate)) as Record<string, string | number>,
+            }
+        },
+    })
 
     const initialCountry = useRef(country)
     const latestCrowd = useRef(crowd)
@@ -153,6 +175,7 @@ export function useGlobe(options: UseGlobeOptions) {
             onMineAimChange: bonus.setMineAimed,
             rallier,
             onRallyAimChange: bonus.setRallyAimed,
+            rallyCallers: rallyCallers.current,
             shielder,
             onNotice: bonus.notify,
             onClickAccepted,

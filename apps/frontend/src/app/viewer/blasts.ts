@@ -280,14 +280,13 @@ export function incomingAt(elapsed: number): {reach: number, opacity: number} {
     return {reach: INCOMING_REACH * (1 - k * k), opacity: 0.4 + 0.6 * k}
 }
 
-export function createRing(geometry: THREE.PlaneGeometry): THREE.Mesh {
+function createRing(geometry: THREE.PlaneGeometry): THREE.Mesh {
     const ring = new THREE.Mesh(geometry, new THREE.ShaderMaterial({
         uniforms: {
             colour: {value: TARGET_RED.clone()},
             opacity: {value: 1},
             edgeAt: {value: 1 / RING_MARGIN},
             progress: {value: 0},
-            sharpness: {value: 8},
         },
         vertexShader: ringVertex,
         fragmentShader: ringFragment,
@@ -299,18 +298,18 @@ export function createRing(geometry: THREE.PlaneGeometry): THREE.Mesh {
     return ring
 }
 
-export function layRing(ring: THREE.Mesh, centre: THREE.Vector3, radius: number) {
+function layRing(ring: THREE.Mesh, centre: THREE.Vector3, radius: number) {
     const normal = centre.clone().normalize()
     ring.position.copy(normal).multiplyScalar(1.003)
     ring.quaternion.setFromUnitVectors(Z_AXIS, normal)
     ring.scale.setScalar(radius * RING_MARGIN)
 }
 
-export function ringColour(ring: THREE.Mesh, colour: THREE.Color) {
+function ringColour(ring: THREE.Mesh, colour: THREE.Color) {
     (ring.material as THREE.ShaderMaterial).uniforms.colour.value.copy(colour)
 }
 
-export function ringOpacity(ring: THREE.Mesh, opacity: number) {
+function ringOpacity(ring: THREE.Mesh, opacity: number) {
     (ring.material as THREE.ShaderMaterial).uniforms.opacity.value = opacity
 }
 

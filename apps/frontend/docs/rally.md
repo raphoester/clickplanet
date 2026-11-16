@@ -18,14 +18,26 @@ token) and hands the list to the globe (`BonusHandlers.onRallies`); a rally call
 the page turns into an end on its own clock (`performance.now()`), so a phone's wrong date changes nothing. `Rallies`
 (`domain/rallies.ts`) keeps them by id.
 
-**The rings** (`rallyRings.ts`, the bomb's ring shader with a crisp edge): the page's flag's in `--rally` teal, the
-other flags' pale, at most 24, the page's own first. A ring hides at its end. **An arrow points at the newest ring of
-the page's flag** when it is off the screen or behind the globe (the box's pointer, `variant "rally"`, with a flag mark).
+**Each rally is marked** (`rallyMarks.ts`), at most 24, the page's own first, each gone at its end:
+
+- **A halo, never a line** (`shaders/rallyHalo`): a soft `--rally` teal light along the ring's edge, inside and out, and
+  a faint wash rising toward it, so every tile under it stays readable. Another flag's is fainter. One color for one
+  concept: the flag says whose.
+- **A flag planted at its centre** (a DOM pin over the canvas): a pole, the rally's flag as its cloth (cut from the
+  tiles' atlas, `clothStyleOf`), waving (still with reduced motion), and **the caller's name** above it in its color,
+  from the nameplates and masked as in the chat (`RallyCallers`, which `useGlobe` builds). The page's own flag's cloth
+  and name wear a teal edge. A pin hides behind the globe and off the screen. A DOM pin, not a mesh: seen from above,
+  a pole standing on the globe would be a dot, and a waving cloth on the GPU would keep the loop drawing.
+- **An arrow points at the newest ring of the page's flag** when it is off the screen or behind the globe (the box's
+  pointer, `variant "rally"`, with a flag mark).
 
 **What a click costs, as the page counts it** (`clickCostOf`): half a click, `GetChargeRules.rally_cost`, on a tile
 inside a ring of the flag the page plays for, a whole one elsewhere; rings that overlap cost no less. The globe checks
 the bank against that cost (`canClick(budget, at, cost)`) and hands it to `clickTile`, which counts the click in flight
 at it. The server decides: its answer (`ClickBudget.spent`) anchors the bank as every answer does.
+
+**A click a rally made cheaper says so on the globe**: "2×" rises off its tile in teal and fades (`rallyPops.ts`, at
+most 8 at once; it only fades with reduced motion).
 
 **The bank shows tenths of a click** (`59.5 left`), redrawn as it refills (a tenth of a second apart with reduced
 motion), so half a click shows. **"2×"** (the chip `click-budget-rally`, "Rally: inside the ring, a click costs half")
@@ -35,7 +47,8 @@ shows while the last click answered took less than a whole one and a ring of its
 **The chat's line**: `rally`, "le professeur calls a rally in Tasmania", the landmass named as a fortify's, in the
 flag's room (the world shows it too); "calls a rally" alone when the server names no landmass. See [Live chat](chat.md).
 
-**Known gap**: the arrow sits on the screen's edge, as the box's, and the left menu can cover it.
+**Known gap**: the arrow sits on the screen's edge, as the box's, and the left menu can cover it. Pins of many rallies
+close together may overlap.
 
 **In the fake**, `giveRally()` gives one, a call keeps it 3 minutes at 18 tile spacings, a click inside costs half, and
-`enemyRally()` has another flag call one on a tile of the page's flag, to see the pale ring.
+`enemyRally()` has another flag call one on a tile of the page's flag (called by a fake chatter, so its pin is named).

@@ -556,7 +556,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const tile = [...this.tileBindings].find(([, owner]) => owner === flag)?.[0] ?? (this.tileCount > 0 ? 1 : undefined)
         if (tile === undefined) return false
         this.tellRally({
-            id: UUIDv4(), accountId: "fake-enemy", countryId: flag === "de" ? "fr" : "de", tile, radius: RALLY_RADIUS,
+            id: UUIDv4(), accountId: FAKE_TAKERS[1], countryId: flag === "de" ? "fr" : "de", tile, radius: RALLY_RADIUS,
             endsAt: budgetNow() + RALLY_LASTS_MS,
         })
         return true

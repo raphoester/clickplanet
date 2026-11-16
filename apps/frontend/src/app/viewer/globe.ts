@@ -61,8 +61,9 @@ import {
     Rallier,
     RallyRefusedError,
 } from "../../backends/backend.ts";
-import {clickCostOf, Rallies} from "../../domain/rallies.ts";
-import {createRallyRings} from "./rallyRings.ts";
+import {clickCostOf, Rallies, WHOLE_CLICK} from "../../domain/rallies.ts";
+import {createRallyMarks, RallyCallers} from "./rallyMarks.ts";
+import {createRallyPops} from "./rallyPops.ts";
 import {InfectionChange, infectionMarksOf} from "../../domain/infections.ts";
 import {MineChange, mineMarksOf} from "../../domain/mines.ts";
 import {SessionUnavailableError} from "../../backends/session.ts";
@@ -104,7 +105,7 @@ import {saveGhostTakes, savedGhostTakes} from "./ghostStore.ts";
 import {OwnClicks} from "../../domain/ownClicks.ts";
 import {ShieldChange, outcomeOf, placementOf} from "../../domain/shields.ts";
 import {Landmasses} from "../../domain/landmasses.ts";
-import {translator} from "../../i18n/page.ts";
+import {t, translator} from "../../i18n/page.ts";
 import {Fortified, isNews} from "../../domain/fortify.ts";
 import {FortifyTargets} from "../../domain/fortifyTargets.ts";
 import {createFortifyWaves, FortifyUniforms, fortifyUniforms} from "./fortifyWaves.ts";
@@ -265,6 +266,8 @@ export type GlobeOptions = {
     onMineAimChange?: (aimed: boolean) => void
     rallier?: Rallier
     onRallyAimChange?: (aimed: boolean) => void
+    // Who called each rally: the name its flag on the globe carries.
+    rallyCallers?: RallyCallers
     shielder?: Shielder
     onNotice?: (notice: BonusNotice) => void
     onClickAccepted?: (click: AcceptedClick) => void
@@ -350,6 +353,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onMineAimChange = () => {},
         rallier,
         onRallyAimChange = () => {},
+        rallyCallers,
         shielder,
         onNotice = () => {},
         onClickAccepted = () => {},
@@ -670,10 +674,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     // Every rally on, of every flag; the page's flag's rings in the rally's colour, with an arrow to the newest.
     const rallies = new Rallies()
-    const rallyRings = createRallyRings(eventTarget)
-    scene.add(rallyRings.object)
+    const rallyMarks = createRallyMarks(eventTarget, rallyCallers)
+    scene.add(rallyMarks.object)
+    const rallyPops = createRallyPops(eventTarget)
+    const pointAt = (tile: number) => {
+        const at = (tile - 1) * 3
+        return new THREE.Vector3(geometryData.positions[at], geometryData.positions[at + 1], geometryData.positions[at + 2])
+    }
+
     const showRallies = () => {
-        rallyRings.show(rallies.on(monotonicNow()), country.code, geometryData.positions)
+        rallyMarks.show(rallies.on(monotonicNow()), country.code, geometryData.positions)
         invalidate()
     }
 
@@ -1347,7 +1357,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const driveBlasts = (seconds: number) => {
         let drawing = blasts.update(seconds, camera)
         blastPointer.update(blasts.newest(seconds), camera)
-        if (rallyRings.update(monotonicNow(), camera)) drawing = true
+        if (rallyMarks.update(monotonicNow(), camera)) drawing = true
         if (flushClears(seconds)) drawing = true
 
         if (armed) {
@@ -1611,6 +1621,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         } else {
             plainClicks.playOwnClick(tile, camera)
         }
+        if (cost < WHOLE_CLICK) rallyPops.pop(pointAt(tile), camera, t("clicks.rallied"))
 
         const clicked = country.code
         const shielding = switches.shield && shielder !== undefined
@@ -1994,7 +2005,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             picker.dispose()
             bonusPointer.dispose()
             blastPointer.dispose()
-            rallyRings.dispose()
+            rallyMarks.dispose()
+            rallyPops.dispose()
             tapPointer?.dispose()
             blasts.dispose()
             field.dispose()
