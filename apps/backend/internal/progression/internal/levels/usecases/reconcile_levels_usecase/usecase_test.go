@@ -136,12 +136,18 @@ func TestEveryAccountOfAPageIsToldToTheBonusesWithWhatItsLevelUnlocks(t *testing
 	require.Len(t, told, 6, "each linked account, changed or not, and the guest whose level went")
 	assert.True(t, proto.Equal(&bonusesv1.KeepUnlocks{
 		AccountId: account(6).String(),
-		Kinds:     []planetv1.BonusKind{planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, planetv1.BonusKind_BONUS_KIND_BOMB},
+		Kinds: []planetv1.BonusKind{
+			planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS, planetv1.BonusKind_BONUS_KIND_SHIELDS,
+			planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS,
+		},
 		DecidedAt: timestamppb.New(now),
 	}, told[account(6).String()]), "level 5: %v", told[account(6).String()])
-	assert.Empty(t, told[account(4).String()].GetKinds(), "level 3 unlocks nothing")
 	assert.Equal(t, []planetv1.BonusKind{
-		planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, planetv1.BonusKind_BONUS_KIND_BOMB, planetv1.BonusKind_BONUS_KIND_VIRUS,
+		planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS, planetv1.BonusKind_BONUS_KIND_SHIELDS,
+	}, told[account(4).String()].GetKinds(), "level 3")
+	assert.Equal(t, []planetv1.BonusKind{
+		planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS, planetv1.BonusKind_BONUS_KIND_SHIELDS,
+		planetv1.BonusKind_BONUS_KIND_ENCLOSE_CLICKS, planetv1.BonusKind_BONUS_KIND_BOMB,
 	}, told[account(3).String()].GetKinds(), "level 7, kept: the stats reach 3 only")
 	assert.Empty(t, told[account(5).String()].GetKinds(), "a guest has nothing unlocked")
 }

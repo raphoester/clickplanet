@@ -78,6 +78,17 @@ func TestANewcomersFirstQuizPaysShields(t *testing.T) {
 	assert.Equal(t, bonuses.KindShields, wallet.Payments()[0].Kind)
 }
 
+func TestAGuestsFirstQuizPaysShieldsThoughTheGatesCloseThem(t *testing.T) {
+	rules := bonuses.TestGated()
+	rules.Gates.Open = map[bonuses.Kind]bool{bonuses.KindRefill: true}
+	useCase, wallet, _ := setUpOn(rules, map[bonuses.Kind]float64{bonuses.KindRefill: 100, bonuses.KindShields: 1})
+
+	require.NoError(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token", Welcome: true}))
+
+	require.Len(t, wallet.Payments(), 1)
+	assert.Equal(t, bonuses.KindShields, wallet.Payments()[0].Kind)
+}
+
 func TestANewcomerWithAFullStackOfShieldsIsPaidNothing(t *testing.T) {
 	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1, bonuses.KindShields: 1})
 	wallet.Size(bonuses.KindShields, 10)

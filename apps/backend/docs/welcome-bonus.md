@@ -24,8 +24,10 @@ the first box and quiz came 4-8 minutes in, so they never saw one.
   minute for a fresh bank; a welcome refill would hand that back, and a bomb would be a free strike
   per account. A spread click still costs a click, and a shield is placed with none, so a
   player with an empty bank can still use it. A guest gets its one refill when it signs in
-  ([A guest's first sign-in](sign-in-refill.md)): that needs a new identity, not a new account. **A welcome box whose spread
-  cannot be paid** (weight 0 in `kinds`, or a full pool) **pays nothing**, never another kind. Until 2026-11-15 it gave no
+  ([A guest's first sign-in](sign-in-refill.md)): that needs a new identity, not a new account. **The welcome passes the
+  bonuses' gates**: a guest gets its spread and its shields though both are rungs of the ladder ([The
+  gates](bonuses.md#the-gates)). **A welcome box whose spread cannot be paid** (weight 0 in `kinds`, or a full pool)
+  **pays nothing**, never another kind. Until 2026-11-15 it gave no
   early box: the turn went back to the ordinary window. The boxes know no kind and ask no room, so the early box comes
   all the same, as a welcome quiz is asked all the same and its right answer paid nothing, never another kind.
 - **A full hand is the wallet's to say**, to the bonuses module when it pays (`GetRoom`, [A box

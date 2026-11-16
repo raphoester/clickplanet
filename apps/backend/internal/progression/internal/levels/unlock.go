@@ -10,42 +10,57 @@ type Unlock interface {
 	Level() Level
 }
 
-// EncloseUnlock comes about 5 minutes in.
+// SpreadUnlock comes with the first tile a linked account takes: the first take of a day alone is 100 XP.
+type SpreadUnlock struct{}
+
+func (SpreadUnlock) Kind() Kind   { return "spread_clicks" }
+func (SpreadUnlock) Level() Level { return 2 }
+
+// ShieldsUnlock comes in the first minute, about a dozen tiles after the first.
+type ShieldsUnlock struct{}
+
+func (ShieldsUnlock) Kind() Kind   { return "shields" }
+func (ShieldsUnlock) Level() Level { return 3 }
+
+// EncloseUnlock comes with a good first day.
 type EncloseUnlock struct{}
 
 func (EncloseUnlock) Kind() Kind   { return "enclose_clicks" }
-func (EncloseUnlock) Level() Level { return 4 }
+func (EncloseUnlock) Level() Level { return 5 }
 
-// BombUnlock comes with a good first day.
+// BombUnlock comes about day 3 for a regular player.
 type BombUnlock struct{}
 
 func (BombUnlock) Kind() Kind   { return "bomb" }
-func (BombUnlock) Level() Level { return 5 }
+func (BombUnlock) Level() Level { return 7 }
 
-// VirusUnlock comes once the bomb and the enclosure are known: the first charge that plays on its own.
+// VirusUnlock comes after about a week for a regular player, once the bomb and the enclosure are known: the first
+// charge that plays on its own.
 type VirusUnlock struct{}
 
 func (VirusUnlock) Kind() Kind   { return "virus" }
-func (VirusUnlock) Level() Level { return 6 }
+func (VirusUnlock) Level() Level { return 10 }
 
-// MineUnlock comes after the virus, about day 4 for a regular player: the first charge that waits for the enemy.
+// MineUnlock comes about day 19 for a regular player: the first charge that waits for the enemy.
 type MineUnlock struct{}
 
 func (MineUnlock) Kind() Kind   { return "mine" }
-func (MineUnlock) Level() Level { return 8 }
+func (MineUnlock) Level() Level { return 13 }
 
-// RallyUnlock comes last of the three, about day 7 for a regular player: the first charge a flag plays together.
+// RallyUnlock comes last, after about a month for a regular player: the first charge a flag plays together.
 type RallyUnlock struct{}
 
 func (RallyUnlock) Kind() Kind   { return "rally" }
-func (RallyUnlock) Level() Level { return 10 }
+func (RallyUnlock) Level() Level { return 15 }
 
 // Ladder is every kind a level unlocks. A kind not on it unlocks at no level: whether anyone may draw it is the bonuses'
 // open kinds.
 type Ladder struct{}
 
 func (Ladder) Unlocks() []Unlock {
-	return []Unlock{EncloseUnlock{}, BombUnlock{}, VirusUnlock{}, MineUnlock{}, RallyUnlock{}}
+	return []Unlock{
+		SpreadUnlock{}, ShieldsUnlock{}, EncloseUnlock{}, BombUnlock{}, VirusUnlock{}, MineUnlock{}, RallyUnlock{},
+	}
 }
 
 // UnlockedAt is every kind unlocked at the level, in the ladder's order: none for no level.

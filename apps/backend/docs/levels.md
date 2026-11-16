@@ -12,7 +12,7 @@ reveal](#the-reveal)).
 ```
 levels/                            XP, Level, Record, Source, MissionKind (stats.MissionKind), MissionRate, Curve, Standing,
                                    Scale (XPOf, Reach, StandingOf, ReconciliationOf), ByAccount; the ladder (Kind, Unlock,
-                                   EncloseUnlock, BombUnlock, VirusUnlock, MineUnlock,
+                                   SpreadUnlock, ShieldsUnlock, EncloseUnlock, BombUnlock, VirusUnlock, MineUnlock,
                                    RallyUnlock, Ladder); Book, the store and the bonuses told in one
                                    transaction; the Store port and its contract suite
   postgres_level_store/            the Store over progression.levels, under the rows' locks
@@ -202,16 +202,26 @@ among the ones the account may be drawn and pays it in a box's amounts ([The bon
 title tracks are. The bonuses module knows no level: it is told the kinds each account unlocked, and draws from them
 while its set's gates are on ([The bonuses](bonuses.md#the-gates)).
 
-| Type            | Kind             | Level |
-| --------------- | ---------------- | ----- |
-| `EncloseUnlock` | `enclose_clicks` | 4     |
-| `BombUnlock`    | `bomb`           | 5     |
-| `VirusUnlock`   | `virus`          | 6     |
-| `MineUnlock`    | `mine`           | 8     |
-| `RallyUnlock`   | `rally`          | 10    |
+| Type            | Kind             | Level | Comes for a regular player                  |
+| --------------- | ---------------- | ----- | ------------------------------------------- |
+| `SpreadUnlock`  | `spread_clicks`  | 2     | the first tile (a day's first take: 100 XP) |
+| `ShieldsUnlock` | `shields`        | 3     | about a dozen tiles after the first         |
+| `EncloseUnlock` | `enclose_clicks` | 5     | a good first day                            |
+| `BombUnlock`    | `bomb`           | 7     | about day 3                                 |
+| `VirusUnlock`   | `virus`          | 10    | about a week                                |
+| `MineUnlock`    | `mine`           | 13    | about day 19                                |
+| `RallyUnlock`   | `rally`          | 15    | about a month                               |
 
-- **Only the kinds that exist are on it.** A kind not on it unlocks at no level: whether anyone may draw it is the bonuses' `gates.open`. Refill,
-  spread and shields are open there.
+The owner set these levels on 2026-11-16 (before: enclose 4, bomb 5, virus 6, mine 8, rally 10, and spread and shields
+open to all).
+
+- **Only the kinds that exist are on it.** A kind not on it unlocks at no level: whether anyone may draw it is the bonuses' `gates.open`. Refill
+  alone is open there in `default`. A guest has no level, so it draws refill alone while the gates are on.
+- **A change of the ladder is a deploy, then `ReconcileLevels`**: the reconciliation tells the bonuses every linked
+  account's whole list again, at the level it holds, changed or not (`Reconciliation.Reached`). Until it runs, each
+  account keeps the list its last raise told. **A kind that leaves the open kinds for a rung closes its
+  `gates.open` switch only after the reconciliation**: before it, no account has it unlocked, and a player above its
+  level is drawn none.
 - **A `Kind` is planet's word**: `planet.v1.BonusKind` without its prefix, in lower case. `planetwords.BonusKind` maps
   it strictly, and `TestEveryKindOnTheLadderIsOneOfPlanets` fails for a rung planet does not name.
 - **The bonuses are told as a command in their words**, `bonuses.v1.KeepUnlocks{account_id, kinds, decided_at}`, not an

@@ -125,8 +125,8 @@ unread (2026-11-16). A gated kind the ladder names no level for is locked at eve
 padlock alone, "locked", and "Locked for now". **A charge held stays usable whatever the level**: a
 kind held is never drawn locked. The gates are off until the reveal and in battles, so nothing shows locked then.
 
-The gates are facts from two modules, put together by `gatesOf`: whether they are on and the open kinds (refill, spread,
-shields) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`, in `BonusRules`), and the **ladder** from progression's
+The gates are facts from two modules, put together by `gatesOf`: whether they are on and the open kinds (refill alone in
+`default`) from bonuses' `GetGrantRules` (`gates_on`, `open_kinds`, in `BonusRules`), and the **ladder** from progression's
 `GetLevel`: the player's level and the level each gated kind opens at (`unlocks`), in the level's store (`useLevel`,
 `level/levelStore.ts`), read once for the whole page by `useLevelFeed` (see [The level](level.md#the-numbers)): at
 load, on each new session (`listenForSessions`: a guest's first click makes one) or account, and, signed in, once its

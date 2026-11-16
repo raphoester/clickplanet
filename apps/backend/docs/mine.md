@@ -8,7 +8,7 @@ together go off together.
 
 **It is built and dormant**: no box and no right answer is a mine yet, as the bonuses' `kinds.mine` weighs 0 in `default`
 and `gates.open.mine` is off there (migration `20261116135208_mine_offers`), and no other set holds either.
-`unlocked_kind` has `mine` (`20261116135207_unlocked_mine`), and level 8 unlocks it ([Levels](levels.md#the-unlocks)).
+`unlocked_kind` has `mine` (`20261116135207_unlocked_mine`), and level 13 unlocks it ([Levels](levels.md#the-unlocks)).
 The operator's `GrantCharges` (`mines`) gives some, and so does the fake on the page.
 
 ## The rules

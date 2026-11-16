@@ -102,6 +102,19 @@ func TestANewcomersFirstBoxPaysASpread(t *testing.T) {
 	assert.Equal(t, bonuses.KindSpreadClicks, wallet.Payments()[0].Kind)
 }
 
+func TestAGuestsFirstBoxPaysASpreadThoughTheGatesCloseIt(t *testing.T) {
+	rules := bonuses.TestGated()
+	rules.Gates.Open = map[bonuses.Kind]bool{bonuses.KindRefill: true}
+	useCase, wallet, _ := setUpOn(rules, map[bonuses.Kind]float64{bonuses.KindRefill: 100, bonuses.KindSpreadClicks: 1})
+
+	out, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: "a-token", Welcome: true})
+	require.NoError(t, err)
+
+	assert.True(t, out.Paid)
+	require.Len(t, wallet.Payments(), 1)
+	assert.Equal(t, bonuses.KindSpreadClicks, wallet.Payments()[0].Kind)
+}
+
 func TestANewcomersFirstBoxWithNoSpreadToPayIsPaidNothing(t *testing.T) {
 	for _, kinds := range []map[bonuses.Kind]float64{
 		{bonuses.KindRefill: 1, bonuses.KindBomb: 1},
