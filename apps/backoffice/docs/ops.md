@@ -93,7 +93,8 @@ the set gains a value the form does not name. The fields and the switches are `R
 [quizzes module](../../backend/docs/quizzes-module.md)). The schedule plays each by name, as it does planet's and the
 antibot's. Each lists every set postgres keeps, `default` first: Boxes with its offers (`Open`, or `Frozen`,
 `offersOf`) and its boxes (`Every 4 min to 8 min, 12 an hour at most`, `boxesOf`); what a box holds with the kinds it is
-drawn as (`refill 5, spread 3, enclose 2, bomb 1, shields 4`, `kindsOf`); Quizzes with its offers and its quizzes
+drawn as (`refill 5, spread 3, enclose 2, bomb 1, shields 4`, `kindsOf`) and its gates (`off`, or `on, open: refill,
+spread, shields`, `gatesOf`); Quizzes with its offers and its quizzes
 (`Every 4 min to 8 min, 12 right an hour at most`, or `Off`, `quizzesOf`). While a set is edited, its form takes the
 page's place: the other lists go, and are read again after.
 
@@ -113,6 +114,10 @@ page's place: the other lists go, and are read again after.
 - **What a box or a right answer is**: each kind's weight (`kinds`: refill, spread, enclose, bomb, shields); a kind's
   chance is its weight over the sum, drawn when the box is caught. A kind a hand has no room for is never drawn, nor a
   bomb while planet's bombs are off; a box whose hand has room only for kinds weighed 0 pays nothing.
+- **Gates**: "Gates on" (`gates.on`) draws a win only from the kinds open to all and the ones progression unlocked for
+  the player; a switch per kind says which are open to all (`gates.open.*`). Every set keeps them off until the levels
+  are shown, and a battle's set keeps them off. The level each kind unlocks at is progression's, in code, not here. See
+  the backend's [Bonuses](../../backend/docs/bonuses.md#the-gates).
 - **What it grants**: the spread clicks and the enclosures one box or right answer adds at most, and the shields it
   adds, at least and at most (`spread.maxPerBox`, `enclose.maxPerBox`, `shield.minPerBox`, `maxPerBox`). What a hand
   holds at most is the Game rules' Charges.

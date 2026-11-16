@@ -121,9 +121,10 @@ and says what is in it. Read the doc before you change its area.
   out of it (step B, done 2026-11-11), then the quizzes' and the boxes' cuts: the wallet (`charges`) and the offers
   (`bonuses`), the ports, what `Clicked` hears, the rules split.
 - [Bonuses](docs/bonuses.md) — the rewards' module, downstream of planet like missions: a box caught paid from the boxes'
-  `BoxClaimed` and a right answer from the quizzes' `QuizAnswered`, each drawn at the win; the sign-in refill; no stream
-  since 2026-11-15; its rule sets (`bonuses.rule_sets`, played by the gamemaster), what it asks planet in planet's words
-  (`GetRoom`, `GrantCharges`) and where its sets came from.
+  `BoxClaimed` and a right answer from the quizzes' `QuizAnswered`, each drawn at the win; the gates (the kinds open to
+  all and the ones progression unlocked, `KeepUnlocks`); the sign-in refill; no stream since 2026-11-15; its rule sets
+  (`bonuses.rule_sets`, played by the gamemaster), what it asks planet in planet's words (`GetRoom`, `GrantCharges`)
+  and where its sets came from.
 
 ## Who a caller is
 
@@ -164,9 +165,10 @@ and says what is in it. Read the doc before you change its area.
   moved from schema `player`.
 - [Levels](docs/levels.md) — a level per linked account, from XP computed from the stats row and never stored: one type
   per XP source and per mission kind's rate, the curve 14 × (L − 1)³ with no top, no XP and no level for a guest; run
-  hidden until the reveal: the level kept, raised on each fact and told to the caller's own stream, the public reads
-  the page does not draw yet (`GetLevel` with each mission kind's exact rate, the card's level), `ReconcileLevels`, the
-  operator's read, what ships together at the reveal, the steps after the deploy.
+  hidden until the reveal: the level kept, raised on each fact and told to the caller's own stream, the ladder of the
+  kinds each level unlocks, told to the bonuses as a command through progression's outbox, the public reads the page
+  does not draw yet (`GetLevel` with each mission kind's exact rate and the ladder, the card's level), `ReconcileLevels`,
+  the operator's read, what ships together at the reveal, the steps after the deploy.
 - [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze, Battle Top 1-3 and Veteran: who fought the
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells
   `SeasonEnded`; Season 0 Top 1-3, its best players, given once by hand.

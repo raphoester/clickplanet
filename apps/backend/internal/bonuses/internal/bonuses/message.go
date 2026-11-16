@@ -7,7 +7,7 @@ import (
 
 // RulesOf reads a set's values: the bonuses module keeps rule sets of its own (bonuses.rule_sets).
 func RulesOf(m *bonusesv1.Rules) Rules {
-	kinds := m.GetKinds()
+	kinds, open := m.GetKinds(), m.GetGates().GetOpen()
 
 	return Rules{
 		Kinds: map[Kind]float64{
@@ -17,6 +17,17 @@ func RulesOf(m *bonusesv1.Rules) Rules {
 			KindBomb:          kinds.GetBomb(),
 			KindShields:       kinds.GetShields(),
 			KindVirus:         kinds.GetVirus(),
+		},
+		Gates: GateRules{
+			On: m.GetGates().GetOn(),
+			Open: map[Kind]bool{
+				KindRefill:        open.GetRefill(),
+				KindSpreadClicks:  open.GetSpreadClicks(),
+				KindEncloseClicks: open.GetEncloseClicks(),
+				KindBomb:          open.GetBomb(),
+				KindShields:       open.GetShields(),
+				KindVirus:         open.GetVirus(),
+			},
 		},
 		Spread:       SpreadRules{MaxPerBox: int(m.GetSpread().GetMaxPerBox())},
 		Enclose:      EncloseRules{MaxPerBox: int(m.GetEnclose().GetMaxPerBox())},

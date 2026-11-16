@@ -6,10 +6,11 @@ import (
 )
 
 // Rules is what the bonuses module plays (bonuses.v1.Rules): what a box caught or a right answer may be and how much it
-// grants, and the sign-in refill. How much of each charge a hand holds, and what it does when it is spent, is planet's:
-// a win pays what it drew, and the wallet keeps what fits.
+// grants, its gates, and the sign-in refill. How much of each charge a hand holds, and what it does when it is spent, is
+// planet's: a win pays what it drew, and the wallet keeps what fits.
 type Rules struct {
 	Kinds map[Kind]float64
+	Gates GateRules
 
 	Spread  SpreadRules
 	Enclose EncloseRules
@@ -21,6 +22,7 @@ type Rules struct {
 func (r Rules) Validate() error {
 	return errors.Join(
 		weightsProblem(r),
+		gatesProblem(r),
 		positive("spread.maxPerBox", r.Spread.MaxPerBox),
 		positive("enclose.maxPerBox", r.Enclose.MaxPerBox),
 		positive("shield.minPerBox", r.Shield.MinPerBox),
@@ -54,6 +56,33 @@ func weightsProblem(r Rules) error {
 	}
 
 	return errors.Join(problems...)
+}
+
+// GateRules is whether a win is drawn only from the kinds open to everyone and the ones the account unlocked, or from
+// every kind. Gates decide what is drawn, never what a hand may spend.
+type GateRules struct {
+	On   bool
+	Open map[Kind]bool
+}
+
+// MayDraw is true for a kind a win of this account may be: any while the gates are off, else an open one or one
+// progression unlocked for it. A guest has none unlocked.
+func (r Rules) MayDraw(kind Kind, unlocked Unlocked) bool {
+	return !r.Gates.On || r.Gates.Open[kind] || unlocked.Holds(kind)
+}
+
+// A guest draws only the open kinds, so gates whose open kinds all weigh 0 pay a guest's box nothing.
+func gatesProblem(r Rules) error {
+	if !r.Gates.On {
+		return nil
+	}
+	for _, each := range weighed {
+		if r.Offered(each.kind) && r.Gates.Open[each.kind] {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("gates.on with no kind gates.open opens weighed above 0, so a guest's box could be nothing")
 }
 
 type SpreadRules struct {

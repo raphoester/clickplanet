@@ -6,8 +6,9 @@ Every 20 s each infected tile infects one tile of the flag it hit next to it, so
 defender who takes an infected tile back cures that tile, and it spreads no more.
 
 **It is built and dormant**: no box and no right answer is a virus yet, as the bonuses' `kinds.virus` weighs 0 in
-`default` (migration `20261116095725_virus_weight`) and no other set holds it. The operator's `GrantCharges` (`virus`)
-gives one, and so does the fake on the page. The levels' slice 3 opens it at level 6 and gives it a weight.
+`default`, `gates.open.virus` is off there (migration `20261116122504_virus_offers`), and no other set holds either.
+`unlocked_kind` has `virus` (`20261116122503_unlocked_virus`), so the bonuses can keep it unlocked. The operator's
+`GrantCharges` (`virus`) gives one, and so does the fake on the page.
 
 ## The rules (the owner, 2026-11-16)
 
@@ -132,7 +133,8 @@ the replay, the strikes, the entry and the recording; the relay's `TilesTaken`; 
 virus. `use_virus_handler`'s codes and details; the sink, `GetMap` and `GetChargeRules`. The bonuses' rules pin that
 `default` weighs the virus 0.
 
-## Left for the levels (slice 3)
+## Left for the levels
 
-The gate: the virus opens at level 6 (Mine at 8, Rally at 10), bonuses draw it only for a player who opened it, and the
-gates are off in battles. Then a small weight in `kinds.virus`, in `default` and in the battles' sets that want it.
+The bonuses' gates (#829) draw the virus only for an account that unlocked it, once they are on. Left: the virus's rung
+on progression's ladder at level 6 ([Levels](levels.md#the-unlocks), `VirusUnlock`), then a small weight in
+`kinds.virus`, in `default` and in the battles' sets that want it.

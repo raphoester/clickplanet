@@ -33,7 +33,8 @@ type Rules struct {
 	Enclose *EncloseRules          `protobuf:"bytes,7,opt,name=enclose,proto3" json:"enclose,omitempty"`
 	Shield  *ShieldRules           `protobuf:"bytes,8,opt,name=shield,proto3" json:"shield,omitempty"`
 	// A guest's first sign-in earns a refill, once per account.
-	SignInRefill  *bool `protobuf:"varint,11,opt,name=sign_in_refill,json=signInRefill,proto3,oneof" json:"sign_in_refill,omitempty"`
+	SignInRefill  *bool      `protobuf:"varint,11,opt,name=sign_in_refill,json=signInRefill,proto3,oneof" json:"sign_in_refill,omitempty"`
+	Gates         *GateRules `protobuf:"bytes,13,opt,name=gates,proto3" json:"gates,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,8 +104,157 @@ func (x *Rules) GetSignInRefill() bool {
 	return false
 }
 
+func (x *Rules) GetGates() *GateRules {
+	if x != nil {
+		return x.Gates
+	}
+	return nil
+}
+
+// Whether a box or a right answer is drawn only from the kinds open to everyone and the ones progression unlocked for the
+// account (bonuses.v1.KeepUnlocks), or from every kind. A guest has none unlocked. Off in every set until the levels are
+// shown; a battle's set keeps them off. They decide only what is drawn: a charge held stays usable.
+type GateRules struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	On    *bool                  `protobuf:"varint,1,opt,name=on,proto3,oneof" json:"on,omitempty"`
+	// The kinds anyone may be drawn while the gates are on, a guest too. While they are on, one of them must weigh above
+	// 0, or a guest's box could be nothing.
+	Open          *OpenKinds `protobuf:"bytes,2,opt,name=open,proto3" json:"open,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GateRules) Reset() {
+	*x = GateRules{}
+	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GateRules) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GateRules) ProtoMessage() {}
+
+func (x *GateRules) ProtoReflect() protoreflect.Message {
+	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GateRules.ProtoReflect.Descriptor instead.
+func (*GateRules) Descriptor() ([]byte, []int) {
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GateRules) GetOn() bool {
+	if x != nil && x.On != nil {
+		return *x.On
+	}
+	return false
+}
+
+func (x *GateRules) GetOpen() *OpenKinds {
+	if x != nil {
+		return x.Open
+	}
+	return nil
+}
+
+type OpenKinds struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Refill        *bool                  `protobuf:"varint,1,opt,name=refill,proto3,oneof" json:"refill,omitempty"`
+	SpreadClicks  *bool                  `protobuf:"varint,2,opt,name=spread_clicks,json=spreadClicks,proto3,oneof" json:"spread_clicks,omitempty"`
+	EncloseClicks *bool                  `protobuf:"varint,3,opt,name=enclose_clicks,json=encloseClicks,proto3,oneof" json:"enclose_clicks,omitempty"`
+	Bomb          *bool                  `protobuf:"varint,4,opt,name=bomb,proto3,oneof" json:"bomb,omitempty"`
+	Shields       *bool                  `protobuf:"varint,5,opt,name=shields,proto3,oneof" json:"shields,omitempty"`
+	Virus         *bool                  `protobuf:"varint,6,opt,name=virus,proto3,oneof" json:"virus,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpenKinds) Reset() {
+	*x = OpenKinds{}
+	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpenKinds) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpenKinds) ProtoMessage() {}
+
+func (x *OpenKinds) ProtoReflect() protoreflect.Message {
+	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpenKinds.ProtoReflect.Descriptor instead.
+func (*OpenKinds) Descriptor() ([]byte, []int) {
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *OpenKinds) GetRefill() bool {
+	if x != nil && x.Refill != nil {
+		return *x.Refill
+	}
+	return false
+}
+
+func (x *OpenKinds) GetSpreadClicks() bool {
+	if x != nil && x.SpreadClicks != nil {
+		return *x.SpreadClicks
+	}
+	return false
+}
+
+func (x *OpenKinds) GetEncloseClicks() bool {
+	if x != nil && x.EncloseClicks != nil {
+		return *x.EncloseClicks
+	}
+	return false
+}
+
+func (x *OpenKinds) GetBomb() bool {
+	if x != nil && x.Bomb != nil {
+		return *x.Bomb
+	}
+	return false
+}
+
+func (x *OpenKinds) GetShields() bool {
+	if x != nil && x.Shields != nil {
+		return *x.Shields
+	}
+	return false
+}
+
+func (x *OpenKinds) GetVirus() bool {
+	if x != nil && x.Virus != nil {
+		return *x.Virus
+	}
+	return false
+}
+
 // What a box or a right answer is drawn as: a kind's chance is its weight over the sum of the kinds it may be. A kind
-// planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off.
+// planet says a hand has no room for is never drawn for it, nor a bomb while planet's bombs are off, nor a kind the
+// account may not be drawn while the gates are on (gates).
 type KindWeights struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Refill        *float64               `protobuf:"fixed64,1,opt,name=refill,proto3,oneof" json:"refill,omitempty"`
@@ -119,7 +269,7 @@ type KindWeights struct {
 
 func (x *KindWeights) Reset() {
 	*x = KindWeights{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -131,7 +281,7 @@ func (x *KindWeights) String() string {
 func (*KindWeights) ProtoMessage() {}
 
 func (x *KindWeights) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[1]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -144,7 +294,7 @@ func (x *KindWeights) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KindWeights.ProtoReflect.Descriptor instead.
 func (*KindWeights) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{1}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *KindWeights) GetRefill() float64 {
@@ -199,7 +349,7 @@ type SpreadRules struct {
 
 func (x *SpreadRules) Reset() {
 	*x = SpreadRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -211,7 +361,7 @@ func (x *SpreadRules) String() string {
 func (*SpreadRules) ProtoMessage() {}
 
 func (x *SpreadRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[2]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -224,7 +374,7 @@ func (x *SpreadRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpreadRules.ProtoReflect.Descriptor instead.
 func (*SpreadRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{2}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SpreadRules) GetMaxPerBox() uint32 {
@@ -243,7 +393,7 @@ type EncloseRules struct {
 
 func (x *EncloseRules) Reset() {
 	*x = EncloseRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -255,7 +405,7 @@ func (x *EncloseRules) String() string {
 func (*EncloseRules) ProtoMessage() {}
 
 func (x *EncloseRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[3]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -268,7 +418,7 @@ func (x *EncloseRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EncloseRules.ProtoReflect.Descriptor instead.
 func (*EncloseRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{3}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *EncloseRules) GetMaxPerBox() uint32 {
@@ -288,7 +438,7 @@ type ShieldRules struct {
 
 func (x *ShieldRules) Reset() {
 	*x = ShieldRules{}
-	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -300,7 +450,7 @@ func (x *ShieldRules) String() string {
 func (*ShieldRules) ProtoMessage() {}
 
 func (x *ShieldRules) ProtoReflect() protoreflect.Message {
-	mi := &file_bonuses_v1_rules_proto_msgTypes[4]
+	mi := &file_bonuses_v1_rules_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -313,7 +463,7 @@ func (x *ShieldRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShieldRules.ProtoReflect.Descriptor instead.
 func (*ShieldRules) Descriptor() ([]byte, []int) {
-	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{4}
+	return file_bonuses_v1_rules_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ShieldRules) GetMinPerBox() uint32 {
@@ -335,17 +485,36 @@ var File_bonuses_v1_rules_proto protoreflect.FileDescriptor
 const file_bonuses_v1_rules_proto_rawDesc = "" +
 	"\n" +
 	"\x16bonuses/v1/rules.proto\x12\n" +
-	"bonuses.v1\"\xf8\x02\n" +
+	"bonuses.v1\"\xa5\x03\n" +
 	"\x05Rules\x12-\n" +
 	"\x05kinds\x18\x02 \x01(\v2\x17.bonuses.v1.KindWeightsR\x05kinds\x12/\n" +
 	"\x06spread\x18\x06 \x01(\v2\x17.bonuses.v1.SpreadRulesR\x06spread\x122\n" +
 	"\aenclose\x18\a \x01(\v2\x18.bonuses.v1.EncloseRulesR\aenclose\x12/\n" +
 	"\x06shield\x18\b \x01(\v2\x17.bonuses.v1.ShieldRulesR\x06shield\x12)\n" +
-	"\x0esign_in_refill\x18\v \x01(\bH\x00R\fsignInRefill\x88\x01\x01B\x11\n" +
+	"\x0esign_in_refill\x18\v \x01(\bH\x00R\fsignInRefill\x88\x01\x01\x12+\n" +
+	"\x05gates\x18\r \x01(\v2\x15.bonuses.v1.GateRulesR\x05gatesB\x11\n" +
 	"\x0f_sign_in_refillJ\x04\b\n" +
 	"\x10\vJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
 	"J\x04\b\f\x10\rR\x04quizR\x05boxesR\toffer_ttlR\n" +
-	"miss_retryR\ractive_withinR\awelcomeR\x06frozen\"\xa2\x02\n" +
+	"miss_retryR\ractive_withinR\awelcomeR\x06frozen\"R\n" +
+	"\tGateRules\x12\x13\n" +
+	"\x02on\x18\x01 \x01(\bH\x00R\x02on\x88\x01\x01\x12)\n" +
+	"\x04open\x18\x02 \x01(\v2\x15.bonuses.v1.OpenKindsR\x04openB\x05\n" +
+	"\x03_on\"\xa0\x02\n" +
+	"\tOpenKinds\x12\x1b\n" +
+	"\x06refill\x18\x01 \x01(\bH\x00R\x06refill\x88\x01\x01\x12(\n" +
+	"\rspread_clicks\x18\x02 \x01(\bH\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
+	"\x0eenclose_clicks\x18\x03 \x01(\bH\x02R\rencloseClicks\x88\x01\x01\x12\x17\n" +
+	"\x04bomb\x18\x04 \x01(\bH\x03R\x04bomb\x88\x01\x01\x12\x1d\n" +
+	"\ashields\x18\x05 \x01(\bH\x04R\ashields\x88\x01\x01\x12\x19\n" +
+	"\x05virus\x18\x06 \x01(\bH\x05R\x05virus\x88\x01\x01B\t\n" +
+	"\a_refillB\x10\n" +
+	"\x0e_spread_clicksB\x11\n" +
+	"\x0f_enclose_clicksB\a\n" +
+	"\x05_bombB\n" +
+	"\n" +
+	"\b_shieldsB\b\n" +
+	"\x06_virus\"\xa2\x02\n" +
 	"\vKindWeights\x12\x1b\n" +
 	"\x06refill\x18\x01 \x01(\x01H\x00R\x06refill\x88\x01\x01\x12(\n" +
 	"\rspread_clicks\x18\x02 \x01(\x01H\x01R\fspreadClicks\x88\x01\x01\x12*\n" +
@@ -388,24 +557,28 @@ func file_bonuses_v1_rules_proto_rawDescGZIP() []byte {
 	return file_bonuses_v1_rules_proto_rawDescData
 }
 
-var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_bonuses_v1_rules_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_bonuses_v1_rules_proto_goTypes = []any{
 	(*Rules)(nil),        // 0: bonuses.v1.Rules
-	(*KindWeights)(nil),  // 1: bonuses.v1.KindWeights
-	(*SpreadRules)(nil),  // 2: bonuses.v1.SpreadRules
-	(*EncloseRules)(nil), // 3: bonuses.v1.EncloseRules
-	(*ShieldRules)(nil),  // 4: bonuses.v1.ShieldRules
+	(*GateRules)(nil),    // 1: bonuses.v1.GateRules
+	(*OpenKinds)(nil),    // 2: bonuses.v1.OpenKinds
+	(*KindWeights)(nil),  // 3: bonuses.v1.KindWeights
+	(*SpreadRules)(nil),  // 4: bonuses.v1.SpreadRules
+	(*EncloseRules)(nil), // 5: bonuses.v1.EncloseRules
+	(*ShieldRules)(nil),  // 6: bonuses.v1.ShieldRules
 }
 var file_bonuses_v1_rules_proto_depIdxs = []int32{
-	1, // 0: bonuses.v1.Rules.kinds:type_name -> bonuses.v1.KindWeights
-	2, // 1: bonuses.v1.Rules.spread:type_name -> bonuses.v1.SpreadRules
-	3, // 2: bonuses.v1.Rules.enclose:type_name -> bonuses.v1.EncloseRules
-	4, // 3: bonuses.v1.Rules.shield:type_name -> bonuses.v1.ShieldRules
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	3, // 0: bonuses.v1.Rules.kinds:type_name -> bonuses.v1.KindWeights
+	4, // 1: bonuses.v1.Rules.spread:type_name -> bonuses.v1.SpreadRules
+	5, // 2: bonuses.v1.Rules.enclose:type_name -> bonuses.v1.EncloseRules
+	6, // 3: bonuses.v1.Rules.shield:type_name -> bonuses.v1.ShieldRules
+	1, // 4: bonuses.v1.Rules.gates:type_name -> bonuses.v1.GateRules
+	2, // 5: bonuses.v1.GateRules.open:type_name -> bonuses.v1.OpenKinds
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_bonuses_v1_rules_proto_init() }
@@ -418,13 +591,15 @@ func file_bonuses_v1_rules_proto_init() {
 	file_bonuses_v1_rules_proto_msgTypes[2].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[3].OneofWrappers = []any{}
 	file_bonuses_v1_rules_proto_msgTypes[4].OneofWrappers = []any{}
+	file_bonuses_v1_rules_proto_msgTypes[5].OneofWrappers = []any{}
+	file_bonuses_v1_rules_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bonuses_v1_rules_proto_rawDesc), len(file_bonuses_v1_rules_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

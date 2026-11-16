@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package bonuses.v1;
+
+import "google/protobuf/timestamp.proto";
+import "planet/v1/planet.proto";
+
+// The kinds progression unlocked for an account, all of them, not one change: a box or a right answer may be drawn as
+// these, beside the kinds open to everyone, while the set's gates are on. The bonuses module keeps the latest by
+// decided_at, so a command told twice, late or out of order changes nothing, and fewer kinds than before are fewer.
+message KeepUnlocks {
+  string account_id = 1;
+  repeated planet.v1.BonusKind kinds = 2;
+  google.protobuf.Timestamp decided_at = 3;
+}

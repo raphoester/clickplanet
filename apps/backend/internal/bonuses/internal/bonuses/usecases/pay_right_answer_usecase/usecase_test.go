@@ -14,10 +14,17 @@ import (
 const ada = bonuses.Account("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
 
 func setUp(kinds map[bonuses.Kind]float64) (*pay_right_answer_usecase.UseCase, *bonuses.FakeWallet) {
-	rules := bonuses.TestRules()
+	useCase, wallet, _ := setUpOn(bonuses.TestRules(), kinds)
+	return useCase, wallet
+}
+
+// setUpOn plays rules with these weights; nobody has a kind unlocked until the test unlocks one.
+func setUpOn(
+	rules bonuses.Rules, kinds map[bonuses.Kind]float64,
+) (*pay_right_answer_usecase.UseCase, *bonuses.FakeWallet, *bonuses.FakeUnlocks) {
 	rules.Kinds = kinds
-	wallet := bonuses.NewFakeWallet()
-	return pay_right_answer_usecase.New(wallet, wallet, func() bonuses.Rules { return rules }), wallet
+	wallet, unlocks := bonuses.NewFakeWallet(), bonuses.NewFakeUnlocks()
+	return pay_right_answer_usecase.New(wallet, wallet, unlocks, func() bonuses.Rules { return rules }), wallet, unlocks
 }
 
 func TestARightAnswerIsPaidAKindDrawnAsABoxsUnderItsQuizsToken(t *testing.T) {
@@ -86,4 +93,35 @@ func TestARoomTheWalletCannotTellIsTriedAgain(t *testing.T) {
 	wallet.FailWith(errors.New("planet is gone"))
 
 	require.Error(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
+}
+
+func TestWithTheGatesOnARightAnswerIsDrawnAmongTheOpenAndUnlockedKinds(t *testing.T) {
+	useCase, wallet, unlocks := setUpOn(bonuses.TestGated(), map[bonuses.Kind]float64{
+		bonuses.KindBomb: 100, bonuses.KindEncloseClicks: 1,
+	})
+	unlocks.Unlock(ada, bonuses.KindEncloseClicks)
+
+	for range 20 {
+		require.NoError(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
+	}
+
+	for _, payment := range wallet.Payments() {
+		require.Equal(t, bonuses.KindEncloseClicks, payment.Kind, "progression has not unlocked the bomb")
+	}
+}
+
+func TestWithTheGatesOnAGuestsRightAnswerIsDrawnOnlyTheOpenKinds(t *testing.T) {
+	useCase, wallet, _ := setUpOn(bonuses.TestGated(), map[bonuses.Kind]float64{bonuses.KindBomb: 1})
+
+	require.NoError(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
+
+	assert.Empty(t, wallet.Payments(), "the open kinds weigh 0 here, and a guest has the bomb unlocked nowhere")
+}
+
+func TestARightAnswerWhoseUnlocksCannotBeReadIsTriedAgain(t *testing.T) {
+	useCase, wallet, unlocks := setUpOn(bonuses.TestRules(), map[bonuses.Kind]float64{bonuses.KindRefill: 1})
+	unlocks.FailWith(errors.New("postgres is gone"))
+
+	require.Error(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
+	assert.Empty(t, wallet.Payments())
 }

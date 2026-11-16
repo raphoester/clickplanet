@@ -27,6 +27,19 @@ export const GROUPS: Group[] = [
         {path: "shield.maxPerBox", label: "Shields a box, at most", kind: "whole"},
     ]},
     {
+        title: "Gates",
+        switches: [
+            {path: "gates.on", label: "Gates on", short: "Gates on"},
+            {path: "gates.open.refill", label: "Refill, open to all", short: "Refill open to all"},
+            {path: "gates.open.spreadClicks", label: "Spread, open to all", short: "Spread open to all"},
+            {path: "gates.open.encloseClicks", label: "Enclose, open to all", short: "Enclose open to all"},
+            {path: "gates.open.bomb", label: "Bomb, open to all", short: "Bomb open to all"},
+            {path: "gates.open.shields", label: "Shields, open to all", short: "Shields open to all"},
+            {path: "gates.open.virus", label: "Virus, open to all", short: "Virus open to all"},
+        ],
+        fields: [],
+    },
+    {
         title: "New accounts",
         switches: [{path: "signInRefill", label: "Refill at first sign-in", short: "Refill at first sign-in"}],
         fields: [],
@@ -66,7 +79,9 @@ export async function saveRuleSet(bonuses: BonusesAdmin, draft: Draft): Promise<
     await bonuses.saveRuleSet({set: ruleSetOf(draft)})
 }
 
-const KINDS: {path: keyof NonNullable<Rules["kinds"]>, short: string}[] = [
+type KindPath = "refill" | "spreadClicks" | "encloseClicks" | "bomb" | "shields" | "virus"
+
+const KINDS: {path: KindPath, short: string}[] = [
     {path: "refill", short: "refill"}, {path: "spreadClicks", short: "spread"}, {path: "encloseClicks", short: "enclose"},
     {path: "bomb", short: "bomb"}, {path: "shields", short: "shields"}, {path: "virus", short: "virus"},
 ]
@@ -78,4 +93,13 @@ export function kindsOf(rules: Rules | undefined): string {
         return weight === undefined ? [] : [`${short} ${weight}`]
     })
     return weighed.length === 0 ? "—" : weighed.join(", ")
+}
+
+// Whether a win is drawn from every kind, or only from the kinds open to all and the ones progression unlocked:
+// "off", or "on, open: refill, spread, shields".
+export function gatesOf(rules: Rules | undefined): string {
+    if (rules?.gates?.on === undefined) return "—"
+    if (!rules.gates.on) return "off"
+    const open = KINDS.filter(({path}) => rules.gates?.open?.[path] === true).map(({short}) => short)
+    return `on, open: ${open.length === 0 ? "none" : open.join(", ")}`
 }
