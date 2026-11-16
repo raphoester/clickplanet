@@ -217,6 +217,7 @@
   "title.missionsTo": "{next} için {count, plural, one {# görev} other {# görev}}",
   "title.countTo": "{next} için {count}",
   "level.level": "Seviye {level}",
+  "level.short": "Sv. {level}",
   "level.xpBar": "Seviye {level} için XP",
   "level.xp": "{gained} / {span} XP",
   "level.up": "Seviye atladın!",

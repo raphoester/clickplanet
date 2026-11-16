@@ -217,6 +217,7 @@
   "title.missionsTo": "{count, plural, one {# misión} many {# de misiones} other {# misiones}} para {next}",
   "title.countTo": "{count} para {next}",
   "level.level": "Nivel {level}",
+  "level.short": "Nv. {level}",
   "level.xpBar": "XP hasta el nivel {level}",
   "level.xp": "{gained} / {span} XP",
   "level.up": "¡Subiste de nivel!",

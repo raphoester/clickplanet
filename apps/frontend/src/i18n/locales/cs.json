@@ -217,6 +217,7 @@
   "title.missionsTo": "{count, plural, one {# mise} few {# mise} many {# mise} other {# misí}} do titulu {next}",
   "title.countTo": "{count} do titulu {next}",
   "level.level": "Úroveň {level}",
+  "level.short": "Úr. {level}",
   "level.xpBar": "XP do úrovně {level}",
   "level.xp": "{gained} / {span} XP",
   "level.up": "Nová úroveň!",
