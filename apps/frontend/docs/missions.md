@@ -3,16 +3,16 @@
 Four or five missions a day of the player's own, drawn for the flag it played at its first read: a few
 banks for the flag, tiles from a rival, tiles on a big country's ground, then one or two of the other kinds
 (boxes, quizzes, bombs on a country, tiles at 10 shields, tiles fortified, tiles of a rival in a country), each
-for a charge drawn with the day (shields, spread clicks, a bomb or enclosures). The backend's
-[Missions doc](../../backend/docs/missions.md) has the rules; the client only shows them: a mission done pays
-itself, with nothing to press.
+paying XP: its goal times its kind's rate. The backend's [Missions doc](../../backend/docs/missions.md) has the
+rules; the client only shows them: a mission done pays itself, with nothing to press.
 
 - **A place of its own**: the Missions tab (phone) and menu tab (desktop), `app/missions/MissionsPlace.tsx`.
   Each row is its order's own parts (`partsOf`, `app/missions/orderParts.tsx`): one line per kind, with the flag
   and the name of each country it names in its slots ("Take 40 tiles from 🇫🇷 France", "Catch 4 boxes"); a place
   is "in" the country as the language says it ("Drop 2 bombs in 🇧🇷 Brazil", "au 🇧🇷 Brésil", see
   [Translation](i18n.md#a-country-inside-a-sentence)), and a bar
-  with how far it went (`reachedOf`) over its goal, its reward in its bonus color, and
+  with how far it went (`reachedOf`) over its goal, the XP it pays in gold ("+120 XP", as the flag's mission shows its
+  points), and
   **Done** once the backend says so (`done`: the client does not decide it). A guest sees
   the same rows and **Sign in to get it** on a mission done, which opens the sign-in pitch: its
   pay waits for the sign-in that day. "Ends in" is the day's own end, 21:00 UTC. With no mission (no flag
@@ -73,20 +73,23 @@ itself, with nothing to press.
   `localStorage` (`clickplanet-missions-seen`, the store `useSeenMissions` in `seenMissionsStore.ts`),
   with the shown day's ids alone.
 - **A mission paid has its own card**, `MissionsDone`: "Mission done", or "3 missions done" for a
-  burst, then each order with its flag and the reward it paid. One card for all the missions of a read,
+  burst, then each order with its flag and the XP it paid. One card for all the missions of a read,
   never a card each; it goes by itself like a box's card (`usePassing`, 2.9 s). The store's `hear`
   compares each day with the one before (`newlyPaid`; the first day of the page tells nothing), and keeps what was
-  paid (`paid`) until the card goes. The mission's progress line waits while the card shows. The
-  charges come on planet's own stream (`charges_granted`, see [Charges](charges.md)), within about a
-  second of the card: the client reads no charges for a mission. The charge's own card (`BonusAward`)
-  is for a box or a quiz, not a mission.
-- **A `Mission` is its id, its `order`, its reward, `done` and `paid`.** The order is one shape per kind
+  paid (`paid`) until the card goes. The mission's progress line waits while the card shows. A mission grants no
+  charge.
+- **The XP is the page's sum: the goal times the kind's rate** (`xpOf` in `domain/missions.ts`), floored as the
+  server does it. The rates are progression's, from the page's one read of `GetLevel` (`readLevel`, `mission_rates`,
+  see [The level](level.md)), each `xp` for every `per` of the goal, never a float, so the page's number is the
+  server's. `useLevel` keeps them (`missionRates`). A kind with no rate, or rates not read yet, shows no XP. The wire's reward is `xp` with no amount; until the reveal it was a charge, drawn with
+  the day.
+- **A `Mission` is its id, its `order`, `done` and `paid`.** The order is one shape per kind
   (`MissionOrder`: `TileOrder` and `RaidOrder` count `taken`, `BombOrder`, `ShieldOrder` and `CountOrder` count
   `reached`), and a flag mission's (`FlagMissionOrder`) is a `TileOrder` or a `BreakOrder`, which counts `reached`
-  too; `ConnectMissionsBackend` reads the proto's `oneof` and skips a mission whose kind or reward it does
-  not know.
+  too; `ConnectMissionsBackend` reads the proto's `oneof` and skips a mission whose kind it does not know, or whose
+  reward is not `xp`.
 - `backends/missions.ts` is the contract, `ConnectMissionsBackend` (`missions.v1.MissionService`) the real one,
   `FakeMissionsBackend` the fake: it draws the day for the flag pledged at its first read (or its first
-  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once and hands its followers the day after each take, and `finishMissions()` in the console puts
+  take's), with a flag mission to break a rival's shields that this tab's takes stand for, counts every take of this tab, pays each mission done at once (no charge), keeps progression's rates for the fake level read (`FAKE_MISSION_RATES`) and hands its followers the day after each take, and `finishMissions()` in the console puts
   every mission one tile from done: the next take finishes and pays them all, as a take does on the server, and
   cheers the flag's, which it tells the fake chat once (`listenForFlagMissionsDone`). The fake has no missions before the tab's first take: take a tile, then call it.

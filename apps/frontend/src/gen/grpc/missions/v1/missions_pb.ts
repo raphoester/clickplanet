@@ -5,7 +5,6 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
-import { BonusKind } from "../../planet/v1/planet_pb.js";
 
 /**
  * @generated from message missions.v1.GetMissionsRequest
@@ -911,10 +910,10 @@ export class MissionReward extends Message<MissionReward> {
    */
   kind: {
     /**
-     * @generated from field: missions.v1.Charges charges = 1;
+     * @generated from field: missions.v1.Xp xp = 2;
      */
-    value: Charges;
-    case: "charges";
+    value: Xp;
+    case: "xp";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<MissionReward>) {
@@ -925,7 +924,7 @@ export class MissionReward extends Message<MissionReward> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "missions.v1.MissionReward";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "charges", kind: "message", T: Charges, oneof: "kind" },
+    { no: 2, name: "xp", kind: "message", T: Xp, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MissionReward {
@@ -946,45 +945,36 @@ export class MissionReward extends Message<MissionReward> {
 }
 
 /**
- * @generated from message missions.v1.Charges
+ * The mission's goal times its kind's rate, floored: the rates are progression.v1.ProgressionService/GetLevel's
+ * mission_rates, so missions sends no amount.
+ *
+ * @generated from message missions.v1.Xp
  */
-export class Charges extends Message<Charges> {
-  /**
-   * @generated from field: planet.v1.BonusKind kind = 1;
-   */
-  kind = BonusKind.UNSPECIFIED;
-
-  /**
-   * @generated from field: uint32 amount = 2;
-   */
-  amount = 0;
-
-  constructor(data?: PartialMessage<Charges>) {
+export class Xp extends Message<Xp> {
+  constructor(data?: PartialMessage<Xp>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "missions.v1.Charges";
+  static readonly typeName = "missions.v1.Xp";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(BonusKind) },
-    { no: 2, name: "amount", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Charges {
-    return new Charges().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Xp {
+    return new Xp().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Charges {
-    return new Charges().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Xp {
+    return new Xp().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Charges {
-    return new Charges().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Xp {
+    return new Xp().fromJsonString(jsonString, options);
   }
 
-  static equals(a: Charges | PlainMessage<Charges> | undefined, b: Charges | PlainMessage<Charges> | undefined): boolean {
-    return proto3.util.equals(Charges, a, b);
+  static equals(a: Xp | PlainMessage<Xp> | undefined, b: Xp | PlainMessage<Xp> | undefined): boolean {
+    return proto3.util.equals(Xp, a, b);
   }
 }
 

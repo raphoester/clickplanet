@@ -1,27 +1,15 @@
 import {useEffect} from "react"
 import {FlagMission, FlagMissionOrder, Mission, MissionOrder} from "../../backends/missions.ts"
-import {ChargeKind} from "../../domain/bonus.ts"
-import {timeLeft} from "../../domain/missions.ts"
+import {timeLeft, xpOf} from "../../domain/missions.ts"
 import {MissionTarget, targetOf} from "../../domain/missionTargets.ts"
 import {t, translator} from "../../i18n/page.ts"
-import {Key} from "../../i18n/translator.ts"
-import BonusIcon from "../components/BonusIcon.tsx"
 import {TargetIcon} from "../components/icons.tsx"
 import {useNow} from "../season/useNow.ts"
 import {partsOf} from "./orderParts.tsx"
+import {useLevel} from "../level/levelStore.ts"
 import {useMissions} from "./missionsStore.ts"
 import {useSeenMissions} from "./seenMissionsStore.ts"
 import "./Missions.css"
-
-const REWARD_LABELS: Record<ChargeKind, Key> = {
-    refill: "mission.reward.refill",
-    bomb: "mission.reward.bomb",
-    spreadClicks: "mission.reward.spreadClicks",
-    encloseClicks: "mission.reward.encloseClicks",
-    shields: "mission.reward.shields",
-    virus: "mission.reward.virus",
-    mine: "mission.reward.mine",
-}
 
 export type MissionsPlaceProps = {
     onSignIn?: () => void
@@ -82,15 +70,12 @@ type MissionRowProps = {
 
 function MissionRow({mission, onSignIn, onGo}: MissionRowProps) {
     const parts = partsOf(mission.order)
+    const xp = useLevel((level) => xpOf(mission.order, level.missionRates))
 
     return <li className={`panel-box mission${mission.paid ? " mission--paid" : ""}`}>
         <div className="mission-head">
             <span className="mission-order">{parts.line}</span>
-            <span className={`mission-reward mission-reward--${mission.reward.kind}`}
-                  aria-label={t(REWARD_LABELS[mission.reward.kind], {amount: mission.reward.amount})}>
-                <BonusIcon kind={mission.reward.kind}/>
-                {mission.reward.amount > 1 && <span>×{translator().number(mission.reward.amount)}</span>}
-            </span>
+            {xp !== undefined && <span className="mission-reward mission-points">{t("mission.xp", {xp})}</span>}
         </div>
         <div className="mission-foot">
             {parts.progress}

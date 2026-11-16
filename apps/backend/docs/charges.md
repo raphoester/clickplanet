@@ -58,7 +58,8 @@ its own.
 - **Another module grants with a command**, `planet.v1.GrantCharges` on `commands:planet.v1.GrantCharges`
   (`commands/apply_grant_handler`, `apply_grant_usecase`): the grant and its `grant_id` (`planet.charge_grants`) are
   kept in one transaction, so a command told twice grants once. It caps at the stack as any grant does, and answers
-  nothing. `missions` pays its rewards this way.
+  nothing. `missions` paid its rewards this way until missions paid XP; nothing sends it now (see
+  [Missions pay XP](missions.md#missions-pay-xp)).
 - **Or with a call answered at once**, `InternalService/GrantCharges{grant_id, account_id, kind, amount, lasting}`
   (`internal_grant_charges_handler`, then `pay_usecase`, the command's path with an answer: what the stack kept and
   the hand after). The bonuses module pays a box the boxes told caught, a right answer the quizzes told and a new player's refill this

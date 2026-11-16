@@ -6,7 +6,6 @@ import {SEEN_MISSIONS_STORAGE_KEY} from "../../domain/missions.ts"
 const bank: Mission = {
     id: "bank",
     order: {kind: "takeFor", country: "fr", goal: 60, taken: 60},
-    reward: {kind: "shields", amount: 10},
     done: true,
     paid: false,
 }

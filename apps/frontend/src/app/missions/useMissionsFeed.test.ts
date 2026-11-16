@@ -10,7 +10,7 @@ import {useMissionsFeed} from "./useMissionsFeed.ts"
 const day: DayMissions = {endsAt: Date.UTC(2026, 9, 26, 21, 0), missions: []}
 
 const paid: DayMissions = {...day, missions: [{
-    id: "bank", order: {kind: "takeFor", country: "fr", goal: 60, taken: 60}, reward: {kind: "bomb", amount: 1}, done: true, paid: true,
+    id: "bank", order: {kind: "takeFor", country: "fr", goal: 60, taken: 60}, done: true, paid: true,
 }]}
 
 function followable(missions: MissionsBackend["missions"]) {

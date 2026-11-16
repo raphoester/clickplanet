@@ -12,6 +12,11 @@ of no other flag, or with a shield, before the call ("A virus takes only an enem
 refusal. The backend takes it off the hand at once and gives it back unless the server says it holds none: a
 `VirusRefusal` (a shield placed meanwhile) is `VirusRefusedError`, said with the same notice.
 
+**Its hint says what it does**, on a hover and in the bubble of its first uses: it takes the tile, then spreads into
+that flag's land on its own, up to `BonusRules.virusInfections` tiles (`GetChargeRules.virus_infections`, read again
+on each `rulesChanged`). The owner, 2026-11-16: "Tap an enemy tile with no shield" explained nothing, and a phone shows
+only that bubble. The shield is said by the refusal.
+
 **Its slot is a kind like the others** (see [Charges](charges.md#the-inventory)): on the bar while one is held, in All's
 tray always, after the shields among kinds of one level. The bar holds the kinds held up to its room, so a sixth kind
 needs no smaller slot.

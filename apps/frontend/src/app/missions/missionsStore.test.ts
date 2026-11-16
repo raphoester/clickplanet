@@ -5,7 +5,6 @@ import {NO_MISSIONS, useMissions} from "./missionsStore.ts"
 const mission = (overrides: Partial<Mission>): Mission => ({
     id: "bank",
     order: {kind: "takeFor", country: "fr", goal: 60, taken: 60},
-    reward: {kind: "shields", amount: 10},
     done: true,
     paid: false,
     ...overrides,

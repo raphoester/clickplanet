@@ -203,19 +203,25 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                         onToggleShield()
                     }),
                 }
-            case "virus":
+            case "virus": {
+                const most = rules?.virusInfections
                 return {
                     kind,
                     name: t("bonus.virus"),
                     held: charges.virus,
                     on: virusAimed,
                     state: virusAimed ? t("inventory.state.aim") : undefined,
-                    hint: virusAimed ? t("inventory.virus.putAway") : t("inventory.virus.hint"),
+                    hint: virusAimed
+                        ? t("inventory.virus.putAway")
+                        : most ? t("inventory.virus.hintUpTo", {most}) : t("inventory.virus.hint"),
                     onPress: onToggleVirus && (() => {
-                        pressed("virus", !virusAimed, t("inventory.virus.learn"))
+                        pressed("virus", !virusAimed, most
+                            ? t("inventory.virus.learnUpTo", {most})
+                            : t("inventory.virus.learn"))
                         onToggleVirus()
                     }),
                 }
+            }
             case "mine":
                 return {
                     kind,

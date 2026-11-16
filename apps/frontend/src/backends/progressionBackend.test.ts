@@ -1,9 +1,12 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
+import {MissionKind as MissionKindPb} from "../gen/grpc/missions/v1/kind_pb.ts"
 import {
     Badge as BadgePb,
     CountryTiles as CountryTilesPb,
+    GetLevelResponse as GetLevelResponsePb,
     Level as LevelPb,
+    MissionRate as MissionRatePb,
     Progress as ProgressPb,
     ProgressionEvent as ProgressionEventPb,
     Stats as StatsPb,
@@ -307,12 +310,20 @@ describe("the level read", () => {
                 new UnlockPb({kind: BonusKind.BOMB, level: 5}),
                 new UnlockPb({kind: BonusKind.UNSPECIFIED, level: 9}),
             ],
+            missionRates: [
+                new MissionRatePb({kind: MissionKindPb.TAKE_FROM, xp: 3, per: 2}),
+                new MissionRatePb({kind: MissionKindPb.BOMB_IN, xp: 150, per: 1}),
+                new MissionRatePb({kind: MissionKindPb.UNSPECIFIED, xp: 9, per: 1}),
+                new MissionRatePb({kind: 99 as MissionKindPb, xp: 9, per: 1}),
+                new MissionRatePb({kind: MissionKindPb.CATCH_BOXES, xp: 50, per: 0}),
+            ],
         }))
         const session = holding("token-1")
 
         expect(await backendWith({getLevel}, session).readLevel()).toEqual({
             level: {level: 3, xp: 222, levelXp: 112, nextLevelXp: 378},
             unlocks: {encloseClicks: 4, bomb: 5},
+            missionRates: {takeFrom: {xp: 3, per: 2}, bombIn: {xp: 150, per: 1}},
         })
         expect(getLevel).toHaveBeenCalledTimes(1)
         expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
@@ -320,9 +331,13 @@ describe("the level read", () => {
     })
 
     it("reads a guest's as no level, with the ladder all the same", async () => {
-        const getLevel = vi.fn(async () => ({unlocks: [new UnlockPb({kind: BonusKind.BOMB, level: 5})]}))
+        const getLevel = vi.fn(async () => new GetLevelResponsePb({
+            unlocks: [new UnlockPb({kind: BonusKind.BOMB, level: 5})],
+            missionRates: [new MissionRatePb({kind: MissionKindPb.TAKE_FOR, xp: 1, per: 1})],
+        }))
 
-        expect(await backendWith({getLevel}, holding("guest")).readLevel()).toEqual({level: undefined, unlocks: {bomb: 5}})
+        expect(await backendWith({getLevel}, holding("guest")).readLevel())
+            .toEqual({level: undefined, unlocks: {bomb: 5}, missionRates: {takeFor: {xp: 1, per: 1}}})
     })
 
     it("reads nothing, and makes no session, while none is held", async () => {

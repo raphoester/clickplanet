@@ -45,7 +45,7 @@ before). For example [`app/settings/displaySettingsStore.ts`](../src/app/setting
     read it; `PlayScreen` reads the count only to hand it to `useSignInNudge`.
   - `useBonus` (`bonus/bonusStore.ts`): the box won, or a box that held nothing (`emptyBox`), read by `BonusAward`, and what `Inventory` reads: the notice,
     the charges, the rules, the switches and the armed bomb. `PlayScreen` reads the charges and the rules only for
-    its hooks and the clicks panel's toll. `MissionsDone` reads the rules for the rewards it names.
+    its hooks and the clicks panel's toll.
   - `useNews` (`news/newsStore.ts`): the news line, below.
   - `useStanding` (`knockout/standingStore.ts`): while the knock-out plays, the capitals' flags and the flags out, which
     the out window, the picker and the Change button read, and the flag whose out window was closed (see

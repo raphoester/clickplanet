@@ -58,22 +58,17 @@ func (s Sheet) WithFact(fact Fact, brief Brief) Sheet {
 	return next
 }
 
-type Payment struct {
-	Mission MissionID
-	Reward  Reward
-}
-
 // Each mission done is paid once.
-func (s Sheet) WithPayments(brief Brief) (Sheet, []Payment) {
+func (s Sheet) WithPayments(brief Brief) (Sheet, []MissionID) {
 	next := s.clone()
-	var payments []Payment
+	var paid []MissionID
 	for _, mission := range brief.missions {
 		if mission.order.done(next.progress[mission.id]) && !next.paid.Contains(mission.id) {
 			next.paid.Add(mission.id)
-			payments = append(payments, Payment{Mission: mission.id, Reward: mission.reward})
+			paid = append(paid, mission.id)
 		}
 	}
-	return next, payments
+	return next, paid
 }
 
 type MissionStatus struct {
