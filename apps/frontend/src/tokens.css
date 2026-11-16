@@ -95,6 +95,8 @@
     --enclose-light: #FFC061;
     --shield: #7A8799;
     --shield-light: #D6DDE6;
+    --virus: #9B4DE0;
+    --virus-light: #D3A6FF;
 
     --war: #FF5A1F;
     --tape: repeating-linear-gradient(45deg, var(--war) 0 12px, var(--ink) 12px 24px);

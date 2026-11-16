@@ -34,6 +34,10 @@ export function GrantPanel({planet, accountId, who}: Props) {
                     <input type="checkbox" checked={charges.bomb} onChange={e => set({bomb: e.target.checked})}/>
                     Bomb
                 </label>
+                <label className="check">
+                    <input type="checkbox" checked={charges.virus} onChange={e => set({virus: e.target.checked})}/>
+                    Virus
+                </label>
             </div>
             <div className="fields">
                 {COUNTS.map(({key, label}) => (

@@ -160,6 +160,11 @@ export class OpenKinds extends Message<OpenKinds> {
    */
   shields?: boolean;
 
+  /**
+   * @generated from field: optional bool virus = 6;
+   */
+  virus?: boolean;
+
   constructor(data?: PartialMessage<OpenKinds>) {
     super();
     proto3.util.initPartial(data, this);
@@ -173,6 +178,7 @@ export class OpenKinds extends Message<OpenKinds> {
     { no: 3, name: "enclose_clicks", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 4, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 5, name: "shields", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 6, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): OpenKinds {

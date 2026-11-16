@@ -16,6 +16,7 @@ const STATE_CLEARANCE_PX = 20
 export type InventoryProps = {
     onToggle?: (name: keyof Switches) => void
     onToggleBomb?: () => void
+    onToggleVirus?: () => void
     onUseRefill?: () => boolean
     onToggleShield?: () => void
 }
@@ -27,12 +28,13 @@ type Said = {
     ms?: number
 }
 
-export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggleShield}: InventoryProps) {
+export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onUseRefill, onToggleShield}: InventoryProps) {
     const notice = useBonus((bonus) => bonus.notice)
     const charges = useBonus((bonus) => bonus.charges)
     const rules = useBonus((bonus) => bonus.rules)
     const switches = useBonus((bonus) => bonus.switches)
     const bombArmed = useBonus((bonus) => bonus.bombArmed)
+    const virusAimed = useBonus((bonus) => bonus.virusAimed)
     const {guide, markUsed} = useBonusGuide()
     const [said, setSaid] = useState<Said | undefined>()
     const [shownNotice, setShownNotice] = useState(notice?.seq)
@@ -64,7 +66,7 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
         if (turnsOn) markUsed(kind)
     }
 
-    const active = bombArmed || switches.spread || switches.enclose || switches.shield
+    const active = bombArmed || virusAimed || switches.spread || switches.enclose || switches.shield
     const max = rules?.enclosureMaxTiles
     const unlimited = rules?.enclosuresUnlimited ?? false
     const spreadUnlimited = rules?.spreadUnlimited ?? false
@@ -136,6 +138,16 @@ export default function Inventory({onToggle, onToggleBomb, onUseRefill, onToggle
                       pressed("shields", !switches.shield, t("inventory.shield.learn"))
                       onToggleShield()
                   })}/>
+            {(charges.virus || virusAimed) && <Slot {...slot("virus")}
+                  name={t("bonus.virus")}
+                  held={charges.virus}
+                  on={virusAimed}
+                  state={virusAimed ? t("inventory.state.aim") : undefined}
+                  hint={virusAimed ? t("inventory.virus.putAway") : t("inventory.virus.hint")}
+                  onPress={onToggleVirus && (() => {
+                      pressed("virus", !virusAimed, t("inventory.virus.learn"))
+                      onToggleVirus()
+                  })}/>}
         </div>
     </section>
 }
@@ -150,6 +162,8 @@ function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Sa
             return {text: t("inventory.notice.shieldTaken"), ms: NOTICE_MS}
         case "shieldNotYours":
             return {text: t("inventory.notice.shieldNotYours"), ms: NOTICE_MS}
+        case "virusNoEnemy":
+            return {text: t("inventory.notice.virusNoEnemy"), ms: NOTICE_MS}
         case "nothingEnclosed": {
             const max = rules?.enclosureMaxTiles
             return {
@@ -238,6 +252,8 @@ function amountOf(charges: Charges, kind: ChargeKind): number {
             return charges.enclosures
         case "shields":
             return charges.shields
+        case "virus":
+            return charges.virus ? 1 : 0
     }
 }
 
