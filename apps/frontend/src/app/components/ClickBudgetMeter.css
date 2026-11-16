@@ -226,6 +226,11 @@
     animation: click-budget-popover-in 0.18s ease-out;
 }
 
+/* Over the chat's fold, which sits above the dock between 769 and 1099px wide. */
+.click-budget-dock:has(.inventory-tray) {
+    z-index: 131;
+}
+
 .click-budget-dock:has(.inventory--active) {
     border-color: var(--gold);
     box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 16px color-mix(in srgb, var(--gold) 45%, transparent);

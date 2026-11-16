@@ -1,24 +1,27 @@
 // @vitest-environment jsdom
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
-import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
-import Inventory, {InventoryProps, NOT_ENCLOSED_MS, NOTICE_MS} from './Inventory.tsx'
+import {act, cleanup, fireEvent, render, screen, within} from '@testing-library/react'
+import Inventory, {DESKTOP_BAR_ROOM, InventoryProps, NOT_ENCLOSED_MS, NOTICE_MS} from './Inventory.tsx'
 import {BUBBLE_MS} from '../components/Bubble.tsx'
 import {ALL_OFF, BonusNoticeEvent, BonusRules, Charges, NO_CHARGES, Switches} from "../../domain/bonus.ts"
 import {BonusGuide, FRESH_GUIDE, LEARNING_USES} from "../../domain/bonusGuide.ts"
 import {useBonusGuide} from "./bonusGuideStore.ts"
 import {useBonus} from "./bonusStore.ts"
+import {useScreen} from "../hud/screenStore.ts"
 
 afterEach(() => {
     cleanup()
     useBonusGuide.setState({guide: FRESH_GUIDE})
     useBonus.setState(useBonus.getInitialState(), true)
+    useScreen.setState(useScreen.getInitialState(), true)
+    vi.unstubAllGlobals()
 })
 beforeEach(() => window.localStorage.clear())
 
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
-    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false,
+    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, unlocks: {},
 }
 
 type Held = {
@@ -44,6 +47,16 @@ function inventory({guide = FRESH_GUIDE, notice, charges = NO_CHARGES, rules = R
 
 const slot = (name: RegExp) => screen.getByRole("button", {name}) as HTMLButtonElement
 
+const all = () => screen.getByRole("button", {name: /^All bonuses/}) as HTMLButtonElement
+
+const tray = () => screen.queryByRole("group", {name: "All bonuses"})
+
+const inTray = (name: RegExp) => within(tray()!).getByRole("button", {name}) as HTMLButtonElement
+
+const onBar = () => [...document.querySelectorAll(".inventory-slots > button")].map((button) => button.getAttribute("aria-label"))
+
+const EVERY = {...NO_CHARGES, refill: true, bomb: true, spreadClicksLeft: 5, enclosures: 2, shields: 7}
+
 const bubble = () => screen.queryByRole("status")?.textContent
 
 const learned: BonusGuide = {
@@ -52,17 +65,18 @@ const learned: BonusGuide = {
 }
 
 describe("Inventory", () => {
-    it("shows every slot, and an empty one says how to get one instead of doing anything", () => {
+    it("shows every kind in the tray, and an empty one says how to get one instead of doing anything", () => {
         const toggle = vi.fn()
         const toggleBomb = vi.fn()
         render(inventory({onToggle: toggle, onToggleBomb: toggleBomb}))
+        fireEvent.click(all())
 
         for (const name of [/^Refill/, /^Bomb/, /^Spread/, /^Enclose/, /^Shield/]) {
-            expect(slot(name).getAttribute("aria-disabled")).toBe("true")
+            expect(inTray(name).getAttribute("aria-disabled")).toBe("true")
         }
 
-        fireEvent.click(slot(/^Bomb/))
-        fireEvent.click(slot(/^Spread/))
+        fireEvent.click(inTray(/^Bomb/))
+        fireEvent.click(inTray(/^Spread/))
 
         expect(toggle).not.toHaveBeenCalled()
         expect(toggleBomb).not.toHaveBeenCalled()
@@ -71,16 +85,18 @@ describe("Inventory", () => {
 
     it("shows no bomb while bombs are off, held or not", () => {
         render(inventory({rules: {...RULES, bombsOff: true}, charges: {...NO_CHARGES, bomb: true}}))
+        fireEvent.click(all())
 
         expect(screen.queryByRole("button", {name: /^Bomb/})).toBeNull()
-        expect(slot(/^Refill/)).toBeDefined()
+        expect(inTray(/^Refill/)).toBeDefined()
     })
 
     it("shows no enclose while enclosures are off, held or not", () => {
         render(inventory({rules: {...RULES, enclosuresOff: true}, charges: {...NO_CHARGES, enclosures: 2}}))
+        fireEvent.click(all())
 
         expect(screen.queryByRole("button", {name: /^Enclose/})).toBeNull()
-        expect(slot(/^Spread/)).toBeDefined()
+        expect(inTray(/^Spread/)).toBeDefined()
     })
 
     it("counts the pools against how many can be held", () => {
@@ -230,11 +246,13 @@ describe("Inventory", () => {
 
         expect(slot(/^Bomb, New/).className).toContain("inventory-slot--new")
         expect(slot(/^Shield, 2\/12, New/)).toBeTruthy()
-        expect(slot(/^Spread/).getAttribute("aria-label")).not.toContain("New")
 
         rerender(inventory({charges, guide: {won: [], uses: {bomb: 1}}}))
         expect(slot(/^Bomb$/).className).not.toContain("inventory-slot--new")
         expect(slot(/^Shield, 2\/12, New/)).toBeTruthy()
+
+        fireEvent.click(all())
+        expect(inTray(/^Spread/).getAttribute("aria-label"), "none held").not.toContain("New")
     })
 
     it("says how a bonus works as it is switched on, for its first uses only", () => {
@@ -282,11 +300,15 @@ describe("Inventory", () => {
     })
 
     it("describes each slot to a screen reader", () => {
-        render(inventory({charges: {...NO_CHARGES, bomb: true}, guide: learned}))
+        render(inventory({charges: {...NO_CHARGES, bomb: true}, guide: learned, rules: {...RULES, unlocks: {shields: 3}}}))
 
         expect(slot(/^Bomb/).getAttribute("aria-describedby")).toBeTruthy()
         expect(screen.getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
-        expect(screen.getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(4)
+
+        fireEvent.click(all())
+        expect(within(tray()!).getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
+        expect(within(tray()!).getAllByText("Catch a ? box or win a quiz to get one")).toHaveLength(3)
+        expect(within(tray()!).getByText("Unlocks at level 3")).toBeTruthy()
     })
 
     it("aims the bomb and puts it away", () => {
@@ -327,11 +349,111 @@ describe("Inventory", () => {
         expect(slot(/^Shield/).disabled).toBe(true)
     })
 
-    it("has no fold: the five slots are always one row", () => {
+    it("keeps on the bar the kinds held, in the order they unlock, and All", () => {
+        render(inventory({charges: {...NO_CHARGES, shields: 3, refill: true}, guide: learned}))
+
+        expect(onBar()).toEqual(["Refill", "Shield, 3/12", "All bonuses"])
+        expect(tray()).toBeNull()
+    })
+
+    it("shows All alone when nothing is held", () => {
         render(inventory())
 
-        const section = screen.getByRole("region", {name: "Inventory"})
-        expect(section.querySelectorAll("button")).toHaveLength(5)
-        expect(screen.queryByRole("button", {name: /Inventory/})).toBeNull()
+        expect(onBar()).toEqual(["All bonuses"])
+    })
+
+    it("tucks the held kinds the bar has no room for in the tray, and counts them on All", () => {
+        render(inventory({charges: EVERY, guide: learned}))
+
+        expect(onBar()).toHaveLength(DESKTOP_BAR_ROOM + 1)
+        expect(onBar()).not.toContain("Shield, 7/12")
+        expect(all().getAttribute("aria-label")).toBe("All bonuses, 1 more held")
+        expect(all().textContent).toContain("+1")
+    })
+
+    it("keeps three on a phone's bar", () => {
+        vi.stubGlobal("matchMedia", (query: string) => ({matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
+        render(inventory({charges: EVERY, guide: learned}))
+
+        expect(onBar()).toEqual(["Refill", "Bomb", "Spread, 5/8", "All bonuses, 2 more held"])
+    })
+
+    it("says on All that a kind it holds is on", () => {
+        render(inventory({charges: EVERY, guide: learned, switches: {...ALL_OFF, shield: true}}))
+
+        expect(all().getAttribute("aria-label")).toBe("All bonuses, 1 more held, On")
+        expect(all().className).toContain("inventory-slot--on")
+    })
+
+    it("calls All new while a kind it holds was never used", () => {
+        render(inventory({charges: EVERY, guide: {won: [], uses: {...learned.uses, shields: 0}}}))
+
+        expect(all().getAttribute("aria-label")).toBe("All bonuses, 1 more held, New")
+    })
+
+    it("lists every kind in the tray, in the order they unlock, a locked one with its level", () => {
+        render(inventory({rules: {...RULES, unlocks: {encloseClicks: 4, bomb: 5}}}))
+
+        fireEvent.click(all())
+        expect(all().getAttribute("aria-expanded")).toBe("true")
+        expect(within(tray()!).getAllByRole("button").map((button) => button.getAttribute("aria-label"))).toEqual([
+            "Refill", "Spread, 0/8", "Shield, 0/12", "Enclose, unlocks at level 4", "Bomb, unlocks at level 5",
+        ])
+        expect(inTray(/^Bomb/).className).toContain("inventory-slot--locked")
+        expect(inTray(/^Bomb/).textContent).toContain("5")
+    })
+
+    it("says the level a locked kind unlocks at, and does nothing else", () => {
+        const toggleBomb = vi.fn()
+        render(inventory({rules: {...RULES, unlocks: {bomb: 5}}, onToggleBomb: toggleBomb}))
+
+        fireEvent.click(all())
+        fireEvent.click(inTray(/^Bomb/))
+
+        expect(toggleBomb).not.toHaveBeenCalled()
+        expect(bubble()).toBe("Unlocks at level 5")
+        expect(tray()).not.toBeNull()
+    })
+
+    it("plays a kind still held whatever the level", () => {
+        const toggleBomb = vi.fn()
+        render(inventory({rules: {...RULES, unlocks: {bomb: 5}}, charges: {...NO_CHARGES, bomb: true}, onToggleBomb: toggleBomb, guide: learned}))
+
+        fireEvent.click(slot(/^Bomb$/))
+
+        expect(toggleBomb).toHaveBeenCalledTimes(1)
+    })
+
+    it("uses a kind pressed in the tray, closes it and says how it works over the bar", () => {
+        const toggle = vi.fn()
+        render(inventory({charges: EVERY, onToggleShield: toggle}))
+
+        fireEvent.click(all())
+        fireEvent.click(inTray(/^Shield/))
+
+        expect(toggle).toHaveBeenCalledTimes(1)
+        expect(tray()).toBeNull()
+        expect(document.activeElement).toBe(all())
+        expect(bubble()).toBe("Tap one of your tiles to shield it")
+    })
+
+    it("closes the tray on All, on Escape and on a press outside it", () => {
+        render(<>{inventory()}<button>globe</button></>)
+
+        fireEvent.click(all())
+        fireEvent.click(all())
+        expect(tray()).toBeNull()
+
+        fireEvent.click(all())
+        inTray(/^Shield/).focus()
+        fireEvent.keyDown(document, {key: "Escape"})
+        expect(tray()).toBeNull()
+        expect(document.activeElement).toBe(all())
+
+        fireEvent.click(all())
+        fireEvent.pointerDown(inTray(/^Refill/))
+        expect(tray()).not.toBeNull()
+        fireEvent.pointerDown(screen.getByRole("button", {name: "globe"}))
+        expect(tray()).toBeNull()
     })
 })

@@ -36,7 +36,7 @@ import {
     UpdatesListener,
     FrozenError,
 } from "./backend.ts";
-import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
+import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches, UnlockLevels} from "../domain/bonus.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {Allegiance, lockOf} from "../domain/allegiance.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
@@ -116,6 +116,7 @@ const RULES: BonusRules = {
     bombsOff: false,
     spreadUnlimited: false,
     enclosuresOff: false,
+    unlocks: {},
 }
 
 export type FakeBackendOptions = {
@@ -480,6 +481,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     // The page's side of the reach alone: the bridges drawn and the front rung. The fake refuses no click out of it.
     public playReach(on: boolean): void {
         this.rules = {...this.rules, reach: on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public setUnlocks(unlocks: UnlockLevels): void {
+        this.rules = {...this.rules, unlocks}
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 

@@ -160,7 +160,7 @@ describe("SeasonChip", () => {
             description: "Clicks refill 3× faster.", times: 3, endsSeason: false, roundId: "rush",
         })
         const opened = () => {
-            useScreen.setState({popovers: {season: true, battle: false, clicks: false}})
+            useScreen.setState({popovers: {season: true, battle: false, clicks: false, bonuses: false}})
             render(<SeasonChip season={season} dayEndsAt={dayEndsAt()} nextBattle={nextBattle()} compact={false}/>)
         }
 
@@ -218,7 +218,7 @@ describe("SeasonChip", () => {
 
         it("opens on the Final Battle: when, how long, what it is worth, and the operator's words", () => {
             vi.useFakeTimers({now: startsAt - DAY})
-            useScreen.setState({popovers: {season: true, battle: false, clicks: false}})
+            useScreen.setState({popovers: {season: true, battle: false, clicks: false, bonuses: false}})
             render(chip())
 
             expect(screen.getByText("The Final Battle")).toBeDefined()
@@ -234,7 +234,7 @@ describe("SeasonChip", () => {
             vi.useFakeTimers({now: startsAt - DAY})
             const promo = new FakePromoBackend()
             useTeaserCards.getState().serve(promo)
-            useScreen.setState({popovers: {season: true, battle: false, clicks: false}})
+            useScreen.setState({popovers: {season: true, battle: false, clicks: false, bonuses: false}})
             render(chip())
 
             fireEvent.click((await rules())!)

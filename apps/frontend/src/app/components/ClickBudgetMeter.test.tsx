@@ -397,7 +397,7 @@ describe("ClickBudgetMeter and your clicks", () => {
     })
 
     it("shows them over the dock on a desktop, and closes them on Escape", () => {
-        useScreen.setState({popovers: {season: false, battle: false, clicks: true}})
+        useScreen.setState({popovers: {season: false, battle: false, clicks: true, bonuses: false}})
         render(budgeted(reading(), <ClickBudgetMeter popover={<p>steps</p>}/>))
 
         expect(screen.getByText("steps")).toBeTruthy()

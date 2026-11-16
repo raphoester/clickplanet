@@ -32,6 +32,23 @@ export const NO_CHARGES: Charges = {refill: false, bomb: false, enclosures: 0, s
 
 export type ChargeKind = BonusReward["kind"]
 
+export const CHARGE_KINDS: readonly ChargeKind[] = ["refill", "bomb", "spreadClicks", "encloseClicks", "shields"]
+
+// A guest's level, and the level of a kind the rules open at no other.
+export const FIRST_LEVEL = 1
+
+export type UnlockLevels = Readonly<Partial<Record<ChargeKind, number>>>
+
+// The level a kind opens at, while the player is below it.
+export function lockedAt(kind: ChargeKind, unlocks: UnlockLevels, level: number): number | undefined {
+    const at = unlocks[kind] ?? FIRST_LEVEL
+    return at > level ? at : undefined
+}
+
+export function inUnlockOrder(kinds: readonly ChargeKind[], unlocks: UnlockLevels): ChargeKind[] {
+    return [...kinds].sort((a, b) => (unlocks[a] ?? FIRST_LEVEL) - (unlocks[b] ?? FIRST_LEVEL))
+}
+
 export type Switches = {
     spread: boolean
     enclose: boolean
@@ -102,4 +119,5 @@ export type BonusRules = {
     spreadUnlimited: boolean
     // No enclosure closes a shape or is offered: the page hides the enclose slot.
     enclosuresOff: boolean
+    unlocks: UnlockLevels
 }

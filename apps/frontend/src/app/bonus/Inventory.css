@@ -128,6 +128,85 @@
     line-height: 1.2;
 }
 
+.inventory-slot--locked {
+    color: var(--text-faint);
+    background: var(--panel-sunk);
+    box-shadow: none;
+}
+
+.inventory-slot--locked .inventory-box {
+    border-color: color-mix(in srgb, var(--text-faint) 50%, var(--ink));
+    background: var(--panel-sunk);
+}
+
+.inventory-slot--locked .bonus-icon {
+    filter: grayscale(1);
+    opacity: 0.4;
+}
+
+.inventory-lock {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--text-soft);
+}
+
+.inventory-bag {
+    --bonus-box: var(--gold);
+    --bonus-accent: var(--gold-light);
+}
+
+.inventory-bag .inventory-box {
+    background: var(--panel-sunk);
+}
+
+.inventory-bag[aria-expanded="true"] {
+    color: var(--text);
+    background: color-mix(in srgb, var(--bonus-box) 25%, var(--panel-raised));
+    box-shadow: inset 0 0 0 2px var(--bonus-accent);
+    transform: translateY(3px);
+}
+
+.inventory-all {
+    stroke: var(--ink);
+    stroke-width: 2.5;
+}
+
+.inventory-all--refill {
+    fill: var(--refill);
+}
+
+.inventory-all--spread {
+    fill: var(--spread);
+}
+
+.inventory-all--enclose {
+    fill: var(--enclose);
+}
+
+.inventory-all--shield {
+    fill: var(--shield);
+}
+
+/* Above the dock and as wide; its scroll keeps the top row's state chips in its padding. */
+.inventory-tray {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + var(--space-3));
+    max-height: calc(100dvh - 240px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-4) var(--space-3) var(--space-3);
+    animation: inventory-tray-in 0.18s ease-out;
+}
+
+.inventory-tray-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: var(--space-4) var(--space-2);
+}
+
 @keyframes inventory-on {
     50% {
         box-shadow: 0 0 10px var(--bonus-accent);
@@ -137,6 +216,13 @@
 @keyframes inventory-loop {
     to {
         stroke-dashoffset: -11;
+    }
+}
+
+@keyframes inventory-tray-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
     }
 }
 
@@ -151,28 +237,28 @@
         gap: 6px;
     }
 
-    .inventory-slot {
+    .inventory-slots .inventory-slot {
         width: 48px;
         min-width: 0;
         min-height: 48px;
         padding: 0;
     }
 
-    .inventory-box {
+    .inventory-slots .inventory-box {
         width: 30px;
         height: 30px;
     }
 
-    .inventory-box .bonus-icon {
+    .inventory-slots .inventory-box .bonus-icon {
         width: 22px;
         height: 22px;
     }
 
-    .inventory-name {
+    .inventory-slots .inventory-name {
         display: none;
     }
 
-    .inventory-count {
+    .inventory-slots .inventory-count {
         top: auto;
         right: -7px;
         bottom: -7px;
@@ -188,7 +274,7 @@
         gap: 5px;
     }
 
-    .inventory-slot {
+    .inventory-slots .inventory-slot {
         width: 44px;
         min-height: 44px;
     }
@@ -197,7 +283,8 @@
 @media (prefers-reduced-motion: reduce) {
     .inventory-slot--on .inventory-box,
     .inventory-slot--new,
-    .inventory-loop rect {
+    .inventory-loop rect,
+    .inventory-tray {
         animation: none;
     }
 

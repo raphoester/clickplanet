@@ -1,5 +1,5 @@
 import {describe, expect, it} from "vitest"
-import {ALL_OFF, atRest, NO_CHARGES, restingSwitch, switched, switchesHeld} from "./bonus.ts"
+import {ALL_OFF, atRest, CHARGE_KINDS, FIRST_LEVEL, inUnlockOrder, lockedAt, NO_CHARGES, restingSwitch, switched, switchesHeld} from "./bonus.ts"
 
 const PAID = {spreadUnlimited: false, enclosuresUnlimited: false, enclosuresOff: false}
 
@@ -99,3 +99,29 @@ describe("switched", () => {
 function spread() {
     return {...ALL_OFF, spread: true}
 }
+
+describe("lockedAt", () => {
+    const unlocks = {encloseClicks: 4, bomb: 5}
+
+    it("names the level a kind opens at while the player is below it", () => {
+        expect(lockedAt("bomb", unlocks, 3)).toBe(5)
+        expect(lockedAt("encloseClicks", unlocks, 3)).toBe(4)
+    })
+
+    it("locks nothing at or past its level, nor a kind the rules name no level for", () => {
+        expect(lockedAt("bomb", unlocks, 5)).toBeUndefined()
+        expect(lockedAt("encloseClicks", unlocks, 9)).toBeUndefined()
+        expect(lockedAt("refill", unlocks, FIRST_LEVEL)).toBeUndefined()
+    })
+})
+
+describe("inUnlockOrder", () => {
+    it("puts the kinds by the level they open at, the order given among one level", () => {
+        expect(inUnlockOrder(CHARGE_KINDS, {encloseClicks: 4, bomb: 5}))
+            .toEqual(["refill", "spreadClicks", "shields", "encloseClicks", "bomb"])
+    })
+
+    it("keeps the order given while every kind opens at the first level", () => {
+        expect(inUnlockOrder(CHARGE_KINDS, {})).toEqual(CHARGE_KINDS)
+    })
+})

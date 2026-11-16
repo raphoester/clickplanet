@@ -71,7 +71,7 @@ system exists to stop.
 | `--mission` | A mission's place: the ring that names it in a card, the red of the ring and the outline the globe draws for it |
 | `--streak` | The streak flame |
 | `--war`, `--tape` | A battle: its chip, the warning tape along the dock and the chip, the start moment; the Final Battle to come: its face and tape on the season chip, the home page's panel; a battle to come: its teaser, its cards' dots. Nowhere else |
-| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line |
+| `--refill`, `--spread`, `--bomb`, `--enclose`, `--shield` (and `-light`) | A bonus kind: its box, its slot, its reward line; All's four small boxes |
 | `--bronze` … `--pumpkin-glow`, `--conquest` … `--halloween-enamel` | Medals only (below) |
 
 - **A name's color is only a hue.** `hueOf` reads it off the pick; the saturation
@@ -143,13 +143,14 @@ Every title is a medal, and the medals obey the same rules as everything else:
 ## Layout
 
 **The globe is the game, and four zones are all that is drawn over it.** A new
-feature goes in one of them; there is no fifth panel and no new fold.
+feature goes in one of them; there is no fifth panel and no new fold. The dock's two popovers, "Your clicks" and the
+tray of every bonus, are the Play zone's own, one at a time.
 
 | Zone | What goes there | Where |
 |---|---|---|
 | **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar. Desktop: the menu's head, the season at the top centre |
 | **Moments** | Something that just happened: the quiz, a bomb, a caught box. One at a time, then gone | Under the status zone |
-| **Play** | What every click needs: the clicks left, the slowdown, the five bonuses | One bar, at the bottom |
+| **Play** | What every click needs: the clicks left, the slowdown, the bonuses held, and All, which opens every bonus over the bar | One bar, at the bottom |
 | **Places** | Everything read or set: the board, the chat, the account, sharing, the settings. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
 
 - **Ask in this order.** A moment? Moments. Needed on every click? Play, and that
