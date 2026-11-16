@@ -1,6 +1,6 @@
 # Virus
 
-A virus (`BonusReward` kind `virus`) takes one enemy tile, then spreads into that flag's land on its own: the server's
+A virus (`BonusReward` kind `virus`) takes one enemy tile, then spreads on its own into the land of every enemy flag next to it: the server's
 rules, in the backend's [The virus](../../backend/docs/virus.md). No box draws one yet; the operator's grant, and the
 fake's `giveVirus()`, give one.
 

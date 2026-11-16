@@ -17,8 +17,8 @@ var (
 
 type VirusID string
 
-// Virus spreads into the land of the flag it hit. Each tile it infected infects one tile of that flag next to it at each
-// tick, until it made its most infections, a take or a struck shield each. A change of owner cures a tile.
+// Virus spreads into the land of every enemy flag. Each tile it infected infects one enemy tile next to it at each tick,
+// whatever its flag, until it made its most infections, a take or a struck shield each. A change of owner cures a tile.
 type Virus struct {
 	id         VirusID
 	account    cpsession.AccountID
@@ -36,7 +36,7 @@ type VirusSnapshot struct {
 	ID      VirusID
 	Account cpsession.AccountID
 	Scope   string
-	// The flag it takes tiles for, and the flag whose land it spreads into.
+	// The flag it takes tiles for, and the flag of the tile it was used on.
 	Flag   string
 	Victim string
 	// The tile it was used on.
@@ -69,7 +69,7 @@ func NewVirus(id VirusID, account cpsession.AccountID, scope, flag string, tile 
 
 // Aimed is the virus with the flag its tile wears as the one it hits.
 func (v Virus) Aimed(tile Tile) (Virus, error) {
-	if tile.id != v.tile || tile.owner == "" || tile.owner == v.flag || tile.shields > 0 {
+	if tile.id != v.tile || !tile.enemyOf(v.flag) || tile.shields > 0 {
 		return Virus{}, ErrNotInfectable
 	}
 	v.victim = tile.owner

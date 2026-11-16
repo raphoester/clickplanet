@@ -298,7 +298,7 @@ message VirusSpread {
   // The flag the virus takes tiles for.
   string country_id = 2;
 
-  // The flag whose land it spreads into.
+  // The flag of the tile it was used on. It spreads into every enemy flag's land, not only this one's.
   string victim_country_id = 3;
 
   // Each is country_id's now, and infected.

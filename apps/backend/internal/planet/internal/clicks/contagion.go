@@ -67,7 +67,7 @@ func (c Contagion) Start(ctx context.Context, virus Virus, most int, next time.T
 	return virus, impacts, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 }
 
-// Spread plays one tick of the virus: each tile it infected before infects one tile of the flag it hit next to it,
+// Spread plays one tick of the virus: each tile it infected before infects one enemy tile next to it, of any flag,
 // picked at random, until it made its most infections. A tile a shield kept is struck, and stays the other flag's.
 func (c Contagion) Spread(ctx context.Context, id VirusID, most int, next time.Time) (Virus, []Impact, error) {
 	shields := c.shieldsPerTile()
@@ -110,9 +110,9 @@ func (c Contagion) Spread(ctx context.Context, id VirusID, most int, next time.T
 	return virus, impacts, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 }
 
-// infect claims a tile of the flag the virus hit next to the tile; false when it has none.
+// infect claims an enemy tile next to the tile; false when it has none.
 func (c Contagion) infect(ctx context.Context, tiles Claimable, from uint32, virus Virus, shields int) (Impact, bool, error) {
-	target, ok, err := c.target(tiles, from, virus.victim)
+	target, ok, err := c.target(tiles, from, virus.flag)
 	if err != nil || !ok {
 		return Impact{}, false, err
 	}
@@ -123,23 +123,23 @@ func (c Contagion) infect(ctx context.Context, tiles Claimable, from uint32, vir
 	return impact, true, nil
 }
 
-// target is a tile of the victim next to the tile, picked at random; false for none.
-func (c Contagion) target(tiles Claimable, from uint32, victim string) (uint32, bool, error) {
-	var victims []uint32
+// target is a tile of any flag but the virus's next to the tile, picked at random; false for none. A blank tile is none.
+func (c Contagion) target(tiles Claimable, from uint32, flag string) (uint32, bool, error) {
+	var enemies []uint32
 	for _, neighbour := range c.ground.Neighbours(from) {
 		tile, err := tiles.Tile(neighbour)
 		if err != nil {
 			return 0, false, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 		}
-		if tile.owner == victim {
-			victims = append(victims, neighbour)
+		if tile.enemyOf(flag) {
+			enemies = append(enemies, neighbour)
 		}
 	}
-	if len(victims) == 0 {
+	if len(enemies) == 0 {
 		return 0, false, nil
 	}
 
-	return victims[c.pick(len(victims))], true, nil
+	return enemies[c.pick(len(enemies))], true, nil
 }
 
 // knockedOutAll asks each take whether it felled a capital once every take is written, as an enclosure does.
