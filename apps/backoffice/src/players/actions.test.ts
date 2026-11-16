@@ -196,18 +196,19 @@ describe("grant", () => {
     it("sends the charges picked and answers what the account held before and after", async () => {
         const admin = new FakeAdmin()
 
-        const granted = await grant(admin, "account-reported", {...NO_GRANT, bomb: true, enclosures: 3})
+        const granted = await grant(admin, "account-reported", {...NO_GRANT, bombs: 2, enclosures: 3})
         expect(granted.before.enclosures).toBe(2)
-        expect(granted.after.bomb).toBe(true)
+        expect(granted.after.bombs).toBe(2)
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: "account-reported", refill: false, bomb: true, enclosures: 3, spreadClicks: 0, shields: 0, virus: false, mines: 0, rallies: 0,
+            accountId: "account-reported", refills: 0, bombs: 2, enclosures: 3, spreadClicks: 0, shields: 0, viruses: 0, mines: 0, rallies: 0,
         }])
     })
 
     it("grants nothing until a charge is picked", () => {
         expect(grantsAnything(NO_GRANT)).toBe(false)
         expect(grantsAnything({...NO_GRANT, shields: 1})).toBe(true)
-        expect(grantsAnything({...NO_GRANT, refill: true})).toBe(true)
+        expect(grantsAnything({...NO_GRANT, refills: 1})).toBe(true)
+        expect(grantsAnything({...NO_GRANT, viruses: 2})).toBe(true)
     })
 })
 

@@ -41,12 +41,12 @@ func TestTheAccountsStreamsAreToldWhatTheGrantAddedAndAllItHoldsAfter(t *testing
 
 	_, err := grantTelling(wallet, streams).Execute(t.Context(), grant_charges_usecase.In{
 		Account: account,
-		Grant:   charges.Held{Bomb: true},
+		Grant:   charges.Held{Bombs: 1},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, map[charges.Holder]charges.Gain{account: {
-		Before: charges.Held{Enclosures: 1}, After: charges.Held{Bomb: true, Enclosures: 1},
+		Before: charges.Held{Enclosures: 1}, After: charges.Held{Bombs: 1, Enclosures: 1},
 	}}, streams.told)
 }
 
@@ -55,13 +55,13 @@ func TestEveryKindCanBeGranted(t *testing.T) {
 
 	out, err := grant(wallet).Execute(t.Context(), grant_charges_usecase.In{
 		Account: account,
-		Grant:   charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7, Virus: true, Mines: 2, Rallies: 2},
+		Grant:   charges.Held{Refills: 1, Bombs: 1, Enclosures: 2, SpreadClicks: 5, Shields: 7, Viruses: 1, Mines: 2, Rallies: 2},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, charges.Holder(account), out.Holder)
 	assert.True(t, out.Before.Empty())
-	assert.Equal(t, charges.Held{Refill: true, Bomb: true, Enclosures: 2, SpreadClicks: 5, Shields: 7, Virus: true, Mines: 2, Rallies: 2}, out.After)
+	assert.Equal(t, charges.Held{Refills: 1, Bombs: 1, Enclosures: 2, SpreadClicks: 5, Shields: 7, Viruses: 1, Mines: 2, Rallies: 2}, out.After)
 	assert.Equal(t, out.After, wallet.Kept(account))
 	for _, kind := range charges.Kinds {
 		assert.Positive(t, out.After.Count(kind), kind)
@@ -97,11 +97,11 @@ func TestTheAccountIsHeldAsTheClickTokenNamesIt(t *testing.T) {
 
 	_, err := grant(wallet).Execute(t.Context(), grant_charges_usecase.In{
 		Account: "0B7E5B6C-8F3A-4D2E-9C1A-2F6D8E4B7A10",
-		Grant:   charges.Held{Bomb: true},
+		Grant:   charges.Held{Bombs: 1},
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, charges.Held{Bomb: true}, wallet.Kept(account))
+	assert.Equal(t, charges.Held{Bombs: 1}, wallet.Kept(account))
 }
 
 func TestARefusedGrantChangesNothing(t *testing.T) {
@@ -109,9 +109,9 @@ func TestARefusedGrantChangesNothing(t *testing.T) {
 		in   grant_charges_usecase.In
 		want error
 	}{
-		{grant_charges_usecase.In{Account: "a-guest", Grant: charges.Held{Bomb: true}}, charges.ErrInvalidHolder},
+		{grant_charges_usecase.In{Account: "a-guest", Grant: charges.Held{Bombs: 1}}, charges.ErrInvalidHolder},
 		{grant_charges_usecase.In{Account: account}, charges.ErrNothingToGrant},
-		{grant_charges_usecase.In{Account: account, Grant: charges.Held{Bomb: true, SpreadClicks: -1}}, charges.ErrNegativeGrant},
+		{grant_charges_usecase.In{Account: account, Grant: charges.Held{Bombs: 1, SpreadClicks: -1}}, charges.ErrNegativeGrant},
 	} {
 		wallet := storage()
 

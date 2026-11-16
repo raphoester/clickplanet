@@ -26,19 +26,19 @@ func (s stubUseCase) Execute(context.Context, grant_charges_usecase.In) (grant_c
 
 func TestAGrantIsLoggedWithWhatTheAccountHolds(t *testing.T) {
 	var logs bytes.Buffer
-	want := grant_charges_usecase.Out{Holder: "acc-1", After: charges.Held{Bomb: true, SpreadClicks: 4}}
+	want := grant_charges_usecase.Out{Holder: "acc-1", After: charges.Held{Bombs: 1, SpreadClicks: 4}}
 	useCase := audit_grant_charges.New(stubUseCase{out: want}, slog.New(slog.NewTextHandler(&logs, nil)))
 
 	out, err := useCase.Execute(t.Context(), grant_charges_usecase.In{
 		Account: "acc-1",
-		Grant:   charges.Held{Bomb: true, SpreadClicks: 4},
+		Grant:   charges.Held{Bombs: 1, SpreadClicks: 4},
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, want, out)
 	assert.Contains(t, logs.String(),
-		`level=WARN msg="admin charge grant" asked=acc-1 refill=false bomb=true enclosures=0 spreadClicks=4 shields=0 virus=false mines=0 rallies=0 account=acc-1`)
-	assert.Contains(t, logs.String(), "after=\"{Refill:false Bomb:true Enclosures:0 SpreadClicks:4 Shields:0 Virus:false Mines:0 Rallies:0}\"")
+		`level=WARN msg="admin charge grant" asked=acc-1 refills=0 bombs=1 enclosures=0 spreadClicks=4 shields=0 viruses=0 mines=0 rallies=0 account=acc-1`)
+	assert.Contains(t, logs.String(), "after=\"{Refills:0 Bombs:1 Enclosures:0 SpreadClicks:4 Shields:0 Viruses:0 Mines:0 Rallies:0}\"")
 }
 
 func TestARefusedGrantIsLoggedToo(t *testing.T) {

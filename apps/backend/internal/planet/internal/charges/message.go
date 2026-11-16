@@ -15,12 +15,13 @@ var Part = cprules.PartOf[*planetv1.Rules, Rules]{Key: "charges", Read: func(m *
 
 func RulesOf(m *planetv1.ChargeRules) Rules {
 	return Rules{
+		Refill: RefillRules{Held: int(m.GetRefill().GetHeld())},
 		Spread: SpreadRules{
 			Clicks:    int(m.GetSpread().GetClicks()),
 			Rings:     int(m.GetSpread().GetRings()),
 			Unlimited: m.GetSpread().GetUnlimited(),
 		},
-		Bomb: BombRules{Rings: m.GetBomb().GetRings(), Off: m.GetBomb().GetOff()},
+		Bomb: BombRules{Rings: m.GetBomb().GetRings(), Off: m.GetBomb().GetOff(), Held: int(m.GetBomb().GetHeld())},
 		Enclose: EncloseRules{
 			MaxTiles:  int(m.GetEnclose().GetMaxTiles()),
 			Held:      int(m.GetEnclose().GetHeld()),
@@ -28,8 +29,12 @@ func RulesOf(m *planetv1.ChargeRules) Rules {
 			Off:       m.GetEnclose().GetOff(),
 		},
 		Shield: ShieldRules{Held: int(m.GetShield().GetHeld()), PerTile: int(m.GetShield().GetPerTile())},
-		Virus:  VirusRules{Infections: int(m.GetVirus().GetInfections()), Every: m.GetVirus().GetEvery().AsDuration()},
-		Mine:   MineRules{Held: int(m.GetMine().GetHeld()), Rings: int(m.GetMine().GetRings())},
+		Virus: VirusRules{
+			Infections: int(m.GetVirus().GetInfections()),
+			Every:      m.GetVirus().GetEvery().AsDuration(),
+			Held:       int(m.GetVirus().GetHeld()),
+		},
+		Mine: MineRules{Held: int(m.GetMine().GetHeld()), Rings: int(m.GetMine().GetRings())},
 		Rally: RallyRules{
 			Held:  int(m.GetRally().GetHeld()),
 			Rings: m.GetRally().GetRings(),

@@ -16,11 +16,11 @@ func (a Answer) Grant() GrantID {
 	return OfferGrantOf(a.Token)
 }
 
-// Reward is drawn among the kinds the account may be drawn and the hand has room for; a welcome is shields whatever the
+// Reward is drawn among the kinds the account may be drawn, whatever the hand holds; a welcome is shields whatever the
 // gates, or nothing. It is false when there is nothing the answer could be worth.
-func (a Answer) Reward(rules Rules, full []Kind, unlocked Unlocked) (Reward, bool) {
+func (a Answer) Reward(rules Rules, unlocked Unlocked) (Reward, bool) {
 	if a.Welcome {
-		return welcomeReward(rules, full, welcomeAnswer)
+		return welcomeReward(rules, welcomeAnswer)
 	}
-	return drawReward(rules, full, unlocked)
+	return drawReward(rules, unlocked)
 }

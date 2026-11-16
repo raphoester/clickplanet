@@ -7,7 +7,7 @@ import {useBonusGuide} from "./bonusGuideStore.ts"
 import {BonusReward} from "../../domain/bonus.ts"
 import {BonusGuide, FRESH_GUIDE, isFirstWin} from "../../domain/bonusGuide.ts"
 
-const REWARD = {kind: "refill"} as const
+const REWARD = {kind: "refill", refills: 1} as const
 
 const WON_ALL: BonusGuide = {won: ["refill", "bomb", "spreadClicks", "encloseClicks", "shields"], uses: {}}
 
@@ -94,7 +94,7 @@ describe("BonusAward", () => {
         award(REWARD)
 
         act(() => void vi.advanceTimersByTime(AWARD_MS - 100))
-        award({kind: "refill"})
+        award({kind: "refill", refills: 1})
 
         act(() => void vi.advanceTimersByTime(200))
         expect(shown()).toBeDefined()
@@ -135,9 +135,9 @@ describe("BonusAward", () => {
 
     it("wears a different mark and colour for each kind of bonus", () => {
         const rewards = [
-            {kind: "refill"},
+            {kind: "refill", refills: 1},
             {kind: "spreadClicks", clicks: 8},
-            {kind: "bomb", radius: 0.1},
+            {kind: "bomb", radius: 0.1, bombs: 1},
             {kind: "encloseClicks", shapes: 2, maxTiles: 25},
             {kind: "shields", shields: 3},
         ] as const

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetPlayDaysRequest, GetPlayDaysResponse, GetRoomRequest, GetRoomResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
+import { CloseArenaRequest, CloseArenaResponse, GetAllegianceOfRequest, GetAllegianceOfResponse, GetCountrySizesRequest, GetCountrySizesResponse, GetFreezeRequest, GetFreezeResponse, GetLedgerTotalsRequest, GetLedgerTotalsResponse, GetMapHistoryRequest, GetMapHistoryResponse, GetPlayDaysRequest, GetPlayDaysResponse, GetRuleSetNamesRequest, GetRuleSetNamesResponse, GetRuleSetRequest, GetRuleSetResponse, GetTakesByCountryRequest, GetTakesByCountryResponse, GetTerritoriesRequest, GetTerritoriesResponse, GetTilesRequest, GetTilesResponse, InternalGrantChargesRequest, InternalGrantChargesResponse, OpenArenaRequest, OpenArenaResponse, PlayRuleSetRequest, PlayRuleSetResponse, ResetMapRequest, ResetMapResponse } from "./internal_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 
@@ -202,19 +202,6 @@ export const InternalService = {
       O: InternalGrantChargesResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
-    },
-    /**
-     * For each account asked, the kinds of charge it has no room for: a full stack, and a bomb while the rules in force
-     * hold charges.bomb.off.
-     *
-     * @generated from rpc planet.v1.InternalService.GetRoom
-     */
-    getRoom: {
-      name: "GetRoom",
-      I: GetRoomRequest,
-      O: GetRoomResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
      * Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.

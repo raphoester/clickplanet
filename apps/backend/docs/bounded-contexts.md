@@ -1,7 +1,7 @@
 # Eighteen bounded contexts, one process
 
 - **`internal/planet/`** — the tile game: clicks, ownership, the map, the update stream, and the charges each account holds and spends (the wallet).
-- **`internal/bonuses/`** — what a caught box, a right answer or a guest's first sign-in grants. It holds no charge: it pays through planet's wallet and asks it, in planet's words, what a hand has room for. It hears the boxes' catches, the quizzes' answers and player's new and forgotten players, keeps the kinds progression tells it each account unlocked (its gates draw from them), and keeps rule sets of its own that the gamemaster plays by name. It knows no level. See [The bonuses](bonuses.md).
+- **`internal/bonuses/`** — what a caught box, a right answer or a guest's first sign-in grants. It holds no charge: it pays through planet's wallet, in planet's words, which keeps what fits; it asks no hand what it holds. It hears the boxes' catches, the quizzes' answers and player's new and forgotten players, keeps the kinds progression tells it each account unlocked (its gates draw from them), and keeps rule sets of its own that the gamemaster plays by name. It knows no level. See [The bonuses](bonuses.md).
 - **`internal/boxes/`** — the boxes each caller is offered, and the claim. It pays nothing: it tells each box caught, and the bonuses module draws what it holds and pays it. It hears planet's clicks, asks planet the freeze, and keeps rule sets of its own that the gamemaster plays by name. See [The boxes](boxes-module.md).
 - **`internal/quizzes/`** — the quizzes each caller is asked, the quiz bank, how hard each question is and the answer log. It pays nothing: it tells each answer, and the bonuses module pays a right one. It hears planet's clicks and player's forgotten accounts, asks planet the board and the freeze, and keeps rule sets of its own that the gamemaster plays by name. See [The quizzes](quizzes-module.md).
 - **`internal/chat/`** — the live chat: messages, identity, retention.
@@ -56,7 +56,8 @@ biggest module. They lived inside it because what they grant is planet's charges
 stream. The cut's rule: granting is the offers', holding and spending is planet's. Step A cut the seam inside planet
 with nothing on the wire, in postgres or in the game changed; step B moved the offers out with `proto/bonuses/v1`, a
 stream and rule sets of their own, and turned their ports into loopback calls to planet in planet's words
-(`GrantCharges`, `GetRoom`, `GetChargesOf`, `GetFreeze`, `GetTerritories`) and a subscriber of its `ClickTried`.
+(`GrantCharges`, `GetRoom`, `GetChargesOf`, `GetFreeze`, `GetTerritories`) and a subscriber of its `ClickTried`
+(`GetRoom` went on 2026-11-16, when the draw stopped reading the hand).
 Planet names nothing of them. See [The offers](bonuses.md) and [Offers and the wallet](offers-and-wallet.md).
 
 **The quizzes were cut out of `bonuses`** into a module of their own (2026-11-13), the first of three cuts that leave

@@ -2614,14 +2614,14 @@ export class LandmassFortified extends Message<LandmassFortified> {
  */
 export class ChargesHeld extends Message<ChargesHeld> {
   /**
-   * @generated from field: bool refill = 4;
+   * @generated from field: uint32 refills = 9;
    */
-  refill = false;
+  refills = 0;
 
   /**
-   * @generated from field: bool bomb = 1;
+   * @generated from field: uint32 bombs = 10;
    */
-  bomb = false;
+  bombs = 0;
 
   /**
    * @generated from field: uint32 enclosures = 2;
@@ -2639,9 +2639,9 @@ export class ChargesHeld extends Message<ChargesHeld> {
   shields = 0;
 
   /**
-   * @generated from field: bool virus = 6;
+   * @generated from field: uint32 viruses = 11;
    */
-  virus = false;
+  viruses = 0;
 
   /**
    * @generated from field: uint32 mines = 7;
@@ -2661,12 +2661,12 @@ export class ChargesHeld extends Message<ChargesHeld> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.ChargesHeld";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 4, name: "refill", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 1, name: "bomb", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 9, name: "refills", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "enclosures", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "spread_clicks_left", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 6, name: "virus", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 11, name: "viruses", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 7, name: "mines", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 8, name: "rallies", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
@@ -2857,7 +2857,7 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
   capitalShieldsFixed = false;
 
   /**
-   * No bomb is dropped, and none is offered: the page hides the bomb.
+   * No bomb is dropped, and no hand takes one: the page hides the bomb.
    *
    * @generated from field: bool bombs_off = 14;
    */
@@ -2933,6 +2933,27 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   rallyCost = 0;
 
+  /**
+   * How many refills a hand holds at most.
+   *
+   * @generated from field: uint32 refills = 26;
+   */
+  refills = 0;
+
+  /**
+   * How many bombs a hand holds at most.
+   *
+   * @generated from field: uint32 bombs = 27;
+   */
+  bombs = 0;
+
+  /**
+   * How many viruses a hand holds at most.
+   *
+   * @generated from field: uint32 viruses = 28;
+   */
+  viruses = 0;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2963,6 +2984,9 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 23, name: "rally_radius", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
     { no: 24, name: "rally_lasts_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 25, name: "rally_cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 26, name: "refills", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 27, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 28, name: "viruses", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {

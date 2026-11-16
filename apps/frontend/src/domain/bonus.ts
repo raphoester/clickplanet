@@ -3,12 +3,14 @@ import {TollStep} from "./toll.ts"
 export type BonusReward =
     | {
     kind: "refill"
+    refills: number
 } | {
     kind: "spreadClicks"
     clicks: number
 } | {
     kind: "bomb"
     radius: number
+    bombs: number
 }
     | {
     kind: "encloseClicks"
@@ -21,6 +23,7 @@ export type BonusReward =
 }
     | {
     kind: "virus"
+    viruses: number
 }
     | {
     kind: "mine"
@@ -31,19 +34,20 @@ export type BonusReward =
     rallies: number
 }
 
+// Every kind is a count, up to what a hand holds of it (BonusRules).
 export type Charges = {
-    refill: boolean
-    bomb: boolean
+    refills: number
+    bombs: number
     enclosures: number
     spreadClicksLeft: number
     shields: number
-    virus: boolean
+    viruses: number
     mines: number
     rallies: number
 }
 
 export const NO_CHARGES: Charges = {
-    refill: false, bomb: false, enclosures: 0, spreadClicksLeft: 0, shields: 0, virus: false, mines: 0, rallies: 0,
+    refills: 0, bombs: 0, enclosures: 0, spreadClicksLeft: 0, shields: 0, viruses: 0, mines: 0, rallies: 0,
 }
 
 export type ChargeKind = BonusReward["kind"]
@@ -189,6 +193,10 @@ export type BonusRules = {
     enclosuresOff: boolean
     // The most a virus infects, a tile taken or a shield struck each.
     virusInfections: number
+    // How many refills, bombs and viruses a hand holds.
+    refills: number
+    bombs: number
+    viruses: number
     // Bonuses' gates: while on, a kind not open is locked under the level progression's ladder opens it at.
     gatesOn: boolean
     openKinds: readonly ChargeKind[]

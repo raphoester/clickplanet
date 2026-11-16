@@ -209,7 +209,7 @@ func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 
 func TestAGrantToTheCallersAccountIsCarriedToTheSinkAGuestsToo(t *testing.T) {
 	news := make(chan notices.Event, 1)
-	held := &charges.Gain{After: charges.Held{Bomb: true, Shields: 20}}
+	held := &charges.Gain{After: charges.Held{Bombs: 1, Shields: 20}}
 	news <- notices.Event{Granted: held}
 
 	guest := cpctx.AddAccountToContext(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), "acc-1")

@@ -464,6 +464,11 @@ export class ChargeRules extends Message<ChargeRules> {
    */
   rally?: RallyRules;
 
+  /**
+   * @generated from field: planet.v1.RefillRules refill = 8;
+   */
+  refill?: RefillRules;
+
   constructor(data?: PartialMessage<ChargeRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -479,6 +484,7 @@ export class ChargeRules extends Message<ChargeRules> {
     { no: 5, name: "virus", kind: "message", T: VirusRules },
     { no: 6, name: "mine", kind: "message", T: MineRules },
     { no: 7, name: "rally", kind: "message", T: RallyRules },
+    { no: 8, name: "refill", kind: "message", T: RefillRules },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChargeRules {
@@ -495,6 +501,45 @@ export class ChargeRules extends Message<ChargeRules> {
 
   static equals(a: ChargeRules | PlainMessage<ChargeRules> | undefined, b: ChargeRules | PlainMessage<ChargeRules> | undefined): boolean {
     return proto3.util.equals(ChargeRules, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.RefillRules
+ */
+export class RefillRules extends Message<RefillRules> {
+  /**
+   * How many refills a hand holds at most.
+   *
+   * @generated from field: optional uint32 held = 1;
+   */
+  held?: number;
+
+  constructor(data?: PartialMessage<RefillRules>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.RefillRules";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RefillRules {
+    return new RefillRules().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RefillRules {
+    return new RefillRules().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RefillRules {
+    return new RefillRules().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RefillRules | PlainMessage<RefillRules> | undefined, b: RefillRules | PlainMessage<RefillRules> | undefined): boolean {
+    return proto3.util.equals(RefillRules, a, b);
   }
 }
 
@@ -565,12 +610,19 @@ export class BombRules extends Message<BombRules> {
   rings?: number;
 
   /**
-   * No bomb: a bomb held is not dropped (DropBomb answers a BombRefusal), and no hand has room for one (GetRoom), so
-   * no box or quiz offers one.
+   * No bomb: a bomb held is not dropped (DropBomb answers a BombRefusal), and a grant keeps none, a box's, a quiz's or
+   * an operator's. The bombs held are kept.
    *
    * @generated from field: optional bool off = 2;
    */
   off?: boolean;
+
+  /**
+   * How many bombs a hand holds at most.
+   *
+   * @generated from field: optional uint32 held = 3;
+   */
+  held?: number;
 
   constructor(data?: PartialMessage<BombRules>) {
     super();
@@ -582,6 +634,7 @@ export class BombRules extends Message<BombRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "rings", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 2, name: "off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 3, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BombRules {
@@ -625,8 +678,8 @@ export class EncloseRules extends Message<EncloseRules> {
   unlimited?: boolean;
 
   /**
-   * No enclosure: a click with enclose on closes nothing and spends nothing, and no hand has room for one (GetRoom), so
-   * no box, quiz or mission grants one. The enclosures held are kept. Never with unlimited.
+   * No enclosure: a click with enclose on closes nothing and spends nothing, and a grant keeps none, a box's, a quiz's
+   * or an operator's. The enclosures held are kept. Never with unlimited.
    *
    * @generated from field: optional bool off = 5;
    */
@@ -728,6 +781,13 @@ export class VirusRules extends Message<VirusRules> {
    */
   every?: Duration;
 
+  /**
+   * How many viruses a hand holds at most.
+   *
+   * @generated from field: optional uint32 held = 3;
+   */
+  held?: number;
+
   constructor(data?: PartialMessage<VirusRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -738,6 +798,7 @@ export class VirusRules extends Message<VirusRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "infections", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 2, name: "every", kind: "message", T: Duration },
+    { no: 3, name: "held", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VirusRules {

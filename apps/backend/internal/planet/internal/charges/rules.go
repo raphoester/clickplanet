@@ -8,8 +8,9 @@ import (
 )
 
 // Rules is what the wallet reads (planet.v1.ChargeRules): how many of each charge a hand holds, and what each does when
-// it is spent. What a box or a quiz grants is not planet's: whoever grants is told what a hand has no room for.
+// it is spent. What a box or a quiz grants is not planet's: whoever grants draws blind, and the wallet keeps what fits.
 type Rules struct {
+	Refill  RefillRules
 	Spread  SpreadRules
 	Bomb    BombRules
 	Enclose EncloseRules
@@ -17,6 +18,43 @@ type Rules struct {
 	Virus   VirusRules
 	Mine    MineRules
 	Rally   RallyRules
+}
+
+// Size is how many of the kind a hand holds at most.
+func (r Rules) Size(kind Kind) int {
+	switch kind {
+	case KindRefill:
+		return r.Refill.Held
+	case KindBomb:
+		return r.Bomb.Held
+	case KindEncloseClicks:
+		return r.Enclose.Held
+	case KindSpreadClicks:
+		return r.Spread.Clicks
+	case KindShields:
+		return r.Shield.Held
+	case KindVirus:
+		return r.Virus.Held
+	case KindMine:
+		return r.Mine.Held
+	case KindRally:
+		return r.Rally.Held
+	}
+
+	return 0
+}
+
+// Off is a kind the rules turn off: a grant keeps none of it, and the ones held are kept.
+func (r Rules) Off(kind Kind) bool {
+	switch kind {
+	case KindBomb:
+		return r.Bomb.Off
+	case KindEncloseClicks:
+		return r.Enclose.Off
+	case KindRefill, KindSpreadClicks, KindShields, KindVirus, KindMine, KindRally:
+	}
+
+	return false
 }
 
 // A tile keeps its shields in a byte.
@@ -42,6 +80,9 @@ const (
 
 func (r Rules) Validate() error {
 	return errors.Join(
+		rules.Positive("refill.held", r.Refill.Held),
+		rules.Positive("bomb.held", r.Bomb.Held),
+		rules.Positive("virus.held", r.Virus.Held),
 		rules.Positive("spread.clicks", r.Spread.Clicks),
 		rules.Positive("spread.rings", r.Spread.Rings),
 		rules.AtMost("spread.rings", r.Spread.Rings, "the widest spread", MostSpreadRings),
@@ -69,20 +110,26 @@ func (r Rules) Validate() error {
 	)
 }
 
+// RefillRules: a hand holds Held refills at most.
+type RefillRules struct {
+	Held int
+}
+
 type SpreadRules struct {
 	Clicks    int
 	Rings     int
 	Unlimited bool
 }
 
-// BombRules: Off, a bomb held is not dropped, and no hand has room for one, so none is granted.
+// BombRules: a hand holds Held bombs at most. Off, a bomb held is not dropped, and a grant keeps none.
 type BombRules struct {
 	Rings float64
 	Off   bool
+	Held  int
 }
 
-// EncloseRules: Off, a click with enclose on closes nothing and spends nothing, and no hand has room for one, so none
-// is granted. The enclosures held are kept.
+// EncloseRules: Off, a click with enclose on closes nothing and spends nothing, and a grant keeps none. The enclosures
+// held are kept.
 type EncloseRules struct {
 	MaxTiles  int
 	Held      int
@@ -97,11 +144,12 @@ func (r EncloseRules) validate() error {
 	return nil
 }
 
-// VirusRules: a virus makes Infections at most, a tile taken or a shield struck each, its first included, one spread
-// every Every.
+// VirusRules: a hand holds Held viruses at most. A virus makes Infections at most, a tile taken or a shield struck each,
+// its first included, one spread every Every.
 type VirusRules struct {
 	Infections int
 	Every      time.Duration
+	Held       int
 }
 
 // MineRules: a hand holds Held mines at most, and a mine's blast takes Rings rings of tiles around its own.

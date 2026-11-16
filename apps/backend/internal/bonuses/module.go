@@ -115,7 +115,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Only the quizzes' own stream: an answer the bonuses module told was paid as it was answered.
 	rightAnswers, err := cpredis.Subscribe(ctx, streams, "bonuses-right-answers",
 		log_subscriber.New(quiz_answered_subscriber.New(
-			pay_right_answer_usecase.New(winsWallet, winsWallet, unlockStore, winRules)), props.Logger))
+			pay_right_answer_usecase.New(winsWallet, unlockStore, winRules)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the rewards to quizzes.v1.QuizAnswered: %w", err)
@@ -123,7 +123,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Only the boxes' own stream: a box the bonuses module offered was paid as it was caught.
 	boxesCaught, err := cpredis.Subscribe(ctx, streams, "bonuses-boxes",
 		log_subscriber.New(box_claimed_subscriber.New(prom_pay_caught_box.New(
-			pay_caught_box_usecase.New(winsWallet, winsWallet, unlockStore, winRules), props.Metrics)), props.Logger))
+			pay_caught_box_usecase.New(winsWallet, unlockStore, winRules), props.Metrics)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the rewards to boxes.v1.BoxClaimed: %w", err)
@@ -137,7 +137,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to handle bonuses.v1.KeepUnlocks: %w", err)
 	}
 	levelUps, err := cpredis.Handle(ctx, streams,
-		log_subscriber.New(pay_level_up_handler.New(pay_level_up_usecase.New(lastingWallet, lastingWallet, winRules)), props.Logger))
+		log_subscriber.New(pay_level_up_handler.New(pay_level_up_usecase.New(lastingWallet, winRules)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to handle bonuses.v1.PayLevelUp: %w", err)

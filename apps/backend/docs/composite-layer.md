@@ -93,7 +93,6 @@ return []cpbootstrap.Module{
 | `clips` | `planet.v1.InternalService/GetLedger` | who took which tile in a run's window, page after page, on each `MakeCast` | `casts/rpc_planet_ledger` |
 | `clips` | `player.v1.InternalService/GetPlayers` | the name each of those accounts may be shown under in the clips, on each `MakeCast` | `casts/rpc_player_names` |
 | `boxes` | `planet.v1.InternalService/GetFreeze` | whether the map takes no play (planet's frozen set, an arena's freeze), on each `ClaimBox` the boxes' own frozen set does not refuse | `boxesv1controller/rpc_planet_freeze` |
-| `bonuses` | `planet.v1.InternalService/GetRoom` | the kinds the account's hand has no room for, once per box caught and per right answer heard | `bonuses/rpc_planet_wallet` |
 | `bonuses` | `planet.v1.InternalService/GrantCharges` | what a box caught, a right answer or a guest's first sign-in grants, once per grant id: a box's or an answer's kept 10 minutes in memory, a refill's for good in `charge_grants` (`lasting`) | `bonuses/rpc_planet_wallet` |
 | `quizzes` | `planet.v1.InternalService/GetFreeze` | the same, on each `OpenQuiz` and `AnswerQuiz` the quizzes' own frozen set does not refuse | `quizzesv1controller/rpc_planet_freeze` |
 | `quizzes` | `planet.v1.InternalService/GetTerritories` | each flag's share of the map, every 10 s, for the quiz's lean | `bank/rpc_planet_shares` |

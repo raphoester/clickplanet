@@ -27,8 +27,8 @@ defender who takes an infected tile back cures that tile, and it spreads no more
   infected is still its flag's, or once it made its most infections. The end is told: every page stops drawing it.
 - **The aim must be an enemy tile with no shield**, else the virus stays in the hand: `FailedPrecondition` with a
   `planet.v1.VirusRefusal` (`clicks.ErrNotInfectable`). A blank tile has no flag to spread into.
-- **A hand holds one virus**, as a bomb: a second grant replaces the first, and `GetRoom` says the hand is full while it
-  holds one.
+- **A hand holds `charges.virus.held` viruses** (1 in `default`), as bombs, each used alone. Until 2026-11-16 a virus
+  was held or not, and a second grant replaced the first.
 - The values are read at each use and each tick, so a smaller cap stops a live virus at its next tick.
 
 ## The use (`UseVirus`)

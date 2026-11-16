@@ -33,7 +33,7 @@ func (s *StoreContractSuite) held(holder Holder) Held {
 }
 
 func (s *StoreContractSuite) TestEveryChargeIsKeptAndEachHolderHasItsOwn() {
-	full := Held{Refill: true, Bomb: true, Enclosures: 3, SpreadClicks: 8, Shields: 30}
+	full := Held{Refills: 2, Bombs: 3, Enclosures: 3, SpreadClicks: 8, Shields: 30, Viruses: 2, Mines: 3, Rallies: 1}
 	s.keep(s.Holder(1), full)
 	s.keep(s.Holder(2), Held{Shields: 1})
 
@@ -43,7 +43,7 @@ func (s *StoreContractSuite) TestEveryChargeIsKeptAndEachHolderHasItsOwn() {
 }
 
 func (s *StoreContractSuite) TestAHandSpentToNothingHoldsNothing() {
-	s.keep(s.Holder(1), Held{Bomb: true})
+	s.keep(s.Holder(1), Held{Bombs: 1})
 
 	s.keep(s.Holder(1), Held{})
 
@@ -51,13 +51,13 @@ func (s *StoreContractSuite) TestAHandSpentToNothingHoldsNothing() {
 }
 
 func (s *StoreContractSuite) TestARefusedChangeKeepsNothingAndSaysWhy() {
-	s.keep(s.Holder(1), Held{Bomb: true})
+	s.keep(s.Holder(1), Held{Bombs: 1})
 	refused := errors.New("refused")
 
 	err := s.store.Change(s.T().Context(), s.Holder(1), func(Held) (Held, error) { return Held{}, refused })
 
 	s.Require().ErrorIs(err, refused)
-	s.Equal(Held{Bomb: true}, s.held(s.Holder(1)))
+	s.Equal(Held{Bombs: 1}, s.held(s.Holder(1)))
 }
 
 func (s *StoreContractSuite) TestChangesToOneHolderNeverOverlap() {

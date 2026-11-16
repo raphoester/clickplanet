@@ -4,7 +4,7 @@ import {describeReward} from "./describeReward.ts"
 
 describe("describeReward", () => {
     it("says what a refill does", () => {
-        const {title, detail} = describeReward({kind: "refill"})
+        const {title, detail} = describeReward({kind: "refill", refills: 1})
 
         expect(title).toBe("Refill")
         expect(detail).toBe("Fills your clicks to full, when you choose")
@@ -19,10 +19,17 @@ describe("describeReward", () => {
     })
 
     it("says what a bomb does and where it is aimed from", () => {
-        const {title, detail} = describeReward({kind: "bomb", radius: 0.06})
+        const {title, detail} = describeReward({kind: "bomb", radius: 0.06, bombs: 1})
 
         expect(title).toBe("Bomb")
         expect(detail).toBe("Resets the tiles in an area. Aim it from your inventory")
+    })
+
+    it("counts the refills, bombs and viruses a grant added when it was several, and names one alone", () => {
+        expect(describeReward({kind: "refill", refills: 2}).title).toBe("+2 refills")
+        expect(describeReward({kind: "bomb", radius: 0.06, bombs: 3}).title).toBe("+3 bombs")
+        expect(describeReward({kind: "virus", viruses: 2}).title).toBe("+2 viruses")
+        expect(describeReward({kind: "virus", viruses: 1}).title).toBe("Virus")
     })
 
     it("says how many enclosures a box added, and how big a shape", () => {
@@ -43,9 +50,9 @@ describe("describeReward", () => {
 
     it("gives every kind a title of its own", () => {
         const rewards: BonusReward[] = [
-            {kind: "refill"},
+            {kind: "refill", refills: 1},
             {kind: "spreadClicks", clicks: 1},
-            {kind: "bomb", radius: 0.06},
+            {kind: "bomb", radius: 0.06, bombs: 1},
             {kind: "encloseClicks", shapes: 1, maxTiles: 25},
             {kind: "shields", shields: 1},
         ]

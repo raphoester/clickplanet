@@ -56,8 +56,8 @@ progression gave up (4 to 3), so `max_connections` stays 42.
   left behind. A click with no account (`auth.enabled` off) is not heard, as the quizzes do not hear it: nothing could
   pay a box to it.
 - **No room.** **The boxes ask no hand what it holds**, and offer a box to every caller due, whatever the hands behind it
-  hold. Whether a box pays anything is the bonuses module's to say when it is caught, from the room planet answers then
-  ([A box caught](bonuses.md#a-box-caught)), as it says for a right answer since the quizzes left
+  hold. Whether a box pays anything is the bonuses module's to say when it is caught, by what planet's wallet keeps of
+  the kind it draws (since 2026-11-16 the draw ignores the hand; [A box caught](bonuses.md#a-box-caught)), as it says for a right answer since the quizzes left
   ([The quizzes](quizzes-module.md)). Keeping "no box for a full hand" would need the bonuses' weights, and the boxes
   cannot ask the bonuses module, which hears them (a cycle, which `cmd/api/modules_test.go` refuses); asking planet's
   `GetRoom` instead would teach the boxes planet's kinds and still miss the kinds weighed 0. The owner's call,

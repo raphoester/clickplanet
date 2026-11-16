@@ -65,18 +65,18 @@ func keep(ctx context.Context, tx cppg.Querier, holder charges.Holder, held char
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO charges (account, refill, bomb, enclosures, spread_clicks, shields, virus, mines, rallies)
+		INSERT INTO charges (account, refills, bombs, enclosures, spread_clicks, shields, viruses, mines, rallies)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		ON CONFLICT (account) DO UPDATE SET
-			refill = EXCLUDED.refill,
-			bomb = EXCLUDED.bomb,
+			refills = EXCLUDED.refills,
+			bombs = EXCLUDED.bombs,
 			enclosures = EXCLUDED.enclosures,
 			spread_clicks = EXCLUDED.spread_clicks,
 			shields = EXCLUDED.shields,
-			virus = EXCLUDED.virus,
+			viruses = EXCLUDED.viruses,
 			mines = EXCLUDED.mines,
 			rallies = EXCLUDED.rallies
-	`, string(holder), held.Refill, held.Bomb, held.Enclosures, held.SpreadClicks, held.Shields, held.Virus,
+	`, string(holder), held.Refills, held.Bombs, held.Enclosures, held.SpreadClicks, held.Shields, held.Viruses,
 		held.Mines, held.Rallies); err != nil {
 		return fmt.Errorf("failed to write the hand: %w", err)
 	}
@@ -86,9 +86,9 @@ func keep(ctx context.Context, tx cppg.Querier, holder charges.Holder, held char
 func heldBy(ctx context.Context, db cppg.Querier, holder charges.Holder) (charges.Held, error) {
 	var held charges.Held
 	err := db.QueryRowContext(ctx,
-		`SELECT refill, bomb, enclosures, spread_clicks, shields, virus, mines, rallies FROM charges WHERE account = $1`,
+		`SELECT refills, bombs, enclosures, spread_clicks, shields, viruses, mines, rallies FROM charges WHERE account = $1`,
 		string(holder)).
-		Scan(&held.Refill, &held.Bomb, &held.Enclosures, &held.SpreadClicks, &held.Shields, &held.Virus, &held.Mines,
+		Scan(&held.Refills, &held.Bombs, &held.Enclosures, &held.SpreadClicks, &held.Shields, &held.Viruses, &held.Mines,
 			&held.Rallies)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):

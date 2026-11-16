@@ -221,15 +221,15 @@ func TestASinkFramesWhatAGrantAddedAndEverythingItLeftHeld(t *testing.T) {
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Granted: &charges.Gain{
 			Before: charges.Held{Enclosures: 2, Shields: 5},
-			After:  charges.Held{Bomb: true, Enclosures: 2, SpreadClicks: 4, Shields: 20},
+			After:  charges.Held{Bombs: 1, Enclosures: 2, SpreadClicks: 4, Shields: 20},
 		},
 	}))
 
 	granted := stream.sent[0].GetChargesGranted()
 	held := granted.GetCharges()
 	require.NotNil(t, held)
-	assert.True(t, held.GetBomb())
-	assert.False(t, held.GetRefill())
+	assert.Equal(t, uint32(1), held.GetBombs())
+	assert.Zero(t, held.GetRefills())
 	assert.Equal(t, uint32(2), held.GetEnclosures())
 	assert.Equal(t, uint32(4), held.GetSpreadClicksLeft())
 	assert.Equal(t, uint32(20), held.GetShields())

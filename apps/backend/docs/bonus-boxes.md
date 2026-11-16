@@ -12,14 +12,14 @@ all and the ones the player's level unlocked are drawn ([The gates](bonuses.md#t
 - **`spread_clicks`** — 1 to the offers' `spread.maxPerBox` (4) clicks added to a pool
   of at most planet's `charges.spread.clicks` (8). While the player switches spread on, each
   click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](spread.md).
-- **`bomb`** — a charge: one bomb, kept until it is dropped (never offered while planet's `charges.bomb.off`: no hand
-  has room for one). It clears a circle of `charges.bomb.rings` tile spacings around where it lands,
+- **`bomb`** — a charge: one bomb, kept until it is dropped, in a stack of at most `charges.bomb.held` (1); none is kept
+  while planet's `charges.bomb.off`. It clears a circle of `charges.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](bomb.md).
 - **`enclose_clicks`** — 1 to the offers' `enclose.maxPerBox` (3) enclosures added to a
   stack of at most `charges.enclose.held` (3). While the player switches enclose on,
   a click that closes shapes of its flag's tiles also takes the tiles
-  inside each, at most `charges.enclose.maxTiles` (25) a shape, and spends one. Never offered while planet's
-  `charges.enclose.off`: no hand has room for one. See [What an enclose does to a click](enclose.md).
+  inside each, at most `charges.enclose.maxTiles` (25) a shape, and spends one. None is kept while planet's
+  `charges.enclose.off`. See [What an enclose does to a click](enclose.md).
 - **`shields`** — the offers' `shield.minPerBox` (5) to `shield.maxPerBox` (20)
   shields added to a stack of at most `charges.shield.held` (30). Each is placed on a tile the player's flag
   holds and takes one foreign click there. See [Shields](shields.md).
@@ -89,8 +89,8 @@ a number you choose rather than a function of reflexes. Past 12 boxes caught in 
 last hour (`maxBoxesPerHour`) the slot is lost, like a caller's who was away; 12 is above the ten
 boxes an hour a person catching every one would get. Until 2026-11-15 the cap counted the charges granted; each box
 granted one, so the number is the same. **A box comes whatever the hand holds**: the boxes know no kind and ask no room
-([The boxes](boxes-module.md#what-it-asks-of-planet)), so a full hand, or one with room only for a kind the bonuses' rules
-weigh 0, is offered one, which pays nothing ([A box caught](bonuses.md#a-box-caught)). Until 2026-11-15 a hand with room
+([The boxes](boxes-module.md#what-it-asks-of-planet)), and its kind is drawn whatever the hand holds: one drawn into a
+full stack pays nothing ([A box caught](bonuses.md#a-box-caught)). Until 2026-11-15 a hand with room
 for no kind the rules weighed was offered no box.
 
 **A caller is an entrant, not a connection.** `bonuses.EntrantOf(caller)` is the

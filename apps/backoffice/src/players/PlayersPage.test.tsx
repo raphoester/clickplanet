@@ -407,15 +407,19 @@ describe("one player", () => {
         const grant = () => screen.getByRole("button", {name: "Grant"}) as HTMLButtonElement
         expect(grant().disabled).toBe(true)
 
-        fireEvent.click(screen.getByRole("checkbox", {name: "Bomb"}))
+        expect(screen.queryByRole("checkbox")).toBeNull()
+        expect(screen.getAllByRole("spinbutton").map(field => field.closest("label")?.textContent)).toEqual([
+            "Refills", "Bombs", "Enclosures", "Spread clicks", "Shields", "Viruses", "Mines", "Rallies",
+        ])
+        fireEvent.change(screen.getByRole("spinbutton", {name: "Bombs"}), {target: {value: "2"}})
         fireEvent.change(screen.getByRole("spinbutton", {name: "Enclosures"}), {target: {value: "3"}})
         fireEvent.click(grant())
-        expect(screen.getByText("Give BraveFox42 a bomb and 3 enclosures?")).toBeTruthy()
+        expect(screen.getByText("Give BraveFox42 2 bombs and 3 enclosures?")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, grant"}))
 
-        expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()
+        expect(await screen.findByText("It held 2 enclosures. It holds 2 bombs and 3 enclosures.")).toBeTruthy()
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: ACCOUNT, refill: false, bomb: true, enclosures: 3, spreadClicks: 0, shields: 0, virus: false, mines: 0, rallies: 0,
+            accountId: ACCOUNT, refills: 0, bombs: 2, enclosures: 3, spreadClicks: 0, shields: 0, viruses: 0, mines: 0, rallies: 0,
         }])
     })
 
@@ -428,9 +432,9 @@ describe("one player", () => {
         expect(screen.getByText("Give BraveFox42 every charge, as many as fit?")).toBeTruthy()
         fireEvent.click(screen.getByRole("button", {name: "Yes, max out"}))
 
-        expect(await screen.findByText("It held 2 enclosures. It holds a bomb and 3 enclosures.")).toBeTruthy()
+        expect(await screen.findByText("It held 2 enclosures. It holds 2 bombs and 3 enclosures.")).toBeTruthy()
         expect(admin.askedFor("grantCharges")).toEqual([{
-            accountId: ACCOUNT, refill: true, bomb: true, enclosures: 99, spreadClicks: 99, shields: 99, virus: true, mines: 99, rallies: 99,
+            accountId: ACCOUNT, refills: 99, bombs: 99, enclosures: 99, spreadClicks: 99, shields: 99, viruses: 99, mines: 99, rallies: 99,
         }])
     })
 

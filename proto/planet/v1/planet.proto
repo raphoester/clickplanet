@@ -509,9 +509,12 @@ message LandmassFortified {
 }
 
 message ChargesHeld {
-  bool refill = 4;
+  reserved 1, 4, 6;
+  reserved "refill", "bomb", "virus";
 
-  bool bomb = 1;
+  uint32 refills = 9;
+
+  uint32 bombs = 10;
 
   uint32 enclosures = 2;
   reserved "enclose";
@@ -520,7 +523,7 @@ message ChargesHeld {
 
   uint32 shields = 5;
 
-  bool virus = 6;
+  uint32 viruses = 11;
 
   uint32 mines = 7;
 
@@ -569,7 +572,7 @@ message GetChargeRulesResponse {
   // No shield goes on a capital.
   bool capital_shields_fixed = 13;
 
-  // No bomb is dropped, and none is offered: the page hides the bomb.
+  // No bomb is dropped, and no hand takes one: the page hides the bomb.
   bool bombs_off = 14;
 
   reserved 15;
@@ -604,6 +607,15 @@ message GetChargeRulesResponse {
 
   // What a click inside a rally's ring of its flag takes from the bank.
   double rally_cost = 25;
+
+  // How many refills a hand holds at most.
+  uint32 refills = 26;
+
+  // How many bombs a hand holds at most.
+  uint32 bombs = 27;
+
+  // How many viruses a hand holds at most.
+  uint32 viruses = 28;
 }
 
 message TollStep {

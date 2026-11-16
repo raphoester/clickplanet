@@ -10,9 +10,9 @@ clock (the quizzes' rule set's `minInterval` / `maxInterval`; see [Its rule sets
 own banner lifetime, its own `missRetry`, and its own `maxRightAnswersPerHour` beside the boxes' cap. The miss rule is
 the box's: a banner that lapses, opened or not, brings the next one forward once, and an answer, right or wrong, clears
 it. What it shares with a box is the reward: **the bonuses module draws it when it hears the right answer**, from
-`kinds`, among the kinds the hand has room for, exactly as a box's ([A right answer](bonuses.md#a-right-answer)). Since
-2026-11-13 a quiz is asked whatever the hand holds: the quizzes know no kind, and a right answer whose hand has room for
-nothing is paid nothing.
+`kinds`, whatever the hand holds, exactly as a box's ([A right answer](bonuses.md#a-right-answer)). Since
+2026-11-13 a quiz is asked whatever the hand holds: the quizzes know no kind, and a right answer drawn into a full stack
+is paid nothing.
 
 **A box and a quiz no longer keep apart.** From 2026-11-02 to 2026-11-13 neither was offered while the other was out, nor
 less than half the shorter of their shortest waits after it, since two clocks of 4-8 min drew a quiz within 30 s of a

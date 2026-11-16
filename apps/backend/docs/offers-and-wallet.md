@@ -101,8 +101,9 @@ never see one. Since B, `Held.Full` also counts a bomb while `charges.bomb.off`,
 
 **Since 2026-11-15 no offer asks the room.** The quizzes stopped on 2026-11-13 and the boxes on 2026-11-15, as each left
 `bonuses` knowing no kind: a quiz is asked and a box offered whatever the hand holds, and the sweep is one pass under
-the lock again. The bonuses module asks `GetRoom` once per win, when it draws what it pays
-([The bonuses](bonuses.md#what-it-asks-of-planet-in-planets-words)); the tests named here went with the boxes' room.
+the lock again. The bonuses module asked `GetRoom` once per win, when it drew what it paid, until 2026-11-16; since,
+it draws whatever the hand holds and the wallet keeps what fits, and `GetRoom` and `Held.Full` are gone ([The
+bonuses](bonuses.md#what-it-asks-of-planet-in-planets-words)). The tests named here went with the boxes' room.
 
 ### Pay
 

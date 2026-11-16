@@ -2,7 +2,9 @@
 
 A bonus box can hold a bomb (`BonusReward` kind `bomb`), kept until it is dropped
 anywhere on the planet. It clears every tile within `radius` of where it lands —
-the server's call, not this client's.
+the server's call, not this client's. A hand holds as many bombs as the rules say (`BonusRules.bombs`, one in
+production for now), `Charges.bombs`, counted on the slot once they stack (see [Charges](charges.md#the-inventory)): a
+drop spends one and puts the bomb away, and the next is aimed again.
 
 **A bomb is aimed or put away.** It is kept until it is dropped, so it cannot stay
 aimed: while aimed, a click claims no tile. It is never aimed on its own, not

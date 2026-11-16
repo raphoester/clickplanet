@@ -1,21 +1,12 @@
 package bonuses
 
 import (
-	"context"
-
 	"github.com/google/uuid"
 )
 
-// The bonuses module grants charges and holds none: the wallet is planet's, reached through these ports, which the
-// module answers with planet's internal calls (GetRoom, GrantCharges). A win draws a kind and an amount, and the wallet
-// keeps what fits.
-
-// Room is the wallet's word on what each account has room for: for each account asked, the kinds it holds as many of as
-// it may, and a bomb while planet's bombs are off. The wallet applies its own sizes, which the bonuses module never
-// sees.
-type Room interface {
-	Full(ctx context.Context, accounts []Account) (map[Account][]Kind, error)
-}
+// The bonuses module grants charges and holds none: the wallet is planet's, reached through planet's internal call
+// GrantCharges. A win draws a kind and an amount whatever the hand holds, and the wallet keeps what fits: it applies its
+// own sizes and its own kinds turned off, which the bonuses module never sees.
 
 // GrantID names one payment: the wallet pays each once, so a payment told again grants nothing more.
 type GrantID uuid.UUID

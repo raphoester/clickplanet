@@ -24,7 +24,7 @@ func setUpOn(
 ) (*pay_right_answer_usecase.UseCase, *bonuses.FakeWallet, *bonuses.FakeUnlocks) {
 	rules.Kinds = kinds
 	wallet, unlocks := bonuses.NewFakeWallet(), bonuses.NewFakeUnlocks()
-	return pay_right_answer_usecase.New(wallet, wallet, unlocks, func() bonuses.Rules { return rules }), wallet, unlocks
+	return pay_right_answer_usecase.New(wallet, unlocks, func() bonuses.Rules { return rules }), wallet, unlocks
 }
 
 func TestARightAnswerIsPaidAKindDrawnAsABoxsUnderItsQuizsToken(t *testing.T) {
@@ -47,26 +47,19 @@ func TestAnAnswerToldAgainIsPaidOnce(t *testing.T) {
 	wallet.Keep(ada, bonuses.Hand{})
 	require.NoError(t, useCase.Execute(t.Context(), answer))
 
-	assert.False(t, wallet.Kept(ada).Refill, "the wallet pays each grant once")
+	assert.Zero(t, wallet.Kept(ada).Refills, "the wallet pays each grant once")
 }
 
-func TestAKindTheHandHasNoRoomForIsNotDrawn(t *testing.T) {
-	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 100, bonuses.KindShields: 1})
-	wallet.Keep(ada, bonuses.Hand{Refill: true})
+func TestAKindDrawnIntoAFullStackIsKeptNoneOf(t *testing.T) {
+	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1, bonuses.KindShields: 0})
+	wallet.Size(bonuses.KindRefill, 1)
+	wallet.Keep(ada, bonuses.Hand{Refills: 1})
 
 	require.NoError(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
 
-	require.Len(t, wallet.Payments(), 1)
-	assert.Equal(t, bonuses.KindShields, wallet.Payments()[0].Kind)
-}
-
-func TestAHandWithRoomForNothingIsPaidNothing(t *testing.T) {
-	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1})
-	wallet.Keep(ada, bonuses.Hand{Refill: true})
-
-	require.NoError(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
-
-	assert.Empty(t, wallet.Payments())
+	require.Len(t, wallet.Payments(), 1, "the draw ignores the hand")
+	assert.Equal(t, bonuses.KindRefill, wallet.Payments()[0].Kind)
+	assert.Equal(t, bonuses.Hand{Refills: 1}, wallet.Kept(ada))
 }
 
 func TestANewcomersFirstQuizPaysShields(t *testing.T) {
@@ -96,10 +89,12 @@ func TestANewcomerWithAFullStackOfShieldsIsPaidNothing(t *testing.T) {
 
 	require.NoError(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token", Welcome: true}))
 
-	assert.Empty(t, wallet.Payments(), "never a refill or a bomb for a newcomer")
+	require.Len(t, wallet.Payments(), 1)
+	assert.Equal(t, bonuses.KindShields, wallet.Payments()[0].Kind, "never a refill or a bomb for a newcomer")
+	assert.Equal(t, bonuses.Hand{Shields: 10}, wallet.Kept(ada))
 }
 
-func TestARoomTheWalletCannotTellIsTriedAgain(t *testing.T) {
+func TestAPaymentTheWalletCannotMakeIsTriedAgain(t *testing.T) {
 	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1})
 	wallet.FailWith(errors.New("planet is gone"))
 

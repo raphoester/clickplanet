@@ -456,7 +456,7 @@ func (p *gamer) adminSignIn(googleSubject string) {
 func (p *gamer) grantFromThePage(account string) (*planetv1.GrantChargesResponse, error) {
 	p.t.Helper()
 
-	req := connect.NewRequest(&planetv1.GrantChargesRequest{AccountId: account, Bomb: true})
+	req := connect.NewRequest(&planetv1.GrantChargesRequest{AccountId: account, Bombs: 1})
 	req.Header().Set("Origin", adminOrigin)
 	req.Header().Set("Cookie", p.cookie+"; "+p.adminCookie)
 	res, err := planetv1connect.NewAdminServiceClient(http.DefaultClient, p.stack.adminURL).GrantCharges(p.t.Context(), req)

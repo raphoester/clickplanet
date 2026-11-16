@@ -19,7 +19,7 @@ var grant = bonuses.GrantID(uuid.MustParse("6a1f3c2e-8d4b-4f7a-9e21-5b3c7d9e0f11
 func setUp(rules bonuses.Rules, kinds map[bonuses.Kind]float64) (*pay_level_up_usecase.UseCase, *bonuses.FakeWallet) {
 	rules.Kinds = kinds
 	wallet := bonuses.NewFakeWallet()
-	return pay_level_up_usecase.New(wallet, wallet, func() bonuses.Rules { return rules }), wallet
+	return pay_level_up_usecase.New(wallet, func() bonuses.Rules { return rules }), wallet
 }
 
 func TestALevelUpIsPaidOneBonusUnderProgressionsGrant(t *testing.T) {
@@ -30,7 +30,7 @@ func TestALevelUpIsPaidOneBonusUnderProgressionsGrant(t *testing.T) {
 	payments := wallet.Payments()
 	require.Len(t, payments, 1)
 	assert.Equal(t, grant, payments[0].Grant)
-	assert.True(t, wallet.Kept(ada).Refill)
+	assert.Equal(t, 1, wallet.Kept(ada).Refills)
 }
 
 func TestALevelUpToldAgainIsPaidOnce(t *testing.T) {
@@ -41,7 +41,7 @@ func TestALevelUpToldAgainIsPaidOnce(t *testing.T) {
 	wallet.Keep(ada, bonuses.Hand{})
 	require.NoError(t, useCase.Execute(t.Context(), levelUp))
 
-	assert.False(t, wallet.Kept(ada).Refill, "the wallet pays each grant once")
+	assert.Zero(t, wallet.Kept(ada).Refills, "the wallet pays each grant once")
 }
 
 func TestWithTheGatesOnALevelUpIsDrawnAmongTheOpenAndUnlockedKinds(t *testing.T) {
@@ -60,15 +60,14 @@ func TestWithTheGatesOnALevelUpIsDrawnAmongTheOpenAndUnlockedKinds(t *testing.T)
 }
 
 func TestALevelUpWithNothingToDrawIsPaidNothing(t *testing.T) {
-	useCase, wallet := setUp(bonuses.TestRules(), map[bonuses.Kind]float64{bonuses.KindRefill: 1})
-	wallet.Keep(ada, bonuses.Hand{Refill: true})
+	useCase, wallet := setUp(bonuses.TestGated(), map[bonuses.Kind]float64{bonuses.KindBomb: 1})
 
 	require.NoError(t, useCase.Execute(t.Context(), bonuses.LevelUp{Account: ada, Grant: grant}))
 
-	assert.Empty(t, wallet.Payments())
+	assert.Empty(t, wallet.Payments(), "the bomb is not unlocked, and nothing else weighs")
 }
 
-func TestARoomTheWalletCannotTellIsTriedAgain(t *testing.T) {
+func TestAPaymentTheWalletCannotMakeIsTriedAgain(t *testing.T) {
 	useCase, wallet := setUp(bonuses.TestRules(), map[bonuses.Kind]float64{bonuses.KindRefill: 1})
 	wallet.FailWith(errors.New("planet is gone"))
 

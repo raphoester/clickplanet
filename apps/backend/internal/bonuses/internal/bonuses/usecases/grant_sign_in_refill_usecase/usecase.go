@@ -8,7 +8,7 @@ import (
 
 // Wallet pays the refill: it is planet's, and pays each grant once, so the refill's id makes it once per account.
 type Wallet interface {
-	Pay(ctx context.Context, payment bonuses.Payment) error
+	Pay(ctx context.Context, payment bonuses.Payment) (int, error)
 }
 
 func New(wallet Wallet, rules func() bonuses.Rules) *UseCase {
@@ -25,7 +25,7 @@ func (u *UseCase) Execute(ctx context.Context, account bonuses.Account) error {
 		return nil
 	}
 
-	err := u.wallet.Pay(ctx, bonuses.Payment{
+	_, err := u.wallet.Pay(ctx, bonuses.Payment{
 		Grant: bonuses.SignInGrantOf(account), Account: account, Kind: bonuses.KindRefill, Amount: 1,
 	})
 	return err //nolint:wrapcheck // the wallet named it.

@@ -25,9 +25,9 @@ func (a *Audited) Execute(ctx context.Context, in grant_charges_usecase.In) (gra
 
 	attrs := []any{
 		slog.String("asked", in.Account),
-		slog.Bool("refill", in.Grant.Refill), slog.Bool("bomb", in.Grant.Bomb),
+		slog.Int("refills", in.Grant.Refills), slog.Int("bombs", in.Grant.Bombs),
 		slog.Int("enclosures", in.Grant.Enclosures), slog.Int("spreadClicks", in.Grant.SpreadClicks),
-		slog.Int("shields", in.Grant.Shields), slog.Bool("virus", in.Grant.Virus),
+		slog.Int("shields", in.Grant.Shields), slog.Int("viruses", in.Grant.Viruses),
 		slog.Int("mines", in.Grant.Mines),
 		slog.Int("rallies", in.Grant.Rallies),
 		slog.String("account", string(out.Holder)),

@@ -12,7 +12,7 @@ func TestALevelUpIsDrawnAmongTheKindsItsLevelUnlockedWhileTheGatesAreOn(t *testi
 	rules.Kinds = map[Kind]float64{KindBomb: 1, KindEncloseClicks: 1}
 
 	for range 30 {
-		reward, ok := LevelUp{Unlocked: Unlocked{KindEncloseClicks}}.Reward(rules, nil)
+		reward, ok := LevelUp{Unlocked: Unlocked{KindEncloseClicks}}.Reward(rules)
 		require.True(t, ok)
 		assert.Equal(t, KindEncloseClicks, reward.Kind, "level 4 unlocks no bomb")
 	}
@@ -22,7 +22,7 @@ func TestALevelUpIsPaidInABoxsAmounts(t *testing.T) {
 	rules := TestRules()
 	rules.Kinds = map[Kind]float64{KindShields: 1}
 
-	reward, ok := LevelUp{}.Reward(rules, nil)
+	reward, ok := LevelUp{}.Reward(rules)
 
 	require.True(t, ok)
 	assert.GreaterOrEqual(t, reward.Amount, rules.Shield.MinPerBox)

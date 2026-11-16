@@ -477,7 +477,7 @@ describe("useGlobe bonus state", () => {
         createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
         const {unmount} = renderHook()
         await waitFor(() => expect(latest.status.state).toBe('ready'))
-        act(() => createGlobe.mock.calls[0][0].onCharges({...NO_CHARGES, bomb: true}))
+        act(() => createGlobe.mock.calls[0][0].onCharges({...NO_CHARGES, bombs: 1}))
 
         unmount()
 

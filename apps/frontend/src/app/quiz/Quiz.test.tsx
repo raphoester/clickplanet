@@ -179,7 +179,7 @@ describe("Quiz", () => {
         expect(screen.queryByText("Refill")).toBeNull()
         expect(screen.queryByText("Your inventory is already full")).toBeNull()
 
-        act(() => master.reward({kind: "refill"}))
+        act(() => master.reward({kind: "refill", refills: 1}))
 
         expect(screen.getByText("Refill")).toBeTruthy()
     })
@@ -193,7 +193,7 @@ describe("Quiz", () => {
         await settle()
 
         fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
-        act(() => master.reward({kind: "refill"}))
+        act(() => master.reward({kind: "refill", refills: 1}))
         await act(async () => answered({correct: true, correctChoice: 1}))
 
         expect(screen.getByText("Refill")).toBeTruthy()
@@ -220,7 +220,7 @@ describe("Quiz", () => {
 
         fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
         await settle()
-        act(() => master.reward({kind: "refill"}))
+        act(() => master.reward({kind: "refill", refills: 1}))
         act(() => vi.advanceTimersByTime(RESULT_MS))
 
         expect(screen.queryByText("Correct!")).toBeNull()
@@ -235,7 +235,7 @@ describe("Quiz", () => {
 
         fireEvent.click(screen.getByRole("button", {name: "Riga"}))
         await settle()
-        act(() => master.reward({kind: "refill"}))
+        act(() => master.reward({kind: "refill", refills: 1}))
 
         expect(screen.queryByText("Refill")).toBeNull()
     })

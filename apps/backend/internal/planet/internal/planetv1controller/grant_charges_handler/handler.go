@@ -31,12 +31,12 @@ func (h GrantChargesHandler) GrantCharges(
 	out, err := h.useCase.Execute(ctx, grant_charges_usecase.In{
 		Account: req.Msg.GetAccountId(),
 		Grant: charges.Held{
-			Refill:       req.Msg.GetRefill(),
-			Bomb:         req.Msg.GetBomb(),
+			Refills:      int(req.Msg.GetRefills()),
+			Bombs:        int(req.Msg.GetBombs()),
 			Enclosures:   int(req.Msg.GetEnclosures()),
 			SpreadClicks: int(req.Msg.GetSpreadClicks()),
 			Shields:      int(req.Msg.GetShields()),
-			Virus:        req.Msg.GetVirus(),
+			Viruses:      int(req.Msg.GetViruses()),
 			Mines:        int(req.Msg.GetMines()),
 			Rallies:      int(req.Msg.GetRallies()),
 		},

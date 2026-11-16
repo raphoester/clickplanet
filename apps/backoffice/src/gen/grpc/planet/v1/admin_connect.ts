@@ -58,8 +58,8 @@ export const AdminService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
-     * one each, the rest stack. before and after say what fit. The player sees them at its next page load.
+     * Gives one account bonus charges, as a caught box would, each kind up to what a hand holds of it under the rules in
+     * force, and none of a kind they turn off. before and after say what fit. The player sees them at once on the page.
      *
      * @generated from rpc planet.v1.AdminService.GrantCharges
      */

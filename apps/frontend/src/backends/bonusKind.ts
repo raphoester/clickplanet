@@ -35,17 +35,17 @@ export function rewardOf(
 ): BonusReward | undefined {
     switch (kind) {
         case BonusKind.REFILL:
-            return {kind: "refill"}
+            return {kind: "refill", refills: amount}
         case BonusKind.SPREAD_CLICKS:
             return {kind: "spreadClicks", clicks: amount}
         case BonusKind.BOMB:
-            return {kind: "bomb", radius: blastRadius}
+            return {kind: "bomb", radius: blastRadius, bombs: amount}
         case BonusKind.ENCLOSE_CLICKS:
             return {kind: "encloseClicks", shapes: amount, maxTiles}
         case BonusKind.SHIELDS:
             return {kind: "shields", shields: amount}
         case BonusKind.VIRUS:
-            return {kind: "virus"}
+            return {kind: "virus", viruses: amount}
         case BonusKind.MINE:
             return {kind: "mine", mines: amount}
         case BonusKind.RALLY:

@@ -75,8 +75,8 @@ type AdminServiceClient interface {
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
 	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
-	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
+	// Gives one account bonus charges, as a caught box would, each kind up to what a hand holds of it under the rules in
+	// force, and none of a kind they turn off. before and after say what fit. The player sees them at once on the page.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	// The world's map as it was at since, and every act on it until until, for the clip generator; the acts on an arena's
 	// map are left out. Megabytes for a day, so the connector does not offer it.
@@ -252,8 +252,8 @@ type AdminServiceHandler interface {
 	// caller's takes, so a second run does nothing. A scope reverts every account on it; an account reverts its takes
 	// from every scope. Only a tile still wearing the caller's flag changes. Within the ledger's last 72 hours.
 	RevertPlayer(context.Context, *connect.Request[v1.RevertPlayerRequest]) (*connect.Response[v1.RevertPlayerResponse], error)
-	// Gives one account bonus charges, as a caught box would, within the caps a player holds: a refill and a bomb are
-	// one each, the rest stack. before and after say what fit. The player sees them at its next page load.
+	// Gives one account bonus charges, as a caught box would, each kind up to what a hand holds of it under the rules in
+	// force, and none of a kind they turn off. before and after say what fit. The player sees them at once on the page.
 	GrantCharges(context.Context, *connect.Request[v1.GrantChargesRequest]) (*connect.Response[v1.GrantChargesResponse], error)
 	// The world's map as it was at since, and every act on it until until, for the clip generator; the acts on an arena's
 	// map are left out. Megabytes for a day, so the connector does not offer it.

@@ -30,8 +30,8 @@ the first box and quiz came 4-8 minutes in, so they never saw one.
   **pays nothing**, never another kind. Until 2026-11-15 it gave no
   early box: the turn went back to the ordinary window. The boxes know no kind and ask no room, so the early box comes
   all the same, as a welcome quiz is asked all the same and its right answer paid nothing, never another kind.
-- **A full hand is the wallet's to say**, to the bonuses module when it pays (`GetRoom`, [A box
-  caught](bonuses.md#a-box-caught)). The boxes and the quizzes ask none.
+- **A full stack is the wallet's to say**: it keeps what fits when the bonuses module pays ([A box
+  caught](bonuses.md#a-box-caught)). Nobody asks what a hand holds.
 - **Once per account**: each registry's `newcomers` remembers each young account it welcomed until it is no longer
   young, so neither a second click nor a second empty bank pulls anything forward again. It is
   memory only, so a restart can welcome an account a second time while it is still young.

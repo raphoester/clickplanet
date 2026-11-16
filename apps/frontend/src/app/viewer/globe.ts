@@ -1087,7 +1087,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const aimVirus = () => {
-        if (virusAimed || !charges.virus || !infector) return
+        if (virusAimed || charges.viruses === 0 || !infector) return
         disarm()
         stopAimingMine()
         stopAimingRally()
@@ -1098,7 +1098,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const arm = () => {
-        if (armed || !charges.bomb || !bomber || !rules || rules.bombsOff) return
+        if (armed || charges.bombs === 0 || !bomber || !rules || rules.bombsOff) return
         stopAimingVirus()
         stopAimingMine()
         stopAimingRally()
@@ -1110,8 +1110,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const takeCharges = (held: Charges) => {
         charges = held
-        if (!held.bomb) disarm()
-        if (!held.virus) stopAimingVirus()
+        if (held.bombs === 0) disarm()
+        if (held.viruses === 0) stopAimingVirus()
         if (held.mines === 0) stopAimingMine()
         if (held.rallies === 0) stopAimingRally()
         switchTo(switchesHeld(switches, held, rules))

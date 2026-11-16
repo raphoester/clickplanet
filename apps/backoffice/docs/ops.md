@@ -67,14 +67,17 @@ backend's [Arena battles](../../backend/docs/arenas.md)), "Reach: a take lands o
 a bridge" (`reach`: see the backend's [The reach](../../backend/docs/reach.md)), "Knock-out: a capital taken clears
 its flag" and "No shield on a capital" (`capitals.knockOut`, `capitals.fixedShields`: see the backend's
 [The capitals' rules](../../backend/docs/capitals.md)): Clicks (the tempo with them), Charges (the set's `charges`, the
-wallet's: the spread clicks, the enclosures and the shields a hand holds, a spread's rings (1 to 3), a bomb's rings,
-the tiles an enclose fills and the shields a tile takes; with "Enclosures unlimited: enclose spends no charge",
+wallet's: how many refills, spread clicks, bombs, enclosures, shields, viruses, mines and rallies a hand holds
+(`charges.refill.held`, `bomb.held` and `virus.held` beside `mine.held` and `rally.held`: the refill, the bomb and the
+virus are counts too, one each in `default` for now, and the game's inventory counts them once a hand holds more than
+one), a spread's rings (1 to 3), a bomb's rings, the tiles an enclose fills and the shields a tile takes; with "Enclosures unlimited: enclose spends no charge",
 `charges.enclose.unlimited`: see the backend's [Unlimited enclosures](../../backend/docs/enclose.md), "Spread
 unlimited: spread spends no charge", `charges.spread.unlimited`: see the backend's
-[Spread](../../backend/docs/spread.md), and "Bombs off: no box offers one, and none is
-dropped", `charges.bomb.off`: no hand has room for a bomb then, so a box never holds one; see the backend's
-[Bomb](../../backend/docs/bomb.md), and "Enclose off: no box offers one, and none is used", `charges.enclose.off`: no
-hand has room for an enclosure then, and an enclose click closes nothing; never with enclosures unlimited, which the
+[Spread](../../backend/docs/spread.md), and "Bombs off: no hand takes one, and none is
+dropped", `charges.bomb.off`: a grant keeps no bomb then, a box's, a quiz's or the operator's, and the bombs held are
+kept; see the backend's
+[Bomb](../../backend/docs/bomb.md), and "Enclose off: no hand takes one, and none is used", `charges.enclose.off`: a
+grant keeps no enclosure then, and an enclose click closes nothing; never with enclosures unlimited, which the
 server refuses; see the backend's [Enclosures off](../../backend/docs/enclose.md#enclosures-off-chargesencloseoff)), Arena (`arena.freeze`, how long an arena takes no play after its
 fresh map plays and before the battle ends, and `seed.capitals.shields`, the shields each capital starts with in the
 capitals seed, the one pattern so far: a second one brings a picker), and the Toll, whose steps are rows to add and
@@ -112,8 +115,9 @@ page's place: the other lists go, and are read again after.
   (`welcome.within`) and when its first box comes (`welcome.boxAfter`; see the backend's [A newcomer's first
   box](../../backend/docs/welcome-bonus.md)). See the backend's [Bonus boxes](../../backend/docs/bonus-boxes.md).
 - **What a box or a right answer is**: each kind's weight (`kinds`: refill, spread, enclose, bomb, shields); a kind's
-  chance is its weight over the sum, drawn when the box is caught. A kind a hand has no room for is never drawn, nor a
-  bomb while planet's bombs are off; a box whose hand has room only for kinds weighed 0 pays nothing.
+  chance is its weight over the sum, drawn when the box is caught, whatever the hand holds. Planet keeps what fits: a
+  kind drawn into a full stack, or one planet's rules turn off (bombs off), pays nothing, so a set weighs 0 a kind
+  planet turns off while it plays.
 - **Gates**: "Gates on" (`gates.on`) draws a win only from the kinds open to all and the ones progression unlocked for
   the player; a switch per kind says which are open to all (`gates.open.*`). Every set keeps them off until the levels
   are shown, and a battle's set keeps them off. The level each kind unlocks at is progression's, in code, not here. See

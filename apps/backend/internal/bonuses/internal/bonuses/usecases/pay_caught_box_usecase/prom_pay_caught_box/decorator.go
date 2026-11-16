@@ -19,7 +19,7 @@ func New(implementation UseCase, registerer prometheus.Registerer) *Decorator {
 		implementation: implementation,
 		paid: promauto.With(registerer).NewCounterVec(prometheus.CounterOpts{
 			Name: "bonus_box_rewards_total",
-			Help: "Boxes caught the bonuses module drew a reward for, by outcome: paid, nothing when the hand had room for no kind weighed, or failed",
+			Help: "Boxes caught the bonuses module drew a reward for, by outcome: paid, nothing when the wallet kept none of the kind drawn or no kind was weighed, or failed",
 		}, []string{"outcome"}),
 	}
 }

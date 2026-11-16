@@ -42,7 +42,7 @@ func use(t *testing.T, useCase *stubUseCase) (*planetv1.UseRefillResponse, error
 func TestARefillAnswersTheFullBankAndWhatIsLeft(t *testing.T) {
 	useCase := &stubUseCase{out: use_refill_usecase.Out{
 		Budget: clicks.Budget{State: cpratelimit.State{Tokens: 60, Capacity: 60, PerSecond: 0.2}},
-		Held:   charges.Held{Bomb: true},
+		Held:   charges.Held{Bombs: 1},
 	}}
 
 	msg, err := use(t, useCase)
@@ -50,8 +50,8 @@ func TestARefillAnswersTheFullBankAndWhatIsLeft(t *testing.T) {
 
 	assert.Equal(t, "fr", useCase.in.CountryID)
 	assert.InDelta(t, 60, msg.GetBudget().GetTokens(), 1e-9)
-	assert.False(t, msg.GetCharges().GetRefill())
-	assert.True(t, msg.GetCharges().GetBomb())
+	assert.Zero(t, msg.GetCharges().GetRefills())
+	assert.Equal(t, uint32(1), msg.GetCharges().GetBombs())
 }
 
 func TestNoRefillIsNotFound(t *testing.T) {

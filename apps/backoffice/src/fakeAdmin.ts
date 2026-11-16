@@ -395,11 +395,12 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         },
         toll: {steps: [{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}, {share: 0.3, slowdown: 4}]},
         charges: {
+            refill: {held: 1},
             spread: {clicks: 8, rings: 1, unlimited: false},
-            bomb: {rings: 4, off: false},
+            bomb: {rings: 4, off: false, held: 1},
             enclose: {maxTiles: 25, held: 3, unlimited: false, off: false},
             shield: {held: 30, perTile: 10},
-            virus: {infections: 32, every: "20s"},
+            virus: {infections: 32, every: "20s", held: 1},
             mine: {held: 3, rings: 2},
             rally: {held: 3, rings: 18, lasts: "180s", cost: 0.5},
         },
@@ -619,7 +620,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         return this.answer("grantCharges", request, new GrantChargesResponse({
             accountId: request.accountId,
             before: new ChargesHeld({enclosures: 2}),
-            after: new ChargesHeld({bomb: true, enclosures: 3}),
+            after: new ChargesHeld({bombs: 2, enclosures: 3}),
         }))
     }
 

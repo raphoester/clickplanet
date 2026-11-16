@@ -57,7 +57,8 @@ server does: in its map batches, its tile updates and its bombs' struck tiles.
 In fake mode the console has a few commands: `giveBomb()` puts a bomb in the
 inventory as if a box holding one had just been caught, `giveBonus("refill")` does
 the same for any other bonus (the fake holds charges as the server does: a refill
-and a bomb at most, a pool of 8 spread clicks, a stack of 3 enclosures and 30
+and a virus at most, as in production, but two bombs, so `giveBomb()` twice shows a stack of them (`2/2`), a pool of 8
+spread clicks, a stack of 3 enclosures and 30
 shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz

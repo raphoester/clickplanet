@@ -10,7 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_ledger_totals_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_room_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rule_set_names_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
@@ -38,7 +37,6 @@ type InternalService struct {
 	get_rule_set_names_handler.GetRuleSetNamesHandler
 	get_rule_set_handler.GetRuleSetHandler
 	internal_grant_charges_handler.GrantChargesHandler
-	get_room_handler.GetRoomHandler
 	get_freeze_handler.GetFreezeHandler
 	get_tiles_handler.GetTilesHandler
 }

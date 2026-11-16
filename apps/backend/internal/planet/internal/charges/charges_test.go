@@ -37,7 +37,7 @@ func TestACallerWithNoAccountHoldsNothing(t *testing.T) {
 
 func TestAGrantOfWhatIsHeldAlreadyAddsNothing(t *testing.T) {
 	store := charges.NewMemoryStore()
-	store.Keep("alice", charges.Held{Bomb: true})
+	store.Keep("alice", charges.Held{Bombs: 1})
 	wallet := charges.NewCharges(store, charges.TestRules)
 
 	gain, err := wallet.Grant(t.Context(), "alice", charges.KindBomb, 1)

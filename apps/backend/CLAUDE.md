@@ -92,7 +92,8 @@ and says what is in it. Read the doc before you change its area.
 - [The map's last 24 hours](docs/recent-map-history.md) — `GetRecentMapHistory`, public: a frame each half hour, rewound
   from the map in memory over the ledger's rows from its head, built once per step; what cannot be rewound; its size;
   why it names no account.
-- [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it.
+- [Charges](docs/charges.md) — every bonus is a charge, kept until the player uses it; every kind a count, stacked to
+  its `charges.*.held` (refills, bombs and viruses too since 2026-11-16), none kept of a kind the rules turn off.
 - [Bonus boxes](docs/bonus-boxes.md) — the box each caller is offered on a schedule of its own (the boxes module's),
   the kinds it grants (drawn by the bonuses module at the catch), `ClaimBox`, `box_offered` and the hourly cap.
 - [Spread](docs/spread.md), [Bomb](docs/bomb.md), [Enclose](docs/enclose.md), [Refill](docs/refill.md) — what
@@ -133,8 +134,8 @@ and says what is in it. Read the doc before you change its area.
   `BoxClaimed`, a right answer from the quizzes' `QuizAnswered` and a level-up from progression's `PayLevelUp`, each
   drawn at the win; the gates (the kinds open to
   all and the ones progression unlocked, `KeepUnlocks`); the sign-in refill; no stream since 2026-11-15; its rule sets
-  (`bonuses.rule_sets`, played by the gamemaster), what it asks planet in planet's words (`GetRoom`, `GrantCharges`)
-  and where its sets came from.
+  (`bonuses.rule_sets`, played by the gamemaster), what it asks planet in planet's words (`GrantCharges`: the draw
+  ignores the hand since 2026-11-16, and the wallet keeps what fits) and where its sets came from.
 
 ## Who a caller is
 

@@ -177,11 +177,11 @@ describe("QuizzesBackend", () => {
         const rewards: BonusReward[] = []
         const stop = backend.listenForRewards((reward) => rewards.push(reward))
 
-        grants.grant({kind: "shields", shields: 12}, {kind: "refill"})
+        grants.grant({kind: "shields", shields: 12}, {kind: "refill", refills: 1})
         stop()
-        grants.grant({kind: "bomb", radius: 4})
+        grants.grant({kind: "bomb", radius: 4, bombs: 1})
 
-        expect(rewards).toEqual([{kind: "shields", shields: 12}, {kind: "refill"}])
+        expect(rewards).toEqual([{kind: "shields", shields: 12}, {kind: "refill", refills: 1}])
         backend.close()
     })
 })

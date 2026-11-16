@@ -46,7 +46,7 @@ func TestAGrantReachesEveryStreamOfTheAccountGrantedAndNoOther(t *testing.T) {
 	board := notices.New()
 	mine, elsewhere := attend(t, board, ada), attend(t, board, ada)
 	other, nobody := attend(t, board, grace), attend(t, board, charges.NoHolder)
-	gain := charges.Gain{After: charges.Held{Bomb: true, Shields: 12}}
+	gain := charges.Gain{After: charges.Held{Bombs: 1, Shields: 12}}
 
 	board.PublishGranted(ada, gain)
 
@@ -63,13 +63,13 @@ func TestAGrantToNobodyReachesNoStream(t *testing.T) {
 	board := notices.New()
 	nobody := attend(t, board, charges.NoHolder)
 
-	board.PublishGranted(charges.NoHolder, charges.Gain{After: charges.Held{Bomb: true}})
+	board.PublishGranted(charges.NoHolder, charges.Gain{After: charges.Held{Bombs: 1}})
 
 	assert.Empty(t, nobody)
 }
 
 func TestAGrantToAnAccountWithNoStreamIsDropped(t *testing.T) {
-	assert.NotPanics(t, func() { notices.New().PublishGranted(ada, charges.Gain{After: charges.Held{Bomb: true}}) })
+	assert.NotPanics(t, func() { notices.New().PublishGranted(ada, charges.Gain{After: charges.Held{Bombs: 1}}) })
 }
 
 func TestAStreamThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {

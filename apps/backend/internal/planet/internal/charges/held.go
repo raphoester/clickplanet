@@ -32,9 +32,10 @@ func ParseHolder(account string) (Holder, error) {
 	return Holder(id.String()), nil
 }
 
+// Held is how many of each kind a hand holds: every kind a count, capped by the rules in force when it is granted.
 type Held struct {
-	Refill bool
-	Bomb   bool
+	Refills int
+	Bombs   int
 
 	Enclosures int
 
@@ -42,51 +43,19 @@ type Held struct {
 
 	Shields int
 
-	Virus bool
+	Viruses int
 
 	Mines int
 
 	Rallies int
 }
 
-// Full is every kind the hand has no room for: a stack at its size, a charge held where one is the most, and a bomb
-// while bombs are off or an enclosure while enclosures are off, which no hand may take.
-func (h Held) Full(rules Rules) []Kind {
-	var kinds []Kind
-	if h.Refill {
-		kinds = append(kinds, KindRefill)
-	}
-	if h.Bomb || rules.Bomb.Off {
-		kinds = append(kinds, KindBomb)
-	}
-	if h.Enclosures >= rules.Enclose.Held || rules.Enclose.Off {
-		kinds = append(kinds, KindEncloseClicks)
-	}
-	if h.SpreadClicks >= rules.Spread.Clicks {
-		kinds = append(kinds, KindSpreadClicks)
-	}
-	if h.Shields >= rules.Shield.Held {
-		kinds = append(kinds, KindShields)
-	}
-	if h.Virus {
-		kinds = append(kinds, KindVirus)
-	}
-	if h.Mines >= rules.Mine.Held {
-		kinds = append(kinds, KindMine)
-	}
-	if h.Rallies >= rules.Rally.Held {
-		kinds = append(kinds, KindRally)
-	}
-
-	return kinds
-}
-
 func (h Held) Count(kind Kind) int {
 	switch kind {
 	case KindRefill:
-		return oneIf(h.Refill)
+		return h.Refills
 	case KindBomb:
-		return oneIf(h.Bomb)
+		return h.Bombs
 	case KindEncloseClicks:
 		return h.Enclosures
 	case KindSpreadClicks:
@@ -94,19 +63,11 @@ func (h Held) Count(kind Kind) int {
 	case KindShields:
 		return h.Shields
 	case KindVirus:
-		return oneIf(h.Virus)
+		return h.Viruses
 	case KindMine:
 		return h.Mines
 	case KindRally:
 		return h.Rallies
-	}
-
-	return 0
-}
-
-func oneIf(held bool) int {
-	if held {
-		return 1
 	}
 
 	return 0
@@ -117,10 +78,12 @@ func (h Held) Empty() bool {
 }
 
 func (h Held) GrantError() error {
-	switch {
-	case h.Enclosures < 0 || h.SpreadClicks < 0 || h.Shields < 0 || h.Mines < 0 || h.Rallies < 0:
-		return fmt.Errorf("%w: %+v", ErrNegativeGrant, h)
-	case h.Empty():
+	for _, kind := range Kinds {
+		if h.Count(kind) < 0 {
+			return fmt.Errorf("%w: %+v", ErrNegativeGrant, h)
+		}
+	}
+	if h.Empty() {
 		return ErrNothingToGrant
 	}
 
@@ -128,146 +91,118 @@ func (h Held) GrantError() error {
 }
 
 func GrantOf(kind Kind, amount int) Held {
-	switch kind {
-	case KindRefill:
-		return Held{Refill: amount > 0}
-	case KindBomb:
-		return Held{Bomb: amount > 0}
-	case KindEncloseClicks:
-		return Held{Enclosures: amount}
-	case KindSpreadClicks:
-		return Held{SpreadClicks: amount}
-	case KindShields:
-		return Held{Shields: amount}
-	case KindVirus:
-		return Held{Virus: amount > 0}
-	case KindMine:
-		return Held{Mines: amount}
-	case KindRally:
-		return Held{Rallies: amount}
+	var held Held
+	if count := held.count(kind); count != nil {
+		*count = amount
 	}
 
-	return Held{}
+	return held
 }
 
-// Granted caps a stack at its size, and never takes from a stack held above a size made smaller.
+// Granted caps a stack at its size, never takes from a stack held above a size made smaller, and keeps none of a kind
+// the rules turn off.
 func (h Held) Granted(kind Kind, amount int, rules Rules) Held {
+	count := h.count(kind)
+	if count == nil || rules.Off(kind) {
+		return h
+	}
+	*count = max(*count, min(*count+amount, rules.Size(kind)))
+
+	return h
+}
+
+// count is the field that holds the kind, nil for no kind.
+func (h *Held) count(kind Kind) *int {
 	switch kind {
 	case KindRefill:
-		h.Refill = true
+		return &h.Refills
 	case KindBomb:
-		h.Bomb = true
+		return &h.Bombs
 	case KindEncloseClicks:
-		h.Enclosures = stacked(h.Enclosures, amount, rules.Enclose.Held)
+		return &h.Enclosures
 	case KindSpreadClicks:
-		h.SpreadClicks = stacked(h.SpreadClicks, amount, rules.Spread.Clicks)
+		return &h.SpreadClicks
 	case KindShields:
-		h.Shields = stacked(h.Shields, amount, rules.Shield.Held)
+		return &h.Shields
 	case KindVirus:
-		h.Virus = true
+		return &h.Viruses
 	case KindMine:
-		h.Mines = stacked(h.Mines, amount, rules.Mine.Held)
+		return &h.Mines
 	case KindRally:
-		h.Rallies = stacked(h.Rallies, amount, rules.Rally.Held)
+		return &h.Rallies
+	}
+
+	return nil
+}
+
+// spent takes one of the kind, false when none is held.
+func (h Held) spent(kind Kind) (Held, bool) {
+	count := h.count(kind)
+	if count == nil || *count <= 0 {
+		return h, false
+	}
+	*count--
+
+	return h, true
+}
+
+// back gives one of the kind back, for a charge refused once spent: the same charge comes back, so no size applies.
+func (h Held) back(kind Kind) Held {
+	if count := h.count(kind); count != nil {
+		*count++
 	}
 
 	return h
 }
 
-func stacked(held, amount, size int) int {
-	return max(held, min(held+amount, size))
-}
-
 func (h Held) AfterRefill() (Held, bool) {
-	ok := h.Refill
-	h.Refill = false
-
-	return h, ok
+	return h.spent(KindRefill)
 }
 
 func (h Held) AfterBomb() (Held, bool) {
-	ok := h.Bomb
-	h.Bomb = false
-
-	return h, ok
+	return h.spent(KindBomb)
 }
 
 func (h Held) AfterVirus() (Held, bool) {
-	ok := h.Virus
-	h.Virus = false
-
-	return h, ok
+	return h.spent(KindVirus)
 }
 
 // WithVirusBack undoes AfterVirus, for a virus the map refused.
 func (h Held) WithVirusBack() Held {
-	h.Virus = true
-
-	return h
+	return h.back(KindVirus)
 }
 
 func (h Held) AfterMine() (Held, bool) {
-	if h.Mines <= 0 {
-		return h, false
-	}
-	h.Mines--
-
-	return h, true
+	return h.spent(KindMine)
 }
 
-// WithMineBack undoes AfterMine, for a mine the map refused: the same mine comes back, so no stack size applies.
+// WithMineBack undoes AfterMine, for a mine the map refused.
 func (h Held) WithMineBack() Held {
-	h.Mines++
-
-	return h
+	return h.back(KindMine)
 }
 
 func (h Held) AfterRally() (Held, bool) {
-	if h.Rallies <= 0 {
-		return h, false
-	}
-	h.Rallies--
-
-	return h, true
+	return h.spent(KindRally)
 }
 
-// WithRallyBack undoes AfterRally, for a rally refused once spent: the same rally comes back, so no stack size applies.
+// WithRallyBack undoes AfterRally, for a rally refused once spent.
 func (h Held) WithRallyBack() Held {
-	h.Rallies++
-
-	return h
+	return h.back(KindRally)
 }
 
 func (h Held) AfterEnclose() (Held, bool) {
-	if h.Enclosures <= 0 {
-		return h, false
-	}
-	h.Enclosures--
-
-	return h, true
+	return h.spent(KindEncloseClicks)
 }
 
 func (h Held) AfterSpreadClick() (Held, bool) {
-	if h.SpreadClicks <= 0 {
-		return h, false
-	}
-	h.SpreadClicks--
-
-	return h, true
+	return h.spent(KindSpreadClicks)
 }
 
 func (h Held) AfterShield() (Held, bool) {
-	if h.Shields <= 0 {
-		return h, false
-	}
-	h.Shields--
-
-	return h, true
+	return h.spent(KindShields)
 }
 
-// WithShieldBack undoes AfterShield: the same shield comes back, so no stack size applies.
+// WithShieldBack undoes AfterShield.
 func (h Held) WithShieldBack() Held {
-	h.Shields++
-
-	return h
+	return h.back(KindShields)
 }

@@ -895,12 +895,6 @@ textarea {
     max-width: 10em;
 }
 
-.checks {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 20px;
-}
-
 .check {
     display: inline-flex;
     align-items: center;

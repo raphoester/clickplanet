@@ -25,7 +25,7 @@ const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
     reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, virusInfections: 128,
-    gatesOn: false, openKinds: [], mines: 3, mineRings: 2,
+    gatesOn: false, openKinds: [], refills: 1, bombs: 1, viruses: 1, mines: 3, mineRings: 2,
     rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
 }
 
@@ -66,7 +66,7 @@ const inTray = (name: RegExp) => within(tray()!).getByRole("button", {name}) as 
 
 const onBar = () => [...document.querySelectorAll(".inventory-slots > button")].map((button) => button.getAttribute("aria-label"))
 
-const EVERY = {...NO_CHARGES, refill: true, bomb: true, spreadClicksLeft: 5, enclosures: 2, shields: 7}
+const EVERY = {...NO_CHARGES, refills: 1, bombs: 1, spreadClicksLeft: 5, enclosures: 2, shields: 7}
 
 const gated = (unlocks: UnlockLevels): Gates => ({on: true, open: CHARGE_KINDS.filter((kind) => !(kind in unlocks)), unlocks})
 
@@ -105,7 +105,7 @@ describe("Inventory", () => {
         cleanup()
 
         const toggleVirus = vi.fn()
-        render(inventory({charges: {...NO_CHARGES, virus: true}, onToggleVirus: toggleVirus}))
+        render(inventory({charges: {...NO_CHARGES, viruses: 1}, onToggleVirus: toggleVirus}))
         fireEvent.click(slot(/^Virus/))
 
         expect(toggleVirus).toHaveBeenCalledOnce()
@@ -113,7 +113,7 @@ describe("Inventory", () => {
     })
 
     it("says what a virus does on a hover, with its size once the rules are read", () => {
-        const charges = {...NO_CHARGES, virus: true}
+        const charges = {...NO_CHARGES, viruses: 1}
         render(inventory({charges, rules: {...RULES, virusInfections: 0}}))
         fireEvent.pointerEnter(slot(/^Virus/), {pointerType: "mouse"})
         expect(bubble()).toBe("Aim the virus at an enemy tile: it takes it, then spreads into their land on its own")
@@ -125,14 +125,14 @@ describe("Inventory", () => {
     })
 
     it("says the virus is aimed, and how to put it away", () => {
-        render(inventory({charges: {...NO_CHARGES, virus: true}, virusAimed: true}))
+        render(inventory({charges: {...NO_CHARGES, viruses: 1}, virusAimed: true}))
 
         expect(slot(/^Virus/).getAttribute("aria-label")).toBe("Virus, Aim")
         expect(slot(/^Virus/).getAttribute("aria-pressed")).toBe("true")
     })
 
     it("says a virus takes only an enemy tile with no shield, over its slot", () => {
-        const charges = {...NO_CHARGES, virus: true}
+        const charges = {...NO_CHARGES, viruses: 1}
         const {rerender} = render(inventory({charges}))
 
         rerender(inventory({charges, notice: {notice: "virusNoEnemy", seq: 1}}))
@@ -171,7 +171,7 @@ describe("Inventory", () => {
     })
 
     it("shows no bomb while bombs are off, held or not", () => {
-        render(inventory({rules: {...RULES, bombsOff: true}, charges: {...NO_CHARGES, bomb: true}}))
+        render(inventory({rules: {...RULES, bombsOff: true}, charges: {...NO_CHARGES, bombs: 1}}))
         fireEvent.click(all())
 
         expect(screen.queryByRole("button", {name: /^Bomb/})).toBeNull()
@@ -328,7 +328,7 @@ describe("Inventory", () => {
     })
 
     it("calls a bonus never used new, until it is used", () => {
-        const charges = {...NO_CHARGES, bomb: true, shields: 2}
+        const charges = {...NO_CHARGES, bombs: 1, shields: 2}
         const {rerender} = render(inventory({charges}))
 
         expect(slot(/^Bomb, New/).className).toContain("inventory-slot--new")
@@ -387,7 +387,7 @@ describe("Inventory", () => {
     })
 
     it("describes each slot to a screen reader", () => {
-        render(inventory({charges: {...NO_CHARGES, bomb: true}, guide: learned, gates: gated({shields: 3})}))
+        render(inventory({charges: {...NO_CHARGES, bombs: 1}, guide: learned, gates: gated({shields: 3})}))
 
         expect(slot(/^Bomb/).getAttribute("aria-describedby")).toBeTruthy()
         expect(screen.getByText("Aim the bomb, then hold on the planet to drop it")).toBeTruthy()
@@ -400,7 +400,7 @@ describe("Inventory", () => {
 
     it("aims the bomb and puts it away", () => {
         const toggle = vi.fn()
-        const charges = {...NO_CHARGES, bomb: true}
+        const charges = {...NO_CHARGES, bombs: 1}
         const {rerender} = render(inventory({charges, onToggleBomb: toggle, guide: learned}))
 
         fireEvent.click(slot(/^Bomb/))
@@ -408,6 +408,41 @@ describe("Inventory", () => {
 
         rerender(inventory({charges, onToggleBomb: toggle, guide: learned, bombArmed: true}))
         expect(slot(/^Bomb, Aim/).getAttribute("aria-pressed")).toBe("true")
+    })
+
+    it("counts the refills, bombs and viruses against how many a hand holds, once it holds more than one", () => {
+        const toggle = vi.fn()
+        const rules = {...RULES, refills: 3, bombs: 3, viruses: 2}
+        const charges = {...NO_CHARGES, refills: 2, bombs: 2, viruses: 1}
+        const {container, rerender} = render(inventory({rules, charges, onToggleBomb: toggle, guide: learned}))
+
+        expect(slot(/^Refill/).getAttribute("aria-label")).toBe("Refill, 2/3")
+        expect(slot(/^Bomb/).getAttribute("aria-label")).toBe("Bomb, 2/3")
+        expect(slot(/^Virus/).getAttribute("aria-label")).toBe("Virus, 1/2")
+        expect(container.querySelector(".inventory-slot--bomb .inventory-count")?.textContent).toBe("2/3")
+
+        fireEvent.click(slot(/^Bomb/))
+        expect(toggle).toHaveBeenCalledOnce()
+
+        rerender(inventory({rules, charges: {...charges, bombs: 1}, onToggleBomb: toggle, guide: learned}))
+        expect(slot(/^Bomb/).getAttribute("aria-label")).toBe("Bomb, 1/3")
+        expect(slot(/^Bomb/).getAttribute("aria-disabled")).toBeNull()
+
+        rerender(inventory({rules, charges: {...charges, bombs: 0}, onToggleBomb: toggle, guide: learned}))
+        expect(screen.queryByRole("button", {name: /^Bomb/})).toBeNull()
+        fireEvent.click(all())
+        expect(inTray(/^Bomb, 0\/3/).getAttribute("aria-disabled")).toBe("true")
+    })
+
+    it("counts no refill, bomb or virus while a hand holds one at most, but several held all the same", () => {
+        const {container, rerender} = render(inventory({charges: {...NO_CHARGES, refills: 1, bombs: 1, viruses: 1}, guide: learned}))
+
+        expect(slot(/^Bomb/).getAttribute("aria-label")).toBe("Bomb")
+        expect(container.querySelector(".inventory-slot--bomb .inventory-count")).toBeNull()
+        expect(container.querySelector(".inventory-slot--refill .inventory-count")).toBeNull()
+
+        rerender(inventory({charges: {...NO_CHARGES, bombs: 2}, guide: learned}))
+        expect(slot(/^Bomb/).getAttribute("aria-label")).toBe("Bomb, 2/1")
     })
 
     it("aims a rally and puts it away, with what the hand holds of them", () => {
@@ -425,7 +460,7 @@ describe("Inventory", () => {
 
     it("fills the bank on a press, and says so when it is already full", () => {
         const use = vi.fn().mockReturnValueOnce(true).mockReturnValueOnce(false)
-        render(inventory({charges: {...NO_CHARGES, refill: true}, onUseRefill: use, guide: learned}))
+        render(inventory({charges: {...NO_CHARGES, refills: 1}, onUseRefill: use, guide: learned}))
 
         fireEvent.click(slot(/^Refill/))
         expect(screen.queryByRole("button", {name: /Full/})).toBeNull()
@@ -438,7 +473,7 @@ describe("Inventory", () => {
 
     it("only shows what it cannot use", () => {
         render(inventory({
-            charges: {...NO_CHARGES, refill: true, bomb: true, shields: 3},
+            charges: {...NO_CHARGES, refills: 1, bombs: 1, shields: 3},
             onUseRefill: undefined,
             onToggleBomb: undefined,
             onToggleShield: undefined,
@@ -450,7 +485,7 @@ describe("Inventory", () => {
     })
 
     it("keeps on the bar the kinds held, in the order they unlock, and All", () => {
-        render(inventory({charges: {...NO_CHARGES, shields: 3, refill: true}, guide: learned}))
+        render(inventory({charges: {...NO_CHARGES, shields: 3, refills: 1}, guide: learned}))
 
         expect(onBar()).toEqual(["Refill", "Shield, 3/12", "All bonuses"])
         expect(tray()).toBeNull()
@@ -542,7 +577,7 @@ describe("Inventory", () => {
 
     it("plays a kind still held whatever the level", () => {
         const toggleBomb = vi.fn()
-        render(inventory({gates: gated({bomb: 5}), charges: {...NO_CHARGES, bomb: true}, onToggleBomb: toggleBomb, guide: learned}))
+        render(inventory({gates: gated({bomb: 5}), charges: {...NO_CHARGES, bombs: 1}, onToggleBomb: toggleBomb, guide: learned}))
 
         fireEvent.click(slot(/^Bomb$/))
 

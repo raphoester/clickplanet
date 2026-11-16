@@ -50,7 +50,7 @@ func setUp() (*pay_usecase.UseCase, *charges.MemoryStore) {
 
 func TestAPaymentIsGrantedAndAnswersWhatWasKeptAndTheHandAfter(t *testing.T) {
 	useCase, hands := setUp()
-	hands.Keep(alice, charges.Held{SpreadClicks: 7, Bomb: true})
+	hands.Keep(alice, charges.Held{SpreadClicks: 7, Bombs: 1})
 
 	out, err := useCase.Execute(t.Context(), pay_usecase.In{
 		Grant: charges.GrantID{15: 1}, Holder: alice, Kind: charges.KindSpreadClicks, Amount: 4,
@@ -58,8 +58,37 @@ func TestAPaymentIsGrantedAndAnswersWhatWasKeptAndTheHandAfter(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, out.Kept, "the pool holds 8, and 7 were in it")
-	assert.Equal(t, charges.Held{SpreadClicks: 8, Bomb: true}, out.Held)
+	assert.Equal(t, charges.Held{SpreadClicks: 8, Bombs: 1}, out.Held)
 	assert.Equal(t, out.Held, hands.Kept(alice))
+}
+
+func TestAPaymentOfAFullStackKeepsNothing(t *testing.T) {
+	useCase, hands := setUp()
+	hands.Keep(alice, charges.Held{Bombs: 1})
+
+	out, err := useCase.Execute(t.Context(), pay_usecase.In{
+		Grant: charges.GrantID{15: 1}, Holder: alice, Kind: charges.KindBomb, Amount: 1,
+	})
+	require.NoError(t, err)
+
+	assert.Zero(t, out.Kept, "the rules say a hand holds one bomb")
+	assert.Equal(t, charges.Held{Bombs: 1}, hands.Kept(alice))
+}
+
+func TestAPaymentOfAKindTheRulesTurnOffKeepsNothing(t *testing.T) {
+	hands := charges.NewMemoryStore()
+	rules := charges.TestRules()
+	rules.Bomb.Off = true
+	useCase := pay_usecase.New(cpatomic.FakeTransactioner{}, inmemory_grant_store.New(time.Minute),
+		charges.NewCharges(hands, func() charges.Rules { return rules }), &recordingStreams{}, cptime.NewFixedClock(at))
+
+	out, err := useCase.Execute(t.Context(), pay_usecase.In{
+		Grant: charges.GrantID{15: 1}, Holder: alice, Kind: charges.KindBomb, Amount: 1,
+	})
+	require.NoError(t, err)
+
+	assert.Zero(t, out.Kept, "no hand takes a bomb while bombs are off")
+	assert.Equal(t, charges.Held{}, hands.Kept(alice))
 }
 
 func TestAPaymentToldAgainKeepsNothingAndAnswersTheHandAsItIs(t *testing.T) {

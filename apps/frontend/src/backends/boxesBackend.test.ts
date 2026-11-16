@@ -214,7 +214,7 @@ describe("BoxesBackend", () => {
 
         const claimed = backend.claimBox("box-1")
         await vi.advanceTimersByTimeAsync(BOX_REWARD_WAIT_MS)
-        grants.grant({kind: "refill"})
+        grants.grant({kind: "refill", refills: 1})
 
         await expect(claimed).resolves.toBeUndefined()
         expect(grants.listening).toBe(0)
@@ -231,7 +231,7 @@ describe("BoxesBackend", () => {
 
         const claimed = backend.claimBox("box-1")
         await vi.waitFor(() => expect(claimBox).toHaveBeenCalledTimes(2))
-        grants.grant({kind: "refill"})
+        grants.grant({kind: "refill", refills: 1})
         await claimed
 
         expect(session.invalidated).toBe(1)

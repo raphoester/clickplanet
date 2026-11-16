@@ -109,7 +109,7 @@ func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {
 	me := ada.me()
 	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_LINKED, me.GetKind())
 	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_GOOGLE}, me.GetProviders())
-	assert.Eventually(t, func() bool { return ada.charges().GetRefill() },
+	assert.Eventually(t, func() bool { return ada.charges().GetRefills() == 1 },
 		5*time.Second, 20*time.Millisecond, "player makes the guest a player, and planet grants it a refill")
 	require.Eventually(t, func() bool { return generatedName.MatchString(ada.profile().GetName()) },
 		5*time.Second, 20*time.Millisecond, "player names the account auth signed in")
@@ -257,7 +257,7 @@ func (s *testSuite) TestAnOperatorSignsInOnTheAdminPageAndGrantsItselfABomb() {
 	granted, err := operator.grantFromThePage(operator.account())
 
 	require.NoError(t, err)
-	assert.True(t, granted.GetAfter().GetBomb())
+	assert.Equal(t, uint32(1), granted.GetAfter().GetBombs())
 }
 
 func (s gameStack) tileUpdates(t *testing.T) <-chan *planetv1.TileUpdate {

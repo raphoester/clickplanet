@@ -79,7 +79,7 @@ func TestAMineTheGateRefusesStaysInTheHand(t *testing.T) {
 }
 
 func TestNoMineHeldLaysNone(t *testing.T) {
-	useCase, p := setup(nil, charges.Held{Bomb: true})
+	useCase, p := setup(nil, charges.Held{Bombs: 1})
 
 	require.ErrorIs(t, useCase.Execute(calling(t), lay_mine_usecase.In{TileID: 8, CountryID: "fr"}), lay_mine_usecase.ErrNoMine)
 	require.ErrorIs(t, useCase.Execute(cpctx.AddIPToContext(t.Context(), "203.0.113.7"), lay_mine_usecase.In{TileID: 8, CountryID: "fr"}),

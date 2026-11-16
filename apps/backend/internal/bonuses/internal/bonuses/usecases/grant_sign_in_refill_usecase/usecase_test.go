@@ -29,7 +29,7 @@ func TestTheRefillIsPaidUnderTheAccountsOwnGrantSoTheWalletPaysItOnce(t *testing
 
 	require.NoError(t, useCase.Execute(t.Context(), ada))
 
-	assert.False(t, wallet.Kept(ada).Refill, "told again after it was used, it earns nothing")
+	assert.Zero(t, wallet.Kept(ada).Refills, "told again after it was used, it earns nothing")
 	payments := wallet.Payments()
 	require.Len(t, payments, 2)
 	assert.Equal(t, bonuses.Payment{Grant: bonuses.SignInGrantOf(ada), Account: ada, Kind: bonuses.KindRefill, Amount: 1},
@@ -43,8 +43,8 @@ func TestEachAccountEarnsItsOwn(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), ada))
 	require.NoError(t, useCase.Execute(t.Context(), grace))
 
-	assert.True(t, wallet.Kept(ada).Refill)
-	assert.True(t, wallet.Kept(grace).Refill)
+	assert.Equal(t, 1, wallet.Kept(ada).Refills)
+	assert.Equal(t, 1, wallet.Kept(grace).Refills)
 }
 
 func TestNoRefillWhileTheRuleIsOff(t *testing.T) {
