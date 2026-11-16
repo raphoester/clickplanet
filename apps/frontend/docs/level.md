@@ -21,6 +21,15 @@ slots, which are taller than the clicks. Picked by
   chat, the roster or the board: the streak and the worn title are already there.
 - **The Progress tab and the profile**: `LevelProgress`, a large chip, "Level 12", the bar and the XP on it ("1,366 /
   5,558 XP"), under the worn title on the phone and in the profile's hero on a desktop.
+- **What the bar is, and how to gain XP**: `XpHelp`, a clear button laid over the dock's line and over the Progress
+  tab's level. A mouse over it, or a press, opens a `Bubble` above it. The bubble says what the bar is: "XP to level 13",
+  the XP on the bar ("1,366 / 5,558 XP", which the dock does not show) and that each new level gives a bonus ([the
+  level-up bonus](../../backend/docs/levels.md#the-level-up-bonus)). Then it lists the ways to gain XP: take tiles, play
+  every day, missions, bombs, boxes, quizzes, fortify. A press keeps it open until a press elsewhere, Escape or a
+  scroll. No "?" icon: a line holds two things at most ([`DESIGN.md`](../DESIGN.md)). It names the ways, not the XP
+  each gives, since the page holds none of the server's weights: a source added to the backend's
+  [scale](../../backend/docs/levels.md#what-gives-xp) needs its line in `WAYS`. Asked by the owner on 2026-11-16,
+  after players asked what the bar was.
 - **The level-up moment**: `LevelUp`, in the announcements queue (`{kind: "level"}`, keyed by the level), one
   full-screen moment at a time. It is the title unlock's stage (`TitleUnlocked.css`, `TITLE_REVEAL`, the `title`
   sound) with the level's number in a gold block where the medal lands. Nothing closes it before it has landed. A jump
