@@ -8,7 +8,7 @@ import (
 
 const kindMine = "mine"
 
-// Mining is one mine gone off, on the tile it was laid on: the tiles its blast took for its flag.
+// Mining is one mine gone off, on the tile it was laid on: the tiles its blast took for its flag and the shields it struck.
 type Mining struct {
 	Tile    uint32
 	Scope   string
@@ -22,8 +22,9 @@ func (m Mining) Replay(see func(Taking)) {
 	replayClaims(see, m.Impacts, Taking{Scope: m.Scope, Account: m.Account, Country: m.Country, At: m.At})
 }
 
-// Strikes sees none: a blast leaves a shielded tile as it is.
-func (Mining) Strikes(func(Strike)) {}
+func (m Mining) Strikes(see func(Strike)) {
+	strikeClaims(see, m.Impacts, Strike{Account: m.Account, Country: m.Country, At: m.At})
+}
 
 func (m Mining) Show(see func(Scene)) {
 	showImpacts(see, m.At, m.Country, m.Impacts)

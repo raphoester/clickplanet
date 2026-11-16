@@ -117,9 +117,12 @@ The gates on or off, the order is the ladder's; while no open kind is told (befo
 `CHARGE_KINDS`' order alone.
 
 **A kind is locked while the gates are on, it is not an open kind, and its level is above the player's** (`lockedAt`,
-over `Gates`): grey, on a sunk box, a padlock and the level where the count goes, "unlocks at level 6" for a screen
-reader, and "Unlocks at level 6" in its bubble on a press. A gated kind the ladder names no level for is locked at every
-level (`NEVER`): a padlock alone, "locked", and "Locked for now". **A charge held stays usable whatever the level**: a
+over `Gates`): its box and icon in their colours but dimmed, on a sunk slot, and in front of the icon's lower edge a
+badge, a padlock and the level it opens at in the gold chip the player's own level wears on the dock (`.level-chip`),
+so a player under it sees what to chase. "unlocks at level 6" for a screen reader, and "Unlocks at level 6" in its
+bubble on a press. The level was in the count's pill on the corner first, grey on cream over a grey icon, which went
+unread (2026-11-16). A gated kind the ladder names no level for is locked at every level (`NEVER`): a dark badge with a
+padlock alone, "locked", and "Locked for now". **A charge held stays usable whatever the level**: a
 kind held is never drawn locked. The gates are off until the reveal and in battles, so nothing shows locked then.
 
 The gates are facts from two modules, put together by `gatesOf`: whether they are on and the open kinds (refill, spread,

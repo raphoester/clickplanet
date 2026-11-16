@@ -2,7 +2,7 @@
 
 A mine (`BonusReward` kind `mine`, `mines` a box gave) waits on a tile of the player's flag, and only that flag's
 players see it. When another flag takes the tile, it goes off: the tile and the rings around it go to the mine's flag,
-and every mine the blast reaches goes off too. The server's rules are in the backend's [The mine](../../backend/docs/mine.md).
+a shielded tile loses one shield and keeps its flag, and every mine the blast reaches goes off too. The server's rules are in the backend's [The mine](../../backend/docs/mine.md).
 No box draws one yet; the operator's grant, and the fake's `giveMine()`, give some.
 
 **It is aimed or put away, like the virus.** The inventory's Mine slot (`2/3`, against `GetChargeRules.mines`) aims
@@ -26,7 +26,8 @@ replaces the mines known before it, but one laid after it. A map of another epoc
 
 **One `mines_exploded` event per explosion, and no tile update for its tiles** (`minesExplodedOf`, heard as
 `onMinesExploded`, after the updates that came before it, so the enemy's take lands first). `MapTiles.applyExplosion`
-gives each blast's tiles to its flag, the last blast's when two took one, and takes every mine off. Each blast is drawn
+gives each blast's taken tiles to its flag and sets each struck tile's shields, a tile as the last blast that reached it
+left it, and takes every mine off. The struck shields play as a click's strike does. Each blast is drawn
 as a bomb's at its impact (`blasts.start` started one fall ago), at `mineBlastRadius(GetChargeRules.mine_rings)`, with
 the bomb's sound, full for a mine of the page's flag. So the enemy sees why its click came back.
 

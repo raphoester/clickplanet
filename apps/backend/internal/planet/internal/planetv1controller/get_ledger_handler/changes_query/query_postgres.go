@@ -76,7 +76,7 @@ const changes = `
 		SELECT (struck->>'tile')::bigint, COALESCE(struck->>'owner', ''), COALESCE(struck->>'owner', ''), false,
 			(struck->>'shields')::int, (struck->>'tile')::bigint
 		FROM jsonb_array_elements(COALESCE(e.payload->'struck', '[]'::jsonb)) struck
-		WHERE e.kind IN ('spread', 'enclose', 'virus')
+		WHERE e.kind IN ('spread', 'enclose', 'virus', 'mine')
 		UNION ALL
 		SELECT (cleared->>'tile')::bigint, '', COALESCE(cleared->>'owner', ''), false, 0, place
 		FROM jsonb_array_elements(COALESCE(e.payload->'cleared', '[]'::jsonb)) WITH ORDINALITY AS c(cleared, place)

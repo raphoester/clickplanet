@@ -290,7 +290,10 @@ func TestASinkFramesAnExplosionAsOneEventWithEachBlastInOrder(t *testing.T) {
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Version: clicks.MapVersion{Epoch: 7, Seq: 44},
 		Explosion: &clicks.Explosion{Blasts: []clicks.MineBlast{
-			{Mine: clicks.MineSnapshot{Tile: 5, Flag: "fr"}, Taken: []uint32{5, 4}},
+			{
+				Mine: clicks.MineSnapshot{Tile: 5, Flag: "fr"}, Taken: []uint32{5, 4},
+				Struck: []clicks.TileShields{{Tile: 6, Shields: 2}},
+			},
 			{Mine: clicks.MineSnapshot{Tile: 9, Flag: "de"}},
 		}},
 	}))
@@ -298,7 +301,10 @@ func TestASinkFramesAnExplosionAsOneEventWithEachBlastInOrder(t *testing.T) {
 	require.Len(t, stream.sent, 1)
 	assert.True(t, proto.Equal(&planetv1.MinesExploded{
 		Blasts: []*planetv1.MineBlast{
-			{TileId: 5, CountryId: "fr", TakenTileIds: []uint32{5, 4}},
+			{
+				TileId: 5, CountryId: "fr", TakenTileIds: []uint32{5, 4},
+				Struck: []*planetv1.TileShields{{TileId: 6, Shields: 2}},
+			},
 			{TileId: 9, CountryId: "de"},
 		},
 		Version: &planetv1.MapVersion{Epoch: 7, Seq: 44},

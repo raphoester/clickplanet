@@ -235,21 +235,24 @@ export class MapTiles {
         if (tile >= 1 && tile < this.seen.length && this.seen[tile] <= version.seq) this.mines.lay(tile, version.seq, changes.mines)
     }
 
-    // Every blast in order: a tile two blasts took is the last one's. Each mine is gone.
+    // Every blast in order: a tile two blasts reached is as the last one left it. Each mine is gone.
     public applyExplosion({blasts, version}: MinesExploded, changes: TileChanges): void {
         this.heard(version)
         if (!this.clock.counts(version)) return
-        const owners = new Map<number, string>()
-        for (const {tile, countryId, taken} of blasts) {
+        const left = new Map<number, {flag?: string, shields: number}>()
+        for (const {tile, countryId, taken, struck} of blasts) {
             this.mines.takeOff(tile, version.seq, changes.mines)
-            for (const each of taken) owners.set(each, countryId)
+            for (const each of taken) left.set(each, {flag: countryId, shields: 0})
+            for (const {tile: each, shields} of struck) left.set(each, {flag: left.get(each)?.flag, shields})
         }
-        for (const [tile, flag] of owners) {
-            this.mines.takeOff(tile, version.seq, changes.mines)
+        for (const [tile, {flag, shields}] of left) {
+            if (flag !== undefined) this.mines.takeOff(tile, version.seq, changes.mines)
             if (!this.take(tile, version.seq)) continue
-            this.ownership.set(tile, flag, changes.owners)
-            this.shields.set(tile, 0, changes.shields)
-            this.infections.set(tile, undefined, changes.infections)
+            if (flag !== undefined) {
+                this.ownership.set(tile, flag, changes.owners)
+                this.infections.set(tile, undefined, changes.infections)
+            }
+            this.shields.set(tile, shields, changes.shields)
         }
     }
 

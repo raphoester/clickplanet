@@ -579,8 +579,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         setTimeout(() => void this.detonate(tile, flag), 0)
     }
 
-    // Each blast takes its tile and the rings around it for its flag, but a shielded tile or the flag's own, and every
-    // mine it reaches goes off after it.
+    // Each blast takes its tile and the rings around it for its flag, but the flag's own; a shielded tile loses one shield
+    // instead. Every mine it reaches goes off after it.
     private async detonate(tile: number, flag: string) {
         const positions = await this.loadPositions()
         const waiting = [{tile, flag}]
@@ -589,6 +589,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             const reach = (MINE_RINGS + 0.3) * SPREAD_RING
             const disc = [mine.tile, ...tilesWithin(positions, mine.tile, reach).filter((each) => each !== mine.tile)]
             const taken: number[] = []
+            const struck: {tile: number, shields: number}[] = []
             for (const each of disc) {
                 const other = this.mines.get(each)
                 if (other !== undefined) {
@@ -596,13 +597,18 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                     waiting.push({tile: each, flag: other})
                 }
                 const owner = this.tileBindings.get(each)
-                if (owner === mine.flag || this.shields.has(each)) continue
+                if (owner === mine.flag) continue
+                const left = this.strike(each)
+                if (left !== undefined) {
+                    struck.push({tile: each, shields: left})
+                    continue
+                }
                 this.tileBindings.set(each, mine.flag)
                 this.holders.set(each, {accountId: FAKE_YOU, countryCode: mine.flag, takenAt: Date.now()})
                 this.tally?.moved(each, owner, mine.flag)
                 taken.push(each)
             }
-            blasts.push({tile: mine.tile, countryId: mine.flag, taken})
+            blasts.push({tile: mine.tile, countryId: mine.flag, taken, struck})
         }
         const version = this.write()
         this.flushUpdates()

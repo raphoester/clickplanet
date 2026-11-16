@@ -2090,8 +2090,8 @@ func (x *MineLaid) GetVersion() *MapVersion {
 	return nil
 }
 
-// The one event of the mines a take set off, every mine each blast reached going off too: each blast took its tiles for
-// its mine's flag, in order. Its fortifies and knock-outs follow as their own events.
+// The one event of the mines a take set off, every mine each blast reached going off too: each blast took or struck its
+// tiles for its mine's flag, in order. Its fortifies and knock-outs follow as their own events.
 type MinesExploded struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Blasts        []*MineBlast           `protobuf:"bytes,1,rep,name=blasts,proto3" json:"blasts,omitempty"`
@@ -2149,8 +2149,10 @@ type MineBlast struct {
 	// The tile the mine was on.
 	TileId uint32 `protobuf:"varint,1,opt,name=tile_id,json=tileId,proto3" json:"tile_id,omitempty"`
 	// The mine's flag, whose each tile taken is now.
-	CountryId     string   `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
-	TakenTileIds  []uint32 `protobuf:"varint,3,rep,packed,name=taken_tile_ids,json=takenTileIds,proto3" json:"taken_tile_ids,omitempty"`
+	CountryId    string   `protobuf:"bytes,2,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
+	TakenTileIds []uint32 `protobuf:"varint,3,rep,packed,name=taken_tile_ids,json=takenTileIds,proto3" json:"taken_tile_ids,omitempty"`
+	// Each lost one shield and kept its flag: with the shields it kept.
+	Struck        []*TileShields `protobuf:"bytes,4,rep,name=struck,proto3" json:"struck,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2202,6 +2204,13 @@ func (x *MineBlast) GetCountryId() string {
 func (x *MineBlast) GetTakenTileIds() []uint32 {
 	if x != nil {
 		return x.TakenTileIds
+	}
+	return nil
+}
+
+func (x *MineBlast) GetStruck() []*TileShields {
+	if x != nil {
+		return x.Struck
 	}
 	return nil
 }
@@ -4990,12 +4999,13 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\aversion\x18\x03 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"n\n" +
 	"\rMinesExploded\x12,\n" +
 	"\x06blasts\x18\x01 \x03(\v2\x14.planet.v1.MineBlastR\x06blasts\x12/\n" +
-	"\aversion\x18\x02 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"i\n" +
+	"\aversion\x18\x02 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\x99\x01\n" +
 	"\tMineBlast\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12$\n" +
-	"\x0etaken_tile_ids\x18\x03 \x03(\rR\ftakenTileIds\"\x90\x02\n" +
+	"\x0etaken_tile_ids\x18\x03 \x03(\rR\ftakenTileIds\x12.\n" +
+	"\x06struck\x18\x04 \x03(\v2\x16.planet.v1.TileShieldsR\x06struck\"\x90\x02\n" +
 	"\vVirusSpread\x12\x19\n" +
 	"\bvirus_id\x18\x01 \x01(\tR\avirusId\x12\x1d\n" +
 	"\n" +
@@ -5374,83 +5384,84 @@ var file_planet_v1_planet_proto_depIdxs = []int32{
 	24, // 28: planet.v1.MineLaid.version:type_name -> planet.v1.MapVersion
 	36, // 29: planet.v1.MinesExploded.blasts:type_name -> planet.v1.MineBlast
 	24, // 30: planet.v1.MinesExploded.version:type_name -> planet.v1.MapVersion
-	30, // 31: planet.v1.VirusSpread.struck:type_name -> planet.v1.TileShields
-	24, // 32: planet.v1.VirusSpread.version:type_name -> planet.v1.MapVersion
-	24, // 33: planet.v1.KnockOut.version:type_name -> planet.v1.MapVersion
-	55, // 34: planet.v1.ChargesGranted.charges:type_name -> planet.v1.ChargesHeld
-	40, // 35: planet.v1.ChargesGranted.gained:type_name -> planet.v1.ChargeGained
-	1,  // 36: planet.v1.ChargeGained.kind:type_name -> planet.v1.BonusKind
-	43, // 37: planet.v1.GetTileHolderResponse.holder:type_name -> planet.v1.TileHolder
-	47, // 38: planet.v1.GetLandmassResponse.holders:type_name -> planet.v1.LandmassHolder
-	48, // 39: planet.v1.GetLandmassResponse.last_fortification:type_name -> planet.v1.LandmassFortification
-	83, // 40: planet.v1.GetRecentMapHistoryResponse.history:type_name -> planet.v1.MapHistory
-	53, // 41: planet.v1.GetFortressesResponse.fortresses:type_name -> planet.v1.Fortress
-	24, // 42: planet.v1.LandmassFortified.version:type_name -> planet.v1.MapVersion
-	55, // 43: planet.v1.GetChargesResponse.charges:type_name -> planet.v1.ChargesHeld
-	60, // 44: planet.v1.GetChargeRulesResponse.toll_steps:type_name -> planet.v1.TollStep
-	7,  // 45: planet.v1.UseRefillResponse.budget:type_name -> planet.v1.ClickBudget
-	55, // 46: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
-	63, // 47: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
-	63, // 48: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
-	24, // 49: planet.v1.BombDropped.version:type_name -> planet.v1.MapVersion
-	30, // 50: planet.v1.BombDropped.struck:type_name -> planet.v1.TileShields
-	30, // 51: planet.v1.TilesEnclosed.struck:type_name -> planet.v1.TileShields
-	24, // 52: planet.v1.TilesEnclosed.version:type_name -> planet.v1.MapVersion
-	24, // 53: planet.v1.GetMinesResponse.version:type_name -> planet.v1.MapVersion
-	33, // 54: planet.v1.CallRallyResponse.rally:type_name -> planet.v1.Rally
-	33, // 55: planet.v1.GetRalliesResponse.rallies:type_name -> planet.v1.Rally
-	55, // 56: planet.v1.PlaceShieldResponse.charges:type_name -> planet.v1.ChargesHeld
-	24, // 57: planet.v1.Heartbeat.version:type_name -> planet.v1.MapVersion
-	24, // 58: planet.v1.TileUpdate.version:type_name -> planet.v1.MapVersion
-	8,  // 59: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
-	17, // 60: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
-	19, // 61: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
-	21, // 62: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
-	25, // 63: planet.v1.ClickService.GetHoldings:input_type -> planet.v1.GetHoldingsRequest
-	31, // 64: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
-	64, // 65: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
-	61, // 66: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
-	56, // 67: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
-	58, // 68: planet.v1.ClickService.GetChargeRules:input_type -> planet.v1.GetChargeRulesRequest
-	79, // 69: planet.v1.ClickService.PlaceShield:input_type -> planet.v1.PlaceShieldRequest
-	69, // 70: planet.v1.ClickService.UseVirus:input_type -> planet.v1.UseVirusRequest
-	71, // 71: planet.v1.ClickService.LayMine:input_type -> planet.v1.LayMineRequest
-	73, // 72: planet.v1.ClickService.GetMines:input_type -> planet.v1.GetMinesRequest
-	75, // 73: planet.v1.ClickService.CallRally:input_type -> planet.v1.CallRallyRequest
-	77, // 74: planet.v1.ClickService.GetRallies:input_type -> planet.v1.GetRalliesRequest
-	51, // 75: planet.v1.ClickService.GetFortresses:input_type -> planet.v1.GetFortressesRequest
-	41, // 76: planet.v1.ClickService.GetTileHolder:input_type -> planet.v1.GetTileHolderRequest
-	45, // 77: planet.v1.ClickService.GetLandmass:input_type -> planet.v1.GetLandmassRequest
-	49, // 78: planet.v1.ClickService.GetRecentMapHistory:input_type -> planet.v1.GetRecentMapHistoryRequest
-	2,  // 79: planet.v1.ClickService.GetAllegiance:input_type -> planet.v1.GetAllegianceRequest
-	4,  // 80: planet.v1.ClickService.PledgeAllegiance:input_type -> planet.v1.PledgeAllegianceRequest
-	9,  // 81: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
-	18, // 82: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
-	20, // 83: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
-	22, // 84: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
-	26, // 85: planet.v1.ClickService.GetHoldings:output_type -> planet.v1.GetHoldingsResponse
-	32, // 86: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
-	65, // 87: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
-	62, // 88: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
-	57, // 89: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
-	59, // 90: planet.v1.ClickService.GetChargeRules:output_type -> planet.v1.GetChargeRulesResponse
-	80, // 91: planet.v1.ClickService.PlaceShield:output_type -> planet.v1.PlaceShieldResponse
-	70, // 92: planet.v1.ClickService.UseVirus:output_type -> planet.v1.UseVirusResponse
-	72, // 93: planet.v1.ClickService.LayMine:output_type -> planet.v1.LayMineResponse
-	74, // 94: planet.v1.ClickService.GetMines:output_type -> planet.v1.GetMinesResponse
-	76, // 95: planet.v1.ClickService.CallRally:output_type -> planet.v1.CallRallyResponse
-	78, // 96: planet.v1.ClickService.GetRallies:output_type -> planet.v1.GetRalliesResponse
-	52, // 97: planet.v1.ClickService.GetFortresses:output_type -> planet.v1.GetFortressesResponse
-	42, // 98: planet.v1.ClickService.GetTileHolder:output_type -> planet.v1.GetTileHolderResponse
-	46, // 99: planet.v1.ClickService.GetLandmass:output_type -> planet.v1.GetLandmassResponse
-	50, // 100: planet.v1.ClickService.GetRecentMapHistory:output_type -> planet.v1.GetRecentMapHistoryResponse
-	3,  // 101: planet.v1.ClickService.GetAllegiance:output_type -> planet.v1.GetAllegianceResponse
-	5,  // 102: planet.v1.ClickService.PledgeAllegiance:output_type -> planet.v1.PledgeAllegianceResponse
-	81, // [81:103] is the sub-list for method output_type
-	59, // [59:81] is the sub-list for method input_type
-	59, // [59:59] is the sub-list for extension type_name
-	59, // [59:59] is the sub-list for extension extendee
-	0,  // [0:59] is the sub-list for field type_name
+	30, // 31: planet.v1.MineBlast.struck:type_name -> planet.v1.TileShields
+	30, // 32: planet.v1.VirusSpread.struck:type_name -> planet.v1.TileShields
+	24, // 33: planet.v1.VirusSpread.version:type_name -> planet.v1.MapVersion
+	24, // 34: planet.v1.KnockOut.version:type_name -> planet.v1.MapVersion
+	55, // 35: planet.v1.ChargesGranted.charges:type_name -> planet.v1.ChargesHeld
+	40, // 36: planet.v1.ChargesGranted.gained:type_name -> planet.v1.ChargeGained
+	1,  // 37: planet.v1.ChargeGained.kind:type_name -> planet.v1.BonusKind
+	43, // 38: planet.v1.GetTileHolderResponse.holder:type_name -> planet.v1.TileHolder
+	47, // 39: planet.v1.GetLandmassResponse.holders:type_name -> planet.v1.LandmassHolder
+	48, // 40: planet.v1.GetLandmassResponse.last_fortification:type_name -> planet.v1.LandmassFortification
+	83, // 41: planet.v1.GetRecentMapHistoryResponse.history:type_name -> planet.v1.MapHistory
+	53, // 42: planet.v1.GetFortressesResponse.fortresses:type_name -> planet.v1.Fortress
+	24, // 43: planet.v1.LandmassFortified.version:type_name -> planet.v1.MapVersion
+	55, // 44: planet.v1.GetChargesResponse.charges:type_name -> planet.v1.ChargesHeld
+	60, // 45: planet.v1.GetChargeRulesResponse.toll_steps:type_name -> planet.v1.TollStep
+	7,  // 46: planet.v1.UseRefillResponse.budget:type_name -> planet.v1.ClickBudget
+	55, // 47: planet.v1.UseRefillResponse.charges:type_name -> planet.v1.ChargesHeld
+	63, // 48: planet.v1.DropBombRequest.target:type_name -> planet.v1.GlobePoint
+	63, // 49: planet.v1.BombDropped.point:type_name -> planet.v1.GlobePoint
+	24, // 50: planet.v1.BombDropped.version:type_name -> planet.v1.MapVersion
+	30, // 51: planet.v1.BombDropped.struck:type_name -> planet.v1.TileShields
+	30, // 52: planet.v1.TilesEnclosed.struck:type_name -> planet.v1.TileShields
+	24, // 53: planet.v1.TilesEnclosed.version:type_name -> planet.v1.MapVersion
+	24, // 54: planet.v1.GetMinesResponse.version:type_name -> planet.v1.MapVersion
+	33, // 55: planet.v1.CallRallyResponse.rally:type_name -> planet.v1.Rally
+	33, // 56: planet.v1.GetRalliesResponse.rallies:type_name -> planet.v1.Rally
+	55, // 57: planet.v1.PlaceShieldResponse.charges:type_name -> planet.v1.ChargesHeld
+	24, // 58: planet.v1.Heartbeat.version:type_name -> planet.v1.MapVersion
+	24, // 59: planet.v1.TileUpdate.version:type_name -> planet.v1.MapVersion
+	8,  // 60: planet.v1.ClickService.Click:input_type -> planet.v1.ClickRequest
+	17, // 61: planet.v1.ClickService.GetBudget:input_type -> planet.v1.GetBudgetRequest
+	19, // 62: planet.v1.ClickService.MapDensity:input_type -> planet.v1.MapDensityRequest
+	21, // 63: planet.v1.ClickService.GetMap:input_type -> planet.v1.GetMapRequest
+	25, // 64: planet.v1.ClickService.GetHoldings:input_type -> planet.v1.GetHoldingsRequest
+	31, // 65: planet.v1.ClickService.ListenForEvents:input_type -> planet.v1.ListenForEventsRequest
+	64, // 66: planet.v1.ClickService.DropBomb:input_type -> planet.v1.DropBombRequest
+	61, // 67: planet.v1.ClickService.UseRefill:input_type -> planet.v1.UseRefillRequest
+	56, // 68: planet.v1.ClickService.GetCharges:input_type -> planet.v1.GetChargesRequest
+	58, // 69: planet.v1.ClickService.GetChargeRules:input_type -> planet.v1.GetChargeRulesRequest
+	79, // 70: planet.v1.ClickService.PlaceShield:input_type -> planet.v1.PlaceShieldRequest
+	69, // 71: planet.v1.ClickService.UseVirus:input_type -> planet.v1.UseVirusRequest
+	71, // 72: planet.v1.ClickService.LayMine:input_type -> planet.v1.LayMineRequest
+	73, // 73: planet.v1.ClickService.GetMines:input_type -> planet.v1.GetMinesRequest
+	75, // 74: planet.v1.ClickService.CallRally:input_type -> planet.v1.CallRallyRequest
+	77, // 75: planet.v1.ClickService.GetRallies:input_type -> planet.v1.GetRalliesRequest
+	51, // 76: planet.v1.ClickService.GetFortresses:input_type -> planet.v1.GetFortressesRequest
+	41, // 77: planet.v1.ClickService.GetTileHolder:input_type -> planet.v1.GetTileHolderRequest
+	45, // 78: planet.v1.ClickService.GetLandmass:input_type -> planet.v1.GetLandmassRequest
+	49, // 79: planet.v1.ClickService.GetRecentMapHistory:input_type -> planet.v1.GetRecentMapHistoryRequest
+	2,  // 80: planet.v1.ClickService.GetAllegiance:input_type -> planet.v1.GetAllegianceRequest
+	4,  // 81: planet.v1.ClickService.PledgeAllegiance:input_type -> planet.v1.PledgeAllegianceRequest
+	9,  // 82: planet.v1.ClickService.Click:output_type -> planet.v1.ClickResponse
+	18, // 83: planet.v1.ClickService.GetBudget:output_type -> planet.v1.GetBudgetResponse
+	20, // 84: planet.v1.ClickService.MapDensity:output_type -> planet.v1.MapDensityResponse
+	22, // 85: planet.v1.ClickService.GetMap:output_type -> planet.v1.GetMapResponse
+	26, // 86: planet.v1.ClickService.GetHoldings:output_type -> planet.v1.GetHoldingsResponse
+	32, // 87: planet.v1.ClickService.ListenForEvents:output_type -> planet.v1.PlanetEvent
+	65, // 88: planet.v1.ClickService.DropBomb:output_type -> planet.v1.DropBombResponse
+	62, // 89: planet.v1.ClickService.UseRefill:output_type -> planet.v1.UseRefillResponse
+	57, // 90: planet.v1.ClickService.GetCharges:output_type -> planet.v1.GetChargesResponse
+	59, // 91: planet.v1.ClickService.GetChargeRules:output_type -> planet.v1.GetChargeRulesResponse
+	80, // 92: planet.v1.ClickService.PlaceShield:output_type -> planet.v1.PlaceShieldResponse
+	70, // 93: planet.v1.ClickService.UseVirus:output_type -> planet.v1.UseVirusResponse
+	72, // 94: planet.v1.ClickService.LayMine:output_type -> planet.v1.LayMineResponse
+	74, // 95: planet.v1.ClickService.GetMines:output_type -> planet.v1.GetMinesResponse
+	76, // 96: planet.v1.ClickService.CallRally:output_type -> planet.v1.CallRallyResponse
+	78, // 97: planet.v1.ClickService.GetRallies:output_type -> planet.v1.GetRalliesResponse
+	52, // 98: planet.v1.ClickService.GetFortresses:output_type -> planet.v1.GetFortressesResponse
+	42, // 99: planet.v1.ClickService.GetTileHolder:output_type -> planet.v1.GetTileHolderResponse
+	46, // 100: planet.v1.ClickService.GetLandmass:output_type -> planet.v1.GetLandmassResponse
+	50, // 101: planet.v1.ClickService.GetRecentMapHistory:output_type -> planet.v1.GetRecentMapHistoryResponse
+	3,  // 102: planet.v1.ClickService.GetAllegiance:output_type -> planet.v1.GetAllegianceResponse
+	5,  // 103: planet.v1.ClickService.PledgeAllegiance:output_type -> planet.v1.PledgeAllegianceResponse
+	82, // [82:104] is the sub-list for method output_type
+	60, // [60:82] is the sub-list for method input_type
+	60, // [60:60] is the sub-list for extension type_name
+	60, // [60:60] is the sub-list for extension extendee
+	0,  // [0:60] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_planet_proto_init() }

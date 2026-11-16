@@ -413,6 +413,46 @@ describe("SessionClient's identity", () => {
         expect(await client.identity()).toBeUndefined()
     })
 
+    it("tells each token it starts holding, resumed then minted", async () => {
+        const client = new SessionClient(fakeClient(minting("click-1"), minting("identity-1")), async () => "widget-token", {now: clock})
+        const told: string[] = []
+        client.listenForTokens((token) => told.push(token))
+
+        await client.identity()
+        await client.token()
+
+        expect(told).toEqual(["identity-1", "click-1"])
+    })
+
+    it("tells nothing of a resume it does not keep, nor to a listener that left", async () => {
+        let land: (value: {token: string, expiresAtUnixMs: bigint}) => void = () => {}
+        const resumeSession = () => new Promise<{token: string, expiresAtUnixMs: bigint}>(resolve => land = resolve)
+        const client = new SessionClient(fakeClient(minting("click-1"), resumeSession), async () => "widget-token", {now: clock})
+        const told: string[] = []
+        const left: string[] = []
+        client.listenForTokens((token) => told.push(token))
+        client.listenForTokens((token) => left.push(token))()
+
+        const resumed = client.identity()
+        await client.token()
+        land({token: "identity-1", expiresAtUnixMs: BigInt(now + HOUR_MS)})
+        await resumed
+
+        expect(told).toEqual(["click-1"])
+        expect(left).toEqual([])
+    })
+
+    it("still hands out the token when a listener fails", async () => {
+        vi.spyOn(console, "error").mockImplementation(() => {})
+        const client = new SessionClient(fakeClient(minting("click-1")), async () => "widget-token", {now: clock})
+        client.listenForTokens(() => {
+            throw new Error("boom")
+        })
+
+        expect(await client.token()).toBe("click-1")
+        expect(client.held()).toBe("click-1")
+    })
+
     it("keeps it for the next page load, marked as one, so a click there still passes Turnstile", async () => {
         const store = fakeStore()
         await new SessionClient(fakeClient(minting("click-1"), minting("identity-1")), attestNever(), {now: clock, store})
