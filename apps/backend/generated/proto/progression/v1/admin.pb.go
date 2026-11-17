@@ -307,6 +307,131 @@ func (x *ReconcileLevelsResponse) GetRemoved() uint32 {
 	return 0
 }
 
+type ForgiveMissedDayRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// The UTC day the account missed, as YYYY-MM-DD.
+	Day string `protobuf:"bytes,2,opt,name=day,proto3" json:"day,omitempty"`
+	// Answers what would change, and writes nothing.
+	DryRun        bool `protobuf:"varint,3,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForgiveMissedDayRequest) Reset() {
+	*x = ForgiveMissedDayRequest{}
+	mi := &file_progression_v1_admin_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForgiveMissedDayRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForgiveMissedDayRequest) ProtoMessage() {}
+
+func (x *ForgiveMissedDayRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_progression_v1_admin_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForgiveMissedDayRequest.ProtoReflect.Descriptor instead.
+func (*ForgiveMissedDayRequest) Descriptor() ([]byte, []int) {
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ForgiveMissedDayRequest) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *ForgiveMissedDayRequest) GetDay() string {
+	if x != nil {
+		return x.Day
+	}
+	return ""
+}
+
+func (x *ForgiveMissedDayRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type ForgiveMissedDayResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The stats as kept before the call: the streak's days, its last day and the best streak.
+	Before *Stats `protobuf:"bytes,1,opt,name=before,proto3" json:"before,omitempty"`
+	// The stats as kept after it, or as they would be after a dry run.
+	After *Stats `protobuf:"bytes,2,opt,name=after,proto3" json:"after,omitempty"`
+	// Every day forgiven to the account, in order, this one too.
+	ForgivenDays  []string `protobuf:"bytes,3,rep,name=forgiven_days,json=forgivenDays,proto3" json:"forgiven_days,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForgiveMissedDayResponse) Reset() {
+	*x = ForgiveMissedDayResponse{}
+	mi := &file_progression_v1_admin_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForgiveMissedDayResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForgiveMissedDayResponse) ProtoMessage() {}
+
+func (x *ForgiveMissedDayResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_progression_v1_admin_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForgiveMissedDayResponse.ProtoReflect.Descriptor instead.
+func (*ForgiveMissedDayResponse) Descriptor() ([]byte, []int) {
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ForgiveMissedDayResponse) GetBefore() *Stats {
+	if x != nil {
+		return x.Before
+	}
+	return nil
+}
+
+func (x *ForgiveMissedDayResponse) GetAfter() *Stats {
+	if x != nil {
+		return x.After
+	}
+	return nil
+}
+
+func (x *ForgiveMissedDayResponse) GetForgivenDays() []string {
+	if x != nil {
+		return x.ForgivenDays
+	}
+	return nil
+}
+
 type AdminGetProgressRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
@@ -316,7 +441,7 @@ type AdminGetProgressRequest struct {
 
 func (x *AdminGetProgressRequest) Reset() {
 	*x = AdminGetProgressRequest{}
-	mi := &file_progression_v1_admin_proto_msgTypes[6]
+	mi := &file_progression_v1_admin_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -328,7 +453,7 @@ func (x *AdminGetProgressRequest) String() string {
 func (*AdminGetProgressRequest) ProtoMessage() {}
 
 func (x *AdminGetProgressRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_admin_proto_msgTypes[6]
+	mi := &file_progression_v1_admin_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -341,7 +466,7 @@ func (x *AdminGetProgressRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetProgressRequest.ProtoReflect.Descriptor instead.
 func (*AdminGetProgressRequest) Descriptor() ([]byte, []int) {
-	return file_progression_v1_admin_proto_rawDescGZIP(), []int{6}
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AdminGetProgressRequest) GetAccountId() string {
@@ -373,7 +498,7 @@ type AdminGetProgressResponse struct {
 
 func (x *AdminGetProgressResponse) Reset() {
 	*x = AdminGetProgressResponse{}
-	mi := &file_progression_v1_admin_proto_msgTypes[7]
+	mi := &file_progression_v1_admin_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -385,7 +510,7 @@ func (x *AdminGetProgressResponse) String() string {
 func (*AdminGetProgressResponse) ProtoMessage() {}
 
 func (x *AdminGetProgressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_admin_proto_msgTypes[7]
+	mi := &file_progression_v1_admin_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -398,7 +523,7 @@ func (x *AdminGetProgressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetProgressResponse.ProtoReflect.Descriptor instead.
 func (*AdminGetProgressResponse) Descriptor() ([]byte, []int) {
-	return file_progression_v1_admin_proto_rawDescGZIP(), []int{7}
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AdminGetProgressResponse) GetStats() *Stats {
@@ -488,7 +613,7 @@ type XpBreakdown struct {
 
 func (x *XpBreakdown) Reset() {
 	*x = XpBreakdown{}
-	mi := &file_progression_v1_admin_proto_msgTypes[8]
+	mi := &file_progression_v1_admin_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -500,7 +625,7 @@ func (x *XpBreakdown) String() string {
 func (*XpBreakdown) ProtoMessage() {}
 
 func (x *XpBreakdown) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_admin_proto_msgTypes[8]
+	mi := &file_progression_v1_admin_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -513,7 +638,7 @@ func (x *XpBreakdown) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use XpBreakdown.ProtoReflect.Descriptor instead.
 func (*XpBreakdown) Descriptor() ([]byte, []int) {
-	return file_progression_v1_admin_proto_rawDescGZIP(), []int{8}
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *XpBreakdown) GetTotal() uint64 {
@@ -586,7 +711,7 @@ type MissionTally struct {
 
 func (x *MissionTally) Reset() {
 	*x = MissionTally{}
-	mi := &file_progression_v1_admin_proto_msgTypes[9]
+	mi := &file_progression_v1_admin_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -598,7 +723,7 @@ func (x *MissionTally) String() string {
 func (*MissionTally) ProtoMessage() {}
 
 func (x *MissionTally) ProtoReflect() protoreflect.Message {
-	mi := &file_progression_v1_admin_proto_msgTypes[9]
+	mi := &file_progression_v1_admin_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -611,7 +736,7 @@ func (x *MissionTally) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MissionTally.ProtoReflect.Descriptor instead.
 func (*MissionTally) Descriptor() ([]byte, []int) {
-	return file_progression_v1_admin_proto_rawDescGZIP(), []int{9}
+	return file_progression_v1_admin_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MissionTally) GetKind() string {
@@ -653,7 +778,16 @@ const file_progression_v1_admin_proto_rawDesc = "" +
 	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"Z\n" +
 	"\x17ReconcileLevelsResponse\x12\x16\n" +
 	"\x06raised\x18\x01 \x01(\rR\x06raised\x12\x18\n" +
-	"\aremoved\x18\x03 \x01(\rR\aremovedJ\x04\b\x02\x10\x03R\alowered\"8\n" +
+	"\aremoved\x18\x03 \x01(\rR\aremovedJ\x04\b\x02\x10\x03R\alowered\"c\n" +
+	"\x17ForgiveMissedDayRequest\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x10\n" +
+	"\x03day\x18\x02 \x01(\tR\x03day\x12\x17\n" +
+	"\adry_run\x18\x03 \x01(\bR\x06dryRun\"\x9b\x01\n" +
+	"\x18ForgiveMissedDayResponse\x12-\n" +
+	"\x06before\x18\x01 \x01(\v2\x15.progression.v1.StatsR\x06before\x12+\n" +
+	"\x05after\x18\x02 \x01(\v2\x15.progression.v1.StatsR\x05after\x12#\n" +
+	"\rforgiven_days\x18\x03 \x03(\tR\fforgivenDays\"8\n" +
 	"\x17AdminGetProgressRequest\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\"\xfb\x03\n" +
@@ -685,11 +819,12 @@ const file_progression_v1_admin_proto_rawDesc = "" +
 	"\fMissionTally\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04done\x18\x02 \x01(\x04R\x04done\x12\x14\n" +
-	"\x05goals\x18\x03 \x01(\x04R\x05goals2\xaa\x03\n" +
+	"\x05goals\x18\x03 \x01(\x04R\x05goals2\x91\x04\n" +
 	"\fAdminService\x12b\n" +
 	"\x0fReconcileTitles\x12&.progression.v1.ReconcileTitlesRequest\x1a'.progression.v1.ReconcileTitlesResponse\x12k\n" +
 	"\x12BackfillDaysPlayed\x12).progression.v1.BackfillDaysPlayedRequest\x1a*.progression.v1.BackfillDaysPlayedResponse\x12b\n" +
 	"\x0fReconcileLevels\x12&.progression.v1.ReconcileLevelsRequest\x1a'.progression.v1.ReconcileLevelsResponse\x12e\n" +
+	"\x10ForgiveMissedDay\x12'.progression.v1.ForgiveMissedDayRequest\x1a(.progression.v1.ForgiveMissedDayResponse\x12e\n" +
 	"\vGetProgress\x12'.progression.v1.AdminGetProgressRequest\x1a(.progression.v1.AdminGetProgressResponse\"\x03\x90\x02\x01B\xd5\x01\n" +
 	"\x12com.progression.v1B\n" +
 	"AdminProtoP\x01ZZgithub.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1;progressionv1\xa2\x02\x03PXX\xaa\x02\x0eProgression.V1\xca\x02\x0eProgression\\V1\xe2\x02\x1aProgression\\V1\\GPBMetadata\xea\x02\x0fProgression::V1b\x06proto3"
@@ -706,7 +841,7 @@ func file_progression_v1_admin_proto_rawDescGZIP() []byte {
 	return file_progression_v1_admin_proto_rawDescData
 }
 
-var file_progression_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_progression_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_progression_v1_admin_proto_goTypes = []any{
 	(*ReconcileTitlesRequest)(nil),     // 0: progression.v1.ReconcileTitlesRequest
 	(*ReconcileTitlesResponse)(nil),    // 1: progression.v1.ReconcileTitlesResponse
@@ -714,35 +849,41 @@ var file_progression_v1_admin_proto_goTypes = []any{
 	(*BackfillDaysPlayedResponse)(nil), // 3: progression.v1.BackfillDaysPlayedResponse
 	(*ReconcileLevelsRequest)(nil),     // 4: progression.v1.ReconcileLevelsRequest
 	(*ReconcileLevelsResponse)(nil),    // 5: progression.v1.ReconcileLevelsResponse
-	(*AdminGetProgressRequest)(nil),    // 6: progression.v1.AdminGetProgressRequest
-	(*AdminGetProgressResponse)(nil),   // 7: progression.v1.AdminGetProgressResponse
-	(*XpBreakdown)(nil),                // 8: progression.v1.XpBreakdown
-	(*MissionTally)(nil),               // 9: progression.v1.MissionTally
-	(*Stats)(nil),                      // 10: progression.v1.Stats
-	(*Title)(nil),                      // 11: progression.v1.Title
-	(*CountryTiles)(nil),               // 12: progression.v1.CountryTiles
+	(*ForgiveMissedDayRequest)(nil),    // 6: progression.v1.ForgiveMissedDayRequest
+	(*ForgiveMissedDayResponse)(nil),   // 7: progression.v1.ForgiveMissedDayResponse
+	(*AdminGetProgressRequest)(nil),    // 8: progression.v1.AdminGetProgressRequest
+	(*AdminGetProgressResponse)(nil),   // 9: progression.v1.AdminGetProgressResponse
+	(*XpBreakdown)(nil),                // 10: progression.v1.XpBreakdown
+	(*MissionTally)(nil),               // 11: progression.v1.MissionTally
+	(*Stats)(nil),                      // 12: progression.v1.Stats
+	(*Title)(nil),                      // 13: progression.v1.Title
+	(*CountryTiles)(nil),               // 14: progression.v1.CountryTiles
 }
 var file_progression_v1_admin_proto_depIdxs = []int32{
-	10, // 0: progression.v1.AdminGetProgressResponse.stats:type_name -> progression.v1.Stats
-	11, // 1: progression.v1.AdminGetProgressResponse.titles:type_name -> progression.v1.Title
-	11, // 2: progression.v1.AdminGetProgressResponse.worn_title:type_name -> progression.v1.Title
-	12, // 3: progression.v1.AdminGetProgressResponse.plays_for:type_name -> progression.v1.CountryTiles
-	12, // 4: progression.v1.AdminGetProgressResponse.plays_against:type_name -> progression.v1.CountryTiles
-	8,  // 5: progression.v1.AdminGetProgressResponse.xp:type_name -> progression.v1.XpBreakdown
-	9,  // 6: progression.v1.AdminGetProgressResponse.missions_by_kind:type_name -> progression.v1.MissionTally
-	0,  // 7: progression.v1.AdminService.ReconcileTitles:input_type -> progression.v1.ReconcileTitlesRequest
-	2,  // 8: progression.v1.AdminService.BackfillDaysPlayed:input_type -> progression.v1.BackfillDaysPlayedRequest
-	4,  // 9: progression.v1.AdminService.ReconcileLevels:input_type -> progression.v1.ReconcileLevelsRequest
-	6,  // 10: progression.v1.AdminService.GetProgress:input_type -> progression.v1.AdminGetProgressRequest
-	1,  // 11: progression.v1.AdminService.ReconcileTitles:output_type -> progression.v1.ReconcileTitlesResponse
-	3,  // 12: progression.v1.AdminService.BackfillDaysPlayed:output_type -> progression.v1.BackfillDaysPlayedResponse
-	5,  // 13: progression.v1.AdminService.ReconcileLevels:output_type -> progression.v1.ReconcileLevelsResponse
-	7,  // 14: progression.v1.AdminService.GetProgress:output_type -> progression.v1.AdminGetProgressResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	12, // 0: progression.v1.ForgiveMissedDayResponse.before:type_name -> progression.v1.Stats
+	12, // 1: progression.v1.ForgiveMissedDayResponse.after:type_name -> progression.v1.Stats
+	12, // 2: progression.v1.AdminGetProgressResponse.stats:type_name -> progression.v1.Stats
+	13, // 3: progression.v1.AdminGetProgressResponse.titles:type_name -> progression.v1.Title
+	13, // 4: progression.v1.AdminGetProgressResponse.worn_title:type_name -> progression.v1.Title
+	14, // 5: progression.v1.AdminGetProgressResponse.plays_for:type_name -> progression.v1.CountryTiles
+	14, // 6: progression.v1.AdminGetProgressResponse.plays_against:type_name -> progression.v1.CountryTiles
+	10, // 7: progression.v1.AdminGetProgressResponse.xp:type_name -> progression.v1.XpBreakdown
+	11, // 8: progression.v1.AdminGetProgressResponse.missions_by_kind:type_name -> progression.v1.MissionTally
+	0,  // 9: progression.v1.AdminService.ReconcileTitles:input_type -> progression.v1.ReconcileTitlesRequest
+	2,  // 10: progression.v1.AdminService.BackfillDaysPlayed:input_type -> progression.v1.BackfillDaysPlayedRequest
+	4,  // 11: progression.v1.AdminService.ReconcileLevels:input_type -> progression.v1.ReconcileLevelsRequest
+	6,  // 12: progression.v1.AdminService.ForgiveMissedDay:input_type -> progression.v1.ForgiveMissedDayRequest
+	8,  // 13: progression.v1.AdminService.GetProgress:input_type -> progression.v1.AdminGetProgressRequest
+	1,  // 14: progression.v1.AdminService.ReconcileTitles:output_type -> progression.v1.ReconcileTitlesResponse
+	3,  // 15: progression.v1.AdminService.BackfillDaysPlayed:output_type -> progression.v1.BackfillDaysPlayedResponse
+	5,  // 16: progression.v1.AdminService.ReconcileLevels:output_type -> progression.v1.ReconcileLevelsResponse
+	7,  // 17: progression.v1.AdminService.ForgiveMissedDay:output_type -> progression.v1.ForgiveMissedDayResponse
+	9,  // 18: progression.v1.AdminService.GetProgress:output_type -> progression.v1.AdminGetProgressResponse
+	14, // [14:19] is the sub-list for method output_type
+	9,  // [9:14] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_progression_v1_admin_proto_init() }
@@ -758,7 +899,7 @@ func file_progression_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_progression_v1_admin_proto_rawDesc), len(file_progression_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
@@ -26,7 +27,7 @@ type Store struct {
 const statsColumns = `account_id, tiles_taken, streak_current, streak_best, streak_last_day, messages_sent,
 	bombs_dropped, tiles_fortified, bonuses_claimed, right_answers, missions_done, counted_takes_below, counted_bombs_below,
 	counted_fortifies_below, counted_messages_until, counted_bonuses_until, counted_answers_until, counted_takes_below_index,
-	days_played, missions_by_kind`
+	days_played, missions_by_kind, forgiven_days`
 
 func (s *Store) Stats(ctx context.Context, account accounts.AccountID) (stats.Stats, error) {
 	return statsOf(s.db.On(ctx).QueryRowContext(ctx, `SELECT `+statsColumns+` FROM stats WHERE account_id = $1`, uuid.UUID(account)))
@@ -57,7 +58,7 @@ func (s *Store) Record(ctx context.Context, account accounts.AccountID, change f
 		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO stats (`+statsColumns+`)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
 			ON CONFLICT (account_id) DO UPDATE SET
 				tiles_taken = excluded.tiles_taken,
 				streak_current = excluded.streak_current,
@@ -77,7 +78,8 @@ func (s *Store) Record(ctx context.Context, account accounts.AccountID, change f
 				counted_answers_until = excluded.counted_answers_until,
 				counted_takes_below_index = excluded.counted_takes_below_index,
 				days_played = excluded.days_played,
-				missions_by_kind = excluded.missions_by_kind
+				missions_by_kind = excluded.missions_by_kind,
+				forgiven_days = excluded.forgiven_days
 		`, uuid.UUID(account), int64(next.TilesTaken), //nolint:gosec // counted an act at a time: never past int64.
 			int64(next.Streak.Days()), int64(next.StreakBest), nullableDay(next.Streak.LastDay()),
 			int64(next.MessagesSent), int64(next.BombsDropped), int64(next.TilesFortified), //nolint:gosec // as above.
@@ -85,7 +87,7 @@ func (s *Store) Record(ctx context.Context, account accounts.AccountID, change f
 			int64(next.Counted.TakesBelow.Position), int64(next.Counted.BombsBelow), int64(next.Counted.FortifiesBelow), //nolint:gosec // ledger positions fit in int64.
 			nullableTime(next.Counted.MessagesUntil), nullableTime(next.Counted.BonusesUntil),
 			nullableTime(next.Counted.AnswersUntil), int64(next.Counted.TakesBelow.Index),
-			int64(next.DaysPlayed), missions); err != nil { //nolint:gosec // one a day: never past int64.
+			int64(next.DaysPlayed), missions, pq.Array(dayStrings(next.ForgivenDays))); err != nil { //nolint:gosec // one a day: never past int64.
 			return fmt.Errorf("failed to save the stats: %w", err)
 		}
 		return nil
@@ -127,15 +129,20 @@ func statsOf(row scanner) (stats.Stats, error) {
 		takesPosition, takesIndex, bombsBelow, fortifiesBelow                              int64
 		lastDay, messagesUntil, bonusesUntil, answersUntil                                 sql.NullTime
 		byKind                                                                             []byte
+		forgiven                                                                           pq.StringArray
 	)
 	err := row.Scan(&account, &tiles, &current, &best, &lastDay, &messages, &bombs, &fortified, &claimed, &right, &missions,
 		&takesPosition, &bombsBelow, &fortifiesBelow, &messagesUntil, &bonusesUntil, &answersUntil, &takesIndex, &played,
-		&byKind)
+		&byKind, &forgiven)
 	if errors.Is(err, sql.ErrNoRows) {
 		return stats.Stats{}, stats.ErrNoStats
 	}
 	if err != nil {
 		return stats.Stats{}, fmt.Errorf("failed to read the stats: %w", err)
+	}
+	forgivenDays, err := daysOf(forgiven)
+	if err != nil {
+		return stats.Stats{}, err
 	}
 	var tallies map[string]tally
 	if err := json.Unmarshal(byKind, &tallies); err != nil {
@@ -160,6 +167,7 @@ func statsOf(row scanner) (stats.Stats, error) {
 		RightAnswers:   uint64(right),                        //nolint:gosec // as above.
 		MissionsDone:   uint64(missions),                     //nolint:gosec // as above.
 		MissionsByKind: talliesOf(tallies),
+		ForgivenDays:   forgivenDays,
 		Counted: stats.Counted{
 			TakesBelow:     takesBelow,
 			BombsBelow:     uint64(bombsBelow),     //nolint:gosec // as above.
@@ -191,6 +199,26 @@ func talliesOf(kept map[string]tally) map[stats.MissionKind]stats.MissionTally {
 		tallies[stats.MissionKind(kind)] = stats.MissionTally{Done: done.Done, Goals: done.Goals}
 	}
 	return tallies
+}
+
+func dayStrings(days []stats.Day) []string {
+	kept := make([]string, 0, len(days))
+	for _, day := range days {
+		kept = append(kept, day.String())
+	}
+	return kept
+}
+
+func daysOf(kept []string) ([]stats.Day, error) {
+	days := make([]stats.Day, 0, len(kept))
+	for _, value := range kept {
+		day, err := stats.DayFrom(value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read a forgiven day: %w", err)
+		}
+		days = append(days, day)
+	}
+	return days, nil
 }
 
 func timeOf(at sql.NullTime) time.Time {

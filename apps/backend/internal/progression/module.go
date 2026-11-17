@@ -38,6 +38,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/admin_get_progress_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/admin_get_progress_handler/admin_progress_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/backfill_days_played_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/forgive_missed_day_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_badges_handler/badges_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/get_fronts_handler"
@@ -60,6 +61,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/backfill_days_played_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/backfill_days_played_usecase/audit_backfill_days_played"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/forget_stats_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/forgive_missed_day_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/forgive_missed_day_usecase/audit_forgive_missed_day"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/usecases/record_stats_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/subscribers/box_claimed_subscriber"
@@ -231,6 +234,9 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		),
 		BackfillDaysPlayedHandler: backfill_days_played_handler.New(audit_backfill_days_played.New(
 			backfill_days_played_usecase.New(statsStore, playDays), props.Logger,
+		)),
+		ForgiveMissedDayHandler: forgive_missed_day_handler.New(audit_forgive_missed_day.New(
+			forgive_missed_day_usecase.New(statsStore, playDays, recordStats, clock), props.Logger,
 		)),
 		ReconcileLevelsHandler: reconcile_levels_handler.New(audit_reconcile_levels.New(
 			reconcile_levels_usecase.New(statsStore, accounts, levelBook, clock), props.Logger,

@@ -23,6 +23,16 @@ service AdminService {
   // changes nothing. Run it with dry_run first.
   rpc ReconcileLevels(ReconcileLevelsRequest) returns (ReconcileLevelsResponse);
 
+  // Forgives one UTC day an account missed, so its streak runs through it, as though it had played that day. The streak
+  // is counted again over the days planet's ledger holds a take on, the streak's own days, the days forgiven before and
+  // this one; the best streak rises with it. A forgiven day is no take: the days played, the tiles, the XP and every
+  // other stat stay. The day must be before today (UTC), not played, not forgiven already, and join the streak's run: a
+  // gap in it, the day before it, or the day after the last day played (the player missed yesterday and has not played
+  // today), which becomes the streak's last day so the next take extends it. Refused: NotFound for an account with no
+  // stats, InvalidArgument for today or a later day, AlreadyExists for a day forgiven already, FailedPrecondition for a
+  // day played, a day that joins nothing, or an account that never took a tile. Run it with dry_run first.
+  rpc ForgiveMissedDay(ForgiveMissedDayRequest) returns (ForgiveMissedDayResponse);
+
   // What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
   // An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
   rpc GetProgress(AdminGetProgressRequest) returns (AdminGetProgressResponse) {
@@ -63,6 +73,23 @@ message ReconcileLevelsResponse {
   uint32 raised = 1;
   // The guests whose level was taken off, or would be.
   uint32 removed = 3;
+}
+
+message ForgiveMissedDayRequest {
+  string account_id = 1;
+  // The UTC day the account missed, as YYYY-MM-DD.
+  string day = 2;
+  // Answers what would change, and writes nothing.
+  bool dry_run = 3;
+}
+
+message ForgiveMissedDayResponse {
+  // The stats as kept before the call: the streak's days, its last day and the best streak.
+  Stats before = 1;
+  // The stats as kept after it, or as they would be after a dry run.
+  Stats after = 2;
+  // Every day forgiven to the account, in order, this one too.
+  repeated string forgiven_days = 3;
 }
 
 message AdminGetProgressRequest {

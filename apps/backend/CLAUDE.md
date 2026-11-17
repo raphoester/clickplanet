@@ -171,8 +171,8 @@ and says what is in it. Read the doc before you change its area.
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
   an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,
   `GetAccounts`), so no game module but alerts hears or asks auth; the deploy that moved them to it.
-- [Progression](docs/progression.md) — how far an account went: stats, streaks, titles and their tracks, the title
-  worn, the fronts, the badges, the title-earned stream and the reconciliation; why it left `player`, and its tables
+- [Progression](docs/progression.md) — how far an account went: stats, streaks (a missed day the operator forgives),
+  titles and their tracks, the title worn, the fronts, the badges, the title-earned stream and the reconciliation; why it left `player`, and its tables
   moved from schema `player`.
 - [Levels](docs/levels.md) — a level per linked account, from XP computed from the stats row and never stored: one type
   per XP source and per mission kind's rate, the curve 14 × (L − 1)³ with no top, no XP and no level for a guest; the

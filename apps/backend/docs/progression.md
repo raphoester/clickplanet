@@ -12,8 +12,8 @@ internal/progression/internal/
                                     tells it
     rpc_player_accounts/            the same of one account or a page, from player.v1.InternalService/GetAccounts (2s timeout)
   stats/                            Stats (StatsSnapshot), Streak, Day (DayOf, DayFrom), Counted, TakeMark, and the rules on them (TakeAt,
-                                    MessageAt, BombAt, FortifyAt, BonusAt, RightAnswerAt, MissionsPaid, PlayDays); the Store port and its
-                                    contract suite
+                                    MessageAt, BombAt, FortifyAt, BonusAt, RightAnswerAt, MissionsPaid, PlayDays, ForgivenDay); the Store
+                                    port and its contract suite
     postgres_stats_store/           the Store over progression.stats, under an advisory lock per account
     inmemory_stats_store/           the same port in maps, behind the testing tag
     usecases/record_stats_usecase/  — one change to an account's stats, then progression.v1.StatsChanged
@@ -22,6 +22,8 @@ internal/progression/internal/
     usecases/backfill_days_played_usecase/  — every account's days played counted again from planet's ledger, once;
                                     progression.v1.AdminService/BackfillDaysPlayed
       backfill_days_played_usecase/audit_backfill_days_played/  logs every backfill at Warn
+    usecases/forgive_missed_day_usecase/  — one missed day counted on an account's streak; AdminService/ForgiveMissedDay
+      forgive_missed_day_usecase/audit_forgive_missed_day/  logs every call at Warn, a refusal too
   titles/                           Title (one type per title), Rank, Track (Conquest, Devotion, Chatter, Defense, Bombs, Loot, Quiz, Missions),
                                     Place, Standing, Catalog (NewCatalog), Career (CareerOf), Careers (Of, PageOf),
                                     Holdings, Reconciliation, Book (Shown, Unheld, Grant); the Store port and its contract suite
@@ -68,8 +70,8 @@ internal/progression/internal/
   progressionv1controller/          ProgressionService and AdminService (bags), the session interceptor, the stream's session reader
     get_titles_handler/  wear_title_handler/  get_fronts_handler/  get_badges_handler/
     get_progress_handler/  get_level_handler/  listen_for_events_handler/
-    reconcile_titles_handler/  admin_get_progress_handler/  backfill_days_played_handler/  reconcile_levels_handler/
-                                    AdminService's own
+    reconcile_titles_handler/  admin_get_progress_handler/  backfill_days_played_handler/  forgive_missed_day_handler/
+    reconcile_levels_handler/       AdminService's own
       admin_get_progress_handler/admin_progress_query/   PostgresQuery: what progression keeps of one account, a guest's too
     get_titles_handler/titles_query/  get_badges_handler/badges_query/
     get_progress_handler/progress_query/  get_level_handler/level_query/
@@ -144,6 +146,7 @@ key, so progression's code never names auth.
 - **`ReconcileTitles`** (see [The reconciliation](#the-reconciliation)). It moved from `player.v1.AdminService` with no
   change of behaviour.
 - **`BackfillDaysPlayed(dry_run)`** (see [The days played](#the-days-played)).
+- **`ForgiveMissedDay(account_id, day, dry_run)`** (see [A forgiven day](#a-forgiven-day)).
 - **`ReconcileLevels(dry_run)`** (see [Levels](levels.md#the-reconciliation)).
 - **`GetProgress(account_id)`** (`admin_get_progress_handler`, `admin_progress_query`) is what progression keeps of
   one account, a guest's too: the stats as kept (a guest's streak too, which the game never shows), `messages_sent`,
@@ -260,11 +263,13 @@ come (XP slice 1), and nothing shows it to a player yet: only the operator's `Ge
   (`planet.v1.InternalService/GetPlayDays`, `rpc_planet_play_days`: the postgres ledger keeps every event since
   2026-09-16 with its account; the memory's 72h would not do), and applies `stats.PlayDays(days)` to each account
   through `Store.Record`, under the stats' lock: the days played become the days of the ledger up to the streak's last
-  day, that day always counted, and never less than the best streak nor than what is counted already.
+  day, that day always counted, and never less than the best streak less the days forgiven nor than what is counted
+  already. **A forgiven day is never counted**, even as the streak's last day (see [A forgiven day](#a-forgiven-day)).
   - **Only the days up to the last day, read under the lock**, so a day the live count counted is not counted twice;
     **the last day always**, so a take flushed between planet's read and the lock is not lost.
-  - **The best streak is a floor**: the stats count from 2026-09-17, and the ledger holds no account on the takes before it.
-    The rest is an undercount for a handful of the oldest accounts.
+  - **The best streak less the days forgiven is a floor**: the stats count from 2026-09-17, and the ledger holds no
+    account on the takes before it. A forgiven day can be in the best streak, so each one comes off it. The rest is an
+    undercount for a handful of the oldest accounts.
   - **A reverted take still counts**, as `tiles_taken` never takes one back; a deleted account's takes are nobody's.
   - **An account the page shows unchanged is not written.** The answer is `{accounts, changed}`: every account read,
     and the ones whose days played went up. `dry_run` counts the same and writes nothing. A second run changes
@@ -274,6 +279,33 @@ come (XP slice 1), and nothing shows it to a player yet: only the operator's `Ge
     connector's tool is `progression_backfill_days_played`.
   - **Run on 2026-11-15 around 20:30 UTC**, at peak hour, on the 4 GB droplet: 2,796 accounts, 2,742 changed, the dry
     run's numbers; a dry run after it changed none.
+
+### A forgiven day
+
+**The operator can forgive one UTC day an account missed, so its streak runs through it:
+`progression.v1.AdminService/ForgiveMissedDay(account_id, day, dry_run)`** (`forgive_missed_day_usecase`,
+`audit_forgive_missed_day` logs each call at Warn, a refusal too; the connector's tool is
+`progression_forgive_missed_day`). It is for a player who lost a long streak to one missed day. The operator decides
+each one; nothing calls it alone.
+
+- **The rule is `Stats.WithForgivenDay(day, played, today)`.** The use case asks planet the days the account took a
+  tile on (`rpc_planet_play_days`, the backfill's adapter, for the one account) and reads today from the clock. The run
+  is counted back from the later of the streak's last day and the day, over the ledger's days, the days the streak
+  holds, the days forgiven before and this one. The streak becomes the longer of it and the streak kept, and the best
+  streak rises with it. Example: streak 2 (Nov 16-17), best 37 ending Nov 14, Nov 15 forgiven: streak 40, best 40.
+- **The day after the last day is allowed** (the player missed yesterday and has not played today). It becomes the
+  streak's last day, so the next take extends the streak. Any later day joins nothing.
+- **A forgiven day is no take.** The days played, the tiles, the XP and every other stat stay. The stats keep the
+  days forgiven (`progression.stats.forgiven_days`, `date[]`, migration `20261117103436_forgiven_days`) only so the
+  backfill never counts one as played: the ledger has no take on it, but the streak and the best streak hold it.
+- **Refused**, with the rule's sentence: an account with no stats (`NotFound`), today or a later day
+  (`InvalidArgument`), a day forgiven already (`AlreadyExists`), a day played, a day that joins nothing to the streak
+  (more than one day after the last day, or apart from its run), and an account that never took a tile
+  (`FailedPrecondition`).
+- **Through `record_stats_usecase`**, so `StatsChanged` fires and the titles, the level and the badges follow. The rule
+  is asked again under the stats' lock (`stats.ForgivenDay`), where a refusal leaves the stats as they are.
+- **The answer is the stats before and after** (`Stats`: the streak, its last day, the best streak, as kept) and every
+  day forgiven. `dry_run` answers the same and writes nothing. No table of its own: the log line is the record.
 
 ## Titles
 
