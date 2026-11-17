@@ -237,9 +237,9 @@ nothing showed the XP, and missions paid charges too. A flag's mission still giv
   which the Missions title track counts, and no charge. The XP does not wait for it: progression counts a guest's
   missions done once the account links, any day.
 - **The charge code is gone**: the purses, the draw of rewards, `Reward`, `planetgrant` and the charge on the wire.
-  Two things stay. `redis_outbox_sender` still sends a `planet.v1.GrantCharges` the binary before left in the outbox:
-  the relay empties it at shutdown, but a fact counted in the last moment can leave one. It can go once the reveal
-  deploy ran. And planet still handles the command (`apply_grant_handler`), though nothing sends it now.
+  The reveal deploy's relay sent each `planet.v1.GrantCharges` the binary before left in the outbox, and the next
+  deploy dropped the type from the outbox (`20261117104231_no_grant_charges`, which deletes a row still there): the
+  outbox cannot keep one now. Planet still handles the command (`apply_grant_handler`), though nothing sends it now.
 - **A rollback is a revert of the reveal set.** The briefs drawn while it ran have no `reward`: the code before reads
   them as a charge of no kind, planet refuses its grant (`ErrUnknownKind`) and the old page skips the mission, for the
   rest of that day. The next day's briefs pay charges again.

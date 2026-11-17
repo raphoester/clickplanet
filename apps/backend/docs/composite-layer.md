@@ -235,8 +235,6 @@ A fact goes through an outbox when its loss would leave the modules disagreeing 
 - `player.v1.PlayerSignedIn`: a lost one is the missions a guest finished that day never paid, since that sign-in is told once. `tell_sign_in_usecase` records it on every `auth.v1.SignedIn`, in a transaction of its own.
 - `player.v1.PlayerLeaving` and `PlayerReturned`: a lost one leaves progression showing the badges of an account player hides, or hiding one player shows again, and scoring ranking it or not, for good. `decide_departure_usecase` records one for every decision, in the transaction of the departure.
 - `player.v1.PlayerForgotten`: a lost one keeps a deleted player's data for good in every module that hears it: its stats and titles in progression, its name on its takes in planet, its tallies in scoring, and the rest. `forget_account_usecase` records it in the transaction that deletes the profile and the guest code, for every account auth deleted.
-- `planet.v1.GrantCharges`, a command: missions sent one with each mission paid until missions paid XP (see
-  [Missions pay XP](missions.md#missions-pay-xp)). Its relay still sends one the binary before left; nothing records it now.
 - `quizzes.v1.QuizAnswered`: a lost right answer is a charge never paid, since the bonuses module pays it from the event.
   `answer_quiz_usecase` records it in a transaction of its own, right after the answer is settled.
 - `boxes.v1.BoxClaimed`: a lost one is a box caught never paid, for the same reason. `claim_box_usecase` records it in a

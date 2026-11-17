@@ -22,9 +22,30 @@ func TestTheOutboxKeepsEveryMessageMissionsSends(t *testing.T) {
 	db := cppgtest.StartServer(t).OpenSchema(t, "missions", migrations.FS)
 
 	require.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error {
-		return cpoutbox.New(db).Record(ctx, &planetv1.GrantCharges{}, &scoringv1.GrantPoints{}, &missionsv1.MissionsPaid{},
+		return cpoutbox.New(db).Record(ctx, &scoringv1.GrantPoints{}, &missionsv1.MissionsPaid{},
 			&missionsv1.MissionsDone{}, &missionsv1.FlagMissionDone{})
 	}))
+}
+
+func TestAGrantChargesLeftInTheOutboxGoesAndTheRowsBehindItStay(t *testing.T) {
+	db := cppgtest.StartServer(t).OpenSchema(t, "missions", before(t, "20261117104231"))
+	require.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error {
+		return cpoutbox.New(db).Record(ctx, &planetv1.GrantCharges{}, &missionsv1.MissionsPaid{}, &scoringv1.GrantPoints{})
+	}))
+
+	require.NoError(t, db.Migrate(t.Context(), migrations.FS))
+
+	var events []string
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), `SELECT event::text FROM outbox ORDER BY position`)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var event string
+		require.NoError(t, rows.Scan(&event))
+		events = append(events, event)
+	}
+	require.NoError(t, rows.Err())
+	assert.Equal(t, []string{"missions.v1.MissionsPaid", "scoring.v1.GrantPoints"}, events)
 }
 
 // The migrations before the one named, as a database that never ran it holds them.

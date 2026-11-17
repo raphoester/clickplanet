@@ -40,7 +40,7 @@ proto3.util.setEnumType(SharedWith, "planet.v1.SharedWith", [
 ]);
 
 /**
- * A kind of charge a hand holds: what a box, a quiz or a mission grants.
+ * A kind of charge a hand holds: what a box, a quiz or a level reached grants.
  *
  * @generated from enum planet.v1.BonusKind
  */
@@ -1927,7 +1927,7 @@ export class KnockOut extends Message<KnockOut> {
 }
 
 /**
- * A grant from outside the player's own clicks, such as a box caught, a right answer or a mission paid: what it added,
+ * A grant from outside the player's own clicks, such as a box caught, a right answer or a level reached: what it added,
  * and all the hand holds after.
  *
  * @generated from message planet.v1.ChargesGranted

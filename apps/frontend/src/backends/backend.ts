@@ -187,7 +187,7 @@ export interface BoxCatcher {
     claimBox(token: string): Promise<BonusReward | undefined>
 }
 
-// For a charge granted elsewhere, as a mission's reward: the holder tells its listeners again.
+// For a charge granted elsewhere, as a sign-in's refill: the holder tells its listeners again.
 export interface ChargesRefresher {
     refreshCharges(): Promise<void>
 }
@@ -208,7 +208,7 @@ export interface QuizMaster {
     listenForRewards(onRewarded: (reward: BonusReward) => void): () => void
 }
 
-// Each charge a grant gave the page's account, as planet's stream tells it: a right answer's, a mission's.
+// Each charge a grant gave the page's account, as planet's stream tells it: a right answer's, a level's.
 export interface GrantSource {
     listenForGrants(onGranted: (rewards: BonusReward[]) => void): () => void
 }
