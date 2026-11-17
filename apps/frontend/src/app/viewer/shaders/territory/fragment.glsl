@@ -24,10 +24,25 @@ uniform sampler2D latticeFaces;
 uniform int latticeCols;
 uniform highp usampler2D tileCells;
 uniform highp usampler2D tileData;
+uniform highp usampler2D terrain;
+// Must match KINDS in domain/terrain.ts.
+uniform vec3 terrainColours[12];
 
-// Must match CELL_COLUMNS in territoryLayer.ts and TILE_COLUMNS in tileField.ts.
+// Must match CELL_COLUMNS in territoryLayer.ts, TILE_COLUMNS in tileField.ts and TERRAIN_COLUMNS in terrain.ts.
 const int CELL_COLUMNS = 256;
 const int TILE_COLUMNS = 512;
+const int TERRAIN_COLUMNS = 1024;
+
+// Must match domain/terrain.ts: the land's kinds, then the sea's, the last the open sea.
+const uint LAND_KINDS = 8u;
+const uint OPEN_SEA = 11u;
+
+// Each cell of land is up to this much lighter or darker, so a patch of one kind is not one flat colour.
+const float SHADE_JITTER = 0.04;
+// A cell of land's edge is this much darker, drawn as a cell grows from EDGE_FROM to EDGE_FULL pixels wide.
+const float CELL_EDGE = 0.14;
+const float EDGE_FROM = 10.0;
+const float EDGE_FULL = 18.0;
 
 #include ../flagFrame.glsl;
 #include ../tileEffects.glsl;
@@ -79,6 +94,21 @@ int canonicalId(int face, int i, int j) {
     if (j == 0) return int(at.y) + i * int(by.y);
     if (j == cols - i) return int(at.z) + i * int(by.z);
     return corners.w + (i - 1) * (cols - 2) - (i - 1) * (i - 2) / 2 + j - 1;
+}
+
+// A number in [0, 1] of the id alone, the same on every GPU.
+float shadeOf(int id) {
+    uint h = uint(id) * 747796405u + 2891336453u;
+    h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
+    return float((h >> 22u) ^ h) / 4294967295.0;
+}
+
+// 1 on a cell's hexagonal edge, 0 inside; `offset` is from the cell's lattice point, in lattice steps.
+float cellEdge(vec2 offset, float stepArc, float pixelArc) {
+    vec2 p = vec2(offset.x + 0.5 * offset.y, 0.8660254 * offset.y);
+    float d = max(abs(p.x), max(abs(dot(p, vec2(0.5, 0.8660254))), abs(dot(p, vec2(0.5, -0.8660254)))));
+    float pixel = pixelArc / stepArc;
+    return (1.0 - smoothstep(0.4 * pixel, 1.6 * pixel, 0.5 - d)) * smoothstep(EDGE_FROM, EDGE_FULL, 1.0 / pixel);
 }
 
 vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, vec2 anchor) {
@@ -146,6 +176,7 @@ void main() {
     vec3 ground = normalize(vWorld + forward * (-along - sqrt(max(inside, 0.0))));
     vec3 acrossStep = dFdx(ground);
     vec3 upStep = dFdy(ground);
+    float pixelArc = max(length(acrossStep), length(upStep));
     if (inside < 0.0) discard;
 
     int face = 0;
@@ -160,11 +191,28 @@ void main() {
 
     vec3 onFace = ground * (faceNormals[face].w / best) - faceTexel(0, face).xyz;
     float cols = float(latticeCols);
-    ivec2 cell = nearestOnGrid(vec2(dot(onFace, faceTexel(3, face).xyz), dot(onFace, faceTexel(4, face).xyz)) * cols);
+    vec2 onGrid = vec2(dot(onFace, faceTexel(3, face).xyz), dot(onFace, faceTexel(4, face).xyz)) * cols;
+    ivec2 cell = nearestOnGrid(onGrid);
     int i = clamp(cell.y, 0, latticeCols);
     int j = clamp(cell.x, 0, latticeCols - i);
 
     int id = canonicalId(face, i, j);
+    uint kind = texelFetch(terrain, ivec2(id % TERRAIN_COLUMNS, id / TERRAIN_COLUMNS), 0).r;
+    if (kind >= LAND_KINDS) {
+        // The open sea is the earth's own sphere, with its glint.
+        if (kind == OPEN_SEA) discard;
+        gl_FragColor = vec4(terrainColours[kind], 1.0);
+        return;
+    }
+
+    vec3 land = terrainColours[kind] * (1.0 + SHADE_JITTER * (2.0 * shadeOf(id) - 1.0));
+    land *= 1.0 - CELL_EDGE * cellEdge(onGrid - vec2(cell), length(faceTexel(1, face).xyz) / cols, pixelArc);
+    // Zoomed in, or with the painted flags off, the flags are the tiles' alone: the layer is the bare ground.
+    if (flagPaint <= 0.0) {
+        gl_FragColor = vec4(land, 1.0);
+        return;
+    }
+
     int word = id >> 5;
     uvec2 bits = texelFetch(tileCells, ivec2(word % CELL_COLUMNS, word / CELL_COLUMNS), 0).rg;
     uint bit = uint(id & 31);
@@ -186,6 +234,6 @@ void main() {
     TileEffects effects = tileEffectsAt(tileCentre, landmass);
     colour = heated(steeled(scorched(colour, effects.scorch), effects.fortify), effects.glow);
 
-    // Solid while the tiles fade in over it, then gone in the second half of the handover.
-    gl_FragColor = vec4(colour.rgb, colour.a * min(1.0, flagPaint * 2.0));
+    // Solid while the tiles fade in over it, then the bare ground in the second half of the handover.
+    gl_FragColor = vec4(mix(land, colour.rgb, colour.a * min(1.0, flagPaint * 2.0)), 1.0);
 }

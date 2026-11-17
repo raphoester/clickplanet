@@ -17,7 +17,7 @@ export type Board = {
 // `earth-1` has no warp and no rotation, and numbers its tiles in three's order: the ledger holds those ids.
 export type Lattice = {cols: number, warp: null, corners: null, order: "three"}
 
-export type BoardFiles = {runs: string, borders: string, capitals: string, bridges: string}
+export type BoardFiles = {runs: string, borders: string, capitals: string, bridges: string, terrain: string}
 
 // A board as the page carries it: the manifest, and where each of its files is served.
 export type BoardAsset = Board & {urls: BoardFiles}

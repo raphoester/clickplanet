@@ -1,23 +1,17 @@
 import * as THREE from "three"
-import {EARTH_URL} from "./earthAsset.ts"
+import {OPEN_SEA_COLOUR} from "./terrain.ts"
 
 import vertexShader from "./shaders/earth/vertex.glsl"
 import fragmentShader from "./shaders/earth/fragment.glsl"
 
-const textureLoader = new THREE.TextureLoader()
-
-const ANISOTROPY = 8
-
+// The open sea: the land and the coast are the territory layer's, drawn over it.
 export function createEarth(glint: boolean, sphere: THREE.BufferGeometry): THREE.Mesh {
-    const map = textureLoader.load(EARTH_URL)
-    map.anisotropy = ANISOTROPY
-
     return new THREE.Mesh(
         sphere,
         new THREE.ShaderMaterial({
             defines: {SEA_GLINT: glint},
             uniforms: {
-                map: {value: map},
+                sea: {value: OPEN_SEA_COLOUR},
             },
             vertexShader,
             fragmentShader,

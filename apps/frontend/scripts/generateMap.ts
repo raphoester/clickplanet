@@ -5,7 +5,7 @@ import {latticeIds, positionsHash} from "../src/domain/lattice.ts"
 import {EARTH_1, readBoard, readBorders} from "./map/board.mjs"
 import {encodeBorders} from "./map/bordersBinary.mjs"
 import {capitalsOf} from "./map/capitals.mjs"
-import {medianSpacingOf} from "./map/coverage.mjs"
+import {medianSpacingOf} from "./map/spacing.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {landmasses} from "./map/landmasses.mjs"
 import {keyOf, lattice, neighbours} from "./map/lattice.mjs"
@@ -124,6 +124,6 @@ next:
   cd ../backend && make map        # copy the board, then commit every copy
   cd ../backoffice && npm run map  # copy the manifest and the runs
   npm run borderLines              # traced from the board, stale until it is run
-  npm run earth                    # the globe's texture, cut from the new tile field
+  npm run terrain                  # each lattice point's look, from the new tiles
   npm run landmassNames            # each landmass's name, keyed by the new borders file
   npm run map:audit                # every fault should read zero`)

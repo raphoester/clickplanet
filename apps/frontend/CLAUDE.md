@@ -9,7 +9,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 ## Working on it
 
-- [Commands](docs/commands.md) — `npm run dev`, `build`, `test`, `lint`, `proto`, and the map, atlas, texture and
+- [Commands](docs/commands.md) — `npm run dev`, `build`, `test`, `lint`, `proto`, and the map, terrain, atlas and
   clip scripts. The production API refuses `localhost`: use a local backend or `VITE_FAKE_BACKEND=1 npm run dev`,
   and the fake's console commands (`giveBomb()`, `closeDay()`, …).
 - [Testing](docs/testing.md) — vitest, co-located, on node by default; jsdom only where a file asks for it.
@@ -156,7 +156,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   sky.
 - [The zoomed-out view](docs/zoomed-out-view.md) — the flags painted in each landmass's frame when tiles are small,
   pixel by pixel by the territory layer under the tiles: Split, Big or Off.
-- [The globe's texture](docs/globe-texture.md) — the sphere under the tiles, cut from the tile field.
+- [The terrain](docs/terrain.md) — the board-game ground: a kind of land per tile and the coast's bands, a file of the
+  board painted by the territory layer at every zoom over a flat sea; no photo.
 - [Tile positions](docs/tile-positions.md) — rebuilt in a worker from the board's runs and checked against the
   manifest's hash, which a mismatch logs; no file of positions.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom.

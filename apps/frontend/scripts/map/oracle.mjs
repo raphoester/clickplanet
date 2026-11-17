@@ -1,4 +1,4 @@
-import {spacingOf} from "./coverage.mjs"
+import {spacingOf} from "./spacing.mjs"
 import {SEA, mostlyLake} from "./ground.mjs"
 import {lonLatOf} from "./lattice.mjs"
 import {SEATS, seat} from "./seats.mjs"

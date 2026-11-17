@@ -4,7 +4,7 @@
 `map/boards/<name>/`. There is one today, `earth-1`. A board's manifest says which lattice it is cut from, how many
 tiles it has and the hash of their positions; its runs say which lattice points are tiles, and so where every tile
 is and what a tile id means; its borders say which country's ground each tile sits on; its capitals and bridges are
-what an arena battle's rules read. **They are written by one command from one oracle**, so "is this sea or land" and
+what an arena battle's rules read; its terrain is what the globe draws at each point of the lattice. **They are written by one command from one oracle**, so "is this sea or land" and
 "which country is this" cannot disagree and a tile in no country cannot be built. See
 [`map/README.md`](../map/README.md), and [Boards](boards.md) for the design and what comes next.
 

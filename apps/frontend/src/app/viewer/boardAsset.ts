@@ -17,12 +17,14 @@ export const BOARD: BoardAsset = {
         "runs": "runs-ac17bdab.bin",
         "borders": "borders-e6851c0e.bin",
         "capitals": "capitals-3938708b.json",
-        "bridges": "bridges-4b74bbe0.json"
+        "bridges": "bridges-4b74bbe0.json",
+        "terrain": "terrain-68b2c2a7.bin"
     },
     "urls": {
         "runs": "/static/boards/earth-1/runs-ac17bdab.bin",
         "borders": "/static/boards/earth-1/borders-e6851c0e.bin",
         "capitals": "/static/boards/earth-1/capitals-3938708b.json",
-        "bridges": "/static/boards/earth-1/bridges-4b74bbe0.json"
+        "bridges": "/static/boards/earth-1/bridges-4b74bbe0.json",
+        "terrain": "/static/boards/earth-1/terrain-68b2c2a7.bin"
     }
 }
