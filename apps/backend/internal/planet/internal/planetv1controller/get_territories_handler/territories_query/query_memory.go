@@ -12,16 +12,21 @@ type Tally interface {
 	Tally() (clicks.MapVersion, clicks.Tally)
 }
 
+type ShieldTally interface {
+	ShieldTally() []clicks.FlagShields
+}
+
 type Borders interface {
 	CountryOfLandmass(landmass clicks.LandmassID) string
 }
 
-func NewMemoryQuery(tally Tally, borders Borders, tiles uint32) *MemoryQuery {
-	return &MemoryQuery{tally: tally, borders: borders, tiles: tiles}
+func NewMemoryQuery(tally Tally, shields ShieldTally, borders Borders, tiles uint32) *MemoryQuery {
+	return &MemoryQuery{tally: tally, shields: shields, borders: borders, tiles: tiles}
 }
 
 type MemoryQuery struct {
 	tally   Tally
+	shields ShieldTally
 	borders Borders
 	tiles   uint32
 }
@@ -44,10 +49,15 @@ func (q *MemoryQuery) Territories() *planetv1.GetTerritoriesResponse {
 		}
 	}
 
+	shields := make(map[string]uint32)
+	for _, count := range q.shields.ShieldTally() {
+		shields[count.Flag] = count.Shields
+	}
+
 	territories := make([]*planetv1.Territory, 0, len(tally.Countries))
 	for _, count := range tally.Countries {
 		territories = append(territories, &planetv1.Territory{
-			CountryId: count.Flag, Tiles: count.Tiles, Grounds: groundsOf(grounds[count.Flag]),
+			CountryId: count.Flag, Tiles: count.Tiles, Grounds: groundsOf(grounds[count.Flag]), Shields: shields[count.Flag],
 		})
 	}
 	slices.SortFunc(territories, func(a, b *planetv1.Territory) int {

@@ -4,6 +4,7 @@ import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, OutOfRe
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
 import {TileField} from "./tileField.ts"
+import {chunksOf} from "../../domain/tileChunks.ts"
 import {regions} from "./atlas.ts"
 import {PLAIN} from "./graphics.ts"
 
@@ -127,10 +128,13 @@ describe("a refused click, from the paint to the rollback", () => {
     const size = 32
 
     function wiring() {
-        const field = new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, {
-            positions: new Float32Array(size * 3),
+        const positions = new Float32Array(size * 3).map((_, i) => (i % 3 === 0 ? 1 : 0))
+        const uniforms = {pointSize: {value: 1}, pixelsPerRadian: {value: 1}, flagPaint: {value: 0}, blastRadii: {value: [0]}, motion: {value: 1}}
+        const field = new TileField(uniforms, {
+            positions,
             size,
-            cells: {cols: 1, words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => i)},
+            cells: {cols: 1, words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => i), tiles: Uint32Array.from({length: size}, (_, i) => i)},
+            chunks: chunksOf(positions),
         }, PLAIN)
         const ownership = new TileOwnership(size)
 
@@ -144,9 +148,10 @@ describe("a refused click, from the paint to the rollback", () => {
             applyChanges(changes)
         }
 
-        const regionOf = (tile: number) => Array.from(
-            (field.displayPoints.geometry.getAttribute("regionVector").array as Float32Array)
-                .slice((tile - 1) * 4, tile * 4))
+        const regionOf = (tile: number) => {
+            const [at, size] = (field.displayPoints.geometry.getAttribute("flagRegion").array as Float32Array).slice((tile - 1) * 2, tile * 2)
+            return [at % 2048, Math.floor(at / 2048), size % 2048, Math.floor(size / 2048)]
+        }
 
         return {ownership, applyChanges, live, regionOf}
     }

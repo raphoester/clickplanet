@@ -14,20 +14,15 @@
 - `useLeaderboardFeed.ts` — the one place React hears about the board, and
   **it samples rather than follows**. See [Sampling the
   leaderboard](leaderboard-sampling.md).
-- `tileField.ts` — owns both point clouds and the per-tile values that change at
+- `tileField.ts` — owns the tiles' point cloud and the per-tile values that change at
   runtime (flag, hover, shields, pulse), in one of two layouts, and `tileData`, each tile's flag and landmass for
-  the territory layer. Mutates them in place and reports only the changed ranges. Do not replace these attributes: doing so
+  the territory layer. Mutates them in place and reports only the changed ranges. `cull` draws only the pieces of the
+  map in sight, and under the painted flags only those wearing a ring: see [The tiles out of sight are not
+  drawn](far-side.md). Do not replace these attributes: doing so
   makes the renderer rebuild the whole GPU buffer instead of patching it. See [What
   a tile costs on the GPU](tile-layout.md).
-- `gpuPicking.ts` — `GpuPicker`. Persistent 1×1 render target and scene;
-  `setViewOffset` narrows the projection to the pixel under the cursor. In orbit the
-  tiles are drawn wider for it, with no gap between them (`pickPointSize`). Picks
-  are resolved once per frame, not once per mousemove — each one ends in a
-  synchronous GPU read that stalls the pipeline. Its occluder is the earth's own
-  sphere, which it does not dispose. **It clears to black, which is no tile, and
-  hands the canvas its sky colour back after**: `renderer.clear()` takes the last
-  clear colour given to the GPU, and the one given for the picker's target made the
-  sky black on every frame after a pick.
+- `tilePicker.ts` — `TilePicker`, the tile under a pixel, found on the CPU from the lattice cell under it. A hover is
+  still picked once per frame, not once per mousemove. See [The tile under the pointer](picking.md).
 - `points.ts` / `latticeWorker.ts` / `boardAsset.ts` — the tile positions, rebuilt in a worker from
   the board's runs, or on the page when the worker fails. See [Tile positions](tile-positions.md).
 - `capture.ts` — `readDrawingBuffer`, the frame the player is looking at. **It
@@ -113,12 +108,12 @@
   hit and a placement fade without changing size.
 - `earth.ts` — the opaque sphere under the tiles: the photo, a little softened, and the sea's
   glint with `?gfx=earth`. See [The light](light.md). The sphere comes from
-  `sphere.ts`, built once per globe and shared with the picker.
+  `sphere.ts`, built once per globe and shared with the territory layer.
 - `atmosphere.ts` — the light, the hazy rim and the halo, one pass over the whole
   frame after the ground. See [The light](light.md).
 - `graphics.ts` — `graphicsOf`, which parts of the sharper globe are on:
   the HD graphics setting, unless the URL names them. See [HD graphics](hd-graphics.md).
-- `shaders/` — GLSL for the display, territory, picking, earth, air, star, enclosure and glint passes.
+- `shaders/` — GLSL for the display, territory, earth, air, star, enclosure and glint passes.
   `tileEffects.glsl` holds a bomb's and a fortify wave's effect on a tile, read by the tiles and the territory layer;
   `effectColours.glsl` the colours they paint.
   `light.glsl` is not a pass but the light's direction the air and the earth share, pulled in with

@@ -16,7 +16,7 @@ ratio on its way to the GPU: the tile's point size, the outline's width
 ring of the bonus effects may be, the smallest debris. So are the thresholds:
 `coarseHandover` and `flagPaint` are worked out in CSS pixels, or a sharper
 screen would hand over at half the zoom. What is measured against
-`gl_PointSize` stays in drawing-buffer pixels — `pixelsPerRadian`, the picker's
+`gl_PointSize` stays in drawing-buffer pixels — `pixelsPerRadian`, the pick's
 window, the one-pixel feathers that soften an edge.
 
 The click is already in drawing-buffer pixels: `canvasPosition` scales the

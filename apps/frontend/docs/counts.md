@@ -18,7 +18,8 @@ drops a row it no longer lists. It answers `counts()` (the board, through `rankC
 
 ## `domain/mapTiles.ts`: one rule for every value of a tile
 
-`MapTiles` holds `TileOwnership` (the flag) and `TileShields` (the shields) of every tile, and the version of the
+`MapTiles` holds `TileOwnership` (the flag, a number per tile in a `Uint16Array` that names the codes it has seen) and
+`TileShields` (the shields) of every tile, and the version of the
 last value each tile took (`Float64Array`, -1 for a tile nothing told yet; the server's `uint64` arrives as a
 `bigint` and fits a double: a server start never counts 2^53 writes). **A map batch, a tile update, a bomb's clear
 and its strikes are taken for a tile only when their version is newer than the tile's.** That one rule is why an

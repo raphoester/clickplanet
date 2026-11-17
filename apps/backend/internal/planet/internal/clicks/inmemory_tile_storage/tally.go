@@ -23,6 +23,13 @@ func (s *Storage) Tally() (clicks.MapVersion, clicks.Tally) {
 	return s.version, tally
 }
 
+func (s *Storage) ShieldTally() []clicks.FlagShields {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.board.shieldCounts()
+}
+
 // Publishes the rows the writes changed since it last ran, with no new version: it reads, it writes nothing.
 func (s *Storage) PublishTally() {
 	s.mu.Lock()

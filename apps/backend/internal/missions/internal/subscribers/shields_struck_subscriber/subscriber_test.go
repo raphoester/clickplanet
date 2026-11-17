@@ -86,7 +86,7 @@ func TestABatchWithStrikesWithNoTimeIsRefused(t *testing.T) {
 type fixedPlanet struct{}
 
 func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, nil
+	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000, Shields: 9_000}}}, nil
 }
 
 type noPledges struct{}

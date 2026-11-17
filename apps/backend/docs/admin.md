@@ -145,7 +145,7 @@ keeps no rule.
     `InvalidArgument` (`changes_query.ErrInvalidWindow`). It changes nothing and logs nothing. The last second of
     changes, not flushed yet, is not in it.
 - **`GetTerritories`** is the internal service's, handler and all: the tiles each country holds now, how many of them on
-  each country's land, and the map's size.
+  each country's land, the shields on them, and the map's size.
 
 ## Manual bans: `FindPlayers`, `TopPlayers`, `BanPlayer`, `UnbanPlayer`, `RevertPlayer`, `InspectPlayer`
 

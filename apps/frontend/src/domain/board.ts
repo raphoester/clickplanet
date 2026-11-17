@@ -1,5 +1,6 @@
 import {latticeSize, positionsHash, walkLattice, writePosition} from "./lattice.ts"
 import {cellsOf, type TileCells} from "./latticeCells.ts"
+import {chunksOf, type TileChunks} from "./tileChunks.ts"
 
 // A board is a geometry: the lattice it is cut from, and which of its points are tiles (/map/README.md).
 export type Board = {
@@ -27,9 +28,9 @@ export type Run = readonly [first: number, last: number]
 // Where each tile is, its canonical id, and its place in three's walk of the lattice, all in tile order.
 export type Tiles = {positions: Float32Array, ids: Uint32Array, points: Uint32Array}
 
-// What the page draws from a board's runs: where each tile is, the cells the territory layer finds a pixel's tile by,
-// and the hash of the positions, which the board's manifest says.
-export type RebuiltTiles = {positions: Float32Array, cells: TileCells, hash: number}
+// What the page draws from a board's runs: where each tile is, the cells the territory layer and the pick find a pixel's
+// tile by, the chunks the page culls the tiles by, and the hash of the positions, which the board's manifest says.
+export type RebuiltTiles = {positions: Float32Array, cells: TileCells, chunks: TileChunks, hash: number}
 
 const RUNS_MAGIC = "CPRN"
 const RUNS_VERSION = 1
@@ -65,7 +66,7 @@ export function tilesOf(lattice: Lattice, runs: readonly Run[], count: number): 
 
 export function rebuildTiles(lattice: Lattice, count: number, runs: ArrayBuffer): RebuiltTiles {
     const {positions, ids} = tilesOf(lattice, decodeRuns(runs), count)
-    return {positions, cells: cellsOf(ids, lattice.cols), hash: positionsHash(positions)}
+    return {positions, cells: cellsOf(ids, lattice.cols), chunks: chunksOf(positions), hash: positionsHash(positions)}
 }
 
 // The runs of a set of canonical ids, ascending.

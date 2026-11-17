@@ -414,7 +414,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			pace := clicks.Pacing{Batch: adminBatch, Pause: 50 * time.Millisecond}
 
 			getTerritories := get_territories_handler.New(
-				territories_query.NewMemoryQuery(tilesStorage, borders, config.GameMap.MaxIndex))
+				territories_query.NewMemoryQuery(tilesStorage, tilesStorage, borders, config.GameMap.MaxIndex))
 			getLedger := get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock, eraStore))
 			adminService := planetv1controller.AdminService{
 				FindPlayersHandler: find_players_handler.New(

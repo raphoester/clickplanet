@@ -20,16 +20,19 @@ type Pending = {
 
 // The flag on each tile, and the player's own clicks painted before the server agreed to them.
 export class TileOwnership {
-    private readonly owners: (string | undefined)[]
+    // Each tile's flag as a number: 0 is no owner, n is codes[n].
+    private readonly owners: Uint16Array
+    private readonly codes: (string | undefined)[] = [undefined]
+    private readonly numbers = new Map<string, number>()
     private readonly pending = new Map<number, Pending>()
     private lastToken = 0
 
     constructor(public readonly size: number) {
-        this.owners = new Array<string | undefined>(size + 1)
+        this.owners = new Uint16Array(size + 1)
     }
 
     public ownerOf(tile: number): string | undefined {
-        return this.owners[tile]
+        return this.codes[this.owners[tile]]
     }
 
     // From a read: a click in flight stays painted, and the read is what its rollback goes back to.
@@ -58,7 +61,7 @@ export class TileOwnership {
         if (pending) {
             pending.inFlight.set(token, country)
         } else {
-            this.pending.set(tile, {inFlight: new Map([[token, country]]), country: this.owners[tile]})
+            this.pending.set(tile, {inFlight: new Map([[token, country]]), country: this.ownerOf(tile)})
         }
 
         const changes = this.assign(tile, country) ? [{tile, country}] : []
@@ -83,9 +86,21 @@ export class TileOwnership {
     }
 
     private assign(tile: number, country: string | undefined): boolean {
-        if (this.owners[tile] === country) return false
-        this.owners[tile] = country
+        const flag = this.numberOf(country)
+        if (this.owners[tile] === flag) return false
+        this.owners[tile] = flag
         return true
+    }
+
+    private numberOf(country: string | undefined): number {
+        if (country === undefined) return 0
+        let flag = this.numbers.get(country)
+        if (flag === undefined) {
+            flag = this.codes.length
+            this.codes.push(country)
+            this.numbers.set(country, flag)
+        }
+        return flag
     }
 
     private inRange(tile: number): boolean {

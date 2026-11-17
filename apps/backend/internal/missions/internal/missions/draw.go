@@ -21,6 +21,7 @@ type Territory struct {
 	Flag    string
 	Tiles   uint32
 	Grounds []Holding
+	Shields uint32
 }
 
 type World struct {
@@ -93,6 +94,16 @@ func (w World) RivalsOf(flag string) []Holding {
 		return cmp.Or(cmp.Compare(b.Tiles, a.Tiles), cmp.Compare(a.Country, b.Country))
 	})
 	return rivals
+}
+
+// The shields standing on the flag's tiles.
+func (w World) ShieldsOf(flag string) uint32 {
+	for _, held := range w.Territories {
+		if held.Flag == flag {
+			return held.Shields
+		}
+	}
+	return 0
 }
 
 // A country's land, and how many of its tiles a flag does not hold.

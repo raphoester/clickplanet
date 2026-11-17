@@ -37,13 +37,13 @@ func (p stubPlanet) GetCountrySizes(
 
 func TestTheWorldIsWhatEachFlagHoldsAndWhereAndHowBigEachCountryIs(t *testing.T) {
 	world, err := rpc_planet_world.New(stubPlanet{
-		territories: []*planetv1.Territory{{CountryId: "dz", Tiles: 9, Grounds: []*planetv1.Ground{{CountryId: "ma", Tiles: 9}}}},
+		territories: []*planetv1.Territory{{CountryId: "dz", Tiles: 9, Grounds: []*planetv1.Ground{{CountryId: "ma", Tiles: 9}}, Shields: 4}},
 		sizes:       []*planetv1.CountrySize{{CountryId: "br", Tiles: 900}},
 	}).World(t.Context())
 
 	require.NoError(t, err)
 	assert.Equal(t, missions.World{
-		Territories:  []missions.Territory{{Flag: "dz", Tiles: 9, Grounds: []missions.Holding{{Country: "ma", Tiles: 9}}}},
+		Territories:  []missions.Territory{{Flag: "dz", Tiles: 9, Grounds: []missions.Holding{{Country: "ma", Tiles: 9}}, Shields: 4}},
 		CountrySizes: []missions.Holding{{Country: "br", Tiles: 900}},
 	}, world)
 }

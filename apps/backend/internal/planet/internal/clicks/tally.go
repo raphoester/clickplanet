@@ -11,6 +11,11 @@ type FlagTiles struct {
 	Tiles uint32
 }
 
+type FlagShields struct {
+	Flag    string
+	Shields uint32
+}
+
 type LandmassTiles struct {
 	Landmass LandmassID
 	Flags    []FlagTiles

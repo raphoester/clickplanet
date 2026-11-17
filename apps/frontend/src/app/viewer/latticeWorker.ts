@@ -11,6 +11,8 @@ self.onmessage = ({data}: MessageEvent<LatticeQuestion>) => {
     } catch (e) {
         answer = {error: e instanceof Error ? e.message : String(e)}
     }
-    const transfer = "positions" in answer ? [answer.positions.buffer, answer.cells.words.buffer, answer.cells.texels.buffer] : []
+    const transfer = "positions" in answer
+        ? [answer.positions, answer.cells.words, answer.cells.texels, answer.cells.tiles, answer.chunks.starts, answer.chunks.caps, answer.chunks.blocks].map(({buffer}) => buffer)
+        : []
     self.postMessage(answer, {transfer})
 }
