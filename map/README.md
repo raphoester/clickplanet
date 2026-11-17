@@ -11,6 +11,7 @@ its tiles from. There is one today, **`earth-1`**, the world's map since the rem
 | `borders-<hash>.bin` | whose ground each tile sits on (see [Format](#format)) |
 | `capitals-<hash>.json` | which tile is each country's capital (see [Capitals and bridges](#capitals-and-bridges)) |
 | `bridges-<hash>.json` | which crossings join two shores over the sea |
+| `terrain-<hash>.bin` | what each point of the lattice looks like: a kind of land under a tile, or the sea by its distance from land (see [The terrain follows too](#the-terrain-follows-too)) |
 
 **There is no coordinates file.** Every app rebuilds every tile's position from the lattice and the runs, to the bit
 (see [The board's lattice](#the-boards-lattice)).
@@ -52,13 +53,13 @@ is written into it:
   same board. Moving the pin renumbers every tile; see below.
 - **The ice shelves are ground, and they are Antarctica.**
   `ne_50m_antarctic_ice_shelves_polys` is a file of its own and is inside no country polygon, so
-  before this Ross and Ronne were tileless holes in a continent the texture paints solid white.
+  before this Ross and Ronne were tileless holes in a continent the photo painted solid white.
   They are 2,633 tiles, which is about a tenth of `aq`.
 - **A cell that is mostly lake is water.** See below.
 - **Every country has at least one tile: its seat.** See below.
-- **The globe's texture follows, it does not decide.** A 4096×2048 photo blends a one-tile island
-  into open water, so it can never be an authority. `npm run earth` cuts it *from* the tile field
-  instead — see below — and `npm run map:audit` reports what is left but enforces nothing about it.
+- **The terrain follows, it does not decide.** `npm run terrain` paints land exactly where the runs put a tile — see
+  below — and `npm run map:audit` fails on a point astray. Until November 2026 the globe was a 4096×2048 photo, which
+  blends a one-tile island into open water, so it had to be corrected toward the tile field.
 
 ```bash
 cd apps/frontend && npm run map:generate   # the board's runs, borders and capitals, from the oracle
@@ -68,7 +69,7 @@ cd apps/frontend && npm run map:audit      # the three sources against each othe
 ## Lakes are water
 
 Natural Earth draws each country over its lakes, so the Great Lakes, Victoria, Tanganyika, Malawi, Baikal and Ladoga
-were all tiles, painted over the water the photo shows. `ne_50m_lakes` is the third layer of the oracle, and
+were all tiles, painted over the water the photo showed. `ne_50m_lakes` is the third layer of the oracle, and
 **a vertex is sea when most of its cell is lake** (`mostlyLake` in `scripts/map/ground.mjs`): 19 points over the
 cell, the vertex and two rings, and more than half of them in a lake. It is the cell and not the vertex because a
 lake is often narrower than a cell — a reservoir down a valley, Lake Champlain — and a vertex that falls in one would
@@ -76,7 +77,7 @@ cut water a cell wide out of the land; a cell is a fair answer for a lake as wid
 and an island in one stays land.
 
 `DRY` lists the lakes that stay land: Australia's salt pans, which fill a few years a century; Kakhovka, drained in
-2023; and the steppe's shallow salt lakes (Tengiz, Qusmuryn, Siletitengiz), which the photo draws as steppe. Natural
+2023; and the steppe's shallow salt lakes (Tengiz, Qusmuryn, Siletitengiz), which the photo drew as steppe. Natural
 Earth draws them full, and a cell with no tile on what the globe draws as land is ground nobody can take.
 
 ## A seat for each country the lattice misses
@@ -97,7 +98,7 @@ draws as open sea when the country is on land:
 - **An island country is one tile, on its capital's island**, at the vertex whose cell holds the most of that
   island's land. Never a tile per island: the Seychelles' islands spread over 1,200 km, and a tile for each would
   draw it far past its own waters. The vertex is sea to Natural Earth, because the island is smaller than the cell;
-  the texture then paints the cell as land (see below). Two of them touch a neighbour's tile, as the islands do:
+  the terrain then paints the cell as land (see below). Two of them touch a neighbour's tile, as the islands do:
   Anguilla touches Sint Maarten and the US Virgin Islands touch the British.
 
 A seat for a country that has ground of its own, an island seat that would land on a country's ground, or two seats on
@@ -193,7 +194,7 @@ cd apps/frontend && npm run bridges       # the crossings, from the new tiles an
 cd apps/backend && make map               # copy the board, then commit every copy
 cd apps/backoffice && npm run map         # copy the manifest and the runs
 cd apps/frontend && npm run borderLines   # traced from the board, stale until it is run
-cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field
+cd apps/frontend && npm run terrain       # each lattice point's look, from the new tiles; rewrites the manifest
 cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the new borders file
 cd apps/frontend && npm run map:audit     # every fault should read zero
 ```
@@ -201,8 +202,8 @@ cd apps/frontend && npm run map:audit     # every fault should read zero
 `gameMap.maxIndex` follows the tile count, in `apps/backend/cmd/api/example.yaml` and
 `deploy/vps/backend.yaml`; the backend refuses to start on a board whose manifest disagrees with it.
 
-**Regenerating `earth-1` as it is writes it byte for byte**: the same runs, borders, capitals, bridges and manifest,
-and the same border lines, landmass names and earth texture. That was checked when the generator stopped building
+**Regenerating `earth-1` as it is writes it byte for byte**: the same runs, borders, capitals, bridges, terrain and
+manifest, and the same border lines and landmass names. That was checked when the generator stopped building
 three's geometry (2026-11-17), and it is the test of any change to the generator that should change nothing.
 
 ## Format
@@ -265,6 +266,19 @@ backend's own geography notes warn against: the spacing varies about 25% between
 its corners, so one radius reaches past the neighbours in places and joined two islands across a
 strait into one landmass — a flag painted over the water between them.
 
+The terrain file, written by `npm run terrain` and read by `terrain.ts`, mirrored by
+[`terrain.ts`](../apps/frontend/src/domain/terrain.ts):
+
+```
+"CPTR" | uint32 version (1) | uint32 points | runs to the end
+```
+
+One kind a lattice point, in canonical id order, as runs: a run is one byte, its kind in the high four bits and its
+length less one in the low four, and a run of 16 points or more sets the low four to 15 and carries its length less 16
+after it as a varint (seven bits a byte, low first). Kinds 0-7 are land (forest, tundra, boreal, arid, savanna, grass,
+sand, snow), 8-10 the sea one, two and three steps from land, 11 the open sea. `earth-1` is 66,392 runs, 74 KB; one byte
+a point would be 906 KB.
+
 The frontend draws a black outline along the tile boundary between two countries, and keeps the
 geometry for it in a file of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
 `npm run borderLines`. It is derived from the board's runs and borders and from nothing else, so **regenerate it
@@ -305,44 +319,20 @@ why every engine rebuilds the same bits.
 
 See [`apps/backend/docs/map-geography.md`](../apps/backend/docs/map-geography.md) for the backend's half.
 
-## The texture follows too
+## The terrain follows too
 
-`npm run earth` is the third generator, and it is the frontend's alone — the backend has no texture,
-so nothing of it comes to `/map`. It reads the board, rasterises each tile's cell onto an
-equirectangular image, and moves the satellite mosaic's coastline onto it:
-
-```
-out = photo + (cover - opinion) * (landColour - seaColour)
-```
-
-`cover` is the tile field at full resolution — a pixel is land when its nearest lattice vertex is a
-tile — so a one-tile island or lake is corrected all the way, and
-`opinion` is what the photo's own colour already says — so the correction is **zero wherever the two
-already agree**, which is most of the globe. The two colours are the photo's own local averages over
-the land and over the water, so nothing is repainted in a palette somebody chose. It took the land
-the photo draws as water from 8,599 lattice vertices to 2,053, and the water it draws as land to 13.
-
-**A block learns its land colour only from 128 pixels' worth of land it agrees about**, or takes a neighbour's
-(`LAND_ENOUGH`). A block of open ocean whose only land is atolls the photo draws as water used to learn it from the
-few pixels that half agreed — a blue a shade off the sea's — and leave a one-tile island looking like open water:
-14 of the 28 island seats did. All but Nauru read as land now (Nauru is a dark green-blue dot), and it took the land
-drawn as water across the whole globe from 2,053 to 1,903, for 0.08% more of the image moved, all of it on coasts and
-islands.
-
-`static/earth/earth-source.jpg` is the mosaic, kept in the repo and **not deployed**;
-`static/earth/earth-<hash>.jpg` is what the globe loads.
+`npm run terrain` is the third generator, and its file is the frontend's alone, though every app carries it with the
+board. It reads the board's runs, gives each tile one of eight kinds of land from the colour of the photo the game
+showed until November 2026 (`apps/frontend/scripts/map/earth.jpg`, read and never served), smooths the kinds over the
+lattice, and gives each sea point a band from its distance to land: one, two or three steps, or the open sea. Since the
+land is the runs' own tiles, a one-tile island is land across its whole cell, and a one-tile lake is water. See the
+frontend's [The terrain](../apps/frontend/docs/terrain.md).
 
 ## What is left
 
 - **250 tiles have no neighbours at all** — single-tile islands, 26 of them seats. Anything reading adjacency has to
   have an answer for an empty neighbour set. This is not a fault: an island a tile wide is an island
   a tile wide, and there are more of them now because the small ones finally have tiles.
-- **1,802 land vertices are still drawn as water, and 47 water vertices as land.** Most of the water drawn as land
-  is a lake the photo draws dark teal — the Quebec reservoirs, Itaipú, Kariba — which reads as water to the eye and
-  not to the audit's "is this pixel blue". What is left is
-  where the photo gives the correction nothing to work with — land and water the same colour under
-  cloud or on an ice shelf — and where the audit's own "does this pixel look blue" is stricter than
-  an eye is. `npm run map:audit` is where those numbers live.
 
 The antimeridian fault this file used to record — "the row carries about a quarter of the tiles it
 should" — was measured at a 36-tile deficit and is gone: the audit reads 1.000 tiles per land vertex

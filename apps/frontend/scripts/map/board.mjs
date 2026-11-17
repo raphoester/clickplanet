@@ -3,7 +3,8 @@ import path from "node:path"
 import {fileURLToPath} from "node:url"
 
 import {decodeRuns, tilesOf} from "../../src/domain/board.ts"
-import {positionsHash} from "../../src/domain/lattice.ts"
+import {latticeSize, positionsHash} from "../../src/domain/lattice.ts"
+import {decodeTerrain} from "../../src/domain/terrain.ts"
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
 
@@ -94,4 +95,12 @@ export function readCapitals(board = readBoard()) {
 export function readBridges(board = readBoard()) {
     const name = board.manifest.files.bridges
     return {name, ...JSON.parse(fs.readFileSync(path.join(board.directory, name), "utf8"))}
+}
+
+/** @returns {{name: string, terrain: Uint8Array}} each lattice point's kind, by canonical id */
+export function readTerrain(board = readBoard()) {
+    const name = board.manifest.files.terrain
+    const bytes = fs.readFileSync(path.join(board.directory, name))
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    return {name, terrain: decodeTerrain(buffer, latticeSize(board.manifest.lattice.cols))}
 }

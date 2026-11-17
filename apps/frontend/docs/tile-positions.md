@@ -23,7 +23,7 @@ thread** from the same runs, which it copied to the worker rather than moved. `l
 
 ## The positions must be three's, to the bit
 
-A tile's position is where it is drawn, and the borders, the outlines and the earth texture were cut from the same
+A tile's position is where it is drawn, and the borders, the outlines and the terrain were cut from the same
 positions. A position one ulp off is a tile that does not line up with them. So `lattice.ts` does three's own
 arithmetic from `PolyhedronGeometry` and nothing else:
 

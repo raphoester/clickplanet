@@ -38,8 +38,10 @@
   ended, which left OrbitControls in a pinch. See [A finger iOS took for its swipe back](stray-fingers.md).
 - `atlas.ts` / `atlasAsset.ts` — country code → sprite region, and the generated
   atlas URL and size.
-- `territoryLayer.ts` — the zoomed-out view's flags, painted pixel by pixel on a sphere under the tiles: each pixel
-  finds its tile's cell. See [The zoomed-out view](zoomed-out-view.md).
+- `territoryLayer.ts` — the terrain and the zoomed-out view's flags, painted pixel by pixel on a sphere under the
+  tiles: each pixel finds its lattice point's cell. See [The zoomed-out view](zoomed-out-view.md).
+- `terrain.ts` — the board's terrain file, loaded with the globe, its texture and its palette. See
+  [The terrain](terrain.md).
 - `borderField.ts` — the zoomed-out view: tile → landmass, from the board's borders file,
   who holds how much of each, and the per-landmass table the territory layer reads.
   See [The zoomed-out view](zoomed-out-view.md).
@@ -106,8 +108,9 @@
   of a flag. **A click out of view is not played** (`inView`): on the far side
   or off the screen it would cost frames and show nothing. With less motion a
   hit and a placement fade without changing size.
-- `earth.ts` — the opaque sphere under the tiles: the photo, a little softened, and the sea's
-  glint with `?gfx=earth`. See [The light](light.md). The sphere comes from
+- `earth.ts` — the opaque sphere under the tiles: the open sea, one flat colour, and its glint
+  with `?gfx=earth`. The land and the coast are the territory layer's: see [The terrain](terrain.md)
+  and [The light](light.md). The sphere comes from
   `sphere.ts`, built once per globe and shared with the territory layer.
 - `atmosphere.ts` — the light, the hazy rim and the halo, one pass over the whole
   frame after the ground. See [The light](light.md).

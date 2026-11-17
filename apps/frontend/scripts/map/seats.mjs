@@ -12,7 +12,7 @@ import {SEA} from "./ground.mjs"
  *   touches the sea, as the country does or does not: Monaco stays on the shore, San Marino stays inland.
  * - **An island** (no `takes`): the vertex nearest `at`, which is sea to Natural Earth because the island is smaller
  *   than a cell. `at` is the middle of the land in the cell that holds the most of the island the capital is on, so
- *   the tile sits over the island itself; `npm run earth` then paints the cell as land.
+ *   the tile sits over the island itself; `npm run terrain` then paints the cell as land.
  *
  * The points are pinned, like the Natural Earth tag: moving one moves a tile.
  *

@@ -20,6 +20,7 @@ import {loadBridges} from "./bridges.ts";
 import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
 import {flagPaint, flownZoomsOf, inOrbit, tilePointSize} from "./pointSize.ts";
 import {createTerritoryLayer} from "./territoryLayer.ts";
+import {loadTerrain} from "./terrain.ts";
 import {regions} from "./atlas.ts";
 import {SlotRanking} from "./slotRanking.ts";
 import {FlagSlots} from "./flagSlots.ts";
@@ -362,10 +363,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
-    const [geometryData, borders, borderLines] = await Promise.all([
+    const [geometryData, borders, borderLines, terrain] = await Promise.all([
         loadPointGeometryData(signal),
         loadBorders(BOARD.urls.borders, signal),
         loadBorderLines(BORDER_LINES_URL, signal),
+        loadTerrain(BOARD.urls.terrain, BOARD.lattice.cols, signal),
     ]);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
 
@@ -430,6 +432,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const territoryLayer = createTerritoryLayer({
         sphere,
         cells: geometryData.cells,
+        terrain,
         tileData: field.tileData,
         flagRectangles: field.flagRectangles,
         uniforms,
@@ -1859,7 +1862,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
         outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView)
-        territoryLayer.visible = uniforms.flagPaint.value > 0
         field.uploadTiles(renderer)
 
         const peeked = armed ? undefined : peek.tick(seconds)

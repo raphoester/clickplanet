@@ -31,24 +31,14 @@ turned the globe white on some Intel GPUs (see [HD graphics](hd-graphics.md)). T
 pass is one simple shader for every player, and nothing it draws over needs to
 know about it.
 
-**Only the sea shines, with HD graphics** (`?gfx=earth`). The earth's own shader
-adds a glint, read off the texture: the sea is one deep blue whose blue stands
-clear of its red and green, and no land does that. `light.glsl` holds the light's
-direction, which the pass and the glint share.
+**Only the open sea shines, with HD graphics** (`?gfx=earth`). The earth's own shader is one flat deep blue and adds
+the glint; the land and the coast's bands are the territory layer's, opaque over it (see [The terrain](terrain.md)).
+`light.glsl` holds the light's direction, which the pass and the glint share.
 
-**The photo is drawn nearly as it is**: a little less colour (`SATURATION`, 0.75)
-and its darks lifted (`LIFT`, a gamma of 1.25), in the earth's own shader, with or
-without the glint. As it is, the sea was too deep a blue. It used to be three's
-standard material under an ambient light: the texel read as linear, times 2/π, then
-encoded to sRGB, which lifted the deep blue sea to a pale one.
-
-**Nothing on the ground is white**: past a luminance of 0.7 the photo bends
-smoothly down, so white comes out at 0.82, a light grey (`SHOULDER_FROM`,
-`BRIGHTEST`). An unclaimed tile is a white veil at 30%, and on the photo's ice,
-which is a flat 253 to 255, it vanished: Antarctica and Greenland read as one
-blank white sheet with no tile on it. The old standard material put that ice at
-the same grey, so it is what the game showed before. Below 0.7 the photo is
-untouched; above it the hue is kept, so a bright desert is only a little dimmer.
+**An empty tile on snow shows as its cell.** An unclaimed tile is a white veil at 30%, and on near-white ground it
+vanishes. The photo's ice was held to a light grey for it until November 2026; the terrain's snow (`#e9eff3`) is not, but
+each cell of land has its own shade and, zoomed in, a darker hexagon edge, so empty snow reads as a board of cells, not
+one blank sheet (see [The terrain](terrain.md)).
 
 **None of it moves on its own**, so none of it costs a frame: the light turns
 with the camera, and a still globe is still the same picture. See [Drawing only

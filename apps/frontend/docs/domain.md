@@ -85,7 +85,8 @@ them in the page's language. See [Translation](i18n.md).
   `rebuildTiles`, the tiles a board's runs keep, with their cells and their hash. See [Tile
   positions](tile-positions.md). `latticeCells.ts` — `cellOf`, the lattice point nearest a direction, as the
   territory layer's shader finds it, and `cellsOf`, each tile's texel from its canonical id. See [The zoomed-out
-  view](zoomed-out-view.md).
+  view](zoomed-out-view.md). `terrain.ts` — the kinds of land and sea, and the terrain file's runs. See [The
+  terrain](terrain.md).
 - `clipAppearances.ts` — which clip that names the player to show, when to read again, and the link
   per platform. See [In a clip](clip-appearances.md).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.

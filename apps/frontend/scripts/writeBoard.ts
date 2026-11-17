@@ -11,7 +11,7 @@ const assetModule = join(frontendRoot, "src", "app", "viewer", "boardAsset.ts")
 
 type Kind = keyof BoardFiles
 
-const EXTENSIONS: Record<Kind, string> = {runs: "bin", borders: "bin", capitals: "json", bridges: "json"}
+const EXTENSIONS: Record<Kind, string> = {runs: "bin", borders: "bin", capitals: "json", bridges: "json", terrain: "bin"}
 
 const MANIFEST = /^board-[0-9a-f]{8}\.json$/
 
@@ -50,7 +50,10 @@ export function writeManifest(board: string, fields: Partial<Omit<Board, "files"
         tiles: value("tiles"),
         spacing: value("spacing"),
         positionsHash: value("positionsHash"),
-        files: {runs: file("runs"), borders: file("borders"), capitals: file("capitals"), bridges: file("bridges")},
+        files: {
+            runs: file("runs"), borders: file("borders"), capitals: file("capitals"), bridges: file("bridges"),
+            terrain: file("terrain"),
+        },
     }
     const bytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`)
     const fileName = `board-${hashOf(bytes)}.json`
