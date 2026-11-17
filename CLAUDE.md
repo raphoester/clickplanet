@@ -25,11 +25,13 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   How to regenerate each app's bindings after a `.proto` edit.
 - [Quiz bank](docs/quiz-bank.md) — `quiz/bank.json`, embedded in the backend only. The frontend has no copy,
   because the answers are in it.
-- [Map geometry](docs/map-geometry.md) — `map/`'s tile coordinates and borders blobs, the committed copy in each
-  app, the lakes, the one-tile seat of each country too small for the lattice, and why a regeneration renumbers every tile.
-- [Boards](docs/boards.md) — designed, not built yet: a geometry as files of its own (`earth-1` today, `earth-2` at
-  ≈1M tiles, `siege-1` for Capital Siege), the warped and rotated lattice with its pentagons at sea, runs, eras and
-  the board column, the world's switch and its carry-over, the rules at the new density, and the PRs in order.
+- [Map geometry](docs/map-geometry.md) — `map/boards/`: each board's runs, borders, capitals and bridges, no
+  coordinates file, the committed copy in each app, the lakes, the one-tile seat of each country too small for the
+  lattice, and why a regeneration renumbers every tile.
+- [Boards](docs/boards.md) — PR 1 built (`earth-1` is a board, no coordinates file), the rest designed: a geometry as
+  files of its own (`earth-2` at ≈1M tiles, `siege-1` for Capital Siege), the warped and rotated lattice with its
+  pentagons at sea, eras and the board column, the world's switch and its carry-over, the rules at the new density,
+  and the PRs in order.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.

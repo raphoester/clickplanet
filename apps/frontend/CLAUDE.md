@@ -154,8 +154,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The zoomed-out view](docs/zoomed-out-view.md) — the flags painted in each landmass's frame when tiles are small,
   pixel by pixel by the territory layer under the tiles: Split, Big or Off.
 - [The globe's texture](docs/globe-texture.md) — the sphere under the tiles, cut from the tile field.
-- [Tile positions](docs/tile-positions.md) — rebuilt in a worker from a 12 KB landmask and checked by a hash;
-  the coordinates blob is only the fallback.
+- [Tile positions](docs/tile-positions.md) — rebuilt in a worker from the board's runs and checked against the
+  manifest's hash, which a mismatch logs; no file of positions.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom.
 - [A finger iOS took for its swipe back](docs/stray-fingers.md) — the edge swipe that never ends its pointer, the
   pinch OrbitControls was left in, and the `pointercancel` sent for iOS when the touch count says the finger is gone.

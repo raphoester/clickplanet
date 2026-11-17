@@ -48,7 +48,7 @@ corrected: a wrong answer here is a generator to fix or a pin to move, not a lin
 Two of those templates are worth knowing about:
 
 - **A border is a border on the map being played**, not one in a polygon file. `scripts/quiz/
-  adjacency.mjs` reads the shipped coordinates and borders blobs and calls two countries neighbours
+  adjacency.mjs` reads the shipped board's runs and borders and calls two countries neighbours
   when two of their tiles touch on the lattice — the same edge relation the flags and the backend's
   own adjacency are built from. So "which of these borders Estonia" can be answered by looking at
   the globe, and France borders Brazil, because on this map it does.

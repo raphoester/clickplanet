@@ -40,7 +40,8 @@ orthographic, so every pixel looks down one axis onto the tiles' sphere of radiu
 that ground: the icosahedron face the direction leaves through, the point on that face's flat grid, and its
 canonical id (`cellOf` in `domain/latticeCells.ts` does the same, and its tests check that every one of the 260,503
 shipped tiles falls in its own cell). Whether the id is a tile, and which texel holds that tile, comes from one word
-per 32 ids: their bits and the count of tiles before them (`tileCells`, 226 KB). The tile's flag and landmass come
+per 32 ids: their bits and the count of tiles before them (`tileCells`, 226 KB, built from each tile's canonical id
+as the board's runs give it). The tile's flag and landmass come
 from `TileField.tileData`, two u16 per tile (1 MB), which `TileField.uploadTiles` sends a row at a time as tiles
 change hands. So a pixel wears exactly its own tile's flag: a drawing keeps the shape of its cells, and no tile
 reaches over another.
@@ -144,7 +145,7 @@ the country's own shape and still say what it is, while one carrying a device is
 cropped, anchored on the part that names it rather than on its middle. The
 result is `static/countries/flagFit.json`.
 
-**Every tile is in a country**, because both blobs come from one Natural Earth
+**Every tile is in a country**, because the runs and the borders come from one Natural Earth
 query: a tile exists exactly where `groundOf` answers a code, and that same answer
 is what the borders blob records. The 2,191 tiles that used to fall outside every
 country are what the globe drew as discs floating on open water with no outline

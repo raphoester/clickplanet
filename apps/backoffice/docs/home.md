@@ -13,10 +13,13 @@ failing alone:
 - `player.v1.AdminService/GetRoster` for who plays now.
 - `ListReports` (open only) and `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each
   are counted, and 500 reads "500+".
-- **The tile coordinates** (`places.ts`), the map's own blob from `/map` (`npm run map` copies it into `src/gen/map`,
-  and Vite bundles it under `/assets/`): where each tile is, read once a page load, about 5 MB. Its latitude and
-  longitude are read as the map's generator reads a vertex: `asin(y)` and `atan2(z, -x)`. The CSP's `connect-src`
-  holds `'self'` for it.
+- **Where each tile is** (`places.ts`), rebuilt from the board the game plays, `earth-1` from `/map` (`npm run map`
+  copies its manifest and its runs into `src/gen/map`, and Vite bundles the runs under `/assets/`, 121 KB; the
+  manifest is inline in `src/gen/map/board.ts`). `board.ts` is the backoffice's own copy of the game page's lattice:
+  it walks the lattice in three's order and keeps the points the runs hold, to the bit, and `board.test.ts` checks the
+  positions against the manifest's `positionsHash`; a page whose rebuild differs logs it and keeps its positions. It
+  runs once a page load, about 0.1 s, on the page itself. Each tile's latitude and longitude are read as the map's
+  generator reads a point: `asin(y)` and `atan2(z, -x)`. The CSP's `connect-src` holds `'self'` for the runs.
 
 What the page does with them:
 

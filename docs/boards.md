@@ -1,7 +1,8 @@
 # Boards: a map's geometry as files of its own
 
-**Designed 2026-11-17, not built yet.** This is the reference the PRs at the end of this doc build from. Each PR turns
-the part of this doc it builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
+**Designed 2026-11-17. PR 1 is built (2026-11-17): `earth-1` is a board, and every app reads its geometry from it.**
+The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
+builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
 [Map geometry](map-geometry.md), and the apps' tile docs (`tile-positions.md`, `tile-layout.md`, `zoomed-out-view.md`,
 `map-geography.md`, `arenas.md`).
 
@@ -43,9 +44,11 @@ above are estimates from `earth-1`'s land share (28.75% of the lattice).
 
 ## The geometry
 
-**Every board is an icosahedral lattice.** Each of the 20 faces is a triangular grid of `cols` points per edge. A point
-is `(face, i, j)`, and its neighbours are the ±1 exchanges of its barycentric coordinates: 6 everywhere, 5 at the 12
-corners.
+**Every board is an icosahedral lattice.** Each of the 20 faces is a triangular grid of `cols` steps per edge, so
+`cols + 1` points along it and `10·cols² + 2` on the sphere (906,012 for `earth-1`'s 301). A point is `(face, i, j)`,
+and its neighbours are the ±1 exchanges of its barycentric coordinates: 6 everywhere, 5 at the 12 corners. Built:
+`lattice.ts` walks it, `latticeNeighbours` takes its neighbours, and the backend's `embedded_board` does the same in
+Go.
 
 **The 12 five-neighbour points cannot go.** On a sphere, a grid where nearly every point has 6 neighbours has exactly
 12 with 5: Σ(6 − degree) = 12 (Euler). So they go to sea. One flat grid per continent would avoid them but stretches
@@ -65,7 +68,8 @@ squashes them 1.57× in one direction.
 
 **Only `+ − × ÷ √`**, so the rule of [Tile positions](../apps/frontend/docs/tile-positions.md) holds: every engine
 rebuilds every position bit for bit. With no warp and no rotation it is today's lattice exactly, which is how `earth-1`
-is described.
+is described, and it is built so: steps 1 and 3 with three's own corners. In Go each product is converted to
+`float64` on its own, or the compiler fuses it into the add (arm64 does, and the hash moves).
 
 Measured on the same lattice (`cols` 48; the ratios do not depend on `cols`):
 
@@ -111,45 +115,56 @@ against `earth-2`'s own coasts once it is generated.
 `earth-1` has the same. They stay for now (the owner, 2026-11-17): look at `earth-2` before deciding. A relaxation
 table could smooth them later and keep the bit-for-bit rebuild.
 
-**Tile order.** A lattice point's canonical id is today's `canonicalId`: the corners, then the 30 edges, then each
-face's inside, row by row.
-- **New boards** number their tiles in canonical id order, so a board is ranges of canonical ids.
-- **`earth-1` keeps three's walk order**, because its ids are the ones the ledger holds.
+**Tile order.** A lattice point's canonical id is `canonicalId`: the corners, then the 30 edges, then each face's
+inside, row by row. A board's runs are ranges of canonical ids whatever its order.
+- **New boards** number their tiles in canonical id order.
+- **`earth-1` keeps three's walk order**, because its ids are the ones the ledger holds. Built: a tile's id is its rank
+  among the tiles in `walkLattice`'s order, plus one, and the regenerated `earth-1` has the same 260,503 tiles in the
+  same order.
 - Above `cols` of about 20,000 a canonical id passes 2³². The file stores them in 64 bits; tile ids, which are ranks,
   stay 32-bit.
 
 ## The files of a board
 
-Each board lives in `map/boards/<name>/`, content-addressed like every file in `/map` today:
+Built in PR 1; the formats are in [`map/README.md`](../map/README.md#format). Each board lives in `map/boards/<name>/`,
+content-addressed like every file in `/map`:
 
 - **`board-<hash>.json`**, the manifest:
   - `name`, and `body` (`earth`);
   - the lattice: `cols`, `warp` (`null` or `{a, b, c}`), `corners` (`null`, or the 36 rotated float64s) and `order`
-    (`three` or `canonical`);
-  - `tiles`, the median `spacing` in radians, and `positionsHash`, FNV-1a over the float32 positions as the landmask
-    carries today;
+    (`three` or `canonical`). Every reader refuses a warp, corners or the canonical order until PR 4 builds them;
+  - `tiles`, the median `spacing` in radians (the arc between two touching tiles: 0.00406 for `earth-1`, 25.9 km), and
+    `positionsHash`, FNV-1a over the float32 positions in tile order, a uint32;
   - the names of its other files.
 - **`runs-<hash>.bin`**: `"CPRN" | uint32 version | uint32 count | count × (uint64 first, uint64 last)` canonical ids,
-  ascending. It replaces the landmask.
-- **`borders`, `capitals`, `bridges`**, in today's formats, named by the board's tile ids. `earth-1`'s are today's
-  files.
-- **The frontend's own**: the border lines and the landmass names, per board. The earth texture belongs to the body,
-  not to the board.
+  ascending. It replaced the landmask: 7,556 runs, 121 KB for `earth-1`.
+- **`borders`, `capitals`, `bridges`**, in their formats, named by the board's tile ids. `earth-1`'s are the files of
+  before, byte for byte.
+- **The frontend's own**: the border lines and the landmass names. They stay single files in `static/` until PR 3
+  makes them per board. The earth texture belongs to the body, not to the board.
+
+**The generator** (`npm run map:generate`, then `npm run bridges`) writes a board without three: it walks the lattice,
+takes neighbours and triangles from it, and reads latitude as `asin(y)` and longitude as `atan2(z, −x)` from each point.
+Regenerating `earth-1` writes its runs, borders, capitals, bridges and manifest byte for byte, and the border lines,
+landmass names and earth texture too.
 
 **No coordinates file, on any board.** Every app rebuilds positions from the lattice and the runs:
-- the frontend, in its worker as today;
-- the backoffice, with the same module;
-- the scripts;
-- the backend, in Go. It needs positions only for `Within`, `Nearest` and `Spacing`, so a tolerance will do. It takes
-  neighbours straight from the lattice, with no position matching.
+- the frontend, in its worker, or on the page when the worker fails;
+- the backoffice, with its own copy of the lattice module (it imports nothing from the frontend);
+- the scripts, with the frontend's module;
+- the backend, in Go, to the bit, and it refuses the boot on positions that do not hash to the manifest's. It needs
+  positions only for `Within`, `Nearest` and `Spacing`, so a tolerance would have done, but the exact rebuild costs
+  nothing and checks the board. It takes neighbours straight from the lattice, with no position matching, and loads
+  `earth-1` in about 0.1 s.
 
-**A hash that does not match is logged, not fatal.** Today a mismatch downloads the coordinates file. With no such
-file, a page logs the mismatch with its user agent and keeps the positions it computed: the ids come from the runs, so
-an ulp of difference moves a tile by under a metre.
+**A hash that does not match is logged, not fatal**, on a page: it logs the mismatch with its user agent and keeps the
+positions it computed; the ids come from the runs, so an ulp of difference moves a tile by under a metre.
 
-**Copies:** each app carries the boards it plays or reads, committed, through `npm run map` and `make map` as today.
-The frontend serves every board's files forever. A board costs the backend about 57 bytes a tile (about 60 MB for
-`earth-2`), loaded when it is first needed.
+**Copies:** each app carries the boards it plays or reads, committed, through `npm run map` and `make map`: the
+frontend every file in `static/boards/<name>/` and the manifest inline in `boardAsset.ts`, the backend every file
+embedded, the backoffice the manifest and the runs. The frontend serves every board's files forever. A board costs
+the backend about 57 bytes a tile (about 60 MB for `earth-2`), loaded when it is first needed. Each app holds one board
+in PR 1, and refuses more than one until PR 3.
 
 ## Eras and the board column
 
@@ -286,7 +301,7 @@ whatever pays keeps its tile count, and only what describes the map scales with 
 
 Each one ships on its own, and players see nothing new until the PR that says so.
 
-1. **Boards, `earth-1` only.**
+1. **Boards, `earth-1` only. Built 2026-11-17.**
    - The format, and a generator without three that writes `earth-1` (three's order, no warp, no rotation).
    - Every app reads its geometry from the board.
    - The coordinates file, its readers, and the backend's position matching go.

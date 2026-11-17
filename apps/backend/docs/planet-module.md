@@ -11,7 +11,7 @@ internal/planet/internal/
   clicks/                         the board: tiles, the map, what a click costs
     usecases/<name>_usecase/      one package per procedure
     inmemory_tile_storage/        an adapter: <tech>_<thing>_<role>
-    embedded_geodesic_map/
+    embedded_board/
   ledger/                         every take and every bomb, and the operator tools that read it
     inmemory_ledger_storage/
     postgres_ledger_store/
@@ -149,7 +149,7 @@ the root, and persist; a rule that could be unit-tested without a port belongs
 in the root.
 
 **An adapter lives under the concept whose port it implements**, named
-`<tech>_<thing>_<role>` — `inmemory_tile_storage`, `embedded_geodesic_map`. A
+`<tech>_<thing>_<role>` — `inmemory_tile_storage`, `embedded_board`. A
 second implementation of the same port is a sibling directory, not a new layer.
 
 **A port with a contract suite pins what every adapter must do.** `clicks.TileStorage`
@@ -214,4 +214,4 @@ and refuses nothing: it observes, as `prom_click` counts.
 A gate in the chain would have to tell its own refusals, and three gates would tell one try. Until 2026-11-11
 `bonus_click`, between the throttle and the reach, told the offers' registry in process.
 
-`Geography` is in the `clicks` root, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `embedded_geodesic_map` builds one and hands it over. See [Map geography](map-geography.md).
+`Geography` is in the `clicks` root, beside the sentinels and `TileUpdate`: the shape of the map, in `geography.go`. It is a model rather than a port — `embedded_board` builds one and hands it over. See [Map geography](map-geography.md).

@@ -38,5 +38,5 @@ from the land leads to, every tile in reach without the rule, a spread past the 
 `throttle_test.go` keeps the token of three clicks out of reach over HTTP; `click_handler` answers the `ReachRefusal`;
 `spread_click` takes only the neighbours in reach, and with the real reach refuses a spreading click 2 tiles out and
 takes the whole disc of one next to the land; `get_charge_rules_handler` tells the page. The shipped bridges are
-pinned in `embedded_geodesic_map`'s `bridges_test.go`: every end on a coast, every tile reached over land and bridges,
+pinned in `embedded_board`'s `bridges_test.go`: every end on a coast, every tile reached over land and bridges,
 the Faroes to Iceland, Iceland to Greenland and Hawaii to California.

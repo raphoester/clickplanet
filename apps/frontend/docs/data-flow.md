@@ -1,8 +1,7 @@
 # Data flow
 
-1. `useGlobe` calls `createGlobe`, which fetches the landmask (and rebuilds the
-   tile positions from it, see [Tile positions](tile-positions.md)) and the borders
-   blobs — in parallel, and before allocating any GPU resource, so an abandoned
+1. `useGlobe` calls `createGlobe`, which fetches the board's runs (and rebuilds the
+   tile positions from them, see [Tile positions](tile-positions.md)) and its borders — in parallel, and before allocating any GPU resource, so an abandoned
    load never opens a context.
 2. The server's counts (`GetHoldings`) and the fortresses are read at once, and
    the map batches start with them, eight at a time (see

@@ -28,8 +28,8 @@
   hands the canvas its sky colour back after**: `renderer.clear()` takes the last
   clear colour given to the GPU, and the one given for the picker's target made the
   sky black on every frame after a pick.
-- `points.ts` / `latticeWorker.ts` / `landmaskAsset.ts` — the tile positions, rebuilt in a worker from
-  the landmask, or the coordinates blob when that fails. See [Tile positions](tile-positions.md).
+- `points.ts` / `latticeWorker.ts` / `boardAsset.ts` — the tile positions, rebuilt in a worker from
+  the board's runs, or on the page when the worker fails. See [Tile positions](tile-positions.md).
 - `capture.ts` — `readDrawingBuffer`, the frame the player is looking at. **It
   only works inside the render loop**; see [Sharing the
   globe](sharing.md).
@@ -45,7 +45,7 @@
   atlas URL and size.
 - `territoryLayer.ts` — the zoomed-out view's flags, painted pixel by pixel on a sphere under the tiles: each pixel
   finds its tile's cell. See [The zoomed-out view](zoomed-out-view.md).
-- `borderField.ts` / `bordersAsset.ts` — the zoomed-out view: tile → landmass,
+- `borderField.ts` — the zoomed-out view: tile → landmass, from the board's borders file,
   who holds how much of each, and the per-landmass table the territory layer reads.
   See [The zoomed-out view](zoomed-out-view.md).
 - `slotRanking.ts` / `flagSlots.ts` — the flags holding the biggest landmasses,

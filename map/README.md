@@ -1,31 +1,40 @@
 # The tile map's geometry
 
-`coordinates-<hash>.bin` says where every tile is and `borders-<hash>.bin` says whose ground it sits
-on; `capitals-<hash>.json` says which tile is each country's capital and `bridges-<hash>.json` which crossings join
-two shores over the sea (see [Capitals and bridges](#capitals-and-bridges)). They are shared by the apps exactly as
-[`/proto`](../proto) is. Neither app may keep its own
-generator or its own copy of the numbers; each carries a **generated copy**, because each is built
-from its own directory as its Docker build context and so cannot read anything at the repo root at
-build time:
+A map's geometry is a **board**: a set of immutable files in `boards/<name>/`, content-addressed, that every app reads
+its tiles from. There is one today, **`earth-1`**, the world's map since the remap of 2026-11-03. See
+[Boards](../docs/boards.md) for the design and what comes next.
+
+| file | says |
+| --- | --- |
+| `board-<hash>.json` | the manifest: the lattice, the tile count, the spacing, the positions' hash, and the other files' names |
+| `runs-<hash>.bin` | which points of the lattice are tiles, as ranges of canonical ids |
+| `borders-<hash>.bin` | whose ground each tile sits on (see [Format](#format)) |
+| `capitals-<hash>.json` | which tile is each country's capital (see [Capitals and bridges](#capitals-and-bridges)) |
+| `bridges-<hash>.json` | which crossings join two shores over the sea |
+
+**There is no coordinates file.** Every app rebuilds every tile's position from the lattice and the runs, to the bit
+(see [The board's lattice](#the-boards-lattice)).
+
+The files are shared by the apps exactly as [`/proto`](../proto) is. No app may keep its own generator or its own
+copy of the numbers; each carries a **generated copy** of the boards it reads, because each is built from its own
+directory as its Docker build context and so cannot read anything at the repo root at build time:
 
 | app | copy | refreshed by |
 | --- | --- | --- |
-| frontend | `apps/frontend/static/<blob>`; the coordinates only when the rebuild below fails | `npm run map` |
-| frontend | `apps/frontend/static/capitals-<hash>.json` and `bridges-<hash>.json` | `npm run map:generate`, `npm run bridges` |
-| backend | `apps/backend/generated/map/<blob>`, all four, embedded | `make map` |
-| backoffice | `apps/backoffice/src/gen/map/coordinates-<hash>.bin` alone, bundled by Vite | `npm run map` |
+| frontend | `apps/frontend/static/boards/<name>/`, every file, served; the manifest also inline in `src/app/viewer/boardAsset.ts` | `npm run map` (and `map:generate`, `bridges`) |
+| backend | `apps/backend/generated/map/boards/<name>/`, every file, embedded | `make map` |
+| backoffice | `apps/backoffice/src/gen/map/<name>/`, the manifest and the runs, bundled by Vite | `npm run map` |
 
-All three copies of each blob are committed and byte-identical, so git stores the bytes once.
-
-The files are **content-addressed** — the name carries the first 8 hex of its sha256 — which is what
-makes a stale copy visible by eye rather than by symptom.
+All copies of a file are committed and byte-identical, so git stores the bytes once. A file's name carries the first
+8 hex of its sha256, which makes a stale copy visible by eye rather than by symptom. The manifest names the others, so
+its own hash changes whenever any of them does.
 
 ## One question, one answer
 
 **A tile exists exactly where a country does.** `apps/frontend/scripts/map/ground.mjs` is the one
 oracle: `groundOf(lon, lat)` answers a country code or `SEA`, from Natural Earth 1:50m; a vertex
 whose cell is mostly lake is `SEA` too; then each country too small for the lattice gets its seat
-(`latticeGround` in `scripts/map/oracle.mjs`), and `npm run map:generate` writes both blobs from that
+(`latticeGround` in `scripts/map/oracle.mjs`), and `npm run map:generate` writes the runs and the borders from that
 one answer. So "is this sea or land" and "which
 country is this" cannot disagree, and **a tile in no country cannot be built**.
 
@@ -40,7 +49,7 @@ is written into it:
 
 - **The Natural Earth tag is pinned** (`NATURAL_EARTH_TAG` in `scripts/map/naturalEarth.mjs`,
   `v5.1.2`). These files decide where every tile is, so two runs a year apart have to produce the
-  same map. Moving the pin renumbers every tile; see below.
+  same board. Moving the pin renumbers every tile; see below.
 - **The ice shelves are ground, and they are Antarctica.**
   `ne_50m_antarctic_ice_shelves_polys` is a file of its own and is inside no country polygon, so
   before this Ross and Ronne were tileless holes in a continent the texture paints solid white.
@@ -52,7 +61,7 @@ is written into it:
   instead — see below — and `npm run map:audit` reports what is left but enforces nothing about it.
 
 ```bash
-cd apps/frontend && npm run map:generate   # both blobs, from the oracle
+cd apps/frontend && npm run map:generate   # the board's runs, borders and capitals, from the oracle
 cd apps/frontend && npm run map:audit      # the three sources against each other
 ```
 
@@ -96,7 +105,7 @@ one vertex refuse the generation. **The audit fails on a flag with no ground**, 
 inside a country's ground (England, Scotland, Wales, Brittany: `REGIONS`), which share it.
 
 **Every fault between the tile set and the oracle is zero, and the audit fails on any one of them.**
-They are not a budget that creeps: both blobs are cut from one `groundOf` call, so a tile on open sea
+They are not a budget that creeps: the runs and the borders are cut from one `groundOf` call, so a tile on open sea
 or a tile in no country is not a map that drifted, it is a generator that broke.
 
 ## Capitals and bridges
@@ -138,15 +147,15 @@ bridges` from the tiles and the capitals written. Both are read only by the rule
   flag on any coast reached every coast on Earth, and 130 of the 239 capitals were in reach of every flag at the start.
 
 `npm run map:audit` fails on a country with ground and no capital, a capital off its own ground, bridges that differ
-from a fresh `bridgesOf`, and land no bridge reaches. The backend refuses to boot on a capital off its ground or a file of another map's
+from a fresh `bridgesOf`, and land no bridge reaches. The backend refuses to boot on a capital off its ground or a file of another board's
 size.
 
 ## Regenerating renumbers every tile
 
-A tile id is an index into the coordinates blob, so a regeneration moves every id after the first
-tile added or removed — including on a server that is already holding players' territory. **The ids
-are the only thing that moves.** A tile's position does not, so a tile that exists in both blobs can
-be followed from one to the next, and `npm run map:generate -- --remap <path.up.sql>` writes the
+`earth-1`'s tile ids are ranks in three's walk of the lattice, filtered by what the oracle calls land, so a
+regeneration that adds or removes one tile moves every id after it — including on a server that is already holding
+players' territory. **The ids are the only thing that moves.** A tile's position does not, so a tile that exists in
+both tile sets can be followed from one to the next, and `npm run map:generate -- --remap <path.up.sql>` writes the
 postgres migration that does it:
 
 ```bash
@@ -154,16 +163,16 @@ cd apps/frontend
 npm run map:generate -- --remap ../backend/internal/planet/internal/migrations/<ts>_remap_tiles.up.sql
 ```
 
-It writes the `.down.sql` beside it. The mapping is **monotonic** — both blobs are the same lattice
-in the same generation order, filtered by what each calls land — so it run-length encodes to a few
+It writes the `.down.sql` beside it. The mapping is **monotonic** — both tile sets are the same lattice
+in the same walk order, filtered by what each calls land — so it run-length encodes to a few
 thousand rows instead of a quarter of a million. `apps/backend/internal/planet/internal/migrations
 /migrations_test.go` runs it against a real postgres, both ways.
 
 **Every column of a tile goes with it** — its flag, shields and holder, and whatever a later migration adds —
 because the migration copies the row whole rather than naming columns. **A landmass id moves too**: it is a row of
-the borders blob's table, and a regeneration renumbers them. The migration follows each old landmass to the new one
+the borders file's table, and a regeneration renumbers them. The migration follows each old landmass to the new one
 its tiles are on, for the same country, and moves the landmass each fortify in the ledger names (the territory card
-reads the last one by it) and copies the fortify locks to the new borders blob's name (the boot reads only those).
+reads the last one by it) and copies the fortify locks to the new borders file's name (the boot reads only those).
 A landmass that split goes to the piece that holds most of it — Canada keeps its lock when a lake cuts an island off
 it — and one with no such piece, or whose piece is another's too, is followed to nothing: its lock is settled at boot
 as any other.
@@ -171,43 +180,72 @@ as any other.
 What the migration cannot give back: a take on a tile the new map does not have is deleted, because
 leaving it would let a revert write to an id that now means other ground.
 
-**The remap is computed against the blob currently in `/map`**, so run it with `--remap` on the
+**The remap is computed against the board currently in `/map`**, so run it with `--remap` on the
 first run. A second run over its own output would write an identity migration.
+
+The design keeps a regeneration from ever rewriting the ledger again: a new tile set is a new board, and the old
+one stays (see [Boards](../docs/boards.md)). Until the boards are told apart in the database, this is the way.
 
 **The rest of the checklist**, which the generator prints:
 
 ```bash
-cd apps/backend && make map          # copy the four files, then commit every copy
-cd apps/backoffice && npm run map    # copy the coordinates blob
-cd apps/frontend && npm run borderLines   # traced from both blobs, stale until it is run
-cd apps/frontend && npm run landmask      # which lattice points are tiles, what the browser downloads
+cd apps/frontend && npm run bridges       # the crossings, from the new tiles and capitals; rewrites the manifest
+cd apps/backend && make map               # copy the board, then commit every copy
+cd apps/backoffice && npm run map         # copy the manifest and the runs
+cd apps/frontend && npm run borderLines   # traced from the board, stale until it is run
 cd apps/frontend && npm run earth         # the globe's texture, cut from the new tile field
-cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the new borders blob
+cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the new borders file
 cd apps/frontend && npm run map:audit     # every fault should read zero
 ```
 
 `gameMap.maxIndex` follows the tile count, in `apps/backend/cmd/api/example.yaml` and
-`deploy/vps/backend.yaml`; the backend refuses to start on a blob that disagrees with it.
+`deploy/vps/backend.yaml`; the backend refuses to start on a board whose manifest disagrees with it.
+
+**Regenerating `earth-1` as it is writes it byte for byte**: the same runs, borders, capitals, bridges and manifest,
+and the same border lines, landmass names and earth texture. That was checked when the generator stopped building
+three's geometry (2026-11-17), and it is the test of any change to the generator that should change nothing.
 
 ## Format
 
-Little-endian, mirrored by [`coordinatesBinary.ts`](../apps/frontend/src/app/viewer/coordinatesBinary.ts)
-and [`coordinates.go`](../apps/backend/internal/planet/internal/clicks/embedded_geodesic_map/coordinates.go):
+Little-endian throughout.
+
+**The manifest**, `board-<hash>.json`, written by `scripts/writeBoard.ts` and typed in
+[`board.ts`](../apps/frontend/src/domain/board.ts):
+
+```json
+{
+  "name": "earth-1",
+  "body": "earth",
+  "lattice": {"cols": 301, "warp": null, "corners": null, "order": "three"},
+  "tiles": 260503,
+  "spacing": 0.004063093462255102,
+  "positionsHash": 1068665823,
+  "files": {"runs": "runs-<hash>.bin", "borders": "…", "capitals": "…", "bridges": "…"}
+}
+```
+
+- `lattice`: `cols` steps along each edge of the icosahedron; `warp` and `corners` are `null` (no warp, no rotation:
+  three's own lattice); `order` is `three`, tile ids in three's walk order. Every reader refuses anything else for
+  now.
+- `spacing`: the median arc between two touching tiles, in radians (about 25.9 km).
+- `positionsHash`: FNV-1a over the tiles' positions as float32 words, x, y, z per tile in tile order. Every app checks
+  its rebuild against it.
+
+**The runs**, `runs-<hash>.bin`, mirrored by [`board.ts`](../apps/frontend/src/domain/board.ts) and
+[`runs.go`](../apps/backend/internal/planet/internal/clicks/embedded_board/runs.go):
 
 ```
-"CPCO" | uint32 version | uint32 tile count N | N*3 f32 positions | N*2 f32 uvs
+"CPRN" | uint32 version (1) | uint32 count | count × (uint64 first, uint64 last)
 ```
 
-The 12-byte header keeps the float sections 4-byte aligned so the browser can take zero-copy views.
-The uvs are dead weight — nothing reads them. The browser downloads this blob only when it cannot
-rebuild the positions from its landmask, so dropping them would save players little for a change to
-the encoder, every decoder, the generator and the tests.
+Each run is a stretch of tiles side by side in one row of the lattice, its first and last canonical id, both in,
+ascending and apart. `earth-1` is 7,556 runs, 121 KB (the landmask it replaced was 113 KB, the coordinates file 5.2 MB).
 
-**Positions are 0-indexed by array position; wire tile ids are 1-based.** Tile id = array index + 1.
+**Positions are 0-indexed by tile order; wire tile ids are 1-based.** Tile id = index + 1.
 That is what `clicks.Board` (`tile > 0 && tile <= maxIndex`), `inmemory_tile_storage`
 (slot 0 unused) and the frontend's GPU picking (`integerToColor(i + 1)`) all agree on.
 
-The borders blob, written by the same command and read by `borderField.ts` and `clicks.Borders`:
+The borders file, written by the same command and read by `borderField.ts` and `clicks.Borders`:
 
 ```
 uint32 header length | JSON {"tiles": N, "codes": [...]} | N uint16 landmass | 0-2 pad | frames | totals
@@ -228,39 +266,49 @@ its corners, so one radius reaches past the neighbours in places and joined two 
 strait into one landmass — a flag painted over the water between them.
 
 The frontend draws a black outline along the tile boundary between two countries, and keeps the
-geometry for it in a blob of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
-`npm run borderLines`. It is derived from both blobs here and from nothing else, so **regenerate it
+geometry for it in a file of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
+`npm run borderLines`. It is derived from the board's runs and borders and from nothing else, so **regenerate it
 after these**; it stays out of `/map` because the backend has no use for it. See
 [`apps/frontend/docs/country-outlines.md`](../apps/frontend/docs/country-outlines.md).
 
-## The grid is a regular honeycomb
+## The board's lattice
 
-The tiles are the land vertices of `THREE.IcosahedronGeometry(1, 300)`, deduplicated by position.
-That makes them a geodesic sphere's vertices, so **every interior vertex has exactly 6 neighbours**
-and the 12 icosahedron corners have 5 — which is what lets the backend compute adjacency exactly
-rather than by searching. It is also what lets the browser rebuild every position from one bit per
-vertex (`apps/frontend/static/landmask-<hash>.bin`, written by `npm run landmask` from the
-coordinates blob) instead of downloading them. See
-[`apps/frontend/docs/tile-positions.md`](../apps/frontend/docs/tile-positions.md). See [`apps/backend/docs/map-geography.md`](../apps/backend/docs/map-geography.md).
+Every board is cut from one lattice: the points of `THREE.IcosahedronGeometry(1, cols - 1)`. Each of the 20 faces is a
+triangular grid; a point is `(face, i, j)`, `i` rows from the face's edge AB towards C and `j` steps along the row.
+That makes them a geodesic sphere's points, so **every point has exactly 6 neighbours, the ±1 exchanges of its
+barycentric coordinates, and the 12 icosahedron corners have 5** — which is what lets the backend take adjacency
+straight from the lattice rather than by searching.
+
+**A point's canonical id** is its place in a numbering that does not depend on which face reaches it: the 12 corners,
+then the `cols - 1` points inside each of the 30 edges, then each face's inside, row by row (`canonicalId` in
+[`lattice.ts`](../apps/frontend/src/domain/lattice.ts)). The runs are ranges of canonical ids.
+
+**`earth-1`'s tile ids are ranks in three's walk.** Three builds each face's triangles row by row and reaches each
+point first from one of them; `walkLattice` visits the points in that order. A tile's id is its place among the tiles
+in that walk, as it was when three built the map, because those are the ids the ledger holds. New boards will number
+their tiles in canonical order (see [Boards](../docs/boards.md)).
+
+**Nothing builds three's geometry any more**, not the generator nor any app: they all walk `lattice.ts`'s arithmetic
+(the backoffice and the backend in a copy of their own), and three is only the reference
+`scripts/map/lattice.test.mjs` checks the walk, the triangles and the neighbours against, to the bit, up to `cols`
+301. Latitude is `asin(y)` and longitude `atan2(z, −x)`, as everywhere in the map scripts; it gives the oracle the
+same answer as three's uvs did for every point. See [Tile positions](../apps/frontend/docs/tile-positions.md) for
+why every engine rebuilds the same bits.
 
 | | |
 | --- | --- |
-| detail | 300, so `cols = 301` |
-| full sphere | `10 * 301² + 2` = 906,012 vertices |
+| cols | 301 |
+| full sphere | `10 * 301² + 2` = 906,012 points |
 | land tiles | 260,503, which is `gameMap.maxIndex` |
 | landmasses | 694, across 239 countries |
-| spacing | ~25 km, ~563 km² per tile |
+| spacing | ~25.9 km median, ~563 km² per tile |
 
-`detail` is not recorded in the generator's output. It was recovered from this file and then
-checked: scaling each tile's barycentric coordinates within its icosahedron face by `cols` lands on
-integers with a worst error of 1e-5 — float32's own precision — at `cols = 301`, and gives errors
-around 0.49, i.e. noise, at every other `cols` in 280..330. The backend re-runs that check on every
-boot and refuses to start if it fails.
+See [`apps/backend/docs/map-geography.md`](../apps/backend/docs/map-geography.md) for the backend's half.
 
 ## The texture follows too
 
 `npm run earth` is the third generator, and it is the frontend's alone — the backend has no texture,
-so nothing of it comes to `/map`. It reads the coordinates blob, rasterises each tile's cell onto an
+so nothing of it comes to `/map`. It reads the board, rasterises each tile's cell onto an
 equirectangular image, and moves the satellite mosaic's coastline onto it:
 
 ```
@@ -299,4 +347,4 @@ islands.
 The antimeridian fault this file used to record — "the row carries about a quarter of the tiles it
 should" — was measured at a 36-tile deficit and is gone: the audit reads 1.000 tiles per land vertex
 within a degree of the dateline, the same as everywhere else. Its cause was the old land mask, not
-the lattice; the uvs are the equirectangular projection of their own positions to within 0.001°.
+the lattice.

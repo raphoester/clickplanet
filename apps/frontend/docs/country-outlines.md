@@ -62,11 +62,10 @@ drawn across the map. Neither pass writes depth, so the stretch where they overl
 — a coast, which has no tiles on the sea side to hide the under pass — comes out a
 little darker during the handover.
 
-`npm run borderLines` writes the geometry, from the coordinates blob and the
-borders blob and nothing else. It rebuilds the whole `IcosahedronGeometry(1, 300)`
-the tiles were cut from, because the coordinates blob holds only the land
-vertices and a coast needs the sea around it; every tile has to land on a lattice
-vertex or it refuses. A cell corner is the circumcentre of a lattice triangle —
+`npm run borderLines` writes the geometry, from the board's runs and borders and
+nothing else. It walks the whole lattice the tiles were cut from and its triangles,
+in three's order (`latticeTriangles` in `domain/lattice.ts`), because the runs hold
+only the land points and a coast needs the sea around it. A cell corner is the circumcentre of a lattice triangle —
 the normal of the plane through its three vertices — which makes the cells a true
 Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
 to cover up at the joins. The edges are then chained into runs, which is what

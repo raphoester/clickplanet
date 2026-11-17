@@ -299,7 +299,7 @@ that skips a capital, the map's `Arena`, and `HoldsAny`; `postgres_tile_store`'s
 transaction and none when keep refuses or fails. `open_arena_usecase` opens with each capital and its shields;
 `reach_click` refuses before the inner click; `throttle_test.go` keeps the token of three clicks out of reach over
 HTTP; `click_handler` answers the `ReachRefusal`; `spread_click` takes only the neighbours in reach. The shipped
-`bridges` and `capitals` are pinned in `embedded_geodesic_map`'s `bridges_test.go`.
+`bridges` and `capitals` are pinned in `embedded_board`'s `bridges_test.go`.
 
 Slice 1:
 
