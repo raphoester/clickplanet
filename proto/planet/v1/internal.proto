@@ -193,6 +193,8 @@ message Territory {
   uint32 tiles = 2;
   // Where the tiles are: how many on each country's land.
   repeated Ground grounds = 3;
+  // The shields on its tiles now, all added up.
+  uint32 shields = 4;
 }
 
 message Ground {

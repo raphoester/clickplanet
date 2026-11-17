@@ -6,13 +6,14 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Every tile's owner, shields and holder, the codes they are written in, and how many tiles each country holds.
+// Every tile's owner, shields and holder, the codes they are written in, and the tiles and shields of each country.
 type board struct {
-	tiles   []tileState
-	codes   *codebook
-	holders *holderbook
-	held    []uint32
-	dirty   dirtySet
+	tiles    []tileState
+	codes    *codebook
+	holders  *holderbook
+	held     []uint32
+	shielded []uint32
+	dirty    dirtySet
 }
 
 func newBoard(last uint32) *board {
@@ -64,11 +65,13 @@ func (b *board) tile(id uint32) clicks.TileSnapshot {
 }
 
 func (b *board) put(tile uint32, state tileState) (from uint16) {
-	from = b.tiles[tile].owner
+	before := b.tiles[tile]
+	from = before.owner
 	if from != unownedCode {
 		b.held[from]--
+		b.shielded[from] -= uint32(before.shields)
 	}
-	b.count(state.owner)
+	b.count(state)
 
 	b.tiles[tile] = state
 	b.dirty.mark(tile)
@@ -84,17 +87,19 @@ func (b *board) release(tile uint32) {
 // A stored tile put back at boot: nothing to flush.
 func (b *board) restore(tile uint32, state tileState) {
 	b.tiles[tile] = state
-	b.count(state.owner)
+	b.count(state)
 }
 
 func (b *board) raise(tile uint32) int {
 	b.tiles[tile].shields++
+	b.shielded[b.tiles[tile].owner]++
 	b.dirty.mark(tile)
 	return int(b.tiles[tile].shields)
 }
 
 func (b *board) strike(tile uint32) int {
 	b.tiles[tile].shields--
+	b.shielded[b.tiles[tile].owner]--
 	b.dirty.mark(tile)
 	return int(b.tiles[tile].shields)
 }
@@ -150,12 +155,24 @@ func (b *board) drainDirty() []Tile {
 	return tiles
 }
 
-func (b *board) count(owner uint16) {
-	if owner == unownedCode {
+func (b *board) shieldCounts() []clicks.FlagShields {
+	var counts []clicks.FlagShields
+	for code, shields := range b.shielded {
+		if code != int(unownedCode) && shields > 0 {
+			counts = append(counts, clicks.FlagShields{Flag: b.codes.nameOf(uint16(code)), Shields: shields}) //nolint:gosec // an index of the code table.
+		}
+	}
+	return counts
+}
+
+func (b *board) count(state tileState) {
+	if state.owner == unownedCode {
 		return
 	}
-	if int(owner) >= len(b.held) {
-		b.held = append(b.held, make([]uint32, int(owner)+1-len(b.held))...)
+	if int(state.owner) >= len(b.held) {
+		b.held = append(b.held, make([]uint32, int(state.owner)+1-len(b.held))...)
+		b.shielded = append(b.shielded, make([]uint32, int(state.owner)+1-len(b.shielded))...)
 	}
-	b.held[owner]++
+	b.held[state.owner]++
+	b.shielded[state.owner] += uint32(state.shields)
 }

@@ -21,12 +21,13 @@ func Draw(day days.Day, flag string, world missions.World, standing Standing, ye
 	_, _ = seed.Write([]byte(day.String() + "/" + flag))
 	random := rand.New(rand.NewPCG(seed.Sum64(), 0)) //nolint:gosec // a draw every player can see, not a secret.
 
+	goal := sizing.goalOf(yesterday)
 	var orders []Order
 	if grounds := world.GroundsOf(flag); len(grounds) > 0 {
-		orders = append(orders, conquest(random, grounds, sizing.goalOf(yesterday)))
+		orders = append(orders, conquest(random, grounds, goal))
 	}
-	if rivals := world.RivalsOf(flag); len(rivals) > 0 {
-		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: sizing.goalOf(yesterday)})
+	if rivals := shielded(world, flag, goal); len(rivals) > 0 {
+		orders = append(orders, BreakShields{Flag: byGround(random, rivals), Goal: goal})
 	}
 	if len(orders) == 0 {
 		return Day{}
@@ -51,6 +52,17 @@ func conquest(random *rand.Rand, grounds []missions.Ground, goal uint32) TakeIn 
 
 	widest := slices.MaxFunc(grounds, func(a, b missions.Ground) int { return cmp.Compare(a.Open, b.Open) })
 	return TakeIn{Ground: widest.Country, Goal: widest.Open - widest.Open%goalStep}
+}
+
+// The rivals with the shields for the goal standing: a goal cut to a rival's few shields would ask next to nothing.
+func shielded(world missions.World, flag string, goal uint32) []missions.Holding {
+	var rivals []missions.Holding
+	for _, rival := range world.RivalsOf(flag) {
+		if world.ShieldsOf(rival.Country) >= goal {
+			rivals = append(rivals, rival)
+		}
+	}
+	return rivals
 }
 
 // A rival drawn by the ground it holds, so the leaders share the heat.

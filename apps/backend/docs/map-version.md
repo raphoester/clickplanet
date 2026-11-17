@@ -32,7 +32,9 @@ every landmass with a tile held, whole (a flag a row does not list holds none of
 `ClickService/GetHoldings` serves it (`get_holdings_handler/holdings_query`, a `MemoryQuery`). It is not
 `HoldingsOf`, which is the accounts holding one landmass (see [Who holds the tiles](tile-holders.md)). The internal
 `GetTerritories` reads the tally too (`territories_query`), adding each landmass row to its country, so a flag's
-territory says how many of its tiles lie on each country's land.
+territory says how many of its tiles lie on each country's land. It also reads `Storage.ShieldTally()`, the shields on
+each flag's tiles, from `board.shielded`: a count per flag kept beside `board.held` by every write of a tile (`put`,
+`restore`, `raise`, `strike`), so no read walks the tiles. No stream carries it.
 
 **`holdings_changed` carries what changed, at most once a second.** `putLocked` marks the landmass and the two
 flags of every change of owner in a `recount` (two `dirtySet`s, nothing else in memory). `Storage.Run` starts a

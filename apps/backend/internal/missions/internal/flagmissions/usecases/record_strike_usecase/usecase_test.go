@@ -25,7 +25,7 @@ import (
 type fixedPlanet struct{}
 
 func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, nil
+	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000, Shields: 9_000}}}, nil
 }
 
 type noPledges struct{}
@@ -72,7 +72,7 @@ func setUpCounted() (
 func goalOf(t *testing.T) (flagmissions.MissionSnapshot, uint32) {
 	t.Helper()
 
-	drawn := flagmissions.Draw(today, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}},
+	drawn := flagmissions.Draw(today, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000, Shields: 9_000}}},
 		flagmissions.TestingStanding(nil), flagmissions.Day{}, flagmissions.TestingSizing())
 	status, ok := drawn.Status()
 	require.True(t, ok)
