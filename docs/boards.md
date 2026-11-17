@@ -384,7 +384,8 @@ Five runs each, a production build with the fake backend, against a local server
 
 **One thing on screen changed**, against "rendering stays identical": the tiles under the painted flags drew no colour
 but wrote their depth, and cut the outline drawn over them where the globe slopes away. With them gone, those outline
-pixels show: 0.04 to 0.5% of a view from orbit, all on the outline. Every view where the tiles have the frame (zoom 6,
+pixels show: 0.04 to 0.5% of a view from orbit, all on the outline. Kept (the owner, 2026-11-17: "i don't see a
+difference"). Every view where the tiles have the frame (zoom 6,
 12, 40, the flags off, a bomb, a virus, the front's rings) is the same to the pixel, with HD graphics on and off.
 
 **Still to do:** a real low-end phone, and a school-style laptop with integrated graphics, which is much of CrazyGames'
