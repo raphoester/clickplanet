@@ -1,0 +1,19 @@
+{
+  "name": "earth-1",
+  "body": "earth",
+  "lattice": {
+    "cols": 301,
+    "warp": null,
+    "corners": null,
+    "order": "three"
+  },
+  "tiles": 260503,
+  "spacing": 0.004063093462255102,
+  "positionsHash": 1068665823,
+  "files": {
+    "runs": "runs-ac17bdab.bin",
+    "borders": "borders-e6851c0e.bin",
+    "capitals": "capitals-3938708b.json",
+    "bridges": "bridges-4b74bbe0.json"
+  }
+}
