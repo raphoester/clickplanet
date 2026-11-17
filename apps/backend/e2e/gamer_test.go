@@ -2,6 +2,7 @@ package e2e_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	authv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/auth/v1"
@@ -33,12 +35,36 @@ import (
 )
 
 type gamer struct {
-	t      *testing.T
+	t      check
 	stack  gameStack
 	cookie string
 	token  string
 
 	adminCookie string
+}
+
+type check interface {
+	require.TestingT
+	Helper()
+	Context() context.Context
+}
+
+// testify does not wait for a tick still running at its deadline, so what a tick checks must not reach the test.
+type tick struct {
+	*assert.CollectT
+	ctx context.Context
+}
+
+func (t tick) Context() context.Context { return t.ctx }
+
+func tickOf(t check, c *assert.CollectT) check {
+	return tick{CollectT: c, ctx: t.Context()}
+}
+
+func (p *gamer) on(c *assert.CollectT) *gamer {
+	ticked := *p
+	ticked.t = tickOf(p.t, c)
+	return &ticked
 }
 
 func (s gameStack) newPlayer(t *testing.T) *gamer {
@@ -382,7 +408,7 @@ func (p *gamer) reportBug(text string, attachments ...string) {
 	require.NoError(p.t, err)
 }
 
-func (s gameStack) noteOf(t *testing.T, text string) *supportv1.Note {
+func (s gameStack) noteOf(t check, text string) *supportv1.Note {
 	t.Helper()
 
 	res, err := supportv1connect.NewAdminServiceClient(http.DefaultClient, s.consoleURL).ListNotes(t.Context(),
@@ -413,7 +439,7 @@ func opened(t *testing.T, attachment *supportv1.NoteAttachment) file {
 func (p *gamer) becomeOperator() {
 	p.t.Helper()
 
-	_, err := p.stack.schema(p.t, "auth").On(p.t.Context()).ExecContext(p.t.Context(),
+	_, err := p.stack.auth.On(p.t.Context()).ExecContext(p.t.Context(),
 		`UPDATE accounts SET operator = true WHERE id = $1`, p.account())
 	require.NoError(p.t, err)
 }

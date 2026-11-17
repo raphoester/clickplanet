@@ -271,8 +271,7 @@ whatever pays keeps its tile count, and only what describes the map scales with 
   - **`tileData`:** at 512 columns it fills 2,022 of the 2,048 rows WebGL2 guarantees, so it goes to 1,024 columns.
   - **`GetMap`:** 0.5 → 2 MB raw, in batches of 10,000.
   - **The position rebuild:** about 300 ms with a JIT, about 6 s in iOS Lockdown Mode.
-  - **Zoomed out**, the display points are still drawn under the painted flags. Hide them there, or they cost 4× the
-    vertex work while the globe spins.
+  - **The work done per tile on every frame** grows 4×: see [Slow devices](#slow-devices).
 - **The earth texture:** a tile is 1.5 px of the 4,096 px photo, so the coast is cut in the earth shader from the tile
   set (the owner: no 8,192 px texture).
 - **Natural Earth stays at 1:50m** (the owner). `seats.mjs` loses the countries that now have ground of their own.
@@ -282,10 +281,55 @@ whatever pays keeps its tile count, and only what describes the map scales with 
   - **The boot:** 4 to 6 seconds, against a one-minute deadline.
   - **`Within` and `Nearest`:** tens of milliseconds per bomb or rally.
 
+## Slow devices
+
+**The pixel work does not grow; the work per tile does** (the owner, 2026-11-17: "won't it be a hard hit on the slower
+devices?"). At the same zoom a tile covers a quarter of the pixels, so the pixels shaded stay about the same. What grows
+4× is what the page does once per tile on every frame, whether the tile shows or not. Today that is three things:
+
+- **The idle spin draws every tile under the painted flags.** Zoomed out, which is the landing view and the idle spin,
+  the territory layer paints the flags, at a cost per pixel. The display points are drawn under it anyway, every frame
+  at 60 fps (`globe.ts` only hides the layer).
+- **The far side is not really skipped.** The vertex shader drops a point behind the earth on one dot product, but it
+  still runs for every point and reads every attribute ([The far side](../apps/frontend/docs/far-side.md)). At max
+  zoom a few thousand tiles show, and the GPU runs all of them.
+- **A hover redraws every tile.** `GpuPicker.pick` renders all the points into a window around the pointer and reads a
+  pixel back, which makes the CPU wait on the GPU, on every hover tick.
+
+**The fixes, one PR on `earth-1`, shipped before any board** (PR 0 below):
+
+1. **No tile points where the painted flags cover the globe.** The landing view and the spin then cost the same at
+   any tile count.
+2. **Only the visible pieces are drawn.** The tile buffer is cut into chunks of consecutive ids (a face's rows), each
+   with a bounding cap. The CPU skips the chunks behind the globe or off screen, so the vertex work follows what is on
+   screen, not the map's size.
+3. **Picking on the CPU.** The lattice already finds the cell under a pixel (`cellOf`, the territory shader's and
+   `latticeCells.ts`'s): hover and click cost nothing on the GPU and never wait for a read-back.
+4. **Less memory per tile:**
+   - the plain layout's 56 bytes a tile (58 MB at 1M) shrinks, and it is the one HD-off machines use;
+   - the owners leave their JS array of strings;
+   - a batch sends only the texels it changed, not the band of rows between them (up to 4 MB today).
+
+**The bar:** measured before and after, in headless Chrome with the CPU slowed, on `earth-1` and on a test 1M map
+built from the lattice:
+- the idle spin's frame time no worse than today;
+- a hover pick under 2 ms;
+- memory at most about 30 MB above today's;
+- time to the globe at most 0.5 s more on Fast 4G.
+
+Then on a real low-end phone, and on a school-style laptop with integrated graphics, which is much of CrazyGames'
+audience.
+
+**If a device still struggles**, it cannot have a smaller board: everyone shares the tile ids. But with HD graphics
+off, the painted flags can stay on until the player is closer in, and they cost per pixel, not per tile.
+
 ## The PRs, in order
 
-Each one ships on its own, and players see nothing new until the PR that says so.
+Each one ships on its own, and players see nothing new until the PR that says so. PR 0 is numbered so the rest keep
+their numbers.
 
+0. **Performance, on `earth-1`** (the owner, 2026-11-17: one PR, shipped on its own, today). The four fixes of
+   [Slow devices](#slow-devices), measured against its bar. Players see the same globe, faster.
 1. **Boards, `earth-1` only.**
    - The format, and a generator without three that writes `earth-1` (three's order, no warp, no rotation).
    - Every app reads its geometry from the board.
