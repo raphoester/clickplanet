@@ -73,7 +73,7 @@ func (SharedWith) EnumDescriptor() ([]byte, []int) {
 	return file_planet_v1_planet_proto_rawDescGZIP(), []int{0}
 }
 
-// A kind of charge a hand holds: what a box, a quiz or a mission grants.
+// A kind of charge a hand holds: what a box, a quiz or a level reached grants.
 type BonusKind int32
 
 const (
@@ -2394,7 +2394,7 @@ func (x *KnockOut) GetVersion() *MapVersion {
 	return nil
 }
 
-// A grant from outside the player's own clicks, such as a box caught, a right answer or a mission paid: what it added,
+// A grant from outside the player's own clicks, such as a box caught, a right answer or a level reached: what it added,
 // and all the hand holds after.
 type ChargesGranted struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`

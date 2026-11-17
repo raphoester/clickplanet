@@ -415,7 +415,7 @@ message KnockOut {
   MapVersion version = 5;
 }
 
-// A grant from outside the player's own clicks, such as a box caught, a right answer or a mission paid: what it added,
+// A grant from outside the player's own clicks, such as a box caught, a right answer or a level reached: what it added,
 // and all the hand holds after.
 message ChargesGranted {
   ChargesHeld charges = 1;
@@ -624,7 +624,7 @@ message TollStep {
   double slowdown = 2;
 }
 
-// A kind of charge a hand holds: what a box, a quiz or a mission grants.
+// A kind of charge a hand holds: what a box, a quiz or a level reached grants.
 enum BonusKind {
   BONUS_KIND_UNSPECIFIED = 0;
 
