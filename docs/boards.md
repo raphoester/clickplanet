@@ -143,12 +143,12 @@ content-addressed like every file in `/map`:
 - **`borders`, `capitals`, `bridges`**, in their formats, named by the board's tile ids. `earth-1`'s are the files of
   before, byte for byte.
 - **The frontend's own**: the border lines and the landmass names. They stay single files in `static/` until PR 3
-  makes them per board. The earth texture belongs to the body, not to the board.
+  makes them per board. The terrain is a file of the board, since it is cut from its runs.
 
 **The generator** (`npm run map:generate`, then `npm run bridges`) writes a board without three: it walks the lattice,
 takes neighbours and triangles from it, and reads latitude as `asin(y)` and longitude as `atan2(z, −x)` from each point.
-Regenerating `earth-1` writes its runs, borders, capitals, bridges and manifest byte for byte, and the border lines,
-landmass names and earth texture too.
+Regenerating `earth-1` writes its runs, borders, capitals, bridges and manifest byte for byte, and the border lines
+and landmass names too.
 
 **No coordinates file, on any board.** Every app rebuilds positions from the lattice and the runs:
 - the frontend, in its worker, or on the page when the worker fails;
@@ -304,8 +304,9 @@ whatever pays keeps its tile count, and only what describes the map scales with 
   - **The position rebuild:** about 300 ms with a JIT, about 6 s in iOS Lockdown Mode.
   - **The work done per tile on every frame** grew 4× until PR 0, which made it follow what is on screen: see
     [Slow devices](#slow-devices).
-- **The earth texture:** a tile is 1.5 px of the 4,096 px photo, so the coast is cut in the earth shader from the tile
-  set (the owner: no 8,192 px texture).
+- **The terrain:** a file of the board, 3.6M points in about twice earth-1's 66,392 runs. `npm run terrain` reads each
+  tile's colour from the 4,096 px photo, where a tile is 1.5 px. The photo's coast was cut to earth-1's tiles, so a
+  coast tile earth-2 adds where earth-1 had sea reads the photo's blue: it needs its kind from its land neighbours.
 - **Natural Earth stays at 1:50m** (the owner). `seats.mjs` loses the countries that now have ground of their own.
 - **The last 24 hours:** its first frame grows 4×, past its 1 MiB budget, so it needs a new format.
 - **The backend:**

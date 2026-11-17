@@ -61,8 +61,9 @@ footprint the driver takes the top mip level and point-samples a 100px flag into
 `tileEffects.glsl` the tiles' vertex shader reads, at the tile's own centre, so they are drawn cell by cell as on the
 tiles. The tiles' own effects fade out as the layer comes in; drawn on both, the gaps between the discs showed as dots.
 
-**It costs one pass over the globe's pixels while it is on**, and it is off (`visible`) wherever `flagPaint` is 0. A
-sea pixel stops after one texel. **While it is solid the tiles are not drawn under it**, but for the few wearing a ring
+**It costs one pass over the globe's pixels, at every zoom**: it paints the terrain under the flags, and alone where
+`flagPaint` is 0 (see [The terrain](terrain.md)). An open-sea pixel stops after one texel and leaves the earth's sphere
+to show. Until November 2026 it was off (`visible`) wherever `flagPaint` was 0, and the earth's photo showed there. **While it is solid the tiles are not drawn under it**, but for the few wearing a ring
 (see [The tiles out of sight are not drawn](far-side.md)): the landing view and the idle spin cost the same whatever the
 number of tiles. The widened discs it replaces were about 9 million fragments for the front half of
 the globe at the last zoom they were drawn.
@@ -111,7 +112,7 @@ painted.
 
 **Split is opaque.** It is how the season-end clips paint the map, every point in
 its own tile's holder's flag, and they looked much better than Big, where a
-contested landmass comes out as one faded flag over the photo and the ground the
+contested landmass comes out as one faded flag over the terrain and the ground the
 others hold does not show. Zoomed in, the tiles are still at 0.7 over the ground,
 so a country is a little fainter once its tiles have the frame.
 
@@ -124,10 +125,10 @@ into it — measured at 5x for Sudan with the share cubed. `borderField.test.ts`
 pins this.
 
 **One schedule owns the whole handover** — `coarseHandover` in `pointSize.ts`
-drives the layer fading out, the tiles fading in, and the outline moving from over
-the tiles to under them. The layer stays solid through the first half
-(`min(1, 2 * flagPaint)`), so the tiles come in over a whole map, and fades in the
-second: faded both at once, the earth showed between the discs and the map looked
+drives the layer's flags fading out, the tiles fading in, and the outline moving from over
+the tiles to under them. The flags stay solid through the first half
+(`min(1, 2 * flagPaint)`), so the tiles come in over a whole map, and fade to the bare
+terrain in the second: faded both at once, the ground showed between the discs and the map looked
 washed out. `pointSize.test.ts` pins the schedule.
 
 **A pixel picks the tile whose cell holds it**, the cell the layer paints, so a pixel between two discs is still the

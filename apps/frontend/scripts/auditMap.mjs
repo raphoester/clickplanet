@@ -1,17 +1,16 @@
 import fs from "node:fs"
 import path from "node:path"
 
-import sharp from "sharp"
-
-import {readBoard, readBorders, readBridges, readCapitals, staticDir, tileOfPoint} from "./map/board.mjs"
+import {latticeIds} from "../src/domain/lattice.ts"
+import {LAND} from "../src/domain/terrain.ts"
+import {readBoard, readBorders, readBridges, readCapitals, readTerrain, staticDir, tileOfPoint} from "./map/board.mjs"
 import {bridgesOf, piecesApart} from "./map/bridges.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {latticeGround} from "./map/oracle.mjs"
 import {REGIONS} from "./map/seats.mjs"
-
-const seaPixel = (r, g, b) => b > r + 18 && b > g + 8
+import {terrainOf} from "./map/terrain.mjs"
 
 const ANTIMERIDIAN_DEGREES = 1
 
@@ -24,23 +23,12 @@ async function main() {
     const edges = neighbours(cols)
     const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions}, edges)
 
-    const texture = await sharp(path.join(staticDir, "earth", earthName()))
-        .raw().toBuffer({resolveWithObject: true})
-    const {width, height, channels} = texture.info
-    const textureSaysLand = (lon, lat) => {
-        const x = Math.min(Math.floor((lon / 360 + 0.5) * width), width - 1)
-        const y = Math.min(Math.max(height - 1 - Math.floor((lat / 180 + 0.5) * height), 0), height - 1)
-        const i = (y * width + x) * channels
-        return !seaPixel(texture.data[i], texture.data[i + 1], texture.data[i + 2])
-    }
-
     const tileOf = tileOfPoint(tiles, vertices)
 
     const counts = {
         vertices,
         tiles: tiles.count,
         groundIsLand: 0,
-        textureIsLand: 0,
         antarcticIce: 0,
     }
     const faults = {
@@ -53,8 +41,8 @@ async function main() {
         capitalsOffTheirGround: 0,
         bridgesAstray: 0,
         landNoBridgeReaches: 0,
+        terrainAstray: 0,
     }
-    const texture_ = {landButBlue: 0, blueButLand: 0}
     const seam = {land: 0, tiles: 0}
     const elsewhere = {land: 0, tiles: 0}
 
@@ -62,14 +50,10 @@ async function main() {
         const tile = tileOf[i] >= 0
         const [lon, lat] = lonLatOf(positions, i)
         const land = grounds[i] !== SEA
-        const drawnAsLand = textureSaysLand(lon, lat)
 
         if (land) counts.groundIsLand++
-        if (drawnAsLand) counts.textureIsLand++
         if (tile && !land) faults.tilesOnSea++
         if (land && !tile) faults.landWithNoTile++
-        if (land && !drawnAsLand) texture_.landButBlue++
-        if (!land && drawnAsLand) texture_.blueButLand++
 
         const near = Math.abs(lon) > 180 - ANTIMERIDIAN_DEGREES
         const band = near ? seam : elsewhere
@@ -107,7 +91,14 @@ async function main() {
         + Math.max(0, bridges.length - drawn.length)
     faults.landNoBridgeReaches = piecesApart(crossings, tiles.count, bridges)
 
-    report({counts, faults, texture: texture_, seam, elsewhere, tiles, borders, seated, groundless, lakes})
+    // The terrain rebuilt from its own kinds of land on this board's tiles: a land kind off a tile, a tile at sea or a
+    // sea band at the wrong distance from land all differ.
+    const {terrain} = readTerrain(tiles)
+    const kinds = Uint8Array.from(tiles.ids, (id) => terrain[id] < LAND.length ? terrain[id] : 0)
+    const rebuilt = terrainOf(kinds, crossings, latticeIds(cols))
+    for (let id = 0; id < terrain.length; id++) if (rebuilt[id] !== terrain[id]) faults.terrainAstray++
+
+    report({counts, faults, seam, elsewhere, tiles, borders, seated, groundless, lakes})
 
     const broken = Object.entries(faults).filter(([, n]) => n > 0)
     if (broken.length === 0) {
@@ -121,12 +112,6 @@ async function main() {
     process.exitCode = 1
 }
 
-function earthName() {
-    const names = fs.readdirSync(path.join(staticDir, "earth")).filter((e) => /^earth-[0-9a-f]{8}\.jpg$/.test(e))
-    if (names.length !== 1) throw new Error(`expected one static/earth/earth-<hash>.jpg, found ${names.length}`)
-    return names[0]
-}
-
 async function iceOnly() {
     const {groundIndex} = await import("./map/ground.mjs")
     const {naturalEarth} = await import("./map/naturalEarth.mjs")
@@ -136,14 +121,13 @@ async function iceOnly() {
     })
 }
 
-function report({counts, faults, texture, seam, elsewhere, tiles, borders, seated, groundless, lakes}) {
+function report({counts, faults, seam, elsewhere, tiles, borders, seated, groundless, lakes}) {
     const pct = (n, of) => `${(n / of * 100).toFixed(2)}%`
-    console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.manifest.name} ${tiles.file} | ${borders.name} | ${earthName()}`)
+    console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.manifest.name} ${tiles.file} | ${borders.name}`)
     console.log(`
 lattice vertices        ${counts.vertices}
   tiles                 ${counts.tiles}  (${pct(counts.tiles, counts.vertices)})
   ground says land      ${counts.groundIsLand}
-  texture looks like land ${counts.textureIsLand}
   antarctic ice shelf   ${counts.antarcticIce}
 
 faults between the tile set and the ground oracle
@@ -156,16 +140,13 @@ faults between the tile set and the ground oracle
   capitals off their ground ${faults.capitalsOffTheirGround}
   bridges astray from the generator ${faults.bridgesAstray}
   land no bridge reaches ${faults.landNoBridgeReaches}
+  terrain astray from the tiles ${faults.terrainAstray}
 
 lakes, sea on a country's ground where most of the cell is lake
   ${lakes} lattice vertices
 
 seats, one tile each for a country the lattice misses
   ${seated.length} seated, ${seated.filter(({was}) => was === SEA).length} of them at sea
-
-the texture, which follows rather than decides
-  land drawn as water   ${texture.landButBlue}
-  water drawn as land   ${texture.blueButLand}
 
 the antimeridian, within ${ANTIMERIDIAN_DEGREES} degree of the dateline
   land ${seam.land}, tiles ${seam.tiles}  -> ${seam.land ? (seam.tiles / seam.land).toFixed(3) : "n/a"} tiles per land vertex

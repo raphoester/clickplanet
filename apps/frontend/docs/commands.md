@@ -10,10 +10,10 @@ npm run proto      # Regenerate protobuf types from the shared ../../proto/ usin
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
 npm run map        # Copy the shared /map board into static/boards and boardAsset.ts (see static-assets.md)
 npm run map:generate # Rewrite the board's runs, borders and capitals from the ground oracle (see ../../map/README.md)
-npm run map:audit  # Check the tile set, Natural Earth and the globe texture against each other
+npm run map:audit  # Check the tile set, Natural Earth, the bridges and the terrain against each other
 npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
 npm run borderLines # Trace the countries' outlines onto the tile lattice (see country-outlines.md)
-npm run earth      # Cut the globe's texture from the tile field (see globe-texture.md)
+npm run terrain    # Each lattice point's kind of land or sea, from the board (see terrain.md)
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see styling.md)
 npm run clip -- --replay replay.json --findings findings.json  # What the replay holds for the editor, as data (clips.v1.Findings), and no clip

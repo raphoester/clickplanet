@@ -98,7 +98,7 @@ It costs about 0.1 s of boot (the position matching it replaced took about 0.26 
 log carries the whole result in one line:
 
 ```
-map geography loaded board=earth-1 asset=board-f7db567f.json tiles=260503 edges=761422
+map geography loaded board=earth-1 asset=board-725d8920.json tiles=260503 edges=761422
   degrees="[250 527 1154 4072 6368 6471 241661]" took=95ms
 ```
 

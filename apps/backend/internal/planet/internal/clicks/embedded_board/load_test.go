@@ -62,7 +62,7 @@ func TestTheShippedBoardIsEarth1(t *testing.T) {
 	assert.Equal(t, []string{"earth-1"}, boards)
 
 	manifest, asset := shipped(t)
-	assert.Equal(t, "board-f7db567f.json", asset,
+	assert.Equal(t, "board-725d8920.json", asset,
 		"regenerating the board renumbers every tile and moves every player's territory")
 	assert.Equal(t, "runs-ac17bdab.bin", manifest.Files.Runs)
 	assert.Equal(t, 301, manifest.Lattice.Cols)

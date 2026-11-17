@@ -25,7 +25,7 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   How to regenerate each app's bindings after a `.proto` edit.
 - [Quiz bank](docs/quiz-bank.md) — `quiz/bank.json`, embedded in the backend only. The frontend has no copy,
   because the answers are in it.
-- [Map geometry](docs/map-geometry.md) — `map/boards/`: each board's runs, borders, capitals and bridges, no
+- [Map geometry](docs/map-geometry.md) — `map/boards/`: each board's runs, borders, capitals, bridges and terrain, no
   coordinates file, the committed copy in each app, the lakes, the one-tile seat of each country too small for the
   lattice, and why a regeneration renumbers every tile.
 - [Boards](docs/boards.md) — PRs 1 and 2 built (`earth-1` is a board, no coordinates file; every tile and event names

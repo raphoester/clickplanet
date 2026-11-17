@@ -105,7 +105,7 @@ An attack's ping links to `/play?lat=40.42&lon=-100.00&zoom=3.0` (see the backen
   game's own bounds (0.5 to 50) hold whatever the link asks. A link without one of the three, or with one off the
   globe, opens the game at rest.
 - **The direction follows the tile positions**: y is the north pole, and longitude 0 is on -x
-  (`scripts/map/coverage.mjs` reads them the same way). `linkedShot.test.ts` pins it.
+  (`lonLatOf` in `scripts/map/lattice.mjs` reads them the same way). `linkedShot.test.ts` pins it.
 - **The three are taken out of the address bar**, with `?f=` and `?s=` (see [Sharing the globe](sharing.md)): a link
   copied later is the plain page, not an old attack.
 - **The home page sends them on**: `/?lat=…` reaches `/play` with its query, as every link does (see

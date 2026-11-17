@@ -1,6 +1,7 @@
 import * as THREE from "three"
 import {latticeFaces, type TileCells} from "../../domain/latticeCells.ts"
 import {EARTH_RADIUS} from "./sphere.ts"
+import {terrainColours, terrainTexture} from "./terrain.ts"
 
 import vertexShader from "./shaders/territory/vertex.glsl"
 import fragmentShader from "./shaders/territory/fragment.glsl"
@@ -19,13 +20,15 @@ const BEFORE_THE_TILES = -1
 export type TerritoryLayerInputs = {
     sphere: THREE.BufferGeometry
     cells: TileCells
+    terrain: Uint8Array
     tileData: THREE.Texture
     flagRectangles: THREE.Texture
     uniforms: {[uniform: string]: THREE.IUniform}
 }
 
-// The flags painted on the ground zoomed out: each pixel finds its tile's cell and wears its holder's flag.
-export function createTerritoryLayer({sphere, cells, tileData, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
+// The ground, and the flags painted on it zoomed out: each pixel finds its lattice point's cell, wears its terrain, and
+// on a tile its holder's flag over it. The open sea is left to the earth.
+export function createTerritoryLayer({sphere, cells, terrain, tileData, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
     const faces = latticeFaces(cells.cols)
 
     const faceData = new Float32Array(FACE_TEXELS * faces.length * 4)
@@ -48,6 +51,8 @@ export function createTerritoryLayer({sphere, cells, tileData, flagRectangles, u
             latticeFaces: {value: faceTexture},
             latticeCols: {value: cells.cols},
             tileCells: {value: cellTexture(cells.words)},
+            terrain: {value: terrainTexture(terrain)},
+            terrainColours: {value: terrainColours()},
             tileData: {value: tileData},
             flagRectangles: {value: flagRectangles},
         },
