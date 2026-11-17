@@ -8,7 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
-	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	scoringv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1"
 )
 
@@ -20,8 +19,8 @@ func New(events, commands Sender) Outbox {
 	return Outbox{events: events, commands: commands}
 }
 
-// Outbox is what missions' outbox relay sends with: planet's and scoring's commands to their handler, missions' events
-// to every listener.
+// Outbox is what missions' outbox relay sends with: scoring's commands to their handler, missions' events to every
+// listener.
 type Outbox struct {
 	events   Sender
 	commands Sender
@@ -33,8 +32,7 @@ func (o Outbox) Send(ctx context.Context, messages ...proto.Message) error {
 	var events, commands []proto.Message
 	for _, message := range messages {
 		switch message.(type) {
-		// Missions grants no charge since it pays XP: a planetv1.GrantCharges is one the binary before left unsent.
-		case *planetv1.GrantCharges, *scoringv1.GrantPoints:
+		case *scoringv1.GrantPoints:
 			commands = append(commands, message)
 		case *missionsv1.MissionsPaid, *missionsv1.MissionsDone, *missionsv1.FlagMissionDone:
 			events = append(events, message)
