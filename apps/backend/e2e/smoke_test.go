@@ -53,7 +53,7 @@ func (s *testSuite) TestAGuestClicksATileAndEveryScreenSeesIt() {
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
 		res, err := holders.GetTileHolder(t.Context(), connect.NewRequest(&planetv1.GetTileHolderRequest{TileId: 1}))
 		require.NoError(c, err)
-		assert.Equal(c, guest.account(), res.Msg.GetHolder().GetAccountId())
+		assert.Equal(c, guest.on(c).account(), res.Msg.GetHolder().GetAccountId())
 	}, 5*time.Second, 20*time.Millisecond, "the ledger is flushed")
 }
 
@@ -63,12 +63,12 @@ func (s *testSuite) TestATakeCountsOnThePlayersStatsAndInTheSeason() {
 
 	ada.click(2, "pt")
 
-	require.Eventually(t, func() bool { return ada.stats().GetTilesTaken() == 1 }, 5*time.Second, 20*time.Millisecond,
-		"planet relays the take to player")
-	require.Eventually(t, func() bool { return ada.myTally().GetTiles() == 1 }, 5*time.Second, 20*time.Millisecond,
-		"and to scoring")
-	assert.Eventually(t, func() bool { return s.game.roundStandingOf(t, "pt") != nil }, 10*time.Second, 100*time.Millisecond,
-		"scoring reads the map from planet for today's round")
+	require.EventuallyWithT(t, func(c *assert.CollectT) { assert.EqualValues(c, 1, ada.on(c).stats().GetTilesTaken()) },
+		5*time.Second, 20*time.Millisecond, "planet relays the take to player")
+	require.EventuallyWithT(t, func(c *assert.CollectT) { assert.EqualValues(c, 1, ada.on(c).myTally().GetTiles()) },
+		5*time.Second, 20*time.Millisecond, "and to scoring")
+	assert.EventuallyWithT(t, func(c *assert.CollectT) { assert.NotNil(c, s.game.roundStandingOf(tickOf(t, c), "pt")) },
+		10*time.Second, 100*time.Millisecond, "scoring reads the map from planet for today's round")
 }
 
 func (s *testSuite) TestAGuestDoesAMissionAndIsPaidOnceItSignsIn() {
@@ -84,12 +84,13 @@ func (s *testSuite) TestAGuestDoesAMissionAndIsPaidOnceItSignsIn() {
 	for tile := range bank.GetGoal() {
 		ada.click(1000+tile, "it")
 	}
-	require.Eventually(t, func() bool { return ada.missions()[0].GetTakeFor().GetTaken() >= bank.GetGoal() },
-		10*time.Second, 20*time.Millisecond, "planet relays each take to missions, which counts a guest's too")
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.GreaterOrEqual(c, ada.on(c).missions()[0].GetTakeFor().GetTaken(), bank.GetGoal())
+	}, 10*time.Second, 20*time.Millisecond, "planet relays each take to missions, which counts a guest's too")
 	require.False(t, ada.missions()[0].GetPaid(), "missions asks player whether the account is signed in, in the count's transaction")
 
 	ada.link("google-missions")
-	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
+	require.EventuallyWithT(t, func(c *assert.CollectT) { assert.True(c, ada.on(c).missions()[0].GetPaid()) },
 		10*time.Second, 20*time.Millisecond, "player tells the sign-in (PlayerSignedIn), and missions pays the mission done")
 
 	var goals uint64
@@ -101,8 +102,8 @@ func (s *testSuite) TestAGuestDoesAMissionAndIsPaidOnceItSignsIn() {
 		}
 	}
 	rate := ada.missionRate(missionsv1.MissionKind_MISSION_KIND_TAKE_FOR)
-	assert.Eventually(t, func() bool {
-		return ada.xp().GetMissionsDone() == goals*uint64(rate.GetXp())/uint64(rate.GetPer())
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, goals*uint64(rate.GetXp())/uint64(rate.GetPer()), ada.on(c).xp().GetMissionsDone())
 	}, 5*time.Second, 20*time.Millisecond, "missions tells the missions done, and progression pays their goals times their kind's rate")
 }
 
@@ -117,9 +118,9 @@ func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {
 	me := ada.me()
 	assert.Equal(t, authv1.AccountKind_ACCOUNT_KIND_LINKED, me.GetKind())
 	assert.Equal(t, []authv1.Provider{authv1.Provider_PROVIDER_GOOGLE}, me.GetProviders())
-	assert.Eventually(t, func() bool { return ada.charges().GetRefills() == 1 },
+	assert.EventuallyWithT(t, func(c *assert.CollectT) { assert.EqualValues(c, 1, ada.on(c).charges().GetRefills()) },
 		5*time.Second, 20*time.Millisecond, "player makes the guest a player, and planet grants it a refill")
-	require.Eventually(t, func() bool { return generatedName.MatchString(ada.profile().GetName()) },
+	require.EventuallyWithT(t, func(c *assert.CollectT) { assert.Regexp(c, generatedName, ada.on(c).profile().GetName()) },
 		5*time.Second, 20*time.Millisecond, "player names the account auth signed in")
 	require.NoError(t, ada.setName("Ada_L"), "player asks auth whether the account is linked")
 	assert.Equal(t, "Ada_L", ada.profile().GetName())
@@ -142,8 +143,8 @@ func (s *testSuite) TestAPlayerPostsAMessageAndEveryoneReadsItUnderItsName() {
 	require.NotNil(t, read, "the message is in the history")
 	assert.Equal(t, "hello", read.GetText())
 	assert.Equal(t, "Bob_B", reader.nameplate(read.GetAuthorAccountId()).GetName(), "the page names it by its account")
-	require.Eventually(t, func() bool { return bob.track("chatter").GetProgress() == 1 }, 5*time.Second, 20*time.Millisecond,
-		"chat tells player of each message")
+	require.EventuallyWithT(t, func(c *assert.CollectT) { assert.EqualValues(c, 1, bob.on(c).track("chatter").GetProgress()) },
+		5*time.Second, 20*time.Millisecond, "chat tells player of each message")
 }
 
 func (s *testSuite) TestAGuestReportsABugWithAScreenshotAndTheOperatorOpensIt() {
@@ -172,9 +173,10 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 	leaving.click(3, "es")
 	leaving.markSeen(time.Now().Add(-time.Minute))
 	leaving.reportBug("a bug before leaving")
-	require.Eventually(t, func() bool {
-		return leaving.stats().GetTilesTaken() == 1 && leaving.myTally().GetTiles() == 1 &&
-			leaving.missions()[0].GetTakeFor().GetTaken() == 1
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.EqualValues(c, 1, leaving.on(c).stats().GetTilesTaken(), "progression")
+		assert.EqualValues(c, 1, leaving.on(c).myTally().GetTiles(), "scoring")
+		assert.EqualValues(c, 1, leaving.on(c).missions()[0].GetTakeFor().GetTaken(), "missions")
 	}, 5*time.Second, 20*time.Millisecond)
 	require.NotZero(t, leaving.history().GetSeenUntilUnixMs())
 	require.Equal(t, leaving.account(), s.game.noteOf(t, "a bug before leaving").GetAccountId())
@@ -186,13 +188,13 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 		INSERT INTO quiz_answers (question_id, account_id, outcome, answer_ms, answered_at)
 		VALUES ('capital:ee', $1, 'right', 2500, now())`, account)
 	require.NoError(t, err)
-	answerer := func() *string {
+	answerer := func(t check) *string {
 		var kept *string
 		require.NoError(t, quizzes.On(t.Context()).QueryRowContext(t.Context(),
 			`SELECT account_id::text FROM quiz_answers WHERE question_id = 'capital:ee' AND answer_ms = 2500`).Scan(&kept))
 		return kept
 	}
-	require.Equal(t, &account, answerer())
+	require.Equal(t, &account, answerer(t))
 
 	watcher := s.game.newPlayer(t)
 	card, err := watcher.playerCard(account)
@@ -209,19 +211,19 @@ func (s *testSuite) TestADeletedAccountIsForgottenByEveryModule() {
 
 	holders := planetv1connect.NewClickServiceClient(http.DefaultClient, s.game.baseURL, connect.WithHTTPGet())
 	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Empty(c, leaving.profile().GetName(), "player")
-		assert.Zero(c, leaving.stats().GetTilesTaken(), "progression")
-		assert.Zero(c, leaving.myTally().GetTiles(), "scoring")
-		assert.Zero(c, leaving.history().GetSeenUntilUnixMs(), "chat")
-		assert.Zero(c, leaving.missions()[0].GetTakeFor().GetTaken(), "missions")
-		note := s.game.noteOf(t, "a bug before leaving")
+		assert.Empty(c, leaving.on(c).profile().GetName(), "player")
+		assert.Zero(c, leaving.on(c).stats().GetTilesTaken(), "progression")
+		assert.Zero(c, leaving.on(c).myTally().GetTiles(), "scoring")
+		assert.Zero(c, leaving.on(c).history().GetSeenUntilUnixMs(), "chat")
+		assert.Zero(c, leaving.on(c).missions()[0].GetTakeFor().GetTaken(), "missions")
+		note := s.game.noteOf(tickOf(t, c), "a bug before leaving")
 		require.NotNil(c, note, "support keeps the note")
 		assert.Empty(c, note.GetAccountId(), "and names no account")
 		holder, err := holders.GetTileHolder(t.Context(), connect.NewRequest(&planetv1.GetTileHolderRequest{TileId: 3}))
 		require.NoError(c, err)
 		assert.Equal(c, "es", holder.Msg.GetHolder().GetCountryId(), "planet keeps the take")
 		assert.Empty(c, holder.Msg.GetHolder().GetAccountId(), "and names no account")
-		assert.Nil(c, answerer(), "the quizzes keep the answer and name no account")
+		assert.Nil(c, answerer(tickOf(t, c)), "the quizzes keep the answer and name no account")
 	}, deletionGrace+5*time.Second, 20*time.Millisecond, "the purge deletes it once the grace period ends, auth's outbox tells player, and player's every module")
 }
 
@@ -304,7 +306,7 @@ func nextTileUpdate(t *testing.T, updates <-chan *planetv1.TileUpdate) *planetv1
 }
 
 // A stream opened reads today's round at once.
-func (s gameStack) roundStandingOf(t *testing.T, country string) *scoringv1.RoundStanding {
+func (s gameStack) roundStandingOf(t check, country string) *scoringv1.RoundStanding {
 	t.Helper()
 
 	today := s.today(t)

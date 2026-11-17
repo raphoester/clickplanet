@@ -61,6 +61,7 @@ type gameStack struct {
 	fakes      auth.FakeProviders
 	postgres   *cppgtest.Server
 	missions   *cppg.Postgres
+	auth       *cppg.Postgres
 	redis      cpredis.Config
 }
 
@@ -176,6 +177,7 @@ func startGame(t *testing.T) gameStack {
 		redis:      redis,
 	}
 	stack.missions = stack.schema(t, "missions")
+	stack.auth = stack.schema(t, "auth")
 	stack.today(t)
 	return stack
 }
@@ -261,7 +263,7 @@ type today struct {
 
 // Today is the season's book and today's round, once the gamemaster opened both in scoring: a take counts in a book
 // only once it is open.
-func (s gameStack) today(t *testing.T) today {
+func (s gameStack) today(t check) today {
 	t.Helper()
 
 	var found today

@@ -81,11 +81,9 @@ func (p *gamer) boxes() boxesv1connect.BoxServiceClient {
 func (p *gamer) boxOffers() <-chan *boxesv1.BoxOffered {
 	p.t.Helper()
 
-	ctx, cancel := context.WithCancel(p.t.Context())
-	p.t.Cleanup(cancel)
 	req := connect.NewRequest(&boxesv1.ListenForEventsRequest{})
 	p.send(req.Header())
-	stream, err := p.boxes().ListenForEvents(ctx, req)
+	stream, err := p.boxes().ListenForEvents(p.t.Context(), req)
 	require.NoError(p.t, err)
 	require.True(p.t, stream.Receive(), "the stream opens with a heartbeat: %v", stream.Err())
 
@@ -106,11 +104,9 @@ func (p *gamer) boxOffers() <-chan *boxesv1.BoxOffered {
 func (p *gamer) grants() <-chan *planetv1.ChargesGranted {
 	p.t.Helper()
 
-	ctx, cancel := context.WithCancel(p.t.Context())
-	p.t.Cleanup(cancel)
 	req := connect.NewRequest(&planetv1.ListenForEventsRequest{})
 	p.send(req.Header())
-	stream, err := p.clicks().ListenForEvents(ctx, req)
+	stream, err := p.clicks().ListenForEvents(p.t.Context(), req)
 	require.NoError(p.t, err)
 	require.True(p.t, stream.Receive(), "the stream opens with a heartbeat: %v", stream.Err())
 
