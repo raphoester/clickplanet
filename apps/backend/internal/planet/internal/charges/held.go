@@ -111,6 +111,16 @@ func (h Held) Granted(kind Kind, amount int, rules Rules) Held {
 	return h
 }
 
+// Gain pays the kind into a full stack too, which keeps none, and never a kind the rules turn off.
+func (h Held) Gain(kind Kind, amount int, rules Rules) Gain {
+	after := h.Granted(kind, amount, rules)
+	if h.count(kind) == nil || rules.Off(kind) {
+		return Gain{Before: h, After: after}
+	}
+
+	return Gain{Paid: []Kind{kind}, Before: h, After: after}
+}
+
 // count is the field that holds the kind, nil for no kind.
 func (h *Held) count(kind Kind) *int {
 	switch kind {

@@ -286,9 +286,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         tripMine: () => fake.tripMine()
             ? "an enemy took one of your mines"
             : "lay a mine first",
-        giveBox: () => fake.offerBox()
-            ? "a box is flying round the globe — catch it"
-            : "every stack is full: no box flies",
+        giveBox: () => {
+            fake.offerBox()
+            return "a box is flying round the globe — catch it"
+        },
         giveQuiz: () => {
             fake.offerQuiz()
             return "a quiz is up — press it, then you have 8 seconds"

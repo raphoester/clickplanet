@@ -90,7 +90,7 @@ finale: its end moves to after it, and the countdowns say "Final Battle in".
 under its round `season-0/finale`: the chip and the start moment say "Final Battle". `moveSeasonEnd(inMinutes)` moves Season 0's end, as an operator's
 edit of the season does: every season countdown follows (the home page has these four alone).
 `giveBox()` flies a bonus box at once,
-unless every stack is full.
+whatever the hand holds: its kind is drawn at the catch, as the server's is.
 `endBattle()` ends the turn and leaves the battle's round undebriefed, so the line says
 the results are coming. `closeBattle()` scores the round with its numbers (its points at
 its times, the tiles each flag took, its top players, drawn with a little luck) and the

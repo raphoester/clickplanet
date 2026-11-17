@@ -12,7 +12,10 @@ export function describeReward(reward: BonusReward): {
                 detail: t("reward.refill.detail"),
             }
         case "spreadClicks":
-            return {title: t("reward.spreadClicks", {clicks: reward.clicks}), detail: t("bonus.spread.switchOn")}
+            return {
+                title: reward.clicks > 0 ? t("reward.spreadClicks", {clicks: reward.clicks}) : t("bonus.spread"),
+                detail: t("bonus.spread.switchOn"),
+            }
         case "bomb":
             return {
                 title: reward.bombs > 1 ? t("reward.bombs", {bombs: reward.bombs}) : t("bonus.bomb"),
@@ -20,19 +23,28 @@ export function describeReward(reward: BonusReward): {
             }
         case "encloseClicks":
             return {
-                title: t("reward.encloseClicks", {shapes: reward.shapes}),
+                title: reward.shapes > 0 ? t("reward.encloseClicks", {shapes: reward.shapes}) : t("bonus.enclose"),
                 detail: t("reward.encloseClicks.detail", {maxTiles: reward.maxTiles}),
             }
         case "shields":
-            return {title: t("reward.shields", {shields: reward.shields}), detail: t("reward.shields.detail")}
+            return {
+                title: reward.shields > 0 ? t("reward.shields", {shields: reward.shields}) : t("bonus.shield"),
+                detail: t("reward.shields.detail"),
+            }
         case "virus":
             return {
                 title: reward.viruses > 1 ? t("reward.viruses", {viruses: reward.viruses}) : t("bonus.virus"),
                 detail: t("reward.virus.detail"),
             }
         case "mine":
-            return {title: t("reward.mines", {mines: reward.mines}), detail: t("reward.mines.detail")}
+            return {
+                title: reward.mines > 0 ? t("reward.mines", {mines: reward.mines}) : t("bonus.mine"),
+                detail: t("reward.mines.detail"),
+            }
         case "rally":
-            return {title: t("reward.rallies", {rallies: reward.rallies}), detail: t("reward.rallies.detail")}
+            return {
+                title: reward.rallies > 0 ? t("reward.rallies", {rallies: reward.rallies}) : t("bonus.rally"),
+                detail: t("reward.rallies.detail"),
+            }
     }
 }

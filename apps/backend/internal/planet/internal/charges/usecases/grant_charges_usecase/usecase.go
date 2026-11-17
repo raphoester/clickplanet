@@ -49,11 +49,14 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, err
 	}
+	var paid []charges.Kind
 	for _, kind := range charges.Kinds {
 		if amount := in.Grant.Count(kind); amount > 0 {
-			if _, err := u.charger.Grant(ctx, holder, kind, amount); err != nil {
+			gain, err := u.charger.Grant(ctx, holder, kind, amount)
+			if err != nil {
 				return Out{}, err
 			}
+			paid = append(paid, gain.Paid...)
 		}
 	}
 	after, err := u.charger.Held(ctx, holder)
@@ -61,6 +64,6 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, err
 	}
 
-	u.streams.PublishGranted(holder, charges.Gain{Before: before, After: after})
+	u.streams.PublishGranted(holder, charges.Gain{Paid: paid, Before: before, After: after})
 	return Out{Holder: holder, Before: before, After: after}, nil
 }
