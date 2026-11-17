@@ -92,6 +92,8 @@ message GetTableRequest {
 message GetTableResponse {
   repeated TablePlace table = 1;
   bool closed = 2;
+  // The book's rounds opened and not scored yet, by start: their points are not in the table.
+  repeated string open_round_ids = 3;
 }
 
 message OpenBookRequest {

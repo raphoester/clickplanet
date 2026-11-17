@@ -11,11 +11,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1/missionsv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1/playerv1connect"
+	"github.com/raphoester/clickplanet.lol-backend/generated/proto/scoring/v1/scoringv1connect"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/postgres_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/usecases/keep_day_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/postgres_flag_day_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/rpc_scoring_standings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_flag_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_strike_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/migrations"
@@ -85,10 +87,11 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	internal, baseURL, err := props.Internal.Dial()
 	if err != nil {
-		return fmt.Errorf("the missions module asks planet about the map and player about accounts: %w", err)
+		return fmt.Errorf("the missions module asks planet about the map, player about accounts and scoring about the season: %w", err)
 	}
 	planet := planetv1connect.NewInternalServiceClient(internal, baseURL)
 	player := playerv1connect.NewInternalServiceClient(internal, baseURL)
+	scoring := scoringv1connect.NewInternalServiceClient(internal, baseURL)
 
 	db := cppg.New(config.Database)
 	if err := db.ConnectCtx(ctx); err != nil {
@@ -116,7 +119,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	pay := payroll.New(store, rpc_player_accounts.New(player), outbox)
 	flagDays := postgres_flag_day_store.New(db)
 	missionRules := postgres_rules_store.New(db)
-	flags := flagmissions.NewBriefing(flagDays, calendar, world, allegiances, missionRules)
+	flags := flagmissions.NewBriefing(flagDays, calendar, world, rpc_scoring_standings.New(scoring, clock), allegiances, missionRules, clock)
 
 	told, err := cpredis.Subscribe(ctx, streams, "missions-days",
 		log_subscriber.New(day_started_subscriber.New(keep_day_usecase.New(calendar)), props.Logger))

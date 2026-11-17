@@ -58,7 +58,7 @@ func (s *testSuite) query() *totals_query.PostgresQuery {
 func (s *testSuite) told(n int) days.Day {
 	starts := firstStart.Add(time.Duration(n) * 24 * time.Hour)
 	day, err := days.DayOf(days.DaySnapshot{
-		ID: days.DayID(fmt.Sprintf("season-1/day-%d", n+1)), Season: 1, Number: uint32(n + 1), //nolint:gosec // a few days.
+		ID: days.DayID(fmt.Sprintf("season-1/day-%d", n+1)), Book: "season-1", Season: 1, Number: uint32(n + 1), //nolint:gosec // a few days.
 		StartsAt: starts, EndsAt: starts.Add(24 * time.Hour),
 	})
 	s.Require().NoError(err)

@@ -47,8 +47,8 @@ export class Rules extends Message<Rules> {
 
 /**
  * A flag's mission of the day. Its goal is goal_percent of all its players did the day before, tiles taken and shields
- * broken, at least least_goal, rounded down to 10. It is worth most_points to a flag holding no tile, fewest_points to
- * the biggest flag, and in proportion between.
+ * broken, at least least_goal, rounded down to 10. It is worth most_points to a flag with no season points,
+ * fewest_points to the season's leader, and in proportion to the leader's points between.
  *
  * @generated from message missions.v1.FlagMissionRules
  */
@@ -68,14 +68,14 @@ export class FlagMissionRules extends Message<FlagMissionRules> {
   leastGoal = 0;
 
   /**
-   * 1 or more.
+   * The points for the season's leader: 1 or more.
    *
    * @generated from field: uint32 fewest_points = 3;
    */
   fewestPoints = 0;
 
   /**
-   * fewest_points to 100.
+   * The points for a flag with no season points: fewest_points to 100.
    *
    * @generated from field: uint32 most_points = 4;
    */

@@ -9,14 +9,18 @@ import (
 
 var (
 	ErrNoDay      = errors.New("no day runs then")
-	ErrInvalidDay = errors.New("a day has an id and a number, and ends after it starts")
+	ErrInvalidDay = errors.New("a day has an id, a book and a number, and ends after it starts")
 )
 
 // DayID is the id the gamemaster gave the day's round: missions only repeats it.
 type DayID string
 
+// BookID is the id the gamemaster gave the book of the day's season, in scoring: missions only repeats it.
+type BookID string
+
 type DaySnapshot struct {
-	ID DayID
+	ID   DayID
+	Book BookID
 	// The day's place among its season's days, from 1, as the gamemaster numbers them.
 	Season, Number uint32
 	StartsAt       time.Time
@@ -26,24 +30,27 @@ type DaySnapshot struct {
 // A day as the gamemaster told it: missions are drawn, counted and paid by day.
 type Day struct {
 	id             DayID
+	book           BookID
 	season, number uint32
 	startsAt       time.Time
 	endsAt         time.Time
 }
 
 func DayOf(snapshot DaySnapshot) (Day, error) {
-	if snapshot.ID == "" || snapshot.Number == 0 || !snapshot.EndsAt.After(snapshot.StartsAt) {
-		return Day{}, fmt.Errorf("%w: %q, day %d of season %d, from %s to %s", ErrInvalidDay, snapshot.ID, snapshot.Number,
-			snapshot.Season, snapshot.StartsAt, snapshot.EndsAt)
+	if snapshot.ID == "" || snapshot.Book == "" || snapshot.Number == 0 || !snapshot.EndsAt.After(snapshot.StartsAt) {
+		return Day{}, fmt.Errorf("%w: %q of book %q, day %d of season %d, from %s to %s", ErrInvalidDay, snapshot.ID,
+			snapshot.Book, snapshot.Number, snapshot.Season, snapshot.StartsAt, snapshot.EndsAt)
 	}
 	return Day{
-		id: snapshot.ID, season: snapshot.Season, number: snapshot.Number, startsAt: snapshot.StartsAt.UTC(),
-		endsAt: snapshot.EndsAt.UTC(),
+		id: snapshot.ID, book: snapshot.Book, season: snapshot.Season, number: snapshot.Number,
+		startsAt: snapshot.StartsAt.UTC(), endsAt: snapshot.EndsAt.UTC(),
 	}, nil
 }
 
 func (d Day) Snapshot() DaySnapshot {
-	return DaySnapshot{ID: d.id, Season: d.season, Number: d.number, StartsAt: d.startsAt, EndsAt: d.endsAt}
+	return DaySnapshot{
+		ID: d.id, Book: d.book, Season: d.season, Number: d.number, StartsAt: d.startsAt, EndsAt: d.endsAt,
+	}
 }
 
 func (d Day) Runs(at time.Time) bool {
@@ -58,6 +65,9 @@ func (d Day) Follows(other Day) bool {
 
 // The day's key in the stores.
 func (d Day) String() string { return string(d.id) }
+
+// The book of the day's season, which scoring ranks the flags in.
+func (d Day) Book() BookID { return d.book }
 
 type Store interface {
 	// DayAt is the day told that runs at a time: ErrNoDay when none does.

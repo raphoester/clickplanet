@@ -5,16 +5,17 @@ which all its players do together, and which gives the flag season points** (see
 It reads planet's facts (`TilesTaken`, `BombLanded`, `ShieldPlaced`, `Fortified`, `ShieldsStruck`, `GetTerritories`,
 `GetCountrySizes`, `GetAllegianceOf`), the boxes' (`BoxClaimed`, planet's `BonusClaimed` until 2026-11-11 and the bonuses module's until 2026-11-15), the quizzes' (`QuizAnswered`, the offers' until 2026-11-13), the
 gamemaster's days (`DayStarted`), player's
-word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and commands scoring to grant points
-(`scoring.v1.GrantPoints`), over Redis, as scoring asks planet what each country holds: neither ever imports, calls or
-hears missions. It tells what it did (`MissionsDone`, `MissionsPaid`, `FlagMissionDone`) to whoever listens:
+word on an account (`PlayerSignedIn`, `PlayerForgotten`, `GetAccounts`), and scoring's season table
+(`scoring.v1.InternalService/GetTable`), and commands scoring to grant points (`scoring.v1.GrantPoints`), over Redis, as
+scoring asks planet what each country holds: neither ever imports, calls or hears missions. It tells what it did (`MissionsDone`, `MissionsPaid`, `FlagMissionDone`) to whoever listens:
 progression, which turns the missions done into XP, and the chat. Missions grants no charge (see
 [Missions pay XP](#missions-pay-xp)).
 Its public route, `/missions.v1.MissionService/*`, is listed in `deploy/vps/caddy/Caddyfile`, as every service's is.
 
 ```
 internal/missions/internal/
-  days/                             DayID, Day (a day the gamemaster told: its round's id, its start and its end), ErrNoDay;
+  days/                             DayID, BookID, Day (a day the gamemaster told: its round's id, its season's book, its
+                                    start and its end), ErrNoDay;
                                     GroupsOf (a batch's facts by day and by account or flag, each day read once);
                                     the Store port and its contract suite, TestingDayAt (season 0's days, for tests)
     postgres_day_store/             the Store over missions.mission_days
@@ -38,9 +39,11 @@ internal/missions/internal/
     usecases/record_fact_usecase/  get_missions_usecase/  pay_signed_in_usecase/  forget_account_usecase/
               listen_for_events_usecase/  retell_missions_done_usecase/ (audit_retell_missions_done/)
   flagmissions/                     Take and Strike, Order (TakeIn, BreakShields), MissionID, Day (a flag's day), Done, Draw,
-                                    Briefing; the Store port and its contract suite
+                                    Standing (the season's table) and its Standings port, ErrUnsettled, Briefing; the
+                                    Store port and its contract suite
     postgres_flag_day_store/        the Store over missions.flag_days and flag_missions
     inmemory_flag_day_store/        the same port in a map, behind the testing tag
+    rpc_scoring_standings/          the table of the day's season, from scoring.v1.InternalService/GetTable, kept a second
     scoringgrant/                   a flag mission done as the scoring.v1.GrantPoints command
     flagmessage/                    a flag mission as missions.v1.FlagMission (GetMissions answers it too), and a
                                     flag mission done as the missions.v1.FlagMissionDone event
@@ -65,7 +68,8 @@ internal/missions/internal/
 - **A day is the gamemaster's**, never a clock of missions' own (the owner, 2026-10-29: two cutoffs that happen to
   match are brittle). The gamemaster tells each day as it starts, `gamemaster.v1.DayStarted` (`missions-days`,
   `day_started_subscriber`, `keep_day_usecase`), and missions keeps it in `mission_days` (`day_id`, the round's id such as
-  `season-0/day-22`, `season` and `number`, its place among the season's days, `starts_at`, `ends_at`): a day told
+  `season-0/day-22`, `book_id`, the book of its season in scoring such as `season-0`, `season` and `number`, its place
+  among the season's days, `starts_at`, `ends_at`): a day told
   again, when a moved season end cut it, keeps its new end. **A
   fact counts in the day told that runs at its time** (`days.Store.DayAt`), and every row names its day by that id.
   **No day, no missions**: between two seasons, from a season's last cutoff to its end (the Final Battle), and while
@@ -75,7 +79,9 @@ internal/missions/internal/
   so the draw reads the world's map played again.
   **A fact can come before its day**: the day and the facts come on separate streams, so a take of the first second or
   so of a day may find no day yet and count nothing (the owner chose it over asking the gamemaster each fact,
-  2026-10-29). Migration `20261029110000_gamemaster_days` named every row kept before by its date as season 0's day.
+  2026-10-29). Migration `20261029110000_gamemaster_days` named every row kept before by its date as season 0's day,
+  and `20261116211335_day_books` gave every day kept before the book of its season, `season-N` from its id
+  `season-N/day-K`, as the gamemaster names them.
   **The rules are objects**: a `Mission` is an id and an `Order`, and nothing else.
   **An order is one kind of mission**, a type of its own with its own fields: `TakeFor{Flag, Goal}` (tiles for the
   flag), `TakeFrom{Flag, Goal}` (tiles another flag held), `TakeIn{Ground, Goal}` (tiles on a country's land),
@@ -241,7 +247,7 @@ nothing showed the XP, and missions paid charges too. A flag's mission still giv
 ## The flag's mission
 
 **One mission a day for the whole flag, the same for each of its players: done once, it gives the flag 3 to 10 season
-points, the more the smaller the flag.** Every player of the flag counts on it. A new concept with its own lifecycle (a
+points, the more the less the flag has won in the season so far.** Every player of the flag counts on it. A new concept with its own lifecycle (a
 day and a flag), so it has its own package and store (`flagmissions`).
 
 - **`Draw(day, flag, world, yesterday)` is the mission**, seeded by the day and the flag: **its kind**, evenly between
@@ -249,15 +255,31 @@ day and a flag), so it has its own package and store (`flagmissions`).
   grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken (`World.RivalsOf`, drawn by
   the ground it holds, so the leaders share the heat). A map with neither gives a day with no mission.
 - **Its numbers are the operator's** (see [The rules](#the-rules)): the goal's part of the day before, the least goal,
-  and the points for the biggest flag and for a flag holding no tile, a `Sizing` that `Briefing.Of` reads at each draw
-  and hands to `Draw`. The formulas stay in code; below, the numbers are those of 6 Nov 2026.
-- **Its points come from the flag's size beside the biggest flag's** (`pointsOf`, the user's choice, 2026-11-05):
-  most − (most − fewest) × the flag's tiles ÷ the biggest flag's tiles, rounded, from the map at the draw. With 10 and
-  3, the biggest flag gets 3, a flag half its size 6, a flag under 1/14 of its size 10; on a blank map every flag gets
-  10. On 5 Nov 2026 that was
-  Ireland 3, Russia and Brazil 5, Czechia 6, Sweden and Bulgaria 7, Poland 8, Hungary, Palau, France and the UK 9, every
-  smaller flag 10. Until then the points were drawn 3 to 10 evenly: in Season 1's first five days the flags holding 5% of the map or
-  more won 57 points from missions, the flags under 0.5% won 13.
+  and the points for the season's leader and for a flag with no season points, a `Sizing` that `Briefing.Of` reads at
+  each draw and hands to `Draw`. The formulas stay in code; below, the numbers are those of 6 Nov 2026.
+- **Its points come from what the flag won in the season beside the leader** (`pointsOf`, the owner's choice,
+  2026-11-16: the flag missions are there to give the underdogs their chance, so the leaders of the season's race get
+  less): most − (most − fewest) × the flag's season points ÷ the leader's, rounded, from the table of the day's season
+  at the draw (`Standing`, scoring's `GetTable` on the day's `book_id`, `rpc_scoring_standings`). With 10 and 3, the
+  leader gets 3, a flag with half its points 6, a flag under 1/14 of them 10; on a season's first day nobody has points
+  and every flag gets 10. The table counts every round scored and every grant, flag missions included, so a flag that
+  keeps winning them is worth less the next days. A flag's size on the map counts no more: the biggest flag that has won
+  little is worth much (the owner chose replacing the size over taking the lower of the two). A book scoring has not
+  opened yet (a season's first day can be told before the gamemaster's open reached scoring) is a table with no points.
+  From 2026-11-05 to 2026-11-16 the points came from the flag's tiles beside the biggest flag's, from the map at the
+  draw: Ireland, the biggest on the map, got 3 every day while Poland, taking 26,000 tiles a day, got 7, and Germany
+  got 10 on season 1's day 14. Until 2026-11-05 the points were drawn 3 to 10 evenly: in Season 1's first five days the
+  flags holding 5% of the map or more won 57 points from missions, the flags under 0.5% won 13.
+- **The draw waits for the rounds before its day to be scored**, up to two minutes into the day (`settleWithin`): a
+  flag draws at its first take of the day, often in the first second, when the gamemaster may not have closed the day
+  before or a battle between yet, and the table would lack up to 25 × the round's times points. Scoring's table names
+  the book's rounds open (`open_round_ids`), and a table with one open but the day's own is not settled: `Briefing.Of`
+  draws nothing and answers `ErrUnsettled`, so the take or the strike is told again (2 s later, then 4, 8…), and
+  `GetMissions` answers no flag mission yet. Each of those reads and takes told again asks for a draw, so the table
+  scoring answered is kept a second (`keptFor`) and answers them all. Two minutes in, the day is drawn from the table as it is: a fact that
+  fails 8 times, about four minutes, is dropped (`redis.maxDeliveries`), and a scoring stuck closing a round must not
+  cost the flags their takes. Grants of other flags' missions done earlier in the day count in the table a later draw
+  reads; they move the leader by 10 at most.
 - **A ground has room for its goal** (`conquest`): its room is its tiles the flag does not hold (`Ground.Open`), and the
   ground is drawn evenly among those with room for the goal, so a busy flag is sent to Russia, Antarctica, the US, China,
   Canada, Brazil or Australia, and a quiet one anywhere big. With none, the ground with the most room, and the goal cut
@@ -284,8 +306,8 @@ day and a flag), so it has its own package and store (`flagmissions`).
   got "break 150 shields" for 2 points (the owner: "the WHOLE TEAM works for it").
 - **A flag's day counts what all its players did** (`Day`): every take for it (`takes`) and every shield it broke
   (`strikes`), for the next day's goal, and the mission's progress, one counter from 0. **`Briefing.Of(day, flag)`
-  draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then and the day
-  before (`days.Store.DayBefore`, the day before it in its season, `number` − 1); a season's first day has none, so its
+  draws once and keeps it**, at the flag's first take, shield broken or read of the day, from the map then, the
+  season's table then and the day before (`days.Store.DayBefore`, the day before it in its season, `number` − 1); a season's first day has none, so its
   goal is the least. **A battle between two days does not break the chain**: it takes its time from a day (see
   [A battle and the days](gamemaster.md#a-battle-and-the-days)), so the day before ends before the day starts. Until
   2026-11-06 the day before was the day that ended as this one started, so the day after a battle had none: on
@@ -329,8 +351,9 @@ day and a flag), so it has its own package and store (`flagmissions`).
 **The numbers missions draws with are one document in postgres, edited from the backoffice** (Ops → Mission rules) or
 by the connector (`missions_save_rules`), not constants in the code (the owner, 2026-11-06: "we should be able to handle
 this directly from the backoffice"). Only the flag mission's for now: `missions.v1.Rules.flag_missions`, the goal's
-percent of the day before (1 to 100), the least goal (10 or more), and the points for the biggest flag (1 or more) and
-for a flag holding no tile (that to 100). A player mission's spans are still code; they would join the same document,
+percent of the day before (1 to 100), the least goal (10 or more), and the points for the season's leader (1 or more)
+and for a flag with no season points (that to 100); until 2026-11-16 the same two numbers were for the biggest flag on
+the map and a flag holding no tile. A player mission's spans are still code; they would join the same document,
 and what it pays is progression's.
 
 - **One document, no sets and no schedule**: unlike planet's and the antibot's rules, nothing switches it, since a

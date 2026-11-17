@@ -19,8 +19,8 @@ describe("the mission rules page", () => {
 
         expect(await screen.findByLabelText("Goal, % of all the flag did the day before")).toHaveProperty("value", "30")
         expect(screen.getByLabelText("Least goal, tiles or shields")).toHaveProperty("value", "250")
-        expect(screen.getByLabelText("Points for a flag holding no tile")).toHaveProperty("value", "10")
-        expect(screen.getByLabelText("Points for the biggest flag")).toHaveProperty("value", "3")
+        expect(screen.getByLabelText("Points for a flag with no season points")).toHaveProperty("value", "10")
+        expect(screen.getByLabelText("Points for the season's leader")).toHaveProperty("value", "3")
         expect(saveButton().disabled).toBe(true)
     })
 
@@ -48,11 +48,11 @@ describe("the mission rules page", () => {
 
     it("keeps a number that is not whole from the server", async () => {
         render(<MissionRulesPanel missions={new FakeAdmin().missions}/>)
-        await screen.findByLabelText("Points for the biggest flag")
+        await screen.findByLabelText("Points for the season's leader")
 
-        type("Points for the biggest flag", "")
+        type("Points for the season's leader", "")
 
-        expect(screen.getByRole("alert").textContent).toBe("Points for the biggest flag: a whole number.")
+        expect(screen.getByRole("alert").textContent).toBe("Points for the season's leader: a whole number.")
         expect(saveButton().disabled).toBe(true)
     })
 
@@ -60,9 +60,9 @@ describe("the mission rules page", () => {
         const admin = new FakeAdmin()
         admin.refuse("saveMissionRules", Code.InvalidArgument)
         render(<MissionRulesPanel missions={admin.missions}/>)
-        await screen.findByLabelText("Points for the biggest flag")
+        await screen.findByLabelText("Points for the season's leader")
 
-        type("Points for the biggest flag", "11")
+        type("Points for the season's leader", "11")
         fireEvent.click(saveButton())
         fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
 

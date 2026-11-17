@@ -19,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_strike_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type fixedPlanet struct{}
@@ -63,15 +64,16 @@ func setUpCounted() (
 ) {
 	store, outbox, calendar := inmemory_flag_day_store.New(), &cpatomic.FakeOutbox{}, inmemory_day_store.New(today)
 	streams, transactions := &recordingStreams{}, &countingTransactioner{}
-	return record_strike_usecase.New(calendar, flagmissions.NewBriefing(store, calendar, fixedPlanet{}, noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing())), store,
-		transactions, outbox, streams), store, outbox, streams, transactions
+	briefing := flagmissions.NewBriefing(store, calendar, fixedPlanet{}, flagmissions.NewFixedStandings(flagmissions.TestingStanding(nil)),
+		noPledges{}, flagmissions.NewFixedSizings(flagmissions.TestingSizing()), cptime.NewFixedClock(today.Snapshot().StartsAt))
+	return record_strike_usecase.New(calendar, briefing, store, transactions, outbox, streams), store, outbox, streams, transactions
 }
 
 func goalOf(t *testing.T) (flagmissions.MissionSnapshot, uint32) {
 	t.Helper()
 
 	drawn := flagmissions.Draw(today, "fr", missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}},
-		flagmissions.Day{}, flagmissions.TestingSizing())
+		flagmissions.TestingStanding(nil), flagmissions.Day{}, flagmissions.TestingSizing())
 	status, ok := drawn.Status()
 	require.True(t, ok)
 	return status.Mission, status.Mission.Order.(flagmissions.BreakShields).Goal

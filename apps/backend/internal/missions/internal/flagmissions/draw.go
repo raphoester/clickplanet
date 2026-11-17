@@ -14,8 +14,9 @@ import (
 
 var drawnSpace = uuid.MustParse("466c6167-4d69-4373-8000-696f6e66c167")
 
-// One mission for the whole flag: a big ground to take tiles on, or a rival's shields to break, evenly.
-func Draw(day days.Day, flag string, world missions.World, yesterday Day, sizing Sizing) Day {
+// One mission for the whole flag: a big ground to take tiles on, or a rival's shields to break, evenly; worth the
+// less the more the flag won in the season.
+func Draw(day days.Day, flag string, world missions.World, standing Standing, yesterday Day, sizing Sizing) Day {
 	seed := fnv.New64a()
 	_, _ = seed.Write([]byte(day.String() + "/" + flag))
 	random := rand.New(rand.NewPCG(seed.Sum64(), 0)) //nolint:gosec // a draw every player can see, not a secret.
@@ -32,7 +33,7 @@ func Draw(day days.Day, flag string, world missions.World, yesterday Day, sizing
 	}
 
 	id := MissionID(uuid.NewSHA1(drawnSpace, []byte(day.String()+"/"+flag)))
-	return Day{mission: &MissionSnapshot{ID: id, Order: orders[random.IntN(len(orders))], Points: sizing.pointsOf(flag, world)}}
+	return Day{mission: &MissionSnapshot{ID: id, Order: orders[random.IntN(len(orders))], Points: sizing.pointsOf(flag, standing)}}
 }
 
 // A ground with room for the goal, the tiles the flag does not hold there, drawn evenly; with none, the ground with the

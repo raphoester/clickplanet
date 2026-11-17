@@ -69,8 +69,9 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the day's missions: %w", err)
 	}
+	// A flag's mission waits for the season's table early in the day: until then the caller sees none.
 	flag, err := u.flags.OfPlayer(ctx, day, in.Account)
-	if err != nil {
+	if err != nil && !errors.Is(err, flagmissions.ErrUnsettled) {
 		return Out{}, fmt.Errorf("failed to read the flag's mission: %w", err)
 	}
 	return Out{Day: day, Brief: brief, Sheet: sheet, Flag: flag}, nil
