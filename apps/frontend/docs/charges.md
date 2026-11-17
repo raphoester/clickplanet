@@ -15,8 +15,10 @@ catch. A refill, a bomb or a virus kept alone is announced by its name (`Bomb`),
 an operator's grant: `BonusReward`'s `refills`, `bombs`, `viruses`). The boxes are the boxes module's (`boxes.v1.BoxService`, on a stream of its own: see
 [The boxes stream](backends.md#the-boxes-stream)), the quizzes the quizzes' ([The quizzes
 stream](backends.md#the-quizzes-stream)); what they hold is drawn by the bonuses module, and the charges are planet's.
-A box that held nothing (the hand had room for no kind the rules weigh) shows the award card's "Your inventory is
-already full" (`bonus.winNothing`).
+**A kind paid into a full slot is announced by its name alone** (`Spread`, `Shield`: `describeReward` with 0 kept),
+and its slot stays at its size. The kind is drawn whatever the hand holds, so a full slot beside empty ones is common (a
+bomb held, of the one a hand holds). Until 2026-11-17 the card said "Your inventory is already full", which read as the
+whole inventory: the owner chose a top-up with no word. A box whose grant never comes shows no card.
 
 **`PlanetBackend` holds `Charges` (`domain/bonus.ts`), and only a grant pushes them.**
 It reads `GetCharges` at load, with the token in hand and never a fresh one, again

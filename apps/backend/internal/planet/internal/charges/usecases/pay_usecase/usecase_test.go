@@ -62,8 +62,8 @@ func TestAPaymentIsGrantedAndAnswersWhatWasKeptAndTheHandAfter(t *testing.T) {
 	assert.Equal(t, out.Held, hands.Kept(alice))
 }
 
-func TestAPaymentOfAFullStackKeepsNothing(t *testing.T) {
-	useCase, hands := setUp()
+func TestAPaymentOfAFullStackKeepsNothingAndIsToldWithItsKind(t *testing.T) {
+	useCase, hands, streams := setUpTelling()
 	hands.Keep(alice, charges.Held{Bombs: 1})
 
 	out, err := useCase.Execute(t.Context(), pay_usecase.In{
@@ -73,6 +73,9 @@ func TestAPaymentOfAFullStackKeepsNothing(t *testing.T) {
 
 	assert.Zero(t, out.Kept, "the rules say a hand holds one bomb")
 	assert.Equal(t, charges.Held{Bombs: 1}, hands.Kept(alice))
+	require.Len(t, streams.told, 1)
+	assert.Equal(t, []charges.Kind{charges.KindBomb}, streams.told[0].gain.Paid)
+	assert.Zero(t, streams.told[0].gain.Count(charges.KindBomb))
 }
 
 func TestAPaymentOfAKindTheRulesTurnOffKeepsNothing(t *testing.T) {

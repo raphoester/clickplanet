@@ -2399,7 +2399,8 @@ func (x *KnockOut) GetVersion() *MapVersion {
 type ChargesGranted struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Charges *ChargesHeld           `protobuf:"bytes,1,opt,name=charges,proto3" json:"charges,omitempty"`
-	// Each kind the grant added to the hand, and how many: what a full stack kept, none for a kind it kept none of.
+	// Each kind the grant paid, and how many of it the hand kept: 0 for a stack already full. A kind the rules turn off is
+	// not paid.
 	Gained        []*ChargeGained `protobuf:"bytes,2,rep,name=gained,proto3" json:"gained,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

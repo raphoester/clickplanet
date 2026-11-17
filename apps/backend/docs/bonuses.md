@@ -91,7 +91,8 @@ was caught.
 - **The grant id is the box's token's** (`OfferGrantOf`, as before the cut): the bus may tell a catch twice, and planet
   pays it once. A redraw on a second telling changes nothing.
 - **The reward reaches the page on planet's stream** (`charges_granted`, with what it added): `ClaimBox` answers before
-  it, about a second earlier (the boxes' outbox sends every second).
+  it, about a second earlier (the boxes' outbox sends every second). A kind drawn into a full stack is told too, with 0
+  kept, and the page names it ([Charges](charges.md)).
 
 ## A right answer
 

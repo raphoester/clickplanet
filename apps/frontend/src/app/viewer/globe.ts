@@ -250,8 +250,6 @@ export type GlobeOptions = {
     // while it does not.
     onStanding?: (standing: Standing | undefined) => void
     onBonusWon: (reward: BonusReward) => void
-    // A box caught that held nothing: the hand had room for no kind it could be.
-    onBoxEmpty?: () => void
     onCharges: (charges: Charges) => void
     onRules: (rules: BonusRules) => void
     onSwitchesChange: (switches: Switches) => void
@@ -338,7 +336,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onOutOfReach,
         onStanding = () => {},
         onBonusWon,
-        onBoxEmpty = () => {},
         onCharges,
         onRules,
         onSwitchesChange,
@@ -1509,7 +1506,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
                 .then((reward) => {
                     if (lifetime.signal.aborted) return
                     if (reward) onBonusWon(reward)
-                    else onBoxEmpty()
                 })
                 .catch((e) => {
                     if (lifetime.signal.aborted) return

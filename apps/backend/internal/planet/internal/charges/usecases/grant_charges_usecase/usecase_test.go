@@ -46,8 +46,25 @@ func TestTheAccountsStreamsAreToldWhatTheGrantAddedAndAllItHoldsAfter(t *testing
 	require.NoError(t, err)
 
 	assert.Equal(t, map[charges.Holder]charges.Gain{account: {
-		Before: charges.Held{Enclosures: 1}, After: charges.Held{Bombs: 1, Enclosures: 1},
+		Paid: []charges.Kind{charges.KindBomb}, Before: charges.Held{Enclosures: 1}, After: charges.Held{Bombs: 1, Enclosures: 1},
 	}}, streams.told)
+}
+
+func TestTheStreamsAreToldEachKindGrantedThoughItsStackWasFull(t *testing.T) {
+	wallet := storage()
+	wallet.Keep(account, charges.Held{Bombs: 1})
+	streams := &recordingStreams{told: map[charges.Holder]charges.Gain{}}
+
+	_, err := grantTelling(wallet, streams).Execute(t.Context(), grant_charges_usecase.In{
+		Account: account,
+		Grant:   charges.Held{Bombs: 1, Shields: 4},
+	})
+	require.NoError(t, err)
+
+	told := streams.told[account]
+	assert.Equal(t, []charges.Kind{charges.KindBomb, charges.KindShields}, told.Paid)
+	assert.Zero(t, told.Count(charges.KindBomb))
+	assert.Equal(t, 4, told.Count(charges.KindShields))
 }
 
 func TestEveryKindCanBeGranted(t *testing.T) {

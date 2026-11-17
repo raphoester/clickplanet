@@ -73,7 +73,9 @@ func TestAGrantToldTwiceIsGrantedAndToldToTheStreamsOnce(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), in))
 
 	assert.Equal(t, 10, held(t, wallet).Shields)
-	assert.Equal(t, []told{{holder: charges.Holder(ada), gain: charges.Gain{After: charges.Held{Shields: 10}}}}, streams.told)
+	assert.Equal(t, []told{{holder: charges.Holder(ada), gain: charges.Gain{
+		Paid: []charges.Kind{charges.KindShields}, After: charges.Held{Shields: 10},
+	}}}, streams.told)
 }
 
 func TestTheStreamsAreToldWhatTheGrantAddedAndAllTheAccountHolds(t *testing.T) {

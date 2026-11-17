@@ -7,7 +7,7 @@ import {PlaySound} from '../sound/soundPlayer.ts'
 
 export const RESULT_MS = 3200
 
-// A right answer's reward is a grant planet tells a moment after; past this, the hand had room for none.
+// A right answer's reward is a grant planet tells a moment after; past this, none comes.
 export const REWARD_WAIT_MS = 2500
 
 type QuizState =

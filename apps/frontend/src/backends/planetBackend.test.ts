@@ -1861,6 +1861,23 @@ describe("the charges held", () => {
         backend.close()
     })
 
+    it("tells the grant listeners a kind paid into a full slot, with none kept", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}})
+            yield new PlanetEvent({event: {case: "chargesGranted", value: new ChargesGranted({
+                charges: new ChargesHeld({spreadClicksLeft: 8}),
+                gained: [new ChargeGained({kind: BonusKind.SPREAD_CLICKS, amount: 0})],
+            })}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 1_000)
+        const granted: BonusReward[][] = []
+        backend.listenForGrants((rewards) => granted.push(rewards))
+
+        await vi.waitFor(() => expect(granted).toEqual([[{kind: "spreadClicks", clicks: 0}]]))
+        backend.close()
+    })
+
     it("counts a spread click off each accepted click sent with spread on, since the click answers nothing about it", async () => {
         const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({spreadClicksLeft: 2})})
         const click = vi.fn()

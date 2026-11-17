@@ -41,7 +41,9 @@ its own.
   grant caps it at the size: the cap is the wallet's. **What was kept** reaches the page as the grant's `gained`, on
   planet's stream (`charges_granted`, below): `Charges.Grant` answers the hand before and after it (`charges.Gain`), both
   read under the lock of its one transaction, so a player is never told of clicks that did not fit, and a spend in
-  another tab cannot change the number. The bonuses module's `InternalService/GrantCharges` runs the wallet's payment
+  another tab cannot change the number. **A kind paid into a full stack is in `gained` too, with 0 kept** (`Held.Gain`,
+  `Gain.Paid`), so the page names the kind won and never says the inventory is full (since 2026-11-17). A kind the rules
+  turn off is not paid, and is not in it. The bonuses module's `InternalService/GrantCharges` runs the wallet's payment
   (`pay_usecase`). Until 2026-11-15 the claim's own answer said what was kept.
 - **The schedule offers a box whatever the hand holds** (since 2026-11-15). The schedule is by entrant and a charge
   is by account, and the boxes know no kind and ask no room ([The boxes](boxes-module.md#what-it-asks-of-planet)). The
@@ -71,8 +73,8 @@ its own.
   (`inmemory_grant_store`): a box's or an answer's id is its token's, which lives minutes and never outlives a
   restart. A bad id or account, an unknown kind or no amount is `InvalidArgument`.
 - <a id="a-grant-on-the-stream"></a>**A grant reaches the player at once, on the planet stream it has open**:
-  `charges_granted`, all it holds after the grant and **what the grant added** (`gained`, each kind and how many the
-  stack kept), sent once it is committed (`notices.Board.PublishGranted`, a `notices.Event`'s `Granted`, a
+  `charges_granted`, all it holds after the grant and **what the grant added** (`gained`, each kind the grant paid and
+  how many the stack kept, 0 for a full stack), sent once it is committed (`notices.Board.PublishGranted`, a `notices.Event`'s `Granted`, a
   `charges.Gain`), from `apply_grant_usecase`, the operator's `grant_charges_usecase` and, since 2026-11-13, the offers'
   `pay_usecase`, whose grant told again sends nothing. **It reaches every stream whose session names the account
   granted, a guest's too** (`notices.Board.Attend` keys a stream by the account its token names): a guest's token names
