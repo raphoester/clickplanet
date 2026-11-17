@@ -67,8 +67,9 @@ on none. **The reward comes a moment after the answer, from planet's stream**: t
 answer says right or wrong, the result keeps the reel rolling (`awaiting`), and the
 first grant planet tells after it (`listenForRewards`, `charges_granted` with what it
 `gained`) is the bonus won, which spins in. A grant that comes before the answer is
-back is kept for it. With none in `REWARD_WAIT_MS` (2.5 s) the hand had room for
-nothing, and the result says the inventory is full. **A mission paid at the same
+back is kept for it. A kind paid into a full slot comes with 0 kept and spins in by
+its name. With none in `REWARD_WAIT_MS` (2.5 s) the result says only that the answer
+was right. **A mission paid at the same
 moment can be taken for the reward**, a rare and harmless mix-up: both are charges
 the player holds. The result is its quiz's token, so a reward that comes, or the
 wait that ends, leaves it to go away at `RESULT_MS` as before.

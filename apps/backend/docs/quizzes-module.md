@@ -112,7 +112,7 @@ its own, for a caller with an account, right or wrong. A right one is then told 
 among those the hand has room for, and shields for a newcomer's first quiz. **The one change to rewards: a quiz is asked
 even when the hand is full.** The offers offered a quiz only when a hand had room for a kind it could pay; the quizzes
 know no kind, so they no longer ask planet's room. A right answer whose hand has room for nothing is paid nothing, and
-the page says the inventory is full. Since 2026-11-16 the draw ignores the hand altogether: a right answer drawn into a
+the page names the kind drawn (it said the inventory is full until 2026-11-17). Since 2026-11-16 the draw ignores the hand altogether: a right answer drawn into a
 full stack is paid nothing.
 
 **What the cut dropped: a box and a quiz no longer keep apart in time.** It was the only rule that tied the two; the

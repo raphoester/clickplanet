@@ -184,6 +184,32 @@ func TestAGrantKeepsNoBombWhileBombsAreOff(t *testing.T) {
 	assert.Equal(t, Held{Shields: 5}, Held{}.Granted(KindShields, 5, off), "the other kinds are granted")
 }
 
+func TestAGainTopsAStackUpToItsSize(t *testing.T) {
+	gain := Held{SpreadClicks: 6}.Gain(KindSpreadClicks, 4, chargeRules)
+
+	assert.Equal(t, []Kind{KindSpreadClicks}, gain.Paid)
+	assert.Equal(t, 2, gain.Count(KindSpreadClicks))
+	assert.Equal(t, Held{SpreadClicks: 8}, gain.After)
+}
+
+func TestAGainIntoAFullStackPaysTheKindAndKeepsNone(t *testing.T) {
+	gain := Held{Bombs: 1, Shields: 3}.Gain(KindBomb, 1, chargeRules)
+
+	assert.Equal(t, []Kind{KindBomb}, gain.Paid)
+	assert.Zero(t, gain.Count(KindBomb))
+	assert.Equal(t, Held{Bombs: 1, Shields: 3}, gain.After)
+}
+
+func TestAGainPaysNoKindTheRulesTurnOff(t *testing.T) {
+	off := TestRules()
+	off.Bomb.Off = true
+
+	gain := Held{}.Gain(KindBomb, 1, off)
+
+	assert.Empty(t, gain.Paid)
+	assert.Equal(t, Held{}, gain.After)
+}
+
 func TestAGrantKeepsNoEnclosureWhileEnclosuresAreOff(t *testing.T) {
 	off := TestRules()
 	off.Enclose.Off = true

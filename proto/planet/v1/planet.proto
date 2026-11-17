@@ -420,7 +420,8 @@ message KnockOut {
 message ChargesGranted {
   ChargesHeld charges = 1;
 
-  // Each kind the grant added to the hand, and how many: what a full stack kept, none for a kind it kept none of.
+  // Each kind the grant paid, and how many of it the hand kept: 0 for a stack already full. A kind the rules turn off is
+  // not paid.
   repeated ChargeGained gained = 2;
 }
 

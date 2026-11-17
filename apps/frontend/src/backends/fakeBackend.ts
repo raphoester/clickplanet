@@ -326,27 +326,6 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
-    private full(kind: BonusReward["kind"]): boolean {
-        switch (kind) {
-            case "refill":
-                return this.charges.refills >= REFILLS
-            case "bomb":
-                return this.charges.bombs >= BOMBS
-            case "encloseClicks":
-                return this.charges.enclosures >= ENCLOSURES
-            case "spreadClicks":
-                return this.charges.spreadClicksLeft >= SPREAD_CLICKS
-            case "shields":
-                return this.charges.shields >= SHIELDS
-            case "virus":
-                return this.charges.viruses >= VIRUSES
-            case "mine":
-                return this.charges.mines >= MINES
-            case "rally":
-                return this.charges.rallies >= RALLIES
-        }
-    }
-
     public async refreshCharges(): Promise<void> {
         this.hold(this.charges)
     }
@@ -949,9 +928,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.offered = undefined
         await new Promise((resolve) => setTimeout(resolve, FAKE_REWARD_DELAY_MS))
 
-        const kinds = this.offerable().filter((kind) => !this.full(kind))
-        if (kinds.length === 0) return undefined
-
+        const kinds = this.offerable()
         return this.grant(kinds[Math.floor(Math.random() * kinds.length)]).reward
     }
 
@@ -997,17 +974,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     // As the bonuses module pays a right answer a moment after it was told, and planet's stream says what it added.
     private payRightAnswer() {
-        const kinds = BONUS_KINDS.filter((kind) => !this.full(kind) && (kind !== "bomb" || this.tilePositions))
-        if (kinds.length === 0) return
-
+        const kinds = this.offerable()
         const {reward} = this.grant(kinds[Math.floor(Math.random() * kinds.length)])
         this.rewardCallbacks.forEach(callback => callback(reward))
     }
 
-    // A box flies at once, unless every stack is full.
-    public offerBox(): BoxOffer | undefined {
-        if (this.offerable().every((kind) => this.full(kind))) return undefined
-
+    public offerBox(): BoxOffer {
         const offer: BoxOffer = {
             token: UUIDv4(),
             seed: Math.floor(Math.random() * 0xffffffff),
