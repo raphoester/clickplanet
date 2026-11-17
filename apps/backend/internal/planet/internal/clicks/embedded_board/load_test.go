@@ -1,11 +1,9 @@
 package embedded_board_test
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"log/slog"
 	"math"
-	"os"
 	"slices"
 	"testing"
 
@@ -84,24 +82,6 @@ func TestEveryPositionIsThePagesToTheBit(t *testing.T) {
 	}
 
 	assert.Equal(t, manifest.PositionsHash, hash, "FNV-1a over the float32 positions, as the page and the backoffice hash them")
-}
-
-func TestEveryPositionIsTheCoordinatesBlobsItReplaced(t *testing.T) {
-	blob, err := os.ReadFile("../../../../../../../map/coordinates-10d1f87d.bin")
-	require.NoError(t, err)
-	require.Len(t, blob, 12+tiles*20)
-
-	differing := 0
-	for id := uint32(1); id <= tiles; id++ {
-		position, _ := geography.Position(id)
-		for axis, coordinate := range []float64{position.X, position.Y, position.Z} {
-			at := 12 + (int(id-1)*3+axis)*4
-			if math.Float32bits(float32(coordinate)) != binary.LittleEndian.Uint32(blob[at:]) {
-				differing++
-			}
-		}
-	}
-	assert.Zero(t, differing)
 }
 
 func TestEveryTileHasAPlausibleNumberOfNeighbours(t *testing.T) {

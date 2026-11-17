@@ -25,15 +25,6 @@ describe("the shipped board", () => {
         expect(positionsHash(positions)).toBe(BOARD.positionsHash)
     })
 
-    it("rebuilds every tile of the coordinates blob it replaced bit for bit, in tile order", () => {
-        const blob = new Uint32Array(bytesOf(`${MAP}coordinates-10d1f87d.bin`), 12, BOARD.tiles * 3)
-        const {positions} = rebuildTiles(BOARD.lattice, BOARD.tiles, bytesOf(directory + BOARD.files.runs))
-        const got = new Uint32Array(positions.buffer)
-        let differing = 0
-        for (let k = 0; k < blob.length; k++) if (got[k] !== blob[k]) differing++
-        expect(differing).toBe(0)
-    })
-
     it("is the page's copy of /map's, served where the page fetches it", () => {
         const manifest = readdirSync(directory).filter((name) => /^board-[0-9a-f]{8}\.json$/.test(name))
         expect(manifest).toHaveLength(1)

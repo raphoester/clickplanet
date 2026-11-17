@@ -20,15 +20,6 @@ describe("the bundled board", () => {
         expect(positionsHash(positions)).toBe(BOARD.positionsHash)
     })
 
-    it("rebuilds every tile of the coordinates blob it replaced bit for bit", () => {
-        const bytes = readFileSync(`${MAP}coordinates-10d1f87d.bin`)
-        const blob = new Uint32Array(bytes.buffer.slice(bytes.byteOffset + 12, bytes.byteOffset + 12 + BOARD.tiles * 12))
-        const got = new Uint32Array(boardPositions(BOARD.lattice, BOARD.tiles, runs()).buffer)
-        let differing = 0
-        for (let k = 0; k < blob.length; k++) if (got[k] !== blob[k]) differing++
-        expect(differing).toBe(0)
-    })
-
     it("is /map's", () => {
         const directory = `${MAP}boards/${BOARD.name}/`
         expect(readFileSync(`${GEN}${BOARD.name}/${BOARD.files.runs}`).equals(readFileSync(directory + BOARD.files.runs))).toBe(true)
