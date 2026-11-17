@@ -1,8 +1,10 @@
 package stats
 
 import (
+	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
@@ -31,7 +33,11 @@ func (d Day) Empty() bool { return d.midnight.IsZero() }
 
 func (d Day) Following() Day { return Day{midnight: d.midnight.AddDate(0, 0, 1)} }
 
+func (d Day) Preceding() Day { return Day{midnight: d.midnight.AddDate(0, 0, -1)} }
+
 func (d Day) Before(other Day) bool { return d.midnight.Before(other.midnight) }
+
+func (d Day) Compare(other Day) int { return d.midnight.Compare(other.midnight) }
 
 func (d Day) String() string {
 	if d.Empty() {
@@ -53,6 +59,7 @@ type Stats struct {
 	rightAnswers   uint64
 	missionsDone   uint64
 	missionsByKind map[MissionKind]MissionTally
+	forgivenDays   []Day
 	counted        Counted
 }
 
@@ -89,6 +96,7 @@ type StatsSnapshot struct {
 	RightAnswers   uint64
 	MissionsDone   uint64
 	MissionsByKind map[MissionKind]MissionTally
+	ForgivenDays   []Day
 	Counted        Counted
 }
 
@@ -106,6 +114,7 @@ func (s StatsSnapshot) Restore() Stats {
 		rightAnswers:   s.RightAnswers,
 		missionsDone:   s.MissionsDone,
 		missionsByKind: talliesOf(s.MissionsByKind),
+		forgivenDays:   daysOf(s.ForgivenDays),
 		counted:        s.Counted,
 	}
 }
@@ -124,6 +133,7 @@ func (s Stats) TakeSnapshot() StatsSnapshot {
 		RightAnswers:   s.rightAnswers,
 		MissionsDone:   s.missionsDone,
 		MissionsByKind: talliesOf(s.missionsByKind),
+		ForgivenDays:   daysOf(s.forgivenDays),
 		Counted:        s.counted,
 	}
 }
@@ -175,6 +185,18 @@ func talliesOf(tallies map[MissionKind]MissionTally) map[MissionKind]MissionTall
 		return nil
 	}
 	return maps.Clone(tallies)
+}
+
+// ForgivenDays is the days the operator forgave the account, in order: none of them is a day played.
+func (s Stats) ForgivenDays() []Day { return daysOf(s.forgivenDays) }
+
+func daysOf(days []Day) []Day {
+	if len(days) == 0 {
+		return nil
+	}
+	sorted := slices.Clone(days)
+	slices.SortFunc(sorted, Day.Compare)
+	return slices.Compact(sorted)
 }
 
 type TakeMark struct {
@@ -234,6 +256,17 @@ func MissionsDone(byKind map[MissionKind]MissionTally) func(Stats) Stats {
 
 func PlayDays(days []Day) func(Stats) Stats {
 	return func(s Stats) Stats { return s.WithPlayDays(days) }
+}
+
+// ForgivenDay leaves the stats as they are when the rule refuses the day under the lock: the caller asked it before.
+func ForgivenDay(day Day, played []Day, today Day) func(Stats) Stats {
+	return func(s Stats) Stats {
+		forgiven, err := s.WithForgivenDay(day, played, today)
+		if err != nil {
+			return s
+		}
+		return forgiven
+	}
 }
 
 // Postgres keeps a time to the microsecond: a fact told again must compare equal to the one kept.
@@ -337,21 +370,78 @@ func (s Stats) WithMissionsDone(byKind map[MissionKind]MissionTally) Stats {
 
 // WithPlayDays counts the days played again from the days the ledger holds a take on, for the backfill. Only the days up
 // to the streak's last day count, and that day always does: a take the live count already counted on a later day is
-// not counted twice, and one flushed after the ledger was read is not lost. The best streak is a floor, for the takes
-// from before the ledger had accounts, and the days played never go down.
+// not counted twice, and one flushed after the ledger was read is not lost. The best streak less the days forgiven is a
+// floor, for the takes from before the ledger had accounts; a forgiven day is never a day played, and the days played
+// never go down.
 func (s Stats) WithPlayDays(days []Day) Stats {
 	last := s.streak.lastDay
 	if last.Empty() {
 		return s
 	}
-	played := cpcolls.NewSet(last)
-	for _, day := range days {
-		if !last.Before(day) {
+	forgiven := cpcolls.NewSet(s.forgivenDays...)
+	played := cpcolls.NewSet[Day]()
+	for _, day := range append([]Day{last}, days...) {
+		if !last.Before(day) && !forgiven.Contains(day) {
 			played.Add(day)
 		}
 	}
-	s.daysPlayed = max(uint64(played.Len()), uint64(s.streakBest), s.daysPlayed)
+	best, daysForgiven := uint64(s.streakBest), uint64(len(s.forgivenDays))
+	s.daysPlayed = max(uint64(played.Len()), best-min(daysForgiven, best), s.daysPlayed)
 	return s
+}
+
+var (
+	ErrNoStreak     = errors.New("the account never took a tile, so it has no streak")
+	ErrNotPast      = errors.New("the day is today or later: the player can still play it")
+	ErrDayForgiven  = errors.New("the day is forgiven already")
+	ErrDayPlayed    = errors.New("the account played that day")
+	ErrJoinsNothing = errors.New("the day joins nothing to the streak: it is more than one day after the last day played, " +
+		"or apart from the streak's run")
+)
+
+// WithForgivenDay counts the streak as though the account had played the day, which is no take: no day played, no tile.
+func (s Stats) WithForgivenDay(day Day, played []Day, today Day) (Stats, error) {
+	last := s.streak.lastDay
+	switch {
+	case last.Empty():
+		return s, ErrNoStreak
+	case !day.Before(today):
+		return s, ErrNotPast
+	case slices.Contains(s.forgivenDays, day):
+		return s, ErrDayForgiven
+	case slices.Contains(played, day) || s.streak.Covers(day):
+		return s, ErrDayPlayed
+	case last.Following().Before(day):
+		return s, ErrJoinsNothing
+	}
+
+	onTheStreak := cpcolls.NewSet(append(slices.Clone(played), s.forgivenDays...)...)
+	for covered, n := last, uint32(0); n < max(s.streak.days, 1); covered, n = covered.Preceding(), n+1 {
+		onTheStreak.Add(covered)
+	}
+	before := runOf(last, onTheStreak)
+	onTheStreak.Add(day)
+	end := last
+	if last.Before(day) {
+		end = day
+	}
+	run := runOf(end, onTheStreak)
+	if end == last && run == before {
+		return s, ErrJoinsNothing
+	}
+
+	s.streak = Streak{days: max(s.streak.days, run), lastDay: end}
+	s.streakBest = max(s.streakBest, run)
+	s.forgivenDays = daysOf(append(slices.Clone(s.forgivenDays), day))
+	return s, nil
+}
+
+func runOf(end Day, days *cpcolls.Set[Day]) uint32 {
+	var run uint32
+	for day := end; days.Contains(day); day = day.Preceding() {
+		run++
+	}
+	return run
 }
 
 type Streak struct {

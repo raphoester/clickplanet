@@ -141,6 +141,19 @@ func (s *StoreContractSuite) TestTheDaysPlayedReadBack() {
 		WithPlayDays([]Day{DayOf(contractAt.Add(-72 * time.Hour)), DayOf(contractAt)}), s.stats(1))
 }
 
+func (s *StoreContractSuite) TestTheForgivenDaysReadBack() {
+	s.recordTake(1, 0, contractAt)
+	s.recordTake(1, 1, contractAt.Add(48*time.Hour))
+	played, today := []Day{DayOf(contractAt), DayOf(contractAt.Add(48 * time.Hour))}, DayOf(contractAt.Add(5*24*time.Hour))
+	s.record(1, ForgivenDay(DayOf(contractAt.Add(24*time.Hour)), played, today))
+	s.record(1, ForgivenDay(DayOf(contractAt.Add(72*time.Hour)), played, today))
+	s.recordTake(2, 2, contractAt)
+
+	s.Equal([]Day{DayOf(contractAt.Add(24 * time.Hour)), DayOf(contractAt.Add(72 * time.Hour))}, s.stats(1).ForgivenDays())
+	s.Equal(StreakOf(4, DayOf(contractAt.Add(72*time.Hour))), s.stats(1).Streak())
+	s.Nil(s.stats(2).ForgivenDays(), "an account never forgiven keeps no day")
+}
+
 func (s *StoreContractSuite) TestTheMissionsByKindReadBackWithTheHighestTotalsOfEachKind() {
 	s.record(1, MissionsDone(map[MissionKind]MissionTally{"take_for": {Done: 2, Goals: 360}, "bomb_in": {Done: 1, Goals: 2}}))
 	s.record(1, MissionsDone(map[MissionKind]MissionTally{"take_for": {Done: 1, Goals: 180}, "catch_boxes": {Done: 1, Goals: 4}}))

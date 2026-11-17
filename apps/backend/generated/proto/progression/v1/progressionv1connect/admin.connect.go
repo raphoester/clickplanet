@@ -42,6 +42,9 @@ const (
 	// AdminServiceReconcileLevelsProcedure is the fully-qualified name of the AdminService's
 	// ReconcileLevels RPC.
 	AdminServiceReconcileLevelsProcedure = "/progression.v1.AdminService/ReconcileLevels"
+	// AdminServiceForgiveMissedDayProcedure is the fully-qualified name of the AdminService's
+	// ForgiveMissedDay RPC.
+	AdminServiceForgiveMissedDayProcedure = "/progression.v1.AdminService/ForgiveMissedDay"
 	// AdminServiceGetProgressProcedure is the fully-qualified name of the AdminService's GetProgress
 	// RPC.
 	AdminServiceGetProgressProcedure = "/progression.v1.AdminService/GetProgress"
@@ -62,6 +65,15 @@ type AdminServiceClient interface {
 	// level-up bonus; it tells the bonuses module what every account read unlocks (bonuses.v1.KeepUnlocks). A second run
 	// changes nothing. Run it with dry_run first.
 	ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error)
+	// Forgives one UTC day an account missed, so its streak runs through it, as though it had played that day. The streak
+	// is counted again over the days planet's ledger holds a take on, the streak's own days, the days forgiven before and
+	// this one; the best streak rises with it. A forgiven day is no take: the days played, the tiles, the XP and every
+	// other stat stay. The day must be before today (UTC), not played, not forgiven already, and join the streak's run: a
+	// gap in it, the day before it, or the day after the last day played (the player missed yesterday and has not played
+	// today), which becomes the streak's last day so the next take extends it. Refused: NotFound for an account with no
+	// stats, InvalidArgument for today or a later day, AlreadyExists for a day forgiven already, FailedPrecondition for a
+	// day played, a day that joins nothing, or an account that never took a tile. Run it with dry_run first.
+	ForgiveMissedDay(context.Context, *connect.Request[v1.ForgiveMissedDayRequest]) (*connect.Response[v1.ForgiveMissedDayResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
 	GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error)
@@ -96,6 +108,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("ReconcileLevels")),
 			connect.WithClientOptions(opts...),
 		),
+		forgiveMissedDay: connect.NewClient[v1.ForgiveMissedDayRequest, v1.ForgiveMissedDayResponse](
+			httpClient,
+			baseURL+AdminServiceForgiveMissedDayProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("ForgiveMissedDay")),
+			connect.WithClientOptions(opts...),
+		),
 		getProgress: connect.NewClient[v1.AdminGetProgressRequest, v1.AdminGetProgressResponse](
 			httpClient,
 			baseURL+AdminServiceGetProgressProcedure,
@@ -111,6 +129,7 @@ type adminServiceClient struct {
 	reconcileTitles    *connect.Client[v1.ReconcileTitlesRequest, v1.ReconcileTitlesResponse]
 	backfillDaysPlayed *connect.Client[v1.BackfillDaysPlayedRequest, v1.BackfillDaysPlayedResponse]
 	reconcileLevels    *connect.Client[v1.ReconcileLevelsRequest, v1.ReconcileLevelsResponse]
+	forgiveMissedDay   *connect.Client[v1.ForgiveMissedDayRequest, v1.ForgiveMissedDayResponse]
 	getProgress        *connect.Client[v1.AdminGetProgressRequest, v1.AdminGetProgressResponse]
 }
 
@@ -127,6 +146,11 @@ func (c *adminServiceClient) BackfillDaysPlayed(ctx context.Context, req *connec
 // ReconcileLevels calls progression.v1.AdminService.ReconcileLevels.
 func (c *adminServiceClient) ReconcileLevels(ctx context.Context, req *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error) {
 	return c.reconcileLevels.CallUnary(ctx, req)
+}
+
+// ForgiveMissedDay calls progression.v1.AdminService.ForgiveMissedDay.
+func (c *adminServiceClient) ForgiveMissedDay(ctx context.Context, req *connect.Request[v1.ForgiveMissedDayRequest]) (*connect.Response[v1.ForgiveMissedDayResponse], error) {
+	return c.forgiveMissedDay.CallUnary(ctx, req)
 }
 
 // GetProgress calls progression.v1.AdminService.GetProgress.
@@ -149,6 +173,15 @@ type AdminServiceHandler interface {
 	// level-up bonus; it tells the bonuses module what every account read unlocks (bonuses.v1.KeepUnlocks). A second run
 	// changes nothing. Run it with dry_run first.
 	ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error)
+	// Forgives one UTC day an account missed, so its streak runs through it, as though it had played that day. The streak
+	// is counted again over the days planet's ledger holds a take on, the streak's own days, the days forgiven before and
+	// this one; the best streak rises with it. A forgiven day is no take: the days played, the tiles, the XP and every
+	// other stat stay. The day must be before today (UTC), not played, not forgiven already, and join the streak's run: a
+	// gap in it, the day before it, or the day after the last day played (the player missed yesterday and has not played
+	// today), which becomes the streak's last day so the next take extends it. Refused: NotFound for an account with no
+	// stats, InvalidArgument for today or a later day, AlreadyExists for a day forgiven already, FailedPrecondition for a
+	// day played, a day that joins nothing, or an account that never took a tile. Run it with dry_run first.
+	ForgiveMissedDay(context.Context, *connect.Request[v1.ForgiveMissedDayRequest]) (*connect.Response[v1.ForgiveMissedDayResponse], error)
 	// What the game keeps of one account's progression, a guest's too: the stats as kept, the titles, every front.
 	// An account it keeps nothing about is zeros, not NotFound: player.v1's GetPlayer says whether it is one.
 	GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error)
@@ -179,6 +212,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("ReconcileLevels")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceForgiveMissedDayHandler := connect.NewUnaryHandler(
+		AdminServiceForgiveMissedDayProcedure,
+		svc.ForgiveMissedDay,
+		connect.WithSchema(adminServiceMethods.ByName("ForgiveMissedDay")),
+		connect.WithHandlerOptions(opts...),
+	)
 	adminServiceGetProgressHandler := connect.NewUnaryHandler(
 		AdminServiceGetProgressProcedure,
 		svc.GetProgress,
@@ -194,6 +233,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceBackfillDaysPlayedHandler.ServeHTTP(w, r)
 		case AdminServiceReconcileLevelsProcedure:
 			adminServiceReconcileLevelsHandler.ServeHTTP(w, r)
+		case AdminServiceForgiveMissedDayProcedure:
+			adminServiceForgiveMissedDayHandler.ServeHTTP(w, r)
 		case AdminServiceGetProgressProcedure:
 			adminServiceGetProgressHandler.ServeHTTP(w, r)
 		default:
@@ -215,6 +256,10 @@ func (UnimplementedAdminServiceHandler) BackfillDaysPlayed(context.Context, *con
 
 func (UnimplementedAdminServiceHandler) ReconcileLevels(context.Context, *connect.Request[v1.ReconcileLevelsRequest]) (*connect.Response[v1.ReconcileLevelsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.AdminService.ReconcileLevels is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) ForgiveMissedDay(context.Context, *connect.Request[v1.ForgiveMissedDayRequest]) (*connect.Response[v1.ForgiveMissedDayResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("progression.v1.AdminService.ForgiveMissedDay is not implemented"))
 }
 
 func (UnimplementedAdminServiceHandler) GetProgress(context.Context, *connect.Request[v1.AdminGetProgressRequest]) (*connect.Response[v1.AdminGetProgressResponse], error) {

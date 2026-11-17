@@ -276,6 +276,175 @@ func TestAnAccountWithNoTakeHasNoDayToBackfill(t *testing.T) {
 	assert.Zero(t, counted.DaysPlayed())
 }
 
+func dayRange(t *testing.T, first, last string) []stats.Day {
+	t.Helper()
+
+	var run []stats.Day
+	for d := day(t, first); !day(t, last).Before(d); d = d.Following() {
+		run = append(run, d)
+	}
+	return run
+}
+
+// The stats counted live from a take at noon on each day, and the ledger that holds them.
+func playedOn(t *testing.T, ledger ...[]stats.Day) (stats.Stats, []stats.Day) {
+	t.Helper()
+
+	var (
+		counted stats.Stats
+		played  []stats.Day
+	)
+	for _, days := range ledger {
+		played = append(played, days...)
+	}
+	for position, d := range played {
+		noon, err := time.Parse(time.DateTime, d.String()+" 12:00:00")
+		require.NoError(t, err)
+		counted = counted.WithTake(uint64(position), 0, noon)
+	}
+	return counted, played
+}
+
+func TestAForgivenGapJoinsTheRunBeforeItToTheStreak(t *testing.T) {
+	counted, ledger := playedOn(t, days(t, "2026-09-30"), dayRange(t, "2026-10-09", "2026-11-14"), dayRange(t, "2026-11-16", "2026-11-17"))
+	require.Equal(t, stats.StreakOf(2, day(t, "2026-11-17")), counted.Streak())
+	require.Equal(t, uint32(37), counted.StreakBest())
+
+	forgiven, err := counted.WithForgivenDay(day(t, "2026-11-15"), ledger, day(t, "2026-11-17"))
+
+	require.NoError(t, err)
+	assert.Equal(t, stats.StreakOf(40, day(t, "2026-11-17")), forgiven.Streak())
+	assert.Equal(t, uint32(40), forgiven.StreakBest())
+	assert.Equal(t, days(t, "2026-11-15"), forgiven.ForgivenDays())
+	want := counted.TakeSnapshot()
+	want.Streak, want.StreakBest, want.ForgivenDays = forgiven.Streak(), 40, days(t, "2026-11-15")
+	assert.Equal(t, want, forgiven.TakeSnapshot(), "no day played, no tile, nothing else")
+	assert.Equal(t, uint64(40), forgiven.DaysPlayed())
+}
+
+func TestAForgivenYesterdayIsTheLastDaySoTheNextTakeExtendsTheStreak(t *testing.T) {
+	counted, ledger := playedOn(t, dayRange(t, "2026-11-10", "2026-11-15"))
+
+	forgiven, err := counted.WithForgivenDay(day(t, "2026-11-16"), ledger, day(t, "2026-11-17"))
+
+	require.NoError(t, err)
+	assert.Equal(t, stats.StreakOf(7, day(t, "2026-11-16")), forgiven.Streak())
+	assert.Equal(t, uint32(7), forgiven.StreakBest())
+	assert.Equal(t, uint64(6), forgiven.DaysPlayed())
+
+	next := forgiven.WithTake(100, 0, time.Date(2026, 11, 17, 8, 0, 0, 0, time.UTC))
+	assert.Equal(t, stats.StreakOf(8, day(t, "2026-11-17")), next.Streak())
+	assert.Equal(t, uint64(7), next.DaysPlayed(), "the take is a day played, the forgiven day is not")
+}
+
+func TestAForgivenDayBeforeTheRunLengthensIt(t *testing.T) {
+	counted, ledger := playedOn(t, dayRange(t, "2026-11-01", "2026-11-03"), dayRange(t, "2026-11-05", "2026-11-06"))
+
+	forgiven, err := counted.WithForgivenDay(day(t, "2026-11-04"), ledger, day(t, "2026-11-17"))
+
+	require.NoError(t, err)
+	assert.Equal(t, stats.StreakOf(6, day(t, "2026-11-06")), forgiven.Streak(), "a broken streak keeps its last day")
+}
+
+func TestTheDaysForgivenBeforeStayOnTheStreak(t *testing.T) {
+	counted, ledger := playedOn(t, dayRange(t, "2026-11-01", "2026-11-02"), dayRange(t, "2026-11-04", "2026-11-05"),
+		dayRange(t, "2026-11-07", "2026-11-08"))
+	once, err := counted.WithForgivenDay(day(t, "2026-11-06"), ledger, day(t, "2026-11-17"))
+	require.NoError(t, err)
+
+	twice, err := once.WithForgivenDay(day(t, "2026-11-03"), ledger, day(t, "2026-11-17"))
+
+	require.NoError(t, err)
+	assert.Equal(t, stats.StreakOf(8, day(t, "2026-11-08")), twice.Streak())
+	assert.Equal(t, days(t, "2026-11-03", "2026-11-06"), twice.ForgivenDays())
+}
+
+func TestABetterRunBeforeKeepsTheBestStreak(t *testing.T) {
+	counted, ledger := playedOn(t, dayRange(t, "2026-10-01", "2026-10-20"), dayRange(t, "2026-11-01", "2026-11-02"),
+		dayRange(t, "2026-11-04", "2026-11-05"))
+
+	forgiven, err := counted.WithForgivenDay(day(t, "2026-11-03"), ledger, day(t, "2026-11-17"))
+
+	require.NoError(t, err)
+	assert.Equal(t, uint32(5), forgiven.Streak().Days())
+	assert.Equal(t, uint32(20), forgiven.StreakBest())
+}
+
+func TestTheStreakKeptIsAFloorOfTheRun(t *testing.T) {
+	counted := stats.StatsSnapshot{Streak: stats.StreakOf(9, day(t, "2026-09-18")), StreakBest: 9, DaysPlayed: 9}.Restore()
+
+	forgiven, err := counted.WithForgivenDay(day(t, "2026-09-19"), days(t, "2026-09-17", "2026-09-18"), day(t, "2026-11-17"))
+
+	require.NoError(t, err)
+	assert.Equal(t, stats.StreakOf(10, day(t, "2026-09-19")), forgiven.Streak(), "the ledger holds no account before 2026-09-16")
+}
+
+func TestADayThatCannotBeForgivenIsRefusedAndChangesNothing(t *testing.T) {
+	counted, ledger := playedOn(t, dayRange(t, "2026-11-01", "2026-11-03"), dayRange(t, "2026-11-05", "2026-11-06"),
+		dayRange(t, "2026-11-10", "2026-11-11"))
+	forgiven, err := counted.WithForgivenDay(day(t, "2026-11-09"), ledger, day(t, "2026-11-12"))
+	require.NoError(t, err)
+
+	for name, refused := range map[string]struct {
+		day   string
+		today string
+		err   error
+	}{
+		"today":                       {day: "2026-11-12", today: "2026-11-12", err: stats.ErrNotPast},
+		"a day to come":               {day: "2026-11-13", today: "2026-11-12", err: stats.ErrNotPast},
+		"a day played on the run":     {day: "2026-11-10", today: "2026-11-12", err: stats.ErrDayPlayed},
+		"a day played before the run": {day: "2026-11-02", today: "2026-11-12", err: stats.ErrDayPlayed},
+		"a day forgiven already":      {day: "2026-11-09", today: "2026-11-12", err: stats.ErrDayForgiven},
+		"two days after the last day": {day: "2026-11-13", today: "2026-11-20", err: stats.ErrJoinsNothing},
+		"a gap apart from the run":    {day: "2026-11-04", today: "2026-11-12", err: stats.ErrJoinsNothing},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := forgiven.WithForgivenDay(day(t, refused.day), ledger, day(t, refused.today))
+
+			require.ErrorIs(t, err, refused.err)
+			assert.Equal(t, forgiven, got)
+			assert.Equal(t, forgiven, stats.ForgivenDay(day(t, refused.day), ledger, day(t, refused.today))(forgiven),
+				"the change leaves the stats as they are")
+		})
+	}
+}
+
+func TestAnAccountWithNoTakeHasNoStreakToForgive(t *testing.T) {
+	counted := stats.Stats{}.WithMessage(beforeMidnight)
+
+	_, err := counted.WithForgivenDay(day(t, "2026-09-16"), nil, day(t, "2026-09-18"))
+
+	require.ErrorIs(t, err, stats.ErrNoStreak)
+}
+
+func TestABackfillCountsNoForgivenDay(t *testing.T) {
+	counted, ledger := playedOn(t, dayRange(t, "2026-11-10", "2026-11-12"), dayRange(t, "2026-11-14", "2026-11-15"))
+	gap, err := counted.WithForgivenDay(day(t, "2026-11-13"), ledger, day(t, "2026-11-17"))
+	require.NoError(t, err)
+	yesterday, err := gap.WithForgivenDay(day(t, "2026-11-16"), ledger, day(t, "2026-11-17"))
+	require.NoError(t, err)
+	require.Equal(t, uint32(7), yesterday.StreakBest())
+
+	backfilled := yesterday.WithPlayDays(ledger)
+
+	assert.Equal(t, uint64(5), backfilled.DaysPlayed(), "neither the gap nor the last day, forgiven, nor the best streak")
+}
+
+func TestTheBestStreakLessTheForgivenDaysIsTheFloor(t *testing.T) {
+	counted := stats.StatsSnapshot{
+		Streak: stats.StreakOf(12, day(t, "2026-10-05")), StreakBest: 12, ForgivenDays: days(t, "2026-09-30"),
+	}.Restore().WithPlayDays(days(t, "2026-10-04", "2026-10-05"))
+
+	assert.Equal(t, uint64(11), counted.DaysPlayed())
+}
+
+func TestTheForgivenDaysAreKeptInOrderOnce(t *testing.T) {
+	kept := stats.StatsSnapshot{ForgivenDays: days(t, "2026-11-05", "2026-11-01", "2026-11-05")}.Restore()
+
+	assert.Equal(t, days(t, "2026-11-01", "2026-11-05"), kept.TakeSnapshot().ForgivenDays)
+	assert.Nil(t, stats.StatsSnapshot{ForgivenDays: []stats.Day{}}.Restore().ForgivenDays(), "none is no day")
+}
+
 func TestADayReadsBackAsItIsWritten(t *testing.T) {
 	assert.Equal(t, stats.DayOf(beforeMidnight), day(t, stats.DayOf(beforeMidnight).String()))
 

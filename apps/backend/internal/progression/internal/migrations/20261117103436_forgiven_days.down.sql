@@ -1,0 +1,1 @@
+ALTER TABLE stats DROP COLUMN IF EXISTS forgiven_days;
