@@ -185,8 +185,6 @@ function Result({frame, question, outcome, awaiting, chosen, left, onClose}: {
                     </p>
                     {won && reward && <p className={`quiz-reward quiz-kind--${won.kind}`}>{reward.title}</p>}
                     {reward?.detail && <p className="quiz-reward-detail">{reward.detail}</p>}
-                    {outcome.correct && !reward && !awaiting &&
-                        <p className="quiz-reward-detail">{t("quiz.inventoryFull")}</p>}
                 </div>
                 <button type="button" className="icon-button quiz-close" aria-label={t("common.close")} onClick={onClose}>
                     <CloseIcon/>

@@ -220,6 +220,7 @@ func TestASinkFramesWhatAGrantAddedAndEverythingItLeftHeld(t *testing.T) {
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
 		Granted: &charges.Gain{
+			Paid:   []charges.Kind{charges.KindBomb, charges.KindSpreadClicks, charges.KindShields},
 			Before: charges.Held{Enclosures: 2, Shields: 5},
 			After:  charges.Held{Bombs: 1, Enclosures: 2, SpreadClicks: 4, Shields: 20},
 		},
@@ -241,6 +242,23 @@ func TestASinkFramesWhatAGrantAddedAndEverythingItLeftHeld(t *testing.T) {
 	assert.Equal(t, map[planetv1.BonusKind]uint32{
 		planetv1.BonusKind_BONUS_KIND_BOMB: 1, planetv1.BonusKind_BONUS_KIND_SPREAD_CLICKS: 4, planetv1.BonusKind_BONUS_KIND_SHIELDS: 15,
 	}, gained, "the enclosures it held before are no gain")
+}
+
+func TestASinkFramesAKindPaidIntoAFullStackAsNoneKept(t *testing.T) {
+	stream := &recorder{}
+
+	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{
+		Granted: &charges.Gain{
+			Paid:   []charges.Kind{charges.KindBomb},
+			Before: charges.Held{Bombs: 1},
+			After:  charges.Held{Bombs: 1},
+		},
+	}))
+
+	gained := stream.sent[0].GetChargesGranted().GetGained()
+	require.Len(t, gained, 1)
+	assert.Equal(t, planetv1.BonusKind_BONUS_KIND_BOMB, gained[0].GetKind())
+	assert.Zero(t, gained[0].GetAmount())
 }
 
 func TestASinkFramesAKnockOutAsOneEventWithItsTilesAndVersion(t *testing.T) {

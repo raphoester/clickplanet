@@ -20,12 +20,10 @@ type AwardProps = {
 
 export default function BonusAward() {
     const reward = useBonus((bonus) => bonus.award)
-    const emptyBox = useBonus((bonus) => bonus.emptyBox)
     const dismiss = useBonus((bonus) => bonus.dismissAward)
-    const dismissEmptyBox = useBonus((bonus) => bonus.dismissEmptyBox)
     const kept = useBonusGuide((bonus) => reward !== undefined && isFirstWin(bonus.guide, reward.kind))
     const markWon = useBonusGuide((bonus) => bonus.markWon)
-    if (!reward) return emptyBox ? <EmptyBox onDone={dismissEmptyBox}/> : null
+    if (!reward) return null
 
     const onDone = () => {
         dismiss()
@@ -63,16 +61,6 @@ export function usePassing(onDone: () => void, shown: unknown) {
             window.removeEventListener("pointerdown", dismiss, true)
         }
     }, [shown])
-}
-
-function EmptyBox({onDone}: {onDone: () => void}) {
-    usePassing(onDone, "empty")
-
-    return <div className="bonus-award" role="status" aria-live="polite">
-        <div className="bonus-award-card panel">
-            <strong className="bonus-award-title">{t("bonus.inventoryFull")}</strong>
-        </div>
-    </div>
 }
 
 function KeptAward({reward, onDone}: AwardProps) {

@@ -18,13 +18,11 @@ func Encode(held charges.Held) *planetv1.ChargesHeld {
 	}
 }
 
-// Gained is each kind a grant added to the hand, and how many.
+// Gained is each kind a grant paid, and how many of it the hand kept.
 func Gained(gain charges.Gain) []*planetv1.ChargeGained {
-	var gained []*planetv1.ChargeGained
-	for _, kind := range charges.Kinds {
-		if added := gain.Count(kind); added > 0 {
-			gained = append(gained, &planetv1.ChargeGained{Kind: charges.EncodeKind(kind), Amount: uint32(added)})
-		}
+	gained := make([]*planetv1.ChargeGained, 0, len(gain.Paid))
+	for _, kind := range gain.Paid {
+		gained = append(gained, &planetv1.ChargeGained{Kind: charges.EncodeKind(kind), Amount: uint32(max(gain.Count(kind), 0))})
 	}
 	return gained
 }

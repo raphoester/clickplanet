@@ -48,6 +48,17 @@ describe("describeReward", () => {
         expect(describeReward({kind: "shields", shields: 1}).title).toBe("+1 shield")
     })
 
+    it("names a kind alone when its slot was full and kept none", () => {
+        expect(describeReward({kind: "refill", refills: 0}).title).toBe("Refill")
+        expect(describeReward({kind: "spreadClicks", clicks: 0}).title).toBe("Spread")
+        expect(describeReward({kind: "bomb", radius: 0.06, bombs: 0}).title).toBe("Bomb")
+        expect(describeReward({kind: "encloseClicks", shapes: 0, maxTiles: 25}).title).toBe("Enclose")
+        expect(describeReward({kind: "shields", shields: 0}).title).toBe("Shield")
+        expect(describeReward({kind: "virus", viruses: 0}).title).toBe("Virus")
+        expect(describeReward({kind: "mine", mines: 0}).title).toBe("Mine")
+        expect(describeReward({kind: "rally", rallies: 0}).title).toBe("Rally")
+    })
+
     it("gives every kind a title of its own", () => {
         const rewards: BonusReward[] = [
             {kind: "refill", refills: 1},

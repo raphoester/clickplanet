@@ -10,7 +10,7 @@ import {asBonusError} from "./planetBackend.ts"
 import {NoSession, SESSION_HEADER, SessionProvider} from "./session.ts"
 import {Config, NO_TIMEOUT, openStream} from "./transport.ts"
 
-// A box's reward is a grant planet tells a moment after the catch; past this, the hand had room for none.
+// A box's reward is a grant planet tells a moment after the catch; past this, none comes.
 export const BOX_REWARD_WAIT_MS = 2500
 
 export function newBoxServiceClient(config: Config): PromiseClient<typeof BoxService> {
