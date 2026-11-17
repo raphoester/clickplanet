@@ -1,12 +1,10 @@
-import {createHash} from "node:crypto"
-
 // Keeps the f32 frames 4-byte aligned, as the browser's Float32Array views require.
 const PAD_TO = 4
 const padding = (length) => (PAD_TO - (length % PAD_TO)) % PAD_TO
 
 /**
  * @param {{codes: string[], assignment: Uint16Array, frames: Float32Array, totals: Uint32Array}} borders
- * @returns {{bytes: Buffer, fileName: string}}
+ * @returns {{bytes: Buffer}}
  */
 export function encodeBorders({codes, assignment, frames, totals}) {
     if (frames.length !== codes.length * 5) {
@@ -31,6 +29,5 @@ export function encodeBorders({codes, assignment, frames, totals}) {
         Buffer.from(totals.buffer, totals.byteOffset, totals.byteLength),
     ])
 
-    const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 8)
-    return {bytes, fileName: `borders-${hash}.bin`}
+    return {bytes}
 }

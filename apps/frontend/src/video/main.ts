@@ -6,7 +6,7 @@ import {MapReel} from "../domain/mapHistory.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
-import {BORDERS_URL} from "../app/viewer/bordersAsset.ts"
+import {BOARD} from "../app/viewer/boardAsset.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {Countries} from "../domain/countries.ts"
 import {cameraOf, framingOf, overviewOf} from "../domain/clip/camera.ts"
@@ -96,7 +96,7 @@ async function make(job: VideoJob, progress: (share: number) => void): Promise<{
     const {width, height} = stage.getBoundingClientRect()
 
     const {story} = job
-    const [{positions}, borders] = await Promise.all([loadPointGeometryData(), loadBorders(BORDERS_URL)])
+    const [{positions}, borders] = await Promise.all([loadPointGeometryData(), loadBorders(BOARD.urls.borders)])
     const tiles = borders.assignment.length
     const landmasses = {assignment: borders.assignment, count: borders.codes.length}
     const since = job.history.frames[0]?.at ?? 0

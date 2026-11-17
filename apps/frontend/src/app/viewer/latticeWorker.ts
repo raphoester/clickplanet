@@ -1,13 +1,13 @@
-import {rebuildTilePositions} from "../../domain/landmask.ts"
-import {cellsOf, type TileCells} from "../../domain/latticeCells.ts"
+import {type Lattice, rebuildTiles, type RebuiltTiles} from "../../domain/board.ts"
 
-export type LatticeAnswer = {positions: Float32Array, cells: TileCells} | {error: string}
+export type LatticeQuestion = {lattice: Lattice, tiles: number, runs: ArrayBuffer}
 
-self.onmessage = ({data}: MessageEvent<ArrayBuffer>) => {
+export type LatticeAnswer = RebuiltTiles | {error: string}
+
+self.onmessage = ({data}: MessageEvent<LatticeQuestion>) => {
     let answer: LatticeAnswer
     try {
-        const positions = rebuildTilePositions(data)
-        answer = {positions, cells: cellsOf(positions)}
+        answer = rebuildTiles(data.lattice, data.tiles, data.runs)
     } catch (e) {
         answer = {error: e instanceof Error ? e.message : String(e)}
     }

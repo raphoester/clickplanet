@@ -34,7 +34,7 @@ function fieldOf(compact: boolean, size = SIZE) {
     const data: TileGeometry = {
         positions: new Float32Array(size * 3),
         size,
-        cells: {words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => size - 1 - i)},
+        cells: {cols: 1, words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => size - 1 - i)},
     }
     return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, {compact})
 }

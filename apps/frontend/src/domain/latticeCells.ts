@@ -1,4 +1,4 @@
-import {canonicalId, CORNERS, FACE_COUNT, FACES, faceIds, type FaceIds, LATTICE_DETAIL, latticeSize} from "./lattice.ts"
+import {canonicalId, CORNERS, FACE_COUNT, FACES, faceIds, type FaceIds, latticeSize} from "./lattice.ts"
 
 // Must match the territory layer's fragment shader, which finds a pixel's cell the same way.
 
@@ -16,10 +16,8 @@ export type LatticeFace = {
     ids: FaceIds
 }
 
-export const LATTICE_COLS = LATTICE_DETAIL + 1
-
-export function latticeFaces(detail = LATTICE_DETAIL): LatticeFace[] {
-    const ids = faceIds(detail)
+export function latticeFaces(cols: number): LatticeFace[] {
+    const ids = faceIds(cols)
     return Array.from({length: FACE_COUNT}, (_, face) => {
         const [a, b, c] = [0, 1, 2].map((k) => cornerOf(FACES[face * 3 + k]))
         const toB = minus(b, a)
@@ -84,28 +82,25 @@ export function nearestOnGrid(x: number, y: number): [number, number] {
     return right >= up ? [fx + 1, fy] : [fx, fy + 1]
 }
 
-// One pair per 32 canonical ids: which are tiles, and how many tiles come before them. A tile's texel is its place among the tiles in canonical order.
+// One pair per 32 canonical ids of a lattice of `cols`: which are tiles, and how many tiles come before them. A tile's
+// texel is its place among the tiles in canonical order.
 export type TileCells = {
+    cols: number
     words: Uint32Array
     texels: Uint32Array
 }
 
 export const IDS_PER_WORD = 32
 
-export function cellsOf(positions: Float32Array, detail = LATTICE_DETAIL): TileCells {
-    const cols = detail + 1
-    const faces = latticeFaces(detail)
-    const tiles = positions.length / 3
-    const points = latticeSize(detail)
-
-    const ids = new Uint32Array(tiles)
+// `ids` holds each tile's canonical id, in tile order.
+export function cellsOf(ids: Uint32Array, cols: number): TileCells {
+    const points = latticeSize(cols)
     const isTile = new Uint8Array(points)
-    for (let tile = 0; tile < tiles; tile++) {
-        const id = cellOf(faces, cols, positions[tile * 3], positions[tile * 3 + 1], positions[tile * 3 + 2])
-        if (isTile[id]) throw new Error(`tile ${tile + 1} falls in the cell of another tile`)
+    ids.forEach((id, tile) => {
+        if (id >= points) throw new Error(`tile ${tile + 1} is past the lattice's ${points} points`)
+        if (isTile[id]) throw new Error(`tile ${tile + 1} is in the cell of another tile`)
         isTile[id] = 1
-        ids[tile] = id
-    }
+    })
 
     const wordCount = Math.ceil(points / IDS_PER_WORD)
     const words = new Uint32Array(wordCount * 2)
@@ -123,7 +118,7 @@ export function cellsOf(positions: Float32Array, detail = LATTICE_DETAIL): TileC
         words[word * 2] = bits >>> 0
     }
 
-    return {words, texels: ids.map((id) => rankOf[id])}
+    return {cols, words, texels: ids.map((id) => rankOf[id])}
 }
 
 function cornerOf(corner: number): Vec3 {

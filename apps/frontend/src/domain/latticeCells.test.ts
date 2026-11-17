@@ -1,14 +1,14 @@
-import {readdirSync, readFileSync} from "node:fs"
+import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {LATTICE_DETAIL, latticeIds, latticePositions, latticeSize} from "./lattice.ts"
-import {cellOf, cellsOf, IDS_PER_WORD, LATTICE_COLS, latticeFaces, nearestOnGrid} from "./latticeCells.ts"
-import {decodeLandmask, rebuildTilePositions} from "./landmask.ts"
+import {BOARD} from "../app/viewer/boardAsset.ts"
+import {decodeRuns, tilesOf} from "./board.ts"
+import {latticeIds, latticePositions, latticeSize} from "./lattice.ts"
+import {cellOf, cellsOf, IDS_PER_WORD, latticeFaces, nearestOnGrid} from "./latticeCells.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
-const DETAIL = 12
-const COLS = DETAIL + 1
+const COLS = 13
 
 function pointOf(positions: Float32Array, point: number): [number, number, number] {
     return [positions[point * 3], positions[point * 3 + 1], positions[point * 3 + 2]]
@@ -25,19 +25,19 @@ describe("nearestOnGrid", () => {
 })
 
 describe("cellOf", () => {
-    const faces = latticeFaces(DETAIL)
-    const positions = latticePositions(DETAIL)
-    const ids = latticeIds(DETAIL)
+    const faces = latticeFaces(COLS)
+    const positions = latticePositions(COLS)
+    const ids = latticeIds(COLS)
 
     it("finds every lattice point in its own cell", () => {
-        for (let point = 0; point < latticeSize(DETAIL); point++) {
+        for (let point = 0; point < latticeSize(COLS); point++) {
             expect(cellOf(faces, COLS, ...pointOf(positions, point)), `point ${point}`).toBe(ids[point])
         }
     })
 
     it("keeps a point moved a third of the way to a neighbour in its cell", () => {
         const spacing = 1.1 / COLS
-        for (let point = 0; point < latticeSize(DETAIL); point += 7) {
+        for (let point = 0; point < latticeSize(COLS); point += 7) {
             const [x, y, z] = pointOf(positions, point)
             const side = Math.abs(x) < 0.9 ? [1, 0, 0] : [0, 1, 0]
             const across = [y * side[2] - z * side[1], z * side[0] - x * side[2], x * side[1] - y * side[0]]
@@ -50,19 +50,19 @@ describe("cellOf", () => {
 })
 
 describe("cellsOf", () => {
-    const positions = latticePositions(DETAIL)
-    const ids = latticeIds(DETAIL)
-    const kept = Array.from({length: latticeSize(DETAIL)}, (_, point) => point).filter((point) => point % 3 !== 1)
-    const tiles = new Float32Array(kept.flatMap((point) => pointOf(positions, point)))
+    const ids = latticeIds(COLS)
+    const kept = Array.from({length: latticeSize(COLS)}, (_, point) => point).filter((point) => point % 3 !== 1)
+    const tileIds = Uint32Array.from(kept, (point) => ids[point])
 
     it("gives every tile its own texel, in canonical order", () => {
-        const {texels} = cellsOf(tiles, DETAIL)
+        const {texels} = cellsOf(tileIds, COLS)
         const byId = kept.map((point, tile) => ({id: ids[point], tile})).sort((a, b) => a.id - b.id)
         byId.forEach(({tile}, rank) => expect(texels[tile]).toBe(rank))
     })
 
     it("marks the tiles' ids and counts the tiles before each word", () => {
-        const {words, texels} = cellsOf(tiles, DETAIL)
+        const {words, texels, cols} = cellsOf(tileIds, COLS)
+        expect(cols).toBe(COLS)
         kept.forEach((point, tile) => {
             const id = ids[point]
             const word = Math.floor(id / IDS_PER_WORD)
@@ -75,32 +75,22 @@ describe("cellsOf", () => {
     })
 
     it("refuses two tiles in one cell", () => {
-        const doubled = new Float32Array([...tiles.subarray(0, 3), ...tiles.subarray(0, 3)])
-        expect(() => cellsOf(doubled, DETAIL)).toThrow(/another tile/)
+        expect(() => cellsOf(Uint32Array.from([4, 4]), COLS)).toThrow(/another tile/)
     })
 })
 
-describe("the shipped tiles", () => {
-    it("each fall in their own cell", () => {
-        const names = readdirSync(STATIC).filter((name) => /^landmask-[0-9a-f]{8}\.bin$/.test(name))
-        expect(names).toHaveLength(1)
-        const bytes = readFileSync(STATIC + names[0])
-        const landmask = () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+describe("the shipped board", () => {
+    it("puts each tile in its own cell as the territory layer finds it", () => {
+        const bytes = readFileSync(`${STATIC}boards/${BOARD.name}/${BOARD.files.runs}`)
+        const runs = decodeRuns(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+        const {positions, ids} = tilesOf(BOARD.lattice, runs, BOARD.tiles)
+        const faces = latticeFaces(BOARD.lattice.cols)
 
-        const positions = rebuildTilePositions(landmask())
-        const {isTile} = decodeLandmask(landmask())
-        const ids = latticeIds(LATTICE_DETAIL)
-        const faces = latticeFaces()
-
-        let tile = 0
-        for (let point = 0; point < latticeSize(LATTICE_DETAIL); point++) {
-            if (!(isTile[point >> 3] & (1 << (point & 7)))) continue
-            const found = cellOf(faces, LATTICE_COLS, ...pointOf(positions, tile))
-            if (found !== ids[point]) expect(found, `tile ${tile + 1}`).toBe(ids[point])
-            tile++
+        for (let tile = 0; tile < BOARD.tiles; tile++) {
+            const found = cellOf(faces, BOARD.lattice.cols, ...pointOf(positions, tile))
+            if (found !== ids[tile]) expect(found, `tile ${tile + 1}`).toBe(ids[tile])
         }
-        expect(tile).toBe(positions.length / 3)
-        expect(() => cellsOf(positions)).not.toThrow()
+        expect(() => cellsOf(ids, BOARD.lattice.cols)).not.toThrow()
     })
 })
 

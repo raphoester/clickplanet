@@ -5,9 +5,9 @@ import {fileURLToPath} from "node:url"
 
 import sharp from "sharp"
 
-import {readCoordinates} from "./map/blob.mjs"
-import {coverage, spacingOf, tilesOn} from "./map/coverage.mjs"
-import {DETAIL, lattice, neighbours} from "./map/lattice.mjs"
+import {readBoard} from "./map/board.mjs"
+import {coverage, spacingOf} from "./map/coverage.mjs"
+import {lattice, neighbours} from "./map/lattice.mjs"
 import {recolour} from "./map/recolour.mjs"
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
@@ -22,17 +22,20 @@ if (!fs.existsSync(source)) {
     throw new Error(`${source} is missing: it is the satellite mosaic the texture is cut from`)
 }
 
-const tiles = readCoordinates()
+const board = readBoard()
 const {data: photo, info} = await sharp(source).raw().toBuffer({resolveWithObject: true})
 const {width, height, channels} = info
-console.log(`${path.basename(source)}: ${width}x${height}, ${tiles.name}: ${tiles.count} tiles`)
+console.log(`${path.basename(source)}: ${width}x${height}, ${board.manifest.name}: ${board.count} tiles`)
 
-const vertices = lattice(DETAIL)
-const spacing = spacingOf(vertices.positions, neighbours(DETAIL))
+const {cols} = board.manifest.lattice
+const vertices = lattice(cols)
+const spacing = spacingOf(vertices.positions, neighbours(cols))
 console.log(`tile spacing ${(spacing * 6371).toFixed(1)} km, so a cell is about ${
     (spacing * 180 / Math.PI * height / 180 / Math.sqrt(3)).toFixed(2)} pixels across`)
 
-const cover = coverage(vertices, tilesOn(vertices, tiles), spacing, width, height)
+const isTile = new Uint8Array(vertices.count)
+for (const point of board.points) isTile[point] = 1
+const cover = coverage(vertices, isTile, spacing, width, height)
 const land = cover.reduce((total, value) => total + (value > 0.5 ? 1 : 0), 0)
 console.log(`the tile field covers ${(land / cover.length * 100).toFixed(2)}% of the image`)
 

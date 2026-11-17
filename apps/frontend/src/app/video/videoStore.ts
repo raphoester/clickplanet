@@ -4,7 +4,7 @@ import {Ground} from "../../domain/video/story.ts"
 import {MapHistory} from "../../domain/mapHistory.ts"
 import {RecentHistorySource} from "../../backends/recentHistory.ts"
 import {countryOfTile, loadBorders} from "../viewer/borderField.ts"
-import {BORDERS_URL} from "../viewer/bordersAsset.ts"
+import {BOARD} from "../viewer/boardAsset.ts"
 
 const DOTS_KEY = "clickplanet-video-dots"
 const CLICKED_KEY = "clickplanet-video-clicked"
@@ -74,7 +74,7 @@ export function stale(read: Read | undefined, now: number): boolean {
 let borders: Promise<Ground> | undefined
 
 function groundRead(): Promise<Ground> {
-    borders ??= loadBorders(BORDERS_URL).then((data) => ({tiles: data.assignment.length, groundOf: (tile) => countryOfTile(data, tile)}))
+    borders ??= loadBorders(BOARD.urls.borders).then((data) => ({tiles: data.assignment.length, groundOf: (tile) => countryOfTile(data, tile)}))
     return borders
 }
 

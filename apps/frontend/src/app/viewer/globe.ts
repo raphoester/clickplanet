@@ -13,10 +13,8 @@ import {TileField} from "./tileField.ts";
 import {BorderField, loadBorders} from "./borderField.ts";
 import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
-import {BORDERS_URL} from "./bordersAsset.ts";
+import {BOARD} from "./boardAsset.ts";
 import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
-import {CAPITALS_URL} from "./capitalsAsset.ts";
-import {BRIDGES_URL} from "./bridgesAsset.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
 import {loadBridges} from "./bridges.ts";
 import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
@@ -369,7 +367,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const [geometryData, borders, borderLines] = await Promise.all([
         loadPointGeometryData(signal),
-        loadBorders(BORDERS_URL, signal),
+        loadBorders(BOARD.urls.borders, signal),
         loadBorderLines(BORDER_LINES_URL, signal),
     ]);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
@@ -955,7 +953,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             leaveReach()
             return
         }
-        bridgesFile ??= loadBridges(BRIDGES_URL, field.size, lifetime.signal)
+        bridgesFile ??= loadBridges(BOARD.urls.bridges, field.size, lifetime.signal)
         bridgesFile.then((bridges) => {
             if (rules?.reach && !reach && !lifetime.signal.aborted) playReach(bridges)
         }, (e) => {
@@ -987,7 +985,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             publishStanding()
             return
         }
-        capitalsFile ??= loadCapitals(CAPITALS_URL, field.size, lifetime.signal)
+        capitalsFile ??= loadCapitals(BOARD.urls.capitals, field.size, lifetime.signal)
         capitalsFile.then((read) => {
             if (capitalRules(rules) && !capitals && !lifetime.signal.aborted) playCapitals(read)
         }, (e) => {

@@ -1,61 +1,40 @@
 import fs from "node:fs"
 import {createHash} from "node:crypto"
-import * as THREE from "three"
 
-const DETAIL = 300
+import {latticePositions, latticeSize, latticeTriangles} from "../src/domain/lattice.ts"
+import {readBoard, readBorders} from "./map/board.mjs"
 
 const say = (...args) => console.error(...args)
 
-say(`rebuilding the icosahedron at detail ${DETAIL}...`)
-const raw = new THREE.IcosahedronGeometry(1, DETAIL).attributes.position.array
-
-const vertexAt = new Map()
+const board = readBoard()
+const {cols} = board.manifest.lattice
+say(`walking the lattice of ${board.manifest.name} at cols ${cols}...`)
+const lattice = latticePositions(cols)
 const px = [], py = [], pz = []
-const corners = new Int32Array(raw.length / 3)
-for (let i = 0; i < raw.length; i += 3) {
-    const key = `${raw[i].toFixed(6)},${raw[i + 1].toFixed(6)},${raw[i + 2].toFixed(6)}`
-    let v = vertexAt.get(key)
-    if (v === undefined) {
-        v = px.length
-        vertexAt.set(key, v)
-        px.push(raw[i]); py.push(raw[i + 1]); pz.push(raw[i + 2])
-    }
-    corners[i / 3] = v
+for (let v = 0; v < latticeSize(cols); v++) {
+    px.push(lattice[v * 3]); py.push(lattice[v * 3 + 1]); pz.push(lattice[v * 3 + 2])
 }
+const corners = latticeTriangles(cols)
 const vertices = px.length
 const faces = corners.length / 3
 say(`lattice: ${vertices} vertices, ${faces} triangles`)
 
-const coordinatesName = only("static", /^coordinates-[0-9a-f]{8}\.bin$/)
-const coordinates = fs.readFileSync(`static/${coordinatesName}`)
-const tiles = new DataView(coordinates.buffer, coordinates.byteOffset, coordinates.byteLength).getUint32(8, true)
-const tilePositions = new Float32Array(coordinates.buffer, coordinates.byteOffset + 12, tiles * 3)
+const tiles = board.count
+const vertexOfTile = board.points
+say(`${board.file}: ${tiles} tiles`)
 
-const vertexOfTile = new Int32Array(tiles)
-for (let t = 0; t < tiles; t++) {
-    const key = `${tilePositions[t * 3].toFixed(6)},${tilePositions[t * 3 + 1].toFixed(6)},${tilePositions[t * 3 + 2].toFixed(6)}`
-    const v = vertexAt.get(key)
-    if (v === undefined) throw new Error(`tile ${t + 1} is not a vertex of the detail-${DETAIL} icosahedron`)
-    vertexOfTile[t] = v
-}
-say(`${coordinatesName}: ${tiles} tiles, all on the lattice`)
+const borders = readBorders(board)
+const assignment = borders.landmass
 
-const bordersName = only("static", /^borders-[0-9a-f]{8}\.bin$/)
-const borders = fs.readFileSync(`static/${bordersName}`)
-const headerBytes = new DataView(borders.buffer, borders.byteOffset, borders.byteLength).getUint32(0, true)
-const header = JSON.parse(new TextDecoder().decode(new Uint8Array(borders.buffer, borders.byteOffset + 4, headerBytes)))
-if (header.tiles !== tiles) throw new Error(`${bordersName} covers ${header.tiles} tiles, ${coordinatesName} has ${tiles}`)
-const assignment = new Uint16Array(borders.buffer, borders.byteOffset + 4 + headerBytes, tiles)
-
-const countryOfLandmass = new Uint16Array(header.codes.length)
+const countryOfLandmass = new Uint16Array(borders.codes.length)
 const countryCount = new Map([["", 0]])
-for (let piece = 1; piece < header.codes.length; piece++) {
-    const code = header.codes[piece]
+for (let piece = 1; piece < borders.codes.length; piece++) {
+    const code = borders.codes[piece]
     let index = countryCount.get(code)
     if (index === undefined) countryCount.set(code, index = countryCount.size)
     countryOfLandmass[piece] = index
 }
-say(`${bordersName}: ${countryCount.size - 1} countries across ${header.codes.length - 1} landmasses`)
+say(`${borders.name}: ${countryCount.size - 1} countries across ${borders.codes.length - 1} landmasses`)
 
 const country = new Uint16Array(vertices)
 const landmass = new Uint16Array(vertices)
@@ -182,9 +161,3 @@ fs.writeFileSync("src/app/viewer/borderLinesAsset.ts",
     `export const BORDER_LINES_URL = "/static/${fileName}"
 `)
 say(`wrote static/${fileName}: ${bytes.byteLength} bytes`)
-
-function only(directory, pattern) {
-    const found = fs.readdirSync(directory).filter((entry) => pattern.test(entry))
-    if (found.length !== 1) throw new Error(`expected one ${directory}/${pattern}, found ${found.length}`)
-    return found[0]
-}

@@ -1,14 +1,14 @@
 import {describe, expect, it} from "vitest"
 
-import {coverage, spacingOf, tilesOn} from "./coverage.mjs"
+import {coverage, spacingOf} from "./coverage.mjs"
 import {lattice, neighbours} from "./lattice.mjs"
 
-const DETAIL = 10
+const COLS = 11
 const width = 360
 const height = 180
 
-const vertices = lattice(DETAIL)
-const edges = neighbours(DETAIL)
+const vertices = lattice(COLS)
+const edges = neighbours(COLS)
 const spacing = spacingOf(vertices.positions, edges)
 
 const lonLatOf = (v) => [
@@ -88,29 +88,9 @@ describe("coverage", () => {
     })
 })
 
-describe("tilesOn", () => {
-    it("marks the vertex under each tile", () => {
-        const picked = [0, 7, vertices.count - 1]
-        const tiles = {
-            count: picked.length,
-            positions: Float32Array.from(picked.flatMap((v) => [...vertices.positions.subarray(v * 3, v * 3 + 3)])),
-        }
-
-        const isTile = tilesOn(vertices, tiles)
-
-        expect([...isTile.keys()].filter((v) => isTile[v])).toEqual(picked)
-    })
-
-    it("refuses a tile that is not on the lattice", () => {
-        const tiles = {count: 1, positions: Float32Array.from([0.1, 0.2, 0.3])}
-
-        expect(() => tilesOn(vertices, tiles)).toThrow(/not a lattice vertex/)
-    })
-})
-
 describe("spacingOf", () => {
     it("is the mean arc between two touching lattice vertices", () => {
-        const expected = Math.sqrt(4 * Math.PI / (20 * (DETAIL + 1) ** 2) * 4 / Math.sqrt(3))
+        const expected = Math.sqrt(4 * Math.PI / (20 * COLS ** 2) * 4 / Math.sqrt(3))
         expect(spacing).toBeGreaterThan(expected * 0.85)
         expect(spacing).toBeLessThan(expected * 1.15)
     })

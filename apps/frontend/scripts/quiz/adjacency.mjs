@@ -1,23 +1,23 @@
-import {keyOf, lattice, neighbours} from "../map/lattice.mjs"
-import {readBorders, readCoordinates} from "../map/blob.mjs"
+import {boardDir, readBoard, readBorders, tileOfPoint} from "../map/board.mjs"
+import {neighbours} from "../map/lattice.mjs"
 
 /**
- * @param {string} [directory] where the two blobs are; /map by default
+ * @param {string} [directory] the board's; earth-1's by default
  * @returns {Map<string, Set<string>>} country code to the codes it touches
  */
-export function adjacency(directory) {
-    const tiles = readCoordinates(directory)
-    const borders = readBorders(directory)
+export function adjacency(directory = boardDir()) {
+    const board = readBoard(directory)
+    const borders = readBorders(board)
 
-    if (borders.count !== tiles.count) {
-        throw new Error(`${borders.name} covers ${borders.count} tiles, ${tiles.name} has ${tiles.count}`)
+    if (borders.count !== board.count) {
+        throw new Error(`${borders.name} covers ${borders.count} tiles, ${board.file} has ${board.count}`)
     }
 
-    const countryOfTile = new Array(tiles.count)
-    for (let t = 0; t < tiles.count; t++) countryOfTile[t] = borders.codes[borders.landmass[t]]
+    const countryOfTile = new Array(board.count)
+    for (let t = 0; t < board.count; t++) countryOfTile[t] = borders.codes[borders.landmass[t]]
 
-    const tileOfVertex = matchTilesToLattice(tiles)
-    const {at, to} = neighbours()
+    const {count, at, to} = neighbours(board.manifest.lattice.cols)
+    const tileOfVertex = tileOfPoint(board, count)
 
     const touching = new Map()
     const link = (a, b) => {
@@ -44,22 +44,4 @@ export function adjacency(directory) {
     }
 
     return touching
-}
-
-function matchTilesToLattice({count, positions, name}) {
-    const {count: vertices, positions: latticePositions} = lattice()
-
-    const vertexAt = new Map()
-    for (let v = 0; v < vertices; v++) {
-        vertexAt.set(keyOf(latticePositions[v * 3], latticePositions[v * 3 + 1], latticePositions[v * 3 + 2]), v)
-    }
-
-    const tileOfVertex = new Int32Array(vertices).fill(-1)
-    for (let t = 0; t < count; t++) {
-        const vertex = vertexAt.get(keyOf(positions[t * 3], positions[t * 3 + 1], positions[t * 3 + 2]))
-        if (vertex === undefined) throw new Error(`${name}: tile ${t} is not a vertex of the lattice`)
-        tileOfVertex[vertex] = t
-    }
-
-    return tileOfVertex
 }
