@@ -4,6 +4,7 @@ import {TILE_COLUMNS, TileField} from "./tileField.ts"
 import {regions} from "./atlas.ts"
 import {resetWarnOnce} from "../../domain/warnOnce.ts"
 import type {TileGeometry} from "./points.ts"
+import {chunksOf} from "../../domain/tileChunks.ts"
 
 const SIZE = 32
 
@@ -13,11 +14,11 @@ type Layout = {compact: boolean, flag: Slot, landmass: Slot, hover: Slot, shield
 
 const PLAIN: Layout = {
     compact: false,
-    flag: {name: "regionVector", offset: 0, width: 4},
-    landmass: {name: "landmassIndex", offset: 0, width: 1},
-    hover: {name: "hover", offset: 0, width: 1},
-    shield: {name: "shield", offset: 0, width: 1},
-    pulse: {name: "pulse", offset: 0, width: 1},
+    flag: {name: "flagRegion", offset: 0, width: 2},
+    landmass: {name: "tileMarks", offset: 0, width: 1},
+    hover: {name: "tileMarks", offset: 1, width: 1},
+    pulse: {name: "tileMarks", offset: 2, width: 1},
+    shield: {name: "tileMarks", offset: 3, width: 1},
 }
 
 const COMPACT: Layout = {
@@ -29,14 +30,38 @@ const COMPACT: Layout = {
     shield: {name: "marks", offset: 2, width: 1},
 }
 
-// The texels run backwards, so a test sees a tile written at its texel and not at its index.
-function fieldOf(compact: boolean, size = SIZE) {
-    const data: TileGeometry = {
-        positions: new Float32Array(size * 3),
-        size,
-        cells: {cols: 1, words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => size - 1 - i)},
+function spiral(size: number): Float32Array {
+    const positions = new Float32Array(size * 3)
+    for (let i = 0; i < size; i++) {
+        const y = 1 - 2 * (i + 0.5) / size
+        const around = i * Math.PI * (3 - Math.sqrt(5))
+        const r = Math.sqrt(1 - y * y)
+        positions.set([Math.cos(around) * r, y, Math.sin(around) * r], i * 3)
     }
-    return new TileField({zoom: {value: 1}}, {pointSize: {value: 1}}, data, {compact})
+    return positions
+}
+
+function uniformsOf(flagPaint = 0) {
+    return {
+        pointSize: {value: 4},
+        pixelsPerRadian: {value: 400},
+        flagPaint: {value: flagPaint},
+        blastRadii: {value: [0, 0, 0, 0]},
+        motion: {value: 1},
+    }
+}
+
+// The texels run backwards, so a test sees a tile written at its texel and not at its index.
+function fieldOf(compact: boolean, size = SIZE, uniforms = uniformsOf()) {
+    const positions = spiral(size)
+    const texels = Uint32Array.from({length: size}, (_, i) => size - 1 - i)
+    const data: TileGeometry = {
+        positions,
+        size,
+        cells: {cols: 1, words: new Uint32Array(2), texels, tiles: Uint32Array.from({length: size}, (_, i) => size - 1 - i)},
+        chunks: chunksOf(positions),
+    }
+    return new TileField(uniforms, data, {compact})
 }
 
 const attr = (f: TileField, name: string) =>
@@ -58,9 +83,12 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
 
     const regionOf = (f: TileField, tile: number) => {
         const start = at(f, layout.flag, tile)
-        if (!layout.compact) return Array.from(attr(f, layout.flag.name).array.slice(start, start + 4))
+        if (!layout.compact) {
+            const [a, b] = attr(f, layout.flag.name).array.slice(start, start + 2)
+            return [a % 2048, Math.floor(a / 2048), b % 2048, Math.floor(b / 2048)]
+        }
 
-        const material = f.displayPoints.material as THREE.ShaderMaterial
+        const material = (f.displayPoints.material as THREE.ShaderMaterial[])[0]
         const rectangles: ArrayLike<number> = (material.uniforms.flagRectangles.value as THREE.DataTexture).image.data
         const flag = attr(f, layout.flag.name).array[start]
         return Array.from(rectangles).slice(flag * 4, flag * 4 + 4)
@@ -280,7 +308,7 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
             ])
         })
 
-        it("patches one span for a load too big to list tile by tile", () => {
+        it("patches only the tiles that moved, however long the list", () => {
             const f = field()
             const shield = attr(f, layout.shield.name)
             shield.clearUpdateRanges()
@@ -288,8 +316,23 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
             const many = Array.from({length: 100}, () => ({tile: 4, shields: 2, was: 1}))
             f.setShields([...many, {tile: 20, shields: 3, was: 0}])
 
-            const start = at(f, layout.shield, 4)
-            expect(shield.updateRanges).toEqual([{start, count: at(f, layout.shield, 20) + 1 - start}])
+            expect(shield.updateRanges).toEqual([
+                {start: at(f, layout.shield, 4), count: 1},
+                {start: at(f, layout.shield, 20), count: 1},
+            ])
+        })
+
+        it("joins the nearest tiles of a scattered load into a few ranges", () => {
+            const f = field(1000)
+            const shield = attr(f, layout.shield.name)
+            shield.clearUpdateRanges()
+
+            f.setShields(Array.from({length: 300}, (_, i) => ({tile: 1 + i * 3, shields: 1, was: 0})))
+
+            expect(shield.updateRanges.length).toBeLessThanOrEqual(64)
+            expect(shield.updateRanges[0].start).toBe(at(f, layout.shield, 1))
+            const last = shield.updateRanges[shield.updateRanges.length - 1]
+            expect(last.start + last.count).toBe(at(f, layout.shield, 898) + 1)
         })
     })
 
@@ -332,63 +375,45 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
     })
 
     describe("geometry", () => {
-        it("shares one position attribute between both point clouds", () => {
-            const f = field()
-            expect(f.pickingPoints.geometry.getAttribute("position"))
-                .toBe(f.displayPoints.geometry.getAttribute("position"))
-        })
-
         it("does not upload a uv attribute", () => {
             const f = field()
             expect(f.displayPoints.geometry.getAttribute("uv")).toBeUndefined()
-            expect(f.pickingPoints.geometry.getAttribute("uv")).toBeUndefined()
         })
 
         it("keeps every buffer's stride a multiple of 4 bytes, which Metal needs to read it as is", () => {
             const f = field()
-            for (const points of [f.displayPoints, f.pickingPoints]) {
-                for (const attribute of Object.values(points.geometry.attributes)) {
-                    const {itemSize, array} = attribute as THREE.BufferAttribute
-                    expect((itemSize * array.BYTES_PER_ELEMENT) % 4).toBe(0)
-                }
+            for (const attribute of Object.values(f.displayPoints.geometry.attributes)) {
+                const {itemSize, array} = attribute as THREE.BufferAttribute
+                expect((itemSize * array.BYTES_PER_ELEMENT) % 4).toBe(0)
             }
         })
     })
 })
 
-describe("the compact layout's cost", () => {
+describe("what a tile costs", () => {
     const bytesPerTile = (compact: boolean) => {
         const f = fieldOf(compact)
-        const arrays = new Set([f.displayPoints, f.pickingPoints].flatMap(points =>
-            Object.values(points.geometry.attributes).map(attribute => (attribute as THREE.BufferAttribute).array)))
-        return Array.from(arrays).reduce((sum, array) => sum + array.byteLength, 0) / SIZE
+        const arrays = Object.values(f.displayPoints.geometry.attributes).map(attribute => (attribute as THREE.BufferAttribute).array)
+        return arrays.reduce((sum, array) => sum + array.byteLength, 0) / SIZE
     }
 
-    it("is 20 bytes a tile, against 56 for the plain one", () => {
-        expect(bytesPerTile(false)).toBe(56)
+    it("is 20 bytes in the compact layout, and 36 in the plain one, of 32-bit floats alone", () => {
+        expect(bytesPerTile(false)).toBe(36)
         expect(bytesPerTile(true)).toBe(20)
+        for (const attribute of Object.values(fieldOf(false).displayPoints.geometry.attributes)) {
+            expect((attribute as THREE.BufferAttribute).array).toBeInstanceOf(Float32Array)
+        }
+    })
+
+    it("packs every atlas rectangle into floats exactly", () => {
+        for (const {x, y, width, height} of regions.values()) {
+            expect(Math.max(x, y, width, height)).toBeLessThan(2048)
+            expect(Math.fround(x + y * 2048)).toBe(x + y * 2048)
+        }
     })
 
     it("names every flag in 16 bits", () => {
         expect(regions.size + 1).toBeLessThanOrEqual(2 ** 16)
-    })
-})
-
-describe("picking", () => {
-    it("gives the plain picking points one colour per tile, starting at id 1", () => {
-        const f = fieldOf(false)
-        const colors = f.pickingPoints.geometry.getAttribute("color").array as Float32Array
-
-        expect(colors[0]).toBe(0)
-        expect(colors[1]).toBe(0)
-        expect(colors[2]).toBeCloseTo(1 / 255, 6)
-        expect(colors.length).toBe(SIZE * 3)
-    })
-
-    it("uploads no colour in the compact layout: the shader makes it from the vertex number", () => {
-        const f = fieldOf(true)
-        expect(f.pickingPoints.geometry.getAttribute("color")).toBeUndefined()
-        expect((f.pickingPoints.material as THREE.ShaderMaterial).defines.COMPACT).toBe(true)
     })
 })
 
@@ -431,5 +456,109 @@ describe("the territory layer's tile data", () => {
         expect(target).toBe(f.tileData)
         expect([region.min.y, region.max.y, region.min.x, region.max.x]).toEqual([2, 3, 0, TILE_COLUMNS])
         expect(position.y).toBe(2)
+    })
+
+    it("sends two rows far apart, and not the rows between them", () => {
+        const f = fieldOf(true, SIZE_OVER_ROWS)
+        const copyTextureToTexture = vi.fn()
+        const renderer = {copyTextureToTexture} as unknown as THREE.WebGLRenderer
+
+        f.setOwners([{tile: 1, country: "fr"}, {tile: SIZE_OVER_ROWS, country: "fr"}])
+        f.uploadTiles(renderer)
+
+        const rows = copyTextureToTexture.mock.calls.map(([, , region]) => [region.min.y, region.max.y])
+        expect(rows).toEqual([[0, 1], [2, 3]])
+    })
+})
+
+describe("the tiles drawn", () => {
+    const SIZE_DRAWN = 2000
+    const positions = spiral(SIZE_DRAWN)
+    const groupsOf = (f: TileField) => f.displayPoints.geometry.groups.map(({start, count}) => [start, start + count])
+    const drawn = (f: TileField, tile: number) => groupsOf(f).some(([from, to]) => from <= tile - 1 && tile - 1 < to)
+
+    const cameraAt = (tile: number, zoom: number) => {
+        const camera = new THREE.OrthographicCamera(-1.6, 1.6, 1, -1, 0.01, 100)
+        camera.position.set(positions[tile * 3 - 3], positions[tile * 3 - 2], positions[tile * 3 - 1]).multiplyScalar(5)
+        camera.lookAt(0, 0, 0)
+        camera.zoom = zoom
+        camera.updateProjectionMatrix()
+        return camera
+    }
+
+    it("are the pieces in sight, not those behind the earth or off screen", () => {
+        const f = fieldOf(true, SIZE_DRAWN)
+        f.cull(cameraAt(500, 10))
+
+        expect(drawn(f, 500)).toBe(true)
+        expect(drawn(f, SIZE_DRAWN - 500)).toBe(false)
+        const tiles = groupsOf(f).reduce((sum, [from, to]) => sum + to - from, 0)
+        expect(tiles).toBeLessThan(SIZE_DRAWN / 4)
+    })
+
+    it("are none while the painted flags cover the globe and no tile wears a ring", () => {
+        const f = fieldOf(true, SIZE_DRAWN, uniformsOf(1))
+        f.setMissionMarks([500], true)
+        f.setCapitalMarks([500], true)
+        f.cull(cameraAt(500, 1))
+
+        expect(f.displayPoints.geometry.groups).toEqual([])
+    })
+
+    it("are the pieces with a ring under the painted flags, until the ring goes", () => {
+        const f = fieldOf(true, SIZE_DRAWN, uniformsOf(1))
+        const camera = cameraAt(500, 1)
+
+        f.setFront([500, 501], true)
+        f.setPulses([500], true)
+        f.cull(camera)
+        expect(drawn(f, 500)).toBe(true)
+        expect(drawn(f, 10)).toBe(false)
+
+        f.setFront([500, 501], false)
+        f.cull(camera)
+        expect(drawn(f, 500)).toBe(true)
+
+        f.setPulses([500], false)
+        f.cull(camera)
+        expect(f.displayPoints.geometry.groups).toEqual([])
+    })
+
+    it("stay the pieces found while the camera moves less than the slack, and hold every tile in sight", () => {
+        const f = fieldOf(true, SIZE_DRAWN)
+        const camera = cameraAt(500, 10)
+        f.cull(camera)
+        const found = f.displayPoints.geometry.groups.map(({start, count}) => ({start, count}))
+
+        const turn = new THREE.Vector3(0, 1, 0)
+        for (let step = 0; step < 20; step++) {
+            camera.position.applyAxisAngle(turn, 0.001)
+            camera.lookAt(0, 0, 0)
+            f.cull(camera)
+            camera.updateMatrixWorld()
+            const toClip = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+            const back = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 2)
+            for (let tile = 1; tile <= SIZE_DRAWN; tile++) {
+                const ground = new THREE.Vector3(positions[tile * 3 - 3], positions[tile * 3 - 2], positions[tile * 3 - 1])
+                const clip = ground.clone().applyMatrix4(toClip)
+                const inSight = ground.dot(back) > 0 && Math.abs(clip.x) <= 1 && Math.abs(clip.y) <= 1
+                if (inSight) expect(drawn(f, tile), `tile ${tile} after ${step + 1} steps`).toBe(true)
+            }
+        }
+        expect(f.displayPoints.geometry.groups.map(({start, count}) => ({start, count}))).toEqual(found)
+    })
+
+    it("are found again once the camera has moved past the slack", () => {
+        const f = fieldOf(true, SIZE_DRAWN)
+        f.cull(cameraAt(500, 10))
+        f.cull(cameraAt(1500, 10))
+        expect(drawn(f, 1500)).toBe(true)
+        expect(drawn(f, 500)).toBe(false)
+    })
+
+    it("are every tile, in one draw, when the screen shows most of the globe", () => {
+        const f = fieldOf(true, SIZE_DRAWN, uniformsOf(0.5))
+        f.cull(cameraAt(500, 1))
+        expect(groupsOf(f)).toEqual([[0, SIZE_DRAWN]])
     })
 })

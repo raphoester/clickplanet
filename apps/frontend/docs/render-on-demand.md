@@ -66,6 +66,13 @@ frames that were drawn — the very distance the cap exists to keep small.
 no frames at all and the whole of that wait would otherwise arrive as one step,
 with the globe somewhere else by the time it is looked at again.
 
+**Only a frame that is drawn culls the tiles.** `TileField.cull` picks the
+pieces of the map in sight (see [The tiles out of sight are not
+drawn](far-side.md)) after `drawsFrame` has said yes, just before the render,
+with the camera as it is drawn, the blast's shake on it. A tick that draws
+nothing costs nothing there, and at the landing view, under the painted flags,
+a drawn frame runs no tile at all.
+
 **The uniforms the tile pass reads are written before the render, not after
 it.** They used to be written at the end of the loop, for the next frame; with
 a frame skipped whenever nothing moved, a size worked out for a frame that is

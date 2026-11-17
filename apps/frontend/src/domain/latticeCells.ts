@@ -88,6 +88,8 @@ export type TileCells = {
     cols: number
     words: Uint32Array
     texels: Uint32Array
+    // The inverse of texels: the 0-based tile at each texel.
+    tiles: Uint32Array
 }
 
 export const IDS_PER_WORD = 32
@@ -118,7 +120,28 @@ export function cellsOf(ids: Uint32Array, cols: number): TileCells {
         words[word * 2] = bits >>> 0
     }
 
-    return {cols, words, texels: ids.map((id) => rankOf[id])}
+    const texels = ids.map((id) => rankOf[id])
+    const byTexel = new Uint32Array(ids.length)
+    texels.forEach((texel, tile) => {
+        byTexel[texel] = tile
+    })
+    return {cols, words, texels, tiles: byTexel}
+}
+
+// The tile whose cell holds a direction, by its 1-based id, or undefined over the sea.
+export function tileAt(cells: TileCells, faces: readonly LatticeFace[], x: number, y: number, z: number): number | undefined {
+    const id = cellOf(faces, cells.cols, x, y, z)
+    const bits = cells.words[(id >>> 5) * 2]
+    const bit = id & 31
+    if (!((bits >>> bit) & 1)) return undefined
+    const texel = cells.words[(id >>> 5) * 2 + 1] + popcount(bits & ((1 << bit) - 1))
+    return cells.tiles[texel] + 1
+}
+
+function popcount(bits: number): number {
+    bits = bits - ((bits >>> 1) & 0x55555555)
+    bits = (bits & 0x33333333) + ((bits >>> 2) & 0x33333333)
+    return (Math.imul((bits + (bits >>> 4)) & 0x0F0F0F0F, 0x01010101) >>> 24)
 }
 
 function cornerOf(corner: number): Vec3 {

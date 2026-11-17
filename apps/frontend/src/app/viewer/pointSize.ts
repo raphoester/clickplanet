@@ -44,20 +44,3 @@ function handover(tileSize: number, view: MapView): number {
 export function flagPaint(zoom: number, viewportHeight: number, view: MapView): number {
     return 1 - handover(tilePointSize(zoom, viewportHeight), view)
 }
-
-// In orbit a tile is picked wide enough to cover the ground, so a gap between two tiles is still the territory. Covers the
-// lattice where it is 11% wider than its median, as it is at its 99th percentile.
-const PICK_SPREAD = 2.6 / 1.5
-
-export function pickPointSize(zoom: number, viewportHeight: number): number {
-    const base = tilePointSize(zoom, viewportHeight)
-    return inOrbit(zoom, viewportHeight) ? base * PICK_SPREAD : base
-}
-
-export const MAX_PICK_WINDOW = 257
-
-export function pickWindowSize(pointSize: number): number {
-    const needed = Math.ceil(pointSize) + 1
-    const odd = needed % 2 === 0 ? needed + 1 : needed
-    return Math.min(Math.max(odd, 3), MAX_PICK_WINDOW)
-}

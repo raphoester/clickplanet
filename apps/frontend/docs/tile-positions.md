@@ -13,12 +13,13 @@ at 1.3s rather than 3.75s with the 5.2 MB coordinates file it had replaced.
 `points.ts` fetches the runs named by `BOARD` (`boardAsset.ts`, which `npm run map` writes from the board's manifest)
 and hands them to `latticeWorker.ts`, which runs `rebuildTiles` (`domain/board.ts`, over `domain/lattice.ts`): it walks
 the lattice in three's order and keeps the points whose canonical id is in a run. It sends back the positions as a
-transfer, with the cells the territory layer finds a pixel's tile by (`cellsOf`, built from each tile's canonical id;
-see [The zoomed-out view](zoomed-out-view.md)) and the positions' hash. **It is a worker because of the engines with
-no JIT**: 60-90 ms on V8 or JavaScriptCore, 1.5s on JavaScriptCore with its JIT off, as in iOS Lockdown Mode — a
+transfer, with the cells the territory layer and the pick find a pixel's tile by (`cellsOf`, built from each tile's
+canonical id; see [The zoomed-out view](zoomed-out-view.md)), the chunks the page culls the tiles by (`chunksOf`; see
+[The tiles out of sight are not drawn](far-side.md)) and the positions' hash. **It is a worker because of the engines
+with no JIT**: 60-90 ms on V8 or JavaScriptCore, 1.5s on JavaScriptCore with its JIT off, as in iOS Lockdown Mode — a
 frozen page for that long. **A worker that does not start or fails is logged, and the page rebuilds on its own
 thread** from the same runs, which it copied to the worker rather than moved. `loadPointGeometryData` still returns
-`{positions, size, cells}`, so nothing that reads `positions` knows where they came from.
+`{positions, size, cells}`, with the chunks, so nothing that reads `positions` knows where they came from.
 
 ## The positions must be three's, to the bit
 

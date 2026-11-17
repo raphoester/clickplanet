@@ -33,8 +33,8 @@ two-tap variant for phones. While armed, a click claims no tile, and the
 an aim is land is decided by the server: past one tile spacing from the nearest
 tile it is the sea, the bomb is spent, and everyone sees a splash (`BombDrop.tile`
 undefined, nothing cleared). The aiming ring follows the sphere under the cursor
-(a ray against the unit sphere), not the tile picker, which finds nothing between
-tiles or over water and made a ring that followed it blink.
+(a ray against the unit sphere), not the tile picker, which finds nothing over water
+and made a ring that followed it blink.
 
 **Rings are meshes, not tiles.** The aiming ring and the closing "incoming" ring
 are a flat quad laid on the globe with a per-pixel ring shader

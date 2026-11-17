@@ -31,11 +31,17 @@ attribute vec4 marks;
 #define pulse marks.y
 #define shield marks.z
 #else
-attribute float hover;
-attribute vec4 regionVector;
-attribute float landmassIndex;
-attribute float shield;
-attribute float pulse;
+// Must match PACK in tileField.ts: the flag's atlas rectangle as x + y * PACK and width + height * PACK.
+const float PACK = 2048.0;
+
+attribute vec2 flagRegion;
+attribute vec4 tileMarks;
+
+#define regionVector vec4(mod(flagRegion, PACK), floor(flagRegion / PACK)).xzyw
+#define landmassIndex tileMarks.x
+#define hover tileMarks.y
+#define pulse tileMarks.z
+#define shield tileMarks.w
 #endif
 
 varying float vHover;
@@ -49,6 +55,7 @@ flat out float vReach;
 
 flat out float vSpriteSize;
 
+// Must match LIMB and THROW in tileField.ts, which skips the pieces of the map this drops whole.
 const float LIMB = 0.05;
 
 void main() {

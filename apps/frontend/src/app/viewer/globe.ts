@@ -5,7 +5,7 @@ import {endStrayFingers} from "./strayFingers.ts";
 import {Halo, paintHalo} from "./atmosphere.ts";
 import {graphicsOf} from "./graphics.ts";
 import {loadPointGeometryData} from "./points.ts";
-import {GpuPicker} from "./gpuPicking.ts";
+import {TilePicker} from "./tilePicker.ts";
 import {innerSphere} from "./sphere.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
@@ -18,7 +18,7 @@ import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
 import {loadBridges} from "./bridges.ts";
 import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
-import {flagPaint, flownZoomsOf, inOrbit, pickPointSize, tilePointSize} from "./pointSize.ts";
+import {flagPaint, flownZoomsOf, inOrbit, tilePointSize} from "./pointSize.ts";
 import {createTerritoryLayer} from "./territoryLayer.ts";
 import {regions} from "./atlas.ts";
 import {SlotRanking} from "./slotRanking.ts";
@@ -413,9 +413,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         ...fortifyUniforms(),
     };
 
-    const pickingUniforms = {pointSize: {value: pickPointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()}}
-
-    const field = new TileField(uniforms, pickingUniforms, geometryData, graphics);
+    const field = new TileField(uniforms, geometryData, graphics);
 
     const territories = new BorderField(borders)
     const landmasses = new Landmasses(borders.assignment, borders.codes.length)
@@ -428,7 +426,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const slotFlags = () => slots.show(ranking.rank(territories.flagNeeds()), (code) => regions.get(code))
 
     const sphere = innerSphere()
-    const picker = new GpuPicker(renderer, field.pickingPoints, sphere);
+    const picker = new TilePicker(renderer.domElement, geometryData.cells);
     const territoryLayer = createTerritoryLayer({
         sphere,
         cells: geometryData.cells,
@@ -1850,7 +1848,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (take && !tiles.mines.has(take.tile)) ghostTook(take)
     }
 
-    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, pickingUniforms, director, pilot, () => mapView, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, director, pilot, () => mapView, () => {
         const was = dirty
         dirty = false
         return was
@@ -1899,7 +1897,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
         const relit = highlight(orbit)
         return field.setHover(hovered) || relit || lit || boxed || blasting
-    }, () => {
+    }, () => field.cull(camera), () => {
         undoShake()
         if (captureRequests.length === 0) return
 
@@ -2016,7 +2014,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             stopBombs?.()
             stopWatchingBudget?.()
 
-            picker.dispose()
             bonusPointer.dispose()
             blastPointer.dispose()
             rallyMarks.dispose()
@@ -2065,12 +2062,12 @@ function startAnimation(
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
-    pickingUniforms: {pointSize: THREE.IUniform},
     director: Director | undefined,
     pilot: Pilot,
     mapView: () => MapView,
     takeChange: () => boolean,
     beforeRender: (seconds: number) => boolean,
+    beforeDraw: () => void,
     afterRender: () => void,
     pulsing: (camera: THREE.Camera) => boolean,
 ): {stop: () => void} {
@@ -2127,7 +2124,6 @@ function startAnimation(
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();
         uniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
-        pickingUniforms.pointSize.value = pickPointSize(camera.zoom, height) * ratio;
         uniforms.pixelRatio.value = ratio;
 
         uniforms.flagPaint.value = flagPaint(camera.zoom, height, mapView());
@@ -2142,6 +2138,7 @@ function startAnimation(
         moved = false;
         drawnAt = time;
 
+        beforeDraw();
         starfield.render(renderer, camera, () => renderer.render(scene, camera));
         afterRender();
     });

@@ -27,7 +27,7 @@ query only the parts it names are on, so `?gfx=` alone is the plain globe:
 | `ratio` | the screen's pixel ratio, capped at 2, instead of 1 |
 | `aa` | `antialias` on the context |
 | `earth` | the earth's own shader, with the sea's glint |
-| `compact` | the tiles' compact layout: 20 bytes a tile on the GPU, not 56 |
+| `compact` | the tiles' compact layout: 20 bytes a tile on the GPU, not 36 |
 | `all` | all of the above: everything HD graphics turns on |
 
 Words add up (`?gfx=ratio,earth`), and sit beside the rest of the query
@@ -38,8 +38,8 @@ Words add up (`?gfx=ratio,earth`), and sit beside the rest of the query
 light](light.md).
 
 **Off is the code from before #254, not the new code multiplied by zero.** The
-plain earth is the same shader without the glint; the plain tiles are the old attributes,
-with `#ifdef COMPACT` around the new ones.
+plain earth is the same shader without the glint; the plain tiles are 32-bit floats alone,
+with `#ifdef COMPACT` around the small integers.
 
 **The compact tile layout came later and is not part of #254.** It sits behind the
 same setting for the same reason: it reads integer buffers that nothing else in
