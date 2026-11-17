@@ -1,6 +1,7 @@
 package charges_test
 
 import (
+	"log/slog"
 	"slices"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 )
 
 type ground struct {
@@ -66,7 +67,7 @@ func TestABombInTheSeaClearsNothing(t *testing.T) {
 }
 
 func TestProductionsBombClearsAboutOneBankInland(t *testing.T) {
-	geography, err := embedded_geodesic_map.New(260503, nil).LoadGeography()
+	geography, err := embedded_board.New(260503, slog.New(slog.DiscardHandler)).LoadGeography()
 	require.NoError(t, err)
 
 	rules := bombOf(charges.TestRules().Bomb.Rings, geography.Spacing())

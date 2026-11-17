@@ -1,7 +1,11 @@
-package embedded_geodesic_map_test
+package embedded_board_test
 
 import (
+	"encoding/binary"
+	"encoding/json"
+	"log/slog"
 	"math"
+	"os"
 	"slices"
 	"testing"
 
@@ -10,7 +14,7 @@ import (
 
 	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 )
 
 const tiles = 260503
@@ -18,22 +22,86 @@ const tiles = 260503
 var geography = mustLoad()
 
 func mustLoad() *clicks.Geography {
-	geography, err := embedded_geodesic_map.New(tiles, nil).LoadGeography()
+	geography, err := loader().LoadGeography()
 	if err != nil {
 		panic(err)
 	}
 	return geography
 }
 
-func TestTheShippedBlobIsADetail300Honeycomb(t *testing.T) {
-	_, asset, err := mapdata.Coordinates()
-	require.NoError(t, err)
+func loader() *embedded_board.Loader {
+	return embedded_board.New(tiles, slog.New(slog.DiscardHandler))
+}
 
-	assert.Equal(t, "coordinates-10d1f87d.bin", asset,
-		"regenerating the blob renumbers every tile and moves every player's territory")
+type shippedManifest struct {
+	Name    string `json:"name"`
+	Lattice struct {
+		Cols int `json:"cols"`
+	} `json:"lattice"`
+	Tiles         uint32 `json:"tiles"`
+	PositionsHash uint32 `json:"positionsHash"`
+	Files         struct {
+		Runs     string `json:"runs"`
+		Borders  string `json:"borders"`
+		Capitals string `json:"capitals"`
+		Bridges  string `json:"bridges"`
+	} `json:"files"`
+}
+
+func shipped(t *testing.T) (shippedManifest, string) {
+	t.Helper()
+	blob, asset, err := mapdata.Manifest("earth-1")
+	require.NoError(t, err)
+	var manifest shippedManifest
+	require.NoError(t, json.Unmarshal(blob, &manifest))
+	return manifest, asset
+}
+
+func TestTheShippedBoardIsEarth1(t *testing.T) {
+	boards, err := mapdata.Boards()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"earth-1"}, boards)
+
+	manifest, asset := shipped(t)
+	assert.Equal(t, "board-f7db567f.json", asset,
+		"regenerating the board renumbers every tile and moves every player's territory")
+	assert.Equal(t, "runs-ac17bdab.bin", manifest.Files.Runs)
+	assert.Equal(t, 301, manifest.Lattice.Cols)
+	assert.Equal(t, uint32(tiles), manifest.Tiles)
 	assert.Equal(t, uint32(tiles), geography.Stats().Tiles)
-	assert.Equal(t, 300, embedded_geodesic_map.Detail)
-	assert.Equal(t, 301, embedded_geodesic_map.Cols)
+}
+
+func TestEveryPositionIsThePagesToTheBit(t *testing.T) {
+	manifest, _ := shipped(t)
+
+	hash := uint32(0x811c9dc5)
+	for id := uint32(1); id <= tiles; id++ {
+		position, ok := geography.Position(id)
+		require.True(t, ok)
+		for _, coordinate := range []float64{position.X, position.Y, position.Z} {
+			hash = (hash ^ math.Float32bits(float32(coordinate))) * 0x01000193
+		}
+	}
+
+	assert.Equal(t, manifest.PositionsHash, hash, "FNV-1a over the float32 positions, as the page and the backoffice hash them")
+}
+
+func TestEveryPositionIsTheCoordinatesBlobsItReplaced(t *testing.T) {
+	blob, err := os.ReadFile("../../../../../../../map/coordinates-10d1f87d.bin")
+	require.NoError(t, err)
+	require.Len(t, blob, 12+tiles*20)
+
+	differing := 0
+	for id := uint32(1); id <= tiles; id++ {
+		position, _ := geography.Position(id)
+		for axis, coordinate := range []float64{position.X, position.Y, position.Z} {
+			at := 12 + (int(id-1)*3+axis)*4
+			if math.Float32bits(float32(coordinate)) != binary.LittleEndian.Uint32(blob[at:]) {
+				differing++
+			}
+		}
+	}
+	assert.Zero(t, differing)
 }
 
 func TestEveryTileHasAPlausibleNumberOfNeighbours(t *testing.T) {
@@ -59,7 +127,7 @@ func TestTheEdgeCountAndAverageDegree(t *testing.T) {
 	assert.InDelta(t, 5.846, float64(directed)/tiles, 0.001, "average degree")
 }
 
-func TestTileIDsAreOneBasedOverTheBlob(t *testing.T) {
+func TestTileIDsAreOneBasedOverTheRuns(t *testing.T) {
 	_, ok := geography.Position(0)
 	assert.False(t, ok, "there is no tile 0")
 
@@ -94,8 +162,8 @@ func TestAdjacencyAloneFindsTheContinents(t *testing.T) {
 		"Afro-Eurasia, the Americas, Antarctica, Australia")
 }
 
-func TestLoadRefusesABlobThatDisagreesWithTheConfiguredTileCount(t *testing.T) {
-	_, err := embedded_geodesic_map.New(tiles-1, nil).LoadGeography()
+func TestLoadRefusesABoardThatDisagreesWithTheConfiguredTileCount(t *testing.T) {
+	_, err := embedded_board.New(tiles-1, slog.New(slog.DiscardHandler)).LoadGeography()
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "updated apart")

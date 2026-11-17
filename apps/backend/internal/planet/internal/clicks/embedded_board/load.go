@@ -1,11 +1,10 @@
-package embedded_geodesic_map
+package embedded_board
 
 import (
 	"fmt"
 	"log/slog"
 	"time"
 
-	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
@@ -15,46 +14,31 @@ type Loader struct {
 }
 
 func New(expectTiles uint32, logger *slog.Logger) *Loader {
-	if logger == nil {
-		logger = slog.New(slog.DiscardHandler)
-	}
-
 	return &Loader{expectTiles: expectTiles, logger: logger}
 }
 
 func (l *Loader) LoadGeography() (*clicks.Geography, error) {
 	started := time.Now()
 
-	blob, asset, err := mapdata.Coordinates()
+	board, err := l.board()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the embedded coordinates blob: %w", err)
+		return nil, err
 	}
 
-	positions, err := decodeCoordinates(blob)
+	positions, tileOf, err := board.tiles()
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode %s: %w", asset, err)
+		return nil, fmt.Errorf("failed to rebuild board %s's tiles: %w", board.name, err)
 	}
 
-	tiles := uint32(len(positions) / 3)
-	if tiles != l.expectTiles {
-		return nil, fmt.Errorf(
-			"%s holds %d tiles but gameMap.maxIndex is %d: the blob and the config were updated apart",
-			asset, tiles, l.expectTiles)
-	}
-
-	edges, err := walkLattice(positions)
+	geography, err := clicks.NewGeography(positions, latticeEdges(board.manifest.Lattice.Cols, tileOf))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the lattice out of %s: %w", asset, err)
-	}
-
-	geography, err := clicks.NewGeography(positions, edges)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build the geography from %s: %w", asset, err)
+		return nil, fmt.Errorf("failed to build the geography of board %s: %w", board.name, err)
 	}
 
 	stats := geography.Stats()
 	l.logger.Info("map geography loaded",
-		slog.String("asset", asset),
+		slog.String("board", board.name),
+		slog.String("asset", board.asset),
 		slog.Int("tiles", int(stats.Tiles)),
 		slog.Int("edges", int(stats.Edges)),
 		slog.Any("degrees", stats.Degrees),
@@ -62,73 +46,4 @@ func (l *Loader) LoadGeography() (*clicks.Geography, error) {
 	)
 
 	return geography, nil
-}
-
-func walkLattice(positions []float32) ([]clicks.Edge, error) {
-	tiles := uint32(len(positions) / 3)
-	index := newPositionIndex(positions)
-
-	resolved := make([]bool, tiles)
-	edges := make([]clicks.Edge, 0, 2<<20)
-
-	face := make([]uint32, faceVertices)
-
-	for _, corners := range icosahedronFaces {
-		a := icosahedronVertices[corners[0]]
-		b := icosahedronVertices[corners[1]]
-		c := icosahedronVertices[corners[2]]
-
-		for i := 0; i <= Cols; i++ {
-			for j := 0; j <= Cols-i; j++ {
-				position := latticePosition(a, b, c, Cols-i-j, j, i)
-
-				id, ok := index.lookup(position)
-				face[faceIndex(i, j)] = id
-				if ok {
-					resolved[id-1] = true
-				}
-			}
-		}
-
-		for i := 0; i <= Cols; i++ {
-			for j := 0; j <= Cols-i; j++ {
-				from := face[faceIndex(i, j)]
-				if from == 0 {
-					continue
-				}
-
-				for _, move := range latticeMoves {
-					ni, nj := i+move[0], j+move[1]
-					if ni < 0 || nj < 0 || ni+nj > Cols {
-						continue
-					}
-
-					to := face[faceIndex(ni, nj)]
-					if to == 0 {
-						continue
-					}
-
-					edges = append(edges, clicks.Edge{From: from, To: to})
-				}
-			}
-		}
-	}
-
-	if missing := countFalse(resolved); missing > 0 {
-		return nil, fmt.Errorf(
-			"%d of %d tiles do not sit on the detail-%d lattice: the blob was generated at a different subdivision",
-			missing, tiles, Detail)
-	}
-
-	return edges, nil
-}
-
-func countFalse(flags []bool) int {
-	count := 0
-	for _, flag := range flags {
-		if !flag {
-			count++
-		}
-	}
-	return count
 }

@@ -1,19 +1,23 @@
-package embedded_geodesic_map
+package embedded_board
 
 import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
 
-	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// LoadCapitals refuses a capital off its own country's ground, which a blob from another map would put there.
+// LoadCapitals refuses a capital off its own country's ground, which a file of another board would put there.
 func (l *Loader) LoadCapitals(borders *clicks.Borders) (*clicks.Capitals, error) {
-	blob, asset, err := mapdata.Capitals()
+	board, err := l.board()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the embedded capitals blob: %w", err)
+		return nil, err
+	}
+	asset := board.manifest.Files.Capitals
+	blob, err := board.file(asset)
+	if err != nil {
+		return nil, err
 	}
 
 	var file struct {
@@ -25,7 +29,7 @@ func (l *Loader) LoadCapitals(borders *clicks.Borders) (*clicks.Capitals, error)
 	}
 	if file.Tiles != l.expectTiles {
 		return nil, fmt.Errorf(
-			"%s holds %d tiles but gameMap.maxIndex is %d: the blob and the config were updated apart",
+			"%s holds %d tiles but gameMap.maxIndex is %d: the board and the config were updated apart",
 			asset, file.Tiles, l.expectTiles)
 	}
 	for country, tile := range file.Capitals {

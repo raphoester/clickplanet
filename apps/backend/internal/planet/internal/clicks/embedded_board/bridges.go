@@ -1,18 +1,22 @@
-package embedded_geodesic_map
+package embedded_board
 
 import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
 
-	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 func (l *Loader) LoadBridges() (*clicks.Bridges, error) {
-	blob, asset, err := mapdata.Bridges()
+	board, err := l.board()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the embedded bridges blob: %w", err)
+		return nil, err
+	}
+	asset := board.manifest.Files.Bridges
+	blob, err := board.file(asset)
+	if err != nil {
+		return nil, err
 	}
 
 	var file struct {
@@ -24,7 +28,7 @@ func (l *Loader) LoadBridges() (*clicks.Bridges, error) {
 	}
 	if file.Tiles != l.expectTiles {
 		return nil, fmt.Errorf(
-			"%s holds %d tiles but gameMap.maxIndex is %d: the blob and the config were updated apart",
+			"%s holds %d tiles but gameMap.maxIndex is %d: the board and the config were updated apart",
 			asset, file.Tiles, l.expectTiles)
 	}
 

@@ -1,4 +1,4 @@
-package embedded_geodesic_map
+package embedded_board
 
 import (
 	"encoding/binary"
@@ -7,14 +7,18 @@ import (
 	"fmt"
 	"log/slog"
 
-	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 func (l *Loader) LoadBorders() (*clicks.Borders, error) {
-	blob, asset, err := mapdata.Borders()
+	board, err := l.board()
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the embedded borders blob: %w", err)
+		return nil, err
+	}
+	asset := board.manifest.Files.Borders
+	blob, err := board.file(asset)
+	if err != nil {
+		return nil, err
 	}
 
 	borders, err := decodeBorders(asset, blob)
@@ -24,7 +28,7 @@ func (l *Loader) LoadBorders() (*clicks.Borders, error) {
 
 	if borders.Tiles() != l.expectTiles {
 		return nil, fmt.Errorf(
-			"%s holds %d tiles but gameMap.maxIndex is %d: the blob and the config were updated apart",
+			"%s holds %d tiles but gameMap.maxIndex is %d: the board and the config were updated apart",
 			asset, borders.Tiles(), l.expectTiles)
 	}
 

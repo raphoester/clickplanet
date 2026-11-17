@@ -1,24 +1,23 @@
-package embedded_geodesic_map_test
+package embedded_board_test
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 )
 
 func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
-	borders, err := embedded_geodesic_map.New(tiles, nil).LoadBorders()
+	borders, err := loader().LoadBorders()
 	require.NoError(t, err)
 
-	_, asset, err := mapdata.Borders()
-	require.NoError(t, err)
-
-	assert.Equal(t, "borders-e6851c0e.bin", asset)
+	manifest, _ := shipped(t)
+	assert.Equal(t, "borders-e6851c0e.bin", manifest.Files.Borders)
+	assert.Equal(t, manifest.Files.Borders, borders.Asset())
 
 	counts := map[string]int{}
 	for tile := uint32(1); tile <= tiles; tile++ {
@@ -38,7 +37,7 @@ func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
 }
 
 func TestTheShippedBordersSplitEachCountryIntoItsLandmasses(t *testing.T) {
-	borders, err := embedded_geodesic_map.New(tiles, nil).LoadBorders()
+	borders, err := loader().LoadBorders()
 	require.NoError(t, err)
 
 	assert.Equal(t, 695, borders.Landmasses(), "694 landmasses and none")
@@ -58,7 +57,7 @@ func TestTheShippedBordersSplitEachCountryIntoItsLandmasses(t *testing.T) {
 }
 
 func TestBordersForAnotherMapRefuseTheBoot(t *testing.T) {
-	_, err := embedded_geodesic_map.New(tiles-1, nil).LoadBorders()
+	_, err := embedded_board.New(tiles-1, slog.New(slog.DiscardHandler)).LoadBorders()
 	require.Error(t, err)
 }
 

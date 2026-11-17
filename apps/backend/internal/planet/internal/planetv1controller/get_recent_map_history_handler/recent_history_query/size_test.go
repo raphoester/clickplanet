@@ -17,7 +17,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
@@ -42,7 +42,7 @@ type day struct {
 }
 
 func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
-	geography, err := embedded_geodesic_map.New(mapTiles, slog.New(slog.DiscardHandler)).LoadGeography()
+	geography, err := embedded_board.New(mapTiles, slog.New(slog.DiscardHandler)).LoadGeography()
 	require.NoError(t, err)
 	busy := &day{geography: geography, random: rand.New(rand.NewPCG(11, 11)), owners: make([]string, mapTiles+1)} //nolint:gosec // a fixed draw, not a secret.
 	busy.hold()

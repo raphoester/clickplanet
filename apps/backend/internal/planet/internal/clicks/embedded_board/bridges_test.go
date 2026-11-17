@@ -1,7 +1,6 @@
-package embedded_geodesic_map_test
+package embedded_board_test
 
 import (
-	"log/slog"
 	"math"
 	"slices"
 	"testing"
@@ -9,23 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 )
-
-func loader() *embedded_geodesic_map.Loader {
-	return embedded_geodesic_map.New(tiles, slog.New(slog.DiscardHandler))
-}
 
 func TestTheShippedBridgesLandOnCoastsAndJoinEveryPieceOfLand(t *testing.T) {
 	bridges, err := loader().LoadBridges()
 	require.NoError(t, err)
 
-	_, asset, err := mapdata.Bridges()
-	require.NoError(t, err)
-	assert.Equal(t, "bridges-4b74bbe0.json", asset)
+	manifest, _ := shipped(t)
+	assert.Equal(t, "bridges-4b74bbe0.json", manifest.Files.Bridges)
 	assert.Equal(t, 744, bridges.Count(), "565 stepping stones, 17 sea lanes and 162 second ways")
 
 	for tile := uint32(1); tile <= tiles; tile++ {
@@ -82,9 +74,8 @@ func TestTheShippedCapitalsAreEachCountrysTileNearestItsCapitalCity(t *testing.T
 	capitals, err := loader().LoadCapitals(borders)
 	require.NoError(t, err)
 
-	_, asset, err := mapdata.Capitals()
-	require.NoError(t, err)
-	assert.Equal(t, "capitals-3938708b.json", asset)
+	manifest, _ := shipped(t)
+	assert.Equal(t, "capitals-3938708b.json", manifest.Files.Capitals)
 
 	assert.Len(t, capitals.All(), 239, "every country on the map")
 	flags := capitals.Flags(cpcountries.New().CheckCountry).All()
