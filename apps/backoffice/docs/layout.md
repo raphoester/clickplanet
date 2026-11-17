@@ -24,8 +24,8 @@ src/
                     Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
                     time.ts (a time in words, a span of two, as a datetime-local holds it, the operator's time zone)
   home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
-                    heat.ts (the picture), places.ts (the tile coordinates) and activity.ts; useWidth.ts (a chart's
-                    width as it resizes)
+                    heat.ts (the picture), places.ts (where each tile is), board.ts (each tile's position, rebuilt
+                    from the board's runs) and activity.ts; useWidth.ts (a chart's width as it resizes)
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts; said.ts (what a message said,
@@ -58,7 +58,7 @@ src/
                     schedule's rows and what each module plays), seasons.ts (the seasons' rows and form), timeline.ts
                     (the Timeline's lanes and instants)
   gen/grpc/         generated from ../../proto, committed
-  gen/map/          the tile coordinates, copied from ../../map, committed
+  gen/map/          the board's manifest and runs, copied from ../../map/boards, committed
 ```
 
 **An account is shown by its id, with Copy**, beside its name, wherever a tool takes it: a name can change hands,

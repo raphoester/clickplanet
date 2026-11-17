@@ -14,7 +14,7 @@ Each context wires **itself**, in a `module.go` at its root (`internal/planet/mo
 - `props.Logger`, `props.Metrics`
 - `props.Server` — the bind address and the stream heartbeat, **the only config a module reads that is not its own**. It is the transport every module answers over, so it belongs to the layer that owns the server rather than to any context.
 
-**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_geodesic_map.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `Load`, `cpipblock.New` then `Load`, `guard.New` then `Load` (the antibot's evidence), `inmemory_ledger_storage.New` then `Load`.
+**A constructor builds and a `Load…` method reads.** Nothing that reads a file or parses a blob happens inside `New`: the DI sequence calls `New`, then the load, one line each — `embedded_board.New` then `LoadGeography`/`LoadBorders`, `inmemory_tile_storage.New` then `Load`, `cpipblock.New` then `Load`, `guard.New` then `Load` (the antibot's evidence), `inmemory_ledger_storage.New` then `Load`.
 
 A module never sees the router, the signal handler or another module's objects. **There is no mutable app object and nothing to leave a half-built dependency on**: `internal/shared/cpbootstrap` builds every module in order, then serves.
 

@@ -4,7 +4,7 @@ import "./tokens.css"
 import "./index.css"
 
 import {loadBorders} from "./app/viewer/borderField.ts"
-import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
+import {BOARD} from "./app/viewer/boardAsset.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import SeasonMap from "./app/archive/SeasonMap.tsx"
 import {FakeTurnBackend, SEASON_ZERO} from "./backends/fakeTurnBackend.ts"
@@ -16,7 +16,7 @@ import {speakChosenLanguage} from "./i18n/start.ts"
 
 const speaking = speakChosenLanguage()
 
-const borders = loadBorders(BORDERS_URL)
+const borders = loadBorders(BOARD.urls.borders)
 const geometry = () => Promise.all([loadPointGeometryData(), borders]).then(([{positions}, {assignment, codes}]) => ({
     positions, landmasses: {assignment, count: codes.length},
 }))

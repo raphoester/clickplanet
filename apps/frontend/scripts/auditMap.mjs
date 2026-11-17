@@ -3,10 +3,10 @@ import path from "node:path"
 
 import sharp from "sharp"
 
-import {readBorders, readBridges, readCapitals, readCoordinates, staticDir} from "./map/blob.mjs"
+import {readBoard, readBorders, readBridges, readCapitals, staticDir, tileOfPoint} from "./map/board.mjs"
 import {bridgesOf, piecesApart} from "./map/bridges.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
-import {DETAIL, keyOf, lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
+import {lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {latticeGround} from "./map/oracle.mjs"
 import {REGIONS} from "./map/seats.mjs"
@@ -16,28 +16,25 @@ const seaPixel = (r, g, b) => b > r + 18 && b > g + 8
 const ANTIMERIDIAN_DEGREES = 1
 
 async function main() {
-    const tiles = readCoordinates()
-    const borders = readBorders()
+    const tiles = readBoard()
+    const borders = readBorders(tiles)
     const ground = await loadGround()
-    const {count: vertices, positions, uvs} = lattice()
-    const edges = neighbours(DETAIL)
-    const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions, uvs}, edges)
+    const {cols} = tiles.manifest.lattice
+    const {count: vertices, positions} = lattice(cols)
+    const edges = neighbours(cols)
+    const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions}, edges)
 
     const texture = await sharp(path.join(staticDir, "earth", earthName()))
         .raw().toBuffer({resolveWithObject: true})
     const {width, height, channels} = texture.info
-    const textureSaysLand = (u, v) => {
-        const x = Math.min(Math.floor(u * width), width - 1)
-        const y = Math.min(Math.max(height - 1 - Math.floor(v * height), 0), height - 1)
+    const textureSaysLand = (lon, lat) => {
+        const x = Math.min(Math.floor((lon / 360 + 0.5) * width), width - 1)
+        const y = Math.min(Math.max(height - 1 - Math.floor((lat / 180 + 0.5) * height), 0), height - 1)
         const i = (y * width + x) * channels
         return !seaPixel(texture.data[i], texture.data[i + 1], texture.data[i + 2])
     }
 
-    const tileAt = new Map()
-    for (let t = 0; t < tiles.count; t++) {
-        tileAt.set(keyOf(tiles.positions[t * 3], tiles.positions[t * 3 + 1], tiles.positions[t * 3 + 2]), t)
-    }
-    const isTile = {has: (key) => tileAt.has(key)}
+    const tileOf = tileOfPoint(tiles, vertices)
 
     const counts = {
         vertices,
@@ -62,10 +59,10 @@ async function main() {
     const elsewhere = {land: 0, tiles: 0}
 
     for (let i = 0; i < vertices; i++) {
-        const tile = isTile.has(keyOf(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]))
-        const [lon, lat] = lonLatOf(uvs[i * 2], uvs[i * 2 + 1])
+        const tile = tileOf[i] >= 0
+        const [lon, lat] = lonLatOf(positions, i)
         const land = grounds[i] !== SEA
-        const drawnAsLand = textureSaysLand(uvs[i * 2], uvs[i * 2 + 1])
+        const drawnAsLand = textureSaysLand(lon, lat)
 
         if (land) counts.groundIsLand++
         if (drawnAsLand) counts.textureIsLand++
@@ -82,11 +79,11 @@ async function main() {
 
     const ice = await iceOnly()
     for (let i = 0; i < vertices; i++) {
-        const [lon, lat] = lonLatOf(uvs[i * 2], uvs[i * 2 + 1])
+        const [lon, lat] = lonLatOf(positions, i)
         if (lat > -55) continue
         if (ice.groundOf(lon, lat) === SEA) continue
         counts.antarcticIce++
-        if (!isTile.has(keyOf(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]))) faults.iceWithNoTile++
+        if (tileOf[i] < 0) faults.iceWithNoTile++
     }
 
     for (let t = 0; t < borders.count; t++) if (borders.landmass[t] === 0) faults.tilesWithNoCountry++
@@ -96,19 +93,15 @@ async function main() {
     const groundless = Object.keys(flags).filter((code) => !REGIONS.has(code) && !grounded.has(code))
     faults.flagsWithNoGround = groundless.length
 
-    const {capitals} = readCapitals()
+    const {capitals} = readCapitals(tiles)
     for (const code of grounded) if (!(code in capitals)) faults.groundWithNoCapital++
     for (const [code, tile] of Object.entries(capitals)) {
         if (borders.codes[borders.landmass[tile - 1]] !== code) faults.capitalsOffTheirGround++
     }
 
-    const tileOf = new Int32Array(vertices)
-    for (let i = 0; i < vertices; i++) {
-        tileOf[i] = tileAt.get(keyOf(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2])) ?? -1
-    }
     const crossings = {at: edges.at, to: edges.to, tileOf}
     const drawn = bridgesOf({positions: tiles.positions, ...crossings, capitals}).bridges
-    const {bridges} = readBridges()
+    const {bridges} = readBridges(tiles)
     const kept = new Set(bridges.map((pair) => pair.join(",")))
     faults.bridgesAstray = drawn.filter((pair) => !kept.has(pair.join(","))).length
         + Math.max(0, bridges.length - drawn.length)
@@ -122,7 +115,7 @@ async function main() {
         return
     }
 
-    console.error("\nthe tile set and the oracle disagree, which they cannot do if both blobs came"
+    console.error("\nthe tile set and the oracle disagree, which they cannot do if the board came"
         + " from one `npm run map:generate`:")
     for (const [name, n] of broken) console.error(`  ${name}: ${n}`)
     process.exitCode = 1
@@ -145,7 +138,7 @@ async function iceOnly() {
 
 function report({counts, faults, texture, seam, elsewhere, tiles, borders, seated, groundless, lakes}) {
     const pct = (n, of) => `${(n / of * 100).toFixed(2)}%`
-    console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.name} | ${borders.name} | ${earthName()}`)
+    console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.manifest.name} ${tiles.file} | ${borders.name} | ${earthName()}`)
     console.log(`
 lattice vertices        ${counts.vertices}
   tiles                 ${counts.tiles}  (${pct(counts.tiles, counts.vertices)})

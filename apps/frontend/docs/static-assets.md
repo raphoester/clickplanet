@@ -7,43 +7,34 @@ kind of hash-named file needs its own `_headers` rule. Each has a generated TS m
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
 cache entirely:
 
-- `/static/coordinates-<hash>.bin` and `/static/borders-<hash>.bin` — where every
-  tile is, and whose ground it sits on. Fetched at runtime by `borderField.ts`, and
-  by `points.ts` only when the tile positions cannot be rebuilt from the landmask
-  below; URLs in `coordinatesAsset.ts` and `bordersAsset.ts`. Formats
-  in `coordinatesBinary.ts` and [`/map/README.md`](../../../map/README.md).
-  **These two are not ours alone.** The source of truth is the monorepo-shared
+- `/static/boards/<board>/` — a board's files, every one content-addressed: its manifest
+  (`board-<hash>.json`), its runs (`runs-<hash>.bin`, which lattice points are tiles: `points.ts`
+  rebuilds every tile's position from them in a worker, see [Tile positions](tile-positions.md)),
+  its borders (whose ground each tile sits on, fetched by `borderField.ts`), and its capitals and
+  bridges (fetched by `capitals.ts` and `bridges.ts` the first time a capitals' rule or the reach
+  plays, see [The capitals](capitals.md) and [The reach](reach.md)). `boardAsset.ts` holds the manifest
+  and each file's URL as `BOARD`. Formats in [`/map/README.md`](../../../map/README.md#format).
+  **These are not ours alone.** The source of truth is the monorepo-shared
   [`/map`](../../../map/README.md), which the backend builds its tile adjacency from
-  and its admin tools read; `static/` holds a generated copy, exactly as
+  and its admin tools read; `static/boards/` holds a generated copy, exactly as
   `src/gen/grpc/` holds a copy of the proto contract. `npm run map` re-copies the
-  coordinates blob, and `npm run map:generate` rewrites **both** — one command,
-  because a tile exists exactly where the borders blob says a country does and the
-  two must not be able to disagree. **Run the backend's `make map` and the
-  backoffice's `npm run map` after it, and commit every copy**, or the two apps disagree about what a tile id
-  means. It renumbers every tile, so it also writes the postgres migration that
-  follows the owned ones across; see `/map/README.md`.
-- `/static/capitals-<hash>.json` and `/static/bridges-<hash>.json` — each country's
-  capital tile, and each bridge's two end tiles. Fetched at runtime by
-  `capitals.ts` and `bridges.ts` the first time a capitals' rule or the reach plays (see
-  [The capitals](capitals.md) and [The reach](reach.md)); URLs in `capitalsAsset.ts` and `bridgesAsset.ts`. Copies of
-  `/map` like the two above: the capitals written by the same `npm run map:generate`, the bridges by `npm run
-  bridges` after it.
+  board and rewrites `boardAsset.ts`; `npm run map:generate` rewrites the runs, the borders and the
+  capitals — one command, because a tile exists exactly where the borders say a country does and the
+  two must not be able to disagree — and `npm run bridges` the bridges after it. **Run the backend's
+  `make map` and the backoffice's `npm run map` after them, and commit every copy**, or the apps
+  disagree about what a tile id means. A regeneration renumbers every tile, so it also writes the
+  postgres migration that follows the owned ones across; see `/map/README.md`. One `_headers` rule
+  keeps the whole directory a year, immutable.
 - `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
   tile lattice, with the two landmasses each run is between, fetched at runtime by
   `borderLines.ts`. URL in
-  `borderLinesAsset.ts`. Regenerate with `npm run borderLines`, which reads both
-  blobs above and so needs them in place first — and **regenerate it whenever
-  either of them changes**, or the outline is drawn around a map nobody is
-  playing on. Unlike them it is this app's alone and is not copied to `/map`.
-- `/static/landmask-<hash>.bin` — which points of the tile lattice are tiles, one bit
-  each: 113 KB, where the coordinates blob is 5.2 MB. `points.ts`
-  rebuilds every tile's position from it in a worker. URL in `landmaskAsset.ts`.
-  Regenerate with `npm run landmask`, which reads the coordinates blob, so
-  **regenerate it whenever that changes**. It is this app's alone, like
-  `borderLines`. See [Tile positions](tile-positions.md).
+  `borderLinesAsset.ts`. Regenerate with `npm run borderLines`, which reads the
+  board's runs and borders — and **regenerate it whenever either of them changes**,
+  or the outline is drawn around a map nobody is playing on. Unlike them it is this
+  app's alone and is not copied to `/map`.
 - `/static/earth/earth-<hash>.jpg` — the globe's texture, its coastline cut from
   the tile field. URL in `earthAsset.ts`. Regenerate with `npm run earth`, which
-  reads the coordinates blob — so **after `npm run map:generate`**, or the coast
+  reads the board — so **after `npm run map:generate`**, or the coast
   has discs in the water again. See [The globe's texture](globe-texture.md).
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
@@ -151,8 +142,3 @@ the same way, at `/terms`. Discord asks for its URL to allow OAuth sign-in.
 `BannedModal.test.tsx` pins: keep the id if the heading changes. The
 privacy policy says what Google and Discord send us; a new provider, or a new
 field kept from one, changes that page and its date.
-
-The coordinates blob still carries a uv per tile that nothing reads; the decoder
-skips them. A player downloads the blob only when the rebuild from the landmask
-fails, so dropping them is no longer worth its breadth (encoder, two decoders,
-three scripts, the tests, and a regenerated asset in each app).

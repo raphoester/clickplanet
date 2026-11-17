@@ -36,7 +36,7 @@ make quiz
 # run make check-moderation, which fails while the copy differs
 make moderation
 
-# Refresh the embedded tile coordinates blob from the shared /map, then commit it
+# Refresh the embedded boards from the shared /map/boards, then commit them
 make map
 
 # Translate the game page's new or changed English lines (and landmass names) with Claude, then commit the files it

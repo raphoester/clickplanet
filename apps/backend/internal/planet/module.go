@@ -41,7 +41,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/place_shield_usecase/refusal_place_shield"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_geodesic_map"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
@@ -204,7 +204,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			clock := cptime.SystemClock{}
 			countries := cpcountries.New()
 
-			gameMap := embedded_geodesic_map.New(config.GameMap.MaxIndex, props.Logger)
+			gameMap := embedded_board.New(config.GameMap.MaxIndex, props.Logger)
 
 			geography, err := gameMap.LoadGeography()
 			if err != nil {

@@ -71,7 +71,8 @@ and says what is in it. Read the doc before you change its area.
   shutdown.
 - [Durability](docs/durability.md) — the map lives in memory and goes to postgres every second; what a crash
   loses.
-- [Map geography](docs/map-geography.md) — tile adjacency from the shared map blob, checked at boot.
+- [Map geography](docs/map-geography.md) — the board loader: positions rebuilt from the runs and checked against the
+  manifest's hash, adjacency taken from the lattice, checked at boot.
 - [Rate limiting](docs/rate-limiting.md) — two buckets per click, what the answer says is left, and a big country
   refills slower.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN and Cloudflare WARP ranges, before the

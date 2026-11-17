@@ -12,7 +12,7 @@ to `proto/` alone ships nothing: the generated code is committed.
 
 - **`Content-Security-Policy`**: scripts, styles and images from the page alone, calls to
   `https://api.clickplanet.lol`, the bucket (a video's upload, see [Videos](videos.md)) and the page's own `/assets/`
-  (the tile coordinates) alone, and no frame (`frame-ancestors 'none'`): the pages ban, revert and repaint
+  (the board's runs, see [The home page](home.md)) alone, and no frame (`frame-ancestors 'none'`): the pages ban, revert and repaint
   the map, and a framed page could be clicked through. **A new API host is a change here.**
 - **The support bucket's host is in `img-src` and `media-src`**, and no other: a note's photos and videos load
   straight from the R2 link `ListNotes` signs (`support.attachments.bucket.endpoint` in `deploy/vps/backend.yaml`).

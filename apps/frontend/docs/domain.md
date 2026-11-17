@@ -80,11 +80,12 @@ them in the page's language. See [Translation](i18n.md).
 - `territory.ts` — what the territory card says: `rankHoldings`, `freeTilesOf`,
   `sharePercent`, and `sameTerritory`, which spares a render when nothing moved. See
   [A territory, from orbit](territory-card.md).
-- `lattice.ts` — the points of the detail-300 icosahedron, in three's order and to the bit, and
-  `tilePositions`, the positions of the ones a landmask keeps. `landmask.ts` — the landmask file,
-  `landmaskOf` to make one, and `rebuildTilePositions`, which checks the hash. See [Tile
+- `lattice.ts` — the lattice every board is cut from: its points in three's order and to the bit, their canonical
+  ids, their neighbours and three's triangles. `board.ts` — a board's manifest, its runs file, and `tilesOf` /
+  `rebuildTiles`, the tiles a board's runs keep, with their cells and their hash. See [Tile
   positions](tile-positions.md). `latticeCells.ts` — `cellOf`, the lattice point nearest a direction, as the
-  territory layer's shader finds it, and `cellsOf`, each tile's texel. See [The zoomed-out view](zoomed-out-view.md).
+  territory layer's shader finds it, and `cellsOf`, each tile's texel from its canonical id. See [The zoomed-out
+  view](zoomed-out-view.md).
 - `clipAppearances.ts` — which clip that names the player to show, when to read again, and the link
   per platform. See [In a clip](clip-appearances.md).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.

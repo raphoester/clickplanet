@@ -76,7 +76,7 @@ Production's busiest second measured so far (2026-11-10) held 46 events on the w
 
 Tests: `clicks`' `reach_test.go` pins the disc for 0 to 3 rings on a patch of hexagons, its end at a coast, the whole
 disc from a tile taken, the disc in reach from a struck one, the disc without the reach, and a slice of its own;
-`embedded_geodesic_map`'s `load_test.go` the 6, 18 and 36 tiles around inland tiles of the shipped map; `charges`'
+`embedded_board`'s `load_test.go` the 6, 18 and 36 tiles around inland tiles of the shipped map; `charges`'
 `spread_test.go` the spend, nothing held and unlimited; `spread_click`'s tests the rings in force, a refused click that
 spends nothing, the pool spent to its end, unlimited, and with the real reach and `reach_click`, a spreading click two
 tiles out refused and a spreading click next to the land that takes its whole disc.

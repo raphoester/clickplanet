@@ -1,15 +1,16 @@
-import {readdirSync, readFileSync} from "node:fs"
+import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {rebuildTilePositions} from "./landmask.ts"
+import {BOARD} from "../app/viewer/boardAsset.ts"
+import {rebuildTiles} from "./board.ts"
 import {Neighbours} from "./neighbours.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
 function shippedPositions(): Float32Array {
-    const [name] = readdirSync(STATIC).filter((entry) => /^landmask-[0-9a-f]{8}\.bin$/.test(entry))
-    const bytes = readFileSync(STATIC + name)
-    return rebuildTilePositions(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+    const bytes = readFileSync(`${STATIC}boards/${BOARD.name}/${BOARD.files.runs}`)
+    const runs = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    return rebuildTiles(BOARD.lattice, BOARD.tiles, runs).positions
 }
 
 describe("Neighbours", () => {

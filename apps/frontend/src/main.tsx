@@ -12,7 +12,7 @@ import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester}
 import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {loadBorders} from "./app/viewer/borderField.ts"
-import {BORDERS_URL} from "./app/viewer/bordersAsset.ts"
+import {BOARD} from "./app/viewer/boardAsset.ts"
 import {chatterNamed, chatterNameplateOf, FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakeGifs} from "./backends/fakeGifs.ts"
 import {GifSearch} from "./backends/gifs.ts"
@@ -185,7 +185,7 @@ function start(backends: Backends) {
 }
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
-    const borders = loadBorders(BORDERS_URL)
+    const borders = loadBorders(BOARD.urls.borders)
     const fake = new FakeBackend(100, {
         tilePositions: () => loadPointGeometryData().then((data) => data.positions),
         landmasses: () => borders.then(({assignment, codes}) => ({assignment, count: codes.length})),

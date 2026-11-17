@@ -1,5 +1,3 @@
-import {keyOf} from "./lattice.mjs"
-
 // Across a cell edge the cover fades over this width, in units of the tile spacing.
 const EDGE = 0.4
 
@@ -70,22 +68,27 @@ export function coverage({count, positions}, isTile, spacing, width, height) {
 }
 
 /**
- * @param {{count: number, positions: Float32Array}} vertices the whole lattice
- * @param {{count: number, positions: Float32Array}} tiles
- * @returns {Uint8Array} 1 for each lattice vertex that is a tile
+ * The median arc between two touching tiles, in radians: a board's spacing.
+ * @param {ArrayLike<number>} positions the tiles'
+ * @param {{at: Uint32Array, to: Uint32Array, tileOf: Int32Array}} lattice from `tileLattice`
+ * @returns {number}
  */
-export function tilesOn(vertices, tiles) {
-    const indexOf = new Map()
-    for (let v = 0; v < vertices.count; v++) {
-        indexOf.set(keyOf(vertices.positions[v * 3], vertices.positions[v * 3 + 1], vertices.positions[v * 3 + 2]), v)
+export function medianSpacingOf(positions, {at, to, tileOf}) {
+    const arcs = []
+    for (let v = 0; v < tileOf.length; v++) {
+        const tile = tileOf[v]
+        if (tile < 0) continue
+        for (let e = at[v]; e < at[v + 1]; e++) {
+            const other = tileOf[to[e]]
+            if (other <= tile) continue
+            const dx = positions[tile * 3] - positions[other * 3]
+            const dy = positions[tile * 3 + 1] - positions[other * 3 + 1]
+            const dz = positions[tile * 3 + 2] - positions[other * 3 + 2]
+            arcs.push(2 * Math.asin(Math.hypot(dx, dy, dz) / 2))
+        }
     }
-    const isTile = new Uint8Array(vertices.count)
-    for (let t = 0; t < tiles.count; t++) {
-        const v = indexOf.get(keyOf(tiles.positions[t * 3], tiles.positions[t * 3 + 1], tiles.positions[t * 3 + 2]))
-        if (v === undefined) throw new Error(`tile ${t + 1} is not a lattice vertex`)
-        isTile[v] = 1
-    }
-    return isTile
+    if (arcs.length === 0) throw new Error("no two tiles touch")
+    return Float64Array.from(arcs).sort()[Math.floor(arcs.length / 2)]
 }
 
 /**

@@ -29,8 +29,8 @@ and `antibot.v1.AdminService/InspectPlayer` for where each painter stands.
 
 ## How a drawing is drawn
 
-`picture.ts`, `pictureOf(places, tileIds, margin)`, on the tile coordinates the page bundles (`src/gen/map`, read once
-a page load by `home/places.ts`):
+`picture.ts`, `pictureOf(places, tileIds, margin)`, on the tile places the page rebuilds from the board it bundles
+(`src/gen/map`, read once a page load by `home/places.ts`):
 
 - **The drawing's middle** is the mean of its tiles' points on the sphere; east and north there make the plane it is
   drawn on, each tile its point's projection (`x = p·east`, `y = p·north`), so north is up wherever it is, a pole and

@@ -1,6 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
-import {readBorders, readCoordinates, staticDir} from "./map/blob.mjs"
+import {readBoard, readBorders, staticDir} from "./map/board.mjs"
+import {lonLatOf} from "./map/lattice.mjs"
 import {naturalEarth, NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {evidenceOf} from "./map/names/evidence.mjs"
 import {namesOf} from "./map/names/naming.mjs"
@@ -15,24 +16,21 @@ const LAYERS = [
     "ne_10m_populated_places_simple",
 ]
 
-const coordinates = readCoordinates()
-const borders = readBorders()
-if (borders.count !== coordinates.count) {
-    throw new Error(`${borders.name} has ${borders.count} tiles, ${coordinates.name} has ${coordinates.count}`)
+const board = readBoard()
+const borders = readBorders(board)
+if (borders.count !== board.count) {
+    throw new Error(`${borders.name} has ${borders.count} tiles, ${board.file} has ${board.count}`)
 }
 
-const lon = new Float64Array(coordinates.count)
-const lat = new Float64Array(coordinates.count)
-for (let t = 0; t < coordinates.count; t++) {
-    lon[t] = (coordinates.uvs[t * 2] - 0.5) * 360
-    lat[t] = (coordinates.uvs[t * 2 + 1] - 0.5) * 180
-}
+const lon = new Float64Array(board.count)
+const lat = new Float64Array(board.count)
+for (let t = 0; t < board.count; t++) [lon[t], lat[t]] = lonLatOf(board.positions, t)
 
 const layers = {}
 for (const name of LAYERS) layers[name] = await naturalEarth(name)
 
 const countryNames = JSON.parse(fs.readFileSync(path.join(staticDir, "countries", "countries.json"), "utf8"))
-const evidence = evidenceOf({count: coordinates.count, lon, lat, codes: borders.codes, landmass: borders.landmass}, layers)
+const evidence = evidenceOf({count: board.count, lon, lat, codes: borders.codes, landmass: borders.landmass}, layers)
 const named = namesOf(evidence, countryNames)
 
 const lines = [...named]

@@ -1,0 +1,67 @@
+package embedded_board_test
+
+import (
+	"log/slog"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
+)
+
+func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
+	borders, err := loader().LoadBorders()
+	require.NoError(t, err)
+
+	manifest, _ := shipped(t)
+	assert.Equal(t, "borders-e6851c0e.bin", manifest.Files.Borders)
+	assert.Equal(t, manifest.Files.Borders, borders.Asset())
+
+	counts := map[string]int{}
+	for tile := uint32(1); tile <= tiles; tile++ {
+		counts[borders.CountryOf(tile)]++
+	}
+
+	assert.NotContains(t, counts, "", "every tile is in a country")
+	assert.Len(t, counts, 239, "countries with at least one tile")
+	assert.Equal(t, 1247, counts["fr"], "Monaco's seat is one of France's")
+	assert.Equal(t, "fr", borders.CountryOf(99217))
+	for _, seated := range []string{"va", "mc", "li", "mv", "pw", "sc"} {
+		assert.Equal(t, 1, counts[seated], "%s is smaller than a tile and has one, its seat", seated)
+	}
+	assert.Equal(t, 22885, counts["aq"], "includes the ice shelves, which are in no country polygon")
+	assert.Empty(t, borders.CountryOf(0), "tile ids start at 1")
+	assert.Empty(t, borders.CountryOf(tiles+1))
+}
+
+func TestTheShippedBordersSplitEachCountryIntoItsLandmasses(t *testing.T) {
+	borders, err := loader().LoadBorders()
+	require.NoError(t, err)
+
+	assert.Equal(t, 695, borders.Landmasses(), "694 landmasses and none")
+	assert.Empty(t, borders.TilesOf(clicks.NoLandmass))
+	assert.Equal(t, "borders-e6851c0e.bin", borders.Asset())
+
+	var us []int
+	for landmass := range borders.Landmasses() {
+		members := borders.TilesOf(clicks.LandmassID(landmass)) //nolint:gosec // 695 landmasses.
+		if len(members) > 0 && borders.CountryOf(members[0]) == "us" {
+			us = append(us, len(members))
+		}
+	}
+	assert.Len(t, us, 36)
+	assert.Contains(t, us, 15728, "the lower 48, the Great Lakes water")
+	assert.Contains(t, us, 2828, "alaska")
+}
+
+func TestBordersForAnotherMapRefuseTheBoot(t *testing.T) {
+	_, err := embedded_board.New(tiles-1, slog.New(slog.DiscardHandler)).LoadBorders()
+	require.Error(t, err)
+}
+
+func TestARegionPastTheCodeTableIsRefused(t *testing.T) {
+	_, err := clicks.NewBorders("borders-test.bin", []uint16{0, 2}, []string{"", "fr"})
+	require.Error(t, err)
+}

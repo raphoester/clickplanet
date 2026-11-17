@@ -15,13 +15,10 @@ MAP_DIR := ../../map
 MAP_ASSET_DIR := generated/map
 
 map:
-	@for blob in coordinates.bin borders.bin capitals.json bridges.json; do \
-		asset=$${blob%.*}; ext=$${blob##*.}; \
-		test -n "$$(ls $(MAP_DIR)/$$asset-*.$$ext 2>/dev/null)" || { echo "map: no $(MAP_DIR)/$$asset-<hash>.$$ext" >&2; exit 1; }; \
-		rm -f $(MAP_ASSET_DIR)/$$asset-*.$$ext; \
-		cp $(MAP_DIR)/$$asset-*.$$ext $(MAP_ASSET_DIR)/; \
-		ls $(MAP_ASSET_DIR)/$$asset-*.$$ext; \
-	done
+	@test -n "$$(ls $(MAP_DIR)/boards/*/board-*.json 2>/dev/null)" || { echo "map: no $(MAP_DIR)/boards/<board>/board-<hash>.json" >&2; exit 1; }
+	@rm -rf generated/map/boards
+	@cp -R $(MAP_DIR)/boards $(MAP_ASSET_DIR)/boards
+	@find $(MAP_ASSET_DIR)/boards -type f | sort
 
 QUIZ_DIR := ../../quiz
 QUIZ_ASSET_DIR := generated/quiz

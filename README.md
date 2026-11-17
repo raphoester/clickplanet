@@ -11,7 +11,7 @@ apps/
 ├── backend/     # the Go API: one process, postgres and Redis
 └── backoffice/  # the operator's page at backoffice.clickplanet.lol
 proto/           # the API contract, one package per bounded context
-map/             # the tile coordinates and borders blobs, copied into each app
+map/             # the boards: each map geometry's files, copied into each app
 quiz/            # the quiz bank, embedded in the backend
 docs/            # what the apps share
 deploy/          # the local full stack, and the production box (deploy/vps)

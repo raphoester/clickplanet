@@ -1,73 +1,67 @@
 import {writeFileSync} from "node:fs"
 
+import {encodeRuns, runsOf} from "../src/domain/board.ts"
+import {latticeIds, positionsHash} from "../src/domain/lattice.ts"
+import {EARTH_1, readBoard, readBorders} from "./map/board.mjs"
 import {encodeBorders} from "./map/bordersBinary.mjs"
 import {capitalsOf} from "./map/capitals.mjs"
+import {medianSpacingOf} from "./map/coverage.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {landmasses} from "./map/landmasses.mjs"
-import {DETAIL, keyOf, lattice, neighbours} from "./map/lattice.mjs"
+import {keyOf, lattice, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG, naturalEarth} from "./map/naturalEarth.mjs"
-import {readBorders, readCoordinates} from "./map/blob.mjs"
 import {remap, remapLandmasses, remapSQL} from "./map/remap.mjs"
 import {latticeGround} from "./map/oracle.mjs"
-import {bordersPath, staticBordersPath, writeBordersAsset, writeCoordinatesBinary, writeSharedJSON} from "./writeCoordinates.ts"
+import {syncBoards, writeBoardFile, writeBoardJSON, writeManifest} from "./writeBoard.ts"
 
 const args = process.argv.slice(2)
 const remapAt = args.includes("--remap") ? args[args.indexOf("--remap") + 1] : undefined
 if (args.includes("--remap") && !remapAt) throw new Error("--remap needs a path to write the migration to")
 
-const previous = readCoordinates()
-const previousBorders = readBorders()
+const board = EARTH_1
+const {cols} = board.lattice
+const previous = readBoard()
+const previousBorders = readBorders(previous)
 const ground = await loadGround()
-const {count: vertices, positions, uvs} = lattice(DETAIL)
-const edges = neighbours(DETAIL)
+const vertices = lattice(cols)
+const edges = neighbours(cols)
 const {at, to} = edges
-const {grounds: groundOfVertex, lakes, seated} = latticeGround(ground, {count: vertices, positions, uvs}, edges)
+const ids = latticeIds(cols)
+const {grounds: groundOfVertex, lakes, seated} = latticeGround(ground, vertices, edges)
 
-// Keep lattice order: the remap migration relies on ids staying monotonic.
+// Keep lattice order: the ledger holds these ids, and the remap migration relies on them staying monotonic.
 const tilePositions: number[] = []
-const tileUVs: number[] = []
+const tileIds: number[] = []
 const grounds: string[] = []
-const tileOf = new Int32Array(vertices).fill(-1)
-for (let v = 0; v < vertices; v++) {
+const tileOf = new Int32Array(vertices.count).fill(-1)
+for (let v = 0; v < vertices.count; v++) {
     const code = groundOfVertex[v]
     if (code === SEA) continue
     tileOf[v] = grounds.length
     grounds.push(code)
-    tilePositions.push(positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2])
-    tileUVs.push(uvs[v * 2], uvs[v * 2 + 1])
+    tileIds.push(ids[v])
+    tilePositions.push(vertices.positions[v * 3], vertices.positions[v * 3 + 1], vertices.positions[v * 3 + 2])
 }
 const count = grounds.length
-console.log(`Natural Earth ${NATURAL_EARTH_TAG}, detail ${DETAIL}: ${count} tiles of ${vertices} lattice vertices`)
-console.log(`${lakes} lattice vertices on a country's ground are sea, because most of their cell is lake`)
+const positions = Float32Array.from(tilePositions)
+console.log(`Natural Earth ${NATURAL_EARTH_TAG}, ${board.name} at cols ${cols}: ${count} tiles of ${vertices.count} lattice points`)
+console.log(`${lakes} lattice points on a country's ground are sea, because most of their cell is lake`)
 const islands = seated.filter(({was}) => was === SEA).map(({code}) => code)
 const onLand = seated.filter(({was}) => was !== SEA).map(({code, was}) => `${code} from ${was}`)
 console.log(`seated ${seated.length} countries the lattice misses: ${islands.length} on a tile of their own at sea`
     + ` (${islands.join(" ")}), ${onLand.length} on a neighbour's (${onLand.join(", ")})`)
 
-const pieces = landmasses({
-    count,
-    positions: Float32Array.from(tilePositions),
-    grounds,
-    tileOf,
-    at,
-    to,
-})
+const pieces = landmasses({count, positions, grounds, tileOf, at, to})
 const countries = new Set(pieces.codes.slice(1))
 console.log(`${pieces.codes.length - 1} landmasses across ${countries.size} countries`)
 
-const coordinates = writeCoordinatesBinary({
-    positions: tilePositions,
-    uvs: tileUVs,
-    length: count,
-})
-console.log(`wrote map/${coordinates.fileName}: ${coordinates.tiles} tiles, ${coordinates.byteLength} bytes`)
+const runs = runsOf(tileIds)
+const runsFile = writeBoardFile(board.name, "runs", new Uint8Array(encodeRuns(runs)))
+console.log(`wrote map/boards/${board.name}/${runsFile}: ${count} tiles in ${runs.length} runs`)
 
 const borders = encodeBorders(pieces)
-for (const path of [bordersPath(borders.fileName), staticBordersPath(borders.fileName)]) {
-    writeFileSync(path, borders.bytes)
-}
-writeBordersAsset(borders.fileName)
-console.log(`wrote map/${borders.fileName}: ${borders.bytes.byteLength} bytes`)
+const bordersFile = writeBoardFile(board.name, "borders", borders.bytes)
+console.log(`wrote map/boards/${board.name}/${bordersFile}: ${borders.bytes.byteLength} bytes`)
 
 const [places, countryShapes] = await Promise.all([
     naturalEarth("ne_10m_populated_places"),
@@ -76,21 +70,29 @@ const [places, countryShapes] = await Promise.all([
 const capitals = capitalsOf(places, countryShapes, {
     codes: pieces.codes,
     landmass: pieces.assignment,
-    positions: Float32Array.from(tilePositions),
+    positions,
     frames: pieces.frames,
     totals: pieces.totals,
 })
-const capitalsFile = writeSharedJSON("capitals", {tiles: count, capitals})
-console.log(`wrote map/${capitalsFile.fileName}: ${Object.keys(capitals).length} capitals`)
+const capitalsFile = writeBoardJSON(board.name, "capitals", {tiles: count, capitals})
+console.log(`wrote map/boards/${board.name}/${capitalsFile.fileName}: ${Object.keys(capitals).length} capitals`)
+
+const manifest = writeManifest(board.name, {
+    body: board.body,
+    lattice: board.lattice,
+    tiles: count,
+    spacing: medianSpacingOf(positions, {at, to, tileOf}),
+    positionsHash: positionsHash(positions),
+})
+console.log(`wrote map/boards/${board.name}/${manifest}`)
+syncBoards()
 
 const before: string[] = []
 for (let t = 0; t < previous.count; t++) {
     before.push(keyOf(previous.positions[t * 3], previous.positions[t * 3 + 1], previous.positions[t * 3 + 2]))
 }
 const after: string[] = []
-for (let t = 0; t < count; t++) {
-    after.push(keyOf(tilePositions[t * 3], tilePositions[t * 3 + 1], tilePositions[t * 3 + 2]))
-}
+for (let t = 0; t < count; t++) after.push(keyOf(positions[t * 3], positions[t * 3 + 1], positions[t * 3 + 2]))
 const moved = remap(before, after)
 console.log(
     `ids: ${moved.kept} kept, ${moved.added} added, ${moved.removed.length} gone`
@@ -103,12 +105,12 @@ if (remapAt) {
         ...moved,
         before: previous.count,
         after: count,
-        from: previous.name,
-        to: coordinates.fileName,
+        from: previous.manifest.files.runs,
+        to: runsFile,
         landmasses: remapLandmasses(previousBorders, {codes: pieces.codes, landmass: pieces.assignment}, moved.runs),
-        borders: {from: previousBorders.name, to: borders.fileName},
+        borders: {from: previousBorders.name, to: bordersFile},
     }
-    console.log(`landmasses: ${plan.landmasses.length} of ${previousBorders.codes.length - 1} followed to the new blob`)
+    console.log(`landmasses: ${plan.landmasses.length} of ${previousBorders.codes.length - 1} followed to the new board`)
     const downAt = `${remapAt.slice(0, -".up.sql".length)}.down.sql`
     writeFileSync(remapAt, remapSQL(plan))
     writeFileSync(downAt, remapSQL(plan, {down: true}))
@@ -119,10 +121,9 @@ console.log(`
 next:
   gameMap.maxIndex is now ${count} — update cmd/api/example.yaml and deploy/vps/backend.yaml
   npm run bridges                  # the crossings, from the new tiles and capitals
-  cd ../backend && make map        # copy the blobs, then commit every copy
-  cd ../backoffice && npm run map  # copy the coordinates blob
-  npm run borderLines              # traced from both blobs, stale until it is run
-  npm run landmask                 # which lattice points are tiles, what the browser downloads
+  cd ../backend && make map        # copy the board, then commit every copy
+  cd ../backoffice && npm run map  # copy the manifest and the runs
+  npm run borderLines              # traced from the board, stale until it is run
   npm run earth                    # the globe's texture, cut from the new tile field
-  npm run landmassNames            # each landmass's name, keyed by the new borders blob
+  npm run landmassNames            # each landmass's name, keyed by the new borders file
   npm run map:audit                # every fault should read zero`)

@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import {LATTICE_COLS, latticeFaces, type TileCells} from "../../domain/latticeCells.ts"
+import {latticeFaces, type TileCells} from "../../domain/latticeCells.ts"
 import {EARTH_RADIUS} from "./sphere.ts"
 
 import vertexShader from "./shaders/territory/vertex.glsl"
@@ -26,7 +26,7 @@ export type TerritoryLayerInputs = {
 
 // The flags painted on the ground zoomed out: each pixel finds its tile's cell and wears its holder's flag.
 export function createTerritoryLayer({sphere, cells, tileData, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
-    const faces = latticeFaces()
+    const faces = latticeFaces(cells.cols)
 
     const faceData = new Float32Array(FACE_TEXELS * faces.length * 4)
     faces.forEach(({origin, toB, toC, alongOf, downOf, ids}, face) => {
@@ -46,7 +46,7 @@ export function createTerritoryLayer({sphere, cells, tileData, flagRectangles, u
             ...uniforms,
             faceNormals: {value: faces.map(({normal, height}) => new THREE.Vector4(...normal, height))},
             latticeFaces: {value: faceTexture},
-            latticeCols: {value: LATTICE_COLS},
+            latticeCols: {value: cells.cols},
             tileCells: {value: cellTexture(cells.words)},
             tileData: {value: tileData},
             flagRectangles: {value: flagRectangles},
