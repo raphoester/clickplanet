@@ -92,10 +92,18 @@ func (s *testSuite) TestAGuestDoesAMissionAndIsPaidOnceItSignsIn() {
 	require.Eventually(t, func() bool { return ada.missions()[0].GetPaid() },
 		10*time.Second, 20*time.Millisecond, "player tells the sign-in (PlayerSignedIn), and missions pays the mission done")
 
+	var goals uint64
+	for _, mission := range ada.missions() {
+		if mission.GetDone() {
+			require.NotNil(t, mission.GetTakeFor(),
+				"with no rival of 1,000 tiles the second mission is a take-for too, which the bank's clicks may do; no other kind")
+			goals += uint64(mission.GetTakeFor().GetGoal())
+		}
+	}
 	rate := ada.missionRate(missionsv1.MissionKind_MISSION_KIND_TAKE_FOR)
 	assert.Eventually(t, func() bool {
-		return ada.xp().GetMissionsDone() == uint64(bank.GetGoal())*uint64(rate.GetXp())/uint64(rate.GetPer())
-	}, 5*time.Second, 20*time.Millisecond, "missions tells the mission done, and progression pays its goal times its kind's rate")
+		return ada.xp().GetMissionsDone() == goals*uint64(rate.GetXp())/uint64(rate.GetPer())
+	}, 5*time.Second, 20*time.Millisecond, "missions tells the missions done, and progression pays their goals times their kind's rate")
 }
 
 func (s *testSuite) TestAGuestSignsInWithGoogleAndChoosesAName() {
