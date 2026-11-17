@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
@@ -22,13 +22,13 @@ type Owner struct {
 	At      time.Time
 }
 
-// History replays the ledger's entries, in position order from its first one, into the world's map every step of a
-// window, and each tile's changes of owner and shield hits during it. An entry made on an arena's map changes none of
-// it: the world's map came back as it was.
+// History replays the ledger's entries, in position order from its first one, into one stage every step of a window,
+// the world's map on the board it plays, and each tile's changes of owner and shield hits during it. An entry names its
+// stage: one made on an arena's map, or on another board, changes none of it.
 type History struct {
 	since, until time.Time
 	step         time.Duration
-	world        arenas.Played
+	replayed     clicks.Stage
 
 	owners  map[uint32]Owner
 	shown   map[uint32]string
@@ -38,12 +38,12 @@ type History struct {
 	hits    map[uint32]uint32
 }
 
-func NewHistory(since, until time.Time, step time.Duration, world arenas.Played) (*History, error) {
+func NewHistory(since, until time.Time, step time.Duration, replayed clicks.Stage) (*History, error) {
 	if !since.Before(until) || step <= 0 {
 		return nil, ErrInvalidHistory
 	}
 	return &History{
-		since: since, until: until, step: step, world: world, next: since,
+		since: since, until: until, step: step, replayed: replayed, next: since,
 		owners: map[uint32]Owner{}, shown: map[uint32]string{}, changed: cpcolls.NewSet[uint32](), hits: map[uint32]uint32{},
 	}, nil
 }
@@ -58,7 +58,7 @@ func (h *History) Record(entry Entry) error {
 	if err != nil {
 		return err
 	}
-	if !h.world.Holds(entry.At) {
+	if entry.Stage != h.replayed {
 		return nil
 	}
 	h.frameUpTo(entry.At)

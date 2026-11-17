@@ -73,6 +73,10 @@ func (s *sender) Send(_ context.Context, events ...proto.Message) error {
 	return nil
 }
 
+func earth1(borders borders, positions positions) relay_ledger_usecase.OneBoard {
+	return relay_ledger_usecase.OneBoard{ID: clicks.TestBoard, Borders: borders, Positions: positions}
+}
+
 func flushed(t *testing.T, events ...ledger.Event) *inmemory_ledger_storage.Storage {
 	t.Helper()
 
@@ -80,7 +84,7 @@ func flushed(t *testing.T, events ...ledger.Event) *inmemory_ledger_storage.Stor
 		slog.New(slog.DiscardHandler))
 	require.NoError(t, storage.Load(t.Context()))
 	for _, event := range events {
-		storage.Append(event)
+		storage.Append(clicks.WorldStage, event)
 	}
 	require.NoError(t, storage.Flush(t.Context()))
 	return storage
@@ -103,7 +107,7 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	events := &sender{}
 	told := &cursor{}
 
-	n, err := relay_ledger_usecase.New(storage, told, borders{1: "es", 9: "au"}, positions{1: {X: 0.6, Z: 0.8}}, events).Execute(t.Context())
+	n, err := relay_ledger_usecase.New(storage, told, earth1(borders{1: "es", 9: "au"}, positions{1: {X: 0.6, Z: 0.8}}), events).Execute(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, 6, n)
@@ -139,7 +143,7 @@ func TestTheTakesOfAnEventAreToldTogetherEachWithItsIndexInTheEvent(t *testing.T
 	)
 	events := &sender{}
 
-	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
 	require.NoError(t, err)
 
 	want := []proto.Message{
@@ -170,7 +174,7 @@ func TestAnEnclosureOfMoreThanAPartIsToldInPartsWhoseIndexesFollowOn(t *testing.
 	storage := flushed(t, ledger.Enclosing{Tile: 9, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at, Impacts: impacts})
 	events := &sender{}
 
-	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
 	require.NoError(t, err)
 
 	require.Len(t, events.sent, 2, "a full part, then the rest")
@@ -197,7 +201,7 @@ func TestTheShieldsAnEventStruckAreToldTogetherWithWhoseEachWas(t *testing.T) {
 	)
 	events := &sender{}
 
-	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
 	require.NoError(t, err)
 
 	var struck []proto.Message
@@ -227,7 +231,7 @@ func TestAFailedSendIsToldAgainNextTime(t *testing.T) {
 	storage := flushed(t, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at})
 	events := &sender{fails: 1}
 	told := &cursor{}
-	relay := relay_ledger_usecase.New(storage, told, borders{}, positions{}, events)
+	relay := relay_ledger_usecase.New(storage, told, earth1(borders{}, positions{}), events)
 
 	_, err := relay.Execute(t.Context())
 	require.Error(t, err)
@@ -244,7 +248,7 @@ func TestNothingNewSendsNothing(t *testing.T) {
 	events := &sender{}
 	told := &cursor{position: 1}
 
-	n, err := relay_ledger_usecase.New(storage, told, borders{}, positions{}, events).Execute(t.Context())
+	n, err := relay_ledger_usecase.New(storage, told, earth1(borders{}, positions{}), events).Execute(t.Context())
 
 	require.NoError(t, err)
 	assert.Zero(t, n)
@@ -274,7 +278,7 @@ func TestClicksForOneFlagOnOneTileAtOnceTellOneTake(t *testing.T) {
 		require.NoError(t, storage.Flush(t.Context()))
 
 		events := &sender{}
-		_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+		_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
 		require.NoError(t, err)
 
 		require.Len(t, events.sent, 1)
@@ -293,7 +297,7 @@ func TestAVirusTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
 	)
 	events := &sender{}
 
-	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
 	require.NoError(t, err)
 
 	require.Len(t, events.sent, 2)
@@ -313,7 +317,7 @@ func TestAMinesTakesAndStrikesAreToldAsTheActsOfItsPlayer(t *testing.T) {
 	)
 	events := &sender{}
 
-	_, err := relay_ledger_usecase.New(storage, &cursor{}, borders{}, positions{}, events).Execute(t.Context())
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
 	require.NoError(t, err)
 
 	require.Len(t, events.sent, 2)
@@ -325,4 +329,27 @@ func TestAMinesTakesAndStrikesAreToldAsTheActsOfItsPlayer(t *testing.T) {
 	assert.Equal(t, ada, struck.GetAccountId())
 	require.Len(t, struck.GetTiles(), 1)
 	assert.Equal(t, uint32(6), struck.GetTiles()[0].GetTileId())
+}
+
+func TestATileOfABoardThisProcessDoesNotCarryIsToldWithNoGroundNorPoint(t *testing.T) {
+	storage := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(),
+		slog.New(slog.DiscardHandler))
+	require.NoError(t, storage.Load(t.Context()))
+	storage.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at})
+	storage.Append(clicks.World.On(clicks.TestBoard+1),
+		ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at})
+	require.NoError(t, storage.Flush(t.Context()))
+	events := &sender{}
+
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{1: "es"}, positions{1: {X: 0.6, Z: 0.8}}), events).
+		Execute(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, events.sent, 2)
+	carried := events.sent[0].(*planetv1.TilesTaken).GetTiles()[0]
+	assert.Equal(t, "es", carried.GetGround())
+	assert.NotNil(t, carried.GetPoint())
+	other := events.sent[1].(*planetv1.TilesTaken).GetTiles()[0]
+	assert.Empty(t, other.GetGround(), "tile 1 of another board is no tile of earth-1's ground")
+	assert.Nil(t, other.GetPoint())
 }

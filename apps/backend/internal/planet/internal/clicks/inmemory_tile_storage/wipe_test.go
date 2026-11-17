@@ -4,11 +4,16 @@ import (
 	"context"
 	"errors"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 )
 
 func keeps(kept bool) func(context.Context) (bool, error) {
 	return func(context.Context) (bool, error) { return kept, nil }
+}
+
+func opens(kept bool) func(context.Context, clicks.Stage) (bool, error) {
+	return func(context.Context, clicks.Stage) (bool, error) { return kept, nil }
 }
 
 func (s *testSuite) TestAWipeLeavesABlankMapInMemoryAndStored() {

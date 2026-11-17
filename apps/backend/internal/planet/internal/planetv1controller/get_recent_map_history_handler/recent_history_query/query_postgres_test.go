@@ -14,9 +14,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras/postgres_era_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -58,6 +58,8 @@ var (
 )
 
 type stubTiles struct {
+	// The world's on earth-1 when unset.
+	playing   clicks.Stage
 	now, kept clicks.DenseBatch
 	reads     atomic.Int32
 	entered   chan struct{}
@@ -71,6 +73,13 @@ func (s *stubTiles) StateBatchDense(uint32, uint32) (clicks.DenseBatch, error) {
 		<-s.release
 	}
 	return s.now, nil
+}
+
+func (s *stubTiles) Stage() clicks.Stage {
+	if s.playing == (clicks.Stage{}) {
+		return clicks.WorldStage
+	}
+	return s.playing
 }
 
 func (s *stubTiles) Kept(context.Context, clicks.MapID) (clicks.DenseBatch, error) {
@@ -100,12 +109,13 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
 	s.clock = cptime.NewFixedClock(now)
 	s.tiles = &stubTiles{}
 }
 
 func (s *testSuite) query() *recent_history_query.PostgresQuery {
-	return recent_history_query.NewPostgresQuery(s.db, s.tiles, postgres_arena_store.New(s.db), postgres_reset_store.New(s.db), s.clock)
+	return recent_history_query.NewPostgresQuery(s.db, s.tiles, postgres_era_store.New(s.db), postgres_reset_store.New(s.db), s.clock)
 }
 
 func (s *testSuite) record(forgotten map[ledger.Caller]ledger.Position, events ...ledger.Event) {
@@ -113,6 +123,7 @@ func (s *testSuite) record(forgotten map[ledger.Caller]ledger.Position, events .
 	for i, event := range events {
 		entry, err := event.Entry()
 		s.Require().NoError(err)
+		entry.Stage = ledger.StageOf(event)
 		stored = append(stored, inmemory_ledger_storage.Stored{Position: ledger.Position(i + 1), Entry: entry}) //nolint:gosec // a few events.
 	}
 	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{
@@ -153,8 +164,8 @@ func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNow() {
 	)
 	// Read, it would fail the history: an event before the window is never read.
 	_, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO ledger_events (position, tile, scope, country, previous, taken_at, kind, payload)
-		VALUES (0, 4, '203.0.113.7', 'fr', '', $1, 'spread', '{"taken":"not a list"}')`, since.Add(-time.Second))
+		INSERT INTO ledger_events (position, map, board, tile, scope, country, previous, taken_at, kind, payload)
+		VALUES (0, 'world', 1, 4, '203.0.113.7', 'fr', '', $1, 'spread', '{"taken":"not a list"}')`, since.Add(-time.Second))
 	s.Require().NoError(err)
 
 	history, next, err := s.query().RecentHistory(ctx)
@@ -178,6 +189,7 @@ func (s *testSuite) TestTheLastDayIsRewoundFromTheMapNow() {
 			until:                        {{Tile: 3, SecondsIntoStep: 1200}},
 		}),
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 2, Hits: 2}, {Tile: 3, Hits: 1}},
+		Eras: worldOnEarth1,
 	}, history), "a reverted take is in none of it, and one after the end only rewinds: %v", history)
 }
 
@@ -242,6 +254,7 @@ func (s *testSuite) TestAResetInTheDayStartsTheHistoryAtTheFirstStepAfterIt() {
 			until:                 {{Tile: 1, CountryId: "de", SecondsIntoStep: 600}},
 		}),
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
+		Eras: worldOnEarth1,
 	}, history), "%v", history)
 }
 
@@ -261,11 +274,10 @@ func (s *testSuite) TestAResetAfterTheDaysEndLeavesNothingOfIt() {
 func (s *testSuite) TestWhileAnArenaPlaysTheWorldsMapKeptIsRewoundAndTheArenasTakesLeftOut() {
 	ctx := s.T().Context()
 	s.tiles.now, s.tiles.kept = mapOf("br"), mapOf("de")
-	opened := until.Add(-15 * time.Minute)
-	s.Require().NoError(postgres_arena_store.New(s.db).Open(ctx, arenas.Opening{ID: "battle", OpenedAt: opened, EndsAt: now.Add(time.Hour)}))
+	s.tiles.playing = clicks.MapID("battle").On(clicks.TestBoard)
 	s.record(map[ledger.Caller]ledger.Position{},
 		take(ada, 1, "fr", "de", until.Add(-time.Hour)),
-		take(bob, 1, "", "br", until.Add(-10*time.Minute)),
+		ledger.Staged{On: s.tiles.playing, Event: take(bob, 1, "", "br", until.Add(-10*time.Minute))},
 	)
 
 	history, _, err := s.query().RecentHistory(ctx)
@@ -277,5 +289,9 @@ func (s *testSuite) TestWhileAnArenaPlaysTheWorldsMapKeptIsRewoundAndTheArenasTa
 			until.Add(-30 * time.Minute): {{Tile: 1, CountryId: "de"}},
 		}),
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
+		Eras: worldOnEarth1,
 	}, history), "%v", history)
 }
+
+// The world's one era, as the migration that made eras keeps it.
+var worldOnEarth1 = []*planetv1.BoardEra{{StartedAt: timestamppb.New(eras.Epoch), Board: "earth-1"}}

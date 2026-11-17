@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -39,9 +38,9 @@ func (b *board) take(tile uint32, scope, country string) {
 }
 
 func (b *board) restorations(scope string) []clicks.Restoration {
-	runs := ledger.NewRuns(ledger.Caller{Scope: scope}, arenas.Played{})
+	runs := ledger.NewRuns(ledger.Caller{Scope: scope}, clicks.WorldStage)
 	for _, event := range b.events {
-		runs.See(event)
+		runs.See(clicks.WorldStage, event)
 	}
 	return runs.Restorations(b.owners)
 }
@@ -254,9 +253,9 @@ func TestRunsCountEveryTileTheScopeTookHeldOrNot(t *testing.T) {
 	b.take(2, "B", "il")
 	b.take(1, "A", "fr")
 
-	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, arenas.Played{})
+	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, clicks.WorldStage)
 	for _, event := range b.events {
-		runs.See(event)
+		runs.See(clicks.WorldStage, event)
 	}
 
 	assert.Equal(t, 2, runs.Touched())
@@ -439,15 +438,15 @@ func TestAPlayersRatesAreItsCountsOverTheTimeFromFirstToLastTake(t *testing.T) {
 
 func replay(storage ledger.Storage) []ledger.Taking {
 	var takings []ledger.Taking
-	storage.Replay(func(event ledger.Event) { takings = append(takings, changes(event)...) })
+	storage.Replay(func(_ clicks.Stage, event ledger.Event) { takings = append(takings, changes(event)...) })
 	return takings
 }
 
 func TestRetentionForgetsTakesPastIt(t *testing.T) {
 	clock := cptime.NewFixedClock(start)
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
-	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", At: start})
-	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", At: start.Add(30 * time.Minute)})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.2.3.4", At: start})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.2.3.4", At: start.Add(30 * time.Minute)})
 
 	clock.Advance(61 * time.Minute)
 	ledger.NewRetention(ledger.Config{Retention: time.Hour}, takings, clock).Sweep()
@@ -460,6 +459,7 @@ func TestRetentionForgetsTakesPastIt(t *testing.T) {
 var errOutOfRange = errors.New("out of range")
 
 type stubTiles struct {
+	stage    clicks.Stage
 	owners   map[uint32]string
 	shields  map[uint32]int
 	fortify  *clicks.Fortification
@@ -467,10 +467,12 @@ type stubTiles struct {
 }
 
 func newTiles(owners map[uint32]string) *stubTiles {
-	return &stubTiles{owners: owners, shields: map[uint32]int{}}
+	return &stubTiles{stage: clicks.WorldStage, owners: owners, shields: map[uint32]int{}}
 }
 
 const lastTile = 100
+
+func (s *stubTiles) During(write func(on clicks.Stage)) { write(s.stage) }
 
 func (s *stubTiles) Owner(tile uint32) (string, bool) { return s.owners[tile], true }
 
@@ -554,7 +556,7 @@ func recorded(tiles *stubTiles) (ledger.Recording, *inmemory_ledger_storage.Stor
 
 func written(storage ledger.Storage) []ledger.Event {
 	var events []ledger.Event
-	storage.Replay(func(event ledger.Event) { events = append(events, event) })
+	storage.Replay(func(_ clicks.Stage, event ledger.Event) { events = append(events, event) })
 	return events
 }
 
@@ -581,6 +583,24 @@ func TestRecordingNotesABombWithTheFlagEachTileWoreAndTheShieldsEachStruckTileKe
 		{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Previous: "de", At: start},
 		{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Previous: "il", At: start},
 	}, replay(events))
+}
+
+func TestEveryEventARecordingMakesNamesTheStageItsWriteRanOn(t *testing.T) {
+	tiles := newTiles(map[uint32]string{1: "de", 2: "de", 3: "de"})
+	tiles.stage = clicks.MapID("battle").On(clicks.TestBoard)
+	recording, events := recorded(tiles)
+
+	_, err := recording.Click(caller(t), 1, "fr")
+	require.NoError(t, err)
+	require.NoError(t, recording.Spread(caller(t), 1, "fr", []uint32{2}))
+	_, err = recording.Shield(caller(t), 1, "fr", 3, clicks.PlacementID{})
+	require.NoError(t, err)
+	_, err = recording.Clear(caller(t), clicks.Blast{Tile: 3, CountryID: "fr", Cleared: []uint32{3}})
+	require.NoError(t, err)
+
+	var stages []clicks.Stage
+	events.Replay(func(on clicks.Stage, _ ledger.Event) { stages = append(stages, on) })
+	assert.Equal(t, []clicks.Stage{tiles.stage, tiles.stage, tiles.stage, tiles.stage}, stages)
 }
 
 func TestRecordingNotesABombInTheSeaThatClearedNothing(t *testing.T) {
@@ -881,9 +901,9 @@ func TestARevertOfAnAccountFollowsItAcrossScopes(t *testing.T) {
 	)
 	b.owners[7], b.owners[8] = "fr", "ps"
 
-	runs := ledger.NewRuns(ledger.Caller{Account: "guest"}, arenas.Played{})
+	runs := ledger.NewRuns(ledger.Caller{Account: "guest"}, clicks.WorldStage)
 	for _, event := range b.events {
-		runs.See(event)
+		runs.See(clicks.WorldStage, event)
 	}
 
 	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "fr", To: "il"}}, runs.Restorations(b.owners))
@@ -920,17 +940,14 @@ func TestAnAccountIDIsAUUIDThatIsNotNil(t *testing.T) {
 }
 
 func TestAnArenaTakeNeitherBreaksNorMakesARunOnTheWorldsMap(t *testing.T) {
-	opened, closed := start.Add(10*time.Minute), start.Add(40*time.Minute)
-	world := arenas.MapsOf([]arenas.Stretch{{ID: "battle", OpenedAt: opened, ClosedAt: closed, Closed: true}}).World()
-	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, world)
-	for _, event := range []ledger.Event{
-		ledger.Taking{Tile: 7, Scope: "A", Country: "ps", Previous: "il", At: start.Add(time.Minute)},
-		ledger.Taking{Tile: 7, Scope: "B", Country: "de", Previous: "", At: opened.Add(time.Minute)},
-		ledger.Taking{Tile: 8, Scope: "A", Country: "ps", Previous: "", At: opened.Add(2 * time.Minute)},
-	} {
-		runs.See(event)
-	}
+	battle := clicks.MapID("battle").On(clicks.TestBoard)
+	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, clicks.WorldStage)
+	runs.See(clicks.WorldStage, ledger.Taking{Tile: 7, Scope: "A", Country: "ps", Previous: "il", At: start.Add(time.Minute)})
+	runs.See(battle, ledger.Taking{Tile: 7, Scope: "B", Country: "de", Previous: "", At: start.Add(11 * time.Minute)})
+	runs.See(battle, ledger.Taking{Tile: 8, Scope: "A", Country: "ps", Previous: "", At: start.Add(12 * time.Minute)})
+	runs.See(clicks.World.On(clicks.TestBoard+1),
+		ledger.Taking{Tile: 8, Scope: "A", Country: "ps", Previous: "", At: start.Add(13 * time.Minute)})
 
 	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "ps", To: "il"}}, runs.Restorations(owners{7: "ps", 8: "ps"}),
-		"tile 8 is the world's Palestine: the arena take of it is no run to undo")
+		"tile 8 is the world's Palestine: the arena take of it, and one on another board, is no run to undo")
 }

@@ -50,7 +50,7 @@ func (s *testSuite) SetupTest() {
 func graffitiOf(t *testing.T, id byte, account cpsession.AccountID, flagged time.Time) graffiti.Graffiti {
 	t.Helper()
 	made, err := graffiti.Snapshot{
-		ID: graffiti.ID{15: id}, Account: account, Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{2, 1},
+		ID: graffiti.ID{15: id}, Board: "earth-1", Account: account, Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{2, 1},
 		FlaggedAt: flagged, SeenAt: flagged.Add(time.Minute), Link: link,
 	}.Restore()
 	require.NoError(t, err)
@@ -70,7 +70,7 @@ func (s *testSuite) TestTheGraffitiAreListedNewestFirstAndAForgottenPaintersAsNo
 	require.NoError(t, err)
 	listing := func(account string, flagged time.Time) *vandalsquadv1.Graffiti {
 		return &vandalsquadv1.Graffiti{
-			AccountId: account, CountryId: "ro", Kind: vandalsquadv1.GraffitiKind_GRAFFITI_KIND_SWASTIKA,
+			Board: "earth-1", AccountId: account, CountryId: "ro", Kind: vandalsquadv1.GraffitiKind_GRAFFITI_KIND_SWASTIKA,
 			TileIds: []uint32{2, 1}, FlaggedAt: timestamppb.New(flagged), SeenAt: timestamppb.New(flagged.Add(time.Minute)),
 			Link: link,
 		}
@@ -85,8 +85,8 @@ func (s *testSuite) TestTheGraffitiAreListedNewestFirstAndAForgottenPaintersAsNo
 func (s *testSuite) TestTheListStopsAtTheNewestFiveHundred() {
 	t, db := s.T(), s.db
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
-		INSERT INTO graffiti (id, account, flag, kind, tiles, flagged_at, seen_at, link)
-		SELECT gen_random_uuid(), NULL, 'ro', 'swastika', '{1}', $1::timestamptz + n * interval '1 minute',
+		INSERT INTO graffiti (id, board, account, flag, kind, tiles, flagged_at, seen_at, link)
+		SELECT gen_random_uuid(), 'earth-1', NULL, 'ro', 'swastika', '{1}', $1::timestamptz + n * interval '1 minute',
 			$1::timestamptz + n * interval '1 minute', 'https://clickplanet.lol/play'
 		FROM generate_series(1, 501) AS n
 	`, at)

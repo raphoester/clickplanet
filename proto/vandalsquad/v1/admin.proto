@@ -33,6 +33,8 @@ message Graffiti {
   google.protobuf.Timestamp seen_at = 6;
   // The page opened on the drawing.
   string link = 7;
+  // The board its tiles are on, by its name ("earth-1"): a tile id is a place only on its board.
+  string board = 8;
 }
 
 enum GraffitiKind {

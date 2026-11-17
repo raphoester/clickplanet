@@ -19,6 +19,10 @@ survives a change of input format*:
   runs and the lattice are knowledge of the shipped files, not of the game: **ship an edge list one day and the
   lattice walk goes while `clicks.Geography` does not change at all.**
 
+**The board it loads is the board the process carries** (`Loader.Carried`: its directory's name and its manifest's
+hash, `f7db567f` in `board-f7db567f.json`): the boot matches it with planet's row of it in `planet.boards` and refuses
+a map whose era plays another (see [Boards and eras](boards-and-eras.md)).
+
 The boards are **`generated/map/boards`**, beside `generated/proto` and for the same reason: both are
 this app's committed copy of something the root owns, written by a `make` target and never edited
 by hand (`make map` copies [`/map/boards`](../../../map/README.md)). The vendored VPN ranges sit next to their reader

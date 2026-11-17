@@ -971,6 +971,13 @@ export class GetMapResponse extends Message<GetMapResponse> {
    */
   infected: InfectedTile[] = [];
 
+  /**
+   * The board the map plays, by its name ("earth-1"): every tile id of the answer is a tile of that board.
+   *
+   * @generated from field: string board = 9;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<GetMapResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -986,6 +993,7 @@ export class GetMapResponse extends Message<GetMapResponse> {
     { no: 5, name: "version", kind: "message", T: MapVersion },
     { no: 7, name: "knocked_out", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 8, name: "infected", kind: "message", T: InfectedTile, repeated: true },
+    { no: 9, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMapResponse {
@@ -3929,6 +3937,15 @@ export class Heartbeat extends Message<Heartbeat> {
    */
   version?: MapVersion;
 
+  /**
+   * On the heartbeat a stream opens with: the board the map plays, by its name ("earth-1"). Every tile id the stream
+   * sends after is a tile of that board: a change of board starts a new epoch and cuts every stream. Empty on the
+   * heartbeats after.
+   *
+   * @generated from field: string board = 2;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<Heartbeat>) {
     super();
     proto3.util.initPartial(data, this);
@@ -3938,6 +3955,7 @@ export class Heartbeat extends Message<Heartbeat> {
   static readonly typeName = "planet.v1.Heartbeat";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "version", kind: "message", T: MapVersion },
+    { no: 2, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Heartbeat {

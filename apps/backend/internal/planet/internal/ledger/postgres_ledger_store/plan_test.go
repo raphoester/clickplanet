@@ -21,8 +21,8 @@ func TestMain(m *testing.M) { server.Run(m) }
 func TestAMarkForgetsItsCallersEventsWithoutReadingTheWholeLedger(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
-		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account)
-		SELECT n, 'take', n % 260503 + 1, CASE WHEN n < 150000 THEN NULL ELSE '203.0.113.' || (n % 250) END,
+		INSERT INTO ledger_events (position, map, board, kind, tile, scope, country, previous, taken_at, account)
+		SELECT n, 'world', 1, 'take', n % 260503 + 1, CASE WHEN n < 150000 THEN NULL ELSE '203.0.113.' || (n % 250) END,
 			'fr', 'de', now(), md5((n % 500)::text)::uuid
 		FROM generate_series(0, 199999) n`)
 	require.NoError(t, err)

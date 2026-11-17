@@ -44,10 +44,10 @@ func (s *Store) LoadViruses(ctx context.Context, played clicks.MapID, visit func
 	return nil
 }
 
-func (s *Store) SaveViruses(ctx context.Context, played clicks.MapID, live []clicks.VirusSnapshot) error {
+func (s *Store) SaveViruses(ctx context.Context, played clicks.Stage, live []clicks.VirusSnapshot) error {
 	return s.db.InTx(ctx, func(ctx context.Context) error {
 		tx := s.db.On(ctx)
-		if _, err := tx.ExecContext(ctx, `DELETE FROM viruses WHERE map = $1`, string(played)); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM viruses WHERE map = $1`, string(played.Map)); err != nil {
 			return fmt.Errorf("failed to clear the viruses kept: %w", err)
 		}
 		for _, virus := range live {
@@ -56,9 +56,9 @@ func (s *Store) SaveViruses(ctx context.Context, played clicks.MapID, live []cli
 				infected[i] = int64(tile)
 			}
 			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO viruses (map, id, account, scope, flag, victim, tile, infected, infections, next_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			`, string(played), string(virus.ID), virus.Account.String(), virus.Scope, virus.Flag, virus.Victim, virus.Tile,
+				INSERT INTO viruses (map, board, id, account, scope, flag, victim, tile, infected, infections, next_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			`, string(played.Map), played.Board, string(virus.ID), virus.Account.String(), virus.Scope, virus.Flag, virus.Victim, virus.Tile,
 				pq.Array(infected), virus.Infections, virus.Next); err != nil {
 				return fmt.Errorf("failed to keep virus %s: %w", virus.ID, err)
 			}

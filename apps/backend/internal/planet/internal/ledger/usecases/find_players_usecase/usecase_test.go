@@ -22,6 +22,8 @@ type owners map[uint32]string
 
 func (o owners) Owner(tile uint32) (string, bool) { return o[tile], true }
 
+func (o owners) Stage() clicks.Stage { return clicks.WorldStage }
+
 type borders map[uint32]string
 
 func (b borders) CountryOf(tile uint32) string { return b[tile] }
@@ -47,7 +49,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	current := owners{}
 
 	take := func(tile uint32, scope, country string) {
-		book.Append(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
+		book.Append(clicks.WorldStage, ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
 		current[tile] = country
 		clock.Advance(time.Second)
 	}

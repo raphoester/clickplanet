@@ -32,7 +32,7 @@ func mineOn(tile uint32, flag string) clicks.MineSnapshot {
 func (s *testSuite) TestAFlushKeepsTheMinesLaidAndABootReadsThemBack() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
-	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 	s.mined(storage, "fr", 5, 9)
 	s.mined(storage, "de", 30)
 
@@ -40,7 +40,7 @@ func (s *testSuite) TestAFlushKeepsTheMinesLaidAndABootReadsThemBack() {
 
 	s.Equal([]clicks.MineSnapshot{mineOn(5, "fr"), mineOn(9, "fr"), mineOn(30, "de")}, persistence.StoredMinesOn(clicks.World))
 	booted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(booted.Load(ctx, clicks.World))
+	s.Require().NoError(booted.Load(ctx, clicks.WorldStage))
 	s.Equal([]uint32{5, 9}, s.minesOf(booted, "fr"))
 	s.Equal([]uint32{30}, s.minesOf(booted, "de"))
 }
@@ -94,7 +94,7 @@ func (s *testSuite) TestAnArenaPlaysWithNoMineAndTheWorldsComeBackWithItsMap() {
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
 	s.mined(storage, "fr", 5)
 
-	_, err := storage.Blank(ctx, battle, noStart, keeps(true))
+	_, err := storage.Blank(ctx, battle, noStart, opens(true))
 	s.Require().NoError(err)
 	s.Empty(s.minesOf(storage, "fr"), "the arena's map holds none")
 

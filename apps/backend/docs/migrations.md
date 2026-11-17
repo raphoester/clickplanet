@@ -18,6 +18,16 @@ version after that number, in order, and nothing before it. So:
 - **Two files of one version and direction fail the boot** (`duplicate migration file`).
 - **A name it cannot read is skipped, with no error.** A version with 13 digits reads as a much older one.
 
+## A column on a table of millions of rows
+
+**A constant default is a change of the catalog alone**: postgres 11 and later write no row for
+`ADD COLUMN ... NOT NULL DEFAULT <constant>`, and `ALTER COLUMN ... DROP DEFAULT` after it keeps the rows' value while
+every later write must name it. **A constraint added to such a table is `NOT VALID`** when the rows already hold a
+valid value (the default): a foreign key or a check otherwise scans the whole table under its lock at boot. It holds for
+every row written after. Planet's `ledger_events` got its `map` and `board` that way (`20261117133227_boards_and_eras`,
+see [Boards and eras](boards-and-eras.md)); an `UPDATE` that touches every row rewrites the table, so a backfill updates
+only the rows whose value differs from the default.
+
 ## The check
 
 `make check-migrations` (`cmd/migrationcheck`) reads each module's migrations from the working tree and refuses:

@@ -12,6 +12,7 @@ import (
 )
 
 type Tiles interface {
+	Stages
 	Owner(tile uint32) (string, bool)
 	Shields(tile uint32) int
 	Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast, error)
@@ -47,42 +48,61 @@ func (r Recording) Shields(tile uint32) int {
 	return r.tiles.Shields(tile)
 }
 
+// Each write and what it records of it run during one stage (Stages.During): the events name the map and the board
+// the write landed on.
 func (r Recording) Click(ctx context.Context, tile uint32, flag string) (clicks.Impact, error) {
-	impact, err := r.claims.Click(ctx, tile, flag)
+	var (
+		impact clicks.Impact
+		err    error
+	)
+	r.tiles.During(func(on clicks.Stage) {
+		impact, err = r.claims.Click(ctx, tile, flag)
+		if err != nil {
+			return
+		}
+		if impact.Outcome != clicks.Unchanged {
+			r.record(ctx, on, func(by Caller, at time.Time) Event { return clickOf(by, at, flag, impact) })
+		}
+		r.recordFortified(ctx, on, flag, []clicks.Impact{impact})
+		r.recordKnockedOut(ctx, on, []clicks.Impact{impact})
+	})
 	if err != nil {
 		return clicks.Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 	}
-
-	if impact.Outcome != clicks.Unchanged {
-		r.record(ctx, func(by Caller, at time.Time) Event { return clickOf(by, at, flag, impact) })
-	}
-	r.recordFortified(ctx, flag, []clicks.Impact{impact})
-	r.recordKnockedOut(ctx, []clicks.Impact{impact})
 
 	return impact, nil
 }
 
 func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbours []uint32) error {
-	impacts, err := r.claim(ctx, flag, neighbours)
-	r.record(ctx, func(by Caller, at time.Time) Event {
-		return Spreading{Tile: tile, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Impacts: impacts}
+	var err error
+	r.tiles.During(func(on clicks.Stage) {
+		var impacts []clicks.Impact
+		impacts, err = r.claim(ctx, flag, neighbours)
+		r.record(ctx, on, func(by Caller, at time.Time) Event {
+			return Spreading{Tile: tile, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Impacts: impacts}
+		})
+		r.recordFortified(ctx, on, flag, impacts)
+		r.recordKnockedOut(ctx, on, impacts)
 	})
-	r.recordFortified(ctx, flag, impacts)
-	r.recordKnockedOut(ctx, impacts)
 
 	return err
 }
 
 func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, inside []uint32) error {
-	impacts, err := r.claims.Enclose(ctx, enclosure, inside)
-	impacts = changed(impacts)
-	r.record(ctx, func(by Caller, at time.Time) Event {
-		return Enclosing{
-			Tile: enclosure.ClosingTile, Scope: by.Scope, Account: by.Account, Country: enclosure.Country, At: at, Impacts: impacts,
-		}
+	var err error
+	r.tiles.During(func(on clicks.Stage) {
+		var impacts []clicks.Impact
+		impacts, err = r.claims.Enclose(ctx, enclosure, inside)
+		impacts = changed(impacts)
+		r.record(ctx, on, func(by Caller, at time.Time) Event {
+			return Enclosing{
+				Tile: enclosure.ClosingTile, Scope: by.Scope, Account: by.Account, Country: enclosure.Country, At: at,
+				Impacts: impacts,
+			}
+		})
+		r.recordFortified(ctx, on, enclosure.Country, impacts)
+		r.recordKnockedOut(ctx, on, impacts)
 	})
-	r.recordFortified(ctx, enclosure.Country, impacts)
-	r.recordKnockedOut(ctx, impacts)
 	if err != nil {
 		return fmt.Errorf("failed to enclose from tile %d: %w", enclosure.ClosingTile, err)
 	}
@@ -91,14 +111,22 @@ func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, insi
 }
 
 func (r Recording) Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast, error) {
-	cleared, err := r.tiles.Clear(ctx, blast)
+	var (
+		cleared clicks.Blast
+		err     error
+	)
+	r.tiles.During(func(on clicks.Stage) {
+		cleared, err = r.tiles.Clear(ctx, blast)
+		if err != nil {
+			return
+		}
+		r.record(ctx, on, func(by Caller, at time.Time) Event {
+			return Bombing{Scope: by.Scope, Account: by.Account, At: at, Blast: cleared}
+		})
+	})
 	if err != nil {
 		return cleared, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 	}
-
-	r.record(ctx, func(by Caller, at time.Time) Event {
-		return Bombing{Scope: by.Scope, Account: by.Account, At: at, Blast: cleared}
-	})
 
 	return cleared, nil
 }
@@ -106,14 +134,22 @@ func (r Recording) Clear(ctx context.Context, blast clicks.Blast) (clicks.Blast,
 func (r Recording) Shield(
 	ctx context.Context, tile uint32, country string, most int, placement clicks.PlacementID,
 ) (int, error) {
-	shields, err := r.tiles.Shield(ctx, tile, country, most, placement)
+	var (
+		shields int
+		err     error
+	)
+	r.tiles.During(func(on clicks.Stage) {
+		shields, err = r.tiles.Shield(ctx, tile, country, most, placement)
+		if err != nil {
+			return
+		}
+		r.record(ctx, on, func(by Caller, at time.Time) Event {
+			return Shielding{Tile: tile, Scope: by.Scope, Account: by.Account, Country: country, Shields: shields, At: at}
+		})
+	})
 	if err != nil {
 		return 0, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
 	}
-
-	r.record(ctx, func(by Caller, at time.Time) Event {
-		return Shielding{Tile: tile, Scope: by.Scope, Account: by.Account, Country: country, Shields: shields, At: at}
-	})
 
 	return shields, nil
 }
@@ -131,29 +167,29 @@ func (r Recording) claim(ctx context.Context, flag string, tiles []uint32) ([]cl
 	return changed(impacts), nil
 }
 
-func (r Recording) recordFortified(ctx context.Context, flag string, impacts []clicks.Impact) {
+func (r Recording) recordFortified(ctx context.Context, on clicks.Stage, flag string, impacts []clicks.Impact) {
 	for _, impact := range impacts {
 		if impact.Fortified != nil {
-			r.record(ctx, func(by Caller, at time.Time) Event { return fortifyingOfImpact(by, at, flag, impact.Fortified) })
+			r.record(ctx, on, func(by Caller, at time.Time) Event { return fortifyingOfImpact(by, at, flag, impact.Fortified) })
 		}
 	}
 }
 
-func (r Recording) recordKnockedOut(ctx context.Context, impacts []clicks.Impact) {
+func (r Recording) recordKnockedOut(ctx context.Context, on clicks.Stage, impacts []clicks.Impact) {
 	for _, impact := range impacts {
 		if impact.KnockedOut != nil {
-			r.record(ctx, func(by Caller, at time.Time) Event { return knockingOutOfImpact(by, at, impact.KnockedOut) })
+			r.record(ctx, on, func(by Caller, at time.Time) Event { return knockingOutOfImpact(by, at, impact.KnockedOut) })
 		}
 	}
 }
 
-func (r Recording) record(ctx context.Context, event func(by Caller, at time.Time) Event) {
+func (r Recording) record(ctx context.Context, on clicks.Stage, event func(by Caller, at time.Time) Event) {
 	scope := cpipscope.Of(cpctx.GetSourceIP(ctx))
 	if scope == "" {
 		return
 	}
 
-	r.events.Append(event(Caller{Scope: scope, Account: cpctx.GetAccount(ctx)}, r.clock.Now()))
+	r.events.Append(on, event(Caller{Scope: scope, Account: cpctx.GetAccount(ctx)}, r.clock.Now()))
 }
 
 func clickOf(by Caller, at time.Time, flag string, impact clicks.Impact) Event {

@@ -3,9 +3,7 @@ package holder_query_test
 import (
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -22,8 +20,8 @@ func TestMain(m *testing.M) { server.Run(m) }
 func TestTheHolderOfOneTileIsFoundThroughTheIndexes(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
-		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account, payload)
-		SELECT n,
+		INSERT INTO ledger_events (position, map, board, kind, tile, scope, country, previous, taken_at, account, payload)
+		SELECT n, 'world', 1,
 			CASE n % 10 WHEN 0 THEN 'spread' WHEN 1 THEN 'bomb' ELSE 'take' END::ledger_event_kind,
 			n % 260503 + 1, NULL, CASE n % 10 WHEN 1 THEN '' ELSE 'fr' END, 'de', now(), md5((n % 500)::text)::uuid,
 			CASE n % 10
@@ -45,9 +43,7 @@ func TestTheHolderOfOneTileIsFoundThroughTheIndexes(t *testing.T) {
 func explain(t *testing.T, db *cppg.Postgres, tile uint32) string {
 	t.Helper()
 
-	gaps := []time.Time{time.Now().Add(-time.Hour)}
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+holder_query.LastChange, tile, time.Time{},
-		pq.Array(gaps), pq.Array([]time.Time{time.Now().Add(-30 * time.Minute)}))
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+holder_query.LastChange, tile, "world", 1)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 

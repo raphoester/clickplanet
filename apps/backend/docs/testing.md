@@ -5,7 +5,11 @@ over in-memory fakes, pins each rule. An adapter's test runs on the real thing, 
 shares with its fake, so the fake stays true. So there is no test of a domain rule that a use case's test already
 pins, of a handler or use case that passes an error on unchanged, of a fake outside its contract suite, or of a
 migration's conversion of the rows: a migration runs once in production and never changes after, and every store
-test runs all the migrations on an empty schema. November 2026 deleted about 350 tests that broke this rule.
+test runs all the migrations on an empty schema. November 2026 deleted about 350 tests that broke this rule. **One
+migration keeps a test, on purpose**: `boards_and_eras_test.go` (planet's `20261117133227_boards_and_eras`) moved each
+past arena's events to its map, the last read of the arenas' windows, so a wrong window would misfile history for good.
+It runs the migrations to the version before it (`cppg.Postgres.MigrateTo`, behind the tag), seeds the rows, runs it,
+and runs its way back (see [Boards and eras](boards-and-eras.md)).
 
 Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3_attachment_bucket`'s and `cps3`'s, which start an S3 server, the Versity gateway (see [Support](support.md)), `cpoutbox`'s, and `cpredis`'s; nothing else does. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
@@ -19,7 +23,7 @@ log line the server writes once it serves), never on the port alone.
 
 **One container per package, never one per test.** A container costs seconds to start; a new database or a `Purge` costs far less.
 
-- A package with one suite starts its server in `SetupSuite` with `cppgtest.StartServer(s.T())`. The server stops when the suite ends. The suite opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)` and empties it in `SetupTest` with `Purge`.
+- A package with one suite starts its server in `SetupSuite` with `cppgtest.StartServer(s.T())`. The server stops when the suite ends. The suite opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)` and empties it in `SetupTest` with `Purge`. **A planet suite then seeds `earth-1` and the world's era again** (`eras.Reseed`): `Purge` empties `boards` too, and every tile, lock, mine, virus and event names a board.
 - A package of plain test functions, or with more than one test that needs the server, starts it in `TestMain`: `var server cppgtest.Server` and `func TestMain(m *testing.M) { server.Run(m) }`. `Run` stops it after the tests.
 - A test that needs the rows the migrations seed (the rule sets' `default`, season 0), or that used to start a container of its own, opens its schema in a new database: `server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)`. Nothing that another test wrote is in that database. A `Purge` would delete the seeded rows too.
 - `cpredis`'s tests share one Redis the same way and empty it with `server.Flush(t)` at the start of each test, since every stream is named after its event's type.

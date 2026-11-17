@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -34,6 +35,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
 }
 
 var start = time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
@@ -43,7 +45,7 @@ const guest = "0b7e5b6c-8f3a-4d2e-9c1a-2f6d8e4b7a10"
 func stored(position ledger.Position, tile uint32, scope, country, previous string, at time.Time) inmemory_ledger_storage.Stored {
 	return inmemory_ledger_storage.Stored{
 		Position: position,
-		Entry:    ledger.Entry{Kind: "take", Tile: tile, Scope: scope, Country: country, Previous: previous, At: at},
+		Entry:    ledger.Entry{Stage: clicks.WorldStage, Kind: "take", Tile: tile, Scope: scope, Country: country, Previous: previous, At: at},
 	}
 }
 
@@ -304,6 +306,21 @@ func (s *testSuite) TestAMarkForgetsTheEventsOfItsCallerBeforeItForGood() {
 	s.Equal([]int64{0, 3}, s.forgottenPositions(), "the events stay forgotten once the head drops the marks")
 }
 
+func (s *testSuite) TestEachEventComesBackWithItsMapAndItsBoard() {
+	ctx := context.Background()
+	s.Require().NoError(eras.KeepRow(ctx, s.db, eras.Earth2))
+	inArena := stored(1, 4, "1.2.3.4", "de", "", start)
+	inArena.Entry.Stage = clicks.MapID("battle").On(clicks.TestBoard)
+	onEarth2 := stored(2, 4, "1.2.3.4", "pl", "", start)
+	onEarth2.Entry.Stage = clicks.World.On(eras.Earth2.ID)
+
+	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
+		stored(0, 3, "1.2.3.4", "fr", "", start), inArena, onEarth2)))
+
+	takes, _ := s.load()
+	s.Equal([]inmemory_ledger_storage.Stored{stored(0, 3, "1.2.3.4", "fr", "", start), inArena, onEarth2}, takes)
+}
+
 func withPayload(position ledger.Position, kind, payload string) inmemory_ledger_storage.Stored {
 	entry := stored(position, 7, "1.2.3.4", "", "il", start)
 	entry.Entry.Kind, entry.Entry.Payload = kind, []byte(payload)
@@ -391,6 +408,7 @@ func (s *testSuite) TestABombingReadsBackAsTheBombingItWas() {
 	}}
 	entry, err := bombing.Entry()
 	s.Require().NoError(err)
+	entry.Stage = clicks.WorldStage
 	s.Require().NoError(s.store.Save(ctx, changes(0, 0, map[ledger.Caller]ledger.Position{},
 		inmemory_ledger_storage.Stored{Entry: entry})))
 

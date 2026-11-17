@@ -40,21 +40,21 @@ func gone(t *testing.T) ledger.AccountID {
 func TestATakeNotYetFlushedIsKeptWithNoAccount(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	takings := loaded(t, persistence)
-	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone(t).String(), Country: "fr", At: at})
-	takings.Append(ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone(t).String(), Country: "fr", At: at})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at})
 
 	require.NoError(t, anonymize_takes_usecase.New(takings, persistence, tiles(t)).Execute(t.Context(), gone(t)))
 
 	assert.Equal(t, []inmemory_ledger_storage.Stored{
-		{Position: 0, Entry: ledger.Entry{Kind: "take", Tile: 1, Scope: "1.2.3.4", Country: "fr", At: at}},
-		{Position: 1, Entry: ledger.Entry{Kind: "take", Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at}},
+		{Position: 0, Entry: ledger.Entry{Stage: clicks.WorldStage, Kind: "take", Tile: 1, Scope: "1.2.3.4", Country: "fr", At: at}},
+		{Position: 1, Entry: ledger.Entry{Stage: clicks.WorldStage, Kind: "take", Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at}},
 	}, persistence.Stored())
 }
 
 func TestAFailedFlushIsAnError(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	takings := loaded(t, persistence)
-	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone(t).String(), Country: "fr", At: at})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone(t).String(), Country: "fr", At: at})
 	persistence.FailWith(errors.New("postgres is down"))
 
 	assert.ErrorContains(t, anonymize_takes_usecase.New(takings, persistence, tiles(t)).Execute(t.Context(), gone(t)), "postgres is down")

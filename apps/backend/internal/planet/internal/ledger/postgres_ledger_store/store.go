@@ -113,7 +113,7 @@ func (s *Store) SaveRelayed(ctx context.Context, position ledger.Position) error
 
 func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_ledger_storage.Stored)) error {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT position, kind, tile, scope, account::text, country, previous, taken_at, payload
+		SELECT position, map, board, kind, tile, scope, account::text, country, previous, taken_at, payload
 		FROM ledger_events
 		WHERE position >= $1
 		ORDER BY position
@@ -129,7 +129,7 @@ func (s *Store) loadEvents(ctx context.Context, head int64, visit func(inmemory_
 			entry    ledger.Entry
 			account  sql.NullString
 		)
-		if err := rows.Scan(&position, &entry.Kind, &entry.Tile, &entry.Scope, &account,
+		if err := rows.Scan(&position, &entry.Stage.Map, &entry.Stage.Board, &entry.Kind, &entry.Tile, &entry.Scope, &account,
 			&entry.Country, &entry.Previous, &entry.At, &entry.Payload); err != nil {
 			return fmt.Errorf("failed to scan an event: %w", err)
 		}
@@ -197,7 +197,7 @@ func (s *Store) AnonymizeTakes(ctx context.Context, account ledger.AccountID) er
 
 func copyEvents(ctx context.Context, tx cppg.Querier, changes inmemory_ledger_storage.Changes) error {
 	stmt, err := tx.PrepareContext(ctx, pq.CopyIn("ledger_events",
-		"position", "kind", "tile", "scope", "account", "country", "previous", "taken_at", "payload"))
+		"position", "map", "board", "kind", "tile", "scope", "account", "country", "previous", "taken_at", "payload"))
 	if err != nil {
 		return fmt.Errorf("failed to start copying events: %w", err)
 	}
@@ -207,6 +207,8 @@ func copyEvents(ctx context.Context, tx cppg.Querier, changes inmemory_ledger_st
 		entry := stored.Entry
 		if _, err := stmt.ExecContext(ctx,
 			int64(stored.Position), //nolint:gosec // a position fits a bigint.
+			string(entry.Stage.Map),
+			int64(entry.Stage.Board),
 			entry.Kind,
 			int64(entry.Tile),
 			entry.Scope,

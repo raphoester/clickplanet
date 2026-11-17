@@ -10,6 +10,16 @@ message MapHistory {
   repeated MapFrame frames = 1;
   // Each tile's changes of owner and shield hits in the window; a tile with none is left out.
   repeated TileHits hits = 2;
+  // The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
+  // started in it. A frame's tile ids are the board of the era in force at its time.
+  repeated BoardEra eras = 3;
+}
+
+// An era: a stretch of a map on one board, from started_at on.
+message BoardEra {
+  google.protobuf.Timestamp started_at = 1;
+  // The board's name, as /map/boards names it: "earth-1".
+  string board = 2;
 }
 
 message MapFrame {

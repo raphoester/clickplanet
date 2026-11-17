@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { ChargesHeld, GetMapResponse, PlanetEvent } from "./planet_pb.js";
+import { BoardEra } from "./history_pb.js";
 import { Rules } from "./rules_pb.js";
 
 /**
@@ -89,6 +90,14 @@ export class GetReplayResponse extends Message<GetReplayResponse> {
    */
   asides: ReplayAside[] = [];
 
+  /**
+   * The eras of the world's map the window covers, oldest first: the one it played at since, then each that started
+   * in the window. An event's tile ids are the board of the era in force at its time.
+   *
+   * @generated from field: repeated planet.v1.BoardEra eras = 6;
+   */
+  eras: BoardEra[] = [];
+
   constructor(data?: PartialMessage<GetReplayResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -102,6 +111,7 @@ export class GetReplayResponse extends Message<GetReplayResponse> {
     { no: 3, name: "since", kind: "message", T: Timestamp },
     { no: 4, name: "until", kind: "message", T: Timestamp },
     { no: 5, name: "asides", kind: "message", T: ReplayAside, repeated: true },
+    { no: 6, name: "eras", kind: "message", T: BoardEra, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetReplayResponse {

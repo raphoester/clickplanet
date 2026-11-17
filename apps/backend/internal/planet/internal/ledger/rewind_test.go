@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
@@ -18,16 +17,24 @@ const (
 	bob = "5c0ffee0-1d2e-4f3a-8b4c-5d6e7f8a9b0c"
 )
 
-func rewind(t *testing.T, world arenas.Played, events ...ledger.Event) *ledger.Rewind {
+func rewind(t *testing.T, world clicks.Stage, events ...ledger.Event) *ledger.Rewind {
 	t.Helper()
 	rewound, err := ledger.NewRewind(historySince, historyUntil, time.Hour, world)
 	require.NoError(t, err)
 	for _, event := range events {
-		entry, err := event.Entry()
-		require.NoError(t, err)
-		require.NoError(t, rewound.Record(entry))
+		recordAt(t, rewound, world, event)
 	}
 	return rewound
+}
+
+func recordAt(t *testing.T, rewound *ledger.Rewind, on clicks.Stage, events ...ledger.Event) {
+	t.Helper()
+	for _, event := range events {
+		entry, err := event.Entry()
+		require.NoError(t, err)
+		entry.Stage = on
+		require.NoError(t, rewound.Record(entry))
+	}
 }
 
 func takeBy(account string, tile uint32, previous, country string, at time.Time) ledger.Taking {
@@ -51,7 +58,7 @@ func mapNow(owners ...string) clicks.DenseBatch {
 
 func TestARewindOpensEachTileOnWhatItHeldBeforeItsFirstChangeAndEveryOtherOneAsItIsNow(t *testing.T) {
 	cleared := historySince.Add(70 * time.Minute)
-	rewound := rewind(t, arenas.Played{},
+	rewound := rewind(t, clicks.WorldStage,
 		takeBy(ada, 1, "fr", "de", historySince.Add(10*time.Minute)),
 		takeBy(ada, 1, "de", "jp", historySince.Add(20*time.Minute)),
 		ledger.Bombing{Scope: "203.0.113.8", Account: bob, At: cleared, Blast: clicks.Blast{
@@ -70,7 +77,7 @@ func TestARewindOpensEachTileOnWhatItHeldBeforeItsFirstChangeAndEveryOtherOneAsI
 
 func TestARewindReadsTheTilesASpreadAnEncloseAndABombListAndNoOwnerFromAStrikeAShieldOrAFortify(t *testing.T) {
 	at := historySince.Add(5 * time.Minute)
-	rewound := rewind(t, arenas.Played{},
+	rewound := rewind(t, clicks.WorldStage,
 		takeBy(ada, 1, "fr", "de", at),
 		ledger.Spreading{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "de", At: at, Impacts: []clicks.Impact{
 			{Tile: 2, Owner: "fr", Outcome: clicks.Taken}, {Tile: 3, Owner: "fr", Outcome: clicks.Shielded, Shields: 1},
@@ -105,7 +112,7 @@ func TestARewindReadsTheTilesASpreadAnEncloseAndABombListAndNoOwnerFromAStrikeAS
 }
 
 func TestATileChangedTwiceInAStepShowsItsLastChange(t *testing.T) {
-	rewound := rewind(t, arenas.Played{},
+	rewound := rewind(t, clicks.WorldStage,
 		takeBy(ada, 1, "fr", "de", historySince.Add(5*time.Minute)),
 		takeBy(bob, 1, "de", "it", historySince.Add(20*time.Minute)),
 	)
@@ -115,7 +122,7 @@ func TestATileChangedTwiceInAStepShowsItsLastChange(t *testing.T) {
 }
 
 func TestATileChangedBackWithinAStepIsInNoFrameAndAcrossTwoStepsIsInBoth(t *testing.T) {
-	rewound := rewind(t, arenas.Played{},
+	rewound := rewind(t, clicks.WorldStage,
 		takeBy(ada, 1, "fr", "de", historySince.Add(5*time.Minute)),
 		takeBy(bob, 1, "de", "fr", historySince.Add(20*time.Minute)),
 		takeBy(ada, 2, "fr", "de", historySince.Add(50*time.Minute)),
@@ -129,7 +136,7 @@ func TestATileChangedBackWithinAStepIsInNoFrameAndAcrossTwoStepsIsInBoth(t *test
 }
 
 func TestAnEntryAtAStepsTimeIsInTheNextFrameAndOneFromTheEndOnOnlyRewinds(t *testing.T) {
-	rewound := rewind(t, arenas.Played{},
+	rewound := rewind(t, clicks.WorldStage,
 		takeBy(ada, 1, "fr", "de", historySince.Add(time.Hour)),
 		takeBy(ada, 2, "fr", "de", historyUntil),
 		takeBy(ada, 1, "de", "jp", historyUntil.Add(time.Hour)),
@@ -142,13 +149,11 @@ func TestAnEntryAtAStepsTimeIsInTheNextFrameAndOneFromTheEndOnOnlyRewinds(t *tes
 	assert.Equal(t, map[uint32]uint32{1: 1}, rewound.Hits())
 }
 
-func TestARewindLeavesOutWhatWasPlayedOnAnArenasMap(t *testing.T) {
-	opened, closed := historySince.Add(10*time.Minute), historySince.Add(40*time.Minute)
-	world := arenas.MapsOf([]arenas.Stretch{{ID: "a1", OpenedAt: opened, ClosedAt: closed, Closed: true}}).World()
-	rewound := rewind(t, world,
-		takeBy(ada, 1, "", "de", historySince.Add(20*time.Minute)),
-		takeBy(ada, 2, "fr", "de", historySince.Add(50*time.Minute)),
-	)
+func TestARewindLeavesOutWhatWasPlayedOnAnArenasMapOrAnotherBoard(t *testing.T) {
+	rewound := rewind(t, clicks.WorldStage)
+	recordAt(t, rewound, clicks.MapID("a1").On(clicks.TestBoard), takeBy(ada, 1, "", "de", historySince.Add(20*time.Minute)))
+	recordAt(t, rewound, clicks.World.On(clicks.TestBoard+1), takeBy(ada, 1, "", "pl", historySince.Add(25*time.Minute)))
+	recordAt(t, rewound, clicks.WorldStage, takeBy(ada, 2, "fr", "de", historySince.Add(50*time.Minute)))
 
 	frames := rewound.Frames(mapNow("fr", "de"))
 	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "fr"}, 2: {Country: "fr"}}, frames[0].Owners)
@@ -157,19 +162,17 @@ func TestARewindLeavesOutWhatWasPlayedOnAnArenasMap(t *testing.T) {
 }
 
 func TestARewindOfNoTimeIsTheMapAlone(t *testing.T) {
-	rewound, err := ledger.NewRewind(historySince, historySince, time.Hour, arenas.Played{})
+	rewound, err := ledger.NewRewind(historySince, historySince, time.Hour, clicks.WorldStage)
 	require.NoError(t, err)
-	entry, err := takeBy(ada, 1, "fr", "de", historySince).Entry()
-	require.NoError(t, err)
-	require.NoError(t, rewound.Record(entry))
+	recordAt(t, rewound, clicks.WorldStage, takeBy(ada, 1, "fr", "de", historySince))
 
 	assert.Equal(t, []ledger.Frame{{At: historySince, Owners: map[uint32]ledger.Owner{1: {Country: "fr"}}}},
 		rewound.Frames(mapNow("de")))
 }
 
 func TestARewindStartsNoLaterThanItEndsAndMovesByAStep(t *testing.T) {
-	_, err := ledger.NewRewind(historyUntil, historySince, time.Hour, arenas.Played{})
+	_, err := ledger.NewRewind(historyUntil, historySince, time.Hour, clicks.WorldStage)
 	require.ErrorIs(t, err, ledger.ErrInvalidHistory)
-	_, err = ledger.NewRewind(historySince, historyUntil, 0, arenas.Played{})
+	_, err = ledger.NewRewind(historySince, historyUntil, 0, clicks.WorldStage)
 	require.ErrorIs(t, err, ledger.ErrInvalidHistory)
 }

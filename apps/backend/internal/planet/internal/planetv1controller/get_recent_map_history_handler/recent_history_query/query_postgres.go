@@ -10,8 +10,8 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets"
@@ -21,12 +21,15 @@ import (
 
 // Tiles clamps each range to the map's last tile.
 type Tiles interface {
+	Stage() clicks.Stage
 	StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, error)
 	Kept(ctx context.Context, kept clicks.MapID) (clicks.DenseBatch, error)
 }
 
-type Arenas interface {
-	Stretches(ctx context.Context) ([]arenas.Stretch, error)
+// Eras names the board the world plays, and the eras a window covers.
+type Eras interface {
+	Latest(ctx context.Context, played clicks.MapID) (eras.Era, error)
+	Covering(ctx context.Context, played clicks.MapID, since, until time.Time) ([]eras.Era, error)
 }
 
 type Resets interface {
@@ -36,14 +39,14 @@ type Resets interface {
 // A build reads a day of the ledger: the caller that leaves does not stop it.
 const buildTimeout = 2 * time.Minute
 
-func NewPostgresQuery(db cppg.Conn, tiles Tiles, arenas Arenas, resets Resets, clock cptime.Clock) *PostgresQuery {
-	return &PostgresQuery{db: db, tiles: tiles, arenas: arenas, resets: resets, clock: clock}
+func NewPostgresQuery(db cppg.Conn, tiles Tiles, eras Eras, resets Resets, clock cptime.Clock) *PostgresQuery {
+	return &PostgresQuery{db: db, tiles: tiles, eras: eras, resets: resets, clock: clock}
 }
 
 type PostgresQuery struct {
 	db     cppg.Conn
 	tiles  Tiles
-	arenas Arenas
+	eras   Eras
 	resets Resets
 	clock  cptime.Clock
 
@@ -77,9 +80,10 @@ func (q *PostgresQuery) RecentHistory(ctx context.Context) (*planetv1.MapHistory
 	}
 }
 
-// The events from the head on keep their order by the primary key; taken_at has no index.
+// The events from the head on keep their order by the primary key; taken_at has no index. Each names its map and its
+// board, and the rewind keeps the world's on the board it plays.
 const events = `
-	SELECT kind, tile, country, previous, taken_at, payload
+	SELECT map, board, kind, tile, country, previous, taken_at, payload
 	FROM ledger_events
 	WHERE position >= $1 AND taken_at >= $2 AND NOT forgotten
 	ORDER BY position
@@ -101,31 +105,35 @@ func (q *PostgresQuery) build(ctx context.Context, recent ledger.Recent) (*plane
 		q.keep(recent.Until, nothing)
 		return nothing, nil
 	}
-	stretches, err := q.arenas.Stretches(ctx)
+	world, err := q.eras.Latest(ctx, clicks.World)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read the arenas: %w", err)
+		return nil, fmt.Errorf("failed to read the board the world plays: %w", err)
 	}
-	maps := arenas.MapsOf(stretches)
-	rewind, err := ledger.NewRewind(recent.Since, recent.Until, recent.Step, maps.World())
+	covering, err := q.eras.Covering(ctx, clicks.World, recent.Since, recent.Until)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the world's eras: %w", err)
+	}
+	rewind, err := ledger.NewRewind(recent.Since, recent.Until, recent.Step, world.Stage())
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the map's recent history: %w", err)
 	}
 
 	// The map before the ledger: a change made between the two reads is then in the ledger, and rewound.
-	now, err := q.world(ctx, maps)
+	now, err := q.world(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if err := q.replay(ctx, recent.Since, rewind); err != nil {
 		return nil, err
 	}
-	history := planetmessage.MapHistory(rewind.Frames(now), rewind.Hits())
+	history := planetmessage.MapHistory(rewind.Frames(now), rewind.Hits(), covering)
 	q.keep(recent.Until, history)
 	return history, nil
 }
 
-func (q *PostgresQuery) world(ctx context.Context, maps arenas.Maps) (clicks.DenseBatch, error) {
-	if _, open := maps.Open(); open {
+// The world's map as it plays, or as postgres keeps it while an arena's plays.
+func (q *PostgresQuery) world(ctx context.Context) (clicks.DenseBatch, error) {
+	if q.tiles.Stage().Map != clicks.World {
 		kept, err := q.tiles.Kept(ctx, clicks.World)
 		if err != nil {
 			return clicks.DenseBatch{}, fmt.Errorf("failed to read the world's map kept: %w", err)
@@ -152,8 +160,8 @@ func (q *PostgresQuery) replay(ctx context.Context, since time.Time, rewind *led
 
 	for rows.Next() {
 		var entry ledger.Entry
-		if err := rows.Scan(&entry.Kind, &entry.Tile, &entry.Country, &entry.Previous, &entry.At,
-			&entry.Payload); err != nil {
+		if err := rows.Scan(&entry.Stage.Map, &entry.Stage.Board, &entry.Kind, &entry.Tile, &entry.Country, &entry.Previous,
+			&entry.At, &entry.Payload); err != nil {
 			return fmt.Errorf("failed to scan an event: %w", err)
 		}
 		entry.At = entry.At.UTC()

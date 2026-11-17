@@ -12,6 +12,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
 )
 
@@ -32,7 +33,7 @@ func getMap(
 	req *planetv1.GetMapRequest,
 ) (*connect.Response[planetv1.GetMapResponse], error) {
 	t.Helper()
-	return get_map_handler.New(useCase).GetMap(t.Context(), connect.NewRequest(req))
+	return get_map_handler.New(useCase, eras.CarryingEarth1).GetMap(t.Context(), connect.NewRequest(req))
 }
 
 func TestGetMapMapsTheRequest(t *testing.T) {
@@ -62,6 +63,15 @@ func TestGetMapMapsTheBatch(t *testing.T) {
 	require.Len(t, res.Msg.GetShields(), 1)
 	assert.Equal(t, uint32(7), res.Msg.GetShields()[0].GetTileId())
 	assert.Equal(t, uint32(4), res.Msg.GetShields()[0].GetShields())
+}
+
+func TestGetMapNamesTheBoardItsTilesAreOn(t *testing.T) {
+	useCase := &stubUseCase{batch: clicks.DenseBatch{Board: clicks.TestBoard}}
+
+	res, err := getMap(t, useCase, &planetv1.GetMapRequest{})
+
+	require.NoError(t, err)
+	assert.Equal(t, "earth-1", res.Msg.GetBoard())
 }
 
 func TestGetMapSaysTheFlagsKnockedOut(t *testing.T) {

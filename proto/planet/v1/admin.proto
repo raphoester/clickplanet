@@ -4,6 +4,7 @@ package planet.v1;
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "planet/v1/history.proto";
 import "planet/v1/internal.proto";
 import "planet/v1/ledger.proto";
 import "planet/v1/planet.proto";
@@ -79,6 +80,9 @@ message GetReplayResponse {
   // Each stretch of the window an arena's map played instead of the world's, whose takes are left out; the world's map
   // came back as it was.
   repeated ReplayAside asides = 5;
+  // The eras of the world's map the window covers, oldest first: the one it played at since, then each that started
+  // in the window. An event's tile ids are the board of the era in force at its time.
+  repeated BoardEra eras = 6;
 }
 
 message ReplayAside {

@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
@@ -33,6 +34,7 @@ type harness struct {
 	tiles   *inmemory_tile_storage.Storage
 	stored  *inmemory_tile_storage.MemoryPersistence
 	kept    *arenas.MemoryStore
+	eras    *eras.MemoryStore
 	inPlay  *arenas.InPlay
 	clock   *cptime.FixedClock
 	useCase *open_arena_usecase.UseCase
@@ -45,8 +47,9 @@ func newHarness(t *testing.T) harness {
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.CapitalsPlayed(capitals), inmemory_tile_storage.Config{}, stored,
 		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, clock,
 		slog.New(slog.DiscardHandler))
-	require.NoError(t, tiles.Load(t.Context(), clicks.World))
+	require.NoError(t, tiles.Load(t.Context(), clicks.WorldStage))
 	kept := arenas.NewMemoryStore()
+	keptEras := eras.NewMemoryStore()
 	inPlay := arenas.NewInPlay(clock)
 	sets := cprules.NewMemoryStore(parts.All(), rules.Seeded(), rules.Named(battleSet, func(r *planetv1.Rules) {
 		r.Arena = &planetv1.ArenaRules{On: new(true), Freeze: durationpb.New(6 * time.Second)}
@@ -54,8 +57,8 @@ func newHarness(t *testing.T) harness {
 	}))
 	setups := arenas.NewSetups(sets, seeds.NewCatalog(seeds.Ground{Capitals: capitals}))
 	return harness{
-		tiles: tiles, stored: stored, kept: kept, inPlay: inPlay, clock: clock,
-		useCase: open_arena_usecase.New(tiles, setups, kept, inPlay, clock),
+		tiles: tiles, stored: stored, kept: kept, eras: keptEras, inPlay: inPlay, clock: clock,
+		useCase: open_arena_usecase.New(tiles, setups, kept, keptEras, inPlay, clock),
 	}
 }
 
@@ -91,6 +94,12 @@ func TestAnArenaOpensOnABlankMapAndLeavesTheWorldsAsItIs(t *testing.T) {
 	assert.Equal(t, clicks.MapID("battle"), playing.Played())
 	assert.Equal(t, 6*time.Second, playing.Opening.Freeze, "the battle's set's freeze, kept for a boot")
 	assert.Equal(t, starts, playing.Opening.OpenedAt)
+	era, err := h.eras.Latest(t.Context(), "battle")
+	require.NoError(t, err)
+	assert.Equal(t, eras.Era{Map: "battle", Board: eras.Earth1, StartedAt: starts}, era,
+		"the arena's era, on the board the world played, from its open")
+	assert.Equal(t, clicks.MapID("battle").On(eras.Earth1.ID), h.tiles.Stage())
+	assert.Equal(t, eras.Earth1.ID, h.stored.BoardOn("battle"), "its rows name the board")
 }
 
 func TestAnArenaToldTwiceOpensOnce(t *testing.T) {
@@ -130,6 +139,8 @@ func TestAnArenaClosedEndedOrBesideAnotherOpensNothing(t *testing.T) {
 			assert.False(t, opened)
 			assert.Equal(t, "fr", h.owner(1), "the map stays")
 			assert.False(t, bool(h.inPlay.Freeze()))
+			_, err = h.eras.Latest(t.Context(), "battle")
+			assert.ErrorIs(t, err, eras.ErrNoEra, "no era for a map that never played")
 		})
 	}
 }

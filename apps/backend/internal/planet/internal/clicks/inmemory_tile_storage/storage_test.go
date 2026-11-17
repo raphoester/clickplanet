@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/suite"
+
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
-	"github.com/stretchr/testify/suite"
 )
 
 func TestRunSuite(t *testing.T) {
@@ -37,6 +38,13 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) newStorage(cfg inmemory_tile_storage.Config) *inmemory_tile_storage.Storage {
 	return s.newStorageOn(cfg, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
+}
+
+// loadedOn is a storage that booted on the world's map, so what it flushes names the world's board.
+func (s *testSuite) loadedOn(cfg inmemory_tile_storage.Config, persistence inmemory_tile_storage.Persistence) *inmemory_tile_storage.Storage {
+	storage := s.newStorageOn(cfg, persistence)
+	s.Require().NoError(storage.Load(context.Background(), clicks.WorldStage))
+	return storage
 }
 
 func (s *testSuite) newStorageOn(cfg inmemory_tile_storage.Config, persistence inmemory_tile_storage.Persistence) *inmemory_tile_storage.Storage {

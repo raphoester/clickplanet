@@ -14,6 +14,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/replay_usecase"
@@ -24,10 +25,12 @@ import (
 var start = time.Date(2026, 10, 6, 12, 0, 0, 0, time.UTC)
 
 type tiles struct {
-	owners []string
-	kept   []string
-	asked  [2]uint32
-	err    error
+	// The world's on earth-1 when unset.
+	playing clicks.Stage
+	owners  []string
+	kept    []string
+	asked   [2]uint32
+	err     error
 }
 
 func batchOf(start uint32, owners []string) clicks.DenseBatch {
@@ -45,6 +48,13 @@ func (t *tiles) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, er
 	return batchOf(start, t.owners), t.err
 }
 
+func (t *tiles) Stage() clicks.Stage {
+	if t.playing == (clicks.Stage{}) {
+		return clicks.WorldStage
+	}
+	return t.playing
+}
+
 func (t *tiles) Kept(_ context.Context, kept clicks.MapID) (clicks.DenseBatch, error) {
 	if kept != clicks.World {
 		return clicks.DenseBatch{}, errors.New("only the world's map is kept aside")
@@ -57,6 +67,7 @@ type harness struct {
 	now     *tiles
 	resets  *resets.MemoryStore
 	arenas  *arenas.MemoryStore
+	eras    *eras.MemoryStore
 	useCase *replay_usecase.UseCase
 }
 
@@ -66,8 +77,9 @@ func setup(t *testing.T, owners ...string) harness {
 		book: inmemory_ledger_storage.New(inmemory_ledger_storage.Config{},
 			inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler)),
 		now: &tiles{owners: owners}, resets: resets.NewMemoryStore(), arenas: arenas.NewMemoryStore(),
+		eras: eras.NewMemoryStore(),
 	}
-	h.useCase = replay_usecase.New(h.book, h.resets, h.arenas, h.now, cptime.NewFixedClock(start.Add(time.Hour)))
+	h.useCase = replay_usecase.New(h.book, h.resets, h.arenas, h.eras, h.now, cptime.NewFixedClock(start.Add(time.Hour)))
 	return h
 }
 
@@ -81,9 +93,9 @@ func reset(t *testing.T, kept *resets.MemoryStore, id string, at time.Time) {
 
 func TestAReplayOverAResetStartsAtItOnTheBlankMap(t *testing.T) {
 	h := setup(t, "de")
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
 	reset(t, h.resets, "season-1", start.Add(time.Minute))
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "", At: start.Add(2 * time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "", At: start.Add(2 * time.Minute)})
 
 	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
 	require.NoError(t, err)
@@ -115,8 +127,8 @@ func TestAResetBeforeTheWindowChangesNothing(t *testing.T) {
 
 func TestAReplayOpensOnTheMapAtSinceAndShowsWhatCameAfter(t *testing.T) {
 	h := setup(t, "de")
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "fr", At: start.Add(time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "fr", At: start.Add(time.Minute)})
 
 	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
 	require.NoError(t, err)
@@ -129,12 +141,28 @@ func TestAReplayOpensOnTheMapAtSinceAndShowsWhatCameAfter(t *testing.T) {
 	require.Len(t, out.Scenes, 2)
 	assert.Equal(t, "fr", out.Scenes[0].Change.Value)
 	assert.Equal(t, "de", out.Scenes[1].Change.Value)
+	assert.Equal(t, eras.Earth1, out.Board, "the board the opening's tiles are on")
+	assert.Equal(t, []eras.Era{{Map: clicks.World, Board: eras.Earth1, StartedAt: eras.Epoch}}, out.Eras)
+}
+
+func TestAReplayFilmsTheWorldsBoardAlone(t *testing.T) {
+	h := setup(t, "de")
+	h.book.Append(clicks.World.On(clicks.TestBoard+1),
+		ledger.Taking{Tile: 1, Scope: "a", Country: "pl", Previous: "it", At: start.Add(time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "fr", At: start.Add(2 * time.Minute)})
+
+	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"fr"}, ownersOf(out.Opening), "tile 1 of another board is another place")
+	require.Len(t, out.Scenes, 1)
+	assert.Equal(t, "de", out.Scenes[0].Change.Value)
 }
 
 func TestAReplayStopsAtUntil(t *testing.T) {
 	h := setup(t, "de")
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "fr", At: start.Add(time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "fr", At: start.Add(time.Minute)})
 
 	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start, Until: start.Add(time.Second)})
 	require.NoError(t, err)
@@ -176,10 +204,11 @@ func TestAReplayAcrossAnArenaPlaysTheWorldsMapStraightThrough(t *testing.T) {
 	h := setup(t, "fr", "de", "pl")
 	opened, closed := start.Add(10*time.Minute+300*time.Millisecond), start.Add(40*time.Minute+700*time.Millisecond)
 	h.arena(t, "battle", opened, closed)
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start.Add(time.Minute)})
-	h.book.Append(ledger.Taking{Tile: 2, Scope: "b", Country: "br", Previous: "", At: opened.Add(time.Minute)})
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "b", Country: "br", Previous: "", At: opened.Add(2 * time.Minute)})
-	h.book.Append(ledger.Taking{Tile: 2, Scope: "c", Country: "de", Previous: "pl", At: closed.Truncate(time.Second)})
+	battle := clicks.MapID("battle").On(clicks.TestBoard)
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start.Add(time.Minute)})
+	h.book.Append(battle, ledger.Taking{Tile: 2, Scope: "b", Country: "br", Previous: "", At: opened.Add(time.Minute)})
+	h.book.Append(battle, ledger.Taking{Tile: 1, Scope: "b", Country: "br", Previous: "", At: opened.Add(2 * time.Minute)})
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 2, Scope: "c", Country: "de", Previous: "pl", At: closed.Truncate(time.Second)})
 
 	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
 	require.NoError(t, err)
@@ -187,7 +216,7 @@ func TestAReplayAcrossAnArenaPlaysTheWorldsMapStraightThrough(t *testing.T) {
 	assert.Equal(t, []string{"it", "pl", "pl"}, ownersOf(out.Opening), "every tile opens on the world's flag")
 	require.Len(t, out.Scenes, 2, "no scene of the battle")
 	assert.Equal(t, "fr", out.Scenes[0].Change.Value)
-	assert.Equal(t, "de", out.Scenes[1].Change.Value, "a world take in the second the arena closed")
+	assert.Equal(t, "de", out.Scenes[1].Change.Value, "a world take, as its event names the world's map")
 	require.Len(t, out.Asides, 1)
 	assert.Equal(t, arenas.ID("battle"), out.Asides[0].ID)
 }
@@ -197,8 +226,10 @@ func TestAReplayWhileAnArenaPlaysRewindsTheWorldsMapKeptAside(t *testing.T) {
 	h.now.kept = []string{"fr", "de", "pl"}
 	opened := start.Add(30 * time.Minute)
 	h.arena(t, "battle", opened, time.Time{})
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start.Add(time.Minute)})
-	h.book.Append(ledger.Taking{Tile: 1, Scope: "b", Country: "br", Previous: "", At: opened.Add(time.Minute)})
+	h.now.playing = clicks.MapID("battle").On(clicks.TestBoard)
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start.Add(time.Minute)})
+	h.book.Append(h.now.playing,
+		ledger.Taking{Tile: 1, Scope: "b", Country: "br", Previous: "", At: opened.Add(time.Minute)})
 
 	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
 	require.NoError(t, err)

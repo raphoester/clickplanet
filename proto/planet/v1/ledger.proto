@@ -19,6 +19,9 @@ message GetLedgerResponse {
   repeated LedgerChange changes = 1;
   // Empty on the last page.
   string next_page = 2;
+  // The board the world's map plays, by its name ("earth-1"): the changes are the world's on that board alone, and
+  // every tile id is a tile of it.
+  string board = 3;
 }
 
 message LedgerChange {

@@ -63,7 +63,7 @@ func TestAVirusTickIsRecordedAsItsPlayersActWhoeverAsks(t *testing.T) {
 	fortified := &clicks.Fortification{Landmass: 3, Country: "fr", Tile: 4, Tiles: 2}
 	recording := ledger.NewVirusRecording(contagion{virus: spreadVirus(), impacts: []clicks.Impact{
 		{Tile: 4, Owner: "de", Outcome: clicks.Taken, Fortified: fortified},
-	}}, events, cptime.NewFixedClock(start))
+	}}, events, events, cptime.NewFixedClock(start))
 
 	_, err := recording.Spread(t.Context(), "v-1", 32, start)
 	require.NoError(t, err)
@@ -74,11 +74,12 @@ func TestAVirusTickIsRecordedAsItsPlayersActWhoeverAsks(t *testing.T) {
 		Impacts: []clicks.Impact{{Tile: 4, Owner: "de", Outcome: clicks.Taken, Fortified: fortified}},
 	}, events.appended[0])
 	assert.IsType(t, ledger.Fortifying{}, events.appended[1])
+	assert.Equal(t, []clicks.Stage{clicks.WorldStage, clicks.WorldStage}, events.stages, "each on the stage the tick ran on")
 }
 
 func TestATickThatChangedNoTileRecordsNothing(t *testing.T) {
 	events := &recordedEvents{}
-	recording := ledger.NewVirusRecording(contagion{virus: spreadVirus()}, events, cptime.NewFixedClock(start))
+	recording := ledger.NewVirusRecording(contagion{virus: spreadVirus()}, events, events, cptime.NewFixedClock(start))
 
 	_, err := recording.Spread(t.Context(), "v-1", 32, start)
 	require.NoError(t, err)
@@ -88,11 +89,18 @@ func TestATickThatChangedNoTileRecordsNothing(t *testing.T) {
 
 type recordedEvents struct {
 	appended []ledger.Event
+	stages   []clicks.Stage
 }
 
-func (r *recordedEvents) Append(event ledger.Event) { r.appended = append(r.appended, event) }
+func (r *recordedEvents) Append(on clicks.Stage, event ledger.Event) {
+	r.stages = append(r.stages, on)
+	r.appended = append(r.appended, event)
+}
 
-func (r *recordedEvents) Replay(func(ledger.Event)) ledger.Position { return 0 }
+func (r *recordedEvents) Replay(func(clicks.Stage, ledger.Event)) ledger.Position { return 0 }
+
+// During runs a write on the world's map, on earth-1.
+func (r *recordedEvents) During(write func(on clicks.Stage)) { write(clicks.WorldStage) }
 
 func (r *recordedEvents) Forget(ledger.Caller, ledger.Position) {}
 

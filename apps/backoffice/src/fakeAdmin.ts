@@ -186,6 +186,8 @@ import {
     AdminGetProgressResponse,
     BackfillDaysPlayedRequest,
     BackfillDaysPlayedResponse,
+    ForgiveMissedDayRequest,
+    ForgiveMissedDayResponse,
     ReconcileLevelsRequest,
     ReconcileLevelsResponse,
     ReconcileTitlesRequest,
@@ -481,7 +483,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     // The swastikas the vandal squad flagged, newest first: one of BraveFox42's, on the first five tiles.
     graffiti = [
         new Graffiti({
-            accountId: ACCOUNT, countryId: "de", kind: GraffitiKind.SWASTIKA, tileIds: [1, 2, 3, 4, 5],
+            board: "earth-1", accountId: ACCOUNT, countryId: "de", kind: GraffitiKind.SWASTIKA, tileIds: [1, 2, 3, 4, 5],
             flaggedAt: Timestamp.fromDate(AT), seenAt: Timestamp.fromDate(new Date(AT.getTime() + 600_000)),
             link: "https://clickplanet.lol/play?lat=48.85&lon=2.35&zoom=20.0",
         }),
@@ -648,7 +650,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         const pages = [this.ledger.changes, ...this.ledgerPages]
         const index = request.page ? Number(request.page) : 0
         const next = index + 1 < pages.length ? String(index + 1) : ""
-        return this.answer("getLedger", request, new GetLedgerResponse({changes: pages[index] ?? [], nextPage: next}))
+        return this.answer("getLedger", request, new GetLedgerResponse({changes: pages[index] ?? [], nextPage: next, board: "earth-1"}))
     }
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {
@@ -767,6 +769,11 @@ export class FakeProgression implements ProgressionAdmin {
 
     getProgress(request: PartialMessage<AdminGetProgressRequest>): Promise<AdminGetProgressResponse> {
         return this.admin.answer("getProgress", request, this.admin.progress)
+    }
+
+    // No page calls it yet: the operator forgives a day through the connector.
+    forgiveMissedDay(request: PartialMessage<ForgiveMissedDayRequest>): Promise<ForgiveMissedDayResponse> {
+        return this.admin.answer("forgiveMissedDay", request, new ForgiveMissedDayResponse({forgivenDays: [request.day ?? ""]}))
     }
 }
 

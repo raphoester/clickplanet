@@ -6,31 +6,33 @@ import (
 	"slices"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Scenes of the world's map from since until until, and what each tile held at since: the first scene after since that
-// touches it says. A scene on an arena's map is none of the world's: the world's map came back as it was.
-func NewFootage(since, until time.Time, world arenas.Played) *Footage {
-	return &Footage{since: since, until: until, world: world, owners: make(map[uint32]string), shields: make(map[uint32]int)}
+// Scenes of one stage from since until until, the world's map on the board it plays, and what each tile held at since:
+// the first scene after since that touches it says. An event names its stage: one made on an arena's map, or on another
+// board, is none of these scenes.
+func NewFootage(since, until time.Time, filmed clicks.Stage) *Footage {
+	return &Footage{since: since, until: until, filmed: filmed, owners: make(map[uint32]string), shields: make(map[uint32]int)}
 }
 
 type Footage struct {
 	since   time.Time
 	until   time.Time
-	world   arenas.Played
+	filmed  clicks.Stage
 	scenes  []Scene
 	owners  map[uint32]string
 	shields map[uint32]int
 }
 
-func (f *Footage) See(event Event) {
-	event.Show(f.see)
+func (f *Footage) See(on clicks.Stage, event Event) {
+	if on == f.filmed {
+		event.Show(f.see)
+	}
 }
 
 func (f *Footage) see(scene Scene) {
-	if scene.At.Before(f.since) || !f.world.Holds(scene.At) {
+	if scene.At.Before(f.since) {
 		return
 	}
 

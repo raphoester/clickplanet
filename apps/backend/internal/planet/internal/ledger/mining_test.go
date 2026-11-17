@@ -68,7 +68,7 @@ func TestEveryBlastIsRecordedAsItsPlayersActBeforeTheFortifiesAndTheKnockOuts(t 
 	recording := ledger.NewMineRecording(minefield{detonations: []clicks.Detonation{
 		detonationOf(5, "203.0.113.7", clicks.Impact{Tile: 4, Owner: "de", Outcome: clicks.Taken, Fortified: fortified}),
 		detonationOf(7, "203.0.113.7", clicks.Impact{Tile: 6, Owner: "de", Outcome: clicks.Taken, KnockedOut: knocked}),
-	}}, events, cptime.NewFixedClock(start))
+	}}, events, events, cptime.NewFixedClock(start))
 
 	_, err := recording.Detonate(t.Context(), 2)
 	require.NoError(t, err)
@@ -89,7 +89,7 @@ func TestABlastThatChangedNoTileRecordsNothingAndAFailureStillRecordsWhatWentOff
 	recording := ledger.NewMineRecording(minefield{detonations: []clicks.Detonation{
 		detonationOf(5, "203.0.113.7", clicks.Impact{Tile: 5, Owner: "fr", Outcome: clicks.Unchanged}),
 		detonationOf(7, "203.0.113.7", clicks.Impact{Tile: 6, Owner: "de", Outcome: clicks.Shielded, Shields: 1}),
-	}, err: down}, events, cptime.NewFixedClock(start))
+	}, err: down}, events, events, cptime.NewFixedClock(start))
 
 	detonations, err := recording.Detonate(t.Context(), 2)
 

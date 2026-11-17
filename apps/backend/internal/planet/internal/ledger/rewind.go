@@ -4,21 +4,21 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Rewind is a History's frames rewound from the map now, so it reads the entries from since on and none before.
+// Rewind is a History's frames rewound from the map now, so it reads the entries from since on and none before, and of
+// one stage: the stage of the map now.
 type Rewind struct {
-	at    []time.Time
-	world arenas.Played
+	at      []time.Time
+	rewound clicks.Stage
 
-	rewound map[uint32]string
-	steps   []map[uint32]Owner
-	hits    map[uint32]uint32
+	previous map[uint32]string
+	steps    []map[uint32]Owner
+	hits     map[uint32]uint32
 }
 
-func NewRewind(since, until time.Time, step time.Duration, world arenas.Played) (*Rewind, error) {
+func NewRewind(since, until time.Time, step time.Duration, rewound clicks.Stage) (*Rewind, error) {
 	if until.Before(since) || step <= 0 {
 		return nil, ErrInvalidHistory
 	}
@@ -33,7 +33,7 @@ func NewRewind(since, until time.Time, step time.Duration, world arenas.Played) 
 	for i := range steps {
 		steps[i] = map[uint32]Owner{}
 	}
-	return &Rewind{at: at, world: world, rewound: map[uint32]string{}, steps: steps, hits: map[uint32]uint32{}}, nil
+	return &Rewind{at: at, rewound: rewound, previous: map[uint32]string{}, steps: steps, hits: map[uint32]uint32{}}, nil
 }
 
 // Record takes the entries in position order: a tile opens on what it held before its first change at or after since.
@@ -42,13 +42,13 @@ func (r *Rewind) Record(entry Entry) error {
 	if err != nil {
 		return err
 	}
-	if entry.At.Before(r.at[0]) || !r.world.Holds(entry.At) {
+	if entry.At.Before(r.at[0]) || entry.Stage != r.rewound {
 		return nil
 	}
 	frame, during := r.frameOf(entry.At)
 	event.Replay(func(taking Taking) {
-		if _, seen := r.rewound[taking.Tile]; !seen {
-			r.rewound[taking.Tile] = taking.Previous
+		if _, seen := r.previous[taking.Tile]; !seen {
+			r.previous[taking.Tile] = taking.Previous
 		}
 		if during {
 			r.steps[frame][taking.Tile] = Owner{Country: taking.Country, At: entry.At}
@@ -96,7 +96,7 @@ func (r *Rewind) openingOf(now clicks.DenseBatch) map[uint32]Owner {
 	owners := make(map[uint32]Owner, len(now.Tiles)/2)
 	for i := 0; i+1 < len(now.Tiles); i += 2 {
 		tile := now.Start + uint32(i/2)
-		country, seen := r.rewound[tile]
+		country, seen := r.previous[tile]
 		if code := int(binary.LittleEndian.Uint16(now.Tiles[i:])); !seen && code < len(now.Codes) {
 			country = now.Codes[code]
 		}

@@ -161,7 +161,9 @@ type Graffiti struct {
 	// When it last saw it on the map: a drawing painted over or reverted is not seen again.
 	SeenAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=seen_at,json=seenAt,proto3" json:"seen_at,omitempty"`
 	// The page opened on the drawing.
-	Link          string `protobuf:"bytes,7,opt,name=link,proto3" json:"link,omitempty"`
+	Link string `protobuf:"bytes,7,opt,name=link,proto3" json:"link,omitempty"`
+	// The board its tiles are on, by its name ("earth-1"): a tile id is a place only on its board.
+	Board         string `protobuf:"bytes,8,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -245,6 +247,13 @@ func (x *Graffiti) GetLink() string {
 	return ""
 }
 
+func (x *Graffiti) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
+}
+
 var File_vandalsquad_v1_admin_proto protoreflect.FileDescriptor
 
 const file_vandalsquad_v1_admin_proto_rawDesc = "" +
@@ -252,7 +261,7 @@ const file_vandalsquad_v1_admin_proto_rawDesc = "" +
 	"\x1avandalsquad/v1/admin.proto\x12\x0evandalsquad.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x15\n" +
 	"\x13ListGraffitiRequest\"L\n" +
 	"\x14ListGraffitiResponse\x124\n" +
-	"\bgraffiti\x18\x01 \x03(\v2\x18.vandalsquad.v1.GraffitiR\bgraffiti\"\x99\x02\n" +
+	"\bgraffiti\x18\x01 \x03(\v2\x18.vandalsquad.v1.GraffitiR\bgraffiti\"\xaf\x02\n" +
 	"\bGraffiti\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1d\n" +
@@ -263,7 +272,8 @@ const file_vandalsquad_v1_admin_proto_rawDesc = "" +
 	"\n" +
 	"flagged_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tflaggedAt\x123\n" +
 	"\aseen_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06seenAt\x12\x12\n" +
-	"\x04link\x18\a \x01(\tR\x04link*I\n" +
+	"\x04link\x18\a \x01(\tR\x04link\x12\x14\n" +
+	"\x05board\x18\b \x01(\tR\x05board*I\n" +
 	"\fGraffitiKind\x12\x1d\n" +
 	"\x19GRAFFITI_KIND_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16GRAFFITI_KIND_SWASTIKA\x10\x012n\n" +

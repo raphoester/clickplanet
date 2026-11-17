@@ -3,6 +3,7 @@ package embedded_board
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -159,4 +160,16 @@ func latticeEdges(cols int, tileOf []uint32) []clicks.Edge {
 	}
 
 	return edges
+}
+
+// hash is the manifest's content address: the hex in board-<hash>.json.
+func (b board) hash() (string, error) {
+	hash, ok := strings.CutPrefix(b.asset, "board-")
+	if ok {
+		hash, ok = strings.CutSuffix(hash, ".json")
+	}
+	if !ok || hash == "" {
+		return "", fmt.Errorf("board %s's manifest %s is not named board-<hash>.json", b.name, b.asset)
+	}
+	return hash, nil
 }

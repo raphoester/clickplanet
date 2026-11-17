@@ -77,9 +77,9 @@ type stubPlanet struct {
 	asked [][]drawings.TileID
 }
 
-func (p *stubPlanet) Takes(_ context.Context, since, _ time.Time) ([]paint.Take, error) {
+func (p *stubPlanet) Takes(_ context.Context, since, _ time.Time) (drawings.Board, []paint.Take, error) {
 	p.since = since
-	return p.takes, nil
+	return "earth-1", p.takes, nil
 }
 
 func (p *stubPlanet) Tiles(_ context.Context, ids []drawings.TileID) ([]drawings.MapTile, error) {

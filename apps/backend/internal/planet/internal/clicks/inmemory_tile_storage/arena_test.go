@@ -3,6 +3,7 @@ package inmemory_tile_storage_test
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -38,7 +39,7 @@ func (s *testSuite) TestABlankKeepsTheWorldWithTheTilesNotFlushedYetAndPlaysAnEm
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, ana := s.worldBeforeABattle(persistence)
 
-	blanked, err := storage.Blank(ctx, battle, noStart, keeps(true))
+	blanked, err := storage.Blank(ctx, battle, noStart, opens(true))
 
 	s.Require().NoError(err)
 	s.True(blanked)
@@ -61,7 +62,7 @@ func (s *testSuite) TestABlankKeepSaysNoToLeavesTheMap() {
 	_, version, err := storage.Subscribe(ctx)
 	s.Require().NoError(err)
 
-	blanked, err := storage.Blank(ctx, battle, noStart, keeps(false))
+	blanked, err := storage.Blank(ctx, battle, noStart, opens(false))
 
 	s.Require().NoError(err)
 	s.False(blanked)
@@ -75,7 +76,7 @@ func (s *testSuite) TestABlankKeepSaysNoToLeavesTheMap() {
 func (s *testSuite) TestTheWorldIsNoArena() {
 	storage := s.newStorage(inmemory_tile_storage.Config{})
 
-	_, blankErr := storage.Blank(context.Background(), clicks.World, noStart, keeps(true))
+	_, blankErr := storage.Blank(context.Background(), clicks.World, noStart, opens(true))
 	_, putBackErr := storage.PutBack(context.Background(), clicks.World, keeps(true))
 
 	s.Require().Error(blankErr)
@@ -86,7 +87,7 @@ func (s *testSuite) TestAPutBackDeletesTheArenasMapAndPlaysTheWorldTileForTile()
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, ana := s.worldBeforeABattle(persistence)
-	_, err := storage.Blank(ctx, battle, noStart, keeps(true))
+	_, err := storage.Blank(ctx, battle, noStart, opens(true))
 	s.Require().NoError(err)
 	for _, tile := range append([]uint32{12, 13}, island...) {
 		s.Require().NoError(storage.Set(ctx, tile, "it"))
@@ -127,7 +128,7 @@ func (s *testSuite) TestAPutBackOfAnArenaThatDoesNotPlayDeletesItsMapAndLeavesMe
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, _ := s.worldBeforeABattle(persistence)
-	s.Require().NoError(persistence.Save(ctx, "stale", []inmemory_tile_storage.Tile{{ID: 5, Owner: "pt"}}, nil, nil))
+	s.Require().NoError(persistence.Save(ctx, clicks.MapID("stale").On(clicks.TestBoard), []inmemory_tile_storage.Tile{{ID: 5, Owner: "pt"}}, nil, nil))
 
 	put, err := storage.PutBack(ctx, "stale", keeps(true))
 
@@ -142,7 +143,7 @@ func (s *testSuite) TestAPutBackThatCannotBeKeptLeavesTheMap() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, _ := s.worldBeforeABattle(persistence)
-	_, err := storage.Blank(ctx, battle, noStart, keeps(true))
+	_, err := storage.Blank(ctx, battle, noStart, opens(true))
 	s.Require().NoError(err)
 	s.Require().NoError(storage.Set(ctx, 13, "it"))
 	down := errors.New("postgres is down")
@@ -159,7 +160,7 @@ func (s *testSuite) TestAHolderForgottenWhileAnArenaPlaysHoldsNothingWhenTheWorl
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage, ana := s.worldBeforeABattle(persistence)
-	_, err := storage.Blank(ctx, battle, noStart, keeps(true))
+	_, err := storage.Blank(ctx, battle, noStart, opens(true))
 	s.Require().NoError(err)
 
 	_, err = storage.ForgetHolder(ctx, ana)
@@ -169,4 +170,31 @@ func (s *testSuite) TestAHolderForgottenWhileAnArenaPlaysHoldsNothingWhenTheWorl
 	_, err = storage.PutBack(ctx, battle, keeps(true))
 	s.Require().NoError(err)
 	s.Empty(storage.HoldingsOf(1))
+}
+
+func (s *testSuite) TestASwapOfTheMapWaitsForAWriteAndItsRecordToEnd() {
+	ctx := context.Background()
+	storage := s.loadedOn(inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}))
+	writing, recorded := make(chan struct{}), make(chan struct{})
+	seen := make(chan clicks.Stage, 1)
+	go storage.During(func(on clicks.Stage) {
+		close(writing)
+		<-recorded
+		seen <- on
+	})
+	<-writing
+
+	blanked := make(chan error, 1)
+	go func() {
+		_, err := storage.Blank(ctx, battle, noStart, opens(true))
+		blanked <- err
+	}()
+	s.Never(func() bool { return len(blanked) > 0 }, 50*time.Millisecond, 5*time.Millisecond,
+		"the arena opens once the write in flight recorded itself")
+
+	close(recorded)
+	s.Equal(clicks.WorldStage, <-seen, "the write and its record ran on the world's map")
+	s.Require().NoError(<-blanked)
+	s.Equal(battle.On(clicks.TestBoard), storage.Stage(), "the arena plays the board the world played")
+	storage.During(func(on clicks.Stage) { s.Equal(battle.On(clicks.TestBoard), on) })
 }

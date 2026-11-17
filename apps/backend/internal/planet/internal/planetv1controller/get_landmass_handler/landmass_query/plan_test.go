@@ -3,9 +3,7 @@ package landmass_query_test
 import (
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,8 +19,8 @@ func TestMain(m *testing.M) { server.Run(m) }
 func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
-		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account, payload)
-		SELECT n,
+		INSERT INTO ledger_events (position, map, board, kind, tile, scope, country, previous, taken_at, account, payload)
+		SELECT n, 'world', 1,
 			CASE WHEN n % 1000 = 0 THEN 'fortify' ELSE 'take' END::ledger_event_kind,
 			n % 260503 + 1, NULL, 'fr', 'de', now(), md5((n % 500)::text)::uuid,
 			CASE WHEN n % 1000 = 0 THEN jsonb_build_object('landmass', n % 657 + 1, 'raised', '[]'::jsonb) END
@@ -31,8 +29,7 @@ func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)
 	require.NoError(t, err)
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+landmass_query.LastFortify, 42, time.Time{},
-		pq.Array([]time.Time{time.Now().Add(-time.Hour)}), pq.Array([]time.Time{time.Now().Add(-30 * time.Minute)}))
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+landmass_query.LastFortify, 42, "world", 1)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string
