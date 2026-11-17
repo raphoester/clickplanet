@@ -114,8 +114,8 @@ internal/missions/internal/
     tiles. The goals were a fixed 60, 40 and 200 until 2026-10-26, when a
     top player finished all three in ten minutes. Until 2026-10-27 every flag aimed at the one leader, so everyone
     attacked the same flag, and a flag could be sent to a ground it already held whole. The world is planet's
-    (`GetTerritories`: what each flag holds, and how many tiles of it on each country's land; `GetCountrySizes`,
-    `clicks.Borders.CountrySizes`).
+    (`GetTerritories`: what each flag holds, how many tiles of it on each country's land, and the shields on its
+    tiles; `GetCountrySizes`, `clicks.Borders.CountrySizes`).
   - **A mission pays XP: its goal times its kind's rate.** The rates are progression's (see
     [What a mission pays](levels.md#what-a-mission-pays)); the draw draws no reward. See
     [Missions pay XP](#missions-pay-xp).
@@ -254,6 +254,12 @@ day and a flag), so it has its own package and store (`flagmissions`).
   the ones the map allows: `TakeIn{Ground, Goal}`, tiles taken for the flag on a big ground (`World.GroundsOf`, the
   grounds of the player missions), or `BreakShields{Flag, Goal}`, shields of a rival broken (`World.RivalsOf`, drawn by
   the ground it holds, so the leaders share the heat). A map with neither gives a day with no mission.
+- **A rival has the shields for its goal** (`shielded`): the shields standing on its tiles at the draw
+  (`World.ShieldsOf`, planet's `GetTerritories`) are the goal or more. With no rival that has them, the day is a
+  conquest: a shield goal cut to the few a rival has would ask next to nothing (Seychelles had 3), where a conquest
+  always has a ground with room on today's map. Until 2026-11-17 a rival was drawn whatever its shields: Poland, which
+  took and broke 41,000 the day before, was told to break 12,370 of Seychelles' shields on season 1's day 17, while
+  Seychelles held 18,272 tiles and 3 shields (the owner: "there's a bug to fix here").
 - **Its numbers are the operator's** (see [The rules](#the-rules)): the goal's part of the day before, the least goal,
   and the points for the season's leader and for a flag with no season points, a `Sizing` that `Briefing.Of` reads at
   each draw and hands to `Draw`. The formulas stay in code; below, the numbers are those of 6 Nov 2026.

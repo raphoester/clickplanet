@@ -17,6 +17,12 @@ func (s stubTally) Tally() (clicks.MapVersion, clicks.Tally) {
 	return clicks.MapVersion{}, clicks.Tally(s)
 }
 
+type stubShields []clicks.FlagShields
+
+func (s stubShields) ShieldTally() []clicks.FlagShields {
+	return s
+}
+
 type stubBorders map[clicks.LandmassID]string
 
 func (s stubBorders) CountryOfLandmass(landmass clicks.LandmassID) string {
@@ -26,7 +32,7 @@ func (s stubBorders) CountryOfLandmass(landmass clicks.LandmassID) string {
 func TestTheTerritoryIsTheMapsSizeAndWhatEachCountryHoldsInCountryOrder(t *testing.T) {
 	query := territories_query.NewMemoryQuery(stubTally{
 		Countries: []clicks.FlagTiles{{Flag: "fr", Tiles: 3}, {Flag: "bg", Tiles: 7}, {Flag: "de", Tiles: 1}},
-	}, stubBorders{}, 100)
+	}, stubShields{}, stubBorders{}, 100)
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
 		Tiles: 100,
@@ -46,7 +52,7 @@ func TestATerritorySaysHowManyTilesOfEachCountrysLandTheFlagHoldsInCountryOrder(
 			{Landmass: 2, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 2}, {Flag: "it", Tiles: 2}}},
 			{Landmass: 3, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 2}}},
 		},
-	}, stubBorders{1: "it", 2: "fr", 3: "fr"}, 100)
+	}, stubShields{}, stubBorders{1: "it", 2: "fr", 3: "fr"}, 100)
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
 		Tiles: 100,
@@ -57,11 +63,25 @@ func TestATerritorySaysHowManyTilesOfEachCountrysLandTheFlagHoldsInCountryOrder(
 	}, query.Territories()), "two landmasses of one country add up")
 }
 
+func TestATerritorySaysTheShieldsOnItsTiles(t *testing.T) {
+	query := territories_query.NewMemoryQuery(stubTally{
+		Countries: []clicks.FlagTiles{{Flag: "pl", Tiles: 25_862}, {Flag: "sc", Tiles: 18_272}},
+	}, stubShields{{Flag: "pl", Shields: 18_726}}, stubBorders{}, 260_504)
+
+	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
+		Tiles: 260_504,
+		Territories: []*planetv1.Territory{
+			{CountryId: "pl", Tiles: 25_862, Shields: 18_726},
+			{CountryId: "sc", Tiles: 18_272},
+		},
+	}, query.Territories()), "a flag the tally names no shields of has none")
+}
+
 func TestATileOnNoCountrysLandIsOnNoGround(t *testing.T) {
 	query := territories_query.NewMemoryQuery(stubTally{
 		Countries:  []clicks.FlagTiles{{Flag: "fr", Tiles: 1}},
 		Landmasses: []clicks.LandmassTiles{{Landmass: clicks.NoLandmass, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 1}}}},
-	}, stubBorders{}, 100)
+	}, stubShields{}, stubBorders{}, 100)
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{
 		Tiles:       100,
@@ -70,7 +90,7 @@ func TestATileOnNoCountrysLandIsOnNoGround(t *testing.T) {
 }
 
 func TestAnEmptyMapIsItsSizeAlone(t *testing.T) {
-	query := territories_query.NewMemoryQuery(stubTally{}, stubBorders{}, 100)
+	query := territories_query.NewMemoryQuery(stubTally{}, stubShields{}, stubBorders{}, 100)
 
 	assert.True(t, proto.Equal(&planetv1.GetTerritoriesResponse{Tiles: 100}, query.Territories()))
 }

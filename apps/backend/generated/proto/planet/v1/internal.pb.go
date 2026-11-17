@@ -773,7 +773,9 @@ type Territory struct {
 	CountryId string                 `protobuf:"bytes,1,opt,name=country_id,json=countryId,proto3" json:"country_id,omitempty"`
 	Tiles     uint32                 `protobuf:"varint,2,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	// Where the tiles are: how many on each country's land.
-	Grounds       []*Ground `protobuf:"bytes,3,rep,name=grounds,proto3" json:"grounds,omitempty"`
+	Grounds []*Ground `protobuf:"bytes,3,rep,name=grounds,proto3" json:"grounds,omitempty"`
+	// The shields on its tiles now, all added up.
+	Shields       uint32 `protobuf:"varint,4,opt,name=shields,proto3" json:"shields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -827,6 +829,13 @@ func (x *Territory) GetGrounds() []*Ground {
 		return x.Grounds
 	}
 	return nil
+}
+
+func (x *Territory) GetShields() uint32 {
+	if x != nil {
+		return x.Shields
+	}
+	return 0
 }
 
 type Ground struct {
@@ -1892,12 +1901,13 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\x15GetTerritoriesRequest\"f\n" +
 	"\x16GetTerritoriesResponse\x12\x14\n" +
 	"\x05tiles\x18\x01 \x01(\rR\x05tiles\x126\n" +
-	"\vterritories\x18\x02 \x03(\v2\x14.planet.v1.TerritoryR\vterritories\"m\n" +
+	"\vterritories\x18\x02 \x03(\v2\x14.planet.v1.TerritoryR\vterritories\"\x87\x01\n" +
 	"\tTerritory\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\rR\x05tiles\x12+\n" +
-	"\agrounds\x18\x03 \x03(\v2\x11.planet.v1.GroundR\agrounds\"=\n" +
+	"\agrounds\x18\x03 \x03(\v2\x11.planet.v1.GroundR\agrounds\x12\x18\n" +
+	"\ashields\x18\x04 \x01(\rR\ashields\"=\n" +
 	"\x06Ground\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +

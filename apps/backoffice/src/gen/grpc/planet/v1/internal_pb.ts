@@ -656,6 +656,13 @@ export class Territory extends Message<Territory> {
    */
   grounds: Ground[] = [];
 
+  /**
+   * The shields on its tiles now, all added up.
+   *
+   * @generated from field: uint32 shields = 4;
+   */
+  shields = 0;
+
   constructor(data?: PartialMessage<Territory>) {
     super();
     proto3.util.initPartial(data, this);
@@ -667,6 +674,7 @@ export class Territory extends Message<Territory> {
     { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 3, name: "grounds", kind: "message", T: Ground, repeated: true },
+    { no: 4, name: "shields", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Territory {

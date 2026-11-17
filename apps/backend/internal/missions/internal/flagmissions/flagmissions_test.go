@@ -17,7 +17,11 @@ import (
 var monday = time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
 
 var world = missions.World{
-	Territories:  []missions.Territory{{Flag: "dz", Tiles: 60_000}, {Flag: "pw", Tiles: 30_000}, {Flag: "us", Tiles: 10_000}},
+	Territories: []missions.Territory{
+		{Flag: "dz", Tiles: 60_000, Shields: 20_000},
+		{Flag: "pw", Tiles: 30_000, Shields: 10_000},
+		{Flag: "us", Tiles: 10_000, Shields: 5_000},
+	},
 	CountrySizes: []missions.Holding{{Country: "br", Tiles: 12_000}, {Country: "in", Tiles: 4_000}, {Country: "is", Tiles: 2_999}},
 }
 
@@ -145,6 +149,46 @@ func TestTheShieldsToBreakAreARivalsDrawnByTheGroundItHolds(t *testing.T) {
 	assert.InDelta(t, 0.6, float64(broken["dz"])/float64(total), 0.05, "the leader, %d of %d", broken["dz"], total)
 	assert.InDelta(t, 0.3, float64(broken["pw"])/float64(total), 0.05, "the runner-up, %d of %d", broken["pw"], total)
 	assert.InDelta(t, 0.1, float64(broken["us"])/float64(total), 0.05, "the smallest, %d of %d", broken["us"], total)
+}
+
+func rivalsOf(t *testing.T, world missions.World, yesterday flagmissions.Day) *cpcolls.Set[string] {
+	t.Helper()
+
+	rivals := cpcolls.NewSet[string]()
+	for n := range 60 {
+		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "pl", world, standing, yesterday, flagmissions.TestingSizing()))
+		if order, ok := status.Mission.Order.(flagmissions.BreakShields); ok {
+			rivals.Add(order.Flag)
+		}
+	}
+	return rivals
+}
+
+func TestTheShieldsToBreakAreARivalsWithThatManyShieldsStanding(t *testing.T) {
+	shielded := missions.World{
+		Territories: []missions.Territory{
+			{Flag: "at", Tiles: 27_822, Shields: 23_535},
+			{Flag: "sc", Tiles: 18_272, Shields: 300},
+			{Flag: "se", Tiles: 28_691, Shields: 14_892},
+		},
+		CountrySizes: world.CountrySizes,
+	}
+
+	assert.Equal(t, cpcolls.NewSet("at", "se"), rivalsOf(t, shielded, dayOf(t, flagmissions.DaySnapshot{Takes: 31_000, Strikes: 10_234})),
+		"a goal of 12,370: Seychelles holds 18,272 tiles but 300 shields")
+	assert.Equal(t, cpcolls.NewSet("at", "sc", "se"), rivalsOf(t, shielded, flagmissions.Day{}), "a goal of 250 fits on each")
+}
+
+func TestWithNoRivalShieldedForTheGoalTheDayIsAConquest(t *testing.T) {
+	bare := missions.World{Territories: []missions.Territory{{Flag: "sc", Tiles: 18_272, Shields: 3}}, CountrySizes: world.CountrySizes}
+
+	for n := range 30 {
+		status := statusOf(t, flagmissions.Draw(days.TestingDayAt(monday.AddDate(0, 0, n)), "pl", bare, standing, flagmissions.Day{}, flagmissions.TestingSizing()))
+		assert.IsType(t, flagmissions.TakeIn{}, status.Mission.Order, "Seychelles has 3 shields for a goal of 250")
+	}
+
+	_, ok := flagmissions.Draw(days.TestingDayAt(monday), "pl", missions.World{Territories: bare.Territories}, standing, flagmissions.Day{}, flagmissions.TestingSizing()).Status()
+	assert.False(t, ok, "and with no ground, nothing to aim at")
 }
 
 func goalOf(order flagmissions.Order) uint32 {
