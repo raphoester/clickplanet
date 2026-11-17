@@ -2,8 +2,9 @@ import {BOARD} from "./boardAsset.ts"
 import type {LatticeAnswer, LatticeQuestion} from "./latticeWorker.ts"
 import {rebuildTiles, type RebuiltTiles} from "../../domain/board.ts"
 import type {TileCells} from "../../domain/latticeCells.ts"
+import type {TileChunks} from "../../domain/tileChunks.ts"
 
-export type TileGeometry = {positions: Float32Array, size: number, cells: TileCells}
+export type TileGeometry = {positions: Float32Array, size: number, cells: TileCells, chunks: TileChunks}
 
 export async function loadPointGeometryData(signal?: AbortSignal): Promise<TileGeometry> {
     const question: LatticeQuestion = {lattice: BOARD.lattice, tiles: BOARD.tiles, runs: await fetched(BOARD.urls.runs, signal)}
@@ -19,7 +20,7 @@ export async function loadPointGeometryData(signal?: AbortSignal): Promise<TileG
         console.error(`the tile positions rebuilt on ${navigator.userAgent} hash to ${hex(rebuilt.hash)}, `
             + `${BOARD.name} says ${hex(BOARD.positionsHash)}`)
     }
-    return {positions: rebuilt.positions, size: rebuilt.positions.length / 3, cells: rebuilt.cells}
+    return {positions: rebuilt.positions, size: rebuilt.positions.length / 3, cells: rebuilt.cells, chunks: rebuilt.chunks}
 }
 
 async function fetched(url: string, signal?: AbortSignal): Promise<ArrayBuffer> {

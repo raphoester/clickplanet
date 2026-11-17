@@ -4,7 +4,7 @@ import {describe, expect, it} from "vitest"
 import {BOARD} from "../app/viewer/boardAsset.ts"
 import {decodeRuns, tilesOf} from "./board.ts"
 import {latticeIds, latticePositions, latticeSize} from "./lattice.ts"
-import {cellOf, cellsOf, IDS_PER_WORD, latticeFaces, nearestOnGrid} from "./latticeCells.ts"
+import {cellOf, cellsOf, IDS_PER_WORD, latticeFaces, nearestOnGrid, tileAt} from "./latticeCells.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
@@ -74,6 +74,20 @@ describe("cellsOf", () => {
         })
     })
 
+    it("names the tile at each texel", () => {
+        const {texels, tiles} = cellsOf(tileIds, COLS)
+        texels.forEach((texel, tile) => expect(tiles[texel]).toBe(tile))
+    })
+
+    it("finds each tile at its own position, and nothing in a cell that is not a tile", () => {
+        const cells = cellsOf(tileIds, COLS)
+        const faces = latticeFaces(COLS)
+        const positions = latticePositions(COLS)
+        kept.forEach((point, tile) => expect(tileAt(cells, faces, ...pointOf(positions, point))).toBe(tile + 1))
+        const sea = Array.from({length: latticeSize(COLS)}, (_, point) => point).filter((point) => point % 3 === 1)
+        for (const point of sea) expect(tileAt(cells, faces, ...pointOf(positions, point)), `point ${point}`).toBeUndefined()
+    })
+
     it("refuses two tiles in one cell", () => {
         expect(() => cellsOf(Uint32Array.from([4, 4]), COLS)).toThrow(/another tile/)
     })
@@ -90,7 +104,10 @@ describe("the shipped board", () => {
             const found = cellOf(faces, BOARD.lattice.cols, ...pointOf(positions, tile))
             if (found !== ids[tile]) expect(found, `tile ${tile + 1}`).toBe(ids[tile])
         }
-        expect(() => cellsOf(ids, BOARD.lattice.cols)).not.toThrow()
+        const cells = cellsOf(ids, BOARD.lattice.cols)
+        for (let tile = 0; tile < BOARD.tiles; tile += 97) {
+            expect(tileAt(cells, faces, ...pointOf(positions, tile)), `tile ${tile + 1}`).toBe(tile + 1)
+        }
     })
 })
 

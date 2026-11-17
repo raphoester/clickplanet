@@ -144,10 +144,13 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 - [The GPU layer](docs/viewer.md) — `globe.ts` and the files around it: marks, glints, passes.
 - [Drawing only when something changed](docs/render-on-demand.md) — the loop draws a frame only when needed.
-- [The far side of the globe is not drawn](docs/far-side.md) — the half behind the earth is skipped.
+- [The tiles out of sight are not drawn](docs/far-side.md) — the map cut into chunks the CPU skips when behind the
+  earth or off screen, and no tile under the painted flags but those wearing a ring.
+- [The tile under the pointer](docs/picking.md) — picked on the CPU from the lattice cell under the pixel, anywhere in
+  the cell, at every zoom.
 - [HD graphics](docs/hd-graphics.md) — the sharper globe, and `?gfx=`.
-- [What a tile costs on the GPU](docs/tile-layout.md) — the plain and the compact tile layouts, and the one
-  shared earth sphere.
+- [What a tile costs on the GPU](docs/tile-layout.md) — the plain layout of floats alone and the compact one, the
+  uploads of only what changed, and the one shared earth sphere.
 - [CSS pixels in, drawing-buffer pixels out](docs/pixel-ratio.md) — the pixel ratio, capped at 2.
 - [The light](docs/light.md) — one pass for every player: the season-end clips' light, rim and halo, on a navy
   sky.

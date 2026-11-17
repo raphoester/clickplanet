@@ -4,9 +4,6 @@ import {
     flagPaint,
     flownZoomsOf,
     inOrbit,
-    MAX_PICK_WINDOW,
-    pickPointSize,
-    pickWindowSize,
     tilePointSize,
     tileSpacing,
     tilesZoomOf,
@@ -29,46 +26,6 @@ describe("tilePointSize", () => {
         expect(tilePointSize(1, 1000)).toBe(1.5)
         expect(tilePointSize(2, 1000)).toBe(3)
         expect(tilePointSize(1, 2000)).toBe(3)
-    })
-})
-
-describe("pickWindowSize", () => {
-    it("is always odd, so the window has a middle pixel to read", () => {
-        for (let size = 0; size <= 200; size += 0.5) {
-            expect(pickWindowSize(size) % 2, `pointSize ${size}`).toBe(1)
-        }
-    })
-
-    it("is wide enough to contain the centre of any sprite covering the middle", () => {
-        for (const pointSize of [1.5, 1.9, 9.3, 37.3, 93.2]) {
-            const window = pickWindowSize(pointSize)
-            const reachFromMiddle = (window - 1) / 2
-            expect(reachFromMiddle, `pointSize ${pointSize}`).toBeGreaterThanOrEqual(pointSize / 2)
-        }
-    })
-
-    it("never goes below the 3 pixels the smallest sprite needs", () => {
-        expect(pickWindowSize(0)).toBe(3)
-        expect(pickWindowSize(1.5)).toBe(3)
-    })
-
-    it("stays bounded, and the bound is odd", () => {
-        expect(pickWindowSize(1e6)).toBe(MAX_PICK_WINDOW)
-        expect(MAX_PICK_WINDOW % 2).toBe(1)
-    })
-
-    it("is not clamped for any viewport a browser will realistically report", () => {
-        for (const height of [640, 900, 1243, 2160, 3400]) {
-            const pointSize = tilePointSize(50, height)
-            expect(pickWindowSize(pointSize), `${height}px tall`).toBeGreaterThanOrEqual(pointSize + 1)
-        }
-    })
-
-    it("covers the real zoom range, from the far view to the cap", () => {
-        for (const zoom of [MIN_ZOOM, 1, 5, 10, 25, MAX_ZOOM]) {
-            const pointSize = tilePointSize(zoom, 1243)
-            expect(pickWindowSize(pointSize)).toBeGreaterThanOrEqual(pointSize + 1)
-        }
     })
 })
 
@@ -128,16 +85,6 @@ describe("orbit", () => {
     it("is exactly where the painted flags have the frame to themselves", () => {
         everyView((zoom, height) => {
             expect(inOrbit(zoom, height), `zoom ${zoom} at ${height}px`).toBe(flagPaint(zoom, height, "split") === 1)
-        })
-    })
-
-    it("picks a tile wide enough to leave no gap between two tiles, and past it at its own size", () => {
-        everyView((zoom, height) => {
-            if (inOrbit(zoom, height)) {
-                expect(pickPointSize(zoom, height) / tileSpacing(zoom, height), `zoom ${zoom} at ${height}px`).toBeGreaterThanOrEqual(1.155)
-            } else {
-                expect(pickPointSize(zoom, height), `zoom ${zoom} at ${height}px`).toBe(tilePointSize(zoom, height))
-            }
         })
     })
 

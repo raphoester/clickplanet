@@ -42,8 +42,8 @@ canonical id (`cellOf` in `domain/latticeCells.ts` does the same, and its tests 
 shipped tiles falls in its own cell). Whether the id is a tile, and which texel holds that tile, comes from one word
 per 32 ids: their bits and the count of tiles before them (`tileCells`, 226 KB, built from each tile's canonical id
 as the board's runs give it). The tile's flag and landmass come
-from `TileField.tileData`, two u16 per tile (1 MB), which `TileField.uploadTiles` sends a row at a time as tiles
-change hands. So a pixel wears exactly its own tile's flag: a drawing keeps the shape of its cells, and no tile
+from `TileField.tileData`, two u16 per tile (1 MB), of which `TileField.uploadTiles` sends only the rows whose tiles
+changed hands. So a pixel wears exactly its own tile's flag: a drawing keeps the shape of its cells, and no tile
 reaches over another.
 
 **The tiles drew it until November 2026, and that is why they overlapped.** Each disc was widened to 1.31 of the
@@ -62,7 +62,9 @@ footprint the driver takes the top mip level and point-samples a 100px flag into
 tiles. The tiles' own effects fade out as the layer comes in; drawn on both, the gaps between the discs showed as dots.
 
 **It costs one pass over the globe's pixels while it is on**, and it is off (`visible`) wherever `flagPaint` is 0. A
-sea pixel stops after one texel. The widened discs it replaces were about 9 million fragments for the front half of
+sea pixel stops after one texel. **While it is solid the tiles are not drawn under it**, but for the few wearing a ring
+(see [The tiles out of sight are not drawn](far-side.md)): the landing view and the idle spin cost the same whatever the
+number of tiles. The widened discs it replaces were about 9 million fragments for the front half of
 the globe at the last zoom they were drawn.
 
 **A painted flag has no frame of its own.** Ground past the flag's rectangle
@@ -128,9 +130,8 @@ the tiles to under them. The layer stays solid through the first half
 second: faded both at once, the earth showed between the discs and the map looked
 washed out. `pointSize.test.ts` pins the schedule.
 
-**In orbit a tile is still picked wide** (`pickPointSize`, 1.73 of its size): the
-picker reads tiles, not the layer, and a pixel between two discs is still the
-territory.
+**A pixel picks the tile whose cell holds it**, the cell the layer paints, so a pixel between two discs is still the
+territory: see [The tile under the pointer](picking.md).
 
 **A player can turn the painted flags off** — Off under "Country flags".
 Players draw pictures with the tiles, and the painted flag hides them. With it off
