@@ -185,6 +185,7 @@
   "player.streak": "Seri",
   "player.bestStreak": "En iyi seri",
   "player.playingSince": "Başlangıç tarihi",
+  "player.pastNames": "Önceki kullanıcı adları: {names}",
   "player.foughtFor": "Kimin için savaştı",
   "player.foughtAgainst": "Kime karşı savaştı",
   "player.countries": "{count, plural, one {# ülke} other {# ülke}}",

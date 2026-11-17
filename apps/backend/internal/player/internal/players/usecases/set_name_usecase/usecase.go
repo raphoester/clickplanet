@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -18,6 +19,11 @@ type Profiles interface {
 	SaveProfile(ctx context.Context, profile players.Profile) error
 }
 
+// The names the player chose to leave, which its public card shows.
+type PastNames interface {
+	Record(ctx context.Context, name pastnames.PastName) error
+}
+
 type Accounts interface {
 	Linked(ctx context.Context, account players.AccountID) (bool, error)
 }
@@ -25,15 +31,19 @@ type Accounts interface {
 type UseCase struct {
 	transactioner cpatomic.Transactioner
 	profiles      Profiles
+	pastNames     PastNames
 	accounts      Accounts
 	outbox        cpatomic.Outbox
 	clock         cptime.Clock
 }
 
 func New(
-	transactioner cpatomic.Transactioner, profiles Profiles, accounts Accounts, outbox cpatomic.Outbox, clock cptime.Clock,
+	transactioner cpatomic.Transactioner, profiles Profiles, pastNames PastNames, accounts Accounts, outbox cpatomic.Outbox,
+	clock cptime.Clock,
 ) *UseCase {
-	return &UseCase{transactioner: transactioner, profiles: profiles, accounts: accounts, outbox: outbox, clock: clock}
+	return &UseCase{
+		transactioner: transactioner, profiles: profiles, pastNames: pastNames, accounts: accounts, outbox: outbox, clock: clock,
+	}
 }
 
 type In struct {
@@ -64,7 +74,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
 	}
 
-	profile, err := current.Renamed(name, u.clock.Now())
+	now := u.clock.Now()
+	profile, err := current.Renamed(name, now)
 	if err != nil {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the domain's refusal.
 	}
@@ -72,6 +83,11 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 	err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
 		if err := u.profiles.SaveProfile(ctx, profile); err != nil {
 			return err //nolint:wrapcheck // wrapped below, past the sentinel.
+		}
+		if left, ok := pastnames.PastNameOf(current, profile, now); ok {
+			if err := u.pastNames.Record(ctx, left); err != nil {
+				return err //nolint:wrapcheck // wrapped below.
+			}
 		}
 		told := []proto.Message{&playerv1.PlayerNamed{AccountId: in.Account.String()}}
 		if made {

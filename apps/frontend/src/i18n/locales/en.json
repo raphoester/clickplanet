@@ -185,6 +185,7 @@
   "player.streak": "Streak",
   "player.bestStreak": "Best streak",
   "player.playingSince": "Playing since",
+  "player.pastNames": "Previously known as {names}",
   "player.foughtFor": "Fought for",
   "player.foughtAgainst": "Fought against",
   "player.countries": "{count, plural, one {# country} other {# countries}}",

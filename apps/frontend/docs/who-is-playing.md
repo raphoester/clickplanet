@@ -57,7 +57,10 @@ its player: see [Support](support.md). **The one card open is a store**,
 player in it themselves, and the last two close their own card first. `PlayerCardPlace`
 shows the card. The card shows the
 flag and the country, then, for a player with a username, what `PlayerCards` reads: who
-it is from `player.v1.PlayerService/GetPlayer`, and from
+it is from `player.v1.PlayerService/GetPlayer`, with **"Previously known as"** and the
+last names it left under the country (`PlayerInfo.pastNames`: 5 at most, newest first, never
+the name it holds now, and no line when there are none; masked on CrazyGames as the title is;
+see the backend's [Player](../../backend/docs/player.md#the-names-a-player-left)), and from
 `progression.v1.ProgressionService/GetProgress` the titles it shows, under the title it wears, which is its badge
 (see [Titles](titles.md) and [Badges](badges.md)), then tiles taken, the current and best
 streak, and "Playing since", the day the account was made (left out when the
@@ -72,7 +75,7 @@ are the player's total, not the season's (see the backend's [Progression](../../
 so the top one explains the flag beside its name on the Players board. Two
 columns on a desktop, which is why the card is 440px wide; one under the other
 on a phone. The fake gives its players titles and countries of its own over
-their fake stats and creation date. **A guest's card asks nothing**: `GetPlayer`
+their fake stats and creation date, and some of them up to three past names. **A guest's card asks nothing**: `GetPlayer`
 answers a guest with its name alone (`PlayerInfo.guest`), which the line already
 holds, so the card shows the name and the flag alone. Where a card is read for an
 account not known as a guest (a tile's holder), `PlayerCards` shows a guest with no

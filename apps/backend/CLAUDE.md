@@ -167,7 +167,7 @@ and says what is in it. Read the doc before you change its area.
   steps applied in code, one judgement per report and per message, an hourly cap), replies, reactions, and what each
   account saw; why each context keeps its own history.
 - [Player](docs/player.md) — who an account is: names (a slur or a Nazi reference refused however it is spelled) and
-  guest codes, colors, the nameplates the page draws every name
+  guest codes, the names a player left (the last 5 on its card, since 2026-11-17), colors, the nameplates the page draws every name
   from (`GetNameplates`), the player that holds a name (`GetPlayerByName`, for a player's address), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
   an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,

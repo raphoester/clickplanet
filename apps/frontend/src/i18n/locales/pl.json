@@ -185,6 +185,7 @@
   "player.streak": "Seria",
   "player.bestStreak": "Najlepsza seria",
   "player.playingSince": "Gra od",
+  "player.pastNames": "Poprzednie nazwy: {names}",
   "player.foughtFor": "Walczy dla",
   "player.foughtAgainst": "Walczy przeciw",
   "player.countries": "{count, plural, one {# kraj} few {# kraje} many {# krajów} other {# kraju}}",

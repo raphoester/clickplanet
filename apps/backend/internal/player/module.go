@@ -16,6 +16,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/usecases/decide_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/usecases/forget_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/postgres_past_name_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
@@ -139,6 +140,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	store := postgres_player_store.New(db)
 	renameStore := postgres_rename_store.New(db)
+	pastNameStore := postgres_past_name_store.New(db)
 	outbox := cpoutbox.New(db)
 	retention := config.withDefaults()
 
@@ -154,7 +156,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Not player-accounts any more: a new group reads every AccountDeleted still in the stream, and tells each one
 	// forgotten again, for the modules that heard AccountDeleted until 2026-11-04 (see docs/player.md).
 	deletions, err := cpredis.Subscribe(ctx, streams, "player-profiles-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(db, store, renameStore, outbox)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(db, store, renameStore, pastNameStore, outbox)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
@@ -230,7 +232,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
 		SetNameHandler: set_name_handler.New(
-			renaming_set_name.New(set_name_usecase.New(db, store, accounts, outbox, clock), visits),
+			renaming_set_name.New(set_name_usecase.New(db, store, pastNameStore, accounts, outbox, clock), visits),
 		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		AnnounceHandler: announce_handler.New(

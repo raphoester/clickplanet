@@ -65,7 +65,8 @@ type PlayerServiceClient interface {
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest]) (*connect.ServerStreamForClient[v1.PlayerEvent], error)
-	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
+	// Who a player is on its public card, with the last names it chose to leave. Its stats, titles and fronts are
+	// progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 	// The nameplates of a page of accounts, for the page to draw their names. At most 100 ids, or InvalidArgument.
 	GetNameplates(context.Context, *connect.Request[v1.GetNameplatesRequest]) (*connect.Response[v1.GetNameplatesResponse], error)
@@ -210,7 +211,8 @@ type PlayerServiceHandler interface {
 	Announce(context.Context, *connect.Request[v1.AnnounceRequest]) (*connect.Response[v1.AnnounceResponse], error)
 	Leave(context.Context, *connect.Request[v1.LeaveRequest]) (*connect.Response[v1.LeaveResponse], error)
 	ListenForEvents(context.Context, *connect.Request[v1.ListenForEventsRequest], *connect.ServerStream[v1.PlayerEvent]) error
-	// Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
+	// Who a player is on its public card, with the last names it chose to leave. Its stats, titles and fronts are
+	// progression.v1's GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.GetPlayerRequest]) (*connect.Response[v1.GetPlayerResponse], error)
 	// The nameplates of a page of accounts, for the page to draw their names. At most 100 ids, or InvalidArgument.
 	GetNameplates(context.Context, *connect.Request[v1.GetNameplatesRequest]) (*connect.Response[v1.GetNameplatesResponse], error)

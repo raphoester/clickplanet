@@ -18,15 +18,23 @@ type Renames interface {
 	Forget(ctx context.Context, account players.AccountID) error
 }
 
+// The names its player chose to leave.
+type PastNames interface {
+	Forget(ctx context.Context, account players.AccountID) error
+}
+
 type UseCase struct {
 	transactioner cpatomic.Transactioner
 	accounts      Accounts
 	renames       Renames
+	pastNames     PastNames
 	outbox        cpatomic.Outbox
 }
 
-func New(transactioner cpatomic.Transactioner, accounts Accounts, renames Renames, outbox cpatomic.Outbox) *UseCase {
-	return &UseCase{transactioner: transactioner, accounts: accounts, renames: renames, outbox: outbox}
+func New(
+	transactioner cpatomic.Transactioner, accounts Accounts, renames Renames, pastNames PastNames, outbox cpatomic.Outbox,
+) *UseCase {
+	return &UseCase{transactioner: transactioner, accounts: accounts, renames: renames, pastNames: pastNames, outbox: outbox}
 }
 
 func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error {
@@ -36,6 +44,9 @@ func (u *UseCase) Execute(ctx context.Context, account players.AccountID) error 
 		}
 		if err := u.renames.Forget(ctx, account); err != nil {
 			return fmt.Errorf("failed to forget the account's renames: %w", err)
+		}
+		if err := u.pastNames.Forget(ctx, account); err != nil {
+			return fmt.Errorf("failed to forget the account's past names: %w", err)
 		}
 		if err := u.outbox.Record(ctx, &playerv1.PlayerForgotten{AccountId: account.String()}); err != nil {
 			return fmt.Errorf("failed to record the account forgotten: %w", err)

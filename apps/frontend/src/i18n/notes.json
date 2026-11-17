@@ -265,5 +265,6 @@
   "level.gain.title": "The heading of the small bubble over the XP bar that lists how a player gains XP, and the name of the button that opens it.",
   "level.gain.tiles": "One line of the list of how to gain XP: a short order to the player, as on a game's help.",
   "level.gain.days": "One line of the list of how to gain XP: playing on each day, not a streak.",
-  "level.gain.quizzes": "One line of the list of how to gain XP: a wrong answer gives none."
+  "level.gain.quizzes": "One line of the list of how to gain XP: a wrong answer gives none.",
+  "player.pastNames": "On a player's public card, under its flag: the usernames it went by before its current one. {names} is a list of names, never translated."
 }

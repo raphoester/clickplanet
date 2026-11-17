@@ -14,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/postgres_departure_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/postgres_past_name_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_player_handler/player_query"
@@ -38,9 +40,10 @@ func (f *fakeAccounts) CreatedAt(_ context.Context, account players.AccountID) (
 type testSuite struct {
 	suite.Suite
 
-	db       *cppg.Postgres
-	players  *postgres_player_store.Store
-	accounts *fakeAccounts
+	db        *cppg.Postgres
+	players   *postgres_player_store.Store
+	pastNames *postgres_past_name_store.Store
+	accounts  *fakeAccounts
 }
 
 var (
@@ -52,6 +55,7 @@ var (
 func (s *testSuite) SetupSuite() {
 	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "player", migrations.FS)
 	s.players = postgres_player_store.New(s.db)
+	s.pastNames = postgres_past_name_store.New(s.db)
 }
 
 func (s *testSuite) SetupTest() {
@@ -62,6 +66,35 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) named(account players.AccountID, name players.Name) {
 	s.Require().NoError(s.players.SaveProfile(s.T().Context(), players.NewProfile(account, name, monday)))
+}
+
+// The player renames itself at, and its past name is kept as SetName keeps it.
+func (s *testSuite) renamed(account players.AccountID, name players.Name, at time.Time) {
+	before, err := s.players.Profile(s.T().Context(), account)
+	s.Require().NoError(err)
+	after := players.NewProfile(account, name, at)
+	s.Require().NoError(s.players.SaveProfile(s.T().Context(), after))
+	if left, ok := pastnames.PastNameOf(before, after, at); ok {
+		s.Require().NoError(s.pastNames.Record(s.T().Context(), left))
+	}
+}
+
+func (s *testSuite) shownPastNames(account players.AccountID) []*playerv1.PastName {
+	answer, err := s.query().Player(s.T().Context(), account)
+	s.Require().NoError(err)
+	return answer.GetPastNames()
+}
+
+func pastName(name string, at time.Time) *playerv1.PastName {
+	return &playerv1.PastName{Name: name, LeftAtUnixMs: at.UnixMilli()}
+}
+
+func (s *testSuite) assertPastNames(want []*playerv1.PastName, got []*playerv1.PastName) {
+	s.T().Helper()
+	s.Require().Len(got, len(want), "%v", got)
+	for i := range want {
+		s.True(proto.Equal(want[i], got[i]), "%d: want %v, got %v", i, want[i], got[i])
+	}
 }
 
 func (s *testSuite) query() *player_query.PostgresQuery {
@@ -165,4 +198,65 @@ func (s *testSuite) TestAnAuthFailureIsAnError() {
 
 	s.Require().ErrorIs(err, s.accounts.err)
 	s.NotErrorIs(err, player_query.ErrNoPlayer)
+}
+
+func (s *testSuite) TestAPlayerThatNeverChangedItsNameHasNoPastName() {
+	s.Empty(s.shownPastNames(ada))
+}
+
+func (s *testSuite) TestTheNamesLeftAreShownNewestFirst() {
+	s.renamed(ada, "Ada_Lovelace", monday.Add(time.Hour))
+	s.renamed(ada, "Countess", monday.Add(2*time.Hour))
+
+	s.assertPastNames([]*playerv1.PastName{
+		pastName("Ada_Lovelace", monday.Add(2*time.Hour)),
+		pastName("Ada_L", monday.Add(time.Hour)),
+	}, s.shownPastNames(ada))
+}
+
+func (s *testSuite) TestOnlyTheLastFewNamesAreShown() {
+	names := []players.Name{"Name_1", "Name_2", "Name_3", "Name_4", "Name_5", "Name_6", "Name_7"}
+	for i, name := range names {
+		s.renamed(ada, name, monday.Add(time.Duration(i+1)*time.Hour))
+	}
+
+	shown := s.shownPastNames(ada)
+
+	s.Require().Len(shown, player_query.PastNamesShown)
+	s.Equal("Name_6", shown[0].GetName())
+	s.Equal("Name_2", shown[player_query.PastNamesShown-1].GetName())
+}
+
+func (s *testSuite) TestANameLeftTwiceIsShownOnceAtItsLastTime() {
+	s.renamed(ada, "Countess", monday.Add(time.Hour))
+	s.renamed(ada, "ADA_L", monday.Add(2*time.Hour))
+	s.renamed(ada, "Lovelace", monday.Add(3*time.Hour))
+
+	s.assertPastNames([]*playerv1.PastName{
+		pastName("ADA_L", monday.Add(3*time.Hour)),
+		pastName("Countess", monday.Add(2*time.Hour)),
+	}, s.shownPastNames(ada))
+}
+
+func (s *testSuite) TestTheNameHeldNowIsNoPastName() {
+	s.renamed(ada, "Countess", monday.Add(time.Hour))
+	s.renamed(ada, "ada_l", monday.Add(2*time.Hour))
+
+	s.assertPastNames([]*playerv1.PastName{pastName("Countess", monday.Add(2*time.Hour))}, s.shownPastNames(ada))
+}
+
+func (s *testSuite) TestAnotherPlayersPastNamesAreNotShown() {
+	bob := players.AccountID{15: 2}
+	s.named(bob, "Bob")
+	s.renamed(bob, "Bobby", monday.Add(time.Hour))
+
+	s.Empty(s.shownPastNames(ada))
+	s.assertPastNames([]*playerv1.PastName{pastName("Bob", monday.Add(time.Hour))}, s.shownPastNames(bob))
+}
+
+func (s *testSuite) TestAPlayerForgottenLeavesNoPastName() {
+	s.renamed(ada, "Countess", monday.Add(time.Hour))
+	s.Require().NoError(s.pastNames.Forget(s.T().Context(), ada))
+
+	s.Empty(s.shownPastNames(ada))
 }

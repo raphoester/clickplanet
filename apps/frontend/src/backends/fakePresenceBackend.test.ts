@@ -8,7 +8,7 @@ describe("FakePresenceBackend", () => {
         const fake = new FakePresenceBackend()
         const guest = fakeAccountId("guest_91aa3d")
 
-        expect(await fake.player(guest)).toEqual({name: "guest_91aa3d", guest: true, admin: false, color: NameColor.UNSPECIFIED})
+        expect(await fake.player(guest)).toEqual({name: "guest_91aa3d", guest: true, admin: false, color: NameColor.UNSPECIFIED, pastNames: []})
         expect(await fake.progress(guest)).toBeUndefined()
     })
 
