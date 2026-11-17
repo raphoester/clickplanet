@@ -173,8 +173,9 @@ in PR 1, and refuses more than one until PR 3.
 **Built in PR 2 (2026-11-17)**; the backend's side is [Boards and eras](../apps/backend/docs/boards-and-eras.md).
 
 - **`boards`** `(id smallint, name text unique, hash text unique)` in planet's schema: a board's row, its name (the
-  directory in `/map/boards`) and its manifest's hash (`f7db567f` for `earth-1`, from `board-f7db567f.json`). A board's
-  row ships with the migration that ships the board.
+  directory in `/map/boards`) and its manifest's `positionsHash` in 8 hex (`3fb28bdf` for `earth-1`): what its tile ids
+  mean, which a terrain or borders drawn again leaves alone while it rewrites the manifest. A board's row ships with the
+  migration that ships the board.
 - **`eras`** `(map text, board smallint, started_at timestamptz)`: a map's latest era is the board it plays. The world's
   first era started at the epoch, on `earth-1`; an arena's map gets its era as it opens, on the board the world plays
   (until `arena.board`, PR 3).

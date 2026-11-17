@@ -19,9 +19,12 @@ what is built is the model and the guard, ready for more boards.
 
 Migration `20261117133227_boards_and_eras`:
 
-- **`boards`** `(id smallint, name text unique, hash text unique)`, seeded with `(1, 'earth-1', 'f7db567f')`. The hash
-  is the 8 hex of the manifest's name, `board-<hash>.json` (see [`/map/README.md`](../../../map/README.md)). A board's
-  files never change, so a board ships with the migration that adds its row, and its hash never moves.
+- **`boards`** `(id smallint, name text unique, hash text unique)`, seeded with `(1, 'earth-1', '3fb28bdf')`. The hash
+  is the manifest's `positionsHash` in 8 hex (1068665823 for `earth-1`; see
+  [`/map/README.md`](../../../map/README.md)): every tile's position in id order, so it moves exactly when a tile's id or
+  place does. Not the manifest's own hash: the manifest names the board's other files, and a terrain or borders drawn
+  again rewrites it (#864 did, `board-f7db567f.json` to `board-725d8920.json`) with every tile where it was. A board
+  ships with the migration that adds its row, and its hash never moves.
 - **`eras`** `(map, board, started_at)`, keyed by `(map, started_at)`: a map's latest era is the board it plays. Seeded
   with the world on `earth-1` since the epoch, and each arena that ever opened on `earth-1` since its open.
 - **A `board smallint NOT NULL` column**, a foreign key to `boards`, on `tiles`, `landmasses`, `mines` and `viruses`, and
@@ -61,9 +64,9 @@ an unknown board refused, and the way back and up again. It is the one test of a
 The planet module, before the tile map loads (`module.go`):
 
 1. **The board this process carries** (`embedded_board.Loader.Carried`): the name of its directory and its manifest's
-   hash.
+   `positionsHash`, which the loader has checked the rebuilt positions against.
 2. **Matched with planet's row** (`eras.BoardsOf`): a board carried that `boards` has no row of, or names under another
-   hash, refuses the boot (`eras.ErrUnkept`): a board regenerated under its name is another board.
+   hash, refuses the boot (`eras.ErrUnkept`): a board regenerated under its name, its tiles moved, is another board.
 3. **The map that plays** (the open arena's, or the world's), and **its latest era** (`eras.Playing`): no era refuses the
    boot (`eras.ErrNoEra`), and an era on a board this process does not carry too (`eras.ErrNotCarried`).
 4. **Its rows** (`inmemory_tile_storage.Load`, `fillLocked`, from `Persistence.Boards`, the boards a map's tiles, locks,
@@ -109,7 +112,7 @@ no era, a board carried with no row or another hash) and its contract suite on m
 `inmemory_tile_storage`'s `persistence_test.go` (a load refused on rows of another board, a flush naming the stage's
 board) and `arena_test.go` (the gate); `postgres_tile_store`'s `maps_test.go` (every row naming its stage's board, the
 boards of a map, a board planet does not keep refused); `open_arena_usecase` (the arena's era); `embedded_board`'s
-`TestTheBoardCarriedIsNamedByItsDirectoryAndItsManifestsHash`; `ledger`'s tests of each reader by stage (an arena's
+`TestTheBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash`; `ledger`'s tests of each reader by stage (an arena's
 events and another board's left out) and of each recording naming its write's stage; the postgres store reading each
 event's map and board back; each query's postgres suite with an arena's and another board's events; the relay's tiles
 of a board not carried; the stream's opening heartbeat; `GetMap`'s board. A suite that purges planet's schema seeds

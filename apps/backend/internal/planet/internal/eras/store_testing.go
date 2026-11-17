@@ -15,7 +15,7 @@ import (
 )
 
 // Earth1 is earth-1 as the migration that made boards keeps it.
-var Earth1 = Board{ID: clicks.TestBoard, Name: "earth-1", Hash: "f7db567f"}
+var Earth1 = Board{ID: clicks.TestBoard, Name: "earth-1", Hash: "3fb28bdf"}
 
 // Earth2 is a board planet keeps beside earth-1 in a test, and no process carries.
 var Earth2 = Board{ID: clicks.TestBoard + 1, Name: "earth-2", Hash: "0123abcd"}

@@ -42,7 +42,7 @@ func TestBoardsAndErasNameEarth1EverywhereAndMoveEachArenasEventsToItsMap(t *tes
 		Scan(&board.id, &board.name, &board.hash))
 	assert.Equal(t, 1, board.id)
 	assert.Equal(t, "earth-1", board.name)
-	assert.Equal(t, "f7db567f", board.hash, "the hash of map/boards/earth-1/board-<hash>.json")
+	assert.Equal(t, "3fb28bdf", board.hash, "earth-1's positionsHash, 1068665823, in hex")
 
 	assert.Equal(t, []era{
 		{Map: "world", Board: 1, StartedAt: time.Unix(0, 0).UTC()},

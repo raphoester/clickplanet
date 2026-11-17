@@ -20,8 +20,8 @@ survives a change of input format*:
   lattice walk goes while `clicks.Geography` does not change at all.**
 
 **The board it loads is the board the process carries** (`Loader.Carried`: its directory's name and its manifest's
-hash, `f7db567f` in `board-f7db567f.json`): the boot matches it with planet's row of it in `planet.boards` and refuses
-a map whose era plays another (see [Boards and eras](boards-and-eras.md)).
+`positionsHash` in 8 hex, `3fb28bdf` for `earth-1`): the boot matches it with planet's row of it in `planet.boards` and
+refuses a map whose era plays another (see [Boards and eras](boards-and-eras.md)).
 
 The boards are **`generated/map/boards`**, beside `generated/proto` and for the same reason: both are
 this app's committed copy of something the root owns, written by a `make` target and never edited

@@ -18,12 +18,13 @@ var (
 	// ErrNotCarried is a map whose era plays a board this process does not carry: its tile ids would land on other
 	// ground.
 	ErrNotCarried = errors.New("the map plays a board this process does not carry")
-	// ErrUnkept is a board this process carries that planet keeps no row of, or keeps under another hash: a board's files
-	// never change, so another hash is another board under the same name.
+	// ErrUnkept is a board this process carries that planet keeps no row of, or keeps under another hash: another hash is
+	// tiles that moved, another board under the same name.
 	ErrUnkept = errors.New("this process carries a board planet does not keep")
 )
 
-// Board is a board as planet keeps it: its row, its name, and the hash of its manifest (board-<hash>.json).
+// Board is a board as planet keeps it: its row, its name, and the hash of its positions in tile order (the manifest's
+// positionsHash, in 8 hex), which moves exactly when a tile's id or place does.
 type Board struct {
 	ID   clicks.BoardID
 	Name clicks.BoardName
@@ -42,7 +43,7 @@ func (e Era) Stage() clicks.Stage {
 	return e.Map.On(e.Board.ID)
 }
 
-// Carried is a board as this process's files name it: its directory and its manifest's hash.
+// Carried is a board as this process's files name it: its directory and its positions' hash.
 type Carried struct {
 	Name clicks.BoardName
 	Hash string

@@ -18,18 +18,15 @@ func New(expectTiles uint32, logger *slog.Logger) *Loader {
 	return &Loader{expectTiles: expectTiles, logger: logger}
 }
 
-// Carried is the board this process plays, as its files name it: planet's row of it names the same hash, or the boot
-// refuses it.
+// Carried is the board this process plays, as its files name it: its directory, and the hash of its positions in tile
+// order (the manifest's positionsHash, which LoadGeography checks the rebuilt positions against). Planet's row of it
+// names the same hash, or the boot refuses it.
 func (l *Loader) Carried() (eras.Carried, error) {
 	board, err := l.board()
 	if err != nil {
 		return eras.Carried{}, err
 	}
-	hash, err := board.hash()
-	if err != nil {
-		return eras.Carried{}, err
-	}
-	return eras.Carried{Name: clicks.BoardName(board.name), Hash: hash}, nil
+	return eras.Carried{Name: clicks.BoardName(board.name), Hash: fmt.Sprintf("%08x", board.manifest.PositionsHash)}, nil
 }
 
 func (l *Loader) LoadGeography() (*clicks.Geography, error) {

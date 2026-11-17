@@ -48,7 +48,7 @@ func TestTheBootRefusesAMapWithNoEra(t *testing.T) {
 
 func TestABoardCarriedIsOneWithARowOfTheSameHash(t *testing.T) {
 	_, err := eras.BoardsOf([]eras.Board{eras.Earth1}, eras.Carried{Name: "earth-1", Hash: "deadbeef"})
-	require.ErrorIs(t, err, eras.ErrUnkept, "a board regenerated under its name is another board")
+	require.ErrorIs(t, err, eras.ErrUnkept, "a board regenerated under its name, its tiles moved, is another board")
 
 	_, err = eras.BoardsOf([]eras.Board{eras.Earth1}, eras.Carried{Name: "earth-2", Hash: earth2.Hash})
 	require.ErrorIs(t, err, eras.ErrUnkept, "a board shipped with no migration")

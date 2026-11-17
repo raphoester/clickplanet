@@ -70,7 +70,7 @@ func TestTheShippedBoardIsEarth1(t *testing.T) {
 	assert.Equal(t, uint32(tiles), geography.Stats().Tiles)
 }
 
-func TestTheBoardCarriedIsNamedByItsDirectoryAndItsManifestsHash(t *testing.T) {
+func TestTheBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash(t *testing.T) {
 	carried, err := loader().Carried()
 	require.NoError(t, err)
 	assert.Equal(t, eras.Earth1Carried, carried, "the row the migration that made boards keeps")

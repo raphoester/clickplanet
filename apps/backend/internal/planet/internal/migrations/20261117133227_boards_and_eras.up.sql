@@ -1,13 +1,14 @@
 -- A board is a geometry, the files of /map/boards/<name>: its id is what every row of a tile names, its name what the
--- files and the wire name, its hash the first 8 hex of its manifest's sha256 (board-<hash>.json). A board's row ships
--- with the migration that ships the board; its files never change, so neither does its hash.
+-- files and the wire name, its hash its manifest's positionsHash in 8 hex: every tile's position in id order, so it
+-- moves exactly when a tile's id or place does. A board's row ships with the migration that ships the board; its other
+-- files (the terrain, the borders) can be drawn again without it.
 CREATE TABLE boards (
     id   smallint PRIMARY KEY CHECK (id > 0),
     name text     NOT NULL UNIQUE CHECK (name <> '' AND length(name) <= 64),
     hash text     NOT NULL UNIQUE CHECK (hash ~ '^[0-9a-f]{8}$')
 );
 
-INSERT INTO boards (id, name, hash) VALUES (1, 'earth-1', 'f7db567f');
+INSERT INTO boards (id, name, hash) VALUES (1, 'earth-1', '3fb28bdf');
 
 -- An era is a stretch of a map on one board, from started_at on: a map's latest era is the board it plays.
 CREATE TABLE eras (
