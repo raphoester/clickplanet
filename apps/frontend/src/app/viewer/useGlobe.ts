@@ -160,7 +160,6 @@ export function useGlobe(options: UseGlobeOptions) {
             },
             onStanding: standing.follow,
             onBonusWon: bonus.win,
-            onBoxEmpty: bonus.winNothing,
             onCharges: bonus.setCharges,
             onRules: bonus.setRules,
             onSwitchesChange: bonus.setSwitches,

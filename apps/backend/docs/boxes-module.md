@@ -128,7 +128,7 @@ streams held first (`cpredis.SubscribeMoved`).
 1. **A box may pay nothing.** The bonuses module offered a box only for a kind the hand had room for and the rules
    weighed. The boxes know no kind and ask no room ([No room](#what-it-asks-of-planet)), so a box comes whatever the hand
    holds: a full hand, or one with room only for a kind weighed 0 (capital-siege weighs spread and enclose 0), is offered
-   a box that pays nothing; the page then says the inventory is full, and `bonus_box_rewards_total{outcome="nothing"}`
+   a box that pays nothing; the page then names the kind drawn (it said the inventory is full until 2026-11-17), and `bonus_box_rewards_total{outcome="nothing"}`
    counts it. So is a newcomer's early box when the set weighs spread 0 or the spread pool is full: before, it gave no
    early box at all. A full hand's catches now count, as any catch, for the box missions, the `Loot` titles and the
    antibot's box facts, where before it was offered nothing to catch.

@@ -1939,7 +1939,8 @@ export class ChargesGranted extends Message<ChargesGranted> {
   charges?: ChargesHeld;
 
   /**
-   * Each kind the grant added to the hand, and how many: what a full stack kept, none for a kind it kept none of.
+   * Each kind the grant paid, and how many of it the hand kept: 0 for a stack already full. A kind the rules turn off is
+   * not paid.
    *
    * @generated from field: repeated planet.v1.ChargeGained gained = 2;
    */

@@ -177,7 +177,6 @@ describe("Quiz", () => {
 
         expect(screen.getByText("Correct!")).toBeTruthy()
         expect(screen.queryByText("Refill")).toBeNull()
-        expect(screen.queryByText("Your inventory is already full")).toBeNull()
 
         act(() => master.reward({kind: "refill", refills: 1}))
 
@@ -199,8 +198,21 @@ describe("Quiz", () => {
         expect(screen.getByText("Refill")).toBeTruthy()
     })
 
-    it("says the inventory is full when no grant comes", async () => {
+    it("names the kind a right answer won when its slot was full and kept none", async () => {
         render(<Harness master={master}/>)
+        act(() => master.offer())
+        fireEvent.click(screen.getByRole("button"))
+        await settle()
+
+        fireEvent.click(screen.getByRole("button", {name: "Tallinn"}))
+        await settle()
+        act(() => master.reward({kind: "shields", shields: 0}))
+
+        expect(screen.getByText("Shield")).toBeTruthy()
+    })
+
+    it("says only that the answer was right when no grant comes", async () => {
+        const {container} = render(<Harness master={master}/>)
         act(() => master.offer())
         fireEvent.click(screen.getByRole("button"))
         await settle()
@@ -209,7 +221,8 @@ describe("Quiz", () => {
         await settle()
         act(() => vi.advanceTimersByTime(REWARD_WAIT_MS))
 
-        expect(screen.getByText("Your inventory is already full")).toBeTruthy()
+        expect(screen.getByText("Correct!")).toBeTruthy()
+        expect(container.querySelector(".quiz-reward, .quiz-reward-detail")).toBeNull()
     })
 
     it("still goes away by itself once the reward came", async () => {
