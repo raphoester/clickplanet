@@ -282,11 +282,12 @@ whatever pays keeps its tile count, and only what describes the map scales with 
 ## What `earth-2` costs
 
 - **Frontend:**
-  - **GPU tile data:** 5 → 21 MB in the compact layout, 58 MB in the plain one.
+  - **GPU tile data:** 5 → 21 MB in the compact layout, 36 MB in the plain one (58 before PR 0).
   - **`tileData`:** at 512 columns it fills 2,022 of the 2,048 rows WebGL2 guarantees, so it goes to 1,024 columns.
   - **`GetMap`:** 0.5 → 2 MB raw, in batches of 10,000.
   - **The position rebuild:** about 300 ms with a JIT, about 6 s in iOS Lockdown Mode.
-  - **The work done per tile on every frame** grows 4×: see [Slow devices](#slow-devices).
+  - **The work done per tile on every frame** grew 4× until PR 0, which made it follow what is on screen: see
+    [Slow devices](#slow-devices).
 - **The earth texture:** a tile is 1.5 px of the 4,096 px photo, so the coast is cut in the earth shader from the tile
   set (the owner: no 8,192 px texture).
 - **Natural Earth stays at 1:50m** (the owner). `seats.mjs` loses the countries that now have ground of their own.
@@ -300,40 +301,94 @@ whatever pays keeps its tile count, and only what describes the map scales with 
 
 **The pixel work does not grow; the work per tile does** (the owner, 2026-11-17: "won't it be a hard hit on the slower
 devices?"). At the same zoom a tile covers a quarter of the pixels, so the pixels shaded stay about the same. What grows
-4× is what the page does once per tile on every frame, whether the tile shows or not. Today that is three things:
+4× is what the page does once per tile on every frame, whether the tile shows or not. Before PR 0 that was three things:
 
-- **The idle spin draws every tile under the painted flags.** Zoomed out, which is the landing view and the idle spin,
-  the territory layer paints the flags, at a cost per pixel. The display points are drawn under it anyway, every frame
-  at 60 fps (`globe.ts` only hides the layer).
-- **The far side is not really skipped.** The vertex shader drops a point behind the earth on one dot product, but it
-  still runs for every point and reads every attribute ([The far side](../apps/frontend/docs/far-side.md)). At max
-  zoom a few thousand tiles show, and the GPU runs all of them.
-- **A hover redraws every tile.** `GpuPicker.pick` renders all the points into a window around the pointer and reads a
-  pixel back, which makes the CPU wait on the GPU, on every hover tick.
+- **The idle spin drew every tile under the painted flags.** Zoomed out, which is the landing view and the idle spin,
+  the territory layer paints the flags, at a cost per pixel. The display points were drawn under it anyway, every frame
+  at 60 fps.
+- **The far side was not really skipped.** The vertex shader dropped a point behind the earth on one dot product, but
+  it still ran for every point and read every attribute.
+- **A hover redrew every tile.** `GpuPicker.pick` rendered all the points into a window around the pointer and read a
+  pixel back, which made the CPU wait on the GPU, on every hover tick.
 
-**The fixes, one PR on `earth-1`, shipped before any board** (PR 0 below):
+**Built in PR 0** (2026-11-17), on `earth-1`, before any board:
 
-1. **No tile points where the painted flags cover the globe.** The landing view and the spin then cost the same at
-   any tile count.
-2. **Only the visible pieces are drawn.** The tile buffer is cut into chunks of consecutive ids (a face's rows), each
-   with a bounding cap. The CPU skips the chunks behind the globe or off screen, so the vertex work follows what is on
-   screen, not the map's size.
-3. **Picking on the CPU.** The lattice already finds the cell under a pixel (`cellOf`, the territory shader's and
-   `latticeCells.ts`'s): hover and click cost nothing on the GPU and never wait for a read-back.
+1. **No tile points where the painted flags cover the globe.** At `flagPaint` 1 a tile draws only its rings (the front's
+   and the fortify pulse's), so only the pieces holding a ringed tile are drawn; with none, no tile is drawn. The
+   landing view and the spin now cost the same at any tile count.
+2. **Only the visible pieces are drawn.** The tiles are cut into chunks of consecutive ids, at most 0.1 rad from their
+   first tile (a piece of a row), each with a bounding cap, and blocks of 32 chunks with a cap of their own. The CPU
+   skips the chunks behind the earth (with the vertex shader's limb) or off screen, and draws the rest as at most 16
+   ranges. It keeps them while the camera moves by less than a quarter of the screen's half-height, and does not cull
+   at all while the screen shows more than half the globe, where the shader's own far-side drop is as cheap. The
+   border-line passes are not chunked: they are instanced, three draws no range of instances, and they grow with the
+   coastline, not with the tiles.
+3. **Picking on the CPU.** The pixel's ray meets the tiles' sphere, and `cellOf` gives the lattice cell; anywhere in a
+   tile's cell is that tile, at every zoom (a tile's disc is 0.76 of its cell, and the gap between two discs is the
+   ground the territory layer paints there). The GPU picker, its scene, buffers, shaders and the plain layout's picking
+   colour are gone.
 4. **Less memory per tile:**
-   - the plain layout's 56 bytes a tile (58 MB at 1M) shrinks, and it is the one HD-off machines use;
-   - the owners leave their JS array of strings;
-   - a batch sends only the texels it changed, not the band of rows between them (up to 4 MB today).
+   - the plain layout is 36 bytes a tile, not 56, of 32-bit floats alone: the atlas rectangle packed in two floats, the
+     marks in one `vec4`, and no picking colour;
+   - the owners are a `Uint16Array` of flag numbers, not a JS array of strings;
+   - a change sends only the rows of `tileData` and the ranges of a buffer it touched, not the band between the
+     lowest and the highest.
 
-**The bar:** measured before and after, in headless Chrome with the CPU slowed, on `earth-1` and on a test 1M map
-built from the lattice:
-- the idle spin's frame time no worse than today;
-- a hover pick under 2 ms;
-- memory at most about 30 MB above today's;
-- time to the globe at most 0.5 s more on Fast 4G.
+See the frontend's [The tiles out of sight are not drawn](../apps/frontend/docs/far-side.md),
+[The tile under the pointer](../apps/frontend/docs/picking.md) and [What a tile costs on the GPU](../apps/frontend/docs/tile-layout.md).
 
-Then on a real low-end phone, and on a school-style laptop with integrated graphics, which is much of CrazyGames'
-audience.
+**Measured** in headless Chrome 157 on an M2 Max, 1280×800 at a device ratio of 2, the fake backend, before and after
+in turn on the same machine: on `earth-1` and on a test map of 1,000,749 tiles (the points of
+`IcosahedronGeometry(1, 589)` whose nearest `earth-1` lattice point is a tile, on that tile's landmass; built for
+measuring only). The CPU slowed 4 times, the median of three runs; GPU time from `EXT_disjoint_timer_query`, which the
+other work on the machine made noisy by about a millisecond.
+
+| per frame, CPU slowed 4× | `earth-1` before → after | 1M before → after |
+| --- | --- | --- |
+| idle spin at the landing view, GPU | 2.8 → 2.2 ms | 8.8 → 1.9 ms |
+| idle spin at the landing view, CPU | 1.1 → 1.1 ms | 1.2 → 0.9 ms |
+| vertices drawn at the landing view, every pass | 1.27M → 1.01M (no tile) | 2.01M → 1.01M (no tile) |
+| idle spin with the flags off, GPU | 3.3 → 3.4 ms | 9.8 → 9.6 ms |
+| turning at zoom 3 / 10 / 40, GPU | 2.7 / 1.4 / 1.3 → 3.5 / 2.8 / 1.2 ms | 5.6 / 2.2 / 1.9 → 2.5 / 1.9 / 1.7 ms |
+| turning at zoom 3 / 10 / 40, CPU | 1.0 / 0.8 / 0.8 → 1.1 / 1.0 / 1.0 ms | 0.9 / 0.9 / 0.8 → 0.8 / 0.9 / 0.8 ms |
+| hover pick in orbit, median / 90th percentile | 2.0 / 2.8 → under 0.1 / 0.3 ms | 2.2 / 3.5 → under 0.1 / 0.3 ms |
+| hover pick zoomed in | 2.7 / 4.2 → under 0.1 / 0.1 ms | 2.1 / 2.7 → under 0.1 / 0.2 ms |
+
+With the CPU slowed 6 times (one run): the landing spin's GPU time 2.8 → 2.3 ms on `earth-1`, 9.7 → 2.5 ms on 1M; a
+pick in orbit on 1M 9.8 / 20.5 → under 0.1 / 0.1 ms. The `earth-1` GPU figures at zoom 3 and 10 are the machine's
+noise: at zoom 3 the page draws no tile at all after, and four more runs of zoom 10 alone gave 1.3 ms before and 1.1 ms
+after (medians).
+
+| memory | `earth-1` before → after | 1M before → after |
+| --- | --- | --- |
+| JS heap | 23.9 → 22.9 MB | 38.0 → 34.0 MB |
+| array buffers | 38.0 → 39.8 MB | 91.1 → 97.8 MB |
+| GPU, HD graphics on (compact) | 84.2 → 84.2 MB | 102.7 → 102.7 MB |
+| GPU vertex buffers, HD graphics off (plain) | 20.8 → 15.5 MB | 62.2 → 42.2 MB |
+
+The new arrays are the tile at each texel (4 bytes a tile), the chunks (0.7 MB at 1M) and the owners (2 bytes a tile);
+the strings' array they replace was in the JS heap.
+
+| time to the globe, DevTools' Fast 4G | `earth-1` before → after | 1M before → after |
+| --- | --- | --- |
+| CPU as is | 1.88 → 1.90 s | 2.41 → 2.49 s |
+| CPU slowed 4× | 2.79 → 3.07 s | 5.41 → 5.73 s |
+
+Five runs each, a production build with the fake backend, against a local server that packs files with brotli.
+
+**Against the bar:**
+- the idle spin's frame time no worse than today: met, and on 1M its GPU time is a fifth of what it was;
+- a hover pick under 2 ms: met, under 0.1 ms;
+- memory at most about 30 MB above today's on 1M: met, about 3 MB more with HD graphics, 20 MB less without;
+- time to the globe at most 0.5 s more on Fast 4G: met, 0.02 to 0.08 s with the CPU as is, about 0.3 s slowed 4×.
+
+**One thing on screen changed**, against "rendering stays identical": the tiles under the painted flags drew no colour
+but wrote their depth, and cut the outline drawn over them where the globe slopes away. With them gone, those outline
+pixels show: 0.04 to 0.5% of a view from orbit, all on the outline. Every view where the tiles have the frame (zoom 6,
+12, 40, the flags off, a bomb, a virus, the front's rings) is the same to the pixel, with HD graphics on and off.
+
+**Still to do:** a real low-end phone, and a school-style laptop with integrated graphics, which is much of CrazyGames'
+audience. A headless M2 Max shows the work removed; it cannot show what a phone's GPU makes of it.
 
 **If a device still struggles**, it cannot have a smaller board: everyone shares the tile ids. But with HD graphics
 off, the painted flags can stay on until the player is closer in, and they cost per pixel, not per tile.
@@ -343,8 +398,8 @@ off, the painted flags can stay on until the player is closer in, and they cost 
 Each one ships on its own, and players see nothing new until the PR that says so. PR 0 is numbered so the rest keep
 their numbers.
 
-0. **Performance, on `earth-1`** (the owner, 2026-11-17: one PR, shipped on its own, today). The four fixes of
-   [Slow devices](#slow-devices), measured against its bar. Players see the same globe, faster.
+0. **Performance, on `earth-1`** (the owner, 2026-11-17: one PR, shipped on its own, today). **Built 2026-11-17.** The
+   four fixes of [Slow devices](#slow-devices), measured against its bar. Players see the same globe, faster.
 1. **Boards, `earth-1` only. Built 2026-11-17.**
    - The format, and a generator without three that writes `earth-1` (three's order, no warp, no rotation).
    - Every app reads its geometry from the board.
