@@ -1,13 +1,13 @@
 import "./isolate.ts"
 import "../tokens.css"
 import * as THREE from "three"
-import {ReplayBackend} from "../backends/replayBackend.ts"
+import {ReplayBackend, replayGroundsOf} from "../backends/replayBackend.ts"
 import {MapReel} from "../domain/mapHistory.ts"
 import {piecesOf} from "../domain/eras.ts"
 import {scaleOf} from "../domain/boardScale.ts"
 import {createGlobe, Globe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
-import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
+import {countryOfTile, loadBorders, loadProvinces} from "../app/viewer/borderField.ts"
 import {boardOf} from "../app/viewer/boards.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {Countries} from "../domain/countries.ts"
@@ -102,10 +102,13 @@ async function make(job: VideoJob, progress: (share: number) => void): Promise<{
     // The story is of the board they end on (domain/video/story.ts).
     const eras = await Promise.all(piecesOf(job.history).map(async (piece) => {
         const board = boardOf(piece.board)
-        const [{positions}, borders] = await Promise.all([loadPointGeometryData(board), loadBorders(board.urls.borders)])
+        const bordersRead = loadBorders(board.urls.borders)
+        const [{positions}, borders, provinces] = await Promise.all([
+            loadPointGeometryData(board), bordersRead, loadProvinces(board, bordersRead),
+        ])
         const tiles = borders.assignment.length
-        const landmasses = {assignment: borders.assignment, count: borders.codes.length}
-        const backend = ReplayBackend.ofHistory(piece.history, new MapReel(piece.history, tiles), piece.history.frames[0]?.at ?? 0, landmasses)
+        const backend = ReplayBackend.ofHistory(piece.history, new MapReel(piece.history, tiles), piece.history.frames[0]?.at ?? 0,
+            replayGroundsOf(borders, provinces))
         const inCountry = (tile: number) => countryOfTile(borders, tile) === story.country
         const countryTiles = Array.from({length: tiles}, (_, i) => i + 1).filter(inCountry)
         return {piece, board, positions, borders, backend, inCountry, countryTiles}

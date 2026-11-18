@@ -1,7 +1,7 @@
 import {MapReel} from "../domain/mapHistory.ts"
 import {Counts, MapVersion, Ownerships, OwnershipsGetter, TileRange, Update, UpdatesListener} from "./backend.ts"
 import {FakeTally} from "./fakeTally.ts"
-import {ReplayLandmasses} from "./replayBackend.ts"
+import {ReplayGrounds} from "./replayBackend.ts"
 
 // A history counts its seeks from its opening, as one start of the server.
 const EPOCH = 1
@@ -14,10 +14,9 @@ export class HistoryBackend implements OwnershipsGetter, UpdatesListener {
     private readonly batchListeners = new Set<(updates: Update[]) => void>()
     private readonly holdingsListeners = new Set<(change: Counts) => void>()
 
-    constructor(private readonly reel: MapReel, landmasses: ReplayLandmasses) {
+    constructor(private readonly reel: MapReel, grounds: ReplayGrounds) {
         this.shown = reel.ownersAt(0)
-        // A history is drawn in the countries' divisions: its provinces are its landmasses.
-        this.tally = new FakeTally(landmasses, landmasses)
+        this.tally = new FakeTally(grounds.landmasses, grounds.provinces)
         this.shown.forEach((owner, tile) => {
             if (owner !== 0) this.tally.moved(tile, undefined, reel.codes[owner])
         })

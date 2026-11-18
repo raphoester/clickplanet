@@ -73,5 +73,6 @@ A tile load that fails after its retries is tried again 5s later, so the loading
 `FakeBackend` plays the server: the real tile count (the borders blob's), a version on every write, `FakeTally`
 counting what each flag holds of each landmass and each province and sending `holdings_changed` after every flush of
 its updates, `FakeFortresses` fortifying a whole province as the server does, and an opening at once. `ReplayBackend` numbers each step it plays from its opening, counts with the same `FakeTally` (it takes the
-borders' landmasses: `ReplayBackend.of(response, landmasses)`), and fills the shields a struck tile kept from its
+board's landmasses and provinces: `ReplayBackend.of(response, replayGroundsOf(borders, provinces))`, so a clip's gold
+pulse reads the same provinces as the game; the archive's `HistoryBackend` too), and fills the shields a struck tile kept from its
 own map for a replay recorded before the server said them. The clip awaits `Globe.tilesRead` before its first frame.

@@ -3,7 +3,8 @@ import {StrictMode} from "react"
 import "./tokens.css"
 import "./index.css"
 
-import {loadBorders} from "./app/viewer/borderField.ts"
+import {loadBorders, loadProvinces} from "./app/viewer/borderField.ts"
+import {replayGroundsOf} from "./backends/replayBackend.ts"
 import {boardOf, FIRST_BOARD} from "./app/viewer/boards.ts"
 import {loadPointGeometryData} from "./app/viewer/points.ts"
 import SeasonMap, {BoardGeometry} from "./app/archive/SeasonMap.tsx"
@@ -23,8 +24,9 @@ function geometry(name: string): Promise<BoardGeometry> {
     let reading = read.get(name)
     if (reading === undefined) {
         const board = boardOf(name)
-        reading = Promise.all([loadPointGeometryData(board), loadBorders(board.urls.borders)]).then(([{positions, cells}, {assignment, codes}]) => ({
-            board, positions, cells, landmasses: {assignment, count: codes.length},
+        const borders = loadBorders(board.urls.borders)
+        reading = Promise.all([loadPointGeometryData(board), borders, loadProvinces(board, borders)]).then(([{positions, cells}, read, provinces]) => ({
+            board, positions, cells, grounds: replayGroundsOf(read, provinces),
         }))
         read.set(name, reading)
     }

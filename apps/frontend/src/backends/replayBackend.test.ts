@@ -51,8 +51,12 @@ function enclosure(seconds: number, filled: number[], struck: {tileId: number, s
     })
 }
 
-// Tiles 1 and 2 are landmass 1, tile 3 landmass 2; the map opens with 1 and 2 held by pl, 2 with 3 shields.
-const LANDMASSES = {assignment: new Uint16Array([1, 1, 2]), count: 3}
+// Tiles 1 and 2 are landmass 1, tile 3 landmass 2; tile 1 is province 1, tiles 2 and 3 provinces 2 and 3. The map opens
+// with 1 and 2 held by pl, 2 with 3 shields.
+const GROUNDS = {
+    landmasses: {assignment: new Uint16Array([1, 1, 2]), count: 3},
+    provinces: {assignment: new Uint16Array([1, 2, 3]), count: 4},
+}
 
 function replay(...events: ReplayedEvent[]): ReplayBackend {
     return ReplayBackend.of(new GetReplayResponse({
@@ -63,7 +67,7 @@ function replay(...events: ReplayedEvent[]): ReplayBackend {
         events,
         since: at(0),
         until: at(60),
-    }), LANDMASSES)
+    }), GROUNDS)
 }
 
 const ALL = [{start: 1, end: 3}]
@@ -116,6 +120,18 @@ describe("a replay", () => {
 
         expect(changes.map(rows)).toEqual([{countries: {pl: 0, de: 2}, landmasses: {1: {de: 1}, 2: {de: 1}}}])
         expect(rows(await backend.getHoldings())).toEqual({countries: {de: 2}, landmasses: {1: {de: 1}, 2: {de: 1}}})
+    })
+
+    it("counts what each flag holds of each province, on the board's provinces, as the server does", async () => {
+        const backend = replay(update(1, 1, "pl", "de"))
+        const provinces = ({provinces}: Counts) =>
+            Object.fromEntries([...provinces].map(([province, row]) => [province, Object.fromEntries(row)]))
+
+        expect(provinces(await backend.getHoldings())).toEqual({1: {pl: 1}, 2: {pl: 1}})
+
+        backend.advanceTo(SINCE + 3_000)
+
+        expect(provinces(await backend.getHoldings())).toEqual({1: {de: 1}, 2: {pl: 1}})
     })
 
     it("says what each struck tile kept, as the server recorded it", () => {
@@ -222,7 +238,7 @@ describe("a map history played as a replay", () => {
         hits: [new Map()],
         eras: [FIRST_ERA],
     }
-    const played = ReplayBackend.ofHistory(history, new MapReel(history, 3), HOUR + 1, LANDMASSES)
+    const played = ReplayBackend.ofHistory(history, new MapReel(history, 3), HOUR + 1, GROUNDS)
 
     it("opens on the frame at or before the time it starts from, and ends with the history", () => {
         expect(played.opening).toEqual(new Map([[1, "pl"], [2, "pl"]]))

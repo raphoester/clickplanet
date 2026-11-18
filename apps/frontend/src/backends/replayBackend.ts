@@ -15,13 +15,23 @@ import {
 } from "./backend.ts"
 import {bindingsOf, bombOf, enclosureOf, shieldsOf, spreadOf, takenOf, updateOf} from "./planetBackend.ts"
 import {TileChange} from "../domain/clip/changes.ts"
-import {FakeTally} from "./fakeTally.ts"
+import {Cut, FakeTally} from "./fakeTally.ts"
+import type {Provinces} from "../domain/provinces.ts"
 import {MapHistory, MapReel} from "../domain/mapHistory.ts"
 import {Era, FIRST_ERA} from "../domain/eras.ts"
 
 type Step = {at: number, event: PlanetEvent}
 
-export type ReplayLandmasses = {assignment: Uint16Array, count: number}
+// The grounds a replay counts each flag's tiles on, as the server does: the board's landmasses and its provinces, its
+// landmasses again on a board with no provinces file. Fortify reads the provinces.
+export type ReplayGrounds = {landmasses: Cut, provinces: Cut}
+
+export function replayGroundsOf({assignment, codes}: {assignment: Uint16Array, codes: string[]}, provinces: Provinces): ReplayGrounds {
+    return {
+        landmasses: {assignment, count: codes.length},
+        provinces: {assignment: provinces.province, count: provinces.landmass.length},
+    }
+}
 
 type Reel = {
     since: number
@@ -29,7 +39,7 @@ type Reel = {
     opening: ReadonlyMap<number, string>
     shields: ReadonlyMap<number, number>
     steps: readonly Step[]
-    landmasses: ReplayLandmasses
+    grounds: ReplayGrounds
 }
 
 // A replay counts its writes from its opening, as one start of the server.
@@ -52,7 +62,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     readonly opening: ReadonlyMap<number, string>
     private readonly openingShields: ReadonlyMap<number, number>
     private readonly steps: readonly Step[]
-    private readonly landmasses: ReplayLandmasses
+    private readonly grounds: ReplayGrounds
     private readonly owners: Map<number, string>
     private readonly shields: Map<number, number>
     private readonly tally: FakeTally
@@ -63,7 +73,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     private readonly holdingsListeners = new Set<(change: Counts) => void>()
     private readonly bonusHandlers = new Set<BonusHandlers>()
 
-    static of(response: GetReplayResponse, landmasses: ReplayLandmasses): ReplayBackend {
+    static of(response: GetReplayResponse, grounds: ReplayGrounds): ReplayBackend {
         const opening = response.opening
         if (!opening || !response.since || !response.until) throw new Error("a replay needs its opening and its window")
 
@@ -73,13 +83,13 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             opening: bindingsOf(opening),
             shields: shieldsOf(opening),
             steps: stepsOf(response),
-            landmasses,
+            grounds,
         })
     }
 
     // A map history played from its frame at or before since to its end: each change at the time it was made, its last
     // of the step, so an enclosure's tiles land together and clicks one by one, as they did.
-    static ofHistory(history: MapHistory, reel: MapReel, since: number, landmasses: ReplayLandmasses): ReplayBackend {
+    static ofHistory(history: MapHistory, reel: MapReel, since: number, grounds: ReplayGrounds): ReplayBackend {
         const frames = history.frames
         if (frames.length === 0) throw new Error("a history needs a frame")
         let first = 0
@@ -108,7 +118,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         }
 
         return new ReplayBackend({
-            since: frames[first].at, until: frames[frames.length - 1].at, opening, shields: new Map(), steps, landmasses,
+            since: frames[first].at, until: frames[frames.length - 1].at, opening, shields: new Map(), steps, grounds,
         })
     }
 
@@ -118,11 +128,10 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         this.opening = reel.opening
         this.openingShields = reel.shields
         this.steps = reel.steps
-        this.landmasses = reel.landmasses
+        this.grounds = reel.grounds
         this.owners = new Map(reel.opening)
         this.shields = new Map(reel.shields)
-        // A replay is drawn in the countries' divisions: its provinces are its landmasses.
-        this.tally = new FakeTally(reel.landmasses, reel.landmasses)
+        this.tally = new FakeTally(reel.grounds.landmasses, reel.grounds.provinces)
         this.owners.forEach((owner, tile) => this.tally.moved(tile, undefined, owner))
         this.tally.changes(this.version())
     }
@@ -163,7 +172,7 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
             opening: owners,
             shields,
             steps: this.steps.slice(first).filter((step) => step.at <= until),
-            landmasses: this.landmasses,
+            grounds: this.grounds,
         })
     }
 
