@@ -30,12 +30,17 @@ its own.
   no hand has room for one, and the stack held is kept. See [Enclosures off](enclose.md#enclosures-off-chargesencloseoff).
 - **A rule set may make spreads unlimited** (`charges.spread.unlimited`): spread then spends no charge, and the pool
   held is left as it is. See [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited).
+- **A rule set may turn spreads off** (`charges.spread.off`): a spread click takes its tile alone and spends nothing,
+  no grant keeps one, and the pool held is kept. See [Spreads off](spread.md#spreads-off-chargesspreadoff).
+- **A rule set may turn rallies off** (`charges.rally.off`): a call is refused and the rally stays held, no grant keeps
+  one, and the stack held is kept. See [Rallies off](rally.md#rallies-off-chargesrallyoff).
 - **How much fits.** Each kind stacks to its size in the rule set: refills to `charges.refill.held`, bombs to
   `charges.bomb.held` and viruses to `charges.virus.held` (1 each, which is what stops a stockpile of bombs being
   dropped all at once; the operator may raise them), enclosures to `charges.enclose.held` (3), spread clicks to
   `charges.spread.clicks` (8), shields to `charges.shield.held` (30), mines to `charges.mine.held` (3) and rallies to
   `charges.rally.held` (3) (see [Rules](rules.md); the numbers are the migrations' `default`). **A kind the rules turn
-  off is kept none of** (`Rules.Off`: a bomb while `charges.bomb.off`, an enclosure while `charges.enclose.off`), a
+  off is kept none of** (`Rules.Off`: a bomb while `charges.bomb.off`, an enclosure while `charges.enclose.off`, a
+  spread click while `charges.spread.off`, a rally while `charges.rally.off`), a
   box's, a quiz's or an operator's grant alike; what is held of it stays. A box draws its amount evenly from 1 to
   the bonuses' `maxPerBox`, or from their `shield.minPerBox` for shields (`bonuses.amountOf`, `crypto/rand`), and the
   grant caps it at the size: the cap is the wallet's. **What was kept** reaches the page as the grant's `gained`, on
@@ -117,7 +122,7 @@ its own.
   `PlaceShieldResponse.charges` answers a
   shield placed. After that the client follows
   its own calls: a drop spends the bomb, an accepted click sent with spread on a
-  spread click (not while spreads are unlimited), its own `tiles_enclosed` (`yours`) an enclosure. A charge spent in another
+  spread click (not while spreads are unlimited or off), its own `tiles_enclosed` (`yours`) an enclosure. A charge spent in another
   tab shows until the next read. **`Click` answers nothing about them.** It was so
   a shadow-banned caller could not tell its clicks were dropped; a ban is told now
   (see [A ban is told](antibot.md#a-ban-is-told)), so the answer could carry them.
@@ -125,7 +130,7 @@ its own.
   which the offers answer on in planet's words (`planet.v1.ChargesHeld`, through `planetwords`).
 - **How big a charge is, is a rule, not state.** `GetChargeRules` (`GetBonusRules` until 2026-11-11) answers the
   blast radius, the enclose's `maxTiles`, the spread pool's size and whether it is unlimited
-  (`spread_unlimited`), how many refills, bombs and viruses a hand holds (`refills`, `bombs`, `viruses`), the
+  (`spread_unlimited`) or off (`spread_off`), whether rallies are off (`rallies_off`), how many refills, bombs and viruses a hand holds (`refills`, `bombs`, `viruses`), the
   enclosure stack's size, how many shields a player holds and a tile takes
   (`shields`, `tile_shields`), and every step of the toll (`toll_steps`, from
   `clicks.Toll.Steps`), all read from the rule set in force (see [Rules](rules.md)), so the client can show the

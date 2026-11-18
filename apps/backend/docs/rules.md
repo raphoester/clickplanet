@@ -29,7 +29,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its
   `…Of(message)` (`message.go`) and a `Part` (`cprules.PartOf[*planetv1.Rules, R]{Key, Read}`). `cprules` names none
   of them.
-- **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `.rings`, `.unlimited`, `bomb.rings`,
+- **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `.rings`, `.unlimited`, `.off`, `rally.off`, `bomb.rings`,
   `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`, `.off`, `shield.held`, `.perTile`). Until 2026-11-11 those were the
   wallet's half of `bonuses` (`planet.v1.BonusRules`), whose other half a second part read for the offers
   (`parts.Grants`, see [Offers and the wallet](offers-and-wallet.md#the-rules-split)). The offers keep that half in rule
@@ -69,6 +69,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   [The disc](spread.md#the-disc-chargesspreadrings)
 - `charges.spread.unlimited` — a click with spread on needs no charge and spends none (off). See
   [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited)
+- `charges.spread.off` — no spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps
+  none; the spread clicks held are kept (off). Never with `unlimited`. See
+  [Spreads off](spread.md#spreads-off-chargesspreadoff)
 - `charges.refill.held` — how many refills a hand holds (1). See [Refill](refill.md)
 - `charges.bomb.rings`, `.held` — the blast's radius in tile spacings, and how many bombs a hand holds (4, 1). See
   [Bomb](bomb.md)
@@ -90,6 +93,8 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
 - `charges.rally.held`, `.rings`, `.lasts`, `.cost` — the rallies a hand holds (3), a ring's radius in tile spacings, 1 to
   50 (18, about 1,000 tiles), how long it lasts, 10 s to 30 min (3 min), and what a click of its flag inside takes from
   the bank, 0.1 to 1 (0.5). See [The rally](rally.md)
+- `charges.rally.off` — no rally: a call is refused and the rally stays held, and a grant keeps none; the rallies held
+  are kept (off). See [Rallies off](rally.md#rallies-off-chargesrallyoff)
 - **The offers' rules are not here since 2026-11-11**: a box's wait, its kinds and its flight, what a box or a right
   answer grants and the sign-in refill are the bonuses module's own sets (see
   [Its rule sets](bonuses.md#its-rule-sets)), the quizzes the quizzes module's since 2026-11-13 (see

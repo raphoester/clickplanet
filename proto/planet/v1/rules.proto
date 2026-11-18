@@ -110,6 +110,9 @@ message SpreadRules {
   optional uint32 rings = 3;
   // A click with spread on needs no charge and spends none.
   optional bool unlimited = 4;
+  // No spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps none, a box's, a
+  // quiz's or an operator's. The spread clicks held are kept. Never with unlimited.
+  optional bool off = 5;
 }
 
 message BombRules {
@@ -169,4 +172,7 @@ message RallyRules {
   google.protobuf.Duration lasts = 3;
   // What a click inside a rally's ring of its flag takes from the bank, in clicks. 0.1 to 1.
   optional double cost = 4;
+  // No rally: a call is refused (FailedPrecondition) and the rally stays held, and a grant keeps none, a box's, a quiz's,
+  // a level's fill or an operator's. The rallies held are kept.
+  optional bool off = 5;
 }

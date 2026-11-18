@@ -116,19 +116,19 @@ export function switched(switches: Switches, name: keyof Switches, on: boolean):
     return on ? {...ALL_OFF, [name]: true} : {...switches, [name]: false}
 }
 
-export type SwitchRules = Pick<BonusRules, "spreadUnlimited" | "enclosuresUnlimited" | "enclosuresOff">
+export type SwitchRules = Pick<BonusRules, "spreadUnlimited" | "enclosuresUnlimited" | "enclosuresOff" | "spreadOff">
 
 export function switchesHeld(switches: Switches, charges: Charges, rules: SwitchRules | undefined): Switches {
-    const spread = switches.spread && (!!rules?.spreadUnlimited || charges.spreadClicksLeft > 0)
+    const spread = switches.spread && !rules?.spreadOff && (!!rules?.spreadUnlimited || charges.spreadClicksLeft > 0)
     const enclose = switches.enclose && !rules?.enclosuresOff && (!!rules?.enclosuresUnlimited || charges.enclosures > 0)
     const shield = switches.shield && charges.shields > 0
     if (spread === switches.spread && enclose === switches.enclose && shield === switches.shield) return switches
     return {spread, enclose, shield}
 }
 
-// The switch on while no other is: an unlimited one, spread before enclose, never enclose while it is off.
+// The switch on while no other is: an unlimited one, spread before enclose, never one while it is off.
 export function restingSwitch(rules: SwitchRules | undefined): "spread" | "enclose" | undefined {
-    if (rules?.spreadUnlimited) return "spread"
+    if (rules?.spreadUnlimited && !rules.spreadOff) return "spread"
     if (rules?.enclosuresUnlimited && !rules.enclosuresOff) return "enclose"
     return undefined
 }
@@ -191,6 +191,10 @@ export type BonusRules = {
     spreadUnlimited: boolean
     // No enclosure closes a shape or is offered: the page hides the enclose slot.
     enclosuresOff: boolean
+    // No click spreads, and no spread click is offered: the page hides the spread slot.
+    spreadOff: boolean
+    // No rally is called or offered: the page hides the rally slot and puts its aim away.
+    ralliesOff: boolean
     // The most a virus infects, a tile taken or a shield struck each.
     virusInfections: number
     // How many refills, bombs and viruses a hand holds.

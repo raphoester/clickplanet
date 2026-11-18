@@ -139,6 +139,25 @@ func TestAGrantKeepsNoEnclosureWhileEnclosuresAreOff(t *testing.T) {
 	assert.Equal(t, Held{Enclosures: 1}, Held{Enclosures: 1}.Granted(KindEncloseClicks, 1, off))
 }
 
+func TestAGrantKeepsNoSpreadClickWhileSpreadsAreOff(t *testing.T) {
+	off := TestRules()
+	off.Spread.Off = true
+
+	assert.Equal(t, Held{}, Held{}.Granted(KindSpreadClicks, 4, off), "an empty hand takes no spread click")
+	assert.Equal(t, Held{SpreadClicks: 2}, Held{SpreadClicks: 2}.Granted(KindSpreadClicks, 4, off), "and one held keeps its own")
+	assert.Empty(t, Held{}.Gain(KindSpreadClicks, 4, off).Paid, "a spread is not paid")
+	assert.Equal(t, []Kind{KindShields}, Held{}.Filling([]Kind{KindSpreadClicks, KindShields}, off).Paid)
+}
+
+func TestAGrantKeepsNoRallyWhileRalliesAreOff(t *testing.T) {
+	off := TestRules()
+	off.Rally.Off = true
+
+	assert.Equal(t, Held{}, Held{}.Granted(KindRally, 1, off), "an empty hand takes no rally")
+	assert.Equal(t, Held{Rallies: 2}, Held{Rallies: 2}.Granted(KindRally, 1, off), "and one held keeps its own")
+	assert.Equal(t, []Kind{KindShields}, Held{}.Filling([]Kind{KindRally, KindShields}, off).Paid, "a level's fill pays none")
+}
+
 func TestAVirusIsKeptUntilItIsUsedAndAHandHoldsWhatTheRulesSay(t *testing.T) {
 	held := Held{}.Granted(KindVirus, 1, chargeRules)
 	require.Equal(t, Held{Viruses: 1}, held)

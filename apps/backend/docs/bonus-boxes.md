@@ -11,7 +11,8 @@ all and the ones the player's level unlocked are drawn ([The gates](bonuses.md#t
   caller chooses, and gives the network's bucket as much. Up to one bank, 60 clicks. See [What a refill does to the bucket](refill.md).
 - **`spread_clicks`** — 1 to the offers' `spread.maxPerBox` (4) clicks added to a pool
   of at most planet's `charges.spread.clicks` (8). While the player switches spread on, each
-  click spends one and also takes the tiles touching the one clicked. See [What a spread does to a click](spread.md).
+  click spends one and also takes the tiles touching the one clicked. None is kept while planet's
+  `charges.spread.off`. See [What a spread does to a click](spread.md).
 - **`bomb`** — a charge: one bomb, kept until it is dropped, in a stack of at most `charges.bomb.held` (1); none is kept
   while planet's `charges.bomb.off`. It clears a circle of `charges.bomb.rings` tile spacings around where it lands,
   whoever holds the tiles. See [What a bomb does](bomb.md).

@@ -28,6 +28,7 @@ type Hands interface {
 }
 
 type Muster interface {
+	Refuses() error
 	Rally(account cpsession.AccountID, flag string, point clicks.Vec3) (rallies.Rally, error)
 }
 
@@ -53,9 +54,14 @@ type UseCase struct {
 	teller rallies.Teller
 }
 
-// Execute spends a rally once the gate let it through, keeps it as the caller's last, gives it back when a rally of the
+// Execute refuses a rally while rallies are off, before anything else, and otherwise spends one once the gate let it
+// through, keeps it as the caller's last, gives it back when a rally of the
 // caller turned out to be still on, and tells every stream and the other modules of it.
 func (u *UseCase) Execute(ctx context.Context, in In) (rallies.Rally, error) {
+	if err := u.muster.Refuses(); err != nil {
+		return rallies.Rally{}, err //nolint:wrapcheck // the muster names it.
+	}
+
 	payer := clicks.PayerOf(ctx)
 	id, err := uuid.Parse(payer.Account)
 	if err != nil {

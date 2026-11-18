@@ -1,3 +1,4 @@
+import './diag.ts'
 import {createRoot} from 'react-dom/client'
 import {StrictMode} from "react"
 import './tokens.css'
@@ -253,6 +254,14 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         encloseOff: (off = true) => {
             fake.turnEnclosuresOff(off)
             return off ? "enclosures are off: no slot, and an enclose click closes nothing" : "enclosures are on again"
+        },
+        rallyOff: (off = true) => {
+            fake.turnRalliesOff(off)
+            return off ? "rallies are off: no slot, and a call is refused with the rally kept" : "rallies are on again"
+        },
+        spreadOff: (off = true) => {
+            fake.turnSpreadsOff(off)
+            return off ? "spreads are off: no slot, and a click with spread on takes its tile alone" : "spreads are on again"
         },
         unlimitSpreads: (on = true, rings = 2) => {
             fake.unlimitSpreads(on, on ? rings : 1)

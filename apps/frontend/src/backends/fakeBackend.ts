@@ -156,6 +156,8 @@ const rulesOf = ({bombRadius, rallyRadius}: Lengths): BonusRules => ({
     bombsOff: false,
     spreadUnlimited: false,
     enclosuresOff: false,
+    spreadOff: false,
+    ralliesOff: false,
     virusInfections: VIRUS_INFECTIONS,
     refills: REFILLS,
     bombs: BOMBS,
@@ -342,6 +344,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private announceBonusClick(tileId: number, countryId: string) {
+        if (this.rules.spreadOff) return
         if (this.rules.spreadUnlimited) {
             void this.botSpread(tileId, countryId)
             return
@@ -380,7 +383,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return {reward: rewardOfKind(this.lengths, kind, enclosures - held.enclosures), charges: this.charges}
             }
             case "spreadClicks": {
-                const spreadClicksLeft = Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
+                const spreadClicksLeft = this.rules.spreadOff
+                    ? held.spreadClicksLeft
+                    : Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
                 this.hold({...held, spreadClicksLeft})
                 return {reward: rewardOfKind(this.lengths, kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
             }
@@ -400,7 +405,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return {reward: rewardOfKind(this.lengths, kind, mines - held.mines), charges: this.charges}
             }
             case "rally": {
-                const rallies = Math.min(held.rallies + 1, RALLIES)
+                const rallies = this.rules.ralliesOff ? held.rallies : Math.min(held.rallies + 1, RALLIES)
                 this.hold({...held, rallies})
                 return {reward: rewardOfKind(this.lengths, kind, rallies - held.rallies), charges: this.charges}
             }
@@ -552,6 +557,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.refuseBanned()
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
+        if (this.rules.ralliesOff) throw new Error("rallies are off: the rally stays held")
         if (this.charges.rallies === 0) throw new BonusLostError()
         const now = budgetNow()
         if (this.rallies.on(now).some((rally) => rally.accountId === FAKE_YOU)) throw new RallyRefusedError()
@@ -660,7 +666,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public unlimitSpreads(on: boolean, rings: number): void {
         this.spreadRings = rings
-        this.rules = {...this.rules, spreadUnlimited: on}
+        this.rules = {...this.rules, spreadUnlimited: on, spreadOff: this.rules.spreadOff && !on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public turnRalliesOff(off: boolean): void {
+        this.rules = {...this.rules, ralliesOff: off}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public turnSpreadsOff(off: boolean): void {
+        this.rules = {...this.rules, spreadOff: off, spreadUnlimited: this.rules.spreadUnlimited && !off}
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 
@@ -1018,7 +1034,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private offerable() {
-        return this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
+        return BONUS_KINDS.filter((kind) => (kind !== "bomb" || !!this.tilePositions) && (kind !== "spreadClicks" || !this.rules.spreadOff) &&
+            (kind !== "rally" || !this.rules.ralliesOff))
     }
 
     public offerQuiz(): QuizOffer {

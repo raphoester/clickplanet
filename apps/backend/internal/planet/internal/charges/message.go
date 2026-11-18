@@ -20,6 +20,7 @@ func RulesOf(m *planetv1.ChargeRules) Rules {
 			Clicks:    int(m.GetSpread().GetClicks()),
 			Rings:     int(m.GetSpread().GetRings()),
 			Unlimited: m.GetSpread().GetUnlimited(),
+			Off:       m.GetSpread().GetOff(),
 		},
 		Bomb: BombRules{Rings: m.GetBomb().GetRings(), Off: m.GetBomb().GetOff(), Held: int(m.GetBomb().GetHeld())},
 		Enclose: EncloseRules{
@@ -40,6 +41,7 @@ func RulesOf(m *planetv1.ChargeRules) Rules {
 			Rings: m.GetRally().GetRings(),
 			Lasts: m.GetRally().GetLasts().AsDuration(),
 			Cost:  m.GetRally().GetCost(),
+			Off:   m.GetRally().GetOff(),
 		},
 	}
 }

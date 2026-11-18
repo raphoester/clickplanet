@@ -683,7 +683,10 @@ type SpreadRules struct {
 	// How far a spread reaches: every tile within this many steps of the tile clicked. 1 to 3.
 	Rings *uint32 `protobuf:"varint,3,opt,name=rings,proto3,oneof" json:"rings,omitempty"`
 	// A click with spread on needs no charge and spends none.
-	Unlimited     *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
+	Unlimited *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
+	// No spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps none, a box's, a
+	// quiz's or an operator's. The spread clicks held are kept. Never with unlimited.
+	Off           *bool `protobuf:"varint,5,opt,name=off,proto3,oneof" json:"off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -735,6 +738,13 @@ func (x *SpreadRules) GetRings() uint32 {
 func (x *SpreadRules) GetUnlimited() bool {
 	if x != nil && x.Unlimited != nil {
 		return *x.Unlimited
+	}
+	return false
+}
+
+func (x *SpreadRules) GetOff() bool {
+	if x != nil && x.Off != nil {
+		return *x.Off
 	}
 	return false
 }
@@ -1055,7 +1065,10 @@ type RallyRules struct {
 	// How long a rally lasts. 10 s to 30 min.
 	Lasts *durationpb.Duration `protobuf:"bytes,3,opt,name=lasts,proto3" json:"lasts,omitempty"`
 	// What a click inside a rally's ring of its flag takes from the bank, in clicks. 0.1 to 1.
-	Cost          *float64 `protobuf:"fixed64,4,opt,name=cost,proto3,oneof" json:"cost,omitempty"`
+	Cost *float64 `protobuf:"fixed64,4,opt,name=cost,proto3,oneof" json:"cost,omitempty"`
+	// No rally: a call is refused (FailedPrecondition) and the rally stays held, and a grant keeps none, a box's, a quiz's,
+	// a level's fill or an operator's. The rallies held are kept.
+	Off           *bool `protobuf:"varint,5,opt,name=off,proto3,oneof" json:"off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1116,6 +1129,13 @@ func (x *RallyRules) GetCost() float64 {
 		return *x.Cost
 	}
 	return 0
+}
+
+func (x *RallyRules) GetOff() bool {
+	if x != nil && x.Off != nil {
+		return *x.Off
+	}
+	return false
 }
 
 var File_planet_v1_rules_proto protoreflect.FileDescriptor
@@ -1191,15 +1211,17 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x06refill\x18\b \x01(\v2\x16.planet.v1.RefillRulesR\x06refill\"/\n" +
 	"\vRefillRules\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01B\a\n" +
-	"\x05_held\"\x9e\x01\n" +
+	"\x05_held\"\xbd\x01\n" +
 	"\vSpreadRules\x12\x1b\n" +
 	"\x06clicks\x18\x01 \x01(\rH\x00R\x06clicks\x88\x01\x01\x12\x19\n" +
 	"\x05rings\x18\x03 \x01(\rH\x01R\x05rings\x88\x01\x01\x12!\n" +
-	"\tunlimited\x18\x04 \x01(\bH\x02R\tunlimited\x88\x01\x01B\t\n" +
+	"\tunlimited\x18\x04 \x01(\bH\x02R\tunlimited\x88\x01\x01\x12\x15\n" +
+	"\x03off\x18\x05 \x01(\bH\x03R\x03off\x88\x01\x01B\t\n" +
 	"\a_clicksB\b\n" +
 	"\x06_ringsB\f\n" +
 	"\n" +
-	"_unlimitedJ\x04\b\x02\x10\x03R\vmax_per_box\"q\n" +
+	"_unlimitedB\x06\n" +
+	"\x04_offJ\x04\b\x02\x10\x03R\vmax_per_box\"q\n" +
 	"\tBombRules\x12\x19\n" +
 	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01\x12\x15\n" +
 	"\x03off\x18\x02 \x01(\bH\x01R\x03off\x88\x01\x01\x12\x17\n" +
@@ -1236,16 +1258,18 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12\x19\n" +
 	"\x05rings\x18\x02 \x01(\rH\x01R\x05rings\x88\x01\x01B\a\n" +
 	"\x05_heldB\b\n" +
-	"\x06_rings\"\xa6\x01\n" +
+	"\x06_rings\"\xc5\x01\n" +
 	"\n" +
 	"RallyRules\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01\x12\x19\n" +
 	"\x05rings\x18\x02 \x01(\x01H\x01R\x05rings\x88\x01\x01\x12/\n" +
 	"\x05lasts\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x05lasts\x12\x17\n" +
-	"\x04cost\x18\x04 \x01(\x01H\x02R\x04cost\x88\x01\x01B\a\n" +
+	"\x04cost\x18\x04 \x01(\x01H\x02R\x04cost\x88\x01\x01\x12\x15\n" +
+	"\x03off\x18\x05 \x01(\bH\x03R\x03off\x88\x01\x01B\a\n" +
 	"\x05_heldB\b\n" +
 	"\x06_ringsB\a\n" +
-	"\x05_costB\xb2\x01\n" +
+	"\x05_costB\x06\n" +
+	"\x04_offB\xb2\x01\n" +
 	"\rcom.planet.v1B\n" +
 	"RulesProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"

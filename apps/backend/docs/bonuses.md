@@ -59,8 +59,10 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
 | `Wallet.Fill` | `InternalService/FillCharges` | each level reached |
 
 - **No room asked** (since 2026-11-16). The draw ignores the hand, and planet's wallet keeps what fits: a kind drawn
-  into a full stack is kept none of, and so is **a bomb while planet's `charges.bomb.off` is on**, or an enclosure
-  while its `charges.enclose.off` is on. So the stacks' sizes, `bomb.off` and `enclose.off` are planet's rules alone.
+  into a full stack is kept none of, and so is **a bomb while planet's `charges.bomb.off` is on**, an enclosure
+  while its `charges.enclose.off` is on, a spread click while its `charges.spread.off` is on, or a rally while its
+  `charges.rally.off` is on. So the stacks' sizes, `bomb.off`, `enclose.off`, `spread.off` and `rally.off` are planet's
+  rules alone.
   Until then the module asked `InternalService/GetRoom` before each draw and drew only the kinds a hand had room for: a
   player who kept every other kind full was drawn the one kind left at every box, which players used to farm the kind
   they wanted. The owner's call.
@@ -114,7 +116,7 @@ owner's call.
 - **One grant, so one notice**: planet fills every stack in one transaction and tells the page one `charges_granted`,
   whose `gained` names each kind, a full stack's with 0 kept ([Charges](charges.md)).
 - **The size is planet's** (`charges.*.held`): the bonuses module names the kinds and never an amount. A kind planet's
-  rules turn off (a bomb while `charges.bomb.off`) is kept none of.
+  rules turn off (a bomb while `charges.bomb.off`, a spread click while `charges.spread.off`) is kept none of.
 - **The kinds the level unlocks come with the command** (`unlocked`): the fill does not read the unlocks kept, which
   `KeepUnlocks` brings on another stream, in no order with this one.
 - **The grant is progression's** (`grant_id`, one per account and level): planet keeps it for good in `charge_grants`,

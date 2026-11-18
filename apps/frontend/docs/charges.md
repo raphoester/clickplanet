@@ -30,7 +30,7 @@ added (`gainedOf`), which the grant listeners hear (a box's or a right answer's 
 `UseRefillResponse.charges` replaces them on a refill, which also brings the full budget, and
 `PlaceShieldResponse.charges` on a shield placed. Otherwise
 it follows its own calls: an accepted click **sent with spread on** takes a spread
-click off (not while spreads are unlimited), this player's own `tilesEnclosed` takes an enclosure off (not while enclosures are unlimited; the event
+click off (not while spreads are unlimited or off), this player's own `tilesEnclosed` takes an enclosure off (not while enclosures are unlimited; the event
 also brings the tiles it took, see [Viewer](viewer.md)), and a drop
 takes one bomb off at once and gives that one back unless the server says it holds
 none, which leaves none (a ban refusal gives it back too); a virus used, a mine laid and a rally called are taken off
@@ -44,7 +44,7 @@ blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size, how many refills, bombs and viruses a hand holds (`refills`, `bombs`,
 `viruses`, as `mines` and `rallies`), how many shields can stand on one tile
 (`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) or off (`enclosuresOff`) and whether spreads
-are unlimited (`spreadUnlimited`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
+are unlimited (`spreadUnlimited`) or off (`spreadOff`), and whether rallies are off (`ralliesOff`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
 new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill`, `gatesOn` and
 `openKinds` are the bonuses module's rules, from `BonusService/GetGrantRules`, told with planet's. Bonuses has no stream,
@@ -91,6 +91,18 @@ not, as bombs off hides the bomb. `switchesHeld` turns enclose off and never kee
 enclose on, and no "Shape is not closed" bubble is said; `restingSwitch` never picks enclose. When the set starts
 playing, `onRules` puts the switch off at once. The enclosures held are kept, and the slot shows them again when the set
 stops. In the fake, `encloseOff()` plays it and `encloseOff(false)` stops it.
+
+### No spread while spreads are off
+
+**A rule set with spreads off** (`spreadOff`, the backend's
+[Spreads off](../../backend/docs/spread.md#spreads-off-chargesspreadoff), Capital Siege's since 2026-11-18) **hides
+the Spread slot**, held or not, as enclosures off hides Enclose. The spread is a switch, with no aim of its own, so
+the slot is all there is to hide. `switchesHeld` turns spread off and never keeps it on, so the page sends no click with
+spread on; `restingSwitch` never picks spread, even while it is also unlimited (a set the server refuses). When the set
+starts playing, `onRules` puts the switch off at once. A click that still went out with spread on takes no spread click
+off the count (`PlanetBackend.clickTile`), as the server spends none. The spread clicks held are kept, and the slot shows
+them again when the set stops. In the fake, `spreadOff()` plays it (and its boxes draw no spread) and `spreadOff(false)`
+stops it.
 
 ## The inventory
 
@@ -155,7 +167,8 @@ how to use it in its bubble. A name drawn under the icon widened its own slot ("
 down on 2026-11-16. What the slot is doing (`On`, `Aim`, `Full`, `New`) is in its `aria-label` too, not over it: a
 `New` slot wears a dot on its corner, and one switched on keeps its ring and its glow. Two words side by side ran over
 each other ("Nouveau", "Zapnuto"). A slot is shown always, in the tray at least, the virus too (see
-[Virus](virus.md)), but the bomb while bombs are off, and Enclose while enclosures are off.
+[Virus](virus.md)), but the bomb while bombs are off, Enclose while enclosures are off, Spread while spreads are off, and Rally while
+rallies are off ([Rally](rally.md)).
 
 - **Refill** fills the bank with one refill (`Refiller.useRefill`). **On a full bank it sends
   nothing** and says "Full": a refill there would be wasted. The refill a
