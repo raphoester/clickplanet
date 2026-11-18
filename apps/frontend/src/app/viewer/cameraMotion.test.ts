@@ -98,3 +98,16 @@ describe("the idle spin's speed", () => {
         expect(turned(1800)).toBeCloseTo(1, 2)
     })
 })
+
+describe("the idle spin, once it stops", () => {
+    it("glides to rest, and then the loop has nothing to draw", () => {
+        const {controls, turned} = orbiting()
+        controls.enableDamping = true
+        turned(600, 1 / 60)
+
+        controls.autoRotate = false
+        turned(300, 1 / 60)
+
+        expect(controls.update(1 / 60)).toBe(false)
+    })
+})

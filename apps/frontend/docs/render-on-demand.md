@@ -35,11 +35,13 @@ under test. Five things can ask for a frame:
   read and cleared once per tick, and only ever set from outside the loop, so
   clearing it on a tick that then skips its frame cannot lose one.
 - **A pulse is on screen** — `ambient`: the front's and the missions' slow pulses, drawn at most every
-  `AMBIENT_FRAME_MS` (see [The front, for a first visit](front-guide.md)).
+  `AMBIENT_FRAME_MS` (see [The front, for a first visit](front-guide.md)). It does not stop with the idle
+  spin: a gold fortify ring facing the camera, alone, cost 3 to 4 points of a core more than a page that draws
+  nothing (measured as the spin below), a quarter of what the spin cost.
 
 **The idle spin is capped at `IDLE_FRAME_MS`, and it is the one animation the
-cap has to be generous with.** It is the only thing that moves with nobody
-touching the page, and it is the first thing anybody sees. At a turn in thirty
+cap has to be generous with.** It moves with nobody touching the page, and it is
+the first thing anybody sees. At a turn in thirty
 seconds the surface goes by at a little over a hundred pixels a second: two
 pixels a frame at sixty, four at thirty. Thirty was tried and the step is
 visible as a step, so the cap is sixty — which still leaves half of what a
@@ -65,6 +67,44 @@ frames that were drawn — the very distance the cap exists to keep small.
 `spinStep` caps one tick at `MAX_SPIN_STEP_MS`, because a hidden tab is offered
 no frames at all and the whole of that wait would otherwise arrive as one step,
 with the globe somewhere else by the time it is looked at again.
+
+**The idle spin stops a minute after the last input.** `spins` in `globe.ts` is
+the rule: the globe turns on its own only at or below `RESTING_ZOOM`, and only
+while the last input is less than `SPIN_AFTER_INPUT_MS` (60 s) old. An input is
+a `pointerdown`, `pointermove`, `wheel`, `keydown` or `touchstart` anywhere on
+the page, read on `window` in the capture phase, so a panel that stops an event
+still counts it. The page's load counts as an input, so the landing view turns
+for its first minute. The next input turns it again.
+
+- **Why.** The cost of the spin is its frame rate, not its scene: a bare WebGL
+  page that draws one triangle every frame costs as much. A page left open
+  zoomed out drew 60 frames a second for as long as it stayed open, and most
+  players are on phones. A 30fps cap for the spin was tried, and the step was
+  visible. Measured on 2026-11-18 in headless Chrome on an M2 Max, renderer and
+  GPU process together, 70 s after one input, with no claims coming in: 17% of
+  a core before, 4.4% after, on a desktop screen and a phone screen alike. No
+  frame is drawn then; the rest is the page around the globe (about:blank costs
+  0.3%).
+- **The loop sets `controls.autoRotate` on every tick**, from `spins`. It used
+  to be set in OrbitControls' `change` listener, which cannot stop a spin: once
+  the camera is still, no `change` comes. It also missed the load: the
+  constructor dispatches its first `change` before `globe.ts` listens, so a
+  fresh page did not turn until the first drag or wheel. With `autoRotate` off,
+  the damping glides the globe to rest in about a second (55 ticks), and then
+  nothing asks for a frame.
+- **No rule on focus or blur.** On `crazygames.clickplanet.lol` the game is in
+  an iframe that has no focus until the first click (see
+  [CrazyGames](crazygames.md)): a blur rule would stop the spin on load for
+  every visitor there. The minute covers a player who switches windows.
+- **Everything else still draws when it changes**: claims and batches
+  (`invalidate()`), the glint of another player's claim, blasts, the box,
+  flights, a resize, `capture()`. Each glint plays for 0.7 s at the full frame
+  rate, so a busy world in view still draws for much of the time: at the
+  ledger's average of November 2026, about 2.2 takes and strikes a second over
+  the whole map, the stopped page still drew 30 to 50 frames a second and cost
+  about 12%. The minute saves the most when the world is quiet.
+- **The director takes no part.** A clip or a player video aims the camera
+  itself and never calls `controls.update()`, so `autoRotate` is not read.
 
 **Only a frame that is drawn culls the tiles.** `TileField.cull` picks the
 pieces of the map in sight (see [The tiles out of sight are not
