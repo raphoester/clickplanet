@@ -14,3 +14,6 @@ into `src/testdata/boards/fixture-1/` and the backend's and the backoffice's tes
 the bundle: no page plays it. `tilesOfBoard` rebuilds a board's tiles as the page does, `englishLandmassNamesOf` reads
 its landmass names. What reads the board (see [Sized by the board](board-scale.md)) is tested on both: today's values
 on `earth-1`, scaled on `fixture-1`; and what draws each era on its own board, on a history from one to the other.
+**The geometry is tested on every shipped board** besides: `earth-2` and `siege-1` (warped, rotated, in canonical
+order) rebuild to their hashes (`board.test.ts`), put every tile in its own cell (`latticeCells.test.ts`) and keep the
+chunks whole (`tileChunks.test.ts`); `BOARDS` from `boardsAsset.ts` names them all.

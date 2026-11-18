@@ -1,8 +1,8 @@
 import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {EARTH_1} from "../testdata/boards.ts"
-import {decodeRuns, tilesOf} from "./board.ts"
+import {BOARDS} from "../app/viewer/boardsAsset.ts"
+import {type BoardAsset, decodeRuns, tilesOf} from "./board.ts"
 import {
     CAP_FLOATS,
     CHUNK_REACH,
@@ -17,22 +17,28 @@ import {
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
-function shippedPositions(): Float32Array {
-    const bytes = readFileSync(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`)
-    return tilesOf(EARTH_1.lattice, decodeRuns(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)), EARTH_1.tiles).positions
+function shippedPositions(board: BoardAsset): Float32Array {
+    const bytes = readFileSync(`${STATIC}boards/${board.name}/${board.files.runs}`)
+    return tilesOf(board.lattice, decodeRuns(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)), board.tiles).positions
 }
 
-const positions = shippedPositions()
-const tiles = positions.length / 3
-const chunks = chunksOf(positions)
-const count = chunkCount(chunks)
+// Every shipped board: earth-1 in three's order, earth-2 and siege-1 in canonical order, whose rows run along each
+// face's inside after the edges.
+const SHIPPED = Object.values(BOARDS).map((board) => {
+    const positions = shippedPositions(board)
+    const chunks = chunksOf(positions)
+    return {board, positions, tiles: positions.length / 3, chunks, count: chunkCount(chunks)}
+})
+
+// earth-1's, for the tests of a chunk's ranges.
+const {chunks, tiles} = SHIPPED.find(({board}) => board.name === "earth-1")!
 
 function angleTo(x: number, y: number, z: number, caps: Float32Array, at: number): number {
     const centre = [caps[at], caps[at + 1], caps[at + 2]]
     return Math.atan2(Math.hypot(...cross([x, y, z], centre)), x * centre[0] + y * centre[1] + z * centre[2])
 }
 
-describe("the chunks of the shipped tiles", () => {
+describe.each(SHIPPED)("the chunks of $board.name's tiles", ({positions, tiles, chunks, count}) => {
     it("hold every tile in exactly one chunk, in order", () => {
         expect(chunks.starts[0]).toBe(0)
         expect(chunks.starts[count]).toBe(tiles)
@@ -98,7 +104,7 @@ function cameraOf(direction: [number, number, number], zoom: number, aspect: num
     }
 }
 
-describe("the chunks in sight", () => {
+describe.each(SHIPPED)("the chunks in sight on $board.name", ({positions, tiles, chunks, count}) => {
     const directions: [number, number, number][] = [[1, 0.3, 0.2], [-0.4, 0.8, -0.1], [0.1, -0.9, 0.5], [-0.7, -0.2, -0.7], [0, 0, 1]]
     const zooms = [0.5, 1, 3, 10, 40]
 

@@ -37,6 +37,11 @@ twice the runs.
    colours are the centres k-means (k = 8, in Lab) found over earth-1's tiles. They are pinned: a k-means run again
    numbers its kinds in another order, and the palette, which is in that order, would paint the snow green.
 3. **A yellow white is sand, not snow**: a tile nearest snow with b\* past 8 takes its next nearest kind.
+   **A tile where earth-1 had sea reads the photo's blue**, which is no kind of land: the photo's coast was cut to
+   earth-1's cells. On another board such a tile (its point in a cell of earth-1 that is no tile) takes, wave by wave
+   from the coast in, the kind most of its tiles around have (`kindsFromNeighbours`); an island earth-1 did not have
+   at all takes the kind of earth-1's nearest tile. `earth-2` has 10,264 of the first and 692 of the second,
+   `siege-1` 318 and 58; `earth-1` none.
 4. **Three passes of a majority vote** over the lattice neighbours, a tile's own kind counting twice, turn speckle into
    patches. An island of one tile keeps its kind.
 5. **The sea's bands** come from a walk out from the land, one lattice step at a time.
@@ -49,7 +54,7 @@ Run again, it writes the same file byte for byte. Run it after `npm run map:gene
 
 **The territory layer paints the land and the coast, at every zoom** (see [The zoomed-out view](zoomed-out-view.md)).
 It already finds each pixel's lattice point, so it reads the point's kind from a texture of one byte a point (R8UI,
-1024 columns, 0.9 MB). A tile's ground is under its flag, `mix(ground, flag, paint)`, opaque, so zoomed in the ground
+2,048 columns, 0.9 MB on `earth-1` and 3.5 MB on `earth-2`). A tile's ground is under its flag, `mix(ground, flag, paint)`, opaque, so zoomed in the ground
 shows between the discs and the flags fade to it in the second half of the handover. A coast band is its colour. The
 open sea is discarded, and the earth's sphere under it shows: one flat colour, with the sea's glint with HD graphics
 (see [The light](light.md)). The terrain loads with the globe, beside the borders, so the clips and the player videos

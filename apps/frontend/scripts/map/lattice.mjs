@@ -4,19 +4,21 @@ import {latticeNeighbours, latticePositions, latticeSize} from "../../src/domain
 export const keyOf = (x, y, z) => `${x.toFixed(6)},${y.toFixed(6)},${z.toFixed(6)}`
 
 /**
- * @param {number} cols
- * @returns {{count: number, positions: Float32Array}} every point of the lattice, in three's order
+ * @param {import("../../src/domain/lattice.ts").Lattice | number} given a board's lattice, or `cols` for three's
+ * @returns {{count: number, positions: Float32Array}} every point of the lattice, in its order (three's or canonical)
  */
-export function lattice(cols) {
-    return {count: latticeSize(cols), positions: latticePositions(cols)}
+export function lattice(given) {
+    const cols = typeof given === "number" ? given : given.cols
+    return {count: latticeSize(cols), positions: latticePositions(given)}
 }
 
 /**
- * @param {number} cols
+ * @param {import("../../src/domain/lattice.ts").Lattice | number} given a board's lattice, or `cols` for three's
  * @returns {{count: number, at: Uint32Array, to: Uint32Array}} CSR: `at[i]` to `at[i + 1]` indexes `to`, ascending
  */
-export function neighbours(cols) {
-    return {count: latticeSize(cols), ...latticeNeighbours(cols)}
+export function neighbours(given) {
+    const cols = typeof given === "number" ? given : given.cols
+    return {count: latticeSize(cols), ...latticeNeighbours(given)}
 }
 
 /**

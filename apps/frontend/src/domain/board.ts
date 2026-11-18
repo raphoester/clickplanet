@@ -1,4 +1,4 @@
-import {latticeSize, positionsHash, walkLattice, writePosition} from "./lattice.ts"
+import {type Lattice, latticeSize, positionsHash, positionWriter, walkLattice} from "./lattice.ts"
 import {cellsOf, type TileCells} from "./latticeCells.ts"
 import {chunksOf, type TileChunks} from "./tileChunks.ts"
 
@@ -18,8 +18,9 @@ export type Board = {
     files: BoardFiles
 }
 
-// `earth-1` has no warp and no rotation, and numbers its tiles in three's order: the ledger holds those ids.
-export type Lattice = {cols: number, warp: null, corners: null, order: "three"}
+// `earth-1` has no warp and no rotation, and numbers its tiles in three's order: the ledger holds those ids. `earth-2`
+// and `siege-1` are warped and rotated, and number theirs in canonical order (lattice.ts).
+export type {Lattice, TileOrder, Warp} from "./lattice.ts"
 
 export type BoardFiles = {runs: string, borders: string, capitals: string, bridges: string, terrain: string}
 
@@ -33,7 +34,8 @@ export type BoardAsset = Board & {page: PageFiles, urls: BoardFiles & PageFiles}
 // Tiles side by side in one row of the lattice: the first and the last canonical id, both in.
 export type Run = readonly [first: number, last: number]
 
-// Where each tile is, its canonical id, and its place in three's walk of the lattice, all in tile order.
+// Where each tile is, its canonical id, and its point in the lattice's order (three's walk, or the canonical id itself),
+// all in tile order.
 export type Tiles = {positions: Float32Array, ids: Uint32Array, points: Uint32Array}
 
 // What the page draws from a board's runs: where each tile is, the cells the territory layer and the pick find a pixel's
@@ -46,10 +48,8 @@ const RUNS_HEADER_BYTES = 12
 const RUN_BYTES = 16
 const HIGH = 2 ** 32
 
+// A tile is a point the runs hold, numbered in the lattice's order: its rank among the tiles, plus one, is its id.
 export function tilesOf(lattice: Lattice, runs: readonly Run[], count: number): Tiles {
-    if (lattice.warp !== null || lattice.corners !== null) throw new Error("a warped or rotated lattice is not built yet")
-    if (lattice.order !== "three") throw new Error(`tile order ${String(lattice.order)} is not built yet`)
-
     const isTile = new Uint8Array(latticeSize(lattice.cols))
     for (const [first, last] of runs) {
         if (last >= isTile.length) throw new Error(`run ${first}-${last} is past the lattice's ${isTile.length} points`)
@@ -59,11 +59,12 @@ export function tilesOf(lattice: Lattice, runs: readonly Run[], count: number): 
     const positions = new Float32Array(count * 3)
     const ids = new Uint32Array(count)
     const points = new Uint32Array(count)
+    const place = positionWriter(lattice)
     let tile = 0
-    walkLattice(lattice.cols, (point, face, i, j, id) => {
+    walkLattice(lattice, (point, face, i, j, id) => {
         if (!isTile[id]) return
         if (tile === count) throw new Error(`the runs hold more than ${count} tiles`)
-        writePosition(lattice.cols, face, i, j, positions, tile * 3)
+        place(face, i, j, positions, tile * 3)
         ids[tile] = id
         points[tile] = point
         tile++
@@ -74,7 +75,7 @@ export function tilesOf(lattice: Lattice, runs: readonly Run[], count: number): 
 
 export function rebuildTiles(lattice: Lattice, count: number, runs: ArrayBuffer): RebuiltTiles {
     const {positions, ids} = tilesOf(lattice, decodeRuns(runs), count)
-    return {positions, cells: cellsOf(ids, lattice.cols), chunks: chunksOf(positions), hash: positionsHash(positions)}
+    return {positions, cells: cellsOf(ids, lattice, positions), chunks: chunksOf(positions), hash: positionsHash(positions)}
 }
 
 // The runs of a set of canonical ids, ascending.

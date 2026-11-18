@@ -29,6 +29,14 @@ does not carry has no scale (`ErrUnknownBoard`). The page and the backoffice app
 | attack ping zoom | alerts `pings/view.go` `closestZoom`, 20 | unchanged | `TilesTaken.board` |
 | a bomb's radius, a rally's ring | planet `charges.Bombing`, `rallies.Muster`: rings × the spacing measured | unchanged | the board in play (`clicks.Played`) |
 
+**On the boards PR 4 ships** (`scale_test.go`; nothing plays them yet):
+
+| | `earth-2` | `siege-1` |
+| --- | --- | --- |
+| `Length()`, spacing over `earth-1`'s | 0.5042 (13.1 km) | 3.067 (79.4 km) |
+| `Tiles(1_000)` | 3,933 | 106 |
+| `Zoom(50)`, the max zoom | 99.2 | 16.3 |
+
 **Planet's own rules read the board in play** (`clicks.Played`, see [Boards and eras](boards-and-eras.md)): a bomb's and
 a rally's radius are their rings times its measured spacing, so they follow the board with no scale.
 
@@ -43,6 +51,6 @@ switch: docs/boards.md).
 ## Tests
 
 `cpboards`' `scale_test.go` (every value unchanged on `earth-1`, and on the fixture: 1,000 tiles are 11, 50 are one, a
-zoom of 20 is 2.06); the missions' `TestTheFloorsAreAsMuchGroundOnAnyBoard` and `rpc_planet_world`'s scale; the chat's
+zoom of 20 is 2.06; `earth-2`'s and `siege-1`'s above); the missions' `TestTheFloorsAreAsMuchGroundOnAnyBoard` and `rpc_planet_world`'s scale; the chat's
 fortify on the fixture; the vandal squad's largest drawing, link and patrol while another board plays; the alerts'
 view on the fixture.

@@ -232,17 +232,18 @@ describe("the game rules page", () => {
 
     it("plays an arena on the board picked, or on default's, and keeps one the page does not carry", async () => {
         const admin = withCalm()
-        admin.rules.sets[1].rules = Rules.fromJson({...admin.rules.sets[1].rules!.toJson() as object, arena: {board: "siege-1"}})
+        admin.rules.sets[1].rules = Rules.fromJson({...admin.rules.sets[1].rules!.toJson() as object, arena: {board: "moon-1"}})
         render(<RulesPanel planet={admin}/>)
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         const board = screen.getByLabelText("Board its fresh map plays") as HTMLSelectElement
-        expect(board.value).toBe("board:siege-1")
-        expect([...board.options].map(option => option.textContent)).toEqual(["Default (the world's)", "The world's", "earth-1", "siege-1"])
+        expect(board.value).toBe("board:moon-1")
+        expect([...board.options].map(option => option.textContent))
+            .toEqual(["Default (the world's)", "The world's", "earth-1", "earth-2", "siege-1", "moon-1"])
         type("Clicks a second", "0.5")
         save()
         await waitFor(() => expect(sent(admin)).toBeDefined())
-        expect(sent(admin)?.rules?.arena?.board).toBe("siege-1")
+        expect(sent(admin)?.rules?.arena?.board).toBe("moon-1")
 
         fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
         fireEvent.change(screen.getByLabelText("Board its fresh map plays"), {target: {value: "board:earth-1"}})

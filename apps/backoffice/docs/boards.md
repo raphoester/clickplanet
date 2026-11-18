@@ -7,20 +7,24 @@ answer that names tiles names their board, and the page places them on that boar
 
 - **`npm run map`** (`scripts/syncMap.mjs`) copies every board in `/map/boards` into `src/gen/map/<name>/`, its manifest
   and its runs, and writes `src/gen/map/boards.ts`: `BOARDS`, each board's manifest and the address Vite serves its
-  runs at (`?url`, a file under `/assets/` each, 121 KB for `earth-1`). A directory whose manifest names another board
-  stops it. Only `earth-1` exists today.
+  runs at (`?url`, a file under `/assets/` each, 121 KB for `earth-1`, 282 KB for `earth-2`, 30 KB for `siege-1`). A
+  directory whose manifest names another board stops it. Three exist: `earth-1`, and `earth-2` and `siege-1`, which
+  nothing plays yet.
 - **`boards.ts`**: `BOARDS`, a `Map` by name of `{board, runsUrl}`, and `boardOf(name)`, which refuses a name the page
-  does not carry (`earth-9 is not a board this page carries (it has earth-1)`) and an answer that names none (`""`). A
+  does not carry (`earth-9 is not a board this page carries (it has earth-1, earth-2, siege-1)`) and an answer that names none (`""`). A
   page shows the refusal where the tiles would be drawn, and the rest of what it read.
 - **`places.ts`**: `loadPlaces(name)` reads a board's runs the first time an answer names it, rebuilds its positions
   and keeps them for the page load, one promise a board (a failed read is forgotten, so Try again reads it again).
   `Places` carries its `board` (the manifest) beside each tile's latitude and longitude, so whatever reads them knows
   the board's spacing. Each tile's latitude and longitude are read as the map's generator reads a point: `asin(y)` and
   `atan2(z, -x)`.
-- **`lattice.ts`** is the backoffice's own copy of the game page's lattice: it walks the lattice in three's order and
-  keeps the points the runs hold, to the bit, about 0.1 s for `earth-1`, on the page itself. A rebuild whose hash
-  differs from the manifest's `positionsHash` is logged with the board's name and kept. A warp, a rotation or the
-  canonical order is refused until `earth-2` brings them (PR 4). The CSP's `connect-src` holds `'self'` for the runs.
+- **`lattice.ts`** is the backoffice's own copy of the game page's lattice: it walks the lattice in the board's order
+  (three's walk for `earth-1`, canonical ids for `earth-2` and `siege-1`) and keeps the points the runs hold, to the bit,
+  about 0.1 s for `earth-1`, on the page itself. A warped and rotated board's point is its barycentric weights warped
+  and summed over the manifest's rotated corners, in the game page's order of operations (see the root's
+  [Boards](../../../docs/boards.md#the-geometry)); `boards.test.ts` rebuilds both new boards to their hashes. A rebuild
+  whose hash differs from the manifest's `positionsHash` is logged with the board's name and kept. An order but `three`
+  or `canonical`, or corners that are not 36 numbers, are refused. The CSP's `connect-src` holds `'self'` for the runs.
 
 **Who reads a board:**
 

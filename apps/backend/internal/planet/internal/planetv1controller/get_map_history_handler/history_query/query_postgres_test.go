@@ -116,7 +116,6 @@ func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWin
 func (s *testSuite) TestTheWorldsMapStandsStillOverAnArenaAndJoinsUpAfterIt() {
 	ctx := s.T().Context()
 	battle := clicks.MapID("battle").On(clicks.TestBoard)
-	s.Require().NoError(eras.KeepRow(ctx, s.db, eras.Earth2))
 	s.record(
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(10 * time.Minute)},
 		ledger.Staged{On: battle, Event: ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "br", At: since.Add(30 * time.Minute)}},

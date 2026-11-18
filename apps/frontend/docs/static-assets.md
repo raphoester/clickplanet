@@ -7,7 +7,8 @@ kind of hash-named file needs its own `_headers` rule. Each has a generated TS m
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
 cache entirely:
 
-- `/static/boards/<board>/` — each board's files, for every board in `/map`, every one content-addressed: its manifest
+- `/static/boards/<board>/` — each board's files, for every board in `/map` (`earth-1`, the world's; `earth-2` and
+  `siege-1`, which nothing plays yet), every one content-addressed: its manifest
   (`board-<hash>.json`), its runs (`runs-<hash>.bin`, which lattice points are tiles: `points.ts`
   rebuilds every tile's position from them in a worker, see [Tile positions](tile-positions.md)),
   its borders (whose ground each tile sits on, fetched by `borderField.ts`), and its capitals and

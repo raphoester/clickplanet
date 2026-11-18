@@ -5,6 +5,7 @@ import {regions} from "./atlas.ts"
 import {resetWarnOnce} from "../../domain/warnOnce.ts"
 import type {TileGeometry} from "./points.ts"
 import {chunksOf} from "../../domain/tileChunks.ts"
+import {threeLattice} from "../../domain/lattice.ts"
 
 const SIZE = 32
 
@@ -58,7 +59,7 @@ function fieldOf(compact: boolean, size = SIZE, uniforms = uniformsOf()) {
     const data: TileGeometry = {
         positions,
         size,
-        cells: {cols: 1, words: new Uint32Array(2), texels, tiles: Uint32Array.from({length: size}, (_, i) => size - 1 - i)},
+        cells: {lattice: threeLattice(1), words: new Uint32Array(2), texels, tiles: Uint32Array.from({length: size}, (_, i) => size - 1 - i)},
         chunks: chunksOf(positions),
     }
     return new TileField(uniforms, data, {compact})

@@ -48,15 +48,32 @@ func TestABoardThisAppDoesNotCarryHasNoScale(t *testing.T) {
 	require.ErrorIs(t, err, cpboards.ErrUnknownBoard)
 }
 
-func TestTheShippedBoardsAreEarth1AndTheTestsFixtureBesideIt(t *testing.T) {
+func TestTheShippedBoardsAndTheTestsFixtureBesideThem(t *testing.T) {
 	boards, err := cpboards.Boards(cpboards.Files())
 	require.NoError(t, err)
 
-	names := make([]string, len(boards))
-	for i, board := range boards {
-		names[i] = board.Manifest.Name
+	hashes := map[string]string{}
+	for _, board := range boards {
+		hashes[board.Manifest.Name] = board.Hash()
 	}
-	assert.Equal(t, []string{"earth-1", cpboards.Fixture}, names)
-	assert.Equal(t, "3fb28bdf", boards[0].Hash())
-	assert.Equal(t, "cb8330a8", boards[1].Hash(), "another board")
+	assert.Equal(t, map[string]string{
+		"earth-1":        "3fb28bdf",
+		"earth-2":        "5a61c10a",
+		cpboards.Fixture: "cb8330a8",
+		"siege-1":        "e219e852",
+	}, hashes)
+}
+
+func TestEarth2IsAboutFourTimesAsDenseAndSiege1ATenthAsDense(t *testing.T) {
+	earth2, err := cpboards.ScaleOf("earth-2")
+	require.NoError(t, err)
+	assert.InDelta(t, 0.5042, earth2.Length(), 0.0001, "13.0 km apart, against 25.9")
+	assert.Equal(t, 3933, earth2.Tiles(1_000), "a mission floor of 1,000 tiles is 3,933")
+	assert.InDelta(t, 99.16, earth2.Zoom(50), 0.01, "the max zoom keeps a tile as wide")
+
+	siege1, err := cpboards.ScaleOf("siege-1")
+	require.NoError(t, err)
+	assert.InDelta(t, 3.067, siege1.Length(), 0.001, "79 km apart")
+	assert.Equal(t, 106, siege1.Tiles(1_000))
+	assert.InDelta(t, 16.30, siege1.Zoom(50), 0.01)
 }

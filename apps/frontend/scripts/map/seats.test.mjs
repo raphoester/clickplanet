@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 
 import {SEA} from "./ground.mjs"
-import {SEATS, positionOf, seat} from "./seats.mjs"
+import {SEATS, SEATS_BY_BOARD, positionOf, seat, seatsOf} from "./seats.mjs"
 
 // A strip of five vertices along the equator, a degree apart, each touching the next.
 const strip = (grounds) => {
@@ -55,6 +55,17 @@ describe("seat", () => {
         expect(() => seat(grounds, positions, edges, {nr: {at: [3, 0]}, tv: {at: [3.1, 0]}})).toThrow(/one vertex/)
     })
 
+    it("gives a seat beside another the nearest vertex the other did not take", () => {
+        const {grounds, positions, edges} = strip(["fr", SEA, SEA, SEA, SEA])
+        const placed = seat(grounds, positions, edges, {je: {at: [3, 0]}, gg: {at: [3.1, 0], beside: "je"}})
+        expect(placed.map(({code, vertex}) => [code, vertex])).toEqual([["je", 3], ["gg", 4]])
+    })
+
+    it("refuses a seat beside one no seat before it is", () => {
+        const {grounds, positions, edges} = strip(["fr", SEA, SEA, SEA, SEA])
+        expect(() => seat(grounds, positions, edges, {gg: {at: [3.1, 0], beside: "je"}, je: {at: [3, 0]}})).toThrow(/beside je/)
+    })
+
     it("needs to know whether a country that takes land is on the coast", () => {
         const {grounds, positions, edges} = strip(["fr", "fr", SEA, SEA, SEA])
         expect(() => seat(grounds, positions, edges, {mc: {at: [1, 0], takes: "fr"}})).toThrow(/coast/)
@@ -66,5 +77,26 @@ describe("SEATS", () => {
         for (const {takes, coast} of Object.values(SEATS)) {
             if (takes !== undefined) expect(typeof coast).toBe("boolean")
         }
+    })
+})
+
+describe("SEATS_BY_BOARD", () => {
+    it("keeps earth-1's seats as they were", () => {
+        expect(seatsOf("earth-1")).toBe(SEATS)
+    })
+
+    it("says of every seat that takes ground whether it is on the coast, and is beside only a seat before it", () => {
+        for (const [board, seats] of Object.entries(SEATS_BY_BOARD)) {
+            const before = new Set()
+            for (const [code, {takes, coast, beside}] of Object.entries(seats)) {
+                if (takes !== undefined) expect(typeof coast, `${board} ${code}`).toBe("boolean")
+                if (beside !== undefined) expect(before.has(beside), `${board} ${code}`).toBe(true)
+                before.add(code)
+            }
+        }
+    })
+
+    it("refuses a board it has no seats for", () => {
+        expect(() => seatsOf("earth-9")).toThrow(/no seats for board earth-9/)
     })
 })

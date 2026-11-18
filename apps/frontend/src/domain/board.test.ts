@@ -70,9 +70,21 @@ describe("tilesOf", () => {
         expect(() => tilesOf(lattice(cols), [[0, latticeSize(cols)]], 1)).toThrow(/past the lattice/)
     })
 
-    it("refuses what is not built yet", () => {
-        expect(() => tilesOf({...lattice(cols), order: "canonical"} as unknown as Lattice, runs, kept.length)).toThrow(/order canonical/)
-        expect(() => tilesOf({...lattice(cols), warp: {}} as unknown as Lattice, runs, kept.length)).toThrow(/warped/)
+    it("refuses an order no lattice has", () => {
+        expect(() => tilesOf({...lattice(cols), order: "spiral"} as unknown as Lattice, runs, kept.length)).toThrow(/order spiral/)
+    })
+
+    it("numbers a canonical board's tiles in canonical order, each at its warped and rotated position", () => {
+        const shape: Lattice = {...BOARDS["earth-2"].lattice, cols}
+        const tiles = tilesOf(shape, runs, kept.length)
+        const all = latticePositions(shape)
+        const sorted = kept.map((point) => ids[point]).sort((a, b) => a - b)
+
+        expect(Array.from(tiles.ids)).toEqual(sorted)
+        expect(Array.from(tiles.points)).toEqual(sorted)
+        sorted.forEach((id, tile) => {
+            expect(Array.from(tiles.positions.subarray(tile * 3, tile * 3 + 3))).toEqual(Array.from(all.subarray(id * 3, id * 3 + 3)))
+        })
     })
 })
 
@@ -86,7 +98,7 @@ describe("rebuildTiles", () => {
         const {positions, cells, hash} = rebuildTiles(lattice(cols), kept.length, runs)
 
         expect(hash).toBe(positionsHash(positions))
-        expect(cells.cols).toBe(cols)
+        expect(cells.lattice).toEqual(lattice(cols))
         expect(cells.texels.length).toBe(kept.length)
     })
 })

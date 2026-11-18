@@ -1,6 +1,7 @@
 import {describe, expect, it} from "vitest"
 
-import {bridgesOf, piecesApart} from "./bridges.mjs"
+import {EARTH_1_SPACING} from "../../src/domain/boardScale.ts"
+import {SNAP_KM, bridgesOf, piecesApart, snapKmOf} from "./bridges.mjs"
 import {positionOf} from "./seats.mjs"
 
 // Tiles at the [lon, lat] given, then one sea vertex that every tile in `coast` touches; `land` pairs tiles that touch.
@@ -52,9 +53,21 @@ describe("bridgesOf", () => {
     })
 
     it("adds each sea lane, snapped to the nearest coast that is no capital", () => {
-        const map = mapOf([0, 1, 10, 20])
+        const map = mapOf([0, 1, 10, 20], {land: [[0, 1]]})
         const lanes = {"a lane": [[0.4, 0.5], [19.5, -0.5]]}
         expect(bridgesOf({...map, capitals: {aa: 1}}, lanes).bridges).toContainEqual([2, 4])
+    })
+
+    it("lands a lane on a capital whose land has no other coast, as a stone does", () => {
+        const map = mapOf([0, 1, 10, 20])
+        const lanes = {"a lane": [[0.4, 0.5], [19.5, -0.5]]}
+        expect(bridgesOf({...map, capitals: {aa: 1}}, lanes).bridges).toContainEqual([1, 4])
+    })
+
+    it("lets a lane's point lie as many of a coarser board's spacings from its coast", () => {
+        expect(snapKmOf(EARTH_1_SPACING)).toBe(SNAP_KM)
+        expect(snapKmOf(EARTH_1_SPACING / 2)).toBe(SNAP_KM)
+        expect(snapKmOf(EARTH_1_SPACING * 3)).toBeCloseTo(SNAP_KM * 3, 9)
     })
 
     it("refuses a lane whose point is far from every coast", () => {

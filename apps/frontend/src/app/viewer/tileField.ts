@@ -29,7 +29,8 @@ const CULL_SLACK = 0.25
 const MAX_ROW_UPLOADS = 16
 
 // Must match TILE_COLUMNS in shaders/territory/fragment.glsl.
-export const TILE_COLUMNS = 512
+// 1,024 columns: earth-2's 1,004,682 tiles fill 982 rows; at 512 they would fill 1,963 of the 2,048 WebGL2 guarantees.
+export const TILE_COLUMNS = 1024
 
 // Must match LIMB in shaders/display/vertex.glsl, and the throw it adds.
 const LIMB = 0.05

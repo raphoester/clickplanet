@@ -31,7 +31,14 @@ two. `tileField.test.ts` pins both. It was 56 bytes: four floats for the rectang
 mark, and three floats of picking colour, which went with the GPU picker (see [The tile under the pointer](picking.md)).
 
 **The territory layer reads the same flag numbers from a texture**, `TileField.tileData`: each tile's flag and
-landmass, two u16, at the texel `cellsOf` gives it (1 MB), in both layouts. See [The zoomed-out view](zoomed-out-view.md).
+landmass, two u16, at the texel `cellsOf` gives it (1 MB on `earth-1`, 4 MB on `earth-2`), in both layouts. See
+[The zoomed-out view](zoomed-out-view.md). **It is 1,024 texels a row** (`TILE_COLUMNS`, and the territory shader's):
+at 512, `earth-2`'s 1,004,682 tiles would fill 1,963 of the 2,048 rows WebGL2 guarantees, and a board a little larger
+none; at 1,024 they fill 982. The other textures sized from the board: the terrain, a byte a lattice point, 2,048 a row
+(`TERRAIN_COLUMNS`: `earth-2`'s 3,481,002 points fill 1,700 rows, which 1,024 a row could not hold); `tileCells`, a pair
+of words per 32 points, 256 a row (425 rows on `earth-2`); the landmasses' data, a row a landmass (1,175 on `earth-2`,
+of 2,048); the aimed outlines, 1,024 landmasses a row. Nothing else on the GPU is sized by the tile count but the
+vertex buffers, which have no such limit.
 
 **A change sends only what changed.** `TileField.uploadTiles` sends the rows of `tileData` that hold a changed texel,
 a run of rows as one, at most 16; an attribute gets the changed tiles' values, two tiles apart or less as one range, at

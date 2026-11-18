@@ -10,14 +10,14 @@ writeBoardsTable()
 
 function traceBorderLines(name) {
     const board = readBoard(boardDir(name))
-    const {cols} = board.manifest.lattice
-    say(`walking the lattice of ${board.manifest.name} at cols ${cols}...`)
-    const lattice = latticePositions(cols)
+    const {lattice: shape} = board.manifest
+    say(`walking the lattice of ${board.manifest.name} at cols ${shape.cols}...`)
+    const lattice = latticePositions(shape)
     const px = [], py = [], pz = []
-    for (let v = 0; v < latticeSize(cols); v++) {
+    for (let v = 0; v < latticeSize(shape.cols); v++) {
         px.push(lattice[v * 3]); py.push(lattice[v * 3 + 1]); pz.push(lattice[v * 3 + 2])
     }
-    const corners = latticeTriangles(cols)
+    const corners = latticeTriangles(shape)
     const vertices = px.length
     const faces = corners.length / 3
     say(`lattice: ${vertices} vertices, ${faces} triangles`)

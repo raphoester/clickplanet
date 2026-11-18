@@ -68,6 +68,57 @@ export function landKinds(labs) {
 }
 
 /**
+ * The kind of each tile the photo shows as sea, from its tiles around. The photo's coast was cut to earth-1's tiles, so
+ * a tile another board puts where earth-1 had sea reads the photo's blue, which is no kind of land. Wave by wave, each
+ * such tile whose tiles around have a kind takes the one most of them have (the lower kind on a tie); one that none
+ * reaches, an island earth-1 did not have, takes `fallback`'s.
+ * @param {Uint8Array} kinds per tile, changed in place
+ * @param {Uint8Array} astray per tile: 1 where the photo shows sea
+ * @param {{at: Uint32Array, to: Uint32Array, tileOf: Int32Array}} lattice from `tileLattice`
+ * @param {Uint32Array} points each tile's lattice point
+ * @param {(tile: number) => number} fallback
+ * @returns {{neighbours: number, fallback: number}} how many tiles took each
+ */
+export function kindsFromNeighbours(kinds, astray, {at, to, tileOf}, points, fallback) {
+    const known = Uint8Array.from(astray, (off) => off ? 0 : 1)
+    let pending = []
+    for (let t = 0; t < astray.length; t++) if (astray[t]) pending.push(t)
+    const votes = new Uint16Array(LAND.length)
+    let taken = 0
+    while (pending.length > 0) {
+        const waiting = []
+        const assigned = []
+        for (const t of pending) {
+            votes.fill(0)
+            let any = false
+            const v = points[t]
+            for (let e = at[v]; e < at[v + 1]; e++) {
+                const other = tileOf[to[e]]
+                if (other < 0 || !known[other]) continue
+                votes[kinds[other]]++
+                any = true
+            }
+            if (!any) {
+                waiting.push(t)
+                continue
+            }
+            let best = 0
+            for (let k = 1; k < LAND.length; k++) if (votes[k] > votes[best]) best = k
+            assigned.push(t, best)
+        }
+        if (assigned.length === 0) break
+        for (let k = 0; k < assigned.length; k += 2) {
+            kinds[assigned[k]] = assigned[k + 1]
+            known[assigned[k]] = 1
+        }
+        taken += assigned.length / 2
+        pending = waiting
+    }
+    for (const t of pending) kinds[t] = fallback(t)
+    return {neighbours: taken, fallback: pending.length}
+}
+
+/**
  * Speckle into patches: each tile takes the kind most of its neighbours and itself have, its own counting twice.
  * @param {Uint8Array} kinds per tile
  * @param {{at: Uint32Array, to: Uint32Array, tileOf: Int32Array}} lattice from `tileLattice`

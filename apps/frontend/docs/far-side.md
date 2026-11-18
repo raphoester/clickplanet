@@ -7,7 +7,8 @@ size of the map. `TileField.cull` runs before each frame that is drawn.
   (about 640 km) from its first tile and at most 1,024 tiles long. Tile ids follow the lattice's rows, so a chunk is a
   piece of a row. Each chunk has a cap of the sphere that holds all its tiles: a centre and an angle. Each 32
   consecutive chunks make a block, with a cap of its own. The lattice worker builds them with the positions: 12,234
-  chunks on `earth-1`, 24,189 on a test map of 1M tiles.
+  chunks on `earth-1`, 24,106 on `earth-2` and 3,815 on `siege-1`. A board in canonical order keeps them short: its
+  ids run along each of the 30 edges, then each face's inside row by row.
 - **In sight.** `showingChunks` skips a block out of sight whole, takes a block wholly in sight whole, and tests each
   chunk of the others. A cap is behind the earth when all of it is past the limb the display vertex shader uses below,
   and off screen when it is past the screen's edge with room for the largest sprite (a blast swells a tile up to 4
@@ -23,7 +24,8 @@ size of the map. `TileField.cull` runs before each frame that is drawn.
 - **Not when the globe fills the screen.** While the screen shows more than half the globe's disc (`CULL_BELOW`), the
   zoom of the landing view and below, every tile is one draw, as before: what is out of sight then is mostly the far
   side, which the vertex shader drops as cheaply, and finding the pieces cost more than it saved.
-- **Tested.** `tileChunks.test.ts` pins it on the shipped map: every tile in exactly one chunk, every cap holding its
+- **Tested.** `tileChunks.test.ts` pins it on every shipped board, `earth-1` in three's order and `earth-2` and
+  `siege-1` in canonical order: every tile in exactly one chunk, every cap holding its
   tiles, every block its chunks, and, from several cameras, no tile the shader would draw in a chunk left out.
   `tileField.test.ts` pins the pieces kept through small moves against every tile in sight.
 

@@ -199,7 +199,8 @@ function start(backends: Backends) {
 }
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
-    const played = boardOf(FIRST_BOARD)
+    // `?fakeBoard=earth-2` plays another board the page carries, to measure it (docs/boards.md); earth-1 otherwise.
+    const played = boardOf(new URLSearchParams(window.location.search).get("fakeBoard") ?? FIRST_BOARD)
     const borders = loadBorders(played.urls.borders)
     const fake = new FakeBackend(100, {
         board: played,

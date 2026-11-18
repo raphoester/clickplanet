@@ -30,28 +30,33 @@ this app's committed copy of something the root owns, written by a `make` target
 by hand (`make map` copies [`/map/boards`](../../../map/README.md)). The vendored VPN ranges sit next to their reader
 instead (`shared/cpipblock/cpdata`) because they come from a third party, not from `/`. The directory is `map` to
 mirror its source; the package is `mapdata`, since `map` is a keyword, and `cpboards` reads it for every module. It holds
-one board today, `earth-1`; PR 4 adds `earth-2` and `siege-1` beside it (see [Boards](../../../docs/boards.md)). A test
+three boards: `earth-1`, which the world plays, and `earth-2` and `siege-1`, which nothing plays yet (PR 4 of
+[Boards](../../../docs/boards.md)). A test
 binary carries a fixture too (`cpboards.Fixture`, `fixture-1`: a coarse earth at `cols` 31, 2,998 tiles), embedded
 under the `testing` tag from `internal/shared/cpboards/testdata`, which the page's `npm run map:fixture` writes.
 
 That line also splits the checks. The domain enforces what is true of any map; the adapter enforces
-what is true of *this* board — each file's tile count against its manifest's, a lattice it can walk (no warp, no
-rotation, three's order), runs inside that lattice, and positions that hash to the manifest's `positionsHash`.
+what is true of *this* board — each file's tile count against its manifest's, a lattice it can walk (an order it knows,
+`three` or `canonical`, a warp of three numbers, and twelve corners or none), runs inside that lattice, and positions
+that hash to the manifest's `positionsHash`.
 
 And it splits the tests. `domain` is tested against a hand-built patch of honeycomb — fast, no board,
 and it says what `Geography` does rather than what the shipped board happens to contain.
 `embedded_board` is tested against the real board, and holds every number below.
 
 **The tile grid is a regular honeycomb, not an arbitrary numbering.** Tile ids look like noise but
-they are the land points of `THREE.IcosahedronGeometry(1, 300)`, numbered in the order three walks them — a
-geodesic sphere, where **every interior point has exactly 6 neighbours** and the 12 icosahedron
+they are the land points of an icosahedral lattice — `earth-1`'s are those of `THREE.IcosahedronGeometry(1, 300)`,
+numbered in the order three walks them; `earth-2`'s and `siege-1`'s those of a warped and rotated one, numbered in
+canonical id order — a geodesic sphere, where **every interior point has exactly 6 neighbours** and the 12 icosahedron
 corners have 5. The lattice and the evidence for it are in [`/map/README.md`](../../../map/README.md).
 
 ## Where every tile is
 
-`lattice.go` walks the lattice as the page's `lattice.ts` does: each face's triangles row by row, each point the first
-time three's walk reaches it, by its canonical id. A point is a tile when its canonical id is in one of the board's
-runs; a tile's id is its rank among the tiles in that walk, plus one.
+`lattice.go` walks the lattice as the page's `lattice.ts` does, in the board's order (`latticeShape.walk`): for
+`earth-1`, each face's triangles row by row, each point the first time three's walk reaches it, by its canonical id;
+for `earth-2` and `siege-1`, the canonical ids in order (`walkCanonical`: the 12 corners, the 30 edges, each face's
+inside row by row). A point is a tile when its canonical id is in one of the board's runs; a tile's id is its rank
+among the tiles in that walk, plus one.
 
 **Each position is three's, to the bit.** The point lerps across the face's **un-normalised** corners
 (`a + (c − a)·t`, then along the row) and is normalised after — THREE lerps the flat triangle and normalises
@@ -60,6 +65,28 @@ own: **the lerp's product is converted to `float64` before the add**, because th
 multiply into an add, and arm64 does — fused, the rebuild hashes to `5e72d311` instead of the manifest's `3fb28bdf`.
 The boot refuses positions whose hash differs from the manifest's, the hash the page and the backoffice check theirs
 against; `TestEveryPositionIsThePagesToTheBit` pins it.
+
+**A warped and rotated board is the page's to the bit too** (`latticeShape.position`). Its point's barycentric weights
+`(cols − i − j, j, i) / cols` are warped (`latticeWarp.weights`: `h_k = w_k·((1 + a·w_k) + b·(w_k·w_k)) +
+((c·wa)·wb)·wc`, each over `(ha + hb) + hc`), then summed over the face's rotated corners, `(wa·A + wb·B) + wc·C`, and
+normalised as above. The order of operations is the page's, and **every product is converted to `float64` on its own**,
+the warp's as the lerp's: `GOARCH=arm64 go build -gcflags=-S` of the package shows no `FMADDD`, where `a*b + c` alone
+compiles to one. Run as an arm64 binary under `qemu-aarch64-static` (`GOARCH=arm64 go test -exec
+qemu-aarch64-static`), the package rebuilds every tile of all three boards to their manifests' hashes (2026-11-18). A
+point on an edge or a corner comes out the same bits from every face it is on (its third weight is 0, and the sums take
+it in any order), so the canonical walk may reach it from any face; `lattice_test.go` checks it.
+
+**What `earth-2` costs the boot** (`TestEarth2LoadsInSecondsAndKeepsTensOfMegabytes`, 2026-11-18, on 4 vCPUs): 1,004,682
+tiles in 0.8 to 0.9 s, 302 MB allocated while it builds the edges, about 47 MB kept after a collection, about 260 MB of
+process memory at the peak. It loads only when a map plays it. `TestTheNewBoardsLoadEveryTileWhereThePagePutsIt` pins
+each new board's edges, degrees, positions hash and pieces of land:
+
+| | `earth-1` | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| tiles | 260,503 | 1,004,682 | 27,259 |
+| edges | 761,422 | 2,966,323 | 77,006 |
+| degrees 0 to 6 | 250, 527, 1,154, 4,072, 6,368, 6,471, 241,661 | 391, 1,021, 2,534, 10,116, 16,340, 14,831, 959,449 | 105, 159, 340, 897, 1,373, 1,320, 23,065 |
+| pieces of land, the four largest | 505: 142,792, 67,352, 22,871, 12,402 | 975: 539,916, 255,116, 94,085, 51,996 | 173: 14,808, 3,872, 3,282, 2,537 |
 
 ## How adjacency is computed
 

@@ -1,6 +1,7 @@
 package embedded_board
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -167,6 +168,147 @@ func walkLattice(cols int, visit func(face, i, j int, id canonicalID)) {
 			}
 		}
 	}
+}
+
+// walkCanonical visits each point once, in canonical id order: the 12 corners, then the 30 edges step by step from their
+// lower corner, then each face's inside, row by row. A point on an edge or a corner comes out the same from every face it
+// is on, to the bit, so the face it is reached from does not matter.
+func walkCanonical(cols int, visit func(face, i, j int, id canonicalID)) {
+	ids := latticeFaceIDs(cols)
+	// (i, j) of a face's corners a, b, c.
+	at := [3][2]int{{0, 0}, {0, cols}, {cols, 0}}
+	place := func(face, corner int) (int, int, bool) {
+		for k, of := range icosahedronFaces[face] {
+			if of == corner {
+				return at[k][0], at[k][1], true
+			}
+		}
+		return 0, 0, false
+	}
+
+	id := canonicalID(0)
+	for corner := range cornerCount {
+		for face := range faceCount {
+			if i, j, ok := place(face, corner); ok {
+				visit(face, i, j, id)
+				id++
+				break
+			}
+		}
+	}
+
+	for _, edge := range latticeEdgeList() {
+		for face := range faceCount {
+			fi, fj, fromOK := place(face, edge[0])
+			ti, tj, toOK := place(face, edge[1])
+			if !fromOK || !toOK {
+				continue
+			}
+			di, dj := (ti-fi)/cols, (tj-fj)/cols
+			for step := 1; step < cols; step++ {
+				visit(face, fi+di*step, fj+dj*step, id)
+				id++
+			}
+			break
+		}
+	}
+
+	for face := range faceCount {
+		if id != ids[face].inside {
+			panic(fmt.Sprintf("face %d's inside starts at %d, not %d", face, ids[face].inside, id))
+		}
+		for i := 1; i < cols-1; i++ {
+			for j := 1; j < cols-i; j++ {
+				visit(face, i, j, id)
+				id++
+			}
+		}
+	}
+}
+
+// latticeEdgeList is the 30 edges, as their two corners, the lower first, in the order their canonical ids run.
+func latticeEdgeList() [][2]int {
+	var seen [cornerCount][cornerCount]bool
+	edges := make([][2]int, 0, edgeCount)
+	for _, corners := range icosahedronFaces {
+		a, b, c := corners[0], corners[1], corners[2]
+		for _, pair := range [3][2]int{{a, b}, {b, c}, {a, c}} {
+			low, high := min(pair[0], pair[1]), max(pair[0], pair[1])
+			if seen[low][high] {
+				continue
+			}
+			seen[low][high] = true
+			edges = append(edges, [2]int{low, high})
+		}
+	}
+	return edges
+}
+
+// latticeWarp is a board's warp of a point's barycentric weights (docs/boards.md, "The geometry").
+type latticeWarp struct {
+	a, b, c float64
+}
+
+// latticeShape is the lattice a board's manifest describes: three's (no warp, no rotation, three's order) or a warped
+// and rotated one in canonical order.
+type latticeShape struct {
+	cols    int
+	warp    *latticeWarp
+	corners [cornerCount]clicks.Vec3
+	threes  bool
+	order   string
+}
+
+const (
+	threesOrder    = "three"
+	canonicalOrder = "canonical"
+)
+
+// walk visits each point once in the board's tile order: three's walk, or canonical.
+func (s latticeShape) walk(visit func(face, i, j int, id canonicalID)) {
+	if s.order == canonicalOrder {
+		walkCanonical(s.cols, visit)
+		return
+	}
+	walkLattice(s.cols, visit)
+}
+
+// position is (face, i, j)'s place on the sphere, as the page rebuilds it, to the bit.
+func (s latticeShape) position(face, i, j int) [3]float32 {
+	if s.threes {
+		return latticePosition(s.cols, face, i, j)
+	}
+	cols := float64(s.cols)
+	wa, wb, wc := float64(s.cols-i-j)/cols, float64(j)/cols, float64(i)/cols
+	if s.warp != nil {
+		wa, wb, wc = s.warp.weights(wa, wb, wc)
+	}
+	a := s.corners[icosahedronFaces[face][0]]
+	b := s.corners[icosahedronFaces[face][1]]
+	c := s.corners[icosahedronFaces[face][2]]
+
+	// (wa·A + wb·B) + wc·C, each product rounded on its own: fused into the add, it would round once and move a tile.
+	x := float64(wa*a.X) + float64(wb*b.X) + float64(wc*c.X)
+	y := float64(wa*a.Y) + float64(wb*b.Y) + float64(wc*c.Y)
+	z := float64(wa*a.Z) + float64(wb*b.Z) + float64(wc*c.Z)
+	scale := 1 / math.Sqrt(float64(x*x)+float64(y*y)+float64(z*z))
+	return [3]float32{float32(x * scale), float32(y * scale), float32(z * scale)}
+}
+
+// weights warps barycentric weights as the page does: h_k = w_k·((1 + a·w_k) + b·(w_k·w_k)) + ((c·wa)·wb)·wc, then each
+// over (ha + hb) + hc. Every product is converted on its own, so none is fused into an add.
+func (w latticeWarp) weights(wa, wb, wc float64) (float64, float64, float64) {
+	shared := float64(float64(float64(w.c*wa)*wb) * wc)
+	ha := w.lifted(wa) + shared
+	hb := w.lifted(wb) + shared
+	hc := w.lifted(wc) + shared
+	sum := ha + hb + hc
+	return ha / sum, hb / sum, hc / sum
+}
+
+// lifted is w·((1 + a·w) + b·(w·w)).
+func (w latticeWarp) lifted(of float64) float64 {
+	return float64(of * (float64(1+float64(w.a*of)) + float64(w.b*float64(of*of))))
 }
 
 // latticePosition is three's, to the bit, as every app rebuilds it.

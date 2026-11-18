@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"math"
 	"sync"
 	"time"
 
@@ -39,7 +40,7 @@ func New(files fs.FS, flags func(country string) bool, logger *slog.Logger) *Reg
 }
 
 // Load reads every board's manifest, refusing no board, and a board whose manifest names a lattice this build cannot
-// walk.
+// walk: a tile order it does not know, a warp or corners that are not numbers.
 func (r *Registry) Load() error {
 	boards, err := cpboards.Boards(r.files)
 	if err != nil {
@@ -60,16 +61,51 @@ func (r *Registry) Load() error {
 }
 
 func checkLattice(m cpboards.Manifest) error {
-	if m.Lattice.Cols < 2 {
-		return fmt.Errorf("a lattice of %d cols", m.Lattice.Cols)
+	_, err := shapeOf(m)
+	return err
+}
+
+// shapeOf is the lattice the manifest describes: its cols, its warp and rotated corners (three's when it has none) and
+// its tile order.
+func shapeOf(m cpboards.Manifest) (latticeShape, error) {
+	lattice := m.Lattice
+	if lattice.Cols < 2 {
+		return latticeShape{}, fmt.Errorf("a lattice of %d cols", lattice.Cols)
 	}
-	if m.Lattice.Warp != nil || m.Lattice.Corners != nil {
-		return fmt.Errorf("a warped or rotated lattice is not built yet")
+	if lattice.Order != threesOrder && lattice.Order != canonicalOrder {
+		return latticeShape{}, fmt.Errorf("tile order %q is no lattice's", lattice.Order)
 	}
-	if m.Lattice.Order != "three" {
-		return fmt.Errorf("tile order %q is not built yet", m.Lattice.Order)
+	shape := latticeShape{
+		cols:    lattice.Cols,
+		corners: icosahedronCorners,
+		threes:  lattice.Warp == nil && lattice.Corners == nil,
+		order:   lattice.Order,
 	}
-	return nil
+	if warp := lattice.Warp; warp != nil {
+		if !finite(warp.A, warp.B, warp.C) {
+			return latticeShape{}, fmt.Errorf("a warp of %v, %v, %v", warp.A, warp.B, warp.C)
+		}
+		shape.warp = &latticeWarp{a: warp.A, b: warp.B, c: warp.C}
+	}
+	if lattice.Corners != nil {
+		if len(lattice.Corners) != cornerCount*3 || !finite(lattice.Corners...) {
+			return latticeShape{}, fmt.Errorf("corners of %d numbers, not %d finite ones", len(lattice.Corners), cornerCount*3)
+		}
+		for corner := range cornerCount {
+			at := lattice.Corners[corner*3 : corner*3+3]
+			shape.corners[corner] = clicks.Vec3{X: at[0], Y: at[1], Z: at[2]}
+		}
+	}
+	return shape, nil
+}
+
+func finite(numbers ...float64) bool {
+	for _, number := range numbers {
+		if math.IsNaN(number) || math.IsInf(number, 0) {
+			return false
+		}
+	}
+	return true
 }
 
 // Carried is every board this process carries, as its files name it: its directory, and the hash of its positions in
@@ -165,7 +201,11 @@ func tilesOf(board cpboards.Board) ([]float32, []uint32, error) {
 	if err != nil {
 		return nil, nil, err //nolint:wrapcheck // the board names the file.
 	}
-	cols := manifest.Lattice.Cols
+	shape, err := shapeOf(manifest)
+	if err != nil {
+		return nil, nil, err
+	}
+	cols := shape.cols
 	runs, err := decodeRuns(blob, latticeSize(cols))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to decode %s: %w", manifest.Files.Runs, err)
@@ -181,14 +221,14 @@ func tilesOf(board cpboards.Board) ([]float32, []uint32, error) {
 	tileOf := make([]uint32, len(isTile))
 	positions := make([]float32, 0, int(manifest.Tiles)*3)
 	tile := uint32(0)
-	walkLattice(cols, func(face, i, j int, id canonicalID) {
+	// A tile's id is its rank among the tiles in the board's order, plus one: wire tile ids are 1-based.
+	shape.walk(func(face, i, j int, id canonicalID) {
 		if !isTile[id] {
 			return
 		}
-		// Wire tile ids are 1-based.
 		tile++
 		tileOf[id] = tile
-		position := latticePosition(cols, face, i, j)
+		position := shape.position(face, i, j)
 		positions = append(positions, position[0], position[1], position[2])
 	})
 	if err := checkTiles(board, manifest.Files.Runs, tile); err != nil {

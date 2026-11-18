@@ -13,6 +13,14 @@ the ground into its cell:
 `globe.ts` picks on a hover, a press and a click, with the pixel in drawing-buffer pixels (`canvasPosition`). The bomb's
 and the rally's aim follow `surfacePoint`, a ray against the same sphere, not a tile.
 
+**On a warped board the cell is found in the lattice's own weights.** The gnomonic inverse, the ray met with the face's
+plane, gives the warped weights `w'`; two Newton steps from `w = w'` give the weights the lattice is cut from (`unwarp`
+in `domain/lattice.ts`), within 5e-8 on `earth-2`, where a cell is 1.7e-3 wide (`lattice.test.ts`), and the nearest
+point of the face's grid is taken on them. The territory layer's shader does the same, in float32. Tested on every
+tile of every shipped board (`latticeCells.test.ts`), and checked again as the page loads (`cellsOf`, see
+[Tile positions](tile-positions.md)). A pick costs the same on every board: 0.4 µs at the median, under 1 µs for 99 in
+100, in orbit and zoomed in (`TilePicker.pick` in Node, 2026-11-18).
+
 **A pick anywhere in a tile's cell is that tile, at every zoom.** A tile's disc is 0.76 of the spacing wide
 (`tilePointSize` against `tileSpacing`), so there is ground between two discs. The GPU picker found nothing there once
 the tiles had the frame, and in orbit drew every disc 1.73 times wider for the pick, so that a moving mouse did not

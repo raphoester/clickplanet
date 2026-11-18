@@ -5,6 +5,7 @@ import {fileURLToPath} from "node:url"
 import {decodeRuns, tilesOf} from "../../src/domain/board.ts"
 import {latticeSize, positionsHash} from "../../src/domain/lattice.ts"
 import {decodeTerrain} from "../../src/domain/terrain.ts"
+import {rotatedCorners} from "./warp.mjs"
 
 const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
 
@@ -14,6 +15,35 @@ export const staticDir = path.join(frontendRoot, "static")
 
 // Today's lattice, with no warp and no rotation, its tiles numbered in three's order: the ledger holds those ids.
 export const EARTH_1 = {name: "earth-1", body: "earth", lattice: {cols: 301, warp: null, corners: null, order: "three"}}
+
+// The world's next board, about 1,000,000 tiles 12.5 km apart: the warp fitted at its `cols` (`fitWarp`, pinned in
+// warp.test.mjs), the corners turned so the twelve five-neighbour points are at sea, its tiles in canonical order.
+export const EARTH_2 = {
+    name: "earth-2",
+    body: "earth",
+    lattice: {cols: 590, warp: {a: -0.09142428, b: -0.13039461, c: 0.26096331}, corners: rotatedCorners(), order: "canonical"},
+}
+
+// Capital Siege's board, about 27,000 tiles 79 km apart (the owner, 2026-11-17): 15 players at a click a second fill it
+// in about 30 minutes with no spread.
+export const SIEGE_1 = {
+    name: "siege-1",
+    body: "earth",
+    lattice: {cols: 97, warp: {a: -0.08982266, b: -0.13216128, c: 0.26291902}, corners: rotatedCorners(), order: "canonical"},
+}
+
+// Every board the generator writes, by name: `npm run map:generate -- earth-2`.
+export const BOARD_DEFINITIONS = Object.fromEntries([EARTH_1, EARTH_2, SIEGE_1].map((board) => [board.name, board]))
+
+/**
+ * The board a script is asked for, by name among its arguments: earth-1 when none is.
+ * @param {readonly string[]} args
+ */
+export function boardAsked(args) {
+    const names = args.filter((arg) => !arg.startsWith("-") && arg in BOARD_DEFINITIONS)
+    if (names.length > 1) throw new Error(`one board at a time: ${names.join(", ")}`)
+    return BOARD_DEFINITIONS[names[0] ?? EARTH_1.name]
+}
 
 const MANIFEST = /^board-[0-9a-f]{8}\.json$/
 

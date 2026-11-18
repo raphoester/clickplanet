@@ -129,7 +129,6 @@ func (s *testSuite) TestTheHoldersAreTheTilesOfTheLandmassTheirTakesHold() {
 
 func (s *testSuite) TestTheLastFortifyIsOfTheMapThatPlaysOnItsBoard() {
 	battle := clicks.MapID("battle").On(clicks.TestBoard)
-	s.Require().NoError(eras.KeepRow(s.T().Context(), s.db, eras.Earth2))
 	s.record(
 		fortify(1, ada, "fr", 0),
 		ledger.Staged{On: battle, Event: fortify(1, bob, "br", 20)},

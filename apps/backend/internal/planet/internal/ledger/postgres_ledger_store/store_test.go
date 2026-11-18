@@ -308,7 +308,6 @@ func (s *testSuite) TestAMarkForgetsTheEventsOfItsCallerBeforeItForGood() {
 
 func (s *testSuite) TestEachEventComesBackWithItsMapAndItsBoard() {
 	ctx := context.Background()
-	s.Require().NoError(eras.KeepRow(ctx, s.db, eras.Earth2))
 	inArena := stored(1, 4, "1.2.3.4", "de", "", start)
 	inArena.Entry.Stage = clicks.MapID("battle").On(clicks.TestBoard)
 	onEarth2 := stored(2, 4, "1.2.3.4", "pl", "", start)

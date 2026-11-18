@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
@@ -25,6 +26,61 @@ func TestTheWalkVisitsEveryPointOnce(t *testing.T) {
 			require.True(t, seen.Contains(id), "cols %d: point %d never", cols, id)
 		}
 	}
+}
+
+func TestTheCanonicalWalkVisitsEachPointInIDOrderWhereItsIDIs(t *testing.T) {
+	for _, cols := range []int{2, 5, 13} {
+		ids := latticeFaceIDs(cols)
+		next := canonicalID(0)
+		walkCanonical(cols, func(face, i, j int, id canonicalID) {
+			require.Equal(t, next, id, "cols %d", cols)
+			require.Equal(t, id, ids[face].of(cols, i, j), "cols %d: (%d, %d, %d)", cols, face, i, j)
+			next++
+		})
+		assert.Equal(t, canonicalID(latticeSize(cols)), next, "cols %d", cols)
+	}
+}
+
+// A warped and rotated lattice as earth-2's: its warp and corners.
+func warped(t *testing.T, cols int) latticeShape {
+	t.Helper()
+	board, err := cpboards.Named(cpboards.Files(), "earth-2")
+	require.NoError(t, err)
+	shape, err := shapeOf(board.Manifest)
+	require.NoError(t, err)
+	shape.cols = cols
+	return shape
+}
+
+func TestAWarpedPointOnAnEdgeOrACornerIsTheSameBitsFromEveryFace(t *testing.T) {
+	for _, cols := range []int{5, 12} {
+		shape := warped(t, cols)
+		ids := latticeFaceIDs(cols)
+		first := map[canonicalID][3]float32{}
+		walkCanonical(cols, func(face, i, j int, id canonicalID) { first[id] = shape.position(face, i, j) })
+		for face := range faceCount {
+			for i := 0; i <= cols; i++ {
+				for j := 0; j <= cols-i; j++ {
+					assert.Equal(t, first[ids[face].of(cols, i, j)], shape.position(face, i, j), "cols %d: (%d, %d, %d)", cols, face, i, j)
+				}
+			}
+		}
+	}
+}
+
+func TestAWarpedPointIsOnTheUnitSphereAndItsCornersAreTheRotatedOnes(t *testing.T) {
+	shape := warped(t, 9)
+	walkCanonical(9, func(face, i, j int, id canonicalID) {
+		p := shape.position(face, i, j)
+		length := math.Sqrt(float64(p[0])*float64(p[0]) + float64(p[1])*float64(p[1]) + float64(p[2])*float64(p[2]))
+		assert.InDelta(t, 1, length, 1e-6, "point %d", id)
+		if id < cornerCount {
+			corner := shape.corners[id]
+			scale := 1 / math.Sqrt(corner.X*corner.X+corner.Y*corner.Y+corner.Z*corner.Z)
+			assert.Equal(t, [3]float32{float32(corner.X * scale), float32(corner.Y * scale), float32(corner.Z * scale)}, p,
+				"corner %d", id)
+		}
+	})
 }
 
 func TestEveryPointIsOnTheUnitSphere(t *testing.T) {
