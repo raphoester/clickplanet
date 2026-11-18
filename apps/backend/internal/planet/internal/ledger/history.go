@@ -10,10 +10,12 @@ import (
 
 var ErrInvalidHistory = errors.New("a history starts before it ends, and moves by a step above none")
 
-// Frame is the tiles whose owner changed since the frame before; the first frame holds every tile held.
+// Frame is the tiles whose owner changed since the frame before, or every tile held when it is whole: the window's
+// first, and the first after a cut.
 type Frame struct {
 	At     time.Time
 	Owners map[uint32]Owner
+	Whole  bool
 }
 
 // Owner is whom a tile went to, empty for no one, and when: its last change before the frame.
@@ -69,16 +71,29 @@ func NewHistory(since, until time.Time, step time.Duration, replayed clicks.Stag
 	}, nil
 }
 
-// Cut starts an era of the map on board at at: the frames before it are of the board before, the map is emptied onto
-// board (until the switch carries tiles over), and the first frame after it holds every tile held. An era that started
-// after since is the next of the window's eras; one at or before it is in force at the window's start.
-func (h *History) Cut(at time.Time, board clicks.BoardID) {
+// Carry is a switch of board's carry-over.
+type Carry interface {
+	// Each visits each tile of the board after the switch with the tile of the board before it comes from. A tile with
+	// none is left out: it starts blank.
+	Each(visit func(child, parent uint32))
+}
+
+// Cut starts an era of the map on board at at: the frames before it are of the board before, each tile of board takes
+// the owner of the tile carry says it comes from, and the first frame after it holds every tile held. An era that
+// started after since is the next of the window's eras; one at or before it is in force at the window's start.
+func (h *History) Cut(at time.Time, board clicks.BoardID, carry Carry) {
 	if !at.Before(h.until) {
 		return
 	}
 	h.frameUpTo(at.Add(-time.Nanosecond))
 	h.replayed.Board = board
-	clear(h.owners)
+	before := h.owners
+	h.owners = map[uint32]Owner{}
+	carry.Each(func(child, parent uint32) {
+		if country := before[parent].Country; country != "" {
+			h.owners[child] = Owner{Country: country, At: at}
+		}
+	})
 	clear(h.shown)
 	h.changed.Clear()
 	h.whole = true
@@ -141,7 +156,8 @@ func (h *History) Hits() map[EraTile]uint32 {
 // frameUpTo keeps a frame at each step not after at: an entry at a step's time is in the next frame.
 func (h *History) frameUpTo(at time.Time) {
 	for !h.next.After(at) && !h.next.After(h.until) {
-		h.frames = append(h.frames, Frame{At: h.next, Owners: h.changedOwners()})
+		whole := h.whole
+		h.frames = append(h.frames, Frame{At: h.next, Owners: h.changedOwners(), Whole: whole})
 		h.next = h.next.Add(h.step)
 		if h.next.After(h.until) && h.frames[len(h.frames)-1].At.Before(h.until) {
 			h.next = h.until

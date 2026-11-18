@@ -35,7 +35,9 @@ video made, shared or saved. There is no reward in the game (see [Delivery](#del
 ## The 24 hours
 
 - **Planet's `GetRecentMapHistory`** (the backend's [The map's last 24 hours](../../backend/docs/recent-map-history.md)):
-  49 frames, 30 minutes apart. About 800 KB.
+  49 frames, 30 minutes apart, the first a whole map of two bytes a tile. About 450 KB gzipped on `earth-1` and 600 KB
+  on `earth-2`. **For the 24 hours after a switch of the world's board it starts at the switch**, as after a reset, so
+  it holds one era.
 - **Read once the map is up and the page idle** (`useVideoOffer`, `requestIdleCallback`), and only for a player who
   can make one. It is a GET the browser's cache serves until the next step; the video screen reads it again only once
   a newer step is out (`stale`). Never on a render. The borders blob is read beside it, for each tile's country.
@@ -46,7 +48,8 @@ All of it is pure and tested, in `src/domain/video/story.ts`:
 
 - **The country**: the one real country (the ground of `countryOfTile`) where the flag gained or lost the most tiles
   between the first frame and the last. **Over a change of board, of the last era alone**, from its first frame, on its
-  board (`lastEraOf`): the tiles of two boards do not compare. `videoStore` reads that board's borders. Under a hundredth of that country is a quiet day: then it is the country where
+  board (`lastEraOf`): the tiles of two boards do not compare. The backend's 24 hours hold one era since PR 6, which
+  starts them at the switch. `videoStore` reads that board's borders. Under a hundredth of that country is a quiet day: then it is the country where
   the flag holds the most, weighed by its share, so 62% of Poland comes before 1% of Russia.
 - **The headline**, a fixed English sentence: "POLAND TOOK 40% OF GERMANY", "POLAND IS LOSING GERMANY. HELP", "POLAND
   HOLDS 62% OF GERMANY". When the country is the flag's own (`atHome`), it is not named twice: "POLAND TOOK BACK 40% OF
@@ -73,8 +76,8 @@ judged within seconds.
   all built before the first frame, and the one whose era is in force at the replay's clock shows. Past an era's start
   its board is shown, cleared and drawn whole from the era's first frame: **the cut**. The video flashes white for a
   third of a second and says "NEW MAP" in gold over the middle for a second and a half (`overlay.ts`). The counter counts
-  on each era's board, as many tiles of the country on the board the story is of. With one era, the only one until the
-  world's switch, the video is as before.
+  on each era's board, as many tiles of the country on the board the story is of. With one era, which the 24 hours hold
+  since PR 6 starts them at the switch, the video is as before: the cut is drawn only for a history of several.
 - **The frames are drawn one by one on the virtual clock** (`src/clip/virtualClock.ts`), never in real time: 240 frames,
   720x1280, 30 fps. The globe plays the 24 hours as a replay (`ReplayBackend.ofHistory`). The camera is the clips'
   front camera (`cameraOf`): it dives where the flag fought in the country and comes back out over it at the end.

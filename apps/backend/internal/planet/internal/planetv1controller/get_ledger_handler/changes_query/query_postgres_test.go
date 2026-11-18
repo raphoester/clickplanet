@@ -350,3 +350,20 @@ func (s *testSuite) TestTheAnswerNamesTheBoardTheWorldPlays() {
 	s.Require().NoError(err)
 	s.Equal("earth-1", answer.GetBoard())
 }
+
+func (s *testSuite) TestAfterTheWorldSwitchedBoardsTheAnswerIsTheNewBoardsChangesAlone() {
+	earth2 := clicks.World.On(eras.Earth2.ID)
+	s.Require().NoError(postgres_era_store.New(s.db).Start(s.T().Context(), earth2, at.Add(30*time.Minute)))
+	s.record(
+		ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: at.Add(time.Minute)},
+		ledger.Staged{On: earth2, Event: ledger.Taking{Tile: 7, Scope: "b", Country: "de", At: at.Add(40 * time.Minute)}},
+	)
+
+	answer, err := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at.Add(time.Hour)), postgres_era_store.New(s.db)).
+		Ledger(s.T().Context(), at, at.Add(time.Hour), "")
+	s.Require().NoError(err)
+
+	s.Equal("earth-2", answer.GetBoard())
+	s.Require().Len(answer.GetChanges(), 1, "earth-1's take before the switch is of another place: %v", answer)
+	s.Equal(uint32(7), answer.GetChanges()[0].GetUpdate().GetTileId())
+}

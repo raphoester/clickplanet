@@ -2,7 +2,9 @@ package planetmessage
 
 import (
 	"cmp"
+	"encoding/binary"
 	"maps"
+	"math"
 	"slices"
 	"time"
 
@@ -16,6 +18,10 @@ import (
 func MapHistory(frames []ledger.Frame, hits map[ledger.EraTile]uint32, covering []eras.Era) *planetv1.MapHistory {
 	answer := &planetv1.MapHistory{Eras: Eras(covering)}
 	for i, frame := range frames {
+		if frame.Whole {
+			answer.Frames = append(answer.Frames, &planetv1.MapFrame{At: timestamppb.New(frame.At), Whole: Whole(frame.Owners)})
+			continue
+		}
 		shown := &planetv1.MapFrame{At: timestamppb.New(frame.At), Owners: make([]*planetv1.TileOwner, 0, len(frame.Owners))}
 		for _, tile := range slices.Sorted(maps.Keys(frame.Owners)) {
 			owner := frame.Owners[tile]
@@ -32,6 +38,32 @@ func MapHistory(frames []ledger.Frame, hits map[ledger.EraTile]uint32, covering 
 		return cmp.Or(cmp.Compare(a.GetEra(), b.GetEra()), cmp.Compare(a.GetTile(), b.GetTile()))
 	})
 	return answer
+}
+
+// Whole writes every tile held as GetMap does: two bytes a tile from the first held, into the flags sorted after "".
+func Whole(owners map[uint32]ledger.Owner) *planetv1.WholeMap {
+	held := map[string]uint16{}
+	first, last := uint32(math.MaxUint32), uint32(0)
+	for tile, owner := range owners {
+		if owner.Country != "" {
+			held[owner.Country] = 0
+			first, last = min(first, tile), max(last, tile)
+		}
+	}
+	codes := append([]string{""}, slices.Sorted(maps.Keys(held))...)
+	if len(held) == 0 {
+		return &planetv1.WholeMap{Codes: codes}
+	}
+	for i, country := range codes[1:] {
+		held[country] = uint16(i + 1) //nolint:gosec // a few hundred flags.
+	}
+	tiles := make([]byte, 2*(last-first+1))
+	for tile, owner := range owners {
+		if owner.Country != "" {
+			binary.LittleEndian.PutUint16(tiles[2*(tile-first):], held[owner.Country])
+		}
+	}
+	return &planetv1.WholeMap{StartTileId: first, Codes: codes, Tiles: tiles}
 }
 
 // Eras names each era's board by its name, oldest first.

@@ -105,6 +105,11 @@ describe("ErasReel", () => {
         expect(new ErasReel({...ACROSS, frames: ACROSS.frames.slice(0, 2)}, tilesOf).cuts()).toEqual([])
     })
 
+    it("captions the cut from its frame for as many frames as asked, and nowhere else", () => {
+        expect([0, 1, 2, 3].map((frame) => reel.passingCut(frame, 2))).toEqual([false, false, true, true])
+        expect(reel.passingCut(3, 1)).toBe(false)
+    })
+
     it("plays the map the window ends on as its last era alone", () => {
         const last = lastEraOf(ACROSS)
 

@@ -443,7 +443,7 @@ func NewModule(config Config) cpbootstrap.Module {
 						clock), props.Logger)),
 				GetLedgerHandler:         getLedger,
 				GetLedgerTotalsHandler:   get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
-				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, eraStore)),
+				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, eraStore, carriesUnread{})),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetPlayDaysHandler:       get_play_days_handler.New(play_days_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,

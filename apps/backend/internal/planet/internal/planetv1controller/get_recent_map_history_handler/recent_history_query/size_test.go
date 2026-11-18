@@ -3,6 +3,7 @@ package recent_history_query_test
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"fmt"
 	"math/rand/v2"
 	"slices"
@@ -21,10 +22,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
-// A day as busy as production on 2026-11-11: ~111,000 changes of owner by ~98 accounts.
+// A day as busy as production on 2026-11-11: ~111,000 changes of owner by ~98 accounts. The clicks do not grow with the
+// board, so neither do the takes: a front of the same ground holds more tiles.
 const (
-	mapTiles      = 260503
-	flags         = 150
+	flags         = 200
 	accounts      = 98
 	takesPerStep  = 2300
 	strikePerStep = 600
@@ -34,16 +35,29 @@ const (
 type day struct {
 	geography *clicks.Geography
 	random    *rand.Rand
+	tiles     int
 	owners    []string
 	hotSpots  [][]uint32
 	events    []ledger.Event
+	spot      int
 }
 
 func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
-	ground, err := embedded_board.Shipped("earth-1")
+	for _, board := range []clicks.BoardName{"earth-1", "earth-2"} {
+		t.Run(string(board), func(t *testing.T) { aDayAsBusyAsProductionsFits(t, board) })
+	}
+}
+
+func aDayAsBusyAsProductionsFits(t *testing.T, board clicks.BoardName) {
+	ground, err := embedded_board.Shipped(board)
 	require.NoError(t, err)
 	geography := ground.Geography()
-	busy := &day{geography: geography, random: rand.New(rand.NewPCG(11, 11)), owners: make([]string, mapTiles+1)} //nolint:gosec // a fixed draw, not a secret.
+	mapTiles := int(ground.Tiles())
+	density := float64(mapTiles) / 260503
+	random := rand.New(rand.NewPCG(11, 11)) //nolint:gosec // a fixed draw, not a secret.
+	busy := &day{
+		geography: geography, random: random, tiles: mapTiles, owners: make([]string, mapTiles+1), spot: int(150 * density),
+	}
 	busy.hold()
 	opening := slices.Clone(busy.owners)
 	busy.fight()
@@ -56,23 +70,25 @@ func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
 		entry.Stage = clicks.WorldStage
 		require.NoError(t, rewound.Record(entry))
 	}
-	frames := rewound.Frames(denseOf(busy.owners))
+	history := planetmessage.MapHistory(rewound.Frames(denseOf(busy.owners)), ledger.InEra(0, rewound.Hits()), nil)
+	frames := history.GetFrames()
 
+	whole := frames[0].GetWhole()
 	replayed := make([]string, mapTiles+1)
-	for tile, owner := range frames[0].Owners {
-		replayed[tile] = owner.Country
+	for i := 0; i+1 < len(whole.GetTiles()); i += 2 {
+		replayed[whole.GetStartTileId()+uint32(i/2)] = whole.GetCodes()[binary.LittleEndian.Uint16(whole.GetTiles()[i:])] //nolint:gosec // within the map.
 	}
-	assert.True(t, slices.Equal(opening, replayed), "the first frame is the map the day opened on")
+	assert.True(t, slices.Equal(opening, replayed), "the first frame, whole, is the map the day opened on")
 	changes := 0
 	for _, frame := range frames[1:] {
-		for tile, owner := range frame.Owners {
-			replayed[tile] = owner.Country
+		for _, owner := range frame.GetOwners() {
+			replayed[owner.GetTile()] = owner.GetCountryId()
 			changes++
 		}
 	}
 	assert.True(t, slices.Equal(busy.owners, replayed), "every frame played after it is the map now")
 
-	answer, err := proto.Marshal(&planetv1.GetRecentMapHistoryResponse{History: planetmessage.MapHistory(frames, ledger.InEra(0, rewound.Hits()), nil)})
+	answer, err := proto.Marshal(&planetv1.GetRecentMapHistoryResponse{History: history})
 	require.NoError(t, err)
 	var zipped bytes.Buffer
 	writer := gzip.NewWriter(&zipped)
@@ -81,14 +97,14 @@ func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
 	require.NoError(t, writer.Close())
 
 	t.Logf("%d tiles held at the start, %d changes in %d frames, %d tiles hit: %d KB, %d KB gzipped",
-		len(frames[0].Owners), changes, len(frames), len(rewound.Hits()), len(answer)/1024, zipped.Len()/1024)
+		len(opening)-1-countOf(opening[1:], ""), changes, len(frames), len(rewound.Hits()), len(answer)/1024, zipped.Len()/1024)
 	assert.LessOrEqual(t, zipped.Len(), answerBudget)
 }
 
 func (d *day) hold() {
-	queue := make([]uint32, 0, mapTiles)
+	queue := make([]uint32, 0, d.tiles)
 	for i := range flags {
-		seed := uint32(d.random.IntN(mapTiles)) + 1 //nolint:gosec // within the map.
+		seed := uint32(d.random.IntN(d.tiles)) + 1 //nolint:gosec // within the map.
 		if d.owners[seed] == "" {
 			d.owners[seed] = flagOf(i)
 			queue = append(queue, seed)
@@ -104,11 +120,11 @@ func (d *day) hold() {
 			}
 		}
 	}
-	for range mapTiles * 3 / 100 {
-		d.owners[d.random.IntN(mapTiles)+1] = ""
+	for range d.tiles * 3 / 100 {
+		d.owners[d.random.IntN(d.tiles)+1] = ""
 	}
 	for range 30 {
-		d.hotSpots = append(d.hotSpots, d.ball(uint32(d.random.IntN(mapTiles))+1, 150)) //nolint:gosec // within the map.
+		d.hotSpots = append(d.hotSpots, d.ball(uint32(d.random.IntN(d.tiles))+1, d.spot)) //nolint:gosec // within the map.
 	}
 }
 
@@ -206,4 +222,14 @@ func denseOf(owners []string) clicks.DenseBatch {
 		batch.Tiles = append(batch.Tiles, byte(code), byte(code>>8))
 	}
 	return batch
+}
+
+func countOf(owners []string, owner string) int {
+	count := 0
+	for _, held := range owners {
+		if held == owner {
+			count++
+		}
+	}
+	return count
 }

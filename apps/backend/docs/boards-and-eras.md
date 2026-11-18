@@ -120,9 +120,9 @@ Each reads an event's map and board from its columns (or the memory ledger's rec
 
 | reader | keeps |
 | --- | --- |
-| `GetReplay` (`replay_usecase`, `ledger.Footage`), the clips' replay and cast | the world's map on the board it plays (`eras.Store.Latest`) |
+| `GetReplay` (`replay_usecase`, `ledger.Footage`), the clips' replay and cast | the world's map on the board it plays (`eras.Store.Latest`), from its era's start |
 | `GetMapHistory` (`history_query`, `ledger.History`), the season replay | the world's map on the board of each era, with the cut |
-| `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`) | the same |
+| `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`) | the world's map on the board it plays, from its era's start |
 | `GetLedger` (`changes_query`), the backoffice Home, the clips' cast, the vandal squad | the same, in SQL (`map = $5 AND board = $6`) |
 | `GetTileHolder` (`holder_query`), `GetLandmass`'s last fortify (`landmass_query`) | the stage that plays (`Storage.Stage`) |
 | `RevertPlayer` (`ledger.Runs`) | the stage that plays, refused unless it is the world's |
@@ -134,16 +134,22 @@ Whether an arena plays, for the readers that then rewind from the world's map ke
 
 **The history draws each era on its own board, with the cut** (2026-11-18). `history_query` reads the world's eras from
 the blank map on (`eras.Store.Covering`), replays each event on the era in force at its time, and keeps it only when it
-names that era's board. At an era's start (`ledger.History.Cut`) the frames before are on the board before, the map is
-emptied onto the new board (the switch's carry-over, PR 6, will fill it), and the first frame after holds every tile
-held, as the window's first frame does: a reader clears its globe and draws that frame whole, on the new board. Each
-tile's hits name their era (`ledger.EraTile`, `TileHits.era`), since two boards' tile ids collide. A reset and a cut at
-one time play the reset first.
+names that era's board. At an era's start (`ledger.History.Cut`) the frames before are on the board before, **the map is
+carried over onto the new board** as the switch carried it, each of its tiles taking the owner of the tile of the board
+before it comes from (a `ledger.Carry`, which `history_query` reads through its `Carries` port for each cut; 2026-11-18,
+PR 6), and the first frame after is whole, every tile held, as the window's first frame is: a reader clears its globe
+and draws that frame, on the new board. The carry-over is no take: it hits no tile. **A cut whose carry-over is not read
+refuses the history**, never a blank board drawn: the module answers none (`carriesUnread`) until the switch reads the
+carry-over files. Each tile's hits name their era (`ledger.EraTile`, `TileHits.era`), since two boards' tile ids
+collide. A reset and a cut at one time play the reset first.
 
 **The rewinders keep the board the world plays now** (`GetReplay`, `GetRecentMapHistory`): they rewind from the map in
-memory, and no rewind crosses into another board. A window across a change of the world's board starts at the switch
-in PR 6, as after a reset; until then the world never changes board, so it never covers two. Their hits are the last
-era's of the window (`ledger.InEra`).
+memory, and no rewind crosses into another board. **A window across a switch of the world's board starts at it, as
+after a reset** (2026-11-18, PR 6), on the map as the switch carried it, rewound from memory: `replay_usecase` moves
+`since` to the start of the world's latest era, and refuses a window that ended before it (`ErrBeforeSwitch`,
+`FailedPrecondition`), and `recent_history_query` starts at the first step at or after it (`Recent.Wiped`). So for the
+24 hours after the switch, the clips, the players' videos and the last 24 hours start at it, and each covers one era.
+Their hits are that era's (`ledger.InEra`).
 
 ## The wire
 
@@ -151,7 +157,8 @@ Every answer that names tiles names its board, by name (`eras.Boards.Name`): `Ge
 batch, `DenseBatch.Board`), the `heartbeat` a planet stream opens with (`Heartbeat.board`, read once subscribed: a swap
 cuts every stream, so the stage read after the subscription is every change's), `MapHistory.eras` and
 `GetReplayResponse.eras` (`BoardEra {started_at, board}`, from `eras.Store.Covering`: the era in force at the window's
-start, then each that started in it), `GetLedgerResponse.board`, and the vandal squad's `Graffiti.board`. Since
+start, then each that started in it; the first frame of each era is whole, a `WholeMap` of two bytes a tile since
+2026-11-18, see [The map's last 24 hours](recent-map-history.md)), `GetLedgerResponse.board`, and the vandal squad's `Graffiti.board`. Since
 2026-11-18 also: `TileHits.era` (the era of each tile's hits), `TilesTaken.board` and `Fortified.board` (the relay names
 each fact's board, empty for one this process does not carry), `GetTerritoriesResponse.board` and
 `GetCountrySizesResponse.board` (the board in play's counts, which the missions scale by), `GetTilesResponse.board`

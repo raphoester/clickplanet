@@ -53,7 +53,7 @@ func TestAHistoryOpensOnEveryTileHeldThenKeepsWhatChangedAtEachStep(t *testing.T
 	)
 
 	assert.Equal(t, []ledger.Frame{
-		{At: historySince, Owners: map[uint32]ledger.Owner{
+		{At: historySince, Whole: true, Owners: map[uint32]ledger.Owner{
 			1: {Country: "fr", At: historySince.Add(-48 * time.Hour)}, 2: {Country: "de", At: historySince.Add(-time.Hour)},
 		}},
 		{At: historySince.Add(time.Hour), Owners: map[uint32]ledger.Owner{}},
@@ -105,7 +105,7 @@ func TestAWipeAtTheWindowsStartOpensItOnAnEmptyMap(t *testing.T) {
 	record(t, history, take(2, "de", historySince.Add(time.Minute)))
 
 	assert.Equal(t, []ledger.Frame{
-		{At: historySince, Owners: map[uint32]ledger.Owner{}},
+		{At: historySince, Whole: true, Owners: map[uint32]ledger.Owner{}},
 		{At: historySince.Add(time.Hour), Owners: map[uint32]ledger.Owner{2: {Country: "de", At: historySince.Add(time.Minute)}}},
 		{At: historyUntil, Owners: map[uint32]ledger.Owner{}},
 	}, history.Frames())
@@ -178,7 +178,7 @@ func TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut(t *testing.T) {
 		take(2, "de", historySince.Add(10*time.Minute)),
 	)
 	recordOn(t, history, fixture, take(7, "jp", historySince.Add(20*time.Minute)))
-	history.Cut(cut, fixture.Board)
+	history.Cut(cut, fixture.Board, carried{})
 	recordOn(t, history, fixture,
 		take(3, "it", historySince.Add(50*time.Minute)),
 		take(3, "es", historySince.Add(55*time.Minute)),
@@ -186,11 +186,11 @@ func TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut(t *testing.T) {
 	record(t, history, take(2, "pt", historySince.Add(60*time.Minute)))
 
 	assert.Equal(t, []ledger.Frame{
-		{At: historySince, Owners: map[uint32]ledger.Owner{1: {Country: "fr", At: historySince.Add(-time.Hour)}}},
+		{At: historySince, Whole: true, Owners: map[uint32]ledger.Owner{1: {Country: "fr", At: historySince.Add(-time.Hour)}}},
 		{At: historySince.Add(30 * time.Minute), Owners: map[uint32]ledger.Owner{
 			2: {Country: "de", At: historySince.Add(10 * time.Minute)},
 		}},
-		{At: historySince.Add(60 * time.Minute), Owners: map[uint32]ledger.Owner{
+		{At: historySince.Add(60 * time.Minute), Whole: true, Owners: map[uint32]ledger.Owner{
 			3: {Country: "es", At: historySince.Add(55 * time.Minute)},
 		}},
 		{At: historySince.Add(90 * time.Minute), Owners: map[uint32]ledger.Owner{}},
@@ -206,7 +206,7 @@ func TestTheFirstFrameAfterACutHoldsEveryTileHeldOnTheNewBoard(t *testing.T) {
 	fixture := clicks.World.On(clicks.TestBoard + 2)
 
 	record(t, history, take(1, "fr", historySince.Add(10*time.Minute)))
-	history.Cut(historySince.Add(20*time.Minute), fixture.Board)
+	history.Cut(historySince.Add(20*time.Minute), fixture.Board, carried{})
 	recordOn(t, history, fixture,
 		take(5, "de", historySince.Add(30*time.Minute)),
 		take(6, "de", historySince.Add(31*time.Minute)),
@@ -218,6 +218,7 @@ func TestTheFirstFrameAfterACutHoldsEveryTileHeldOnTheNewBoard(t *testing.T) {
 	assert.Equal(t, map[uint32]ledger.Owner{
 		5: {Country: "de", At: historySince.Add(30 * time.Minute)}, 6: {Country: "de", At: historySince.Add(31 * time.Minute)},
 	}, frames[1].Owners, "whole: tile 1 of earth-1 is gone, and no frame says so tile by tile")
+	assert.True(t, frames[1].Whole)
 	assert.Equal(t, map[uint32]ledger.Owner{}, frames[2].Owners, "a take that changes no owner after it changes no frame")
 }
 
@@ -227,10 +228,41 @@ func TestACutAtOrBeforeTheWindowsStartIsTheEraInForceAtIt(t *testing.T) {
 	fixture := clicks.World.On(clicks.TestBoard + 2)
 
 	record(t, history, take(1, "fr", historySince.Add(-2*time.Hour)))
-	history.Cut(historySince.Add(-time.Hour), fixture.Board)
+	history.Cut(historySince.Add(-time.Hour), fixture.Board, carried{})
 	recordOn(t, history, fixture, take(4, "de", historySince.Add(-time.Minute)), take(4, "it", historySince.Add(time.Minute)))
 
 	assert.Equal(t, map[uint32]ledger.Owner{4: {Country: "de", At: historySince.Add(-time.Minute)}}, history.Frames()[0].Owners,
 		"the window opens on the fixture's map")
 	assert.Equal(t, map[ledger.EraTile]uint32{{Era: 0, Tile: 4}: 1}, history.Hits(), "its first era")
+}
+
+func TestACutCarriesEachTileOverFromTheTileItComesFrom(t *testing.T) {
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
+	require.NoError(t, err)
+	fixture := clicks.World.On(clicks.TestBoard + 2)
+	switched := historySince.Add(20 * time.Minute)
+
+	record(t, history,
+		take(1, "fr", historySince.Add(-time.Hour)),
+		take(2, "de", historySince.Add(10*time.Minute)),
+	)
+	history.Cut(switched, fixture.Board, carried{10: 1, 11: 1, 12: 2, 13: 3})
+	recordOn(t, history, fixture, take(11, "it", historySince.Add(30*time.Minute)))
+
+	frames := history.Frames()
+	assert.Equal(t, ledger.Frame{At: historySince.Add(time.Hour), Whole: true, Owners: map[uint32]ledger.Owner{
+		10: {Country: "fr", At: switched}, 11: {Country: "it", At: historySince.Add(30 * time.Minute)},
+		12: {Country: "de", At: switched},
+	}}, frames[1], "each child of a held tile holds its flag, a child of a blank tile and a tile with no parent start blank")
+	assert.Equal(t, map[ledger.EraTile]uint32{{Era: 0, Tile: 2}: 1, {Era: 1, Tile: 11}: 1}, history.Hits(),
+		"the carry-over is no take: it hits nothing")
+}
+
+// carried names each tile of the board after a switch and the tile it comes from.
+type carried map[uint32]uint32
+
+func (c carried) Each(visit func(child, parent uint32)) {
+	for child, parent := range c {
+		visit(child, parent)
+	}
 }

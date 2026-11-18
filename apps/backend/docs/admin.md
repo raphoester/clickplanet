@@ -84,6 +84,9 @@ eras](boards-and-eras.md)): the acts of the world's map on the board it plays, a
 - **It is the world's map**: an act made while an arena's map played is left out, and each stretch of the window that
   played one is in `asides`. While an arena plays, it rewinds from the world's map as postgres keeps it. See [Arena
   battles](arenas.md#the-ledgers-readers).
+- **It starts at a reset or a switch of the world's board** inside the window, on the blank map or the map carried
+  over, and a window that ended before either is `FailedPrecondition` (`ErrBeforeReset`, `ErrBeforeSwitch`): see [The
+  map reset](map-reset.md#replays) and [Boards and eras](boards-and-eras.md#readers).
 - **It reads memory**, like the other tools here: a `since` older than `ledger.retention` (72h) opens on the map at
   the oldest event kept. It changes nothing and logs nothing. A `since` that is not before `until` is
   `InvalidArgument` (`replay_usecase.ErrInvalidWindow`).
