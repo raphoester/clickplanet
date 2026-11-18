@@ -12,8 +12,11 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
+// New is a tile map that plays the ground of its stage's board, and makes it the one played: before Load, the world on
+// no board, which a test's one ground answers for, and production's grounds do not (an empty map until Load).
 func New(
-	borders *clicks.Borders,
+	grounds clicks.Grounds,
+	played *clicks.Played,
 	capitals clicks.CapitalPlay,
 	config Config,
 	persistence Persistence,
@@ -28,25 +31,27 @@ func New(
 
 	config = config.withDefaults()
 
-	return &Storage{
+	storage := &Storage{
 		clock:         clock,
 		config:        config,
 		logger:        logger,
 		persistence:   persistence,
+		grounds:       grounds,
+		played:        played,
 		capitals:      capitals,
 		transactioner: transactioner,
 		placements:    placements,
 		stage:         clicks.Stage{Map: clicks.World},
-		board:         newBoard(borders.Tiles()),
-		landmasses:    newLandmasses(borders),
-		out:           newOutFlags(),
-		viruses:       newVirusBook(),
-		mines:         newMineBook(),
 		fuse:          make(chan struct{}, 1),
-		recount:       newRecount(borders.Landmasses()),
 		version:       clicks.MapVersion{Epoch: uint32(clock.Now().Unix())}, //nolint:gosec // seconds fit a uint32 until 2106.
 		feed:          newFeed(config.SubscriberBuffer, logger),
 	}
+	ground, err := grounds.GroundOf(storage.stage.Board)
+	if err != nil {
+		ground = nil
+	}
+	storage.groundLocked(ground)
+	return storage
 }
 
 type Storage struct {
@@ -54,6 +59,7 @@ type Storage struct {
 	config        Config
 	logger        *slog.Logger
 	persistence   Persistence
+	grounds       clicks.Grounds
 	capitals      clicks.CapitalPlay
 	transactioner cpatomic.Transactioner
 	placements    Placements
@@ -67,6 +73,9 @@ type Storage struct {
 
 	// Held through a flush, from what it takes to what it saves, so a wipe never meets a save of the map before it.
 	flushing sync.Mutex
+
+	// The ground of the stage's board, swapped with the stage: what every rule reads the board in play by.
+	played *clicks.Played
 
 	// Guards the stage in play, the board, the landmasses and the version, which change together, and the feed's order.
 	// The stage changes under staging too.

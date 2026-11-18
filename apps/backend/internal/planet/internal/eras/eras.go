@@ -43,6 +43,18 @@ func (e Era) Stage() clicks.Stage {
 	return e.Map.On(e.Board.ID)
 }
 
+// From are the eras of covering a window from since covers: the one in force at since, then each that started after it.
+// covering is oldest first.
+func From(covering []Era, since time.Time) []Era {
+	first := 0
+	for i, era := range covering {
+		if !era.StartedAt.After(since) {
+			first = i
+		}
+	}
+	return covering[first:]
+}
+
 // Carried is a board as this process's files name it: its directory and its positions' hash.
 type Carried struct {
 	Name clicks.BoardName
@@ -90,6 +102,11 @@ func (b Boards) Board(id clicks.BoardID) (Board, bool) {
 	return Board{}, false
 }
 
+// Named is the board of that name, when this process carries it.
+func (b Boards) Named(name clicks.BoardName) (Board, bool) {
+	return rowOf(b.carried, name)
+}
+
 // Name is the name of the board of id, empty when this process does not carry it.
 func (b Boards) Name(id clicks.BoardID) clicks.BoardName {
 	board, _ := b.Board(id)
@@ -103,4 +120,40 @@ func (b Boards) Stage(era Era) (clicks.Stage, error) {
 			era.Board.Name, era.Board.ID, era.StartedAt.UTC().Format(time.RFC3339))
 	}
 	return era.Stage(), nil
+}
+
+// Grounds are the grounds of the boards this process carries, by planet's row of each or by name: each built the first
+// time it is asked for.
+type Grounds struct {
+	boards Boards
+	ground func(name clicks.BoardName) (*clicks.Ground, error)
+}
+
+func NewGrounds(boards Boards, ground func(name clicks.BoardName) (*clicks.Ground, error)) Grounds {
+	return Grounds{boards: boards, ground: ground}
+}
+
+var _ clicks.Grounds = Grounds{}
+
+// GroundOf is the ground of the board of planet's row: ErrNotCarried for one this process does not carry.
+func (g Grounds) GroundOf(id clicks.BoardID) (*clicks.Ground, error) {
+	board, carried := g.boards.Board(id)
+	if !carried {
+		return nil, fmt.Errorf("%w: row %d", ErrNotCarried, id)
+	}
+	return g.ground(board.Name)
+}
+
+// Named is the board of that name, planet's row of it and its ground: ErrNotCarried for one this process does not
+// carry.
+func (g Grounds) Named(name clicks.BoardName) (Board, *clicks.Ground, error) {
+	board, carried := g.boards.Named(name)
+	if !carried {
+		return Board{}, nil, fmt.Errorf("%w: %s", ErrNotCarried, name)
+	}
+	ground, err := g.ground(name)
+	if err != nil {
+		return Board{}, nil, err
+	}
+	return board, ground, nil
 }

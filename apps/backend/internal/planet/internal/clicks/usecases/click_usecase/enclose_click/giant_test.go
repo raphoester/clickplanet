@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -39,21 +38,17 @@ import (
 const mapTiles = 260503
 
 type world struct {
+	ground    *clicks.Ground
 	geography *clicks.Geography
 	borders   *clicks.Borders
 }
 
 var loadWorld = sync.OnceValues(func() (world, error) {
-	loader := embedded_board.New(mapTiles, slog.New(slog.DiscardHandler))
-	geography, err := loader.LoadGeography()
+	ground, err := embedded_board.Shipped("earth-1")
 	if err != nil {
-		return world{}, fmt.Errorf("failed to load the geography: %w", err)
+		return world{}, fmt.Errorf("failed to load earth-1: %w", err)
 	}
-	borders, err := loader.LoadBorders()
-	if err != nil {
-		return world{}, fmt.Errorf("failed to load the borders: %w", err)
-	}
-	return world{geography: geography, borders: borders}, nil
+	return world{ground: ground, geography: ground.Geography(), borders: ground.Borders()}, nil
 })
 
 // The ring a flag must hold to close the region holding seed: each tile of it that touches an edge or other ground.
@@ -175,7 +170,7 @@ type game struct {
 func newGame(t testing.TB, w world) *game {
 	t.Helper()
 
-	tiles := inmemory_tile_storage.New(w.borders, clicks.NoCapitals(), inmemory_tile_storage.Config{SubscriberBuffer: 1024},
+	tiles := inmemory_tile_storage.New(clicks.OneGround{Ground: clicks.GroundOf(w.borders)}, clicks.NewPlayed(), clicks.NoCapitals(), inmemory_tile_storage.Config{SubscriberBuffer: 1024},
 		inmemory_tile_storage.NewMemoryPersistence(nil), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, nil)
 	require.NoError(t, tiles.Load(t.Context(), clicks.WorldStage))
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), nil)
@@ -184,7 +179,7 @@ func newGame(t testing.TB, w world) *game {
 	rules := charges.Rules{Enclose: charges.EncloseRules{MaxTiles: 1_000_000, Unlimited: true}}
 	writer := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), takings, cptime.SystemClock{})
 	terrain := charges.NewTerrain(w.geography, tiles)
-	var chain click_usecase.IUseCase = click_usecase.New(clicks.NewBoard(mapTiles), writer, cpcountries.New())
+	var chain click_usecase.IUseCase = click_usecase.New(clicks.PlayedOf(mapTiles), writer, cpcountries.New())
 	chain = enclose_click.New(chain, nil, terrain, enclose_click.NewAnnexer(writer, nil), func() charges.Rules { return rules })
 
 	return &game{world: w, tiles: tiles, ledger: takings, click: chain, terrain: terrain, rules: rules}
@@ -430,7 +425,7 @@ func (g *game) close(t testing.TB, name string, r ring, attacker string, busy bo
 		}
 	})
 	relay := relay_ledger_usecase.New(g.ledger, &cursor,
-		relay_ledger_usecase.OneBoard{ID: clicks.TestBoard, Borders: g.world.borders, Positions: g.world.geography}, sender)
+		relay_ledger_usecase.OnGrounds{Grounds: clicks.OneGround{Ground: g.world.ground}}, sender)
 	start = time.Now()
 	for {
 		told, err := relay.Execute(t.Context())

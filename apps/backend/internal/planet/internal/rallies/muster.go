@@ -9,22 +9,23 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-func NewMuster(rules func() charges.Rules, spacing float64, ids IDProvider, clock cptime.Clock) Muster {
-	return Muster{rules: rules, spacing: spacing, ids: ids, clock: clock}
+// NewMuster measures a ring in the spacings of the board in play.
+func NewMuster(rules func() charges.Rules, board charges.Spaced, ids IDProvider, clock cptime.Clock) Muster {
+	return Muster{rules: rules, board: board, ids: ids, clock: clock}
 }
 
 // Muster makes a rally by the rules in force as it is called: its ring is charges.rally.rings tile spacings wide, and it
 // lasts charges.rally.lasts. A rally keeps both, so a change of the rules reaches only the next one.
 type Muster struct {
-	rules   func() charges.Rules
-	spacing float64
-	ids     IDProvider
-	clock   cptime.Clock
+	rules func() charges.Rules
+	board charges.Spaced
+	ids   IDProvider
+	clock cptime.Clock
 }
 
 // Radius is a ring's, in arc on the unit globe, by the rules in force.
 func (m Muster) Radius() float64 {
-	return m.rules().Rally.Rings * m.spacing
+	return m.rules().Rally.Rings * m.board.Spacing()
 }
 
 // Rally is one around the point, which PointOf made a point of the globe.

@@ -13,7 +13,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
-func MapHistory(frames []ledger.Frame, hits map[uint32]uint32, covering []eras.Era) *planetv1.MapHistory {
+func MapHistory(frames []ledger.Frame, hits map[ledger.EraTile]uint32, covering []eras.Era) *planetv1.MapHistory {
 	answer := &planetv1.MapHistory{Eras: Eras(covering)}
 	for i, frame := range frames {
 		shown := &planetv1.MapFrame{At: timestamppb.New(frame.At), Owners: make([]*planetv1.TileOwner, 0, len(frame.Owners))}
@@ -26,9 +26,11 @@ func MapHistory(frames []ledger.Frame, hits map[uint32]uint32, covering []eras.E
 		answer.Frames = append(answer.Frames, shown)
 	}
 	for tile, hits := range hits {
-		answer.Hits = append(answer.Hits, &planetv1.TileHits{Tile: tile, Hits: hits})
+		answer.Hits = append(answer.Hits, &planetv1.TileHits{Tile: tile.Tile, Hits: hits, Era: uint32(tile.Era)}) //nolint:gosec // a few eras.
 	}
-	slices.SortFunc(answer.Hits, func(a, b *planetv1.TileHits) int { return cmp.Compare(a.GetTile(), b.GetTile()) })
+	slices.SortFunc(answer.Hits, func(a, b *planetv1.TileHits) int {
+		return cmp.Or(cmp.Compare(a.GetEra(), b.GetEra()), cmp.Compare(a.GetTile(), b.GetTile()))
+	})
 	return answer
 }
 

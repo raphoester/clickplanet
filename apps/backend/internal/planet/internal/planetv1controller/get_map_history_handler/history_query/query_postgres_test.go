@@ -142,27 +142,56 @@ func (s *testSuite) TestTheWorldsMapStandsStillOverAnArenaAndJoinsUpAfterIt() {
 	}, history), "the battle's takes, and one on another board, are on no frame and no hit, as each names its map: %v", history)
 }
 
-func (s *testSuite) TestTheHistoryNamesEachEraOfTheWorldItCovers() {
+func (s *testSuite) TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut() {
 	ctx := s.T().Context()
+	fixture := clicks.World.On(eras.Fixture.ID)
 	switched := since.Add(30 * time.Minute)
-	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, clicks.WorldStage, switched))
-	s.record(ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(10 * time.Minute)})
+	s.Require().NoError(eras.KeepFixture(ctx, s.db))
+	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, fixture, switched))
+	s.record(
+		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(-time.Hour)},
+		ledger.Taking{Tile: 2, Scope: "203.0.113.7", Country: "fr", At: since.Add(10 * time.Minute)},
+		ledger.Staged{On: fixture, Event: ledger.Taking{Tile: 5, Scope: "203.0.113.7", Country: "de", At: since.Add(40 * time.Minute)}},
+		ledger.Taking{Tile: 3, Scope: "203.0.113.7", Country: "it", At: since.Add(50 * time.Minute)},
+		ledger.Staged{On: fixture, Event: ledger.Taking{Tile: 6, Scope: "203.0.113.7", Country: "jp", At: since.Add(70 * time.Minute)}},
+	)
 
 	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: []*planetv1.MapFrame{
-			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{}},
-			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr", SecondsIntoStep: 600}}},
-			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
+			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr"}}},
+			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{{Tile: 5, CountryId: "de", SecondsIntoStep: 2400}}},
+			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{{Tile: 6, CountryId: "jp", SecondsIntoStep: 600}}},
 		},
-		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
+		Hits: []*planetv1.TileHits{{Tile: 2, Hits: 1}, {Tile: 5, Hits: 1, Era: 1}, {Tile: 6, Hits: 1, Era: 1}},
 		Eras: []*planetv1.BoardEra{
 			{StartedAt: timestamppb.New(eras.Epoch), Board: "earth-1"},
-			{StartedAt: timestamppb.New(switched), Board: "earth-1"},
+			{StartedAt: timestamppb.New(switched), Board: "fixture-1"},
 		},
-	}, history), "%v", history)
+	}, history), "the frame before the cut is earth-1's; the first after it holds every tile held on fixture-1, whole; an "+
+		"earth-1 take after the cut is no longer the world's map, and each hit names its era: %v", history)
+}
+
+func (s *testSuite) TestAWindowInsideTheSecondEraOpensOnItsBoardAlone() {
+	ctx := s.T().Context()
+	fixture := clicks.World.On(eras.Fixture.ID)
+	s.Require().NoError(eras.KeepFixture(ctx, s.db))
+	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, fixture, since.Add(-time.Hour)))
+	s.record(
+		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(-2 * time.Hour)},
+		ledger.Staged{On: fixture, Event: ledger.Taking{Tile: 5, Scope: "203.0.113.7", Country: "de", At: since.Add(-time.Minute)}},
+	)
+
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapFrame{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 5, CountryId: "de"}}},
+		history.GetFrames()[0]), "earth-1's tile 1 is another era's: %v", history)
+	s.True(proto.Equal(&planetv1.BoardEra{StartedAt: timestamppb.New(since.Add(-time.Hour)), Board: "fixture-1"},
+		history.GetEras()[0]), "the era in force at the window's start, alone")
+	s.Len(history.GetEras(), 1)
 }
 
 // The world's one era, as the migration that made eras keeps it.

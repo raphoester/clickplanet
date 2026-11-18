@@ -24,6 +24,16 @@ log line the server writes once it serves), never on the port alone.
 **One container per package, never one per test.** A container costs seconds to start; a new database or a `Purge` costs far less.
 
 - A package with one suite starts its server in `SetupSuite` with `cppgtest.StartServer(s.T())`. The server stops when the suite ends. The suite opens and migrates its schema with `OpenSchema(t, schema, migrations.FS)` and empties it in `SetupTest` with `Purge`. **A planet suite then seeds `earth-1` and the world's era again** (`eras.Reseed`): `Purge` empties `boards` too, and every tile, lock, mine, virus and event names a board.
+
+**A second board for the tests: the fixture** (`cpboards.Fixture`, `fixture-1`): a coarse earth cut from `earth-1` at
+`cols` 31, 2,998 tiles about 9.7 times as far apart, its own positions hash (`cb8330a8`). It is embedded under the
+`testing` tag alone, from `internal/shared/cpboards/testdata/fixture-1` (`cpboards.Files()` adds it to `generated/map`'s
+boards), so a test binary carries it and production does not. The page's `npm run map:fixture` writes it, and the
+page's and the backoffice's test data, from `earth-1`; never edit it by hand. Since a test binary carries it, its planet
+needs its row: `planet.Migrate` keeps it for the e2e stack, and a suite that needs it calls `eras.KeepFixture`
+(`eras.Fixture`, `eras.CarryingFixture`). `embedded_board.Shipped` is a board's ground, loaded once per binary, for a
+test of the real map. A test of anything sized from the board runs on `earth-1` (every value unchanged) and on the
+fixture (scaled): see [Sized from the board](board-scale.md).
 - A package of plain test functions, or with more than one test that needs the server, starts it in `TestMain`: `var server cppgtest.Server` and `func TestMain(m *testing.M) { server.Run(m) }`. `Run` stops it after the tests.
 - A test that needs the rows the migrations seed (the rule sets' `default`, season 0), or that used to start a container of its own, opens its schema in a new database: `server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)`. Nothing that another test wrote is in that database. A `Purge` would delete the seeded rows too.
 - `cpredis`'s tests share one Redis the same way and empty it with `server.Flush(t)` at the start of each test, since every stream is named after its event's type.

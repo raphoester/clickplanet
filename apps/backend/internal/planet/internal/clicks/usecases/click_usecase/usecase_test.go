@@ -28,14 +28,14 @@ type testSuite struct {
 func (s *testSuite) SetupTest() {
 	const maxIndex = 250_000
 	s.storage = inmemory_tile_storage.New(
-		clicks.BordersOf(maxIndex), clicks.NoCapitals(),
+		clicks.OneGround{Ground: clicks.GroundOf(clicks.BordersOf(maxIndex))}, clicks.NewPlayed(), clicks.NoCapitals(),
 		inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{},
 		cptime.SystemClock{},
 		slog.New(slog.DiscardHandler),
 	)
 
-	tileChecker := clicks.NewBoard(maxIndex)
+	tileChecker := clicks.PlayedOf(maxIndex)
 	countryChecker := cpcountries.New()
 	s.useCase = click_usecase.New(tileChecker, clicks.NewClaiming(s.storage, func() int { return 10 }), countryChecker)
 }

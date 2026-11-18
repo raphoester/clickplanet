@@ -8,6 +8,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
@@ -32,8 +33,13 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.Fortified) error
 		return fmt.Errorf("%w: %w", errNoTime, err)
 	}
 
+	// A landmass of tiles is a count of its board's: as much ground is as newsworthy on any board.
+	scale, err := cpboards.ScaleOf(event.GetBoard())
+	if err != nil {
+		return fmt.Errorf("failed to scale the fortify to its board: %w", err)
+	}
 	fortify := announcements.FortifyOf(event.GetPosition(), event.GetCountry(), event.GetGround(), event.GetLandmassId(),
-		event.GetTiles())
+		event.GetTiles(), scale)
 	if !fortify.Newsworthy() {
 		return nil
 	}

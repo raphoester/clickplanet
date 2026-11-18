@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 )
 
@@ -28,7 +29,11 @@ func (p Patrol) Since(now time.Time) time.Time {
 
 // What a sighting makes of the graffiti its painter has: the one it is seen again as, or a new one, which fresh says.
 func (p Patrol) Note(painted []Graffiti, seen Sighting) (noted Graffiti, fresh bool, err error) {
-	link := LinkOf(p.page, pointsOf(seen.Drawing))
+	scale, err := cpboards.ScaleOf(string(seen.Board))
+	if err != nil {
+		return Graffiti{}, false, fmt.Errorf("failed to frame a drawing on its board: %w", err)
+	}
+	link := LinkOf(p.page, pointsOf(seen.Drawing), scale)
 	if i := slices.IndexFunc(painted, func(g Graffiti) bool { return g.shows(seen) }); i >= 0 {
 		return painted[i].seenAgain(seen, link), false, nil
 	}

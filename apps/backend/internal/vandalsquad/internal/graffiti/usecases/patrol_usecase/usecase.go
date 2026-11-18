@@ -2,10 +2,12 @@ package patrol_usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/graffiti"
@@ -19,8 +21,8 @@ const leastTiles = 12
 type Planet interface {
 	// Every take of the world's map on the board it plays, and that board.
 	Takes(ctx context.Context, since, until time.Time) (drawings.Board, []paint.Take, error)
-	// One tile per id asked, in the order asked.
-	Tiles(ctx context.Context, ids []drawings.TileID) ([]drawings.MapTile, error)
+	// One tile per id asked of the board, in the order asked: drawings.ErrOtherBoard when the map in play plays another.
+	Tiles(ctx context.Context, board drawings.Board, ids []drawings.TileID) ([]drawings.MapTile, error)
 }
 
 type Graffiti interface {
@@ -60,12 +62,21 @@ func (u *UseCase) Execute(ctx context.Context) error {
 	if len(paintings) == 0 {
 		return nil
 	}
+	// The largest drawing is as much ground on any board.
+	scale, err := cpboards.ScaleOf(string(board))
+	if err != nil {
+		return fmt.Errorf("failed to scale the drawings to planet's board: %w", err)
+	}
 
 	var painted []drawings.TileID
 	for _, painting := range paintings {
 		painted = append(painted, painting.Tiles...)
 	}
-	tiles, err := u.planet.Tiles(ctx, unique(painted))
+	tiles, err := u.planet.Tiles(ctx, board, unique(painted))
+	if errors.Is(err, drawings.ErrOtherBoard) {
+		// An arena plays a board of its own: the world's drawings wait for the world's map.
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to ask planet the tiles players painted: %w", err)
 	}
@@ -78,7 +89,7 @@ func (u *UseCase) Execute(ctx context.Context) error {
 	var rims []drawings.TileID
 	for _, painting := range paintings {
 		for _, drawing := range drawings.Split(painting.Held(onMap)) {
-			if _, ok := swastikas.ReadingOf(drawing); ok {
+			if _, ok := swastikas.ReadingOf(drawing, scale); ok {
 				sightings = append(sightings, graffiti.Sighting{
 					Board: board, Account: painting.Account, Flag: painting.Flag, Kind: graffiti.Swastika, Drawing: drawing, At: now,
 				})
@@ -90,7 +101,10 @@ func (u *UseCase) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	around, err := u.planet.Tiles(ctx, unique(rims))
+	around, err := u.planet.Tiles(ctx, board, unique(rims))
+	if errors.Is(err, drawings.ErrOtherBoard) {
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to ask planet the tiles around the drawings: %w", err)
 	}

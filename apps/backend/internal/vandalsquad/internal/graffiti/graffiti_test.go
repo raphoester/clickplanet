@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/graffiti"
@@ -67,7 +68,7 @@ func TestAnotherPlayerAnotherFlagOtherTilesOrAForgottenPainterAreAnotherDrawing(
 		"other tiles":    sighting(ana, "ro", at, 7, 8),
 		"another board": func() graffiti.Sighting {
 			seen := sighting(ana, "ro", at, 1, 2)
-			seen.Board = "earth-2"
+			seen.Board = cpboards.Fixture
 			return seen
 		}(),
 	} {
@@ -113,13 +114,22 @@ func point(lat, lon float64) drawings.Point {
 }
 
 func TestTheLinkOpensTheGlobeOnTheDrawingsMiddle(t *testing.T) {
-	link := graffiti.LinkOf("https://clickplanet.lol/play", []drawings.Point{point(-4, 22), point(-4.2, 22.4)})
+	link := graffiti.LinkOf("https://clickplanet.lol/play", []drawings.Point{point(-4, 22), point(-4.2, 22.4)}, cpboards.Earth1())
 
 	assert.Equal(t, "https://clickplanet.lol/play?lat=-4.10&lon=22.20&zoom=20.0", link, "a drawing is framed at the closest zoom")
 }
 
+func TestTheClosestZoomShowsATileAsWideOnABoardOfItsOwn(t *testing.T) {
+	fixture, err := cpboards.ScaleOf(cpboards.Fixture)
+	require.NoError(t, err)
+
+	link := graffiti.LinkOf("https://clickplanet.lol/play", []drawings.Point{point(-4, 22), point(-4.2, 22.4)}, fixture)
+
+	assert.Equal(t, "https://clickplanet.lol/play?lat=-4.10&lon=22.20&zoom=2.1", link, "20 over the fixture's 9.7")
+}
+
 func TestABigDrawingIsFramedFromFarther(t *testing.T) {
-	link := graffiti.LinkOf("https://clickplanet.lol/play", []drawings.Point{point(0, -10), point(0, 10)})
+	link := graffiti.LinkOf("https://clickplanet.lol/play", []drawings.Point{point(0, -10), point(0, 10)}, cpboards.Earth1())
 
 	assert.Equal(t, "https://clickplanet.lol/play?lat=0.00&lon=0.00&zoom=2.3", link)
 }

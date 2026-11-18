@@ -24,7 +24,7 @@ func (s *stubQuery) Tiles(tiles []uint32) *planetv1.GetTilesResponse {
 
 func ask(t *testing.T, query *stubQuery, tiles []uint32) (*connect.Response[planetv1.GetTilesResponse], error) {
 	t.Helper()
-	return get_tiles_handler.New(clicks.NewBoard(get_tiles_handler.MaxTiles+10), query).GetTiles( //nolint:wrapcheck // the test reads the handler's own error.
+	return get_tiles_handler.New(clicks.PlayedOf(get_tiles_handler.MaxTiles+10), query).GetTiles( //nolint:wrapcheck // the test reads the handler's own error.
 		t.Context(), connect.NewRequest(&planetv1.GetTilesRequest{TileIds: tiles}))
 }
 

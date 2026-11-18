@@ -55,9 +55,9 @@ func (t *tiles) Stage() clicks.Stage {
 	return t.playing
 }
 
-func (t *tiles) Kept(_ context.Context, kept clicks.MapID) (clicks.DenseBatch, error) {
-	if kept != clicks.World {
-		return clicks.DenseBatch{}, errors.New("only the world's map is kept aside")
+func (t *tiles) Kept(_ context.Context, kept clicks.Stage) (clicks.DenseBatch, error) {
+	if kept != clicks.WorldStage {
+		return clicks.DenseBatch{}, errors.New("only the world's map is kept aside, on the board of its era")
 	}
 	return batchOf(1, t.kept), t.err
 }

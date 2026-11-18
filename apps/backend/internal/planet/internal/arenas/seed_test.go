@@ -11,6 +11,7 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
@@ -21,7 +22,7 @@ func (tagged) Tiles() []clicks.StartTile { return nil }
 
 type namedSeeds struct{}
 
-func (namedSeeds) SeedOf(set cprules.Set[*planetv1.Rules]) arenas.Seed {
+func (namedSeeds) SeedOf(set cprules.Set[*planetv1.Rules], _ *clicks.Ground) arenas.Seed {
 	return tagged{set: string(set.TakeSnapshot().Name)}
 }
 
@@ -32,7 +33,8 @@ func (failingSets) Set(context.Context, cprules.SetName) (cprules.Set[*planetv1.
 }
 
 func TestAFailedReadOfTheSetIsNoRefusal(t *testing.T) {
-	_, err := arenas.NewSetups(failingSets{}, namedSeeds{}).Setup(t.Context(), "siege")
+	_, err := arenas.NewSetups(failingSets{}, namedSeeds{}, eras.NewGrounds(eras.CarryingEarth1, nil)).
+		Setup(t.Context(), "siege", eras.Earth1.ID)
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, arenas.ErrRefused, "asked again, it may apply")

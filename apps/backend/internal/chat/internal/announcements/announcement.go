@@ -12,6 +12,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 type AnnouncementID uuid.UUID
@@ -104,7 +105,8 @@ func (b Bomb) Announcement(at time.Time) (Announcement, error) {
 	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/bomb", b.position)), KindBomb, at, payload), nil
 }
 
-// Below this a fortify is a small island somewhere, and the chat says nothing of it.
+// Below this many of earth-1's tiles a fortify is a small island somewhere, and the chat says nothing of it: on another
+// board, as much ground.
 const fortifyNewsTiles = 50
 
 type Fortify struct {
@@ -113,13 +115,15 @@ type Fortify struct {
 	ground   string
 	landmass uint32
 	tiles    uint32
+	scale    cpboards.Scale
 }
 
-func FortifyOf(position uint64, country string, ground string, landmass uint32, tiles uint32) Fortify {
-	return Fortify{position: position, country: country, ground: ground, landmass: landmass, tiles: tiles}
+// FortifyOf is a fortify of tiles of a board of that scale.
+func FortifyOf(position uint64, country string, ground string, landmass uint32, tiles uint32, scale cpboards.Scale) Fortify {
+	return Fortify{position: position, country: country, ground: ground, landmass: landmass, tiles: tiles, scale: scale}
 }
 
-func (f Fortify) Newsworthy() bool { return f.tiles >= fortifyNewsTiles }
+func (f Fortify) Newsworthy() bool { return int(f.tiles) >= f.scale.Tiles(fortifyNewsTiles) }
 
 type fortifyPayload struct {
 	Country  string `json:"country"`

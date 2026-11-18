@@ -48,7 +48,6 @@ The binary never reads inside a block to check it, so a new bound is added in th
 - `cpbootstrap.ServerConfig` — `bindAddress` empty; `consoleBindAddress` set to anything but loopback
 - `shared/cpredis.Config` — an `address` that is not a `host:port`, or a negative limit. Each module checks its own `redis` block, as it checks its database block
 - `shared/cppg.Config` — a connection setting or the schema left empty, or a schema that is not a plain lowercase identifier. Each module checks its own block, starting with `planet.Config`
-- `planet.Config` — `gameMap.maxIndex` zero is a map that refuses every click
 - `antibot.Config` — with `antiBot.enabled`, an incomplete `antiBot.database` or `antiBot.redis` block, and the cohort's prefix bits. Its rules are checked when a set is saved and when one is read (see [The antibot's rules](antibot-rules.md))
 - `shared/cpsession.SignerConfig` — `secret` empty, not hex or not 32 bytes while `enabled`, and a negative `ttl`. Checked by `auth.Config`, which is the only block that declares it. `cpsession.VerifierConfig`, which planet declares, has nothing to check: one switch and no key
 - `chat.Config` — an incomplete `chat.database` block. Every other chat setting has a usable default
@@ -77,7 +76,9 @@ There is no struct-tag validation and therefore no validator dependency — a ho
 - `auth.connector.*` and `mcp.*` — the connector: see [Claude as a connector](connector.md#configuration)
 - `httpServer.internalBindAddress` — where the services other modules call listen (see [Calling another module](composite-layer.md#calling-another-module)); empty serves none, a caller that dials it then fails, and a non-loopback address refuses the boot
 - `httpServer.allowedOrigin` — the frontend's exact origin (`scheme://host[:port]`, no path). The public router answers CORS for it alone, with `Access-Control-Allow-Credentials: true`, so the `cp_sid` cookie travels on the web client's mint. **Empty, `*` or anything that is not an origin refuses the boot**: a browser drops a credentialed answer that allows every origin, so a wrong value would only show up as every mint starting a new guest. In production it comes from `FRONTEND_ORIGIN`, the value the Caddyfile allows, which sets the same headers and overwrites these.
-- `gameMap.maxIndex` — total number of tiles
+- **No tile count**: each board's manifest says how many tiles it has, and planet's row of it says which board it is
+  (see [Boards and eras](boards-and-eras.md)). `gameMap.maxIndex` went on 2026-11-18, when the backend began to carry
+  more than one board; a file that still sets it is read as before, the key ignored.
 - `database.host`, `port`, `user`, `password`, `dbName`, `sslMode`, `schema`, `pool.maxOpenConns` — the planet module's postgres and the schema its tables live in; any of them but `password` and `pool` empty refuses the boot. `database.password` belongs in the environment. `pool.maxOpenConns` is the most connections the module's pool opens, and the pool keeps each one it opened (idle = open); unset is unbounded, which only tests do
 - `tilesStorage.flushInterval` — how often the tiles changed since the last flush are written to postgres (1s)
 - `ledger.retention`, `ledger.sweepInterval` — how long the operator tools can trace and revert a take (72h). Less than

@@ -22,30 +22,30 @@ var CapitalsPart = cprules.PartOf[*planetv1.Rules, CapitalRules]{
 	},
 }
 
-// CapitalPlay is the map's capitals as the rules in force play them.
+// CapitalPlay is the capitals of the board in play as the rules in force play them.
 type CapitalPlay struct {
-	capitals *Capitals
+	capitals func() *Capitals
 	rules    func() CapitalRules
 }
 
-func NewCapitalPlay(capitals *Capitals, rules func() CapitalRules) CapitalPlay {
+func NewCapitalPlay(capitals func() *Capitals, rules func() CapitalRules) CapitalPlay {
 	return CapitalPlay{capitals: capitals, rules: rules}
 }
 
 // Fixes is true for a capital no shield is added to.
 func (p CapitalPlay) Fixes(tile uint32) bool {
-	return p.rules().FixedShields && p.capitals.Is(tile)
+	return p.rules().FixedShields && p.capitals().Is(tile)
 }
 
 // KnocksOut is true for a capital whose take knocks its flag out under the rules in force.
 func (p CapitalPlay) KnocksOut(tile uint32) bool {
-	return p.rules().KnockOut && p.capitals.Is(tile)
+	return p.rules().KnockOut && p.capitals().Is(tile)
 }
 
 // Felled is the flag a take of the tile by flag knocks out, given whether a flag is out already: ErrNoKnockOut when it
 // knocks none.
 func (p CapitalPlay) Felled(tile uint32, flag string, out func(flag string) bool) (string, error) {
-	country := p.capitals.CountryOf(tile)
+	country := p.capitals().CountryOf(tile)
 	if err := p.rules().KnockOutError(country, out(country), flag); err != nil {
 		return "", err
 	}
@@ -54,5 +54,5 @@ func (p CapitalPlay) Felled(tile uint32, flag string, out func(flag string) bool
 
 // Stands says whether the flag is still in the game, given whether it is out.
 func (p CapitalPlay) Stands(flag string, out bool) bool {
-	return p.rules().Stands(p.capitals.Has(flag), out)
+	return p.rules().Stands(p.capitals().Has(flag), out)
 }

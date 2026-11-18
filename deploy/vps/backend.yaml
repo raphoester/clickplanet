@@ -5,9 +5,6 @@ httpServer:
   adminBindAddress: 0.0.0.0:8083
   internalBindAddress: 127.0.0.1:8082
 
-gameMap:
-  maxIndex: 260503
-
 database:
   host: postgres
   password: env://POSTGRES_PASSWORD

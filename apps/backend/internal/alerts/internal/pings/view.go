@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 // On the unit globe, the frontend's: y is the north pole, and longitude 0 is on -x.
@@ -22,12 +24,13 @@ const (
 	// A few stray takes neither move the view nor zoom it out.
 	framedShare = 0.9
 	// The framed takes fill this share of a desktop's half height, and most of a phone's half width.
-	fill        = 0.4
-	widestZoom  = 1
+	fill       = 0.4
+	widestZoom = 1
+	// On earth-1: on another board, where a tile is as wide on the screen.
 	closestZoom = 20
 )
 
-func viewOf(points []Point) View {
+func viewOf(points []Point, scale cpboards.Scale) View {
 	centre, found := middleOf(points)
 	if !found {
 		return View{}
@@ -41,9 +44,10 @@ func viewOf(points []Point) View {
 	for _, point := range nearest {
 		framed = max(framed, offsetOf(point, centre))
 	}
-	zoom := float64(closestZoom)
+	closest := max(widestZoom, scale.Zoom(closestZoom))
+	zoom := closest
 	if framed > 0 {
-		zoom = min(closestZoom, max(widestZoom, fill/framed))
+		zoom = min(closest, max(widestZoom, fill/framed))
 	}
 	return View{
 		Lat:  degrees(math.Asin(centre.Y)),

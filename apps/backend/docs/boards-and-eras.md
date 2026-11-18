@@ -1,8 +1,10 @@
 # Boards and eras
 
 **A tile id means a place only on its board, so every row and every event of a tile names its board, and every event
-its map** (PR 2 of [Boards](../../../docs/boards.md), 2026-11-17). Only `earth-1` exists, so every value is `earth-1`:
-what is built is the model and the guard, ready for more boards.
+its map** (PR 2 of [Boards](../../../docs/boards.md), 2026-11-17). **The process carries every board it ships, and
+plays any of them** (PR 3, 2026-11-18): an arena on a board of its own (`arena.board`), a history that draws each era on
+its board, and every threshold sized from the board ([Sized from the board](board-scale.md)). Only `earth-1` ships, so
+production plays `earth-1` alone: PR 4 ships `earth-2` and `siege-1` as files and rows.
 
 ## The words in the code
 
@@ -13,7 +15,32 @@ what is built is the model and the guard, ready for more boards.
 - **`eras`** (`internal/planet/internal/eras/`) keeps the boards planet knows and each map's eras: `eras.Board` (id,
   name, hash), `eras.Era` (map, board, start), `eras.Store` (`Boards`, `Latest`, `Covering`, `Start`) and
   `postgres_era_store`, with `MemoryStore` and `StoreContractSuite` behind the `testing` tag. `eras.Boards` are the
-  boards this process carries, each matched with planet's row of it, and it names a board by its row (`Name`).
+  boards this process carries, each matched with planet's row of it, and it names a board by its row (`Name`) or finds
+  it by name (`Named`). `eras.Grounds` is each one's ground by row or by name, `eras.Maps` the stage a map plays.
+- **`clicks.Ground`** is one board's geometry as the rules read it: its geography, borders, bridges and capitals, and
+  its spacing, measured once. **`clicks.Played`** is the ground of the board the map in play plays: the tile map swaps
+  it with its stage, and every rule reads it (the neighbours, a bomb's blast and a rally's ring, the borders, the
+  bridges, the capitals, the tile count). **`clicks.Grounds`** is what the tile map finds a stage's ground by.
+- **`embedded_board.Registry`** is every board this process carries, and **`cpboards`** (`internal/shared/cpboards`)
+  reads their manifests for any module, with each board's scale against `earth-1`.
+
+## The boards this process carries
+
+**`embedded_board.Registry` holds every board under `generated/map/boards`** (`cpboards.Files()`, which adds the tests'
+fixture under the `testing` tag). At boot it reads each manifest and refuses a lattice it cannot walk (a warp, a
+rotation, the canonical order: PR 4). It builds a board's ground (`Registry.Ground`: the positions rebuilt from the
+runs and checked against the manifest's hash, the adjacency from the lattice, the borders, bridges and capitals, each
+file refused if it holds another tile count than the manifest) **the first time something asks for it**, once, and
+keeps it: about 57 bytes a tile, about 0.1 s for `earth-1`. The boot asks for the map in play's board alone, so a board
+no map plays costs its manifest. One log line a board as it loads:
+
+```
+board loaded board=earth-1 asset=board-725d8920.json tiles=260503 edges=761422 degrees="[250 527 1154 4072 6368 6471 241661]"
+  borders=borders-e6851c0e.bin bridges=744 capitals=235 took=95ms
+```
+
+`gameMap.maxIndex` went with it: a board's tile count is its manifest's, and the tile map, `GetMap`, `MapDensity`,
+`GetTiles` and the territories read the board in play's (`Played.Tiles`, `CheckTile`, `OffMap`).
 
 ## The schema
 
@@ -45,11 +72,14 @@ an unknown board refused, and the way back and up again. It is the one test of a
 
 ## Writes
 
-- **The tile map plays one stage** (`inmemory_tile_storage.Storage.stage`, read by `Stage()`). `Load` takes it, and
-  every flush writes it on each tile, lock, mine and virus (`Persistence.Save`, `SaveMines`, `SaveViruses` and `Open`
-  take a `clicks.Stage`). `Blank` plays an arena on the board the map in play plays, and hands that stage to `keep`, so
+- **The tile map plays one stage, on its board's ground** (`inmemory_tile_storage.Storage.stage`, read by `Stage()`).
+  `Load` takes it, sizes the map from its board's ground (`clicks.Grounds`) and makes that ground the one played
+  (`clicks.Played`); every flush writes the stage on each tile, lock, mine and virus (`Persistence.Save`, `SaveMines`,
+  `SaveViruses` and `Open` take a `clicks.Stage`). `Blank` plays an arena on the stage it is given, its board the one
+  its set names (`arena.board`, see [Arena battles](arenas.md)) or the world's, and hands that stage to `keep`, so
   `open_arena_usecase` starts the arena's era in the open's transaction (`eras.Store.Start`). `PutBack` plays the world
-  again on the board the arena played.
+  again on the stage of its era, which `close_arena_usecase` reads (`eras.Maps.Playing`): the world's era resumes,
+  whatever board the arena played. Each swaps the ground in play with the stage, under the same locks.
 - **Every event names the stage its write ran on.** `ledger.Entry.Stage`; `ledger.Storage.Append(on, event)`; the
   memory ledger interns each chunk's stages as it does kinds (a byte a record), and the flush `COPY`s `map` and `board`.
 - **No swap of the stage comes between a write and its record.** `Storage.During(write)` read-holds `staging`, a
@@ -63,10 +93,12 @@ an unknown board refused, and the way back and up again. It is the one test of a
 
 The planet module, before the tile map loads (`module.go`):
 
-1. **The board this process carries** (`embedded_board.Loader.Carried`): the name of its directory and its manifest's
-   `positionsHash`, which the loader has checked the rebuilt positions against.
-2. **Matched with planet's row** (`eras.BoardsOf`): a board carried that `boards` has no row of, or names under another
-   hash, refuses the boot (`eras.ErrUnkept`): a board regenerated under its name, its tiles moved, is another board.
+1. **Every board this process carries** (`embedded_board.Registry.Carried`): the name of its directory and its
+   manifest's `positionsHash`, which `Registry.Ground` checks the rebuilt positions against.
+2. **Each matched with planet's row** (`eras.BoardsOf`): a board carried that `boards` has no row of, or names under
+   another hash, refuses the boot (`eras.ErrUnkept`): a board regenerated under its name, its tiles moved, is another
+   board. A board ships with the migration that adds its row; a test binary carries the fixture, whose row
+   `planet.Migrate` and `eras.KeepFixture` keep.
 3. **The map that plays** (the open arena's, or the world's), and **its latest era** (`eras.Playing`): no era refuses the
    boot (`eras.ErrNoEra`), and an era on a board this process does not carry too (`eras.ErrNotCarried`).
 4. **Its rows** (`inmemory_tile_storage.Load`, `fillLocked`, from `Persistence.Boards`, the boards a map's tiles, locks,
@@ -83,7 +115,7 @@ Each reads an event's map and board from its columns (or the memory ledger's rec
 | reader | keeps |
 | --- | --- |
 | `GetReplay` (`replay_usecase`, `ledger.Footage`), the clips' replay and cast | the world's map on the board it plays (`eras.Store.Latest`) |
-| `GetMapHistory` (`history_query`, `ledger.History`), the season replay | the same |
+| `GetMapHistory` (`history_query`, `ledger.History`), the season replay | the world's map on the board of each era, with the cut |
 | `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`) | the same |
 | `GetLedger` (`changes_query`), the backoffice Home, the clips' cast, the vandal squad | the same, in SQL (`map = $5 AND board = $6`) |
 | `GetTileHolder` (`holder_query`), `GetLandmass`'s last fortify (`landmass_query`) | the stage that plays (`Storage.Stage`) |
@@ -94,8 +126,18 @@ Each reads an event's map and board from its columns (or the memory ledger's rec
 Whether an arena plays, for the readers that then rewind from the world's map kept, is the stage that plays too
 (`Stage().Map != clicks.World`). `arenas.Stretch` stays for `GetReplay`'s `asides`, which the clip generator reads.
 
-**With one board, each reader draws one board.** A window across a change of board (PR 6) would draw the board the
-world plays now; PR 3 draws each era on its own, with the cut.
+**The history draws each era on its own board, with the cut** (2026-11-18). `history_query` reads the world's eras from
+the blank map on (`eras.Store.Covering`), replays each event on the era in force at its time, and keeps it only when it
+names that era's board. At an era's start (`ledger.History.Cut`) the frames before are on the board before, the map is
+emptied onto the new board (the switch's carry-over, PR 6, will fill it), and the first frame after holds every tile
+held, as the window's first frame does: a reader clears its globe and draws that frame whole, on the new board. Each
+tile's hits name their era (`ledger.EraTile`, `TileHits.era`), since two boards' tile ids collide. A reset and a cut at
+one time play the reset first.
+
+**The rewinders keep the board the world plays now** (`GetReplay`, `GetRecentMapHistory`): they rewind from the map in
+memory, and no rewind crosses into another board. A window across a change of the world's board starts at the switch
+in PR 6, as after a reset; until then the world never changes board, so it never covers two. Their hits are the last
+era's of the window (`ledger.InEra`).
 
 ## The wire
 
@@ -103,9 +145,22 @@ Every answer that names tiles names its board, by name (`eras.Boards.Name`): `Ge
 batch, `DenseBatch.Board`), the `heartbeat` a planet stream opens with (`Heartbeat.board`, read once subscribed: a swap
 cuts every stream, so the stage read after the subscription is every change's), `MapHistory.eras` and
 `GetReplayResponse.eras` (`BoardEra {started_at, board}`, from `eras.Store.Covering`: the era in force at the window's
-start, then each that started in it), `GetLedgerResponse.board`, and the vandal squad's `Graffiti.board`.
+start, then each that started in it), `GetLedgerResponse.board`, and the vandal squad's `Graffiti.board`. Since
+2026-11-18 also: `TileHits.era` (the era of each tile's hits), `TilesTaken.board` and `Fortified.board` (the relay names
+each fact's board, empty for one this process does not carry), `GetTerritoriesResponse.board` and
+`GetCountrySizesResponse.board` (the board in play's counts, which the missions scale by), `GetTilesResponse.board`
+(which the vandal squad checks against the ledger's), and the rule set's `ArenaRules.board`.
 
 ## Tests
+
+PR 3's: `embedded_board`'s `registry_test.go` (a second board loaded the first time it is needed and kept, a board not
+carried refused, every board carried needing planet's row under its hash, a file of another board refused, a lattice
+this build cannot walk refused at boot); `cpboards`' tests (the boards shipped and the fixture, the scale); the tile
+map's arena on a board of its own (its ground played, its size, the world kept on its board, the world back) and a
+blank on a board not carried; `open_arena_usecase` (an arena on its set's board, a board planet keeps no row of
+refused) and `close_arena_usecase` (the world's era resumes); `arenas`' rules (`arena.board`, none in default, a board
+not carried refused); `ledger`'s history across two eras and `history_query`'s on postgres; the relay naming each
+fact's board.
 
 Besides the migration's: `eras`' `eras_test.go` (a boot on the era's board, one refused on a board not carried or with
 no era, a board carried with no row or another hash) and its contract suite on memory and postgres;

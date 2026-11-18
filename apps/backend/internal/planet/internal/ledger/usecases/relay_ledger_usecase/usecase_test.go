@@ -73,8 +73,21 @@ func (s *sender) Send(_ context.Context, events ...proto.Message) error {
 	return nil
 }
 
-func earth1(borders borders, positions positions) relay_ledger_usecase.OneBoard {
-	return relay_ledger_usecase.OneBoard{ID: clicks.TestBoard, Borders: borders, Positions: positions}
+// oneBoard is the one board a test's process carries.
+type oneBoard struct {
+	borders   borders
+	positions positions
+}
+
+func (b oneBoard) Of(board clicks.BoardID) (clicks.BoardName, relay_ledger_usecase.Borders, relay_ledger_usecase.Positions, bool) {
+	if board != clicks.TestBoard {
+		return "", nil, nil, false
+	}
+	return "earth-1", b.borders, b.positions, true
+}
+
+func earth1(borders borders, positions positions) oneBoard {
+	return oneBoard{borders: borders, positions: positions}
 }
 
 func flushed(t *testing.T, events ...ledger.Event) *inmemory_ledger_storage.Storage {
@@ -113,13 +126,13 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	assert.Equal(t, 6, n)
 	assert.Equal(t, ledger.Position(6), told.position)
 	want := []proto.Message{
-		&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Tiles: []*planetv1.TakenTile{
+		&planetv1.TilesTaken{Board: "earth-1", AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Tiles: []*planetv1.TakenTile{
 			{TileId: 1, Previous: "de", Ground: "es", Point: &planetv1.GlobePoint{X: 0.6, Z: 0.8}},
 		}},
 		&planetv1.BombLanded{
 			Country: "fr", TileId: 9, Ground: "au", LandmassId: uint32(tasmania), Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2,
 		},
-		&planetv1.Fortified{Country: "fr", LandmassId: 7, Tiles: 60, Ground: "is", FortifiedAt: timestamppb.New(at), AccountId: ada, Position: 3},
+		&planetv1.Fortified{Board: "earth-1", Country: "fr", LandmassId: 7, Tiles: 60, Ground: "is", FortifiedAt: timestamppb.New(at), AccountId: ada, Position: 3},
 		&planetv1.ShieldPlaced{AccountId: ada, TileId: 3, Country: "fr", Shields: 2, PlacedAt: timestamppb.New(at), Position: 4},
 		&planetv1.FlagKnockedOut{
 			Country: "de", By: "fr", TileId: 4, AccountId: ada, Cleared: 2, KnockedOutAt: timestamppb.New(at), Position: 5,
@@ -147,10 +160,10 @@ func TestTheTakesOfAnEventAreToldTogetherEachWithItsIndexInTheEvent(t *testing.T
 	require.NoError(t, err)
 
 	want := []proto.Message{
-		&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Tiles: []*planetv1.TakenTile{
+		&planetv1.TilesTaken{Board: "earth-1", AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 0, Tiles: []*planetv1.TakenTile{
 			{TileId: 1},
 		}},
-		&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 1, Tiles: []*planetv1.TakenTile{
+		&planetv1.TilesTaken{Board: "earth-1", AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Position: 1, Tiles: []*planetv1.TakenTile{
 			{TileId: 2, Index: 0, Previous: "de"}, {TileId: 3, Index: 1}, {TileId: 5, Index: 2},
 		}},
 	}
@@ -257,8 +270,9 @@ func TestNothingNewSendsNothing(t *testing.T) {
 
 func TestClicksForOneFlagOnOneTileAtOnceTellOneTake(t *testing.T) {
 	for range 500 {
-		tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.NoCapitals(), inmemory_tile_storage.Config{},
+		tiles := inmemory_tile_storage.New(clicks.OneGround{Ground: clicks.GroundOf(clicks.BordersOf(100))}, clicks.NewPlayed(), clicks.NoCapitals(), inmemory_tile_storage.Config{},
 			inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+		require.NoError(t, tiles.Load(t.Context(), clicks.WorldStage))
 		require.NoError(t, tiles.Set(t.Context(), 7, "de"))
 		storage := flushed(t)
 		recording := ledger.NewRecording(tiles, clicks.NewClaiming(tiles, func() int { return 10 }), storage, cptime.NewFixedClock(at))
@@ -283,7 +297,7 @@ func TestClicksForOneFlagOnOneTileAtOnceTellOneTake(t *testing.T) {
 
 		require.Len(t, events.sent, 1)
 		require.True(t, proto.Equal(&planetv1.TilesTaken{
-			AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{TileId: 7, Previous: "de"}},
+			Board: "earth-1", AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{{TileId: 7, Previous: "de"}},
 		}, events.sent[0]), "%v", events.sent[0])
 	}
 }
@@ -301,7 +315,7 @@ func TestAVirusTakesAreToldAsTheTakesOfItsPlayer(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, events.sent, 2)
-	assert.True(t, proto.Equal(&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
+	assert.True(t, proto.Equal(&planetv1.TilesTaken{Board: "earth-1", AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
 		{TileId: 4, Previous: "de"},
 	}}, events.sent[0]), "%v", events.sent[0])
 	assert.IsType(t, &planetv1.ShieldsStruck{}, events.sent[1])
@@ -321,7 +335,7 @@ func TestAMinesTakesAndStrikesAreToldAsTheActsOfItsPlayer(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, events.sent, 2)
-	assert.True(t, proto.Equal(&planetv1.TilesTaken{AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
+	assert.True(t, proto.Equal(&planetv1.TilesTaken{Board: "earth-1", AccountId: ada, Country: "fr", TakenAt: timestamppb.New(at), Tiles: []*planetv1.TakenTile{
 		{TileId: 4, Previous: "de"}, {TileId: 5, Index: 1, Previous: "de"},
 	}}, events.sent[0]), "%v", events.sent[0])
 	struck, ok := events.sent[1].(*planetv1.ShieldsStruck)
@@ -349,7 +363,9 @@ func TestATileOfABoardThisProcessDoesNotCarryIsToldWithNoGroundNorPoint(t *testi
 	carried := events.sent[0].(*planetv1.TilesTaken).GetTiles()[0]
 	assert.Equal(t, "es", carried.GetGround())
 	assert.NotNil(t, carried.GetPoint())
+	assert.Equal(t, "earth-1", events.sent[0].(*planetv1.TilesTaken).GetBoard(), "each fact names its board")
 	other := events.sent[1].(*planetv1.TilesTaken).GetTiles()[0]
 	assert.Empty(t, other.GetGround(), "tile 1 of another board is no tile of earth-1's ground")
 	assert.Nil(t, other.GetPoint())
+	assert.Empty(t, events.sent[1].(*planetv1.TilesTaken).GetBoard(), "a board this process does not carry has no name here")
 }

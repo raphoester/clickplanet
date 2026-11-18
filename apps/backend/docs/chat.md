@@ -64,7 +64,8 @@ The table holds **personal data** — IPs next to user-authored text — so the 
 **The chat also says things on its own**: a line between the messages with no sender, which the client draws
 without a bubble. Eight kinds today: `bomb`, every bomb that went off, on land or in the sea, `mute`, every
 mute an operator gave (see [Mutes](#mutes)), `round`, every day and battle of a season scoring scored, `fortify`, every
-landmass of 50 tiles or more a flag fortified (`{country, ground, landmass, tiles}`: the client names the landmass
+landmass of 50 tiles or more a flag fortified (50 of `earth-1`'s, as much ground on another board: `Fortified.board`,
+see [Sized from the board](board-scale.md); `{country, ground, landmass, tiles}`: the client names the landmass
 from its own table, `ground` for a country's main one; see [Fortify](fortify.md)), `champion`, the country that
 won a season, and `flag_mission`, every flag that finished its mission of the day (see
 [The flag's mission](missions.md#the-flags-mission)), told in that flag's room too, `knock_out`, every flag an

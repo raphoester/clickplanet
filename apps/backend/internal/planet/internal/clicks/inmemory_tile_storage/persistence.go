@@ -67,6 +67,11 @@ const flushTimeout = 10 * time.Second
 // Load reads the map that plays, the world's or the open arena's, on the board its era plays: rows of another board
 // refuse it.
 func (s *Storage) Load(ctx context.Context, playing clicks.Stage) error {
+	ground, err := s.grounds.GroundOf(playing.Board)
+	if err != nil {
+		return fmt.Errorf("failed to read the ground of map %s: %w", playing.Map, err)
+	}
+
 	s.staging.Lock()
 	defer s.staging.Unlock()
 
@@ -74,6 +79,7 @@ func (s *Storage) Load(ctx context.Context, playing clicks.Stage) error {
 	defer s.mu.Unlock()
 
 	s.stage = playing
+	s.groundLocked(ground)
 	return s.fillLocked(ctx)
 }
 

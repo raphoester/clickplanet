@@ -51,6 +51,11 @@ func (b *Bridges) Across(tile uint32) []uint32 {
 	return b.ends[b.starts[tile]:b.starts[tile+1]]
 }
 
+// Tiles is the size of the map the bridges were built on.
+func (b *Bridges) Tiles() uint32 {
+	return uint32(len(b.starts) - 2) //nolint:gosec // built from a uint32.
+}
+
 func (b *Bridges) Count() int {
 	return len(b.ends) / 2
 }

@@ -59,7 +59,7 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
-	s.tiles = inmemory_tile_storage.New(clicks.BordersOf(10, []uint32{1, 2, 3}, []uint32{4}), clicks.NoCapitals(), inmemory_tile_storage.Config{},
+	s.tiles = inmemory_tile_storage.New(clicks.OneGround{Ground: clicks.GroundOf(clicks.BordersOf(10, []uint32{1, 2, 3}, []uint32{4}))}, clicks.NewPlayed(), clicks.NoCapitals(), inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	s.playing = clicks.WorldStage
 }

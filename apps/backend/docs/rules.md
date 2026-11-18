@@ -223,7 +223,7 @@ answers the names of the sets postgres keeps, so the gamemaster module refuses a
 
 ## The machine, in the YAML
 
-The config keeps the machine: addresses, `database`, `redis`, secrets, `gameMap.maxIndex`, `tilesStorage.*`,
+The config keeps the machine: addresses, `database`, `redis`, secrets, `tilesStorage.*`,
 `ledger.*`, `ledgerStorage.*`, `vpnBlocklist.*`, `auth` and `rateLimiter.sweepInterval` (see
 [Configuration](configuration.md)). The offers' `forgetAfter` and `sweepInterval` are the `bonuses:` block's since
 2026-11-11, when planet's top-level `bonus:` block went. `TestEveryPlanetKeyIsOneTheConfigReads` decodes each

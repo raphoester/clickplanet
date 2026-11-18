@@ -82,7 +82,7 @@ func (s *stubTiles) Stage() clicks.Stage {
 	return s.playing
 }
 
-func (s *stubTiles) Kept(context.Context, clicks.MapID) (clicks.DenseBatch, error) {
+func (s *stubTiles) Kept(context.Context, clicks.Stage) (clicks.DenseBatch, error) {
 	s.reads.Add(1)
 	return s.kept, nil
 }

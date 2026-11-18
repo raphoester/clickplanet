@@ -22,9 +22,27 @@ type Owner struct {
 	At      time.Time
 }
 
-// History replays the ledger's entries, in position order from its first one, into one stage every step of a window,
-// the world's map on the board it plays, and each tile's changes of owner and shield hits during it. An entry names its
-// stage: one made on an arena's map, or on another board, changes none of it.
+// EraTile is a tile of one era of a window: the era's place among the eras the window covers (0 for the one in force at
+// its start), and the tile, on that era's board.
+type EraTile struct {
+	Era  int
+	Tile uint32
+}
+
+// InEra is hits of one board, all in one era of the window.
+func InEra(era int, hits map[uint32]uint32) map[EraTile]uint32 {
+	kept := make(map[EraTile]uint32, len(hits))
+	for tile, count := range hits {
+		kept[EraTile{Era: era, Tile: tile}] = count
+	}
+	return kept
+}
+
+// History replays the ledger's entries, in position order from its first one, into one map every step of a window, on
+// the board of the era in force at each time, and each tile's changes of owner and shield hits during it. An entry
+// names its stage: one made on another map, or on another board than its time's era, changes none of it. A cut (the
+// start of an era) empties the map onto the era's board, and the frame after it holds every tile held then, as the first
+// frame does.
 type History struct {
 	since, until time.Time
 	step         time.Duration
@@ -33,19 +51,40 @@ type History struct {
 	owners  map[uint32]Owner
 	shown   map[uint32]string
 	changed *cpcolls.Set[uint32]
+	whole   bool
+	era     int
 	next    time.Time
 	frames  []Frame
-	hits    map[uint32]uint32
+	hits    map[EraTile]uint32
 }
 
+// NewHistory replays the map on the board of the era in force before its first entry: Cut moves it to the next era's.
 func NewHistory(since, until time.Time, step time.Duration, replayed clicks.Stage) (*History, error) {
 	if !since.Before(until) || step <= 0 {
 		return nil, ErrInvalidHistory
 	}
 	return &History{
-		since: since, until: until, step: step, replayed: replayed, next: since,
-		owners: map[uint32]Owner{}, shown: map[uint32]string{}, changed: cpcolls.NewSet[uint32](), hits: map[uint32]uint32{},
+		since: since, until: until, step: step, replayed: replayed, next: since, whole: true,
+		owners: map[uint32]Owner{}, shown: map[uint32]string{}, changed: cpcolls.NewSet[uint32](), hits: map[EraTile]uint32{},
 	}, nil
+}
+
+// Cut starts an era of the map on board at at: the frames before it are of the board before, the map is emptied onto
+// board (until the switch carries tiles over), and the first frame after it holds every tile held. An era that started
+// after since is the next of the window's eras; one at or before it is in force at the window's start.
+func (h *History) Cut(at time.Time, board clicks.BoardID) {
+	if !at.Before(h.until) {
+		return
+	}
+	h.frameUpTo(at.Add(-time.Nanosecond))
+	h.replayed.Board = board
+	clear(h.owners)
+	clear(h.shown)
+	h.changed.Clear()
+	h.whole = true
+	if at.After(h.since) {
+		h.era++
+	}
 }
 
 // Done is true once an entry at or after the window's end was seen: the ones after it change nothing.
@@ -67,11 +106,11 @@ func (h *History) Record(entry Entry) error {
 		h.owners[taking.Tile] = Owner{Country: taking.Country, At: entry.At}
 		h.changed.Add(taking.Tile)
 		if during {
-			h.hits[taking.Tile]++
+			h.hits[EraTile{Era: h.era, Tile: taking.Tile}]++
 		}
 	})
 	if during {
-		event.Strikes(func(strike Strike) { h.hits[strike.Tile]++ })
+		event.Strikes(func(strike Strike) { h.hits[EraTile{Era: h.era, Tile: strike.Tile}]++ })
 	}
 	return nil
 }
@@ -95,7 +134,7 @@ func (h *History) Frames() []Frame {
 	return h.frames
 }
 
-func (h *History) Hits() map[uint32]uint32 {
+func (h *History) Hits() map[EraTile]uint32 {
 	return h.hits
 }
 
@@ -112,7 +151,7 @@ func (h *History) frameUpTo(at time.Time) {
 
 func (h *History) changedOwners() map[uint32]Owner {
 	owners := map[uint32]Owner{}
-	if len(h.frames) == 0 {
+	if h.whole {
 		for tile, owner := range h.owners {
 			if owner.Country != "" {
 				owners[tile] = owner
@@ -120,6 +159,7 @@ func (h *History) changedOwners() map[uint32]Owner {
 			}
 		}
 		h.changed.Clear()
+		h.whole = false
 		return owners
 	}
 	h.changed.ForEach(func(tile uint32) {

@@ -1,6 +1,8 @@
 package embedded_board_test
 
 import (
+	"fmt"
+	"log/slog"
 	"math"
 	"slices"
 	"testing"
@@ -9,12 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcountries"
 )
 
 func TestTheShippedBridgesLandOnCoastsAndJoinEveryPieceOfLand(t *testing.T) {
-	bridges, err := loader().LoadBridges()
-	require.NoError(t, err)
+	bridges := earth1.Bridges()
 
 	manifest, _ := shipped(t)
 	assert.Equal(t, "bridges-4b74bbe0.json", manifest.Files.Bridges)
@@ -44,8 +46,7 @@ func TestTheShippedBridgesLandOnCoastsAndJoinEveryPieceOfLand(t *testing.T) {
 }
 
 func TestTheShippedBridgesCrossTheNorthAtlanticAndReachHawaii(t *testing.T) {
-	bridges, err := loader().LoadBridges()
-	require.NoError(t, err)
+	bridges := earth1.Bridges()
 
 	crosses := func(fromLat, fromLon, toLat, toLon float64) bool {
 		for tile := uint32(1); tile <= tiles; tile++ {
@@ -69,10 +70,7 @@ func TestTheShippedBridgesCrossTheNorthAtlanticAndReachHawaii(t *testing.T) {
 }
 
 func TestTheShippedCapitalsAreEachCountrysTileNearestItsCapitalCity(t *testing.T) {
-	borders, err := loader().LoadBorders()
-	require.NoError(t, err)
-	capitals, err := loader().LoadCapitals(borders)
-	require.NoError(t, err)
+	capitals := earth1.Capitals()
 
 	manifest, _ := shipped(t)
 	assert.Equal(t, "capitals-3938708b.json", manifest.Files.Capitals)
@@ -88,8 +86,15 @@ func TestTheShippedCapitalsAreEachCountrysTileNearestItsCapitalCity(t *testing.T
 	assert.Less(t, kilometres(at, 48.857, 2.352), 25.0, "a tile is 25 km across")
 }
 
-func TestCapitalsOffTheirGroundRefuseTheBoot(t *testing.T) {
-	_, err := loader().LoadCapitals(clicks.BordersOf(tiles))
+func TestCapitalsOffTheirGroundRefuseTheBoard(t *testing.T) {
+	files := fixtureWith(t, func(manifest *cpboards.Manifest, files map[string][]byte) {
+		files[manifest.Files.Capitals] = []byte(fmt.Sprintf(`{"tiles": %d, "capitals": {"fr": 1}}`, manifest.Tiles))
+	})
+	registry, err := loadedRegistry(files, func(string) bool { return true }, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	_, err = registry.Ground(cpboards.Fixture)
+
 	require.ErrorContains(t, err, "ground")
 }
 

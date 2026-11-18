@@ -14,7 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-var ground = seeds.Ground{Capitals: clicks.NewCapitals(map[string]uint32{"fr": 50, "de": 60})}
+var ground = clicks.GroundWith(clicks.BordersOf(100), clicks.NewCapitals(map[string]uint32{"fr": 50, "de": 60}))
 
 func capitalsSeed(shields *uint32) *planetv1.Seed {
 	return &planetv1.Seed{Pattern: &planetv1.Seed_Capitals{Capitals: &planetv1.CapitalSeed{Shields: shields}}}
@@ -31,7 +31,7 @@ func battle(t *testing.T, own *planetv1.Rules) cprules.Set[*planetv1.Rules] {
 func TestDefaultSeedsEachCapitalWithItsShields(t *testing.T) {
 	set := battle(t, &planetv1.Rules{})
 
-	seed := seeds.NewCatalog(ground).SeedOf(set)
+	seed := seeds.Catalog{}.SeedOf(set, ground)
 
 	assert.Equal(t, []clicks.StartTile{{Tile: 60, Country: "de", Shields: 100}, {Tile: 50, Country: "fr", Shields: 100}},
 		seed.Tiles())

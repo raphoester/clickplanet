@@ -144,7 +144,10 @@ type ArenaRules struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	On    *bool                  `protobuf:"varint,1,opt,name=on,proto3,oneof" json:"on,omitempty"`
 	// Every play is refused this long after the fresh map plays and before the battle ends. 0 to 30 s.
-	Freeze        *durationpb.Duration `protobuf:"bytes,2,opt,name=freeze,proto3" json:"freeze,omitempty"`
+	Freeze *durationpb.Duration `protobuf:"bytes,2,opt,name=freeze,proto3" json:"freeze,omitempty"`
+	// The board the fresh map plays, as /map/boards names it ("siege-1"): one this server carries and planet keeps a row
+	// of, or the arena does not open. Unset or empty: the board the world plays.
+	Board         *string `protobuf:"bytes,4,opt,name=board,proto3,oneof" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -191,6 +194,13 @@ func (x *ArenaRules) GetFreeze() *durationpb.Duration {
 		return x.Freeze
 	}
 	return nil
+}
+
+func (x *ArenaRules) GetBoard() string {
+	if x != nil && x.Board != nil {
+		return *x.Board
+	}
+	return ""
 }
 
 // One pattern; a set that holds another pattern than default's plays its own alone.
@@ -1126,12 +1136,14 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	" \x01(\v2\x16.planet.v1.ChargeRulesR\achargesB\t\n" +
 	"\a_frozenB\x14\n" +
 	"\x12_allegiance_lockedB\b\n" +
-	"\x06_reachJ\x04\b\x03\x10\x04R\abonuses\"r\n" +
+	"\x06_reachJ\x04\b\x03\x10\x04R\abonuses\"\x97\x01\n" +
 	"\n" +
 	"ArenaRules\x12\x13\n" +
 	"\x02on\x18\x01 \x01(\bH\x00R\x02on\x88\x01\x01\x121\n" +
-	"\x06freeze\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06freezeB\x05\n" +
-	"\x03_onJ\x04\b\x03\x10\x04R\x0fcapital_shields\"G\n" +
+	"\x06freeze\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\x06freeze\x12\x19\n" +
+	"\x05board\x18\x04 \x01(\tH\x01R\x05board\x88\x01\x01B\x05\n" +
+	"\x03_onB\b\n" +
+	"\x06_boardJ\x04\b\x03\x10\x04R\x0fcapital_shields\"G\n" +
 	"\x04Seed\x124\n" +
 	"\bcapitals\x18\x01 \x01(\v2\x16.planet.v1.CapitalSeedH\x00R\bcapitalsB\t\n" +
 	"\apattern\"8\n" +

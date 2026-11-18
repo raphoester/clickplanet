@@ -23,7 +23,7 @@ import (
 type Tiles interface {
 	Stage() clicks.Stage
 	StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, error)
-	Kept(ctx context.Context, kept clicks.MapID) (clicks.DenseBatch, error)
+	Kept(ctx context.Context, kept clicks.Stage) (clicks.DenseBatch, error)
 }
 
 // Eras names the board the world plays, and the eras a window covers.
@@ -119,22 +119,23 @@ func (q *PostgresQuery) build(ctx context.Context, recent ledger.Recent) (*plane
 	}
 
 	// The map before the ledger: a change made between the two reads is then in the ledger, and rewound.
-	now, err := q.world(ctx)
+	now, err := q.world(ctx, world.Stage())
 	if err != nil {
 		return nil, err
 	}
 	if err := q.replay(ctx, recent.Since, rewind); err != nil {
 		return nil, err
 	}
-	history := planetmessage.MapHistory(rewind.Frames(now), rewind.Hits(), covering)
+	// The rewind keeps the board the world plays: the last era of the window's.
+	history := planetmessage.MapHistory(rewind.Frames(now), ledger.InEra(len(covering)-1, rewind.Hits()), covering)
 	q.keep(recent.Until, history)
 	return history, nil
 }
 
-// The world's map as it plays, or as postgres keeps it while an arena's plays.
-func (q *PostgresQuery) world(ctx context.Context) (clicks.DenseBatch, error) {
+// The world's map as it plays, or as postgres keeps it on the board of its era while an arena's plays.
+func (q *PostgresQuery) world(ctx context.Context, world clicks.Stage) (clicks.DenseBatch, error) {
 	if q.tiles.Stage().Map != clicks.World {
-		kept, err := q.tiles.Kept(ctx, clicks.World)
+		kept, err := q.tiles.Kept(ctx, world)
 		if err != nil {
 			return clicks.DenseBatch{}, fmt.Errorf("failed to read the world's map kept: %w", err)
 		}

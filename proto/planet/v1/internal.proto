@@ -121,6 +121,8 @@ message GetTilesRequest {
 // One per tile asked, in the order asked.
 message GetTilesResponse {
   repeated MapTile tiles = 1;
+  // The board the map in play plays, as /map/boards names it: the ids asked are read as its tiles.
+  string board = 2;
 }
 
 message MapTile {
@@ -186,6 +188,8 @@ message GetTerritoriesRequest {}
 message GetTerritoriesResponse {
   uint32 tiles = 1;
   repeated Territory territories = 2;
+  // The board the map in play plays, as /map/boards names it: the tiles are counted on it.
+  string board = 3;
 }
 
 message Territory {
@@ -207,6 +211,8 @@ message GetCountrySizesRequest {}
 // How many tiles of land each country has, all its landmasses together.
 message GetCountrySizesResponse {
   repeated CountrySize country_sizes = 1;
+  // The board the sizes are counted on, as /map/boards names it: the board the map in play plays.
+  string board = 2;
 }
 
 message CountrySize {

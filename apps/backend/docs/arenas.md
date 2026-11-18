@@ -91,15 +91,16 @@ map.
   the set in force (it plays only once the arena opened): its `arena.freeze` and its seed ([Seeds](#seeds)). A set planet
   keeps none of, or one that cannot play, is refused. Then, under the flush lock and the tiles lock, `Storage.Blank`
   saves what changed to the world's map (the tiles not flushed yet), and `Persistence.Open` keeps the arena (`arenas`,
-  with its freeze), starts its map's era on the board the world plays (`eras`, see [Boards and eras](boards-and-eras.md))
-  and writes the seed's tiles, in one transaction, and the arena's map plays. Memory is emptied as
+  with its freeze), starts its map's era on the board its set names (`arena.board`, below) or the world's (`eras`, see
+  [Boards and eras](boards-and-eras.md)) and writes the seed's tiles, laid on that board, in one transaction, and the
+  arena's map plays on that board's ground. Memory is emptied as
   `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map again. **An arena opens once,
   never after it closed, never at or after its end, and never while another is open** (`Arena.Open`): a refusal is
   `FailedPrecondition`, logged at Error. An arena open already answers open.
 - **`CloseArena`** (`close_arena_usecase`): under the same locks, `Storage.PutBack` runs `Wipe` on the arena's map in
   one transaction with the arena kept closed (`closed_arenas`). Only after the commit does the world's map play again,
-  read as the boot reads it (`Load`'s steps: every tile, every lock, each landmass settled), with a new epoch and every
-  stream cut. **An arena that never opened closes too**, with the map left as it is, and answers closed, so day K+1
+  on the board of the world's era (`eras.Maps.Playing`: its era resumes, whatever board the arena played), read as the
+  boot reads it (`Load`'s steps: every tile, every lock, each landmass settled), with a new epoch and every stream cut. **An arena that never opened closes too**, with the map left as it is, and answers closed, so day K+1
   never waits for ever. One closed already changes nothing, and answers closed again.
   The world's map is never an arena's (`ParseID` refuses `world`, `InvalidArgument`, and `Blank` and `PutBack` refuse
   it).
@@ -124,6 +125,34 @@ map.
   5 s cache.
 - **A deleted account** (`anonymize_takes_usecase`) is taken off every map, in memory and then in postgres
   (`Storage.ForgetHolder`), so the world's map played again names it no more.
+
+## The board an arena plays (`arena.board`)
+
+**A rule set's `arena.board` names the board its arena's map plays** (PR 3 of [Boards](../../../docs/boards.md),
+2026-11-18): empty, the board the world plays. `default` names none, or every arena would play it (`InDefault`), and a
+set refuses a board this build does not carry (`cpboards.Named`), as it is saved and as it is read. `arenas.Setups`
+resolves the board as the arena opens (`eras.Grounds.Named`): one planet keeps no row of, or this process does not
+carry, refuses the open (`ErrRefused`, `FailedPrecondition`), and the world's map stays as it is.
+
+- **The arena's era is on that board**, from its open (`eras`), so its rows, its events and the stream's opening
+  heartbeat name it; the world's era is not touched, and **the world's resumes at the close**: `PutBack` plays the world
+  on its era's board again.
+- **Every rule reads that board while the arena plays**: the tile map swaps the ground in play with the stage
+  (`clicks.Played`): its tile count, neighbours, borders, bridges (the reach), capitals (the knock-out, the fixed
+  shields) and spacing (a bomb's radius, a rally's ring). **The seed is laid on it**: the capitals pattern starts each
+  country on that board's capital.
+- **Pages reload during the freeze**: an open cuts every stream, and a page whose stream opens on another board than
+  it drew reloads (see the frontend's [A board of its own reloads the page](../../frontend/docs/boards.md)), within the
+  8 s of the arena's start freeze, which outlasts `GetMap`'s 5 s cache.
+- **A play in flight as an arena opens on another board** lands on the arena's map by its id: it passed the freeze
+  interceptor before the blank, and its write waits for the swap (`Storage.During`). On the blank map that is a take
+  of another place, as the gap at T1 already lets through; at the close the end freeze holds every play.
+- **The world's readers keep the world's board**: the replays and the map history keep the world's events on the
+  board of each of its eras, and the arena's events name the arena's map and board, so nothing of it is drawn on the
+  world (see [The ledger's readers](#the-ledgers-readers)). The vandal squad waits for the world's map: `GetTiles`
+  names the board in play.
+
+Capital Siege's set names `siege-1` in PR 5, once PR 4 ships it.
 
 ## Seeds
 
