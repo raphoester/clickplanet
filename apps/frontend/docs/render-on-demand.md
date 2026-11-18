@@ -147,6 +147,10 @@ again.
   `invalidate()`, one frame per stream batch: about 2 frames a second at the
   average, 1 to 2 points above a page that draws nothing.
 
+**Two ticks in a row that both drew a frame are what slow frames are measured
+on**, and a tick after one that drew nothing is the display's own pace: see
+[Slow frames lower the ratio](pixel-ratio.md#slow-frames-lower-the-ratio).
+
 **Only a frame that is drawn culls the tiles.** `TileField.cull` picks the
 pieces of the map in sight (see [The tiles out of sight are not
 drawn](far-side.md)) after `drawsFrame` has said yes, just before the render,
