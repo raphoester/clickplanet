@@ -36,7 +36,7 @@ func Seeded() cprules.Snapshot[*planetv1.Rules] {
 				Shield:  &planetv1.ShieldRules{Held: n(30), PerTile: n(10)},
 				Virus:   &planetv1.VirusRules{Infections: n(32), Every: d(20 * time.Second), Held: n(1)},
 				Mine:    &planetv1.MineRules{Held: n(3), Rings: n(2)},
-				Rally:   &planetv1.RallyRules{Held: n(3), Rings: f(18), Lasts: d(3 * time.Minute), Cost: f(0.5)},
+				Rally:   &planetv1.RallyRules{Held: n(3), Rings: f(18), Lasts: d(3 * time.Minute), Cost: f(0.5), Off: on(false)},
 			},
 			Frozen:           on(false),
 			AllegianceLocked: on(false),

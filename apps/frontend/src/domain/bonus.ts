@@ -193,6 +193,8 @@ export type BonusRules = {
     enclosuresOff: boolean
     // No click spreads, and no spread click is offered: the page hides the spread slot.
     spreadOff: boolean
+    // No rally is called or offered: the page hides the rally slot and puts its aim away.
+    ralliesOff: boolean
     // The most a virus infects, a tile taken or a shield struck each.
     virusInfections: number
     // How many refills, bombs and viruses a hand holds.

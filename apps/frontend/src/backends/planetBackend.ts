@@ -596,6 +596,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                 enclosuresOff: res.enclosuresOff,
                 spreadUnlimited: res.spreadUnlimited,
                 spreadOff: res.spreadOff,
+                ralliesOff: res.ralliesOff,
                 virusInfections: res.virusInfections,
                 refills: res.refills,
                 bombs: res.bombs,

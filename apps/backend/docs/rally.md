@@ -113,6 +113,23 @@ second before its relay loses the line, never the rally.
 **A rally is a row in postgres, not map state** (`planet.rallies`: the account's last rally, on or ended, one row per
 account, upserted by each call; its centre in `x`, `y`, `z`). Nothing of it is in memory, so a restart loses nothing.
 
+## Rallies off (`charges.rally.off`)
+
+**A rule set with `off` keeps every rally out of the game** (the owner, 2026-11-18, for Capital Siege on `siege-1`: a
+ring is `rings` × the spacing of the board in play, so `default`'s 36 rings, the size of France on `earth-2`, would be
+about 2,860 km on `siege-1`'s 79 km tiles). A knob of its own, on any map, built as [bombs off](bomb.md) was:
+
+- **A call is refused before anything else** (`Muster.Refuses`, `ErrRalliesOff`, asked first by `call_rally_usecase`):
+  `FailedPrecondition`, and the rally stays held. The page gives back the rally it took off the hand at once, as it does
+  on any refusal but "none held".
+- **A grant keeps none** (`Rules.Off`, in `Held.Granted`): a box's, a quiz's, a level's fill or the operator's
+  `GrantCharges`. The bonuses' set should weigh `kinds.rally` 0 while its planet set turns rallies off, or a box drawn a
+  rally pays nothing.
+- **The rallies held are kept**, not taken, and are there when the set stops. A ring called before the set played goes
+  on to its end, at the size it was called with.
+- **The page learns it from `GetChargeRules.rallies_off`**, hides the Rally slot and puts its aim away (the frontend's
+  [Rally](../../frontend/docs/rally.md)). `default` holds `false` (migration `20261118141756_rally_off`).
+
 ## Arenas, resets and remaps
 
 - **A ring is a point on the globe and a time**, not a tile's state: it lasts through an arena's open and close, a
@@ -137,6 +154,8 @@ told as a fact, as a mine's lay writes no ledger event either.
 
 ## Tests
 
+Rallies off: `charges`' `held_test.go` (no grant kept, no fill paid), `call_rally_usecase` (refused, the rally held, nothing
+told), `call_rally_handler` (`FailedPrecondition`), `GetChargeRules` (`rallies_off`).
 `rallies`' `rally_test.go` (on, one at a time, the ring around a point between tiles, `PointOf`), `muster_test.go` (the
 rules as it is called), `gate_test.go` (any point, the flag, a ban, one still on, the failed reads), `discount_test.go`
 (inside, outside, another flag, rings that overlap, a ring ended, the cost read at each click, a failed read) and the

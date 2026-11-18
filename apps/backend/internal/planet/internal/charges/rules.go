@@ -53,7 +53,9 @@ func (r Rules) Off(kind Kind) bool {
 		return r.Enclose.Off
 	case KindSpreadClicks:
 		return r.Spread.Off
-	case KindRefill, KindShields, KindVirus, KindMine, KindRally:
+	case KindRally:
+		return r.Rally.Off
+	case KindRefill, KindShields, KindVirus, KindMine:
 	}
 
 	return false
@@ -176,6 +178,7 @@ type RallyRules struct {
 	Rings float64
 	Lasts time.Duration
 	Cost  float64
+	Off   bool
 }
 
 type ShieldRules struct {

@@ -75,7 +75,7 @@ export type TollStep = {share: string, slowdown: string}
 export type Draft = {
     name: string, values: Record<string, string>, frozen?: boolean, allegianceLocked?: boolean, arena?: boolean,
     enclosuresUnlimited?: boolean, spreadUnlimited?: boolean, toll?: TollStep[], reach?: boolean, knockOut?: boolean,
-    fixedShields?: boolean, bombsOff?: boolean, enclosuresOff?: boolean, spreadOff?: boolean, board?: string
+    fixedShields?: boolean, bombsOff?: boolean, enclosuresOff?: boolean, spreadOff?: boolean, ralliesOff?: boolean, board?: string
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -90,6 +90,7 @@ export function draftOf(set: RuleSet): Draft {
         bombsOff: rules.charges?.bomb?.off,
         enclosuresOff: rules.charges?.enclose?.off,
         spreadOff: rules.charges?.spread?.off,
+        ralliesOff: rules.charges?.rally?.off,
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
         arena: rules.arena?.on,
@@ -136,6 +137,7 @@ export const SWITCHES = [
     {key: "bombsOff", label: "Bombs off"},
     {key: "enclosuresOff", label: "Enclose off"},
     {key: "spreadOff", label: "Spread off"},
+    {key: "ralliesOff", label: "Rally off"},
 ] as const
 
 // Every value the draft holds otherwise than `before`, the set it started from.
@@ -183,6 +185,7 @@ export function ruleSetOf(draft: Draft): RuleSet {
         "capitals.knockOut": draft.knockOut, "capitals.fixedShields": draft.fixedShields,
         "charges.enclose.unlimited": draft.enclosuresUnlimited, "charges.spread.unlimited": draft.spreadUnlimited,
         "charges.bomb.off": draft.bombsOff, "charges.enclose.off": draft.enclosuresOff, "charges.spread.off": draft.spreadOff,
+        "charges.rally.off": draft.ralliesOff,
     }
     for (const [path, on] of Object.entries(switches)) {
         if (on !== undefined) put(json, path, on)

@@ -1656,7 +1656,7 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
-            enclosuresOff: false, spreadOff: false, virusInfections: 32, refills: 1, bombs: 2, viruses: 3, gatesOn: false, openKinds: [],
+            enclosuresOff: false, spreadOff: false, ralliesOff: false, virusInfections: 32, refills: 1, bombs: 2, viruses: 3, gatesOn: false, openKinds: [],
             mines: 3, mineRings: 2, rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
         }))
         backend.close()
@@ -1686,6 +1686,21 @@ describe("the rules", () => {
             onRallies: () => {},
             onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => off = rules.spreadOff,
+        })
+
+        await vi.waitFor(() => expect(off).toBe(true))
+        backend.close()
+    })
+
+    it("reads rallies off", async () => {
+        const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({ralliesOff: true}))
+        const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000)
+        let off = false
+        backend.listenForBonuses({
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: (rules) => off = rules.ralliesOff,
         })
 
         await vi.waitFor(() => expect(off).toBe(true))

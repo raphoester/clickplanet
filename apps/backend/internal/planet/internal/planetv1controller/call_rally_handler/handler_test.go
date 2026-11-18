@@ -80,6 +80,12 @@ func TestARallyStillOnIsAFailedPreconditionWithARallyRefusal(t *testing.T) {
 	assert.IsType(t, &planetv1.RallyRefusal{}, detailOf(t, err))
 }
 
+func TestARallyWhileRalliesAreOffIsAFailedPrecondition(t *testing.T) {
+	_, err := call(t, &stubUseCase{err: rallies.ErrRalliesOff})
+
+	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
 func TestCallingNoRallyIsNotFound(t *testing.T) {
 	_, err := call(t, &stubUseCase{err: call_rally_usecase.ErrNoRally})
 

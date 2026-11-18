@@ -915,6 +915,14 @@ export class RallyRules extends Message<RallyRules> {
    */
   cost?: number;
 
+  /**
+   * No rally: a call is refused (FailedPrecondition) and the rally stays held, and a grant keeps none, a box's, a quiz's,
+   * a level's fill or an operator's. The rallies held are kept.
+   *
+   * @generated from field: optional bool off = 5;
+   */
+  off?: boolean;
+
   constructor(data?: PartialMessage<RallyRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -927,6 +935,7 @@ export class RallyRules extends Message<RallyRules> {
     { no: 2, name: "rings", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 3, name: "lasts", kind: "message", T: Duration },
     { no: 4, name: "cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 5, name: "off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RallyRules {

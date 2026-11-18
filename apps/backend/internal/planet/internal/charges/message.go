@@ -41,6 +41,7 @@ func RulesOf(m *planetv1.ChargeRules) Rules {
 			Rings: m.GetRally().GetRings(),
 			Lasts: m.GetRally().GetLasts().AsDuration(),
 			Cost:  m.GetRally().GetCost(),
+			Off:   m.GetRally().GetOff(),
 		},
 	}
 }

@@ -1,6 +1,7 @@
 package rallies
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
@@ -8,6 +9,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
+
+// ErrRalliesOff is a call while the rules in force hold no rally: the rally stays held.
+var ErrRalliesOff = errors.New("rallies are off: the rally stays held")
 
 // NewMuster measures a ring in the spacings of the board in play.
 func NewMuster(rules func() charges.Rules, board charges.Spaced, ids IDProvider, clock cptime.Clock) Muster {
@@ -21,6 +25,14 @@ type Muster struct {
 	board charges.Spaced
 	ids   IDProvider
 	clock cptime.Clock
+}
+
+// Refuses is ErrRalliesOff while the rules in force hold rallies off.
+func (m Muster) Refuses() error {
+	if m.rules().Rally.Off {
+		return ErrRalliesOff
+	}
+	return nil
 }
 
 // Radius is a ring's, in arc on the unit globe, by the rules in force.

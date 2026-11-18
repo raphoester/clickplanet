@@ -410,7 +410,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             shield: {held: 30, perTile: 10},
             virus: {infections: 32, every: "20s", held: 1},
             mine: {held: 3, rings: 2},
-            rally: {held: 3, rings: 18, lasts: "180s", cost: 0.5},
+            rally: {held: 3, rings: 18, lasts: "180s", cost: 0.5, off: false},
         },
         frozen: false,
         allegianceLocked: false,

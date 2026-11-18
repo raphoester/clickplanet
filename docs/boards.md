@@ -6,8 +6,8 @@ carry. PR 3 is built (2026-11-18): every app holds more than one board, the page
 reloads when it changes, every threshold sized from the board reads it, an arena plays the board its set names, and a
 history draws each era on its own board, with the cut. PR 4 is built (2026-11-18): `earth-2` and `siege-1` are
 generated and committed, warped and rotated and in canonical order, and every app reads them to the bit. PR 5 is built
-(2026-11-18): `charges.spread.off`, and Capital Siege's set ready to name `siege-1` with no spread, which the owner
-saves. PR 6 is built (2026-11-18): the carry-over from `earth-1` to `earth-2`, `SwitchBoard` and its dry run, what
+(2026-11-18): `charges.spread.off` and `charges.rally.off`, and Capital Siege's set ready to name `siege-1` with no
+spread and no rally, which the owner saves. PR 6 is built (2026-11-18): the carry-over from `earth-1` to `earth-2`, `SwitchBoard` and its dry run, what
 players see of the switch, and its rehearsal on production's map. **The world plays `earth-2` since 2026-11-18 13:41:31
 UTC** ([the switch, live](#the-switch-live)).**
 The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
@@ -901,9 +901,13 @@ their numbers.
 5. **Capital Siege on `siege-1`. Built 2026-11-18.**
    - `charges.spread.off`: a click with spread on takes its tile alone and spends nothing, a grant keeps none, the
      spread clicks held are kept, and the page hides the Spread slot.
-   - Its set names `siege-1` and drops the spread: the owner saves planet's `capital-siege` once it is deployed (the
-     backend's [Capital Siege's set](../apps/backend/docs/arenas.md#capital-sieges-set)); the offers', the boxes' and the
-     quizzes' sets need no change.
+   - `charges.rally.off`, as bombs off: a call is refused and the rally kept, a grant keeps none, the page hides the
+     Rally slot. A ring is rings × the board's spacing, so `default`'s 36 (the world's France since the switch) would be
+     about 2,860 km on `siege-1`; the owner chose no rally in the battle (2026-11-18).
+   - Its set names `siege-1` and drops the spread and the rally: the owner saves planet's `capital-siege` and the offers'
+     (`kinds.rally` 0) once it is deployed (the backend's
+     [Capital Siege's set](../apps/backend/docs/arenas.md#capital-sieges-set)); the boxes' and the quizzes' sets need no
+     change.
    - `siege-1`'s landmass names in every language, written by Haiku with no API credit (PR 4 shipped them in English),
      and `siege-1` off the page's `AWAITING_TRANSLATION`.
    - The first arena on a board other than the world's, at the next Capital Siege. The world's switch to `earth-2` ran

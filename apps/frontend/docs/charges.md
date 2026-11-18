@@ -44,7 +44,7 @@ blast radius, the enclose's `maxTiles`, the spread pool's size, the enclosure
 stack's size, the shields' pool size, how many refills, bombs and viruses a hand holds (`refills`, `bombs`,
 `viruses`, as `mines` and `rallies`), how many shields can stand on one tile
 (`tileShields`), whether enclosures are unlimited (`enclosuresUnlimited`) or off (`enclosuresOff`) and whether spreads
-are unlimited (`spreadUnlimited`) or off (`spreadOff`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
+are unlimited (`spreadUnlimited`) or off (`spreadOff`), and whether rallies are off (`ralliesOff`) as `BonusRules`, through `onRules`. It is read at load, again on each `rulesChanged` of the
 planet stream, and again when the stream comes back after a gap, which may have hidden one, so an open page follows a
 new set in force (the backend's [Rules](../../backend/docs/rules.md)). `BonusRules.signInRefill`, `gatesOn` and
 `openKinds` are the bonuses module's rules, from `BonusService/GetGrantRules`, told with planet's. Bonuses has no stream,
@@ -167,7 +167,8 @@ how to use it in its bubble. A name drawn under the icon widened its own slot ("
 down on 2026-11-16. What the slot is doing (`On`, `Aim`, `Full`, `New`) is in its `aria-label` too, not over it: a
 `New` slot wears a dot on its corner, and one switched on keeps its ring and its glow. Two words side by side ran over
 each other ("Nouveau", "Zapnuto"). A slot is shown always, in the tray at least, the virus too (see
-[Virus](virus.md)), but the bomb while bombs are off, Enclose while enclosures are off, and Spread while spreads are off.
+[Virus](virus.md)), but the bomb while bombs are off, Enclose while enclosures are off, Spread while spreads are off, and Rally while
+rallies are off ([Rally](rally.md)).
 
 - **Refill** fills the bank with one refill (`Refiller.useRefill`). **On a full bank it sends
   nothing** and says "Full": a refill there would be wasted. The refill a

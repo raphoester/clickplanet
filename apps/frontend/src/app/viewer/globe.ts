@@ -1139,7 +1139,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const aimRally = () => {
-        if (rallyAimed || charges.rallies === 0 || !rallier) return
+        if (rallyAimed || charges.rallies === 0 || !rallier || rules?.ralliesOff) return
         disarm()
         stopAimingVirus()
         stopAimingMine()
@@ -1290,6 +1290,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             drawMarks(marksFor(shielded.most()))
             followRules(read)
             if (read.bombsOff) disarm()
+            if (read.ralliesOff) putRallyAway()
             invalidate()
             onRules(read)
         },

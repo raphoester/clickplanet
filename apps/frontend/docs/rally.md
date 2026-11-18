@@ -15,6 +15,12 @@ backend takes one rally off the hand at once and gives it back unless the server
 (a rally of the caller still on) is `RallyRefusedError`, said over the slot ("Your rally is still on", the notice
 `rallyOn`).
 
+**No rally while rallies are off** (`ralliesOff`, from `GetChargeRules.rallies_off`; the backend's
+[Rallies off](../../backend/docs/rally.md#rallies-off-chargesrallyoff), Capital Siege's since 2026-11-18): the Rally slot
+is hidden, held or not, the aim is put away when the set starts playing (`onRules`), and it cannot be aimed. The rallies
+held are kept, and the slot shows them again when the set stops. In the fake, `rallyOff()` plays it (its boxes draw no
+rally, and a call is refused) and `rallyOff(false)` stops it.
+
 **Every rally on is known to every page.** The planet backend reads `GetRallies` as each stream opens (public, no
 token) and hands the list to the globe (`BonusHandlers.onRallies`); a rally called later comes as `rally_called`
 (`onRallyCalled`), and the call's own answer tells the caller's page at once. Each carries its centre (`point`) and the

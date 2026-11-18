@@ -30,7 +30,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "charges.spread.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off", "charges.enclose.off", "charges.spread.off", "arena.board"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "charges.spread.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off", "charges.enclose.off", "charges.spread.off", "charges.rally.off", "arena.board"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
@@ -133,6 +133,15 @@ describe("the rules", () => {
         expect(before.spreadOff).toBe(false)
         expect(ruleSetOf(after).rules?.charges?.spread?.off).toBe(true)
         expect(changesOf(before, after)).toEqual([{label: "Spread off", before: "no", after: "yes"}])
+    })
+
+    it("sends rallies switched off, and says it changed", () => {
+        const before = draftOf(played())
+        const after = {...before, ralliesOff: true}
+
+        expect(before.ralliesOff).toBe(false)
+        expect(ruleSetOf(after).rules?.charges?.rally?.off).toBe(true)
+        expect(changesOf(before, after)).toEqual([{label: "Rally off", before: "no", after: "yes"}])
     })
 
     it("sends unlimited enclosures switched on, and says it changed", () => {

@@ -244,6 +244,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                     }),
                 }
             case "rally":
+                if (rules?.ralliesOff) return undefined
                 return {
                     kind,
                     name: t("bonus.rally"),

@@ -60,8 +60,9 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
 
 - **No room asked** (since 2026-11-16). The draw ignores the hand, and planet's wallet keeps what fits: a kind drawn
   into a full stack is kept none of, and so is **a bomb while planet's `charges.bomb.off` is on**, an enclosure
-  while its `charges.enclose.off` is on, or a spread click while its `charges.spread.off` is on. So the stacks' sizes,
-  `bomb.off`, `enclose.off` and `spread.off` are planet's rules alone.
+  while its `charges.enclose.off` is on, a spread click while its `charges.spread.off` is on, or a rally while its
+  `charges.rally.off` is on. So the stacks' sizes, `bomb.off`, `enclose.off`, `spread.off` and `rally.off` are planet's
+  rules alone.
   Until then the module asked `InternalService/GetRoom` before each draw and drew only the kinds a hand had room for: a
   player who kept every other kind full was drawn the one kind left at every box, which players used to farm the kind
   they wanted. The owner's call.

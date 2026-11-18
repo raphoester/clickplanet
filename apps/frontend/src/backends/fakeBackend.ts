@@ -157,6 +157,7 @@ const rulesOf = ({bombRadius, rallyRadius}: Lengths): BonusRules => ({
     spreadUnlimited: false,
     enclosuresOff: false,
     spreadOff: false,
+    ralliesOff: false,
     virusInfections: VIRUS_INFECTIONS,
     refills: REFILLS,
     bombs: BOMBS,
@@ -404,7 +405,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return {reward: rewardOfKind(this.lengths, kind, mines - held.mines), charges: this.charges}
             }
             case "rally": {
-                const rallies = Math.min(held.rallies + 1, RALLIES)
+                const rallies = this.rules.ralliesOff ? held.rallies : Math.min(held.rallies + 1, RALLIES)
                 this.hold({...held, rallies})
                 return {reward: rewardOfKind(this.lengths, kind, rallies - held.rallies), charges: this.charges}
             }
@@ -556,6 +557,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.refuseBanned()
         if (this.frozen) throw new FrozenError()
         this.play(countryId)
+        if (this.rules.ralliesOff) throw new Error("rallies are off: the rally stays held")
         if (this.charges.rallies === 0) throw new BonusLostError()
         const now = budgetNow()
         if (this.rallies.on(now).some((rally) => rally.accountId === FAKE_YOU)) throw new RallyRefusedError()
@@ -665,6 +667,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     public unlimitSpreads(on: boolean, rings: number): void {
         this.spreadRings = rings
         this.rules = {...this.rules, spreadUnlimited: on, spreadOff: this.rules.spreadOff && !on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public turnRalliesOff(off: boolean): void {
+        this.rules = {...this.rules, ralliesOff: off}
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 
@@ -1027,7 +1034,8 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private offerable() {
-        return BONUS_KINDS.filter((kind) => (kind !== "bomb" || !!this.tilePositions) && (kind !== "spreadClicks" || !this.rules.spreadOff))
+        return BONUS_KINDS.filter((kind) => (kind !== "bomb" || !!this.tilePositions) && (kind !== "spreadClicks" || !this.rules.spreadOff) &&
+            (kind !== "rally" || !this.rules.ralliesOff))
     }
 
     public offerQuiz(): QuizOffer {

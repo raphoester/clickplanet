@@ -81,7 +81,9 @@ grant keeps no enclosure then, and an enclose click closes nothing; never with e
 server refuses; see the backend's [Enclosures off](../../backend/docs/enclose.md#enclosures-off-chargesencloseoff), and
 "Spread off: no hand takes one, and no click spreads", `charges.spread.off`: a grant keeps no spread click then, and a
 spread click takes its tile alone; never with spread unlimited; see the backend's
-[Spreads off](../../backend/docs/spread.md#spreads-off-chargesspreadoff)), Arena (`arena.freeze`, how long an arena takes no play after its
+[Spreads off](../../backend/docs/spread.md#spreads-off-chargesspreadoff), and "Rally off: no hand takes one, and none is
+called", `charges.rally.off`: a grant keeps no rally then, and a call is refused with the rally kept; see the backend's
+[Rallies off](../../backend/docs/rally.md#rallies-off-chargesrallyoff)), Arena (`arena.freeze`, how long an arena takes no play after its
 fresh map plays and before the battle ends, `seed.capitals.shields`, the shields each capital starts with in the
 capitals seed, the one pattern so far: a second one brings a picker, and "Board its fresh map plays", `arena.board`:
 "The world's", or a board by name, from the boards the page carries (see [Boards on the page](boards.md)), and outside

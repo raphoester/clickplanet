@@ -123,7 +123,8 @@ close nothing, for the bubble that says so, and `closeShapes(true)` puts it back
 `unlimitEnclosures(false)` stops it. `encloseOff()` plays a set with enclosures off (no Enclose slot, an enclose click
 closes nothing, the enclosures held kept), and `encloseOff(false)` stops it. `spreadOff()` plays a set with spreads off
 (Capital Siege's since 2026-11-18: no Spread slot, no spread, no box of spread clicks, the spread clicks held kept), and
-`spreadOff(false)` stops it. `unlimitSpreads()` plays Capital Siege's spread (spread on, ∞, nothing spent, 2
+`spreadOff(false)` stops it. `rallyOff()` plays a set with rallies off (no Rally slot, a call refused, no box of a
+rally, the rallies held kept), and `rallyOff(false)` stops it. `unlimitSpreads()` plays Capital Siege's spread (spread on, ∞, nothing spent, 2
 rings: the fake takes the tiles within 2.3 tile spacings), `unlimitSpreads(true, 3)` another number of rings, and
 `unlimitSpreads(false)` stops it.
 `fakeBackend.ban(90)` refuses this player's clicks, bombs and shields for 90
