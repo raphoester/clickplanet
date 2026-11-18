@@ -29,6 +29,16 @@ float aimedAt(float landmass) {
 
 out float vAcross;
 
+#ifdef STACKED
+// The most layers a piece inks as: past them, the line is solid.
+#define MOST_LAYERS 64.0
+// The cell edges a piece stands for, and their chord over their length.
+attribute vec2 standsFor;
+flat out float vLayers;
+flat out float vLength;
+out float vAlong;
+#endif
+
 void main() {
 #ifdef HIGHLIGHT
     if (abs(sides.x - landmass) > 0.5 && abs(sides.y - landmass) > 0.5) {
@@ -47,7 +57,14 @@ void main() {
     vec3 headDirection = normalize(from);
     vec3 tailDirection = normalize(to);
 
-    float slack = limb + (halfWidth + 1.0) / max(halfViewport.y * projectionMatrix[1][1], 1.0);
+    // A coarse piece's cell edges slant across its line, and their quads laid over one another made the line wider.
+#ifdef STACKED
+    float across = halfWidth / standsFor.y;
+#else
+    float across = halfWidth;
+#endif
+
+    float slack = limb + (across + 1.0) / max(halfViewport.y * projectionMatrix[1][1], 1.0);
     if ((normalMatrix * headDirection).z < -slack && (normalMatrix * tailDirection).z < -slack) {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
         return;
@@ -61,9 +78,15 @@ void main() {
     vec2 along = length2 > 1e-6 ? span / length2 : vec2(1.0, 0.0);
 
     vec4 clip = corner.x < 0.0 ? head : tail;
-    vec2 offset = vec2(-along.y, along.x) * corner.y * halfWidth + along * corner.x * halfWidth;
+    vec2 offset = vec2(-along.y, along.x) * corner.y * across + along * corner.x * halfWidth;
     clip.xy += offset / halfViewport * clip.w;
 
     vAcross = corner.y * halfWidth;
+#ifdef STACKED
+    // How many of its cell edges' quads would have covered a pixel of this piece.
+    vLayers = min(1.0 + 2.0 * halfWidth * standsFor.x * standsFor.y / max(length2, 1e-3), MOST_LAYERS);
+    vLength = length2;
+    vAlong = corner.x < 0.0 ? -halfWidth : length2 + halfWidth;
+#endif
     gl_Position = clip;
 }

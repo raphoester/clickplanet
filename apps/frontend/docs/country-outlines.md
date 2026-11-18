@@ -22,13 +22,14 @@ and the gap it leaves is exactly where this runs. So a tile is never cut, and
 which side of a border it is on is never a matter of where the line happened to
 fall across it. `borderLines.test.ts` pins the width against that gap.
 
-**The line is drawn straight along the cell edges**: each cell edge is one piece, a quad from corner to corner, in
-every pass. The outline turns 60° at every corner, as the cells do. Until 2026-11-18 it was drawn as a quadratic
-B-spline through the middle of each cell edge, four pieces to an edge pushed in and two from orbit. The owner dropped it
-that day: the tiles are drawn as straight hexagons, so a curve around them reads worse than their own edges, and on
-`earth-2` the spline's pieces were most of the vertices a frame drew. Straight, the outline is a quarter of the pieces
-pushed in and half of them in orbit, and the code has no smoothing to keep (measured in
-[The outlines drawn straight](../../../docs/boards.md#the-outlines-drawn-straight-measured)).
+**The line is drawn straight along the cell edges**: each cell edge is one piece, a quad from corner to corner, in every
+pass (from orbit, where a cell edge is under a pixel, the over pass joins them; below). The outline turns 60° at every
+corner, as the cells do. Until 2026-11-18 it was drawn as a quadratic B-spline through the middle of each cell edge,
+four pieces to an edge pushed in and two from orbit. The owner dropped it that day: the tiles are drawn as straight
+hexagons, so a curve around them reads worse than their own edges, and on `earth-2` the spline's pieces were most of the
+vertices a frame drew. Straight, the outline is a quarter of the pieces pushed in and half of them in orbit, and the
+code has no smoothing to keep (measured in [The outlines drawn
+straight](../../../docs/boards.md#the-outlines-drawn-straight-measured)).
 
 **A straight cell edge is the corridor's own edge.** The corridor between two tiles of different countries is narrowest
 at the middle of the cell edge between them, half a spacing from each tile's centre, and the line runs through it. At a
@@ -38,13 +39,57 @@ cell at every zoom the tiles are drawn alone: the line's solid width clear of th
 side, and each piece's end clear of the neighbours' discs at the corners. The corner is the tighter of the two: it
 holds `WIDTH` under about 2.2px, where the middle alone would allow 2.5px.
 
-**Every pass draws the same pieces.** The over, the under, the highlight and the mission pass are four materials over
-one set of pieces and the same draws. A second kind of line, with its own colour, would be its own pieces and passes.
+**The passes share their pieces.** The over, the under, the highlight and the mission pass are four materials over the
+cell edges and the same draws, except from orbit, where the over and the highlight pass draw one coarse set of pieces
+instead (below). A second kind of line, with its own colour, would be its own pieces and passes.
 
 **Only the pieces in sight are drawn**, as with the tiles (see [The tiles out of sight are not drawn](far-side.md)).
 Before each frame, `cull` finds the chunks of the outline's pieces that are not behind the earth or off screen, and
-each pass draws them as up to 8 ranges of its pieces, in their order. Every pass shares one cull, made for the
-outermost lift and the widest line, so none of them loses a piece it would draw, and the frame is the same to the pixel.
+each pass draws them as up to 8 ranges of its pieces, in their order. Each set of pieces, the cell edges and the coarse
+set the over pass draws, is culled for the outermost lift and the widest line, so no pass loses a piece it would draw.
+
+**From orbit, the over and the highlight pass draw fewer pieces.** At the landing view of `earth-2` a cell edge is half
+a drawing-buffer pixel, and the over pass drew a quad for each: 112k quads, each 2.5 pixels wide and 3 long, about six
+of them over each pixel of the line. `coarseOutlinesOf` (`domain/coarseOutline.ts`) makes five coarse sets, at 0.5,
+0.71, 1, 1.41 and 2 cell edges (`coarseTolerancesOf`). Each run keeps its first and last corner (every junction and
+run end) and its two landmasses, and drops an inner corner while every corner dropped since the last one kept lies
+within the set's tolerance of the piece that replaces them. No corner moves, and the line runs straight from corner to
+corner. Before each frame `cull` picks the coarsest set whose tolerance is at most `TOLERANCE`, half a drawing-buffer
+pixel, on screen. The camera is orthographic, so nothing on the globe shows longer than it is: the bound holds
+everywhere up to the limb. Where a cell edge is longer, the over and the highlight pass draw the cell edges: on
+`earth-2`, on a buffer 1,600 pixels high, from zoom 1.06. The under and the mission pass always draw the cell edges.
+
+- **One coarse set would not do.** The over pass is drawn up to `tilesZoomOf`, and at `flagsZoomOf` a cell edge of
+  `earth-2` is already about 4 CSS pixels long: no corner can go there. So the sets follow the zoom, each a √2 step from
+  the next, so that a screen of any height finds one close to its half pixel.
+- **The same ink.** A quad reaches half a width past each of its corners, so from orbit each pixel of the line was
+  inked by several quads, and the 70% black stacked up to nearly solid. A long piece covers a pixel once: the line would
+  come out a third lighter and thinner. So a coarse piece inks as its cell edges' quads did. Each piece carries the
+  cell edges it stands for and their chord over their length (`standsFor`). The vertex shader widens its quad by that
+  slant, since the cell edges run 30° to 60° across the line and their quads made it wider, and counts how many of their
+  quads would have covered a pixel of it, from its length on screen. The fragment shader inks `1 − (1 − a)^k` of it, and
+  half of that where two pieces' ends overlap. This is the `STACKED` shader, a second material of the over and the
+  highlight pass with the first one's uniforms; the cell edges draw with the first, as they did.
+- **A piece never dips under the tiles.** A chord cuts under the sphere: a piece's middle stays within a fifth of the
+  over pass's lift above the tiles (`MOST_DIP`), so neither the tiles nor the earth hide it.
+- **A ring keeps its corner farthest from where it starts**, so a lake of one tile is never drawn as a point.
+- **Built off the page.** `loadBorderLines` hands the file to a worker (`borderLinesWorker.ts`), which decodes it and
+  makes the cell edges' pieces and chunks and the five coarse sets with theirs (`outlineSetsOf` in
+  `domain/outlineSets.ts`, about 50 ms in Node on `earth-2`). It runs beside the lattice's worker, as the board's files
+  land, and the page builds them itself if the worker fails. The page's main thread only makes the GPU buffers. The
+  coarse sets are 157,617 pieces on `earth-2` beside its 129,431 cell edges: 3.8 MB more of buffers, each sent to the GPU
+  the first time it is drawn.
+- **Tested.** `coarseOutline.test.ts`, on every shipped board: no corner dropped farther than the tolerance, every
+  run's ends and sides kept, every cell edge counted once, no dip past `MOST_DIP`. `outlineSets.test.ts`: each set's
+  chunks hold all its pieces, and the worker hands over every buffer once. `borderLines.test.ts`: on five
+  screens, at every zoom the over pass is drawn at, the farthest of its pieces from the cell edges is within `TOLERANCE`
+  on screen, and the highlight draws the same pieces; the cull keeps every piece in sight of the set each pass draws,
+  with the coarse quads as wide as their slant; and both shaders' ink, copied, on a zigzag and an armchair run of cell
+  edges under a pixel each, puts the coarse line within 15% of the cell edges' ink, where a line inked once is a third
+  lighter.
+- **Measured** in [The outlines from orbit](../../../docs/boards.md#the-outlines-from-orbit-measured): at the landing
+  view of `earth-2`, 23k pieces drawn instead of 112k and 0.06 ms of GPU instead of 0.30 per render, the line's ink
+  within 5% of what it was.
 
 **A run ends at every junction** — a corner three countries share, or where a land border reaches the sea. The
 smoothing needed the cut to pin its curve to the point; the straight line does not, but the cut keeps each run between

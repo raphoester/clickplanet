@@ -12,7 +12,7 @@ import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, leastPaintedTiles, loadBorders} from "./borderField.ts";
-import {createBorderLines, loadBorderLines} from "./borderLines.ts";
+import {coarseTolerancesOf, createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import type {BoardAsset} from "../../domain/board.ts";
 import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
@@ -426,7 +426,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const [geometryData, borders, borderLines, terrain] = await Promise.all([
         loadPointGeometryData(board, signal),
         loadBorders(board.urls.borders, signal),
-        loadBorderLines(board.urls.borderLines, signal),
+        loadBorderLines(board.urls.borderLines, coarseTolerancesOf(scaleOf(board)), signal),
         loadTerrain(board.urls.terrain, board.lattice.cols, signal),
     ]);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
