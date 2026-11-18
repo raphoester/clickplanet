@@ -2,34 +2,11 @@ import * as THREE from "three"
 import {flagPaint} from "./pointSize.ts"
 import type {BoardScale} from "../../domain/boardScale.ts"
 import {MapView} from "../../domain/displaySettings.ts"
+import {type BorderLineData, decodeBorderLines} from "../../domain/borderLinesFile.ts"
 import {disposeMaterial} from "./scene.ts"
 
 import vertexShader from "./shaders/borderLine/vertex.glsl"
 import fragmentShader from "./shaders/borderLine/fragment.glsl"
-
-export type BorderLineData = {
-    runs: Uint32Array
-    sides: Uint16Array
-    corners: Int16Array
-}
-
-const MAGIC = "CPBL"
-const VERSION = 2
-
-export function decodeBorderLines(buffer: ArrayBuffer): BorderLineData {
-    const head = new DataView(buffer)
-    const magic = String.fromCharCode(head.getUint8(0), head.getUint8(1), head.getUint8(2), head.getUint8(3))
-    if (magic !== MAGIC) throw new Error(`not a border-line blob: magic "${magic}"`)
-    const version = head.getUint32(4, true)
-    if (version !== VERSION) throw new Error(`border-line blob version ${version}, expected ${VERSION}`)
-
-    const runCount = head.getUint32(8, true)
-    const cornerCount = head.getUint32(12, true)
-    const runs = new Uint32Array(buffer, 16, runCount)
-    const sides = new Uint16Array(buffer, 16 + runCount * 4, runCount * 2)
-    const corners = new Int16Array(buffer, 16 + runCount * 8, cornerCount * 3)
-    return {runs, sides, corners}
-}
 
 export async function loadBorderLines(url: string, signal?: AbortSignal): Promise<BorderLineData> {
     const response = await fetch(url, {signal})

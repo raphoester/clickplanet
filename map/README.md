@@ -318,6 +318,17 @@ geometry for it in a file of each board's own — `apps/frontend/static/boards/<
 after these**; it stays out of `/map` because the backend has no use for it. See
 [`apps/frontend/docs/country-outlines.md`](../apps/frontend/docs/country-outlines.md).
 
+```
+"CPBL" | uint32 version (3) | uint32 runs | uint32 corners
+       | runs × uint32 corners in the run | runs × 2 uint16 landmasses either side, the sea 0
+       | runs × 3 int16 first corner | for each corner after its run's first: 3 zigzag varints, x y z less the corner before
+```
+
+Little-endian. A corner is a cell's corner, its unit direction × 32767 rounded. Two corners side by side are one cell
+edge apart, a few dozen units, so most differences take a byte (zigzag: `(d << 1) ^ (d >> 31)`, then seven bits a byte,
+low first). Version 2 (until 2026-11-18) held every corner as three plain int16s; version 3 holds the same lines in
+half the bytes, and packs to a third: `earth-2` 810 → 422 KB raw, 767 → 220 KB with brotli at 5 (`domain/borderLinesFile.ts`).
+
 ## The board's lattice
 
 Every board is cut from one lattice: an icosahedron's 20 faces, each a triangular grid; `earth-1`'s are the points of
