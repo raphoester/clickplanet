@@ -226,7 +226,7 @@
   "level.up": "Level up!",
   "level.nextUnlock": "Als Nächstes: {bonus}, freigeschaltet ab Level {level}",
   "level.allUnlocked": "Alle Boni sind freigeschaltet",
-  "level.levelUpBonus": "Jedes Level-up gibt dir außerdem einen Gratis-Bonus",
+  "level.levelUpBonus": "Jedes Level-up füllt außerdem alle deine Boni auf",
   "level.unlockedNow": "Neuer Bonus freigeschaltet: {bonus}",
   "level.gained": "+{xp} XP",
   "level.rate.missions": "Steht bei jeder",

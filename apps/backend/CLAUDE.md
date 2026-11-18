@@ -137,9 +137,9 @@ and says what is in it. Read the doc before you change its area.
   out of it (step B, done 2026-11-11), then the quizzes' and the boxes' cuts: the wallet (`charges`) and the offers
   (`bonuses`), the ports, what `Clicked` hears, the rules split.
 - [Bonuses](docs/bonuses.md) — the rewards' module, downstream of planet like missions: a box caught paid from the boxes'
-  `BoxClaimed`, a right answer from the quizzes' `QuizAnswered` and a level-up from progression's `PayLevelUp`, each
-  drawn at the win; the gates (the kinds open to
-  all and the ones progression unlocked, `KeepUnlocks`); the sign-in refill; no stream since 2026-11-15; its rule sets
+  `BoxClaimed` and a right answer from the quizzes' `QuizAnswered`, each drawn at the win, and a level-up from
+  progression's `PayLevelUp`, which fills every stack (`FillCharges`); the gates (the kinds open to all and the ones
+  progression unlocked, `KeepUnlocks`); the sign-in refill; no stream since 2026-11-15; its rule sets
   (`bonuses.rule_sets`, played by the gamemaster), what it asks planet in planet's words (`GrantCharges`: the draw
   ignores the hand since 2026-11-16, and the wallet keeps what fits) and where its sets came from.
 

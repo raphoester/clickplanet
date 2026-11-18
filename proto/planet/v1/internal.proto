@@ -101,6 +101,12 @@ service InternalService {
     option idempotency_level = IDEMPOTENT;
   }
 
+  // Fills each stack named up to its size, at once, in one grant. Planet keeps the grant_id for good and grants it
+  // once. A kind the rules turn off is kept none of. InvalidArgument for a bad id, an unknown kind or no kind.
+  rpc FillCharges(FillChargesRequest) returns (FillChargesResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
   // Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
   rpc GetFreeze(GetFreezeRequest) returns (GetFreezeResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -287,6 +293,14 @@ message InternalGrantChargesResponse {
   uint32 kept = 1;
   ChargesHeld charges = 2;
 }
+
+message FillChargesRequest {
+  string grant_id = 1;
+  string account_id = 2;
+  repeated BonusKind kinds = 3;
+}
+
+message FillChargesResponse {}
 
 message GetFreezeRequest {}
 

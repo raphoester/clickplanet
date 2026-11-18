@@ -16,7 +16,18 @@ import (
 
 type fakePlanet struct {
 	granted []*planetv1.InternalGrantChargesRequest
+	filled  []*planetv1.FillChargesRequest
 	failing error
+}
+
+func (f *fakePlanet) FillCharges(
+	_ context.Context, req *connect.Request[planetv1.FillChargesRequest],
+) (*connect.Response[planetv1.FillChargesResponse], error) {
+	f.filled = append(f.filled, req.Msg)
+	if f.failing != nil {
+		return nil, f.failing
+	}
+	return connect.NewResponse(&planetv1.FillChargesResponse{}), nil
 }
 
 func (f *fakePlanet) GrantCharges(
@@ -76,4 +87,37 @@ func TestAPaymentPlanetRefusedIsAnError(t *testing.T) {
 	_, err := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForAWhile).Pay(t.Context(), payment)
 
 	require.Error(t, err)
+}
+
+var stacks = bonuses.Stacks{
+	Grant: bonuses.OfferGrantOf("a-level"), Account: "acc", Kinds: []bonuses.Kind{bonuses.KindRefill, bonuses.KindShields},
+}
+
+func TestAFillIsAskedInPlanetsWords(t *testing.T) {
+	planet := &fakePlanet{}
+
+	err := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForGood).Fill(t.Context(), stacks)
+
+	require.NoError(t, err)
+	require.Len(t, planet.filled, 1)
+	assert.Equal(t, stacks.Grant.String(), planet.filled[0].GetGrantId())
+	assert.Equal(t, "acc", planet.filled[0].GetAccountId())
+	assert.Equal(t, []planetv1.BonusKind{planetv1.BonusKind_BONUS_KIND_REFILL, planetv1.BonusKind_BONUS_KIND_SHIELDS},
+		planet.filled[0].GetKinds())
+}
+
+func TestAFillForNoAccountAsksPlanetNothing(t *testing.T) {
+	planet := &fakePlanet{}
+
+	err := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForGood).Fill(t.Context(),
+		bonuses.Stacks{Grant: stacks.Grant, Kinds: stacks.Kinds})
+
+	require.NoError(t, err)
+	assert.Empty(t, planet.filled)
+}
+
+func TestAFillPlanetRefusedIsAnError(t *testing.T) {
+	planet := &fakePlanet{failing: errors.New("planet is gone")}
+
+	require.Error(t, rpc_planet_wallet.New(planet, rpc_planet_wallet.ForGood).Fill(t.Context(), stacks))
 }

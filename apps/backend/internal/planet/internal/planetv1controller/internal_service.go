@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_takes_by_country_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_territories_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tiles_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_fill_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/open_arena_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/play_rule_set_handler"
@@ -37,6 +38,7 @@ type InternalService struct {
 	get_rule_set_names_handler.GetRuleSetNamesHandler
 	get_rule_set_handler.GetRuleSetHandler
 	internal_grant_charges_handler.GrantChargesHandler
+	internal_fill_charges_handler.FillChargesHandler
 	get_freeze_handler.GetFreezeHandler
 	get_tiles_handler.GetTilesHandler
 }

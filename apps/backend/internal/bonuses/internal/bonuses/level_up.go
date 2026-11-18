@@ -18,16 +18,25 @@ func GrantIDOf(grant string) (GrantID, error) {
 	return GrantID(id), nil
 }
 
-// LevelUp is a level an account reached by playing, which progression told: one bonus, under progression's grant id.
-// Unlocked is every kind the level unlocks, told with it.
+// LevelUp is a level progression told, with every kind the level unlocks.
 type LevelUp struct {
 	Account  Account
 	Grant    GrantID
 	Unlocked Unlocked
 }
 
-// Reward is drawn as a box's is, among the kinds the account may be drawn, whatever the hand holds. It is false when
-// there is nothing the level-up could be worth.
-func (l LevelUp) Reward(rules Rules) (Reward, bool) {
-	return drawReward(rules, l.Unlocked)
+// Stacks is every kind the account may be drawn, whatever the hand holds. It is false when there is none.
+func (l LevelUp) Stacks(rules Rules) (Stacks, bool) {
+	drawable := rules.drawable(l.Unlocked)
+	if drawable.Empty() {
+		return Stacks{}, false
+	}
+
+	kinds := make([]Kind, 0, drawable.Len())
+	for _, kind := range Kinds {
+		if drawable.Contains(kind) {
+			kinds = append(kinds, kind)
+		}
+	}
+	return Stacks{Grant: l.Grant, Account: l.Account, Kinds: kinds}, true
 }
