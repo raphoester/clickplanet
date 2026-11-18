@@ -94,7 +94,7 @@ func BombOf(position uint64, country string, ground string, landmass uint32, til
 type bombPayload struct {
 	Country  string `json:"country"`
 	Ground   string `json:"ground,omitempty"`
-	Landmass uint32 `json:"landmass"`
+	Landmass uint32 `json:"landmass,omitempty"`
 	Tile     uint32 `json:"tile,omitempty"`
 	Cleared  uint32 `json:"cleared"`
 }
@@ -233,7 +233,7 @@ type rallyPayload struct {
 	Name     string `json:"name"`
 	Country  string `json:"country"`
 	Ground   string `json:"ground,omitempty"`
-	Landmass uint32 `json:"landmass"`
+	Landmass uint32 `json:"landmass,omitempty"`
 }
 
 func (r Rally) Announcement(at time.Time) (Announcement, error) {
