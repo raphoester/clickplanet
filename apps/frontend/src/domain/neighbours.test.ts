@@ -11,7 +11,7 @@ const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 function shippedPositions(): Float32Array {
     const bytes = readFileSync(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`)
     const runs = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-    return rebuildTiles(EARTH_1.lattice, EARTH_1.tiles, runs).positions
+    return rebuildTiles(EARTH_1.lattice, EARTH_1.tiles, runs, EARTH_1.positionsHash).positions
 }
 
 describe("Neighbours", () => {

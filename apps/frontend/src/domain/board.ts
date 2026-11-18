@@ -1,5 +1,5 @@
 import {type Lattice, latticeSize, positionsHash, positionWriter, walkLattice} from "./lattice.ts"
-import {cellsOf, type TileCells} from "./latticeCells.ts"
+import {cellsOf, checkCells, type TileCells} from "./latticeCells.ts"
 import {chunksOf, type TileChunks} from "./tileChunks.ts"
 
 // The board every map played before boards were named: the backfill wrote it everywhere (docs/boards.md). A history or an
@@ -73,9 +73,14 @@ export function tilesOf(lattice: Lattice, runs: readonly Run[], count: number): 
     return {positions, ids, points}
 }
 
-export function rebuildTiles(lattice: Lattice, count: number, runs: ArrayBuffer): RebuiltTiles {
+// `expected` is the hash the board's manifest says. Positions that hash to it are the ones the shipped boards' tests put
+// each in its own cell (`latticeCells.test.ts`), and the inverse uses only exact arithmetic, so it finds the same cells on
+// every engine. Only positions that hash to anything else are checked, tile by tile: about 180 ms on `earth-2`.
+export function rebuildTiles(lattice: Lattice, count: number, runs: ArrayBuffer, expected: number): RebuiltTiles {
     const {positions, ids} = tilesOf(lattice, decodeRuns(runs), count)
-    return {positions, cells: cellsOf(ids, lattice, positions), chunks: chunksOf(positions), hash: positionsHash(positions)}
+    const hash = positionsHash(positions)
+    if (hash !== expected) checkCells(ids, lattice, positions)
+    return {positions, cells: cellsOf(ids, lattice), chunks: chunksOf(positions), hash}
 }
 
 // The runs of a set of canonical ids, ascending.

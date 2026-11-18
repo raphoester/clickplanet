@@ -21,7 +21,7 @@ const lattice = tileLattice(board)
 // The photo's sea is earth-1's: a tile whose point is in a cell of earth-1 that is no tile reads blue, and takes its
 // kind from its tiles around; an island earth-1 did not have, the kind of earth-1's nearest tile. None on earth-1.
 const earth1 = readBoard(boardDir(EARTH_1.name))
-const earth1Cells = cellsOf(earth1.ids, earth1.manifest.lattice, earth1.positions)
+const earth1Cells = cellsOf(earth1.ids, earth1.manifest.lattice)
 const earth1Faces = latticeFaces(earth1.manifest.lattice)
 const astray = new Uint8Array(board.count)
 for (let t = 0; t < board.count; t++) {

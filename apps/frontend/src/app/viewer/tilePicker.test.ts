@@ -9,7 +9,7 @@ import {rebuildTiles} from "../../domain/board.ts"
 const STATIC = fileURLToPath(new URL("../../../static/", import.meta.url))
 
 const bytes = readFileSync(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`)
-const {positions, cells} = rebuildTiles(EARTH_1.lattice, EARTH_1.tiles, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+const {positions, cells} = rebuildTiles(EARTH_1.lattice, EARTH_1.tiles, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), EARTH_1.positionsHash)
 
 const canvas = {width: 1001, height: 1001}
 const MIDDLE = 500

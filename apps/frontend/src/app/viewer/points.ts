@@ -5,16 +5,16 @@ import type {TileChunks} from "../../domain/tileChunks.ts"
 
 export type TileGeometry = {positions: Float32Array, size: number, cells: TileCells, chunks: TileChunks}
 
-// The board's tiles, rebuilt from its runs.
+// The board's tiles, rebuilt from its runs. The worker starts as the runs are fetched, so its script loads meanwhile.
 export async function loadPointGeometryData(board: BoardAsset, signal?: AbortSignal): Promise<TileGeometry> {
-    const question: LatticeQuestion = {lattice: board.lattice, tiles: board.tiles, runs: await fetched(board.urls.runs, signal)}
+    const runs = fetched(board.urls.runs, signal)
     let rebuilt: RebuiltTiles
     try {
-        rebuilt = await inWorker(question, signal)
+        rebuilt = await inWorker(board, runs, signal)
     } catch (e) {
         if (signal?.aborted) throw e
         console.error(`could not rebuild the tile positions in a worker on ${navigator.userAgent}, rebuilding them on the page`, e)
-        rebuilt = rebuildTiles(question.lattice, question.tiles, question.runs)
+        rebuilt = rebuildTiles(board.lattice, board.tiles, await runs, board.positionsHash)
     }
     if (rebuilt.hash !== board.positionsHash) {
         console.error(`the tile positions rebuilt on ${navigator.userAgent} hash to ${hex(rebuilt.hash)}, `
@@ -30,7 +30,7 @@ async function fetched(url: string, signal?: AbortSignal): Promise<ArrayBuffer> 
 }
 
 // Copied to the worker, not moved: the page rebuilds from the same runs if the worker fails.
-function inWorker(question: LatticeQuestion, signal?: AbortSignal): Promise<RebuiltTiles> {
+function inWorker(board: BoardAsset, runs: Promise<ArrayBuffer>, signal?: AbortSignal): Promise<RebuiltTiles> {
     return new Promise((resolve, reject) => {
         signal?.throwIfAborted()
         const worker = new Worker(new URL("./latticeWorker.ts", import.meta.url), {type: "module"})
@@ -46,7 +46,10 @@ function inWorker(question: LatticeQuestion, signal?: AbortSignal): Promise<Rebu
             else reject(new Error(data.error))
         })
         worker.onerror = (event) => settle(() => reject(new Error(event.message || "the lattice worker did not start")))
-        worker.postMessage(question)
+        runs.then((bytes) => {
+            const question: LatticeQuestion = {lattice: board.lattice, tiles: board.tiles, runs: bytes, hash: board.positionsHash}
+            worker.postMessage(question)
+        }, (e: unknown) => settle(() => reject(e)))
     })
 }
 
