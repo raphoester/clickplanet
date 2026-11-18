@@ -23,7 +23,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "terrain": "terrain-68b2c2a7.bin"
         },
         "page": {
-            "borderLines": "borderLines-211a739e.bin",
+            "borderLines": "borderLines-df75f9f0.bin",
             "landmassNames": "landmassNames-597ecd68.json"
         },
         "urls": {
@@ -32,7 +32,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "capitals": "/static/boards/earth-1/capitals-3938708b.json",
             "bridges": "/static/boards/earth-1/bridges-4b74bbe0.json",
             "terrain": "/static/boards/earth-1/terrain-68b2c2a7.bin",
-            "borderLines": "/static/boards/earth-1/borderLines-211a739e.bin",
+            "borderLines": "/static/boards/earth-1/borderLines-df75f9f0.bin",
             "landmassNames": "/static/boards/earth-1/landmassNames-597ecd68.json"
         }
     },
@@ -97,7 +97,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "terrain": "terrain-b7b508e8.bin"
         },
         "page": {
-            "borderLines": "borderLines-830778b2.bin",
+            "borderLines": "borderLines-0cd29f62.bin",
             "landmassNames": "landmassNames-375f1f2c.json"
         },
         "urls": {
@@ -106,7 +106,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "capitals": "/static/boards/earth-2/capitals-4341096e.json",
             "bridges": "/static/boards/earth-2/bridges-ea57ae09.json",
             "terrain": "/static/boards/earth-2/terrain-b7b508e8.bin",
-            "borderLines": "/static/boards/earth-2/borderLines-830778b2.bin",
+            "borderLines": "/static/boards/earth-2/borderLines-0cd29f62.bin",
             "landmassNames": "/static/boards/earth-2/landmassNames-375f1f2c.json"
         }
     },
@@ -171,7 +171,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "terrain": "terrain-9743bde0.bin"
         },
         "page": {
-            "borderLines": "borderLines-146d46b0.bin",
+            "borderLines": "borderLines-e9a28dcc.bin",
             "landmassNames": "landmassNames-398b8cdb.json"
         },
         "urls": {
@@ -180,7 +180,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "capitals": "/static/boards/siege-1/capitals-f3ccc72a.json",
             "bridges": "/static/boards/siege-1/bridges-076fbedd.json",
             "terrain": "/static/boards/siege-1/terrain-9743bde0.bin",
-            "borderLines": "/static/boards/siege-1/borderLines-146d46b0.bin",
+            "borderLines": "/static/boards/siege-1/borderLines-e9a28dcc.bin",
             "landmassNames": "/static/boards/siege-1/landmassNames-398b8cdb.json"
         }
     }

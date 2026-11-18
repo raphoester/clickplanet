@@ -1,9 +1,15 @@
 import {readdirSync, readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
-import {describe, expect, it} from "vitest"
+import {describe, expect, it, vi} from "vitest"
 import {BOARDS} from "../app/viewer/boardsAsset.ts"
 import {decodeRuns, encodeRuns, type Lattice, rebuildTiles, runsOf, tilesOf} from "./board.ts"
 import {latticeIds, latticePositions, latticeSize, positionsHash} from "./lattice.ts"
+import {checkCells} from "./latticeCells.ts"
+
+vi.mock("./latticeCells.ts", async (original) => {
+    const cells = await original<typeof import("./latticeCells.ts")>()
+    return {...cells, checkCells: vi.fn(cells.checkCells)}
+})
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 const MAP = fileURLToPath(new URL("../../../../map/", import.meta.url))
@@ -24,7 +30,7 @@ describe("the shipped boards", () => {
         const directory = `${STATIC}boards/${board.name}/`
 
         it(`rebuild the positions ${board.name}'s manifest hashes`, () => {
-            const {positions, hash} = rebuildTiles(board.lattice, board.tiles, bytesOf(directory + board.files.runs))
+            const {positions, hash} = rebuildTiles(board.lattice, board.tiles, bytesOf(directory + board.files.runs), board.positionsHash)
             expect(positions.length).toBe(board.tiles * 3)
             expect(hash).toBe(board.positionsHash)
             expect(positionsHash(positions)).toBe(board.positionsHash)
@@ -95,11 +101,25 @@ describe("rebuildTiles", () => {
         const kept = [0, 2, 9, 60]
         const runs = encodeRuns(runsOf(kept.map((point) => ids[point])))
 
-        const {positions, cells, hash} = rebuildTiles(lattice(cols), kept.length, runs)
+        const {positions, cells, hash} = rebuildTiles(lattice(cols), kept.length, runs, 0)
 
         expect(hash).toBe(positionsHash(positions))
         expect(cells.lattice).toEqual(lattice(cols))
         expect(cells.texels.length).toBe(kept.length)
+    })
+
+    it("checks every tile's cell only when the positions hash to another than the manifest's", () => {
+        const cols = 5
+        const ids = latticeIds(cols)
+        const runs = encodeRuns(runsOf(ids))
+        vi.mocked(checkCells).mockClear()
+
+        const {hash} = rebuildTiles(lattice(cols), ids.length, runs, 0)
+        expect(checkCells).toHaveBeenCalledTimes(1)
+
+        vi.mocked(checkCells).mockClear()
+        rebuildTiles(lattice(cols), ids.length, runs, hash)
+        expect(checkCells).not.toHaveBeenCalled()
     })
 })
 

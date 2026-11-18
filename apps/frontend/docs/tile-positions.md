@@ -54,11 +54,19 @@ rotated corners, `(wa·A + wb·B) + wc·C`, normalised as three does (`positionW
 the 36 corners; no reader knows the rotation. It is the same rule: only `+ − × ÷` and `Math.sqrt`, in that order, in
 every copy, and a point on an edge or a corner comes out the same bits from every face it is on (`lattice.test.ts`).
 
-**Every tile must find its own cell**: `cellsOf` runs each tile's position through `cellOf`, the inverse the territory
-layer and the pick use, and throws on one it finds in another cell, so a wrong inverse does not load the globe rather
-than paint a tile's flag on its neighbour (see [The tile under the pointer](picking.md)). It costs the rebuild, in Node
-on 4 vCPUs (2026-11-18): `earth-1` 60 ms for the positions and 40 ms for the cells, `earth-2` 55 ms and 200 ms, `siege-1`
-2 ms and 10 ms.
+**Every tile must find its own cell**: `checkCells` runs each tile's position through `cellOf`, the inverse the
+territory layer and the pick use, and throws on one it finds in another cell, so a wrong inverse does not load the globe
+rather than paint a tile's flag on its neighbour (see [The tile under the pointer](picking.md)). **The page runs it only
+when the positions hash to another than the manifest's** (`rebuildTiles`, since 2026-11-18). Positions that hash right
+are the ones `latticeCells.test.ts` checks for every shipped board, tile by tile, and the inverse is `+ − × ÷` and
+`Math.sqrt` alone, so it finds the same cells on every engine: the check could only fail where the hash already says the
+positions moved. It cost the page about 180 ms on `earth-2` and 90 ms on `earth-1`, 85% of the cells' build, in Node on
+an M2 Max (2026-11-18, the median of seven, the machine shared); until then the page ran it on every load. What the
+rebuild costs without it, the positions then the cells, the chunks and the hash: `earth-1` about 190 ms (three's walk)
+and 60 ms, `earth-2` 45 ms and 50 ms, `siege-1` 1 ms and 1 ms.
+
+**The worker starts as the runs are fetched**, not once they are in (2026-11-18), so its script loads meanwhile rather
+than after: on Fast 4G that was a round trip after the runs, about 0.17 s, on the way to the globe.
 
 ## The hash is the safety net
 

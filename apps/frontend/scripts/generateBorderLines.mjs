@@ -1,3 +1,4 @@
+import {encodeBorderLines} from "../src/domain/borderLinesFile.ts"
 import {latticePositions, latticeSize, latticeTriangles} from "../src/domain/lattice.ts"
 import {boardDir, readBoard, readBorders} from "./map/board.mjs"
 import {boardsAsked, writeBoardsTable, writePageFile} from "./writeBoard.ts"
@@ -146,13 +147,7 @@ function traceBorderLines(name) {
     const lengths = new Uint32Array(runs.length)
     for (let r = 0; r < runs.length; r++) lengths[r] = runs[r].corners.length
 
-    // A 16-byte head keeps lengths 4-byte, and sides and corners 2-byte, aligned, for zero-copy views.
-    const head = Buffer.alloc(16)
-    head.write("CPBL", 0, "ascii")
-    head.writeUInt32LE(2, 4)
-    head.writeUInt32LE(runs.length, 8)
-    head.writeUInt32LE(written, 12)
-    const bytes = Buffer.concat([head, Buffer.from(lengths.buffer), Buffer.from(runSides.buffer), Buffer.from(points.buffer)])
+    const bytes = Buffer.from(encodeBorderLines({runs: lengths, sides: runSides, corners: points}))
 
     const fileName = writePageFile(name, "borderLines", bytes)
     say(`wrote static/boards/${name}/${fileName}: ${bytes.byteLength} bytes`)
