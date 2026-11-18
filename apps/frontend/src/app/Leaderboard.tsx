@@ -13,6 +13,7 @@ import CountryFlag from "./components/CountryFlag.tsx";
 import {ChevronIcon, SwordsIcon, TrendIcon} from "./components/icons.tsx";
 import RankCoin from "./components/RankCoin.tsx";
 import {useBoardGuide} from "./boardGuideStore.ts";
+import {useCompact} from "./compact.ts";
 import {useRace} from "./standings/raceStore.ts";
 import {Key} from "../i18n/translator.ts";
 import {t, translator} from "../i18n/page.ts";
@@ -35,6 +36,8 @@ type Shown = {figure: Figure, at: "head" | "leader", ms?: number}
 export default function Leaderboard(props: LeaderboardProps) {
     const titleId = useId()
     const deltas = props.deltas ?? NO_TILE_DELTAS
+    // A phone has no room for earth-2's six-digit counts beside the names: the table writes them short.
+    const short = useCompact()
     const race = useRace((standings) => standings.race)
     const battle = race?.battle
     const gaining = scoringNow(race) !== undefined
@@ -148,11 +151,11 @@ export default function Leaderboard(props: LeaderboardProps) {
                             {truncate(translator().country(line.country.code), NAME_MAX_LENGTH)}
                         </td>
                         <td className={tilesClass(delta?.net)}>
-                            <TileCount tiles={line.tiles} delta={delta}/> <MapShare tiles={line.tiles} tilesCount={props.tilesCount}/>
+                            <TileCount tiles={line.tiles} delta={delta} short={short}/> <MapShare tiles={line.tiles} tilesCount={props.tilesCount}/>
                             {explained && line.ranks && <RankNote rank={line.ranks.tiles} on="tiles"/>}
                         </td>
                         {line.gain !== undefined && <td className="leaderboard-table-number leaderboard-table-gain">
-                            <span className={gainClass(line.gain)}>{gainOf(line.gain)}</span>
+                            <span className={gainClass(line.gain)}>{gainOf(line.gain, short)}</span>
                             {explained && line.ranks && <RankNote rank={line.ranks.gain} on="gain"/>}
                         </td>}
                         {race && <>
@@ -295,13 +298,18 @@ function RankNote({rank, on}: {rank: number, on: "tiles" | "gain"}) {
     </span>
 }
 
-function TileCount({tiles, delta}: {tiles: number, delta?: TileDelta}) {
+// From these, a phone's table writes a count short: "129K", "+94K".
+const SHORT_TILES = 100_000
+const SHORT_GAIN = 10_000
+const SHORT: Intl.NumberFormatOptions = {notation: "compact", maximumFractionDigits: 0}
+
+function TileCount({tiles, delta, short = false}: {tiles: number, delta?: TileDelta, short?: boolean}) {
     return <span className="leaderboard-count">
         {delta && <span key={delta.beat}
                         className="leaderboard-delta"
                         style={{animationDuration: `${DELTA_HOLD_MS}ms`}}
                         aria-hidden="true"><TrendIcon down={delta.net < 0}/></span>}
-        {translator().number(tiles)}
+        {short && tiles >= SHORT_TILES ? translator().number(tiles, SHORT) : translator().number(tiles)}
     </span>
 }
 
@@ -317,7 +325,8 @@ function share(tiles: number, tilesCount: number): string {
     return translator().number(percent, SHARE_DIGITS)
 }
 
-function gainOf(gain: number): string {
+function gainOf(gain: number, short = false): string {
+    if (short && Math.abs(gain) >= SHORT_GAIN) return translator().number(gain, {...SHORT, signDisplay: "exceptZero"})
     return translator().number(gain, {signDisplay: "exceptZero"})
 }
 
