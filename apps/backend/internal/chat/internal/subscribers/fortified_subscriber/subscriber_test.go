@@ -28,7 +28,7 @@ func TestAFortifyOfASizeableProvinceIsAnnouncedWithItsProvince(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
 	err := subscriber(store).Handle(t.Context(), &planetv1.Fortified{
-		Country: "es", Ground: "fr", ProvinceId: 1031, Tiles: 137, FortifiedAt: timestamppb.New(at),
+		Country: "es", Ground: "fr", ProvinceId: 1031, LandmassId: 359, Tiles: 137, FortifiedAt: timestamppb.New(at),
 	})
 
 	require.NoError(t, err)
@@ -36,7 +36,8 @@ func TestAFortifyOfASizeableProvinceIsAnnouncedWithItsProvince(t *testing.T) {
 	require.Len(t, kept, 1)
 	assert.Equal(t, announcements.KindFortify, kept[0].Kind())
 	assert.Equal(t, at, kept[0].At())
-	assert.JSONEq(t, `{"country":"es","ground":"fr","province":1031,"tiles":137}`, string(kept[0].Payload()))
+	assert.JSONEq(t, `{"country":"es","ground":"fr","province":1031,"landmass":359,"tiles":137}`, string(kept[0].Payload()),
+		"the page names the province, or its landmass when it has no name of its own")
 }
 
 func TestAFortifyMadeBeforeProvincesIsAnnouncedWithItsLandmass(t *testing.T) {

@@ -94,7 +94,7 @@ func BombOf(position uint64, country string, ground string, landmass uint32, til
 type bombPayload struct {
 	Country  string `json:"country"`
 	Ground   string `json:"ground,omitempty"`
-	Landmass uint32 `json:"landmass,omitempty"`
+	Landmass uint32 `json:"landmass"`
 	Tile     uint32 `json:"tile,omitempty"`
 	Cleared  uint32 `json:"cleared"`
 }
@@ -113,7 +113,8 @@ func (b Bomb) Announcement(at time.Time) (Announcement, error) {
 // board, as much ground.
 const fortifyNewsTiles = 50
 
-// A fortify names its province; one made before fortify played on provinces (2026-11-18) its landmass instead.
+// A fortify names its province and the landmass it is inside; one made before fortify played on provinces (2026-11-18)
+// names its landmass alone.
 type Fortify struct {
 	position uint64
 	country  string
@@ -140,7 +141,7 @@ type fortifyPayload struct {
 	Country  string `json:"country"`
 	Ground   string `json:"ground"`
 	Province uint32 `json:"province,omitempty"`
-	Landmass uint32 `json:"landmass,omitempty"`
+	Landmass uint32 `json:"landmass"`
 	Tiles    uint32 `json:"tiles"`
 }
 
@@ -232,7 +233,7 @@ type rallyPayload struct {
 	Name     string `json:"name"`
 	Country  string `json:"country"`
 	Ground   string `json:"ground,omitempty"`
-	Landmass uint32 `json:"landmass,omitempty"`
+	Landmass uint32 `json:"landmass"`
 }
 
 func (r Rally) Announcement(at time.Time) (Announcement, error) {

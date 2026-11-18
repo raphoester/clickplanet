@@ -120,7 +120,7 @@ func (u *UseCase) factsOf(position ledger.Position, on clicks.Stage, event ledge
 	case ledger.Bombing:
 		facts = append(facts, landedOf(position, told, borders))
 	case ledger.Fortifying:
-		facts = append(facts, fortifiedOf(position, told, board))
+		facts = append(facts, fortifiedOf(position, told, board, borders))
 	case ledger.Shielding:
 		facts = append(facts, shieldPlacedOf(position, told))
 	case ledger.KnockingOut:
@@ -205,12 +205,19 @@ func landedOf(position ledger.Position, bombing ledger.Bombing, borders Borders)
 	return landed
 }
 
-func fortifiedOf(position ledger.Position, fortifying ledger.Fortifying, board clicks.BoardName) *planetv1.Fortified {
+// A province is inside the landmass of each of its tiles; a fortify made before provinces names its landmass alone.
+func fortifiedOf(
+	position ledger.Position, fortifying ledger.Fortifying, board clicks.BoardName, borders Borders,
+) *planetv1.Fortified {
+	landmass := fortifying.Landmass
+	if fortifying.Province != clicks.NoProvince {
+		landmass = borders.LandmassOf(fortifying.Tile)
+	}
 	return &planetv1.Fortified{
 		Country:     fortifying.Country,
 		Ground:      fortifying.Ground,
 		ProvinceId:  uint32(fortifying.Province),
-		LandmassId:  uint32(fortifying.Landmass),
+		LandmassId:  uint32(landmass),
 		Tiles:       uint32(fortifying.Tiles), //nolint:gosec // a province's tiles, bounded by the map.
 		FortifiedAt: timestamppb.New(fortifying.At),
 		AccountId:   fortifying.Account,

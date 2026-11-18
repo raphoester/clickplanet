@@ -466,7 +466,8 @@ func (x *FlagKnockedOut) GetPosition() uint64 {
 type Fortified struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	Country string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
-	// A fortify made before fortify played on provinces (2026-11-18) names its landmass, and no province.
+	// The landmass the province is inside; a fortify made before fortify played on provinces (2026-11-18) fortified this
+	// landmass, and names no province.
 	LandmassId  uint32                 `protobuf:"varint,2,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
 	Tiles       uint32                 `protobuf:"varint,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	FortifiedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fortified_at,json=fortifiedAt,proto3" json:"fortified_at,omitempty"`

@@ -402,7 +402,8 @@ export class Fortified extends Message<Fortified> {
   country = "";
 
   /**
-   * A fortify made before fortify played on provinces (2026-11-18) names its landmass, and no province.
+   * The landmass the province is inside; a fortify made before fortify played on provinces (2026-11-18) fortified this
+   * landmass, and names no province.
    *
    * @generated from field: uint32 landmass_id = 2;
    */

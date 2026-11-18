@@ -58,7 +58,8 @@ message FlagKnockedOut {
 
 message Fortified {
   string country = 1;
-  // A fortify made before fortify played on provinces (2026-11-18) names its landmass, and no province.
+  // The landmass the province is inside; a fortify made before fortify played on provinces (2026-11-18) fortified this
+  // landmass, and names no province.
   uint32 landmass_id = 2;
   uint32 tiles = 3;
   google.protobuf.Timestamp fortified_at = 4;
