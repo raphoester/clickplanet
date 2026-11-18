@@ -577,6 +577,84 @@ Three runs each, the median. The files are the runs, the borders, the border lin
 and the cell check of every tile weighed against its 0.2 s; then the time to the globe measured again, with the GPU rows
 of PR 0's protocol, on a machine with a GPU and on a low-end phone.
 
+## PR 6, the globe's load, measured
+
+**Measured 2026-11-18** on an M2 Max (12 cores, a real GPU), headless Chrome 157 on Metal, with PR 0's protocol: the
+production build with the fake backend (`/play?fakeBoard=<board>`), a local server that packs every file with brotli at
+5, the cache off, DevTools' Fast 4G (165 ms, 1,012,500 B/s down), 1280×800 at a device ratio of 2, the time to the first
+WebGL draw. Before is `main` at b613dd020, after is this work; the two were run in turn, round by round, and each figure
+is the median of five to seven runs. The machine was shared with other sessions (a load average of 20 to 230 on 12
+cores), so a single run swings by a second; the time the board's files are in depends on the emulated network alone and
+holds steady.
+
+**What changed:**
+- **The border lines' corners are written as steps along each run** (version 3 of the file, see the page's
+  [The countries' outlines](../apps/frontend/docs/country-outlines.md)): the same lines to the bit, in half the bytes and a
+  third packed.
+- **Each tile's cell is checked only when the positions hash wrong** (see the page's
+  [Tile positions](../apps/frontend/docs/tile-positions.md)): about 180 ms of the worker's on `earth-2`, 90 ms on `earth-1`.
+- **The lattice worker starts as the runs are fetched**, so its script loads meanwhile, not a round trip after them.
+
+| the board's files the globe waits for, packed (brotli 5) | `earth-1` | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| before: runs, borders, border lines, terrain | 418 KB | 994 KB | 116 KB |
+| after | 216 KB | 447 KB | 89 KB |
+| … of which the border lines | 324 → 122 KB | 767 → 220 KB | 90 → 63 KB |
+
+| time to the globe, Fast 4G, before → after | `earth-1` | `earth-2` | `siege-1` | `earth-2` − `earth-1` |
+| --- | --- | --- | --- | --- |
+| CPU as is | 2.12 → 1.96 s | 2.99 → 2.51 s | 1.81 → 1.67 s | 0.87 → 0.55 s |
+| … the board's files in | 1.79 → 1.59 s | 2.37 → 1.83 s | 1.49 → 1.46 s | 0.58 → 0.24 s |
+| CPU slowed 4× | 3.44 → 3.11 s | 6.16 → 6.03 s | 2.58 → 2.44 s | 2.71 → 2.92 s |
+
+**The fake answers the map read at once, and production does not.** The globe draws its first frame on the next
+animation frame after it is built, and it asks for the tiles just before. The fake answers in the same task, so the
+whole read (a million tiles taken, each landmass counted, and on a first visit the front's neighbours) runs before that
+first frame; on the real server the read waits for `GetMap` over the network, after the globe shows. Measured again with
+the fake answering a frame later, as any answer over a network would (a scratch build, not shipped), four or five runs:
+
+| time to the globe, the fake's read a frame later, before → after | `earth-1` | `earth-2` | `earth-2` − `earth-1` |
+| --- | --- | --- | --- |
+| CPU as is | 2.01 → 1.86 s | 2.60 → 2.05 s | 0.59 → 0.19 s |
+| CPU slowed 4× | 3.09 → 2.70 s | 4.36 → 3.99 s | 1.27 → 1.30 s |
+
+**Against PR 0's bar of 0.5 s:**
+- **CPU as is: met, 0.19 s, once the fake answers as a network would**; 0.55 s with the protocol's fake as is, of
+  which about 0.35 s is the fake's read run before the first frame (it was 0.87 s, and 0.94 s in [PR 4,
+  measured](#pr-4-measured)).
+- **CPU slowed 4×: not met as measured, 1.3 s, and what is left is mostly the fake's own work.** A profile of the
+  slowed page puts the fake's setup (it gives every tile to France and counts each landmass, one tile at a time) at
+  1.27 s on `earth-2` against 0.23 s on `earth-1`, on the page's main thread as the board's files land: it holds back
+  the runs the page hands the worker, which answered 1.1 s after the files in the run profiled. Production has no such
+  setup, but this was not measured with it moved out of the way, so the slowed page's own gap is not known to the
+  tenth.
+- **The CPU slowdown does not reach the worker**: Chrome refuses it there ("Operation is only supported for pages, not
+  workers"), so the rebuild runs at full speed in the slowed rows, as it did in PR 0's and PR 4's.
+- **The fake fetches the borders a second time** as it starts (its own copy, with the cache off): about 30 KB more on
+  `earth-2` than on `earth-1`, in every row.
+
+**PR 0's frame rows, on a GPU** (`EXT_disjoint_timer_query_webgl2` around the globe's frame callback, a returning
+player, the CPU slowed 4×, the median of three runs' medians). This work changes nothing a frame draws, so they compare
+the boards. The turning rows are rough: a drag sent over the DevTools protocol on the loaded machine gave 15 to 90 frames
+a run.
+
+| per frame, CPU slowed 4×, GPU / CPU | `earth-1` | `earth-2` |
+| --- | --- | --- |
+| idle spin at the landing view | 2.7 / 1.0 ms | 4.9 / 1.0 ms |
+| turning at zoom 3 | 4.1 / 1.3 ms | 5.6 / 1.3 ms |
+| turning at zoom 10 | 4.2 / 2.1 ms | 11.0 / 2.6 ms |
+| turning at zoom 40 | 5.5 / 2.4 ms | 7.6 / 2.3 ms |
+
+`earth-2`'s landing spin costs the GPU about 2 ms more: no tile is drawn there, and the difference is its outlines,
+1.89M vertices against 1.02M ([PR 4, measured](#pr-4-measured)). At zoom 10 it draws its tiles in sight, 5.1M vertices
+against 1.7M, and the frame takes 11 ms of GPU, inside a 60 Hz frame on this GPU; a phone's GPU is not measured.
+
+**Not measured:**
+- a real low-end phone, and a school laptop with integrated graphics;
+- **`GetMap` on `earth-2` over a slow network**: 101 batches of 10,000 tiles. The rehearsal found the page reads 8 in
+  flight with a 5 s timeout each; on HTTP/2 a wave of 8 is about 160 KB. The fake answers them at once, so none of the
+  rows above holds them.
+
 ## Screenshots
 
 For the owner to judge the creases before deciding on them (they stay as they are for now, the owner looks first).
