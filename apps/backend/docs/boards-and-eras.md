@@ -5,7 +5,8 @@ its map** (PR 2 of [Boards](../../../docs/boards.md), 2026-11-17). **The process
 plays any of them** (PR 3, 2026-11-18): an arena on a board of its own (`arena.board`), a history that draws each era on
 its board, and every threshold sized from the board ([Sized from the board](board-scale.md)). **It ships `earth-2` and
 `siege-1`** (PR 4, 2026-11-18), as files and rows: no set names `siege-1` until PR 5. **The world switches to `earth-2`
-once, when the operator calls `SwitchBoard`** (PR 6, 2026-11-18, [below](#the-worlds-switch-of-board-switchboard)).
+once, when the operator calls `SwitchBoard`** (PR 6, 2026-11-18, [below](#the-worlds-switch-of-board-switchboard)). **It
+plays `earth-2` since 2026-11-18 13:41:31 UTC**: clicks held 7.9 s (see [Boards](../../../docs/boards.md#the-switch-live)).
 
 ## The words in the code
 

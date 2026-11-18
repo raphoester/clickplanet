@@ -7,7 +7,8 @@ reloads when it changes, every threshold sized from the board reads it, an arena
 history draws each era on its own board, with the cut. PR 4 is built (2026-11-18): `earth-2` and `siege-1` are
 generated and committed, warped and rotated and in canonical order, every app reads them to the bit. PR 6 is built
 (2026-11-18): the carry-over from `earth-1` to `earth-2`, `SwitchBoard` and its dry run, what players see of the switch,
-and its rehearsal on production's map; the operator runs the switch with [the runbook](#the-operators-runbook).**
+and its rehearsal on production's map. **The world plays `earth-2` since 2026-11-18 13:41:31 UTC** ([the switch,
+live](#the-switch-live)).**
 The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
 builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
 [Map geometry](map-geometry.md), and the apps' tile docs (`tile-positions.md`, `tile-layout.md`, `zoomed-out-view.md`,
@@ -301,8 +302,9 @@ minutes; France is about 100 tiles.
 
 ## The world's switch to `earth-2`
 
-**Built in PR 6 (2026-11-18)**; the backend's side is [Boards and eras](../apps/backend/docs/boards-and-eras.md#the-worlds-switch-of-board-switchboard).
-Where this section was wrong in the design, it says so.
+**Built in PR 6 (2026-11-18), and run the same day at 13:41:31 UTC** ([the switch, live](#the-switch-live)); the backend's
+side is [Boards and eras](../apps/backend/docs/boards-and-eras.md#the-worlds-switch-of-board-switchboard). Where this
+section was wrong in the design, it says so.
 
 **Two steps.** First a deploy: the code knows `earth-1` and `earth-2`, and the world still plays `earth-1`. Then the
 operator calls `AdminService/SwitchBoard{map, board, dry_run}`, the MCP tool `planet_switch_board`, at a quiet hour
@@ -759,6 +761,34 @@ Cloudflare. The rehearsal put a proxy in front that refused the quizzes' and the
 The map on `earth-2` is the map on `earth-1`: every flag where it was, the drawings still readable ("NI POLVE" in
 Russia), the coasts a little finer.
 
+## The switch, live
+
+**Run 2026-11-18 at 13:41:31 UTC**, the owner's call, four days earlier than this doc planned: no arena was open, the
+Final Battle was ten days away, and PR 5 (Capital Siege on `siege-1`) was to merge before Saturday's siege. About 18
+accounts played that hour (1 to 4 between 00:00 and 04:00 UTC). PR 6 had deployed at 13:30 (the page) and 13:32 (the
+backend), page first.
+
+| step | |
+| --- | --- |
+| the backup | `/root/before-switch-20261118T134110.sql` on the box, 14.7 MB: 260,447 tiles, 175,356 shields, 18 mines, no virus |
+| the dry run | 1.43 s, of which 1.19 s loading `earth-2`'s ground; the rehearsal's counts |
+| tiles | 1,004,682: 997,267 carried + 7,415 blank |
+| held | 260,447 → 997,035 (3.83×) |
+| old tiles dropped | 66, all held |
+| shields | 175,268 → 175,208: the 60 on the dropped tiles |
+| mines, viruses, locks | 18 moved, 0 lost; none live; 694 dropped, 228 settled on `earth-2` |
+| **every click held** | **7.9 s**: the flush 3 ms, the carry 341 ms, the transaction 7.47 s, the fill 105 ms; the call answered in 8.0 s |
+| the chat line, the Discord ping | kept and sent, the ping at 13:41:41 |
+| errors | one: scoring's read of the live day round timed out at 13:41:35, under the locks, and read again; none after 13:42 |
+| play | 81 takes by 6 accounts and a fortify on `earth-2` in the first 45 seconds |
+| `rally.rings` | 18 → 36 in `default`, the one set that held it, at 13:42 |
+
+**Memory**: the backend held 817 MB before PR 6's deploy restarted it (after two hours up), 327 MB after the restart,
+528 MB once the dry run loaded `earth-2`'s ground beside `earth-1`'s, and 481 MB after the switch; the box has 3.9 GB.
+
+**Left after it**: `earth-2`'s landmass names read English in the other languages until the translations ship, and the
+backup stays on the box: a restore now would also erase every take made since the switch (see step 10 below).
+
 ## The operator's runbook
 
 **1. Deploy** this PR's backend and page, after Capital Siege (Saturday 2026-11-21, 19:00 to 21:00 UTC) and before
@@ -796,7 +826,8 @@ before the switch: on `earth-1`, 36 rings is twice the ground.
 
 **9. What to watch after:**
 - the Warn `the map switched boards` with the counts, and the World chat's line and Discord's `@everyone`;
-- `docker stats cp-backend`: about 430 MB in the process that switched (both grounds), about 260 MB after the next boot;
+- `docker stats cp-backend`: `earth-2`'s ground adds about 200 MB beside `earth-1`'s. Production's process held 817 MB
+  after two hours up, 327 MB after a restart, 528 MB once the dry run loaded `earth-2`, 481 MB after the switch;
 - the page: `GetMap` is 101 batches of 20 KB now, against 27; a player who cannot load the globe;
 - the day's scoring: every count jumps about 3.8× at once, which scoring takes as it comes;
 - clips and player videos: for 24 hours they start at the switch.
@@ -852,7 +883,7 @@ their numbers.
    - Its set names `siege-1` and drops the spread.
    - The first board players see, at the next Capital Siege and before the world's switch. It tries the reload and an
      arena on another board for real.
-6. **The switch. Built 2026-11-18.**
+6. **The switch. Built 2026-11-18, and run the same day at 13:41:31 UTC** ([the switch, live](#the-switch-live)).
    - The carry-over file, and `SwitchBoard` with its dry run.
    - The moment, the chat line and the Discord ping.
    - The 24-hour readers starting at the switch, and the new format of the last 24 hours.

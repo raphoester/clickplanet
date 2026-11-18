@@ -33,7 +33,8 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   thresholds read the board, `arena.board`, each era drawn on its board with the cut; the `fixture-1` test board;
   `earth-2` at 1,004,682 tiles and `siege-1` at 27,259, the warped and rotated lattice with its pentagons at sea, fitted
   per board, in canonical order, measured) and PR 6 (the world's switch to `earth-2`: its carry-over, `SwitchBoard`,
-  the moment, its rehearsal on production's map and the operator's runbook), the rest designed: Capital Siege on
+  the moment, its rehearsal on production's map and the operator's runbook; the world plays `earth-2` since
+  2026-11-18), the rest designed: Capital Siege on
   `siege-1`, the rules at the new density, and the PRs in order.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
