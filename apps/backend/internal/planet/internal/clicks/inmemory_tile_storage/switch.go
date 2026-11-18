@@ -18,10 +18,10 @@ import (
 //   - every live virus ends, and every fortify lock is dropped, then each landmass of the new board settled again;
 //   - the flags out stay: they name no tile.
 //
-// What changed is saved first, so every shield placed is confirmed. Then memory is filled from the rows carried as the
-// boot fills it from postgres, on the new board's ground, which every rule reads from then on, and recorded is told what
-// was carried while no write runs: a write after it lands on the new board. A new epoch, and every stream cut, so every
-// page reads the new board.
+// What changed is saved first, so every shield placed is confirmed. Once committed, recorded is told what was carried
+// while no write runs (a write after it lands on the new board), and memory is filled from the rows carried as the boot
+// fills it from postgres, on the new board's ground, which every rule reads from then on. A new epoch, and every stream
+// cut, so every page reads the new board.
 func (s *Storage) Switch(
 	ctx context.Context, onto clicks.Stage, carry clicks.Carryover,
 	keep func(ctx context.Context, carried clicks.Carried) (bool, error), recorded func(carried clicks.Carried),
@@ -65,10 +65,10 @@ func (s *Storage) Switch(
 	s.stage = onto
 	s.groundLocked(ground)
 	defer s.restartLocked()
+	recorded(carrying.carried)
 	if err := s.fillFromLocked(ctx, carriedRows{tiles: carrying.tiles, mines: carrying.mines, out: out}); err != nil {
 		return carrying.carried, true, fmt.Errorf("switched the map's board, but could not fill it: %w", err)
 	}
-	recorded(carrying.carried)
 	s.logger.Info("carried the map onto its new board under the locks", slog.String("board", string(ground.Name())),
 		slog.Duration("flush", flushed.Sub(locked)), slog.Duration("carry", computed.Sub(flushed)),
 		slog.Duration("transaction", committed.Sub(computed)), slog.Duration("fill", time.Since(committed)),
