@@ -77,7 +77,7 @@ everywhere up to the limb. Where a cell edge is longer, the over and the highlig
   makes the cell edges' pieces and chunks and the five coarse sets with theirs (`outlineSetsOf` in
   `domain/outlineSets.ts`, about 50 ms in Node on `earth-2`). It runs beside the lattice's worker, as the board's files
   land, and the page builds them itself if the worker fails. The page's main thread only makes the GPU buffers. The
-  coarse sets are 157,617 pieces on `earth-2` beside its 129,431 cell edges: 3.8 MB more of buffers, each sent to the GPU
+  coarse sets are 167,533 pieces on `earth-2` beside the 129,625 pieces of its cell edges: 4.0 MB more of buffers, each sent to the GPU
   the first time it is drawn.
 - **Tested.** `coarseOutline.test.ts`, on every shipped board: no corner dropped farther than the tolerance, every
   run's ends and sides kept, every cell edge counted once, no dip past `MOST_DIP`. `outlineSets.test.ts`: each set's
@@ -113,24 +113,37 @@ runs and borders and nothing else, beside the board's copy: `static/boards/<boar
 `BOARDS` (see [Static assets](static-assets.md)). The globe loads the border lines of the board it draws. It walks the whole lattice the tiles were cut from and its triangles,
 in the board's order (`latticeTriangles` in `domain/lattice.ts`: three's for `earth-1`, canonical for `earth-2` and
 `siege-1`, at their warped and rotated positions), because the runs hold
-only the land points and a coast needs the sea around it. A cell corner is the circumcentre of a lattice triangle —
-the normal of the plane through its three vertices — which makes the cells a true
-Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
-to cover up at the joins. The edges are then chained into runs, which is what
+only the land points and a coast needs the sea around it.
+
+**A cell corner is where the ground's cells meet**, so the line is the hexagons the ground draws, thickened where a
+country ends. The territory layer paints each pixel with the nearest lattice point on its face's flat grid, and the pick
+finds a tile the same way (`cellOf` in `domain/latticeCells.ts`, see [The zoomed-out view](zoomed-out-view.md)). So three
+cells meet at a lattice triangle's centroid on that grid, its weights warped and projected as a lattice point's are
+(`triangleOnGrid` and `gridDirection` in `domain/lattice.ts`). A cell edge on an edge of the icosahedron crosses from one
+face's grid into the next, and bends there, at the middle of its lattice edge: it is two pieces, with that point as a
+corner. Until 2026-11-18 a corner was the circumcentre of its lattice triangle, the true Voronoi diagram of the tiles on
+the sphere. That is another tiling: on `earth-2` its corners were 0.04 of a grid step off the ground's at the median and 0.10
+at worst, on an icosahedron edge. Pushed in, the line ran beside the hexagons, cutting into a lake's cell on one side and leaving
+a strip of it outside on the other, plainest on a coast. The corners still meet exactly, so there are no seams to cover
+up at the joins. The edges are then chained into runs, which is what
 keeps the file to one corner per edge rather than two, and **each corner after a run's first is written as its
 difference from the one before** (version 3 of the file, 2026-11-18, `domain/borderLinesFile.ts`; the format is in
 [`/map/README.md`](../../../map/README.md#format)): a cell edge is a few dozen units of the int16 corners, a byte as a
 zigzag varint. Version 2 wrote each corner as three plain int16s, which brotli packed poorly, and the file was most of
-what `earth-2`'s globe waited for. Size raw, and packed with brotli at 5:
+what `earth-2`'s globe waited for. Size raw, and packed with brotli at 5, on the circumcentres (edges, version 2 and
+version 3) and on the ground's corners (pieces, the cell edges and their halves on the icosahedron's edges, and version
+3), whose steps repeat more and pack better:
 
-| board | edges | version 2 | version 3 |
-| --- | --- | --- | --- |
-| `earth-1` | 56,790 | 362 KB, 324 KB packed | 222 KB, 122 KB packed |
-| `earth-2` | 129,431 | 810 KB, 767 KB packed | 422 KB, 220 KB packed |
-| `siege-1` | 14,419 | 99 KB, 90 KB packed | 87 KB, 63 KB packed |
+| board | edges | version 2 | version 3 | pieces | version 3 on the ground's corners |
+| --- | --- | --- | --- | --- | --- |
+| `earth-1` | 56,790 | 362 KB, 324 KB packed | 222 KB, 122 KB packed | 56,948 | 222 KB, 121 KB packed |
+| `earth-2` | 129,431 | 810 KB, 767 KB packed | 422 KB, 220 KB packed | 129,625 | 422 KB, 179 KB packed |
+| `siege-1` | 14,419 | 99 KB, 90 KB packed | 87 KB, 63 KB packed | 14,547 | 88 KB, 63 KB packed |
 
-`borderLinesFile.test.ts` pins that version 3 reads back each shipped board's lines to the bit, as version 2 held
-them (a hash of the runs, the sides and the corners), and writes them back to the same bytes.
+`borderLinesFile.test.ts` checks that each shipped board's lines, the countries' and the provinces', put every corner
+where the ground's cells meet, to within the int16s (under 0.02 of a grid step; the circumcentres were 0.10 off at
+worst), and that the file writes back to the same bytes. `latticeCells.test.ts` checks that the cells `cellOf` finds
+meet there, at each triangle's centroid and at each lattice edge's middle.
 The renderer draws the blob as it is: each two corners side by side in a run are a piece.
 
 **The coast is the tiles' edge and nothing else.** A one-tile lake gets a ring of
@@ -154,8 +167,16 @@ landmasses each piece runs between, and the vertex shader reads in a texture of
 so the outline runs round the ground's coasts and its borders with every other country, and never inside it.
 
 **The province lines** are the cell edges between two tiles of one country in different provinces (see
-[Provinces](../../../docs/provinces.md)), light grey: under the tiles `PROVINCE_COLOUR` (0.6 grey, the countries' line is
-0.25) at `WIDTH`, and over the painted flags 0.85 grey at `PROVINCE_ORBIT_INK` (55%) and `ORBIT_WIDTH`. **From orbit only
+[Provinces](../../../docs/provinces.md)). Over the painted flags they are 0.85 grey at `PROVINCE_ORBIT_INK` (55%) and
+`ORBIT_WIDTH`. **Under the tiles they darken as the tiles grow, and turn dashed**: at `WIDTH`, `PROVINCE_COLOUR` (0.6
+grey) while a tile's disc is `PROVINCE_DARK_FROM` (10 CSS px) or less, the countries' 0.25 grey from
+`PROVINCE_DARK_UNTIL` (20 px), the colour and the dashes coming in together in between (`provinceDarkOf`). A dash is
+`PROVINCE_DASH` (8 px) and its gap `PROVINCE_GAP` (4 px). Each piece rounds that period to a whole number of periods,
+with a dash centred on each of its ends, so the line is inked at every corner where it turns (`dashOf` in the fragment
+shader, under `DASHED`). Until 2026-11-18 the line stayed light grey at every zoom. On the green ground, between the
+flags, it could hardly be seen pushed in, where a province is the ground a fortify plays on. Dark, it reads as clearly
+as a country's border; dashed, it is not taken for one. `borderLines.test.ts` checks the schedule, and the dashes on a
+copy of `dashOf`: both ends of every piece inked, one gap a period. **From orbit only
 Provinces draws them; pushed in, every mode does**: the over pass shows in Provinces while a flag is painted, the under
 pass while the tiles show and in Provinces or out of orbit. So the country lines are drawn as they were in every mode.
 They are a second kind of line in `borderLines.ts`: their own cell edges and five coarse sets, of the same tolerances,
@@ -164,15 +185,15 @@ highlight pass draw the coarse set the countries' draw, of the province lines. `
 (`earth-2`, `siege-1`): `static/boards/<board>/provinceLines-<hash>.bin`, named in `BOARDS` (`page.provinceLines`),
 in `domain/provinceLinesFile.ts` (format in [`/map/README.md`](../../../map/README.md#format)). It holds:
 
-- **the province lines**, in the countries' format, each run between two provinces of one landmass: 90,568 cell edges
-  on `earth-2` in 1,863 runs, 8,177 on `siege-1`;
+- **the province lines**, in the countries' format, each run between two provinces of one landmass: 90,701 pieces
+  on `earth-2` in 1,863 runs, 8,255 on `siege-1`;
 - **the two provinces either side of each piece of the countries' lines**, in their order, as spans of the same pair
   (3,372 on `earth-2`): a province's outline is its province lines and its stretch of the coast and the country
   borders. It names the countries' file and the provinces file it was traced with, and the globe refuses another.
 
 | board | raw | brotli at 5 |
 | --- | --- | --- |
-| `earth-2` | 315 KB | 163 KB |
+| `earth-2` | 315 KB | 135 KB |
 | `siege-1` | 61 KB | 43 KB |
 
 **The globe reads them once it is up** (`loadProvinceLines`, the same worker, `provinceOutlineOf`), not with the files it

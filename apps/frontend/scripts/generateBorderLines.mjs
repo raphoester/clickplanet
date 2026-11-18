@@ -1,5 +1,5 @@
 import {encodeBorderLines} from "../src/domain/borderLinesFile.ts"
-import {latticePositions, latticeSize, latticeTriangles} from "../src/domain/lattice.ts"
+import {gridDirection, latticeSize, latticeTriangles, triangleOnGrid} from "../src/domain/lattice.ts"
 import {encodeProvinceLines, fileHashOf} from "../src/domain/provinceLinesFile.ts"
 import {boardDir, readBoard, readBorders, readProvinces} from "./map/board.mjs"
 import {boardsAsked, writeBoardsTable, writePageFile} from "./writeBoard.ts"
@@ -14,13 +14,8 @@ function traceBorderLines(name) {
     const board = readBoard(boardDir(name))
     const {lattice: shape} = board.manifest
     say(`walking the lattice of ${board.manifest.name} at cols ${shape.cols}...`)
-    const lattice = latticePositions(shape)
-    const px = [], py = [], pz = []
-    for (let v = 0; v < latticeSize(shape.cols); v++) {
-        px.push(lattice[v * 3]); py.push(lattice[v * 3 + 1]); pz.push(lattice[v * 3 + 2])
-    }
     const corners = latticeTriangles(shape)
-    const vertices = px.length
+    const vertices = latticeSize(shape.cols)
     const faces = corners.length / 3
     say(`lattice: ${vertices} vertices, ${faces} triangles`)
 
@@ -48,25 +43,43 @@ function traceBorderLines(name) {
         landmass[vertexOfTile[t]] = assignment[t]
     }
 
+    // A cell corner is where the ground's cells meet (latticeCells.ts): the territory layer and the pick find a direction's
+    // cell on its face's grid, so three cells meet at each triangle's centroid on that grid, warped and projected as a
+    // lattice point is. The outline is drawn on the cells the ground paints, not on another tiling of the same tiles.
     const centres = new Float64Array(faces * 3)
     const haveCentre = new Uint8Array(faces)
+    const grid = new Int32Array(7)
     function centreOf(face) {
         if (!haveCentre[face]) {
-            const [a, b, c] = [corners[face * 3], corners[face * 3 + 1], corners[face * 3 + 2]]
-            const ux = px[b] - px[a], uy = py[b] - py[a], uz = pz[b] - pz[a]
-            const wx = px[c] - px[a], wy = py[c] - py[a], wz = pz[c] - pz[a]
-            let nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx
-            const length = Math.hypot(nx, ny, nz) || 1
-            const sign = (nx * px[a] + ny * py[a] + nz * pz[a]) < 0 ? -1 : 1
-            centres[face * 3] = sign * nx / length
-            centres[face * 3 + 1] = sign * ny / length
-            centres[face * 3 + 2] = sign * nz / length
+            triangleOnGrid(shape.cols, face, grid)
+            gridDirection(shape, grid[0], (grid[1] + grid[3] + grid[5]) / 3, (grid[2] + grid[4] + grid[6]) / 3, centres, face * 3)
             haveCentre[face] = 1
         }
         return face
     }
 
-    // Every cell edge between two lattice points whose `side` differs, once, with the two points either side of it.
+    // A cell edge on an edge of the icosahedron runs from one face's grid into the next, and bends where it crosses: at
+    // the middle of its lattice edge on both grids. One corner past the triangles' for each, the same for every kind.
+    const middles = new Map()
+    const middleCorners = []
+    function middleOf(triangle, side, key) {
+        let corner = middles.get(key)
+        if (corner === undefined) {
+            triangleOnGrid(shape.cols, triangle, grid)
+            const next = (side + 1) % 3
+            const at = new Float64Array(3)
+            gridDirection(shape, grid[0], (grid[1 + 2 * side] + grid[1 + 2 * next]) / 2, (grid[2 + 2 * side] + grid[2 + 2 * next]) / 2, at)
+            corner = faces + middleCorners.length
+            middleCorners.push(at)
+            middles.set(key, corner)
+        }
+        return corner
+    }
+    const faceOf = (triangle) => Math.floor(triangle / (shape.cols * shape.cols))
+    const cornerAt = (corner) => corner < faces ? centres.subarray(corner * 3, corner * 3 + 3) : middleCorners[corner - faces]
+
+    // Every cell edge between two lattice points whose `side` differs, once (in two pieces where it bends from one face
+    // into the next), with the two points either side of each piece.
     const edgesBetween = (side) => {
         const pending = new Map()
         const segments = []
@@ -80,8 +93,14 @@ function traceBorderLines(name) {
                 const other = pending.get(key)
                 if (other === undefined) { pending.set(key, f); continue }
                 pending.delete(key)
-                segments.push([centreOf(other), centreOf(f)])
-                ends.push([first, second])
+                if (faceOf(other) === faceOf(f)) {
+                    segments.push([centreOf(other), centreOf(f)])
+                    ends.push([first, second])
+                    continue
+                }
+                const middle = middleOf(f, e, key)
+                segments.push([centreOf(other), middle], [middle, centreOf(f)])
+                ends.push([first, second], [first, second])
             }
         }
         if (pending.size) throw new Error(`${pending.size} cell edges have only one triangle`)
@@ -90,7 +109,7 @@ function traceBorderLines(name) {
 
     const outline = edgesBetween((a, b) => country[a] !== country[b])
     const land = outline.ends.filter(([a, b]) => country[a] && country[b]).length
-    say(`outline: ${outline.segments.length} cell edges (${land} between two countries, ${outline.segments.length - land} coast)`)
+    say(`outline: ${outline.segments.length} pieces (${land} between two countries, ${outline.segments.length - land} coast)`)
     const sideOf = (values) => ([a, b]) => Math.min(values[a], values[b]) * 65536 + Math.max(values[a], values[b])
     const {runs, runSides, points, lengths} = chained(outline.segments, outline.ends.map(sideOf(landmass)), "landmasses")
 
@@ -156,9 +175,10 @@ function traceBorderLines(name) {
         let at = 0
         for (const {corners} of runs) {
             for (const corner of corners) {
-                points[at++] = Math.round(centres[corner * 3] * 32767)
-                points[at++] = Math.round(centres[corner * 3 + 1] * 32767)
-                points[at++] = Math.round(centres[corner * 3 + 2] * 32767)
+                const [x, y, z] = cornerAt(corner)
+                points[at++] = Math.round(x * 32767)
+                points[at++] = Math.round(y * 32767)
+                points[at++] = Math.round(z * 32767)
             }
         }
         const lengths = new Uint32Array(runs.length)
@@ -174,7 +194,7 @@ function traceBorderLines(name) {
         say(`${file}: ${provinces.landmass.length - 1} provinces`)
 
         const inner = edgesBetween((a, b) => country[a] === country[b] && country[a] !== 0 && province[a] !== province[b])
-        say(`province lines: ${inner.segments.length} cell edges`)
+        say(`province lines: ${inner.segments.length} pieces`)
         const lines = chained(inner.segments, inner.ends.map(sideOf(province)), "provinces")
 
         // A piece's first province is on its run's first landmass's side: the lesser landmass, as the run's pair is.

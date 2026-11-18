@@ -169,7 +169,9 @@ brotli at 5; `siege-1`'s 73 KB.
 - **Fortify reads provinces in both modes**: the pulse on the tiles a flag still misses, the "Fortified!" card ("France
   owns all of Bavaria"), the hover card's last fortify.
 - **The lines.** From orbit, Countries draws the country lines and Provinces adds the province lines in light grey.
-  Zoomed in, both, in every mode. The country lines are as they were.
+  Zoomed in, both, in every mode, the province lines darkening as the tiles grow to the country lines' grey, dashed
+  (2026-11-18: the owner could not see the light grey pushed in; see [The countries'
+  outlines](../apps/frontend/docs/country-outlines.md)). The country lines are as they were.
 - **The outlines are straight cell edges, with no B-spline** (the owner, 2026-11-18). The tiles are straight hexagons,
   so a curve round them reads worse, and it costs four pieces a cell edge pushed in and two from orbit, where straight
   costs one. Province lines add 70% to `earth-2`'s outline edges at N 200 (90,568 on 129,431); the straight edges pay

@@ -3,7 +3,18 @@ import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
 import {BOARDS} from "../app/viewer/boardsAsset.ts"
 import {decodeRuns, tilesOf} from "./board.ts"
-import {type Lattice, latticeIds, latticePositions, latticeSize, threeLattice} from "./lattice.ts"
+import {
+    canonicalId,
+    faceIds,
+    gridDirection,
+    type Lattice,
+    latticeIds,
+    latticePositions,
+    latticeSize,
+    latticeTriangles,
+    threeLattice,
+    triangleOnGrid,
+} from "./lattice.ts"
 import {cellOf, cellsOf, checkCells, IDS_PER_WORD, latticeFaces, nearestOnGrid, tileAt} from "./latticeCells.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
@@ -53,6 +64,71 @@ describe("cellOf", () => {
                 const step = spacing / 3 / Math.hypot(...across)
                 const moved = [x + across[0] * step, y + across[1] * step, z + across[2] * step] as const
                 expect(cellOf(faces, lattice, ...moved), `point ${point}`).toBe(ids[point])
+            }
+        })
+    }
+})
+
+// Where the outline's corners are traced (scripts/generateBorderLines.mjs): the cells must meet there.
+describe("where the ground's cells meet", () => {
+    for (const lattice of [threeLattice(COLS), warpedAt(COLS), warpedAt(40)]) {
+        const name = lattice.warp === null ? `three's lattice at ${lattice.cols}` : `a warped, rotated lattice at ${lattice.cols}`
+        const {cols} = lattice
+        const faces = latticeFaces(lattice)
+        const positions = latticePositions(lattice)
+        const ids = latticeIds(lattice)
+        const triangles = latticeTriangles(lattice)
+        const ofFace = faceIds(cols)
+        const grid = new Int32Array(7)
+        const at = new Float64Array(3)
+        // A twentieth of the way from `from` to the lattice point `point`.
+        const toward = (from: Float64Array, point: number) => {
+            const [x, y, z] = pointOf(positions, point)
+            return [0, 1, 2].map((k) => from[k] + (([x, y, z][k] - from[k]) / 20)) as [number, number, number]
+        }
+
+        it(`puts each triangle of latticeTriangles at its corners' (face, i, j), on ${name}`, () => {
+            for (let t = 0; t < triangles.length / 3; t++) {
+                triangleOnGrid(cols, t, grid)
+                for (let k = 0; k < 3; k++) {
+                    const id = canonicalId(cols, ofFace[grid[0]], grid[1 + 2 * k], grid[2 + 2 * k])
+                    if (id !== ids[triangles[t * 3 + k]]) expect(id, `triangle ${t}, corner ${k}`).toBe(ids[triangles[t * 3 + k]])
+                }
+            }
+        })
+
+        it(`gives each lattice point its own position, on ${name}`, () => {
+            for (let t = 0; t < triangles.length / 3; t += 5) {
+                triangleOnGrid(cols, t, grid)
+                gridDirection(lattice, grid[0], grid[1], grid[2], at)
+                const [x, y, z] = pointOf(positions, triangles[t * 3])
+                expect(Math.hypot(at[0] - x, at[1] - y, at[2] - z)).toBeLessThan(1e-7)
+            }
+        })
+
+        it(`meets a triangle's three cells at its centroid on the face's grid, on ${name}`, () => {
+            for (let t = 0; t < triangles.length / 3; t++) {
+                triangleOnGrid(cols, t, grid)
+                gridDirection(lattice, grid[0], (grid[1] + grid[3] + grid[5]) / 3, (grid[2] + grid[4] + grid[6]) / 3, at)
+                for (let k = 0; k < 3; k++) {
+                    const point = triangles[t * 3 + k]
+                    const found = cellOf(faces, lattice, ...toward(at, point))
+                    if (found !== ids[point]) expect(found, `triangle ${t}, corner ${k}`).toBe(ids[point])
+                }
+            }
+        })
+
+        it(`splits a lattice edge between its two cells at its middle on the face's grid, on ${name}`, () => {
+            for (let t = 0; t < triangles.length / 3; t++) {
+                triangleOnGrid(cols, t, grid)
+                for (let k = 0; k < 3; k++) {
+                    const l = (k + 1) % 3
+                    gridDirection(lattice, grid[0], (grid[1 + 2 * k] + grid[1 + 2 * l]) / 2, (grid[2 + 2 * k] + grid[2 + 2 * l]) / 2, at)
+                    for (const point of [triangles[t * 3 + k], triangles[t * 3 + l]]) {
+                        const found = cellOf(faces, lattice, ...toward(at, point))
+                        if (found !== ids[point]) expect(found, `triangle ${t}, edge ${k}`).toBe(ids[point])
+                    }
+                }
             }
         })
     }

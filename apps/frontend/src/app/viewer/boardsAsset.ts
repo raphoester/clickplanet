@@ -23,7 +23,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "terrain": "terrain-68b2c2a7.bin"
         },
         "page": {
-            "borderLines": "borderLines-df75f9f0.bin",
+            "borderLines": "borderLines-d061d1dc.bin",
             "landmassNames": "landmassNames-597ecd68.json"
         },
         "urls": {
@@ -32,7 +32,7 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "capitals": "/static/boards/earth-1/capitals-3938708b.json",
             "bridges": "/static/boards/earth-1/bridges-4b74bbe0.json",
             "terrain": "/static/boards/earth-1/terrain-68b2c2a7.bin",
-            "borderLines": "/static/boards/earth-1/borderLines-df75f9f0.bin",
+            "borderLines": "/static/boards/earth-1/borderLines-d061d1dc.bin",
             "landmassNames": "/static/boards/earth-1/landmassNames-597ecd68.json"
         }
     },
@@ -98,10 +98,10 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "provinces": "provinces-286f4c3e.bin"
         },
         "page": {
-            "borderLines": "borderLines-0cd29f62.bin",
+            "borderLines": "borderLines-71e8dfa9.bin",
             "landmassNames": "landmassNames-375f1f2c.json",
             "provinceNames": "provinceNames-2fda4176.json",
-            "provinceLines": "provinceLines-05a7a41b.bin"
+            "provinceLines": "provinceLines-ef49aa45.bin"
         },
         "urls": {
             "runs": "/static/boards/earth-2/runs-e8e9ed89.bin",
@@ -110,10 +110,10 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "bridges": "/static/boards/earth-2/bridges-ea57ae09.json",
             "terrain": "/static/boards/earth-2/terrain-b7b508e8.bin",
             "provinces": "/static/boards/earth-2/provinces-286f4c3e.bin",
-            "borderLines": "/static/boards/earth-2/borderLines-0cd29f62.bin",
+            "borderLines": "/static/boards/earth-2/borderLines-71e8dfa9.bin",
             "landmassNames": "/static/boards/earth-2/landmassNames-375f1f2c.json",
             "provinceNames": "/static/boards/earth-2/provinceNames-2fda4176.json",
-            "provinceLines": "/static/boards/earth-2/provinceLines-05a7a41b.bin"
+            "provinceLines": "/static/boards/earth-2/provinceLines-ef49aa45.bin"
         }
     },
     "siege-1": {
@@ -178,10 +178,10 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "provinces": "provinces-8b268165.bin"
         },
         "page": {
-            "borderLines": "borderLines-e9a28dcc.bin",
+            "borderLines": "borderLines-91343df5.bin",
             "landmassNames": "landmassNames-398b8cdb.json",
             "provinceNames": "provinceNames-c11b682a.json",
-            "provinceLines": "provinceLines-2841af5e.bin"
+            "provinceLines": "provinceLines-07385861.bin"
         },
         "urls": {
             "runs": "/static/boards/siege-1/runs-2ee22074.bin",
@@ -190,10 +190,10 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "bridges": "/static/boards/siege-1/bridges-076fbedd.json",
             "terrain": "/static/boards/siege-1/terrain-9743bde0.bin",
             "provinces": "/static/boards/siege-1/provinces-8b268165.bin",
-            "borderLines": "/static/boards/siege-1/borderLines-e9a28dcc.bin",
+            "borderLines": "/static/boards/siege-1/borderLines-91343df5.bin",
             "landmassNames": "/static/boards/siege-1/landmassNames-398b8cdb.json",
             "provinceNames": "/static/boards/siege-1/provinceNames-c11b682a.json",
-            "provinceLines": "/static/boards/siege-1/provinceLines-2841af5e.bin"
+            "provinceLines": "/static/boards/siege-1/provinceLines-07385861.bin"
         }
     }
 }

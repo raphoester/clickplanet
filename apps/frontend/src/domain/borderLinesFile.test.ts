@@ -1,6 +1,9 @@
 import {describe, expect, it} from "vitest"
 import {type BorderLineData, decodeBorderLines, encodeBorderLines} from "./borderLinesFile.ts"
 import {BOARDS} from "../app/viewer/boardsAsset.ts"
+import {type Lattice, unwarp} from "./lattice.ts"
+import {type LatticeFace, latticeFaces} from "./latticeCells.ts"
+import {decodeProvinceLines} from "./provinceLinesFile.ts"
 import {bytesOf} from "../testdata/boards.ts"
 
 function lines(runs: number[][], sides: number[] = runs.flatMap(() => [0, 1])): BorderLineData {
@@ -15,13 +18,32 @@ function plain({runs, sides, corners}: BorderLineData) {
     return {runs: [...runs], sides: [...sides], corners: [...corners]}
 }
 
-// FNV-1a over the bytes of the runs, the sides and the corners, in turn.
-function fingerprint({runs, sides, corners}: BorderLineData): string {
-    let hash = 0x811c9dc5
-    for (const array of [runs, sides, corners]) {
-        for (const byte of new Uint8Array(array.buffer, array.byteOffset, array.byteLength)) hash = Math.imul(hash ^ byte, 0x01000193) >>> 0
+// How far a direction is from the nearest place three of the ground's cells meet, or two meet on an edge of the
+// icosahedron, in grid steps: the ground finds a cell on its face's grid (latticeCells.ts), so they meet at a triangle's
+// centroid, a third of a step in from each of its corners, and a cell edge bends from one face into the next at the
+// middle of its lattice edge.
+function offCellCorner(lattice: Lattice, faces: readonly LatticeFace[], x: number, y: number, z: number): number {
+    const length = Math.hypot(x, y, z)
+    const ground = [x / length, y / length, z / length]
+    const dot = (a: readonly number[], b: readonly number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+    let best = 0
+    faces.forEach(({normal}, face) => {
+        if (dot(ground, normal) > dot(ground, faces[best].normal)) best = face
+    })
+    const {normal, height, origin, alongOf, downOf} = faces[best]
+    const reach = height / dot(ground, normal)
+    const onPlane = [0, 1, 2].map((k) => ground[k] * reach - origin[k])
+    const weights = [dot(onPlane, alongOf), dot(onPlane, downOf)]
+    if (lattice.warp !== null) {
+        const back = new Float64Array(2)
+        unwarp(lattice.warp, weights[0], weights[1], back)
+        weights.splice(0, 2, back[0], back[1])
     }
-    return hash.toString(16).padStart(8, "0")
+    const [gx, gy] = weights.map((w) => w * lattice.cols)
+    const fx = Math.floor(gx), fy = Math.floor(gy)
+    const places = [[fx + 1 / 3, fy + 1 / 3], [fx + 2 / 3, fy + 2 / 3], [fx + 0.5, 0], [0, fy + 0.5], [fx + 0.5, lattice.cols - fx - 0.5]]
+    // On the grid of equilateral triangles: (x, y) is x + y/2 across and y·√3/2 up.
+    return Math.min(...places.map(([px, py]) => Math.hypot(gx - px + (gy - py) / 2, (gy - py) * Math.sqrt(3) / 2)))
 }
 
 describe("the border lines' file", () => {
@@ -59,15 +81,26 @@ describe("the border lines' file", () => {
         expect(() => decodeBorderLines(bufferOf(Uint8Array.from([...bytes, 0])))).toThrow(/past the last corner/)
     })
 
-    // What version 2 held of each board, its corners as plain int16s (2026-11-18): version 3 reads back the same lines.
-    const VERSION_2: Record<string, string> = {"earth-1": "df71f4ea", "earth-2": "1679628d", "siege-1": "3ccffc17"}
-
     for (const board of Object.values(BOARDS)) {
-        it(`reads ${board.name}'s outline as version 2 held it, and writes it back to the same bytes`, () => {
+        it(`writes ${board.name}'s outline back to the same bytes`, () => {
             const shipped = bytesOf(board, board.page.borderLines)
-            const decoded = decodeBorderLines(shipped)
-            expect(fingerprint(decoded)).toBe(VERSION_2[board.name])
-            expect(Buffer.from(encodeBorderLines(decoded)).equals(Buffer.from(shipped))).toBe(true)
+            expect(Buffer.from(encodeBorderLines(decodeBorderLines(shipped))).equals(Buffer.from(shipped))).toBe(true)
+        })
+
+        // Until 2026-11-18 a corner was the circumcentre of its lattice triangle, 4% to 7.5% of a spacing off the corner
+        // the ground draws on earth-2: the line ran beside the hexagons, plainly on a coast.
+        it(`draws ${board.name}'s lines on the ground's cells, every corner where they meet to within the int16s`, () => {
+            const files = [decodeBorderLines(bytesOf(board, board.page.borderLines))]
+            if (board.page.provinceLines) files.push(decodeProvinceLines(bytesOf(board, board.page.provinceLines)).lines)
+            const faces = latticeFaces(board.lattice)
+            for (const {corners} of files) {
+                let worst = 0
+                for (let at = 0; at < corners.length; at += 3) {
+                    worst = Math.max(worst, offCellCorner(board.lattice, faces, corners[at] / 32767, corners[at + 1] / 32767, corners[at + 2] / 32767))
+                }
+                // An int16 step is 3.1e-5 of the radius, at most 0.015 of a grid step on earth-2 (cols 590).
+                expect(worst).toBeLessThan(0.02)
+            }
         })
     }
 })
