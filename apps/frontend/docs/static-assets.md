@@ -43,8 +43,8 @@ cache entirely:
 - `/static/boards/<board>/landmassNames-<hash>.json` — the English names of a board's landmasses that are not a
   country's main one, keyed by its borders file (which the file names) and its landmass ids, fetched by `landmassNamesOf`
   once the page knows its board (see [Translation](i18n.md)). Regenerate with `npm run landmassNames -- <board>` after
-  the board's borders change. The backend's `make translate` reads it, and writes each language's names in
-  `src/i18n/landmasses/<board>/`.
+  the board's borders change. The [`translate` skill](i18n.md#translating) reads it, and writes each language's names
+  in `src/i18n/landmasses/<board>/`.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in

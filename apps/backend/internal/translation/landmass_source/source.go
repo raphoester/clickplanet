@@ -1,6 +1,7 @@
 // Package landmass_source reads the names of the landmasses that are not a country's main one, as the page serves them
 // beside each board (static/boards/<board>/landmassNames-<hash>.json), each with the names Natural Earth gives it in
-// other languages. A landmass id is a row of one board's borders file, so each board has names of its own.
+// other languages. A landmass id is a row of one board's borders file, so each board has names of its own, but a name
+// one board translates is the same on another.
 package landmass_source
 
 import (
@@ -21,8 +22,6 @@ type Gazetteer interface {
 	// Natural Earth's language suffix ("fr", "pt") → its name for the place.
 	NamesOf(english string) map[string]string
 }
-
-const kind = "A place on the world map: an island, a region or a province."
 
 // One board's landmass names, as the page serves them beside the board.
 type Board struct {
@@ -94,13 +93,13 @@ func Read(path string, gazetteer Gazetteer) ([]translation.Line, []translation.K
 
 func contextOf(english string, gazetteer Gazetteer) string {
 	base, number := split(english)
-	context := kind
+	var context []string
 	if number != "" {
-		context += fmt.Sprintf(" %q tells it from another place named %q: keep it.", number, base)
+		context = append(context, fmt.Sprintf("%q tells it from another place named %q: keep it.", strings.TrimSpace(number), base))
 	}
 	known := gazetteer.NamesOf(base)
 	if len(known) == 0 {
-		return context
+		return strings.Join(context, " ")
 	}
 	languages := make([]string, 0, len(known))
 	for language := range known {
@@ -111,7 +110,36 @@ func contextOf(english string, gazetteer Gazetteer) string {
 	for _, language := range languages {
 		named = append(named, fmt.Sprintf("%s %q", language, known[language]))
 	}
-	return context + " Natural Earth names it: " + strings.Join(named, ", ") + "."
+	return strings.Join(append(context, "Natural Earth names it: "+strings.Join(named, ", ")+"."), " ")
+}
+
+// A language's names for the landmasses of every board, by their English: a board takes the name another gives the
+// same English, or the same before a trailing number ("Ionian Islands 2" is "Îles Ioniennes 2").
+type Names map[string]string
+
+func (n Names) Recall(english string) (string, bool) {
+	if name, ok := n[english]; ok {
+		return name, true
+	}
+	base, number := split(english)
+	name, ok := n[base]
+	if number == "" || !ok {
+		return "", false
+	}
+	return name + number, true
+}
+
+// Learns a board's names in a language, the ones translated from today's English; a name known first stays.
+func (n Names) Learn(source []translation.Line, current translation.Catalogue) {
+	for _, line := range source {
+		name, held := current.Lines[line.Key]
+		was, fingerprinted := current.Fingerprints[line.Key]
+		_, known := n[line.English]
+		if !held || known || fingerprinted && was != translation.FingerprintOf(line.English) {
+			continue
+		}
+		n[line.English] = name
+	}
 }
 
 // "Ionian Islands 2" is the second of the name.

@@ -5,6 +5,7 @@ import {LANGUAGES, SOURCE_LANGUAGE} from "./languages.ts"
 import {parseMessage, pluralsOf, Slot, slotsOf} from "./message.ts"
 import {ENGLISH, OWN_COUNTRY_NAMES} from "./translator.ts"
 import NOTES from "./notes.json"
+import GLOSSARY from "./glossary.json"
 import FLAGS from "../../static/countries/countries.json"
 import {BOARDS} from "../app/viewer/boardsAsset.ts"
 
@@ -22,9 +23,8 @@ const ENGLISH_LANDMASSES = Object.fromEntries(Object.values(BOARDS).map((board) 
     (JSON.parse(readFileSync(`${STATIC}boards/${board.name}/${board.page.landmassNames}`, "utf8")) as {names: Record<string, string>}).names,
 ]))
 
-// Boards whose landmass names no `make translate` has run on yet: the page reads them in English (load.ts). earth-2
-// and siege-1 were written without the translator's key (PR 4); a run before a rule set names one takes them off.
-const AWAITING_TRANSLATION = new Set(["earth-2", "siege-1"])
+// Boards whose landmass names are not translated yet, read in English (load.ts): siege-1's come with Capital Siege (PR 5).
+const AWAITING_TRANSLATION = new Set(["siege-1"])
 
 // A count may be a plain number where a language has one form for every count.
 const kindOf = (slot: Slot) => slot === "count" ? "value" : slot
@@ -37,6 +37,12 @@ describe("the catalogue", () => {
     it("names the landmasses of the boards the page carries, and of no other", () => {
         const boards = new Set(Object.keys(LANDMASS_FILES).map((path) => path.split("/")[2]))
         expect([...boards].filter((board) => !(board in BOARDS))).toEqual([])
+    })
+
+    it("gives each glossary term a word in every language", () => {
+        const terms = GLOSSARY.terms as Record<string, string>[]
+        expect(terms.flatMap((term) => LANGUAGES.filter((language) => language !== SOURCE_LANGUAGE && !term[language])
+            .map((language) => `${term.en}: ${language}`))).toEqual([])
     })
 
     it("holds notes only for lines English has", () => {

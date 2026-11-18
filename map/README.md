@@ -222,7 +222,7 @@ cd apps/backoffice && npm run map                     # copy the manifests and t
 cd apps/frontend && npm run borderLines -- <board>    # traced from the board, stale until it is run
 cd apps/frontend && npm run landmassNames -- <board>  # each landmass's name, keyed by the new borders file
 cd apps/frontend && npm run map:audit -- <board>      # every fault should read zero
-cd apps/backend && make translate                     # the landmass names in every language: needs the key
+# then Claude Code's translate skill (.claude/skills/translate): the landmass names in every language
 ```
 
 **A board written the first time** has no bridges nor terrain until those two commands write them: its manifest leaves
