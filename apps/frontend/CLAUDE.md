@@ -172,5 +172,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Sized by the board](docs/board-scale.md) — every count of tiles, length and zoom tuned on `earth-1` reads the board
   (`domain/boardScale.ts`): the rule, what reads it, and what does not.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom.
+- [The page's report on a phone](docs/diag.md) — `?diag` shows the errors and the storage on screen, for a page
+  left blank on a phone with no console.
 - [A finger iOS took for its swipe back](docs/stray-fingers.md) — the edge swipe that never ends its pointer, the
   pinch OrbitControls was left in, and the `pointercancel` sent for iOS when the touch count says the finger is gone.
