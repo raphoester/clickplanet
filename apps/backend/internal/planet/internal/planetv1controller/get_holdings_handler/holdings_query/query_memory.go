@@ -25,5 +25,6 @@ func (q *MemoryQuery) Holdings() *planetv1.GetHoldingsResponse {
 		Version:    planetmessage.Version(version),
 		Countries:  planetmessage.Holdings(tally.Countries),
 		Landmasses: planetmessage.LandmassHoldings(tally.Landmasses),
+		Provinces:  planetmessage.ProvinceHoldings(tally.Provinces),
 	}
 }

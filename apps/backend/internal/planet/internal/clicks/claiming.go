@@ -10,7 +10,7 @@ type Impact struct {
 	Owner   string
 	Outcome Outcome
 	Shields int
-	// Set when this take made the tile's landmass whole and fortified it.
+	// Set when this take made the tile's province whole and fortified it.
 	Fortified *Fortification
 	// Set when this take felled a flag's capital in an arena.
 	KnockedOut *KnockOut
@@ -114,7 +114,7 @@ func claim(ctx context.Context, tiles Claimable, id uint32, flag string, write w
 	return fortifiedAfter(ctx, tiles, impact, flag, most)
 }
 
-// fortifiedAfter is a take with the fortify it earned, when it made its landmass whole.
+// fortifiedAfter is a take with the fortify it earned, when it made its province whole.
 func fortifiedAfter(ctx context.Context, tiles Claimable, impact Impact, flag string, most int) (Impact, error) {
 	fortification, err := tiles.Fortify(ctx, impact.Tile, flag, most)
 	switch {

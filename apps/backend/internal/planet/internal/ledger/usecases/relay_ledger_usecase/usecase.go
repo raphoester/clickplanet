@@ -209,8 +209,9 @@ func fortifiedOf(position ledger.Position, fortifying ledger.Fortifying, board c
 	return &planetv1.Fortified{
 		Country:     fortifying.Country,
 		Ground:      fortifying.Ground,
+		ProvinceId:  uint32(fortifying.Province),
 		LandmassId:  uint32(fortifying.Landmass),
-		Tiles:       uint32(fortifying.Tiles), //nolint:gosec // a landmass's tiles, bounded by the map.
+		Tiles:       uint32(fortifying.Tiles), //nolint:gosec // a province's tiles, bounded by the map.
 		FortifiedAt: timestamppb.New(fortifying.At),
 		AccountId:   fortifying.Account,
 		Position:    uint64(position),

@@ -58,14 +58,17 @@ message FlagKnockedOut {
 
 message Fortified {
   string country = 1;
+  // A fortify made before fortify played on provinces (2026-11-18) names its landmass, and no province.
   uint32 landmass_id = 2;
   uint32 tiles = 3;
   google.protobuf.Timestamp fortified_at = 4;
   string ground = 5;
   string account_id = 6;
   uint64 position = 7;
-  // The board the landmass is on, as /map/boards names it: a landmass of tiles is a count of that board's tiles.
+  // The board the province is on, as /map/boards names it: a province of tiles is a count of that board's tiles.
   string board = 8;
+  // An index into the board's provinces file.
+  uint32 province_id = 9;
 }
 
 // The world's map moved onto another board, its land carried over (AdminService/SwitchBoard): a new era on that board.

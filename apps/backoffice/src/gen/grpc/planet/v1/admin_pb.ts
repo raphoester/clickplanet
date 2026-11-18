@@ -154,7 +154,7 @@ export class SwitchBoardResponse extends Message<SwitchBoardResponse> {
   virusesEnded = 0;
 
   /**
-   * Landmasses fortified on the old board, whose locks are dropped; the new board settles its own.
+   * Provinces locked on the old board, whose locks are dropped; the new board settles its own.
    *
    * @generated from field: uint32 locks_dropped = 15;
    */

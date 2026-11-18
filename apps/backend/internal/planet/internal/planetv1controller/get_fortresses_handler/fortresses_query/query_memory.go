@@ -9,7 +9,7 @@ import (
 )
 
 type Fortresses interface {
-	Fortresses() map[clicks.LandmassID]string
+	Fortresses() map[clicks.ProvinceID]string
 }
 
 func NewMemoryQuery(fortresses Fortresses) *MemoryQuery {
@@ -24,11 +24,11 @@ func (q *MemoryQuery) Fortresses() *planetv1.GetFortressesResponse {
 	held := q.fortresses.Fortresses()
 
 	fortresses := make([]*planetv1.Fortress, 0, len(held))
-	for landmass, country := range held {
-		fortresses = append(fortresses, &planetv1.Fortress{LandmassId: uint32(landmass), CountryId: country})
+	for province, country := range held {
+		fortresses = append(fortresses, &planetv1.Fortress{ProvinceId: uint32(province), CountryId: country})
 	}
 	slices.SortFunc(fortresses, func(a, b *planetv1.Fortress) int {
-		return cmp.Compare(a.GetLandmassId(), b.GetLandmassId())
+		return cmp.Compare(a.GetProvinceId(), b.GetProvinceId())
 	})
 
 	return &planetv1.GetFortressesResponse{Fortresses: fortresses}

@@ -196,7 +196,7 @@ func (s gameStack) listen(t *testing.T, ctx context.Context) *listener {
 			case msg.GetTilesEnclosed() != nil:
 				l.enclosures = append(l.enclosures, msg.GetTilesEnclosed())
 				l.heardAt = append(l.heardAt, time.Now())
-			case msg.GetLandmassFortified() != nil:
+			case msg.GetProvinceFortified() != nil:
 				l.fortified++
 			case msg.GetTileUpdate() != nil:
 				l.updates++

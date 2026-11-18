@@ -78,6 +78,9 @@ const (
 	// ClickServiceGetLandmassProcedure is the fully-qualified name of the ClickService's GetLandmass
 	// RPC.
 	ClickServiceGetLandmassProcedure = "/planet.v1.ClickService/GetLandmass"
+	// ClickServiceGetProvinceProcedure is the fully-qualified name of the ClickService's GetProvince
+	// RPC.
+	ClickServiceGetProvinceProcedure = "/planet.v1.ClickService/GetProvince"
 	// ClickServiceGetRecentMapHistoryProcedure is the fully-qualified name of the ClickService's
 	// GetRecentMapHistory RPC.
 	ClickServiceGetRecentMapHistoryProcedure = "/planet.v1.ClickService/GetRecentMapHistory"
@@ -120,6 +123,7 @@ type ClickServiceClient interface {
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
 	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
+	GetProvince(context.Context, *connect.Request[v1.GetProvinceRequest]) (*connect.Response[v1.GetProvinceResponse], error)
 	// The world's map over the 24 hours up to the last :00 or :30 UTC, a frame every 30 minutes.
 	GetRecentMapHistory(context.Context, *connect.Request[v1.GetRecentMapHistoryRequest]) (*connect.Response[v1.GetRecentMapHistoryResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
@@ -262,6 +266,13 @@ func NewClickServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getProvince: connect.NewClient[v1.GetProvinceRequest, v1.GetProvinceResponse](
+			httpClient,
+			baseURL+ClickServiceGetProvinceProcedure,
+			connect.WithSchema(clickServiceMethods.ByName("GetProvince")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		getRecentMapHistory: connect.NewClient[v1.GetRecentMapHistoryRequest, v1.GetRecentMapHistoryResponse](
 			httpClient,
 			baseURL+ClickServiceGetRecentMapHistoryProcedure,
@@ -305,6 +316,7 @@ type clickServiceClient struct {
 	getFortresses       *connect.Client[v1.GetFortressesRequest, v1.GetFortressesResponse]
 	getTileHolder       *connect.Client[v1.GetTileHolderRequest, v1.GetTileHolderResponse]
 	getLandmass         *connect.Client[v1.GetLandmassRequest, v1.GetLandmassResponse]
+	getProvince         *connect.Client[v1.GetProvinceRequest, v1.GetProvinceResponse]
 	getRecentMapHistory *connect.Client[v1.GetRecentMapHistoryRequest, v1.GetRecentMapHistoryResponse]
 	getAllegiance       *connect.Client[v1.GetAllegianceRequest, v1.GetAllegianceResponse]
 	pledgeAllegiance    *connect.Client[v1.PledgeAllegianceRequest, v1.PledgeAllegianceResponse]
@@ -405,6 +417,11 @@ func (c *clickServiceClient) GetLandmass(ctx context.Context, req *connect.Reque
 	return c.getLandmass.CallUnary(ctx, req)
 }
 
+// GetProvince calls planet.v1.ClickService.GetProvince.
+func (c *clickServiceClient) GetProvince(ctx context.Context, req *connect.Request[v1.GetProvinceRequest]) (*connect.Response[v1.GetProvinceResponse], error) {
+	return c.getProvince.CallUnary(ctx, req)
+}
+
 // GetRecentMapHistory calls planet.v1.ClickService.GetRecentMapHistory.
 func (c *clickServiceClient) GetRecentMapHistory(ctx context.Context, req *connect.Request[v1.GetRecentMapHistoryRequest]) (*connect.Response[v1.GetRecentMapHistoryResponse], error) {
 	return c.getRecentMapHistory.CallUnary(ctx, req)
@@ -451,6 +468,7 @@ type ClickServiceHandler interface {
 	GetFortresses(context.Context, *connect.Request[v1.GetFortressesRequest]) (*connect.Response[v1.GetFortressesResponse], error)
 	GetTileHolder(context.Context, *connect.Request[v1.GetTileHolderRequest]) (*connect.Response[v1.GetTileHolderResponse], error)
 	GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error)
+	GetProvince(context.Context, *connect.Request[v1.GetProvinceRequest]) (*connect.Response[v1.GetProvinceResponse], error)
 	// The world's map over the 24 hours up to the last :00 or :30 UTC, a frame every 30 minutes.
 	GetRecentMapHistory(context.Context, *connect.Request[v1.GetRecentMapHistoryRequest]) (*connect.Response[v1.GetRecentMapHistoryResponse], error)
 	// Not NO_SIDE_EFFECTS: the answer is about one caller now, and a cached one lies.
@@ -589,6 +607,13 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	clickServiceGetProvinceHandler := connect.NewUnaryHandler(
+		ClickServiceGetProvinceProcedure,
+		svc.GetProvince,
+		connect.WithSchema(clickServiceMethods.ByName("GetProvince")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	clickServiceGetRecentMapHistoryHandler := connect.NewUnaryHandler(
 		ClickServiceGetRecentMapHistoryProcedure,
 		svc.GetRecentMapHistory,
@@ -648,6 +673,8 @@ func NewClickServiceHandler(svc ClickServiceHandler, opts ...connect.HandlerOpti
 			clickServiceGetTileHolderHandler.ServeHTTP(w, r)
 		case ClickServiceGetLandmassProcedure:
 			clickServiceGetLandmassHandler.ServeHTTP(w, r)
+		case ClickServiceGetProvinceProcedure:
+			clickServiceGetProvinceHandler.ServeHTTP(w, r)
 		case ClickServiceGetRecentMapHistoryProcedure:
 			clickServiceGetRecentMapHistoryHandler.ServeHTTP(w, r)
 		case ClickServiceGetAllegianceProcedure:
@@ -737,6 +764,10 @@ func (UnimplementedClickServiceHandler) GetTileHolder(context.Context, *connect.
 
 func (UnimplementedClickServiceHandler) GetLandmass(context.Context, *connect.Request[v1.GetLandmassRequest]) (*connect.Response[v1.GetLandmassResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetLandmass is not implemented"))
+}
+
+func (UnimplementedClickServiceHandler) GetProvince(context.Context, *connect.Request[v1.GetProvinceRequest]) (*connect.Response[v1.GetProvinceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.ClickService.GetProvince is not implemented"))
 }
 
 func (UnimplementedClickServiceHandler) GetRecentMapHistory(context.Context, *connect.Request[v1.GetRecentMapHistoryRequest]) (*connect.Response[v1.GetRecentMapHistoryResponse], error) {

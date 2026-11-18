@@ -23,21 +23,21 @@ func (s *testSuite) loadOn(played clicks.MapID) map[uint32]string {
 
 func (s *testSuite) TestEachMapKeepsItsOwnTilesAndLocks() {
 	ctx := context.Background()
-	fortified := []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}
+	fortified := []inmemory_tile_storage.Province{{ID: 1, Asset: "provinces.bin", FortifiedBy: "fr"}}
 	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2), fortified, nil))
 	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), append(owned("it", 2), owned("de", 3)...), nil, nil))
 
 	s.Equal(map[uint32]string{1: "fr", 2: "fr"}, s.loadOn(clicks.World))
 	s.Equal(map[uint32]string{2: "it", 3: "de"}, s.loadOn(battle))
-	locks := map[clicks.LandmassID]string{}
-	s.Require().NoError(s.store.LoadLandmasses(ctx, battle, "borders.bin", func(id clicks.LandmassID, by string) { locks[id] = by }))
+	locks := map[clicks.ProvinceID]string{}
+	s.Require().NoError(s.store.LoadProvinces(ctx, battle, "provinces.bin", func(id clicks.ProvinceID, by string) { locks[id] = by }))
 	s.Empty(locks)
 }
 
 func (s *testSuite) TestAWipeDeletesOneMapAndLeavesTheOthers() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2), nil, nil))
-	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), owned("it", 2), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "it"}}, nil))
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), owned("it", 2), []inmemory_tile_storage.Province{{ID: 1, Asset: "provinces.bin", FortifiedBy: "it"}}, nil))
 
 	wiped, err := s.store.Wipe(ctx, battle, func(context.Context) (bool, error) { return true, nil })
 
@@ -98,7 +98,7 @@ func (s *testSuite) TestAnOpenKeepRefusesWritesNoStart() {
 func (s *testSuite) TestEveryRowAWriteKeepsNamesTheBoardOfItsStage() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1),
-		[]inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}, nil))
+		[]inmemory_tile_storage.Province{{ID: 1, Asset: "provinces.bin", FortifiedBy: "fr"}}, nil))
 	s.Require().NoError(s.store.SaveMines(ctx, clicks.WorldStage, []clicks.MineSnapshot{mineOn(1, "fr")}, nil))
 	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{
 		virusOf("0192f5a0-7c00-7000-8000-000000000001", 1),

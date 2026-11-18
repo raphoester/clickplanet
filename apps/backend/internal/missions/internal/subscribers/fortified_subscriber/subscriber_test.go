@@ -35,7 +35,7 @@ func TestAFortifyReachesTheMissionsWithItsTiles(t *testing.T) {
 	useCase := &recordingUseCase{}
 
 	require.NoError(t, fortified_subscriber.New(useCase).Handle(t.Context(), &planetv1.Fortified{
-		AccountId: account, LandmassId: 3, Tiles: 60, FortifiedAt: timestamppb.New(at), Position: 7,
+		AccountId: account, ProvinceId: 3, Tiles: 60, FortifiedAt: timestamppb.New(at), Position: 7,
 	}))
 
 	assert.Equal(t, []record_fact_usecase.In{{Account: id, At: at, Fact: missions.Fortified{Tiles: 60, Position: 7}}}, useCase.facts)
@@ -44,7 +44,7 @@ func TestAFortifyReachesTheMissionsWithItsTiles(t *testing.T) {
 func TestAFortifyNoAccountEarnedCountsForNobody(t *testing.T) {
 	useCase := &recordingUseCase{}
 
-	require.NoError(t, fortified_subscriber.New(useCase).Handle(t.Context(), &planetv1.Fortified{LandmassId: 3, FortifiedAt: timestamppb.New(at)}))
+	require.NoError(t, fortified_subscriber.New(useCase).Handle(t.Context(), &planetv1.Fortified{ProvinceId: 3, FortifiedAt: timestamppb.New(at)}))
 
 	assert.Empty(t, useCase.facts)
 }

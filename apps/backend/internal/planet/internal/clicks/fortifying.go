@@ -3,17 +3,19 @@ package clicks
 import "errors"
 
 var (
-	ErrNotWhole = errors.New("the flag does not hold the whole landmass")
+	ErrNotWhole = errors.New("the flag does not hold the whole province")
 
-	ErrFortifiedAlready = errors.New("the flag fortified the landmass last")
+	ErrFortifiedAlready = errors.New("the flag fortified the province last")
 )
 
 type Fortification struct {
-	Landmass LandmassID
-	// The country whose ground the landmass is.
+	Province ProvinceID
+	// The provinces file the province is a row of: a new cut numbers them again.
+	Asset string
+	// The country whose ground the province is.
 	Ground  string
 	Country string
-	// The tile whose take made the landmass whole, and the account that took it.
+	// The tile whose take made the province whole, and the account that took it.
 	Tile    uint32
 	Account string
 	Tiles   int
@@ -21,9 +23,9 @@ type Fortification struct {
 	Raised []TileShields
 }
 
-func FortifyError(landmass LandmassID, flag string, held, size int, fortifiedBy string) error {
+func FortifyError(province ProvinceID, flag string, held, size int, fortifiedBy string) error {
 	switch {
-	case landmass == NoLandmass || flag == "" || size == 0 || held < size:
+	case province == NoProvince || flag == "" || size == 0 || held < size:
 		return ErrNotWhole
 	case fortifiedBy == flag:
 		return ErrFortifiedAlready

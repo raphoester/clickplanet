@@ -19,6 +19,11 @@ func (s *Storage) Tally() (clicks.MapVersion, clicks.Tally) {
 			tally.Landmasses = append(tally.Landmasses, row)
 		}
 	})
+	s.provinces.each(func(province clicks.ProvinceID) {
+		if row := s.provinces.row(province, s.board.nameOf); len(row.Flags) > 0 {
+			tally.Provinces = append(tally.Provinces, row)
+		}
+	})
 
 	return s.version, tally
 }
@@ -53,8 +58,13 @@ func (s *Storage) recountLocked() (clicks.Tally, bool) {
 			tally.Landmasses = append(tally.Landmasses, s.landmasses.row(landmass, s.board.nameOf))
 		}
 	})
+	s.recount.provinces.drain(func(id uint32) {
+		if province := clicks.ProvinceID(id); province != clicks.NoProvince { //nolint:gosec // provinces are uint16 in the file.
+			tally.Provinces = append(tally.Provinces, s.provinces.row(province, s.board.nameOf))
+		}
+	})
 
-	return tally, len(tally.Countries) > 0 || len(tally.Landmasses) > 0
+	return tally, len(tally.Countries) > 0 || len(tally.Landmasses) > 0 || len(tally.Provinces) > 0
 }
 
 func (s *Storage) publishTallyEvery(ctx context.Context, interval time.Duration) {

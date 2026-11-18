@@ -5,7 +5,7 @@ package clicks
 import "fmt"
 
 // GroundOf is a board of the borders' tiles, all at one point and none touching another, with no bridge and no
-// capital: what a test of the tile map needs of a ground.
+// capital, and each landmass one province: what a test of the tile map needs of a ground.
 func GroundOf(borders *Borders) *Ground {
 	return GroundWith(borders, NewCapitals(map[string]uint32{}))
 }
@@ -17,6 +17,11 @@ func GroundWith(borders *Borders, capitals *Capitals) *Ground {
 
 // NamedGround is GroundWith, under the board's name.
 func NamedGround(name BoardName, borders *Borders, capitals *Capitals) *Ground {
+	return GroundOfProvinces(name, borders, capitals, ProvincesOfLandmasses(borders))
+}
+
+// GroundOfProvinces is NamedGround, with the provinces.
+func GroundOfProvinces(name BoardName, borders *Borders, capitals *Capitals, provinces *Provinces) *Ground {
 	positions := make([]float32, borders.Tiles()*3)
 	for i := 0; i < len(positions); i += 3 {
 		positions[i] = 1
@@ -29,7 +34,7 @@ func NamedGround(name BoardName, borders *Borders, capitals *Capitals) *Ground {
 	if err != nil {
 		panic(err)
 	}
-	ground, err := NewGround(name, geography, borders, bridges, capitals, NoProvinces())
+	ground, err := NewGround(name, geography, borders, bridges, capitals, provinces)
 	if err != nil {
 		panic(err)
 	}

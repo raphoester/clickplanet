@@ -32,7 +32,7 @@ func statsOf(t *testing.T, store *inmemory_stats_store.Store) stats.StatsSnapsho
 	return stats.TakeSnapshot()
 }
 
-func TestAFortifyCountsEveryTileOfTheLandmass(t *testing.T) {
+func TestAFortifyCountsEveryTileOfTheProvince(t *testing.T) {
 	handler, store := subscriber()
 
 	require.NoError(t, handler.Handle(t.Context(), &planetv1.Fortified{AccountId: account, Country: "es", Tiles: 137, Position: 4}))

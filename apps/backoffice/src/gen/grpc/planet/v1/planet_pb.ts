@@ -1503,12 +1503,6 @@ export class PlanetEvent extends Message<PlanetEvent> {
     case: "tilesSpread";
   } | {
     /**
-     * @generated from field: planet.v1.LandmassFortified landmass_fortified = 9;
-     */
-    value: LandmassFortified;
-    case: "landmassFortified";
-  } | {
-    /**
      * @generated from field: planet.v1.HoldingsChanged holdings_changed = 10;
      */
     value: HoldingsChanged;
@@ -1559,6 +1553,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: Rally;
     case: "rallyCalled";
+  } | {
+    /**
+     * @generated from field: planet.v1.ProvinceFortified province_fortified = 18;
+     */
+    value: ProvinceFortified;
+    case: "provinceFortified";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1574,7 +1574,6 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 5, name: "bomb_dropped", kind: "message", T: BombDropped, oneof: "event" },
     { no: 6, name: "tiles_enclosed", kind: "message", T: TilesEnclosed, oneof: "event" },
     { no: 7, name: "tiles_spread", kind: "message", T: TilesSpread, oneof: "event" },
-    { no: 9, name: "landmass_fortified", kind: "message", T: LandmassFortified, oneof: "event" },
     { no: 10, name: "holdings_changed", kind: "message", T: HoldingsChanged, oneof: "event" },
     { no: 11, name: "rules_changed", kind: "message", T: RulesChanged, oneof: "event" },
     { no: 12, name: "charges_granted", kind: "message", T: ChargesGranted, oneof: "event" },
@@ -1583,6 +1582,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 15, name: "mine_laid", kind: "message", T: MineLaid, oneof: "event" },
     { no: 16, name: "mines_exploded", kind: "message", T: MinesExploded, oneof: "event" },
     { no: 17, name: "rally_called", kind: "message", T: Rally, oneof: "event" },
+    { no: 18, name: "province_fortified", kind: "message", T: ProvinceFortified, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -2297,13 +2297,6 @@ export class GetLandmassResponse extends Message<GetLandmassResponse> {
    */
   holders: LandmassHolder[] = [];
 
-  /**
-   * The last fortify a player made of the landmass. Unset when none was kept: a flag can hold the lock with no fortify.
-   *
-   * @generated from field: planet.v1.LandmassFortification last_fortification = 2;
-   */
-  lastFortification?: LandmassFortification;
-
   constructor(data?: PartialMessage<GetLandmassResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2313,7 +2306,6 @@ export class GetLandmassResponse extends Message<GetLandmassResponse> {
   static readonly typeName = "planet.v1.GetLandmassResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "holders", kind: "message", T: LandmassHolder, repeated: true },
-    { no: 2, name: "last_fortification", kind: "message", T: LandmassFortification },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLandmassResponse {
@@ -2385,9 +2377,87 @@ export class LandmassHolder extends Message<LandmassHolder> {
 }
 
 /**
- * @generated from message planet.v1.LandmassFortification
+ * @generated from message planet.v1.GetProvinceRequest
  */
-export class LandmassFortification extends Message<LandmassFortification> {
+export class GetProvinceRequest extends Message<GetProvinceRequest> {
+  /**
+   * An index into the board's provinces file.
+   *
+   * @generated from field: uint32 province_id = 1;
+   */
+  provinceId = 0;
+
+  constructor(data?: PartialMessage<GetProvinceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetProvinceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "province_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetProvinceRequest {
+    return new GetProvinceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetProvinceRequest {
+    return new GetProvinceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetProvinceRequest {
+    return new GetProvinceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetProvinceRequest | PlainMessage<GetProvinceRequest> | undefined, b: GetProvinceRequest | PlainMessage<GetProvinceRequest> | undefined): boolean {
+    return proto3.util.equals(GetProvinceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.GetProvinceResponse
+ */
+export class GetProvinceResponse extends Message<GetProvinceResponse> {
+  /**
+   * The last fortify a player made of the province. Unset when none was kept: a flag can hold the lock with no fortify.
+   *
+   * @generated from field: planet.v1.ProvinceFortification last_fortification = 1;
+   */
+  lastFortification?: ProvinceFortification;
+
+  constructor(data?: PartialMessage<GetProvinceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.GetProvinceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "last_fortification", kind: "message", T: ProvinceFortification },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetProvinceResponse {
+    return new GetProvinceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetProvinceResponse {
+    return new GetProvinceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetProvinceResponse {
+    return new GetProvinceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetProvinceResponse | PlainMessage<GetProvinceResponse> | undefined, b: GetProvinceResponse | PlainMessage<GetProvinceResponse> | undefined): boolean {
+    return proto3.util.equals(GetProvinceResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.ProvinceFortification
+ */
+export class ProvinceFortification extends Message<ProvinceFortification> {
   /**
    * Empty once its account is deleted.
    *
@@ -2405,33 +2475,33 @@ export class LandmassFortification extends Message<LandmassFortification> {
    */
   fortifiedAtUnixMs = protoInt64.zero;
 
-  constructor(data?: PartialMessage<LandmassFortification>) {
+  constructor(data?: PartialMessage<ProvinceFortification>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.LandmassFortification";
+  static readonly typeName = "planet.v1.ProvinceFortification";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "fortified_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LandmassFortification {
-    return new LandmassFortification().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProvinceFortification {
+    return new ProvinceFortification().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LandmassFortification {
-    return new LandmassFortification().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ProvinceFortification {
+    return new ProvinceFortification().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LandmassFortification {
-    return new LandmassFortification().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ProvinceFortification {
+    return new ProvinceFortification().fromJsonString(jsonString, options);
   }
 
-  static equals(a: LandmassFortification | PlainMessage<LandmassFortification> | undefined, b: LandmassFortification | PlainMessage<LandmassFortification> | undefined): boolean {
-    return proto3.util.equals(LandmassFortification, a, b);
+  static equals(a: ProvinceFortification | PlainMessage<ProvinceFortification> | undefined, b: ProvinceFortification | PlainMessage<ProvinceFortification> | undefined): boolean {
+    return proto3.util.equals(ProvinceFortification, a, b);
   }
 }
 
@@ -2535,7 +2605,7 @@ export class GetFortressesRequest extends Message<GetFortressesRequest> {
 }
 
 /**
- * Every landmass a flag fortified last, or holds whole with nobody having fortified it.
+ * Every province a flag fortified last, or holds whole with nobody having fortified it.
  *
  * @generated from message planet.v1.GetFortressesResponse
  */
@@ -2578,12 +2648,14 @@ export class GetFortressesResponse extends Message<GetFortressesResponse> {
  */
 export class Fortress extends Message<Fortress> {
   /**
-   * @generated from field: uint32 landmass_id = 1;
+   * An index into the board's provinces file.
+   *
+   * @generated from field: uint32 province_id = 3;
    */
-  landmassId = 0;
+  provinceId = 0;
 
   /**
-   * The flag that may not fortify the landmass next.
+   * The flag that may not fortify the province next.
    *
    * @generated from field: string country_id = 2;
    */
@@ -2597,7 +2669,7 @@ export class Fortress extends Message<Fortress> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "planet.v1.Fortress";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "province_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -2619,17 +2691,17 @@ export class Fortress extends Message<Fortress> {
 }
 
 /**
- * Every tile of the landmass gained one shield, up to GetChargeRules.tile_shields.
+ * Every tile of the province gained one shield, up to GetChargeRules.tile_shields.
  *
- * @generated from message planet.v1.LandmassFortified
+ * @generated from message planet.v1.ProvinceFortified
  */
-export class LandmassFortified extends Message<LandmassFortified> {
+export class ProvinceFortified extends Message<ProvinceFortified> {
   /**
-   * An index into the borders blob's landmass table.
+   * An index into the board's provinces file.
    *
-   * @generated from field: uint32 landmass_id = 1;
+   * @generated from field: uint32 province_id = 1;
    */
-  landmassId = 0;
+  provinceId = 0;
 
   /**
    * @generated from field: string country_id = 2;
@@ -2637,7 +2709,7 @@ export class LandmassFortified extends Message<LandmassFortified> {
   countryId = "";
 
   /**
-   * The tile whose take made the landmass whole.
+   * The tile whose take made the province whole.
    *
    * @generated from field: uint32 tile_id = 3;
    */
@@ -2648,34 +2720,34 @@ export class LandmassFortified extends Message<LandmassFortified> {
    */
   version?: MapVersion;
 
-  constructor(data?: PartialMessage<LandmassFortified>) {
+  constructor(data?: PartialMessage<ProvinceFortified>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "planet.v1.LandmassFortified";
+  static readonly typeName = "planet.v1.ProvinceFortified";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "landmass_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 1, name: "province_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 4, name: "version", kind: "message", T: MapVersion },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LandmassFortified {
-    return new LandmassFortified().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProvinceFortified {
+    return new ProvinceFortified().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): LandmassFortified {
-    return new LandmassFortified().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ProvinceFortified {
+    return new ProvinceFortified().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): LandmassFortified {
-    return new LandmassFortified().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ProvinceFortified {
+    return new ProvinceFortified().fromJsonString(jsonString, options);
   }
 
-  static equals(a: LandmassFortified | PlainMessage<LandmassFortified> | undefined, b: LandmassFortified | PlainMessage<LandmassFortified> | undefined): boolean {
-    return proto3.util.equals(LandmassFortified, a, b);
+  static equals(a: ProvinceFortified | PlainMessage<ProvinceFortified> | undefined, b: ProvinceFortified | PlainMessage<ProvinceFortified> | undefined): boolean {
+    return proto3.util.equals(ProvinceFortified, a, b);
   }
 }
 

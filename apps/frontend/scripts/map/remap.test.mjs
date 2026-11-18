@@ -119,14 +119,11 @@ describe("remapSQL", () => {
         expect(sql).not.toMatch(/e\.kind/)
     })
 
-    it("copies the fortify locks to the new blob's name, and back going down", () => {
-        expect(remapSQL(followed)).toContain("SELECT l.map, 'borders-new.bin', r.to_id, l.fortified_by")
-        expect(remapSQL(followed)).toContain("WHERE l.asset = 'borders-old.bin'")
-        expect(remapSQL(followed)).toContain("ON CONFLICT (map, asset, id)")
+    it("walks the landmasses back going down, and moves no lock: a lock is a province's", () => {
         const down = remapSQL(followed, {down: true})
         expect(down).toContain("    (1, 1),\n    (3, 2);")
-        expect(down).toContain("SELECT l.map, 'borders-old.bin', r.to_id, l.fortified_by")
-        expect(down).toContain("WHERE l.asset = 'borders-new.bin'")
+        expect(remapSQL(followed)).not.toContain("fortified_by")
+        expect(down).not.toContain("fortified_by")
     })
 })
 

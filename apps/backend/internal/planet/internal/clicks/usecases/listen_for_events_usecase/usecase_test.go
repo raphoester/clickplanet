@@ -200,7 +200,7 @@ func TestABlastIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 
 func TestAFortificationIsCarriedToTheSinkAsOneFrame(t *testing.T) {
 	updates := make(chan clicks.Change, 1)
-	fortification := &clicks.Fortification{Landmass: 1, Country: "fr", Tile: 7, Tiles: 3}
+	fortification := &clicks.Fortification{Province: 1, Country: "fr", Tile: 7, Tiles: 3}
 	updates <- clicks.Change{Fortification: fortification}
 
 	ctx, cancel := context.WithCancel(t.Context())

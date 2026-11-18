@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CallRallyRequest, CallRallyResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetMinesRequest, GetMinesResponse, GetRalliesRequest, GetRalliesResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, LayMineRequest, LayMineResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
+import { CallRallyRequest, CallRallyResponse, ClickRequest, ClickResponse, DropBombRequest, DropBombResponse, GetAllegianceRequest, GetAllegianceResponse, GetBudgetRequest, GetBudgetResponse, GetChargeRulesRequest, GetChargeRulesResponse, GetChargesRequest, GetChargesResponse, GetFortressesRequest, GetFortressesResponse, GetHoldingsRequest, GetHoldingsResponse, GetLandmassRequest, GetLandmassResponse, GetMapRequest, GetMapResponse, GetMinesRequest, GetMinesResponse, GetProvinceRequest, GetProvinceResponse, GetRalliesRequest, GetRalliesResponse, GetRecentMapHistoryRequest, GetRecentMapHistoryResponse, GetTileHolderRequest, GetTileHolderResponse, LayMineRequest, LayMineResponse, ListenForEventsRequest, MapDensityRequest, MapDensityResponse, PlaceShieldRequest, PlaceShieldResponse, PlanetEvent, PledgeAllegianceRequest, PledgeAllegianceResponse, UseRefillRequest, UseRefillResponse, UseVirusRequest, UseVirusResponse } from "./planet_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -205,6 +205,16 @@ export const ClickService = {
       name: "GetLandmass",
       I: GetLandmassRequest,
       O: GetLandmassResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * @generated from rpc planet.v1.ClickService.GetProvince
+     */
+    getProvince: {
+      name: "GetProvince",
+      I: GetProvinceRequest,
+      O: GetProvinceResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.NoSideEffects,
     },

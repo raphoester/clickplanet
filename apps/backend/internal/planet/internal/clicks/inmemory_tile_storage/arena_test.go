@@ -48,7 +48,7 @@ func (s *testSuite) TestABlankKeepsTheWorldWithTheTilesNotFlushedYetAndPlaysAnEm
 	s.True(blanked)
 	s.Equal(map[uint32]string{12: "de", island[0]: "fr", island[1]: "fr", island[2]: "fr"}, persistence.Stored())
 	s.Equal(map[uint32]cpsession.AccountID{island[0]: ana}, persistence.StoredHolders())
-	s.Equal(map[clicks.LandmassID]string{1: "fr"}, persistence.StoredLandmasses(borders.Asset()))
+	s.Equal(map[clicks.ProvinceID]string{1: "fr"}, persistence.StoredProvinces("test-provinces"))
 	for _, tile := range append([]uint32{12}, island...) {
 		owner, _ := storage.Owner(tile)
 		s.Empty(owner, "tile %d", tile)
@@ -111,11 +111,11 @@ func (s *testSuite) TestAPutBackDeletesTheArenasMapAndPlaysTheWorldTileForTile()
 	}
 	s.Equal(1, storage.Shields(island[1]))
 	s.Equal([]clicks.Holding{{Account: ana, Flag: "fr", Tiles: 1}}, storage.HoldingsOf(1))
-	s.Equal(map[clicks.LandmassID]string{1: "fr"}, storage.Fortresses())
+	s.Equal(map[clicks.ProvinceID]string{1: "fr"}, storage.Fortresses())
 	s.Equal(3, storage.Held("fr"))
 	s.Zero(storage.Held("it"))
 	s.Empty(persistence.StoredOn(battle), "the arena's map is deleted")
-	s.Empty(persistence.StoredLandmassesOn(battle, borders.Asset()))
+	s.Empty(persistence.StoredProvincesOn(battle, "test-provinces"))
 
 	_, open := <-changes
 	s.False(open, "a client opens again and reads the world")

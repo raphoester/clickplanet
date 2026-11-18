@@ -21,7 +21,7 @@ var (
 	newBoard      = clicks.TestBoard + 1
 )
 
-// A ground whose tile k is at points[k-1] on the x axis's circle, with the landmasses given.
+// A ground whose tile k is at points[k-1] on the x axis's circle, with the landmasses given, each one province.
 func groundAt(name clicks.BoardName, landmasses [][]uint32, angles ...float64) *clicks.Ground {
 	positions := make([]float32, 0, len(angles)*3)
 	for _, angle := range angles {
@@ -36,8 +36,9 @@ func groundAt(name clicks.BoardName, landmasses [][]uint32, angles ...float64) *
 	if err != nil {
 		panic(err)
 	}
-	ground, err := clicks.NewGround(name, geography, clicks.BordersOf(tiles, landmasses...), bridges, clicks.NewCapitals(nil),
-		clicks.NoProvinces())
+	borders := clicks.BordersOf(tiles, landmasses...)
+	ground, err := clicks.NewGround(name, geography, borders, bridges, clicks.NewCapitals(nil),
+		clicks.ProvincesOfLandmasses(borders))
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +119,7 @@ func (s *testSuite) TestASwitchCarriesEachTileOverToItsChildrenOnTheNewBoardAndP
 	s.Equal([]clicks.MineSnapshot{{Tile: 3, Flag: "fr", Account: world.ana, Scope: "1.2.3.4"}},
 		world.persistence.StoredMinesOn(clicks.World), "the mine moves to the child nearest its tile")
 	s.Empty(world.persistence.StoredVirusesOn(clicks.World), "live viruses end")
-	s.Empty(world.persistence.StoredLandmasses("test-borders"), "the old board's locks are dropped")
+	s.Empty(world.persistence.StoredProvinces("test-provinces"), "the old board's locks are dropped")
 	for tile, owner := range map[uint32]string{1: "fr", 4: "fr", 5: "de", 7: "", 10: ""} {
 		got, ok := world.storage.Owner(tile)
 		s.True(ok)
@@ -132,7 +133,7 @@ func (s *testSuite) TestASwitchCarriesEachTileOverToItsChildrenOnTheNewBoardAndP
 	s.Greater(after.Epoch, before.Epoch, "a new epoch")
 }
 
-func (s *testSuite) TestASwitchSettlesTheNewBoardsLandmassesAgain() {
+func (s *testSuite) TestASwitchSettlesTheNewBoardsProvincesAgain() {
 	ctx := context.Background()
 	world := s.switchWorld()
 	var kept clicks.Carried
@@ -140,8 +141,8 @@ func (s *testSuite) TestASwitchSettlesTheNewBoardsLandmassesAgain() {
 	_, _, err := world.storage.Switch(ctx, clicks.World.On(newBoard), world.carry, carrying(true, &kept), func(clicks.Carried) {})
 	s.Require().NoError(err)
 
-	s.Equal(map[clicks.LandmassID]string{1: "fr"}, world.storage.Fortresses(),
-		"France holds the whole of the new board's landmass")
+	s.Equal(map[clicks.ProvinceID]string{1: "fr"}, world.storage.Fortresses(),
+		"France holds the whole of the new board's province")
 }
 
 func (s *testSuite) TestACarriedCountAnswersWhatASwitchWouldCarryAndChangesNothing() {

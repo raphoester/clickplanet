@@ -77,12 +77,13 @@ type Storage struct {
 	// The ground of the stage's board, swapped with the stage: what every rule reads the board in play by.
 	played *clicks.Played
 
-	// Guards the stage in play, the board, the landmasses and the version, which change together, and the feed's order.
-	// The stage changes under staging too.
+	// Guards the stage in play, the board, the landmasses, the provinces and the version, which change together, and the
+	// feed's order. The stage changes under staging too.
 	mu         sync.RWMutex
 	stage      clicks.Stage
 	board      *board
 	landmasses *landmasses
+	provinces  *provinces
 	out        *outFlags
 	viruses    *virusBook
 	mines      *mineBook
@@ -157,7 +158,8 @@ func (s *Storage) putLocked(tile uint32, state tileState) {
 		s.viruses.cure(tile)
 		s.mines.take(tile)
 		s.landmasses.moved(tile, from, state.owner)
-		s.recount.moved(s.landmasses.of(tile), from, state.owner)
+		s.provinces.moved(tile, from, state.owner)
+		s.recount.moved(s.landmasses.of(tile), s.provinces.of(tile), from, state.owner)
 	}
 }
 

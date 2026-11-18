@@ -9,13 +9,13 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-func TestNoLandmassAndNoFlagAreNeverWhole(t *testing.T) {
-	require.ErrorIs(t, clicks.FortifyError(clicks.NoLandmass, "fr", 4, 4, ""), clicks.ErrNotWhole)
+func TestNoProvinceAndNoFlagAreNeverWhole(t *testing.T) {
+	require.ErrorIs(t, clicks.FortifyError(clicks.NoProvince, "fr", 4, 4, ""), clicks.ErrNotWhole)
 	require.ErrorIs(t, clicks.FortifyError(3, "", 4, 4, ""), clicks.ErrNotWhole)
 	require.ErrorIs(t, clicks.FortifyError(3, "fr", 0, 0, ""), clicks.ErrNotWhole)
 }
 
-func TestALandmassThatIsNotWholeOrWasFortifiedSettlesOnNobody(t *testing.T) {
+func TestAProvinceThatIsNotWholeOrWasFortifiedSettlesOnNobody(t *testing.T) {
 	for name, settled := range map[string]func() (string, bool){
 		"not whole": func() (string, bool) { return clicks.SettlerOf("fr", 11, 12, "") },
 		"fortified": func() (string, bool) { return clicks.SettlerOf("fr", 12, 12, "de") },
@@ -37,4 +37,27 @@ func TestEveryTileIsListedUnderItsOwnLandmass(t *testing.T) {
 	assert.Equal(t, clicks.LandmassID(1), borders.LandmassOf(5))
 	assert.Equal(t, clicks.NoLandmass, borders.LandmassOf(11))
 	assert.Nil(t, borders.TilesOf(3))
+}
+
+func TestEveryTileIsListedUnderItsOwnProvince(t *testing.T) {
+	borders := clicks.BordersOf(10, []uint32{2, 5, 9}, []uint32{3})
+	provinces := clicks.ProvincesOf("test-provinces", borders, []uint32{9, 2}, []uint32{5}, []uint32{3})
+
+	assert.Equal(t, 3, provinces.Count())
+	assert.Equal(t, []uint32{2, 9}, provinces.TilesOf(1))
+	assert.Equal(t, []uint32{5}, provinces.TilesOf(2))
+	assert.Equal(t, []uint32{3}, provinces.TilesOf(3))
+	assert.Equal(t, []uint32{1, 4, 6, 7, 8, 10}, provinces.TilesOf(clicks.NoProvince))
+	assert.Equal(t, clicks.ProvinceID(2), provinces.ProvinceOf(5))
+	assert.Equal(t, clicks.LandmassID(1), provinces.LandmassOf(2))
+	assert.Equal(t, clicks.NoProvince, provinces.ProvinceOf(11))
+	assert.Nil(t, provinces.TilesOf(4))
+}
+
+func TestABoardWithNoProvincesHasNoTileInOne(t *testing.T) {
+	provinces := clicks.NoProvinces()
+
+	assert.Equal(t, 0, provinces.Count())
+	assert.Equal(t, clicks.NoProvince, provinces.ProvinceOf(1))
+	assert.Empty(t, provinces.TilesOf(clicks.NoProvince))
 }

@@ -31,6 +31,7 @@ func NewCacheInterceptor(versions MapVersions) connect.Interceptor {
 		planetv1connect.ClickServiceMapDensityProcedure:    mapMaxAge,
 		planetv1connect.ClickServiceGetFortressesProcedure: mapMaxAge,
 		planetv1connect.ClickServiceGetLandmassProcedure:   mapMaxAge,
+		planetv1connect.ClickServiceGetProvinceProcedure:   mapMaxAge,
 	}
 	tagged := map[string]bool{
 		planetv1connect.ClickServiceGetMapProcedure:      true,

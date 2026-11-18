@@ -21,7 +21,13 @@ type LandmassTiles struct {
 	Flags    []FlagTiles
 }
 
+type ProvinceTiles struct {
+	Province ProvinceID
+	Flags    []FlagTiles
+}
+
 type Tally struct {
 	Countries  []FlagTiles
 	Landmasses []LandmassTiles
+	Provinces  []ProvinceTiles
 }
