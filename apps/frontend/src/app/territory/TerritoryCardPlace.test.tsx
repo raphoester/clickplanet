@@ -138,14 +138,18 @@ describe("TerritoryCardPlace", () => {
         expect(reader.landmass).toHaveBeenCalledTimes(2)
     })
 
-    it("names no players on a province's card: the planet counts them by landmass", async () => {
+    it("names no top players on a province's card, the planet counts them by landmass, but its last fortifier", async () => {
         const reader = readerOf(SICILY)
-        const province: Territory = {...territoryOf(12), place: {kind: "province", province: 40, landmass: 12}, name: "Palermo"}
+        const provinces = provincesOf(CALABRIA)
+        const province: Territory = {
+            ...territoryOf(12, 40), place: {kind: "province", province: 40, landmass: 12}, name: "Palermo", provinceName: undefined,
+        }
 
-        render(place({shown: {territory: province, point: {x: 300, y: 200}, touch: false, id: 1}, reader, players: players()}))
+        render(place({shown: {territory: province, point: {x: 300, y: 200}, touch: false, id: 1}, reader, provinces, players: players()}))
 
         expect(screen.getByRole("region", {name: "Palermo"})).toBeDefined()
-        await Promise.resolve()
+        await waitFor(() => expect(readFortified(40)).toBeDefined())
+        expect(provinces.province).toHaveBeenLastCalledWith(40, expect.any(AbortSignal))
         expect(reader.landmass).not.toHaveBeenCalled()
         expect(screen.queryByRole("region", {name: "Top players"})).toBeNull()
     })
