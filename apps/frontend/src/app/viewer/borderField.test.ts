@@ -24,7 +24,7 @@ function world(total: number, spare = 0): BorderData {
     return {codes, assignment, frames, totals}
 }
 
-const rows = (field: BorderField) => field.landmassData.image.data as unknown as Float32Array
+const rows = (field: BorderField) => field.texture.image.data as unknown as Float32Array
 const opacityOf = (field: BorderField, piece = 1) => rows(field)[piece * TEXELS * 4 + 12]
 const regionOf = (field: BorderField, piece = 1) =>
     Array.from(rows(field).slice(piece * TEXELS * 4 + 8, piece * TEXELS * 4 + 12))
@@ -206,12 +206,12 @@ describe("the landmass table", () => {
         const field = new BorderField(world(8))
         paint(field, {fr: 5})
 
-        const uploaded = field.landmassData.version
+        const uploaded = field.texture.version
         paint(field, {fr: 5})
-        expect(field.landmassData.version).toBe(uploaded)
+        expect(field.texture.version).toBe(uploaded)
 
         paint(field, {de: 5})
-        expect(field.landmassData.version).toBeGreaterThan(uploaded)
+        expect(field.texture.version).toBeGreaterThan(uploaded)
     })
 })
 

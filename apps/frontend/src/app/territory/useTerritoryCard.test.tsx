@@ -5,14 +5,14 @@ import {StrictMode} from "react"
 import {useTerritoryCard} from "./useTerritoryCard.ts"
 import {LEAVE_GRACE_MS} from "../players/tileHolder.ts"
 import {SAMPLE_MS} from "../viewer/useLeaderboardFeed.ts"
-import {Territory, TerritoryPeek} from "../../domain/territory.ts"
+import {type Place, samePlace, Territory, TerritoryPeek} from "../../domain/territory.ts"
 
 const SICILY: Territory = {
-    landmass: 12, name: "Sicily", ground: "it", size: 100,
+    place: {kind: "landmass", landmass: 12}, name: "Sicily", ground: "it", size: 100,
     holdings: [{flag: "fr", tiles: 60}], province: 31, provinceName: undefined, fortifiedBy: undefined, target: undefined,
 }
 
-const PEEK: TerritoryPeek = {landmass: 12, point: {x: 300, y: 200}, touch: false}
+const PEEK: TerritoryPeek = {place: {kind: "landmass", landmass: 12}, point: {x: 300, y: 200}, touch: false}
 
 type Pointing = {peek: TerritoryPeek, id: number} | undefined
 
@@ -20,7 +20,7 @@ function globe(territory = SICILY) {
     const state = {territory}
     return {
         state,
-        territoryOf: vi.fn((landmass: number) => landmass === state.territory.landmass ? state.territory : undefined),
+        territoryOf: vi.fn((place: Place) => samePlace(place, state.territory.place) ? {...state.territory, place} : undefined),
         showTerritory: vi.fn(),
     }
 }
@@ -44,7 +44,7 @@ describe("useTerritoryCard", () => {
         const {result} = render(planet)
 
         expect(result.current.shown).toEqual({territory: SICILY, point: PEEK.point, touch: false, id: 1})
-        expect(planet.showTerritory).toHaveBeenLastCalledWith(12)
+        expect(planet.showTerritory).toHaveBeenLastCalledWith({kind: "landmass", landmass: 12})
     })
 
     it("follows the territory while its card is open, and keeps the same card while nothing changed", () => {

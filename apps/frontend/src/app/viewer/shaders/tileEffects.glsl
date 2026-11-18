@@ -14,7 +14,8 @@ const float FORTIFY_WAVE = 1.2;
 const float FORTIFY_GLOW = 0.7;
 
 uniform vec4 fortifies[MAX_FORTIFIES];
-uniform float fortifyLandmass[MAX_FORTIFIES];
+// The provinces each wave runs over, first and last.
+uniform vec2 fortifyProvinces[MAX_FORTIFIES];
 uniform float fortifyReach[MAX_FORTIFIES];
 
 struct TileEffects {
@@ -25,7 +26,7 @@ struct TileEffects {
     vec3 push;
 };
 
-TileEffects tileEffectsAt(vec3 ground, float landmass) {
+TileEffects tileEffectsAt(vec3 ground, float province) {
     TileEffects effects = TileEffects(0.0, 0.0, 0.0, 0.0, vec3(0.0));
 
     for (int i = 0; i < MAX_BLASTS; i++) {
@@ -60,7 +61,7 @@ TileEffects tileEffectsAt(vec3 ground, float landmass) {
     }
 
     for (int i = 0; i < MAX_FORTIFIES; i++) {
-        if (abs(landmass - fortifyLandmass[i]) > 0.5) continue;
+        if (province < fortifyProvinces[i].x - 0.5 || province > fortifyProvinces[i].y + 0.5) continue;
 
         float t = time - fortifies[i].w;
         if (t < 0.0 || t > FORTIFY_WAVE + FORTIFY_GLOW) continue;

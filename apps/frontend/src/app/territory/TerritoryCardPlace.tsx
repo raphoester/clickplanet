@@ -24,7 +24,9 @@ export type TerritoryCardPlaceProps = {
 // players' cards say who they are.
 export default function TerritoryCardPlace({shown, reader, provinces, players, missions, onHold, onClose}: TerritoryCardPlaceProps) {
     const flag = useCountry((store) => store.country.code)
-    const landmass = shown?.territory.landmass
+    // The planet counts the players of a landmass: a province's card names none.
+    const place = shown?.territory.place
+    const landmass = place?.kind === "landmass" ? place.landmass : undefined
     const province = shown?.territory.province
     const top = useTerritoryPlayers(topOf(landmass))
     const fortified = useTerritoryPlayers(fortifiedOf(province))

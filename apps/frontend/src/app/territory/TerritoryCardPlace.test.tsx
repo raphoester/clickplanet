@@ -41,7 +41,7 @@ const SICILY: LandmassState = {
 const CALABRIA: ProvinceState = {lastFortification: {accountId: "account-mateus", countryCode: "br", at: 1_000}}
 
 const territoryOf = (landmass: number, province = landmass * 10): Territory => ({
-    landmass, name: `Landmass ${landmass}`, ground: "it", size: 100, holdings: [{flag: "fr", tiles: 40}],
+    place: {kind: "landmass", landmass}, name: `Landmass ${landmass}`, ground: "it", size: 100, holdings: [{flag: "fr", tiles: 40}],
     province, provinceName: `Province ${province}`, fortifiedBy: "br", target: undefined,
 })
 

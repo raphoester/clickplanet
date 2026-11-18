@@ -54,25 +54,33 @@ export function countryOfTile(data: BorderData, tile: number): string | undefine
     return index ? data.codes[index] : undefined
 }
 
+// The grounds a flag is painted over, landmasses or provinces: each one's frame (centre x, y, z, half extents east and
+// north) and its tiles, 0 none.
+export type Grounds = {frames: Float32Array, totals: Uint32Array}
+
+// A row a ground: some players' GPUs take no texture taller (docs/tile-layout.md).
+export const MOST_GROUNDS = 4096
+
 export class BorderField {
-    readonly landmassData: THREE.DataTexture
-    readonly landmassCount: number
+    readonly texture: THREE.DataTexture
+    readonly count: number
 
     private readonly rows: Float32Array
     private readonly painted: (string | undefined)[]
 
     constructor(
-        private readonly data: BorderData,
+        private readonly data: Grounds,
         private readonly minimumShare = MINIMUM_SHARE,
         private readonly minimumTiles = MINIMUM_TILES,
         private readonly stretch = true,
         private readonly fit: "cover" | "contain" = "cover",
     ) {
-        this.landmassCount = data.codes.length
-        this.painted = new Array(this.landmassCount)
+        this.count = data.totals.length
+        if (this.count > MOST_GROUNDS) throw new Error(`${this.count} grounds, more rows than a texture takes (${MOST_GROUNDS})`)
+        this.painted = new Array(this.count)
 
-        this.rows = new Float32Array(LANDMASS_TEXELS * this.landmassCount * 4)
-        for (let piece = 1; piece < this.landmassCount; piece++) {
+        this.rows = new Float32Array(LANDMASS_TEXELS * this.count * 4)
+        for (let piece = 1; piece < this.count; piece++) {
             const at = piece * LANDMASS_TEXELS * 4
             this.rows[at] = data.frames[piece * 5]
             this.rows[at + 1] = data.frames[piece * 5 + 1]
@@ -82,12 +90,10 @@ export class BorderField {
             this.rows[at + 6] = 0
         }
 
-        this.landmassData = new THREE.DataTexture(
-            this.rows, LANDMASS_TEXELS, this.landmassCount, THREE.RGBAFormat, THREE.FloatType,
-        )
-        this.landmassData.minFilter = THREE.NearestFilter
-        this.landmassData.magFilter = THREE.NearestFilter
-        this.landmassData.needsUpdate = true
+        this.texture = new THREE.DataTexture(this.rows, LANDMASS_TEXELS, this.count, THREE.RGBAFormat, THREE.FloatType)
+        this.texture.minFilter = THREE.NearestFilter
+        this.texture.magFilter = THREE.NearestFilter
+        this.texture.needsUpdate = true
     }
 
     holderOf(landmass: number): string | undefined {
@@ -101,7 +107,7 @@ export class BorderField {
     // Each painted flag on screen, over the landmasses it leads: its widest frame and all their land.
     flagNeeds(view: ScreenView, areas: Float32Array): Map<string, FlagNeed> {
         const needs = new Map<string, FlagNeed>()
-        for (let landmass = 1; landmass < this.landmassCount; landmass++) {
+        for (let landmass = 1; landmass < this.count; landmass++) {
             const holder = this.painted[landmass]
             const at = landmass * LANDMASS_TEXELS * 4
             if (holder === undefined || this.rows[at + 10] <= 0) continue
@@ -119,9 +125,9 @@ export class BorderField {
     setRows(landmasses: Iterable<number>, leaderOf: (landmass: number) => {holder: string, held: number} | undefined) {
         let changed = false
         for (const landmass of landmasses) {
-            if (landmass >= 1 && landmass < this.landmassCount) changed = this.settle(landmass, leaderOf(landmass)) || changed
+            if (landmass >= 1 && landmass < this.count) changed = this.settle(landmass, leaderOf(landmass)) || changed
         }
-        if (changed) this.landmassData.needsUpdate = true
+        if (changed) this.texture.needsUpdate = true
     }
 
     private settle(landmass: number, leader: {holder: string, held: number} | undefined): boolean {
@@ -190,7 +196,7 @@ export class BorderField {
     }
 
     dispose() {
-        this.landmassData.dispose()
+        this.texture.dispose()
     }
 }
 

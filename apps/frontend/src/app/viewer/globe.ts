@@ -90,7 +90,7 @@ import {BLAST_TIMELINE, IMPACT_DELAY, mineBlastRadius} from "../../domain/blast.
 import {HoldToDrop} from "../../domain/holdToDrop.ts";
 import {ClickOrDrag} from "../../domain/clickOrDrag.ts";
 import {Peek, Peeked, Point, TilePeek} from "../../domain/tilePeek.ts";
-import {rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
+import {type Place, placeKey, rankHoldings, Territory, TerritoryPeek} from "../../domain/territory.ts";
 import {FLIGHT_SECONDS, flightAt, territoryShotOf} from "../../domain/flight.ts";
 import {pointOf} from "../../domain/clip/geometry.ts";
 import {Front, FrontChanges} from "../../domain/front.ts";
@@ -115,6 +115,7 @@ import {PlaySound} from "../sound/soundPlayer.ts";
 import {drawShieldMarks, shieldCellsOf} from "./shieldMarks.ts";
 import {AcceptedClick} from "../clicks/acceptedClicks.ts";
 import {fileHashOf} from "../../domain/provinceLinesFile.ts";
+import {NO_PROVINCES, ProvinceSpans} from "../../domain/provinces.ts";
 
 type Uniforms = BlastUniforms & FortifyUniforms & {
     pointSize: THREE.IUniform
@@ -124,8 +125,10 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     leastFlagRadius: THREE.IUniform<number>
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
-    landmassData: THREE.IUniform
-    landmassCount: THREE.IUniform
+    // The rows of the grounds the flags are painted over, landmasses or provinces, by the divisions.
+    groundData: THREE.IUniform<THREE.DataTexture>
+    groundCount: THREE.IUniform<number>
+    byProvince: THREE.IUniform<number>
     pixelsPerRadian: THREE.IUniform<number>
     pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
@@ -133,7 +136,8 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     shieldMost: THREE.IUniform<number>
     shieldMarks: THREE.IUniform<THREE.Texture>
     shieldCells: THREE.IUniform<THREE.Vector2>
-    highlight: THREE.IUniform<number>
+    // The provinces lit, first and last.
+    highlight: THREE.IUniform<THREE.Vector2>
     slotTexture: THREE.IUniform<THREE.Texture | null>
     slotFrames: THREE.IUniform<THREE.DataTexture>
     pulseTime: THREE.IUniform<number>
@@ -355,8 +359,9 @@ export type Globe = {
     setRallyAimed(aimed: boolean): void
     setSwitch(name: keyof Switches, on: boolean): void
     setClickHue(hue: number | undefined): void
-    territoryOf(landmass: number): Territory
-    showTerritory(landmass: number | undefined): void
+    // A territory seen from orbit, and the place it is given in it.
+    territoryOf(place: Place): Territory
+    showTerritory(place: Place | undefined): void
     flyToLastLoss(): void
     setMissions(targets: readonly MissionTarget[]): void
     flyToMission(target: MissionTarget): void
@@ -463,14 +468,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const slots = new FlagSlots(invalidate)
 
+    // The flags painted in each landmass's frame, and in each province's.
+    const territories = new BorderField(borders, undefined, leastPaintedTiles(scale))
+    const provinceFrames = new BorderField({frames: provinces.frames, totals: provinces.tiles}, undefined, leastPaintedTiles(scale))
+    const framesOf = (by: Divisions) => by === "provinces" ? provinceFrames : territories
+    const spans = new ProvinceSpans(provinces, borders.codes.length)
+
     const uniforms: Uniforms = {
         pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height, scale) * renderer.getPixelRatio()},
         virusLift: {value: virusLiftOf(scale)},
         leastFlagRadius: {value: leastFlagRadiusOf(scale)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
-        landmassData: {value: null},
-        landmassCount: {value: 1},
+        groundData: {value: framesOf(divisions).texture},
+        groundCount: {value: framesOf(divisions).count},
+        byProvince: {value: divisions === "provinces" ? 1 : 0},
         pixelsPerRadian: {value: 1},
         pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView, scale)},
@@ -478,7 +490,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         shieldMost: {value: SHIELD_MOST_UNTIL_READ},
         shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
         shieldCells: {value: shieldCellsOf(SHIELD_MOST_UNTIL_READ)},
-        highlight: {value: 0},
+        highlight: {value: new THREE.Vector2(NO_PROVINCES.first, NO_PROVINCES.last)},
         slotTexture: slots.texture,
         slotFrames: slots.frames,
         pulseTime: {value: 0},
@@ -488,25 +500,28 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const field = new TileField(uniforms, geometryData, graphics);
 
-    const territories = new BorderField(borders, undefined, leastPaintedTiles(scale))
     const landmasses = new Landmasses(borders.assignment, borders.codes.length)
-    // Fortify plays on provinces: each one's tiles, and its name.
-    const provinceTiles = new Landmasses(provinces.province, provinces.landmass.length)
     const provinceName = (province: number) => {
         const landmass = provinces.landmass[province] ?? 0
         return translator().province(province, landmass, borders.codes[landmass])
     }
-    field.setLandmasses(borders.assignment)
-    uniforms.landmassData.value = territories.landmassData
-    uniforms.landmassCount.value = borders.codes.length
+    field.setProvinces(provinces.province)
 
-    const sight = new LandmassSight((landmass) => landmasses.tilesOf(landmass), borders.codes.length, geometryData.positions, tileAreaOf(board.lattice.cols))
+    // The tiles of each province, and how much of each is on screen, made the first time provinces divide the map.
+    let provinceTiles: Landmasses | undefined
+    const tilesOfProvince = (province: number) => (provinceTiles ??= new Landmasses(provinces.province, provinces.landmass.length)).tilesOf(province)
+    const tileArea = tileAreaOf(board.lattice.cols)
+    const sight = new LandmassSight((landmass) => landmasses.tilesOf(landmass), borders.codes.length, geometryData.positions, tileArea)
+    let provinceSight: LandmassSight | undefined
+    const sightOf = (by: Divisions) => by === "countries"
+        ? sight
+        : provinceSight ??= new LandmassSight(tilesOfProvince, provinces.landmass.length, geometryData.positions, tileArea)
     const settling = new Settling()
     // The view the flags were last ranked for: a recount ranks them for it too, never for a camera in motion.
     let settled: {view: ScreenView, areas: Float32Array} | undefined
     const settle = () => {
         const view = screenViewOf(camera, renderer.domElement)
-        settled = {view, areas: sight.areasOnScreen(view)}
+        settled = {view, areas: sightOf(divisions).areasOnScreen(view)}
         return settled
     }
     const viewSize = new THREE.Vector2()
@@ -514,7 +529,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const arrangeSlots = () => {
         if (flagPaint(camera.zoom, renderer.getSize(viewSize).y, mapView, scale) <= 0) return
         const {view, areas} = settled ?? settle()
-        slots.arrange(territories.flagNeeds(view, areas), slotBudgetOf(renderer.domElement.width, renderer.domElement.height))
+        slots.arrange(framesOf(divisions).flagNeeds(view, areas), slotBudgetOf(renderer.domElement.width, renderer.domElement.height))
     }
 
     const sphere = innerSphere()
@@ -524,6 +539,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         cells: geometryData.cells,
         terrain,
         tileData: field.tileData,
+        provinceLandmass: provinces.landmass,
         flagRectangles: field.flagRectangles,
         uniforms,
     })
@@ -597,7 +613,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         leaderOf: (province) => holdings.leaderOfProvince(province),
         ownerOf: (tile) => ownership.ownerOf(tile),
         known: (tile) => tiles.known(tile),
-        tilesOf: (province) => provinceTiles.tilesOf(province),
+        tilesOf: tilesOfProvince,
         provinceOf: (tile) => provinces.province[tile - 1] ?? 0,
     }, (tiles, on) => {
         field.setPulses(tiles, on)
@@ -743,13 +759,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const recount = ({countries, landmasses, provinces: moved}: Recount, live: boolean) => {
-        if (landmasses.length > 0) {
-            territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
-            arrangeSlots()
-            invalidate()
+        if (landmasses.length > 0) territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
+        if (moved.length > 0) {
+            provinceFrames.setRows(moved, (province) => holdings.leaderOfProvince(province))
+            if (tracking) targets.recount(moved)
         }
-        if (moved.length > 0 && tracking) {
-            targets.recount(moved)
+        if (landmasses.length > 0 || moved.length > 0) {
+            arrangeSlots()
             invalidate()
         }
         if (countries) publishBoard(live)
@@ -831,12 +847,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let mouse = false
     let pointerAt: Point = {x: 0, y: 0}
     let peeking: number | undefined
+    // The territory under the pointer, and the one peeked: a landmass's id, or a province's while provinces divide the map.
     let peekingTerritory: number | undefined
-    let hoveredLandmass: number | undefined
-    let shownLandmass: number | undefined
+    let hoveredTerritory: number | undefined
+    let shownTerritory: Place | undefined
 
     const landmassOf = (tile: number | undefined) => (tile === undefined ? 0 : borders.assignment[tile - 1]) || undefined
-    // The province under the pointer in orbit: a territory card's fortify is that province's.
+    // The province under the pointer in orbit: a landmass's card's fortify is that province's.
     let pointedProvince: number | undefined
     const notePointed = (tile: number | undefined) => {
         if (tile !== undefined) pointedProvince = provinces.province[tile - 1] || undefined
@@ -844,6 +861,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const fortifiedIn = (landmass: number) => pointedProvince !== undefined && provinces.landmass[pointedProvince] === landmass
         ? pointedProvince
         : provinces.province[(landmasses.tilesOf(landmass)[0] ?? 0) - 1] ?? 0
+    const territoryAt = (tile: number | undefined) =>
+        (tile === undefined ? 0 : (divisions === "provinces" ? provinces.province : borders.assignment)[tile - 1]) || undefined
+    const placeOf = (territory: number): Place => divisions === "provinces"
+        ? {kind: "province", province: territory, landmass: provinces.landmass[territory]}
+        : {kind: "landmass", landmass: territory}
+    const tilesOfPlace = (place: Place) => place.kind === "landmass" ? landmasses.tilesOf(place.landmass) : tilesOfProvince(place.province)
 
     const orbiting = () => inOrbit(camera.zoom, renderer.domElement.height / renderer.getPixelRatio(), scale)
 
@@ -860,9 +883,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         onPeekEnd()
     }
 
-    const peekTerritoryAt = ({spot: landmass, point, touch}: Peeked) => {
-        peekingTerritory = landmass
-        onTerritoryPeek({landmass, point, touch})
+    const peekTerritoryAt = ({spot: territory, point, touch}: Peeked) => {
+        peekingTerritory = territory
+        onTerritoryPeek({place: placeOf(territory), point, touch})
     }
 
     const endTerritoryPeek = () => {
@@ -874,10 +897,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let flight: Flight | undefined
     let taken = false
 
-    const territoryShot = (landmass: number) => {
+    const territoryShot = (tiles: ArrayLike<number>) => {
         const {width, height} = renderer.domElement
         const {least, most} = flownZoomsOf(height / renderer.getPixelRatio(), scale)
-        const points = Array.from(landmasses.tilesOf(landmass), (tile) => pointOf(geometryData.positions, tile))
+        const points = Array.from(tiles, (tile) => pointOf(geometryData.positions, tile))
         return territoryShotOf(points, width / height, least, Math.min(most, maxZoom))
     }
 
@@ -891,9 +914,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
     }
 
-    const flyTo = (landmass: number | undefined) => {
-        if (landmass === undefined) return
-        const to = territoryShot(landmass)
+    const flyTo = (territory: number | undefined) => {
+        if (territory === undefined) return
+        const to = territoryShot(tilesOfPlace(placeOf(territory)))
         if (to) fly(to)
     }
 
@@ -927,7 +950,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const home = showFront && !linkedShot ? homeOf(country.code) : undefined
-    const homeShot = home === undefined ? undefined : territoryShot(home)
+    const homeShot = home === undefined ? undefined : territoryShot(landmasses.tilesOf(home))
     if (homeShot) aim(camera, homeShot)
 
     let army: GhostArmy | undefined
@@ -1114,11 +1137,17 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         followCapitals(capitalRules(read))
     }
 
+    // The territory under the pointer, else the one whose card is open, lit in orbit: its tiles and its outline.
+    let lit = ""
     const highlight = (orbit: boolean) => {
-        const landmass = orbit ? hoveredLandmass ?? shownLandmass ?? 0 : 0
-        if (uniforms.highlight.value === landmass) return false
-        uniforms.highlight.value = landmass
-        outline.setHighlight("countries", landmass)
+        const place = !orbit ? undefined : hoveredTerritory !== undefined ? placeOf(hoveredTerritory) : shownTerritory
+        const key = place ? placeKey(place) : ""
+        if (key === lit) return false
+        lit = key
+        const span = place === undefined ? NO_PROVINCES : place.kind === "province" ? {first: place.province, last: place.province} : spans.of(place.landmass)
+        uniforms.highlight.value.set(span.first, span.last)
+        if (place?.kind === "province") outline.setHighlight("provinces", place.province)
+        else outline.setHighlight("countries", place?.landmass ?? 0)
         return true
     }
 
@@ -1539,7 +1568,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         field.setHover(undefined)
         peek.hover(undefined, 0, pointerAt)
         territoryPeek.hover(undefined, 0, pointerAt)
-        hoveredLandmass = undefined
+        hoveredTerritory = undefined
         endPeek()
         endTerritoryPeek()
         if (armed && !hold.holding) aimAt(undefined)
@@ -1556,7 +1585,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const orbit = orbiting()
         peek.begin(event, orbit || !loaded ? undefined : pressedTile, performance.now() / 1000)
         if (orbit) notePointed(pressedTile || undefined)
-        territoryPeek.begin(event, orbit ? landmassOf(pressedTile) : undefined, performance.now() / 1000)
+        territoryPeek.begin(event, orbit ? territoryAt(pressedTile) : undefined, performance.now() / 1000)
         if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
 
         const {x, y} = canvasPosition(event)
@@ -1655,7 +1684,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         territoryPeek.clicked()
 
         if (orbiting()) {
-            flyTo(landmassOf(tile))
+            flyTo(territoryAt(tile))
             return
         }
 
@@ -1906,14 +1935,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const stopFortifications = updatesListener.listenForFortifications((fortification) => {
         const {province} = fortification
-        const members = provinceTiles.tilesOf(province)
+        const members = tilesOfProvince(province)
         releaseGhosts(members)
         const fixed = fixedCapitals()
         const shielding = fixed ? members.filter((tile) => !fixed.has(tile)) : members
         const raised = tiles.applyFortification(shielding, fortification.countryId, tileShieldsMost(), fortification.version)
         markMissions(missionMarks.touch(raised.map(({tile}) => tile)))
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
-        else waves.start(provinces.landmass[province] ?? 0, members, fortification.tile, performance.now() / 1000)
+        else waves.start({first: province, last: province}, members, fortification.tile, performance.now() / 1000)
 
         const own = fortification.countryId === country.code
         const news = isNews(fortification, members.length, country.code, scale)
@@ -2013,7 +2042,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         pendingPointer = undefined
         if (armed) {
             field.setHover(undefined)
-            hoveredLandmass = undefined
+            hoveredTerritory = undefined
             highlight(orbit)
             if (!hold.holding) aimAt(surfacePoint(x, y))
             return true
@@ -2021,13 +2050,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const hovered = picker.pick(camera, x, y)
         if (mouse) {
             const tile = orbit ? undefined : hovered
-            const landmass = orbit ? landmassOf(hovered) : undefined
+            const territory = orbit ? territoryAt(hovered) : undefined
             if (orbit) notePointed(hovered)
             peek.hover(tile, seconds, pointerAt)
-            territoryPeek.hover(landmass, seconds, pointerAt)
+            territoryPeek.hover(territory, seconds, pointerAt)
             if (tile !== peeking) endPeek()
-            if (landmass !== peekingTerritory) endTerritoryPeek()
-            hoveredLandmass = landmass
+            if (territory !== peekingTerritory) endTerritoryPeek()
+            hoveredTerritory = territory
         }
         const relit = highlight(orbit)
         return field.setHover(hovered) || relit || lit || boxed || blasting
@@ -2080,6 +2109,17 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         setDivisions: (next: Divisions) => {
             if (next === divisions) return
             divisions = next
+            const frames = framesOf(next)
+            uniforms.groundData.value = frames.texture
+            uniforms.groundCount.value = frames.count
+            uniforms.byProvince.value = next === "provinces" ? 1 : 0
+            // The territory under the pointer is of the other divisions now: it is found again.
+            territoryPeek.hover(undefined, 0, pointerAt)
+            endTerritoryPeek()
+            hoveredTerritory = undefined
+            pendingPointer ??= mouseOnCanvas
+            settled = undefined
+            arrangeSlots()
             invalidate()
         },
         setHalo: (halo: Halo) => {
@@ -2103,22 +2143,29 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             switchTo(next)
         },
         setClickHue: (hue: number | undefined) => plainClicks.setOwnHue(hue),
-        territoryOf: (landmass: number) => {
-            const province = fortifiedIn(landmass)
+        territoryOf: (place: Place) => {
+            const {landmass} = place
+            const code = borders.codes[landmass]
+            const own = place.kind === "landmass"
+                ? {name: translator().landmass(landmass, code), size: territories.sizeOf(landmass), held: holdings.holdingsOf(landmass)}
+                : {name: provinceName(place.province), size: provinceFrames.sizeOf(place.province), held: holdings.holdingsOfProvince(place.province)}
+            // A province's card is about the province; a landmass's foot about the province under the pointer.
+            const province = place.kind === "province" ? place.province : fortifiedIn(landmass)
+            const named = place.kind === "landmass" && provinces.tiles[province] !== territories.sizeOf(landmass)
             return {
-                landmass,
-                name: translator().landmass(landmass, borders.codes[landmass]),
-                ground: borders.codes[landmass] || undefined,
-                size: territories.sizeOf(landmass),
-                holdings: rankHoldings(holdings.holdingsOf(landmass)),
+                place,
+                name: own.name,
+                ground: code || undefined,
+                size: own.size,
+                holdings: rankHoldings(own.held),
                 province,
-                provinceName: provinces.tiles[province] === territories.sizeOf(landmass) ? undefined : provinceName(province),
+                provinceName: named ? provinceName(province) : undefined,
                 fortifiedBy: targets.lockOf(province),
                 target: targets.targetOf(province),
             }
         },
-        showTerritory: (landmass: number | undefined) => {
-            shownLandmass = landmass
+        showTerritory: (place: Place | undefined) => {
+            shownTerritory = place
         },
         flyToLastLoss: () => {
             if (lost !== undefined) flyDown(lost)
@@ -2176,6 +2223,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             blasts.dispose()
             field.dispose()
             territories.dispose()
+            provinceFrames.dispose()
             slots.dispose()
             outline.dispose()
             bonusBox.dispose()

@@ -18,7 +18,7 @@ import {useBonus} from '../bonus/bonusStore.ts';
 import {useNews} from '../news/newsStore.ts';
 import {useStanding} from '../knockout/standingStore.ts';
 import {Peek} from '../../domain/tilePeek.ts';
-import {Territory, TerritoryPeek} from '../../domain/territory.ts';
+import {Place, Territory, TerritoryPeek} from '../../domain/territory.ts';
 import {Shot} from '../../domain/clip/camera.ts';
 import {MissionTarget} from '../../domain/missionTargets.ts';
 import {RallyCallers} from './rallyMarks.ts';
@@ -275,8 +275,8 @@ export function useGlobe(options: UseGlobeOptions) {
 
     const graphics = useCallback((): GraphicsReport => globeRef.current?.graphics() ?? NO_GRAPHICS, [])
 
-    const territoryOf = useCallback((landmass: number): Territory | undefined => globeRef.current?.territoryOf(landmass), [])
-    const showTerritory = useCallback((landmass: number | undefined) => globeRef.current?.showTerritory(landmass), [])
+    const territoryOf = useCallback((place: Place): Territory | undefined => globeRef.current?.territoryOf(place), [])
+    const showTerritory = useCallback((place: Place | undefined) => globeRef.current?.showTerritory(place), [])
     const flyToLastLoss = useCallback(() => globeRef.current?.flyToLastLoss(), [])
     const flyToMission = useCallback((target: MissionTarget) => globeRef.current?.flyToMission(target), [])
 

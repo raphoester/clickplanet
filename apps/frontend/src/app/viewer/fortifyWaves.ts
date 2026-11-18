@@ -1,25 +1,27 @@
 import * as THREE from "three"
 import {FORTIFY_GLOW_SECONDS, FORTIFY_WAVE_SECONDS, MAX_FORTIFY_WAVES, reached, WavePlan, wavePlan} from "../../domain/fortifyWave.ts"
+import {NO_PROVINCES, type ProvinceSpan} from "../../domain/provinces.ts"
 
 const NEVER = -1e6
 
 export type FortifyUniforms = {
     fortifies: THREE.IUniform<THREE.Vector4[]>
-    fortifyLandmass: THREE.IUniform<number[]>
+    // The provinces each wave runs over, first and last.
+    fortifyProvinces: THREE.IUniform<THREE.Vector2[]>
     fortifyReach: THREE.IUniform<number[]>
 }
 
 export function fortifyUniforms(): FortifyUniforms {
     return {
         fortifies: {value: Array.from({length: MAX_FORTIFY_WAVES}, () => new THREE.Vector4(0, 0, 1, NEVER))},
-        fortifyLandmass: {value: new Array(MAX_FORTIFY_WAVES).fill(-1)},
+        fortifyProvinces: {value: Array.from({length: MAX_FORTIFY_WAVES}, () => new THREE.Vector2(NO_PROVINCES.first, NO_PROVINCES.last))},
         fortifyReach: {value: new Array(MAX_FORTIFY_WAVES).fill(0)},
     }
 }
 
 export type FortifyWaves = {
     // Shows each tile's shields as the front reaches it, through `reveal`.
-    start(landmass: number, tiles: ArrayLike<number>, closing: number, seconds: number): void
+    start(provinces: ProvinceSpan, tiles: ArrayLike<number>, closing: number, seconds: number): void
 
     update(seconds: number): boolean
 
@@ -48,7 +50,7 @@ export function createFortifyWaves(
     }
 
     return {
-        start(landmass, tiles, closing, seconds) {
+        start(provinces, tiles, closing, seconds) {
             const slot = next
             next = (next + 1) % MAX_FORTIFY_WAVES
             const replaced = slots[slot]
@@ -58,7 +60,7 @@ export function createFortifyWaves(
             const at = (closing - 1) * 3
             const centre = new THREE.Vector3(positions[at], positions[at + 1], positions[at + 2]).normalize()
             uniforms.fortifies.value[slot].set(centre.x, centre.y, centre.z, seconds)
-            uniforms.fortifyLandmass.value[slot] = landmass
+            uniforms.fortifyProvinces.value[slot].set(provinces.first, provinces.last)
             uniforms.fortifyReach.value[slot] = plan.reach
             slots[slot] = {plan, startedAt: seconds, shown: 0}
         },
@@ -71,7 +73,7 @@ export function createFortifyWaves(
                 show(wave, reached(wave.plan, elapsed))
                 if (elapsed > FORTIFY_WAVE_SECONDS + FORTIFY_GLOW_SECONDS) {
                     slots[slot] = undefined
-                    uniforms.fortifyLandmass.value[slot] = -1
+                    uniforms.fortifyProvinces.value[slot].set(NO_PROVINCES.first, NO_PROVINCES.last)
                     uniforms.fortifies.value[slot].w = NEVER
                 }
                 // The frame the glow ends on is drawn too.

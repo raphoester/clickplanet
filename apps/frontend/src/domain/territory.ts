@@ -1,8 +1,22 @@
 import type {Target} from "./fortifyTarget.ts"
 import type {Point} from "./tilePeek.ts"
 
+// A territory seen from orbit: a landmass, or one of its provinces while provinces divide the map.
+export type Place =
+    | {kind: "landmass", landmass: number}
+    | {kind: "province", province: number, landmass: number}
+
+export function samePlace(a: Place, b: Place): boolean {
+    return a.kind === b.kind && a.landmass === b.landmass && (a.kind === "landmass" || (b.kind === "province" && a.province === b.province))
+}
+
+// One string a place, for a key: the same place, the same string.
+export function placeKey(place: Place): string {
+    return place.kind === "landmass" ? `landmass ${place.landmass}` : `province ${place.province}`
+}
+
 export type TerritoryPeek = {
-    landmass: number
+    place: Place
     point: Point
     touch: boolean
 }
@@ -13,7 +27,7 @@ export type Holding = {
 }
 
 export type Territory = {
-    landmass: number
+    place: Place
     name: string
     ground: string | undefined
     size: number
@@ -48,7 +62,7 @@ export function sharePercent(tiles: number, size: number): string {
 }
 
 export function sameTerritory(a: Territory, b: Territory): boolean {
-    return a.landmass === b.landmass
+    return samePlace(a.place, b.place)
         && a.province === b.province
         && a.provinceName === b.provinceName
         && a.size === b.size

@@ -11,7 +11,7 @@ import {usePlayerCard} from "../players/playerCardStore.ts"
 import {useBadges} from "../badges/badgesStore.ts"
 
 const SICILY: Territory = {
-    landmass: 12,
+    place: {kind: "landmass", landmass: 12},
     name: "Sicily",
     ground: "it",
     size: 1_200,
