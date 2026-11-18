@@ -7,8 +7,8 @@ export type Window = {since: Date, until: Date, count: number, step: number}
 
 type Changes = Pick<GetLedgerResponse, "changes">
 
-// The changes of a window, read in one or more parts.
-export type Ledger = {window: Window, changes: LedgerChange[]}
+// The changes of a window, read in one or more parts, and the board their tile ids are on: the one the world plays.
+export type Ledger = {window: Window, changes: LedgerChange[], board: string}
 
 // A change reaches postgres a flush after it happened, later when a flush fails: the last minute is read again.
 export const SETTLE_MS = 60_000
@@ -26,13 +26,26 @@ export function sinceOf(kept: Ledger | undefined, window: Window): Date {
     return new Date(Math.max(window.since.getTime(), kept.window.until.getTime() - SETTLE_MS))
 }
 
-// The changes kept from the window's start to where the read started, then the ones it read.
-export function caughtUp(kept: Ledger | undefined, window: Window, since: Date, read: LedgerChange[]): Ledger {
-    const before = (kept?.changes ?? []).filter(change => {
+// The board every page of a read names, or undefined when they name more than one: the world switched board between
+// two of them.
+export function boardOfPages(boards: string[]): string | undefined {
+    return boards.length > 0 && boards.every(board => board === boards[0]) ? boards[0] : undefined
+}
+
+// Whether a read from `since` adds to what was kept: it starts the window, or what was kept is of the board it read.
+// GetLedger answers the changes of the board the world plays alone, so after a switch the span is read whole again,
+// on the new board, and nothing of the old one is kept.
+export function addsTo(kept: Ledger | undefined, window: Window, since: Date, board: string): boolean {
+    return since.getTime() <= window.since.getTime() || kept?.board === board
+}
+
+// The changes kept from the window's start to where the read started, then the ones it read, on `board`.
+export function caughtUp(kept: Ledger | undefined, window: Window, since: Date, read: LedgerChange[], board: string): Ledger {
+    const before = kept?.board !== board ? [] : kept.changes.filter(change => {
         const at = millisOf(change.at)
         return at >= window.since.getTime() && at < since.getTime()
     })
-    return {window, changes: [...before, ...read]}
+    return {window, changes: [...before, ...read], board}
 }
 
 // The tile changed hands: a click, a spread, an enclosure or a bomb. A strike or a shield did not.

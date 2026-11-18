@@ -16,6 +16,9 @@ each line names a doc in [`docs/`](docs) and says what is in it.
   config it needs: auth on and an admin listener.
 - [Deploy](docs/deploy.md) — the `clickplanet-backoffice` Cloudflare Worker.
 - [Layout](docs/layout.md) — the `src/` tree, one line per file.
+- [Boards on the page](docs/boards.md) — every board in `/map/boards` bundled by name (`npm run map`, `boardOf` refuses
+  another), each one's places rebuilt once when an answer names it, the pages that place tiles and the board each reads,
+  the sizes tuned on `earth-1` read at a board's spacing (`scale.ts`), and `fixture-1`, the tests' second board.
 
 ## The pages
 
@@ -30,9 +33,9 @@ each line names a doc in [`docs/`](docs) and says what is in it.
 - [The player page](docs/player-page.md) — one search box, a sortable table, and one player: where it stands, every
   tool on it (a reason with each mute, unmute and rename), and its moderation history: what Claude and the operator did,
   and why.
-- [Graffiti](docs/graffiti.md) — the swastikas the vandal squad flagged, each drawn from the tiles' places, north
-  up over the land around it, for a person to judge; its painter's ban and revert beside it.
-- [The map tools](docs/map-tools.md) — download a replay.
+- [Graffiti](docs/graffiti.md) — the swastikas the vandal squad flagged, each drawn from the tiles' places on the board
+  it names, north up over the land around it, for a person to judge; its painter's ban and revert beside it.
+- [The map tools](docs/map-tools.md) — download a replay, its eras kept: each board the world played, and when.
 - [A country on the page](docs/countries.md) — typed by its id and named below it; a flag is an emoji.
 - [Clip stats](docs/clip-stats.md) — the daily numbers of every post the game made, from `publishing.v1`, and a CSV of
   them.

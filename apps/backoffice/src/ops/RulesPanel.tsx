@@ -1,4 +1,5 @@
 import {useCallback, useState} from "react"
+import {BOARDS} from "../boards/boards.ts"
 import {PlanetAdmin} from "../clients.ts"
 import {ChangeList} from "../components/Changes.tsx"
 import {ConfirmAction} from "../components/ConfirmAction.tsx"
@@ -7,10 +8,10 @@ import {GetRulesResponse, RuleSet} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {wordsOf} from "../refusal.ts"
 import {changesWord} from "../support/labels.ts"
 import {useCall} from "../useCall.ts"
-import {SwitchField, ValueField} from "./RuleFields.tsx"
+import {BoardField, SwitchField, ValueField} from "./RuleFields.tsx"
 import {
-    changesOf, clicksOf, complete, copyOf, DEFAULT_SET, Draft, draftOf, GROUPS, playedOf, playOf, saveRuleSet, tempoOf, tollOf,
-    TollStep,
+    BOARD_LABEL, changesOf, clicksOf, complete, copyOf, DEFAULT_SET, Draft, draftOf, GROUPS, playedOf, playOf, saveRuleSet,
+    tempoOf, tollOf, TollStep,
 } from "./rules.ts"
 import {changedAt} from "./ruleValues.ts"
 
@@ -158,6 +159,11 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                                          defaults={defaults?.enclosuresOff} inherits={defaults !== undefined}
                                          onChange={enclosuresOff => change({enclosuresOff})}/>
                         </>}
+                        {group.title === "Arena" && (
+                            <BoardField label={BOARD_LABEL} board={draft.board} defaults={defaults?.board}
+                                        inherits={defaults !== undefined} boards={[...BOARDS.keys()]}
+                                        onChange={board => change({board})}/>
+                        )}
                         <div className="fields">
                             {group.fields.map(field => (
                                 <ValueField

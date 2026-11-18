@@ -7,7 +7,7 @@ npm run build      # TypeScript check + Vite bundle → /dist
 npm test           # vitest, once (node; a .test.tsx opens with `// @vitest-environment jsdom`)
 npm run lint       # ESLint
 npm run proto      # Regenerate src/gen/grpc from the shared ../../proto
-npm run map        # Copy the board's manifest and runs from the shared ../../map/boards into src/gen/map
+npm run map        # Copy every board's manifest and runs from the shared ../../map/boards into src/gen/map
 ```
 
 `.github/workflows/check-backoffice.yml` runs lint, build and tests on every PR touching this app or `proto/`.

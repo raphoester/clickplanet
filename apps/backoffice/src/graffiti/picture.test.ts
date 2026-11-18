@@ -1,4 +1,6 @@
 import {describe, expect, it} from "vitest"
+import {Places} from "../boards/places.ts"
+import {EARTH_1, FIXTURE_1, placesOn} from "../boards/testBoards.ts"
 import {Cell, pictureOf} from "./picture.ts"
 import {patch} from "./testPlaces.ts"
 
@@ -65,5 +67,52 @@ describe("pictureOf", () => {
 
         expect(pictureOf(places, [0, 9999])).toBeUndefined()
         expect(pictureOf(places, [idOf(0, 0), 9999])!.cells.filter(cell => cell.drawn)).toHaveLength(1)
+    })
+})
+
+// The first tile whose nearest neighbour is between `from` and `to` radians away.
+function loneTileOf(places: Places, from: number, to: number): number {
+    const vectors = Array.from({length: places.latitudes.length}, (_, i) => {
+        const lat = places.latitudes[i] * Math.PI / 180, lon = places.longitudes[i] * Math.PI / 180
+        return [-Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)]
+    })
+    const tile = vectors.findIndex((v, i) => {
+        let nearest = Infinity
+        vectors.forEach((w, j) => {
+            if (j !== i) nearest = Math.min(nearest, Math.acos(Math.min(1, v[0] * w[0] + v[1] * w[1] + v[2] * w[2])))
+        })
+        return nearest > from && nearest < to
+    })
+    if (tile < 0) throw new Error("no such tile")
+    return tile + 1
+}
+
+describe("pictureOf on another board", () => {
+    it("draws a drawing on fixture-1's lattice framed as on earth-1's, its step read off its tiles", () => {
+        const plus = (board = EARTH_1) => {
+            const {places, idOf} = patch(48.85, 2.35, 12, board)
+            const picture = pictureOf(places, PLUS.map(([i, j]) => idOf(i, j)))!
+            return {picture, at: (i: number, j: number) => middleOf(picture.cells.find(cell => cell.tile === idOf(i, j))!)}
+        }
+        const earth = plus()
+        const fixture = plus(FIXTURE_1)
+
+        expect(fixture.picture.cells.length).toBe(earth.picture.cells.length)
+        expect(fixture.at(1, 0)[0]).toBeCloseTo(earth.at(1, 0)[0], 2)
+        expect(fixture.at(0, 1)[1]).toBeCloseTo(earth.at(0, 1)[1], 2)
+    })
+
+    it("frames a lone tile of fixture-1 with the land around it, though its nearest neighbour is past earth-1's reach", () => {
+        const places = placesOn(FIXTURE_1)
+        // Farther than 0.05 rad, earth-1's twelve steps, and within fixture-1's twelve.
+        const lone = loneTileOf(places, 0.05, 0.15)
+
+        const picture = pictureOf(places, [lone])!
+        // The same tiles read as earth-1's: no neighbour within its reach, a frame of earth-1's steps, nothing around.
+        const unscaled = pictureOf({...places, board: EARTH_1}, [lone])!
+
+        expect(picture.cells.filter(cell => cell.drawn)).toHaveLength(1)
+        expect(picture.cells.length).toBeGreaterThan(3)
+        expect(unscaled.cells).toHaveLength(1)
     })
 })

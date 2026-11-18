@@ -1,5 +1,5 @@
 import {useMemo} from "react"
-import {Places} from "../home/places.ts"
+import {Places} from "../boards/places.ts"
 import {pictureOf} from "./picture.ts"
 
 type Props = {
@@ -14,10 +14,10 @@ type Props = {
 const MARGIN_TILES = 4
 
 // A drawing as the globe shows it from straight above its middle, north up: its tiles over the land around it, the
-// sea left blank. The squad's tiles are the ones it last saw, not the map now.
+// sea left blank. The squad's tiles are the ones it last saw, not the map now, and `places` are their board's.
 export function GraffitiPicture({places, tileIds, label, small = false}: Props) {
     const picture = useMemo(() => pictureOf(places, tileIds, small ? 1 : MARGIN_TILES), [places, tileIds, small])
-    if (picture === undefined) return <p className="muted">None of its tiles is on this map.</p>
+    if (picture === undefined) return <p className="muted">None of its tiles is on {places.board.name}.</p>
     const cells = small ? picture.cells.filter(cell => cell.drawn) : picture.cells
 
     return (

@@ -124,6 +124,14 @@ export class ArenaRules extends Message<ArenaRules> {
    */
   freeze?: Duration;
 
+  /**
+   * The board the fresh map plays, as /map/boards names it ("siege-1"): one this server carries and planet keeps a row
+   * of, or the arena does not open. Unset or empty: the board the world plays.
+   *
+   * @generated from field: optional string board = 4;
+   */
+  board?: string;
+
   constructor(data?: PartialMessage<ArenaRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -134,6 +142,7 @@ export class ArenaRules extends Message<ArenaRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "on", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "freeze", kind: "message", T: Duration },
+    { no: 4, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArenaRules {

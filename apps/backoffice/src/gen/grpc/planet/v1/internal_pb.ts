@@ -58,6 +58,13 @@ export class GetTilesResponse extends Message<GetTilesResponse> {
    */
   tiles: MapTile[] = [];
 
+  /**
+   * The board the map in play plays, as /map/boards names it: the ids asked are read as its tiles.
+   *
+   * @generated from field: string board = 2;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<GetTilesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -67,6 +74,7 @@ export class GetTilesResponse extends Message<GetTilesResponse> {
   static readonly typeName = "planet.v1.GetTilesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "tiles", kind: "message", T: MapTile, repeated: true },
+    { no: 2, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTilesResponse {
@@ -606,6 +614,13 @@ export class GetTerritoriesResponse extends Message<GetTerritoriesResponse> {
    */
   territories: Territory[] = [];
 
+  /**
+   * The board the map in play plays, as /map/boards names it: the tiles are counted on it.
+   *
+   * @generated from field: string board = 3;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<GetTerritoriesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -616,6 +631,7 @@ export class GetTerritoriesResponse extends Message<GetTerritoriesResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "territories", kind: "message", T: Territory, repeated: true },
+    { no: 3, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetTerritoriesResponse {
@@ -779,6 +795,13 @@ export class GetCountrySizesResponse extends Message<GetCountrySizesResponse> {
    */
   countrySizes: CountrySize[] = [];
 
+  /**
+   * The board the sizes are counted on, as /map/boards names it: the board the map in play plays.
+   *
+   * @generated from field: string board = 2;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<GetCountrySizesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -788,6 +811,7 @@ export class GetCountrySizesResponse extends Message<GetCountrySizesResponse> {
   static readonly typeName = "planet.v1.GetCountrySizesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "country_sizes", kind: "message", T: CountrySize, repeated: true },
+    { no: 2, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCountrySizesResponse {
