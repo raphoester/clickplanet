@@ -441,10 +441,10 @@ Built in PR 4 where it says so, measured 2026-11-18.
   board's spacings from its coast as 150 km is of `earth-1`'s (`snapKmOf`). `earth-1`'s bridges are unchanged.
   `earth-2` has 1,422 bridges over 975 pieces of land, `siege-1` 272 over 173.
 - **The landmass names** come from the generator in English: 936 of `earth-2`'s 1,175 landmasses, 138 of `siege-1`'s
-  374. **Their translations wait for `make translate`**, which needs the translator's key and was not run in PR 4: the
-  page names them in English meanwhile, and its catalogue test lists both boards as awaiting one (the backend's
-  [The page's translator](../apps/backend/docs/translate.md)). Run it before PR 5 names `siege-1`. PR 6 had no key
-  either: it is step 2 of [the runbook](#the-operators-runbook).
+  374. **`earth-2`'s are translated** (2026-11-18, the page's [Translating](../apps/frontend/docs/i18n.md#translating)):
+  615 are the names `earth-1` gives the same English, the other 321 were written by Haiku in the 8 languages.
+  `siege-1`'s come with PR 5: until then the page names them in English, and its catalogue test lists the board as
+  awaiting them.
 - **The last 24 hours:** built in PR 6. A whole frame goes as `GetMap` sends the map, two bytes a tile into a table of
   flags (`MapFrame.whole`): 442 KB gzipped on `earth-1` and 589 KB on `earth-2`, against 799 KB and 1,953 KB with one
   `TileOwner` a tile, under the 1 MiB budget on both (`size_test.go`, 200 flags; the backend's
@@ -765,10 +765,9 @@ Russia), the coasts a little finer.
 2026-11-26 17:00 UTC. Nothing changes for players. Three migrations run at boot, each a change of the catalog: the
 `board_switched` kind in the ledger and in chat, and `tiles.board`'s foreign key dropped.
 
-**2. The landmass names' translations**, if not done: `ANTHROPIC_API_KEY=... make translate` in `apps/backend`
-writes `earth-2`'s 936 names in the 8 languages, with their fingerprints (see the backend's
-[translator](../apps/backend/docs/translate.md)); commit, and deploy the page. Until then the page names `earth-2`'s
-landmasses in English. The page's new lines of this PR are translated by hand; the next run fingerprints them.
+**2. The landmass names' translations: done** (2026-11-18). `earth-2`'s 936 names are in the 8 languages with their
+fingerprints, and so are the page's new lines of this PR (the page's
+[Translating](../apps/frontend/docs/i18n.md#translating)). They ship with the page of step 1.
 
 **3. No arena open**: `gamemaster_get_schedule` shows none running now. The switch refuses one anyway.
 
@@ -847,7 +846,8 @@ their numbers.
    - The territory shader's inverse and the pick's. The coast is the terrain file's since #864 (the earth shader this
      item first named has no coast left to draw): a tile where earth-1 had sea takes its kind from its land neighbours.
    - The frontend measured on both, and the backend's load of `earth-2`.
-   - Nothing plays them yet. The landmass names' translations wait for `make translate`.
+   - Nothing plays them yet. The landmass names stay English until they are translated: `earth-2`'s on 2026-11-18,
+     `siege-1`'s in PR 5.
 5. **Capital Siege on `siege-1`.**
    - Its set names `siege-1` and drops the spread.
    - The first board players see, at the next Capital Siege and before the world's switch. It tries the reload and an
@@ -859,5 +859,5 @@ their numbers.
    - The border lines' file smaller and the globe's load measured again ([PR 6, the globe's
      load](#pr-6-the-globes-load-measured)).
    - The rehearsal's report ([PR 6, the rehearsal](#pr-6-the-rehearsal)).
-   - Then the operator's steps ([the runbook](#the-operators-runbook)): deploy, the translations, dry run, switch at a
-     quiet hour, and `rally.rings` 18 → 36 in every set that holds it.
+   - Then the operator's steps ([the runbook](#the-operators-runbook)): deploy, the translations (done), dry run,
+     switch at a quiet hour, and `rally.rings` 18 → 36 in every set that holds it.
