@@ -1,15 +1,12 @@
 // Package natural_earth reads the names Natural Earth gives a place in other languages, from the layers the page's
-// landmass names were made of.
+// landmass names were made of, as the page's scripts keep them.
 package natural_earth
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,8 +17,6 @@ import (
 
 // The landmass names were made from this release (the page's scripts/map/naturalEarth.mjs).
 const Tag = "v5.1.2"
-
-const base = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/" + Tag + "/geojson/"
 
 type layer struct {
 	name string
@@ -51,19 +46,24 @@ func cleaned(name string) string {
 	return strings.Join(strings.Fields(parenthesis.ReplaceAllString(name, " ")), " ")
 }
 
-// Reads the layers from the folder, downloading the ones it lacks: the page's scripts keep the same cache.
-func Load(ctx context.Context, folder string) (*Gazetteer, error) {
+// Reads the layers the page's `npm run landmassNames` downloaded into the folder, and names the ones it lacks.
+func Load(folder string) (*Gazetteer, []string, error) {
 	gazetteer := &Gazetteer{names: map[string]map[string]*cpcolls.Set[string]{}}
+	var missing []string
 	for _, l := range layers {
-		features, err := featuresOf(ctx, folder, l.name)
+		features, err := featuresOf(folder, l.name)
+		if errors.Is(err, fs.ErrNotExist) {
+			missing = append(missing, l.name)
+			continue
+		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, properties := range features {
 			gazetteer.add(properties, l.lower)
 		}
 	}
-	return gazetteer, nil
+	return gazetteer, missing, nil
 }
 
 func (g *Gazetteer) add(properties map[string]any, lower bool) {
@@ -106,16 +106,11 @@ func (g *Gazetteer) NamesOf(english string) map[string]string {
 	return names
 }
 
-var errNoLayer = errors.New("no such layer at Natural Earth")
-
-func featuresOf(ctx context.Context, folder, name string) ([]map[string]any, error) {
+func featuresOf(folder, name string) ([]map[string]any, error) {
 	path := filepath.Join(folder, name+".geojson")
 	data, err := os.ReadFile(path) //nolint:gosec // the cache's own file.
-	if errors.Is(err, fs.ErrNotExist) {
-		data, err = download(ctx, name, path)
-	}
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 	var collection struct {
 		Features []struct {
@@ -130,30 +125,4 @@ func featuresOf(ctx context.Context, folder, name string) ([]map[string]any, err
 		features = append(features, feature.Properties)
 	}
 	return features, nil
-}
-
-func download(ctx context.Context, name, path string) ([]byte, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, base+name+".geojson", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to ask for %s: %w", name, err)
-	}
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download %s: %w", name, err)
-	}
-	defer func() { _ = response.Body.Close() }()
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%w: %s at %s: %s", errNoLayer, name, Tag, response.Status)
-	}
-	data, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download %s: %w", name, err)
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
-		return nil, fmt.Errorf("failed to make the cache %s: %w", filepath.Dir(path), err)
-	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		return nil, fmt.Errorf("failed to keep %s: %w", path, err)
-	}
-	return data, nil
 }

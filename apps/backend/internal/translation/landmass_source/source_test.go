@@ -31,9 +31,9 @@ func TestALandmassCarriesNaturalEarthsNamesAndKeepsItsNumber(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []translation.Key{"20", "13", "9"}, order)
 	assert.Equal(t, []translation.Line{
-		{Key: "20", English: "Ionian Islands 2", Context: `A place on the world map: an island, a region or a province. " 2" tells it from another place named "Ionian Islands": keep it. Natural Earth names it: de "Ionische Inseln", fr "Îles Ioniennes".`},
-		{Key: "13", English: "Split-Dalmatia", Context: `A place on the world map: an island, a region or a province. Natural Earth names it: fr "Split-Dalmatie".`},
-		{Key: "9", English: "Atlantis", Context: "A place on the world map: an island, a region or a province."},
+		{Key: "20", English: "Ionian Islands 2", Context: `"2" tells it from another place named "Ionian Islands": keep it. Natural Earth names it: de "Ionische Inseln", fr "Îles Ioniennes".`},
+		{Key: "13", English: "Split-Dalmatia", Context: `Natural Earth names it: fr "Split-Dalmatie".`},
+		{Key: "9", English: "Atlantis"},
 	}, lines)
 }
 
@@ -68,4 +68,27 @@ func TestABoardWithTwoFilesOfNamesIsRefused(t *testing.T) {
 	_, err := landmass_source.Boards(boards)
 
 	require.ErrorIs(t, err, landmass_source.ErrNamesTwice)
+}
+
+func TestABoardTakesTheNameAnotherGivesTheSameEnglishWithItsNumber(t *testing.T) {
+	names := landmass_source.Names{}
+	names.Learn([]translation.Line{{Key: "1", English: "Crete"}, {Key: "2", English: "Ionian Islands"}, {Key: "3", English: "Zealand"}}, translation.Catalogue{
+		Lines: map[translation.Key]string{"1": "Crète", "2": "Îles Ioniennes", "3": "Seeland"},
+		Fingerprints: map[translation.Key]translation.Fingerprint{
+			"1": translation.FingerprintOf("Crete"), "3": translation.FingerprintOf("Sealand"),
+		},
+	})
+	names.Learn([]translation.Line{{Key: "8", English: "Crete"}}, translation.Catalogue{
+		Lines: map[translation.Key]string{"8": "Candie"}, Fingerprints: map[translation.Key]translation.Fingerprint{},
+	})
+
+	for english, want := range map[string]string{"Crete": "Crète", "Crete 3": "Crète 3", "Ionian Islands 2": "Îles Ioniennes 2"} {
+		got, ok := names.Recall(english)
+		assert.True(t, ok, english)
+		assert.Equal(t, want, got)
+	}
+	for _, english := range []string{"Zealand", "Atlantis", "Atlantis 2", "Crete Island"} {
+		_, ok := names.Recall(english)
+		assert.False(t, ok, english)
+	}
 }

@@ -10,10 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/catalogue_files"
 )
 
-const inContext = `How the language says "in" this country inside a sentence, as in "Take 5 tiles in Argentina": the words ` +
-	`before the name, its article and the case it takes there ("en Argentine", "au Brésil", "aux États-Unis", ` +
-	`"na Argentina", "in der Schweiz", "w Argentynie", "Arjantin'de"). {flag} is the flag's picture, right before ` +
-	`the name. The country's ISO code is %q.`
+const inContext = `The country's ISO code is %q.`
 
 // Each flag's "in" line, keyed "in.<code>", in the file's order.
 func Read(path string) ([]translation.Line, []translation.Key, error) {
