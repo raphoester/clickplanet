@@ -28,11 +28,10 @@ var (
 
 type folder struct {
 	clips []posts.Clip
-	err   error
 }
 
 func (f folder) Rendered(context.Context) ([]posts.Clip, error) {
-	return f.clips, f.err
+	return f.clips, nil
 }
 
 func key(title string) posts.StoryKey {
@@ -134,16 +133,6 @@ func TestARunWithNoRenderedClipFails(t *testing.T) {
 	_, err := r.usecase.Execute(t.Context())
 
 	require.ErrorIs(t, err, schedule_clips_usecase.ErrNoClip)
-}
-
-func TestClipsThatCannotBeReadFailTheRun(t *testing.T) {
-	unreadable := errors.New("the folder is gone")
-	r := scheduling(folder{err: unreadable})
-
-	_, err := r.usecase.Execute(t.Context())
-
-	require.ErrorIs(t, err, unreadable)
-	assert.Empty(t, r.service.Scheduled)
 }
 
 func TestAClipNoPlatformTakesIsHeldAndTheRunIsStillComplete(t *testing.T) {

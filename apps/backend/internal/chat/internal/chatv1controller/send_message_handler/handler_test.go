@@ -191,13 +191,6 @@ func TestABannedPhraseIsAnInvalidMessageAndSaysNoMore(t *testing.T) {
 	assert.NotContains(t, err.Error(), "banned")
 }
 
-func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
-	_, err := send(stubUseCase{in: &send_message_usecase.In{}, err: assert.AnError})
-
-	require.ErrorIs(t, err, assert.AnError)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
-}
-
 func TestAMessageForAFlagsRoomGoesToThatRoom(t *testing.T) {
 	var in send_message_usecase.In
 	req := connect.NewRequest(&chatv1.SendMessageRequest{

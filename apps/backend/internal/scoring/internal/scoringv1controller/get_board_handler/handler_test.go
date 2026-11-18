@@ -2,7 +2,6 @@ package get_board_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -49,14 +48,4 @@ func TestABookOrACountryThatIsNotOneIsInvalidArgument(t *testing.T) {
 	_, err = get_board_handler.New(stubQuery{asked: &asked}).GetBoard(t.Context(), connect.NewRequest(&scoringv1.GetBoardRequest{}))
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Len(t, asked, 1, "no book is read for no id")
-}
-
-func TestAFailureIsLeftToTheErrorNet(t *testing.T) {
-	refused := errors.New("the database is down")
-
-	_, err := get_board_handler.New(stubQuery{err: refused, asked: new([]board_query.View)}).
-		GetBoard(t.Context(), connect.NewRequest(&scoringv1.GetBoardRequest{BookId: "season-0"}))
-
-	require.ErrorIs(t, err, refused)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

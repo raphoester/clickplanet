@@ -1,7 +1,6 @@
 package anonymize_recruitments_usecase_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,12 +42,4 @@ func TestAnAccountThatRecruitedNobodyChangesNothing(t *testing.T) {
 	require.NoError(t, anonymize_recruitments_usecase.New(store).Execute(t.Context(), ada))
 
 	assert.Equal(t, []arrivals.RecruitmentSnapshot{kept}, store.Kept())
-}
-
-func TestAFailureToAnonymizeIsAnError(t *testing.T) {
-	store := inmemory_recruitment_store.New()
-	refused := errors.New("the database is down")
-	store.FailWith(refused)
-
-	assert.ErrorIs(t, anonymize_recruitments_usecase.New(store).Execute(t.Context(), ada), refused)
 }

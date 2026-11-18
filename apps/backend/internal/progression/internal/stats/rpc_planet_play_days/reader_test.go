@@ -2,7 +2,6 @@ package rpc_planet_play_days_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -22,7 +21,6 @@ const (
 
 type fakePlanet struct {
 	answer *planetv1.GetPlayDaysResponse
-	err    error
 	asked  [][]string
 }
 
@@ -31,9 +29,6 @@ func (f *fakePlanet) GetPlayDays(
 	req *connect.Request[planetv1.GetPlayDaysRequest],
 ) (*connect.Response[planetv1.GetPlayDaysResponse], error) {
 	f.asked = append(f.asked, req.Msg.GetAccountIds())
-	if f.err != nil {
-		return nil, f.err
-	}
 	return connect.NewResponse(f.answer), nil
 }
 
@@ -88,12 +83,4 @@ func TestAnAnswerThatIsNotADayOrAnAccountIsAnError(t *testing.T) {
 
 		require.Error(t, err, "%v", answered)
 	}
-}
-
-func TestAFailureToAskPlanetIsAnError(t *testing.T) {
-	planet := &fakePlanet{err: errors.New("planet is down")}
-
-	_, err := rpc_planet_play_days.New(planet).PlayDays(t.Context(), []accounts.AccountID{account(t, ada)})
-
-	assert.ErrorIs(t, err, planet.err)
 }

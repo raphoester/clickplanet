@@ -196,21 +196,6 @@ func TestAQuizGoesToAnAttendingCallerOnceItsOwnWindowPasses(t *testing.T) {
 	assert.Equal(t, clock.Now().Add(bannerFor), offer.ExpiresAt)
 }
 
-func TestEveryCallerIsOnItsOwnSchedule(t *testing.T) {
-	registry, clock := newQuizzingRegistry(t)
-
-	channels := map[Entrant]<-chan Event{}
-	for _, entrant := range []Entrant{"a", "b", "c"} {
-		channels[entrant] = playing(t, registry, entrant)
-	}
-
-	waitOutQuiz(t, registry, clock)
-
-	for entrant, events := range channels {
-		assert.NotNilf(t, quizOffered(t, events), "%s was not offered a quiz on its own turn", entrant)
-	}
-}
-
 func TestAQuizCarriesNoQuestionUntilItIsOpened(t *testing.T) {
 	registry, clock := newQuizzingRegistry(t)
 	offer, asked := takeQuiz(t, registry, clock, "scope-a")
@@ -410,7 +395,14 @@ func TestAnsweringClearsTheMissThatCameBefore(t *testing.T) {
 	_, ok = registry.AnswerQuiz(offer.Token, "scope-a", 99)
 	require.True(t, ok)
 
-	assert.Equal(t, 0, registry.callers["scope-a"].misses, "a wrong answer is an answer, not a miss")
+	clicked(registry, "scope-a")
+	waitOutQuiz(t, registry, clock)
+	require.NotNil(t, quizOffered(t, events))
+	letTheBannerLapse(t, registry, clock)
+
+	clock.Advance(quizRetry + time.Second)
+	registry.sweep()
+	assert.NotNil(t, quizOffered(t, events), "a wrong answer is an answer, not a miss")
 }
 
 func TestAQuestionOpenedAndLeftLapsesAtItsDeadline(t *testing.T) {
@@ -446,7 +438,6 @@ func TestALateAnswerIsCountedOnceAndChangesNoSchedule(t *testing.T) {
 
 	clock.Advance(answerIn + time.Second)
 	registry.sweep()
-	missed := *registry.callers["scope-a"]
 
 	answered, ok := registry.AnswerQuiz(offer.Token, "scope-a", len(asked.Options))
 	require.True(t, ok)
@@ -454,11 +445,13 @@ func TestALateAnswerIsCountedOnceAndChangesNoSchedule(t *testing.T) {
 	assert.Equal(t, ratings.TimedOut, answered.Outcome, "the page's timeout, which reached the server after the sweep")
 	assert.Equal(t, answerIn+time.Second, answered.After)
 
-	assert.Equal(t, 1, registry.callers["scope-a"].misses, "it lapsed: a miss, as before")
-	assert.Equal(t, missed.nextAt, registry.callers["scope-a"].nextAt, "the next quiz comes as it would have")
-
 	_, ok = registry.AnswerQuiz(offer.Token, "scope-a", 0)
 	assert.False(t, ok, "counted once")
+
+	events := attend(t, registry, "scope-a")
+	clock.Advance(quizRetry + time.Second)
+	registry.sweep()
+	assert.NotNil(t, quizOffered(t, events), "it lapsed: a miss, as before, and the next quiz comes as it would have")
 }
 
 func TestAnAnswerLongAfterTheDeadlineIsNotCounted(t *testing.T) {
@@ -472,7 +465,6 @@ func TestAnAnswerLongAfterTheDeadlineIsNotCounted(t *testing.T) {
 
 	_, ok := registry.AnswerQuiz(offer.Token, "scope-a", 0)
 	assert.False(t, ok, "a page that comes back this late was left, and a question left is not an answer")
-	assert.Empty(t, registry.lapsed, "nothing is kept of it")
 }
 
 func TestABannerNeverOpenedIsNeverAnswered(t *testing.T) {

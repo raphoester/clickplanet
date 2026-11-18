@@ -12,7 +12,6 @@ type FakeAccounts struct {
 	mu       sync.Mutex
 	accounts map[AccountID]Account
 	asked    []AccountID
-	failWith error
 }
 
 func NewFakeAccounts() *FakeAccounts {
@@ -24,13 +23,6 @@ func (f *FakeAccounts) Create(id AccountID, account Account) {
 	defer f.mu.Unlock()
 
 	f.accounts[id] = account
-}
-
-func (f *FakeAccounts) FailWith(err error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	f.failWith = err
 }
 
 func (f *FakeAccounts) Asked() []AccountID {
@@ -45,9 +37,6 @@ func (f *FakeAccounts) Account(_ context.Context, id AccountID) (Account, error)
 	defer f.mu.Unlock()
 
 	f.asked = append(f.asked, id)
-	if f.failWith != nil {
-		return Account{}, f.failWith
-	}
 	return f.accounts[id], nil
 }
 
@@ -56,9 +45,6 @@ func (f *FakeAccounts) Accounts(_ context.Context, ids []AccountID) (map[Account
 	defer f.mu.Unlock()
 
 	f.asked = append(f.asked, ids...)
-	if f.failWith != nil {
-		return nil, f.failWith
-	}
 	found := map[AccountID]Account{}
 	for _, id := range ids {
 		if account, ok := f.accounts[id]; ok {

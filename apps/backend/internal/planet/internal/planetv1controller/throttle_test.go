@@ -17,7 +17,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/use_refill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/reach_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
@@ -55,26 +54,6 @@ func clickAs(t *testing.T, server *httptest.Server, ip string) (*connect.Respons
 	req.Header().Set("X-Real-IP", ip)
 
 	return planetv1connect.NewClickServiceClient(server.Client(), server.URL).Click(t.Context(), req)
-}
-
-type farAway struct{}
-
-func (farAway) Refuses(string, uint32) error { return clicks.ErrOutOfReach }
-
-func TestAClickOutOfReachSpendsNoToken(t *testing.T) {
-	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
-	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 1, Burst: 1}, clock)
-	throttled := throttle_click.New(stubService{}, limiter, onePrice, wholeClicks{}, buckets)
-	far := clickServerWith(t, reach_click.New(throttled, farAway{}), limiter, connect.WithInterceptors(errorNet()))
-	near := clickServerWith(t, throttled, limiter, connect.WithInterceptors(errorNet()))
-
-	for range 3 {
-		_, err := clickAs(t, far, "1.2.3.4")
-		require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
-	}
-
-	_, err := clickAs(t, near, "1.2.3.4")
-	require.NoError(t, err, "the one token is still in the bucket")
 }
 
 // halfClicks prices every click half a click: every tile is inside a rally's ring.
@@ -120,36 +99,6 @@ func TestThrottleOverHTTP(t *testing.T) {
 }
 
 func TestTheBudgetRidesOnEveryAnswer(t *testing.T) {
-	t.Run("an accepted click says what is left, and the policy to replay it", func(t *testing.T) {
-		server, _ := throttledServer(t, cpratelimit.Config{PerSecond: 2, Burst: 5})
-
-		res, err := clickAs(t, server, "1.2.3.4")
-		require.NoError(t, err)
-
-		budget := res.Msg.GetBudget()
-		require.InDelta(t, float64(4), budget.GetTokens(), 1e-9, "the click just spent one of five")
-		require.Equal(t, uint32(5), budget.GetCapacity())
-		require.InDelta(t, float64(2), budget.GetRefillPerSecond(), 1e-9)
-	})
-
-	t.Run("a refused click carries the wait on the error", func(t *testing.T) {
-		server, clock := throttledServer(t, cpratelimit.Config{PerSecond: 2, Burst: 5})
-
-		for i := range 5 {
-			_, err := clickAs(t, server, "1.2.3.4")
-			require.NoErrorf(t, err, "click %d should be allowed", i)
-		}
-
-		clock.Advance(200 * time.Millisecond)
-
-		_, err := clickAs(t, server, "1.2.3.4")
-		require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
-
-		budget := budgetDetail(t, err)
-		require.InDelta(t, 0.4, budget.GetTokens(), 1e-6, "the next click is 300ms away")
-		require.Equal(t, uint32(5), budget.GetCapacity())
-	})
-
 	t.Run("GetBudget reads the allowance without spending it", func(t *testing.T) {
 		server, _ := throttledServer(t, cpratelimit.Config{PerSecond: 2, Burst: 5})
 

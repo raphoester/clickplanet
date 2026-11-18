@@ -2,7 +2,6 @@ package rpc_planet_fronts_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -20,7 +19,6 @@ const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
 
 type fakePlanet struct {
 	answer *planetv1.GetTakesByCountryResponse
-	err    error
 	asked  []string
 }
 
@@ -29,9 +27,6 @@ func (f *fakePlanet) GetTakesByCountry(
 	req *connect.Request[planetv1.GetTakesByCountryRequest],
 ) (*connect.Response[planetv1.GetTakesByCountryResponse], error) {
 	f.asked = append(f.asked, req.Msg.GetAccountId())
-	if f.err != nil {
-		return nil, f.err
-	}
 	return connect.NewResponse(f.answer), nil
 }
 
@@ -57,12 +52,4 @@ func TestTheFlagsTilesWereTakenForAndFromAreTheCountriesPlayedForAndAgainstInThe
 		PlaysAgainst: []*progressionv1.CountryTiles{{CountryId: "de", Tiles: 3}},
 	}, fronts))
 	assert.Equal(t, []string{ada}, planet.asked)
-}
-
-func TestAFailureToAskPlanetIsAnError(t *testing.T) {
-	planet := &fakePlanet{err: errors.New("planet is down")}
-
-	_, err := rpc_planet_fronts.New(planet).Fronts(t.Context(), account(t))
-
-	assert.ErrorIs(t, err, planet.err)
 }

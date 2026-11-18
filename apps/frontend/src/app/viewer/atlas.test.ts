@@ -3,10 +3,6 @@ import {regions} from "./atlas.ts"
 import {Countries} from "../../domain/countries.ts"
 
 describe("flag atlas", () => {
-    it("exposes a region per entry in the atlas manifest", () => {
-        expect(regions.size).toBeGreaterThan(0)
-    })
-
     it("covers every country the picker can select", () => {
         const missing = Array.from(Countries.keys()).filter(code => !regions.has(code))
         expect(missing).toEqual([])

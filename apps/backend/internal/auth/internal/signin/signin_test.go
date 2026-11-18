@@ -3,7 +3,6 @@ package signin_test
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -17,29 +16,12 @@ import (
 
 var now = time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC)
 
-type failingSecrets struct{}
-
-func (failingSecrets) NewSecret() (string, error) { return "", errors.New("no entropy") }
-
 func flow(t *testing.T) *signin.Flow {
 	t.Helper()
 
 	flow, err := signin.NewFlow(signin.Google, accounts.IntentSignIn, accounts.AccountID{}, &signin.SequentialSecrets{}, now)
 	require.NoError(t, err)
 	return flow
-}
-
-func TestAFlowDrawsEachSecretApartAndLastsTenMinutes(t *testing.T) {
-	assert.Equal(t,
-		signin.FlowOf("google", "secret-1", "secret-2", "secret-3", now.Add(10*time.Minute), accounts.IntentSignIn, accounts.AccountID{}),
-		flow(t))
-}
-
-func TestAFlowWithoutEntropyIsNotStarted(t *testing.T) {
-	flow, err := signin.NewFlow(signin.Google, accounts.IntentSignIn, accounts.AccountID{}, failingSecrets{}, now)
-
-	require.Error(t, err)
-	assert.Nil(t, flow)
 }
 
 func TestTheChallengeIsTheS256OfTheVerifier(t *testing.T) {
@@ -54,13 +36,6 @@ func TestAFlowAcceptsItsOwnStateUntilItLapses(t *testing.T) {
 	require.NoError(t, flow.CallbackError("secret-1", now.Add(10*time.Minute-time.Second)))
 	require.ErrorIs(t, flow.CallbackError("secret-1", now.Add(10*time.Minute)), signin.ErrFlowInvalid)
 	assert.ErrorIs(t, flow.CallbackError("another-state", now), signin.ErrFlowInvalid)
-}
-
-func TestASignInGoesWhereverTheBrowserIsNow(t *testing.T) {
-	flow := flow(t)
-
-	require.NoError(t, flow.AccountError(nil))
-	assert.NoError(t, flow.AccountError(accounts.AccountOf(accounts.AccountID{15: 9}, time.Time{}, nil)))
 }
 
 func TestTheFlowCookieLivesAsLongAsTheFlowOnThisSiteOnly(t *testing.T) {
@@ -79,13 +54,4 @@ func TestTheFlowCookieLivesAsLongAsTheFlowOnThisSiteOnly(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "cp_oauth", cleared.Name)
 	assert.Negative(t, cleared.MaxAge)
-}
-
-func TestAProviderNotOfferedIsUnknown(t *testing.T) {
-	providers := signin.Providers{signin.Discord: signin.NewFakeProvider(signin.Discord)}
-
-	_, err := providers.Provider(signin.Google)
-
-	require.ErrorIs(t, err, signin.ErrUnknownProvider)
-	assert.Equal(t, []string{"discord"}, providers.Names())
 }

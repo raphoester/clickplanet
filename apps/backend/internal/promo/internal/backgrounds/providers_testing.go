@@ -4,7 +4,6 @@ package backgrounds
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 )
@@ -23,19 +22,12 @@ func (s *SequentialIDs) NewID() (BackgroundID, error) {
 
 // A bucket in memory: Put stands for the page's PUT on the upload link.
 type MemoryBucket struct {
-	mu      sync.Mutex
-	held    map[BackgroundID]File
-	Deleted []BackgroundID
-	err     error
+	mu   sync.Mutex
+	held map[BackgroundID]File
 }
 
 func NewMemoryBucket() *MemoryBucket {
 	return &MemoryBucket{held: map[BackgroundID]File{}}
-}
-
-func (b *MemoryBucket) Failing(err error) *MemoryBucket {
-	b.err = err
-	return b
 }
 
 func (b *MemoryBucket) Put(file File) {
@@ -45,9 +37,6 @@ func (b *MemoryBucket) Put(file File) {
 }
 
 func (b *MemoryBucket) UploadURL(file File) (string, error) {
-	if b.err != nil {
-		return "", b.err
-	}
 	return fmt.Sprintf("https://bucket.example/promo/backgrounds/%s?size=%d", file.ID, file.Size), nil
 }
 
@@ -58,9 +47,6 @@ func (b *MemoryBucket) PublicURL(id BackgroundID) string {
 func (b *MemoryBucket) Held(_ context.Context, id BackgroundID) (File, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.err != nil {
-		return File{}, b.err
-	}
 	file, ok := b.held[id]
 	if !ok {
 		return File{}, fmt.Errorf("%w: %s", ErrNotUploaded, id)
@@ -71,11 +57,7 @@ func (b *MemoryBucket) Held(_ context.Context, id BackgroundID) (File, error) {
 func (b *MemoryBucket) Delete(_ context.Context, id BackgroundID) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.err != nil {
-		return b.err
-	}
 	delete(b.held, id)
-	b.Deleted = append(b.Deleted, id)
 	return nil
 }
 
@@ -124,5 +106,3 @@ func (s *MemoryStore) Kept(id BackgroundID) (BackgroundSnapshot, bool) {
 	kept, ok := s.kept[id]
 	return kept, ok
 }
-
-var ErrBucketDown = errors.New("the bucket is down")

@@ -55,7 +55,6 @@ func TestMembersSurviveASaveAndLoad(t *testing.T) {
 	require.Equal(t, detect.Suspect, wantVerdict)
 	assert.Equal(t, wantVerdict, gotVerdict)
 	assert.Equal(t, wantEvidence, gotEvidence)
-	assert.Equal(t, w.prefixes, restarted.prefixes)
 }
 
 func TestForgetDropsMembersAndTheirIndexes(t *testing.T) {
@@ -66,7 +65,9 @@ func TestForgetDropsMembersAndTheirIndexes(t *testing.T) {
 
 	w.Forget(clock.Now().Add(time.Second))
 
-	assert.Empty(t, w.members)
-	assert.Empty(t, w.starts)
-	assert.Empty(t, w.prefixes)
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := New(Config{}, bounds(asIs), clock, nil).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

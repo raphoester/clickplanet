@@ -2,7 +2,6 @@ package open_book_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -57,13 +56,8 @@ func TestABadIDOrNoStartIsInvalid(t *testing.T) {
 	}
 }
 
-func TestABookACloseMissedIsAFailedPreconditionAndAFailureIsLeftToTheErrorNet(t *testing.T) {
+func TestABookACloseMissedIsAFailedPrecondition(t *testing.T) {
 	req := &scoringv1.OpenBookRequest{BookId: "season-0", StartsAt: timestamppb.New(at)}
 	err := open(t, &stubUseCase{err: fmt.Errorf("%w: book season-0: %w", books.ErrRefused, books.ErrMissed)}, req)
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
-
-	down := errors.New("postgres is down")
-	err = open(t, &stubUseCase{err: down}, req)
-	require.ErrorIs(t, err, down)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

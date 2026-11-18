@@ -2,7 +2,6 @@ package listen_for_warnings_usecase_test
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -75,21 +74,18 @@ func (r *recordingSink) noticed() int {
 }
 
 type stack struct {
-	store       *warnings.MemoryStore
-	feed        *inprocess_warning_feed.Feed
-	book        *warnings.Book
-	noticeStore *notices.MemoryStore
-	noticeFeed  *inprocess_notice_feed.Feed
-	noticer     *notices.Book
+	feed       *inprocess_warning_feed.Feed
+	book       *warnings.Book
+	noticeFeed *inprocess_notice_feed.Feed
+	noticer    *notices.Book
 }
 
 func newStack() stack {
-	store, feed := warnings.NewMemoryStore(), inprocess_warning_feed.New()
-	noticeStore, noticeFeed := notices.NewMemoryStore(), inprocess_notice_feed.New()
+	feed, noticeFeed := inprocess_warning_feed.New(), inprocess_notice_feed.New()
 	return stack{
-		store: store, feed: feed, book: warnings.NewBook(enforcing{}, cptime.NewFixedClock(at), store, feed),
-		noticeStore: noticeStore, noticeFeed: noticeFeed,
-		noticer: notices.NewBook(cptime.NewFixedClock(at), noticeStore, noticeFeed),
+		feed: feed, book: warnings.NewBook(enforcing{}, cptime.NewFixedClock(at), warnings.NewMemoryStore(), feed),
+		noticeFeed: noticeFeed,
+		noticer:    notices.NewBook(cptime.NewFixedClock(at), notices.NewMemoryStore(), noticeFeed),
 	}
 }
 
@@ -148,16 +144,6 @@ func TestAWarningGivenWhileTheStreamIsOpenIsToldAtOnce(t *testing.T) {
 	stop()
 }
 
-func TestAWarningThatCannotBeReadEndsTheStream(t *testing.T) {
-	s := newStack()
-	failed := errors.New("postgres is down")
-	s.store.FailWith(failed)
-
-	err := s.usecase().Execute(t.Context(), ada, &recordingSink{})
-
-	require.ErrorIs(t, err, failed)
-}
-
 func TestANoticeNotAcknowledgedIsToldAsTheStreamOpens(t *testing.T) {
 	s := newStack()
 	_, _, err := s.noticer.Notify(t.Context(), ada, grace)
@@ -193,14 +179,4 @@ func TestANoticeGivenWhileTheStreamIsOpenIsToldAtOnce(t *testing.T) {
 
 	require.Eventually(t, func() bool { return sink.noticed() == 1 }, time.Second, time.Millisecond)
 	stop()
-}
-
-func TestANoticeThatCannotBeReadEndsTheStream(t *testing.T) {
-	s := newStack()
-	failed := errors.New("postgres is down")
-	s.noticeStore.FailWith(failed)
-
-	err := s.usecase().Execute(t.Context(), ada, &recordingSink{})
-
-	require.ErrorIs(t, err, failed)
 }

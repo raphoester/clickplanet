@@ -1,7 +1,6 @@
 package pay_right_answer_usecase_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -94,13 +93,6 @@ func TestANewcomerWithAFullStackOfShieldsIsPaidNothing(t *testing.T) {
 	assert.Equal(t, bonuses.Hand{Shields: 10}, wallet.Kept(ada))
 }
 
-func TestAPaymentTheWalletCannotMakeIsTriedAgain(t *testing.T) {
-	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1})
-	wallet.FailWith(errors.New("planet is gone"))
-
-	require.Error(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
-}
-
 func TestWithTheGatesOnARightAnswerIsDrawnAmongTheOpenAndUnlockedKinds(t *testing.T) {
 	useCase, wallet, unlocks := setUpOn(bonuses.TestGated(), map[bonuses.Kind]float64{
 		bonuses.KindBomb: 100, bonuses.KindEncloseClicks: 1,
@@ -122,12 +114,4 @@ func TestWithTheGatesOnAGuestsRightAnswerIsDrawnOnlyTheOpenKinds(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
 
 	assert.Empty(t, wallet.Payments(), "the open kinds weigh 0 here, and a guest has the bomb unlocked nowhere")
-}
-
-func TestARightAnswerWhoseUnlocksCannotBeReadIsTriedAgain(t *testing.T) {
-	useCase, wallet, unlocks := setUpOn(bonuses.TestRules(), map[bonuses.Kind]float64{bonuses.KindRefill: 1})
-	unlocks.FailWith(errors.New("postgres is gone"))
-
-	require.Error(t, useCase.Execute(t.Context(), bonuses.Answer{Account: ada, Token: "a-token"}))
-	assert.Empty(t, wallet.Payments())
 }

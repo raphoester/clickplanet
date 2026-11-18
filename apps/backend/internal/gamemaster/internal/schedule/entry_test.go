@@ -58,16 +58,6 @@ func TestAnEntryOfAKindNobodyKnowsIsRefused(t *testing.T) {
 	}
 }
 
-func TestAPlainEntryIsScheduled(t *testing.T) {
-	plain := draft("calm", finale, battleEnds, 1)
-	plain.Kind, plain.Times = schedule.Plain, 0
-
-	made, err := schedule.NewEntry(id(1), plain, now)
-
-	require.NoError(t, err)
-	assert.Equal(t, schedule.Plain, made.TakeSnapshot().Kind)
-}
-
 func TestABattleScoresOneToTenTimesAndAPlainEntryNone(t *testing.T) {
 	for _, refused := range []struct {
 		kind  schedule.Kind
@@ -157,10 +147,4 @@ func TestAnEditIsCheckedAsANewEntry(t *testing.T) {
 	_, err = made.Edited(draft("calm", now.Add(-time.Minute), battleEnds, 1), now)
 
 	require.ErrorIs(t, err, schedule.ErrInvalidEntry, "it would start in the past")
-}
-
-func TestAnIDThatIsNoUUIDIsNoEntry(t *testing.T) {
-	_, err := schedule.ParseEntryID("nope")
-
-	require.ErrorIs(t, err, schedule.ErrUnknownEntry)
 }

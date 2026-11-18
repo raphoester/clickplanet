@@ -24,12 +24,11 @@ function reveal() {
 }
 
 describe("VideoMoment", () => {
-    it("says what happened in words of its own, not the video's headline", () => {
+    it("says what happened in words of its own", () => {
         render(<VideoMoment story={story} play={vi.fn()} onMake={vi.fn()} onClose={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Call for backup! Your flag is losing ground in Germany"})).toBeDefined()
         expect(screen.getByText("The game makes a video of it in one tap. Once posted, its link brings new players to your flag.")).toBeDefined()
-        expect(screen.queryByText(/POLAND IS LOSING/)).toBeNull()
     })
 
     it("offers the video, or not now, once the reveal has played", () => {

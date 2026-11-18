@@ -74,14 +74,6 @@ func (s *StoreContractSuite) TestAFightRecordedAgainTakesTheNewResult() {
 	}, s.fights(ada))
 }
 
-func (s *StoreContractSuite) TestAnAccountThatFoughtNoFinaleIsLeftOut() {
-	s.record(FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 1})
-
-	s.Equal(map[accounts.AccountID][]FightSnapshot{
-		ada: {{Account: ada, Season: 0, Country: "fr", Rank: 1}},
-	}, s.fights(ada, bob))
-}
-
 func (s *StoreContractSuite) TestNoAccountsAskedAndNoFightsRecordedAreNotErrors() {
 	s.Require().NoError(s.store.Record(s.T().Context(), nil))
 

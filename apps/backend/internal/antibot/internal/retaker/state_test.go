@@ -53,7 +53,6 @@ func TestReactionsSurviveASaveAndLoad(t *testing.T) {
 	require.Equal(t, detect.Certain, wantVerdict)
 	assert.Equal(t, wantVerdict, gotVerdict)
 	assert.Equal(t, wantEvidence, gotEvidence)
-	assert.Len(t, restarted.tiles, len(w.tiles))
 }
 
 func TestForgetDropsReactionsAndTakesBeforeTheCutoff(t *testing.T) {
@@ -65,10 +64,12 @@ func TestForgetDropsReactionsAndTakesBeforeTheCutoff(t *testing.T) {
 	w.Committed(player)
 	clock.Advance(time.Second)
 	w.Watch(detect.Click{Scope: "reflex", Tile: 1, Country: "PS", At: clock.Now()})
-	require.Len(t, w.callers, 1)
 
 	w.Forget(clock.Now().Add(time.Second))
 
-	assert.Empty(t, w.tiles)
-	assert.Empty(t, w.callers)
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock, nil).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

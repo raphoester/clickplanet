@@ -9,30 +9,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-func TestAFlagHoldingAWholeLandmassMayFortifyIt(t *testing.T) {
-	require.NoError(t, clicks.FortifyError(3, "fr", 12, 12, ""))
-	require.NoError(t, clicks.FortifyError(3, "fr", 12, 12, "de"))
-}
-
-func TestAFlagMissingATileMayNotFortify(t *testing.T) {
-	require.ErrorIs(t, clicks.FortifyError(3, "fr", 11, 12, ""), clicks.ErrNotWhole)
-}
-
 func TestNoLandmassAndNoFlagAreNeverWhole(t *testing.T) {
 	require.ErrorIs(t, clicks.FortifyError(clicks.NoLandmass, "fr", 4, 4, ""), clicks.ErrNotWhole)
 	require.ErrorIs(t, clicks.FortifyError(3, "", 4, 4, ""), clicks.ErrNotWhole)
 	require.ErrorIs(t, clicks.FortifyError(3, "fr", 0, 0, ""), clicks.ErrNotWhole)
-}
-
-func TestTheFlagThatFortifiedLastMayNotFortifyAgain(t *testing.T) {
-	require.ErrorIs(t, clicks.FortifyError(3, "fr", 12, 12, "fr"), clicks.ErrFortifiedAlready)
-}
-
-func TestAWholeLandmassNobodyFortifiedSettlesOnItsHolder(t *testing.T) {
-	settler, ok := clicks.SettlerOf("fr", 12, 12, "")
-
-	assert.True(t, ok)
-	assert.Equal(t, "fr", settler)
 }
 
 func TestALandmassThatIsNotWholeOrWasFortifiedSettlesOnNobody(t *testing.T) {

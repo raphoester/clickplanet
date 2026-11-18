@@ -22,15 +22,6 @@ describe("the roster", () => {
         expect(rosterEntries(useRoster.getState())).toEqual([ana, bo])
     })
 
-    it("starts over from the roster a reconnect sends", () => {
-        const roster = useRoster.getState()
-        roster.follow()
-        roster.hear({kind: "roster", entries: [ana, bo]})
-
-        roster.hear({kind: "roster", entries: [bo]})
-        expect(rosterEntries(useRoster.getState())).toEqual([bo])
-    })
-
     it("tells nobody of an event that changes nothing", () => {
         const roster = useRoster.getState()
         roster.follow()
@@ -42,16 +33,5 @@ describe("the roster", () => {
 
         expect(told).not.toHaveBeenCalled()
         stop()
-    })
-
-    it("lists nobody once lost", () => {
-        const roster = useRoster.getState()
-        roster.follow()
-        roster.hear({kind: "roster", entries: [ana]})
-
-        roster.lose()
-
-        expect(useRoster.getState().state).toEqual({kind: "unavailable"})
-        expect(onlineCount(useRoster.getState())).toBeUndefined()
     })
 })

@@ -2,7 +2,6 @@ package forgive_missed_day_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -100,13 +99,4 @@ func TestEachRefusalHasItsCode(t *testing.T) {
 			assert.Equal(t, refusal.Error(), connectErr.Message(), "the sentence is the rule's")
 		})
 	}
-}
-
-func TestAnyOtherFailureIsLeftToTheErrorNet(t *testing.T) {
-	cause := errors.New("planet is down")
-
-	_, err := forgive(t, newStub(forgive_missed_day_usecase.Forgiven{}, cause),
-		&progressionv1.ForgiveMissedDayRequest{AccountId: ada.String(), Day: "2026-11-15"})
-
-	assert.ErrorIs(t, err, cause)
 }

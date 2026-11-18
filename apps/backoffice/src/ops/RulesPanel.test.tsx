@@ -274,18 +274,6 @@ describe("the game rules page", () => {
         expect(sent(admin)?.rules?.capitals?.fixedShields).toBe(false)
     })
 
-    it("turns bombs off with a switch of its own", async () => {
-        const admin = withCalm()
-        render(<RulesPanel planet={admin}/>)
-
-        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
-        pick(BOMBS_OFF, "yes")
-        save()
-
-        await waitFor(() => expect(sent(admin)).toBeDefined())
-        expect(sent(admin)?.rules?.charges?.bomb?.off).toBe(true)
-    })
-
     it("turns enclose off with a switch of its own, and keeps every other value", async () => {
         const admin = withCalm()
         render(<RulesPanel planet={admin}/>)

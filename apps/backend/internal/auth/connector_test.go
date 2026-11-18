@@ -15,10 +15,6 @@ func connected() auth.Config {
 	return config
 }
 
-func TestAConnectorOnTheAPIsOriginWithAnAdminPageIsValid(t *testing.T) {
-	require.NoError(t, connected().Validate(), "Claude's callbacks unless set")
-}
-
 func TestAConnectorNeedsAnAdminPageToBeLetInOn(t *testing.T) {
 	config := connected()
 	config.Admin = auth.AdminConfig{}

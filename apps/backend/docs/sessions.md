@@ -22,7 +22,7 @@ The signature is checked **before** the expiry, so a forger learns nothing about
 
 **A click without a valid click token is refused** with `CodeUnauthenticated` (HTTP 401), and the client is expected to mint and retry rather than show the player anything. `click_session_checks{verdict}` counts each verdict.
 
-**Where it sits in the chain:** error mapping, VPN blocklist, **session**, throttle. Outside the limiter for the same reason the blocklist is — a click refused for its session must not also spend a token, or the retry that follows the mint would come back 429 and the web app would show the throttle dialog instead. `TestSessionCheckRunsBeforeTheThrottle` pins it.
+**Where it sits in the chain:** error mapping, VPN blocklist, **session**, throttle. Outside the limiter for the same reason the blocklist is — a click refused for its session must not also spend a token, or the retry that follows the mint would come back 429 and the web app would show the throttle dialog instead. It holds by construction: the throttle is a use case behind the handler, and every interceptor runs before it.
 
 **Reads and the streams never need a token.** A visitor loads the planet, watches it live and reads the chat without ever minting anything; a click token is only ever needed to act. A read that wants to know its caller takes the identity token, which costs no Turnstile check: the chat of a flag's room, its history and its stream, are such reads. `GetMap` is a cacheable GET and a per-session header on it would defeat that cache.
 

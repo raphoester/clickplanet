@@ -11,10 +11,9 @@ import (
 )
 
 type FakeAccounts struct {
-	mu       sync.Mutex
-	linked   *cpcolls.Set[players.AccountID]
-	failWith error
-	asked    int
+	mu     sync.Mutex
+	linked *cpcolls.Set[players.AccountID]
+	asked  int
 }
 
 var _ Accounts = (*FakeAccounts)(nil)
@@ -30,21 +29,11 @@ func (f *FakeAccounts) Link(account players.AccountID) {
 	f.linked.Add(account)
 }
 
-func (f *FakeAccounts) FailWith(err error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	f.failWith = err
-}
-
 func (f *FakeAccounts) Linked(_ context.Context, account players.AccountID) (bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	f.asked++
-	if f.failWith != nil {
-		return false, f.failWith
-	}
 	return f.linked.Contains(account), nil
 }
 

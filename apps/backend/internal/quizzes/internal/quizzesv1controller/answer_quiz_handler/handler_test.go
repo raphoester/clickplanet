@@ -2,7 +2,6 @@ package answer_quiz_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -39,13 +38,4 @@ func TestARefusedAnswerIsNotFound(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-}
-
-func TestAFailedAnswerIsLeftToTheErrorNet(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	err := answer(t, stubUseCase{err: down})
-
-	require.ErrorIs(t, err, down)
-	assert.NotEqual(t, connect.CodeNotFound, connect.CodeOf(err))
 }

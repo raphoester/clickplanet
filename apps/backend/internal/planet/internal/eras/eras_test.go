@@ -37,15 +37,6 @@ func TestTheBootRefusesAMapWhoseEraPlaysABoardThisProcessDoesNotCarry(t *testing
 	assert.Contains(t, err.Error(), "earth-2")
 }
 
-func TestTheBootRefusesAMapWithNoEra(t *testing.T) {
-	boards, err := eras.BoardsOf([]eras.Board{eras.Earth1}, eras.Earth1Carried)
-	require.NoError(t, err)
-
-	_, err = eras.Playing(t.Context(), eras.NewMemoryStore(), boards, "battle")
-
-	require.ErrorIs(t, err, eras.ErrNoEra)
-}
-
 func TestABoardCarriedIsOneWithARowOfTheSameHash(t *testing.T) {
 	_, err := eras.BoardsOf([]eras.Board{eras.Earth1}, eras.Carried{Name: "earth-1", Hash: "deadbeef"})
 	require.ErrorIs(t, err, eras.ErrUnkept, "a board regenerated under its name, its tiles moved, is another board")

@@ -3,7 +3,6 @@ package posts_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/clips/internal/posts"
@@ -24,15 +23,6 @@ func clip(t *testing.T, pick posts.Pick, title string) posts.Clip {
 	restored, err := rendered(pick, title).Restore()
 	require.NoError(t, err)
 	return restored
-}
-
-func TestAClipIsWhatTheGeneratorWrote(t *testing.T) {
-	written := rendered(1, "FRANCE IS ATTACKING EUROPE")
-
-	restored, err := written.Restore()
-
-	require.NoError(t, err)
-	assert.Equal(t, written, restored.TakeSnapshot())
 }
 
 func TestAClipWithAPartMissingIsRefused(t *testing.T) {

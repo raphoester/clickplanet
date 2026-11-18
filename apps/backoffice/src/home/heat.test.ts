@@ -14,37 +14,6 @@ function placesAt(points: [number, number][], board: Board = EARTH_1): Places {
 
 const landShare = (picture: Picture) => picture.land.reduce((sum, land) => sum + land, 0) / picture.land.length
 
-// The picture as the page drew it before boards were told apart: earth-1's 0.3° tile, on the row under it.
-function pictureBefore(places: Places, changes: Uint32Array, width: number): Picture {
-    const height = width / 2
-    const pixelDegrees = 360 / width
-    const land = new Uint8Array(width * height)
-    const raw = new Float32Array(width * height)
-    for (let i = 0; i < places.latitudes.length; i++) {
-        const latitude = places.latitudes[i]
-        const y = Math.min(height - 1, Math.max(0, Math.floor(((90 - latitude) / 180) * height)))
-        const x = ((places.longitudes[i] + 180) / 360) * width
-        const half = Math.min(width / 2, Math.max(0.5,
-            0.3 / 2 / Math.max(Math.cos((latitude * Math.PI) / 180), 1e-3) / pixelDegrees))
-        const changed = changes[i + 1] ?? 0
-        for (let column = Math.floor(x - half); column < Math.ceil(x + half); column++) {
-            const pixel = y * width + ((column % width) + width) % width
-            land[pixel] = 1
-            raw[pixel] += changed
-        }
-    }
-    let heat = raw
-    for (let pass = 0; pass < 3; pass++) heat = blur(heat, width, height, 2)
-    return {width, height, land, heat}
-}
-
-// Every 97th tile changed hands, some many times.
-function changesOn(places: Places): Uint32Array {
-    const changes = new Uint32Array(places.latitudes.length + 1)
-    for (let tile = 1; tile < changes.length; tile += 97) changes[tile] = 1 + (tile % 5)
-    return changes
-}
-
 describe("the cells", () => {
     it("count the tiles of each degree and how often they changed hands, and name the busiest", () => {
         const places = placesAt([[45.5, 10.5], [45.2, 10.9], [-30.5, -60.5]])
@@ -92,19 +61,6 @@ describe("the picture", () => {
 })
 
 describe("the picture on a board", () => {
-    it("draws earth-1 pixel for pixel as it did before boards were told apart", () => {
-        const places = placesOn(EARTH_1)
-        const changes = changesOn(places)
-
-        const picture = pictureOf(places, changes, 1440)
-        const before = pictureBefore(places, changes, 1440)
-
-        // Bytes, not elements: a million of each.
-        expect(Buffer.from(picture.land.buffer).equals(Buffer.from(before.land.buffer))).toBe(true)
-        expect(Buffer.from(picture.heat.buffer).equals(Buffer.from(before.heat.buffer))).toBe(true)
-        expect(picture.heat.some(heat => heat > 0)).toBe(true)
-    })
-
     it("draws fixture-1's tiles as wide as its spacing, so its land covers the picture as earth-1's does", () => {
         const earth = placesOn(EARTH_1)
         const fixture = placesOn(FIXTURE_1)

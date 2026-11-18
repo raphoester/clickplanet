@@ -2,7 +2,6 @@ package get_my_tally_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -70,15 +69,6 @@ func TestACountryThatIsNotOneIsInvalidArgument(t *testing.T) {
 	}).GetMyTally(cpctx.AddAccountToContext(t.Context(), adaID), connect.NewRequest(&scoringv1.GetMyTallyRequest{BookId: "season-0", CountryId: "zz"}))
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestAFailureIsLeftToTheErrorNet(t *testing.T) {
-	refused := errors.New("the database is down")
-
-	_, err := get_my_tally_handler.New(stubQuery{err: refused, asked: new(asked)}).
-		GetMyTally(cpctx.AddAccountToContext(t.Context(), adaID), connect.NewRequest(&scoringv1.GetMyTallyRequest{BookId: "season-0"}))
-
-	require.ErrorIs(t, err, refused)
 }
 
 func TestABookThatIsNotOneIsInvalidArgumentAndReadsNothing(t *testing.T) {

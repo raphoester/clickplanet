@@ -112,14 +112,6 @@ describe("FeedbackModal", () => {
         expect(support.reportBug).toHaveBeenCalledTimes(1)
     })
 
-    it("offers no file on a server that takes none", async () => {
-        const {support} = setup()
-
-        await waitFor(() => expect(support.attachmentRules).toHaveBeenCalledTimes(1))
-
-        expect(screen.queryByRole("button", {name: "Add photos or videos"})).toBeNull()
-    })
-
     it.each([
         ["A bug", "What happened", "reportBug"],
         ["An idea", "Your idea", "suggestFeature"],

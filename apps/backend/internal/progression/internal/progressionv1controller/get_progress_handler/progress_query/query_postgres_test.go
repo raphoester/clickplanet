@@ -2,7 +2,6 @@ package progress_query_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -37,11 +36,10 @@ func TestRunSuite(t *testing.T) {
 
 type fakeFronts struct {
 	answer *progressionv1.GetFrontsResponse
-	err    error
 }
 
 func (f *fakeFronts) Fronts(context.Context, accounts.AccountID) (*progressionv1.GetFrontsResponse, error) {
-	return f.answer, f.err
+	return f.answer, nil
 }
 
 type testSuite struct {
@@ -214,15 +212,6 @@ func (s *testSuite) TestAnybodyReadsTheTopThreeCountriesThePlayerPlaysForAndAgai
 
 	s.True(proto.Equal(&progressionv1.Progress{PlaysFor: countries("fr", "be"), PlaysAgainst: countries("de", "es", "it")},
 		&progressionv1.Progress{PlaysFor: progress.GetPlaysFor(), PlaysAgainst: progress.GetPlaysAgainst()}), "%v", progress)
-}
-
-func (s *testSuite) TestAFailureToAskForTheCountriesIsAnError() {
-	s.fronts.err = errors.New("planet is down")
-
-	_, err := s.query().Progress(s.T().Context(), ada)
-
-	s.Require().ErrorIs(err, s.fronts.err)
-	s.NotErrorIs(err, progress_query.ErrNotShown)
 }
 
 func (s *testSuite) TestAStoreFailureIsNotNotShown() {

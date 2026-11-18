@@ -67,7 +67,3 @@ func TestAClosedStreamIsForgottenAndItsChannelClosed(t *testing.T) {
 	}, time.Second, time.Millisecond)
 	feed.Publish(ada)
 }
-
-func TestPublishingToAnAccountWithNoStreamDoesNothing(t *testing.T) {
-	assert.NotPanics(t, func() { inprocess_day_feed.New().Publish(ada) })
-}

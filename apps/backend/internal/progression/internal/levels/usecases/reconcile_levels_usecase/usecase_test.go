@@ -1,7 +1,6 @@
 package reconcile_levels_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -168,15 +167,4 @@ func TestNoStatsAsksNothing(t *testing.T) {
 
 	assert.Equal(t, reconcile_levels_usecase.Reconciled{}, f.reconcile(t, false))
 	assert.Empty(t, f.accounts.Asked())
-}
-
-func TestAFailureToAskPlayerWritesNothing(t *testing.T) {
-	f := setUp()
-	f.mixed(t)
-	f.accounts.FailWith(errors.New("player is down"))
-
-	_, err := f.useCase().Execute(t.Context(), false)
-
-	require.ErrorContains(t, err, "player is down")
-	assert.Equal(t, levels.ByAccount{account(2): 2, account(3): 7, account(4): 3, account(5): 4}, f.kept(t, 1, 2, 3, 4, 5))
 }

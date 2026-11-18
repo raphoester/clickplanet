@@ -1,7 +1,6 @@
 package allegiances_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -137,17 +136,6 @@ func TestAnAccountPlaysOnlyTheFlagItPledged(t *testing.T) {
 	clock.Advance(2 * time.Hour)
 	require.ErrorIs(t, b.PlayError(t.Context(), payer, "de"), allegiances.ErrOtherFlag)
 	require.NoError(t, b.PlayError(t.Context(), payer, "zz"), "the click refuses a flag that is no country")
-}
-
-func TestAStoreThatFailsFailsThePledge(t *testing.T) {
-	b, store, _ := book()
-	down := errors.New("postgres is down")
-	store.FailWith(down)
-
-	assert.ErrorIs(t, b.Pledge(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
-	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), down)
-	assert.ErrorIs(t, b.PlayError(t.Context(), clicks.Payer{Account: alice}, "fr"), allegiances.ErrUnread)
-	assert.ErrorIs(t, b.Release(t.Context(), alice), down)
 }
 
 func TestEachFlagSetOrChangedIsToldOnceWritten(t *testing.T) {

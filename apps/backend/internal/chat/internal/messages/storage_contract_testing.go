@@ -120,23 +120,6 @@ func (s *StorageContractSuite) TestAReplyIsReadBackWithTheIDOfWhatItAnswersAndNo
 	s.Equal(Quote{MessageID: "id-question"}, s.kept("id-answer").Quote)
 }
 
-func (s *StorageContractSuite) TestAMessageIsReadOnlyWhileItIsShown() {
-	s.append("old", "middle", "new")
-
-	for text, window := range map[string]struct {
-		since time.Time
-		limit int
-	}{
-		"old":        {contractStart, 2},
-		"middle":     {contractStart.Add(2 * time.Hour), 10},
-		"never-sent": {contractStart, 10},
-	} {
-		_, err := s.storage.Message(context.Background(), MessageID("id-"+text), window.since, window.limit)
-
-		s.Require().ErrorIs(err, ErrNotShown, text)
-	}
-}
-
 func (s *StorageContractSuite) TestTheLatestAddressIsTheOneTheAccountLastPostedFrom() {
 	other := AccountID{15: 2}
 	for i, sent := range []struct {

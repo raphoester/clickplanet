@@ -64,6 +64,9 @@ func TestForgetDropsTakesAndLossesBeforeTheCutoff(t *testing.T) {
 
 	w.Forget(clock.Now().Add(time.Second))
 
-	assert.Empty(t, w.losses)
-	assert.Empty(t, w.callers)
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := New(Config{TrackWindow: 24 * time.Hour}, bounds(func(r *Rules) { r.RetakeWindow = time.Hour }), clock, nil).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

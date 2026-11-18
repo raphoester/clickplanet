@@ -71,7 +71,7 @@ func (j *Judge) Judge(ctx context.Context, names []string) ([]verdicts.Judgement
 }
 
 func (j *Judge) judgeBatch(ctx context.Context, names []string) ([]verdicts.Judgement, error) {
-	prompt, err := PromptOf(names)
+	prompt, err := promptOf(names)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ type numbered struct {
 }
 
 // The names as JSON, each with its number from 1: a name may hold any character.
-func PromptOf(names []string) (string, error) {
+func promptOf(names []string) (string, error) {
 	listed := make([]numbered, 0, len(names))
 	for i, name := range names {
 		listed = append(listed, numbered{Number: i + 1, Name: name})

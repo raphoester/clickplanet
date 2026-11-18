@@ -49,9 +49,10 @@
 - `borderField.ts` — the zoomed-out view: tile → landmass, from the board's borders file,
   who holds how much of each, and the per-landmass table the territory layer reads.
   See [The zoomed-out view](zoomed-out-view.md).
-- `slotRanking.ts` / `flagSlots.ts` — the flags holding the biggest landmasses,
-  drawn from their SVGs instead of the atlas: which eight, and the cells they are
-  drawn into. See [The zoomed-out view](zoomed-out-view.md).
+- `slotNeed.ts` / `settling.ts` / `slotRanking.ts` / `slotCells.ts` / `flagSlots.ts` — the flags on screen drawn
+  from their SVGs instead of the atlas: how wide each is on screen and how much land it shows, when the camera has
+  settled, which flags get a cell and how large, the cells packed in one texture sized from the screen, and the one
+  flag a frame sent into it. See [The zoomed-out view](zoomed-out-view.md).
 - `borderLines.ts` — the grey outline between one
   country's ground and the next, at a width that does not move with the zoom, and
   the white one around a territory in orbit. See [The countries'

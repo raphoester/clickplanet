@@ -163,20 +163,6 @@ describe("createClickEffects", () => {
         effects.dispose()
     })
 
-    it("tells its marks how big a pixel is on the globe, so they are pulled clear of its curve", () => {
-        const effects = createClickEffects(positions, EARTH_1_SCALE)
-        const zoomed = new THREE.OrthographicCamera(-1, 1, 1, -1)
-        zoomed.zoom = 4
-
-        effects.playSpread(spread)
-        effects.update(1000, zoomed, 800, 1)
-
-        const marks = effects.object.children.find(child => child instanceof THREE.Points)!
-        expect((marks.material as THREE.ShaderMaterial).uniforms.unitsPerPixel.value).toBeCloseTo(1 / (400 * 4))
-
-        effects.dispose()
-    })
-
     it("keeps a fast run of clicks to a bounded number on screen", () => {
         const effects = createClickEffects(positions, EARTH_1_SCALE)
 

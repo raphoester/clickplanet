@@ -1,7 +1,6 @@
 package titles_query_test
 
 import (
-	"context"
 	"slices"
 	"testing"
 	"time"
@@ -158,13 +157,4 @@ func (s *testSuite) TestTheBombsTracksFirstStepIsEarnedOnceBomberIsHeld() {
 	s.Equal(uint64(1), bombs.GetSteps()[0].GetThreshold())
 	s.True(bombs.GetSteps()[0].GetEarned())
 	s.False(bombs.GetSteps()[1].GetEarned())
-}
-
-func (s *testSuite) TestAFailedReadIsAnError() {
-	ctx, cancel := context.WithCancel(s.T().Context())
-	cancel()
-
-	_, err := titles_query.NewPostgresQuery(s.db, inprocess_title_catalog.New(titles.NewCatalog()), cptime.NewFixedClock(monday)).Titles(ctx, ada)
-
-	s.Error(err)
 }

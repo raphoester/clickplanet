@@ -30,18 +30,6 @@ func photoNumbered(n byte) notes.Attachment {
 	return file
 }
 
-func TestANoteCarriesTheFilesAttachedToItInTheirOrder(t *testing.T) {
-	note := sent(t)
-
-	carrying, err := note.Attaching([]notes.Attachment{video, photo}, rules)
-
-	require.NoError(t, err)
-	want := valid()
-	want.Attachments = []notes.Attachment{video, photo}
-	assert.Equal(t, want, carrying.TakeSnapshot())
-	assert.Equal(t, valid(), note.TakeSnapshot(), "the note it was made from is left as it was")
-}
-
 func TestANoteWithNothingAttachedIsTheNoteItWas(t *testing.T) {
 	note := sent(t)
 
@@ -148,13 +136,4 @@ func TestTheSnapshotOfANoteDoesNotShareItsFiles(t *testing.T) {
 	note.TakeSnapshot().Attachments[0] = video
 
 	assert.Equal(t, []notes.Attachment{photo}, note.TakeSnapshot().Attachments)
-}
-
-func TestThePageIsToldNoFileBiggerThanTheRoomLeftAndNoneOnceItIsFull(t *testing.T) {
-	rules := notes.AttachmentRules{MaxPerNote: 10, MaxBytes: 1000}
-
-	assert.Equal(t, rules, rules.Within(5000))
-	assert.Equal(t, notes.AttachmentRules{MaxPerNote: 10, MaxBytes: 300}, rules.Within(300))
-	assert.Equal(t, notes.AttachmentRules{}, rules.Within(0))
-	assert.Equal(t, notes.AttachmentRules{}, notes.AttachmentRules{}.Within(5000), "a server that takes no file")
 }

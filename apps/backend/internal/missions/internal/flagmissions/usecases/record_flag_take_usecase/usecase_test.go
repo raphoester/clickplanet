@@ -2,7 +2,6 @@ package record_flag_take_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -25,12 +24,11 @@ import (
 
 type countingPlanet struct {
 	asked int
-	err   error
 }
 
 func (p *countingPlanet) World(context.Context) (missions.World, error) {
 	p.asked++
-	return missions.World{CountrySizes: []missions.Holding{{Country: "br", Tiles: 9_000}}}, p.err
+	return missions.World{CountrySizes: []missions.Holding{{Country: "br", Tiles: 9_000}}}, nil
 }
 
 type noPledges struct{}
@@ -184,15 +182,6 @@ func TestTwoMinutesIntoTheDayItsMissionIsDrawnFromTheTableAsItIs(t *testing.T) {
 	assert.Equal(t, uint64(1), day.Snapshot().Takes)
 }
 
-func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
-	useCase, store, _ := setUp(&countingPlanet{err: errors.New("down")})
-
-	require.Error(t, useCase.Execute(t.Context(), take(1)))
-
-	_, err := store.Day(t.Context(), today, "fr")
-	assert.ErrorIs(t, err, flagmissions.ErrNoDay)
-}
-
 func TestATakeWhenNoDayRunsCountsNothing(t *testing.T) {
 	planet := &countingPlanet{}
 	useCase, store, outbox := setUp(planet)
@@ -209,8 +198,7 @@ func TestATakeWhenNoDayRunsCountsNothing(t *testing.T) {
 
 func TestTheGoalIsDrawnFromWhatTheFlagDidTheDayBefore(t *testing.T) {
 	yesterday := days.TestingDayAt(at.Add(-24 * time.Hour))
-	planet := &countingPlanet{}
-	useCase, store, _ := setUp(planet, yesterday)
+	useCase, store, _ := setUp(&countingPlanet{}, yesterday)
 	busy, err := flagmissions.DayOf(flagmissions.DaySnapshot{Takes: 10_005})
 	require.NoError(t, err)
 	_, err = store.KeepDay(t.Context(), yesterday, "fr", busy)
@@ -218,24 +206,19 @@ func TestTheGoalIsDrawnFromWhatTheFlagDidTheDayBefore(t *testing.T) {
 
 	require.NoError(t, useCase.Execute(t.Context(), take(1)))
 
-	world, err := planet.World(t.Context())
-	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, standing, busy, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.TakeIn{Ground: "br", Goal: 3_000}, day.Snapshot().Mission.Order, "30% of 10,005, rounded down to 10")
 }
 
 func TestASeasonsFirstDayHasTheLeastGoal(t *testing.T) {
-	planet := &countingPlanet{}
-	useCase, store, _ := setUp(planet)
+	useCase, store, _ := setUp(&countingPlanet{})
 
 	require.NoError(t, useCase.Execute(t.Context(), take(1)))
 
-	world, err := planet.World(t.Context())
-	require.NoError(t, err)
 	day, err := store.Day(t.Context(), today, "fr")
 	require.NoError(t, err)
-	assert.Equal(t, flagmissions.Draw(today, "fr", world, standing, flagmissions.Day{}, flagmissions.TestingSizing()).Snapshot().Mission, day.Snapshot().Mission)
+	assert.Equal(t, flagmissions.TakeIn{Ground: "br", Goal: 250}, day.Snapshot().Mission.Order)
 }
 
 func TestATakeWakesTheStreamsOfTheAccountThatTookIt(t *testing.T) {

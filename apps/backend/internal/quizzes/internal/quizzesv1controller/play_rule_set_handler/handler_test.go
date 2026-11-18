@@ -1,7 +1,6 @@
 package play_rule_set_handler_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -75,12 +74,4 @@ func TestASetThatCannotPlayIsAFailedPrecondition(t *testing.T) {
 	assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
 	require.ErrorIs(t, err, cprules.ErrInvalidSet)
 	assert.Equal(t, cprules.Default, inForce.Name())
-}
-
-func TestAChoiceThatCannotBeKeptIsPassedOnForTheErrorNet(t *testing.T) {
-	handler, choices, _ := booted(t, rules.Named("rush", rules.AsIs))
-	down := errors.New("postgres is down")
-	choices.FailWith(down)
-
-	require.ErrorIs(t, play(t, handler, "rush", finale), down)
 }

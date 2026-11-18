@@ -439,8 +439,8 @@ account, its text), which the client draws above the reply, its author named by 
 - **One level.** A quote is the message answered, never what that one answered: a reply to a reply quotes the
   reply alone.
 - **Only a message in the window can be answered** (`messages.ErrNotShown` → `NotFound`), the rule `React` has.
-  `Storage.Message` asks it for one id and answers the message, restored. The contract suite pins it
-  (`TestAMessageIsReadOnlyWhileItIsShown`), and a parity test against the history.
+  `Storage.Message` asks it for one id and answers the message, restored. The contract suite pins it, and a parity
+  test against the history.
 - **`messages.Thread` makes the reply**: it holds the storage, the clock and the window, and the use case calls one
   method. `Reply(ctx, draft, id)` answers the draft as it is for no id. Otherwise it reads the message answered and
   answers `draft.Answering(answered)`.

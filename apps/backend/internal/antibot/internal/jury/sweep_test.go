@@ -58,12 +58,12 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 	j := New(Config{TrackWindow: time.Minute}, shipped, stubBanner{}, stubWarner(clock), &MemoryTurns{}, clock, Hooks{})
 
 	inspect(t, j, detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
-	require.Len(t, j.callers, 1)
+	require.True(t, j.Examine("caller", "", false).Tracked)
 
 	clock.Advance(2 * time.Hour)
 	j.sweep()
 
-	assert.Empty(t, j.callers, "without this the map keeps an entry for every caller that ever clicked")
+	assert.False(t, j.Examine("caller", "", false).Tracked, "without this the map keeps an entry for every caller that ever clicked")
 }
 
 func TestTheCountryTallyIsCapped(t *testing.T) {

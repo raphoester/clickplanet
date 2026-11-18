@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/reactions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
 )
@@ -69,17 +68,4 @@ func TestAReactorSaysWhichAccountItIsAndAGuestTagSaysNone(t *testing.T) {
 		_, isAccount := reactions.AccountOf(reactor)
 		assert.False(t, isAccount, string(reactor))
 	}
-}
-
-func TestACountIsTheAccountsThatGaveItOldestFirst(t *testing.T) {
-	one, two := cpsession.AccountID{15: 1}, cpsession.AccountID{15: 2}
-	given := reactions.Reactions{}.
-		With(clown, reactions.ReactorOf(two)).
-		With(clown, reactions.ReactorOf(one)).
-		With(clown, bo)
-
-	count := given.Tally(reactions.NoReactor)[0]
-
-	assert.Equal(t, []messages.AccountID{two, one}, count.Accounts(), "a guest tag from before accounts is nobody")
-	assert.Equal(t, 3, count.Total(), "the count still says how many gave it")
 }

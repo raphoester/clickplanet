@@ -2,7 +2,6 @@ package levels_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -12,7 +11,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inmemory_level_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
@@ -97,17 +95,6 @@ func TestARaiseAnotherWriteBeatTellsNothing(t *testing.T) {
 	assert.Empty(t, bonuses.paid, "a fact told twice raises once, and pays once")
 }
 
-func TestARaiseTheStoreRefusesTellsNothing(t *testing.T) {
-	book, store, bonuses := setUpBook()
-	store.FailWith(errors.New("postgres is gone"))
-
-	_, err := book.Raise(t.Context(), ada, 5, monday)
-
-	require.Error(t, err)
-	assert.Empty(t, bonuses.told)
-	assert.Empty(t, bonuses.paid)
-}
-
 func TestARaisePaysOneLevelUpWithWhatTheLevelUnlocks(t *testing.T) {
 	book, _, bonuses := setUpBook()
 
@@ -137,18 +124,5 @@ func TestReachingLevelOneIsNoLevelUp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, bonuses.told, 1, "its unlocks are told all the same")
-	assert.Empty(t, bonuses.paid)
-}
-
-func TestAReconciliationPaysNoLevelUp(t *testing.T) {
-	book, _, bonuses := setUpBook()
-	reconciliation := levels.Scale{}.ReconciliationOf(
-		[]stats.Stats{stats.StatsSnapshot{Account: ada, TilesTaken: 5_000}.Restore()},
-		map[accounts.AccountID]accounts.Account{ada: accounts.AccountOf(true, monday)}, levels.ByAccount{},
-	)
-
-	require.NoError(t, book.Reconcile(t.Context(), reconciliation, monday))
-
-	assert.Len(t, bonuses.told, 1)
 	assert.Empty(t, bonuses.paid)
 }

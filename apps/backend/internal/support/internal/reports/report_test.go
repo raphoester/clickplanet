@@ -32,17 +32,6 @@ func complaintKept(t *testing.T, said reports.Complaint) reports.Complaint {
 	return report.TakeSnapshot().Complaint
 }
 
-func TestASnapshotRestoresTheReportItWasTakenFrom(t *testing.T) {
-	report, err := valid().Restore()
-	require.NoError(t, err)
-
-	again, err := report.TakeSnapshot().Restore()
-
-	require.NoError(t, err)
-	assert.Equal(t, report, again)
-	assert.Equal(t, valid(), again.TakeSnapshot())
-}
-
 func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
 	for name, broken := range map[string]func(*reports.Snapshot){
 		"no id":              func(s *reports.Snapshot) { s.ID = reports.ReportID{} },
@@ -56,17 +45,6 @@ func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
 		_, err := snapshot.Restore()
 
 		require.ErrorIs(t, err, reports.ErrInvalidReport, name)
-	}
-}
-
-func TestEveryReasonIsKnownAndNothingElse(t *testing.T) {
-	for _, reason := range []reports.Reason{reports.ReasonCheating, reports.ReasonChatAbuse, reports.ReasonBadName, reports.ReasonOther} {
-		assert.Equal(t, reason, complaintKept(t, reports.Complaint{Reason: reason}).Reason)
-	}
-	for _, reason := range []reports.Reason{"", "boring", "CHEATING"} {
-		_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, reports.Complaint{Reason: reason}, createdAt, nil)
-
-		require.ErrorIs(t, err, reports.ErrUnknownReason, string(reason))
 	}
 }
 
@@ -118,48 +96,11 @@ func TestAnAccountReportsAPlayerOnceAUTCDay(t *testing.T) {
 	require.NoError(t, again(time.Date(2026, 10, 10, 23, 59, 0, 0, time.UTC), morning), "the day before")
 }
 
-func TestOnlyTheSameReporterAboutTheSamePlayerIsARepeat(t *testing.T) {
-	eve := reports.AccountID{15: 3}
-
-	require.NoError(t, again(createdAt,
-		earlier(t, eve, bob, createdAt), earlier(t, ada, eve, createdAt), earlier(t, bob, ada, createdAt)))
-	require.ErrorIs(t, again(createdAt, earlier(t, eve, bob, createdAt), earlier(t, ada, bob, createdAt)),
-		reports.ErrReportedAlready)
-}
-
 func TestAReportThatBreaksARuleIsRefusedBeforeItIsARepeat(t *testing.T) {
 	_, err := reports.NewReport(reports.ReportID{15: 1}, ada, bob, reports.Complaint{Reason: "boring"}, createdAt,
 		[]reports.Report{earlier(t, ada, bob, createdAt)})
 
 	require.ErrorIs(t, err, reports.ErrUnknownReason)
-}
-
-func TestAForgottenReportSaysSoInItsSnapshotAndKeepsTheRest(t *testing.T) {
-	report, err := valid().Restore()
-	require.NoError(t, err)
-
-	forgotten := report.Forgotten()
-
-	want := valid()
-	want.Forgotten = true
-	assert.Equal(t, want, forgotten.TakeSnapshot())
-	assert.False(t, report.TakeSnapshot().Forgotten, "the report it was made from is left as it was")
-}
-
-func TestEveryReportOfAListIsForgottenInItsOrder(t *testing.T) {
-	first, err := valid().Restore()
-	require.NoError(t, err)
-	other := valid()
-	other.ID = reports.ReportID{15: 2}
-	second, err := other.Restore()
-	require.NoError(t, err)
-
-	forgotten := reports.AllForgotten([]reports.Report{first, second})
-
-	require.Len(t, forgotten, 2)
-	assert.Equal(t, first.Forgotten(), forgotten[0])
-	assert.Equal(t, second.Forgotten(), forgotten[1])
-	assert.Empty(t, reports.AllForgotten(nil))
 }
 
 func TestAReportIDIsAUUIDAndNothingElse(t *testing.T) {

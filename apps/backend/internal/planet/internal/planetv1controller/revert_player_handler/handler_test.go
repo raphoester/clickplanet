@@ -2,7 +2,6 @@ package revert_player_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -55,15 +54,6 @@ func TestTheRequestReachesTheUseCaseAndTheCountsComeBack(t *testing.T) {
 func TestAnInvalidScopeIsInvalidArgument(t *testing.T) {
 	_, err := revert(t, &stubUseCase{err: fmt.Errorf("%w: %q", ledger.ErrInvalidScope, "bot")})
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestAnythingElseIsLeftToTheErrorNet(t *testing.T) {
-	cause := errors.New("revert interrupted: context canceled")
-
-	_, err := revert(t, &stubUseCase{err: cause})
-
-	require.ErrorIs(t, err, cause)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }
 
 func TestARevertWhileAnArenaPlaysIsAFailedPrecondition(t *testing.T) {

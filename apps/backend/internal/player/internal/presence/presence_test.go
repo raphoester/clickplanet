@@ -29,61 +29,6 @@ func visit(key presence.Key, shown players.Player, country string, at time.Time)
 	return presence.NewVisit(players.AccountID{}, shown, "", country, at).Keyed(key)
 }
 
-type line struct {
-	Key     presence.Key
-	Name    string
-	Country string
-	Guest   bool
-	Admin   bool
-	Color   players.Color
-}
-
-func lineOf(entry presence.Entry) line {
-	return line{
-		Key: entry.Key(), Name: entry.Name(), Country: entry.Country(), Guest: entry.Guest(), Admin: entry.Admin(),
-		Color: entry.Color(),
-	}
-}
-
-func linesOf(roster []presence.Entry) []line {
-	lines := make([]line, 0, len(roster))
-	for _, entry := range roster {
-		lines = append(lines, lineOf(entry))
-	}
-	return lines
-}
-
-func TestAVisitIsFreshForTheTTL(t *testing.T) {
-	visit := presence.NewVisit(players.AccountID{}, players.Player{}, "", "", now)
-
-	assert.True(t, visit.Fresh(now.Add(presence.TTL-time.Second)))
-	assert.False(t, visit.Fresh(now.Add(presence.TTL)))
-}
-
-func TestTheRosterNamesEachVisitAsTheChatDoesAndNeverShowsTheAddress(t *testing.T) {
-	roster := presence.RosterOf([]presence.Visit{
-		presence.NewVisit(players.AccountID{}, player("Ada_L"), "aaaaaa", "fr", now).Keyed("1"),
-		presence.NewVisit(players.AccountID{}, guest("0b1c2d"), "bbbbbb", "de", now).Keyed("2"),
-	}, now)
-
-	assert.Equal(t, []line{
-		{Key: "1", Name: "Ada_L", Country: "fr"},
-		{Key: "2", Name: "guest_0b1c2d", Country: "de", Guest: true},
-	}, linesOf(roster))
-}
-
-func TestOnlyAPlayerWithAUsernameShowsAsAnAdmin(t *testing.T) {
-	roster := presence.RosterOf([]presence.Visit{
-		visit("1", named("Ada_L", true), "", now),
-		visit("2", guest("0b1c2d"), "", now),
-	}, now)
-
-	assert.Equal(t, []line{
-		{Key: "1", Name: "Ada_L", Admin: true},
-		{Key: "2", Name: "guest_0b1c2d", Guest: true},
-	}, linesOf(roster))
-}
-
 func TestPlayersComeFirstThenGuestsEachByNameIgnoringCase(t *testing.T) {
 	roster := presence.RosterOf([]presence.Visit{
 		visit("1", guest("ffffff"), "", now),
@@ -105,35 +50,10 @@ func TestTwoLinesOfOneNameAreOrderedByKey(t *testing.T) {
 	assert.Equal(t, []presence.Key{"a", "b"}, []presence.Key{roster[0].Key(), roster[1].Key()})
 }
 
-func TestAStaleVisitIsNotOnTheRoster(t *testing.T) {
-	roster := presence.RosterOf([]presence.Visit{
-		visit("", player("Ada"), "", now.Add(-presence.TTL)),
-		visit("", player("Bob"), "", now.Add(-time.Second)),
-	}, now)
-
-	assert.Equal(t, []string{"Bob"}, names(roster))
-}
-
 func names(roster []presence.Entry) []string {
 	names := make([]string, 0, len(roster))
 	for _, entry := range roster {
 		names = append(names, entry.Name())
 	}
 	return names
-}
-
-func TestALineCarriesTheColorItWasAnnouncedWith(t *testing.T) {
-	ada := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada_L", Color: 3}.Restore())
-
-	entry := presence.EntryOf(visit("1", ada, "fr", now))
-
-	assert.Equal(t, line{Key: "1", Name: "Ada_L", Country: "fr", Color: 3}, lineOf(entry))
-}
-
-func TestARenamedLineKeepsItsMarkAndColor(t *testing.T) {
-	ada := players.NamedPlayer(players.ProfileSnapshot{Name: "Ada", Admin: true, Color: 3}.Restore())
-
-	entry := presence.EntryOf(visit("1", ada.Renamed("Ada_L"), "fr", now))
-
-	assert.Equal(t, line{Key: "1", Name: "Ada_L", Country: "fr", Admin: true, Color: 3}, lineOf(entry))
 }

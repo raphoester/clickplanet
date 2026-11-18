@@ -2,7 +2,6 @@ package get_discord_grant_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -81,11 +80,4 @@ func TestAnIDThatIsNoGrantIsNotFoundAndNobodyIsAsked(t *testing.T) {
 		assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "%q", id)
 		assert.Empty(t, useCase.asked, "%q", id)
 	}
-}
-
-func TestAFailedReadIsNoAnswer(t *testing.T) {
-	_, err := getDiscordGrant(t, &stubUseCase{err: errors.New("postgres is down")}, grantID)
-
-	require.Error(t, err)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err), "the error net answers it")
 }

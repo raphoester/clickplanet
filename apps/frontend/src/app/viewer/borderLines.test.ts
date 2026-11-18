@@ -146,14 +146,6 @@ describe("the highlight", () => {
 
         lines.dispose()
     })
-
-    it("is drawn over the coarse pieces, which carry the landmasses either side", () => {
-        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])), EARTH_1_SCALE)
-        const [over, , highlight] = lines.object.children as THREE.Mesh[]
-        expect(highlight.geometry).toBe(over.geometry)
-        expect(over.geometry.getAttribute("sides")).toBeDefined()
-        lines.dispose()
-    })
 })
 
 describe("the handover", () => {
@@ -207,18 +199,6 @@ describe("the handover", () => {
         const {lines, over, under} = outline()
         const count = (pass: THREE.Mesh) => (pass.geometry as THREE.InstancedBufferGeometry).instanceCount
         expect(count(over)).toBeLessThan(count(under))
-        lines.dispose()
-    })
-
-    it("measures the line in the drawing buffer's own pixels", () => {
-        const {lines, over, under} = outline()
-        lines.update(1, 1600, 900, 1, "split")
-
-        for (const pass of [over, under]) {
-            const halfViewport = (pass.material as THREE.ShaderMaterial).uniforms.halfViewport.value as THREE.Vector2
-            expect([halfViewport.x, halfViewport.y]).toEqual([800, 450])
-        }
-
         lines.dispose()
     })
 

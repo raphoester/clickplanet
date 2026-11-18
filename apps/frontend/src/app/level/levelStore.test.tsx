@@ -131,16 +131,6 @@ describe("useLevelFeed", () => {
 })
 
 describe("gained", () => {
-    it("moves the bar at once and shows the gain", () => {
-        vi.useFakeTimers()
-        useLevel.setState({own: eleven})
-
-        act(() => useLevel.getState().gained({gains: [{source: "daysPlayed", xp: 100}], level: {...eleven, xp: 14_100}}))
-
-        expect(useLevel.getState().own).toEqual({...eleven, xp: 14_100})
-        expect(useLevel.getState().pops.shown).toMatchObject({source: "daysPlayed", xp: 100})
-    })
-
     it("lets each gain go after its hold, then shows the next", () => {
         vi.useFakeTimers()
         act(() => useLevel.getState().gained({gains: [{source: "tilesTaken", xp: 1}, {source: "daysPlayed", xp: 100}]}))

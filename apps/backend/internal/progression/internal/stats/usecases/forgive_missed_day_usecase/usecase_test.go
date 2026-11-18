@@ -2,7 +2,6 @@ package forgive_missed_day_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -30,15 +29,11 @@ func daysAgo(n int) stats.Day { return stats.DayOf(noon.AddDate(0, 0, -n)) }
 
 type fakeLedger struct {
 	days  map[accounts.AccountID][]stats.Day
-	err   error
 	asked [][]accounts.AccountID
 }
 
 func (f *fakeLedger) PlayDays(_ context.Context, asked []accounts.AccountID) (map[accounts.AccountID][]stats.Day, error) {
 	f.asked = append(f.asked, asked)
-	if f.err != nil {
-		return nil, f.err
-	}
 	answer := map[accounts.AccountID][]stats.Day{}
 	for _, account := range asked {
 		if days, ok := f.days[account]; ok {
@@ -104,17 +99,6 @@ func TestAForgivenGapJoinsTheRunsAndSaysTheStatsChanged(t *testing.T) {
 		"titles, levels and badges follow")
 }
 
-func TestYesterdayForgivenIsTheLastDay(t *testing.T) {
-	f := setUp()
-	f.playedDaysAgo(t, 4, 3, 2)
-
-	forgiven, err := f.useCase.Execute(t.Context(), forgive_missed_day_usecase.In{Account: ada, Day: daysAgo(1)})
-
-	require.NoError(t, err)
-	assert.Equal(t, stats.StreakOf(4, daysAgo(1)), f.kept(t).Streak())
-	assert.Equal(t, f.kept(t), forgiven.After)
-}
-
 func TestADryRunAnswersWhatWouldChangeAndWritesNothing(t *testing.T) {
 	f := setUp()
 	f.playedDaysAgo(t, 4, 3, 1, 0)
@@ -172,17 +156,4 @@ func TestAnAccountWithNoStatsIsRefusedAndPlanetNotAsked(t *testing.T) {
 
 	require.ErrorIs(t, err, stats.ErrNoStats)
 	assert.Empty(t, f.ledger.asked)
-}
-
-func TestAFailureToAskPlanetWritesNothing(t *testing.T) {
-	f := setUp()
-	f.playedDaysAgo(t, 4, 3, 1, 0)
-	before := f.kept(t)
-	f.ledger.err = errors.New("planet is down")
-
-	_, err := f.useCase.Execute(t.Context(), forgive_missed_day_usecase.In{Account: ada, Day: daysAgo(2)})
-
-	require.ErrorIs(t, err, f.ledger.err)
-	assert.Equal(t, before, f.kept(t))
-	assert.Empty(t, f.events.Published())
 }

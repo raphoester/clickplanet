@@ -13,9 +13,8 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	held     map[accounts.AccountID]titles.IDs
-	failWith error
+	mu   sync.Mutex
+	held map[accounts.AccountID]titles.IDs
 }
 
 var _ titles.Store = (*Store)(nil)
@@ -24,20 +23,10 @@ func New() *Store {
 	return &Store{held: map[accounts.AccountID]titles.IDs{}}
 }
 
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.failWith = err
-}
-
 func (s *Store) Held(_ context.Context, account accounts.AccountID) (titles.IDs, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
 	return slices.Clone(s.held[account]), nil
 }
 
@@ -45,9 +34,6 @@ func (s *Store) Holdings(_ context.Context, accounts []accounts.AccountID) (titl
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
 	holdings := titles.Holdings{}
 	for _, account := range accounts {
 		if held := s.held[account]; len(held) > 0 {
@@ -61,9 +47,6 @@ func (s *Store) Grant(_ context.Context, grants titles.Holdings, _ time.Time) er
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	for account, granted := range grants {
 		s.held[account] = append(s.held[account], granted.Without(s.held[account])...)
 	}
@@ -74,9 +57,6 @@ func (s *Store) Revoke(_ context.Context, revocations titles.Holdings) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	for account, revoked := range revocations {
 		s.held[account] = s.held[account].Without(revoked)
 		if len(s.held[account]) == 0 {
@@ -90,9 +70,6 @@ func (s *Store) DeleteAccount(_ context.Context, account accounts.AccountID) err
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	delete(s.held, account)
 	return nil
 }

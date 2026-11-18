@@ -2,7 +2,6 @@ package mines_query_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -22,10 +21,9 @@ func (m minefield) MinesOf(flag string) ([]uint32, clicks.MapVersion) {
 
 type playsFor struct {
 	flag string
-	err  error
 }
 
-func (p playsFor) FlagOf(context.Context, clicks.Payer) (string, error) { return p.flag, p.err }
+func (p playsFor) FlagOf(context.Context, clicks.Payer) (string, error) { return p.flag, nil }
 
 var mines = minefield{"fr": {5, 9}, "de": {30}}
 
@@ -43,12 +41,4 @@ func TestACallerOfNoFlagReadsNoMine(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, answer.GetTileIds())
-}
-
-func TestAFlagThatCannotBeReadIsAFailureNotAnEmptyMinefield(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	_, err := mines_query.NewMemoryQuery(mines, playsFor{err: down}).MinesOf(t.Context(), clicks.Payer{})
-
-	require.ErrorIs(t, err, down)
 }

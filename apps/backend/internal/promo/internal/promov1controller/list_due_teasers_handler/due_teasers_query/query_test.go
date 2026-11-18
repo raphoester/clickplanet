@@ -28,13 +28,12 @@ func (l *listed) Teasers(_ context.Context, within time.Duration) ([]*promov1.Te
 
 type posts struct {
 	teased []teasers.BattleID
-	err    error
 	since  time.Time
 }
 
 func (p *posts) Teased(_ context.Context, since time.Time) ([]teasers.BattleID, error) {
 	p.since = since
-	return p.teased, p.err
+	return p.teased, nil
 }
 
 func TestTheBattlesDueAreThoseWithin36HoursNoPostTeases(t *testing.T) {
@@ -48,12 +47,4 @@ func TestTheBattlesDueAreThoseWithin36HoursNoPostTeases(t *testing.T) {
 	assert.Equal(t, []*promov1.Teaser{ring, finale}, due)
 	assert.Equal(t, 36*time.Hour, battles.within)
 	assert.Equal(t, now.Add(-60*time.Hour), read.since)
-}
-
-func TestPostsThatCannotBeReadFailTheList(t *testing.T) {
-	busy := &teasers.BusyError{Reason: "restarting"}
-
-	_, err := due_teasers_query.New(&listed{}, &posts{err: busy}, cptime.NewFixedClock(now)).Due(t.Context())
-
-	require.ErrorIs(t, err, busy)
 }

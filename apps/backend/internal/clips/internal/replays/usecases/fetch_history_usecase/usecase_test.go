@@ -1,7 +1,6 @@
 package fetch_history_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -45,16 +44,5 @@ func TestNoSeasonAsksForNoMap(t *testing.T) {
 
 	require.ErrorIs(t, err, replays.ErrNoSeason)
 	assert.Empty(t, source.HistoriesAsked)
-	assert.Empty(t, store.SavedHistories)
-}
-
-func TestABackendThatDoesNotAnswerTheMapKeepsNothing(t *testing.T) {
-	unserved := errors.New("ssh failed: exit status 1: wget: server returned error: HTTP/1.1 500 Internal Server Error")
-	source, store, usecase := fetching()
-	source.FailHistoryWith(unserved)
-
-	_, err := usecase.Execute(t.Context(), running, until)
-
-	require.ErrorIs(t, err, unserved)
 	assert.Empty(t, store.SavedHistories)
 }

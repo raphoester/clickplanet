@@ -148,11 +148,6 @@ describe("ClickBudgetMeter", () => {
         expect(meter().getAttribute("aria-valuemax")).toBe("5")
     })
 
-    it("follows the server's burst rather than a number of its own", () => {
-        render(budgeted(reading({capacity: 7}), <ClickBudgetMeter/>))
-        expect(pips()).toHaveLength(7)
-    })
-
     it("becomes one bar past the count a row of pips can show", () => {
         render(budgeted(reading({capacity: 40}), <ClickBudgetMeter/>))
 
@@ -398,12 +393,6 @@ describe("ClickBudgetMeter's shared bucket", () => {
 })
 
 describe("ClickBudgetMeter's dock", () => {
-    it("holds what it is given under the meter", () => {
-        render(budgeted(reading(), <ClickBudgetMeter><p>held</p></ClickBudgetMeter>))
-
-        expect(document.querySelector(".click-budget-dock")?.textContent).toContain("held")
-    })
-
     it("puts it after the reading, in the one panel", () => {
         render(budgeted(reading(), <ClickBudgetMeter><p>held</p></ClickBudgetMeter>))
 

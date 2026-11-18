@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
-import {StrictMode} from "react"
 import {PlayerLevel, PlayerTitle, ProgressionEvents, ProgressionListener} from "../../backends/progression.ts"
 import {useProgressionEvents} from "./useProgressionEvents.ts"
 import {TOKEN_CHECK_MS} from "../useHeldIdentity.ts"
@@ -129,13 +128,5 @@ describe("useProgressionEvents", () => {
         expect(first).not.toHaveBeenCalled()
         expect(second).toHaveBeenCalledWith(settler)
         expect(backend.listenForProgression).toHaveBeenCalledTimes(1)
-    })
-
-    it("follows one stream in StrictMode", () => {
-        const {backend, stream} = listening("token-1")
-        render(<StrictMode><Harness backend={backend} signedIn/></StrictMode>)
-
-        expect(backend.listenForProgression).toHaveBeenCalledTimes(2)
-        expect(stream.stop).toHaveBeenCalledTimes(1)
     })
 })

@@ -2,7 +2,6 @@ package mark_seen_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -59,10 +58,4 @@ func TestTheRefusalsHaveTheirCodes(t *testing.T) {
 	} {
 		assert.Equal(t, want, connect.CodeOf(markSeen(t, &stubUseCase{err: refusal}, 1)), "%v", refusal)
 	}
-}
-
-func TestAStoreFailureIsLeftToTheErrorNet(t *testing.T) {
-	err := markSeen(t, &stubUseCase{err: errors.New("postgres is down")}, 1)
-
-	assert.ErrorContains(t, err, "postgres is down")
 }

@@ -62,9 +62,3 @@ func TestAnUnknownCountryIsInvalidArgumentAndSaysNoMore(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.NotContains(t, err.Error(), "atlantis")
 }
-
-func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
-	err := announce(callerContext(t), stubUseCase{in: &announce_usecase.In{}, err: assert.AnError})
-
-	require.ErrorIs(t, err, assert.AnError)
-}

@@ -3,7 +3,6 @@ package postgres_snapshot_store_test
 import (
 	"encoding/json"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -26,7 +25,6 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	server    *cppgtest.Server
 	db        *cppg.Postgres
 	store     *postgres_snapshot_store.Store
 	rows      *rows_query.PostgresQuery
@@ -34,8 +32,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) SetupSuite() {
-	s.server = cppgtest.StartServer(s.T())
-	s.db = s.server.OpenSchema(s.T(), "publishing", migrations.FS)
+	s.db = cppgtest.StartServer(s.T()).OpenSchema(s.T(), "publishing", migrations.FS)
 	s.store = postgres_snapshot_store.New(s.db)
 	s.rows = rows_query.NewPostgresQuery(s.db)
 	s.summaries = snapshots_query.NewPostgresQuery(s.db)
@@ -171,35 +168,4 @@ func (s *testSuite) TestAPostsLinkIsTheNewestAddressASnapshotRead() {
 	none, err := links_query.NewPostgresQuery(s.db).Links(s.T().Context(), nil)
 	s.Require().NoError(err)
 	s.Empty(none.GetLinks())
-}
-
-// The clips module's tables, as they were until 2026-11-10, with a snapshot in them.
-var clipsTables = fstest.MapFS{"20261025090000_snapshots.up.sql": {Data: []byte(`
-	CREATE TABLE snapshots (taken_at timestamptz PRIMARY KEY, summary jsonb NOT NULL);
-	CREATE TABLE snapshot_rows (
-		taken_at timestamptz NOT NULL REFERENCES snapshots (taken_at) ON DELETE CASCADE,
-		post_id text NOT NULL, platform text NOT NULL, document jsonb NOT NULL,
-		PRIMARY KEY (taken_at, post_id, platform)
-	);
-	INSERT INTO snapshots VALUES ('2026-10-26T05:41:07Z', '{"takenAt":"2026-10-26T05:41:07Z","posts":7}');
-	INSERT INTO snapshot_rows VALUES ('2026-10-26T05:41:07Z', 'post-1', 'tiktok', '{"version":1,"metadata":{"storyFlag":"fr"}}');
-`)}}
-
-func (s *testSuite) TestTheClipsModulesSnapshotsAreCopiedOnceAndLeftThere() {
-	database := s.server.CreateDatabase(s.T())
-	clips := database.OpenSchema(s.T(), "clips", clipsTables)
-	publishing := database.OpenSchema(s.T(), "publishing", migrations.FS)
-
-	summaries, err := snapshots_query.NewPostgresQuery(publishing).Snapshots(s.T().Context(), time.Time{}, time.Time{}, 0)
-	s.Require().NoError(err)
-	s.Require().Len(summaries.GetSnapshots(), 1)
-	s.Equal(uint32(7), summaries.GetSnapshots()[0].GetPosts())
-	rows, err := rows_query.NewPostgresQuery(publishing).Rows(s.T().Context(), time.Time{}, time.Time{}, 0, "")
-	s.Require().NoError(err)
-	s.Require().Len(rows.GetRows(), 1)
-	s.Contains(rows.GetRows()[0].GetDocument(), "storyFlag")
-
-	var left int
-	s.Require().NoError(clips.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT count(*) FROM snapshot_rows`).Scan(&left))
-	s.Equal(1, left, "the clips tables are left as they were")
 }

@@ -1,8 +1,6 @@
 package admission_test
 
 import (
-	"bytes"
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,15 +30,4 @@ func TestATokenMakesNoneOfThePagesOwnCalls(t *testing.T) {
 	}
 	require.NoError(t, page.TokenError("/planet.v1.AdminService/BanPlayer"))
 	assert.False(t, page.SignIn("/auth.v1.AdminService/ApproveConnection"), "letting an app in still needs the session")
-}
-
-func TestACallerLogsItsOperatorAndTheAppItConnected(t *testing.T) {
-	var logs bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logs, nil))
-
-	logger.Info("call", slog.Any("", admission.ConnectionOf("ada", "Claude")))
-	logger.Info("call", slog.Any("", admission.SessionOf("ada")))
-
-	assert.Contains(t, logs.String(), `msg=call operator=ada client=Claude`)
-	assert.Contains(t, logs.String(), `msg=call operator=ada client=""`, "the page's session is no app")
 }

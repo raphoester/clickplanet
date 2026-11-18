@@ -1,99 +1,198 @@
 import * as THREE from "three"
-import {SLOT_COUNT, Slots} from "./slotRanking.ts"
-import type {Region} from "./atlas.ts"
-
-const SLOT_CELL = {width: 768, height: 512} as const
-
-const SLOT_COLUMNS = 2
-
-// A flag sits this far inside its cell, its last column and row repeated out to the cell's edge for the coarse mip levels.
-const MARGIN = 32
+import {flagNumbers, regions} from "./atlas.ts"
+import {type Cell, flagIn, overlap, type SlotBudget, textureSizeOf} from "./slotCells.ts"
+import {type FlagNeed, type Placed, SlotLayout} from "./slotRanking.ts"
 
 const ANISOTROPY = 4
 
-type Canvas = {context: CanvasRenderingContext2D, texture: THREE.CanvasTexture}
+const FRAME = 4
 
-// A flag whose SVG failed is not asked for again this session.
+type Drawn = {placed: Placed, flag: Cell, bitmap: ImageBitmap}
+
 const images = new Map<string, Promise<HTMLImageElement | undefined>>()
+// A flag whose SVG failed is not asked for again this session.
+const failed = new Set<string>()
 
 export class FlagSlots {
     readonly texture: THREE.IUniform<THREE.Texture | null> = {value: null}
-    readonly frames: THREE.IUniform<THREE.Vector4[]>
-    readonly regions: THREE.IUniform<THREE.Vector4[]>
+    readonly frames: THREE.IUniform<THREE.DataTexture>
 
-    private canvas: Canvas | undefined
-    private readonly wanted: (string | undefined)[]
+    private readonly frameData = new Float32Array((regions.size + 1) * FRAME)
+    private layout: SlotLayout | undefined
+    private target: THREE.DataTexture | undefined
+    private wanted: Placed[] = []
+    private readonly shown = new Map<string, Cell>()
+    private canvas: HTMLCanvasElement | undefined
+    private readonly source = new THREE.Texture()
+    private drawn: Drawn | undefined
+    private busy = false
 
-    constructor(private readonly onChange: () => void, count = SLOT_COUNT) {
-        this.frames = {value: Array.from({length: count}, () => new THREE.Vector4())}
-        this.regions = {value: Array.from({length: count}, () => new THREE.Vector4())}
-        this.wanted = new Array<string | undefined>(count).fill(undefined)
+    constructor(private readonly onChange: () => void) {
+        const frames = new THREE.DataTexture(this.frameData, regions.size + 1, 1, THREE.RGBAFormat, THREE.FloatType)
+        frames.needsUpdate = true
+        this.frames = {value: frames}
     }
 
-    show(slots: Slots, regionOf: (code: string) => Region | undefined) {
-        slots.forEach((code, slot) => {
-            if (code === this.wanted[slot]) return
-            this.wanted[slot] = code
-            this.empty(slot)
-            const region = code === undefined ? undefined : regionOf(code)
-            if (code === undefined || region === undefined) return
-            void imageOf(code).then((image) => {
-                if (this.wanted[slot] !== code || image === undefined) return
-                this.draw(slot, image, region)
-            })
-        })
+    arrange(needs: ReadonlyMap<string, FlagNeed>, budget: SlotBudget) {
+        if (this.layout && !sameBudget(this.layout.budget, budget)) this.reset()
+        this.layout ??= new SlotLayout(budget)
+        this.wanted = this.layout.arrange(new Map([...needs].filter(([code]) => !failed.has(code) && regions.has(code))))
+        this.prepare()
+    }
+
+    upload(renderer: THREE.WebGLRenderer) {
+        const drawn = this.drawn
+        if (drawn === undefined) return
+        this.drawn = undefined
+        this.busy = false
+        if (this.layout && this.wants(drawn.placed)) {
+            const {code, cell} = drawn.placed
+            const target = this.target ??= createTarget(textureSizeOf(this.layout.budget))
+            for (const [other, shown] of this.shown) {
+                if (other !== code && overlap(shown, cell)) this.hide(other)
+            }
+            this.source.image = drawn.bitmap
+            renderer.copyTextureToTexture(this.source, target, null, new THREE.Vector2(cell.x, cell.y))
+            this.show(code, cell, drawn.flag, target)
+        }
+        drawn.bitmap.close()
+        this.prepare()
     }
 
     dispose() {
-        this.wanted.fill(undefined)
-        this.canvas?.texture.dispose()
+        this.wanted = []
+        this.drawn?.bitmap.close()
+        this.target?.dispose()
+        this.frames.value.dispose()
     }
 
-    private empty(slot: number) {
-        const frame = this.frames.value[slot]
-        if (frame.z === 0) return
-        frame.set(0, 0, 0, 0)
-        this.regions.value[slot].set(0, 0, 0, 0)
+    private show(code: string, cell: Cell, flag: Cell, target: THREE.DataTexture) {
+        const {width, height} = target.image
+        this.frameData.set([flag.x / width, flag.y / height, flag.width / width, flag.height / height], frameAt(code))
+        this.frames.value.needsUpdate = true
+        this.shown.set(code, cell)
+        this.texture.value = target
         this.onChange()
     }
 
-    private draw(slot: number, image: HTMLImageElement, region: Region) {
-        const {context, texture} = this.canvas ??= createCanvas(this.wanted.length)
-        const {canvas} = context
+    private hide(code: string) {
+        this.frameData.fill(0, frameAt(code), frameAt(code) + FRAME)
+        this.frames.value.needsUpdate = true
+        this.shown.delete(code)
+        this.onChange()
+    }
+
+    private reset() {
+        for (const code of [...this.shown.keys()]) this.hide(code)
+        this.target?.dispose()
+        this.target = undefined
+        this.texture.value = null
+        this.layout = undefined
+    }
+
+    private prepare() {
+        if (this.busy) return
+        const next = this.wanted.find(({code, cell}) => !sameCell(this.shown.get(code), cell) && !failed.has(code))
+        if (next === undefined) {
+            this.canvas = undefined
+            return
+        }
+        this.busy = true
+        void this.rasterise(next).then((drawn) => {
+            if (drawn !== undefined) {
+                this.drawn = drawn
+                return
+            }
+            this.busy = false
+            this.prepare()
+        })
+    }
+
+    private wants({code, cell}: Placed): boolean {
+        return this.wanted.some((placed) => placed.code === code && sameCell(placed.cell, cell))
+    }
+
+    private async rasterise(placed: Placed): Promise<Drawn | undefined> {
+        const image = await imageOf(placed.code)
+        const region = regions.get(placed.code)
+        if (image === undefined || region === undefined) {
+            this.layout?.forget(placed.code)
+            this.wanted = this.wanted.filter((other) => other !== placed)
+            return undefined
+        }
+        await idle()
+        if (!this.wants(placed)) return undefined
         const aspect = region.width / region.height
-        const cellX = (slot % SLOT_COLUMNS) * SLOT_CELL.width
-        const cellY = Math.floor(slot / SLOT_COLUMNS) * SLOT_CELL.height
-        const roomWidth = SLOT_CELL.width - 2 * MARGIN
-        const roomHeight = SLOT_CELL.height - 2 * MARGIN
-        const width = Math.min(roomWidth, Math.round(roomHeight * aspect))
-        const height = Math.min(roomHeight, Math.round(roomWidth / aspect))
-        const x = cellX + MARGIN
-        const y = cellY + MARGIN
-
-        context.clearRect(cellX, cellY, SLOT_CELL.width, SLOT_CELL.height)
-        context.drawImage(image, x, y, width, height)
-        context.drawImage(canvas, x, y, 1, height, cellX, y, MARGIN, height)
-        context.drawImage(canvas, x + width - 1, y, 1, height, x + width, y, cellX + SLOT_CELL.width - x - width, height)
-        context.drawImage(canvas, cellX, y, SLOT_CELL.width, 1, cellX, cellY, SLOT_CELL.width, MARGIN)
-        context.drawImage(canvas, cellX, y + height - 1, SLOT_CELL.width, 1, cellX, y + height, SLOT_CELL.width, cellY + SLOT_CELL.height - y - height)
-
-        this.frames.value[slot].set(x / canvas.width, 1 - (y + height) / canvas.height, width / canvas.width, height / canvas.height)
-        this.regions.value[slot].set(region.x, region.y, region.width, region.height)
-        texture.needsUpdate = true
-        this.texture.value = texture
-        this.onChange()
+        this.canvas = drawFlag(this.canvas, image, placed.cell, aspect)
+        const bitmap = await createImageBitmap(this.canvas)
+        if (!this.wants(placed)) {
+            bitmap.close()
+            return undefined
+        }
+        const flag = flagIn({...placed.cell, x: 0, y: 0}, aspect)
+        const {cell} = placed
+        return {placed, bitmap, flag: {...flag, x: cell.x + flag.x, y: cell.y + cell.height - flag.y - flag.height}}
     }
 }
 
-function createCanvas(count: number): Canvas {
-    const canvas = document.createElement("canvas")
-    canvas.width = SLOT_COLUMNS * SLOT_CELL.width
-    canvas.height = Math.ceil(count / SLOT_COLUMNS) * SLOT_CELL.height
+// The texture's rows run up from the cell's bottom: the flag is drawn upside down.
+function drawFlag(reused: HTMLCanvasElement | undefined, image: HTMLImageElement, cell: Cell, aspect: number): HTMLCanvasElement {
+    const canvas = reused ?? document.createElement("canvas")
+    if (canvas.width !== cell.width || canvas.height !== cell.height) {
+        canvas.width = cell.width
+        canvas.height = cell.height
+    }
     const context = canvas.getContext("2d")
     if (!context) throw new Error("failed to get a 2d context for the flag slots")
-    const texture = new THREE.CanvasTexture(canvas)
+    const {width, height} = cell
+    const flag = flagIn({...cell, x: 0, y: 0}, aspect)
+    const x = flag.x
+    const y = height - flag.y - flag.height
+
+    context.clearRect(0, 0, width, height)
+    context.save()
+    context.translate(0, height)
+    context.scale(1, -1)
+    context.drawImage(image, flag.x, flag.y, flag.width, flag.height)
+    context.restore()
+    context.drawImage(canvas, x, y, 1, flag.height, 0, y, x, flag.height)
+    context.drawImage(canvas, x + flag.width - 1, y, 1, flag.height, x + flag.width, y, width - x - flag.width, flag.height)
+    context.drawImage(canvas, 0, y, width, 1, 0, 0, width, y)
+    context.drawImage(canvas, 0, y + flag.height - 1, width, 1, 0, y + flag.height, width, height - y - flag.height)
+    // Rasterises it now, between two frames, not in the frame that sends it.
+    context.getImageData(0, 0, 1, 1)
+    return canvas
+}
+
+function createTarget({width, height}: {width: number, height: number}): THREE.DataTexture {
+    const texture = new THREE.DataTexture(null, width, height)
+    // Storage alone: each cell is sent on its own.
+    texture.source.dataReady = false
+    texture.minFilter = THREE.LinearMipmapLinearFilter
+    texture.magFilter = THREE.LinearFilter
+    texture.generateMipmaps = true
     texture.anisotropy = ANISOTROPY
-    return {context, texture}
+    texture.needsUpdate = true
+    return texture
+}
+
+function frameAt(code: string): number {
+    return (flagNumbers.get(code) ?? 0) * FRAME
+}
+
+function sameCell(a: Cell | undefined, b: Cell | undefined): boolean {
+    return a !== undefined && b !== undefined && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height
+}
+
+function sameBudget(a: SlotBudget, b: SlotBudget): boolean {
+    return a.roots === b.roots && a.largest === b.largest
+}
+
+function idle(): Promise<void> {
+    return new Promise((resolve) => {
+        if (typeof requestIdleCallback === "function") requestIdleCallback(() => resolve(), {timeout: 100})
+        else setTimeout(resolve, 0)
+    })
 }
 
 function imageOf(code: string): Promise<HTMLImageElement | undefined> {
@@ -101,6 +200,7 @@ function imageOf(code: string): Promise<HTMLImageElement | undefined> {
     if (loading === undefined) {
         loading = loadSvg(`/static/countries/svg/${code}.svg`).catch((e: unknown) => {
             console.warn(`the flag of ${code} stays on the atlas`, e)
+            failed.add(code)
             return undefined
         })
         images.set(code, loading)
@@ -108,23 +208,26 @@ function imageOf(code: string): Promise<HTMLImageElement | undefined> {
     return loading
 }
 
-// Firefox draws nothing from an SVG without a width and height of its own, and many of the flags have only a viewBox.
 async function loadSvg(url: string): Promise<HTMLImageElement> {
     const response = await fetch(url)
     if (!response.ok) throw new Error(`${url} answered ${response.status}`)
-    const svg = new DOMParser().parseFromString(await response.text(), "image/svg+xml").documentElement
-    if (!svg.hasAttribute("width") || !svg.hasAttribute("height")) {
-        const [, , width, height] = (svg.getAttribute("viewBox") ?? "").split(/[\s,]+/)
-        if (!width || !height) throw new Error(`${url} has no size`)
-        svg.setAttribute("width", width)
-        svg.setAttribute("height", height)
-    }
-    const blob = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], {type: "image/svg+xml"}))
+    const blob = URL.createObjectURL(new Blob([sizedSvg(await response.text(), url)], {type: "image/svg+xml"}))
     try {
         return await decoded(blob)
     } finally {
         URL.revokeObjectURL(blob)
     }
+}
+
+// Firefox draws nothing from an SVG without a width and height of its own, and many of the flags have only a viewBox.
+export function sizedSvg(svg: string, url: string): string {
+    const root = /<svg\b[^>]*>/.exec(svg)?.[0]
+    if (root === undefined) throw new Error(`${url} has no svg element`)
+    if (/\swidth\s*=/.test(root) && /\sheight\s*=/.test(root)) return svg
+    const [, , width, height] = (/\sviewBox\s*=\s*["']([^"']*)["']/.exec(root)?.[1] ?? "").trim().split(/[\s,]+/)
+    if (!width || !height) throw new Error(`${url} has no size`)
+    const bare = root.replace(/\s(width|height)\s*=\s*("[^"]*"|'[^']*')/g, "")
+    return svg.replace(root, () => `<svg width="${width}" height="${height}"${bare.slice(4)}`)
 }
 
 function decoded(src: string): Promise<HTMLImageElement> {

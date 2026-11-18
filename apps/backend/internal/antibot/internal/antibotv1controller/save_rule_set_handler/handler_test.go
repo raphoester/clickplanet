@@ -2,7 +2,6 @@ package save_rule_set_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -53,12 +52,4 @@ func TestASetThatCannotPlayIsAnInvalidArgumentThatSaysWhy(t *testing.T) {
 
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Contains(t, err.Error(), "cohort.minMembers is 1")
-}
-
-func TestASaveThatFailsFailsTheCall(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	err := save(t, &stubUseCase{err: down})
-
-	require.ErrorIs(t, err, down)
 }

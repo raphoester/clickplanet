@@ -15,13 +15,19 @@ func TestSweepForgetsIdlePayers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
 
 	w := New(Config{TrackWindow: 5 * time.Minute}, bounds(asIs), clock, func(float64) {})
+	empty, err := New(Config{TrackWindow: 5 * time.Minute}, bounds(asIs), clock, func(float64) {}).Save()
+	require.NoError(t, err)
 	alternate(w, clock, 5)
-	require.Len(t, w.payers, 1)
+	watched, err := w.Save()
+	require.NoError(t, err)
+	require.NotEqual(t, empty, watched)
 
 	clock.Advance(time.Hour)
 	w.sweep()
 
-	assert.Empty(t, w.payers)
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 func TestSweepKeepsAPayerThatCanStillMakeAStep(t *testing.T) {
@@ -31,9 +37,13 @@ func TestSweepKeepsAPayerThatCanStillMakeAStep(t *testing.T) {
 	w.Attempted(detect.Click{Scope: "2001:db8::/64", Account: "player", Position: north, At: clock.Now()})
 
 	clock.Advance(10 * time.Second)
+	kept, err := w.Save()
+	require.NoError(t, err)
 	w.sweep()
 
-	assert.Len(t, w.payers, 1, "its next try, inside maxGap, is a step from this one")
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, kept, swept, "its next try, inside maxGap, is a step from this one")
 }
 
 func TestWithNoShareSetItOnlyMeasures(t *testing.T) {

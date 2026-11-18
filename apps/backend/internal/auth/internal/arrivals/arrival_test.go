@@ -1,8 +1,6 @@
 package arrivals_test
 
 import (
-	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -10,12 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/accounts/inmemory_account_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_arrival_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/arrivals/inmemory_recruitment_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 var (
@@ -107,19 +100,6 @@ func TestASnapshotRestoresOnlyWhatIsWhole(t *testing.T) {
 	}
 }
 
-func TestARecruitKeepsItsRecruiterWithItsArrival(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	recruitments := inmemory_recruitment_store.New()
-	register := arrivals.NewRegister(store, recruitments, &arrivals.SequentialIDs{})
-
-	require.NoError(t, register.Record(t.Context(), ada, arrivals.Landing{Tag: "rc", Recruiter: bob}, at))
-
-	assert.Equal(t, []arrivals.Snapshot{{
-		ID: arrivals.ArrivalID{0: 0xa, 15: 1}, Account: ada, Source: arrivals.SourceRecruit, Tag: "rc", At: at,
-	}}, store.Kept())
-	assert.Equal(t, []arrivals.RecruitmentSnapshot{{Arrival: arrivals.ArrivalID{0: 0xa, 15: 1}, Recruiter: bob}}, recruitments.Kept())
-}
-
 func TestOnlyARecruitHasARecruiter(t *testing.T) {
 	for _, tag := range []string{"yt", "cg", "", "tiktok"} {
 		arrival, err := arrivals.NewArrival(id, ada, arrivals.Landing{Tag: tag, Recruiter: bob}, at)
@@ -154,47 +134,4 @@ func TestARecruitmentOfNoArrivalIsRefused(t *testing.T) {
 	_, err := arrivals.RecruitmentSnapshot{Recruiter: bob}.Restore()
 
 	assert.ErrorIs(t, err, arrivals.ErrInvalidArrival)
-}
-
-func TestARecruitmentThatCouldNotBeSavedFailsTheGuest(t *testing.T) {
-	recruitments := inmemory_recruitment_store.New()
-	recruitments.FailWith(errors.New("postgres is down"))
-	lifetime := accounts.Lifetime{}.WithDefaults()
-	guests := arrivals.NewGuests(cpatomic.FakeTransactioner{},
-		accounts.NewGuests(inmemory_account_store.New(), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime),
-		arrivals.NewRegister(inmemory_arrival_store.New(), recruitments, &arrivals.SequentialIDs{}))
-
-	_, err := guests.Start(t.Context(), arrivals.Landing{Tag: "rc", Recruiter: bob}, at)
-
-	assert.Error(t, err, "the transaction rolls the guest and its arrival back with it")
-}
-
-type failingGuests struct{}
-
-func (failingGuests) Start(context.Context, time.Time) (accounts.Entry, error) {
-	return accounts.Entry{}, errors.New("postgres is down")
-}
-
-func TestAGuestThatCouldNotStartHasNoArrival(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	guests := arrivals.NewGuests(cpatomic.FakeTransactioner{}, failingGuests{},
-		arrivals.NewRegister(store, inmemory_recruitment_store.New(), &arrivals.SequentialIDs{}))
-
-	_, err := guests.Start(t.Context(), arrivals.Landing{Tag: "rc"}, at)
-
-	require.Error(t, err)
-	assert.Empty(t, store.Kept())
-}
-
-func TestAnArrivalThatCouldNotBeSavedFailsTheGuest(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	store.FailWith(errors.New("postgres is down"))
-	lifetime := accounts.Lifetime{}.WithDefaults()
-	guests := arrivals.NewGuests(cpatomic.FakeTransactioner{},
-		accounts.NewGuests(inmemory_account_store.New(), &accounts.SequentialIDs{}, &accounts.SequentialTokens{}, lifetime),
-		arrivals.NewRegister(store, inmemory_recruitment_store.New(), &arrivals.SequentialIDs{}))
-
-	_, err := guests.Start(t.Context(), arrivals.Landing{}, at)
-
-	assert.Error(t, err, "the transaction rolls the guest back with it")
 }

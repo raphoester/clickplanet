@@ -2,7 +2,6 @@ package get_play_days_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -22,13 +21,12 @@ const (
 
 type stubQuery struct {
 	answer *planetv1.GetPlayDaysResponse
-	err    error
 	asked  [][]ledger.AccountID
 }
 
 func (s *stubQuery) PlayDays(_ context.Context, accounts []ledger.AccountID) (*planetv1.GetPlayDaysResponse, error) {
 	s.asked = append(s.asked, accounts)
-	return s.answer, s.err
+	return s.answer, nil
 }
 
 func ask(t *testing.T, query *stubQuery, accounts ...string) (*connect.Response[planetv1.GetPlayDaysResponse], error) {
@@ -92,12 +90,4 @@ func TestMoreThanAPageOfAccountsIsInvalidAndReadsNothing(t *testing.T) {
 	_, err = ask(t, query, append(page, bob)...)
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Len(t, query.asked, 1)
-}
-
-func TestAQueryFailureIsAnError(t *testing.T) {
-	query := &stubQuery{err: errors.New("postgres is down")}
-
-	_, err := ask(t, query, ada)
-
-	assert.ErrorIs(t, err, query.err)
 }

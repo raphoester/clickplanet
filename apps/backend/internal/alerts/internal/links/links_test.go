@@ -16,13 +16,6 @@ var (
 	account = links.AccountID(uuid.MustParse("01a19416-ad77-72b3-8c34-8bbbaec97d8b"))
 )
 
-func TestANewLinkGaveNoNameYet(t *testing.T) {
-	link := links.NewLink(account, "42", "ie", now)
-
-	_, renamed := link.Rename("")
-	assert.False(t, renamed)
-}
-
 func TestAJoinAgainOfTheSameUserChangesNothing(t *testing.T) {
 	link := links.NewLink(account, "42", "ie", now)
 

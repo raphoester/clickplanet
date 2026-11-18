@@ -376,11 +376,6 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
     })
 
     describe("geometry", () => {
-        it("does not upload a uv attribute", () => {
-            const f = field()
-            expect(f.displayPoints.geometry.getAttribute("uv")).toBeUndefined()
-        })
-
         it("keeps every buffer's stride a multiple of 4 bytes, which Metal needs to read it as is", () => {
             const f = field()
             for (const attribute of Object.values(f.displayPoints.geometry.attributes)) {

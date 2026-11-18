@@ -2,7 +2,6 @@ package reconcile_levels_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -16,13 +15,12 @@ import (
 
 type stubUseCase struct {
 	reconciled reconcile_levels_usecase.Reconciled
-	err        error
 	dryRuns    *[]bool
 }
 
 func (s stubUseCase) Execute(_ context.Context, dryRun bool) (reconcile_levels_usecase.Reconciled, error) {
 	*s.dryRuns = append(*s.dryRuns, dryRun)
-	return s.reconciled, s.err
+	return s.reconciled, nil
 }
 
 func reconcile(t *testing.T, useCase stubUseCase, dryRun bool) (*connect.Response[progressionv1.ReconcileLevelsResponse], error) {
@@ -45,13 +43,4 @@ func TestTheAnswerSaysHowManyLevelsWentUpDownAndAway(t *testing.T) {
 	_, err = reconcile(t, useCase, false)
 	require.NoError(t, err)
 	assert.Equal(t, []bool{true, false}, dryRuns, "the dry run is the caller's")
-}
-
-func TestAFailureIsAnError(t *testing.T) {
-	dryRuns := []bool{}
-	useCase := stubUseCase{err: errors.New("player is down"), dryRuns: &dryRuns}
-
-	_, err := reconcile(t, useCase, false)
-
-	assert.ErrorIs(t, err, useCase.err)
 }

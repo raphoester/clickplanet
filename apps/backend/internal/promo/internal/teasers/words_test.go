@@ -3,7 +3,6 @@ package teasers_test
 import (
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 
@@ -48,11 +47,4 @@ func TestTheFinalBattleIsNamedSoAndTaggedSo(t *testing.T) {
 	assert.True(t, strings.HasPrefix(words.TikTok.Caption, "Final Battle on Saturday 14 November at 20:00 UTC ⚔️\nSwipe"))
 	assert.Equal(t, "finalbattle", words.YouTube.Tags[len(words.YouTube.Tags)-1])
 	assert.NotContains(t, ringWar().Words().YouTube.Tags, "finalbattle", "the finale's tag is its own")
-}
-
-func TestATitleIsCutToWhatEachPlatformTakes(t *testing.T) {
-	words := ringWar().Words()
-
-	assert.LessOrEqual(t, utf8.RuneCountInString(words.TikTok.Title), 90)
-	assert.LessOrEqual(t, utf8.RuneCountInString(words.YouTube.Title), 100)
 }

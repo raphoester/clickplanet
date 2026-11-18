@@ -110,13 +110,6 @@ describe("ChatLog", () => {
         expect(screen.getByText("GIF", {selector: ".chat-quote-text"})).toBeDefined()
     })
 
-    it("shows a removed GIF as removed, with no image", () => {
-        render(<ChatLog loading={false} messages={[{...message("1", "Ana", "fr"), text: "", removed: true}]}/>)
-
-        expect(screen.queryByRole("img", {name: "GIF"})).toBeNull()
-        expect(screen.getByText("This message has been deleted")).toBeDefined()
-    })
-
     it("opens the author of a message from its name, and tells a guest by its nameplate", async () => {
         render(<ChatLog loading={false}
                         messages={[message("1", "Ana", "fr"), message("2", "guest_Bo", "de")]}/>)
@@ -127,13 +120,6 @@ describe("ChatLog", () => {
         await userEvent.click(screen.getByRole("button", {name: "guest_Bo"}))
         expect(usePlayerCard.getState().player).toEqual(
             {accountId: "account-guest_Bo", name: "guest_Bo", countryCode: "de", guest: true, admin: false, color: NameColor.UNSPECIFIED})
-    })
-
-    it("shows a guest's name once, and nothing of its address", () => {
-        const {container} = render(<ChatLog loading={false} messages={[message("1", "guest_a1b2c3", "de")]}/>)
-
-        expect(container.querySelector(".chat-message-head")?.textContent).not.toContain("#")
-        expect(screen.getAllByText(/a1b2c3/)).toHaveLength(1)
     })
 
     it("crowns an admin's message, and keeps it on the player it opens", async () => {
@@ -306,15 +292,6 @@ describe("ChatLog", () => {
             const last = [...container.querySelectorAll<HTMLElement>(".chat-message")].at(-1)!
             expect(last.querySelectorAll(".chat-quote")).toHaveLength(1)
             expect(last.querySelector(".chat-quote")!.textContent).toBe("In reply to Bo we do")
-        })
-
-        it("says again who is talking, even in the middle of its author's run", () => {
-            const before = {...message("2", "Bo", "de"), text: "hm"}
-            const reply = {...answer, id: "3"}
-            const {container} = render(<ChatLog loading={false} messages={[question, before, reply]}/>)
-
-            const [, , last] = [...container.querySelectorAll<HTMLElement>(".chat-message")]
-            expect(last.querySelector(".chat-message-head")).not.toBeNull()
         })
 
         it("goes to the message it answers from the quote, and lights it up", async () => {

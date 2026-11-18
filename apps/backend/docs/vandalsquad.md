@@ -76,9 +76,9 @@ on the map, is flagged anew under the account that holds it.
 ## What reads as a swastika
 
 **Every rule was read off real swastikas painted on the map**, never off a drawn template: a rule tuned on synthetic
-right-angled swastikas caught none of the real ones. Players draw them small (16 to 34 tiles), in strokes one tile
-wide, along the grid's lines or zigzagging across them, with arms and hooks of uneven length, each hook turned 60, 90 or
-120 degrees on screen. So the reading follows the tiles and measures no right angle and no symmetry:
+right-angled swastikas caught none of the real ones. Players draw them small (16 to 34 tiles; one of 90 on 2026-11-17),
+in strokes one tile wide, along the grid's lines or zigzagging across them, one tile or a pair of tiles at a time, with
+arms and hooks of uneven length, each hook turned 60, 90 or 120 degrees on screen. So the reading follows the tiles and measures no right angle and no symmetry:
 
 - **12 to 150 tiles, in one piece**: 150 of `earth-1`'s, as much ground on another board (`ReadingOf`'s scale, from the
   ledger's board; 12 stays, which strokes a tile wide need). See [Sized from the board](board-scale.md).
@@ -97,8 +97,10 @@ wide, along the grid's lines or zigzagging across them, with arms and hooks of u
   and six times on a path with stubs and on a wheel with spokes that the other rules let through).
 - **The cross shows**: at most two of the arms are a single tile (one at most on the real ones; three on a hook-shaped
   blob the operator judged none).
-- **The branches are the drawing**: at least 80% of its tiles lie on the four paths (88 to 97% on the real ones, 51 to
-  65% on the scribbles the other rules let through), and every tile is on them or next to them (85%).
+- **The strokes are the drawing**: at least 80% of its tiles lie on the four strokes (85 to 100% on the real ones, 70% on
+  the scribble of the samples the other rules let through), and every tile is on them or next to them (85%). A stroke
+  is its branch's path and each tile beside the path on another walk as short from the centre to the end
+  (`strokeOf`): a stroke that zigzags in pairs of tiles has one tile of each pair off any one path.
 
 The reading looks at the drawing as the globe shows it, around its middle, with the north up (`Drawing.Flats`). It
 uses angles and steps only, never a length on screen, so a tile's spacing, which varies by a quarter over the globe,
@@ -111,6 +113,15 @@ The four drawings the operator was asked about it reads as none, as the operator
 those swastikas (and two of them drawn again along the grid's other lines, elsewhere on the globe) and 79 drawings that
 are none, each tile as `GetTiles` answers it with only its neighbours in the drawing. **A drawing judged later goes
 there, with its reason**, and the tests say which rule it breaks.
+
+**Missed, on 2026-11-17** (`nov17-us` in the samples): a swastika of 90 tiles in the United States, its upright strokes
+zigzagging in pairs of tiles, read as none, and the operator reverted and banned its painter by hand. It broke one rule:
+73% of its tiles lay on the four paths, as the share counted them then, the path alone. Its strokes hold 89%. Counted by
+strokes, none of the 78 other samples, the 681 drawings of one flag of 12 to 150 tiles in the 49 frames of
+`GetRecentMapHistory` up to 2026-11-18 10:30 UTC, or the 6,436 drawings the patrol read, replayed minute by minute from
+the ledger from 2026-11-16 15:00 to 2026-11-17 16:00 UTC, reads as one. Lowering the share to 70% on the paths alone
+read it too, but left 3 points over the scribble and none for a swastika whose every stroke is in pairs; counting
+every walk as short, not only those beside the path, let the scribble through at 80%.
 
 ## What it does not do yet
 

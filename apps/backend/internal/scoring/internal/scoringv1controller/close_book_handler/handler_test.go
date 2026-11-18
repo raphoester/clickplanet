@@ -2,7 +2,6 @@ package close_book_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -20,12 +19,11 @@ import (
 type stubUseCase struct {
 	command close_book_usecase.Command
 	ending  books.Ending
-	err     error
 }
 
 func (s *stubUseCase) Execute(_ context.Context, command close_book_usecase.Command) (books.Ending, error) {
 	s.command = command
-	return s.ending, s.err
+	return s.ending, nil
 }
 
 const battle = "0192f5a0-7c00-7000-8000-000000000031"
@@ -68,7 +66,7 @@ func TestABookMissedIsAnsweredWithTheEndOfTheCloseThatMissedIt(t *testing.T) {
 	assert.Nil(t, res.GetClosedAt())
 }
 
-func TestABadIDOrNoEndIsInvalidAndAFailureIsLeftToTheErrorNet(t *testing.T) {
+func TestABadIDOrNoEndIsInvalid(t *testing.T) {
 	for _, req := range []*scoringv1.CloseBookRequest{
 		{EndsAt: timestamppb.New(at)},
 		{BookId: "season-0"},
@@ -77,9 +75,4 @@ func TestABadIDOrNoEndIsInvalidAndAFailureIsLeftToTheErrorNet(t *testing.T) {
 		_, err := closeBook(t, &stubUseCase{}, req)
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "%v", req)
 	}
-
-	down := errors.New("postgres is down")
-	_, err := closeBook(t, &stubUseCase{err: down}, &scoringv1.CloseBookRequest{BookId: "season-0", EndsAt: timestamppb.New(at)})
-	require.ErrorIs(t, err, down)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

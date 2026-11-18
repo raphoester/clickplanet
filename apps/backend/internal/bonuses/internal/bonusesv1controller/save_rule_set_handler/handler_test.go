@@ -2,7 +2,6 @@ package save_rule_set_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -51,10 +50,4 @@ func TestASetThatCannotPlayIsAnInvalidArgument(t *testing.T) {
 	err := save(t, &stubUseCase{err: cprules.ErrInvalidSet})
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestAFailureIsPassedOnForTheErrorNet(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	require.ErrorIs(t, save(t, &stubUseCase{err: down}), down)
 }

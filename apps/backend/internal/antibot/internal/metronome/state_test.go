@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/evidence"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -38,8 +37,6 @@ var (
 	restartConfig = Config{TrackWindow: time.Hour}
 	restartRules  = bounds(func(r *Rules) { r.MinClicks, r.CertainFor, r.CertainClicks = 60, 10*time.Minute, 60 })
 )
-
-var looper = detect.Click{Scope: "loop"}.Payer()
 
 func loop(w *Watchdog, clock *cptime.FixedClock, d time.Duration) {
 	for end := clock.Now().Add(d); clock.Now().Before(end); {
@@ -114,57 +111,13 @@ func TestRunsBehindOneScopeAreSavedApart(t *testing.T) {
 	}
 }
 
-type savedByScope struct {
-	Callers  []savedCallerByScope
-	Slice    int64
-	Spenders []savedSpender
-}
-
-type savedCallerByScope struct {
-	Scope     string
-	LastSeen  int64
-	RunStart  int64
-	RunClicks int
-	Gaps      []int64
-	Shape     []int64
-	Tries     []int64
-}
-
-func TestASectionSavedByScopeKeepsItsStaminaAndNoRun(t *testing.T) {
-	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
-	w := newWatchdog(Config{}, bounds(func(r *Rules) { r.Stamina.MinBusy, r.Stamina.Clicks = 10*time.Minute, 1 }), clock)
-	spender := detect.Click{Scope: "home", Account: "hand", At: clock.Now()}
-
-	data, err := evidence.Encode(savedByScope{
-		Callers: []savedCallerByScope{{
-			Scope:     "home",
-			LastSeen:  evidence.Nanos(clock.Now()),
-			RunStart:  evidence.Nanos(clock.Now().Add(-time.Hour)),
-			RunClicks: 3600,
-			Gaps:      []int64{int64(time.Second), int64(time.Second)},
-		}},
-		Slice: int64(w.config.Stamina.Slice),
-		Spenders: []savedSpender{{
-			Payer:    spender.Payer(),
-			LastSeen: evidence.Nanos(clock.Now()),
-			Slices:   []savedSlice{{Index: w.sliceOf(clock.Now()), Clicks: 40}},
-		}},
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, w.Load(data), "a section from before the payer must not cost the boot")
-
-	assert.Empty(t, w.payers, "a run timed on a whole scope is nobody's run")
-
-	verdict, read := w.Watch(spender)
-	assert.Equal(t, detect.Suspect, verdict, "the busy time was the payer's already")
-	assert.Equal(t, "stamina", read.Rule)
-}
-
 func TestTheShapeSurvivesASaveAndLoad(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 16, 12, 0, 0, 0, time.UTC))
 	config := Config{TrackWindow: time.Hour}
-	shorter := bounds(func(r *Rules) { r.Shape.Clicks, r.Shape.CertainClicks = 20, 40 })
+	maxSkew, certainSkew := 0.25, 0.15
+	shorter := bounds(func(r *Rules) {
+		r.Shape.Clicks, r.Shape.CertainClicks, r.Shape.MaxSkew, r.Shape.CertainSkew = 20, 40, &maxSkew, &certainSkew
+	})
 
 	w := newWatchdog(config, shorter, clock)
 	for i := range 60 {
@@ -177,8 +130,13 @@ func TestTheShapeSurvivesASaveAndLoad(t *testing.T) {
 	restarted := newWatchdog(config, shorter, clock)
 	require.NoError(t, restarted.Load(data))
 
-	require.NotEmpty(t, w.payers[looper].shape)
-	assert.Equal(t, w.payers[looper].shape, restarted.payers[looper].shape)
+	next := detect.Click{Scope: "loop", At: clock.Now()}
+	wantVerdict, wantEvidence := w.Watch(next)
+	gotVerdict, gotEvidence := restarted.Watch(next)
+
+	require.Equal(t, detect.Certain, wantVerdict)
+	assert.Equal(t, wantVerdict, gotVerdict)
+	assert.Equal(t, wantEvidence, gotEvidence)
 }
 
 func TestStaminaSurvivesASaveAndLoad(t *testing.T) {
@@ -216,7 +174,11 @@ func TestStaminaCountedInAnotherSliceIsDropped(t *testing.T) {
 	restarted := newWatchdog(Config{Stamina: StaminaConfig{Slice: 5 * time.Minute}}, bounds(asIs), clock)
 	require.NoError(t, restarted.Load(data))
 
-	assert.Empty(t, restarted.spenders)
+	loaded, err := restarted.Save()
+	require.NoError(t, err)
+	empty, err := newWatchdog(Config{Stamina: StaminaConfig{Slice: 5 * time.Minute}}, bounds(asIs), clock).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, loaded)
 }
 
 func TestARestartIsNeitherABreakNorABurst(t *testing.T) {
@@ -229,17 +191,12 @@ func TestARestartIsNeitherABreakNorABurst(t *testing.T) {
 	}
 	loop(w, clock, 2*time.Second)
 
-	p := w.payers[looper]
-	require.NotNil(t, p)
-
-	assert.Equal(t, 3*4*60+2, p.runClicks, "three restarts, one run")
-	assert.Equal(t, 12*time.Minute+time.Second, p.ran, "the outages are not time the loop was watched")
-	for _, gap := range p.gaps {
-		assert.Equal(t, time.Second, gap, "a stitched gap is never a sample")
-	}
-
-	verdict, _ := w.Watch(detect.Click{Scope: "loop", At: clock.Now()})
+	verdict, read := w.Watch(detect.Click{Scope: "loop", At: clock.Now()})
 	assert.Equal(t, detect.Certain, verdict)
+	assert.Contains(t, read.Fields, detect.Field{Key: "clicks", Value: 3*4*60 + 2}, "three restarts, one run")
+	assert.Contains(t, read.Fields, detect.Field{Key: "sustained", Value: 12*time.Minute + time.Second},
+		"the outages are not time the loop was watched")
+	assert.Contains(t, read.Fields, detect.Field{Key: "spread", Value: time.Duration(0)}, "a stitched gap is never a sample")
 }
 
 func TestAPauseAroundARestartStillEndsTheRun(t *testing.T) {
@@ -252,8 +209,10 @@ func TestAPauseAroundARestartStillEndsTheRun(t *testing.T) {
 	w = restart(t, w, clock, 40*time.Second)
 	clock.Advance(2 * time.Second)
 	w.Attempted(detect.Click{Scope: "loop", At: clock.Now()})
+	loop(w, clock, time.Minute)
 
-	assert.Equal(t, 1, w.payers[looper].runClicks)
+	_, read := w.Watch(detect.Click{Scope: "loop", At: clock.Now()})
+	assert.Contains(t, read.Fields, detect.Field{Key: "clicks", Value: 61}, "the run started again after the restart")
 }
 
 func TestWithoutAnOutageTheRestartGapBreaksTheRun(t *testing.T) {
@@ -269,8 +228,10 @@ func TestWithoutAnOutageTheRestartGapBreaksTheRun(t *testing.T) {
 	restarted := newWatchdog(restartConfig, restartRules, clock)
 	require.NoError(t, restarted.Load(data))
 	loop(restarted, clock, time.Second)
+	loop(restarted, clock, time.Minute)
 
-	assert.Equal(t, 1, restarted.payers[looper].runClicks)
+	_, read := restarted.Watch(detect.Click{Scope: "loop", At: clock.Now()})
+	assert.Contains(t, read.Fields, detect.Field{Key: "clicks", Value: 61}, "the run started again after the restart")
 }
 
 func TestASliceKeepsTheTempoItSawAcrossARestart(t *testing.T) {

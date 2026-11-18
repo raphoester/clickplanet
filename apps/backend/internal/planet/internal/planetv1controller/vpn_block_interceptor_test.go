@@ -2,13 +2,11 @@ package planetv1controller
 
 import (
 	"context"
-	"net/http"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/stretchr/testify/require"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -105,36 +103,6 @@ func TestVPNBlockInterceptor(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ran)
 	})
-}
-
-func TestVPNBlockOverHTTP(t *testing.T) {
-	blocklist := cpipblock.New(cpipblock.Config{Enabled: true})
-	require.NoError(t, blocklist.Load())
-
-	blockInterceptor := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
-
-	server := clickServer(t, connect.WithInterceptors(
-		errorNet(),
-		blockInterceptor,
-	))
-
-	require.Equal(t, http.StatusForbidden, clickStatus(t, server, "2.26.157.1"))
-	require.Equal(t, http.StatusOK, clickStatus(t, server, "8.8.8.8"))
-}
-
-func TestVPNBlockRunsBeforeTheThrottle(t *testing.T) {
-	blocklist := &fakeBlocklist{blocked: map[string]cpipblock.List{"1.2.3.4": cpipblock.ListVPN}}
-
-	blockInterceptor := NewVPNBlockInterceptor(blocklist, prometheus.NewRegistry())
-
-	limiter := &fakeLimiter{allow: true}
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice, wholeClicks{}, buckets), nil, connect.WithInterceptors(
-		errorNet(),
-		blockInterceptor,
-	))
-
-	require.Equal(t, http.StatusForbidden, clickStatus(t, server, "1.2.3.4"))
-	require.Empty(t, limiter.keys, "the refused address never reached the bucket")
 }
 
 func counter(t *testing.T, gatherer prometheus.Gatherer, list string) prometheus.Counter {

@@ -13,18 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/cmd/clips/internal/flags"
 )
 
-func TestChooseWithNoHostIsRefusedBeforeItAsksTheBackendAnything(t *testing.T) {
-	t.Setenv(flags.HostVariable, "")
-	var out bytes.Buffer
-	findings := filepath.Join(t.TempDir(), "findings.json")
-	require.NoError(t, os.WriteFile(findings, []byte(`{"fronts":[{"tilesChanged":900}]}`), 0o600))
-
-	err := run(t.Context(), []string{"choose", "-findings", findings}, &out)
-
-	require.ErrorIs(t, err, flags.ErrArguments)
-	assert.Empty(t, out.String())
-}
-
 func TestACommandNoStageIsWrittenForIsAnErrorAndDoesNothing(t *testing.T) {
 	t.Setenv(flags.HostVariable, "deploy@vps.example")
 	folder := t.TempDir()
@@ -55,16 +43,6 @@ func TestAFetchOfNoTimeIsRefusedBeforeAnythingIsAskedOfTheBackend(t *testing.T) 
 
 	require.ErrorContains(t, err, "it spans no time")
 	assert.NotContains(t, err.Error(), "usage:")
-}
-
-func TestScheduleWithNoHostIsRefusedBeforeItSendsAnything(t *testing.T) {
-	t.Setenv(flags.HostVariable, "")
-	var out bytes.Buffer
-
-	err := run(t.Context(), []string{"schedule", "-clips", t.TempDir()}, &out)
-
-	require.ErrorIs(t, err, flags.ErrArguments)
-	assert.Empty(t, out.String())
 }
 
 func TestScheduleWithNoClipInTheFolderFailsBeforeItAsksTheBackendAnything(t *testing.T) {

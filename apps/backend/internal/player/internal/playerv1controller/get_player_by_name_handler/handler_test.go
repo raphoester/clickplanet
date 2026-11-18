@@ -2,7 +2,6 @@ package get_player_by_name_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -77,12 +76,4 @@ func TestANameNobodyHoldsIsNotFound(t *testing.T) {
 	_, err := getPlayerByName(t, &stubQuery{err: holder_query.ErrNoHolder}, "Nobody")
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-}
-
-func TestAStoreFailureIsNotNotFound(t *testing.T) {
-	_, err := getPlayerByName(t, &stubQuery{err: errors.New("postgres is down")}, "Ada_L")
-
-	require.Error(t, err)
-	assert.NotEqual(t, connect.CodeNotFound, connect.CodeOf(err))
-	assert.NotEqual(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

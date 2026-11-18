@@ -156,7 +156,6 @@ the box's reward from `charges_granted`. **The page first, then the server**, as
 
 The registry's (the schedule, the welcome, the pace, the frozen set, a click heard late, a click with no account, the
 entrants), the use cases', the handlers', the stream's and its sink's, the facts log's, the rules package's (and
-`cprules`' contract suites on its migrations, and the copy of production's sets from the bonuses module), and promo's
-migration test. **One e2e smoke test walks a box's whole way** (`e2e/box_test.go`): a guest's stream is offered a box, the
+`cprules`' contract suites on its migrations). **One e2e smoke test walks a box's whole way** (`e2e/box_test.go`): a guest's stream is offered a box, the
 guest catches it, and planet tells the grant on the guest's own stream, so the boxes' outbox, the bonuses' subscription,
 the room, the draw and planet's grant are wired. It plays the boxes' `default` at one box a second, and puts it back.

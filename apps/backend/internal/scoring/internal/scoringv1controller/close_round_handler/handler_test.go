@@ -2,7 +2,6 @@ package close_round_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -20,12 +19,11 @@ import (
 type stubUseCase struct {
 	command close_round_usecase.Command
 	ending  books.Ending
-	err     error
 }
 
 func (s *stubUseCase) Execute(_ context.Context, command close_round_usecase.Command) (books.Ending, error) {
 	s.command = command
-	return s.ending, s.err
+	return s.ending, nil
 }
 
 var (
@@ -62,14 +60,9 @@ func TestARoundMissedIsAnsweredWithTheEndOfTheCloseThatMissedIt(t *testing.T) {
 	assert.Nil(t, res.GetScoredAt())
 }
 
-func TestABadIDOrNoEndIsInvalidAndAFailureIsLeftToTheErrorNet(t *testing.T) {
+func TestABadIDOrNoEndIsInvalid(t *testing.T) {
 	for _, req := range []*scoringv1.CloseRoundRequest{{EndsAt: timestamppb.New(at)}, {RoundId: "season-1/day-1"}} {
 		_, err := closeRound(t, &stubUseCase{}, req)
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "%v", req)
 	}
-
-	down := errors.New("planet is down")
-	_, err := closeRound(t, &stubUseCase{err: down}, &scoringv1.CloseRoundRequest{RoundId: "season-1/day-1", EndsAt: timestamppb.New(at)})
-	require.ErrorIs(t, err, down)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

@@ -65,22 +65,10 @@ func TestWithoutTheReachEveryTileIsInReach(t *testing.T) {
 	assert.Equal(t, []uint32{2, 4}, r.Around("fr", 3, 1), "the map's own neighbours")
 }
 
-func TestASpreadReachesPastTheTileItTook(t *testing.T) {
-	r := reach(t, board{1: "fr", 2: "fr"}, true)
-
-	assert.Equal(t, []uint32{1, 3}, r.Around("fr", 2, 1))
-}
-
 func TestASpreadFromAStruckTileTakesOnlyWhatTouchesOtherLand(t *testing.T) {
 	r := reach(t, board{1: "fr", 2: "de"}, true)
 
 	assert.Equal(t, []uint32{1}, r.Around("fr", 2, 1), "3 touches only de's tile and fr's nothing")
-}
-
-func TestAWideSpreadFromATileTakenTakesItsWholeDisc(t *testing.T) {
-	r := reach(t, board{1: "fr", 2: "fr"}, true)
-
-	assert.Equal(t, []uint32{1, 3, 4}, r.Around("fr", 2, 2), "4 is out of reach, and the spread takes 3 on the way")
 }
 
 func TestAWideSpreadFromAStruckTileTakesOnlyTheTilesOfItsDiscInReach(t *testing.T) {

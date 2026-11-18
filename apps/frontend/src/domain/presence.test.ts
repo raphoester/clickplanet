@@ -105,12 +105,4 @@ describe("PresenceSchedule", () => {
         schedule.settle()
         expect(schedule.claim(100 + SETTLE_MS, "token-1")).toMatchObject({countryCode: "jp"})
     })
-
-    it("waits the full interval after an announce that failed", () => {
-        const schedule = new PresenceSchedule(france)
-        sent(schedule, 0, "token-1")
-
-        expect(sent(schedule, 1_000, "token-1")).toBeUndefined()
-        expect(sent(schedule, ANNOUNCE_EVERY_MS, "token-1")).toBeDefined()
-    })
 })

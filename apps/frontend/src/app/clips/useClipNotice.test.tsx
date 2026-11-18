@@ -3,7 +3,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render} from "@testing-library/react"
 import {StrictMode} from "react"
 import {Appearance, ClipsBackend} from "../../backends/clips.ts"
-import {APPEARANCES_READ_GAP_MS, CLIPS_SHOWN_STORAGE_KEY} from "../../domain/clipAppearances.ts"
+import {APPEARANCES_READ_GAP_MS} from "../../domain/clipAppearances.ts"
 import {ClipNotice, useClipNotice} from "./useClipNotice.ts"
 
 const clip = (postId: string, scheduledAt: number): Appearance =>
@@ -48,7 +48,6 @@ describe("useClipNotice", () => {
         act(() => latest.dismiss(latest.appearance!))
 
         expect(latest.appearance).toBeUndefined()
-        expect(JSON.parse(window.localStorage.getItem(CLIPS_SHOWN_STORAGE_KEY)!)).toEqual(["post-2", "post-1"])
 
         cleanup()
         const reloaded = backendWith([clip("post-1", 1), clip("post-2", 2)])

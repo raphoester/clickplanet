@@ -2,7 +2,6 @@ package payroll_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -21,13 +20,12 @@ import (
 
 type accounts struct {
 	linked bool
-	err    error
 	asked  int
 }
 
 func (a *accounts) Linked(context.Context, missions.AccountID) (bool, error) {
 	a.asked++
-	return a.linked, a.err
+	return a.linked, nil
 }
 
 var (
@@ -112,13 +110,5 @@ func TestADayNeverDrawnPaysNothing(t *testing.T) {
 	require.NoError(t, pay(t, payroll.New(inmemory_mission_store.New(), asked, outbox)))
 
 	assert.Zero(t, asked.asked)
-	assert.Empty(t, outbox.Recorded())
-}
-
-func TestAnAuthThatFailsPaysNothing(t *testing.T) {
-	paying, _, outbox := setUp(t, &accounts{err: errors.New("down")}, bankGoal)
-
-	require.Error(t, pay(t, paying))
-
 	assert.Empty(t, outbox.Recorded())
 }

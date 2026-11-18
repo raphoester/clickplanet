@@ -2,7 +2,8 @@ import {describe, expect, it} from "vitest"
 import {BorderField, countryOfTile, leastPaintedTiles, type BorderData} from "./borderField.ts"
 import {EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
 import {FIXTURE_1} from "../../testdata/boards.ts"
-import {regions} from "./atlas.ts"
+import {flagNumbers, regions} from "./atlas.ts"
+import {LandmassSight, type ScreenView} from "./slotNeed.ts"
 
 const TEXELS = 4
 
@@ -158,15 +159,45 @@ describe("the flags that do not lead", () => {
 })
 
 describe("the flags drawn large", () => {
-    it("needs each painted flag's largest landmass, and nothing of ground nobody paints", () => {
+    const facing = (z: number): ScreenView => ({
+        toward: {x: 0, y: 0, z},
+        right: {x: z, y: 0, z: 0},
+        up: {x: 0, y: 1, z: 0},
+        origin: {x: 0, y: 0},
+        pixelsPerRadian: 1000,
+        width: 1000,
+        height: 1000,
+    })
+    const sight = new LandmassSight((landmass) => (landmass === 1 ? [1, 2] : []), 2, new Float32Array([0, 0, 1, 0, 0, 1]), 1e-4)
+
+    it("need each painted flag on screen, and nothing of ground nobody paints", () => {
         const field = new BorderField(world(8))
-        expect(field.flagNeeds().size).toBe(0)
+        expect(field.flagNeeds(facing(1), sight.areasOnScreen(facing(1))).size).toBe(0)
 
         paint(field, {fr: 5})
 
-        const needs = field.flagNeeds()
-        expect([...needs.keys()]).toEqual(["fr"])
-        expect(needs.get("fr")).toBeCloseTo(0.1)
+        expect(field.flagNeeds(facing(1), sight.areasOnScreen(facing(1)))).toEqual(new Map([["fr", {
+            need: expect.closeTo(298.5, 1),
+            area: expect.closeTo(200, 3),
+            aspect: 100 / 67,
+            spriteWidth: 100,
+        }]]))
+    })
+
+    it("need nothing of a landmass behind the earth", () => {
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5})
+
+        expect(field.flagNeeds(facing(-1), sight.areasOnScreen(facing(-1))).get("fr")).toMatchObject({need: 0, area: 0})
+    })
+
+    it("keep the leader's number in its row, for the slot the territory layer reads", () => {
+        const field = new BorderField(world(8))
+        paint(field, {fr: 5})
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(flagNumbers.get("fr"))
+
+        paint(field, {})
+        expect(rows(field)[TEXELS * 4 + 13]).toBe(0)
     })
 })
 
