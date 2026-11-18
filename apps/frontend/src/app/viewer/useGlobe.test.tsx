@@ -94,18 +94,6 @@ describe("useGlobe", () => {
         expect(latest.tilesLoading).toBeUndefined()
     })
 
-    it("follows the camera in and out of orbit", async () => {
-        createGlobe.mockReturnValue(Promise.resolve(fakeGlobe()))
-
-        renderHook()
-        await waitFor(() => expect(latest.status.state).toBe('ready'))
-        const {onOrbitChange} = createGlobe.mock.calls[0][0]
-
-        expect(latest.orbit).toBe(true)
-        await act(async () => onOrbitChange(false))
-        expect(latest.orbit).toBe(false)
-    })
-
     it("shows the loaded board with the map, not a sample later", async () => {
         let resolve: (globe: Globe) => void = () => {}
         createGlobe.mockReturnValue(new Promise<Globe>(r => {resolve = r}))

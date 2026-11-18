@@ -14,8 +14,9 @@
    `useGlobe` stays `loading`. A count read that fails after its retries fails
    the whole globe, and an abandoned one disposes it. On ready,
    `publishLeaderboard` shows the full board at once rather than up to a sample
-   later. **A tile is clicked only once every batch is read**: zoomed in,
-   `PlayScreen` shows the loading card with the share read until then. Each batch
+   later. **A tile is clicked only once every batch is read**: `PlayScreen`
+   shows the loading card with the share read until the frame that draws them
+   all, and the painted flags appear all at once. Each batch
    brings its tiles' shields too (see [Shields](shields.md)). See [The counts
    are the server's](counts.md).
 3. Live updates arrive over the `ListenForEvents` stream, batched every 100 ms,

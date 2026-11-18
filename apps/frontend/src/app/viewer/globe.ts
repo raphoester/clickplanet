@@ -291,9 +291,8 @@ export type GlobeOptions = {
     mapView: MapView
     rendering: Rendering
     onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
-    // The share of the tiles read, after the globe is ready: a tile is clicked only once they all are.
+    // The share of the tiles read, and 1 once the frame that draws them all is drawn: a tile is clicked only then.
     onLoadProgress: (share: number) => void
-    onOrbitChange?: (orbit: boolean) => void
     onRateLimited: () => void
     // A click on a frozen map, refused here or by the server.
     onFrozen: () => void
@@ -383,7 +382,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         rendering,
         onLeaderboardChange: updateLeaderboard,
         onLoadProgress,
-        onOrbitChange = () => {},
         onRateLimited,
         onFrozen,
         onVPNBlocked,
@@ -444,6 +442,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     })
 
     let loaded = false
+    let drawingWhole = false
 
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics, sharpness.ratio());
     endStrayFingers(renderer.domElement, lifetime.signal)
@@ -1796,9 +1795,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (tracking) targets.touch(rangeTiles(batch.range))
         if (!loaded) {
             const share = tiles.readShare()
-            onLoadProgress(share)
+            if (share < 1) onLoadProgress(share)
             if (share === 1) {
                 loaded = true
+                drawingWhole = true
+                invalidate()
                 tilesWereRead()
                 sharpness.startMeasuring(performance.now())
                 releaseGhosts(ghosts.snapshot().filter(({tile}) => ownership.ownerOf(tile) === undefined).map(({tile}) => tile))
@@ -1952,7 +1953,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
         outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView)
-        field.uploadTiles(renderer)
+        // The painted flags show whole or not at all: no batch fills the map on screen.
+        if (loaded) field.uploadTiles(renderer)
 
         const peeked = armed ? undefined : peek.tick(seconds)
         if (peeked !== undefined) peekAt(peeked)
@@ -1963,7 +1965,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (orbit !== wasInOrbit) {
             wasInOrbit = orbit
             pendingPointer ??= mouseOnCanvas
-            onOrbitChange(orbit)
         }
         const lit = highlight(orbit)
 
@@ -1996,6 +1997,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         undoShake()
         // Out of this frame: sizing the canvas again clears it, and this frame is drawn.
         if (sharpness.drew()) setTimeout(resizeListener)
+        if (drawingWhole) {
+            drawingWhole = false
+            onLoadProgress(1)
+        }
         if (captureRequests.length === 0) return
 
         const frame = readDrawingBuffer(renderer)
@@ -2147,7 +2152,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         stopFollowingLoad.abort()
     }
 
-    onOrbitChange(wasInOrbit)
     return globe
 }
 
