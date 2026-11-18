@@ -30,7 +30,7 @@ func Seeded() cprules.Snapshot[*planetv1.Rules] {
 			}},
 			Charges: &planetv1.ChargeRules{
 				Refill:  &planetv1.RefillRules{Held: n(1)},
-				Spread:  &planetv1.SpreadRules{Clicks: n(8), Rings: n(1), Unlimited: on(false)},
+				Spread:  &planetv1.SpreadRules{Clicks: n(8), Rings: n(1), Unlimited: on(false), Off: on(false)},
 				Bomb:    &planetv1.BombRules{Rings: f(4), Off: on(false), Held: n(1)},
 				Enclose: &planetv1.EncloseRules{MaxTiles: n(25), Held: n(3), Unlimited: on(false), Off: on(false)},
 				Shield:  &planetv1.ShieldRules{Held: n(30), PerTile: n(10)},

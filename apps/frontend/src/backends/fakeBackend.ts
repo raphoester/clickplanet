@@ -156,6 +156,7 @@ const rulesOf = ({bombRadius, rallyRadius}: Lengths): BonusRules => ({
     bombsOff: false,
     spreadUnlimited: false,
     enclosuresOff: false,
+    spreadOff: false,
     virusInfections: VIRUS_INFECTIONS,
     refills: REFILLS,
     bombs: BOMBS,
@@ -342,6 +343,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private announceBonusClick(tileId: number, countryId: string) {
+        if (this.rules.spreadOff) return
         if (this.rules.spreadUnlimited) {
             void this.botSpread(tileId, countryId)
             return
@@ -380,7 +382,9 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
                 return {reward: rewardOfKind(this.lengths, kind, enclosures - held.enclosures), charges: this.charges}
             }
             case "spreadClicks": {
-                const spreadClicksLeft = Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
+                const spreadClicksLeft = this.rules.spreadOff
+                    ? held.spreadClicksLeft
+                    : Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
                 this.hold({...held, spreadClicksLeft})
                 return {reward: rewardOfKind(this.lengths, kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
             }
@@ -660,7 +664,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public unlimitSpreads(on: boolean, rings: number): void {
         this.spreadRings = rings
-        this.rules = {...this.rules, spreadUnlimited: on}
+        this.rules = {...this.rules, spreadUnlimited: on, spreadOff: this.rules.spreadOff && !on}
+        this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
+    }
+
+    public turnSpreadsOff(off: boolean): void {
+        this.rules = {...this.rules, spreadOff: off, spreadUnlimited: this.rules.spreadUnlimited && !off}
         this.bonusCallbacks.forEach(handlers => handlers.onRules(this.rules))
     }
 
@@ -1018,7 +1027,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     }
 
     private offerable() {
-        return this.tilePositions ? BONUS_KINDS : BONUS_KINDS.filter((kind) => kind !== "bomb")
+        return BONUS_KINDS.filter((kind) => (kind !== "bomb" || !!this.tilePositions) && (kind !== "spreadClicks" || !this.rules.spreadOff))
     }
 
     public offerQuiz(): QuizOffer {

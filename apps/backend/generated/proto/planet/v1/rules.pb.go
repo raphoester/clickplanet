@@ -683,7 +683,10 @@ type SpreadRules struct {
 	// How far a spread reaches: every tile within this many steps of the tile clicked. 1 to 3.
 	Rings *uint32 `protobuf:"varint,3,opt,name=rings,proto3,oneof" json:"rings,omitempty"`
 	// A click with spread on needs no charge and spends none.
-	Unlimited     *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
+	Unlimited *bool `protobuf:"varint,4,opt,name=unlimited,proto3,oneof" json:"unlimited,omitempty"`
+	// No spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps none, a box's, a
+	// quiz's or an operator's. The spread clicks held are kept. Never with unlimited.
+	Off           *bool `protobuf:"varint,5,opt,name=off,proto3,oneof" json:"off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -735,6 +738,13 @@ func (x *SpreadRules) GetRings() uint32 {
 func (x *SpreadRules) GetUnlimited() bool {
 	if x != nil && x.Unlimited != nil {
 		return *x.Unlimited
+	}
+	return false
+}
+
+func (x *SpreadRules) GetOff() bool {
+	if x != nil && x.Off != nil {
+		return *x.Off
 	}
 	return false
 }
@@ -1191,15 +1201,17 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\x06refill\x18\b \x01(\v2\x16.planet.v1.RefillRulesR\x06refill\"/\n" +
 	"\vRefillRules\x12\x17\n" +
 	"\x04held\x18\x01 \x01(\rH\x00R\x04held\x88\x01\x01B\a\n" +
-	"\x05_held\"\x9e\x01\n" +
+	"\x05_held\"\xbd\x01\n" +
 	"\vSpreadRules\x12\x1b\n" +
 	"\x06clicks\x18\x01 \x01(\rH\x00R\x06clicks\x88\x01\x01\x12\x19\n" +
 	"\x05rings\x18\x03 \x01(\rH\x01R\x05rings\x88\x01\x01\x12!\n" +
-	"\tunlimited\x18\x04 \x01(\bH\x02R\tunlimited\x88\x01\x01B\t\n" +
+	"\tunlimited\x18\x04 \x01(\bH\x02R\tunlimited\x88\x01\x01\x12\x15\n" +
+	"\x03off\x18\x05 \x01(\bH\x03R\x03off\x88\x01\x01B\t\n" +
 	"\a_clicksB\b\n" +
 	"\x06_ringsB\f\n" +
 	"\n" +
-	"_unlimitedJ\x04\b\x02\x10\x03R\vmax_per_box\"q\n" +
+	"_unlimitedB\x06\n" +
+	"\x04_offJ\x04\b\x02\x10\x03R\vmax_per_box\"q\n" +
 	"\tBombRules\x12\x19\n" +
 	"\x05rings\x18\x01 \x01(\x01H\x00R\x05rings\x88\x01\x01\x12\x15\n" +
 	"\x03off\x18\x02 \x01(\bH\x01R\x03off\x88\x01\x01\x12\x17\n" +

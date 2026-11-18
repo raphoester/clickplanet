@@ -91,6 +91,9 @@ func TestADefaultThatCannotPlayIsRefusedWithTheValueNamed(t *testing.T) {
 		"charges.enclose.off is on with enclose.unlimited": func(r *planetv1.Rules) {
 			r.Charges.Enclose.Off, r.Charges.Enclose.Unlimited = proto.Bool(true), proto.Bool(true)
 		},
+		"charges.spread.off is on with spread.unlimited": func(r *planetv1.Rules) {
+			r.Charges.Spread.Off, r.Charges.Spread.Unlimited = proto.Bool(true), proto.Bool(true)
+		},
 	}
 	for reason, breaks := range broken {
 		t.Run(reason, func(t *testing.T) {

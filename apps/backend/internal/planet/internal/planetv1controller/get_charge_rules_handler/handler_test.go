@@ -90,6 +90,19 @@ func TestThePageIsToldEnclosuresAreOff(t *testing.T) {
 	assert.True(t, off.GetEnclosuresOff())
 }
 
+func TestThePageIsToldSpreadsAreOff(t *testing.T) {
+	rules := charges.TestRules()
+	inForce := func() charges.Rules { return rules }
+	handler := get_charge_rules_handler.New(inForce, charges.NewBombing(inForce, clicks.Spacing(0.004)), ringOf(inForce), toll{}, noReach, noCapitalRule)
+
+	on := answered(t, handler)
+	rules.Spread.Off = true
+	off := answered(t, handler)
+
+	assert.False(t, on.GetSpreadOff())
+	assert.True(t, off.GetSpreadOff())
+}
+
 func TestTheClientIsToldEveryTollStepInOrder(t *testing.T) {
 	steps := toll{{Share: 0.1, Slowdown: 1.5}, {Share: 0.2, Slowdown: 2.5}, {Share: 0.3, Slowdown: 4}}
 	got := answered(t, get_charge_rules_handler.New(charges.TestRules, charges.NewBombing(charges.TestRules, clicks.Spacing(0.004)),

@@ -110,6 +110,9 @@ message SpreadRules {
   optional uint32 rings = 3;
   // A click with spread on needs no charge and spends none.
   optional bool unlimited = 4;
+  // No spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps none, a box's, a
+  // quiz's or an operator's. The spread clicks held are kept. Never with unlimited.
+  optional bool off = 5;
 }
 
 message BombRules {

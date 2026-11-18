@@ -3465,7 +3465,9 @@ type GetChargeRulesResponse struct {
 	// How many bombs a hand holds at most.
 	Bombs uint32 `protobuf:"varint,27,opt,name=bombs,proto3" json:"bombs,omitempty"`
 	// How many viruses a hand holds at most.
-	Viruses       uint32 `protobuf:"varint,28,opt,name=viruses,proto3" json:"viruses,omitempty"`
+	Viruses uint32 `protobuf:"varint,28,opt,name=viruses,proto3" json:"viruses,omitempty"`
+	// No click spreads, and no hand takes a spread click: the page hides the spread slot.
+	SpreadOff     bool `protobuf:"varint,29,opt,name=spread_off,json=spreadOff,proto3" json:"spread_off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3673,6 +3675,13 @@ func (x *GetChargeRulesResponse) GetViruses() uint32 {
 		return x.Viruses
 	}
 	return 0
+}
+
+func (x *GetChargeRulesResponse) GetSpreadOff() bool {
+	if x != nil {
+		return x.SpreadOff
+	}
+	return false
 }
 
 type TollStep struct {
@@ -5143,7 +5152,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\x11GetChargesRequest\"F\n" +
 	"\x12GetChargesResponse\x120\n" +
 	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"\x17\n" +
-	"\x15GetChargeRulesRequest\"\xb7\a\n" +
+	"\x15GetChargeRulesRequest\"\xd6\a\n" +
 	"\x16GetChargeRulesResponse\x12!\n" +
 	"\fblast_radius\x18\x01 \x01(\x01R\vblastRadius\x12.\n" +
 	"\x13enclosure_max_tiles\x18\x02 \x01(\rR\x11enclosureMaxTiles\x12#\n" +
@@ -5175,7 +5184,9 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"rally_cost\x18\x19 \x01(\x01R\trallyCost\x12\x18\n" +
 	"\arefills\x18\x1a \x01(\rR\arefills\x12\x14\n" +
 	"\x05bombs\x18\x1b \x01(\rR\x05bombs\x12\x18\n" +
-	"\aviruses\x18\x1c \x01(\rR\avirusesJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
+	"\aviruses\x18\x1c \x01(\rR\aviruses\x12\x1d\n" +
+	"\n" +
+	"spread_off\x18\x1d \x01(\bR\tspreadOffJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
 	"J\x04\b\x0f\x10\x10R\thome_soilR\x0esign_in_refillR\fspread_rings\"<\n" +
 	"\bTollStep\x12\x14\n" +
 	"\x05share\x18\x01 \x01(\x01R\x05share\x12\x1a\n" +

@@ -402,7 +402,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         toll: {steps: [{share: 0.1, slowdown: 1.5}, {share: 0.2, slowdown: 2.5}, {share: 0.3, slowdown: 4}]},
         charges: {
             refill: {held: 1},
-            spread: {clicks: 8, rings: 1, unlimited: false},
+            spread: {clicks: 8, rings: 1, unlimited: false, off: false},
             bomb: {rings: 4, off: false, held: 1},
             enclose: {maxTiles: 25, held: 3, unlimited: false, off: false},
             shield: {held: 30, perTile: 10},

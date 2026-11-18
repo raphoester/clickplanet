@@ -1673,7 +1673,7 @@ describe("the rules", () => {
             blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10,
             toll: [{share: 0.1, slowdown: 1.5}, {share: 0.3, slowdown: 4}], signInRefill: true, enclosuresUnlimited: true,
             reach: true, knockOut: true, capitalShieldsFixed: false, bombsOff: true, spreadUnlimited: true,
-            enclosuresOff: false, virusInfections: 32, refills: 1, bombs: 2, viruses: 3, gatesOn: false, openKinds: [],
+            enclosuresOff: false, spreadOff: false, virusInfections: 32, refills: 1, bombs: 2, viruses: 3, gatesOn: false, openKinds: [],
             mines: 3, mineRings: 2, rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
         }))
         backend.close()
@@ -1688,6 +1688,21 @@ describe("the rules", () => {
             onRallies: () => {},
             onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
             onRules: (rules) => off = rules.enclosuresOff,
+        })
+
+        await vi.waitFor(() => expect(off).toBe(true))
+        backend.close()
+    })
+
+    it("reads spreads off", async () => {
+        const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({spreadOff: true}))
+        const backend = new PlanetBackend(clientWith({getChargeRules}), 1_000)
+        let off = false
+        backend.listenForBonuses({
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: (rules) => off = rules.spreadOff,
         })
 
         await vi.waitFor(() => expect(off).toBe(true))
@@ -1914,6 +1929,28 @@ describe("the charges held", () => {
         })
         await vi.waitFor(() => expect(seen.at(-1)?.spreadClicksLeft).toBe(2))
         await vi.waitFor(() => expect(unlimited).toBe(true))
+
+        await backend.clickTile(2, "fr", {spread: true, enclose: false, shield: false})
+
+        expect(seen.at(-1)?.spreadClicksLeft).toBe(2)
+        backend.close()
+    })
+
+    it("counts no spread click off while spreads are off", async () => {
+        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({spreadClicksLeft: 2})})
+        const getChargeRules = vi.fn().mockResolvedValue(new GetChargeRulesResponse({spreadOff: true}))
+        const click = vi.fn().mockResolvedValue({})
+        const backend = new PlanetBackend(clientWith({getCharges, getChargeRules, click}), 1_000)
+        const seen = follow(backend)
+        let off = false
+        backend.listenForBonuses({
+            onVirusSpread: () => {}, onMines: () => {}, onMineLaid: () => {}, onMinesExploded: () => {},
+            onRallies: () => {},
+            onRallyCalled: () => {}, onEnclosed: () => {}, onSpread: () => {}, onCharges: () => {},
+            onRules: (rules) => off = rules.spreadOff,
+        })
+        await vi.waitFor(() => expect(seen.at(-1)?.spreadClicksLeft).toBe(2))
+        await vi.waitFor(() => expect(off).toBe(true))
 
         await backend.clickTile(2, "fr", {spread: true, enclose: false, shield: false})
 

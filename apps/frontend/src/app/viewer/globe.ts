@@ -1226,7 +1226,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         },
         onCharges: (held) => takeCharges(held),
         onRules: (read) => {
-            const spreadChanged = read.spreadUnlimited !== (rules?.spreadUnlimited ?? false)
+            const spreadChanged = read.spreadUnlimited !== (rules?.spreadUnlimited ?? false) ||
+                read.spreadOff !== (rules?.spreadOff ?? false)
             const encloseChanged = read.enclosuresUnlimited !== enclosuresUnlimited() ||
                 read.enclosuresOff !== (rules?.enclosuresOff ?? false)
             rules = read

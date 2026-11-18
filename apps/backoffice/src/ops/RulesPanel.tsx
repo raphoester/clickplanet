@@ -158,6 +158,9 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                             <SwitchField label="Enclose off: no hand takes one, and none is used" on={draft.enclosuresOff}
                                          defaults={defaults?.enclosuresOff} inherits={defaults !== undefined}
                                          onChange={enclosuresOff => change({enclosuresOff})}/>
+                            <SwitchField label="Spread off: no hand takes one, and no click spreads" on={draft.spreadOff}
+                                         defaults={defaults?.spreadOff} inherits={defaults !== undefined}
+                                         onChange={spreadOff => change({spreadOff})}/>
                         </>}
                         {group.title === "Arena" && (
                             <BoardField label={BOARD_LABEL} board={draft.board} defaults={defaults?.board}

@@ -577,6 +577,14 @@ export class SpreadRules extends Message<SpreadRules> {
    */
   unlimited?: boolean;
 
+  /**
+   * No spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps none, a box's, a
+   * quiz's or an operator's. The spread clicks held are kept. Never with unlimited.
+   *
+   * @generated from field: optional bool off = 5;
+   */
+  off?: boolean;
+
   constructor(data?: PartialMessage<SpreadRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -588,6 +596,7 @@ export class SpreadRules extends Message<SpreadRules> {
     { no: 1, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 3, name: "rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 4, name: "unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SpreadRules {

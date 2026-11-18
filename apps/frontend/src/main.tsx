@@ -254,6 +254,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
             fake.turnEnclosuresOff(off)
             return off ? "enclosures are off: no slot, and an enclose click closes nothing" : "enclosures are on again"
         },
+        spreadOff: (off = true) => {
+            fake.turnSpreadsOff(off)
+            return off ? "spreads are off: no slot, and a click with spread on takes its tile alone" : "spreads are on again"
+        },
         unlimitSpreads: (on = true, rings = 2) => {
             fake.unlimitSpreads(on, on ? rings : 1)
             return on ? `spreads are unlimited: spread is on, reaches ${rings} rings and spends nothing` : "spreads are spent again"

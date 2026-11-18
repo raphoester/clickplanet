@@ -620,6 +620,9 @@ message GetChargeRulesResponse {
 
   // How many viruses a hand holds at most.
   uint32 viruses = 28;
+
+  // No click spreads, and no hand takes a spread click: the page hides the spread slot.
+  bool spread_off = 29;
 }
 
 message TollStep {

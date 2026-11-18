@@ -24,7 +24,7 @@ beforeEach(() => window.localStorage.clear())
 const RULES = {
     blastRadius: 0.03, enclosureMaxTiles: 25, spreadClicks: 8, enclosures: 3, shields: 12, tileShields: 10, toll: [],
     signInRefill: false, enclosuresUnlimited: false, spreadUnlimited: false,
-    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, virusInfections: 128,
+    reach: false, knockOut: false, capitalShieldsFixed: false, bombsOff: false, enclosuresOff: false, spreadOff: false, virusInfections: 128,
     gatesOn: false, openKinds: [], refills: 1, bombs: 1, viruses: 1, mines: 3, mineRings: 2,
     rallies: 3, rallyRadius: 0.072, rallyLastsMs: 180_000, rallyCost: 0.5,
 }
@@ -184,6 +184,14 @@ describe("Inventory", () => {
 
         expect(screen.queryByRole("button", {name: /^Enclose/})).toBeNull()
         expect(inTray(/^Spread/)).toBeDefined()
+    })
+
+    it("shows no spread while spreads are off, held or not", () => {
+        render(inventory({rules: {...RULES, spreadOff: true}, charges: {...NO_CHARGES, spreadClicksLeft: 5}}))
+        fireEvent.click(all())
+
+        expect(screen.queryByRole("button", {name: /^Spread/})).toBeNull()
+        expect(inTray(/^Enclose/)).toBeDefined()
     })
 
     it("counts the pools against how many can be held", () => {

@@ -29,7 +29,7 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   `allegianceLocked` (`Lock`), `arenas` `arena` (`Rules`) and `seeds` `seed` (`Pattern`). Each part has its `Validate`, its
   `…Of(message)` (`message.go`) and a `Part` (`cprules.PartOf[*planetv1.Rules, R]{Key, Read}`). `cprules` names none
   of them.
-- **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `.rings`, `.unlimited`, `bomb.rings`,
+- **`charges` is the wallet's part** (`charges.Part`, `planet.v1.ChargeRules`: `spread.clicks`, `.rings`, `.unlimited`, `.off`, `bomb.rings`,
   `bomb.off`, `enclose.maxTiles`, `.held`, `.unlimited`, `.off`, `shield.held`, `.perTile`). Until 2026-11-11 those were the
   wallet's half of `bonuses` (`planet.v1.BonusRules`), whose other half a second part read for the offers
   (`parts.Grants`, see [Offers and the wallet](offers-and-wallet.md#the-rules-split)). The offers keep that half in rule
@@ -69,6 +69,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   [The disc](spread.md#the-disc-chargesspreadrings)
 - `charges.spread.unlimited` — a click with spread on needs no charge and spends none (off). See
   [Unlimited spreads](spread.md#unlimited-spreads-chargesspreadunlimited)
+- `charges.spread.off` — no spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps
+  none; the spread clicks held are kept (off). Never with `unlimited`. See
+  [Spreads off](spread.md#spreads-off-chargesspreadoff)
 - `charges.refill.held` — how many refills a hand holds (1). See [Refill](refill.md)
 - `charges.bomb.rings`, `.held` — the blast's radius in tile spacings, and how many bombs a hand holds (4, 1). See
   [Bomb](bomb.md)

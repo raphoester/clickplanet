@@ -47,6 +47,26 @@ the frontend's [Charges](../../frontend/docs/charges.md)). **The spread clicks a
 they are there when the set stops; a battle that plays it sets the offers' `kinds.spreadClicks` to 0 in their set of the
 same name. `default` holds `false`.
 
+## Spreads off (`charges.spread.off`)
+
+**A rule set with `off` keeps every spread out of the game** (the owner, 2026-11-17, for Capital Siege on `siege-1`: a
+player who brought spread clicks from the world still spread there). A knob of its own, on any map, built as
+[enclosures off](enclose.md#enclosures-off-chargesencloseoff) was:
+
+- **A click sent with spread on takes its tile alone and spends nothing**: `Charges.TakeSpread` reads the rule first and
+  answers 0 rings, so `spread_click` spreads nothing and publishes nothing. It is not refused: an old tab that still
+  sends `spread` takes its tile.
+- **A grant keeps none** (`Rules.Off`, in `Held.Granted`), a box's, a quiz's, a level's fill or the operator's
+  `GrantCharges` alike, and is not paid (`Held.Gain`). The bonuses' set should weigh `spreadClicks` 0 while its planet
+  set turns them off, or a box drawn a spread pays nothing. A newcomer's welcome box is a spread, so it pays nothing then
+  either ([A newcomer's first box](welcome-bonus.md)).
+- **The spread clicks held are kept**, not taken, and are there when the set stops.
+- **`off` and `unlimited` both on is refused**: `charges.Rules.Validate` names `charges.spread.off`, since a spread
+  cannot be off and free.
+- **The page learns it from `GetChargeRules.spread_off`**, and hides the Spread slot (the frontend's
+  [Charges](../../frontend/docs/charges.md#no-spread-while-spreads-are-off)). `default` holds `false` (migration
+  `20261118112757_spread_off`).
+
 ## What one spread writes
 
 `ledger.Recording.Spread` keeps the spread as one ledger event, whatever its size. **Each tile meets its shields,
@@ -77,6 +97,7 @@ Production's busiest second measured so far (2026-11-10) held 46 events on the w
 Tests: `clicks`' `reach_test.go` pins the disc for 0 to 3 rings on a patch of hexagons, its end at a coast, the whole
 disc from a tile taken, the disc in reach from a struck one, the disc without the reach, and a slice of its own;
 `embedded_board`'s `load_test.go` the 6, 18 and 36 tiles around inland tiles of the shipped map; `charges`'
-`spread_test.go` the spend, nothing held and unlimited; `spread_click`'s tests the rings in force, a refused click that
-spends nothing, the pool spent to its end, unlimited, and with the real reach and `reach_click`, a spreading click two
+`spread_test.go` the spend, nothing held, unlimited and off; `held_test.go` no grant kept while off;
+`spread_click`'s tests the rings in force, a refused click that
+spends nothing, the pool spent to its end, unlimited, off, and with the real reach and `reach_click`, a spreading click two
 tiles out refused and a spreading click next to the land that takes its whole disc.

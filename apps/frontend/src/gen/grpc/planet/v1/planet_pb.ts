@@ -2963,6 +2963,13 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
    */
   viruses = 0;
 
+  /**
+   * No click spreads, and no hand takes a spread click: the page hides the spread slot.
+   *
+   * @generated from field: bool spread_off = 29;
+   */
+  spreadOff = false;
+
   constructor(data?: PartialMessage<GetChargeRulesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2996,6 +3003,7 @@ export class GetChargeRulesResponse extends Message<GetChargeRulesResponse> {
     { no: 26, name: "refills", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 27, name: "bombs", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 28, name: "viruses", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 29, name: "spread_off", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetChargeRulesResponse {
