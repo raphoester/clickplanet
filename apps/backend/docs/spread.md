@@ -65,7 +65,7 @@ player who brought spread clicks from the world still spread there). A knob of i
   cannot be off and free.
 - **The page learns it from `GetChargeRules.spread_off`**, and hides the Spread slot (the frontend's
   [Charges](../../frontend/docs/charges.md#no-spread-while-spreads-are-off)). `default` holds `false` (migration
-  `20261118112757_spread_off`).
+  `20261118133447_spread_off`).
 
 ## What one spread writes
 
