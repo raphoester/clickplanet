@@ -12,13 +12,14 @@ make translate ARGS="-languages fr,de -model claude-opus-5-5"
 
 ## What it sends
 
-- **Three catalogues**: the page's lines (`src/i18n/locales/en.json` → `locales/<lang>.json`), the names of the
-  landmasses that are not a country's main one (`static/landmassNames.json` → `landmasses/<lang>.json`), and "in"
-  each flag's country as a sentence says it (`static/countries/countries.json` → `countries/<lang>.json`, below).
+- **Three kinds of catalogue**: the page's lines (`src/i18n/locales/en.json` → `locales/<lang>.json`), the names of
+  each board's landmasses that are not a country's main one (`static/boards/<board>/landmassNames-<hash>.json` →
+  `landmasses/<board>/<lang>.json`, one catalogue per board, below), and "in" each flag's country as a sentence says it
+  (`static/countries/countries.json` → `countries/<lang>.json`, below).
 - **The languages are the files**: each `locales/<lang>.json` beside `en.json`. A new language is an empty `{}` file
   named after its tag, then a run, then the page's `LANGUAGES` (`src/i18n/languages.ts`).
 - **Only a line that is new, or whose English changed, is sent.** Beside each language's file,
-  `src/i18n/fingerprints/<lang>.json` (and `fingerprints/landmasses/<lang>.json`) holds, for each key, the first 16
+  `src/i18n/fingerprints/<lang>.json` (and `fingerprints/landmasses/<board>/<lang>.json`) holds, for each key, the first 16
   hex digits of the SHA-256 of the English it was translated from. A line whose English is the same is never sent
   again, so **a fix made by hand stays**. A line with no fingerprint was written by hand: it is kept and fingerprinted,
   and the run needs no key when nothing else is to send. A key English no longer has is dropped.
@@ -44,7 +45,15 @@ make translate ARGS="-languages fr,de -model claude-opus-5-5"
 
 ## The landmasses and Natural Earth
 
-`static/landmassNames.json` is made by the page's `npm run landmassNames` from Natural Earth (`v5.1.2`), in English.
+**Each board names its own landmasses**: a landmass id is a row of one board's borders file, so id 264 is Corsica on
+`earth-1` and other ground on another board. The page's `npm run landmassNames` writes each board's names in English
+beside the board's copy, `static/boards/<board>/landmassNames-<hash>.json`, content-addressed (the page's
+[Static assets](../../frontend/docs/static-assets.md)). `landmass_source.Boards` finds one file per board directory,
+leaves out a board with none yet (the page cannot play it until it has them) and refuses a board with two; each is a
+catalogue of its own, `landmasses/<board>` in the plan and the outcomes, written to `src/i18n/landmasses/<board>/` with
+its fingerprints in `fingerprints/landmasses/<board>/`. A new board's names are sent whole at the next run.
+
+The names are made from Natural Earth (`v5.1.2`), in English.
 Natural Earth names most of those places in French, German, Spanish, Portuguese, Polish, Turkish and Indonesian (not
 Czech), but as a gazetteer does: "Gespanschaft Split-Dalmatien", "Kabupaten Split-Dalmatia", "splicko-dalmatyńska",
 Portugal's "Ilhas Jónicas". So its names are not copied: `natural_earth` reads them from the same layers (cached
@@ -67,7 +76,7 @@ is in [Translation](../../frontend/docs/i18n.md#a-country-inside-a-sentence).
 The quiz (7,196 questions) and the titles are next. The packages take any keyed lines with a context, not the page's
 files: `translation` plans and checks, `claude_translator` asks, `catalogue_files` reads and writes a catalogue. A new
 source is a package beside `page_source`, `landmass_source` and `country_source`, and a catalogue in `page_catalogues` or a job of its
-own.
+own, as each board's landmass names are.
 
 ## Code
 

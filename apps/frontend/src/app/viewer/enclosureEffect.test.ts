@@ -1,3 +1,4 @@
+import {EARTH_1_SCALE} from "../../domain/boardScale.ts"
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
@@ -136,7 +137,7 @@ describe("createEnclosureEffects", () => {
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1)
 
     it("starts a shape on the next frame and takes it off once it is over", () => {
-        const effects = createEnclosureEffects(positions)
+        const effects = createEnclosureEffects(positions, EARTH_1_SCALE)
 
         effects.play(ring)
         expect(effects.object.children.length).toBeGreaterThan(0)
@@ -152,7 +153,7 @@ describe("createEnclosureEffects", () => {
     })
 
     it("keeps a burst of shapes to a bounded number on screen", () => {
-        const effects = createEnclosureEffects(positions)
+        const effects = createEnclosureEffects(positions, EARTH_1_SCALE)
 
         effects.play(ring)
         const perShape = effects.object.children.length

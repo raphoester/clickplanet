@@ -107,8 +107,10 @@ type TilesTaken struct {
 	Country string                 `protobuf:"bytes,2,opt,name=country,proto3" json:"country,omitempty"`
 	TakenAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
 	// The ledger's: a receiver keeps the position and index past the last tile it counted.
-	Position      uint64       `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"`
-	Tiles         []*TakenTile `protobuf:"bytes,5,rep,name=tiles,proto3" json:"tiles,omitempty"`
+	Position uint64       `protobuf:"varint,4,opt,name=position,proto3" json:"position,omitempty"`
+	Tiles    []*TakenTile `protobuf:"bytes,5,rep,name=tiles,proto3" json:"tiles,omitempty"`
+	// The board the tiles are on, as /map/boards names it ("earth-1"): their ids, grounds and points are that board's.
+	Board         string `protobuf:"bytes,6,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -176,6 +178,13 @@ func (x *TilesTaken) GetTiles() []*TakenTile {
 		return x.Tiles
 	}
 	return nil
+}
+
+func (x *TilesTaken) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
 }
 
 type TakenTile struct {
@@ -455,14 +464,16 @@ func (x *FlagKnockedOut) GetPosition() uint64 {
 }
 
 type Fortified struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Country       string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
-	LandmassId    uint32                 `protobuf:"varint,2,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
-	Tiles         uint32                 `protobuf:"varint,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	FortifiedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fortified_at,json=fortifiedAt,proto3" json:"fortified_at,omitempty"`
-	Ground        string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
-	AccountId     string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	Position      uint64                 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Country     string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	LandmassId  uint32                 `protobuf:"varint,2,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
+	Tiles       uint32                 `protobuf:"varint,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	FortifiedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fortified_at,json=fortifiedAt,proto3" json:"fortified_at,omitempty"`
+	Ground      string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
+	AccountId   string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Position    uint64                 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
+	// The board the landmass is on, as /map/boards names it: a landmass of tiles is a count of that board's tiles.
+	Board         string `protobuf:"bytes,8,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -544,6 +555,13 @@ func (x *Fortified) GetPosition() uint64 {
 		return x.Position
 	}
 	return 0
+}
+
+func (x *Fortified) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
 }
 
 // A shield a player placed, with the tile's shields after it.
@@ -1195,7 +1213,7 @@ var File_planet_v1_events_proto protoreflect.FileDescriptor
 
 const file_planet_v1_events_proto_rawDesc = "" +
 	"\n" +
-	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xc4\x01\n" +
+	"\x16planet/v1/events.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16planet/v1/planet.proto\"\xda\x01\n" +
 	"\n" +
 	"TilesTaken\x12\x1d\n" +
 	"\n" +
@@ -1203,7 +1221,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\acountry\x18\x02 \x01(\tR\acountry\x125\n" +
 	"\btaken_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x12\x1a\n" +
 	"\bposition\x18\x04 \x01(\x04R\bposition\x12*\n" +
-	"\x05tiles\x18\x05 \x03(\v2\x14.planet.v1.TakenTileR\x05tiles\"\x9b\x01\n" +
+	"\x05tiles\x18\x05 \x03(\v2\x14.planet.v1.TakenTileR\x05tiles\x12\x14\n" +
+	"\x05board\x18\x06 \x01(\tR\x05board\"\x9b\x01\n" +
 	"\tTakenTile\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x14\n" +
 	"\x05index\x18\x02 \x01(\rR\x05index\x12\x1a\n" +
@@ -1230,7 +1249,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"account_id\x18\x04 \x01(\tR\taccountId\x12\x18\n" +
 	"\acleared\x18\x05 \x01(\rR\acleared\x12@\n" +
 	"\x0eknocked_out_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\fknockedOutAt\x12\x1a\n" +
-	"\bposition\x18\a \x01(\x04R\bposition\"\xee\x01\n" +
+	"\bposition\x18\a \x01(\x04R\bposition\"\x84\x02\n" +
 	"\tFortified\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x1f\n" +
 	"\vlandmass_id\x18\x02 \x01(\rR\n" +
@@ -1240,7 +1259,8 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\x06ground\x18\x05 \x01(\tR\x06ground\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x06 \x01(\tR\taccountId\x12\x1a\n" +
-	"\bposition\x18\a \x01(\x04R\bposition\"\xcf\x01\n" +
+	"\bposition\x18\a \x01(\x04R\bposition\x12\x14\n" +
+	"\x05board\x18\b \x01(\tR\x05board\"\xcf\x01\n" +
 	"\fShieldPlaced\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x17\n" +

@@ -38,13 +38,23 @@ func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool
 
 // A blank board, no landmass held or locked, no flag out, nothing to recount.
 func (s *Storage) emptyLocked() {
-	borders := s.landmasses.borders
-	s.board = newBoard(s.board.last())
+	s.groundLocked(s.played.Ground())
+}
+
+// groundLocked empties the map onto ground, the board of the stage, and plays it: every rule reads it from then on. No
+// ground is a map of no tile.
+func (s *Storage) groundLocked(ground *clicks.Ground) {
+	borders := clicks.NoBorders()
+	if ground != nil {
+		borders = ground.Borders()
+	}
+	s.board = newBoard(borders.Tiles())
 	s.landmasses = newLandmasses(borders)
 	s.out = newOutFlags()
 	s.viruses = newVirusBook()
 	s.mines = newMineBook()
 	s.recount = newRecount(borders.Landmasses())
+	s.played.Play(ground)
 }
 
 // A new epoch, and every stream cut: every client reads the map again, as after a restart.

@@ -12,15 +12,17 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Commands](docs/commands.md) — `npm run dev`, `build`, `test`, `lint`, `proto`, and the map, terrain, atlas and
   clip scripts. The production API refuses `localhost`: use a local backend or `VITE_FAKE_BACKEND=1 npm run dev`,
   and the fake's console commands (`giveBomb()`, `closeDay()`, …).
-- [Testing](docs/testing.md) — vitest, co-located, on node by default; jsdom only where a file asks for it.
+- [Testing](docs/testing.md) — vitest, co-located, on node by default; jsdom only where a file asks for it; the two
+  boards tests read, `earth-1` and the coarse `fixture-1`, which no page serves.
 - [Styling](docs/styling.md) — `DESIGN.md` is the design system; `ScrollArea`, the scrolling body of every panel,
   and its fade; a modal's padding; a box as wide as its word in nine languages; how to debug a mobile layout.
 - [Protocol Buffers](docs/protobuf.md) — types from the shared `/proto`, generated into `src/gen/grpc`.
-- [Static assets](docs/static-assets.md) — the content-addressed files in `static/`, and how each is made.
+- [Static assets](docs/static-assets.md) — the content-addressed files in `static/`, and how each is made: every board's
+  copy and its own border lines and landmass names in `static/boards/<board>/`, named in `BOARDS`.
 - [Translation](docs/i18n.md) — the catalogue (`src/i18n/locales/en.json` and one file per language), whole
   sentences with slots and ICU plurals, `t`/`rich`/`translator()`, `domain/` returns facts, Intl for every number and
-  name, "in" a country as a phrase per language ("au Brésil"), how the language is chosen (pick, CrazyGames,
-  browser), adding a string or a language.
+  name, "in" a country as a phrase per language ("au Brésil"), each board's landmass names, how the language is chosen
+  (pick, CrazyGames, browser), adding a string or a language.
 - [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes; a flag's address,
   `clickplanet.lol/<flag>/<name>`, which the home page's first script opens on the game.
 - [Search](docs/search.md) — what Google reads: the titles, the one description, the JSON-LD that names us
@@ -37,6 +39,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   connection health.
 - [A server restart reloads the page](../../docs/reload-on-restart.md) — `restartInterceptor` reloads once the
   backend answers under a new boot; which answers it trusts.
+- [The board the page draws](docs/board-reload.md) — the board `GetMap` names at the boot, the reload when the stream
+  opens on another or a read past the cache still names one, and the guard against a loop: a cached read after a
+  reload, a board the bundle does not carry.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at
   768px wide or 600px high and under; the board and the chat folded under 1600px wide until the player opens one, and
   the player's last fold kept.
@@ -104,7 +109,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   table, the race (each flag's points or map share round by round, drawn as a timelapse), players, the Final Battle,
   the numbers.
 - [A season's map, browsed](docs/season-map.md) — `/archive`: the season or its Final Battle replayed on the globe
-  with a time cursor, and the heatmap of where the tiles were fought over, a map that goes round.
+  with a time cursor, each era on its own board with a mark and a caption at the cut, and the heatmap of where the
+  tiles were fought over, every era's hits on one grid, a map that goes round.
 - [The cutoff, revealed](docs/cutoff.md) — the full-screen reveal when a day closes, and the season's results after
   the Final Battle's debrief.
 - [The flag played for](docs/flag.md) — `PledgeAllegiance`, one flag an hour, and the lock a battle's rule set puts
@@ -129,9 +135,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Sharing the globe](docs/sharing.md) — the photo card of the globe, and the recruit link; every share carries the
   player's address, `clickplanet.lol/<flag>/<name>`, or the flag alone for a guest.
 - [Player videos](docs/player-videos.md) — "Make my video": the flag's 24 hours as an 8 s video made in the browser,
-  its story, names and address, the anthem copied in, the red dots, the moments that offer it, the welcome line.
-- [Clips](docs/clips.md) — `npm run clip`: a replay played back as a short video, and what it hands to the
-  backend's clips job.
+  each era on its own board with a flash at the cut, its story (of the last board), names and address, the anthem
+  copied in, the red dots, the moments that offer it, the welcome line.
+- [Clips](docs/clips.md) — `npm run clip`: a replay played back as a short video on the board it ends on (its last era
+  alone), and what it hands to the backend's clips job.
 - [Battle teasers, as posts](docs/teasers.md) — `npm run teaser`: a battle's cards in a frame that says when it
   starts, as the stills of a TikTok carousel and a slideshow for YouTube, which the backend's promo module posts.
 - [In a clip](docs/clip-appearances.md) — "You are in a clip!" with links to watch it, and the switch that keeps
@@ -162,6 +169,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   board painted by the territory layer at every zoom over a flat sea; no photo.
 - [Tile positions](docs/tile-positions.md) — rebuilt in a worker from the board's runs and checked against the
   manifest's hash, which a mismatch logs; no file of positions.
+- [Sized by the board](docs/board-scale.md) — every count of tiles, length and zoom tuned on `earth-1` reads the board
+  (`domain/boardScale.ts`): the rule, what reads it, and what does not.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom.
 - [A finger iOS took for its swipe back](docs/stray-fingers.md) — the edge swipe that never ends its pointer, the
   pinch OrbitControls was left in, and the `pointercancel` sent for iOS when the touch count says the finger is gone.

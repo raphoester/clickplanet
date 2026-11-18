@@ -1,7 +1,6 @@
 package planet
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 
 // The game's rules are not here: they are the rule set postgres keeps (planet.rule_sets), edited from the backoffice.
 type Config struct {
-	GameMap      GameMapConfig
 	TilesStorage inmemory_tile_storage.Config
 	RateLimiter  RateLimiterConfig
 	VPNBlocklist cpipblock.Config
@@ -30,19 +28,11 @@ type Config struct {
 	Redis    cpredis.Config
 }
 
-type GameMapConfig struct {
-	MaxIndex uint32
-}
-
 type RateLimiterConfig struct {
 	SweepInterval time.Duration
 }
 
 func (c Config) Validate() error {
-	if c.GameMap.MaxIndex == 0 {
-		return errors.New("gameMap.maxIndex is zero: the map has no tiles")
-	}
-
 	if err := c.Ledger.Validate(); err != nil {
 		return fmt.Errorf("ledger: %w", err)
 	}

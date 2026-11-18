@@ -112,16 +112,16 @@ func (s *testSuite) TestAWipeTakesTheVirusesWithTheMap() {
 func (s *testSuite) TestAnArenaPlaysWithNoVirusAndTheWorldsComeBackWithItsMap() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
-	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 	s.infected(storage)
 	before := storage.Viruses()
 
-	_, err := storage.Blank(ctx, battle, noStart, opens(true))
+	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
 	s.Require().NoError(err)
 	s.Empty(storage.Viruses(), "the arena's map holds none")
 	s.Len(persistence.StoredVirusesOn(clicks.World), 1, "the world's is kept aside")
 
-	_, err = storage.PutBack(ctx, battle, keeps(true))
+	_, err = storage.PutBack(ctx, battle, clicks.WorldStage, keeps(true))
 	s.Require().NoError(err)
 	s.Equal(before, storage.Viruses())
 }

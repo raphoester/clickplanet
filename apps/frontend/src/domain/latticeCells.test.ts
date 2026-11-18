@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {BOARD} from "../app/viewer/boardAsset.ts"
+import {EARTH_1} from "../testdata/boards.ts"
 import {decodeRuns, tilesOf} from "./board.ts"
 import {latticeIds, latticePositions, latticeSize} from "./lattice.ts"
 import {cellOf, cellsOf, IDS_PER_WORD, latticeFaces, nearestOnGrid, tileAt} from "./latticeCells.ts"
@@ -95,17 +95,17 @@ describe("cellsOf", () => {
 
 describe("the shipped board", () => {
     it("puts each tile in its own cell as the territory layer finds it", () => {
-        const bytes = readFileSync(`${STATIC}boards/${BOARD.name}/${BOARD.files.runs}`)
+        const bytes = readFileSync(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`)
         const runs = decodeRuns(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
-        const {positions, ids} = tilesOf(BOARD.lattice, runs, BOARD.tiles)
-        const faces = latticeFaces(BOARD.lattice.cols)
+        const {positions, ids} = tilesOf(EARTH_1.lattice, runs, EARTH_1.tiles)
+        const faces = latticeFaces(EARTH_1.lattice.cols)
 
-        for (let tile = 0; tile < BOARD.tiles; tile++) {
-            const found = cellOf(faces, BOARD.lattice.cols, ...pointOf(positions, tile))
+        for (let tile = 0; tile < EARTH_1.tiles; tile++) {
+            const found = cellOf(faces, EARTH_1.lattice.cols, ...pointOf(positions, tile))
             if (found !== ids[tile]) expect(found, `tile ${tile + 1}`).toBe(ids[tile])
         }
-        const cells = cellsOf(ids, BOARD.lattice.cols)
-        for (let tile = 0; tile < BOARD.tiles; tile += 97) {
+        const cells = cellsOf(ids, EARTH_1.lattice.cols)
+        for (let tile = 0; tile < EARTH_1.tiles; tile += 97) {
             expect(tileAt(cells, faces, ...pointOf(positions, tile)), `tile ${tile + 1}`).toBe(tile + 1)
         }
     })

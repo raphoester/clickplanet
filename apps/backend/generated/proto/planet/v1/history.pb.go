@@ -27,10 +27,11 @@ const (
 type MapHistory struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Frames []*MapFrame            `protobuf:"bytes,1,rep,name=frames,proto3" json:"frames,omitempty"`
-	// Each tile's changes of owner and shield hits in the window; a tile with none is left out.
+	// Each tile's changes of owner and shield hits in the window, in each era; a tile with none is left out.
 	Hits []*TileHits `protobuf:"bytes,2,rep,name=hits,proto3" json:"hits,omitempty"`
 	// The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
-	// started in it. A frame's tile ids are the board of the era in force at its time.
+	// started in it. A frame's tile ids are the board of the era in force at its time, and the first frame of each era
+	// holds every tile held on its board, as the window's first frame does: the cut.
 	Eras          []*BoardEra `protobuf:"bytes,3,rep,name=eras,proto3" json:"eras,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -257,9 +258,11 @@ func (x *TileOwner) GetSecondsIntoStep() uint32 {
 }
 
 type TileHits struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tile          uint32                 `protobuf:"varint,1,opt,name=tile,proto3" json:"tile,omitempty"`
-	Hits          uint32                 `protobuf:"varint,2,opt,name=hits,proto3" json:"hits,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Tile  uint32                 `protobuf:"varint,1,opt,name=tile,proto3" json:"tile,omitempty"`
+	Hits  uint32                 `protobuf:"varint,2,opt,name=hits,proto3" json:"hits,omitempty"`
+	// The era the tile is of, by its place in MapHistory.eras: 0 for the first.
+	Era           uint32 `protobuf:"varint,3,opt,name=era,proto3" json:"era,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -308,6 +311,13 @@ func (x *TileHits) GetHits() uint32 {
 	return 0
 }
 
+func (x *TileHits) GetEra() uint32 {
+	if x != nil {
+		return x.Era
+	}
+	return 0
+}
+
 var File_planet_v1_history_proto protoreflect.FileDescriptor
 
 const file_planet_v1_history_proto_rawDesc = "" +
@@ -330,10 +340,11 @@ const file_planet_v1_history_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\x12*\n" +
 	"\x11seconds_into_step\x18\x03 \x01(\rR\x0fsecondsIntoStepJ\x04\b\x04\x10\x05R\n" +
-	"account_id\"2\n" +
+	"account_id\"D\n" +
 	"\bTileHits\x12\x12\n" +
 	"\x04tile\x18\x01 \x01(\rR\x04tile\x12\x12\n" +
-	"\x04hits\x18\x02 \x01(\rR\x04hitsB\xb4\x01\n" +
+	"\x04hits\x18\x02 \x01(\rR\x04hits\x12\x10\n" +
+	"\x03era\x18\x03 \x01(\rR\x03eraB\xb4\x01\n" +
 	"\rcom.planet.v1B\fHistoryProtoP\x01ZPgithub.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1;planetv1\xa2\x02\x03PXX\xaa\x02\tPlanet.V1\xca\x02\tPlanet\\V1\xe2\x02\x15Planet\\V1\\GPBMetadata\xea\x02\n" +
 	"Planet::V1b\x06proto3"
 

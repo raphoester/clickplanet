@@ -1,5 +1,7 @@
 import {describe, expect, it} from "vitest"
-import {foughtOver, TileChange} from "./changes.ts"
+import {foughtOver, foughtOverLeast, TileChange} from "./changes.ts"
+import {EARTH_1_SCALE, scaleOf} from "../boardScale.ts"
+import {FIXTURE_1} from "../../testdata/boards.ts"
 
 function took(to: string | undefined, from: string | undefined, count: number, first = 1, at = 0): TileChange[] {
     return Array.from({length: count}, (_, i) => ({tile: first + i, from, to, at}))
@@ -11,12 +13,18 @@ describe("the countries fought over", () => {
     it("are the ones whose ground changed hands enough, the most first", () => {
         const changes = [...took("ro", "de", 600, 1), ...took("ro", "pl", 450, 1001), ...took("it", "fr", 300, 1501)]
 
-        expect(foughtOver(changes, ground, 0, 10)).toEqual(["de", "pl"])
+        expect(foughtOver(changes, ground, 0, 10, EARTH_1_SCALE)).toEqual(["de", "pl"])
     })
 
     it("count only land taken from another flag, in the window", () => {
         const changes = [...took("ro", undefined, 600, 1), ...took("ro", "de", 600, 1, 50)]
 
-        expect(foughtOver(changes, ground, 0, 10)).toEqual([])
+        expect(foughtOver(changes, ground, 0, 10, EARTH_1_SCALE)).toEqual([])
+    })
+
+    it("count as much ground on a coarser board", () => {
+        expect(foughtOverLeast(EARTH_1_SCALE)).toBe(400)
+        expect(foughtOverLeast(scaleOf(FIXTURE_1))).toBe(4)
+        expect(foughtOver(took("ro", "de", 5, 1), ground, 0, 10, scaleOf(FIXTURE_1))).toEqual(["de"])
     })
 })

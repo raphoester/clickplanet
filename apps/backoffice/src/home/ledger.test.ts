@@ -2,7 +2,7 @@ import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {AT, FakeAdmin} from "../fakeAdmin.ts"
 import {LedgerChange} from "../gen/grpc/planet/v1/ledger_pb.ts"
-import {caughtUp, changesOf, countriesBy, countriesOf, playersOf, sinceOf, slotsOf, windowOf} from "./ledger.ts"
+import {addsTo, boardOfPages, caughtUp, changesOf, countriesBy, countriesOf, playersOf, sinceOf, slotsOf, windowOf} from "./ledger.ts"
 
 const MINUTE = 60_000
 
@@ -23,27 +23,53 @@ describe("reading the ledger in parts", () => {
 
     it("reads the whole window first, then from a minute before the end of what it kept", () => {
         expect(sinceOf(undefined, first)).toEqual(first.since)
-        expect(sinceOf({window: first, changes: []}, next)).toEqual(new Date("2026-10-23T12:06:00Z"))
+        expect(sinceOf({window: first, changes: [], board: "earth-1"}, next)).toEqual(new Date("2026-10-23T12:06:00Z"))
     })
 
     it("reads the whole window again for other slots, or after a pause longer than the window", () => {
         const day = windowOf(new Date("2026-10-23T12:07:00Z"), 24, 15 * MINUTE)
         const later = windowOf(new Date("2026-10-23T15:00:00Z"), 1, 5 * MINUTE)
 
-        expect(sinceOf({window: day, changes: []}, next)).toEqual(next.since)
-        expect(sinceOf({window: first, changes: []}, later)).toEqual(later.since)
+        expect(sinceOf({window: day, changes: [], board: "earth-1"}, next)).toEqual(next.since)
+        expect(sinceOf({window: first, changes: [], board: "earth-1"}, later)).toEqual(later.since)
     })
 
     it("keeps what it read before the read's start and inside the window, then adds what it read", () => {
-        const kept = {window: first, changes: [at("2026-10-23T11:12:00Z"), at("2026-10-23T12:05:59Z"), at("2026-10-23T12:06:30Z")]}
+        const kept = {
+            window: first, board: "earth-1",
+            changes: [at("2026-10-23T11:12:00Z"), at("2026-10-23T12:05:59Z"), at("2026-10-23T12:06:30Z")],
+        }
         const since = sinceOf(kept, next)
 
-        const ledger = caughtUp(kept, next, since, [at("2026-10-23T12:06:30Z"), at("2026-10-23T12:12:00Z")])
+        const ledger = caughtUp(kept, next, since, [at("2026-10-23T12:06:30Z"), at("2026-10-23T12:12:00Z")], "earth-1")
 
         expect(ledger.window).toBe(next)
+        expect(ledger.board).toBe("earth-1")
         expect(ledger.changes.map(change => change.by)).toEqual([
             "2026-10-23T12:05:59Z", "2026-10-23T12:06:30Z", "2026-10-23T12:12:00Z",
         ])
+    })
+
+    it("adds a read to what it kept only on the same board: after a switch it reads the window whole", () => {
+        const kept = {window: first, changes: [at("2026-10-23T12:05:59Z")], board: "earth-1"}
+        const since = sinceOf(kept, next)
+
+        expect(addsTo(kept, next, since, "earth-1")).toBe(true)
+        expect(addsTo(kept, next, since, "fixture-1")).toBe(false)
+        expect(addsTo(kept, next, next.since, "fixture-1")).toBe(true)
+        expect(addsTo(undefined, next, next.since, "fixture-1")).toBe(true)
+        // Nothing of the old board is kept, whatever the read's start.
+        const whole = caughtUp(kept, next, next.since, [at("2026-10-23T12:12:00Z")], "fixture-1")
+        expect(whole.board).toBe("fixture-1")
+        expect(whole.changes.map(change => change.by)).toEqual(["2026-10-23T12:12:00Z"])
+        expect(caughtUp(kept, next, since, [], "fixture-1").changes).toEqual([])
+    })
+
+    it("names the board of a read whose pages all name one, and none when the world switched between two", () => {
+        expect(boardOfPages(["earth-1"])).toBe("earth-1")
+        expect(boardOfPages(["earth-1", "earth-1", "earth-1"])).toBe("earth-1")
+        expect(boardOfPages(["earth-1", "fixture-1"])).toBeUndefined()
+        expect(boardOfPages([])).toBeUndefined()
     })
 })
 

@@ -69,7 +69,6 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 
 	assert.Equal(t, "0.0.0.0:8080", config.HTTPServer.BindAddress)
 	assert.Equal(t, time.Minute, config.HTTPServer.StartupTimeout)
-	assert.NotZero(t, config.Planet.GameMap.MaxIndex)
 	require.NoError(t, config.Planet.Validate())
 	assert.Equal(t, time.Second, config.Planet.TilesStorage.FlushInterval)
 	assert.Equal(t, "127.0.0.1:8081", config.HTTPServer.ConsoleBindAddress)
@@ -78,12 +77,10 @@ func TestTheExampleConfigStillCarriesTheRestOfTheFile(t *testing.T) {
 	assert.Equal(t, time.Hour, config.Auth.TTL)
 }
 
-func TestTheLocalStackConfigHasTheMapOfTheExampleAndAnInternalListener(t *testing.T) {
-	var example, local Config
-	require.NoError(t, cpconfigs.Load(&example, cpconfigs.FromFile("example.yaml")))
+func TestTheLocalStackConfigHasAnInternalListener(t *testing.T) {
+	var local Config
 	require.NoError(t, cpconfigs.Load(&local, cpconfigs.FromFile("../../../../deploy/backend.yaml")))
 
-	assert.Equal(t, example.Planet.GameMap.MaxIndex, local.Planet.GameMap.MaxIndex)
 	assert.NotEmpty(t, local.HTTPServer.InternalBindAddress, "chat, player and scoring dial it while they are built")
 }
 
@@ -124,8 +121,6 @@ httpServer:
   bindAddress: 0.0.0.0:8080
   internalBindAddress: 127.0.0.1:8082
   allowedOrigin: https://clickplanet.lol
-gameMap:
-  maxIndex: 100
 database: {host: localhost, port: "5432", user: postgres, dbName: postgres, sslMode: disable, schema: planet}
 redis: {address: localhost:6379}
 chat:
@@ -281,7 +276,6 @@ func TestThePlayerModuleWithNoDatabaseIsRefused(t *testing.T) {
 func TestTheProcessRefusesToStartWithoutADatabase(t *testing.T) {
 	config := Config{}
 	config.HTTPServer.BindAddress = "0.0.0.0:8080"
-	config.Planet.GameMap.MaxIndex = 100
 
 	require.ErrorContains(t, config.Validate(), "database: [host port user dbName sslMode schema] is empty")
 }
@@ -303,7 +297,6 @@ func TestChatWithoutADatabaseIsRefused(t *testing.T) {
 func TestAuthWithoutASecretIsRefused(t *testing.T) {
 	config := Config{}
 	config.HTTPServer.BindAddress = "0.0.0.0:8080"
-	config.Planet.GameMap.MaxIndex = 100
 	config.Auth.Enabled = true
 
 	require.ErrorContains(t, config.Validate(), "auth.secret is empty")

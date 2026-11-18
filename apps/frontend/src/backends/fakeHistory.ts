@@ -1,6 +1,8 @@
 import {MapFrame, MapHistory} from "../domain/mapHistory.ts"
+import {FIRST_ERA} from "../domain/eras.ts"
 
-// A made-up history ending on the map given: each frame, a few hundred tiles go to the flag of a tile near them.
+// A made-up history ending on the map given: each frame, a few hundred tiles go to the flag of a tile near them. One
+// era, on the first board, which the fake plays.
 export function fakeHistoryOf(final: ReadonlyMap<number, string>, since: number, until: number, count: number, random = Math.random): MapHistory {
     const tiles = [...final.keys()]
     const owners = new Map(final)
@@ -26,7 +28,7 @@ export function fakeHistoryOf(final: ReadonlyMap<number, string>, since: number,
     backwards.reverse().forEach((changes, i) => {
         frames.push(frameOf(since + ((i + 1) * (until - since)) / (count - 1), changes.reverse()))
     })
-    return {frames, hits}
+    return {frames, hits: [hits], eras: [FIRST_ERA]}
 }
 
 function frameOf(at: number, changes: {tile: number, owner: string}[]): MapFrame {

@@ -19,7 +19,8 @@ A landmass is a row of the borders blob's table.
   The count is right at once; only what is drawn waits. A hidden tab or less motion
   shows the shields at once.
 - **The banner** (`FortifyNews`, on the news line, see [Stores](stores.md#the-news-line)) is news only to the flag that fortified, or
-  for a landmass of `NEWS_FROM_TILES` (50) or more (`isNews`); so is its sound
+  for a landmass of 50 tiles or more on `earth-1`, as much ground on another board (`newsFromTiles`, `isNews`: see
+  [Sized by the board](board-scale.md)); so is its sound
   (`fortify`, a switch of its own). **The first one this browser shows brings a card**
   (`FortifyCard`, which `News` shows once the wave has run, kept until "Got it", in `clickplanet-fortify-guide`).
 - **Close to fortifying** (`domain/fortifyTarget.ts`, `domain/fortifyTargets.ts`): a flag
@@ -32,12 +33,13 @@ A landmass is a row of the borders blob's table.
   `GetFortresses` at load and after a gap, then from the events; nothing pulses before
   they are read. **The pulse is drawn at `AMBIENT_FRAME_MS` (20 fps), and only while a
   pulsing landmass faces the camera** (`drawsFrame`'s `ambient`).
-- **Names** (`domain/landmassNames.ts`): `static/landmassNames.json`, written by
-  `npm run landmassNames` from Natural Earth at the map's pin (`scripts/map/names/`:
+- **Names**: each board's own, `static/boards/<board>/landmassNames-<hash>.json`, written by
+  `npm run landmassNames -- <board>` from Natural Earth at the map's pin (`scripts/map/names/`:
   subunits, islands, island groups, admin-1 and its region, by tiles in common), one
   name per landmass, unique in its country. A country's main landmass is not listed:
   it is named after the country, and it is the capital's when the biggest has a name
   of its own (Java, not New Guinea). **Regenerate it after `npm run map:generate`**;
-  a test fails when it names another borders blob.
+  a test fails when it names another borders blob than its board's (`boards.test.ts`). The page reads its board's once
+  it knows it (see [Translation](i18n.md)).
 - **In the chat**: an announcement of kind `fortify` (`{country, ground, landmass,
   tiles}`), for a landmass of 50 tiles or more.

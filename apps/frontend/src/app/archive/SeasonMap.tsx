@@ -4,18 +4,26 @@ import {HistoryBackend} from "../../backends/historyBackend.ts"
 import {Season} from "../../backends/season.ts"
 import {TurnBackend} from "../../backends/turn.ts"
 import {LeaderboardEntry} from "../../domain/leaderboard.ts"
-import {MapHistory, MapReel} from "../../domain/mapHistory.ts"
+import {MapHistory} from "../../domain/mapHistory.ts"
+import type {BoardAsset} from "../../domain/board.ts"
+import {ErasReel, piecesOf} from "../../domain/eras.ts"
+import type {TileCells} from "../../domain/latticeCells.ts"
 import {createGlobe} from "../viewer/globe.ts"
+import {boardNamed} from "../viewer/boards.ts"
 import CountryFlag from "../components/CountryFlag.tsx"
 import {PauseIcon, PlayIcon} from "../components/icons.tsx"
 import {t, translator} from "../../i18n/page.ts"
 import {dayAndTime} from "../season/dates.ts"
-import {drawHeat, lookOfThePage} from "./heatmap.ts"
+import {drawHeat, heatOf, lookOfThePage} from "./heatmap.ts"
 import "./SeasonMap.css"
+
+// A board's tiles, the cells they cover and their landmasses, as the archive draws them.
+export type BoardGeometry = {board: BoardAsset, positions: Float32Array, cells: TileCells, landmasses: ReplayLandmasses}
 
 export type SeasonMapProps = {
     turn: Pick<TurnBackend, "follow" | "seasonReplay">
-    geometry: () => Promise<{positions: Float32Array, landmasses: ReplayLandmasses}>
+    // Each board's, by its name: a history can cross a change of board.
+    geometry: (board: string) => Promise<BoardGeometry>
 }
 
 type Part = "season" | "finale"
@@ -24,6 +32,11 @@ type View = "replay" | "heat"
 // Frames a second while it plays: a season of 30-minute frames in about 48 s, a finale of 10-second frames in 30 s.
 const FPS = 24
 
+// The caption of a change of board shows this many frames from the cut: a second and a half of play.
+const CUT_CAPTION_FRAMES = 36
+
+type Geometries = ReadonlyMap<string, BoardGeometry>
+
 // Opens on the latest season that ended; a switch picks another once there are several.
 export default function SeasonMap({turn, geometry}: SeasonMapProps) {
     const ended = useEnded(turn)
@@ -31,15 +44,39 @@ export default function SeasonMap({turn, geometry}: SeasonMapProps) {
     const season = picked ?? ended?.at(-1)?.number
     const [part, setPart] = useState<Part>("season")
     const [view, setView] = useState<View>("replay")
-    const [geometryRead, setGeometryRead] = useState<{positions: Float32Array, landmasses: ReplayLandmasses}>()
     const [read, setRead] = useState<{key: string, history?: MapHistory}>()
+    // Each board of the history, read; none when one could not be: a board this page does not carry, or a failed read.
+    const [geometries, setGeometries] = useState<{history: MapHistory, boards?: Geometries}>()
     const key = `${season}/${part}`
     const history = read?.key === key ? read.history : undefined
     const loading = season !== undefined && read?.key !== key
 
+    // Every board the history's eras play, each once.
     useEffect(() => {
-        void geometry().then(setGeometryRead)
-    }, [geometry])
+        if (history === undefined) return
+        let stale = false
+        const played = [...new Set(piecesOf(history).map(({board}) => board))]
+        const unknown = played.filter((board) => boardNamed(board) === undefined)
+        if (unknown.length > 0) {
+            console.error(`the season's replay plays ${unknown.join(", ")}, which this page does not carry`)
+            setGeometries({history})
+            return
+        }
+        Promise.all(played.map(geometry)).then(
+            (read) => {
+                if (!stale) setGeometries({history, boards: new Map(read.map((one) => [one.board.name, one]))})
+            },
+            (e) => {
+                console.error("Could not read the boards of the season's replay", e)
+                if (!stale) setGeometries({history})
+            },
+        )
+        return () => {
+            stale = true
+        }
+    }, [history, geometry])
+    const boards = geometries?.history === history ? geometries?.boards : undefined
+    const unreadable = history !== undefined && geometries?.history === history && boards === undefined
 
     useEffect(() => {
         if (season === undefined) return
@@ -58,8 +95,8 @@ export default function SeasonMap({turn, geometry}: SeasonMapProps) {
         }
     }, [turn, season, part])
 
-    const reel = useMemo(() => history && geometryRead ? new MapReel(history, geometryRead.positions.length / 3) : undefined,
-        [history, geometryRead])
+    const reel = useMemo(() => history && boards && history.frames.length > 0
+        ? new ErasReel(history, (board) => boards.get(board)!.board.tiles) : undefined, [history, boards])
 
     return <div className="season-map">
         <header className="panel season-map-head">
@@ -77,9 +114,9 @@ export default function SeasonMap({turn, geometry}: SeasonMapProps) {
         <div className="season-map-stage">
             {ended?.length === 0 && <p className="season-map-note">{t("archive.noSeasonEnded")}</p>}
             {loading && <p className="season-map-note">{t("archive.rebuilding")}</p>}
-            {season !== undefined && !loading && !history && <p className="season-map-note">{t("archive.noReplay")}</p>}
-            {reel && geometryRead && view === "replay" && <Replay key={key} reel={reel} landmasses={geometryRead.landmasses}/>}
-            {history && geometryRead && view === "heat" && <Heat key={key} positions={geometryRead.positions} hits={history.hits}/>}
+            {season !== undefined && !loading && (!history || unreadable) && <p className="season-map-note">{t("archive.noReplay")}</p>}
+            {reel && boards && view === "replay" && <Replay key={key} reel={reel} boards={boards}/>}
+            {history && boards && view === "heat" && <Heat key={key} history={history} boards={boards}/>}
         </div>
     </div>
 }
@@ -114,22 +151,32 @@ function Switch<T extends string>({label, value, onChange, choices}: {
     </div>
 }
 
-function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses}) {
+// Each era is drawn on its own board: past a cut, the globe is built again on the next one, the map cleared and drawn
+// whole, and a caption says so while the cut is passed.
+function Replay({reel, boards}: {reel: ErasReel, boards: Geometries}) {
     const stage = useRef<HTMLDivElement>(null)
     const backend = useRef<HistoryBackend>()
     const [frame, setFrame] = useState(0)
     const [playing, setPlaying] = useState(false)
     const [leaders, setLeaders] = useState<LeaderboardEntry[]>([])
     const last = reel.length - 1
+    const latest = useRef(frame)
+    latest.current = frame
+    const {piece} = reel.pieceAt(frame)
+    const cuts = useMemo(() => reel.cuts(), [reel])
+    const passing = cuts.some((cut) => frame >= cut.frame && frame < cut.frame + CUT_CAPTION_FRAMES)
 
     useEffect(() => {
         const container = stage.current
-        if (!container) return
+        const geometry = boards.get(piece.board)
+        if (!container || !geometry) return
         const aborted = new AbortController()
-        const shown = new HistoryBackend(reel, landmasses)
+        const shown = new HistoryBackend(piece.reel, geometry.landmasses)
+        shown.seek(latest.current - piece.from)
         backend.current = shown
         const none = () => {}
         const made = createGlobe({
+            board: geometry.board,
             tileClicker: {clickTile: () => Promise.resolve()},
             ownershipsGetter: shown,
             updatesListener: shown,
@@ -151,11 +198,11 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
             backend.current = undefined
             made.then((globe) => globe.dispose(), () => {})
         }
-    }, [reel, landmasses])
+    }, [piece, boards])
 
     useEffect(() => {
-        backend.current?.seek(frame)
-    }, [frame])
+        backend.current?.seek(reel.pieceAt(frame).frame)
+    }, [reel, frame])
 
     useEffect(() => {
         if (!playing) return
@@ -171,6 +218,7 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
 
     return <>
         <div ref={stage} className="season-map-globe"/>
+        {passing && <p className="panel season-map-cut" role="status">{t("archive.newMap")}</p>}
         <ol className="panel season-map-leaders" aria-label={t("archive.mostTiles")}>
             {leaders.map((entry, i) => <li key={entry.country.code} className="season-map-leader">
                 <span className="season-map-rank">{i + 1}</span>
@@ -189,16 +237,22 @@ function Replay({reel, landmasses}: {reel: MapReel, landmasses: ReplayLandmasses
                     }}>
                 {playing ? <PauseIcon/> : <PlayIcon/>}
             </button>
-            <input className="season-map-cursor"
-                   type="range"
-                   min={0}
-                   max={last}
-                   value={frame}
-                   aria-label={t("archive.time")}
-                   onChange={(e) => {
-                       setPlaying(false)
-                       setFrame(Number(e.target.value))
-                   }}/>
+            <div className="season-map-track">
+                <input className="season-map-cursor"
+                       type="range"
+                       min={0}
+                       max={last}
+                       value={frame}
+                       aria-label={t("archive.time")}
+                       onChange={(e) => {
+                           setPlaying(false)
+                           setFrame(Number(e.target.value))
+                       }}/>
+                {cuts.map((cut) => <span key={cut.frame}
+                                         className="season-map-mark"
+                                         style={{"--at": last > 0 ? cut.frame / last : 0} as React.CSSProperties}
+                                         title={t("archive.newMapAt", {time: dayAndTime(cut.at)})}/>)}
+            </div>
             <span className="season-map-time">{dayAndTime(reel.atOf(frame))}</span>
         </footer>
     </>
@@ -208,8 +262,9 @@ const HEAT_WIDTH = 4096
 const HEAT_HEIGHT = 2048
 
 // Three copies side by side, the middle one shown: the scroll jumps a whole map at either edge, so it goes round
-// forever. It opens on longitude 0. A drag or the wheel scrolls it sideways.
-function Heat({positions, hits}: {positions: Float32Array, hits: ReadonlyMap<number, number>}) {
+// forever. It opens on longitude 0. A drag or the wheel scrolls it sideways. Each era's hits are laid where they were
+// made, on the finest board among them.
+function Heat({history, boards}: {history: MapHistory, boards: Geometries}) {
     const scroller = useRef<HTMLDivElement>(null)
     const copies = [useRef<HTMLCanvasElement>(null), useRef<HTMLCanvasElement>(null), useRef<HTMLCanvasElement>(null)]
     const [first, second, third] = copies
@@ -217,11 +272,17 @@ function Heat({positions, hits}: {positions: Float32Array, hits: ReadonlyMap<num
     useEffect(() => {
         const drawn = first.current
         if (!drawn) return
-        drawHeat(drawn, positions, hits, lookOfThePage())
+        const eras = piecesOf(history).flatMap(({era, board}) => {
+            const geometry = boards.get(board)
+            if (geometry === undefined) return []
+            const {board: {name, spacing}, positions, cells} = geometry
+            return [{board: {name, spacing, positions, cells}, hits: history.hits[era] ?? new Map<number, number>()}]
+        })
+        if (eras.length > 0) drawHeat(drawn, heatOf(eras), lookOfThePage())
         for (const copy of [second.current, third.current]) copy?.getContext("2d")?.drawImage(drawn, 0, 0)
         const list = scroller.current
         if (list) list.scrollLeft = drawn.clientWidth * 1.5 - list.clientWidth / 2
-    }, [positions, hits, first, second, third])
+    }, [history, boards, first, second, third])
 
     useEffect(() => {
         const list = scroller.current

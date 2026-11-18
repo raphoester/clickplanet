@@ -1,7 +1,7 @@
 import {readdirSync, readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {BOARD} from "../app/viewer/boardAsset.ts"
+import {BOARDS} from "../app/viewer/boardsAsset.ts"
 import {decodeRuns, encodeRuns, type Lattice, rebuildTiles, runsOf, tilesOf} from "./board.ts"
 import {latticeIds, latticePositions, latticeSize, positionsHash} from "./lattice.ts"
 
@@ -15,27 +15,33 @@ function bytesOf(path: string): ArrayBuffer {
     return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
 }
 
-describe("the shipped board", () => {
-    const directory = `${STATIC}boards/${BOARD.name}/`
-
-    it("rebuilds the positions its manifest hashes", () => {
-        const {positions, hash} = rebuildTiles(BOARD.lattice, BOARD.tiles, bytesOf(directory + BOARD.files.runs))
-        expect(positions.length).toBe(BOARD.tiles * 3)
-        expect(hash).toBe(BOARD.positionsHash)
-        expect(positionsHash(positions)).toBe(BOARD.positionsHash)
+describe("the shipped boards", () => {
+    it("are every board in /map", () => {
+        expect(Object.keys(BOARDS).sort()).toEqual(readdirSync(`${MAP}boards`).sort())
     })
 
-    it("is the page's copy of /map's, served where the page fetches it", () => {
-        const manifest = readdirSync(directory).filter((name) => /^board-[0-9a-f]{8}\.json$/.test(name))
-        expect(manifest).toHaveLength(1)
-        const {name, files} = JSON.parse(readFileSync(directory + manifest[0], "utf8"))
-        expect(name).toBe(BOARD.name)
-        expect(files).toEqual(BOARD.files)
-        for (const [kind, file] of Object.entries(BOARD.files)) {
-            expect(BOARD.urls[kind as keyof typeof BOARD.urls]).toBe(`/static/boards/${BOARD.name}/${file}`)
-            expect(readFileSync(directory + file).equals(readFileSync(`${MAP}boards/${BOARD.name}/${file}`)), file).toBe(true)
-        }
-    })
+    for (const board of Object.values(BOARDS)) {
+        const directory = `${STATIC}boards/${board.name}/`
+
+        it(`rebuild the positions ${board.name}'s manifest hashes`, () => {
+            const {positions, hash} = rebuildTiles(board.lattice, board.tiles, bytesOf(directory + board.files.runs))
+            expect(positions.length).toBe(board.tiles * 3)
+            expect(hash).toBe(board.positionsHash)
+            expect(positionsHash(positions)).toBe(board.positionsHash)
+        })
+
+        it(`are the page's copy of /map's ${board.name}, served where the page fetches it`, () => {
+            const manifest = readdirSync(directory).filter((name) => /^board-[0-9a-f]{8}\.json$/.test(name))
+            expect(manifest).toHaveLength(1)
+            const {name, files} = JSON.parse(readFileSync(directory + manifest[0], "utf8"))
+            expect(name).toBe(board.name)
+            expect(files).toEqual(board.files)
+            for (const [kind, file] of Object.entries(board.files)) {
+                expect(board.urls[kind as keyof typeof board.urls]).toBe(`/static/boards/${board.name}/${file}`)
+                expect(readFileSync(directory + file).equals(readFileSync(`${MAP}boards/${board.name}/${file}`)), file).toBe(true)
+            }
+        })
+    }
 })
 
 describe("tilesOf", () => {

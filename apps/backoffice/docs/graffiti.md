@@ -27,20 +27,23 @@ and `antibot.v1.AdminService/InspectPlayer` for where each painter stands.
   even when it still stands. The globe link shows the map now.
 - **The squad off** (its service absent, `unimplemented`) says so instead of failing.
 
-**Each graffiti names its board** (`Graffiti.board`, since 2026-11-17): its tile ids are places on that board alone.
-The page bundles one board, `earth-1`, which every graffiti names today, and does not read the field yet (see
-[Boards](../../../docs/boards.md)).
+**Each graffiti is drawn on the board it names** (`Graffiti.board`): its tile ids are places on that board alone. The
+page reads each board the list names once (`boardsOf`, `placesByBoard`, over `loadPlaces`: see
+[Boards on the page](boards.md)), and the detail says the board. A board the page does not carry fails alone: a notice
+above the list says which, its drawings say their tiles could not be placed, and the rest are drawn. Every graffiti
+names `earth-1` today.
 
 ## How a drawing is drawn
 
-`picture.ts`, `pictureOf(places, tileIds, margin)`, on the tile places the page rebuilds from the board it bundles
-(`src/gen/map`, read once a page load by `home/places.ts`):
+`picture.ts`, `pictureOf(places, tileIds, margin)`, on the places of the graffiti's board (`src/boards/places.ts`):
 
 - **The drawing's middle** is the mean of its tiles' points on the sphere; east and north there make the plane it is
   drawn on, each tile its point's projection (`x = p·east`, `y = p·north`), so north is up wherever it is, a pole and
   the antimeridian included. The squad's own link is the same middle.
 - **The frame** is the drawing's farthest tile from the middle plus `margin` steps of the lattice, the step read off
-  the first tile's nearest neighbour (about 0.43°).
+  the first tile's nearest neighbour (0.17° to 0.25° on `earth-1`), looked for within 0.05 rad, or 0.0075 rad for a tile
+  with none there; both are `earth-1`'s lengths, read at the board's spacing (`scaleOf`), so a coarse board's lone tile
+  is framed with the land around it too. The margin is in the drawing's own tiles, on any board.
 - **The tiles around it** are found by one-degree bands of latitude and longitude (`bandsOf`, built once a page load),
   not by reading the 260,000 tiles for each drawing.
 - **Each tile is its Voronoi cell**: the circumcentres of the tile and each pair of its neighbours in turn, a hexagon.

@@ -15,6 +15,8 @@ message TilesTaken {
   // The ledger's: a receiver keeps the position and index past the last tile it counted.
   uint64 position = 4;
   repeated TakenTile tiles = 5;
+  // The board the tiles are on, as /map/boards names it ("earth-1"): their ids, grounds and points are that board's.
+  string board = 6;
 }
 
 message TakenTile {
@@ -62,6 +64,8 @@ message Fortified {
   string ground = 5;
   string account_id = 6;
   uint64 position = 7;
+  // The board the landmass is on, as /map/boards names it: a landmass of tiles is a count of that board's tiles.
+  string board = 8;
 }
 
 // A shield a player placed, with the tile's shields after it.

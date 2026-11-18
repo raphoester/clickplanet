@@ -1,4 +1,4 @@
-// Package page_catalogues brings the game page's catalogues up to their English: its lines, the names of its
+// Package page_catalogues brings the game page's catalogues up to their English: its lines, the names of each board's
 // landmasses, and each flag's country inside a sentence, in every language it has a file for.
 package page_catalogues
 
@@ -24,10 +24,14 @@ import (
 type Name string
 
 const (
-	Lines      Name = "lines"
-	Landmasses Name = "landmasses"
-	Countries  Name = "countries"
+	Lines     Name = "lines"
+	Countries Name = "countries"
 )
+
+// A board's landmass names: "landmasses/earth-1".
+func LandmassesOf(board string) Name {
+	return Name("landmasses/" + board)
+}
 
 // The page's own language: its lines are the source, but a country inside a sentence is written for it too.
 const English translation.Language = "en"
@@ -89,28 +93,38 @@ func Load(ctx context.Context, page string, languages []translation.Language) (W
 	if err != nil {
 		return Work{}, fmt.Errorf("failed to read Natural Earth's names: %w", err)
 	}
-	landmassLines, landmassOrder, err := landmass_source.Read(filepath.Join(page, "static", "landmassNames.json"), gazetteer)
+	boards, err := landmass_source.Boards(filepath.Join(page, "static", "boards"))
 	if err != nil {
-		return Work{}, fmt.Errorf("failed to read the landmass names: %w", err)
+		return Work{}, fmt.Errorf("failed to find the boards' landmass names: %w", err)
 	}
 	countryLines, countryOrder, err := country_source.Read(filepath.Join(page, "static", "countries", "countries.json"))
 	if err != nil {
 		return Work{}, fmt.Errorf("failed to read the flags: %w", err)
 	}
 	work := Work{
-		Catalogues: []Catalogue{
-			{Name: Lines, Source: pageLines, Order: pageOrder, Place: lines, Languages: translated},
-			{Name: Landmasses, Source: landmassLines, Order: landmassOrder, Languages: translated, Place: catalogue_files.Place{
-				Lines:        filepath.Join(i18n, "landmasses"),
-				Fingerprints: filepath.Join(i18n, "fingerprints", "landmasses"),
-			}},
-			{Name: Countries, Source: countryLines, Order: countryOrder, Languages: languages, Place: catalogue_files.Place{
-				Lines:        filepath.Join(i18n, "countries"),
-				Fingerprints: filepath.Join(i18n, "fingerprints", "countries"),
-			}},
-		},
-		Plans: map[Name][]translation.Plan{},
+		Catalogues: []Catalogue{{Name: Lines, Source: pageLines, Order: pageOrder, Place: lines, Languages: translated}},
+		Plans:      map[Name][]translation.Plan{},
 	}
+	// A landmass id is a row of one board's borders: each board's names are a catalogue of their own.
+	for _, board := range boards {
+		landmassLines, landmassOrder, err := landmass_source.Read(board.Path, gazetteer)
+		if err != nil {
+			return Work{}, fmt.Errorf("failed to read the landmass names of %s: %w", board.Name, err)
+		}
+		work.Catalogues = append(work.Catalogues, Catalogue{
+			Name: LandmassesOf(board.Name), Source: landmassLines, Order: landmassOrder, Languages: translated,
+			Place: catalogue_files.Place{
+				Lines:        filepath.Join(i18n, "landmasses", board.Name),
+				Fingerprints: filepath.Join(i18n, "fingerprints", "landmasses", board.Name),
+			},
+		})
+	}
+	work.Catalogues = append(work.Catalogues, Catalogue{
+		Name: Countries, Source: countryLines, Order: countryOrder, Languages: languages, Place: catalogue_files.Place{
+			Lines:        filepath.Join(i18n, "countries"),
+			Fingerprints: filepath.Join(i18n, "fingerprints", "countries"),
+		},
+	})
 	for _, catalogue := range work.Catalogues {
 		for _, language := range catalogue.Languages {
 			current, err := catalogue.Place.Catalogue(language)

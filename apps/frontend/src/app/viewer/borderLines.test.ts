@@ -17,7 +17,10 @@ import {
 } from "./borderLines.ts"
 import {EARTH_RADIUS} from "./sphere.ts"
 import {flagPaint, tilePointSize, tileSpacing} from "./pointSize.ts"
-import {MAX_ZOOM, MIN_ZOOM} from "./zoom.ts"
+import {maxZoomOf, MIN_ZOOM} from "./zoom.ts"
+import {EARTH_1_SCALE} from "../../domain/boardScale.ts"
+
+const MAX_ZOOM = maxZoomOf(EARTH_1_SCALE)
 
 function blobOf(runs: number[][], sides: number[] = runs.flatMap(() => [0, 1])): ArrayBuffer {
     const corners = runs.flat()
@@ -110,9 +113,9 @@ describe("outlineSegments", () => {
         const share = nearest(SAMPLES) / SPACING
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            if (flagPaint(zoom, 900, "split") > 0) continue
-            const clearance = share * tileSpacing(zoom, 900) - WIDTH / 2
-            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(tilePointSize(zoom, 900) / 2)
+            if (flagPaint(zoom, 900, "split", EARTH_1_SCALE) > 0) continue
+            const clearance = share * tileSpacing(zoom, 900, EARTH_1_SCALE) - WIDTH / 2
+            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(tilePointSize(zoom, 900, EARTH_1_SCALE) / 2)
         }
     })
 
@@ -156,7 +159,7 @@ describe("pieceSides", () => {
 
 describe("the highlight", () => {
     it("draws one landmass's outline over the tiles, and nothing when none is set", () => {
-        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])))
+        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])), EARTH_1_SCALE)
         const highlight = lines.object.children[2] as THREE.Mesh
         const {uniforms} = highlight.material as THREE.ShaderMaterial
         expect(highlight.visible).toBe(false)
@@ -171,7 +174,7 @@ describe("the highlight", () => {
     })
 
     it("is drawn over the coarse pieces, which carry the landmasses either side", () => {
-        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])))
+        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])), EARTH_1_SCALE)
         const [over, , highlight] = lines.object.children as THREE.Mesh[]
         expect(highlight.geometry).toBe(over.geometry)
         expect(over.geometry.getAttribute("sides")).toBeDefined()
@@ -181,7 +184,7 @@ describe("the highlight", () => {
 
 describe("the handover", () => {
     const outline = () => {
-        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]])))
+        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]])), EARTH_1_SCALE)
         const [over, under] = lines.object.children as THREE.Mesh[]
         const inkOf = (pass: THREE.Mesh) =>
             pass.visible ? (pass.material as THREE.ShaderMaterial).uniforms.ink.value as number : 0
@@ -194,7 +197,7 @@ describe("the handover", () => {
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
             lines.update(zoom, 1600, 900, 1, "split")
 
-            const painted = flagPaint(zoom, 900, "split")
+            const painted = flagPaint(zoom, 900, "split", EARTH_1_SCALE)
             expect(inkOf(over), `over at zoom ${zoom}`).toBe(painted * ORBIT_INK)
             expect(inkOf(under) + inkOf(over) / ORBIT_INK, `ink at zoom ${zoom}`).toBeGreaterThanOrEqual(1)
         }
@@ -250,7 +253,7 @@ describe("the handover", () => {
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
             lines.update(zoom, 3200, 1800, 2, "split")
-            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "split") * ORBIT_INK)
+            expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "split", EARTH_1_SCALE) * ORBIT_INK)
         }
 
         expect((over.material as THREE.ShaderMaterial).uniforms.halfWidth.value).toBe(halfWidthOf(2, ORBIT_WIDTH))

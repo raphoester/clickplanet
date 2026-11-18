@@ -10,8 +10,10 @@ at 1.3s rather than 3.75s with the 5.2 MB coordinates file it had replaced.
 
 ## How
 
-`points.ts` fetches the runs named by `BOARD` (`boardAsset.ts`, which `npm run map` writes from the board's manifest)
-and hands them to `latticeWorker.ts`, which runs `rebuildTiles` (`domain/board.ts`, over `domain/lattice.ts`): it walks
+`points.ts` fetches the runs of the board it is given (`loadPointGeometryData(board)`), from the table of every board
+the page carries (`BOARDS` in `boardsAsset.ts`, which `npm run map` writes from each board's manifest): the game page's
+is the one `GetMap` names (see [The board the page draws](board-reload.md)), the archive's, the clips' and the video's
+the board of each era they draw. It hands them to `latticeWorker.ts`, which runs `rebuildTiles` (`domain/board.ts`, over `domain/lattice.ts`): it walks
 the lattice in three's order and keeps the points whose canonical id is in a run. It sends back the positions as a
 transfer, with the cells the territory layer and the pick find a pixel's tile by (`cellsOf`, built from each tile's
 canonical id; see [The zoomed-out view](zoomed-out-view.md)), the chunks the page culls the tiles by (`chunksOf`; see

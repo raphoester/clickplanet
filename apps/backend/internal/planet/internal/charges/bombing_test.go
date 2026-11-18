@@ -1,7 +1,6 @@
 package charges_test
 
 import (
-	"log/slog"
 	"slices"
 	"testing"
 
@@ -28,7 +27,7 @@ func (g *ground) Within(centre clicks.Vec3, radius float64) []uint32 {
 func bombOf(rings float64, spacing float64) charges.Bombing {
 	rules := charges.TestRules()
 	rules.Bomb.Rings = rings
-	return charges.NewBombing(func() charges.Rules { return rules }, spacing)
+	return charges.NewBombing(func() charges.Rules { return rules }, clicks.Spacing(spacing))
 }
 
 var bomb = bombOf(10, 0.003)
@@ -40,7 +39,7 @@ func TestABombIsSizedOffTheMap(t *testing.T) {
 
 func TestABombFollowsTheRingsInForce(t *testing.T) {
 	rules := charges.TestRules()
-	bombing := charges.NewBombing(func() charges.Rules { return rules }, 0.003)
+	bombing := charges.NewBombing(func() charges.Rules { return rules }, clicks.Spacing(0.003))
 
 	rules.Bomb.Rings = 2
 
@@ -67,8 +66,9 @@ func TestABombInTheSeaClearsNothing(t *testing.T) {
 }
 
 func TestProductionsBombClearsAboutOneBankInland(t *testing.T) {
-	geography, err := embedded_board.New(260503, slog.New(slog.DiscardHandler)).LoadGeography()
+	ground, err := embedded_board.Shipped("earth-1")
 	require.NoError(t, err)
+	geography := ground.Geography()
 
 	rules := bombOf(charges.TestRules().Bomb.Rings, geography.Spacing())
 

@@ -9,6 +9,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 type Planet interface {
@@ -47,7 +48,12 @@ func (r Reader) World(ctx context.Context) (missions.World, error) {
 		return missions.World{}, fmt.Errorf("failed to ask planet how big each country is: %w", err)
 	}
 
-	world := missions.World{}
+	// The territories are counted on the board the map in play plays, which the sizes name too.
+	scale, err := cpboards.ScaleOf(territories.Msg.GetBoard())
+	if err != nil {
+		return missions.World{}, fmt.Errorf("failed to scale the floors to planet's board: %w", err)
+	}
+	world := missions.World{Scale: scale}
 	for _, held := range territories.Msg.GetTerritories() {
 		territory := missions.Territory{Flag: held.GetCountryId(), Tiles: held.GetTiles(), Shields: held.GetShields()}
 		for _, ground := range held.GetGrounds() {

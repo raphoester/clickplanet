@@ -15,7 +15,7 @@ import (
 
 func TestARallyIsMadeByTheRulesInForceAsItIsCalled(t *testing.T) {
 	rules := charges.TestRules()
-	muster := rallies.NewMuster(func() charges.Rules { return rules }, 0.004, &rallies.SequentialIDs{},
+	muster := rallies.NewMuster(func() charges.Rules { return rules }, clicks.Spacing(0.004), &rallies.SequentialIDs{},
 		cptime.NewFixedClock(calledAt))
 
 	rally, err := muster.Rally(alice, "fr", clicks.Vec3{Z: 1})

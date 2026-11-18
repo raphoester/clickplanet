@@ -123,6 +123,13 @@ export class TilesTaken extends Message<TilesTaken> {
    */
   tiles: TakenTile[] = [];
 
+  /**
+   * The board the tiles are on, as /map/boards names it ("earth-1"): their ids, grounds and points are that board's.
+   *
+   * @generated from field: string board = 6;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<TilesTaken>) {
     super();
     proto3.util.initPartial(data, this);
@@ -136,6 +143,7 @@ export class TilesTaken extends Message<TilesTaken> {
     { no: 3, name: "taken_at", kind: "message", T: Timestamp },
     { no: 4, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 5, name: "tiles", kind: "message", T: TakenTile, repeated: true },
+    { no: 6, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TilesTaken {
@@ -423,6 +431,13 @@ export class Fortified extends Message<Fortified> {
    */
   position = protoInt64.zero;
 
+  /**
+   * The board the landmass is on, as /map/boards names it: a landmass of tiles is a count of that board's tiles.
+   *
+   * @generated from field: string board = 8;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<Fortified>) {
     super();
     proto3.util.initPartial(data, this);
@@ -438,6 +453,7 @@ export class Fortified extends Message<Fortified> {
     { no: 5, name: "ground", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+    { no: 8, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Fortified {

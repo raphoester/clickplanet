@@ -7,3 +7,10 @@ slowed down by a jsdom each.
 
 `TileField` is testable without a GPU because `BufferAttribute` is plain arrays,
 and `TilePicker` because it picks on the CPU: no test needs a WebGL context.
+
+**Two boards to test on** (`src/testdata/boards.ts`): `EARTH_1`, as the page serves it from `static/`, and `FIXTURE_1`, a
+coarse earth cut from it at `cols` 31 (2,998 tiles, about ten times as far apart), which `npm run map:fixture` writes
+into `src/testdata/boards/fixture-1/` and the backend's and the backoffice's test data. It is never in `static/` nor in
+the bundle: no page plays it. `tilesOfBoard` rebuilds a board's tiles as the page does, `englishLandmassNamesOf` reads
+its landmass names. What reads the board (see [Sized by the board](board-scale.md)) is tested on both: today's values
+on `earth-1`, scaled on `fixture-1`; and what draws each era on its own board, on a history from one to the other.

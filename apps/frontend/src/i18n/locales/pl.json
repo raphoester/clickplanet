@@ -534,6 +534,8 @@
   "archive.pause": "Pauza",
   "archive.time": "Czas",
   "archive.heat": "Gdzie walczono o pola",
+  "archive.newMap": "Świat przechodzi na nową mapę",
+  "archive.newMapAt": "Nowa mapa od {time}",
   "chat.title": "Czat",
   "chat.liveChat": "Czat na żywo",
   "chat.world": "Świat",

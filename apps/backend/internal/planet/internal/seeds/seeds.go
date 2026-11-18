@@ -36,19 +36,13 @@ var Part = cprules.PartOf[*planetv1.Rules, Pattern]{
 	},
 }
 
-// Catalog seeds an arena's map with the pattern its set names.
-type Catalog struct {
-	ground Ground
-}
+// Catalog seeds an arena's map with the pattern its set names, on the board the arena plays.
+type Catalog struct{}
 
 var _ arenas.Seeds = Catalog{}
 
-func NewCatalog(ground Ground) Catalog {
-	return Catalog{ground: ground}
-}
-
-func (c Catalog) SeedOf(set cprules.Set[*planetv1.Rules]) arenas.Seed {
-	return Part.Of(set).Seed(c.ground)
+func (Catalog) SeedOf(set cprules.Set[*planetv1.Rules], ground *clicks.Ground) arenas.Seed {
+	return Part.Of(set).Seed(Ground{Capitals: ground.Capitals()})
 }
 
 // A set that names no pattern, and default holds none: no set can play.

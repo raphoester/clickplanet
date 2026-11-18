@@ -230,6 +230,33 @@ describe("the game rules page", () => {
         expect(sent(admin)?.rules?.arena?.on).toBe(true)
     })
 
+    it("plays an arena on the board picked, or on default's, and keeps one the page does not carry", async () => {
+        const admin = withCalm()
+        admin.rules.sets[1].rules = Rules.fromJson({...admin.rules.sets[1].rules!.toJson() as object, arena: {board: "siege-1"}})
+        render(<RulesPanel planet={admin}/>)
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        const board = screen.getByLabelText("Board its fresh map plays") as HTMLSelectElement
+        expect(board.value).toBe("board:siege-1")
+        expect([...board.options].map(option => option.textContent)).toEqual(["Default (the world's)", "The world's", "earth-1", "siege-1"])
+        type("Clicks a second", "0.5")
+        save()
+        await waitFor(() => expect(sent(admin)).toBeDefined())
+        expect(sent(admin)?.rules?.arena?.board).toBe("siege-1")
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        fireEvent.change(screen.getByLabelText("Board its fresh map plays"), {target: {value: "board:earth-1"}})
+        fireEvent.click(screen.getByRole("button", {name: "Save"}))
+        expect(screen.getByText("Arena · Board its fresh map plays")).toBeTruthy()
+        fireEvent.click(screen.getByRole("button", {name: "Yes, save"}))
+        await waitFor(() => expect(sent(admin)?.rules?.arena?.board).toBe("earth-1"))
+
+        fireEvent.click(await screen.findByRole("button", {name: "Edit calm"}))
+        fireEvent.change(screen.getByLabelText("Board its fresh map plays"), {target: {value: "default"}})
+        save()
+        await waitFor(() => expect(sent(admin)?.rules?.arena?.board).toBeUndefined())
+    })
+
     it("plays the reach, the knock-out and fixed capital shields, each a switch of its own", async () => {
         const admin = withCalm()
         render(<RulesPanel planet={admin}/>)

@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {BOARD} from "../app/viewer/boardAsset.ts"
+import {EARTH_1} from "../testdata/boards.ts"
 import {decodeRuns, tilesOf} from "./board.ts"
 import {latticeSize} from "./lattice.ts"
 import {decodeTerrain, encodeTerrain, KINDS, LAND, OPEN_SEA, seaKind} from "./terrain.ts"
@@ -62,12 +62,12 @@ describe("encodeTerrain and decodeTerrain", () => {
 })
 
 describe("the shipped terrain", () => {
-    const terrain = decodeTerrain(bytesOf(`${STATIC}boards/${BOARD.name}/${BOARD.files.terrain}`), latticeSize(BOARD.lattice.cols))
-    const runs = decodeRuns(bytesOf(`${STATIC}boards/${BOARD.name}/${BOARD.files.runs}`))
+    const terrain = decodeTerrain(bytesOf(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.terrain}`), latticeSize(EARTH_1.lattice.cols))
+    const runs = decodeRuns(bytesOf(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`))
 
     it("has land exactly under the board's tiles, which the territory layer reads a tile's cell by", () => {
         const isTile = new Uint8Array(terrain.length)
-        for (const id of tilesOf(BOARD.lattice, runs, BOARD.tiles).ids) isTile[id] = 1
+        for (const id of tilesOf(EARTH_1.lattice, runs, EARTH_1.tiles).ids) isTile[id] = 1
         let astray = 0
         for (let id = 0; id < terrain.length; id++) if ((terrain[id] < LAND.length) !== (isTile[id] === 1)) astray++
         expect(astray).toBe(0)

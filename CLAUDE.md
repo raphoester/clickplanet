@@ -28,10 +28,12 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - [Map geometry](docs/map-geometry.md) — `map/boards/`: each board's runs, borders, capitals, bridges and terrain, no
   coordinates file, the committed copy in each app, the lakes, the one-tile seat of each country too small for the
   lattice, and why a regeneration renumbers every tile.
-- [Boards](docs/boards.md) — PRs 1 and 2 built (`earth-1` is a board, no coordinates file; every tile and event names
-  its board and map, and the boot refuses another board), the rest designed: a geometry as files of its own (`earth-2`
-  at ≈1M tiles, `siege-1` for Capital Siege), the warped and rotated lattice with its pentagons at sea, the world's
-  switch and its carry-over, the rules at the new density, and the PRs in order.
+- [Boards](docs/boards.md) — PRs 1 to 3 built (`earth-1` is a board, no coordinates file; every tile and event names
+  its board and map, and the boot refuses another board; every app holds every board, the page reloads on another,
+  thresholds read the board, `arena.board`, each era drawn on its board with the cut; the `fixture-1` test board), the
+  rest designed: a geometry as files of its own (`earth-2` at ≈1M tiles, `siege-1` for Capital Siege), the warped and
+  rotated lattice with its pentagons at sea, the world's switch and its carry-over, the rules at the new density, and
+  the PRs in order.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.

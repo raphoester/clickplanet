@@ -27,7 +27,7 @@ func (s *stubQuery) TileHolder(_ context.Context, tile uint32) (*planetv1.GetTil
 func ask(t *testing.T, query *stubQuery, tile uint32) (*connect.Response[planetv1.GetTileHolderResponse], error) {
 	t.Helper()
 
-	return get_tile_holder_handler.New(clicks.NewBoard(10), query).GetTileHolder(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
+	return get_tile_holder_handler.New(clicks.PlayedOf(10), query).GetTileHolder(t.Context(), //nolint:wrapcheck // the test reads the handler's own error.
 		connect.NewRequest(&planetv1.GetTileHolderRequest{TileId: tile}))
 }
 

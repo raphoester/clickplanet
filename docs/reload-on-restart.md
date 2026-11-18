@@ -28,6 +28,9 @@ a **hard switch**: the new paths and messages only, in one PR.
   cache, under the boot of a server that is gone. Every stream and every other call is a POST.
 - **An answer with no boot changes nothing**: the fake backend (`VITE_FAKE_BACKEND=1`), or a route that never reaches
   the backend.
+- **A change of board reloads the page too**, the same way and once: the stream opening on another board than the page
+  drew, or a `GetMap` read past the browser's cache naming one. See the frontend's
+  [The board the page draws](../apps/frontend/docs/board-reload.md).
 
 ## What a player sees
 

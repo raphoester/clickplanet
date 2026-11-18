@@ -128,24 +128,32 @@ describe("the language", () => {
 })
 
 describe("a landmass's name", () => {
+    const english = {"13": "Split-Dalmatia", "264": "Corsica"}
+
     it("is its own, or for a country's main one the country's", () => {
         const en = new Translator("en", {})
+        en.nameLandmasses({english, own: {}})
 
         expect(en.landmass(264, "fr")).toBe("Corsica")
         expect(en.landmass(231, "fr")).toBe("France")
     })
 
     it("is English where the language's file has none yet", () => {
-        const fr = new Translator("fr", {}, "fr", {"264": "Corse"})
+        const fr = new Translator("fr", {}, "fr")
+        fr.nameLandmasses({english, own: {"264": "Corse"}})
 
         expect(fr.landmass(264, "fr")).toBe("Corse")
         expect(fr.landmass(13, "hr")).toBe("Split-Dalmatia")
+    })
+
+    it("is the country's until the board's names are read", () => {
+        expect(new Translator("en", {}).landmass(264, "fr")).toBe("France")
     })
 })
 
 describe("a country inside a sentence", () => {
     it("takes the preposition, article and case its language gives it, with the flag before the name", () => {
-        const fr = new Translator("fr", {}, "fr", {}, {"in.ar": "en {flag} Argentine", "in.br": "au {flag} Brésil"})
+        const fr = new Translator("fr", {}, "fr", {"in.ar": "en {flag} Argentine", "in.br": "au {flag} Brésil"})
 
         const flag = {code: "br"}
         expect(fr.countryIn("br", flag)).toEqual(["au ", flag, " Brésil"])
@@ -153,7 +161,7 @@ describe("a country inside a sentence", () => {
     })
 
     it("is English where the language's file has none yet", () => {
-        expect(new Translator("fr", {}, "fr", {}, {}).countryInText("us")).toBe("in the United States")
+        expect(new Translator("fr", {}, "fr", {}).countryInText("us")).toBe("in the United States")
     })
 })
 

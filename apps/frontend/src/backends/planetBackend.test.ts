@@ -18,6 +18,7 @@ import {
     rallyCalledOf,
 } from "./planetBackend.ts"
 import {Code, ConnectError} from "@connectrpc/connect"
+import {BoardChanges, CACHED_MS} from "./boards.ts"
 import {
     Allegiance as AllegianceMessage,
     BanRefusal,
@@ -2689,6 +2690,89 @@ describe("PlanetBackend rallies", () => {
 
         expect(budgets.at(-1)?.tokens).toBe(3.5)
         expect(budgets.at(-1)?.rally).toEqual({cost: 0.5, until: called[0].endsAt})
+        backend.close()
+    })
+})
+
+describe("PlanetBackend's board", () => {
+    const clientWith = (fields: Record<string, unknown>) =>
+        ({click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), ...fields}) as never
+
+    const changesWith = (reload: () => void, clock: {now: number}) => new BoardChanges({
+        reload,
+        carries: (board) => board === "earth-1" || board === "siege-1",
+        memory: {read: () => undefined, write: () => {}, forget: () => {}},
+        now: () => clock.now,
+    })
+
+    it("is the one GetMap names, read from its first tile alone", async () => {
+        const getMap = vi.fn().mockResolvedValue(new GetMapResponse({startTileId: 1, board: "earth-1"}))
+        const backend = new PlanetBackend(clientWith({getMap}), 1_000)
+
+        await expect(backend.readBoard()).resolves.toBe("earth-1")
+        expect(getMap).toHaveBeenCalledWith({startTileId: 1, endTileId: 1}, expect.anything())
+        backend.close()
+    })
+
+    it("hands over no batch of another board, and reloads once a read past the browser's copy still names it", async () => {
+        const reload = vi.fn()
+        const clock = {now: 0}
+        const boards = changesWith(reload, clock)
+        await boards.choose(async () => "earth-1")
+        const board = {current: "siege-1"}
+        const getMap = vi.fn(async () => new GetMapResponse({startTileId: 1, codes: ["", "fr"], tiles: tileBytes([1, 1]), board: board.current}))
+        const backend = new PlanetBackend(clientWith({getMap}), 1_000, undefined, undefined, boards)
+        const seen: number[] = []
+
+        await backend.getOwnerships([{start: 1, end: 2}], ({range}) => seen.push(range.start))
+        expect(seen).toEqual([])
+        expect(reload).not.toHaveBeenCalled()
+
+        clock.now = CACHED_MS
+        board.current = "earth-1"
+        await backend.getOwnerships([{start: 1, end: 2}], ({range}) => seen.push(range.start))
+        expect(seen).toEqual([1])
+
+        board.current = "siege-1"
+        await backend.getOwnerships([{start: 1, end: 2}], ({range}) => seen.push(range.start))
+        clock.now = 2 * CACHED_MS
+        await backend.getOwnerships([{start: 1, end: 2}], ({range}) => seen.push(range.start))
+        expect(seen).toEqual([1])
+        expect(reload).toHaveBeenCalledTimes(1)
+        backend.close()
+    })
+
+    it("reloads when the stream opens on another board, and tells the page no opening", async () => {
+        const reload = vi.fn()
+        const boards = changesWith(reload, {now: 0})
+        await boards.choose(async () => "earth-1")
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat({board: "siege-1", version: new MapVersionMessage({epoch: 2, seq: BigInt(0)})})}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000, undefined, undefined, boards)
+        const openings = vi.fn()
+        backend.listenForOpenings(openings)
+
+        await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1))
+        expect(openings).not.toHaveBeenCalled()
+        backend.close()
+    })
+
+    it("tells the opening of a stream on the board the page drew", async () => {
+        const reload = vi.fn()
+        const boards = changesWith(reload, {now: 0})
+        await boards.choose(async () => "earth-1")
+        const listenForEvents = vi.fn(async function* () {
+            yield new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat({board: "earth-1", version: new MapVersionMessage({epoch: 2, seq: BigInt(3)})})}})
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000, undefined, undefined, boards)
+        const openings = vi.fn()
+        backend.listenForOpenings(openings)
+
+        await vi.waitFor(() => expect(openings).toHaveBeenCalledWith({epoch: 2, seq: 3}))
+        expect(reload).not.toHaveBeenCalled()
         backend.close()
     })
 })

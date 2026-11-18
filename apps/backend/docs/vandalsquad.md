@@ -41,7 +41,9 @@ internal/vandalsquad/internal/
   one. Nothing is kept between patrols, so a restart loses nothing: the next patrol reads the same hour.
 - For every tile of every painting of 12 tiles or more (one player, one flag), it asks planet the tile's flag and the
   account whose take holds it now (`planet.v1.InternalService/GetTiles`). **A tile taken since, cleared by a bomb or
-  reverted is no longer the player's drawing**: only the tiles it still holds for that flag are read.
+  reverted is no longer the player's drawing**: only the tiles it still holds for that flag are read. `GetTiles` names
+  the board in play: **while an arena plays a board of its own, the patrol reads nothing** (`drawings.ErrOtherBoard`),
+  since the world's ids are not the arena's tiles, and the next patrol after the arena reads the hour again.
 - They are **split into drawings, the tiles that touch each other** (`drawings.Split`), and each is read
   (`swastikas.ReadingOf`). For each one that reads as a swastika, the patrol asks planet the flags of the tiles around
   it, and keeps it only when it **shows** (`drawings.Visible`): when at most half of the tiles touching it wear its
@@ -78,7 +80,8 @@ right-angled swastikas caught none of the real ones. Players draw them small (16
 wide, along the grid's lines or zigzagging across them, with arms and hooks of uneven length, each hook turned 60, 90 or
 120 degrees on screen. So the reading follows the tiles and measures no right angle and no symmetry:
 
-- **12 to 150 tiles, in one piece.**
+- **12 to 150 tiles, in one piece**: 150 of `earth-1`'s, as much ground on another board (`ReadingOf`'s scale, from the
+  ledger's board; 12 stays, which strokes a tile wide need). See [Sized from the board](board-scale.md).
 - **Strokes one tile wide**: at most 5% of the tiles have five or six neighbours in the drawing. A blob of conquest
   has them all through its middle.
 - **A centre with four ends.** From a tile with three neighbours or more, the walk out (breadth first) finds the ends

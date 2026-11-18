@@ -10,7 +10,9 @@ type Holds interface {
 	HoldsOf(tiles []uint32) []clicks.TileHold
 }
 
+// Geography is the board in play's: its name, and where each tile is and what it touches.
 type Geography interface {
+	Name() clicks.BoardName
 	Position(id uint32) (clicks.Vec3, bool)
 	Neighbours(id uint32) []uint32
 }
@@ -28,7 +30,7 @@ type MemoryQuery struct {
 func (q *MemoryQuery) Tiles(tiles []uint32) *planetv1.GetTilesResponse {
 	holds := q.holds.HoldsOf(tiles)
 
-	answer := &planetv1.GetTilesResponse{Tiles: make([]*planetv1.MapTile, len(holds))}
+	answer := &planetv1.GetTilesResponse{Tiles: make([]*planetv1.MapTile, len(holds)), Board: string(q.geography.Name())}
 	for i, hold := range holds {
 		tile := &planetv1.MapTile{TileId: hold.Tile, CountryId: hold.Flag}
 		if hold.Holder != cpsession.NoAccount {

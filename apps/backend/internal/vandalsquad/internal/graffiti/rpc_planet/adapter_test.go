@@ -25,6 +25,7 @@ var at = time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
 type planet struct {
 	asked  [][]uint32
 	short  bool
+	board  string
 	pages  []*planetv1.GetLedgerResponse
 	ledger []*planetv1.GetLedgerRequest
 }
@@ -41,7 +42,7 @@ func (p *planet) GetTiles(_ context.Context, req *connect.Request[planetv1.GetTi
 	if p.short {
 		answer = answer[1:]
 	}
-	return connect.NewResponse(&planetv1.GetTilesResponse{Tiles: answer}), nil
+	return connect.NewResponse(&planetv1.GetTilesResponse{Tiles: answer, Board: p.board}), nil
 }
 
 func (p *planet) GetLedger(_ context.Context, req *connect.Request[planetv1.GetLedgerRequest]) (*connect.Response[planetv1.GetLedgerResponse], error) {
@@ -59,7 +60,7 @@ func change(account string, tile uint32, country, previous string, shields uint3
 }
 
 func TestEachTileIsReadInTheMapsWords(t *testing.T) {
-	tiles, err := rpc_planet.New(&planet{}).Tiles(t.Context(), []drawings.TileID{7})
+	tiles, err := rpc_planet.New(&planet{}).Tiles(t.Context(), "earth-1", []drawings.TileID{7})
 
 	require.NoError(t, err)
 	assert.Equal(t, []drawings.MapTile{{
@@ -76,7 +77,7 @@ func TestManyTilesAreAskedInBatchesPlanetTakes(t *testing.T) {
 	}
 	asked := &planet{}
 
-	tiles, err := rpc_planet.New(asked).Tiles(t.Context(), ids)
+	tiles, err := rpc_planet.New(asked).Tiles(t.Context(), "earth-1", ids)
 
 	require.NoError(t, err)
 	assert.Len(t, tiles, 25_000)
@@ -86,7 +87,7 @@ func TestManyTilesAreAskedInBatchesPlanetTakes(t *testing.T) {
 }
 
 func TestAnAnswerShortOfATileIsAnError(t *testing.T) {
-	_, err := rpc_planet.New(&planet{short: true}).Tiles(t.Context(), []drawings.TileID{7, 8})
+	_, err := rpc_planet.New(&planet{short: true}).Tiles(t.Context(), "earth-1", []drawings.TileID{7, 8})
 
 	assert.ErrorContains(t, err, "planet answered 1 tiles of the 2 asked")
 }
@@ -148,4 +149,13 @@ func TestALedgerReadWhosePagesNameTwoBoardsIsRefused(t *testing.T) {
 	_, _, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
 
 	assert.ErrorIs(t, err, rpc_planet.ErrBoardMoved, "tile ids of two boards are no one drawing")
+}
+
+func TestTilesOfAnotherBoardThanTheOnesAskedAreRefused(t *testing.T) {
+	_, err := rpc_planet.New(&planet{board: "fixture-1"}).Tiles(t.Context(), "earth-1", []drawings.TileID{7})
+
+	require.ErrorIs(t, err, drawings.ErrOtherBoard, "an arena plays a board of its own")
+
+	_, err = rpc_planet.New(&planet{board: "earth-1"}).Tiles(t.Context(), "earth-1", []drawings.TileID{7})
+	require.NoError(t, err)
 }

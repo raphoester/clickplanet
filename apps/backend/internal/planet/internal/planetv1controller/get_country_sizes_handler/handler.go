@@ -9,7 +9,9 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
+// Borders are the board in play's: its name, and its countries' sizes.
 type Borders interface {
+	Name() clicks.BoardName
 	CountrySizes() []clicks.CountrySize
 }
 
@@ -27,7 +29,9 @@ func (h GetCountrySizesHandler) GetCountrySizes(
 ) (*connect.Response[planetv1.GetCountrySizesResponse], error) {
 	sizes := h.borders.CountrySizes()
 
-	answer := &planetv1.GetCountrySizesResponse{CountrySizes: make([]*planetv1.CountrySize, 0, len(sizes))}
+	answer := &planetv1.GetCountrySizesResponse{
+		CountrySizes: make([]*planetv1.CountrySize, 0, len(sizes)), Board: string(h.borders.Name()),
+	}
 	for _, size := range sizes {
 		answer.CountrySizes = append(answer.CountrySizes, &planetv1.CountrySize{CountryId: size.Country, Tiles: size.Tiles})
 	}

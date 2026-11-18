@@ -31,7 +31,9 @@ rebuilds it. The flag that leads the landmass gets the frame fitted to it and it
 `Holdings.leaderOf`: see [The counts are the server's](counts.md)) into one row
 per landmass of a `DataTexture` the territory layer reads. Any other flag covers the
 landmass from its middle (`coverOf` in the territory fragment shader), from the
-landmass's reach, which the same row keeps. A tile knows it holds the leader's flag
+landmass's reach, which the same row keeps, and never less than about a tile of the board drawn (`leastFlagRadius`). A
+landmass of fewer than 4 tiles of `earth-1` (as much ground on another board, `leastPaintedTiles`) has no leader whose
+flag is fitted to its frame: see [Sized by the board](board-scale.md). A tile knows it holds the leader's flag
 when its own atlas rectangle is the one in the row.
 
 **The flags are painted by the territory layer, not by the tiles.** `territoryLayer.ts` is a sphere drawn after

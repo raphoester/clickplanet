@@ -13,13 +13,9 @@ failing alone:
 - `player.v1.AdminService/GetRoster` for who plays now.
 - `ListReports` (open only) and `ListNotes` (the last 24 hours) for what waits for the operator. Up to 500 of each
   are counted, and 500 reads "500+".
-- **Where each tile is** (`places.ts`), rebuilt from the board the game plays, `earth-1` from `/map` (`npm run map`
-  copies its manifest and its runs into `src/gen/map`, and Vite bundles the runs under `/assets/`, 121 KB; the
-  manifest is inline in `src/gen/map/board.ts`). `board.ts` is the backoffice's own copy of the game page's lattice:
-  it walks the lattice in three's order and keeps the points the runs hold, to the bit, and `board.test.ts` checks the
-  positions against the manifest's `positionsHash`; a page whose rebuild differs logs it and keeps its positions. It
-  runs once a page load, about 0.1 s, on the page itself. Each tile's latitude and longitude are read as the map's
-  generator reads a point: `asin(y)` and `atan2(z, -x)`. The CSP's `connect-src` holds `'self'` for the runs.
+- **Where each tile is**, on the board the ledger names (`GetLedgerResponse.board`, the board the world plays), read
+  once that answer is in and kept for the page load (`loadPlaces`, see [Boards on the page](boards.md)). A board the
+  page does not carry is said where the heatmap would be, and the counts, the charts and the countries still show.
 
 What the page does with them:
 
@@ -32,6 +28,10 @@ What the page does with them:
   the span, reads it whole. **On 2026-10-25 a tab left open read 24 hours every minute**, 7 to 8s each on the 1 GB
   droplet, until the backend swapped and every call ran its minute: clicks took 300 to 600ms for a quarter of an hour.
   The pages bound what one call holds on the server; this bounds how often the page asks.
+- **A read that finds the world on another board reads the span whole again** (`addsTo`, `boardOfPages`): `GetLedger`
+  answers the changes of the board the world plays alone, so after a switch what was kept is of another board's ids.
+  The page drops it, reads the span from its start on the new board, and places the tiles on that board. A switch
+  between two pages of one read does the same; three reads in a row that each meet a switch give up and say so.
 - **The next read is `REFRESH_MS` (a minute) after the last one ended**, never while one runs: Reload waits for it
   too. None is made while the tab is hidden (`usePageVisible`); a tab shown again after its minute reads at once.
 - **The counts** (`ledger.ts`): a click is a change marked `clicked` (a take or a strike); a tile changed hands when
@@ -43,7 +43,9 @@ What the page does with them:
   one chart with two scales. A hover on either reads the same slot on both, in the line above them; the peak is
   labelled; the slot still filling is a hollow dot, off the line, since its count is short. "Table" lists every slot.
 - **The heatmap** (`Heatmap`, `heat.ts`): the map seen flat, 1440×720. Each tile is drawn where it is, as wide as
-  its longitude stretches far north; what changed hands glows over the land around it (a box blur, three times, round the
+  its longitude stretches far north, its width the board's spacing (`TILE_DEGREES`, 0.3° on `earth-1`, read through
+  the board's scale: see [Boards on the page](boards.md#sizes-read-the-board)), on the pixel row under it and, on a board
+  coarser than `earth-1`, the rows within half its width; what changed hands glows over the land around it (a box blur, three times, round the
   world from east to west), on a square root up to the hottest pixel. The colors are tokens (`--map-*`, `--heat-0` to
   `--heat-3`), read when it draws, and it draws again when the color scheme changes. The line under it names the
   degree with the most changes, or the degree under the pointer, with its tiles.

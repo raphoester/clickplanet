@@ -140,6 +140,7 @@ import {
 import {GetTerritoriesRequest, GetTerritoriesResponse, Territory} from "./gen/grpc/planet/v1/internal_pb.ts"
 import {Graffiti, GraffitiKind, ListGraffitiRequest, ListGraffitiResponse} from "./gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {GetLedgerRequest, GetLedgerResponse, LedgerChange} from "./gen/grpc/planet/v1/ledger_pb.ts"
+import {BoardEra} from "./gen/grpc/planet/v1/history_pb.ts"
 import {
     AddEntryRequest,
     AddEntryResponse,
@@ -383,8 +384,11 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             change(4, `account:${ACCOUNT}`, {tileId: 3, countryId: "dz", previousCountryId: "dz", clicked: true, shields: 2}),
             change(5, `account:${ACCOUNT}`, {tileId: 4, countryId: "fr", previousCountryId: "dz", clicked: true}),
         ],
+        board: "earth-1",
     })
     ledgerPages: LedgerChange[][] = []
+    // A replay of the world on earth-1 since the epoch, its window the one asked.
+    replay = new GetReplayResponse({eras: [new BoardEra({startedAt: Timestamp.fromDate(new Date(0)), board: "earth-1"})]})
     territories = new GetTerritoriesResponse({
         tiles: 260503,
         territories: [new Territory({countryId: "fr", tiles: 1200}), new Territory({countryId: "dz", tiles: 800})],
@@ -639,18 +643,19 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
     }
 
     getReplay(request: PartialMessage<GetReplayRequest>): Promise<GetReplayResponse> {
-        return this.answer("getReplay", request, new GetReplayResponse({
-            since: request.since ?? Timestamp.fromDate(AT),
-            until: request.until ?? Timestamp.fromDate(AT),
-        }))
+        const answer = this.replay.clone()
+        answer.since = new Timestamp(request.since ?? Timestamp.fromDate(AT))
+        answer.until = new Timestamp(request.until ?? Timestamp.fromDate(AT))
+        return this.answer("getReplay", request, answer)
     }
 
-    // The ledger's first page, then each of ledgerPages.
+    // The ledger's first page, then each of ledgerPages, all on the ledger's board (earth-1 when it names none).
     getLedger(request: PartialMessage<GetLedgerRequest>): Promise<GetLedgerResponse> {
         const pages = [this.ledger.changes, ...this.ledgerPages]
         const index = request.page ? Number(request.page) : 0
         const next = index + 1 < pages.length ? String(index + 1) : ""
-        return this.answer("getLedger", request, new GetLedgerResponse({changes: pages[index] ?? [], nextPage: next, board: "earth-1"}))
+        const board = this.ledger.board || "earth-1"
+        return this.answer("getLedger", request, new GetLedgerResponse({changes: pages[index] ?? [], nextPage: next, board}))
     }
 
     getTerritories(request: PartialMessage<GetTerritoriesRequest>): Promise<GetTerritoriesResponse> {

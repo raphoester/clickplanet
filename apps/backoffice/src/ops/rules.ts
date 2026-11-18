@@ -69,11 +69,13 @@ const FIELDS = GROUPS.flatMap(group => group.fields)
 // A toll step as the form edits it: the share in percent.
 export type TollStep = {share: string, slowdown: string}
 
-// A set as the form edits it: every value as typed. Outside default, "" and undefined are default's value.
+// A set as the form edits it: every value as typed. Outside default, "" and undefined are default's value. `board` is
+// the board an arena's fresh map plays, by name: undefined holds none (default's, or in default the world's), "" the
+// world's.
 export type Draft = {
     name: string, values: Record<string, string>, frozen?: boolean, allegianceLocked?: boolean, arena?: boolean,
     enclosuresUnlimited?: boolean, spreadUnlimited?: boolean, toll?: TollStep[], reach?: boolean, knockOut?: boolean,
-    fixedShields?: boolean, bombsOff?: boolean, enclosuresOff?: boolean
+    fixedShields?: boolean, bombsOff?: boolean, enclosuresOff?: boolean, board?: string
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -90,6 +92,7 @@ export function draftOf(set: RuleSet): Draft {
         frozen: rules.frozen,
         allegianceLocked: rules.allegianceLocked,
         arena: rules.arena?.on,
+        board: rules.arena?.board,
         reach: rules.reach,
         knockOut: rules.capitals?.knockOut,
         fixedShields: rules.capitals?.fixedShields,
@@ -149,8 +152,20 @@ export function changesOf(before: Draft, after: Draft): Change[] {
             })
         }
     }
+    const inDefault = after.name.trim() === DEFAULT_SET
+    if (boardWord(before.board, inDefault) !== boardWord(after.board, inDefault)) {
+        changes.push({label: `Arena · ${BOARD_LABEL}`, before: boardWord(before.board, inDefault), after: boardWord(after.board, inDefault)})
+    }
     if (tollOf(before.toll) !== tollOf(after.toll)) changes.push({label: "Toll", before: tollOf(before.toll), after: tollOf(after.toll)})
     return changes
+}
+
+export const BOARD_LABEL = "Board its fresh map plays"
+
+// The board an arena plays, in words: by name, the world's, or default's where the set holds none.
+export function boardWord(board: string | undefined, inDefault: boolean): string {
+    if (board === undefined) return inDefault ? "the world's" : "default"
+    return board === "" ? "the world's" : board
 }
 
 export function tollOf(steps: TollStep[] | undefined): string {
@@ -174,6 +189,7 @@ export function ruleSetOf(draft: Draft): RuleSet {
         const typed = (draft.values[field.path] ?? "").trim()
         if (typed !== "") put(json, field.path, jsonOf(Number(typed), field))
     }
+    if (draft.board !== undefined) put(json, "arena.board", draft.board)
     if (draft.toll !== undefined) {
         json.toll = {steps: draft.toll.map(step => ({share: Number(step.share) / 100, slowdown: Number(step.slowdown)}))}
     }

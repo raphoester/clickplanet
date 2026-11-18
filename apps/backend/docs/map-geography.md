@@ -14,24 +14,28 @@ survives a change of input format*:
   to be true of a map: tiles in range, nothing touching itself, no tile above `MaxDegree`, and
   **no asymmetric edge** — a tile that spreads onto a neighbour which would not spread back is a
   one-way street on the map.
-- **`clicks/embedded_board`** — the board loader. It reads the board's manifest and runs, rebuilds the positions,
-  and takes the edges from the lattice; it reads the board's borders, capitals and bridges too. The manifest, the
+- **`clicks/embedded_board`** — the registry of boards. For each board it reads the manifest and runs, rebuilds the
+  positions, and takes the edges from the lattice; it reads the board's borders, capitals and bridges too, and makes
+  them its `clicks.Ground`. The manifest, the
   runs and the lattice are knowledge of the shipped files, not of the game: **ship an edge list one day and the
   lattice walk goes while `clicks.Geography` does not change at all.**
 
-**The board it loads is the board the process carries** (`Loader.Carried`: its directory's name and its manifest's
-`positionsHash` in 8 hex, `3fb28bdf` for `earth-1`): the boot matches it with planet's row of it in `planet.boards` and
-refuses a map whose era plays another (see [Boards and eras](boards-and-eras.md)).
+**It loads every board the process carries** (`Registry.Carried`: each directory's name and its manifest's
+`positionsHash` in 8 hex, `3fb28bdf` for `earth-1`), each the first time something needs it: the boot matches each with
+planet's row of it in `planet.boards` and refuses a map whose era plays a board it does not carry (see
+[Boards and eras](boards-and-eras.md)).
 
 The boards are **`generated/map/boards`**, beside `generated/proto` and for the same reason: both are
 this app's committed copy of something the root owns, written by a `make` target and never edited
 by hand (`make map` copies [`/map/boards`](../../../map/README.md)). The vendored VPN ranges sit next to their reader
 instead (`shared/cpipblock/cpdata`) because they come from a third party, not from `/`. The directory is `map` to
-mirror its source; the package is `mapdata`, since `map` is a keyword. It holds one board today, `earth-1`, and the
-loader refuses to boot on more than one until the backend has a registry of boards (see [Boards](../../../docs/boards.md)).
+mirror its source; the package is `mapdata`, since `map` is a keyword, and `cpboards` reads it for every module. It holds
+one board today, `earth-1`; PR 4 adds `earth-2` and `siege-1` beside it (see [Boards](../../../docs/boards.md)). A test
+binary carries a fixture too (`cpboards.Fixture`, `fixture-1`: a coarse earth at `cols` 31, 2,998 tiles), embedded
+under the `testing` tag from `internal/shared/cpboards/testdata`, which the page's `npm run map:fixture` writes.
 
 That line also splits the checks. The domain enforces what is true of any map; the adapter enforces
-what is true of *this* board — the tile count against `gameMap.maxIndex`, a lattice it can walk (no warp, no
+what is true of *this* board — each file's tile count against its manifest's, a lattice it can walk (no warp, no
 rotation, three's order), runs inside that lattice, and positions that hash to the manifest's `positionsHash`.
 
 And it splits the tests. `domain` is tested against a hand-built patch of honeycomb — fast, no board,
@@ -86,20 +90,21 @@ tile, **symmetrically, with a degree histogram that still looks right** —
 
 ## Checked at boot, not just in the tests
 
-`embedded_board.Loader.LoadGeography` is the first thing the planet module loads and **fails the boot** on a board
-whose tile count is not `gameMap.maxIndex`, on a lattice it cannot walk, on runs outside the lattice, on positions
-that do not hash to the manifest's, on a degree above 6, or on an asymmetric edge. The tests cannot see the board a
-container was actually built with, and that is the thing that drifts; regenerating a board renumbers every tile, so
-a process quietly disagreeing with the frontend about what tile 42 is has no repair after the fact.
-In practice the failure is unreachable in production — the board is embedded, so a bad one fails
-`make test` long before a deploy — which is what makes it cheap.
+`embedded_board.Registry.Ground` builds the board the map in play plays as the planet module boots, and **fails the
+boot** on a file that holds another tile count than the manifest, on runs outside the lattice, on positions that do not
+hash to the manifest's, on a degree above 6, on an asymmetric edge, or on a capital off its own ground; and the
+registry, before, on a lattice it cannot walk. A board an arena plays is built as the arena opens, and refused there
+the same way. The tests cannot see the board a container was actually built with, and that is the thing that drifts;
+regenerating a board renumbers every tile, so a process quietly disagreeing with the frontend about what tile 42 is has
+no repair after the fact. In practice the failure is unreachable in production — the boards are embedded, so a bad one
+fails `make test` long before a deploy — which is what makes it cheap.
 
 It costs about 0.1 s of boot (the position matching it replaced took about 0.26 s) and about 12 MB resident. The boot
 log carries the whole result in one line:
 
 ```
-map geography loaded board=earth-1 asset=board-725d8920.json tiles=260503 edges=761422
-  degrees="[250 527 1154 4072 6368 6471 241661]" took=95ms
+board loaded board=earth-1 asset=board-725d8920.json tiles=260503 edges=761422
+  degrees="[250 527 1154 4072 6368 6471 241661]" borders=borders-e6851c0e.bin bridges=744 capitals=235 took=95ms
 ```
 
 Those numbers are pinned by the tests. 761,422 undirected edges, average degree 5.846, and the

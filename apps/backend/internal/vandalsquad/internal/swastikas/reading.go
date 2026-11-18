@@ -11,12 +11,14 @@ import (
 	"math"
 	"slices"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 )
 
 const (
-	// The smallest real one is 16 tiles; past 150, a drawing is a battle's front, not a symbol.
+	// The smallest real one is 16 tiles; past 150 of earth-1's, a drawing is a battle's front, not a symbol: on another
+	// board, past as much ground (ReadingOf's scale). The smallest stays 12, which strokes a tile wide need.
 	minTiles = 12
 	maxTiles = 150
 	// No tile of a real one has five or six neighbours in it; a blob of conquest has them all through its middle.
@@ -44,10 +46,10 @@ type Reading struct {
 	On     float64
 }
 
-// The best reading of the drawing as a swastika, if it is one.
-func ReadingOf(drawing drawings.Drawing) (Reading, bool) {
+// The best reading of the drawing as a swastika, if it is one, on a board of that scale.
+func ReadingOf(drawing drawings.Drawing, scale cpboards.Scale) (Reading, bool) {
 	n := drawing.Size()
-	if n < minTiles || n > maxTiles {
+	if n < minTiles || n > scale.Tiles(maxTiles) {
 		return Reading{}, false
 	}
 	links := drawing.Links()

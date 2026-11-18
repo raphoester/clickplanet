@@ -3,12 +3,13 @@ import {Timestamp} from "@bufbuild/protobuf"
 import {Code} from "@connectrpc/connect"
 import {act, cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {afterEach, describe, expect, it, onTestFinished, vi} from "vitest"
+import {Places} from "../boards/places.ts"
+import {EARTH_1, FIXTURE_1} from "../boards/testBoards.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {GetLedgerResponse, LedgerChange} from "../gen/grpc/planet/v1/ledger_pb.ts"
 import {TileUpdate} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {OpenPlayer} from "../navigation.ts"
 import {HomePage, REFRESH_MS} from "./HomePage.tsx"
-import {Places} from "./places.ts"
 
 afterEach(cleanup)
 
@@ -28,11 +29,19 @@ function windowsAsked(admin: FakeAdmin): string[][] {
 
 // The fake ledger's four tiles, all in one degree by Paris.
 const PARIS: Places = {
+    board: EARTH_1,
     latitudes: Float32Array.from([48.8, 48.6, 48.7, 48.5]),
     longitudes: Float32Array.from([2.3, 2.1, 2.6, 2.4]),
 }
 
-function show(admin: FakeAdmin, places = () => Promise.resolve(PARIS)) {
+// Tiles 1 to 4 of another board, all in one degree by Lagos.
+const LAGOS: Places = {
+    board: FIXTURE_1,
+    latitudes: Float32Array.from([6.5, 6.4, 6.6, 6.3]),
+    longitudes: Float32Array.from([3.4, 3.3, 3.5, 3.2]),
+}
+
+function show(admin: FakeAdmin, places: (board: string) => Promise<Places> = () => Promise.resolve(PARIS)) {
     const onGo = vi.fn()
     const openPlayer = vi.fn()
     render(
@@ -186,6 +195,55 @@ describe("the home page", () => {
         show(new FakeAdmin())
 
         expect(await screen.findByText("Busiest: 48°N 2°E: 4 changes on 4 tiles")).toBeTruthy()
+    })
+
+    it("places the ledger's tiles on the board it names, and reads the span whole once the world plays another", async () => {
+        vi.useFakeTimers({now: AT, toFake: ["Date"]})
+        onTestFinished(() => {
+            vi.useRealTimers()
+        })
+        const admin = new FakeAdmin()
+        const asked: string[] = []
+        show(admin, board => {
+            asked.push(board)
+            return Promise.resolve(board === "earth-1" ? PARIS : LAGOS)
+        })
+        expect(await screen.findByText("Busiest: 48°N 2°E: 4 changes on 4 tiles")).toBeTruthy()
+        const reload = screen.getByRole("button", {name: "Reload"})
+        await waitFor(() => expect(reload).toHaveProperty("disabled", false))
+
+        vi.setSystemTime(new Date(AT.getTime() + 2 * MINUTE))
+        admin.ledger = new GetLedgerResponse({
+            board: "fixture-1",
+            changes: [new LedgerChange({
+                at: Timestamp.fromDate(new Date(AT.getTime() + MINUTE)), by: "scope:198.51.100.4",
+                update: new TileUpdate({tileId: 2, countryId: "ng", previousCountryId: "bj", clicked: true}),
+            })],
+        })
+        fireEvent.click(reload)
+
+        expect(await screen.findByText("Busiest: 6°N 3°E: 1 changes on 4 tiles")).toBeTruthy()
+        // Nothing of earth-1's is kept: the one click read on fixture-1 is the span's.
+        expect(within(tile("Clicks")).getByText("1")).toBeTruthy()
+        expect(asked).toEqual(["earth-1", "fixture-1"])
+        expect(windowsAsked(admin).slice(1)).toEqual([
+            ["2026-10-18T11:59:00.000Z", "2026-10-18T12:02:00.000Z"],
+            ["2026-10-17T12:15:00.000Z", "2026-10-18T12:02:00.000Z"],
+        ])
+    })
+
+    it("says so when the ledger names a board the page does not carry, and counts it all the same", async () => {
+        vi.useFakeTimers({now: AT, toFake: ["Date"]})
+        onTestFinished(() => {
+            vi.useRealTimers()
+        })
+        const admin = new FakeAdmin()
+        admin.ledger.board = "earth-9"
+        show(admin, board => board === "earth-1" ? Promise.resolve(PARIS) : Promise.reject(new Error(`${board} is not a board this page carries`)))
+
+        expect(await screen.findByText("earth-9 is not a board this page carries")).toBeTruthy()
+        expect(within(tile("Clicks")).getByText("4")).toBeTruthy()
+        expect(screen.queryByRole("region", {name: "Where tiles changed hands"})).toBeNull()
     })
 
     it("lists the countries most held first, and by what they won or lost on demand", async () => {

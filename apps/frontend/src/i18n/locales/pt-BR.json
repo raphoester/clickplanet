@@ -534,6 +534,8 @@
   "archive.pause": "Pausar",
   "archive.time": "Tempo",
   "archive.heat": "Onde as casas foram mais disputadas",
+  "archive.newMap": "O mundo passa para um novo mapa",
+  "archive.newMapAt": "Novo mapa a partir de {time}",
   "chat.title": "Chat",
   "chat.liveChat": "Chat ao vivo",
   "chat.world": "Mundo",

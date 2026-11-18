@@ -75,6 +75,8 @@ type stubPlanet struct {
 	since time.Time
 	tiles map[drawings.TileID]drawings.MapTile
 	asked [][]drawings.TileID
+	// The map in play plays another board: an arena of its own.
+	elsewhere bool
 }
 
 func (p *stubPlanet) Takes(_ context.Context, since, _ time.Time) (drawings.Board, []paint.Take, error) {
@@ -82,8 +84,11 @@ func (p *stubPlanet) Takes(_ context.Context, since, _ time.Time) (drawings.Boar
 	return "earth-1", p.takes, nil
 }
 
-func (p *stubPlanet) Tiles(_ context.Context, ids []drawings.TileID) ([]drawings.MapTile, error) {
+func (p *stubPlanet) Tiles(_ context.Context, _ drawings.Board, ids []drawings.TileID) ([]drawings.MapTile, error) {
 	p.asked = append(p.asked, ids)
+	if p.elsewhere {
+		return nil, drawings.ErrOtherBoard
+	}
 	answer := make([]drawings.MapTile, len(ids))
 	for i, id := range ids {
 		answer[i] = p.tiles[id]
@@ -164,6 +169,19 @@ func TestASwastikaPaintedOnAnotherFlagsGroundIsFlaggedOnceAndToldOnce(t *testing
 	require.Len(t, kept, 1, "seen again, it is one graffiti")
 	assert.Equal(t, now, kept[0].FlaggedAt)
 	assert.Equal(t, now.Add(time.Minute), kept[0].SeenAt)
+}
+
+func TestWhileAnArenaPlaysABoardOfItsOwnTheWorldsDrawingsWait(t *testing.T) {
+	swastika, _ := samples(t)
+	s := newSquad()
+	s.took(foe, "ro", swastika)
+	s.planet.paint(swastika, "ro", foe, "cz")
+	s.planet.elsewhere = true
+
+	require.NoError(t, s.patrol.Execute(t.Context()), "no failure: the world's map comes back")
+
+	assert.Empty(t, s.told.told)
+	assert.Empty(t, s.kept.Kept())
 }
 
 func TestPlayersPaintingOverASwastikaOnTheirOwnGroundAreNotFlagged(t *testing.T) {

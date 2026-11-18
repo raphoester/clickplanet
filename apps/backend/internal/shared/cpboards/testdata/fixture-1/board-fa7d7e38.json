@@ -1,0 +1,20 @@
+{
+  "name": "fixture-1",
+  "body": "earth",
+  "lattice": {
+    "cols": 31,
+    "warp": null,
+    "corners": null,
+    "order": "three"
+  },
+  "tiles": 2998,
+  "spacing": 0.0393999286935094,
+  "positionsHash": 3414372520,
+  "files": {
+    "runs": "runs-fdb6c4d8.bin",
+    "borders": "borders-3277dd5e.bin",
+    "capitals": "capitals-0da95268.json",
+    "bridges": "bridges-133957ea.json",
+    "terrain": "terrain-b45467fd.bin"
+  }
+}

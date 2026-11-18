@@ -3,10 +3,12 @@ import "../tokens.css"
 import * as THREE from "three"
 import {ReplayBackend} from "../backends/replayBackend.ts"
 import {MapReel} from "../domain/mapHistory.ts"
-import {createGlobe} from "../app/viewer/globe.ts"
+import {piecesOf} from "../domain/eras.ts"
+import {scaleOf} from "../domain/boardScale.ts"
+import {createGlobe, Globe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
-import {BOARD} from "../app/viewer/boardAsset.ts"
+import {boardOf} from "../app/viewer/boards.ts"
 import {tilesZoomOf} from "../app/viewer/pointSize.ts"
 import {Countries} from "../domain/countries.ts"
 import {cameraOf, framingOf, overviewOf} from "../domain/clip/camera.ts"
@@ -96,72 +98,99 @@ async function make(job: VideoJob, progress: (share: number) => void): Promise<{
     const {width, height} = stage.getBoundingClientRect()
 
     const {story} = job
-    const [{positions}, borders] = await Promise.all([loadPointGeometryData(), loadBorders(BOARD.urls.borders)])
-    const tiles = borders.assignment.length
-    const landmasses = {assignment: borders.assignment, count: borders.codes.length}
-    const since = job.history.frames[0]?.at ?? 0
-    const backend = ReplayBackend.ofHistory(job.history, new MapReel(job.history, tiles), since, landmasses)
-    const pointAt = (tile: number) => pointOf(positions, tile)
-    const inCountry = (tile: number) => countryOfTile(borders, tile) === story.country
+    // Each era of the 24 hours on its own board, one globe each, built before the first frame: the one in force shows.
+    // The story is of the board they end on (domain/video/story.ts).
+    const eras = await Promise.all(piecesOf(job.history).map(async (piece) => {
+        const board = boardOf(piece.board)
+        const [{positions}, borders] = await Promise.all([loadPointGeometryData(board), loadBorders(board.urls.borders)])
+        const tiles = borders.assignment.length
+        const landmasses = {assignment: borders.assignment, count: borders.codes.length}
+        const backend = ReplayBackend.ofHistory(piece.history, new MapReel(piece.history, tiles), piece.history.frames[0]?.at ?? 0, landmasses)
+        const inCountry = (tile: number) => countryOfTile(borders, tile) === story.country
+        const countryTiles = Array.from({length: tiles}, (_, i) => i + 1).filter(inCountry)
+        return {piece, board, positions, borders, backend, inCountry, countryTiles}
+    }))
+    const last = eras.at(-1)
+    if (last === undefined) throw new Error("the 24 hours hold no frame")
+    const since = eras[0].backend.since
+    const until = last.backend.until
 
     // The camera dives where the flag fights in the country and comes back out over it, as a clip's front does.
-    const countryTiles = Array.from({length: tiles}, (_, i) => i + 1).filter(inCountry)
-    const framed = framedTilesOf(countryTiles, (tile) => borders.assignment[tile - 1])
-    const overview = overviewOf(framingOf(framed.map(pointAt), width / height))
-    const fought = backend.changes().filter(({tile, from, to}) => (from === story.flag || to === story.flag) && inCountry(tile))
-    const pace = paceOf(fought.map(({at}) => at), backend.since, backend.until)
+    const framed = framedTilesOf(last.countryTiles, (tile) => last.borders.assignment[tile - 1])
+    const overview = overviewOf(framingOf(framed.map((tile) => pointOf(last.positions, tile)), width / height))
+    const fought = eras.flatMap(({backend, inCountry, positions}) => backend.changes()
+        .filter(({tile, from, to}) => (from === story.flag || to === story.flag) && inCountry(tile))
+        .map(({tile, at}) => ({at, point: pointOf(positions, tile)})))
+    const pace = paceOf(fought.map(({at}) => at), since, until)
     const timeline = timelineFor(VIDEO_PLAY_SECONDS, VIDEO_SECONDS, VIDEO_SECONDS - VIDEO_PLAY_SECONDS)
-    const camera = cameraOf(overview, fought.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
-        close: Math.max(overview.zoom, tilesZoomOf(height) * DIVE_DEPTH),
+    const camera = cameraOf(overview, fought.map(({at, point}) => ({share: pace.shareOf(at), point})), {
+        close: Math.max(overview.zoom, tilesZoomOf(height, scaleOf(last.board)) * DIVE_DEPTH),
         seconds: VIDEO_PLAY_SECONDS,
         pullBack: "atEnd",
     })
 
-    let held = [...backend.opening].filter(([tile, owner]) => owner === story.flag && inCountry(tile)).length
-    backend.listenForUpdates(({tile, newCountry, previousCountry}) => {
-        if (!inCountry(tile)) return
-        if (previousCountry === story.flag) held--
-        if (newCountry === story.flag) held++
+    // The counter counts on each era's board, as many tiles of the country on the board the story is of.
+    const counted = eras.map(({backend, inCountry, countryTiles}) => {
+        const count = {held: [...backend.opening].filter(([tile, owner]) => owner === story.flag && inCountry(tile)).length}
+        backend.listenForUpdates(({tile, newCountry, previousCountry}) => {
+            if (!inCountry(tile)) return
+            if (previousCountry === story.flag) count.held--
+            if (newCountry === story.flag) count.held++
+        })
+        return () => Math.round(count.held * story.tiles / Math.max(1, countryTiles.length))
     })
 
     let played = 0
-    const globe = await createGlobe({
-        tileClicker: {clickTile: () => Promise.resolve()},
-        ownershipsGetter: backend,
-        updatesListener: backend,
-        bonusListener: backend,
-        bomber: backend,
-        container: stage,
-        country: Countries.get(story.flag) ?? {code: story.flag},
-        mapView: "split",
-        rendering: "sharp",
-        director: () => camera(played),
-        onLeaderboardChange: () => {},
-        onLoadProgress: () => {},
-        onRateLimited: () => {},
-        onFrozen: () => {},
-        onVPNBlocked: () => {},
-        onBanned: () => {},
-        onSessionUnavailable: () => {},
-        onAllegianceLocked: () => {},
-        onOutOfReach: () => {},
-        onBonusWon: () => {},
-        onCharges: () => {},
-        onRules: () => {},
-        onSwitchesChange: () => {},
-        onBombDropped: () => {},
-        onArmedChange: () => {},
-        signal: new AbortController().signal,
-    })
+    const globes: {globe: Globe, stage: HTMLElement}[] = []
     try {
-        await globe.tilesRead
+        for (const {board, backend} of eras) {
+            const own = document.createElement("div")
+            own.className = "video-era"
+            own.style.visibility = globes.length === 0 ? "visible" : "hidden"
+            stage.appendChild(own)
+            globes.push({stage: own, globe: await createGlobe({
+                board,
+                tileClicker: {clickTile: () => Promise.resolve()},
+                ownershipsGetter: backend,
+                updatesListener: backend,
+                bonusListener: backend,
+                bomber: backend,
+                container: own,
+                country: Countries.get(story.flag) ?? {code: story.flag},
+                mapView: "split",
+                rendering: "sharp",
+                director: () => camera(played),
+                onLeaderboardChange: () => {},
+                onLoadProgress: () => {},
+                onRateLimited: () => {},
+                onFrozen: () => {},
+                onVPNBlocked: () => {},
+                onBanned: () => {},
+                onSessionUnavailable: () => {},
+                onAllegianceLocked: () => {},
+                onOutOfReach: () => {},
+                onBonusWon: () => {},
+                onCharges: () => {},
+                onRules: () => {},
+                onSwitchesChange: () => {},
+                onBombDropped: () => {},
+                onArmedChange: () => {},
+                signal: new AbortController().signal,
+            })})
+        }
+    } catch (e) {
+        for (const {globe} of globes) globe.dispose()
+        throw e
+    }
+    try {
+        await Promise.all(globes.map(({globe}) => globe.tilesRead))
         const look = lookOfThePage()
         const [sound, logo, flag] = await Promise.all([soundFor(story.flag), imageOf("/static/logo.svg"), flagOf(story.flag), fontsLoaded(look)])
         await textures()
         const pictures: Pictures = {logo, flag: flag.image, flagAspect: flag.aspect}
 
-        const glCanvas = stage.querySelector("canvas")
-        if (!glCanvas) throw new Error("the globe drew no canvas")
+        const glCanvases = globes.map(({stage: own}) => own.querySelector("canvas"))
+        if (glCanvases.some((glCanvas) => glCanvas === null)) throw new Error("the globe drew no canvas")
         const canvas = document.createElement("canvas")
         canvas.width = config.width
         canvas.height = config.height
@@ -172,20 +201,35 @@ async function make(job: VideoJob, progress: (share: number) => void): Promise<{
 
         for (let i = 0; i < WARM_UP_FRAMES; i++) clock.advance(1000 / VIDEO_FPS)
         const frames = Math.round(VIDEO_SECONDS * VIDEO_FPS)
+        let shown = 0
+        let cutAt: number | undefined
         for (let frame = 0; frame < frames; frame++) {
             const seconds = frame / VIDEO_FPS
             played = playedAt(timeline, seconds)
-            backend.advanceTo(pace.timeAt(played))
+            const at = pace.timeAt(played)
+            // Past an era's start its board is shown, cleared and drawn whole: the cut.
+            let era = shown
+            while (era + 1 < eras.length && eras[era + 1].piece.startedAt <= at) era++
+            if (era !== shown) {
+                globes[shown].stage.style.visibility = "hidden"
+                globes[era].stage.style.visibility = "visible"
+                shown = era
+                cutAt = seconds
+            }
+            eras[shown].backend.advanceTo(at)
             clock.advance(1000 / VIDEO_FPS)
             // In the same task as the render: the drawing buffer is cleared once the page is composited.
-            context.drawImage(glCanvas, 0, 0, canvas.width, canvas.height)
-            overlay({seconds, played, held})
+            context.drawImage(glCanvases[shown]!, 0, 0, canvas.width, canvas.height)
+            overlay({seconds, played, held: counted[shown](), cut: cutAt === undefined ? undefined : seconds - cutAt})
             await recorder.add(canvas, frame)
             progress((frame + 1) / frames)
         }
         return {video: await recorder.finish(), silent: sound === undefined}
     } finally {
-        globe.dispose()
+        for (const {globe, stage: own} of globes) {
+            globe.dispose()
+            own.remove()
+        }
     }
 }
 

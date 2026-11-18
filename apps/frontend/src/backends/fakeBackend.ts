@@ -46,6 +46,9 @@ import {
     MineRefusedError,
 } from "./backend.ts";
 import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from "../domain/bonus.ts";
+import type {Board} from "../domain/board.ts";
+import {BoardScale, scaledLength, scaleOf} from "../domain/boardScale.ts";
+import type {BoardChanges} from "./boards.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {Allegiance, lockOf} from "../domain/allegiance.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
@@ -82,7 +85,7 @@ const MINES = 3
 const MINES_PER_BOX = 2
 const MINE_RINGS = 2
 const RALLIES = 3
-// The server's 18 tile spacings, and 3 minutes; a click inside takes half of one.
+// The server's 18 tile spacings of earth-1, and 3 minutes; a click inside takes half of one.
 const RALLY_RADIUS = 18 * 0.004
 const RALLY_LASTS_MS = 180_000
 const RALLY_COST = 0.5
@@ -98,12 +101,24 @@ const BONUS_KINDS: BonusReward["kind"][] = [
     "shields", "shields",
 ]
 
+// On earth-1, as the server's 8 rings; each fake length is as many spacings of the board the fake plays (lengthsOf).
 const BOMB_RADIUS = 0.032
 
 const SEA_REACH = 0.004
 
-// A ring of tiles is 0.004 wide on the globe of radius 1.
+// A ring of earth-1's tiles is 0.004 wide on the globe of radius 1.
 const SPREAD_RING = 0.004
+
+type Lengths = {bombRadius: number, seaReach: number, spreadRing: number, rallyRadius: number}
+
+function lengthsOf(scale: BoardScale): Lengths {
+    return {
+        bombRadius: scaledLength(BOMB_RADIUS, scale),
+        seaReach: scaledLength(SEA_REACH, scale),
+        spreadRing: scaledLength(SPREAD_RING, scale),
+        rallyRadius: scaledLength(RALLY_RADIUS, scale),
+    }
+}
 
 const QUIZ_EVERY_MS = 30_000
 const QUIZ_OFFER_TTL_MS = 25_000
@@ -125,8 +140,8 @@ const VIRUS_EVERY_MS = 4_000
 const VIRUS_INFECTIONS = 32
 const LINKED_MULTIPLIER = 2
 
-const RULES: BonusRules = {
-    blastRadius: BOMB_RADIUS,
+const rulesOf = ({bombRadius, rallyRadius}: Lengths): BonusRules => ({
+    blastRadius: bombRadius,
     enclosureMaxTiles: ENCLOSE_MAX_TILES,
     spreadClicks: SPREAD_CLICKS,
     enclosures: ENCLOSURES,
@@ -150,12 +165,16 @@ const RULES: BonusRules = {
     mines: MINES,
     mineRings: MINE_RINGS,
     rallies: RALLIES,
-    rallyRadius: RALLY_RADIUS,
+    rallyRadius,
     rallyLastsMs: RALLY_LASTS_MS,
     rallyCost: RALLY_COST,
-}
+})
 
 export type FakeBackendOptions = {
+    // The board the fake plays, which its GetMap and its stream's opening name: earth-1.
+    board: Board
+    // What the page does with the board an answer names; with none, every answer is drawn.
+    boards?: BoardChanges
     tilePositions?: () => Promise<Float32Array>
     // The borders blob's tile → landmass table: the map's tiles, what each flag holds of each landmass, and fortifying.
     landmasses: () => Promise<{assignment: Uint16Array, count: number}>
@@ -214,10 +233,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
     private shapesClose = true
     private spreadRings = 1
 
-    private rules = RULES
+    private readonly board: string
+    private readonly boards: BoardChanges | undefined
+    private readonly lengths: Lengths
+    private rules: BonusRules
     private bannedUntil: number | undefined
 
     constructor(batchUpdateDurationMs: number, options: FakeBackendOptions) {
+        this.board = options.board.name
+        this.boards = options.boards
+        this.lengths = lengthsOf(scaleOf(options.board))
+        this.rules = rulesOf(this.lengths)
         this.tilePositions = options.tilePositions
         this.ready = options.landmasses().then(({assignment, count}) => {
             const tally = new FakeTally(assignment, count)
@@ -341,42 +367,42 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             case "refill": {
                 const refills = Math.min(held.refills + 1, REFILLS)
                 this.hold({...held, refills})
-                return {reward: rewardOfKind(kind, refills - held.refills), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, refills - held.refills), charges: this.charges}
             }
             case "bomb": {
                 const bombs = Math.min(held.bombs + 1, BOMBS)
                 this.hold({...held, bombs})
-                return {reward: rewardOfKind(kind, bombs - held.bombs), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, bombs - held.bombs), charges: this.charges}
             }
             case "encloseClicks": {
                 const enclosures = Math.min(held.enclosures + drawUpTo(ENCLOSURES_PER_BOX), ENCLOSURES)
                 this.hold({...held, enclosures})
-                return {reward: rewardOfKind(kind, enclosures - held.enclosures), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, enclosures - held.enclosures), charges: this.charges}
             }
             case "spreadClicks": {
                 const spreadClicksLeft = Math.min(held.spreadClicksLeft + drawUpTo(SPREAD_PER_BOX), SPREAD_CLICKS)
                 this.hold({...held, spreadClicksLeft})
-                return {reward: rewardOfKind(kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, spreadClicksLeft - held.spreadClicksLeft), charges: this.charges}
             }
             case "shields": {
                 const shields = Math.min(held.shields + drawBetween(SHIELDS_MIN_PER_BOX, SHIELDS_PER_BOX), SHIELDS)
                 this.hold({...held, shields})
-                return {reward: rewardOfKind(kind, shields - held.shields), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, shields - held.shields), charges: this.charges}
             }
             case "virus": {
                 const viruses = Math.min(held.viruses + 1, VIRUSES)
                 this.hold({...held, viruses})
-                return {reward: rewardOfKind(kind, viruses - held.viruses), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, viruses - held.viruses), charges: this.charges}
             }
             case "mine": {
                 const mines = Math.min(held.mines + drawUpTo(MINES_PER_BOX), MINES)
                 this.hold({...held, mines})
-                return {reward: rewardOfKind(kind, mines - held.mines), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, mines - held.mines), charges: this.charges}
             }
             case "rally": {
                 const rallies = Math.min(held.rallies + 1, RALLIES)
                 this.hold({...held, rallies})
-                return {reward: rewardOfKind(kind, rallies - held.rallies), charges: this.charges}
+                return {reward: rewardOfKind(this.lengths, kind, rallies - held.rallies), charges: this.charges}
             }
         }
     }
@@ -396,7 +422,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         if (!this.tilePositions) return
         const positions = await this.loadPositions()
 
-        const reach = (this.spreadRings + 0.3) * SPREAD_RING
+        const reach = (this.spreadRings + 0.3) * this.lengths.spreadRing
         const spread = tilesWithin(positions, tile, reach).filter(id => id !== tile)
         this.applyClick(tile, countryId)
         spread.forEach(id => this.applyClick(id, countryId, false))
@@ -532,7 +558,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
         this.hold({...this.charges, rallies: this.charges.rallies - 1})
         return this.tellRally({
-            id: UUIDv4(), accountId: FAKE_YOU, countryId, centre: point, radius: RALLY_RADIUS, endsAt: now + RALLY_LASTS_MS,
+            id: UUIDv4(), accountId: FAKE_YOU, countryId, centre: point, radius: this.lengths.rallyRadius, endsAt: now + RALLY_LASTS_MS,
         })
     }
 
@@ -551,7 +577,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const at = (tile - 1) * 3
         this.tellRally({
             id: UUIDv4(), accountId: FAKE_TAKERS[1], countryId: flag === "de" ? "fr" : "de",
-            centre: {x: positions[at], y: positions[at + 1], z: positions[at + 2]}, radius: RALLY_RADIUS,
+            centre: {x: positions[at], y: positions[at + 1], z: positions[at + 2]}, radius: this.lengths.rallyRadius,
             endsAt: budgetNow() + RALLY_LASTS_MS,
         })
         return true
@@ -581,7 +607,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const waiting = [{tile, flag}]
         const blasts: MineBlast[] = []
         for (let mine = waiting.shift(); mine; mine = waiting.shift()) {
-            const reach = (MINE_RINGS + 0.3) * SPREAD_RING
+            const reach = (MINE_RINGS + 0.3) * this.lengths.spreadRing
             const disc = [mine.tile, ...tilesWithin(positions, mine.tile, reach).filter((each) => each !== mine.tile)]
             const taken: number[] = []
             const struck: {tile: number, shields: number}[] = []
@@ -823,7 +849,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const targets: number[] = []
         for (const from of virus.infected) {
             if (virus.infections + targets.length >= VIRUS_INFECTIONS) break
-            const enemies = tilesWithin(positions, from, SPREAD_RING * 1.3).filter((tile) => {
+            const enemies = tilesWithin(positions, from, this.lengths.spreadRing * 1.3).filter((tile) => {
                 const owner = this.tileBindings.get(tile)
                 return owner !== undefined && owner !== virus.flag && !targets.includes(tile)
             })
@@ -1035,11 +1061,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         const positions = await this.loadPositions()
 
         const {tile, arc, point} = nearestTile(positions, target)
-        const onLand = tile !== undefined && arc <= SEA_REACH
+        const onLand = tile !== undefined && arc <= this.lengths.seaReach
 
         const cleared: number[] = []
         const struck: {tile: number, shields: number}[] = []
-        for (const id of onLand ? tilesWithin(positions, tile, BOMB_RADIUS) : []) {
+        for (const id of onLand ? tilesWithin(positions, tile, this.lengths.bombRadius) : []) {
             this.mines.delete(id)
             const owner = this.tileBindings.get(id)
             if (owner === undefined) continue
@@ -1058,7 +1084,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             tile: onLand ? tile : undefined,
             point,
             countryId,
-            radius: BOMB_RADIUS,
+            radius: this.lengths.bombRadius,
             cleared,
             struck,
             version: this.write(),
@@ -1092,10 +1118,12 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         }
     }
 
+    // The fake's stream opens on its board, as the server's first heartbeat names it.
     public listenForOpenings(callback: (version: MapVersion) => void): () => void {
         const id = UUIDv4()
         this.openingCallbacks.set(id, callback)
         this.flushUpdates()
+        if (this.boards?.opened(this.board)) return () => this.openingCallbacks.delete(id)
         callback(this.version())
         return () => this.openingCallbacks.delete(id)
     }
@@ -1144,6 +1172,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return this.tally!.read(this.version())
     }
 
+    // The board the fake plays, as GetMap names it.
+    public async readBoard(): Promise<string> {
+        return this.board
+    }
+
     public async getOwnerships(
         ranges: readonly TileRange[],
         callback: (ownerships: Ownerships) => void,
@@ -1152,6 +1185,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         await this.ready
         for (const range of ranges) {
             signal?.throwIfAborted()
+            if ((this.boards?.answered(this.board) ?? "drawn") !== "drawn") continue
 
             const bindings = new Map<number, string>()
             const shields = new Map<number, number>()
@@ -1180,10 +1214,10 @@ function drawBetween(least: number, most: number): number {
     return least + Math.floor(Math.random() * (most - least + 1))
 }
 
-function rewardOfKind(kind: BonusReward["kind"], amount = 1): BonusReward {
+function rewardOfKind({bombRadius}: Lengths, kind: BonusReward["kind"], amount = 1): BonusReward {
     switch (kind) {
         case "bomb":
-            return {kind, radius: BOMB_RADIUS, bombs: amount}
+            return {kind, radius: bombRadius, bombs: amount}
         case "encloseClicks":
             return {kind, shapes: amount, maxTiles: ENCLOSE_MAX_TILES}
         case "spreadClicks":

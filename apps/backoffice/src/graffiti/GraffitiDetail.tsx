@@ -1,11 +1,11 @@
 import {useCallback, useState} from "react"
+import {Places} from "../boards/places.ts"
 import {Clients} from "../clients.ts"
 import {Copyable} from "../components/AccountId.tsx"
 import {Country} from "../components/Country.tsx"
 import {Fact} from "../components/Fact.tsx"
 import {Ago, When} from "../components/When.tsx"
 import {Graffiti} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
-import {Places} from "../home/places.ts"
 import {useOpenPlayer} from "../navigation.ts"
 import {readingOf} from "../players/actions.ts"
 import {whoOf} from "../players/caller.ts"
@@ -22,6 +22,7 @@ type Props = {
     name: string
     // The painter's other graffiti, newest first.
     others: Graffiti[]
+    // The places of the graffiti's board.
     places: Call<Places>
     clients: Clients
     onBack: () => void
@@ -56,7 +57,9 @@ export function GraffitiDetail({graffiti, name, others, places, clients, onBack,
                 </div>
                 <figure className="graffiti-figure">
                     {places.state === "loading" && <p className="muted">Loading the map…</p>}
-                    {places.state === "failed" && <p className="muted">The map's tiles could not be read: try again above.</p>}
+                    {places.state === "failed" && (
+                        <p className="muted">Its tiles could not be placed: {places.detail}</p>
+                    )}
                     {places.state === "done" && (
                         <GraffitiPicture
                             places={places.value}
@@ -72,6 +75,7 @@ export function GraffitiDetail({graffiti, name, others, places, clients, onBack,
                     <Fact label="Painter"><Painter accountId={accountId} name={name}/></Fact>
                     <Fact label="Flag"><Country id={graffiti.countryId}/></Fact>
                     <Fact label="Size">{tilesOf(graffiti)}</Fact>
+                    <Fact label="Board">{boardOf(graffiti)}</Fact>
                     <Fact label="Flagged"><When at={graffiti.flaggedAt}/></Fact>
                     <Fact label="Last seen"><When at={graffiti.seenAt}/></Fact>
                     <Fact label="On the map">
@@ -88,6 +92,11 @@ export function GraffitiDetail({graffiti, name, others, places, clients, onBack,
                 : <Tools clients={clients} accountId={accountId} who={who} onBanned={banned}/>}
         </section>
     )
+}
+
+// The board its tiles are on, by its name: a tile id is a place on it alone.
+function boardOf(graffiti: Graffiti): string {
+    return graffiti.board === "" ? "No board" : graffiti.board
 }
 
 function Painter({accountId, name}: {accountId: string, name: string}) {

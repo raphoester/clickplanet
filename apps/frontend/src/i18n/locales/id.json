@@ -534,6 +534,8 @@
   "archive.pause": "Jeda",
   "archive.time": "Waktu",
   "archive.heat": "Tempat petak paling diperebutkan",
+  "archive.newMap": "Dunia pindah ke peta baru",
+  "archive.newMapAt": "Peta baru sejak {time}",
   "chat.title": "Obrolan",
   "chat.liveChat": "Obrolan langsung",
   "chat.world": "Dunia",

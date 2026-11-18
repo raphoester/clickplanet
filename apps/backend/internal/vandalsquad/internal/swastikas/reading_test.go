@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/drawings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/vandalsquad/internal/swastikas"
 )
@@ -57,7 +58,7 @@ func (s sample) drawing() drawings.Drawing {
 func TestEverySwastikaPaintedOnTheMapReadsAsOne(t *testing.T) {
 	drawn, _ := samples(t)
 	for _, s := range drawn {
-		_, ok := swastikas.ReadingOf(s.drawing())
+		_, ok := swastikas.ReadingOf(s.drawing(), cpboards.Earth1())
 		assert.True(t, ok, "%s: %s", s.Name, s.Why)
 	}
 }
@@ -65,7 +66,7 @@ func TestEverySwastikaPaintedOnTheMapReadsAsOne(t *testing.T) {
 func TestNoOtherDrawingReadsAsOne(t *testing.T) {
 	_, others := samples(t)
 	for _, s := range others {
-		reading, ok := swastikas.ReadingOf(s.drawing())
+		reading, ok := swastikas.ReadingOf(s.drawing(), cpboards.Earth1())
 		assert.False(t, ok, "%s: %s, read from tile %d", s.Name, s.Why, reading.Centre)
 	}
 }
@@ -73,7 +74,7 @@ func TestNoOtherDrawingReadsAsOne(t *testing.T) {
 func TestAReadingNamesItsCentreAndTheShareOnItsBranches(t *testing.T) {
 	drawn, _ := samples(t)
 
-	reading, ok := swastikas.ReadingOf(drawn[0].drawing())
+	reading, ok := swastikas.ReadingOf(drawn[0].drawing(), cpboards.Earth1())
 
 	require.True(t, ok)
 	assert.Contains(t, drawn[0].IDs, uint32(reading.Centre))
@@ -84,7 +85,7 @@ func TestTwoSwastikasSideBySideAreNotOneDrawing(t *testing.T) {
 	drawn, _ := samples(t)
 	both := append(drawn[0].drawing().Tiles(), drawn[1].drawing().Tiles()...)
 
-	_, ok := swastikas.ReadingOf(drawings.NewDrawing(both))
+	_, ok := swastikas.ReadingOf(drawings.NewDrawing(both), cpboards.Earth1())
 
 	assert.False(t, ok, "the drawings are split before they are read: two apart are no one swastika")
 }
@@ -93,13 +94,24 @@ func TestADrawingTooSmallOrTooBigIsNone(t *testing.T) {
 	drawn, _ := samples(t)
 	tiles := drawn[0].drawing().Tiles()
 
-	_, ok := swastikas.ReadingOf(drawings.NewDrawing(tiles[:11]))
+	_, ok := swastikas.ReadingOf(drawings.NewDrawing(tiles[:11]), cpboards.Earth1())
 	assert.False(t, ok)
 
 	big := make([]drawings.Tile, 0, 151)
 	for i := range 151 {
 		big = append(big, drawings.Tile{ID: drawings.TileID(i + 1)})
 	}
-	_, ok = swastikas.ReadingOf(drawings.NewDrawing(big))
+	_, ok = swastikas.ReadingOf(drawings.NewDrawing(big), cpboards.Earth1())
 	assert.False(t, ok)
+}
+
+func TestTheLargestDrawingIsAsMuchGroundOnABoardOfItsOwn(t *testing.T) {
+	drawn, _ := samples(t)
+	fixture, err := cpboards.ScaleOf(cpboards.Fixture)
+	require.NoError(t, err)
+
+	_, ok := swastikas.ReadingOf(drawn[0].drawing(), cpboards.Earth1())
+	require.True(t, ok)
+	_, ok = swastikas.ReadingOf(drawn[0].drawing(), fixture)
+	assert.False(t, ok, "150 tiles of earth-1 are 2 of the fixture: a swastika of 12 is a front there")
 }

@@ -10,10 +10,11 @@ uniform float pixelRatio;
 
 // A tile a flag close to fortifying still misses; the fragment shader beats at the same rate.
 const float PULSE_RATE = 6.2831853 / 1.1;
-// An infected tile's sprite holds its pods past its flag, and is drawn this much nearer the camera, so its pods lie over
-// the tiles next to it. More than the depth between two neighbours, less than a tile at the limb behind the earth.
+// An infected tile's sprite holds its pods past its flag, and is drawn virusLift nearer the camera, so its pods lie over
+// the tiles next to it. More than the depth between two neighbours, less than a tile at the limb behind the earth: in the
+// board's own spacings (globe.ts).
 const float VIRUS_REACH = 1.8;
-const float VIRUS_LIFT = 0.012;
+uniform float virusLift;
 
 varying float vGlow;
 varying float vScorch;
@@ -93,6 +94,6 @@ void main() {
     vSpriteSize = tileSize * vReach;
     gl_PointSize = vSpriteSize;
     vec4 seen = modelViewMatrix * vec4(position + effects.push, 1.0);
-    if (infected) seen.z += VIRUS_LIFT;
+    if (infected) seen.z += virusLift;
     gl_Position = projectionMatrix * seen;
 }

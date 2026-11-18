@@ -45,7 +45,7 @@ func setup(refused error, held charges.Held) (*call_rally_usecase.UseCase, parts
 		clock: cptime.NewFixedClock(calledAt),
 	}
 	p.hands.Keep(alice, held)
-	muster := rallies.NewMuster(charges.TestRules, 0.004, &rallies.SequentialIDs{}, p.clock)
+	muster := rallies.NewMuster(charges.TestRules, clicks.Spacing(0.004), &rallies.SequentialIDs{}, p.clock)
 	return call_rally_usecase.New(gate{err: refused}, charges.NewCharges(p.hands, charges.TestRules), muster, p.calls, p.told), p
 }
 

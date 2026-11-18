@@ -19,7 +19,7 @@ export class MapHistory extends Message<MapHistory> {
   frames: MapFrame[] = [];
 
   /**
-   * Each tile's changes of owner and shield hits in the window; a tile with none is left out.
+   * Each tile's changes of owner and shield hits in the window, in each era; a tile with none is left out.
    *
    * @generated from field: repeated planet.v1.TileHits hits = 2;
    */
@@ -27,7 +27,8 @@ export class MapHistory extends Message<MapHistory> {
 
   /**
    * The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
-   * started in it. A frame's tile ids are the board of the era in force at its time.
+   * started in it. A frame's tile ids are the board of the era in force at its time, and the first frame of each era
+   * holds every tile held on its board, as the window's first frame does: the cut.
    *
    * @generated from field: repeated planet.v1.BoardEra eras = 3;
    */
@@ -221,6 +222,13 @@ export class TileHits extends Message<TileHits> {
    */
   hits = 0;
 
+  /**
+   * The era the tile is of, by its place in MapHistory.eras: 0 for the first.
+   *
+   * @generated from field: uint32 era = 3;
+   */
+  era = 0;
+
   constructor(data?: PartialMessage<TileHits>) {
     super();
     proto3.util.initPartial(data, this);
@@ -231,6 +239,7 @@ export class TileHits extends Message<TileHits> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "tile", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "hits", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "era", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TileHits {

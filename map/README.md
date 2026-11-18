@@ -22,9 +22,13 @@ directory as its Docker build context and so cannot read anything at the repo ro
 
 | app | copy | refreshed by |
 | --- | --- | --- |
-| frontend | `apps/frontend/static/boards/<name>/`, every file, served; the manifest also inline in `src/app/viewer/boardAsset.ts` | `npm run map` (and `map:generate`, `bridges`) |
+| frontend | `apps/frontend/static/boards/<name>/`, every file, served beside the page's own border lines and landmass names; every board's manifest also inline in `src/app/viewer/boardsAsset.ts` | `npm run map` (and `map:generate`, `bridges`) |
 | backend | `apps/backend/generated/map/boards/<name>/`, every file, embedded | `make map` |
 | backoffice | `apps/backoffice/src/gen/map/<name>/`, the manifest and the runs, bundled by Vite | `npm run map` |
+
+**The tests' fixture is no board of `/map`**: `fixture-1`, a coarse earth cut from `earth-1` at `cols` 31, which the
+page's `npm run map:fixture` writes into each app's test data alone (the backend's `internal/shared/cpboards/testdata`,
+embedded under the `testing` tag; the page's and the backoffice's `src/testdata/boards`). See [Boards](../docs/boards.md).
 
 All copies of a file are committed and byte-identical, so git stores the bytes once. A file's name carries the first
 8 hex of its sha256, which makes a stale copy visible by eye rather than by symptom. The manifest names the others, so
@@ -193,14 +197,15 @@ one stays (see [Boards](../docs/boards.md)). Until the boards are told apart in 
 cd apps/frontend && npm run bridges       # the crossings, from the new tiles and capitals; rewrites the manifest
 cd apps/backend && make map               # copy the board, then commit every copy
 cd apps/backoffice && npm run map         # copy the manifest and the runs
-cd apps/frontend && npm run borderLines   # traced from the board, stale until it is run
+cd apps/frontend && npm run borderLines -- earth-1   # traced from the board, stale until it is run
 cd apps/frontend && npm run terrain       # each lattice point's look, from the new tiles; rewrites the manifest
-cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the new borders file
+cd apps/frontend && npm run landmassNames -- earth-1 # each landmass's name, keyed by the new borders file
 cd apps/frontend && npm run map:audit     # every fault should read zero
 ```
 
-`gameMap.maxIndex` follows the tile count, in `apps/backend/cmd/api/example.yaml` and
-`deploy/vps/backend.yaml`; the backend refuses to start on a board whose manifest disagrees with it.
+No config follows the tile count: the backend reads it from the manifest, and refuses a file of the board that holds
+another (`gameMap.maxIndex` went on 2026-11-18). A board regenerated is another board, with a row of its own in
+planet's `boards`, shipped by the migration that ships it.
 
 **Regenerating `earth-1` as it is writes it byte for byte**: the same runs, borders, capitals, bridges, terrain and
 manifest, and the same border lines and landmass names. That was checked when the generator stopped building
@@ -243,7 +248,7 @@ Each run is a stretch of tiles side by side in one row of the lattice, its first
 ascending and apart. `earth-1` is 7,556 runs, 121 KB (the landmask it replaced was 113 KB, the coordinates file 5.2 MB).
 
 **Positions are 0-indexed by tile order; wire tile ids are 1-based.** Tile id = index + 1.
-That is what `clicks.Board` (`tile > 0 && tile <= maxIndex`), `inmemory_tile_storage`
+That is what `clicks.Played.CheckTile` (`tile > 0 && tile <= tiles`), `inmemory_tile_storage`
 (slot 0 unused) and the frontend's GPU picking (`integerToColor(i + 1)`) all agree on.
 
 The borders file, written by the same command and read by `borderField.ts` and `clicks.Borders`:
@@ -280,8 +285,8 @@ sand, snow), 8-10 the sea one, two and three steps from land, 11 the open sea. `
 a point would be 906 KB.
 
 The frontend draws a black outline along the tile boundary between two countries, and keeps the
-geometry for it in a file of its own — `apps/frontend/static/borderLines-<hash>.bin`, written by
-`npm run borderLines`. It is derived from the board's runs and borders and from nothing else, so **regenerate it
+geometry for it in a file of each board's own — `apps/frontend/static/boards/<board>/borderLines-<hash>.bin`, written by
+`npm run borderLines -- <board>`. It is derived from the board's runs and borders and from nothing else, so **regenerate it
 after these**; it stays out of `/map` because the backend has no use for it. See
 [`apps/frontend/docs/country-outlines.md`](../apps/frontend/docs/country-outlines.md).
 
@@ -313,7 +318,7 @@ why every engine rebuilds the same bits.
 | --- | --- |
 | cols | 301 |
 | full sphere | `10 * 301² + 2` = 906,012 points |
-| land tiles | 260,503, which is `gameMap.maxIndex` |
+| land tiles | 260,503, the manifest's `tiles` |
 | landmasses | 694, across 239 countries |
 | spacing | ~25.9 km median, ~563 km² per tile |
 

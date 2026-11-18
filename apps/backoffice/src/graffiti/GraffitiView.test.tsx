@@ -4,6 +4,8 @@ import {Code} from "@connectrpc/connect"
 import {cleanup, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {useState} from "react"
 import {afterEach, describe, expect, it} from "vitest"
+import {Places} from "../boards/places.ts"
+import {FIXTURE_1} from "../boards/testBoards.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
 import {InspectPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
 import {Graffiti, GraffitiKind} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
@@ -15,9 +17,11 @@ afterEach(cleanup)
 
 const {places, idOf} = patch(51.6, 20.1)
 const PLUS = [idOf(0, 0), idOf(1, 0), idOf(-1, 0), idOf(0, 1), idOf(0, -1)]
+// A patch of fixture-1, the tests' coarse board: 19 tiles.
+const fixture = patch(6.5, 3.4, 2, FIXTURE_1)
 
-const graffitiOf = (accountId: string, tiles: number[], minutesAgo: number) => new Graffiti({
-    accountId, countryId: "de", kind: GraffitiKind.SWASTIKA, tileIds: tiles,
+const graffitiOf = (accountId: string, tiles: number[], minutesAgo: number, board = "earth-1") => new Graffiti({
+    board, accountId, countryId: "de", kind: GraffitiKind.SWASTIKA, tileIds: tiles,
     flaggedAt: Timestamp.fromDate(new Date(AT.getTime() - minutesAgo * 60_000)),
     seenAt: Timestamp.fromDate(AT), link: "https://clickplanet.lol/play?lat=51.60&lon=20.11&zoom=20.0",
 })
@@ -33,12 +37,24 @@ function withGraffiti(): FakeAdmin {
     return admin
 }
 
-function Page({admin, first = ""}: {admin: FakeAdmin, first?: string}) {
+// Each board's patch by its name, and the names asked.
+function boardsRead() {
+    const asked: string[] = []
+    const read = (board: string): Promise<Places> => {
+        asked.push(board)
+        if (board === "earth-1") return Promise.resolve(places)
+        if (board === "fixture-1") return Promise.resolve(fixture.places)
+        return Promise.reject(new Error(`${board} is not a board this page carries`))
+    }
+    return {asked, read}
+}
+
+function Page({admin, first = "", read = boardsRead().read}: {admin: FakeAdmin, first?: string, read?: (board: string) => Promise<Places>}) {
     const [opened, setOpened] = useState(first)
     return (
         <>
             <p data-testid="opened">{opened}</p>
-            <GraffitiView opened={opened} onOpen={setOpened} clients={admin.clients()} places={() => Promise.resolve(places)}/>
+            <GraffitiView opened={opened} onOpen={setOpened} clients={admin.clients()} places={read}/>
         </>
     )
 }
@@ -145,5 +161,43 @@ describe("the graffiti page", () => {
 
         render(<Page admin={withGraffiti()} first="0-de-gone"/>)
         expect(await screen.findByText("This graffiti is not kept any more.")).toBeTruthy()
+    })
+
+    it("draws each graffiti on the board it names, each board read once", async () => {
+        const admin = new FakeAdmin()
+        admin.graffiti = [
+            graffitiOf(ACCOUNT, PLUS, 5),
+            graffitiOf(ACCOUNT, [fixture.idOf(0, 0), fixture.idOf(1, 0), fixture.idOf(0, 1)], 10, "fixture-1"),
+            // An id of earth-1's patch, past fixture-1's 19.
+            graffitiOf("account-unnamed", [idOf(5, 5)], 20, "fixture-1"),
+        ]
+        const {asked, read} = boardsRead()
+        render(<Page admin={admin} read={read}/>)
+
+        const list = within(await screen.findByRole("list", {name: "The graffiti"}))
+        const rows = list.getAllByRole("listitem")
+        expect(drawnIn(await within(rows[0]).findByRole("img"))).toBe(5)
+        expect(drawnIn(await within(rows[1]).findByRole("img"))).toBe(3)
+        expect(within(rows[2]).getByText("None of its tiles is on fixture-1.")).toBeTruthy()
+        expect(asked).toEqual(["earth-1", "fixture-1"])
+
+        fireEvent.click(rows[1].querySelector("button")!)
+        const detail = within(screen.getByRole("region", {name: "Graffiti"}))
+        expect(detail.getByText("fixture-1")).toBeTruthy()
+        // Its land is fixture-1's patch, not earth-1's.
+        expect((await detail.findByRole("img", {name: /The 3 tiles BraveFox42 painted/})).querySelectorAll("polygon").length)
+            .toBeLessThanOrEqual(19)
+    })
+
+    it("says so of a board the page does not carry, and draws the rest", async () => {
+        const admin = withGraffiti()
+        admin.graffiti[1] = graffitiOf(ACCOUNT, [idOf(3, 3)], 60, "earth-9")
+        render(<Page admin={admin} first={keyOf(admin.graffiti[1])}/>)
+
+        expect((await screen.findAllByText("earth-9 is not a board this page carries")).length).toBeGreaterThan(0)
+        const detail = within(screen.getByRole("region", {name: "Graffiti"}))
+        expect(detail.getByText(/^Its tiles could not be placed: earth-9 is not a board/)).toBeTruthy()
+        const rows = within(screen.getByRole("list", {name: "The graffiti"})).getAllByRole("listitem")
+        expect(drawnIn(await within(rows[0]).findByRole("img"))).toBe(5)
     })
 })

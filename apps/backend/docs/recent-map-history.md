@@ -13,7 +13,8 @@ the window is the same for every caller. The page makes a player's video of its 
   from the frame before, with `seconds_into_step` (the tile's last change of the step): a take, a tile a spread or an
   enclose took, a bomb's clear (no `country_id`). A tile changed twice in a step shows its last change; a tile changed
   back within a step is in no frame.
-- **`hits`**: each tile's changes of owner and shield hits in the window, as in `GetMapHistory`.
+- **`hits`**: each tile's changes of owner and shield hits in the window, as in `GetMapHistory`, each naming the era it
+  is of (`TileHits.era`): the last of the window's, the board the world plays, which the rewind keeps.
 - **`eras`**: the world's eras the window covers, each with its board's name, as in `GetMapHistory` (see [Boards and
   eras](boards-and-eras.md)).
 - **No account.** Until 2026-11-12 each change carried the account that made it (`TileOwner.account_id`, `reserved`

@@ -35,6 +35,9 @@ message ArenaRules {
   google.protobuf.Duration freeze = 2;
   reserved 3;
   reserved "capital_shields";
+  // The board the fresh map plays, as /map/boards names it ("siege-1"): one this server carries and planet keeps a row
+  // of, or the arena does not open. Unset or empty: the board the world plays.
+  optional string board = 4;
 }
 
 // One pattern; a set that holds another pattern than default's plays its own alone.

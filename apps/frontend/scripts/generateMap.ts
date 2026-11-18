@@ -123,7 +123,7 @@ next:
   npm run bridges                  # the crossings, from the new tiles and capitals
   cd ../backend && make map        # copy the board, then commit every copy
   cd ../backoffice && npm run map  # copy the manifest and the runs
-  npm run borderLines              # traced from the board, stale until it is run
+  npm run borderLines -- ${board.name}   # traced from the board, stale until it is run
   npm run terrain                  # each lattice point's look, from the new tiles
-  npm run landmassNames            # each landmass's name, keyed by the new borders file
+  npm run landmassNames -- ${board.name} # each landmass's name, keyed by the new borders file
   npm run map:audit                # every fault should read zero`)

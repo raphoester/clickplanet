@@ -11,6 +11,7 @@ import (
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
@@ -184,6 +185,28 @@ func TestWithNoGroundBigEnoughTheThirdMissionIsForTheFlag(t *testing.T) {
 	require.True(t, ok, "%T", third.Order)
 	assert.Equal(t, "fr", order.Flag)
 	within(t, order.Goal, 300, 600, "the ground's goal, for the flag")
+}
+
+func TestTheFloorsAreAsMuchGroundOnAnyBoard(t *testing.T) {
+	fixture, err := cpboards.ScaleOf(cpboards.Fixture)
+	require.NoError(t, err)
+	// The fixture is about a ninety-fourth as dense: 1,000 tiles of earth-1 are 11 of it, 3,000 are 32, 300 are 3.
+	small := missions.World{
+		Territories: []missions.Territory{
+			{Flag: "de", Tiles: 11, Grounds: []missions.Holding{{Country: "pl", Tiles: 3}}},
+			{Flag: "it", Tiles: 10},
+		},
+		CountrySizes: []missions.Holding{{Country: "br", Tiles: 32}, {Country: "is", Tiles: 31}},
+		Scale:        fixture,
+	}
+
+	assert.Equal(t, []missions.Holding{{Country: "de", Tiles: 11}}, small.RivalsOf("fr"), "11 tiles of the fixture are a rival")
+	assert.Equal(t, []missions.Ground{{Country: "br", Open: 32}}, small.GroundsOf("fr"), "32 tiles are a ground")
+
+	earth1 := small
+	earth1.Scale = cpboards.Earth1()
+	assert.Empty(t, earth1.RivalsOf("fr"), "on earth-1 a rival holds 1,000")
+	assert.Empty(t, earth1.GroundsOf("fr"))
 }
 
 func TestADayHasFourToFiveMissions(t *testing.T) {

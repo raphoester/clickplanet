@@ -36,3 +36,36 @@ func TestALandmassCarriesNaturalEarthsNamesAndKeepsItsNumber(t *testing.T) {
 		{Key: "9", English: "Atlantis", Context: "A place on the world map: an island, a region or a province."},
 	}, lines)
 }
+
+func TestEachBoardHasItsOwnNamesAndOneWithNoneYetIsLeftOut(t *testing.T) {
+	boards := t.TempDir()
+	write := func(path string) {
+		t.Helper()
+		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(boards, path)), 0o750))
+		require.NoError(t, os.WriteFile(filepath.Join(boards, path), []byte("{}"), 0o600))
+	}
+	write("earth-1/landmassNames-0123abcd.json")
+	write("earth-1/runs-0123abcd.bin")
+	write("siege-1/landmassNames-4567cdef.json")
+	write("earth-2/runs-89abcdef.bin")
+
+	found, err := landmass_source.Boards(boards)
+
+	require.NoError(t, err)
+	assert.Equal(t, []landmass_source.Board{
+		{Name: "earth-1", Path: filepath.Join(boards, "earth-1", "landmassNames-0123abcd.json")},
+		{Name: "siege-1", Path: filepath.Join(boards, "siege-1", "landmassNames-4567cdef.json")},
+	}, found)
+}
+
+func TestABoardWithTwoFilesOfNamesIsRefused(t *testing.T) {
+	boards := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(boards, "earth-1"), 0o750))
+	for _, name := range []string{"landmassNames-0123abcd.json", "landmassNames-4567cdef.json"} {
+		require.NoError(t, os.WriteFile(filepath.Join(boards, "earth-1", name), []byte("{}"), 0o600))
+	}
+
+	_, err := landmass_source.Boards(boards)
+
+	require.ErrorIs(t, err, landmass_source.ErrNamesTwice)
+}

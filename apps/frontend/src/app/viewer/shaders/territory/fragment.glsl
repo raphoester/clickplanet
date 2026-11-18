@@ -55,7 +55,8 @@ const float HIGHLIGHT_FLOOR = 0.35;
 
 // Must match MAX_FLAG_RADIUS in borderField.ts.
 const float MAX_FLAG_RADIUS = 0.42;
-const float LEAST_FLAG_RADIUS = 0.004;
+// About a tile of the board the globe draws (globe.ts).
+uniform float leastFlagRadius;
 
 uint popcount(uint bits) {
     bits = bits - ((bits >> 1u) & 0x55555555u);
@@ -122,7 +123,7 @@ vec2 flagUVof(vec3 ground, vec3 centre, vec3 east, vec3 north, vec2 halfSize, ve
 
 // A flag that does not lead the landmass covers its ground from the middle, as the leader's would with no fit.
 vec2 coverOf(vec2 reach, float aspect) {
-    float halfV = clamp(max(reach.y, reach.x / aspect), LEAST_FLAG_RADIUS, MAX_FLAG_RADIUS);
+    float halfV = clamp(max(reach.y, reach.x / aspect), leastFlagRadius, MAX_FLAG_RADIUS);
     return vec2(halfV * aspect, halfV);
 }
 

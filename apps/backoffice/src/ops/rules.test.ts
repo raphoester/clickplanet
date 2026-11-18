@@ -30,7 +30,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "charges.spread.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off", "charges.enclose.off"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "charges.spread.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off", "charges.enclose.off", "arena.board"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 
@@ -48,6 +48,34 @@ describe("the rules", () => {
             "charges.rally.held", "charges.rally.rings", "charges.rally.lasts", "charges.rally.cost",
         ])
         expect(paths.filter(path => /box|quiz|kinds|welcome|offer/i.test(path))).toEqual([])
+    })
+
+    it("keeps the board an arena plays through an edit, even one the page does not carry, and says a board changed", () => {
+        const rules = Rules.fromJson({...rush().rules!.toJson() as JsonObject, arena: {on: true, board: "siege-1"}})
+        const set = new RuleSet({name: "siege", rules})
+
+        const draft = draftOf(set)
+        expect(draft.board).toBe("siege-1")
+        expect(ruleSetOf(draft).equals(set)).toBe(true)
+
+        expect(changesOf(draft, {...draft, board: "earth-1"})).toEqual([
+            {label: "Arena · Board its fresh map plays", before: "siege-1", after: "earth-1"},
+        ])
+        expect(changesOf(draft, {...draft, board: undefined})).toEqual([
+            {label: "Arena · Board its fresh map plays", before: "siege-1", after: "default"},
+        ])
+        expect(ruleSetOf({...draft, board: ""}).rules?.arena?.board).toBe("")
+        expect(ruleSetOf({...draft, board: undefined}).rules?.arena?.board).toBeUndefined()
+    })
+
+    it("holds no board in default for the world's", () => {
+        const draft = draftOf(played())
+
+        expect(draft.board).toBeUndefined()
+        expect(changesOf(draft, {...draft, board: ""})).toEqual([])
+        expect(changesOf(draft, {...draft, board: "earth-1"})).toEqual([
+            {label: "Arena · Board its fresh map plays", before: "the world's", after: "earth-1"},
+        ])
     })
 
     it("edits a set as it is, and sends back what was edited", () => {

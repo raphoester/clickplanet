@@ -1,6 +1,7 @@
 import * as THREE from "three"
 import type {Enclosure} from "../../backends/backend.ts"
 import {tilePointSize} from "./pointSize.ts"
+import type {BoardScale} from "../../domain/boardScale.ts"
 
 import markVertex from "./shaders/enclosureMark/vertex.glsl"
 import markFragment from "./shaders/enclosureMark/fragment.glsl"
@@ -155,7 +156,7 @@ type Playing = {
 
 const waveGeometry = () => new THREE.CircleGeometry(1, 64)
 
-export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureEffects {
+export function createEnclosureEffects(positions: ArrayLike<number>, scale: BoardScale): EnclosureEffects {
     const group = new THREE.Group()
     group.renderOrder = 1
 
@@ -247,7 +248,7 @@ export function createEnclosureEffects(positions: ArrayLike<number>): EnclosureE
     const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
         if (playing.length === 0) return false
 
-        const tileSize = tilePointSize(camera.zoom, viewportHeight)
+        const tileSize = tilePointSize(camera.zoom, viewportHeight, scale)
         const minMark = MIN_MARK_PX * pixelRatio
         const pixelsPerUnit = (viewportHeight / 2) * camera.zoom
 

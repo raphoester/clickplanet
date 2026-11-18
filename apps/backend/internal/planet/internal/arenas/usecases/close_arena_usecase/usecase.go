@@ -2,6 +2,7 @@ package close_arena_usecase
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
@@ -9,7 +10,12 @@ import (
 )
 
 type Tiles interface {
-	PutBack(ctx context.Context, arena clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
+	PutBack(ctx context.Context, arena clicks.MapID, world clicks.Stage, keep func(ctx context.Context) (bool, error)) (bool, error)
+}
+
+// Maps names the stage a map plays: its latest era's board, when this process carries it.
+type Maps interface {
+	Playing(ctx context.Context, played clicks.MapID) (clicks.Stage, error)
 }
 
 type Arenas interface {
@@ -37,12 +43,13 @@ type Executor interface {
 	Execute(ctx context.Context, arena arenas.ID) (Closed, error)
 }
 
-func New(tiles Tiles, kept Arenas, inPlay InPlay, clock cptime.Clock) *UseCase {
-	return &UseCase{tiles: tiles, kept: kept, inPlay: inPlay, clock: clock}
+func New(tiles Tiles, maps Maps, kept Arenas, inPlay InPlay, clock cptime.Clock) *UseCase {
+	return &UseCase{tiles: tiles, maps: maps, kept: kept, inPlay: inPlay, clock: clock}
 }
 
 type UseCase struct {
 	tiles  Tiles
+	maps   Maps
 	kept   Arenas
 	inPlay InPlay
 	clock  cptime.Clock
@@ -51,10 +58,15 @@ type UseCase struct {
 var _ Executor = (*UseCase)(nil)
 
 // Execute deletes the arena's map and keeps the arena closed, in one transaction under the map's locks; the world's map
-// plays again. An arena never opened is closed the same way, with the map left as it is.
+// plays again, on the board of its era, whatever board the arena played. An arena never opened is closed the same way,
+// with the map left as it is.
 func (u *UseCase) Execute(ctx context.Context, id arenas.ID) (Closed, error) {
+	world, err := u.maps.Playing(ctx, clicks.World)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read the board the world plays: %w", err)
+	}
 	closed := Already
-	_, err := u.tiles.PutBack(ctx, id.Map(), func(ctx context.Context) (bool, error) {
+	_, err = u.tiles.PutBack(ctx, id.Map(), world, func(ctx context.Context) (bool, error) {
 		arena, err := u.kept.Find(ctx, id)
 		if err != nil {
 			return false, err //nolint:wrapcheck // the store names it.

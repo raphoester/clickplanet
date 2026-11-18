@@ -79,13 +79,17 @@ kept; see the backend's
 [Bomb](../../backend/docs/bomb.md), and "Enclose off: no hand takes one, and none is used", `charges.enclose.off`: a
 grant keeps no enclosure then, and an enclose click closes nothing; never with enclosures unlimited, which the
 server refuses; see the backend's [Enclosures off](../../backend/docs/enclose.md#enclosures-off-chargesencloseoff)), Arena (`arena.freeze`, how long an arena takes no play after its
-fresh map plays and before the battle ends, and `seed.capitals.shields`, the shields each capital starts with in the
-capitals seed, the one pattern so far: a second one brings a picker), and the Toll, whose steps are rows to add and
+fresh map plays and before the battle ends, `seed.capitals.shields`, the shields each capital starts with in the
+capitals seed, the one pattern so far: a second one brings a picker, and "Board its fresh map plays", `arena.board`:
+"The world's", or a board by name, from the boards the page carries (see [Boards on the page](boards.md)), and outside
+`default` "Default (…)"; a board the set holds that the page does not carry is listed too, so a save keeps it; the
+server refuses to open an arena on a board it does not carry), and the Toll, whose steps are rows to add and
 remove.
 `GROUPS` names each value by its path in the set's rules (`Rules.toJson`), so the form needs no code per value: a
 duration is typed in seconds, a count is rounded to a whole one, a toll share is typed in percent. Every value has a
 label and a number field, so a value cannot be left out or misspelled; a test (`edits every value of a set`) fails when
-the set gains a value the form does not name. The fields and the switches are `RuleFields.tsx`, over `ruleValues.ts`
+the set gains a value the form does not name. It reads the values `toJson` writes, which leaves out an optional field
+unset, so `arena.board`, a string, is named by hand there and in its own tests. The fields and the switches are `RuleFields.tsx`, over `ruleValues.ts`
 (a value as typed, as sent, and as read), which the Box & quiz rules share.
 
 **Box & quiz rules** (`BonusRulesPanel`) is three lists on one page, each with its form: **Boxes**, the boxes' sets

@@ -1,5 +1,4 @@
 import en from "./locales/en.json"
-import landmassNames from "../../static/landmassNames.json"
 import englishCountries from "./countries/en.json"
 import {Language, SOURCE_LANGUAGE} from "./languages.ts"
 import {formatMessage, MissingValueError, Node, parseMessage, Speech, Value} from "./message.ts"
@@ -11,8 +10,12 @@ export type Lines = Readonly<Record<string, string>>
 
 export const ENGLISH: Lines = en
 
-// Natural Earth's names of the landmasses that are not a country's main one, by id, as `npm run landmassNames` writes them.
-export const ENGLISH_LANDMASSES: Lines = landmassNames.names
+// The names of a board's landmasses that are not a country's main one, by id: Natural Earth's, in English, as
+// `npm run landmassNames` writes them beside the board, and in the page's language. A landmass id is a row of one
+// board's borders file, so they are the board's the page plays, known once it is.
+export type LandmassNames = {english: Lines, own: Lines}
+
+export const NO_LANDMASS_NAMES: LandmassNames = {english: {}, own: {}}
 
 // Each flag's country inside a sentence, keyed `in.<code>`: "in {flag} the United States".
 export const ENGLISH_COUNTRIES: Lines = englishCountries
@@ -48,8 +51,8 @@ export class Translator {
         readonly language: Language,
         private readonly lines: Lines,
         readonly locale: string = language,
-        private readonly landmasses: Lines = ENGLISH_LANDMASSES,
         private readonly countryLines: Lines = ENGLISH_COUNTRIES,
+        private landmasses: LandmassNames = NO_LANDMASS_NAMES,
     ) {
         this.cardinals = new Intl.PluralRules(locale)
         this.ordinals = new Intl.PluralRules(locale, {type: "ordinal"})
@@ -153,10 +156,15 @@ export class Translator {
         return nodes
     }
 
-    // A country's main landmass is named after the country.
+    // The page plays one board for its life: its landmasses are named once it is known.
+    nameLandmasses(names: LandmassNames): void {
+        this.landmasses = names
+    }
+
+    // A country's main landmass is named after the country, and so is any before its board's names are read.
     landmass(landmass: number, ground: string | undefined): string {
         const id = String(landmass)
-        const own = this.landmasses[id] ?? ENGLISH_LANDMASSES[id]
+        const own = this.landmasses.own[id] ?? this.landmasses.english[id]
         if (own) return own
         return ground ? this.country(ground) : ""
     }
@@ -226,4 +234,4 @@ const ABBREVIATED = /^[A-Z]{2,3}$|\./u
 // "Congo - Kinshasa", "Myanmar (Birmanie)": one name that says two.
 const TWO_PLACES = /\(| [-–] /u
 
-export const ENGLISH_TRANSLATOR = new Translator(SOURCE_LANGUAGE, ENGLISH, SOURCE_LANGUAGE, ENGLISH_LANDMASSES, ENGLISH_COUNTRIES)
+export const ENGLISH_TRANSLATOR = new Translator(SOURCE_LANGUAGE, ENGLISH, SOURCE_LANGUAGE, ENGLISH_COUNTRIES)

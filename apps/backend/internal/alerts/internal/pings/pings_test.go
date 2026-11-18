@@ -12,6 +12,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 var start = time.Date(2026, 11, 2, 18, 0, 0, 0, time.UTC)
@@ -102,6 +103,25 @@ func TestAFewStrayTakesDoNotZoomTheViewOut(t *testing.T) {
 	attack, attacked := watch.Hear(placed("gb", "au", pointAt(-25, 134)))
 	require.True(t, attacked)
 	assert.InDelta(t, 20, attack.View.Zoom, 1e-9, "as close as a view comes")
+}
+
+func TestOnABoardOfItsOwnTheViewComesAsCloseAsATileIsWideOnEarth1(t *testing.T) {
+	fixture, err := cpboards.ScaleOf(cpboards.Fixture)
+	require.NoError(t, err)
+	watch := pings.NewWatch()
+	for i := range pings.AttackTiles - 1 {
+		take := placed("gb", "au", pointAt(-25, 134))
+		take.Scale = fixture
+		_, attacked := watch.Hear(take)
+		require.False(t, attacked, i)
+	}
+
+	last := placed("gb", "au", pointAt(-25, 134))
+	last.Scale = fixture
+	attack, attacked := watch.Hear(last)
+
+	require.True(t, attacked)
+	assert.InDelta(t, 20/9.697, attack.View.Zoom, 0.001, "20 over the fixture's spacing, 9.7 times earth-1's")
 }
 
 func TestTakesOlderThanTheWindowCountNothing(t *testing.T) {

@@ -12,7 +12,11 @@ import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester}
 import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
 import {loadBorders} from "./app/viewer/borderField.ts"
-import {BOARD} from "./app/viewer/boardAsset.ts"
+import {boardNamed, boardOf, FIRST_BOARD} from "./app/viewer/boards.ts"
+import {BoardChanges} from "./backends/boards.ts"
+import type {BoardAsset} from "./domain/board.ts"
+import {scaleOf} from "./domain/boardScale.ts"
+import {landmassNamesOf} from "./i18n/load.ts"
 import {chatterNamed, chatterNameplateOf, FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakeGifs} from "./backends/fakeGifs.ts"
 import {GifSearch} from "./backends/gifs.ts"
@@ -115,6 +119,16 @@ if (!crazyGames && (page.searchParams.has(SHARE_FLAG_PARAM) || page.searchParams
 const connection = new ConnectionHealth()
 followBrowser(connection, window)
 
+// The page draws the board GetMap names at its boot, and reloads when an answer names another (backends/boards.ts).
+const boards = new BoardChanges({reload: () => window.location.reload(), carries: (name) => boardNamed(name) !== undefined})
+
+// A landmass id is a row of one board's borders: the page names them once its board is known, in its language.
+function nameLandmasses(board: Promise<BoardAsset>) {
+    void Promise.all([board, speaking]).then(async ([drawn, spoken]) => {
+        spoken.nameLandmasses(await landmassNamesOf(drawn, spoken.language))
+    }).catch((e) => console.error("could not read the names of the board's landmasses: they read as their countries", e))
+}
+
 const config = {
     baseUrl: API_BASE_URL,
     timeoutMs: 10_000,
@@ -185,11 +199,16 @@ function start(backends: Backends) {
 }
 
 if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
-    const borders = loadBorders(BOARD.urls.borders)
+    const played = boardOf(FIRST_BOARD)
+    const borders = loadBorders(played.urls.borders)
     const fake = new FakeBackend(100, {
-        tilePositions: () => loadPointGeometryData().then((data) => data.positions),
+        board: played,
+        boards,
+        tilePositions: () => loadPointGeometryData(played).then((data) => data.positions),
         landmasses: () => borders.then(({assignment, codes}) => ({assignment, count: codes.length})),
     })
+    const board = boards.choose(() => fake.readBoard()).then(boardOf)
+    nameLandmasses(board)
     const fakePresence = new FakePresenceBackend()
     const fakeAccount = new FakeAccountBackend(fakePresence)
     const account = new AccountStore(fakeAccount, fakeAccount, fakeAccount, new NoSession(), {
@@ -371,7 +390,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     Object.assign(window, {fakeChat, fakeSupport, fakePromo, fakeAntibot})
     const fakeTurn = new FakeTurnBackend(seasonRunningAt(Date.now()))
     Object.assign(window, battleCommands(fakeTurn))
-    const fakeStandings = new FakeStandingsBackend()
+    const fakeStandings = new FakeStandingsBackend(undefined, undefined, undefined, played.tiles)
     const fakeBadges = new FakeBadges([fakePresence, fakeStandings])
     const fakeNameplates = new FakeNameplates([fakeAccount, fakePresence, {nameplateOf: chatterNameplateOf}, fakeStandings])
     Object.assign(window, {fakeBadges, fakeNameplates})
@@ -380,9 +399,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     fakeMissions.listenForFlagMissionsDone((flag, mission) => fakeChat.announceFlagMission(flag, mission))
     fake.listenForFortifications((fortification) => void borders.then(({codes}) => fakeChat.announceFortify({
         ...fortification, ground: codes[fortification.landmass], tiles: fake.landmassTiles(fortification.landmass),
-    })))
+    }, scaleOf(played))))
 
     start({
+        board,
         ownershipsGetter: fake,
         tileClicker: clicker,
         updatesListener: fake,
@@ -426,7 +446,9 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         landings: localLandingStore(),
     })
 } else {
-    const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config))
+    const backend = new PlanetBackend(newClickServiceClient(config), 100, session, newBonusServiceClient(config), boards)
+    const board = boards.choose((signal) => backend.readBoard(signal)).then(boardOf)
+    nameLandmasses(board)
     const quizzes = new QuizzesBackend(newQuizServiceClient(config), backend, backend, session)
     const boxes = new BoxesBackend(newBoxServiceClient(config), backend, backend, session)
     const chatBackend = new ChatServiceBackend(newChatServiceClient(config), session, newKeepaliveChatServiceClient(config))
@@ -450,6 +472,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const alerts = discordAlertsOf(new ConnectAlertsBackend(newAlertsServiceClient(config), session), account)
 
     start({
+        board,
         ownershipsGetter: backend,
         tileClicker: backend,
         updatesListener: backend,

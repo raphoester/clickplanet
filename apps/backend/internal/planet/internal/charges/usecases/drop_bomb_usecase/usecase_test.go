@@ -47,7 +47,7 @@ var inForce = func() func() charges.Rules {
 	return func() charges.Rules { return rules }
 }()
 
-var rules = charges.NewBombing(inForce, 0.005)
+var rules = charges.NewBombing(inForce, clicks.Spacing(0.005))
 
 type parts struct {
 	bombs   *charges.MemoryStore
@@ -163,7 +163,7 @@ func TestWhileBombsAreOffADropIsRefusedAndTheBombStaysHeld(t *testing.T) {
 	bombs.Keep(bomber, charges.Held{Bombs: 1})
 	clearer := &stubClearer{}
 	useCase := drop_bomb_usecase.New(charges.NewCharges(bombs, offRules), &stubMap{nearest: 10, arc: 0.001}, clearer,
-		countries{}, charges.NewBombing(offRules, 0.005))
+		countries{}, charges.NewBombing(offRules, clicks.Spacing(0.005)))
 
 	_, err := useCase.Execute(dropping(t), drop_bomb_usecase.In{Target: clicks.Vec3{X: 2}, CountryID: "xx"})
 

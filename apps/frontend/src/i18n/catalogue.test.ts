@@ -1,15 +1,26 @@
+import {readFileSync} from "node:fs"
+import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
 import {LANGUAGES, SOURCE_LANGUAGE} from "./languages.ts"
 import {parseMessage, pluralsOf, Slot, slotsOf} from "./message.ts"
-import {ENGLISH, ENGLISH_LANDMASSES, OWN_COUNTRY_NAMES} from "./translator.ts"
+import {ENGLISH, OWN_COUNTRY_NAMES} from "./translator.ts"
 import NOTES from "./notes.json"
 import FLAGS from "../../static/countries/countries.json"
+import {BOARDS} from "../app/viewer/boardsAsset.ts"
 
 const FILES = import.meta.glob<Record<string, unknown>>("./locales/*.json", {eager: true, import: "default"})
-const LANDMASS_FILES = import.meta.glob<Record<string, unknown>>("./landmasses/*.json", {eager: true, import: "default"})
+const LANDMASS_FILES = import.meta.glob<Record<string, unknown>>("./landmasses/*/*.json", {eager: true, import: "default"})
 const COUNTRY_FILES = import.meta.glob<Record<string, unknown>>("./countries/*.json", {eager: true, import: "default"})
 
 const linesOf = (language: string) => FILES[`./locales/${language}.json`]
+
+const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
+
+// Each board's landmass names in English, as the page fetches them beside the board.
+const ENGLISH_LANDMASSES = Object.fromEntries(Object.values(BOARDS).map((board) => [
+    board.name,
+    (JSON.parse(readFileSync(`${STATIC}boards/${board.name}/${board.page.landmassNames}`, "utf8")) as {names: Record<string, string>}).names,
+]))
 
 // A count may be a plain number where a language has one form for every count.
 const kindOf = (slot: Slot) => slot === "count" ? "value" : slot
@@ -17,6 +28,11 @@ const kindOf = (slot: Slot) => slot === "count" ? "value" : slot
 describe("the catalogue", () => {
     it("has a file for each language and none for another", () => {
         expect(Object.keys(FILES).sort()).toEqual(LANGUAGES.map((language) => `./locales/${language}.json`).sort())
+    })
+
+    it("names the landmasses of the boards the page carries, and of no other", () => {
+        const boards = new Set(Object.keys(LANDMASS_FILES).map((path) => path.split("/")[2]))
+        expect([...boards].filter((board) => !(board in BOARDS))).toEqual([])
     })
 
     it("holds notes only for lines English has", () => {
@@ -33,10 +49,12 @@ describe("the catalogue", () => {
             const cardinals = new Intl.PluralRules(language).resolvedOptions().pluralCategories
             const ordinals = new Intl.PluralRules(language, {type: "ordinal"}).resolvedOptions().pluralCategories
 
-            if (language !== SOURCE_LANGUAGE) it("names every landmass English names, and no other", () => {
-                const names = LANDMASS_FILES[`./landmasses/${language}.json`] ?? {}
-                expect(Object.keys(names).filter((id) => !(id in ENGLISH_LANDMASSES)), "ids English no longer has").toEqual([])
-                expect(Object.keys(ENGLISH_LANDMASSES).filter((id) => typeof names[id] !== "string" || !names[id]), "names missing").toEqual([])
+            if (language !== SOURCE_LANGUAGE) it("names every landmass of every board English names, and no other", () => {
+                for (const [board, english] of Object.entries(ENGLISH_LANDMASSES)) {
+                    const names = LANDMASS_FILES[`./landmasses/${board}/${language}.json`] ?? {}
+                    expect(Object.keys(names).filter((id) => !(id in english)), `${board}: ids English no longer has`).toEqual([])
+                    expect(Object.keys(english).filter((id) => typeof names[id] !== "string" || !names[id]), `${board}: names missing`).toEqual([])
+                }
             })
 
             it("says \"in\" each flag's country, with the flag's picture in it, and no other", () => {

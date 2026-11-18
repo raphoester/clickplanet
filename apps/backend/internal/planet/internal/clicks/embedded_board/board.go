@@ -1,73 +1,65 @@
 package embedded_board
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"log/slog"
+	"sync"
+	"time"
 
-	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
-// The manifest of a board (/map/README.md).
-type manifest struct {
-	Name    string `json:"name"`
-	Lattice struct {
-		Cols    int       `json:"cols"`
-		Warp    *struct{} `json:"warp"`
-		Corners []float64 `json:"corners"`
-		Order   string    `json:"order"`
-	} `json:"lattice"`
-	Tiles         uint32 `json:"tiles"`
-	PositionsHash uint32 `json:"positionsHash"`
-	Files         struct {
-		Runs     string `json:"runs"`
-		Borders  string `json:"borders"`
-		Capitals string `json:"capitals"`
-		Bridges  string `json:"bridges"`
-	} `json:"files"`
+var errNoBoard = errors.New("this process carries no board")
+
+// Registry is every board this process carries (cpboards.Files): each one's manifest read and checked at boot (Load),
+// and its ground (geography, borders, bridges and capitals) built the first time something needs it, about 57 bytes a
+// tile.
+type Registry struct {
+	files  fs.FS
+	boards []*heldBoard
+	flags  func(country string) bool
+	logger *slog.Logger
 }
 
-type board struct {
-	name     string
-	asset    string
-	manifest manifest
+type heldBoard struct {
+	board  cpboards.Board
+	once   sync.Once
+	ground *clicks.Ground
+	err    error
 }
 
-// board reads the board this app plays, refusing one of another size than gameMap.maxIndex.
-func (l *Loader) board() (board, error) {
-	names, err := mapdata.Boards()
+// New is a registry of the boards in files, read by Load. flags is whether a player can play for a country: the capitals
+// of the others are dropped.
+func New(files fs.FS, flags func(country string) bool, logger *slog.Logger) *Registry {
+	return &Registry{files: files, flags: flags, logger: logger}
+}
+
+// Load reads every board's manifest, refusing no board, and a board whose manifest names a lattice this build cannot
+// walk.
+func (r *Registry) Load() error {
+	boards, err := cpboards.Boards(r.files)
 	if err != nil {
-		return board{}, fmt.Errorf("failed to list the embedded boards: %w", err)
+		return fmt.Errorf("failed to read the boards carried: %w", err)
 	}
-	if len(names) != 1 {
-		return board{}, fmt.Errorf("expected exactly one embedded board, found %d: %v", len(names), names)
+	if len(boards) == 0 {
+		return errNoBoard
 	}
-
-	blob, asset, err := mapdata.Manifest(names[0])
-	if err != nil {
-		return board{}, fmt.Errorf("failed to read board %s's manifest: %w", names[0], err)
+	held := make([]*heldBoard, 0, len(boards))
+	for _, board := range boards {
+		if err := checkLattice(board.Manifest); err != nil {
+			return fmt.Errorf("%s/%s: %w", board.Manifest.Name, board.Asset, err)
+		}
+		held = append(held, &heldBoard{board: board})
 	}
-
-	var read manifest
-	if err := json.Unmarshal(blob, &read); err != nil {
-		return board{}, fmt.Errorf("failed to parse %s: %w", asset, err)
-	}
-	if read.Name != names[0] {
-		return board{}, fmt.Errorf("%s names board %q, in the directory of %q", asset, read.Name, names[0])
-	}
-	if read.Tiles != l.expectTiles {
-		return board{}, fmt.Errorf(
-			"%s holds %d tiles but gameMap.maxIndex is %d: the board and the config were updated apart",
-			asset, read.Tiles, l.expectTiles)
-	}
-	if err := read.checkLattice(); err != nil {
-		return board{}, fmt.Errorf("%s: %w", asset, err)
-	}
-
-	return board{name: names[0], asset: asset, manifest: read}, nil
+	r.boards = held
+	return nil
 }
 
-func (m manifest) checkLattice() error {
+func checkLattice(m cpboards.Manifest) error {
 	if m.Lattice.Cols < 2 {
 		return fmt.Errorf("a lattice of %d cols", m.Lattice.Cols)
 	}
@@ -80,24 +72,103 @@ func (m manifest) checkLattice() error {
 	return nil
 }
 
-func (b board) file(name string) ([]byte, error) {
-	blob, err := mapdata.File(b.name, name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read a file of %s: %w", b.asset, err)
+// Carried is every board this process carries, as its files name it: its directory, and the hash of its positions in
+// tile order (the manifest's positionsHash, which Ground checks the rebuilt positions against). Planet's row of each
+// names the same hash, or the boot refuses it.
+func (r *Registry) Carried() []eras.Carried {
+	carried := make([]eras.Carried, len(r.boards))
+	for i, held := range r.boards {
+		carried[i] = eras.Carried{Name: clicks.BoardName(held.board.Manifest.Name), Hash: held.board.Hash()}
 	}
-	return blob, nil
+	return carried
 }
 
-// tiles rebuilds the board's positions from its runs, in tile order, and each lattice point's tile: 0 at sea.
-func (b board) tiles() ([]float32, []uint32, error) {
-	blob, err := b.file(b.manifest.Files.Runs)
-	if err != nil {
-		return nil, nil, err
+// Ground is the ground of the board of that name, built the first time it is asked for and kept: refused for a board
+// this process does not carry, and for files that do not rebuild the manifest's tiles.
+func (r *Registry) Ground(name clicks.BoardName) (*clicks.Ground, error) {
+	for _, held := range r.boards {
+		if held.board.Manifest.Name == string(name) {
+			held.once.Do(func() { held.ground, held.err = r.load(held.board) })
+			return held.ground, held.err
+		}
 	}
-	cols := b.manifest.Lattice.Cols
+	return nil, fmt.Errorf("%w: %s", eras.ErrNotCarried, name)
+}
+
+func (r *Registry) load(board cpboards.Board) (*clicks.Ground, error) {
+	started := time.Now()
+	name := board.Manifest.Name
+
+	geography, err := loadGeography(board)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the geography of board %s: %w", name, err)
+	}
+	borders, err := loadBorders(board)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the borders of board %s: %w", name, err)
+	}
+	bridges, err := loadBridges(board)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the bridges of board %s: %w", name, err)
+	}
+	capitals, err := loadCapitals(board, borders)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the capitals of board %s: %w", name, err)
+	}
+	capitals = capitals.Flags(r.flags)
+	ground, err := clicks.NewGround(clicks.BoardName(name), geography, borders, bridges, capitals)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the ground of board %s: %w", name, err)
+	}
+
+	stats := geography.Stats()
+	r.logger.Info("board loaded",
+		slog.String("board", name),
+		slog.String("asset", board.Asset),
+		slog.Int("tiles", int(stats.Tiles)),
+		slog.Int("edges", int(stats.Edges)),
+		slog.Any("degrees", stats.Degrees),
+		slog.String("borders", board.Manifest.Files.Borders),
+		slog.Int("bridges", bridges.Count()),
+		slog.Int("capitals", len(capitals.All())),
+		slog.Any("took", time.Since(started).Round(time.Millisecond)),
+	)
+
+	return ground, nil
+}
+
+// A file of the board that holds another tile count than its manifest is another board's.
+func checkTiles(board cpboards.Board, asset string, tiles uint32) error {
+	if tiles != board.Manifest.Tiles {
+		return fmt.Errorf("%s holds %d tiles but %s says %d: a file of another board", asset, tiles, board.Asset,
+			board.Manifest.Tiles)
+	}
+	return nil
+}
+
+func loadGeography(board cpboards.Board) (*clicks.Geography, error) {
+	positions, tileOf, err := tilesOf(board)
+	if err != nil {
+		return nil, err
+	}
+	geography, err := clicks.NewGeography(positions, latticeEdges(board.Manifest.Lattice.Cols, tileOf))
+	if err != nil {
+		return nil, fmt.Errorf("failed to build the geography: %w", err)
+	}
+	return geography, nil
+}
+
+// tilesOf rebuilds the board's positions from its runs, in tile order, and each lattice point's tile: 0 at sea.
+func tilesOf(board cpboards.Board) ([]float32, []uint32, error) {
+	manifest := board.Manifest
+	blob, err := board.File(manifest.Files.Runs)
+	if err != nil {
+		return nil, nil, err //nolint:wrapcheck // the board names the file.
+	}
+	cols := manifest.Lattice.Cols
 	runs, err := decodeRuns(blob, latticeSize(cols))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode %s: %w", b.manifest.Files.Runs, err)
+		return nil, nil, fmt.Errorf("failed to decode %s: %w", manifest.Files.Runs, err)
 	}
 
 	isTile := make([]bool, latticeSize(cols))
@@ -108,7 +179,7 @@ func (b board) tiles() ([]float32, []uint32, error) {
 	}
 
 	tileOf := make([]uint32, len(isTile))
-	positions := make([]float32, 0, int(b.manifest.Tiles)*3)
+	positions := make([]float32, 0, int(manifest.Tiles)*3)
 	tile := uint32(0)
 	walkLattice(cols, func(face, i, j int, id canonicalID) {
 		if !isTile[id] {
@@ -120,13 +191,13 @@ func (b board) tiles() ([]float32, []uint32, error) {
 		position := latticePosition(cols, face, i, j)
 		positions = append(positions, position[0], position[1], position[2])
 	})
-	if tile != b.manifest.Tiles {
-		return nil, nil, fmt.Errorf("%s holds %d tiles, %s says %d", b.manifest.Files.Runs, tile, b.asset, b.manifest.Tiles)
+	if err := checkTiles(board, manifest.Files.Runs, tile); err != nil {
+		return nil, nil, err
 	}
 
-	if hash := positionsHash(positions); hash != b.manifest.PositionsHash {
+	if hash := positionsHash(positions); hash != manifest.PositionsHash {
 		return nil, nil, fmt.Errorf("%s rebuilds positions that hash to %08x, %s says %08x: they are not the page's",
-			b.manifest.Files.Runs, hash, b.asset, b.manifest.PositionsHash)
+			manifest.Files.Runs, hash, board.Asset, manifest.PositionsHash)
 	}
 
 	return positions, tileOf, nil
