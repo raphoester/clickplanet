@@ -3,8 +3,22 @@ import {afterEach, describe, expect, it} from "vitest"
 import {cleanup, fireEvent, render, screen} from "@testing-library/react"
 import {PlayerLevel} from "../../backends/progression.ts"
 import XpHelp from "./XpHelp.tsx"
+import {useLevel} from "./levelStore.ts"
 
-afterEach(cleanup)
+afterEach(() => {
+    cleanup()
+    useLevel.setState(useLevel.getInitialState(), true)
+})
+
+const LADDER = {spreadClicks: 2, shields: 3, encloseClicks: 5, bomb: 7, virus: 10, mine: 13, rally: 15}
+const RATES = {
+    tilesTaken: {xp: 1, per: 1},
+    daysPlayed: {xp: 100, per: 1},
+    bombsDropped: {xp: 50, per: 1},
+    boxesCaught: {xp: 30, per: 1},
+    rightAnswers: {xp: 30, per: 1},
+    tilesFortified: {xp: 1, per: 5},
+}
 
 const twelve: PlayerLevel = {level: 12, xp: 20_000, levelXp: 18_634, nextLevelXp: 24_192}
 
@@ -20,12 +34,16 @@ describe("XpHelp", () => {
         expect(help().getAttribute("aria-expanded")).toBe("false")
     })
 
-    it("says what the bar is and how to gain XP on a press, and folds on a second", () => {
+    it("says what the bar is, what the next levels give and what each way to gain XP pays on a press, and folds on a second", () => {
+        useLevel.setState({unlocks: LADDER, xpRates: RATES})
         render(<XpHelp level={twelve}/>)
 
         fireEvent.click(help())
 
-        expect(ways()?.textContent).toBe("XP to level 131,366 / 5,558 XPEach new level gives you a bonusHow to gain XPTake tilesPlay every dayComplete missionsDrop bombsCatch boxesAnswer quizzes rightFortify tiles")
+        expect(ways()?.textContent).toBe("XP to level 131,366 / 5,558 XPNext: Mine, unlocks at level 13" +
+            "Each level up also gives you a free bonusHow to gain XP" +
+            "Take tiles+1 XPFirst take of each day+100 XPComplete missionsShown on eachDrop bombs+50 XP" +
+            "Catch boxes+30 XPAnswer quizzes right+30 XPFortify tiles+0.2 XP")
         expect(help().getAttribute("aria-expanded")).toBe("true")
 
         fireEvent.click(help())
@@ -71,5 +89,25 @@ describe("XpHelp", () => {
         fireEvent.click(help())
         fireEvent.keyDown(document, {key: "Escape"})
         expect(ways()).toBeNull()
+    })
+
+    it("says every bonus is unlocked past the ladder's top", () => {
+        useLevel.setState({unlocks: LADDER, xpRates: RATES})
+        render(<XpHelp level={{level: 25, xp: 194_000, levelXp: 193_536, nextLevelXp: 210_014}}/>)
+
+        fireEvent.click(help())
+
+        expect(ways()?.textContent).toContain("Every bonus is unlocked")
+        expect(ways()?.textContent).not.toContain("Next:")
+    })
+
+    it("names no unlock and no XP it was not told", () => {
+        render(<XpHelp level={twelve}/>)
+
+        fireEvent.click(help())
+
+        expect(ways()?.textContent).not.toContain("unlock")
+        expect(ways()?.textContent).not.toContain("+1 XP")
+        expect(ways()?.textContent).toContain("Shown on each")
     })
 })

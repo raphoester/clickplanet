@@ -1,10 +1,14 @@
 import {CSSProperties, useEffect, useId, useRef, useState} from "react"
 import {createPortal} from "react-dom"
 import {PlayerLevel} from "../../backends/progression.ts"
+import {nextUnlock, unlockedBy} from "../../domain/level.ts"
 import {TITLE_REVEAL} from "../../domain/titleReveal.ts"
 import {useModalDialog} from "../components/useDialog.ts"
 import {PlaySound} from "../sound/soundPlayer.ts"
 import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
+import BonusName from "./BonusName.tsx"
+import {useLevel} from "./levelStore.ts"
 import "../titles/TitleUnlocked.css"
 import "./Level.css"
 
@@ -33,17 +37,23 @@ function sparks(): Spark[] {
 
 export type LevelUpProps = {
     level: PlayerLevel
+    // The level shown before: none for the account's first, which names no kind unlocked.
+    from?: number
     play: PlaySound
     onClose: () => void
 }
 
-// The title unlock's stage, with the level's number where the medal lands. Nothing closes it before it has landed.
-export default function LevelUp({level, play, onClose}: LevelUpProps) {
+// The title unlock's stage, with the level's number where the medal lands, the kinds of bonus the raise unlocked and the
+// next one. Nothing closes it before it has landed.
+export default function LevelUp({level, from, play, onClose}: LevelUpProps) {
     const dialog = useRef<HTMLDivElement>(null)
     const headId = useId()
     const nameId = useId()
     const [shown] = useState(sparks)
     const [ready, setReady] = useState(false)
+    const unlocks = useLevel((store) => store.unlocks)
+    const unlocked = from === undefined ? [] : unlockedBy(unlocks, from, level.level)
+    const next = nextUnlock(unlocks, level.level)
 
     useEffect(() => {
         play("title")
@@ -88,6 +98,12 @@ export default function LevelUp({level, play, onClose}: LevelUpProps) {
                     </span>
                 </div>
                 <p id={nameId} className="title-reveal-name">{t("level.level", {level: level.level})}</p>
+                {unlocked.map(({kind}) => <p key={kind} className="title-reveal-rank level-up-unlocked">
+                    {rich("level.unlockedNow", {bonus: <BonusName kind={kind}/>})}
+                </p>)}
+                {next && <p className="title-reveal-rank level-up-next">
+                    {rich("level.nextUnlock", {bonus: <BonusName kind={next.kind}/>, level: next.level})}
+                </p>}
                 <div className="title-reveal-actions">
                     {ready && <button type="button" className="button button-gold" onClick={onClose}>{t("common.ok")}</button>}
                 </div>

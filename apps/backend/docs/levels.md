@@ -10,14 +10,16 @@ draws them (the frontend's [The level](../../frontend/docs/level.md)), merged wi
 reveal](#the-reveal)).
 
 ```
-levels/                            XP, Level, Record, Source, MissionKind (stats.MissionKind), MissionRate, Curve, Standing,
-                                   Scale (XPOf, Reach, StandingOf, ReconciliationOf), ByAccount; the ladder (Kind, Unlock,
+levels/                            XP, Level, Record, Source (its SourceName), RatedSource, MissionKind (stats.MissionKind),
+                                   MissionRate, Rate, Curve, Standing, Scale (XPOf, Reach, StandingOf, EarnedOf,
+                                   ReconciliationOf), ByAccount; Earned, Gain, and what a stream hears (Told: Reached,
+                                   Gained); the ladder (Kind, Unlock,
                                    SpreadUnlock, ShieldsUnlock, EncloseUnlock, BombUnlock, VirusUnlock, MineUnlock,
                                    RallyUnlock, Ladder); Book, the store and the bonuses told in one
                                    transaction; the Store port and its contract suite
   postgres_level_store/            the Store over progression.levels, under the rows' locks
   inmemory_level_store/            the same port in a map, behind the testing tag
-  inprocess_level_feed/            each raise, to the account's open streams, in this process
+  inprocess_level_feed/            each raise and each fact's XP, to the account's open streams, in this process
   outbox_bonuses/                  what a level unlocks and a level-up, as bonuses.v1 commands in progression's outbox
   usecases/raise_level_usecase/    on progression.v1.StatsChanged: the level raised, told to the feed
   usecases/forget_level_usecase/
@@ -41,21 +43,24 @@ together, as the reveal:
 
 ## What gives XP
 
-One type per source (`Source`), each reading one count of the account's `Record`. `Scale.Sources` lists them, and
-`Scale.StandingOf` adds them up.
+One type per source (`Source`), each reading one count of the account's `Record`, and named (`Name()`, a
+`SourceName`: `progression.v1.XpSource` without its prefix, in lower case). `Scale.Sources` lists them, and
+`Scale.StandingOf` adds them up. **A rated source** (`RatedSource`) pays one `Rate` on its count, which `GetLevel`
+answers for the page to say what each way to gain XP pays; the missions pay by kind instead.
 
-| Type             | Count read                | XP                                             |
-| ---------------- | ------------------------- | ---------------------------------------------- |
-| `TilesTaken`     | `TilesTaken()`            | × 1                                            |
-| `DaysPlayed`     | `DaysPlayed()`            | × 100: the first take of a UTC day             |
-| `MissionsDone`   | `MissionGoals(kind)`      | Σ per kind: the goals paid × the kind's rate   |
-| `BombsDropped`   | `BombsDropped()`          | × 50                                           |
-| `BoxesCaught`    | `BonusesClaimed()`        | × 30                                           |
-| `RightAnswers`   | `RightAnswers()`          | × 30: a wrong answer gives nothing             |
-| `TilesFortified` | `TilesFortified()`        | ÷ 5 (0.2 a tile), floored on the total         |
-| `MessagesSent`   | none                      | 0: XP for messages would fill the chat with spam |
+| Type             | Name              | Count read           | XP                                               |
+| ---------------- | ----------------- | -------------------- | ------------------------------------------------ |
+| `TilesTaken`     | `tiles_taken`     | `TilesTaken()`       | `Rate{1, 1}`                                     |
+| `DaysPlayed`     | `days_played`     | `DaysPlayed()`       | `Rate{100, 1}`: the first take of a UTC day      |
+| `MissionsDone`   | `missions_done`   | `MissionGoals(kind)` | Σ per kind: the goals paid × the kind's rate     |
+| `BombsDropped`   | `bombs_dropped`   | `BombsDropped()`     | `Rate{50, 1}`                                    |
+| `BoxesCaught`    | `boxes_caught`    | `BonusesClaimed()`   | `Rate{30, 1}`                                    |
+| `RightAnswers`   | `right_answers`   | `RightAnswers()`     | `Rate{30, 1}`: a wrong answer gives nothing      |
+| `TilesFortified` | `tiles_fortified` | `TilesFortified()`   | `Rate{1, 5}` (0.2 a tile), floored on the total  |
+| `MessagesSent`   | `messages_sent`   | none                 | 0: XP for messages would fill the chat with spam |
 
-Integer math only: every fraction is floored.
+Integer math only: every fraction is floored. `TestEverySourceThatGivesXPIsNamedOnTheWire` fails for a source that
+gives XP with no `XpSource`, and for an `XpSource` no source gives.
 
 ## What a mission pays
 
@@ -157,11 +162,40 @@ the titles' `player-titles`):
 
 - **One write per jump**: from 1 to 9 is one raise, and one `level_reached`. The use case answers the level it raised
   to, 0 for none.
+- **Every fact tells the XP it gave** (see [Told live: the XP gained](#told-live-the-xp-gained)): at step 2, an account
+  with a level kept, so linked, is told what the stats give past what its streams knew; at step 5, before the level
+  reached.
 - **It tells only the account's open streams, in this process, at most once**: the feed drops for a stream 8 raises
   behind, and an account with no stream open hears nothing. Only the bonuses' command crosses to another module: there
   is no `LevelReached` event. The use case calls the feed itself, after the raise: a raise another write beat, a guest
   and a failure tell nothing.
 - A failure to read or to ask player is an error: the event is tried again, then buried.
+
+## Told live: the XP gained
+
+**The account's open streams hear the XP each fact gave, by source, and the level on its bar after it**
+(`ListenForEvents`' `xp_gained`), so the page shows each gain with why: "+100 XP, first take of the day". Asked by the
+owner on 2026-11-18: players did not see where their XP came from. XP is never stored, and `StatsChanged` names only
+the account, so a gain is a difference:
+
+- **`Scale.EarnedOf(record)` is the XP each source gives** (`Earned`, a `Gain{Source, XP}` per source, in the scale's
+  order), and **`Earned.Since(before)` what each gives past it**, the sources with nothing more left out.
+- **`inprocess_level_feed` keeps, per account with a stream open, what it knows the account earned**, and only then:
+  the last stream to close forgets it. **A stream starts from the stats as it opens**: `listen_for_events_usecase` reads
+  them (`ErrNoStats` is nothing earned) and hands them to `Subscribe`; a stream that cannot read them fails, since from
+  no start the first gain told would be the account's whole XP. A second stream of the account keeps what the first
+  knows, if it is more (`Earned.Most`).
+- **`Feed.Count(account, earned, standing)`** tells the difference, and keeps the higher of each source: a fact told
+  twice, or a record read before one already counted, tells nothing, and a gain lost to a full stream is not told
+  again. `raise_level_usecase` calls it on every `StatsChanged` it reads: **only for an account with a level kept**
+  (linked: a guest has no row), or after the raise that writes one, so a guest hears no XP.
+- **The gain comes before the level it brings**: the feed sends both on one channel (`levels.Told`: `Gained` or
+  `Reached`), in the order told, and the use case counts before it publishes the raise. The page moves the XP on the
+  gain and the level on `level_reached` alone.
+- **A take is one gain**: an enclose of a continent is one batch, so one gain, and a player who clicks fast hears a
+  gain per batch. The feed holds 32 per stream, then drops.
+- `XpGain.source` is `progression.v1.XpSource`, mapped strictly by name (`progressionmessage.XPSource`): a gain whose
+  source the wire does not name is left out, which the test above keeps from happening.
 
 ## The reconciliation
 
@@ -250,12 +284,14 @@ stats give now (`Scale.XPOf`), and the two thresholds of the level kept (`level_
 `GetLevel` and the stream never disagree: a level shows once a raise or the reconciliation wrote it. The page draws
 them: see the frontend's [The level](../../frontend/docs/level.md).
 
-- **`ProgressionService/GetLevel`** → `{level, mission_rates, unlocks}`, the caller's own; `unlocks` is the ladder, one
-  `Unlock{kind, level}` per rung, the kind in planet's words (`planet.v1.BonusKind`): `Identified` behind the session
-  interceptor, `NO_SIDE_EFFECTS` (`get_level_handler`, `level_query`).
+- **`ProgressionService/GetLevel`** → `{level, mission_rates, unlocks, xp_rates}`, the caller's own; `unlocks` is the
+  ladder, one `Unlock{kind, level}` per rung, the kind in planet's words (`planet.v1.BonusKind`); `xp_rates` what each
+  rated source pays, one `XpRate{source, xp, per}` per source (`inprocess_level_scale.XPRates`), for the page's list of
+  how to gain XP: `Identified` behind the session interceptor, `NO_SIDE_EFFECTS` (`get_level_handler`, `level_query`).
 - **`ProgressionService/GetProgress`**, the public card, answers `Progress.level` the same way (`progress_query`).
 - **`ListenForEvents` sends `level_reached`**, a `Level`, to the caller's own open stream at each raise (see
-  [Raised live](#raised-live)).
+  [Raised live](#raised-live)), and **`xp_gained`** at each fact that gave XP, before the `level_reached` it brings (see
+  [Told live: the XP gained](#told-live-the-xp-gained)).
 - **`mission_rates`: one `{kind, xp, per}` per `missions.v1.MissionKind` but `UNSPECIFIED`**, for the page to pay goal
   × xp ÷ per at the reveal. The kind is missions' enum, not the lower-case name progression keeps in its stats: the page
   reads the wire in missions' words and matches it to a mission's kind, and the lower-case name is how a row stores it.

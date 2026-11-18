@@ -14,7 +14,9 @@ import {
     ProgressionListener,
     ProgressReader,
     TitleDashboard,
+    XpSource,
 } from "./progression.ts"
+import {TileClicker} from "./backend.ts"
 import {fakeLevelOf, fakeXpOf} from "./fakeLevels.ts"
 
 const SHIFT_MS = 25_000
@@ -100,8 +102,10 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
     private own?: {presence: Presence, at: number}
     // The title the signed-in player chose to wear, if any.
     private ownChoice?: string
-    // The signed-in player's XP: giveXp() adds to it.
+    // The signed-in player's XP: giveXp() and each take add to it.
     private ownXp?: number
+    // Whether this page took a tile yet: its first take is the day's, worth a day played.
+    private tookToday = false
     private readonly listeners = new Set<ProgressionEvents>()
 
     constructor(private readonly now: () => number = () => Date.now()) {
@@ -134,11 +138,30 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
         return this.listeners.size > 0
     }
 
-    // As the server: the XP counted, and one level_reached for a jump of any size. Whether a page heard a raise.
-    public giveXp(xp: number): {level: PlayerLevel, heard: boolean} {
+    // As the server: the XP counted, told as gained, then one level_reached for a jump of any size. Whether a page heard
+    // a raise.
+    public giveXp(xp: number, source: XpSource = "missionsDone"): {level: PlayerLevel, heard: boolean} {
+        return this.gain([{source, xp}])
+    }
+
+    // Each take is 1 XP, and the page's first one is the day's first take too.
+    public counting(clicker: TileClicker): TileClicker {
+        return {
+            clickTile: async (tileId, countryId, switches) => {
+                await clicker.clickTile(tileId, countryId, switches)
+                const day = this.tookToday ? [] : [{source: "daysPlayed" as const, xp: 100}]
+                this.tookToday = true
+                this.gain([{source: "tilesTaken", xp: 1}, ...day])
+            },
+        }
+    }
+
+    private gain(gains: {source: XpSource, xp: number}[]): {level: PlayerLevel, heard: boolean} {
         const before = this.ownLevel()
-        this.ownXp = before.xp + Math.max(0, Math.floor(xp))
+        const counted = gains.map(({source, xp}) => ({source, xp: Math.max(0, Math.floor(xp))})).filter(({xp}) => xp > 0)
+        this.ownXp = before.xp + counted.reduce((sum, {xp}) => sum + xp, 0)
         const level = this.ownLevel()
+        if (counted.length > 0) this.listeners.forEach((listener) => listener.xpGained({gains: counted, level}))
         if (level.level === before.level) return {level, heard: false}
         this.listeners.forEach((listener) => listener.levelReached(level))
         return {level, heard: this.listeners.size > 0}

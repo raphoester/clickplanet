@@ -11,13 +11,14 @@ type MissionRate interface {
 	Rate() Rate
 }
 
-// Rate is exact: XP for every Per units of the goal, floored, so the page that reads it pays what the server does.
+// Rate is exact: XP for every Per units of a count (a mission's goal, the tiles fortified), floored, so the page that
+// reads it pays what the server does.
 type Rate struct {
 	XP  XP
 	Per uint64
 }
 
-func (r Rate) XPOf(goals uint64) XP { return XP(goals * uint64(r.XP) / r.Per) }
+func (r Rate) XPOf(count uint64) XP { return XP(count * uint64(r.XP) / r.Per) }
 
 // Two to four banks.
 type TakeFor struct{}

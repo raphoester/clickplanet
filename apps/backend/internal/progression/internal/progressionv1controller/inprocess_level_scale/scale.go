@@ -14,7 +14,10 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 )
 
-var ErrUnknownKind = errors.New("a kind of mission the wire does not name")
+var (
+	ErrUnknownKind   = errors.New("a kind of mission the wire does not name")
+	ErrUnknownSource = errors.New("a source of XP the wire does not name")
+)
 
 func New(scale levels.Scale) Scale {
 	return Scale{scale: scale}
@@ -54,6 +57,27 @@ func (s Scale) MissionRates() ([]*progressionv1.MissionRate, error) {
 			Kind: missionsv1.MissionKind(kind),
 			Xp:   uint32(rate.Rate().XP),  //nolint:gosec // a few hundred XP at most.
 			Per:  uint32(rate.Rate().Per), //nolint:gosec // as above.
+		})
+	}
+	return encoded, nil
+}
+
+// XPRates is what each rated source pays, in the wire's words. The missions pay by kind (MissionRates).
+func (s Scale) XPRates() ([]*progressionv1.XpRate, error) {
+	encoded := []*progressionv1.XpRate{}
+	for _, source := range s.scale.Sources() {
+		rated, ok := source.(levels.RatedSource)
+		if !ok {
+			continue
+		}
+		name, named := progressionmessage.XPSource(rated.Name())
+		if !named {
+			return nil, fmt.Errorf("%w: %q", ErrUnknownSource, rated.Name())
+		}
+		encoded = append(encoded, &progressionv1.XpRate{
+			Source: name,
+			Xp:     uint32(rated.Rate().XP),  //nolint:gosec // a hundred XP at most.
+			Per:    uint32(rated.Rate().Per), //nolint:gosec // as above.
 		})
 	}
 	return encoded, nil

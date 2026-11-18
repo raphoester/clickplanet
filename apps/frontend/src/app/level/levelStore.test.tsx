@@ -5,12 +5,14 @@ import {StrictMode} from "react"
 import {LevelRead, LevelReader, PlayerLevel} from "../../backends/progression.ts"
 import {acceptedClicks, ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {SETTLE_MS} from "../clicks/useAcceptedClicks.ts"
+import {HOLD_MS, TILES_HOLD_MS} from "../../domain/xpPops.ts"
 import {useLevel, useLevelFeed} from "./levelStore.ts"
 
 const eleven: PlayerLevel = {level: 11, xp: 14_000, levelXp: 14_000, nextLevelXp: 18_634}
 const twelve: PlayerLevel = {level: 12, xp: 18_700, levelXp: 18_634, nextLevelXp: 24_192}
 const unlocks = {encloseClicks: 4, bomb: 5}
 const missionRates = {takeFrom: {xp: 3, per: 2}}
+const xpRates = {tilesTaken: {xp: 1, per: 1}, tilesFortified: {xp: 1, per: 5}}
 
 const answering = (...reads: (LevelRead | undefined)[]) => {
     const readLevel = vi.fn<() => Promise<LevelRead | undefined>>(async () => reads[reads.length - 1])
@@ -44,17 +46,18 @@ afterEach(() => {
 
 describe("useLevelFeed", () => {
     it("reads the level and the ladder in one call", async () => {
-        const reader = answering({level: eleven, unlocks, missionRates})
+        const reader = answering({level: eleven, unlocks, missionRates, xpRates})
         render(<Harness reader={reader} linked/>)
 
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
         expect(useLevel.getState().unlocks).toEqual(unlocks)
         expect(useLevel.getState().missionRates).toEqual(missionRates)
+        expect(useLevel.getState().xpRates).toEqual(xpRates)
         expect(reader.readLevel).toHaveBeenCalledTimes(1)
     })
 
     it("reads a guest's ladder, which has no level", async () => {
-        render(<Harness reader={answering({unlocks, missionRates})} linked={false}/>)
+        render(<Harness reader={answering({unlocks, missionRates, xpRates})} linked={false}/>)
 
         await vi.waitFor(() => expect(useLevel.getState().unlocks).toEqual(unlocks))
         expect(useLevel.getState().own).toBeUndefined()
@@ -64,11 +67,11 @@ describe("useLevelFeed", () => {
         render(<Harness reader={answering(undefined)} linked={false}/>)
         await act(async () => {})
 
-        expect(useLevel.getState()).toMatchObject({own: undefined, unlocks: {}, missionRates: {}})
+        expect(useLevel.getState()).toMatchObject({own: undefined, unlocks: {}, missionRates: {}, xpRates: {}})
     })
 
     it("forgets the level and the ladder when the account signs out or changes, and reads again", async () => {
-        const reader = answering({level: eleven, unlocks, missionRates}, {unlocks, missionRates})
+        const reader = answering({level: eleven, unlocks, missionRates, xpRates}, {unlocks, missionRates, xpRates})
         const view = render(<Harness reader={reader} linked/>)
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
 
@@ -84,7 +87,7 @@ describe("useLevelFeed", () => {
         render(<Harness reader={reader} linked/>)
 
         act(() => useLevel.getState().reached(twelve))
-        await act(async () => answer({level: eleven, unlocks, missionRates}))
+        await act(async () => answer({level: eleven, unlocks, missionRates, xpRates}))
 
         expect(useLevel.getState().own).toEqual(twelve)
         expect(useLevel.getState().unlocks).toEqual(unlocks)
@@ -93,8 +96,8 @@ describe("useLevelFeed", () => {
     it("reads again once a signed-in player's clicks settle, a guest's never", async () => {
         vi.useFakeTimers()
         const clicks = acceptedClicks()
-        const signedIn = answering({level: eleven, unlocks, missionRates})
-        const guest = answering({unlocks, missionRates})
+        const signedIn = answering({level: eleven, unlocks, missionRates, xpRates})
+        const guest = answering({unlocks, missionRates, xpRates})
         render(<Harness reader={signedIn} linked listenForClicks={clicks.listenForClicks}/>)
         render(<Harness reader={guest} accountId="guest-1" linked={false} listenForClicks={clicks.listenForClicks}/>)
         await act(async () => {})
@@ -107,7 +110,7 @@ describe("useLevelFeed", () => {
     })
 
     it("reads again on a new session, as a guest's first click makes one", async () => {
-        const reader = answering({unlocks, missionRates})
+        const reader = answering({unlocks, missionRates, xpRates})
         const {sessions, tell} = sessionsOf()
         render(<Harness reader={reader} linked={false} sessions={sessions}/>)
         await act(async () => {})
@@ -121,8 +124,50 @@ describe("useLevelFeed", () => {
     })
 
     it("keeps the level read in StrictMode", async () => {
-        render(<StrictMode><Harness reader={answering({level: eleven, unlocks, missionRates})} linked/></StrictMode>)
+        render(<StrictMode><Harness reader={answering({level: eleven, unlocks, missionRates, xpRates})} linked/></StrictMode>)
 
         await vi.waitFor(() => expect(useLevel.getState().own).toEqual(eleven))
+    })
+})
+
+describe("gained", () => {
+    it("moves the bar at once and shows the gain", () => {
+        vi.useFakeTimers()
+        useLevel.setState({own: eleven})
+
+        act(() => useLevel.getState().gained({gains: [{source: "daysPlayed", xp: 100}], level: {...eleven, xp: 14_100}}))
+
+        expect(useLevel.getState().own).toEqual({...eleven, xp: 14_100})
+        expect(useLevel.getState().pops.shown).toMatchObject({source: "daysPlayed", xp: 100})
+    })
+
+    it("lets each gain go after its hold, then shows the next", () => {
+        vi.useFakeTimers()
+        act(() => useLevel.getState().gained({gains: [{source: "tilesTaken", xp: 1}, {source: "daysPlayed", xp: 100}]}))
+
+        act(() => vi.advanceTimersByTime(HOLD_MS))
+        expect(useLevel.getState().pops.shown?.source).toBe("tilesTaken")
+
+        act(() => vi.advanceTimersByTime(TILES_HOLD_MS))
+        expect(useLevel.getState().pops.shown).toBeUndefined()
+    })
+
+    it("keeps a run of takes on the line while they keep coming", () => {
+        vi.useFakeTimers()
+        for (let i = 0; i < 5; i++) {
+            act(() => useLevel.getState().gained({gains: [{source: "tilesTaken", xp: 1}]}))
+            act(() => vi.advanceTimersByTime(TILES_HOLD_MS - 100))
+        }
+
+        expect(useLevel.getState().pops.shown).toMatchObject({source: "tilesTaken", xp: 5})
+    })
+
+    it("forgets the gains with the level", () => {
+        vi.useFakeTimers()
+        act(() => useLevel.getState().gained({gains: [{source: "boxesCaught", xp: 30}]}))
+
+        act(() => useLevel.getState().forget())
+
+        expect(useLevel.getState().pops.shown).toBeUndefined()
     })
 })

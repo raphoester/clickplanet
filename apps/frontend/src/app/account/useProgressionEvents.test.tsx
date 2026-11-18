@@ -18,7 +18,7 @@ type HarnessProps = {
 }
 
 function Harness({backend, signedIn, onEarned = () => {}, onLevel = () => {}}: HarnessProps) {
-    useProgressionEvents(backend, signedIn, {titleEarned: onEarned, levelReached: onLevel})
+    useProgressionEvents(backend, signedIn, {titleEarned: onEarned, levelReached: onLevel, xpGained: () => {}})
     return null
 }
 

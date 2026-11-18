@@ -182,9 +182,11 @@ and says what is in it. Read the doc before you change its area.
   moved from schema `player`.
 - [Levels](docs/levels.md) — a level per linked account, from XP computed from the stats row and never stored: one type
   per XP source and per mission kind's rate, the curve 14 × (L − 1)³ with no top, no XP and no level for a guest; the
-  level kept, raised on each fact and told to the caller's own stream, the ladder of the kinds each level unlocks, told
+  level kept, raised on each fact and told to the caller's own stream with the XP each fact gave by source (`xp_gained`,
+  a difference from what the stream knew), the ladder of the kinds each level unlocks, told
   to the bonuses as a command through progression's outbox, the public reads the page draws (`GetLevel` with each
-  mission kind's exact rate and the ladder, the card's level), the level-up bonus, `ReconcileLevels` (raise-only), the
+  mission kind's exact rate, what each other source pays and the ladder, the card's level), the level-up bonus,
+  `ReconcileLevels` (raise-only), the
   operator's read, what ships together at the reveal, the steps after the deploy.
 - [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze, Battle Top 1-3 and Veteran: who fought the
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells

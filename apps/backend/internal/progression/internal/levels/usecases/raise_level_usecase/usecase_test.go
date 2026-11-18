@@ -34,7 +34,7 @@ type fixture struct {
 	accounts *accounts.FakeAccounts
 	levels   *inmemory_level_store.Store
 	feed     *inprocess_level_feed.Feed
-	stream   <-chan levels.Standing
+	stream   <-chan levels.Told
 }
 
 func setUp(t *testing.T, linked bool) fixture {
@@ -44,7 +44,7 @@ func setUp(t *testing.T, linked bool) fixture {
 		stats: inmemory_stats_store.New(), accounts: accounts.NewFakeAccounts(), levels: inmemory_level_store.New(),
 		feed: inprocess_level_feed.New(),
 	}
-	f.stream = f.feed.Subscribe(t.Context(), ada)
+	f.stream = f.feed.Subscribe(t.Context(), ada, nil)
 	f.accounts.Create(ada, accounts.AccountOf(linked, now))
 	return f
 }
@@ -52,9 +52,13 @@ func setUp(t *testing.T, linked bool) fixture {
 func (f fixture) took(t *testing.T, tiles uint64) {
 	t.Helper()
 
-	require.NoError(t, f.stats.Record(t.Context(), ada, func(stats.Stats) stats.Stats {
-		return stats.StatsSnapshot{Account: ada, TilesTaken: tiles}.Restore()
-	}))
+	f.counted(t, stats.StatsSnapshot{Account: ada, TilesTaken: tiles})
+}
+
+func (f fixture) counted(t *testing.T, snapshot stats.StatsSnapshot) {
+	t.Helper()
+
+	require.NoError(t, f.stats.Record(t.Context(), ada, func(stats.Stats) stats.Stats { return snapshot.Restore() }))
 }
 
 func (f fixture) raise(t *testing.T, store raise_level_usecase.Levels) (levels.Level, error) {
@@ -63,15 +67,29 @@ func (f fixture) raise(t *testing.T, store raise_level_usecase.Levels) (levels.L
 	return raise_level_usecase.New(f.stats, f.accounts, store, f.feed, cptime.NewFixedClock(now)).Execute(t.Context(), ada) //nolint:wrapcheck // the tests read the use case's error.
 }
 
-func (f fixture) told(t *testing.T) []levels.Standing {
+func (f fixture) told(t *testing.T) []levels.Told {
 	t.Helper()
 
-	var told []levels.Standing
+	var told []levels.Told
 	for len(f.stream) > 0 {
 		told = append(told, <-f.stream)
 	}
 	return told
 }
+
+func (f fixture) reached(t *testing.T) []levels.Standing {
+	t.Helper()
+
+	var reached []levels.Standing
+	for _, told := range f.told(t) {
+		if level, ok := told.(levels.Reached); ok {
+			reached = append(reached, level.Standing)
+		}
+	}
+	return reached
+}
+
+func tiles(xp levels.XP) levels.Gain { return levels.Gain{Source: levels.TilesTaken{}.Name(), XP: xp} }
 
 func (f fixture) kept(t *testing.T) levels.ByAccount {
 	t.Helper()
@@ -90,7 +108,11 @@ func TestALinkedAccountIsRaisedToTheLevelItsStatsReach(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, levels.Level(3), raised)
 	assert.Equal(t, levels.ByAccount{ada: 3}, f.kept(t))
-	assert.Equal(t, []levels.Standing{levels.Curve{}.StandingOf(level3Tiles)}, f.told(t))
+	third := levels.Curve{}.StandingOf(level3Tiles)
+	assert.Equal(t, []levels.Told{
+		levels.Gained{Gains: []levels.Gain{tiles(level3Tiles)}, Standing: third},
+		levels.Reached{Standing: third},
+	}, f.told(t), "the XP, then the level it reached")
 }
 
 func TestAJumpOfManyLevelsIsOneRaise(t *testing.T) {
@@ -103,7 +125,7 @@ func TestAJumpOfManyLevelsIsOneRaise(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, levels.Level(9), raised)
 	assert.Equal(t, levels.ByAccount{ada: 9}, f.kept(t))
-	assert.Equal(t, []levels.Standing{levels.Curve{}.StandingOf(level9Tiles)}, f.told(t), "one jump is told once")
+	assert.Equal(t, []levels.Standing{levels.Curve{}.StandingOf(level9Tiles)}, f.reached(t), "one jump is told once")
 }
 
 func TestAGuestGetsNoLevel(t *testing.T) {
@@ -130,7 +152,54 @@ func TestNoRiseAsksPlayerNothingAndWritesNothing(t *testing.T) {
 	assert.Zero(t, raised)
 	assert.Empty(t, f.accounts.Asked())
 	assert.Equal(t, levels.ByAccount{ada: 3}, f.kept(t))
-	assert.Empty(t, f.told(t))
+	assert.Empty(t, f.reached(t))
+}
+
+func TestAFactThatRaisesNoLevelTellsTheXPItGave(t *testing.T) {
+	f := setUp(t, true)
+	require.NoError(t, f.levels.RaiseAll(t.Context(), levels.ByAccount{ada: 3}, now))
+	f.took(t, level3Tiles)
+	f.stream = f.feed.Subscribe(t.Context(), ada, levels.Scale{}.EarnedOf(stats.StatsSnapshot{TilesTaken: level3Tiles}.Restore()))
+	f.took(t, level3Tiles+5)
+
+	_, err := f.raise(t, f.levels)
+
+	require.NoError(t, err)
+	assert.Equal(t, []levels.Told{levels.Gained{
+		Gains:    []levels.Gain{tiles(5)},
+		Standing: levels.Scale{}.StandingAt(3, stats.StatsSnapshot{TilesTaken: level3Tiles + 5}.Restore()),
+	}}, f.told(t))
+}
+
+func TestAFactToldTwiceGivesItsXPOnce(t *testing.T) {
+	f := setUp(t, true)
+	require.NoError(t, f.levels.RaiseAll(t.Context(), levels.ByAccount{ada: 3}, now))
+	f.took(t, level3Tiles)
+
+	_, err := f.raise(t, f.levels)
+	require.NoError(t, err)
+	_, err = f.raise(t, f.levels)
+	require.NoError(t, err)
+
+	assert.Len(t, f.told(t), 1)
+}
+
+func TestTheDaysFirstTakeGivesItsTileAndItsDay(t *testing.T) {
+	f := setUp(t, true)
+	require.NoError(t, f.levels.RaiseAll(t.Context(), levels.ByAccount{ada: 5}, now))
+	yesterday := stats.StatsSnapshot{Account: ada, TilesTaken: 800, DaysPlayed: 1}
+	f.counted(t, yesterday)
+	f.stream = f.feed.Subscribe(t.Context(), ada, levels.Scale{}.EarnedOf(yesterday.Restore()))
+	today := stats.StatsSnapshot{Account: ada, TilesTaken: 801, DaysPlayed: 2}
+	f.counted(t, today)
+
+	_, err := f.raise(t, f.levels)
+
+	require.NoError(t, err)
+	assert.Equal(t, []levels.Told{levels.Gained{
+		Gains:    []levels.Gain{tiles(1), {Source: levels.DaysPlayed{}.Name(), XP: 100}},
+		Standing: levels.Scale{}.StandingAt(5, today.Restore()),
+	}}, f.told(t))
 }
 
 func TestAnAccountWithNoStatsIsNotRaised(t *testing.T) {
