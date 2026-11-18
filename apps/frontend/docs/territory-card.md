@@ -1,11 +1,12 @@
 # A territory, from orbit
 
-**In orbit the pointer asks about a territory, not a tile.** A territory is a
-landmass (see [The zoomed-out view](zoomed-out-view.md)). From that far a tile is
-a pixel or two: nobody aims at one, and the card on who holds it said nothing
-anyone could use. So a rest of the mouse, or a long press of a finger, opens a
-card on the territory under it (`TerritoryCard`), and the territory lights up on
-the globe. A click or a tap flies down to it.
+**In orbit the pointer asks about a territory, not a tile.** A territory is a landmass (see [The zoomed-out
+view](zoomed-out-view.md)), or in Provinces (the Map setting, see [Provinces](../../../docs/provinces.md#the-page)) one
+of its provinces: a `Place` (`domain/territory.ts`), which the peek, the card and `Globe.territoryOf` carry. Changing the
+setting ends the peek, and the pointer finds its territory again. From that far a tile is a pixel or two: nobody aims at
+one, and the card on who holds it said nothing anyone could use. So a rest of the mouse, or a long press of a finger,
+opens a card on the territory under it (`TerritoryCard`), and the territory lights up on the globe. A click or a tap
+flies down to it.
 
 - **Orbit is where the painted flags have the frame to themselves**: a tile of
   `COARSE_FROM` (5px) or less (`inOrbit` in `pointSize.ts`). It is a zoom, not the
@@ -24,12 +25,14 @@ the globe. A click or a tap flies down to it.
   overrides what the controls did each tick, so their spin and glide die out under it,
   and it draws every frame, as a drag does.
 - **The card** says the territory's name with the flag of its ground, its size and
-  the tiles no flag holds; the first five flags by tiles held (`rankHoldings`, ties on
-  the code), each with its tiles and its share (`sharePercent`: never 0% for a few
+  the tiles no flag holds (a province's name from the board's province names, `translator().province`, and one with no
+  name of its own, a country's whole main landmass, its landmass's); the first five flags by tiles held
+  (`rankHoldings`, ties on the code), each with its tiles and its share (`sharePercent`: never 0% for a few
   tiles, never 100% one short of all), and how many more flags hold some; the
   player's own flag wears the board's white coin. **Its foot is about fortifying the province under the pointer**
-  (`Territory.province`, from the last tile the pointer rested or pressed on in orbit, else the territory's first tile;
-  fortify plays on provinces since 2026-11-18): the province's name when the territory holds others
+  (`Territory.province`: a province's card is about itself; a landmass's, about the last tile the pointer rested or
+  pressed on in orbit, else its first tile; fortify plays on provinces since 2026-11-18): the province's name when a
+  landmass's card holds others
   (`provinceName`), the flag that fortified it last (`FortifyTargets.lockOf`, "Never fortified" without
   one) and, when a flag is close to fortifying it, how many tiles that flag still
   misses (`targetOf`, the same rule as the gold pulse, see [Fortify](fortify.md)). The card follows the pointer from
@@ -37,13 +40,14 @@ the globe. A click or a tap flies down to it.
 - **Above the foot, the missions on the territory** (`MissionsHere`, `missionsOnTerritory`): one whose ground it is,
   or one against a rival that holds some of it, in the tile card's strip (see [Who holds a tile](tile-holder.md)).
 - **The flags are already on the client**: `Holdings` keeps the tiles each flag
-  holds of each landmass, as the server counts them (see [The counts are the
+  holds of each landmass and of each province, as the server counts them (see [The counts are the
   server's](counts.md)), and the locks come from `GetFortresses`.
   `Globe.territoryOf` builds it, and asks no server. It works as soon as the
   globe is ready, before the tiles are read.
-- **The players are the server's**: `TerritoryCardPlace` asks `LandmassReader.landmass`
-  (`ClickService/GetLandmass`) once the card opens, and `ProvinceReader.province` (`ClickService/GetProvince`) for the
-  province of its foot, again when the pointer moves to another, then the public card (`GetPlayer` and
+- **The players are the server's**, the top ones only a landmass's: a province's card names none, since the planet
+  counts the holders by landmass. `TerritoryCardPlace` asks `LandmassReader.landmass` (`ClickService/GetLandmass`) once
+  a landmass's card opens, and `ProvinceReader.province` (`ClickService/GetProvince`) for the province of its foot,
+  again when the pointer moves to another, then the public card (`GetPlayer` and
   `GetProgress`) for the first `TOP_PLAYERS` (3) holders and the last fortifier, as the tile card names its
   holder. **They are a store**, `useTerritoryPlayers` (`app/territory/territoryPlayersStore.ts`,
   see [Stores](stores.md)): the top players kept with the territory they were read for (`topOf`), the fortifier with
@@ -61,10 +65,11 @@ the globe. A click or a tap flies down to it.
   every `SAMPLE_MS` (500ms, as the board), and renders only when something on it
   changed (`sameTerritory`).
 - **The highlight**: the territory's tiles are lifted toward white (`highlight`, a
-  uniform the display shaders compare with each tile's landmass), and its outline
+  uniform the display shaders compare with each tile's province: the span of the landmass's provinces, or the one
+  province, see [What a tile costs on the GPU](tile-layout.md)), and its outline
   is drawn again over everything in white, 2.6px (`setHighlight` on the border
-  lines; the blob says which two landmasses each run is between, see [The countries'
-  outlines](country-outlines.md)). The globe lights the territory under the mouse,
+  lines; the blob says which two landmasses each run is between, and the province lines which two provinces, see [The
+  countries' outlines](country-outlines.md)). The globe lights the territory under the mouse,
   else the one whose card is open (`Globe.showTerritory`), and nothing out of orbit.
 - **A pixel picks the tile whose cell holds it** (see [The tile under the pointer](picking.md)), so the ground between
   two discs is the territory too. When a tile was picked by its disc alone, a moving mouse fell in a gap every few

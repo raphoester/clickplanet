@@ -183,6 +183,7 @@ function Replay({reel, boards}: {reel: ErasReel, boards: Geometries}) {
             container,
             country: {code: ""},
             mapView: "split",
+            divisions: "countries",
             rendering: "sharp",
             onLeaderboardChange: (entries) => setLeaders(entries.slice(0, 5)),
             onLoadProgress: none, onRateLimited: none, onFrozen: none, onVPNBlocked: none, onBanned: none,

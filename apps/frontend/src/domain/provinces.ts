@@ -90,3 +90,32 @@ export function decodeProvinces(buffer: ArrayBuffer, tileCount: number): Provinc
 export function landmassProvinces(borders: number, assignment: Uint16Array, frames: Float32Array, totals: Uint32Array): Provinces {
     return {borders, province: assignment, landmass: Uint16Array.from(totals, (_, landmass) => landmass), frames, tiles: totals}
 }
+
+// The provinces of one landmass, or one province: ids first to last, both in. None is first 1, last 0.
+export type ProvinceSpan = {first: number, last: number}
+
+export const NO_PROVINCES: ProvinceSpan = {first: 1, last: 0}
+
+// A board's provinces are cut landmass by landmass, in order (scripts/map/provinces.mjs), so a landmass's provinces are
+// one span of ids: the shaders light a landmass as its span, and need no table from a province to its landmass.
+export class ProvinceSpans {
+    private readonly spans: Uint16Array
+
+    constructor({landmass}: Provinces, landmasses: number) {
+        this.spans = new Uint16Array(landmasses * 2)
+        for (let l = 0; l < landmasses; l++) this.spans.set([1, 0], l * 2)
+        for (let province = 1; province < landmass.length; province++) {
+            const of = landmass[province]
+            if (of === 0 || of >= landmasses) throw new Error(`province ${province} is on landmass ${of}, of 1 to ${landmasses - 1}`)
+            const last = this.spans[of * 2 + 1]
+            if (last !== 0 && last !== province - 1) throw new Error(`landmass ${of}'s provinces are not one span: ${last}, then ${province}`)
+            if (last === 0) this.spans[of * 2] = province
+            this.spans[of * 2 + 1] = province
+        }
+    }
+
+    of(landmass: number): ProvinceSpan {
+        if (landmass <= 0 || landmass * 2 >= this.spans.length || this.spans[landmass * 2 + 1] === 0) return NO_PROVINCES
+        return {first: this.spans[landmass * 2], last: this.spans[landmass * 2 + 1]}
+    }
+}

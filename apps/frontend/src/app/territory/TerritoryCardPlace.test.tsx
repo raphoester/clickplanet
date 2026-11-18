@@ -41,7 +41,7 @@ const SICILY: LandmassState = {
 const CALABRIA: ProvinceState = {lastFortification: {accountId: "account-mateus", countryCode: "br", at: 1_000}}
 
 const territoryOf = (landmass: number, province = landmass * 10): Territory => ({
-    landmass, name: `Landmass ${landmass}`, ground: "it", size: 100, holdings: [{flag: "fr", tiles: 40}],
+    place: {kind: "landmass", landmass}, name: `Landmass ${landmass}`, ground: "it", size: 100, holdings: [{flag: "fr", tiles: 40}],
     province, provinceName: `Province ${province}`, fortifiedBy: "br", target: undefined,
 })
 
@@ -136,6 +136,22 @@ describe("TerritoryCardPlace", () => {
 
         expect(screen.getByRole("region", {name: "Top players"})).toBeDefined()
         expect(reader.landmass).toHaveBeenCalledTimes(2)
+    })
+
+    it("names no top players on a province's card, the planet counts them by landmass, but its last fortifier", async () => {
+        const reader = readerOf(SICILY)
+        const provinces = provincesOf(CALABRIA)
+        const province: Territory = {
+            ...territoryOf(12, 40), place: {kind: "province", province: 40, landmass: 12}, name: "Palermo", provinceName: undefined,
+        }
+
+        render(place({shown: {territory: province, point: {x: 300, y: 200}, touch: false, id: 1}, reader, provinces, players: players()}))
+
+        expect(screen.getByRole("region", {name: "Palermo"})).toBeDefined()
+        await waitFor(() => expect(readFortified(40)).toBeDefined())
+        expect(provinces.province).toHaveBeenLastCalledWith(40, expect.any(AbortSignal))
+        expect(reader.landmass).not.toHaveBeenCalled()
+        expect(screen.queryByRole("region", {name: "Top players"})).toBeNull()
     })
 
     it("keeps nothing once it goes", async () => {

@@ -7,8 +7,9 @@ import {terrainColours, terrainTexture} from "./terrain.ts"
 import vertexShader from "./shaders/territory/vertex.glsl"
 import fragmentShader from "./shaders/territory/fragment.glsl"
 
-// Must match CELL_COLUMNS in shaders/territory/fragment.glsl.
+// Must match CELL_COLUMNS and PROVINCE_COLUMNS in shaders/territory/fragment.glsl.
 const CELL_COLUMNS = 256
+const PROVINCE_COLUMNS = 1024
 
 // Just outside the tiles' sphere, so every pixel of it is under the layer's mesh: the shader finds the sphere itself.
 const CARRIER_RADIUS = 1.002
@@ -23,13 +24,15 @@ export type TerritoryLayerInputs = {
     cells: TileCells
     terrain: Uint8Array
     tileData: THREE.Texture
+    // Each province's landmass: the flags of the countries' divisions are painted in the landmass's frame.
+    provinceLandmass: Uint16Array
     flagRectangles: THREE.Texture
     uniforms: {[uniform: string]: THREE.IUniform}
 }
 
 // The ground, and the flags painted on it zoomed out: each pixel finds its lattice point's cell, wears its terrain, and
 // on a tile its holder's flag over it. The open sea is left to the earth.
-export function createTerritoryLayer({sphere, cells, terrain, tileData, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
+export function createTerritoryLayer({sphere, cells, terrain, tileData, provinceLandmass, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
     const faces = latticeFaces(cells.lattice)
 
     const faceData = new Float32Array(FACE_TEXELS * faces.length * 4)
@@ -56,6 +59,7 @@ export function createTerritoryLayer({sphere, cells, terrain, tileData, flagRect
             terrain: {value: terrainTexture(terrain)},
             terrainColours: {value: terrainColours()},
             tileData: {value: tileData},
+            provinceLandmass: {value: provinceTexture(provinceLandmass)},
             flagRectangles: {value: flagRectangles},
         },
         vertexShader,
@@ -73,6 +77,16 @@ export function createTerritoryLayer({sphere, cells, terrain, tileData, flagRect
 // The shader's latticeWarp: a, b, c, and 1 when the board is warped.
 export function warpUniform({warp}: Lattice): THREE.Vector4 {
     return warp === null ? new THREE.Vector4(0, 0, 0, 0) : new THREE.Vector4(warp.a, warp.b, warp.c, 1)
+}
+
+function provinceTexture(landmass: Uint16Array): THREE.DataTexture {
+    const rows = Math.ceil(landmass.length / PROVINCE_COLUMNS)
+    const data = new Uint16Array(PROVINCE_COLUMNS * rows)
+    data.set(landmass)
+    const texture = new THREE.DataTexture(data, PROVINCE_COLUMNS, rows, THREE.RedIntegerFormat, THREE.UnsignedShortType)
+    texture.internalFormat = "R16UI"
+    texture.needsUpdate = true
+    return texture
 }
 
 function cellTexture(words: Uint32Array): THREE.DataTexture {

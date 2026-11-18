@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState} from "react"
-import {sameTerritory, Territory, TerritoryPeek} from "../../domain/territory.ts"
+import {type Place, sameTerritory, Territory, TerritoryPeek} from "../../domain/territory.ts"
 import {Point} from "../../domain/tilePeek.ts"
 import {LEAVE_GRACE_MS} from "../players/tileHolder.ts"
 import {SAMPLE_MS} from "../viewer/useLeaderboardFeed.ts"
@@ -13,25 +13,26 @@ export type TerritoryShown = {
 
 export function useTerritoryCard(
     pointing: {peek: TerritoryPeek, id: number} | undefined,
-    territoryOf: (landmass: number) => Territory | undefined,
-    showTerritory: (landmass: number | undefined) => void,
+    territoryOf: (place: Place) => Territory | undefined,
+    showTerritory: (place: Place | undefined) => void,
 ): {shown: TerritoryShown | undefined, hold: (held: boolean) => void, dismiss: () => void} {
     const [shown, setShown] = useState<TerritoryShown>()
     const [heldId, setHeldId] = useState<number>()
 
     useEffect(() => {
         if (!pointing) return
-        const {peek: {landmass, point, touch}, id} = pointing
-        const territory = territoryOf(landmass)
+        const {peek: {place, point, touch}, id} = pointing
+        const territory = territoryOf(place)
         if (territory) setShown({territory, point, touch, id})
     }, [pointing, territoryOf])
 
-    const landmass = shown?.territory.landmass
+    // The same object while the same place is shown: territoryOf hands back the place it is given.
+    const place = shown?.territory.place
     useEffect(() => {
-        if (landmass === undefined) return
-        showTerritory(landmass)
+        if (place === undefined) return
+        showTerritory(place)
         const timer = setInterval(() => setShown((was) => {
-            const territory = territoryOf(landmass)
+            const territory = territoryOf(place)
             if (!was || !territory || sameTerritory(was.territory, territory)) return was
             return {...was, territory}
         }), SAMPLE_MS)
@@ -39,7 +40,7 @@ export function useTerritoryCard(
             clearInterval(timer)
             showTerritory(undefined)
         }
-    }, [landmass, territoryOf, showTerritory])
+    }, [place, territoryOf, showTerritory])
 
     const id = shown?.id
     const held = id !== undefined && heldId === id

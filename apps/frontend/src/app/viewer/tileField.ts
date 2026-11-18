@@ -66,7 +66,7 @@ Array.from(regions.values()).forEach(({x, y, width, height}, i) => {
 
 type Slot = {attribute: THREE.BufferAttribute, offset: number, width: number}
 
-type Slots = {flag: Slot, landmass: Slot, hover: Slot, shield: Slot, pulse: Slot}
+type Slots = {flag: Slot, province: Slot, hover: Slot, shield: Slot, pulse: Slot}
 
 type Layout = {slots: Slots, attributes: Record<string, THREE.BufferAttribute>}
 
@@ -81,7 +81,7 @@ export type TileUniforms = {
 export class TileField {
     readonly displayPoints: THREE.Points
     readonly size: number
-    // Each tile's flag and landmass at its cell's texel, for the territory layer.
+    // Each tile's flag and province at its cell's texel, for the territory layer.
     readonly tileData: THREE.DataTexture
     readonly flagRectangles: THREE.DataTexture
 
@@ -232,15 +232,16 @@ export class TileField {
         this.mark(tiles, MINE_MARK, on)
     }
 
-    setLandmasses(assignment: Uint16Array) {
-        const {attribute, offset} = this.slots.landmass
+    // Each tile's province: a landmass is lit, and a fortify's wave runs, as the span of its provinces.
+    setProvinces(province: Uint16Array) {
+        const {attribute, offset} = this.slots.province
         const values = attribute.array
-        for (let i = 0; i < this.size; i++) values[i * attribute.itemSize + offset] = assignment[i]
+        for (let i = 0; i < this.size; i++) values[i * attribute.itemSize + offset] = province[i]
         // The flags may share this buffer: with their ranges pending, a bare needsUpdate would upload only those.
         attribute.addUpdateRange(0, values.length)
         attribute.needsUpdate = true
 
-        for (let i = 0; i < this.size; i++) this.tileValues[this.texels[i] * 2 + 1] = assignment[i]
+        for (let i = 0; i < this.size; i++) this.tileValues[this.texels[i] * 2 + 1] = province[i]
         this.tileData.needsUpdate = true
     }
 
@@ -319,7 +320,7 @@ function plainLayout(size: number): Layout {
     return {
         slots: {
             flag: {attribute: flagRegion, offset: 0, width: 2},
-            landmass: at(tileMarks, 0),
+            province: at(tileMarks, 0),
             hover: at(tileMarks, 1),
             pulse: at(tileMarks, 2),
             shield: at(tileMarks, 3),
@@ -336,7 +337,7 @@ function compactLayout(size: number): Layout {
     return {
         slots: {
             flag: at(ids, 0),
-            landmass: at(ids, 1),
+            province: at(ids, 1),
             hover: at(marks, 0),
             pulse: at(marks, 1),
             shield: at(marks, 2),

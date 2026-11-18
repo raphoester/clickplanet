@@ -24,12 +24,17 @@ const MANIFEST = /^board-[0-9a-f]{8}\.json$/
 // A file of /map's board, as `npm run map` copies it: a stale one goes with the next copy.
 const MAP_FILE = /^(board|runs|borders|capitals|bridges|terrain|provinces)-[0-9a-f]{8}\.(json|bin)$/
 
-const PAGE_EXTENSIONS: Record<keyof PageFiles, string> = {borderLines: "bin", landmassNames: "json", provinceNames: "json"}
+const PAGE_EXTENSIONS: Record<keyof PageFiles, string> = {borderLines: "bin", landmassNames: "json", provinceNames: "json", provinceLines: "bin"}
 
 const PAGE_FILES: Record<keyof PageFiles, RegExp> = {
     borderLines: /^borderLines-[0-9a-f]{8}\.bin$/,
     landmassNames: /^landmassNames-[0-9a-f]{8}\.json$/,
     provinceNames: /^provinceNames-[0-9a-f]{8}\.json$/,
+    provinceLines: /^provinceLines-[0-9a-f]{8}\.bin$/,
+}
+
+const COMMANDS: Record<keyof PageFiles, string> = {
+    borderLines: "borderLines", landmassNames: "landmassNames", provinceNames: "provinces", provinceLines: "borderLines",
 }
 
 // One file of a board, named by its content; the one it replaces goes. The manifest names it once rewritten.
@@ -133,10 +138,11 @@ export function writeBoardsTable(): string[] {
     for (const name of directoriesIn(copiesDir)) {
         const directory = join(copiesDir, name)
         const {manifest} = readManifest(directory)
-        const needed: (keyof PageFiles)[] = ["borderLines", "landmassNames", ...(manifest.files.provinces ? ["provinceNames" as const] : [])]
+        const provinceFiles: (keyof PageFiles)[] = manifest.files.provinces ? ["provinceNames", "provinceLines"] : []
+        const needed: (keyof PageFiles)[] = ["borderLines", "landmassNames", ...provinceFiles]
         const missing = needed.filter((kind) => readdirSync(directory).filter((entry) => PAGE_FILES[kind].test(entry)).length !== 1)
         if (missing.length > 0) {
-            const commands = missing.map((kind) => kind === "provinceNames" ? "provinces" : kind)
+            const commands = [...new Set(missing.map((kind) => COMMANDS[kind]))]
             console.warn(`static/boards/${name} has no ${missing.join(" nor ")}: run \`npm run ${commands.join("` and `npm run ")} -- ${name}\`; `
                 + `the page cannot play it until then`)
             continue
@@ -144,7 +150,10 @@ export function writeBoardsTable(): string[] {
         const page: PageFiles = {
             borderLines: blobNamed(PAGE_FILES.borderLines, directory),
             landmassNames: blobNamed(PAGE_FILES.landmassNames, directory),
-            ...(manifest.files.provinces ? {provinceNames: blobNamed(PAGE_FILES.provinceNames, directory)} : {}),
+            ...(manifest.files.provinces ? {
+                provinceNames: blobNamed(PAGE_FILES.provinceNames, directory),
+                provinceLines: blobNamed(PAGE_FILES.provinceLines, directory),
+            } : {}),
         }
         const urls = Object.fromEntries(Object.entries({...manifest.files, ...page})
             .map(([kind, fileName]) => [kind, `/static/boards/${name}/${fileName}`])) as BoardFiles & PageFiles

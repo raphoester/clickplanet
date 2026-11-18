@@ -10,12 +10,14 @@ holds from its holder to the ghost: see [Ghosts](ghosts.md).
 ## `domain/holdings.ts`: what each flag holds
 
 `Holdings` keeps three kinds of row: the tiles of each flag on the map, each landmass whole (the tiles each flag
-holds of it), and each province whole, the same way (`ProvinceHoldings`, since 2026-11-18). A read (`read`) lists every row; a change (`change`) lists the rows that moved, a flag that left the
+holds of it), and each province whole, the same way (`provinces` in the answer and the event, `ProvinceHoldings`). A
+read (`read`) lists every row; a change (`change`) lists the rows that moved, a flag that left the
 map at 0 and a landmass nobody holds any more with no flag. **Each row keeps the version it was set at, and takes
 only a newer one.** A row at 0 is kept with its version, so an older copy cannot bring it back, and a newer read
 drops a row it no longer lists. It answers `counts()` (the board, through `rankCountries`), `holdingsOf(landmass)`
 (the territory card), `leaderOf(landmass)` (the painted flag; ties on the flag's code), and `holdingsOfProvince` and
-`leaderOfProvince` (the fortify target, which plays on provinces).
+`leaderOfProvince` (the fortify target, which plays on provinces, and in Provinces a province's card and its painted
+flag).
 
 ## `domain/mapTiles.ts`: one rule for every value of a tile
 

@@ -2,7 +2,8 @@ uniform float pointSize;
 
 uniform float pixelsPerRadian;
 
-uniform float highlight;
+// The provinces lit, first and last: a landmass's span, or one province.
+uniform vec2 highlight;
 
 uniform float pixelRatio;
 
@@ -28,7 +29,7 @@ attribute vec2 ids;
 attribute vec4 marks;
 
 #define regionVector texelFetch(flagRectangles, ivec2(int(ids.x), 0), 0)
-#define landmassIndex ids.y
+#define provinceIndex ids.y
 #define hover marks.x
 #define pulse marks.y
 #define shield marks.z
@@ -40,7 +41,7 @@ attribute vec2 flagRegion;
 attribute vec4 tileMarks;
 
 #define regionVector vec4(mod(flagRegion, PACK), floor(flagRegion / PACK)).xzyw
-#define landmassIndex tileMarks.x
+#define provinceIndex tileMarks.x
 #define hover tileMarks.y
 #define pulse tileMarks.z
 #define shield tileMarks.w
@@ -78,10 +79,10 @@ void main() {
     vRegionVector = regionVector;
     vShield = shield;
     vPulse = pulse;
-    vHighlit = highlight > 0.5 && abs(landmassIndex - highlight) < 0.5 ? 1.0 : 0.0;
+    vHighlit = provinceIndex > highlight.x - 0.5 && provinceIndex < highlight.y + 0.5 ? 1.0 : 0.0;
     vSeed = fract(sin(dot(ground, vec3(12.9898, 78.233, 37.719))) * 43758.5453) * 6.2831853;
 
-    TileEffects effects = tileEffectsAt(ground, landmassIndex);
+    TileEffects effects = tileEffectsAt(ground, provinceIndex);
     vGlow = effects.glow;
     vScorch = effects.scorch;
     vFortify = effects.fortify;

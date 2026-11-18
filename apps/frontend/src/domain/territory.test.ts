@@ -2,7 +2,7 @@ import {describe, expect, it} from "vitest"
 import {freeTilesOf, rankHoldings, sameTerritory, sharePercent, Territory} from "./territory.ts"
 
 const SICILY: Territory = {
-    landmass: 12,
+    place: {kind: "landmass", landmass: 12},
     name: "Sicily",
     ground: "it",
     size: 100,

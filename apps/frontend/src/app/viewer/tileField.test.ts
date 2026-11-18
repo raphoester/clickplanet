@@ -11,12 +11,12 @@ const SIZE = 32
 
 type Slot = {name: string, offset: number, width: number}
 
-type Layout = {compact: boolean, flag: Slot, landmass: Slot, hover: Slot, shield: Slot, pulse: Slot}
+type Layout = {compact: boolean, flag: Slot, province: Slot, hover: Slot, shield: Slot, pulse: Slot}
 
 const PLAIN: Layout = {
     compact: false,
     flag: {name: "flagRegion", offset: 0, width: 2},
-    landmass: {name: "tileMarks", offset: 0, width: 1},
+    province: {name: "tileMarks", offset: 0, width: 1},
     hover: {name: "tileMarks", offset: 1, width: 1},
     pulse: {name: "tileMarks", offset: 2, width: 1},
     shield: {name: "tileMarks", offset: 3, width: 1},
@@ -25,7 +25,7 @@ const PLAIN: Layout = {
 const COMPACT: Layout = {
     compact: true,
     flag: {name: "ids", offset: 0, width: 1},
-    landmass: {name: "ids", offset: 1, width: 1},
+    province: {name: "ids", offset: 1, width: 1},
     hover: {name: "marks", offset: 0, width: 1},
     pulse: {name: "marks", offset: 1, width: 1},
     shield: {name: "marks", offset: 2, width: 1},
@@ -193,14 +193,14 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
         })
     })
 
-    describe("setLandmasses", () => {
-        it("writes each tile's landmass where the shader reads it", () => {
+    describe("setProvinces", () => {
+        it("writes each tile's province where the shader reads it", () => {
             const f = field()
             const assignment = Uint16Array.from({length: SIZE}, (_, i) => i % 7)
 
-            f.setLandmasses(assignment)
+            f.setProvinces(assignment)
 
-            for (let tile = 1; tile <= SIZE; tile++) expect(valueOf(f, layout.landmass, tile)).toBe((tile - 1) % 7)
+            for (let tile = 1; tile <= SIZE; tile++) expect(valueOf(f, layout.province, tile)).toBe((tile - 1) % 7)
         })
 
         it("keeps the flags, and uploads the whole buffer with their ranges pending", () => {
@@ -208,11 +208,11 @@ describe.each([["plain", PLAIN], ["compact", COMPACT]] as const)("the %s layout"
             const fr = regions.get("fr")!
             f.setOwners([{tile: 2, country: "fr"}])
 
-            f.setLandmasses(new Uint16Array(SIZE).fill(5))
+            f.setProvinces(new Uint16Array(SIZE).fill(5))
 
-            const landmass = attr(f, layout.landmass.name)
+            const province = attr(f, layout.province.name)
             expect(regionOf(f, 2)).toEqual([fr.x, fr.y, fr.width, fr.height])
-            expect(landmass.updateRanges).toContainEqual({start: 0, count: landmass.array.length})
+            expect(province.updateRanges).toContainEqual({start: 0, count: province.array.length})
         })
     })
 
@@ -430,10 +430,10 @@ describe("the territory layer's tile data", () => {
         expect(valuesOf(f)[2 * 2]).toBe(0)
     })
 
-    it("holds each tile's landmass beside its flag", () => {
+    it("holds each tile's province beside its flag", () => {
         const f = fieldOf(true, SIZE_OVER_ROWS)
 
-        f.setLandmasses(Uint16Array.from({length: SIZE_OVER_ROWS}, (_, i) => i % 7))
+        f.setProvinces(Uint16Array.from({length: SIZE_OVER_ROWS}, (_, i) => i % 7))
 
         for (const tile of [1, 2, 600, SIZE_OVER_ROWS]) expect(valuesOf(f)[texelOf(tile) * 2 + 1]).toBe((tile - 1) % 7)
     })

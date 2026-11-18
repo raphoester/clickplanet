@@ -30,7 +30,7 @@ one page. So each threshold is a function of a `BoardScale`, and each globe take
 | clip: a flip read from far | `look.ts` `readableFlipTiles` (`Flip.readable`) | 100 | count |
 | clip: a country fought over | `clip/changes.ts` `foughtOverLeast` | 400 | count |
 | clip: a big country, a place | `clip/findings.ts` `bigCountryTiles` | 1,000 | count |
-| the least landmass a flag is painted in | `viewer/borderField.ts` `leastPaintedTiles` | 4 | count |
+| the least landmass, or province, a flag is painted in | `viewer/borderField.ts` `leastPaintedTiles` | 4 | count |
 | the heatmap's cell | `archive/heatmap.ts` `cellDegreesOf`, its widest cell | 0.4°, 64 px | length |
 | max zoom | `viewer/zoom.ts` `maxZoomOf` | 50 | zoom |
 | a tile's disc and spacing on screen | `viewer/pointSize.ts` `tilePointSize`, `tileSpacing`, and all that reads them: the handover to the painted flags, orbit, a territory flown to, the clips' and the video's dive | 1.5, 1.98 px at zoom 1 on 1,000 px | length |

@@ -2,7 +2,15 @@ import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
 import {BOARDS} from "../app/viewer/boardsAsset.ts"
-import {bordersHashOf, decodeProvinces, encodeProvinces, landmassProvinces, type Provinces} from "./provinces.ts"
+import {
+    bordersHashOf,
+    decodeProvinces,
+    encodeProvinces,
+    landmassProvinces,
+    NO_PROVINCES,
+    ProvinceSpans,
+    type Provinces,
+} from "./provinces.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
@@ -54,6 +62,21 @@ describe("a board with no provinces file", () => {
         expect([...provinces.province]).toEqual([1, 2, 2])
         expect([...provinces.landmass]).toEqual([0, 1, 2])
         expect([...provinces.tiles]).toEqual([0, 1, 2])
+        expect(new ProvinceSpans(provinces, 3).of(2)).toEqual({first: 2, last: 2})
+    })
+})
+
+describe("a landmass's provinces", () => {
+    it("are one span of ids, and a landmass with none or past the board has none", () => {
+        const spans = new ProvinceSpans({...sample(), landmass: Uint16Array.of(0, 1, 3, 3, 3)}, 5)
+        expect(spans.of(1)).toEqual({first: 1, last: 1})
+        expect(spans.of(3)).toEqual({first: 2, last: 4})
+        expect([spans.of(0), spans.of(2), spans.of(4), spans.of(9)]).toEqual([NO_PROVINCES, NO_PROVINCES, NO_PROVINCES, NO_PROVINCES])
+    })
+
+    it("are refused out of order, or on a landmass past the board", () => {
+        expect(() => new ProvinceSpans({...sample(), landmass: Uint16Array.of(0, 3, 1, 3)}, 4)).toThrow("not one span")
+        expect(() => new ProvinceSpans({...sample(), landmass: Uint16Array.of(0, 3, 4)}, 4)).toThrow("landmass 4")
     })
 })
 
@@ -75,6 +98,12 @@ describe("the shipped provinces", () => {
                 counted[provinces.province[t]]++
             }
             expect([...counted]).toEqual([...provinces.tiles])
+        })
+
+        it(`give each landmass of ${board.name} its provinces as one span of ids`, () => {
+            const provinces = decodeProvinces(bytesOf(directory + board.files.provinces), board.tiles)
+            const landmasses = new Set(provinces.landmass.subarray(1)).size + 1
+            expect(() => new ProvinceSpans(provinces, landmasses + 1)).not.toThrow()
         })
 
         it(`name every province of ${board.name} but a country's whole main landmass, keyed by its provinces file`, () => {

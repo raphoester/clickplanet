@@ -13,7 +13,7 @@ graphics](hd-graphics.md)):
 |---|---|---|
 | position | `position` f32×3 | the same |
 | flag | `flagRegion` f32×2, the flag's atlas rectangle | `ids.x` u16, a flag number |
-| landmass | `tileMarks.x` f32 | `ids.y` u16 |
+| province | `tileMarks.x` f32 | `ids.y` u16 |
 | hover, pulse, shields | `tileMarks.y`, `.z`, `.w` f32 | `marks.x`, `.y`, `.z` u8 each, `.w` unused |
 | per tile | 36 bytes, 9.4 MB | 20 bytes, 5.2 MB |
 
@@ -30,14 +30,22 @@ fragment shader. A u8 cannot hold it: the atlas has 256 flags, and 0 is taken.
 two. `tileField.test.ts` pins both. It was 56 bytes: four floats for the rectangle, one attribute of its own for each
 mark, and three floats of picking colour, which went with the GPU picker (see [The tile under the pointer](picking.md)).
 
+**A tile carries its province, not its landmass** (`TileField.setProvinces`; on a board with no provinces file the
+province is the landmass). A board's provinces are cut landmass by landmass, in order, so a landmass's provinces are one
+span of ids (`ProvinceSpans`, `domain/provinces.ts`, which refuses a file where they are not): the shaders light a
+landmass, and run a fortify's wave over it, as a span (`highlight`, `fortifyProvinces[i]`, first and last), and the plain
+layout's vertex shader still reads no texture. Only the territory layer turns a province into its landmass, for the
+Countries frames: `provinceLandmass`, a u16 per province, 1,024 a row.
+
 **The territory layer reads the same flag numbers from a texture**, `TileField.tileData`: each tile's flag and
-landmass, two u16, at the texel `cellsOf` gives it (1 MB on `earth-1`, 4 MB on `earth-2`), in both layouts. See
+province, two u16, at the texel `cellsOf` gives it (1 MB on `earth-1`, 4 MB on `earth-2`), in both layouts. See
 [The zoomed-out view](zoomed-out-view.md). **It is 1,024 texels a row** (`TILE_COLUMNS`, and the territory shader's):
 at 512, `earth-2`'s 1,004,682 tiles would fill 1,963 of the 2,048 rows WebGL2 guarantees, and a board a little larger
 none; at 1,024 they fill 982. The other textures sized from the board: the terrain, a byte a lattice point, 2,048 a row
 (`TERRAIN_COLUMNS`: `earth-2`'s 3,481,002 points fill 1,700 rows, which 1,024 a row could not hold); `tileCells`, a pair
 of words per 32 points, 256 a row (425 rows on `earth-2`); the landmasses' data, a row a landmass (1,175 on `earth-2`,
-of 2,048); the aimed outlines, 1,024 landmasses a row. Nothing else on the GPU is sized by the tile count but the
+of 2,048); the provinces' data, a row a province (2,098 on `earth-2`, past the 2,048 WebGL2 guarantees and under the 4,096
+`BorderField` takes); the aimed outlines, 1,024 landmasses a row. Nothing else on the GPU is sized by the tile count but the
 vertex buffers, which have no such limit.
 
 **A change sends only what changed.** `TileField.uploadTiles` sends the rows of `tileData` that hold a changed texel,

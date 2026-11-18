@@ -1,11 +1,16 @@
-uniform sampler2D landmassData;
-uniform float landmassCount;
+// A row a ground the flags are painted over: the landmasses, or the provinces when they divide the map.
+uniform sampler2D groundData;
+uniform float groundCount;
+uniform float byProvince;
+// Each province's landmass, PROVINCE_COLUMNS a row.
+uniform highp usampler2D provinceLandmass;
 
 uniform float flagPaint;
 // 1: each tile paints its own holder's flag. 0: the landmass's leader paints all of it, at its share.
 uniform float splitFlags;
 
-uniform float highlight;
+// The provinces lit, first and last: a landmass's span, or one province.
+uniform vec2 highlight;
 
 uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
@@ -26,8 +31,10 @@ uniform highp usampler2D terrain;
 // Must match KINDS in domain/terrain.ts.
 uniform vec3 terrainColours[12];
 
-// Must match CELL_COLUMNS in territoryLayer.ts, TILE_COLUMNS in tileField.ts and TERRAIN_COLUMNS in terrain.ts.
+// Must match CELL_COLUMNS and PROVINCE_COLUMNS in territoryLayer.ts, TILE_COLUMNS in tileField.ts and TERRAIN_COLUMNS
+// in terrain.ts.
 const int CELL_COLUMNS = 256;
+const int PROVINCE_COLUMNS = 1024;
 const int TILE_COLUMNS = 1024;
 const int TERRAIN_COLUMNS = 2048;
 
@@ -156,10 +163,10 @@ vec2 coverOf(vec2 reach, float aspect) {
     return vec2(halfV * aspect, halfV);
 }
 
-vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNumber, float landmass) {
-    float row = (landmass + 0.5) / landmassCount;
-    vec4 region = texture(landmassData, vec2(5.0 / 8.0, row));
-    vec4 held = texture(landmassData, vec2(7.0 / 8.0, row));
+vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNumber, float under) {
+    float row = (under + 0.5) / groundCount;
+    vec4 region = texture(groundData, vec2(5.0 / 8.0, row));
+    vec4 held = texture(groundData, vec2(7.0 / 8.0, row));
 
     bool split = splitFlags > 0.5;
     vec4 flag = split ? own : region;
@@ -168,8 +175,8 @@ vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNum
 
     // Only the leader's flag is fitted to the ground and drawn large.
     bool leads = all(equal(region, flag));
-    vec4 frame = texture(landmassData, vec2(1.0 / 8.0, row));
-    vec4 axis = texture(landmassData, vec2(3.0 / 8.0, row));
+    vec4 frame = texture(groundData, vec2(1.0 / 8.0, row));
+    vec4 axis = texture(groundData, vec2(3.0 / 8.0, row));
     vec2 halfSize = leads ? vec2(frame.w, axis.w) : coverOf(axis.xy, flag.z / flag.w);
     vec2 anchor = leads ? held.ba : vec2(0.5);
 
@@ -250,12 +257,15 @@ void main() {
 
     int texel = int(bits.y + popcount(bits.x & ((1u << bit) - 1u)));
     uvec2 tile = texelFetch(tileData, ivec2(texel % TILE_COLUMNS, texel / TILE_COLUMNS), 0).rg;
-    float landmass = float(tile.y);
+    float province = float(tile.y);
+    int at = int(tile.y);
+    float landmass = float(texelFetch(provinceLandmass, ivec2(at % PROVINCE_COLUMNS, at / PROVINCE_COLUMNS), 0).r);
     vec4 own = texelFetch(flagRectangles, ivec2(int(tile.x), 0), 0);
 
-    vec4 colour = landmass > 0.5 ? paintedFlag(ground, acrossStep, upStep, own, int(tile.x), landmass) : vec4(0.0);
+    float under = byProvince > 0.5 ? province : landmass;
+    vec4 colour = under > 0.5 ? paintedFlag(ground, acrossStep, upStep, own, int(tile.x), under) : vec4(0.0);
 
-    if (highlight > 0.5 && abs(landmass - highlight) < 0.5) {
+    if (province > highlight.x - 0.5 && province < highlight.y + 0.5) {
         colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));
     }
 
@@ -267,7 +277,7 @@ void main() {
     } else {
         tileCentre = normalize(faceTexel(0, face).xyz + (faceTexel(1, face).xyz * float(j) + faceTexel(2, face).xyz * float(i)) / cols);
     }
-    TileEffects effects = tileEffectsAt(tileCentre, landmass);
+    TileEffects effects = tileEffectsAt(tileCentre, province);
     colour = heated(steeled(scorched(colour, effects.scorch), effects.fortify), effects.glow);
 
     // Solid while the tiles fade in over it, then the bare ground in the second half of the handover.

@@ -11,8 +11,16 @@ attribute vec3 from;
 attribute vec3 to;
 
 #ifdef HIGHLIGHT
-uniform float landmass;
+// The landmass or the province lit: a pair of the countries' pieces is of landmasses, of the provinces' lines of provinces.
+uniform float highlit;
+#ifdef PROVINCES
+// The provinces either side of each of the countries' pieces.
+attribute vec2 provinces;
+#define litSides provinces
+#else
 attribute vec2 sides;
+#define litSides sides
+#endif
 #endif
 
 #ifdef MISSION
@@ -41,7 +49,7 @@ out float vAlong;
 
 void main() {
 #ifdef HIGHLIGHT
-    if (abs(sides.x - landmass) > 0.5 && abs(sides.y - landmass) > 0.5) {
+    if (abs(litSides.x - highlit) > 0.5 && abs(litSides.y - highlit) > 0.5) {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
         return;
     }
