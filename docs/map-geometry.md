@@ -1,9 +1,11 @@
 # Shared map geometry
 
 `map/` is the **second thing the apps share**: the **boards**, each a geometry as a set of files of its own, in
-`map/boards/<name>/`. There are three: `earth-1`, which the world plays; `earth-2` (1,004,682 tiles, 13 km apart) and
-`siege-1` (27,259, 79 km), warped and rotated so every cell covers about as much ground and the twelve five-neighbour
-points are at sea, which nothing plays yet. A board's manifest says which lattice it is cut from, how many
+`map/boards/<name>/`. There are three: `earth-1`, which the world played until its switch, and all history before;
+`earth-2` (1,004,682 tiles, 13 km apart), which it plays after, and `siege-1` (27,259, 79 km), Capital Siege's, both
+warped and rotated so every cell covers about as much ground and the twelve five-neighbour points are at sea. Beside
+them, `map/carries/` holds the carry-over from `earth-1` to `earth-2`, each new tile's parent, which the switch reads
+(the backend's copy alone). A board's manifest says which lattice it is cut from, how many
 tiles it has and the hash of their positions; its runs say which lattice points are tiles, and so where every tile
 is and what a tile id means; its borders say which country's ground each tile sits on; its capitals and bridges are
 what an arena battle's rules read; its terrain is what the globe draws at each point of the lattice. **They are written by one command from one oracle**, so "is this sea or land" and

@@ -6,12 +6,13 @@ import (
 	"log/slog"
 	"sync"
 
+	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 var shipped = sync.OnceValues(func() (*Registry, error) {
-	registry := New(cpboards.Files(), func(string) bool { return true }, slog.New(slog.DiscardHandler))
+	registry := New(cpboards.Files(), mapdata.Carries(), func(string) bool { return true }, slog.New(slog.DiscardHandler))
 	return registry, registry.Load()
 })
 

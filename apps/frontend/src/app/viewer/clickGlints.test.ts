@@ -100,10 +100,10 @@ describe("createClickGlints", () => {
         glints.playClick(1, camera)
         expect(glints.object.children).toHaveLength(1)
 
-        expect(glints.update(1000, camera, 800, 1)).toBe(true)
-        expect(glints.update(1000 + GLINT_SECONDS, camera, 800, 1)).toBe(true)
+        expect(glints.update(1000, camera, 800, 1)).toBe("playing")
+        expect(glints.update(1000 + GLINT_SECONDS, camera, 800, 1)).toBe("over")
         expect(glints.object.children).toHaveLength(0)
-        expect(glints.update(1000 + GLINT_SECONDS + 0.1, camera, 800, 1)).toBe(false)
+        expect(glints.update(1000 + GLINT_SECONDS + 0.1, camera, 800, 1)).toBe("none")
 
         glints.dispose()
     })
@@ -116,7 +116,7 @@ describe("createClickGlints", () => {
         glints.playOwnClick(1, camera)
 
         expect(glints.object.children).toHaveLength(0)
-        expect(glints.update(1000, camera, 800, 1)).toBe(false)
+        expect(glints.update(1000, camera, 800, 1)).toBe("none")
         glints.dispose()
     })
 

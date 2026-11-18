@@ -84,6 +84,9 @@ eras](boards-and-eras.md)): the acts of the world's map on the board it plays, a
 - **It is the world's map**: an act made while an arena's map played is left out, and each stretch of the window that
   played one is in `asides`. While an arena plays, it rewinds from the world's map as postgres keeps it. See [Arena
   battles](arenas.md#the-ledgers-readers).
+- **It starts at a reset or a switch of the world's board** inside the window, on the blank map or the map carried
+  over, and a window that ended before either is `FailedPrecondition` (`ErrBeforeReset`, `ErrBeforeSwitch`): see [The
+  map reset](map-reset.md#replays) and [Boards and eras](boards-and-eras.md#readers).
 - **It reads memory**, like the other tools here: a `since` older than `ledger.retention` (72h) opens on the map at
   the oldest event kept. It changes nothing and logs nothing. A `since` that is not before `until` is
   `InvalidArgument` (`replay_usecase.ErrInvalidWindow`).
@@ -94,6 +97,20 @@ eras](boards-and-eras.md)): the acts of the world's map on the board it plays, a
 
 The rule sets an operator reads and writes; a save of the one that plays now takes over at once: see [Rules](rules.md). The backoffice's Game
 rules page calls both.
+
+## `SwitchBoard`
+
+Moves the world's map onto another board, its land carried over, once: each new tile takes the flag and holder of the
+old tile it comes from, the shields are split across the new tiles, the mines move, live viruses end, and every page
+reloads onto the new board. Refused while an arena is open, for a board this build does not carry or has no carry-over
+to, for the board the world plays, and for any map but `world`. `dry_run` answers the same counts and changes nothing.
+No take: nobody gains tiles, XP or a mission's progress. See [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard),
+and the operator's runbook in [Boards](../../../docs/boards.md#the-operators-runbook). On the console listener:
+
+```
+docker compose exec backend wget -qO- --header 'Content-Type: application/json' \
+  --post-data '{"map":"world","board":"earth-2","dryRun":true}' http://127.0.0.1:8081/planet.v1.AdminService/SwitchBoard
+```
 
 ## The rule schedule: `gamemaster.v1.AdminService`
 

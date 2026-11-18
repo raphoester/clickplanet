@@ -158,6 +158,10 @@ carry, refuses the open (`ErrRefused`, `FailedPrecondition`), and the world's ma
 Capital Siege's set names `siege-1` from PR 5 of [Boards](../../../docs/boards.md) (2026-11-18), once the owner saves
 it: see [Capital Siege's set](#capital-sieges-set).
 
+**The world's switch of board waits for no arena** (PR 6): `SwitchBoard` is refused while an arena plays, read under
+the map's locks, and an arena that opens after the switch plays its set's board, or the world's new one when its set
+names none (see [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard)).
+
 ## Seeds
 
 **An arena's fresh map starts from a seed its rule set names** (`seed`, a `oneof` of patterns; the owner, 2026-11-10).

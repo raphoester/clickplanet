@@ -21,7 +21,7 @@ import (
 
 // loadedRegistry is a registry of the boards in files, their manifests read.
 func loadedRegistry(files fs.FS, flags func(string) bool, logger *slog.Logger) (*embedded_board.Registry, error) {
-	registry := embedded_board.New(files, flags, logger)
+	registry := embedded_board.New(files, fstest.MapFS{}, flags, logger)
 	return registry, registry.Load() //nolint:wrapcheck // the registry names the board.
 }
 

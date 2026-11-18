@@ -23,7 +23,9 @@ View on each ended plaque, opens it (`ARCHIVE_PATH`).
   next board**, in place, with a `HistoryBackend` of that era's reel: the archive cannot reload, as the game does (see
   [The board the page draws](board-reload.md)). The time cursor carries a mark at each cut (white, inked, its tooltip
   "New map from …"), and "The world moves to a new map" shows over the globe for the 36 frames from it (a second and a
-  half of play). A time cursor, Play (24 frames a second:
+  half of play: `ErasReel.passingCut`, tested in `eras.test.ts`). **At the world's switch the first frame of the new
+  board is the map the switch carried over** (the backend's [Boards and eras](../../backend/docs/boards-and-eras.md)),
+  sent whole as `GetMap` sends the map, two bytes a tile, which `historyOf` reads. A time cursor, Play (24 frames a second:
   the season in about 48 s, the Final Battle in 30 s), the time in the player's zone, and the five flags holding the
   most tiles, from the globe's own leaderboard.
 - **Heatmap**: a flat map (`heatmap.ts`), 4096 × 2048, each tile a sharp cell as tall as a tile (0.4° on `earth-1`, as

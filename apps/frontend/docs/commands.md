@@ -13,6 +13,7 @@ npm run map:fixture # Write the tests' coarse board, fixture-1, into each app's 
 npm run map:generate -- earth-2 # Rewrite a board's runs, borders and capitals from the ground oracle; earth-1 with none named (see ../../map/README.md)
 npm run bridges -- earth-2 # A board's crossings, from its tiles and capitals; earth-1 with none named
 npm run map:audit -- earth-2 # Check a board's tile set, Natural Earth, the bridges and the terrain against each other; earth-1 with none named
+npm run map:carry -- earth-1 earth-2 # Write map/carries/carry-earth-1-earth-2-<hash>.bin, each new tile's parent, and print what it carries (map/README.md)
 npm run map:measure -- earth-2 # A board's geometry as docs/boards.md records it: areas, spacing, a bomb, the pentagons, the creases
 npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
 npm run borderLines -- earth-1 # Trace a board's outlines onto its lattice, every board with none named (see country-outlines.md)

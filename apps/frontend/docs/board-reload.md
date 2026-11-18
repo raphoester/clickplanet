@@ -45,6 +45,22 @@ the old one from the cache. A reload leaves its board and its time in the tab's 
   once a board is drawn. A browser with no storage reloads at most once per load, and reads `GetMap` as a first load does.
 - **`reload` is called once** per page, whatever is heard after.
 
+## The world grew
+
+**A browser that saw the world before its switch of board sees "The world grew" once**, on the first page it draws on
+the new board: a full-screen moment in the announcements queue (`WorldGrew`, `{kind: "worldGrew"}`, see
+[Battles](battle.md#the-announcements-queue)), the title reveal's stage with the globe, "4× more ground" (the new
+board's tiles over `earth-1`'s, rounded) and "Every country kept its land.", and Close.
+
+- **The rule is `domain/worldGrew.ts`**: the moment plays on `WORLD_GROWN` (`earth-2`) alone, never on an arena's board,
+  never on a first visit (`guided`: that browser never saw the world smaller, and the board is kept as seen at once),
+  and never twice: `useWorldGrew` keeps the board in local storage (`clickplanet-world-grew`) when the player closes
+  it. A browser with no storage sees it on each page.
+- **The page needs no word from the server**: the switch cuts every stream, and the page reloads onto the board the
+  stream names (above). The World chat says it too (`board_switched`, see [Live chat](chat.md)), as does Discord.
+- **To see it in fake mode**: `/play?fakeBoard=earth-2` on a browser that has visited before, after
+  `localStorage.removeItem("clickplanet-world-grew")`.
+
 ## In fake mode
 
 `VITE_FAKE_BACKEND=1`: `FakeBackend.readBoard` names `earth-1`, its stream's opening names it too, and its batches pass

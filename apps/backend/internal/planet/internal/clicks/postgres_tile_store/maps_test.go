@@ -129,6 +129,8 @@ func (s *testSuite) TestTheBoardsOfAMapAreEveryBoardItsRowsName() {
 	s.Equal([]clicks.BoardID{clicks.TestBoard, 2}, boards, "a mine kept by a switch the code never got")
 }
 
-func (s *testSuite) TestAWriteOnABoardPlanetDoesNotKeepIsRefused() {
-	s.Require().Error(s.store.Save(context.Background(), clicks.World.On(9), owned("fr", 1), nil, nil))
+// A tile names its board with no foreign key, for a switch's COPY of a million: the boot's guard holds its rows to the
+// era's board (inmemory_tile_storage's ErrOtherBoard). A mine's key stays.
+func (s *testSuite) TestAMineOnABoardPlanetDoesNotKeepIsRefused() {
+	s.Require().Error(s.store.SaveMines(context.Background(), clicks.World.On(9), []clicks.MineSnapshot{mineOn(1, "fr")}, nil))
 }

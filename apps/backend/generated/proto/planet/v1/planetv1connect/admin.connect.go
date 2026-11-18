@@ -59,6 +59,9 @@ const (
 	// AdminServiceSaveRuleSetProcedure is the fully-qualified name of the AdminService's SaveRuleSet
 	// RPC.
 	AdminServiceSaveRuleSetProcedure = "/planet.v1.AdminService/SaveRuleSet"
+	// AdminServiceSwitchBoardProcedure is the fully-qualified name of the AdminService's SwitchBoard
+	// RPC.
+	AdminServiceSwitchBoardProcedure = "/planet.v1.AdminService/SwitchBoard"
 )
 
 // AdminServiceClient is a client for the planet.v1.AdminService service.
@@ -92,6 +95,13 @@ type AdminServiceClient interface {
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
+	// Moves the world's map onto another board, its land carried over, once: each tile of the new board takes the flag
+	// and holder of the old tile it comes from, each old tile's shields are split across its new tiles, each mine moves
+	// to the new tile nearest it, live viruses end and fortify locks are settled again. Then every page reloads onto the
+	// new board. No take: nobody gains tiles, XP or a mission's progress. Refused while an arena is open, for a board
+	// this build does not carry or has no carry-over to, and for the board the map plays already. Run it with dry_run
+	// first: it answers the same counts and changes nothing.
+	SwitchBoard(context.Context, *connect.Request[v1.SwitchBoardRequest]) (*connect.Response[v1.SwitchBoardResponse], error)
 }
 
 // NewAdminServiceClient constructs a client for the planet.v1.AdminService service. By default, it
@@ -171,6 +181,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
 			connect.WithClientOptions(opts...),
 		),
+		switchBoard: connect.NewClient[v1.SwitchBoardRequest, v1.SwitchBoardResponse](
+			httpClient,
+			baseURL+AdminServiceSwitchBoardProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("SwitchBoard")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -186,6 +202,7 @@ type adminServiceClient struct {
 	getTerritories    *connect.Client[v1.GetTerritoriesRequest, v1.GetTerritoriesResponse]
 	getRules          *connect.Client[v1.GetRulesRequest, v1.GetRulesResponse]
 	saveRuleSet       *connect.Client[v1.SaveRuleSetRequest, v1.SaveRuleSetResponse]
+	switchBoard       *connect.Client[v1.SwitchBoardRequest, v1.SwitchBoardResponse]
 }
 
 // FindPlayers calls planet.v1.AdminService.FindPlayers.
@@ -238,6 +255,11 @@ func (c *adminServiceClient) SaveRuleSet(ctx context.Context, req *connect.Reque
 	return c.saveRuleSet.CallUnary(ctx, req)
 }
 
+// SwitchBoard calls planet.v1.AdminService.SwitchBoard.
+func (c *adminServiceClient) SwitchBoard(ctx context.Context, req *connect.Request[v1.SwitchBoardRequest]) (*connect.Response[v1.SwitchBoardResponse], error) {
+	return c.switchBoard.CallUnary(ctx, req)
+}
+
 // AdminServiceHandler is an implementation of the planet.v1.AdminService service.
 type AdminServiceHandler interface {
 	// Who took tiles for a flag, on one country's ground or the whole map, within the ledger's last 72 hours: one row
@@ -269,6 +291,13 @@ type AdminServiceHandler interface {
 	GetRules(context.Context, *connect.Request[v1.GetRulesRequest]) (*connect.Response[v1.GetRulesResponse], error)
 	// Makes a set, or replaces its values. A save of the set that plays now takes over at once.
 	SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error)
+	// Moves the world's map onto another board, its land carried over, once: each tile of the new board takes the flag
+	// and holder of the old tile it comes from, each old tile's shields are split across its new tiles, each mine moves
+	// to the new tile nearest it, live viruses end and fortify locks are settled again. Then every page reloads onto the
+	// new board. No take: nobody gains tiles, XP or a mission's progress. Refused while an arena is open, for a board
+	// this build does not carry or has no carry-over to, and for the board the map plays already. Run it with dry_run
+	// first: it answers the same counts and changes nothing.
+	SwitchBoard(context.Context, *connect.Request[v1.SwitchBoardRequest]) (*connect.Response[v1.SwitchBoardResponse], error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -344,6 +373,12 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("SaveRuleSet")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceSwitchBoardHandler := connect.NewUnaryHandler(
+		AdminServiceSwitchBoardProcedure,
+		svc.SwitchBoard,
+		connect.WithSchema(adminServiceMethods.ByName("SwitchBoard")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/planet.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceFindPlayersProcedure:
@@ -366,6 +401,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceGetRulesHandler.ServeHTTP(w, r)
 		case AdminServiceSaveRuleSetProcedure:
 			adminServiceSaveRuleSetHandler.ServeHTTP(w, r)
+		case AdminServiceSwitchBoardProcedure:
+			adminServiceSwitchBoardHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -413,4 +450,8 @@ func (UnimplementedAdminServiceHandler) GetRules(context.Context, *connect.Reque
 
 func (UnimplementedAdminServiceHandler) SaveRuleSet(context.Context, *connect.Request[v1.SaveRuleSetRequest]) (*connect.Response[v1.SaveRuleSetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.SaveRuleSet is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) SwitchBoard(context.Context, *connect.Request[v1.SwitchBoardRequest]) (*connect.Response[v1.SwitchBoardResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.AdminService.SwitchBoard is not implemented"))
 }

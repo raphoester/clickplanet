@@ -204,12 +204,10 @@ What chooses, when a clip goes out, the client of the service and the run's summ
 - **A clip tells the board its replay ends on** (`GetReplay`'s last era, `replayErasOf`): its positions, borders and
   globe, and every count of tiles it judges by, sized on that board (see [Sized by the board](board-scale.md)): a
   landmass too small to flip (20 tiles on `earth-1`), a flip read from far (100), a country fought over (400), a big
-  country (1,000), the dive's zoom. **Over a change of board it tells the last era alone, from the change on, as after a
-  reset** (docs/boards.md): `ReplayBackend.ofLastEra` opens on the map the history (`--history`) holds at the cut, the
-  first frame of that era, a whole map of its board, and plays the replay's events after it; `GetReplay` holds the map at
-  its window's start alone, so with no history holding the cut the replay cannot be drawn and the page fails. The sagas
-  and paths are measured on the history's last era too (`lastEraOf`), when it ends on the replay's board. With one era,
-  the only one until the world's switch, every clip is as before.
+  country (1,000), the dive's zoom. **Over a switch of the world's board it tells the board after it alone, from the
+  switch on, as after a reset** (docs/boards.md): `GetReplay` starts its window at the switch, on the map it carried
+  over (2026-11-18, PR 6), so a replay holds one era and `ReplayBackend.of` plays it as any other. The sagas and paths
+  are measured on the history's last era (`lastEraOf`), when it ends on the replay's board.
 - **It is the game's own globe**, so a clip shows exactly what a player sees: `clip.html` is a page of its own,
   served by `npm run dev` and **left out of the build** (it is not in `rollupOptions.input`). `src/clip/main.ts`
   builds the globe with `createGlobe` over `backends/replayBackend.ts`, which plays the replay through the same

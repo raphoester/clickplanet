@@ -7,8 +7,8 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * The map as it was every step of a window, out of the ledger. The first frame holds every tile held at the window's
- * start; each next one the tiles whose owner differs from the frame before.
+ * The map as it was every step of a window, out of the ledger. The first frame is whole: every tile held at the window's
+ * start. Each next one is the tiles whose owner differs from the frame before.
  *
  * @generated from message planet.v1.MapHistory
  */
@@ -28,7 +28,7 @@ export class MapHistory extends Message<MapHistory> {
   /**
    * The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
    * started in it. A frame's tile ids are the board of the era in force at its time, and the first frame of each era
-   * holds every tile held on its board, as the window's first frame does: the cut.
+   * is whole, every tile held on its board, as the window's first frame is: the cut.
    *
    * @generated from field: repeated planet.v1.BoardEra eras = 3;
    */
@@ -112,6 +112,8 @@ export class BoardEra extends Message<BoardEra> {
 }
 
 /**
+ * A frame is whole (the window's first, and the first of each era) or a frame of changes (every other one).
+ *
  * @generated from message planet.v1.MapFrame
  */
 export class MapFrame extends Message<MapFrame> {
@@ -121,9 +123,18 @@ export class MapFrame extends Message<MapFrame> {
   at?: Timestamp;
 
   /**
+   * A frame of changes: each tile whose owner differs from the frame before. Empty in a whole frame.
+   *
    * @generated from field: repeated planet.v1.TileOwner owners = 2;
    */
   owners: TileOwner[] = [];
+
+  /**
+   * A whole frame: every tile held at its time. Unset in a frame of changes.
+   *
+   * @generated from field: planet.v1.WholeMap whole = 3;
+   */
+  whole?: WholeMap;
 
   constructor(data?: PartialMessage<MapFrame>) {
     super();
@@ -135,6 +146,7 @@ export class MapFrame extends Message<MapFrame> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "at", kind: "message", T: Timestamp },
     { no: 2, name: "owners", kind: "message", T: TileOwner, repeated: true },
+    { no: 3, name: "whole", kind: "message", T: WholeMap },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MapFrame {
@@ -151,6 +163,64 @@ export class MapFrame extends Message<MapFrame> {
 
   static equals(a: MapFrame | PlainMessage<MapFrame> | undefined, b: MapFrame | PlainMessage<MapFrame> | undefined): boolean {
     return proto3.util.equals(MapFrame, a, b);
+  }
+}
+
+/**
+ * Every tile held, as GetMap writes the map: two bytes a tile.
+ *
+ * @generated from message planet.v1.WholeMap
+ */
+export class WholeMap extends Message<WholeMap> {
+  /**
+   * The first tile of tiles: every tile before it is held by no one.
+   *
+   * @generated from field: uint32 start_tile_id = 1;
+   */
+  startTileId = 0;
+
+  /**
+   * The flags tiles names, "" (no one) first.
+   *
+   * @generated from field: repeated string codes = 2;
+   */
+  codes: string[] = [];
+
+  /**
+   * Two bytes a tile from start_tile_id on, little endian, each an index into codes. A tile past its end is held by no
+   * one.
+   *
+   * @generated from field: bytes tiles = 3;
+   */
+  tiles = new Uint8Array(0);
+
+  constructor(data?: PartialMessage<WholeMap>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.WholeMap";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "start_tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "codes", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "tiles", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): WholeMap {
+    return new WholeMap().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): WholeMap {
+    return new WholeMap().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): WholeMap {
+    return new WholeMap().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: WholeMap | PlainMessage<WholeMap> | undefined, b: WholeMap | PlainMessage<WholeMap> | undefined): boolean {
+    return proto3.util.equals(WholeMap, a, b);
   }
 }
 

@@ -21,7 +21,7 @@ import (
 
 const NamedReactors = 20
 
-var kinds = cpcolls.NewSet("bomb", "mute", "round", "fortify", "champion", "flag_mission", "knock_out", "rally")
+var kinds = cpcolls.NewSet("bomb", "mute", "round", "fortify", "champion", "flag_mission", "knock_out", "rally", "board_switched")
 
 var (
 	ErrUnknownReaction = errors.New("a kept reaction the proto does not name")

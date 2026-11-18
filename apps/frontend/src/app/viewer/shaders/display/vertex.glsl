@@ -8,8 +8,9 @@ uniform float pixelRatio;
 
 #include ../tileEffects.glsl;
 
-// A tile a flag close to fortifying still misses; the fragment shader beats at the same rate.
+// A tile a flag close to fortifying still misses; the fragment shader and globe.ts's BEAT_SECONDS beat at the same rate.
 const float PULSE_RATE = 6.2831853 / 1.1;
+uniform float pulseTime;
 // An infected tile's sprite holds its pods past its flag, and is drawn virusLift nearer the camera, so its pods lie over
 // the tiles next to it. More than the depth between two neighbours, less than a tile at the limb behind the earth: in the
 // board's own spacings (globe.ts).
@@ -86,7 +87,7 @@ void main() {
     vFortify = effects.fortify;
 
     float swell = effects.swell;
-    if (mod(pulse, 4.0) > 0.5) swell = max(swell, 0.12 * (0.5 + 0.5 * sin(time * PULSE_RATE)));
+    if (mod(pulse, 4.0) > 0.5) swell = max(swell, 0.12 * (0.5 + 0.5 * sin(pulseTime * PULSE_RATE)));
 
     float tileSize = pointSize * (1.0 + motion * swell);
     bool infected = mod(floor(pulse / 16.0), 2.0) > 0.5;

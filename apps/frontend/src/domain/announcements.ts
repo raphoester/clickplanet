@@ -8,6 +8,7 @@ import {teaserKeyOf} from "./battleTeaser.ts"
 import {Ask} from "./nudges.ts"
 import {Reveal, revealKeyOf} from "./roundReveal.ts"
 import {VideoStory} from "./video/story.ts"
+import {WorldGrew} from "./worldGrew.ts"
 
 export type Announcement =
     | {kind: "title", title: PlayerTitle}
@@ -21,6 +22,8 @@ export type Announcement =
     // The flag is losing a country: the video that calls for help is offered.
     | {kind: "video", story: VideoStory}
     | {kind: "ask", ask: Ask}
+    // The world's switch of board, once per browser.
+    | {kind: "worldGrew", grew: WorldGrew}
     | Reveal
 
 export function announcementKeyOf(announcement: Announcement): string {
@@ -41,6 +44,8 @@ export function announcementKeyOf(announcement: Announcement): string {
             return `video:${announcement.story.flag}:${announcement.story.country}`
         case "ask":
             return `ask:${announcement.ask}`
+        case "worldGrew":
+            return `worldGrew:${announcement.grew.board}`
         case "round":
         case "over":
         case "points":

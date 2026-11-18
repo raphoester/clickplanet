@@ -223,3 +223,20 @@ func TestARevertAfterAnArenaUndoesNoneOfItsTakesNorAnotherBoards(t *testing.T) {
 	assert.Equal(t, map[uint32]string{1: "il", 2: "ps", 3: "ps"}, tiles.owners,
 		"the world's tile 2 keeps its flag: the arena's take of it was no run; nor was tile 3 of another board")
 }
+
+func TestARevertAfterTheWorldSwitchedBoardsUndoesItsTakesOnTheNewBoardAlone(t *testing.T) {
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	earth2 := clicks.World.On(clicks.TestBoard + 1)
+	tiles := &stubMap{playing: earth2, owners: map[uint32]string{1: "ps", 2: "ps"}}
+	at := time.Date(2026, 11, 22, 3, 0, 0, 0, time.UTC)
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "9.9.9.9", Country: "ps", Previous: "il", At: at})
+	book.Append(earth2, ledger.Taking{Tile: 2, Scope: "9.9.9.9", Country: "ps", Previous: "il", At: at.Add(time.Hour)})
+
+	out, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
+		Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, out.Restored)
+	assert.Equal(t, map[uint32]string{1: "ps", 2: "il"}, tiles.owners,
+		"earth-2's tile 1 keeps its flag: the take before the switch was of earth-1's tile 1, another place")
+}

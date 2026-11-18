@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from "vitest"
-import {drawsFrame, reportClaimFailure, reportClickFailure, spins, spinStep} from "./globe.ts"
+import {beatClock, drawsFrame, reportClaimFailure, reportClickFailure, spins, spinStep, watched} from "./globe.ts"
 import {MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts"
 import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, OutOfReachError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
@@ -122,8 +122,8 @@ describe("reportClaimFailure", () => {
 
 describe("drawsFrame", () => {
     const tick = (over: Partial<Parameters<typeof drawsFrame>[0]>) => drawsFrame({
-        turned: false, changed: false, ambient: false, at: 10_000, drawnAt: 0, interactingUntil: 0,
-        sinceLastTick: 0, ...over,
+        turned: false, changed: false, glints: "none", ambient: false, attended: true, at: 10_000, drawnAt: 0,
+        interactingUntil: 0, sinceLastTick: 0, ...over,
     })
 
     it("draws nothing while the globe sits still", () => {
@@ -164,6 +164,23 @@ describe("drawsFrame", () => {
     it("never holds a change back for the spin's sake", () => {
         expect(tick({turned: true, changed: true, drawnAt: 9_999})).toBe(true)
     })
+
+    it("draws every frame of a glint while the page is in use", () => {
+        expect(tick({glints: "playing", drawnAt: 9_999})).toBe(true)
+    })
+
+    it("draws a glint at the pulse's pace once nobody touches the page", () => {
+        expect(tick({glints: "playing", attended: false, drawnAt: 9_960})).toBe(false)
+        expect(tick({glints: "playing", attended: false, drawnAt: 9_950})).toBe(true)
+    })
+
+    it("takes the last glint off the screen at once, even on a page nobody touches", () => {
+        expect(tick({glints: "over", attended: false, drawnAt: 9_999})).toBe(true)
+    })
+
+    it("never holds a change back for a glint's sake", () => {
+        expect(tick({glints: "playing", attended: false, changed: true, drawnAt: 9_999})).toBe(true)
+    })
 })
 
 describe("spins", () => {
@@ -193,6 +210,49 @@ describe("spins", () => {
 
     it("turns a globe zoomed out past the resting zoom", () => {
         expect(spin({zoom: MIN_ZOOM})).toBe(true)
+    })
+})
+
+describe("watched", () => {
+    it("holds for the minute after the last input", () => {
+        expect(watched({lastInputAt: 1_000, now: 60_999})).toBe(true)
+    })
+
+    it("lapses once nobody has touched the page for a minute", () => {
+        expect(watched({lastInputAt: 1_000, now: 61_000})).toBe(false)
+    })
+})
+
+describe("beatClock", () => {
+    const shadersBeat = (clock: number) => 0.5 + 0.5 * Math.sin(clock * 2 * Math.PI / 1.1)
+    const unattended = (clock: number, ticks: number) => {
+        for (let i = 0; i < ticks; i++) clock = beatClock({clock, step: 0.05, attended: false})
+        return clock
+    }
+
+    it("beats with the frame while the page is watched", () => {
+        expect(beatClock({clock: 3, step: 0.05, attended: true})).toBeCloseTo(3.05, 9)
+    })
+
+    it("past the quiet minute, beats on to its faintest within one beat, wherever it was", () => {
+        for (const start of [0, 0.4, 0.826, 2.5]) {
+            const held = unattended(start, 100)
+
+            expect(shadersBeat(held)).toBeCloseTo(0, 9)
+            expect(held - start).toBeLessThanOrEqual(1.1)
+        }
+    })
+
+    it("holds there for good, however long nobody watches", () => {
+        const held = unattended(0, 100)
+
+        expect(unattended(held, 100_000)).toBe(held)
+    })
+
+    it("beats on from where it held at the next input", () => {
+        const held = unattended(0, 100)
+
+        expect(beatClock({clock: held, step: 0.05, attended: true})).toBeCloseTo(held + 0.05, 9)
     })
 })
 

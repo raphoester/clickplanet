@@ -13,9 +13,9 @@ import {
 } from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {BattleEnded as BattleEndedMessage} from "../gen/grpc/gamemaster/v1/events_pb.ts"
 import {LedgerTotals} from "../gen/grpc/planet/v1/totals_pb.ts"
-import {MapHistory as MapHistoryMessage} from "../gen/grpc/planet/v1/history_pb.ts"
-import {MapHistory} from "../domain/mapHistory.ts"
-import {Era, eraAt, FIRST_ERA} from "../domain/eras.ts"
+import {MapHistory as MapHistoryMessage, WholeMap} from "../gen/grpc/planet/v1/history_pb.ts"
+import {MapFrame, MapHistory} from "../domain/mapHistory.ts"
+import {Era, FIRST_ERA} from "../domain/eras.ts"
 import {Day, NO_SEASONS, Season, Seasons, SeasonTotals} from "./season.ts"
 import {Config, NO_TIMEOUT, openStream, pageWakeups, Wakeups} from "./transport.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
@@ -114,21 +114,29 @@ export function historyOf(history: MapHistoryMessage): MapHistory {
     const hits = eras.map(() => new Map<number, number>())
     for (const {tile, hits: count, era} of history.hits) hits[Math.min(era, eras.length - 1)].set(tile, count)
     return {
-        frames: history.frames.map((frame, i) => ({
+        frames: history.frames.map((frame, i) => frame.whole ? wholeFrameOf(ats[i], frame.whole) : {
             at: ats[i],
             tiles: Uint32Array.from(frame.owners, (owner) => owner.tile),
             owners: frame.owners.map((owner) => owner.countryId),
-            // The first frame of an era is a whole map, as the window's first is: no change in it has a time.
-            changedAt: Float64Array.from(frame.owners, (owner) => i === 0 || cutAt(eras, ats, i) ? ats[i] : ats[i - 1] + owner.secondsIntoStep * 1000),
-        })),
+            changedAt: Float64Array.from(frame.owners, (owner) => ats[i - 1] + owner.secondsIntoStep * 1000),
+        }),
         hits,
         eras,
     }
 }
 
-// Whether frame i is the first of its era: the cut, a whole map of its board.
-function cutAt(eras: readonly Era[], ats: readonly number[], i: number): boolean {
-    return eraAt(eras, ats[i]) !== eraAt(eras, ats[i - 1])
+// A whole map, as GetMap writes it: every tile held, none of them with a time of its own.
+function wholeFrameOf(at: number, whole: WholeMap): MapFrame {
+    const codes = new DataView(whole.tiles.buffer, whole.tiles.byteOffset, whole.tiles.byteLength)
+    const tiles: number[] = []
+    const owners: string[] = []
+    for (let i = 0; i + 1 < whole.tiles.length; i += 2) {
+        const owner = whole.codes[codes.getUint16(i, true)] ?? ""
+        if (owner === "") continue
+        tiles.push(whole.startTileId + i / 2)
+        owners.push(owner)
+    }
+    return {at, tiles: Uint32Array.from(tiles), owners, changedAt: new Float64Array(tiles.length).fill(at)}
 }
 
 function totalsOf(totals: LedgerTotals): SeasonTotals {

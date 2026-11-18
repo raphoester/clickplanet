@@ -125,6 +125,8 @@ func (u *UseCase) factsOf(position ledger.Position, on clicks.Stage, event ledge
 		facts = append(facts, shieldPlacedOf(position, told))
 	case ledger.KnockingOut:
 		facts = append(facts, knockedOutOf(position, told))
+	case ledger.Switching:
+		facts = append(facts, switchedOf(position, on, told))
 	}
 	return facts
 }
@@ -236,5 +238,17 @@ func knockedOutOf(position ledger.Position, knockingOut ledger.KnockingOut) *pla
 		Cleared:      uint32(len(knockingOut.Cleared)), //nolint:gosec // bounded by the map.
 		KnockedOutAt: timestamppb.New(knockingOut.At),
 		Position:     uint64(position),
+	}
+}
+
+func switchedOf(position ledger.Position, on clicks.Stage, switching ledger.Switching) *planetv1.BoardSwitched {
+	return &planetv1.BoardSwitched{
+		Map:        string(on.Map),
+		From:       string(switching.From),
+		To:         string(switching.To),
+		FromTiles:  switching.FromTiles,
+		ToTiles:    switching.ToTiles,
+		SwitchedAt: timestamppb.New(switching.At),
+		Position:   uint64(position),
 	}
 }

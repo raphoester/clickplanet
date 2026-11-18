@@ -164,7 +164,7 @@ function Replay({reel, boards}: {reel: ErasReel, boards: Geometries}) {
     latest.current = frame
     const {piece} = reel.pieceAt(frame)
     const cuts = useMemo(() => reel.cuts(), [reel])
-    const passing = cuts.some((cut) => frame >= cut.frame && frame < cut.frame + CUT_CAPTION_FRAMES)
+    const passing = reel.passingCut(frame, CUT_CAPTION_FRAMES)
 
     useEffect(() => {
         const container = stage.current

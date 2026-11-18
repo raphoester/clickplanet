@@ -1,6 +1,7 @@
 import {Fragment, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {BombAnnouncement, ChampionAnnouncement, ChatAnnouncement, ChatMessage, ChatQuote, FlagMissionAnnouncement,
-    FortifyAnnouncement, KnockOutAnnouncement, RallyAnnouncement, MuteAnnouncement, MuteKind, Reaction, RoundAnnouncement} from "../../backends/chat.ts";
+    FortifyAnnouncement, KnockOutAnnouncement, RallyAnnouncement, MuteAnnouncement, MuteKind, Reaction, RoundAnnouncement,
+    WorldGrewAnnouncement} from "../../backends/chat.ts";
 import AdminCrown from "../components/AdminCrown.tsx";
 import CountryFlag from "../components/CountryFlag.tsx";
 import Streak from "../badges/Streak.tsx";
@@ -356,7 +357,17 @@ function AnnouncementLine({announcement}: {announcement: ChatAnnouncement}) {
             return <KnockOutLine announcement={announcement}/>
         case "rally":
             return <RallyLine announcement={announcement}/>
+        case "board_switched":
+            return <WorldGrewLine announcement={announcement}/>
     }
+}
+
+function WorldGrewLine({announcement}: {announcement: WorldGrewAnnouncement}) {
+    return <li className="chat-announcement" data-at={announcement.announcedAt}>
+        <span className="chat-announcement-icon" aria-hidden="true">🌍</span>
+        <span className="chat-announcement-text">{t("announcement.worldGrew", {times: announcement.times})}</span>
+        <AnnouncedAt at={announcement.announcedAt}/>
+    </li>
 }
 
 function RallyLine({announcement}: {announcement: RallyAnnouncement}) {

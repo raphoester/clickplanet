@@ -44,6 +44,11 @@ change. That is the default; strong atomicity needs a reason.
   `progression.v1.StatsChanged` is progression's alone.
 - **The code is not all checked against it yet**: when you touch a use case whose transaction holds more than it
   must, move the rest behind an event.
+- **A switch of the world's board is one large transaction on purpose**: the era started on the new board, and the old
+  board's rows replaced by the carried ones. A boot between the two would play the new board on the old ids, or the old
+  board on the new ones. Its `board_switched` event follows it in the ledger, which keeps every event in memory and
+  flushes it within a second, as a click's; the era is the switch's record (see [Boards and
+  eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard)).
 
 ## How a store reaches postgres
 

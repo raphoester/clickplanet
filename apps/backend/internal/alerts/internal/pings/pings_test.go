@@ -199,6 +199,7 @@ func TestTheHeraldCallsEverybodyInTheServerToBattle(t *testing.T) {
 		{Kind: pings.BattleStart, Times: 2, EndsAt: ends},
 		{Kind: pings.FinaleStart, Season: 1, Times: 3, EndsAt: ends},
 		{Kind: pings.SeasonStart, Season: 2, EndsAt: ends},
+		{Kind: pings.WorldGrew, Times: 4, EndsAt: ends},
 	} {
 		require.NoError(t, herald.CallToBattle(t.Context(), started))
 	}
@@ -208,5 +209,6 @@ func TestTheHeraldCallsEverybodyInTheServerToBattle(t *testing.T) {
 		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone ⚔️ The battle is on: 2x points until <t:1793570400:t>. https://clickplanet.lol/play"},
 		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone ⚔️ The Final Battle of season 1 is on: 3x points until <t:1793570400:t>. https://clickplanet.lol/play"},
 		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone 🌍 Season 2 has started on a blank map. https://clickplanet.lol/play"},
+		{Channel: "200", Audience: discord.Everybody(), Text: "@everyone 🌍 The world grew: 4x more ground. Every country kept its land. https://clickplanet.lol/play"},
 	}, poster.Posts)
 }

@@ -34,8 +34,9 @@ cache entirely:
   postgres migration that follows the owned ones across; see `/map/README.md`. One `_headers` rule
   keeps the whole directory a year, immutable.
 - `/static/boards/<board>/borderLines-<hash>.bin` — a board's countries' outlines, traced onto its
-  lattice, with the two landmasses each run is between, fetched at runtime by
-  `borderLines.ts`. URL in `BOARDS`. Regenerate with `npm run borderLines -- <board>` (every board with none named),
+  lattice, with the two landmasses each run is between, each corner after a run's first written as its difference from
+  the one before (version 3, see [`/map/README.md`](../../../map/README.md#format)), fetched at runtime by
+  `borderLines.ts` and read by `domain/borderLinesFile.ts`. URL in `BOARDS`. Regenerate with `npm run borderLines -- <board>` (every board with none named),
   which reads the board's runs and borders — and **regenerate it whenever either of them changes**,
   or the outline is drawn around a map nobody is playing on. Unlike them it is this
   app's alone and is not in `/map`.

@@ -52,7 +52,8 @@ reach](reach.md)). A white ring beats on each, as the gold one does on a tile a 
   red ring, bit 8 a capital's crown (`TileField.setPulses`, `setFront`, `setMissionMarks`,
   `setCapitalMarks`, see [Missions](missions.md) and [The capitals](capitals.md)); the shaders read each bit back with
   `floor` and `mod`, and only bits 1 and 2 beat. The ring beats at
-  `AMBIENT_FRAME_MS` while a lit tile faces the camera (`pulsing`).
+  `AMBIENT_FRAME_MS` while a lit tile faces the camera (`pulsing`), and stops at its faintest a minute after the last
+  input (see [Drawing only when something changed](render-on-demand.md)).
 - **Trying it in fake mode**: every tile starts French there, so a guided Bulgaria holds nothing and flies to a French
   tile in Bulgaria. Clear the page's storage, reload, and `fakeBackend.takeLandmass(39, "bg", 120)` in the console
   lights the front around most of Romania. To see the flight skip shields, shield Bulgaria too

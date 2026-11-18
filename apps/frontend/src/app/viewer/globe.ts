@@ -81,7 +81,7 @@ import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
-import {createClickGlints} from "./clickGlints.ts";
+import {createClickGlints, type Glints} from "./clickGlints.ts";
 import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, restingSwitch, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {canClick, ClickBudget, ClickBudgetSource, now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
@@ -134,6 +134,7 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     highlight: THREE.IUniform<number>
     slotTexture: THREE.IUniform<THREE.Texture | null>
     slotFrames: THREE.IUniform<THREE.DataTexture>
+    pulseTime: THREE.IUniform<number>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -165,7 +166,7 @@ const READS_AT_MOST = 4
 
 const IDLE_FRAME_MS = 16
 
-// A pulse that only says "look here" is drawn at 20 frames a second, to spare the battery.
+// A pulse that only says "look here", and a glint on a page nobody touches, are drawn at 20 frames a second.
 const AMBIENT_FRAME_MS = 50
 
 const SPIN_TURNS_PER_MINUTE = 2
@@ -176,18 +177,46 @@ export function spinStep(sinceLastTick: number): number {
     return Math.min(Math.max(sinceLastTick, 0), MAX_SPIN_STEP_MS) / 1000
 }
 
-const SPIN_AFTER_INPUT_MS = 60_000
+const WATCHED_FOR_MS = 60_000
 
 const INPUTS = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const
 
-export type Spin = {
-    zoom: number
+export type Attention = {
     lastInputAt: number
     now: number
 }
 
-export function spins({zoom, lastInputAt, now}: Spin): boolean {
-    return zoom <= RESTING_ZOOM && now - lastInputAt < SPIN_AFTER_INPUT_MS
+export function watched({lastInputAt, now}: Attention): boolean {
+    return now - lastInputAt < WATCHED_FOR_MS
+}
+
+export type Spin = Attention & {
+    zoom: number
+}
+
+export function spins({zoom, ...attention}: Spin): boolean {
+    return zoom <= RESTING_ZOOM && watched(attention)
+}
+
+// The shaders' beat (display/vertex.glsl's PULSE_RATE): faintest at three quarters of each period.
+const BEAT_SECONDS = 1.1
+
+// A clock held on a trough is one only to rounding: without the slack it would creep on to the next.
+const TROUGH_SLACK = 1e-9
+
+export type Beat = {
+    clock: number
+    step: number
+    attended: boolean
+}
+
+export function beatClock({clock, step, attended}: Beat): number {
+    if (attended) return clock + step
+    return Math.min(clock + step, nextTrough(clock))
+}
+
+function nextTrough(clock: number): number {
+    return (Math.ceil(clock / BEAT_SECONDS - 0.75 - TROUGH_SLACK) + 0.75) * BEAT_SECONDS
 }
 
 const INTERACTION_GRACE_MS = 1_000
@@ -195,16 +224,22 @@ const INTERACTION_GRACE_MS = 1_000
 export type Tick = {
     turned: boolean
     changed: boolean
+    glints: Glints
     ambient: boolean
+    attended: boolean
     at: number
     drawnAt: number
     interactingUntil: number
     sinceLastTick: number
 }
 
-export function drawsFrame({turned, changed, ambient, at, drawnAt, interactingUntil, sinceLastTick}: Tick): boolean {
-    if (!turned && !changed && !ambient) return false
-    if (changed || at <= interactingUntil) return true
+export function drawsFrame(
+    {turned, changed, glints, ambient, attended, at, drawnAt, interactingUntil, sinceLastTick}: Tick,
+): boolean {
+    const atOnce = changed || glints === "over" || (glints === "playing" && attended)
+    const paced = ambient || glints === "playing"
+    if (!turned && !atOnce && !paced) return false
+    if (atOnce || at <= interactingUntil) return true
     return at + sinceLastTick / 2 >= drawnAt + (turned ? IDLE_FRAME_MS : AMBIENT_FRAME_MS)
 }
 
@@ -438,6 +473,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         highlight: {value: 0},
         slotTexture: slots.texture,
         slotFrames: slots.frames,
+        pulseTime: {value: 0},
         ...blastUniforms(prefersReducedMotion()),
         ...fortifyUniforms(),
     };
@@ -520,11 +556,13 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const driveBonusBox = (seconds: number) => {
         const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const spreading = bonusClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
-        const clicking = plainClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const boxed = bonusBox.update(seconds, camera)
         bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
-        return enclosing || spreading || clicking || boxed
+        return enclosing || spreading || boxed
     }
+
+    const driveGlints = (seconds: number) =>
+        plainClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
 
     const targets = new FortifyTargets({
         sizeOf: (landmass) => territories.sizeOf(landmass),
@@ -1952,7 +1990,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const frame = readDrawingBuffer(renderer)
         for (const request of takeCaptureRequests()) request.resolve(frame)
-    }, pulsing);
+    }, pulsing, driveGlints);
 
     const globe: Globe = {
         tilesCount: field.size,
@@ -2121,6 +2159,7 @@ function startAnimation(
     beforeDraw: () => void,
     afterRender: () => void,
     pulsing: (camera: THREE.Camera) => boolean,
+    driveGlints: (seconds: number) => Glints,
 ): {stop: () => void} {
     const starfield = createStarfield();
 
@@ -2159,6 +2198,7 @@ function startAnimation(
     });
 
     let drawnAt = -Infinity;
+    let beatDrawn: number | undefined;
     let tickedAt: number | undefined;
     const viewport = new THREE.Vector2();
 
@@ -2189,12 +2229,17 @@ function startAnimation(
 
         const moving = beforeRender(time / 1000);
         const changed = takeChange() || moving;
+        const glints = driveGlints(time / 1000);
 
-        const ambient = pulsing(camera);
-        if (!drawsFrame({turned, changed, ambient, at: time, drawnAt, interactingUntil, sinceLastTick})) return;
+        const attended = director !== undefined || watched({lastInputAt, now: time});
+        uniforms.pulseTime.value = beatClock({clock: uniforms.pulseTime.value, step: sinceLastTick / 1000, attended});
+        const ambient = uniforms.pulseTime.value !== beatDrawn && pulsing(camera);
+        const tick = {turned, changed, glints, ambient, attended, at: time, drawnAt, interactingUntil, sinceLastTick};
+        if (!drawsFrame(tick)) return;
 
         moved = false;
         drawnAt = time;
+        beatDrawn = uniforms.pulseTime.value;
 
         beforeDraw();
         starfield.render(renderer, camera, () => renderer.render(scene, camera));

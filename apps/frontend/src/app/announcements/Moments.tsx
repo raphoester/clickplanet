@@ -23,6 +23,9 @@ import {PlaySound} from "../sound/soundPlayer.ts"
 import TitleUnlocked from "../titles/TitleUnlocked.tsx"
 import LevelUp from "../level/LevelUp.tsx"
 import VideoMoment from "../video/VideoMoment.tsx"
+import WorldGrew from "../world/WorldGrew.tsx"
+import {useWorldGrew} from "../world/useWorldGrew.ts"
+import type {BoardAsset} from "../../domain/board.ts"
 import {wonTheDay} from "../../domain/roundReveal.ts"
 import {ListenForClicks} from "../clicks/acceptedClicks.ts"
 import {useCountry} from "../countryStore.ts"
@@ -40,6 +43,8 @@ export type MomentsProps = {
     onWear: (id: string) => Promise<unknown>
     // Where the player can make a video: what a moment's button opens, and what lights the dots at a moment.
     video?: MomentVideo
+    // The board the page draws: on the world's new board, "The world grew" once per browser.
+    board: Promise<BoardAsset>
 }
 
 export type MomentVideo = {
@@ -63,6 +68,7 @@ export default function Moments(props: MomentsProps) {
     const battleReveal = useBattleReveal(battle, closed)
     const battleTeaser = useBattleTeaser(nextBattleOf(battles, now), now, props.guided, props.listenForClicks)
     const clipNotice = useClipNotice(props.clips, props.clipsAccount)
+    const worldGrew = useWorldGrew(props.board, props.guided)
     const asks = useAsk({guided: props.guided, battlePlays: battle !== undefined, onCrazyGames: ON_CRAZYGAMES}, battleTeaser.teased, now)
     const laneOpen = useNudgeLane(props.shown)
 
@@ -75,6 +81,9 @@ export default function Moments(props: MomentsProps) {
     useEffect(() => {
         if (clipNotice.appearance) announce({kind: "clip", appearance: clipNotice.appearance})
     }, [announce, clipNotice.appearance])
+    useEffect(() => {
+        if (worldGrew.grew) announce({kind: "worldGrew", grew: worldGrew.grew})
+    }, [announce, worldGrew.grew])
 
     const nudgeDue = laneOpen && current === undefined
     useEffect(() => {
@@ -168,6 +177,14 @@ export default function Moments(props: MomentsProps) {
                                     country={current.country}
                                     play={props.play}
                                     onClose={dismiss}/>
+        case "worldGrew":
+            return <WorldGrew key={key}
+                              grew={current.grew}
+                              play={props.play}
+                              onClose={() => {
+                                  worldGrew.dismiss()
+                                  dismiss()
+                              }}/>
         case "ask":
             return <AskNudge key={key}
                              ask={current.ask}

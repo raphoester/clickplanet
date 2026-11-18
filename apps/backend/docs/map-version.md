@@ -3,7 +3,7 @@
 **Every write of the map counts one, and every answer and every live event says where it was.** `clicks.MapVersion`
 is `{epoch, seq}`: `seq` counts the writes since the map last started, and `epoch` is the second it started, since
 `seq` starts from zero at every start. The map starts at boot, and again (`restartLocked`, every stream cut) when a
-reset wipes it and when an arena opens or closes; a new epoch is always later than the one before. On the wire it is
+reset wipes it, when an arena opens or closes and when the world switches boards; a new epoch is always later than the one before. On the wire it is
 `planet.v1.MapVersion`, on `GetMapResponse`, `GetHoldingsResponse`, `TileUpdate`, `BombDropped`, `LandmassFortified`,
 `HoldingsChanged` and `Heartbeat`. A client compares two versions of one epoch; a version of another epoch means the
 map started again, and what it holds is to be read again.

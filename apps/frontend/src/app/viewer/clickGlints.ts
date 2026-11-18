@@ -62,6 +62,9 @@ function smoothstep(from: number, to: number, x: number): number {
     return t * t * (3 - 2 * t)
 }
 
+// "over" is the tick the last glint ended on: its frame takes the glint off the screen.
+export type Glints = "none" | "playing" | "over"
+
 export type ClickGlints = {
     readonly object: THREE.Object3D
     setOwnHue(hue: number | undefined): void
@@ -69,7 +72,7 @@ export type ClickGlints = {
     playClick(tile: number, camera: THREE.Camera): void
     playHit(tile: number, camera: THREE.Camera): void
     playShielded(tile: number, camera: THREE.Camera): void
-    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): boolean
+    update(seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): Glints
     dispose(): void
 }
 
@@ -135,8 +138,8 @@ export function createClickGlints(positions: ArrayLike<number>, scale: BoardScal
         if (inView(centre, camera)) play(centre, colour, kind)
     }
 
-    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
-        if (playing.length === 0) return false
+    const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number): Glints => {
+        if (playing.length === 0) return "none"
 
         const tilePx = tilePointSize(camera.zoom, viewportHeight, scale)
         const unitsPerPixel = 1 / ((viewportHeight / 2) * camera.zoom)
@@ -158,7 +161,7 @@ export function createClickGlints(positions: ArrayLike<number>, scale: BoardScal
             return true
         })
 
-        return true
+        return playing.length > 0 ? "playing" : "over"
     }
 
     return {

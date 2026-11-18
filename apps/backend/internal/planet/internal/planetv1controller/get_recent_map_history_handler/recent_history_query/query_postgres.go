@@ -100,14 +100,16 @@ func (q *PostgresQuery) build(ctx context.Context, recent ledger.Recent) (*plane
 	for _, reset := range after {
 		recent = recent.Wiped(reset.At)
 	}
+	world, err := q.eras.Latest(ctx, clicks.World)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the board the world plays: %w", err)
+	}
+	// The map before the switch to the board the world plays is on another board: no rewind reaches it.
+	recent = recent.Wiped(world.StartedAt)
 	if recent.Empty() {
 		nothing := &planetv1.MapHistory{}
 		q.keep(recent.Until, nothing)
 		return nothing, nil
-	}
-	world, err := q.eras.Latest(ctx, clicks.World)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the board the world plays: %w", err)
 	}
 	covering, err := q.eras.Covering(ctx, clicks.World, recent.Since, recent.Until)
 	if err != nil {
@@ -126,7 +128,6 @@ func (q *PostgresQuery) build(ctx context.Context, recent ledger.Recent) (*plane
 	if err := q.replay(ctx, recent.Since, rewind); err != nil {
 		return nil, err
 	}
-	// The rewind keeps the board the world plays: the last era of the window's.
 	history := planetmessage.MapHistory(rewind.Frames(now), ledger.InEra(len(covering)-1, rewind.Hits()), covering)
 	q.keep(recent.Until, history)
 	return history, nil

@@ -18,13 +18,19 @@ type Eras interface {
 	Covering(ctx context.Context, played clicks.MapID, since, until time.Time) ([]eras.Era, error)
 }
 
-func NewPostgresQuery(db cppg.Conn, eras Eras) *PostgresQuery {
-	return &PostgresQuery{db: db, eras: eras}
+// Carries reads the carry-over of a switch of the world's board, from the board before it to the board after it.
+type Carries interface {
+	Carry(from, to eras.Board) (ledger.Carry, error)
+}
+
+func NewPostgresQuery(db cppg.Conn, eras Eras, carries Carries) *PostgresQuery {
+	return &PostgresQuery{db: db, eras: eras, carries: carries}
 }
 
 type PostgresQuery struct {
-	db   cppg.Conn
-	eras Eras
+	db      cppg.Conn
+	eras    Eras
+	carries Carries
 }
 
 // The map at the window's start is every take before it, from the last reset at or before it, where the map was blank.
@@ -38,7 +44,8 @@ const events = `
 `
 
 // History draws each era of the world the window covers on its board, with the cut: the frames before an era's start
-// are on the board before, and the first after it holds every tile held on its own.
+// are on the board before, the map is carried over at it, and the first frame after it holds every tile held on its
+// own.
 func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, step time.Duration) (*planetv1.MapHistory, error) {
 	resets, err := q.resets(ctx)
 	if err != nil {
@@ -57,7 +64,10 @@ func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, ste
 	if err != nil {
 		return nil, fmt.Errorf("failed to start the map's history: %w", err)
 	}
-	cuts := all[1:]
+	cuts, err := q.cutsOf(all)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := q.db.On(ctx).QueryContext(ctx, events, blank)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the ledger: %w", err)
@@ -86,17 +96,35 @@ func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, ste
 	return planetmessage.MapHistory(history.Frames(), history.Hits(), eras.From(all, since)), nil
 }
 
+// A cut is an era's start, with the carry-over from the board of the era before it.
+type cut struct {
+	era   eras.Era
+	carry ledger.Carry
+}
+
+func (q *PostgresQuery) cutsOf(all []eras.Era) ([]cut, error) {
+	cuts := make([]cut, 0, len(all)-1)
+	for i, era := range all[1:] {
+		carry, err := q.carries.Carry(all[i].Board, era.Board)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read the carry-over from %s to %s: %w", all[i].Board.Name, era.Board.Name, err)
+		}
+		cuts = append(cuts, cut{era: era, carry: carry})
+	}
+	return cuts, nil
+}
+
 // changesUpTo plays the resets and the cuts at or before at on the history, in time order, and returns those after it.
-func changesUpTo(history *ledger.History, resets []time.Time, cuts []eras.Era, at time.Time) ([]time.Time, []eras.Era) {
+func changesUpTo(history *ledger.History, resets []time.Time, cuts []cut, at time.Time) ([]time.Time, []cut) {
 	for {
 		reset := len(resets) > 0 && !resets[0].After(at)
-		cut := len(cuts) > 0 && !cuts[0].StartedAt.After(at)
+		cutting := len(cuts) > 0 && !cuts[0].era.StartedAt.After(at)
 		switch {
-		case reset && (!cut || !cuts[0].StartedAt.Before(resets[0])):
+		case reset && (!cutting || !cuts[0].era.StartedAt.Before(resets[0])):
 			history.Wipe(resets[0])
 			resets = resets[1:]
-		case cut:
-			history.Cut(cuts[0].StartedAt, cuts[0].Board.ID)
+		case cutting:
+			history.Cut(cuts[0].era.StartedAt, cuts[0].era.Board.ID, cuts[0].carry)
 			cuts = cuts[1:]
 		default:
 			return resets, cuts

@@ -105,3 +105,21 @@ func TestItRefusesAnUnknownFlagOrArea(t *testing.T) {
 	_, err = useCase.Execute(t.Context(), find_players_usecase.In{Flag: "ps", Area: "israel"})
 	require.ErrorIs(t, err, clicks.ErrUnknownCountry)
 }
+
+type switched struct{ owners }
+
+func (switched) Stage() clicks.Stage { return clicks.World.On(clicks.TestBoard + 1) }
+
+func TestAfterTheWorldSwitchedBoardsOnlyItsTakesOnTheNewBoardAreFound(t *testing.T) {
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "before", Country: "ps", At: start})
+	book.Append(clicks.World.On(clicks.TestBoard+1), ledger.Taking{Tile: 2, Scope: "after", Country: "ps", At: start.Add(time.Minute)})
+
+	out, err := find_players_usecase.New(book, switched{owners{2: "ps"}}, israel, refusing(t, ""), countries{}).
+		Execute(t.Context(), find_players_usecase.In{Flag: "ps", Area: "il"})
+	require.NoError(t, err)
+
+	assert.Equal(t, find_players_usecase.Out{Total: 1, Players: []ledger.Player{
+		{Scope: "after", Flag: "ps", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Minute), LastAt: start.Add(time.Minute)},
+	}}, out, "earth-1's tile 1 is another place: its take before the switch is in no area of earth-2")
+}

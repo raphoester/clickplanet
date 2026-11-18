@@ -22,8 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// The map as it was every step of a window, out of the ledger. The first frame holds every tile held at the window's
-// start; each next one the tiles whose owner differs from the frame before.
+// The map as it was every step of a window, out of the ledger. The first frame is whole: every tile held at the window's
+// start. Each next one is the tiles whose owner differs from the frame before.
 type MapHistory struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Frames []*MapFrame            `protobuf:"bytes,1,rep,name=frames,proto3" json:"frames,omitempty"`
@@ -31,7 +31,7 @@ type MapHistory struct {
 	Hits []*TileHits `protobuf:"bytes,2,rep,name=hits,proto3" json:"hits,omitempty"`
 	// The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
 	// started in it. A frame's tile ids are the board of the era in force at its time, and the first frame of each era
-	// holds every tile held on its board, as the window's first frame does: the cut.
+	// is whole, every tile held on its board, as the window's first frame is: the cut.
 	Eras          []*BoardEra `protobuf:"bytes,3,rep,name=eras,proto3" json:"eras,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -142,10 +142,14 @@ func (x *BoardEra) GetBoard() string {
 	return ""
 }
 
+// A frame is whole (the window's first, and the first of each era) or a frame of changes (every other one).
 type MapFrame struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	At            *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
-	Owners        []*TileOwner           `protobuf:"bytes,2,rep,name=owners,proto3" json:"owners,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	At    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
+	// A frame of changes: each tile whose owner differs from the frame before. Empty in a whole frame.
+	Owners []*TileOwner `protobuf:"bytes,2,rep,name=owners,proto3" json:"owners,omitempty"`
+	// A whole frame: every tile held at its time. Unset in a frame of changes.
+	Whole         *WholeMap `protobuf:"bytes,3,opt,name=whole,proto3" json:"whole,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -194,6 +198,78 @@ func (x *MapFrame) GetOwners() []*TileOwner {
 	return nil
 }
 
+func (x *MapFrame) GetWhole() *WholeMap {
+	if x != nil {
+		return x.Whole
+	}
+	return nil
+}
+
+// Every tile held, as GetMap writes the map: two bytes a tile.
+type WholeMap struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The first tile of tiles: every tile before it is held by no one.
+	StartTileId uint32 `protobuf:"varint,1,opt,name=start_tile_id,json=startTileId,proto3" json:"start_tile_id,omitempty"`
+	// The flags tiles names, "" (no one) first.
+	Codes []string `protobuf:"bytes,2,rep,name=codes,proto3" json:"codes,omitempty"`
+	// Two bytes a tile from start_tile_id on, little endian, each an index into codes. A tile past its end is held by no
+	// one.
+	Tiles         []byte `protobuf:"bytes,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WholeMap) Reset() {
+	*x = WholeMap{}
+	mi := &file_planet_v1_history_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WholeMap) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WholeMap) ProtoMessage() {}
+
+func (x *WholeMap) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_history_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WholeMap.ProtoReflect.Descriptor instead.
+func (*WholeMap) Descriptor() ([]byte, []int) {
+	return file_planet_v1_history_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *WholeMap) GetStartTileId() uint32 {
+	if x != nil {
+		return x.StartTileId
+	}
+	return 0
+}
+
+func (x *WholeMap) GetCodes() []string {
+	if x != nil {
+		return x.Codes
+	}
+	return nil
+}
+
+func (x *WholeMap) GetTiles() []byte {
+	if x != nil {
+		return x.Tiles
+	}
+	return nil
+}
+
 type TileOwner struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Tile  uint32                 `protobuf:"varint,1,opt,name=tile,proto3" json:"tile,omitempty"`
@@ -208,7 +284,7 @@ type TileOwner struct {
 
 func (x *TileOwner) Reset() {
 	*x = TileOwner{}
-	mi := &file_planet_v1_history_proto_msgTypes[3]
+	mi := &file_planet_v1_history_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -220,7 +296,7 @@ func (x *TileOwner) String() string {
 func (*TileOwner) ProtoMessage() {}
 
 func (x *TileOwner) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_history_proto_msgTypes[3]
+	mi := &file_planet_v1_history_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -233,7 +309,7 @@ func (x *TileOwner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileOwner.ProtoReflect.Descriptor instead.
 func (*TileOwner) Descriptor() ([]byte, []int) {
-	return file_planet_v1_history_proto_rawDescGZIP(), []int{3}
+	return file_planet_v1_history_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TileOwner) GetTile() uint32 {
@@ -269,7 +345,7 @@ type TileHits struct {
 
 func (x *TileHits) Reset() {
 	*x = TileHits{}
-	mi := &file_planet_v1_history_proto_msgTypes[4]
+	mi := &file_planet_v1_history_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -281,7 +357,7 @@ func (x *TileHits) String() string {
 func (*TileHits) ProtoMessage() {}
 
 func (x *TileHits) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_history_proto_msgTypes[4]
+	mi := &file_planet_v1_history_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -294,7 +370,7 @@ func (x *TileHits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileHits.ProtoReflect.Descriptor instead.
 func (*TileHits) Descriptor() ([]byte, []int) {
-	return file_planet_v1_history_proto_rawDescGZIP(), []int{4}
+	return file_planet_v1_history_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TileHits) GetTile() uint32 {
@@ -331,10 +407,15 @@ const file_planet_v1_history_proto_rawDesc = "" +
 	"\bBoardEra\x129\n" +
 	"\n" +
 	"started_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12\x14\n" +
-	"\x05board\x18\x02 \x01(\tR\x05board\"d\n" +
+	"\x05board\x18\x02 \x01(\tR\x05board\"\x8f\x01\n" +
 	"\bMapFrame\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
-	"\x06owners\x18\x02 \x03(\v2\x14.planet.v1.TileOwnerR\x06owners\"|\n" +
+	"\x06owners\x18\x02 \x03(\v2\x14.planet.v1.TileOwnerR\x06owners\x12)\n" +
+	"\x05whole\x18\x03 \x01(\v2\x13.planet.v1.WholeMapR\x05whole\"Z\n" +
+	"\bWholeMap\x12\"\n" +
+	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
+	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
+	"\x05tiles\x18\x03 \x01(\fR\x05tiles\"|\n" +
 	"\tTileOwner\x12\x12\n" +
 	"\x04tile\x18\x01 \x01(\rR\x04tile\x12\x1d\n" +
 	"\n" +
@@ -360,27 +441,29 @@ func file_planet_v1_history_proto_rawDescGZIP() []byte {
 	return file_planet_v1_history_proto_rawDescData
 }
 
-var file_planet_v1_history_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_planet_v1_history_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_planet_v1_history_proto_goTypes = []any{
 	(*MapHistory)(nil),            // 0: planet.v1.MapHistory
 	(*BoardEra)(nil),              // 1: planet.v1.BoardEra
 	(*MapFrame)(nil),              // 2: planet.v1.MapFrame
-	(*TileOwner)(nil),             // 3: planet.v1.TileOwner
-	(*TileHits)(nil),              // 4: planet.v1.TileHits
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*WholeMap)(nil),              // 3: planet.v1.WholeMap
+	(*TileOwner)(nil),             // 4: planet.v1.TileOwner
+	(*TileHits)(nil),              // 5: planet.v1.TileHits
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_planet_v1_history_proto_depIdxs = []int32{
 	2, // 0: planet.v1.MapHistory.frames:type_name -> planet.v1.MapFrame
-	4, // 1: planet.v1.MapHistory.hits:type_name -> planet.v1.TileHits
+	5, // 1: planet.v1.MapHistory.hits:type_name -> planet.v1.TileHits
 	1, // 2: planet.v1.MapHistory.eras:type_name -> planet.v1.BoardEra
-	5, // 3: planet.v1.BoardEra.started_at:type_name -> google.protobuf.Timestamp
-	5, // 4: planet.v1.MapFrame.at:type_name -> google.protobuf.Timestamp
-	3, // 5: planet.v1.MapFrame.owners:type_name -> planet.v1.TileOwner
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	6, // 3: planet.v1.BoardEra.started_at:type_name -> google.protobuf.Timestamp
+	6, // 4: planet.v1.MapFrame.at:type_name -> google.protobuf.Timestamp
+	4, // 5: planet.v1.MapFrame.owners:type_name -> planet.v1.TileOwner
+	3, // 6: planet.v1.MapFrame.whole:type_name -> planet.v1.WholeMap
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_history_proto_init() }
@@ -394,7 +477,7 @@ func file_planet_v1_history_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_history_proto_rawDesc), len(file_planet_v1_history_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

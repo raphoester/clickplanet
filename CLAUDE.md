@@ -28,12 +28,13 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
 - [Map geometry](docs/map-geometry.md) — `map/boards/`: `earth-1`, `earth-2` and `siege-1`, each board's runs, borders,
   capitals, bridges and terrain, no coordinates file, the committed copy in each app, the lakes, each board's one-tile
   seats of the countries too small for its lattice, and why a regeneration renumbers every tile.
-- [Boards](docs/boards.md) — PRs 1 to 5 built (`earth-1` is a board, no coordinates file; every tile and event names
+- [Boards](docs/boards.md) — PRs 1 to 6 built (`earth-1` is a board, no coordinates file; every tile and event names
   its board and map, and the boot refuses another board; every app holds every board, the page reloads on another,
   thresholds read the board, `arena.board`, each era drawn on its board with the cut; the `fixture-1` test board;
   `earth-2` at 1,004,682 tiles and `siege-1` at 27,259, the warped and rotated lattice with its pentagons at sea, fitted
   per board, in canonical order, measured; Capital Siege on `siege-1` with `charges.spread.off`, its set saved by the
-  owner), the rest designed: the world's switch and its carry-over, the rules at the new density, and the PRs in order.
+  owner; the world's switch to `earth-2`: its carry-over, `SwitchBoard`, the moment, its rehearsal on production's map
+  and the operator's runbook), the rest designed: the rules at the new density, and the PRs in order.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.

@@ -63,3 +63,8 @@ to the jury.
 What a spread, an enclose, a bomb, a virus, a mine and the antibot do with a shielded tile is in their
 own sections: [spread](spread.md), [enclose](enclose.md),
 [bomb](bomb.md), [virus](virus.md), [mine](mine.md), [antibot](antibot.md#the-parts-that-are-easy-to-get-wrong).
+
+**A switch of the world's board keeps the shields' total**: each old tile's shields are split across the new tiles it
+is parent of, evenly in id order, the remainder to the first ones (10 over four new tiles: 3, 3, 2, 2), so the switch
+creates no protection; only an old coast tile the new board draws as sea loses its shields (60 of 177,274 in the
+rehearsal on production's map). See [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard).

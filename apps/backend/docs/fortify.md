@@ -40,3 +40,7 @@ defence against taking back the last tile for a free refill, and it costs no tim
 - **To the other modules**: the ledger relay tells `planet.v1.Fortified` from that event once it is flushed,
   with its ledger position (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)). The event's
   `account_id` is the account that took the last tile. The chat announces the ones of `fortifyNewsTiles` (50) tiles or more.
+
+**A switch of the world's board drops every lock**: a landmass of the old board is no landmass of the new. Each landmass
+of the new board is settled again as the boot settles them (`clicks.SettlerOf`), so one a flag holds whole is locked to
+it with no shield, and the next fortify of it is another flag's. See [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard).

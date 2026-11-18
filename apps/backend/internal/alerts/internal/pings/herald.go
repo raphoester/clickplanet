@@ -75,6 +75,9 @@ func startText(start Start, audience discord.Audience, gameURL string) (string, 
 	case SeasonStart:
 		return fmt.Sprintf("%s 🌍 Season %d has started on a blank map. %s",
 			audience.Mention(), start.Season, gameURL), nil
+	case WorldGrew:
+		return fmt.Sprintf("%s 🌍 The world grew: %dx more ground. Every country kept its land. %s",
+			audience.Mention(), start.Times, gameURL), nil
 	}
 	return "", fmt.Errorf("%w: %d", ErrUnknownStart, start.Kind)
 }
