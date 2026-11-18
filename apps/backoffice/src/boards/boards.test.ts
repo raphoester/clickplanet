@@ -48,7 +48,7 @@ describe("boardOf", () => {
     })
 
     it("refuses a name the page does not carry, and an answer that names none", () => {
-        expect(() => boardOf("fixture-1")).toThrow("fixture-1 is not a board this page carries (it has earth-1)")
+        expect(() => boardOf("fixture-1")).toThrow("fixture-1 is not a board this page carries (it has earth-1, earth-2, siege-1)")
         expect(() => boardOf("constructor")).toThrow("not a board this page carries")
         expect(() => boardOf("")).toThrow("the answer names no board")
     })
@@ -63,7 +63,31 @@ describe("a second board", () => {
     })
 })
 
+describe("the new boards", () => {
+    it("rebuild earth-2 and siege-1, warped and rotated, in canonical order, to their manifests' hashes", () => {
+        for (const [name, tiles, hash] of [["earth-2", 1004682, 0x5a61c10a], ["siege-1", 27259, 0xe219e852]] as const) {
+            const {board} = boardOf(name)
+            expect(board.lattice.order).toBe("canonical")
+            expect(board.lattice.warp).not.toBeNull()
+            expect(board.lattice.corners).toHaveLength(36)
+            expect(board.tiles).toBe(tiles)
+            expect(positionsHash(boardPositions(board.lattice, board.tiles, runsOf(board)))).toBe(hash)
+        }
+    })
+
+    it("are numbered in canonical order: the same runs on three's walk are other tiles", () => {
+        const {board} = boardOf("siege-1")
+        const three = boardPositions({...board.lattice, order: "three"}, board.tiles, runsOf(board))
+        expect(positionsHash(three)).not.toBe(board.positionsHash)
+    })
+})
+
 describe("boardPositions", () => {
+    it("refuses an order no lattice has, and corners that are not twelve", () => {
+        expect(() => boardPositions({...EARTH_1.lattice, order: "spiral" as "three"}, EARTH_1.tiles, runsOf(EARTH_1))).toThrow("no lattice's")
+        expect(() => boardPositions({...EARTH_1.lattice, corners: [1, 2, 3]}, EARTH_1.tiles, runsOf(EARTH_1))).toThrow("36 numbers")
+    })
+
     it("refuses a file that is not runs", () => {
         expect(() => boardPositions(EARTH_1.lattice, 1, new ArrayBuffer(12))).toThrow("not a runs file")
     })

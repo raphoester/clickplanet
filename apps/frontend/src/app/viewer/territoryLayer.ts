@@ -1,4 +1,5 @@
 import * as THREE from "three"
+import type {Lattice} from "../../domain/lattice.ts"
 import {latticeFaces, type TileCells} from "../../domain/latticeCells.ts"
 import {EARTH_RADIUS} from "./sphere.ts"
 import {terrainColours, terrainTexture} from "./terrain.ts"
@@ -29,7 +30,7 @@ export type TerritoryLayerInputs = {
 // The ground, and the flags painted on it zoomed out: each pixel finds its lattice point's cell, wears its terrain, and
 // on a tile its holder's flag over it. The open sea is left to the earth.
 export function createTerritoryLayer({sphere, cells, terrain, tileData, flagRectangles, uniforms}: TerritoryLayerInputs): THREE.Mesh {
-    const faces = latticeFaces(cells.cols)
+    const faces = latticeFaces(cells.lattice)
 
     const faceData = new Float32Array(FACE_TEXELS * faces.length * 4)
     faces.forEach(({origin, toB, toC, alongOf, downOf, ids}, face) => {
@@ -49,7 +50,8 @@ export function createTerritoryLayer({sphere, cells, terrain, tileData, flagRect
             ...uniforms,
             faceNormals: {value: faces.map(({normal, height}) => new THREE.Vector4(...normal, height))},
             latticeFaces: {value: faceTexture},
-            latticeCols: {value: cells.cols},
+            latticeCols: {value: cells.lattice.cols},
+            latticeWarp: {value: warpUniform(cells.lattice)},
             tileCells: {value: cellTexture(cells.words)},
             terrain: {value: terrainTexture(terrain)},
             terrainColours: {value: terrainColours()},
@@ -66,6 +68,11 @@ export function createTerritoryLayer({sphere, cells, terrain, tileData, flagRect
     mesh.scale.setScalar(CARRIER_RADIUS / EARTH_RADIUS)
     mesh.renderOrder = BEFORE_THE_TILES
     return mesh
+}
+
+// The shader's latticeWarp: a, b, c, and 1 when the board is warped.
+export function warpUniform({warp}: Lattice): THREE.Vector4 {
+    return warp === null ? new THREE.Vector4(0, 0, 0, 0) : new THREE.Vector4(warp.a, warp.b, warp.c, 1)
 }
 
 function cellTexture(words: Uint32Array): THREE.DataTexture {

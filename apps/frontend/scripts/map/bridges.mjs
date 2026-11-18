@@ -1,13 +1,20 @@
+import {EARTH_1_SPACING} from "../../src/domain/boardScale.ts"
 import {positionOf} from "./seats.mjs"
 
 const EARTH_KM = 6371
 
-// A lane's end lands on a coast tile this near its point, or the lane is refused: a point placed off its shore.
+// A lane's end lands on a coast tile this near its point, or the lane is refused: a point placed off its shore. On a
+// board coarser than earth-1, as many of its own spacings (`snapKmOf`).
 export const SNAP_KM = 150
+
+/** @param {number} spacing a board's, in radians @returns {number} */
+export function snapKmOf(spacing) {
+    return SNAP_KM * Math.max(1, spacing / EARTH_1_SPACING)
+}
 
 /**
  * Sea lanes: crossings placed by hand over the seas the stepping stones do not cross, each a point [lon, lat] on either
- * shore. An end snaps to the nearest coast tile that is no capital. The points are pinned, like the seats: moving one
+ * shore. An end snaps to the nearest coast tile that is no capital, or to a capital whose land has no other coast. The points are pinned, like the seats: moving one
  * moves a bridge.
  * @type {Record<string, [[number, number], [number, number]]>}
  */
@@ -32,6 +39,28 @@ export const LANES = {
 }
 
 /**
+ * Each board's lanes: earth-1's, with an end moved where a coarser lattice puts the other shore nearer.
+ * @type {Record<string, typeof LANES>}
+ */
+export const LANES_BY_BOARD = {
+    "earth-1": LANES,
+    "earth-2": LANES,
+    "siege-1": {
+        ...LANES,
+        // The Rock is Gibraltar's one tile, and Morocco's coast is nearer Tarifa than Spain's next: the lane leaves
+        // from Málaga.
+        "Gibraltar: Spain – Morocco": [[-5.1, 36.75], LANES["Gibraltar: Spain – Morocco"][1]],
+    },
+}
+
+/** @param {string} board @returns {typeof LANES} */
+export function lanesOf(board) {
+    const lanes = LANES_BY_BOARD[board]
+    if (lanes === undefined) throw new Error(`no sea lanes for board ${board}: name them in LANES_BY_BOARD`)
+    return lanes
+}
+
+/**
  * Every bridge of the map, in three kinds:
  * - the stepping stones join two pieces of land when no third piece is nearer to both, so every piece is joined and a
  *   strait or an island chain is crossed where it is narrowest;
@@ -45,10 +74,11 @@ export const LANES = {
  *   capitals: Record<string, number>}} map the tiles' positions (x, y, z per tile), the lattice's edges by vertex, each
  *   vertex's tile index or -1 at sea, and each country's capital as a wire id
  * @param {typeof LANES} lanes
+ * @param {number} snapKm how far a lane's point may be from its coast: `snapKmOf` the board's spacing
  * @returns {{bridges: [number, number][], pieces: number, stones: number, lanes: number, seconds: number}} each
  *   bridge's ends as wire ids, the smaller first, in order
  */
-export function bridgesOf({positions, at, to, tileOf, capitals}, lanes = LANES) {
+export function bridgesOf({positions, at, to, tileOf, capitals}, lanes = LANES, snapKm = SNAP_KM) {
     const tiles = positions.length / 3
     const {pieceOf, pieces, coast} = piecesOf(tiles, {at, to, tileOf})
     const capital = new Set(Object.values(capitals).map((id) => id - 1))
@@ -74,11 +104,11 @@ export function bridgesOf({positions, at, to, tileOf, capitals}, lanes = LANES) 
     }
     const stones = graph.size
 
-    const landings = []
-    for (let t = 0; t < tiles; t++) if (coast[t] && !capital.has(t)) landings.push(t)
+    // A lane lands where a stone does: a coast tile, and a capital only when its piece has no other coast (Puerto
+    // Rico on siege-1 is one tile, its capital).
     for (const [name, [start, end]] of Object.entries(lanes)) {
-        const a = snap(positions, landings, start, name)
-        const b = snap(positions, landings, end, name)
+        const a = snap(positions, ends, start, name, snapKm)
+        const b = snap(positions, ends, end, name, snapKm)
         if (a === b) throw new Error(`${name}: both ends snap to tile ${a + 1}`)
         graph.add(a, b)
     }
@@ -296,7 +326,7 @@ function piecesOf(tiles, {at, to, tileOf}) {
     return {pieceOf, pieces: named.size, coast}
 }
 
-function snap(positions, landings, point, name) {
+function snap(positions, landings, point, name, snapKm) {
     const [x, y, z] = positionOf(point)
     let best = -1
     let along = -2
@@ -308,8 +338,8 @@ function snap(positions, landings, point, name) {
         }
     }
     const km = Math.acos(Math.min(1, along)) * EARTH_KM
-    if (best < 0 || km > SNAP_KM) {
-        throw new Error(`${name}: [${point}] is ${Math.round(km)} km from the nearest coast, past ${SNAP_KM}`)
+    if (best < 0 || km > snapKm) {
+        throw new Error(`${name}: [${point}] is ${Math.round(km)} km from the nearest coast, past ${Math.round(snapKm)}`)
     }
     return best
 }

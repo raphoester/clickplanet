@@ -13,6 +13,9 @@ type Kind = keyof BoardFiles
 
 const EXTENSIONS: Record<Kind, string> = {runs: "bin", borders: "bin", capitals: "json", bridges: "json", terrain: "bin"}
 
+// In the order a manifest names them.
+const KINDS: readonly Kind[] = ["runs", "borders", "capitals", "bridges", "terrain"]
+
 const MANIFEST = /^board-[0-9a-f]{8}\.json$/
 
 // A file of /map's board, as `npm run map` copies it: a stale one goes with the next copy.
@@ -50,20 +53,23 @@ export function writeManifest(board: string, fields: Partial<Omit<Board, "files"
         if (given === undefined) throw new Error(`${board}'s manifest has no ${key}`)
         return given
     }
-    const file = (kind: Kind) => blobNamed(new RegExp(`^${kind}-[0-9a-f]{8}\\.${EXTENSIONS[kind]}$`), directory)
     const lattice = value("lattice")
 
-    const manifest: Board = {
+    // A board written the first time has no bridges nor terrain until `npm run bridges` and `npm run terrain` write
+    // them: its manifest leaves them out, and `syncBoards` copies it nowhere until it names every file.
+    const files: Partial<BoardFiles> = {}
+    for (const kind of KINDS) {
+        const pattern = new RegExp(`^${kind}-[0-9a-f]{8}\\.${EXTENSIONS[kind]}$`)
+        if (readdirSync(directory).some((entry) => pattern.test(entry))) files[kind] = blobNamed(pattern, directory)
+    }
+    const manifest = {
         name: board,
         body: value("body"),
         lattice: {cols: lattice.cols, warp: lattice.warp, corners: lattice.corners, order: lattice.order},
         tiles: value("tiles"),
         spacing: value("spacing"),
         positionsHash: value("positionsHash"),
-        files: {
-            runs: file("runs"), borders: file("borders"), capitals: file("capitals"), bridges: file("bridges"),
-            terrain: file("terrain"),
-        },
+        files,
     }
     const bytes = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`)
     const fileName = `board-${hashOf(bytes)}.json`
@@ -82,7 +88,12 @@ export function syncBoards(): {name: string, manifest: string}[] {
         rmSync(join(copiesDir, gone), {recursive: true, force: true})
     }
 
-    const synced = boards.map((name) => {
+    const whole = boards.filter((name) => {
+        const missing = KINDS.filter((kind) => readManifest(boardDir(name)).manifest.files[kind] === undefined)
+        if (missing.length > 0) console.warn(`map/boards/${name} has no ${missing.join(" nor ")} yet: copied nowhere until it has`)
+        return missing.length === 0
+    })
+    const synced = whole.map((name) => {
         const from = boardDir(name)
         const {file, manifest} = readManifest(from)
         if (manifest.name !== name) throw new Error(`${from}/${file} names board ${manifest.name}`)

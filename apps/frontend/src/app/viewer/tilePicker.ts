@@ -8,7 +8,7 @@ export class TilePicker {
     constructor(
         private readonly canvas: Pick<HTMLCanvasElement, "width" | "height">,
         private readonly cells: TileCells,
-        private readonly faces: readonly LatticeFace[] = latticeFaces(cells.cols),
+        private readonly faces: readonly LatticeFace[] = latticeFaces(cells.lattice),
     ) {
     }
 

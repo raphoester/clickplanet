@@ -35,7 +35,7 @@ export function heatOf(eras: readonly HeatEra[]): {board: HeatBoard, hits: Map<n
             continue
         }
         if (era.hits.size === 0) continue
-        const faces = latticeFaces(era.board.cells.cols)
+        const faces = latticeFaces(era.board.cells.lattice)
         for (let tile = 1; tile <= tiles; tile++) {
             const at = (tile - 1) * 3
             const under = tileAt(era.board.cells, faces, board.positions[at], board.positions[at + 1], board.positions[at + 2])

@@ -119,8 +119,7 @@ func (s *testSuite) TestEveryRowAWriteKeepsNamesTheBoardOfItsStage() {
 
 func (s *testSuite) TestTheBoardsOfAMapAreEveryBoardItsRowsName() {
 	ctx := context.Background()
-	_, err := s.db.On(ctx).ExecContext(ctx, `INSERT INTO boards (id, name, hash) VALUES (2, 'earth-2', '0123abcd')`)
-	s.Require().NoError(err)
+	// earth-2's row, which the migration that ships it keeps.
 	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1), nil, nil))
 	s.Require().NoError(s.store.SaveMines(ctx, clicks.World.On(2), []clicks.MineSnapshot{mineOn(5, "fr")}, nil))
 

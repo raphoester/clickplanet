@@ -23,10 +23,13 @@ type Manifest struct {
 	Name    string `json:"name"`
 	Body    string `json:"body"`
 	Lattice struct {
-		Cols    int       `json:"cols"`
-		Warp    *struct{} `json:"warp"`
+		Cols int `json:"cols"`
+		// The warp of each point's barycentric weights: null on earth-1.
+		Warp *Warp `json:"warp"`
+		// Three's 12 corners turned by the board's rotation, x, y, z each: null on earth-1.
 		Corners []float64 `json:"corners"`
-		Order   string    `json:"order"`
+		// "three": tile ids are ranks in three's walk of the lattice; "canonical": in canonical id order.
+		Order string `json:"order"`
 	} `json:"lattice"`
 	Tiles uint32 `json:"tiles"`
 	// The median arc between two touching tiles, in radians.
@@ -39,6 +42,14 @@ type Manifest struct {
 		Bridges  string `json:"bridges"`
 		Terrain  string `json:"terrain"`
 	} `json:"files"`
+}
+
+// Warp is a board's warp of a point's barycentric weights w: h_k = w_k·(1 + a·w_k + b·w_k²) + c·wa·wb·wc, then each h_k
+// over their sum (docs/boards.md, "The geometry").
+type Warp struct {
+	A float64 `json:"a"`
+	B float64 `json:"b"`
+	C float64 `json:"c"`
 }
 
 // Board is a board this app carries: its manifest, and the file the manifest is.

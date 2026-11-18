@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"path"
+	"slices"
 	"testing"
 	"testing/fstest"
 
@@ -92,16 +93,19 @@ func TestABoardThisProcessDoesNotCarryIsRefused(t *testing.T) {
 func TestEveryBoardCarriedNeedsPlanetsRowUnderItsHash(t *testing.T) {
 	carried := registry(t).Carried()
 
-	_, err := eras.BoardsOf([]eras.Board{eras.Earth1}, carried...)
+	_, err := eras.BoardsOf(eras.Shipped, carried...)
 	require.ErrorIs(t, err, eras.ErrUnkept, "the fixture has no row")
 	assert.ErrorContains(t, err, "no row names board fixture-1")
 
+	_, err = eras.BoardsOf([]eras.Board{eras.Earth1, eras.Fixture}, carried...)
+	require.ErrorIs(t, err, eras.ErrUnkept, "earth-2 and siege-1 ship with their rows")
+
 	moved := eras.Fixture
 	moved.Hash = "deadbeef"
-	_, err = eras.BoardsOf([]eras.Board{eras.Earth1, moved}, carried...)
+	_, err = eras.BoardsOf(append(slices.Clone(eras.Shipped), moved), carried...)
 	require.ErrorIs(t, err, eras.ErrUnkept, "a row under another hash is another board")
 
-	boards, err := eras.BoardsOf([]eras.Board{eras.Earth1, eras.Fixture}, carried...)
+	boards, err := eras.BoardsOf(append(slices.Clone(eras.Shipped), eras.Fixture), carried...)
 	require.NoError(t, err)
 	assert.Equal(t, clicks.BoardName(cpboards.Fixture), boards.Name(eras.Fixture.ID))
 }
@@ -133,13 +137,43 @@ func TestAFileOfAnotherBoardIsRefused(t *testing.T) {
 }
 
 func TestABoardOfALatticeThisBuildCannotWalkIsRefusedAtBoot(t *testing.T) {
+	for name, refused := range map[string]struct {
+		edit func(*cpboards.Manifest)
+		says string
+	}{
+		"an order no lattice has": {
+			edit: func(manifest *cpboards.Manifest) { manifest.Lattice.Order = "spiral" },
+			says: `tile order "spiral" is no lattice's`,
+		},
+		"corners that are not twelve": {
+			edit: func(manifest *cpboards.Manifest) { manifest.Lattice.Corners = make([]float64, 33) },
+			says: "corners of 33 numbers, not 36 finite ones",
+		},
+		"one col": {
+			edit: func(manifest *cpboards.Manifest) { manifest.Lattice.Cols = 1 },
+			says: "a lattice of 1 cols",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			files := fixtureWith(t, func(manifest *cpboards.Manifest, _ map[string][]byte) { refused.edit(manifest) })
+
+			_, err := loadedRegistry(files, func(string) bool { return true }, slog.New(slog.DiscardHandler))
+
+			require.ErrorContains(t, err, refused.says)
+		})
+	}
+}
+
+func TestAWarpedLatticeReadAsThreesIsRefused(t *testing.T) {
 	files := fixtureWith(t, func(manifest *cpboards.Manifest, _ map[string][]byte) {
-		manifest.Lattice.Order = "canonical"
+		manifest.Lattice.Warp = &cpboards.Warp{A: -0.09, B: -0.13, C: 0.26}
 	})
+	registry, err := loadedRegistry(files, func(string) bool { return true }, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
 
-	_, err := loadedRegistry(files, func(string) bool { return true }, slog.New(slog.DiscardHandler))
+	_, err = registry.Ground(cpboards.Fixture)
 
-	require.ErrorContains(t, err, `tile order "canonical" is not built yet`)
+	require.ErrorContains(t, err, "they are not the page's", "the warp moves every position, so the hash")
 }
 
 func earth1Board() cpboards.Board {

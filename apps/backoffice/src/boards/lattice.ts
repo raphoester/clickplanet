@@ -1,8 +1,15 @@
 // Where each tile of a board is, rebuilt from its runs (/map/README.md). The backoffice's own copy of the game page's
-// lattice: the points of THREE.IcosahedronGeometry(1, cols - 1) in three's order, and only + - * /, Math.sqrt and
-// Math.fround, so the positions come out bit for bit as the page's and hash to what the board's manifest says.
+// lattice (its domain/lattice.ts): three's lattice, the points of THREE.IcosahedronGeometry(1, cols - 1) in three's
+// order (earth-1), or a warped and rotated one in canonical order (earth-2, siege-1). Only + - * /, Math.sqrt and
+// Math.fround, in the page's order of operations, so the positions come out bit for bit as the page's and hash to what
+// the board's manifest says.
 
-export type Lattice = {cols: number, warp: null, corners: null, order: "three"}
+// The warp of a point's barycentric weights w: h_k = w_k·(1 + a·w_k + b·w_k²) + c·wa·wb·wc, then each over their sum.
+export type Warp = {a: number, b: number, c: number}
+
+// A board's lattice: `warp` and `corners` null and the order `three` is three's; `corners` are three's 12 corners turned
+// by the board's rotation, 36 numbers.
+export type Lattice = {cols: number, warp: Warp | null, corners: readonly number[] | null, order: "three" | "canonical"}
 
 type Run = readonly [first: number, last: number]
 
@@ -31,8 +38,9 @@ const RUNS_HEADER_BYTES = 12
 const RUN_BYTES = 16
 
 export function boardPositions(lattice: Lattice, tiles: number, runsFile: ArrayBuffer): Float32Array {
-    if (lattice.warp !== null || lattice.corners !== null || lattice.order !== "three") {
-        throw new Error("only a lattice with no warp, no rotation and three's order is read here")
+    if (lattice.order !== "three" && lattice.order !== "canonical") throw new Error(`tile order ${String(lattice.order)} is no lattice's`)
+    if (lattice.corners !== null && lattice.corners.length !== CORNERS.length) {
+        throw new Error(`a lattice's corners are ${CORNERS.length} numbers, not ${lattice.corners.length}`)
     }
     const {cols} = lattice
     const isTile = new Uint8Array(10 * cols * cols + 2)
@@ -42,17 +50,32 @@ export function boardPositions(lattice: Lattice, tiles: number, runsFile: ArrayB
     }
 
     const positions = new Float32Array(tiles * 3)
-    const faces = faceIds(cols)
-    const seen = new Uint8Array(isTile.length)
+    const place = positionWriter(lattice)
     let tile = 0
+    // A tile's id is its rank among the tiles in the board's order, plus one.
+    walk(lattice, (face, i, j, id) => {
+        if (!isTile[id]) return
+        if (tile === tiles) throw new Error(`the runs hold more than ${tiles} tiles`)
+        place(face, i, j, positions, tile * 3)
+        tile++
+    })
+    if (tile !== tiles) throw new Error(`the runs hold ${tile} tiles, the board says ${tiles}`)
+    return positions
+}
+
+// Each point once, in the board's order: three's walk (the first time three's triangles reach it), or canonical.
+function walk({cols, order}: Lattice, visit: (face: number, i: number, j: number, id: number) => void): void {
+    const faces = faceIds(cols)
+    if (order === "canonical") {
+        walkCanonical(cols, faces, visit)
+        return
+    }
+    const seen = new Uint8Array(10 * cols * cols + 2)
     const push = (face: number, i: number, j: number) => {
         const id = canonicalId(cols, faces[face], i, j)
         if (seen[id]) return
         seen[id] = 1
-        if (!isTile[id]) return
-        if (tile === tiles) throw new Error(`the runs hold more than ${tiles} tiles`)
-        writePosition(cols, face, i, j, positions, tile * 3)
-        tile++
+        visit(face, i, j, id)
     }
     for (let face = 0; face < FACE_COUNT; face++) {
         for (let i = 0; i < cols; i++) {
@@ -70,8 +93,48 @@ export function boardPositions(lattice: Lattice, tiles: number, runsFile: ArrayB
             }
         }
     }
-    if (tile !== tiles) throw new Error(`the runs hold ${tile} tiles, the board says ${tiles}`)
-    return positions
+}
+
+// The 12 corners, then the 30 edges step by step from their lower corner, then each face's inside, row by row. A point
+// on an edge or a corner comes out the same from every face it is on, so the face it is reached from does not matter.
+function walkCanonical(cols: number, faces: FaceIds[], visit: (face: number, i: number, j: number, id: number) => void): void {
+    const at: readonly (readonly [number, number])[] = [[0, 0], [0, cols], [cols, 0]]
+    const cornersOf = (face: number) => FACES.slice(face * 3, face * 3 + 3)
+    let id = 0
+    for (let corner = 0; corner < CORNER_COUNT; corner++) {
+        const face = Math.floor(FACES.indexOf(corner) / 3)
+        const [i, j] = at[FACES.indexOf(corner) % 3]
+        visit(face, i, j, id++)
+    }
+    for (const [from, to] of edgeList()) {
+        let face = 0
+        while (!cornersOf(face).includes(from) || !cornersOf(face).includes(to)) face++
+        const [fi, fj] = at[cornersOf(face).indexOf(from)]
+        const [ti, tj] = at[cornersOf(face).indexOf(to)]
+        for (let step = 1; step < cols; step++) visit(face, fi + (ti - fi) / cols * step, fj + (tj - fj) / cols * step, id++)
+    }
+    for (let face = 0; face < FACE_COUNT; face++) {
+        if (id !== faces[face].inside) throw new Error(`face ${face}'s inside starts at ${faces[face].inside}, not ${id}`)
+        for (let i = 1; i < cols - 1; i++) {
+            for (let j = 1; j < cols - i; j++) visit(face, i, j, id++)
+        }
+    }
+}
+
+// The 30 edges, as their two corners, the lower first, in the order their canonical ids run.
+function edgeList(): [number, number][] {
+    const seen = new Set<number>()
+    const edges: [number, number][] = []
+    for (let face = 0; face < FACE_COUNT; face++) {
+        const a = FACES[face * 3], b = FACES[face * 3 + 1], c = FACES[face * 3 + 2]
+        for (const [p, q] of [[a, b], [b, c], [a, c]]) {
+            const key = Math.min(p, q) * CORNER_COUNT + Math.max(p, q)
+            if (seen.has(key)) continue
+            seen.add(key)
+            edges.push([Math.min(p, q), Math.max(p, q)])
+        }
+    }
+    return edges
 }
 
 export function positionsHash(positions: Float32Array): number {
@@ -106,14 +169,9 @@ type FaceIds = {corners: readonly [number, number, number], edges: readonly [Edg
 
 function faceIds(cols: number): FaceIds[] {
     const edgeOf = new Int8Array(CORNER_COUNT * CORNER_COUNT).fill(-1)
-    let edges = 0
-    for (let face = 0; face < FACE_COUNT; face++) {
-        const a = FACES[face * 3], b = FACES[face * 3 + 1], c = FACES[face * 3 + 2]
-        for (const [p, q] of [[a, b], [b, c], [a, c]]) {
-            if (edgeOf[p * CORNER_COUNT + q] !== -1) continue
-            edgeOf[p * CORNER_COUNT + q] = edgeOf[q * CORNER_COUNT + p] = edges++
-        }
-    }
+    edgeList().forEach(([p, q], edge) => {
+        edgeOf[p * CORNER_COUNT + q] = edgeOf[q * CORNER_COUNT + p] = edge
+    })
 
     const edge = (from: number, to: number): EdgeIds => {
         const first = CORNER_COUNT + edgeOf[from * CORNER_COUNT + to] * (cols - 1) - 1
@@ -139,7 +197,37 @@ function canonicalId(cols: number, {corners, edges, inside}: FaceIds, i: number,
     return inside + (i - 1) * (cols - 2) - (i - 1) * (i - 2) / 2 + j - 1
 }
 
-function writePosition(cols: number, face: number, i: number, j: number, out: Float32Array, at: number): void {
+type PositionWriter = (face: number, i: number, j: number, out: Float32Array, at: number) => void
+
+// Three's lerps for three's lattice; the warped barycentric weights over the rotated corners otherwise.
+function positionWriter({cols, warp, corners}: Lattice): PositionWriter {
+    if (warp === null && corners === null) return (face, i, j, out, at) => writeThreesPosition(cols, face, i, j, out, at)
+    const on = corners ?? CORNERS
+    return (face, i, j, out, at) => {
+        let wa = (cols - i - j) / cols, wb = j / cols, wc = i / cols
+        if (warp !== null) {
+            // h_k = w_k·((1 + a·w_k) + b·(w_k·w_k)) + ((c·wa)·wb)·wc, then each over (ha + hb) + hc.
+            const shared = warp.c * wa * wb * wc
+            const ha = wa * (1 + warp.a * wa + warp.b * (wa * wa)) + shared
+            const hb = wb * (1 + warp.a * wb + warp.b * (wb * wb)) + shared
+            const hc = wc * (1 + warp.a * wc + warp.b * (wc * wc)) + shared
+            const sum = ha + hb + hc
+            wa = ha / sum
+            wb = hb / sum
+            wc = hc / sum
+        }
+        const a = FACES[face * 3] * 3, b = FACES[face * 3 + 1] * 3, c = FACES[face * 3 + 2] * 3
+        const x = wa * on[a] + wb * on[b] + wc * on[c]
+        const y = wa * on[a + 1] + wb * on[b + 1] + wc * on[c + 1]
+        const z = wa * on[a + 2] + wb * on[b + 2] + wc * on[c + 2]
+        const scale = 1 / Math.sqrt(x * x + y * y + z * z)
+        out[at] = Math.fround(x * scale)
+        out[at + 1] = Math.fround(y * scale)
+        out[at + 2] = Math.fround(z * scale)
+    }
+}
+
+function writeThreesPosition(cols: number, face: number, i: number, j: number, out: Float32Array, at: number): void {
     const a = FACES[face * 3], b = FACES[face * 3 + 1], c = FACES[face * 3 + 2]
     const ax = CORNERS[a * 3], ay = CORNERS[a * 3 + 1], az = CORNERS[a * 3 + 2]
     const bx = CORNERS[b * 3], by = CORNERS[b * 3 + 1], bz = CORNERS[b * 3 + 2]

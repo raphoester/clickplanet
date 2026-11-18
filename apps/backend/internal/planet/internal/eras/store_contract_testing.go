@@ -29,10 +29,10 @@ var (
 	contractReopen = time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
 )
 
-func (s *StoreContractSuite) TestEarth1IsKept() {
+func (s *StoreContractSuite) TestTheShippedBoardsAreKept() {
 	boards, err := s.store.Boards(s.T().Context())
 	s.Require().NoError(err)
-	s.Equal([]Board{Earth1}, boards)
+	s.Equal([]Board{Earth1, Earth2, Siege1}, boards)
 }
 
 func (s *StoreContractSuite) TestTheWorldPlaysEarth1SinceTheEpoch() {
@@ -60,7 +60,7 @@ func (s *StoreContractSuite) TestAnEraStartedIsTheLatestAndKeptOnce() {
 }
 
 func (s *StoreContractSuite) TestAnEraOnABoardNotKeptIsRefused() {
-	s.Error(s.store.Start(s.T().Context(), clicks.MapID("battle").On(Earth1.ID+1), contractOpens))
+	s.Error(s.store.Start(s.T().Context(), clicks.MapID("battle").On(Fixture.ID), contractOpens), "no migration keeps the fixture")
 }
 
 func (s *StoreContractSuite) TestAWindowIsCoveredByTheEraInForceAtItsStartAndEachStartedInIt() {

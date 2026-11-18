@@ -1,13 +1,14 @@
-import {readBoard, readCapitals} from "./map/board.mjs"
-import {bridgesOf, piecesApart} from "./map/bridges.mjs"
+import {boardAsked, boardDir, readBoard, readCapitals} from "./map/board.mjs"
+import {bridgesOf, lanesOf, piecesApart, snapKmOf} from "./map/bridges.mjs"
 import {tileLattice} from "./map/tileLattice.mjs"
 import {syncBoards, writeBoardJSON, writeManifest} from "./writeBoard.ts"
 
-const board = readBoard()
+// `npm run bridges -- earth-2`; earth-1 when no board is named.
+const board = readBoard(boardDir(boardAsked(process.argv.slice(2)).name))
 const {capitals} = readCapitals(board)
 const lattice = tileLattice(board)
 
-const {bridges, pieces, stones, lanes, seconds} = bridgesOf({positions: board.positions, ...lattice, capitals})
+const {bridges, pieces, stones, lanes, seconds} = bridgesOf({positions: board.positions, ...lattice, capitals}, lanesOf(board.manifest.name), snapKmOf(board.manifest.spacing))
 const apart = piecesApart(lattice, board.count, bridges)
 if (apart > 0) throw new Error(`${apart} pieces of land no bridge reaches`)
 

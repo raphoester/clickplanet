@@ -18,15 +18,27 @@ import (
 // Earth1 is earth-1 as the migration that made boards keeps it.
 var Earth1 = Board{ID: clicks.TestBoard, Name: "earth-1", Hash: "3fb28bdf"}
 
-// Earth2 is a board planet keeps beside earth-1 in a test, and no process carries.
-var Earth2 = Board{ID: clicks.TestBoard + 1, Name: "earth-2", Hash: "0123abcd"}
+// Earth2 is earth-2 as the migration that ships it keeps it: the world's next board, which nothing plays yet.
+var Earth2 = Board{ID: clicks.TestBoard + 1, Name: "earth-2", Hash: "5a61c10a"}
+
+// Siege1 is siege-1 as the migration that ships it keeps it: Capital Siege's board, which nothing plays yet.
+var Siege1 = Board{ID: clicks.TestBoard + 2, Name: "siege-1", Hash: "e219e852"}
+
+// Shipped is every board the migrations keep, by id.
+var Shipped = []Board{Earth1, Earth2, Siege1}
 
 // Earth1Carried is earth-1 as this process's files name it.
 var Earth1Carried = Carried{Name: Earth1.Name, Hash: Earth1.Hash}
 
+// Earth2Carried is earth-2 as this process's files name it.
+var Earth2Carried = Carried{Name: Earth2.Name, Hash: Earth2.Hash}
+
+// Siege1Carried is siege-1 as this process's files name it.
+var Siege1Carried = Carried{Name: Siege1.Name, Hash: Siege1.Hash}
+
 // Fixture is the tests' second board (cpboards.Fixture), as a test's planet keeps it: a test binary carries it beside
-// earth-1.
-var Fixture = Board{ID: clicks.TestBoard + 2, Name: cpboards.Fixture, Hash: "cb8330a8"}
+// the shipped boards, under an id no migration takes.
+var Fixture = Board{ID: clicks.TestBoard + 98, Name: cpboards.Fixture, Hash: "cb8330a8"}
 
 // FixtureCarried is the fixture as a test binary's files name it.
 var FixtureCarried = Carried{Name: Fixture.Name, Hash: Fixture.Hash}
@@ -34,7 +46,7 @@ var FixtureCarried = Carried{Name: Fixture.Name, Hash: Fixture.Hash}
 // Epoch is when the world's first era started, as the migration keeps it.
 var Epoch = time.Unix(0, 0).UTC()
 
-// MemoryStore keeps what the migration keeps: earth-1, and the world on it since the epoch.
+// MemoryStore keeps what the migrations keep: the shipped boards, and the world on earth-1 since the epoch.
 type MemoryStore struct {
 	mu      sync.Mutex
 	boards  []Board
@@ -45,7 +57,7 @@ type MemoryStore struct {
 var _ Store = (*MemoryStore)(nil)
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{boards: []Board{Earth1}, eras: []Era{{Map: clicks.World, Board: Earth1, StartedAt: Epoch}}}
+	return &MemoryStore{boards: slices.Clone(Shipped), eras: []Era{{Map: clicks.World, Board: Earth1, StartedAt: Epoch}}}
 }
 
 // Keep adds a board's row, as the migration that ships it does.
@@ -128,13 +140,15 @@ func (m *MemoryStore) erasLocked(played clicks.MapID) []Era {
 	return eras
 }
 
-// Reseed keeps again what the migration that made boards seeds, once a Purge emptied it: earth-1, and the world on it
+// Reseed keeps again what the migrations seed, once a Purge emptied it: the shipped boards, and the world on earth-1
 // since the epoch. Every tile, lock, mine, virus and event names a board.
 func Reseed(ctx context.Context, db cppg.Conn) error {
-	if _, err := db.On(ctx).ExecContext(ctx, `
-		INSERT INTO boards (id, name, hash) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
-	`, Earth1.ID, string(Earth1.Name), Earth1.Hash); err != nil {
-		return fmt.Errorf("failed to keep earth-1 again: %w", err)
+	for _, board := range Shipped {
+		if _, err := db.On(ctx).ExecContext(ctx, `
+			INSERT INTO boards (id, name, hash) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
+		`, board.ID, string(board.Name), board.Hash); err != nil {
+			return fmt.Errorf("failed to keep %s again: %w", board.Name, err)
+		}
 	}
 	if _, err := db.On(ctx).ExecContext(ctx, `
 		INSERT INTO eras (map, board, started_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING
@@ -156,15 +170,6 @@ func KeepFixture(ctx context.Context, db cppg.Conn) error {
 	if _, err := db.On(ctx).ExecContext(ctx, `INSERT INTO boards (id, name, hash) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
 		Fixture.ID, string(Fixture.Name), Fixture.Hash); err != nil {
 		return fmt.Errorf("failed to keep the fixture: %w", err)
-	}
-	return nil
-}
-
-// KeepRow keeps a board's row, as the migration that ships it does.
-func KeepRow(ctx context.Context, db cppg.Conn, board Board) error {
-	if _, err := db.On(ctx).ExecContext(ctx, `INSERT INTO boards (id, name, hash) VALUES ($1, $2, $3)`,
-		board.ID, string(board.Name), board.Hash); err != nil {
-		return fmt.Errorf("failed to keep board %s: %w", board.Name, err)
 	}
 	return nil
 }

@@ -3,7 +3,8 @@ import {latticeSize} from "../../domain/lattice.ts"
 import {decodeTerrain, type Land, LAND} from "../../domain/terrain.ts"
 
 // Must match TERRAIN_COLUMNS in shaders/territory/fragment.glsl.
-const TERRAIN_COLUMNS = 1024
+// 2,048 columns: earth-2's 3,481,002 points fill 1,700 rows, under the 2,048 WebGL2 guarantees.
+const TERRAIN_COLUMNS = 2048
 
 // The board-game look the owner chose in November 2026.
 const LAND_COLOURS: Record<Land, string> = {

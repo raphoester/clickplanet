@@ -5,6 +5,7 @@ import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
 import {TileField} from "./tileField.ts"
 import {chunksOf} from "../../domain/tileChunks.ts"
+import {threeLattice} from "../../domain/lattice.ts"
 import {regions} from "./atlas.ts"
 import {PLAIN} from "./graphics.ts"
 
@@ -133,7 +134,7 @@ describe("a refused click, from the paint to the rollback", () => {
         const field = new TileField(uniforms, {
             positions,
             size,
-            cells: {cols: 1, words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => i), tiles: Uint32Array.from({length: size}, (_, i) => i)},
+            cells: {lattice: threeLattice(1), words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => i), tiles: Uint32Array.from({length: size}, (_, i) => i)},
             chunks: chunksOf(positions),
         }, PLAIN)
         const ownership = new TileOwnership(size)

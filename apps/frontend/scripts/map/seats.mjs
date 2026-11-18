@@ -16,7 +16,11 @@ import {SEA} from "./ground.mjs"
  *
  * The points are pinned, like the Natural Earth tag: moving one moves a tile.
  *
- * @type {Record<string, {at: [number, number], takes?: string, coast?: boolean}>}
+ * On a lattice coarser than the gap between two islands, both can be nearest one vertex. `beside` names the seat
+ * earlier in the table that keeps it: this one takes the nearest vertex that seat did not (Guernsey beside Jersey on
+ * `siege-1`). Two seats on one vertex that no `beside` names refuse the generation.
+ *
+ * @type {Record<string, {at: [number, number], takes?: string, coast?: boolean, beside?: string}>}
  */
 export const SEATS = {
     // Inside Rome, ringed by Italy as the city is.
@@ -67,6 +71,64 @@ export const SEATS = {
     vi: {at: [-64.811, 18.338]}, // Saint Thomas and Saint John
 }
 
+const earth1s = (codes) => Object.fromEntries(codes.map((code) => [code, SEATS[code]]))
+
+/**
+ * Each board's seats: a lattice of another spacing misses other countries. `earth-2`, at 12.5 km, gives 20 of earth-1's
+ * 34 their own ground, and misses the British Virgin Islands, whose vertices fell on earth-1's lattice. `siege-1`, at
+ * 79 km, misses 50 countries: earth-1's seats, and every country smaller than its cell. A seat earth-1 has keeps its
+ * point; a new one is at its capital, which on a cell 79 km wide is the middle of the land the cell holds.
+ * @type {Record<string, typeof SEATS>}
+ */
+export const SEATS_BY_BOARD = {
+    "earth-1": SEATS,
+    "earth-2": {
+        ...earth1s(["va", "sm", "gi", "mo", "cc", "ck", "mv", "ms", "nr", "nf", "pn", "tk", "tv"]),
+        // Natural Earth draws the Indian Ocean Territories inside Australia, and a vertex of earth-2 falls on Christmas
+        // Island: it is Australia's ground, given to cx.
+        cx: {...SEATS.cx, takes: "au", coast: true},
+        vg: {at: [-64.623, 18.428]}, // Road Town, Tortola
+    },
+    "siege-1": {
+        ...earth1s([
+            "va", "sm", "li", "mc", "gi", "mo",
+            "ai", "aw", "bb", "bh", "bm", "cc", "ck", "cx", "gd", "gu", "kn", "mh", "mp", "ms", "mv", "nf", "nr",
+            "nu", "pn", "pw", "sc", "tc", "tk", "to", "tv", "vi",
+        ]),
+        lu: {at: [6.13, 49.612], takes: "fr", coast: false},
+        // Macao takes the coast at Zhuhai; Hong Kong's nearest vertex is in the water off the New Territories, and its
+        // cell holds the city.
+        hk: {at: [114.183, 22.307]},
+        as: {at: [-170.707, -14.277]}, // Pago Pago
+        ag: {at: [-61.85, 17.118]}, // Saint John's
+        ky: {at: [-81.33, 19.28]}, // George Town
+        cw: {at: [-69.02, 12.2]}, // Willemstad
+        pf: {at: [-149.567, -17.533]}, // Papeete
+        im: {at: [-4.48, 54.15]}, // Douglas
+        je: {at: [-2.107, 49.187]}, // Saint Helier
+        // Jersey is 20 km from the vertex both islands are nearest; Guernsey takes the next, 48 km north-west.
+        gg: {...SEATS.gg, beside: "je"},
+        ki: {at: [173.018, 1.338]}, // Tarawa
+        mt: {at: [14.515, 35.9]}, // Valletta
+        fm: {at: [158.15, 6.917]}, // Palikir
+        lc: {at: [-61, 14.002]}, // Castries
+        vc: {at: [-61.212, 13.148]}, // Kingstown
+        st: {at: [6.733, 0.333]}, // São Tomé
+        sg: {at: [103.854, 1.295]},
+        sx: {at: [-63.047, 18.026]}, // Philipsburg
+        // The US Virgin Islands keep the vertex between them; Tortola's next is 47 km north of Road Town.
+        vg: {at: [-64.623, 18.428], beside: "vi"}, // Road Town, Tortola
+        wf: {at: [-176.174, -13.282]}, // Mata-Utu, Wallis
+    },
+}
+
+/** @param {string} board @returns {typeof SEATS} */
+export function seatsOf(board) {
+    const seats = SEATS_BY_BOARD[board]
+    if (seats === undefined) throw new Error(`no seats for board ${board}: name them in SEATS_BY_BOARD`)
+    return seats
+}
+
 /** Flags of a region inside a country's ground: they share it and have no seat. */
 export const REGIONS = new Set(["gb-eng", "gb-sct", "gb-wls", "xb"])
 
@@ -87,13 +149,16 @@ export function seat(grounds, positions, {at, to}, seats = SEATS) {
 
     const placed = []
     const owner = new Map()
-    for (const [code, {at: point, takes, coast}] of Object.entries(seats)) {
+    const vertexOf = new Map()
+    for (const [code, {at: point, takes, coast, beside}] of Object.entries(seats)) {
         if (held.has(code)) throw new Error(`${code} has ground of its own: a seat is for a country the lattice misses`)
         if (takes !== undefined && typeof coast !== "boolean") throw new Error(`${code} takes ${takes}'s ground: say whether it is on the coast`)
+        if (beside !== undefined && !vertexOf.has(beside)) throw new Error(`${code} is beside ${beside}, which no seat before it is`)
 
+        const kept = beside === undefined ? -1 : vertexOf.get(beside)
         const allowed = takes === undefined
-            ? () => true
-            : (v) => grounds[v] === takes && touchesSea(v) === coast
+            ? (v) => v !== kept
+            : (v) => v !== kept && grounds[v] === takes && touchesSea(v) === coast
         const vertex = nearest(positions, point, allowed)
         if (vertex < 0) throw new Error(`${code}: no vertex of ${takes} ${coast ? "on" : "off"} the coast`)
         if (takes === undefined && grounds[vertex] !== SEA) {
@@ -102,6 +167,7 @@ export function seat(grounds, positions, {at, to}, seats = SEATS) {
         if (owner.has(vertex)) throw new Error(`${code} and ${owner.get(vertex)} are seated on one vertex`)
 
         owner.set(vertex, code)
+        vertexOf.set(code, vertex)
         placed.push({code, vertex, was: grounds[vertex]})
     }
 

@@ -3,25 +3,26 @@ import path from "node:path"
 
 import {latticeIds} from "../src/domain/lattice.ts"
 import {LAND} from "../src/domain/terrain.ts"
-import {readBoard, readBorders, readBridges, readCapitals, readTerrain, staticDir, tileOfPoint} from "./map/board.mjs"
-import {bridgesOf, piecesApart} from "./map/bridges.mjs"
+import {boardAsked, boardDir, readBoard, readBorders, readBridges, readCapitals, readTerrain, staticDir, tileOfPoint} from "./map/board.mjs"
+import {bridgesOf, lanesOf, piecesApart, snapKmOf} from "./map/bridges.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {latticeGround} from "./map/oracle.mjs"
-import {REGIONS} from "./map/seats.mjs"
+import {REGIONS, seatsOf} from "./map/seats.mjs"
 import {terrainOf} from "./map/terrain.mjs"
 
 const ANTIMERIDIAN_DEGREES = 1
 
 async function main() {
-    const tiles = readBoard()
+    // `npm run map:audit -- earth-2`; earth-1 when no board is named.
+    const tiles = readBoard(boardDir(boardAsked(process.argv.slice(2)).name))
     const borders = readBorders(tiles)
     const ground = await loadGround()
-    const {cols} = tiles.manifest.lattice
-    const {count: vertices, positions} = lattice(cols)
-    const edges = neighbours(cols)
-    const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions}, edges)
+    const {lattice: shape} = tiles.manifest
+    const {count: vertices, positions} = lattice(shape)
+    const edges = neighbours(shape)
+    const {grounds, lakes, seated} = latticeGround(ground, {count: vertices, positions}, edges, seatsOf(tiles.manifest.name))
 
     const tileOf = tileOfPoint(tiles, vertices)
 
@@ -84,7 +85,7 @@ async function main() {
     }
 
     const crossings = {at: edges.at, to: edges.to, tileOf}
-    const drawn = bridgesOf({positions: tiles.positions, ...crossings, capitals}).bridges
+    const drawn = bridgesOf({positions: tiles.positions, ...crossings, capitals}, lanesOf(tiles.manifest.name), snapKmOf(tiles.manifest.spacing)).bridges
     const {bridges} = readBridges(tiles)
     const kept = new Set(bridges.map((pair) => pair.join(",")))
     faults.bridgesAstray = drawn.filter((pair) => !kept.has(pair.join(","))).length
@@ -95,7 +96,7 @@ async function main() {
     // sea band at the wrong distance from land all differ.
     const {terrain} = readTerrain(tiles)
     const kinds = Uint8Array.from(tiles.ids, (id) => terrain[id] < LAND.length ? terrain[id] : 0)
-    const rebuilt = terrainOf(kinds, crossings, latticeIds(cols))
+    const rebuilt = terrainOf(kinds, crossings, latticeIds(shape))
     for (let id = 0; id < terrain.length; id++) if (rebuilt[id] !== terrain[id]) faults.terrainAstray++
 
     report({counts, faults, seam, elsewhere, tiles, borders, seated, groundless, lakes})

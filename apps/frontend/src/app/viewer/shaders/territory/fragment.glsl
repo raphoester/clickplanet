@@ -22,6 +22,8 @@ uniform vec4 slotRegions[FLAG_SLOTS];
 uniform vec4 faceNormals[FACES];
 uniform sampler2D latticeFaces;
 uniform int latticeCols;
+// The board's warp of the barycentric weights (lattice.ts): a, b and c, and w 1 when the board has one, 0 for earth-1.
+uniform vec4 latticeWarp;
 uniform highp usampler2D tileCells;
 uniform highp usampler2D tileData;
 uniform highp usampler2D terrain;
@@ -30,8 +32,8 @@ uniform vec3 terrainColours[12];
 
 // Must match CELL_COLUMNS in territoryLayer.ts, TILE_COLUMNS in tileField.ts and TERRAIN_COLUMNS in terrain.ts.
 const int CELL_COLUMNS = 256;
-const int TILE_COLUMNS = 512;
-const int TERRAIN_COLUMNS = 1024;
+const int TILE_COLUMNS = 1024;
+const int TERRAIN_COLUMNS = 2048;
 
 // Must match domain/terrain.ts: the land's kinds, then the sea's, the last the open sea.
 const uint LAND_KINDS = 8u;
@@ -77,6 +79,37 @@ ivec2 nearestOnGrid(vec2 at) {
     float up = 1.0 - r.x;
     if (far >= right && far >= up) return ivec2(corner) + 1;
     return ivec2(corner) + (right >= up ? ivec2(1, 0) : ivec2(0, 1));
+}
+
+// The warp of the weights (wa, wb, wc), as lattice.ts's warpedWeights.
+vec3 warped(vec3 w) {
+    float shared = latticeWarp.z * w.x * w.y * w.z;
+    vec3 h = w * (1.0 + latticeWarp.x * w + latticeWarp.y * w * w) + shared;
+    return h / (h.x + h.y + h.z);
+}
+
+// The weights (wb, wc) whose warp is `target`: two Newton steps from the target itself, as lattice.ts's unwarp.
+vec2 unwarped(vec2 target) {
+    float a = latticeWarp.x;
+    float b = latticeWarp.y;
+    float c = latticeWarp.z;
+    vec2 uv = target;
+    for (int step = 0; step < 2; step++) {
+        float wa = 1.0 - uv.x - uv.y;
+        vec3 w = vec3(wa, uv);
+        vec3 h = w * (1.0 + a * w + b * w * w) + c * wa * uv.x * uv.y;
+        float sum = h.x + h.y + h.z;
+        vec3 slope = 1.0 + 2.0 * a * w + 3.0 * b * w * w;
+        float su = c * uv.y * (wa - uv.x);
+        float sv = c * uv.x * (wa - uv.y);
+        vec2 sumSlope = vec2(-slope.x + slope.y + 3.0 * su, -slope.x + slope.z + 3.0 * sv);
+        vec2 rowB = (vec2(slope.y + su, sv) * sum - h.y * sumSlope) / (sum * sum);
+        vec2 rowC = (vec2(su, slope.z + sv) * sum - h.z * sumSlope) / (sum * sum);
+        vec2 f = h.yz / sum - target;
+        float det = rowB.x * rowC.y - rowB.y * rowC.x;
+        uv -= vec2(rowC.y * f.x - rowB.y * f.y, rowB.x * f.y - rowC.x * f.x) / det;
+    }
+    return uv;
 }
 
 vec4 faceTexel(int column, int face) {
@@ -192,7 +225,10 @@ void main() {
 
     vec3 onFace = ground * (faceNormals[face].w / best) - faceTexel(0, face).xyz;
     float cols = float(latticeCols);
-    vec2 onGrid = vec2(dot(onFace, faceTexel(3, face).xyz), dot(onFace, faceTexel(4, face).xyz)) * cols;
+    // The gnomonic inverse gives the warped weights; a warped board's own weights are two Newton steps back.
+    vec2 weights = vec2(dot(onFace, faceTexel(3, face).xyz), dot(onFace, faceTexel(4, face).xyz));
+    if (latticeWarp.w > 0.5) weights = unwarped(weights);
+    vec2 onGrid = weights * cols;
     ivec2 cell = nearestOnGrid(onGrid);
     int i = clamp(cell.y, 0, latticeCols);
     int j = clamp(cell.x, 0, latticeCols - i);
@@ -231,7 +267,13 @@ void main() {
     }
 
     // The tile's own centre, so an effect is drawn tile by tile, as on the tiles.
-    vec3 tileCentre = normalize(faceTexel(0, face).xyz + (faceTexel(1, face).xyz * float(j) + faceTexel(2, face).xyz * float(i)) / cols);
+    vec3 tileCentre;
+    if (latticeWarp.w > 0.5) {
+        vec3 w = warped(vec3(cols - float(i) - float(j), float(j), float(i)) / cols);
+        tileCentre = normalize(faceTexel(0, face).xyz + faceTexel(1, face).xyz * w.y + faceTexel(2, face).xyz * w.z);
+    } else {
+        tileCentre = normalize(faceTexel(0, face).xyz + (faceTexel(1, face).xyz * float(j) + faceTexel(2, face).xyz * float(i)) / cols);
+    }
     TileEffects effects = tileEffectsAt(tileCentre, landmass);
     colour = heated(steeled(scorched(colour, effects.scorch), effects.fortify), effects.glow);
 

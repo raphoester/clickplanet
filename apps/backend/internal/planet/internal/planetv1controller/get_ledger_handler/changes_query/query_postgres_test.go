@@ -328,7 +328,6 @@ func (s *testSuite) equal(expected, actual []*planetv1.LedgerChange) {
 }
 
 func (s *testSuite) TestAChangeMadeOnAnArenasMapOrOnAnotherBoardIsNoneOfTheWorlds() {
-	s.Require().NoError(eras.KeepRow(s.T().Context(), s.db, eras.Earth2))
 	s.record(
 		ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: at.Add(time.Minute)},
 		ledger.Staged{On: clicks.MapID("battle").On(clicks.TestBoard), Event: ledger.Taking{Tile: 2, Scope: "b", Country: "br", At: at.Add(20 * time.Minute)}},

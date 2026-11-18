@@ -37,11 +37,14 @@ func shipped(t *testing.T) (cpboards.Manifest, string) {
 	return board.Manifest, board.Asset
 }
 
-func TestTheShippedBoardIsEarth1(t *testing.T) {
+func TestTheShippedBoardsAreEarth1Earth2AndSiege1(t *testing.T) {
 	boards, err := cpboards.Boards(mapdata.FS())
 	require.NoError(t, err)
-	require.Len(t, boards, 1, "earth-1 alone until PR 4 ships earth-2 and siege-1")
-	assert.Equal(t, "earth-1", boards[0].Manifest.Name)
+	names := make([]string, len(boards))
+	for i, board := range boards {
+		names[i] = board.Manifest.Name
+	}
+	assert.Equal(t, []string{"earth-1", "earth-2", "siege-1"}, names, "nothing plays earth-2 and siege-1 yet")
 
 	manifest, asset := shipped(t)
 	assert.Equal(t, "board-725d8920.json", asset,
@@ -53,8 +56,8 @@ func TestTheShippedBoardIsEarth1(t *testing.T) {
 }
 
 func TestEachBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash(t *testing.T) {
-	assert.Equal(t, []eras.Carried{eras.Earth1Carried, eras.FixtureCarried}, registry(t).Carried(),
-		"earth-1 as the migration that made boards keeps it, and the test binary's fixture")
+	assert.Equal(t, []eras.Carried{eras.Earth1Carried, eras.Earth2Carried, eras.FixtureCarried, eras.Siege1Carried},
+		registry(t).Carried(), "each shipped board as the migration that ships it keeps it, and the test binary's fixture")
 }
 
 func TestEveryPositionIsThePagesToTheBit(t *testing.T) {
@@ -131,10 +134,15 @@ func TestAdjacencyAloneFindsTheContinents(t *testing.T) {
 }
 
 func landmassSizes(g *clicks.Geography) []int {
+	return landmassSizesOf(g, tiles)
+}
+
+// landmassSizesOf is the size of each piece of land that touches on a board of that many tiles, the largest first.
+func landmassSizesOf(g *clicks.Geography, tiles int) []int {
 	seen := make([]bool, tiles+1)
 	var sizes []int
 
-	for id := uint32(1); id <= tiles; id++ {
+	for id := uint32(1); id <= uint32(tiles); id++ { //nolint:gosec // a board's tile count.
 		if seen[id] {
 			continue
 		}

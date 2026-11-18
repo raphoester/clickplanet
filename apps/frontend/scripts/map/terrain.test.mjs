@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 
 import {LAND, OPEN_SEA, seaKind} from "../../src/domain/terrain.ts"
-import {PHOTO_COLOURS, landKinds, smoothed, terrainOf} from "./terrain.mjs"
+import {PHOTO_COLOURS, kindsFromNeighbours, landKinds, smoothed, terrainOf} from "./terrain.mjs"
 
 const kindOf = (name) => LAND.indexOf(name)
 
@@ -64,5 +64,30 @@ describe("terrainOf", () => {
         const {lattice} = line(5, [0, 4])
         const terrain = terrainOf(Uint8Array.from([kindOf("grass"), kindOf("sand")]), lattice, Uint32Array.from([0, 1, 2, 3, 4]))
         expect([...terrain]).toEqual([kindOf("grass"), seaKind(1), seaKind(2), seaKind(1), kindOf("sand")])
+    })
+})
+
+describe("kindsFromNeighbours", () => {
+    it("gives a tile where earth-1 had sea the kind most of its land neighbours have", () => {
+        const {lattice, points} = graphOf(5, [[0, 4], [1, 4], [2, 4], [3, 4]], [0, 1, 2, 3, 4])
+        const kinds = Uint8Array.from([kindOf("forest"), kindOf("sand"), kindOf("sand"), kindOf("snow"), kindOf("tundra")])
+        const astray = Uint8Array.from([0, 0, 0, 0, 1])
+        expect(kindsFromNeighbours(kinds, astray, lattice, points, () => kindOf("grass"))).toEqual({neighbours: 1, fallback: 0})
+        expect(kinds[4]).toBe(kindOf("sand"))
+    })
+
+    it("reaches a coast two tiles deep, wave by wave, and leaves the photo's land alone", () => {
+        const {lattice, points} = line(4, [0, 1, 2, 3])
+        const kinds = Uint8Array.from([kindOf("arid"), kindOf("snow"), kindOf("snow"), kindOf("forest")])
+        kindsFromNeighbours(kinds, Uint8Array.from([0, 1, 1, 0]), lattice, points, () => kindOf("grass"))
+        expect([...kinds]).toEqual([kindOf("arid"), kindOf("arid"), kindOf("forest"), kindOf("forest")])
+    })
+
+    it("gives an island no land neighbour reaches the fallback's kind", () => {
+        const {lattice, points} = line(3, [0, 2])
+        const kinds = Uint8Array.from([kindOf("arid"), kindOf("snow")])
+        expect(kindsFromNeighbours(kinds, Uint8Array.from([0, 1]), lattice, points, (tile) => tile === 1 ? kindOf("savanna") : 0))
+            .toEqual({neighbours: 0, fallback: 1})
+        expect(kinds[1]).toBe(kindOf("savanna"))
     })
 })

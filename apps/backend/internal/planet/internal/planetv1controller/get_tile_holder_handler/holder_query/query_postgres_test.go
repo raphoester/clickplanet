@@ -273,7 +273,6 @@ func (s *testSuite) TestAfterAnArenaItsTakesHoldNoTile() {
 }
 
 func (s *testSuite) TestATakeOnAnotherBoardHoldsNoTile() {
-	s.Require().NoError(eras.KeepRow(s.T().Context(), s.db, eras.Earth2))
 	s.record(
 		ledger.Taking{Tile: 7, Scope: "203.0.113.7", Account: ada, Country: "fr", At: at},
 		ledger.Staged{

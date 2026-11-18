@@ -16,7 +16,7 @@ export function adjacency(directory = boardDir()) {
     const countryOfTile = new Array(board.count)
     for (let t = 0; t < board.count; t++) countryOfTile[t] = borders.codes[borders.landmass[t]]
 
-    const {count, at, to} = neighbours(board.manifest.lattice.cols)
+    const {count, at, to} = neighbours(board.manifest.lattice)
     const tileOfVertex = tileOfPoint(board, count)
 
     const touching = new Map()

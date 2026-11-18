@@ -1,6 +1,19 @@
-import {canonicalId, CORNERS, FACE_COUNT, FACES, faceIds, type FaceIds, latticeSize} from "./lattice.ts"
+import {
+    canonicalId,
+    cornersOf,
+    FACE_COUNT,
+    FACES,
+    faceIds,
+    type FaceIds,
+    type Lattice,
+    latticeOf,
+    latticeSize,
+    unwarp,
+} from "./lattice.ts"
 
-// Must match the territory layer's fragment shader, which finds a pixel's cell the same way.
+// Must match the territory layer's fragment shader, which finds a pixel's cell the same way: the face the direction
+// leaves the icosahedron through, the gnomonic inverse onto that face's plane, which gives the warped weights w', then
+// two Newton steps back to the lattice's own weights w on a warped lattice, and the nearest point of the face's grid.
 
 export type Vec3 = readonly [number, number, number]
 
@@ -16,10 +29,12 @@ export type LatticeFace = {
     ids: FaceIds
 }
 
-export function latticeFaces(cols: number): LatticeFace[] {
-    const ids = faceIds(cols)
+export function latticeFaces(given: Lattice | number): LatticeFace[] {
+    const lattice = latticeOf(given)
+    const corners = cornersOf(lattice)
+    const ids = faceIds(lattice.cols)
     return Array.from({length: FACE_COUNT}, (_, face) => {
-        const [a, b, c] = [0, 1, 2].map((k) => cornerOf(FACES[face * 3 + k]))
+        const [a, b, c] = [0, 1, 2].map((k) => cornerOf(corners, FACES[face * 3 + k]))
         const toB = minus(b, a)
         const toC = minus(c, a)
         const normal = normalized(plus(plus(a, b), c))
@@ -39,53 +54,96 @@ export function latticeFaces(cols: number): LatticeFace[] {
     })
 }
 
-// The face a direction leaves the icosahedron through: every face is as far from the centre.
-function faceOf(faces: readonly LatticeFace[], x: number, y: number, z: number): number {
+// Each face's normal, height, origin, alongOf and downOf, packed: the pick and `cellsOf` find millions of cells.
+const PACKED = 13
+const packedFaces = new WeakMap<readonly LatticeFace[], Float64Array>()
+
+function packed(faces: readonly LatticeFace[]): Float64Array {
+    let numbers = packedFaces.get(faces)
+    if (numbers === undefined) {
+        numbers = new Float64Array(faces.length * PACKED)
+        faces.forEach(({normal, height, origin, alongOf, downOf}, face) => {
+            numbers!.set([...normal, height, ...origin, ...alongOf, ...downOf], face * PACKED)
+        })
+        packedFaces.set(faces, numbers)
+    }
+    return numbers
+}
+
+const unwarped = new Float64Array(2)
+
+// The lattice point nearest a direction, as its canonical id, on the face's grid of the lattice's own weights: a cell
+// is a few thousandths of a radian wide. The face is the one the direction leaves the icosahedron through: every face
+// is as far from the centre.
+export function cellOf(faces: readonly LatticeFace[], given: Lattice | number, x: number, y: number, z: number): number {
+    const cols = typeof given === "number" ? given : given.cols
+    const warp = typeof given === "number" ? null : given.warp
+    const numbers = packed(faces)
     let face = 0
     let best = -Infinity
-    for (let f = 0; f < faces.length; f++) {
-        const [nx, ny, nz] = faces[f].normal
-        const along = x * nx + y * ny + z * nz
-        if (along > best) {
-            best = along
+    for (let f = 0, at = 0; f < faces.length; f++, at += PACKED) {
+        const facing = x * numbers[at] + y * numbers[at + 1] + z * numbers[at + 2]
+        if (facing > best) {
+            best = facing
             face = f
         }
     }
-    return face
+    const at = face * PACKED
+    const reach = numbers[at + 3] / best
+    const qx = x * reach - numbers[at + 4], qy = y * reach - numbers[at + 5], qz = z * reach - numbers[at + 6]
+    let along = qx * numbers[at + 7] + qy * numbers[at + 8] + qz * numbers[at + 9]
+    let down = qx * numbers[at + 10] + qy * numbers[at + 11] + qz * numbers[at + 12]
+    if (warp !== null) {
+        unwarp(warp, along, down, unwarped)
+        along = unwarped[0]
+        down = unwarped[1]
+    }
+    const point = nearestPoint(along * cols, down * cols)
+    const i = Math.floor(point / GRID_SPAN) - GRID_OFFSET, j = point % GRID_SPAN - GRID_OFFSET
+
+    const row = Math.min(Math.max(i, 0), cols)
+    return canonicalId(cols, faces[face].ids, row, Math.min(Math.max(j, 0), cols - row))
 }
 
-// The lattice point nearest a direction, as its canonical id, on the face's flat grid: a cell is a few thousandths of a radian wide.
-export function cellOf(faces: readonly LatticeFace[], cols: number, x: number, y: number, z: number): number {
-    const face = faceOf(faces, x, y, z)
-    const {normal, height, origin, alongOf, downOf, ids} = faces[face]
-    const reach = height / (x * normal[0] + y * normal[1] + z * normal[2])
-    const q: Vec3 = [x * reach - origin[0], y * reach - origin[1], z * reach - origin[2]]
-    const [j, i] = nearestOnGrid(dot(q, alongOf) * cols, dot(q, downOf) * cols)
+// nearestOnGrid's (x, y) as one number, (y + GRID_OFFSET) * GRID_SPAN + x + GRID_OFFSET: no array per cell.
+const GRID_SPAN = 1 << 20
+const GRID_OFFSET = 4
 
-    const down = Math.min(Math.max(i, 0), cols)
-    const along = Math.min(Math.max(j, 0), cols - down)
-    return canonicalId(cols, ids, down, along)
+function nearestPoint(x: number, y: number): number {
+    const fx = Math.floor(x), fy = Math.floor(y)
+    const rx = x - fx, ry = y - fy
+    let px = fx, py = fy
+    if (rx + ry < 1) {
+        const rest = 1 - rx - ry
+        if (!(rest >= rx && rest >= ry)) {
+            if (rx >= ry) px++
+            else py++
+        }
+    } else {
+        const far = rx + ry - 1
+        const right = 1 - ry, up = 1 - rx
+        if (far >= right && far >= up) {
+            px++
+            py++
+        } else if (right >= up) {
+            px++
+        } else {
+            py++
+        }
+    }
+    return (py + GRID_OFFSET) * GRID_SPAN + px + GRID_OFFSET
 }
 
 // The nearest point of a grid of equilateral triangles cut along their short diagonal: the corner with the largest weight.
 export function nearestOnGrid(x: number, y: number): [number, number] {
-    const fx = Math.floor(x), fy = Math.floor(y)
-    const rx = x - fx, ry = y - fy
-    if (rx + ry < 1) {
-        const rest = 1 - rx - ry
-        if (rest >= rx && rest >= ry) return [fx, fy]
-        return rx >= ry ? [fx + 1, fy] : [fx, fy + 1]
-    }
-    const far = rx + ry - 1
-    const right = 1 - ry, up = 1 - rx
-    if (far >= right && far >= up) return [fx + 1, fy + 1]
-    return right >= up ? [fx + 1, fy] : [fx, fy + 1]
+    const point = nearestPoint(x, y)
+    return [point % GRID_SPAN - GRID_OFFSET, Math.floor(point / GRID_SPAN) - GRID_OFFSET]
 }
 
-// One pair per 32 canonical ids of a lattice of `cols`: which are tiles, and how many tiles come before them. A tile's
-// texel is its place among the tiles in canonical order.
+// One pair per 32 canonical ids of the lattice: which are tiles, and how many tiles come before them. A tile's texel is
+// its place among the tiles in canonical order: on a board in canonical order, its own index.
 export type TileCells = {
-    cols: number
+    lattice: Lattice
     words: Uint32Array
     texels: Uint32Array
     // The inverse of texels: the 0-based tile at each texel.
@@ -94,14 +152,21 @@ export type TileCells = {
 
 export const IDS_PER_WORD = 32
 
-// `ids` holds each tile's canonical id, in tile order.
-export function cellsOf(ids: Uint32Array, cols: number): TileCells {
-    const points = latticeSize(cols)
+// `ids` holds each tile's canonical id, and `positions` its position, in tile order. Every tile's position must find its
+// own cell, as the territory layer and the pick find a pixel's: a lattice whose inverse misses one is refused, and the
+// globe does not load.
+export function cellsOf(ids: Uint32Array, given: Lattice | number, positions: Float32Array): TileCells {
+    const lattice = latticeOf(given)
+    const points = latticeSize(lattice.cols)
+    if (positions.length !== ids.length * 3) throw new Error(`${ids.length} tiles but ${positions.length / 3} positions`)
     const isTile = new Uint8Array(points)
+    const faces = latticeFaces(lattice)
     ids.forEach((id, tile) => {
         if (id >= points) throw new Error(`tile ${tile + 1} is past the lattice's ${points} points`)
         if (isTile[id]) throw new Error(`tile ${tile + 1} is in the cell of another tile`)
         isTile[id] = 1
+        const found = cellOf(faces, lattice, positions[tile * 3], positions[tile * 3 + 1], positions[tile * 3 + 2])
+        if (found !== id) throw new Error(`tile ${tile + 1}, point ${id}, is found in the cell of point ${found}`)
     })
 
     const wordCount = Math.ceil(points / IDS_PER_WORD)
@@ -125,12 +190,12 @@ export function cellsOf(ids: Uint32Array, cols: number): TileCells {
     texels.forEach((texel, tile) => {
         byTexel[texel] = tile
     })
-    return {cols, words, texels, tiles: byTexel}
+    return {lattice, words, texels, tiles: byTexel}
 }
 
 // The tile whose cell holds a direction, by its 1-based id, or undefined over the sea.
 export function tileAt(cells: TileCells, faces: readonly LatticeFace[], x: number, y: number, z: number): number | undefined {
-    const id = cellOf(faces, cells.cols, x, y, z)
+    const id = cellOf(faces, cells.lattice, x, y, z)
     const bits = cells.words[(id >>> 5) * 2]
     const bit = id & 31
     if (!((bits >>> bit) & 1)) return undefined
@@ -144,8 +209,8 @@ function popcount(bits: number): number {
     return (Math.imul((bits + (bits >>> 4)) & 0x0F0F0F0F, 0x01010101) >>> 24)
 }
 
-function cornerOf(corner: number): Vec3 {
-    return [CORNERS[corner * 3], CORNERS[corner * 3 + 1], CORNERS[corner * 3 + 2]]
+function cornerOf(corners: readonly number[], corner: number): Vec3 {
+    return [corners[corner * 3], corners[corner * 3 + 1], corners[corner * 3 + 2]]
 }
 
 function plus(a: Vec3, b: Vec3): Vec3 {
