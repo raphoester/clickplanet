@@ -34,10 +34,10 @@ under test. Five things can ask for a frame:
   listener, the lapsed-box branch and `capture()` call for themselves. It is
   read and cleared once per tick, and only ever set from outside the loop, so
   clearing it on a tick that then skips its frame cannot lose one.
-- **A pulse is on screen** — `ambient`: the front's and the missions' slow pulses, drawn at most every
-  `AMBIENT_FRAME_MS` (see [The front, for a first visit](front-guide.md)). It does not stop with the idle
-  spin: a gold fortify ring facing the camera, alone, cost 3 to 4 points of a core more than a page that draws
-  nothing (measured as the spin below), a quarter of what the spin cost.
+- **A pulse is on screen** — `ambient`: the front's white ring, the fortify gold ring and an infected tile's
+  virus, drawn at most every `AMBIENT_FRAME_MS` (see [The front, for a first visit](front-guide.md)), and only
+  while the beat has moved since the last frame drawn. The beat stops a minute after the last input, with the
+  idle spin (below).
 
 **The idle spin is capped at `IDLE_FRAME_MS`, and it is the one animation the
 cap has to be generous with.** It moves with nobody touching the page, and it is
@@ -68,13 +68,14 @@ frames that were drawn — the very distance the cap exists to keep small.
 no frames at all and the whole of that wait would otherwise arrive as one step,
 with the globe somewhere else by the time it is looked at again.
 
-**The idle spin stops a minute after the last input.** `spins` in `globe.ts` is
-the rule: the globe turns on its own only at or below `RESTING_ZOOM`, and only
-while the last input is less than `SPIN_AFTER_INPUT_MS` (60 s) old. An input is
-a `pointerdown`, `pointermove`, `wheel`, `keydown` or `touchstart` anywhere on
-the page, read on `window` in the capture phase, so a panel that stops an event
-still counts it. The page's load counts as an input, so the landing view turns
-for its first minute. The next input turns it again.
+**The idle spin and the pulses stop a minute after the last input.** `watched`
+in `globe.ts` is the rule: the page is watched while the last input is less than
+`WATCHED_FOR_MS` (60 s) old. An input is a `pointerdown`, `pointermove`,
+`wheel`, `keydown` or `touchstart` anywhere on the page, read on `window` in the
+capture phase, so a panel that stops an event still counts it. The page's load
+counts as an input, so the landing view turns for its first minute. `spins`
+turns the globe on its own only at or below `RESTING_ZOOM`, and only while the
+page is watched. The next input turns it again, and the pulses beat again.
 
 - **Why.** The cost of the spin is its frame rate, not its scene: a bare WebGL
   page that draws one triangle every frame costs as much. A page left open
@@ -92,6 +93,18 @@ for its first minute. The next input turns it again.
   fresh page did not turn until the first drag or wheel. With `autoRotate` off,
   the damping glides the globe to rest in about a second (55 ticks), and then
   nothing asks for a frame.
+- **The pulses stop at their faintest.** The rings beat on `pulseTime`, a
+  clock of their own. They cannot beat on `time`: the blasts and the fortify
+  waves read it, and it has to keep running. `beatClock` runs `pulseTime` with
+  the frame while the page is watched. After the minute, it runs on to the next
+  trough of the beat (within 1.1 s) and holds there: the ring stays at half
+  strength and the tile does not swell. That is the calmest frame of the beat,
+  where a ring caught mid-beat would stay at any brightness. A pulse asks for a
+  frame only while `pulseTime` differs from the frame on screen, so the last
+  frame drawn is the trough. The next input beats on from there, with no jump.
+  An infected tile's virus turns on `time`, so it stops wherever it is: it has
+  no bright or faint point. `TROUGH_SLACK` keeps a held clock from creeping on
+  to the next trough by rounding (32 of 1000 troughs would).
 - **No rule on focus or blur.** On `crazygames.clickplanet.lol` the game is in
   an iframe that has no focus until the first click (see
   [CrazyGames](crazygames.md)): a blur rule would stop the spin on load for
@@ -104,7 +117,9 @@ for its first minute. The next input turns it again.
   the whole map, the stopped page still drew 30 to 50 frames a second and cost
   about 12%. The minute saves the most when the world is quiet.
 - **The director takes no part.** A clip or a player video aims the camera
-  itself and never calls `controls.update()`, so `autoRotate` is not read.
+  itself and never calls `controls.update()`, so `autoRotate` is not read. Its
+  pulses always beat: nobody touches a page while it records, and a clip's
+  clock is the video's (see [Clips](clips.md)), which can run past a minute.
 
 **Only a frame that is drawn culls the tiles.** `TileField.cull` picks the
 pieces of the map in sight (see [The tiles out of sight are not
