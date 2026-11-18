@@ -14,14 +14,20 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
 	w := New(Config{TrackWindow: time.Minute}, bounds(asIs), clock)
+	empty, err := New(Config{TrackWindow: time.Minute}, bounds(asIs), clock).Save()
+	require.NoError(t, err)
 
 	w.Caught("caller", time.Second)
-	require.Len(t, w.callers, 1)
+	watched, err := w.Save()
+	require.NoError(t, err)
+	require.NotEqual(t, empty, watched)
 
 	clock.Advance(2 * time.Hour)
 	w.sweep()
 
-	assert.Empty(t, w.callers)
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 func TestOnlyTheLastBoxesAreKept(t *testing.T) {
@@ -44,10 +50,19 @@ func TestSweepKeepsACallerThatOnlyClaimedOtherBoxes(t *testing.T) {
 
 	w.Foreign("caller")
 	clock.Advance(30 * time.Minute)
+	kept, err := w.Save()
+	require.NoError(t, err)
 	w.sweep()
-	require.Len(t, w.callers, 1, "inside the foreign window")
+
+	swept, err := w.Save()
+	require.NoError(t, err)
+	require.Equal(t, kept, swept, "inside the foreign window")
 
 	clock.Advance(time.Hour)
 	w.sweep()
-	assert.Empty(t, w.callers)
+	swept, err = w.Save()
+	require.NoError(t, err)
+	empty, err := New(Config{TrackWindow: time.Minute}, bounds(asIs), clock).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }

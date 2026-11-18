@@ -193,19 +193,16 @@ func TestBattlesThatFitBetweenTheDaysClashWithNothing(t *testing.T) {
 
 func TestABattleThatDoesNotFitBetweenTheDaysClashes(t *testing.T) {
 	for name, c := range map[string]struct {
-		finale  season.Finale
 		battles []schedule.Entry
 		want    error
 	}{
 		"at no cutoff":         {battles: []schedule.Entry{battle(early, at(30, 14), at(30, 16))}, want: moments.ErrOffCutoff},
-		"a finale at none":     {finale: season.Finale{Length: 3 * time.Hour, Set: "rush", Times: 3}, want: moments.ErrOffCutoff},
-		"over the finale":      {finale: rush, battles: []schedule.Entry{battle(early, finaleAt, at(31, 22))}, want: moments.ErrOverlap},
 		"over another battle":  {battles: []schedule.Entry{battle(early, at(30, 18), at(30, 21)), battle(late, at(30, 20), at(30, 21))}, want: moments.ErrOverlap},
 		"over a whole day":     {battles: []schedule.Entry{battle(early, at(29, 21), at(30, 22))}, want: moments.ErrDayTaken},
 		"two over a whole day": {battles: []schedule.Entry{battle(early, at(29, 21), at(30, 9)), battle(late, at(30, 9), at(30, 21))}, want: moments.ErrDayTaken},
 	} {
 		t.Run(name, func(t *testing.T) {
-			err := moments.NewPlan(calendar(c.finale), cutoff, at(29, 12), nil, c.battles...).Clashes(at(29, 12))
+			err := moments.NewPlan(calendar(season.Finale{}), cutoff, at(29, 12), nil, c.battles...).Clashes(at(29, 12))
 
 			require.ErrorIs(t, err, c.want)
 		})

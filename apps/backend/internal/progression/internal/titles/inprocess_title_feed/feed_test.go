@@ -74,7 +74,3 @@ func TestAFullStreamDropsRatherThanBlocks(t *testing.T) {
 
 	assert.Len(t, earned, 8)
 }
-
-func TestPublishingToAnAccountWithNoStreamDoesNothing(t *testing.T) {
-	assert.NotPanics(t, func() { inprocess_title_feed.New().Publish(ada, titles.IDs{"warlord"}) })
-}

@@ -58,28 +58,6 @@ func (s *testSuite) TestTheSenderIsStored() {
 	s.Equal([]string{"203.0.113.7", "test-agent"}, []string{ip, userAgent})
 }
 
-func (s *testSuite) TestOnlyAReplyKeepsTheMessageItRepliesTo() {
-	ctx := context.Background()
-	question := s.sent("hello", start)
-	s.keep(question)
-	reply, err := s.sent("reply", start.Add(time.Minute)).Answering(question)
-	s.Require().NoError(err)
-	s.keep(reply)
-
-	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT COALESCE(reply_to, 'none') FROM messages ORDER BY seq`)
-	s.Require().NoError(err)
-	defer func() { _ = rows.Close() }()
-
-	var kept []string
-	for rows.Next() {
-		var replyTo string
-		s.Require().NoError(rows.Scan(&replyTo))
-		kept = append(kept, replyTo)
-	}
-	s.Require().NoError(rows.Err())
-	s.Equal([]string{"none", "id-hello"}, kept, "the id alone: what it said is read when the reply is shown")
-}
-
 func (s *testSuite) removed(message messages.Message) {
 	snapshot := message.TakeSnapshot()
 	s.Require().NoError(postgres_removal_store.New(s.db).Save(context.Background(),

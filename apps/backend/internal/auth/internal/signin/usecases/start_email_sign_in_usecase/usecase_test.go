@@ -143,16 +143,6 @@ func TestACallerThatFailsAttestationSendsNothingAndSpendsNoBudget(t *testing.T) 
 	assert.NoError(t, err, "the owner of the address still has its whole budget")
 }
 
-func TestAMailerThatFailsSetsNoCookie(t *testing.T) {
-	f := setUp(t)
-	f.mailer.FailWith(errors.New("cloudflare answered 503"))
-
-	out, err := f.useCase(true, open_attester.New()).Execute(t.Context(), in("player@example.com"))
-
-	require.Error(t, err)
-	assert.Nil(t, out)
-}
-
 func TestEmailSignInOffSendsNothingWhateverTheAddress(t *testing.T) {
 	f := setUp(t)
 

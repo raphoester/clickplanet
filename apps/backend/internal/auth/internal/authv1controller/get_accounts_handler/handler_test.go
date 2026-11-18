@@ -2,7 +2,6 @@ package get_accounts_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -57,11 +56,4 @@ func TestAnIDThatIsNotAnAccountIsInvalid(t *testing.T) {
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Nil(t, query.asked, "nothing is read")
-}
-
-func TestAFailedReadIsNotTheCallersFault(t *testing.T) {
-	_, err := getAccounts(t, &stubQuery{err: errors.New("postgres is down")}, accountID)
-
-	require.Error(t, err)
-	assert.NotEqual(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

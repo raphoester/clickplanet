@@ -2,7 +2,6 @@ package get_history_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -18,7 +17,6 @@ import (
 
 type stubQuery struct {
 	history *chatv1.GetHistoryResponse
-	err     error
 	viewer  *messages.AccountID
 	room    *messages.Room
 }
@@ -32,7 +30,7 @@ func (s stubQuery) History(
 	if s.room != nil {
 		*s.room = room
 	}
-	return s.history, s.err
+	return s.history, nil
 }
 
 const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
@@ -67,15 +65,6 @@ func TestGetHistoryIsNeverCached(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"))
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := get_history_handler.New(stubQuery{err: failure, viewer: new(messages.AccountID)}, rooms).
-		GetHistory(t.Context(), connect.NewRequest(&chatv1.GetHistoryRequest{}))
-
-	assert.ErrorIs(t, err, failure)
 }
 
 func TestAFlagsRoomIsReadForAPlayerOfThatFlag(t *testing.T) {

@@ -69,7 +69,6 @@ func TestAccountsSurviveASaveAndLoad(t *testing.T) {
 		assert.Equal(t, wantVerdict, gotVerdict, next.Scope)
 		assert.Equal(t, wantEvidence, gotEvidence, next.Scope)
 	}
-	assert.Equal(t, w.prefixes, restarted.prefixes)
 }
 
 func TestForgetDropsAccountsAndTheirIndexes(t *testing.T) {
@@ -80,7 +79,9 @@ func TestForgetDropsAccountsAndTheirIndexes(t *testing.T) {
 
 	w.Forget(clock.Now().Add(time.Second))
 
-	assert.Empty(t, w.accounts)
-	assert.Empty(t, w.born)
-	assert.Empty(t, w.prefixes)
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := newWatchdog(bounded(), clock).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

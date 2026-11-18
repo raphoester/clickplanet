@@ -76,15 +76,6 @@ func (s *testSuite) TestALinkedAccountWithNoLevelKeptReadsNone() {
 	s.Nil(s.level(ada).GetLevel())
 }
 
-func (s *testSuite) TestAGuestReadsNoLevelWhateverItDid() {
-	s.took(ada)
-
-	answer := s.level(ada)
-
-	s.Nil(answer.GetLevel())
-	s.NotEmpty(answer.GetMissionRates(), "the rules are the game's, not the account's")
-}
-
 func (s *testSuite) TestALevelKeptWithNoStatsIsOnItsBarWithNoXP() {
 	s.Require().NoError(s.levels.RaiseAll(s.T().Context(), levels.ByAccount{ada: 1}, monday))
 

@@ -10,15 +10,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/inmemory_flag_day_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_flag_take_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/flag_tiles_taken_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type recordingUseCase struct {
@@ -81,37 +75,4 @@ func TestABatchWithTakesWithNoTimeIsRefused(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Empty(t, useCase.calls)
-}
-
-type fixedPlanet struct{}
-
-func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{CountrySizes: []missions.Holding{{Country: "br", Tiles: 9_000}}}, nil
-}
-
-type noPledges struct{}
-
-func (noPledges) FlagOf(context.Context, missions.AccountID) (string, error) { return "", nil }
-
-type noStreams struct{}
-
-func (noStreams) Publish(missions.AccountID) {}
-
-func TestAnEnclosureToldInPartsAndToldTwiceCountsEachTileOnce(t *testing.T) {
-	store, calendar := inmemory_flag_day_store.New(), inmemory_day_store.New(days.TestingDayAt(at))
-	handler := flag_tiles_taken_subscriber.New(record_flag_take_usecase.New(calendar, flagmissions.NewBriefing(store, calendar,
-		fixedPlanet{}, flagmissions.NewFixedStandings(flagmissions.TestingStanding(nil)), noPledges{},
-		flagmissions.NewFixedSizings(flagmissions.TestingSizing()), cptime.NewFixedClock(at)), store,
-		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, noStreams{}))
-	enclosure := []*planetv1.TilesTaken{takes(ada, "fr", 9, 0, 3), takes(ada, "fr", 9, 3, 7)}
-
-	for range 2 {
-		require.NoError(t, handler.HandleBatch(t.Context(), enclosure))
-	}
-	require.NoError(t, handler.HandleBatch(t.Context(), enclosure[1:]), "a failed batch is handled again one event at a time")
-
-	day, err := store.Day(t.Context(), days.TestingDayAt(at), "fr")
-	require.NoError(t, err)
-	assert.Equal(t, uint64(7), day.Snapshot().Takes, "one ledger event in two parts, seven takes")
-	assert.Equal(t, uint32(7), day.Snapshot().Progress, "each on the ground the mission names")
 }

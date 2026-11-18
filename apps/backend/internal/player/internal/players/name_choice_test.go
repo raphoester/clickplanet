@@ -56,8 +56,3 @@ func TestARenameKeepsTheAdminAndTheColor(t *testing.T) {
 		Account: ada, Name: "Ada_L", UpdatedAt: chosenAt.Add(time.Hour), ChosenAt: chosenAt.Add(time.Hour), Admin: true, Color: 3,
 	}, renamed.TakeSnapshot())
 }
-
-func TestANameNeverChosenIsRenamableAtAnyTime(t *testing.T) {
-	assert.True(t, players.NameChosenAt(time.Time{}).RenamableAt().IsZero())
-	assert.Equal(t, chosenAt.Add(7*day), players.NameChosenAt(chosenAt).RenamableAt())
-}

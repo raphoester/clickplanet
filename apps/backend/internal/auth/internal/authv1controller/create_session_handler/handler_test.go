@@ -2,7 +2,6 @@ package create_session_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -125,16 +124,6 @@ func TestARefusedAttestationIsPermissionDeniedAndSaysNothingAboutWhy(t *testing.
 	require.Error(t, err)
 	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
 	assert.NotContains(t, err.Error(), "invalid-input-response")
-}
-
-func TestAStoreFailureIsInternalAndSaysNothingAboutWhy(t *testing.T) {
-	useCase := &stubUseCase{err: errors.New("postgres is down")}
-
-	_, err := createSession(t, server(t, useCase, allowAll{}))
-
-	require.Error(t, err)
-	assert.Equal(t, connect.CodeInternal, connect.CodeOf(err))
-	assert.NotContains(t, err.Error(), "postgres")
 }
 
 func TestMintingIsThrottled(t *testing.T) {

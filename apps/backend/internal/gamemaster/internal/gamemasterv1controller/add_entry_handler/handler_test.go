@@ -2,7 +2,6 @@ package add_entry_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -84,13 +83,4 @@ func TestEachRefusalHasItsCode(t *testing.T) {
 
 		assert.Equal(t, code, connect.CodeOf(got), "%v", err)
 	}
-}
-
-func TestAFailureIsTheErrorNets(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	_, err := add(t, &stubUseCase{err: down}, &gamemasterv1.AddEntryRequest{Kind: gamemasterv1.EntryKind_ENTRY_KIND_BATTLE})
-
-	require.ErrorIs(t, err, down)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

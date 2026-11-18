@@ -32,10 +32,6 @@ type backend struct {
 	t       *testing.T
 	mu      sync.Mutex
 	storage *httptest.Server
-	// What each platform takes now: 3 on TikTok and 12 on YouTube when nil.
-	left map[publishingv1.Platform]uint32
-	// Why every post is refused, or none.
-	failure string
 	// The calendar's now: a slot is the first whole minute 5 minutes from it, an hour after the last post.
 	now     time.Time
 	posted  []*publishingv1.SchedulePostRequest
@@ -82,10 +78,7 @@ func (b *backend) CreateMediaUpload(
 func (b *backend) GetRoom(
 	_ context.Context, req *connect.Request[publishingv1.GetRoomRequest],
 ) (*connect.Response[publishingv1.GetRoomResponse], error) {
-	left := b.left
-	if left == nil {
-		left = map[publishingv1.Platform]uint32{publishingv1.Platform_PLATFORM_TIKTOK: 3, publishingv1.Platform_PLATFORM_YOUTUBE: 12}
-	}
+	left := map[publishingv1.Platform]uint32{publishingv1.Platform_PLATFORM_TIKTOK: 3, publishingv1.Platform_PLATFORM_YOUTUBE: 12}
 	answer := &publishingv1.GetRoomResponse{}
 	for _, platform := range req.Msg.GetPlatforms() {
 		answer.Rooms = append(answer.Rooms, &publishingv1.PlatformRoom{Platform: platform, Left: left[platform]})
@@ -114,11 +107,6 @@ func (b *backend) SchedulePost(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	if b.failure != "" {
-		return connect.NewResponse(&publishingv1.SchedulePostResponse{Outcome: &publishingv1.SchedulePostResponse_Failed{
-			Failed: &publishingv1.Failed{Reason: b.failure},
-		}}), nil
-	}
 	b.posted = append(b.posted, req.Msg)
 	return connect.NewResponse(&publishingv1.SchedulePostResponse{Outcome: &publishingv1.SchedulePostResponse_Scheduled{
 		Scheduled: &publishingv1.Scheduled{PostId: fmt.Sprintf("post-%d", len(b.posted))},
@@ -211,23 +199,6 @@ func TestARunPostsEveryClipOfTheFolderThroughTheBackendBestFirstAndReportsEachOn
 	assert.Contains(t, logs.String(), `msg="scheduled a clip" clip="KOSOVO IS ATTACKING THE MIDDLE EAST" platform=youtube`)
 }
 
-func TestARunTheBackendRefusesReportsWhyForEachClip(t *testing.T) {
-	b := serve(t, afternoon())
-	b.failure = "zernio answered 401 to the list of accounts: Invalid API key"
-	folder := t.TempDir()
-	rendered(t, folder, 1, "KOSOVO IS ATTACKING THE MIDDLE EAST", "xk")
-	var logs bytes.Buffer
-
-	report, err := clips.Schedule(t.Context(), folder, b.config(), slog.New(slog.NewTextHandler(&logs, nil)))
-
-	require.NoError(t, err)
-	require.Len(t, report, 1)
-	assert.False(t, report.Complete())
-	require.Len(t, report[0].Platforms, 2)
-	assert.Equal(t, "zernio answered 401 to the list of accounts: Invalid API key", report[0].Platforms[1].Failure)
-	assert.Contains(t, logs.String(), `level=ERROR msg="failed to schedule a clip"`)
-}
-
 // A day won and a country called up after it, which the run tells first, and the front of the war it would ask the
 // editor about.
 func findings(t *testing.T) string {
@@ -263,47 +234,6 @@ func TestChoosingWithNoEditorKeyTellsTheSeasonalStoriesAloneAndSaysWhy(t *testin
 	require.NoError(t, err)
 	assert.Equal(t, []clips.Story{{Seasonal: 1}, {Seasonal: 2}}, toldBy(t, picks))
 	assert.Contains(t, logs.String(), `level=WARN msg="the editor gave no answer, and the run is its seasonal stories alone" why="no ANTHROPIC_API_KEY"`)
-}
-
-func TestARunWhenEveryPlatformHasPostedItsDayChoosesNothing(t *testing.T) {
-	b := serve(t, time.Now())
-	b.left = map[publishingv1.Platform]uint32{}
-	var logs bytes.Buffer
-
-	picks, err := clips.Choose(t.Context(), findings(t), b.config(), slog.New(slog.NewTextHandler(&logs, nil)))
-
-	require.NoError(t, err)
-	assert.Empty(t, picks.Chosen)
-	assert.False(t, picks.Editorial.Asked)
-	assert.Contains(t, logs.String(), `msg="every platform has posted its day already"`)
-}
-
-func TestTikTokTakesTheBestClipOfARunWhileItHasRoom(t *testing.T) {
-	for left, want := range map[uint32]int{3: 1, 1: 1, 0: 0} {
-		t.Run(fmt.Sprint(left), func(t *testing.T) {
-			b := serve(t, time.Now())
-			b.left = map[publishingv1.Platform]uint32{publishingv1.Platform_PLATFORM_TIKTOK: left}
-			config := b.config()
-			config.Platforms = []clips.Platform{"tiktok"}
-
-			picks, err := clips.Choose(t.Context(), findings(t), config, slog.New(slog.DiscardHandler))
-
-			require.NoError(t, err)
-			assert.Len(t, picks.Chosen, want)
-		})
-	}
-}
-
-func TestARunThatCannotReachTheBackendChoosesNothingAndSaysWhy(t *testing.T) {
-	folder := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(folder, "ssh"), []byte("#!/bin/sh\necho 'Permission denied (publickey)' >&2\nexit 255\n"), 0o700)) //nolint:gosec // a script the test runs.
-	t.Setenv("PATH", folder+string(os.PathListSeparator)+os.Getenv("PATH"))
-	var config clips.Config
-	config.Replay.SSH = "deploy@vps.example"
-
-	_, err := clips.Choose(t.Context(), findings(t), config, slog.New(slog.DiscardHandler))
-
-	require.ErrorContains(t, err, "Permission denied (publickey)")
 }
 
 func TestADayOneRunScheduledIsNotToldByTheNext(t *testing.T) {

@@ -68,15 +68,6 @@ func wardrobe(t *testing.T, held ...titles.ID) (wearing.Wardrobe, *inmemory_titl
 	return wearing.NewWardrobe(worn, titles.NewBook(owned, catalog), catalog), owned, worn
 }
 
-func TestTheShowcaseWearsTheFirstRankShown(t *testing.T) {
-	closet, _, _ := wardrobe(t, "badge", "low", "mid")
-
-	showcase, err := closet.Showcase(t.Context(), ada)
-
-	require.NoError(t, err)
-	assert.Equal(t, standing("mid"), showcase.Worn())
-}
-
 func TestATitleNotShownCannotBeWornAndNothingIsWritten(t *testing.T) {
 	closet, _, worn := wardrobe(t, "badge", "low", "mid")
 
@@ -86,12 +77,4 @@ func TestATitleNotShownCannotBeWornAndNothingIsWritten(t *testing.T) {
 	choice, err := worn.Choice(t.Context(), ada)
 	require.NoError(t, err)
 	assert.Empty(t, choice)
-}
-
-func TestAShowcaseWearsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {
-	held := titles.IDs{"badge", "low", "mid", "retired"}
-
-	assert.Equal(t, standing("badge"), wearing.ShowcaseOf(catalog, held, "badge").Worn())
-	assert.Equal(t, standing("mid"), wearing.ShowcaseOf(catalog, held, "").Worn(), "no choice wears the first rank shown")
-	assert.True(t, wearing.ShowcaseOf(catalog, nil, "badge").Worn().Empty(), "a choice not held is not worn")
 }

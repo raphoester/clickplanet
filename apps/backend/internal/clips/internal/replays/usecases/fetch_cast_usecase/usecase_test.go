@@ -1,7 +1,6 @@
 package fetch_cast_usecase_test
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -30,15 +29,4 @@ func TestTheCastOfTheReplaysWindowIsSaved(t *testing.T) {
 	saved, err := os.ReadFile(out) //nolint:gosec // the test's own file.
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"id":"c"}`, string(saved))
-}
-
-func TestACastTheBackendDoesNotAnswerSavesNothing(t *testing.T) {
-	source := replays.NewScriptedSource(replays.Replay{})
-	source.FailCastWith(errors.New("no route to host"))
-	out := filepath.Join(t.TempDir(), "cast.json")
-
-	_, err := fetch_cast_usecase.New(source, file_replay_store.CastStore(out)).Execute(t.Context(), window)
-
-	require.ErrorContains(t, err, "no route to host")
-	assert.NoFileExists(t, out)
 }

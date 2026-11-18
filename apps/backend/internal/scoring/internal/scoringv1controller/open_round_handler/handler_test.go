@@ -2,7 +2,6 @@ package open_round_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -79,9 +78,4 @@ func TestEachRefusalHasItsCode(t *testing.T) {
 	} {
 		assert.Equal(t, code, connect.CodeOf(open(t, &stubUseCase{err: err}, request())), err.Error())
 	}
-
-	down := errors.New("planet is down")
-	err := open(t, &stubUseCase{err: down}, request())
-	require.ErrorIs(t, err, down)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

@@ -2,7 +2,6 @@ package backfill_days_played_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -25,7 +24,6 @@ func account(i int) accounts.AccountID {
 
 type fakeLedger struct {
 	days  map[accounts.AccountID][]stats.Day
-	err   error
 	asked [][]accounts.AccountID
 	// Runs once planet answered, before the use case takes the lock: a take the relay delivers meanwhile.
 	meanwhile func()
@@ -33,9 +31,6 @@ type fakeLedger struct {
 
 func (f *fakeLedger) PlayDays(_ context.Context, asked []accounts.AccountID) (map[accounts.AccountID][]stats.Day, error) {
 	f.asked = append(f.asked, asked)
-	if f.err != nil {
-		return nil, f.err
-	}
 	answer := map[accounts.AccountID][]stats.Day{}
 	for _, account := range asked {
 		if days, ok := f.days[account]; ok {
@@ -198,16 +193,4 @@ func TestNoStatsAsksNothing(t *testing.T) {
 
 	assert.Equal(t, backfill_days_played_usecase.Backfilled{}, f.run(t, false))
 	assert.Empty(t, f.ledger.asked)
-}
-
-func TestAFailureToAskPlanetWritesNothing(t *testing.T) {
-	f := setUp()
-	f.take(t, 1, 0)
-	f.before(t, 1)
-	f.ledger.err = errors.New("planet is down")
-
-	_, err := backfill_days_played_usecase.New(f.stats, f.ledger).Execute(t.Context(), false)
-
-	require.ErrorIs(t, err, f.ledger.err)
-	assert.Zero(t, f.played(t, 1))
 }

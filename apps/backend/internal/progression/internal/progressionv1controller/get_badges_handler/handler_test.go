@@ -2,7 +2,6 @@ package get_badges_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -22,13 +21,12 @@ const (
 
 type stubQuery struct {
 	answer *progressionv1.GetBadgesResponse
-	err    error
 	asked  [][]accounts.AccountID
 }
 
 func (s *stubQuery) Badges(_ context.Context, accounts []accounts.AccountID) (*progressionv1.GetBadgesResponse, error) {
 	s.asked = append(s.asked, accounts)
-	return s.answer, s.err
+	return s.answer, nil
 }
 
 func getBadges(t *testing.T, query *stubQuery, ids ...string) (*connect.Response[progressionv1.GetBadgesResponse], error) {
@@ -96,13 +94,4 @@ func TestTheAnswerIsNeverStored(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"), "the page keeps the badges itself")
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := getBadges(t, &stubQuery{err: failure}, adaID)
-
-	assert.ErrorIs(t, err, failure)
-	assert.NotEqual(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

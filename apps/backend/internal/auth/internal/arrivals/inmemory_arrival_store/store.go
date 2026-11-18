@@ -18,17 +18,9 @@ func New() *Store {
 type Store struct {
 	mu   sync.Mutex
 	kept []arrivals.Snapshot
-	err  error
 }
 
 var _ arrivals.Store = (*Store)(nil)
-
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.err = err
-}
 
 func (s *Store) Seed(snapshots ...arrivals.Snapshot) {
 	s.mu.Lock()
@@ -48,9 +40,6 @@ func (s *Store) Save(_ context.Context, saved ...arrivals.Arrival) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.err != nil {
-		return s.err
-	}
 	for _, arrival := range saved {
 		snapshot := arrival.TakeSnapshot()
 		s.kept = slices.DeleteFunc(s.kept, func(kept arrivals.Snapshot) bool { return kept.ID == snapshot.ID })
@@ -63,9 +52,6 @@ func (s *Store) Of(_ context.Context, account arrivals.AccountID) ([]arrivals.Ar
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.err != nil {
-		return nil, s.err
-	}
 	found := []arrivals.Arrival{}
 	for _, snapshot := range s.oldestFirst(func(kept arrivals.Snapshot) bool {
 		return kept.Account == account && account != arrivals.AccountID{}

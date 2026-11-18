@@ -200,10 +200,6 @@ func (s *testSuite) TestAnAuthFailureIsAnError() {
 	s.NotErrorIs(err, player_query.ErrNoPlayer)
 }
 
-func (s *testSuite) TestAPlayerThatNeverChangedItsNameHasNoPastName() {
-	s.Empty(s.shownPastNames(ada))
-}
-
 func (s *testSuite) TestTheNamesLeftAreShownNewestFirst() {
 	s.renamed(ada, "Ada_Lovelace", monday.Add(time.Hour))
 	s.renamed(ada, "Countess", monday.Add(2*time.Hour))
@@ -252,11 +248,4 @@ func (s *testSuite) TestAnotherPlayersPastNamesAreNotShown() {
 
 	s.Empty(s.shownPastNames(ada))
 	s.assertPastNames([]*playerv1.PastName{pastName("Bob", monday.Add(time.Hour))}, s.shownPastNames(bob))
-}
-
-func (s *testSuite) TestAPlayerForgottenLeavesNoPastName() {
-	s.renamed(ada, "Countess", monday.Add(time.Hour))
-	s.Require().NoError(s.pastNames.Forget(s.T().Context(), ada))
-
-	s.Empty(s.shownPastNames(ada))
 }

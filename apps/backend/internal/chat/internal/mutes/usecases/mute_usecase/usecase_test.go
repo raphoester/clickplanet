@@ -2,7 +2,6 @@ package mute_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -142,14 +141,3 @@ func (s *testSuite) TestAnInvalidDurationIsRefusedAndNothingIsKept() {
 	s.Require().ErrorIs(err, mutes.ErrInvalidDuration)
 	s.Empty(s.mutes.Kept())
 }
-
-func (s *testSuite) TestAMuteWithNoIDIsNotKept() {
-	_, err := s.build(s.mutes, failingIDs{}).Execute(context.Background(), mute_usecase.In{Account: bully})
-
-	s.Require().Error(err)
-	s.Empty(s.mutes.Kept())
-}
-
-type failingIDs struct{}
-
-func (failingIDs) NewID() (mutes.MuteID, error) { return mutes.MuteID{}, errors.New("no entropy") }

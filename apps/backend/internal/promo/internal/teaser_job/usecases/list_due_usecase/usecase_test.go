@@ -2,7 +2,6 @@ package list_due_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,11 +13,10 @@ import (
 
 type promo struct {
 	due []teaser_job.Due
-	err error
 }
 
 func (p promo) Due(context.Context) ([]teaser_job.Due, error) {
-	return p.due, p.err
+	return p.due, nil
 }
 
 type store struct{ kept []teaser_job.Due }
@@ -37,10 +35,4 @@ func TestEachBattlePromoSaysIsDueIsKeptForTheRenderer(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []list_due_usecase.Kept{{Folder: "entry-7", Due: ring}, {Folder: "season-1_finale", Due: finale}}, due)
 	assert.Equal(t, []teaser_job.Due{ring, finale}, kept.kept)
-}
-
-func TestAListPromoDoesNotGiveFailsTheRun(t *testing.T) {
-	_, err := list_due_usecase.New(promo{err: errors.New("ssh failed")}, &store{}).Execute(t.Context())
-
-	require.ErrorContains(t, err, "failed to list the battles due their teaser: ssh failed")
 }

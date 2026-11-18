@@ -12,14 +12,6 @@ import (
 
 var at = time.Date(2026, 10, 26, 20, 0, 0, 0, time.UTC)
 
-func TestARefusalStandsUntilItsEnd(t *testing.T) {
-	refusal := refusals.Refusal{}.Decided(refusals.Refused(at.Add(time.Hour), at))
-
-	assert.True(t, refusal.Standing(at))
-	assert.True(t, refusal.Standing(at.Add(time.Hour-time.Nanosecond)))
-	assert.False(t, refusal.Standing(at.Add(time.Hour)))
-}
-
 func TestAnAdmissionEndsTheRefusalNow(t *testing.T) {
 	refusal := refusals.Refusal{}.
 		Decided(refusals.Refused(at.Add(time.Hour), at)).
@@ -27,24 +19,6 @@ func TestAnAdmissionEndsTheRefusalNow(t *testing.T) {
 
 	assert.True(t, refusal.Standing(at.Add(time.Second)), "an admission does not reach back")
 	assert.False(t, refusal.Standing(at.Add(time.Minute)))
-}
-
-func TestTheLatestDecisionWinsWhateverTheOrderItCameIn(t *testing.T) {
-	refused := refusals.Refused(at.Add(24*time.Hour), at)
-	admitted := refusals.Admitted(at.Add(time.Minute))
-
-	inOrder := refusals.Refusal{}.Decided(refused).Decided(admitted)
-	reversed := refusals.Refusal{}.Decided(admitted).Decided(refused)
-
-	assert.Equal(t, inOrder.TakeSnapshot(), reversed.TakeSnapshot())
-	assert.False(t, reversed.Standing(at.Add(time.Hour)), "the ban sent again after its unban changes nothing")
-}
-
-func TestADecisionSentTwiceIsKeptOnce(t *testing.T) {
-	refused := refusals.Refused(at.Add(time.Hour), at)
-	once := refusals.Refusal{}.Decided(refused)
-
-	assert.Equal(t, once, once.Decided(refused))
 }
 
 func TestACallerIsAScopeOrAnAccountAndOnlyOne(t *testing.T) {

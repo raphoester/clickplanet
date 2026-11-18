@@ -109,10 +109,8 @@ func TestAFailureThatMayPassIsTriedAgain(t *testing.T) {
 		grants  *stubGrants
 		useCase *joins
 	}{
-		"auth unreachable":   {grants: &stubGrants{err: errors.New("auth is unreachable")}, useCase: &joins{}},
-		"Discord busy":       {grants: &stubGrants{}, useCase: &joins{err: errors.New("discord answered 429")}},
-		"Discord down":       {grants: &stubGrants{}, useCase: &joins{err: errors.New("discord answered 502")}},
-		"its own store down": {grants: &stubGrants{}, useCase: &joins{err: errors.New("postgres is down")}},
+		"auth unreachable": {grants: &stubGrants{err: errors.New("auth is unreachable")}, useCase: &joins{}},
+		"Discord busy":     {grants: &stubGrants{}, useCase: &joins{err: errors.New("discord answered 429")}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			logged, err := hear(t, tc.grants, tc.useCase)

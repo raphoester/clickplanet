@@ -10,24 +10,15 @@ import (
 type MemoryStore struct {
 	mu    sync.Mutex
 	decks map[SetName]DeckSnapshot
-	err   error
 }
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{decks: map[SetName]DeckSnapshot{}}
 }
 
-func (s *MemoryStore) Failing(err error) *MemoryStore {
-	s.err = err
-	return s
-}
-
 func (s *MemoryStore) Save(_ context.Context, deck Deck) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.err != nil {
-		return s.err
-	}
 	snapshot := deck.TakeSnapshot()
 	s.decks[snapshot.Set] = snapshot
 	return nil

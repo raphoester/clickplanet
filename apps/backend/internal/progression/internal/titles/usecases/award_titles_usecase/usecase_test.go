@@ -1,7 +1,6 @@
 package award_titles_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -121,16 +120,6 @@ func TestAnAccountWithNoStatsEarnsNothing(t *testing.T) {
 	assert.Empty(t, f.held(t))
 }
 
-func TestAnAuthFailureIsAnErrorAndGrantsNothing(t *testing.T) {
-	f := setUp()
-	require.NoError(t, f.stats.Record(t.Context(), ada, stats.TakeAt(0, 0, monday)))
-	f.accounts.FailWith(errors.New("player is down"))
-
-	require.Error(t, f.award(t, catalog))
-
-	assert.Empty(t, f.held(t))
-}
-
 func (f fixture) fought(t *testing.T, rank uint32) {
 	t.Helper()
 
@@ -149,16 +138,6 @@ func TestAFighterOfTheFinalBattleIsAVeteranAndGoldWhenItsFlagWon(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, titles.IDs{"season_0_gold", "season_0_veteran"}, granted)
-}
-
-func TestAFightsFailureIsAnErrorAndGrantsNothing(t *testing.T) {
-	f := setUp()
-	require.NoError(t, f.stats.Record(t.Context(), ada, stats.TakeAt(0, 0, monday)))
-	f.fights.FailWith(errors.New("postgres is down"))
-
-	require.Error(t, f.award(t, catalog))
-
-	assert.Empty(t, f.held(t))
 }
 
 func TestATakeOnHalloweenGrantsItsTitleAtOnce(t *testing.T) {

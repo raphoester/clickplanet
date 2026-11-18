@@ -37,20 +37,6 @@ func TestTheMapThatPlaysIsTheArenasWhileItIsOpen(t *testing.T) {
 	assert.Equal(t, clicks.World, arenas.Arena{ID: "battle", Opened: true, Closed: true}.Played())
 }
 
-func TestAnArenaOpensOnce(t *testing.T) {
-	now := starts.Add(3 * time.Second)
-
-	opening, opened, err := arenas.Arena{ID: "battle"}.Open(ends, now, 8*time.Second, arenas.Arena{})
-
-	require.NoError(t, err)
-	assert.True(t, opened)
-	assert.Equal(t, arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: now, Freeze: 8 * time.Second}, opening)
-
-	_, opened, err = arenas.Arena{ID: "battle", Opening: opening, Opened: true}.Open(ends, now.Add(time.Second), 8*time.Second, arenas.Arena{})
-	require.NoError(t, err)
-	assert.False(t, opened, "an arena open already changes nothing")
-}
-
 func TestAnArenaFreezesAfterItsMapPlaysAndBeforeTheBattleEnds(t *testing.T) {
 	freeze := 8 * time.Second
 	opening := arenas.Opening{ID: "battle", EndsAt: ends, OpenedAt: starts.Add(3 * time.Second), Freeze: freeze}

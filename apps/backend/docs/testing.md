@@ -11,6 +11,10 @@ past arena's events to its map, the last read of the arenas' windows, so a wrong
 It runs the migrations to the version before it (`cppg.Postgres.MigrateTo`, behind the tag), seeds the rows, runs it,
 and runs its way back (see [Boards and eras](boards-and-eras.md)).
 
+**A test that memory is freed or bounded stays**: a watchdog's sweep, a ring's or a tally's cap, the boxes registry
+forgetting a caller, `cpratelimit`'s sweep. Nothing else shows a leak before the box runs out of memory. Such a test
+reads `Save()` where that shows the memory, and private state only where nothing exported does.
+
 Tests use `testify`. **A postgres store's own tests need Docker**, and so do `s3_attachment_bucket`'s and `cps3`'s, which start an S3 server, the Versity gateway (see [Support](support.md)), `cpoutbox`'s, and `cpredis`'s; nothing else does. Everything above a store is tested against a fake of its port (`inmemory_tile_storage.MemoryPersistence`), so it runs without Docker.
 
 **The container helpers are packages of their own**, both behind the `testing` tag: `cppg/cppgtest` starts a `postgres:16-alpine`, `cpredis/cpredistest` a `redis:7.4-alpine` (its `Config()` is the `redis` block to boot with, retrying every 50ms), and `cps3/cps3test` the gateway with one bucket (`StartServer(t, bucket)`). They are not in `cppg`, `cpredis` and `cps3` because many packages import those, and a test binary that links testcontainers runs its `init`, which lists every process on the machine: 8 seconds of `init` in `antibot/internal/sequencer`, whose tests run in 1 ms. Until November 2026 the helpers were in `cppg`, `cpredis` and `cps3`, and 393 of the 875 test binaries linked testcontainers, though only 129 start a container. `Purge`, `Stats` and `cpredis.RecordedEvents` need no container, so they stay in `cppg` and `cpredis`. A test package that imports testcontainers or the two helper packages without starting a container pays that `init` again. To count the binaries that link it: `go list -tags testing -test -f '{{.ImportPath}} {{join .Deps " "}}' ./... | grep '\.test ' | grep -c testcontainers-go/internal/core`.

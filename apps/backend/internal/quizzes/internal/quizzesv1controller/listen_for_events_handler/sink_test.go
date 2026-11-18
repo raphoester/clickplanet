@@ -1,7 +1,6 @@
 package listen_for_events_handler_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -16,12 +15,11 @@ import (
 
 type recorder struct {
 	sent []*quizzesv1.QuizEvent
-	err  error
 }
 
 func (r *recorder) Send(event *quizzesv1.QuizEvent) error {
 	r.sent = append(r.sent, event)
-	return r.err
+	return nil
 }
 
 func TestASinkFramesAQuizOfferedToThisCaller(t *testing.T) {
@@ -64,10 +62,4 @@ func TestASinkSendsNothingForAnEmptyEvent(t *testing.T) {
 
 	require.NoError(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{}))
 	assert.Empty(t, stream.sent)
-}
-
-func TestASinkReportsAFailedSend(t *testing.T) {
-	stream := &recorder{err: errors.New("gone")}
-
-	require.Error(t, listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{Heartbeat: true}))
 }

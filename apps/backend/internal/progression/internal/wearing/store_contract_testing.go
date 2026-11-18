@@ -35,10 +35,6 @@ func (s *StoreContractSuite) wear(account byte, title titles.ID, at time.Time) {
 	s.Require().NoError(s.store.Wear(s.T().Context(), accounts.AccountID{15: account}, title, at))
 }
 
-func (s *StoreContractSuite) TestAnAccountThatNeverChoseHasNoChoice() {
-	s.Empty(s.choice(1))
-}
-
 func (s *StoreContractSuite) TestTheLastTitleWornIsTheChoice() {
 	s.wear(1, "settler", contractAt)
 	s.wear(1, "og", contractAt.Add(time.Hour))

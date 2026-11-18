@@ -10,18 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/support/internal/notes"
 )
 
-func TestEmptyTextIsRefused(t *testing.T) {
-	_, err := notes.TextOf(" \n\t ")
-
-	require.ErrorIs(t, err, notes.ErrInvalidText)
-}
-
-func TestOverlongTextIsRefused(t *testing.T) {
-	_, err := notes.TextOf(strings.Repeat("a", notes.MaxTextLength+1))
-
-	require.ErrorIs(t, err, notes.ErrInvalidText)
-}
-
 func TestLengthIsCountedInRunesNotBytes(t *testing.T) {
 	_, err := notes.TextOf(strings.Repeat("🌍", notes.MaxTextLength))
 

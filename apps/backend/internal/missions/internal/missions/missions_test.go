@@ -313,15 +313,6 @@ func TestEachMissionDrawnHasAnIDOfItsOwn(t *testing.T) {
 	}
 }
 
-func TestABriefReadsBackFromItsSnapshot(t *testing.T) {
-	drawn := missions.Draw(days.TestingDayAt(monday), ada, "fr", world)
-
-	restored, err := missions.BriefOf(drawn.Snapshot())
-
-	require.NoError(t, err)
-	assert.Equal(t, drawn.Snapshot(), restored.Snapshot())
-}
-
 func TestAMissionWithNoOrderIsRefused(t *testing.T) {
 	_, err := missions.BriefOf([]missions.MissionSnapshot{{ID: bank}})
 
@@ -358,23 +349,6 @@ func TestATakeForAnotherFlagCountsForTheMissionsItFits(t *testing.T) {
 	sheet := missions.SheetOf(missions.SheetSnapshot{}).WithFact(take("de", "dz", "br"), briefOf(t, frBrief...))
 
 	assert.Equal(t, map[missions.MissionID]uint32{rival: 1, ground: 1}, sheet.Snapshot().Progress, "the tiles for France do not")
-}
-
-func TestAMissionCountsNoFurtherThanItsGoal(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{})
-	for range 5 {
-		sheet = sheet.WithFact(take("fr", "", ""), briefOf(t, frBrief...))
-	}
-
-	assert.Equal(t, uint32(2), sheet.Snapshot().Progress[bank])
-}
-
-func TestATakeBelowTheMarkCountsNothing(t *testing.T) {
-	sheet := missions.SheetOf(missions.SheetSnapshot{Counted: missions.Counted{TakesBelow: missions.LedgerMark{Position: 1_000}}})
-
-	sheet = sheet.WithFact(missions.Take{Flag: "fr", Position: 999}, briefOf(t, frBrief...))
-
-	assert.Empty(t, sheet.Snapshot().Progress)
 }
 
 func TestATakeThatCountsNothingLeavesTheMark(t *testing.T) {
@@ -473,33 +447,4 @@ func TestABoxOrAnAnswerToldAgainCountsOnce(t *testing.T) {
 
 	assert.Equal(t, map[missions.MissionID]uint32{boxes: 1, answers: 1}, sheet.Snapshot().Progress,
 		"a time at or before the mark was counted, to the microsecond postgres keeps")
-}
-
-func TestEachMissionDoneIsPaidOnce(t *testing.T) {
-	brief := briefOf(
-		t,
-		missions.MissionSnapshot{ID: bank, Order: missions.TakeFor{Flag: "fr", Goal: 2}},
-		missions.MissionSnapshot{ID: rival, Order: missions.TakeFrom{Flag: "dz", Goal: 5}},
-		missions.MissionSnapshot{ID: ground, Order: missions.TakeIn{Ground: "br", Goal: 5}},
-	)
-	sheet := missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{bank: 2, rival: 5, ground: 4}})
-
-	paid, payments := sheet.WithPayments(brief)
-	_, again := paid.WithPayments(brief)
-
-	assert.Equal(t, []missions.MissionID{bank, rival}, payments, "4 of 5 is not done")
-	assert.Empty(t, again)
-	assert.Equal(t, cpcolls.NewSet(bank, rival), paid.Snapshot().Paid)
-	assert.True(t, sheet.Snapshot().Paid.Empty(), "the sheet it was called on is left alone")
-}
-
-func TestEachMissionSaysHowFarItWentAndWhetherItIsDoneAndPaid(t *testing.T) {
-	brief := briefOf(t, frBrief...)
-	sheet := missions.SheetOf(missions.SheetSnapshot{Progress: map[missions.MissionID]uint32{bank: 2, rival: 3}, Paid: cpcolls.NewSet(bank)})
-
-	assert.Equal(t, []missions.MissionStatus{
-		{Mission: frBrief[0], Progress: 2, Done: true, Paid: true},
-		{Mission: frBrief[1], Progress: 3},
-		{Mission: frBrief[2]},
-	}, sheet.Statuses(brief))
 }

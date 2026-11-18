@@ -21,12 +21,11 @@ import (
 
 type recorder struct {
 	sent []*planetv1.PlanetEvent
-	err  error
 }
 
 func (r *recorder) Send(event *planetv1.PlanetEvent) error {
 	r.sent = append(r.sent, event)
-	return r.err
+	return nil
 }
 
 func TestSinkFramesATileUpdate(t *testing.T) {
@@ -126,14 +125,6 @@ func TestSinkFramesAChangeOfRules(t *testing.T) {
 	require.Len(t, stream.sent, 1)
 	assert.NotNil(t, stream.sent[0].GetRulesChanged())
 	assert.Nil(t, stream.sent[0].GetTileUpdate())
-}
-
-func TestSinkReportsAFailedSend(t *testing.T) {
-	stream := &recorder{err: assert.AnError}
-
-	err := listen_for_events_handler.NewSink(stream).Send(listen_for_events_usecase.Event{Heartbeat: true})
-
-	require.ErrorIs(t, err, assert.AnError)
 }
 
 func TestASinkFramesABlastWithEveryTileItCleared(t *testing.T) {

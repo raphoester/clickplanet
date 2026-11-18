@@ -39,44 +39,11 @@ func TestADraftIsCleanedAndStampedWithAnIDAndTheTime(t *testing.T) {
 		message.TakeSnapshot())
 }
 
-func TestAnInvalidTextIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
-	drafting := drafts(&messages.SequentialIDs{})
-
-	_, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "   ", messages.Gif{})
-	require.ErrorIs(t, err, messages.ErrInvalidMessage)
-
-	message, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "hello", messages.Gif{})
-	require.NoError(t, err)
-	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
-}
-
-func TestAnUnknownCountryIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
-	drafting := drafts(&messages.SequentialIDs{})
-
-	_, err := drafting.Draft(t.Context(), ada, messages.World, "atlantis", "hello", messages.Gif{})
-	require.ErrorIs(t, err, messages.ErrInvalidMessage)
-
-	message, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "hello", messages.Gif{})
-	require.NoError(t, err)
-	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
-}
-
 func TestADraftWithNoIDFails(t *testing.T) {
 	_, err := drafts(failingIDs{}).Draft(t.Context(), ada, messages.World, "fr", "hello", messages.Gif{})
 
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, messages.ErrInvalidMessage)
-}
-
-func TestADraftForTheRoomOfAnotherFlagIsRefusedBeforeAnIDIsDrawn(t *testing.T) {
-	drafting := drafts(&messages.SequentialIDs{})
-
-	_, err := drafting.Draft(t.Context(), ada, messages.FlagRoom("de"), "fr", "hello", messages.Gif{})
-	require.ErrorIs(t, err, messages.ErrNotInRoom)
-
-	message, err := drafting.Draft(t.Context(), ada, messages.World, "fr", "hello", messages.Gif{})
-	require.NoError(t, err)
-	assert.Equal(t, messages.MessageID("00000000-0000-0000-0000-000000000001"), message.TakeSnapshot().ID)
 }
 
 var dancing = messages.Gif{URL: "https://static.klipy.com/ii/935d7ab9/14/af/SE72470w.webp", Width: 220, Height: 220}

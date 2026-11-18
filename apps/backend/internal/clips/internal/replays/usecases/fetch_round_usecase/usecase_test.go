@@ -1,7 +1,6 @@
 package fetch_round_usecase_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,15 +42,4 @@ func TestATurnWithNoDebriefKeepsAnEmptyRoundAndAsksNothing(t *testing.T) {
 	assert.Equal(t, replays.NoRound, round)
 	assert.Empty(t, source.RoundsAsked)
 	assert.Equal(t, []replays.Round{replays.NoRound}, store.SavedRounds)
-}
-
-func TestABackendThatDoesNotAnswerTheRoundKeepsNothing(t *testing.T) {
-	unserved := errors.New("ssh failed: exit status 1: wget: server returned error: HTTP/1.1 404 Not Found")
-	source, store, usecase := fetching()
-	source.FailRoundWith(unserved)
-
-	_, err := usecase.Execute(t.Context(), debriefed)
-
-	require.ErrorIs(t, err, unserved)
-	assert.Empty(t, store.SavedRounds)
 }

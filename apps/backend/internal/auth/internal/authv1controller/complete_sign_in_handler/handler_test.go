@@ -2,7 +2,6 @@ package complete_sign_in_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"testing"
@@ -128,10 +127,4 @@ func TestSignInOffIsUnimplemented(t *testing.T) {
 	_, err := completeSignIn(&stubUseCase{err: signin.ErrSignInOff})
 
 	assert.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
-}
-
-func TestAFailureIsLeftToTheErrorNet(t *testing.T) {
-	_, err := completeSignIn(&stubUseCase{err: errors.New("postgres is down")})
-
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

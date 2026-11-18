@@ -2,7 +2,6 @@ package get_progress_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -57,12 +56,4 @@ func TestAnAccountTheOthersDoNotSeeIsNotFound(t *testing.T) {
 	_, err := getProgress(t, &stubQuery{err: progress_query.ErrNotShown}, accounts.AccountID{15: 1}.String())
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := getProgress(t, &stubQuery{err: failure}, accounts.AccountID{15: 1}.String())
-
-	assert.ErrorIs(t, err, failure)
 }

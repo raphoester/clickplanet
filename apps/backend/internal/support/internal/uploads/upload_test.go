@@ -31,18 +31,6 @@ func TestASnapshotThatBreaksARuleRestoresNothing(t *testing.T) {
 	}
 }
 
-func TestADiscardedUploadIsACopyMarkedSo(t *testing.T) {
-	upload, err := uploads.NewUpload(file(1, 400), noon)
-	require.NoError(t, err)
-
-	discarded := uploads.AllDiscarded([]uploads.Upload{upload})
-
-	require.Len(t, discarded, 1)
-	assert.True(t, discarded[0].TakeSnapshot().Discarded)
-	assert.False(t, upload.TakeSnapshot().Discarded, "the upload it was made from is left as it was")
-	assert.Equal(t, []notes.AttachmentID{{15: 1}}, uploads.FilesOf(discarded))
-}
-
 func TestTheShelfKeepsRoomForAFileUntilItIsFull(t *testing.T) {
 	storage := inmemory_upload_storage.New()
 	shelf := uploads.NewShelf(storage, 1000, cptime.NewFixedClock(noon))

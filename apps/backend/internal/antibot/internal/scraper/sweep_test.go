@@ -15,15 +15,21 @@ func TestSweepForgetsIdleCallers(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 15, 21, 0, 0, 0, time.UTC))
 
 	w := New(Config{TrackWindow: time.Minute}, bounds, clock, func(float64) {})
+	empty, err := New(Config{TrackWindow: time.Minute}, bounds, clock, func(float64) {}).Save()
+	require.NoError(t, err)
 
 	w.Listened("player")
 	w.Fetched("player", 1, false)
-	require.Len(t, w.callers, 1)
+	watched, err := w.Save()
+	require.NoError(t, err)
+	require.NotEqual(t, empty, watched)
 
 	clock.Advance(2 * time.Minute)
 	w.sweep()
 
-	assert.Empty(t, w.callers)
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 func TestAFloodOfReadsKeepsOneSliceAStep(t *testing.T) {

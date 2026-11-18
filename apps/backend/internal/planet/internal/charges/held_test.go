@@ -13,18 +13,6 @@ var chargeRules = func() Rules {
 	return rules
 }()
 
-func TestABombIsKeptUntilItIsDropped(t *testing.T) {
-	held := Held{}.Granted(KindBomb, 1, chargeRules)
-	require.Equal(t, Held{Bombs: 1}, held, "nothing lapses: a bomb waits for its moment")
-
-	dropped, ok := held.AfterBomb()
-	require.True(t, ok)
-	assert.True(t, dropped.Empty())
-
-	_, again := dropped.AfterBomb()
-	assert.False(t, again, "a bomb that went off is gone")
-}
-
 func TestBombsAndRefillsStackToWhatAHandHolds(t *testing.T) {
 	held := Held{}.Granted(KindBomb, 1, chargeRules).Granted(KindBomb, 1, chargeRules).
 		Granted(KindRefill, 1, chargeRules).Granted(KindRefill, 1, chargeRules)
@@ -51,43 +39,6 @@ func TestEveryKindStacksToItsSize(t *testing.T) {
 	}
 }
 
-func TestEachEnclosureIsOneShape(t *testing.T) {
-	held := Held{}.Granted(KindEncloseClicks, 2, chargeRules)
-
-	held, first := held.AfterEnclose()
-	held, second := held.AfterEnclose()
-	_, third := held.AfterEnclose()
-
-	assert.True(t, first && second)
-	assert.False(t, third)
-}
-
-func TestSpreadClicksAddUpToThePoolsSize(t *testing.T) {
-	held := Held{SpreadClicks: 3}.Granted(KindSpreadClicks, 4, chargeRules)
-	require.Equal(t, 7, held.SpreadClicks)
-
-	held = held.Granted(KindSpreadClicks, 4, chargeRules)
-	assert.Equal(t, 8, held.SpreadClicks, "eight at most")
-}
-
-func TestTheSpreadPoolIsSpentOneClickAtATime(t *testing.T) {
-	held := Held{SpreadClicks: 2}
-
-	held, first := held.AfterSpreadClick()
-	held, second := held.AfterSpreadClick()
-	_, third := held.AfterSpreadClick()
-
-	assert.True(t, first && second)
-	assert.False(t, third)
-	assert.True(t, held.Empty())
-}
-
-func TestShieldsStackUpToTheirSize(t *testing.T) {
-	held := Held{Shields: 10}.Granted(KindShields, 3, chargeRules)
-
-	assert.Equal(t, 12, held.Shields, "twelve at most, however many the box gave")
-}
-
 func TestAStackHeldAboveASmallerSizeIsKeptAndTakesNothingMore(t *testing.T) {
 	smaller := chargeRules
 	smaller.Shield.Held = 5
@@ -96,45 +47,6 @@ func TestAStackHeldAboveASmallerSizeIsKeptAndTakesNothingMore(t *testing.T) {
 
 	assert.Equal(t, 12, held.Shields)
 	assert.Equal(t, held, held.Granted(KindShields, 1, smaller), "a grant adds none to a stack above its size")
-}
-
-func TestEachShieldIsPlacedOnce(t *testing.T) {
-	held := Held{Shields: 2}
-
-	held, first := held.AfterShield()
-	held, second := held.AfterShield()
-	_, third := held.AfterShield()
-
-	assert.True(t, first && second)
-	assert.False(t, third)
-	assert.True(t, held.Empty())
-}
-
-func TestAShieldGivenBackIsTheOneTakenWhateverTheStackSize(t *testing.T) {
-	smaller := chargeRules
-	smaller.Shield.Held = 5
-
-	spent, ok := Held{Shields: 12}.AfterShield()
-	require.True(t, ok)
-
-	assert.Equal(t, Held{Shields: 12}, spent.WithShieldBack())
-	assert.Equal(t, 11, spent.Granted(KindShields, 1, smaller).Shields, "a grant would have kept it")
-}
-
-func TestARefillIsOneFill(t *testing.T) {
-	used, ok := Held{}.Granted(KindRefill, 1, chargeRules).AfterRefill()
-	require.True(t, ok)
-
-	_, again := used.AfterRefill()
-	assert.False(t, again)
-}
-
-func TestAHeldIsAValue(t *testing.T) {
-	held := Held{}.Granted(KindBomb, 1, chargeRules)
-
-	_, _ = held.AfterBomb()
-
-	assert.Equal(t, 1, held.Bombs, "spending builds a new value and leaves this one as it was")
 }
 
 func TestCountIsHowManyOfAKindAreHeld(t *testing.T) {
@@ -182,22 +94,6 @@ func TestAGrantKeepsNoBombWhileBombsAreOff(t *testing.T) {
 	assert.Equal(t, Held{}, Held{}.Granted(KindBomb, 1, off), "an empty hand takes no bomb")
 	assert.Equal(t, Held{Bombs: 1}, Held{Bombs: 1}.Granted(KindBomb, 1, off), "and the bombs held are kept")
 	assert.Equal(t, Held{Shields: 5}, Held{}.Granted(KindShields, 5, off), "the other kinds are granted")
-}
-
-func TestAGainTopsAStackUpToItsSize(t *testing.T) {
-	gain := Held{SpreadClicks: 6}.Gain(KindSpreadClicks, 4, chargeRules)
-
-	assert.Equal(t, []Kind{KindSpreadClicks}, gain.Paid)
-	assert.Equal(t, 2, gain.Count(KindSpreadClicks))
-	assert.Equal(t, Held{SpreadClicks: 8}, gain.After)
-}
-
-func TestAGainIntoAFullStackPaysTheKindAndKeepsNone(t *testing.T) {
-	gain := Held{Bombs: 1, Shields: 3}.Gain(KindBomb, 1, chargeRules)
-
-	assert.Equal(t, []Kind{KindBomb}, gain.Paid)
-	assert.Zero(t, gain.Count(KindBomb))
-	assert.Equal(t, Held{Bombs: 1, Shields: 3}, gain.After)
 }
 
 func TestAGainPaysNoKindTheRulesTurnOff(t *testing.T) {

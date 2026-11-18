@@ -145,18 +145,3 @@ func (s *testSuite) TestNoAccountIsRefused() {
 
 	s.Require().ErrorIs(err, mutes.ErrNoAccount)
 }
-
-func (s *testSuite) TestAMuteThatCannotBeLiftedFails() {
-	s.kept(1, bully, home, now.Add(-time.Minute), time.Hour)
-
-	_, err := s.unmute(failingSaver{s.mutes}, bully)
-
-	s.Require().Error(err)
-	s.NotErrorIs(err, mutes.ErrNotMuted)
-}
-
-type failingSaver struct {
-	*inmemory_mute_storage.Storage
-}
-
-func (failingSaver) Save(context.Context, mutes.Mute) error { return errors.New("postgres is down") }

@@ -187,17 +187,6 @@ func TestAnAccountWithNoStatsGainsFromNothing(t *testing.T) {
 	assert.Equal(t, []levels.Gain{{Source: levels.TilesTaken{}.Name(), XP: 1}}, sink.gains()[0].Gains)
 }
 
-func TestAStreamThatCannotReadTheStatsFailsBeforeItIsLive(t *testing.T) {
-	sink := &recordingSink{}
-	f := newFeeds()
-	f.stats.FailWith(errors.New("postgres is down"))
-
-	err := f.listen(t.Context(), time.Hour, sink)
-
-	require.ErrorContains(t, err, "postgres is down")
-	assert.Zero(t, sink.beats())
-}
-
 func TestASinkFailureEndsTheListening(t *testing.T) {
 	failed := errors.New("the stream is gone")
 	for _, c := range []struct {

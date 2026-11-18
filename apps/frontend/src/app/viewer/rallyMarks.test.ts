@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
-import {clockStepOf, clothStyleOf, CLOTH, createRallyMarks, peekOf, RallyCallers} from "./rallyMarks.ts"
+import {clockStepOf, clothStyleOf, createRallyMarks, peekOf, RallyCallers} from "./rallyMarks.ts"
 import {Rally} from "../../domain/rallies.ts"
 
 function cameraOn(direction: THREE.Vector3, zoom: number) {
@@ -170,9 +170,7 @@ describe("the clock", () => {
 describe("the cloth", () => {
     it("covers the cloth with the flag's sprite, cut evenly", () => {
         const style = clothStyleOf({x: 100, y: 50, width: 60, height: 30})
-        const scale = Math.max(CLOTH.width / 60, CLOTH.height / 30)
 
-        expect(style.backgroundPosition).toBe(
-            `${(-100 * scale - (60 * scale - CLOTH.width) / 2).toFixed(2)}px ${(-50 * scale - (30 * scale - CLOTH.height) / 2).toFixed(2)}px`)
+        expect(style.backgroundPosition).toBe("-97.00px -45.00px")
     })
 })

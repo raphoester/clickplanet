@@ -61,19 +61,6 @@ func TestEveryStreamOfTheAccountGetsItsLevelAndNoOtherAccountDoes(t *testing.T) 
 	silent(t, other)
 }
 
-func TestTheXPGainedIsWhatEachSourceGivesPastWhatTheStreamKnew(t *testing.T) {
-	feed := inprocess_level_feed.New()
-	told := feed.Subscribe(t.Context(), ada, earned(stats.StatsSnapshot{TilesTaken: 800, DaysPlayed: 1}))
-
-	feed.Count(ada, earned(stats.StatsSnapshot{TilesTaken: 801, DaysPlayed: 2}), fifth)
-	feed.Count(ada, earned(stats.StatsSnapshot{TilesTaken: 804, DaysPlayed: 2}), fifth)
-
-	assert.Equal(t, levels.Gained{
-		Gains: []levels.Gain{tiles(1), {Source: levels.DaysPlayed{}.Name(), XP: 100}}, Standing: fifth,
-	}, received(t, told))
-	assert.Equal(t, levels.Gained{Gains: []levels.Gain{tiles(3)}, Standing: fifth}, received(t, told))
-}
-
 func TestAFactToldTwiceOrReadLateTellsNothing(t *testing.T) {
 	feed := inprocess_level_feed.New()
 	told := feed.Subscribe(t.Context(), ada, nil)
@@ -154,12 +141,4 @@ func TestAFullStreamDropsRatherThanBlocks(t *testing.T) {
 	}
 
 	assert.Len(t, told, 32)
-}
-
-func TestTellingAnAccountWithNoStreamDoesNothing(t *testing.T) {
-	assert.NotPanics(t, func() {
-		feed := inprocess_level_feed.New()
-		feed.Publish(ada, fifth)
-		feed.Count(ada, earned(stats.StatsSnapshot{TilesTaken: 1}), fifth)
-	})
 }

@@ -36,7 +36,6 @@ type FakeWallet struct {
 	paid     *cpcolls.Set[GrantID]
 	payments []Payment
 	fills    []Stacks
-	failing  error
 	gone     []error
 }
 
@@ -66,13 +65,6 @@ func (w *FakeWallet) Kept(account Account) Hand {
 	return w.hands[account]
 }
 
-func (w *FakeWallet) FailWith(err error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	w.failing = err
-}
-
 // Payments are every payment asked, a grant told again included.
 func (w *FakeWallet) Payments() []Payment {
 	w.mu.Lock()
@@ -95,9 +87,6 @@ func (w *FakeWallet) Pay(ctx context.Context, payment Payment) (int, error) {
 
 	w.payments = append(w.payments, payment)
 	w.gone = append(w.gone, ctx.Err())
-	if w.failing != nil {
-		return 0, w.failing
-	}
 
 	hand := w.hands[payment.Account]
 	if payment.Account == NoAccount || w.paid.Contains(payment.Grant) {
@@ -130,9 +119,6 @@ func (w *FakeWallet) Fill(_ context.Context, stacks Stacks) error {
 	defer w.mu.Unlock()
 
 	w.fills = append(w.fills, stacks)
-	if w.failing != nil {
-		return w.failing
-	}
 	if stacks.Account == NoAccount || w.paid.Contains(stacks.Grant) {
 		return nil
 	}

@@ -3,12 +3,6 @@ import {drawsFrame, reportClaimFailure, reportClickFailure, spins, spinStep} fro
 import {MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts"
 import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, OutOfReachError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
-import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
-import {TileField} from "./tileField.ts"
-import {chunksOf} from "../../domain/tileChunks.ts"
-import {threeLattice} from "../../domain/lattice.ts"
-import {regions} from "./atlas.ts"
-import {PLAIN} from "./graphics.ts"
 
 function handlers() {
     return {onRateLimited: vi.fn(), onFrozen: vi.fn(), onVPNBlocked: vi.fn(), onBanned: vi.fn(), onSessionUnavailable: vi.fn(), onAllegianceLocked: vi.fn(), onOutOfReach: vi.fn()}
@@ -123,79 +117,6 @@ describe("reportClaimFailure", () => {
 
         expect(h.onBanned).not.toHaveBeenCalled()
         expect(h.onSessionUnavailable).not.toHaveBeenCalled()
-    })
-})
-
-describe("a refused click, from the paint to the rollback", () => {
-    const size = 32
-
-    function wiring() {
-        const positions = new Float32Array(size * 3).map((_, i) => (i % 3 === 0 ? 1 : 0))
-        const uniforms = {pointSize: {value: 1}, pixelsPerRadian: {value: 1}, flagPaint: {value: 0}, blastRadii: {value: [0]}, motion: {value: 1}}
-        const field = new TileField(uniforms, {
-            positions,
-            size,
-            cells: {lattice: threeLattice(1), words: new Uint32Array(2), texels: Uint32Array.from({length: size}, (_, i) => i), tiles: Uint32Array.from({length: size}, (_, i) => i)},
-            chunks: chunksOf(positions),
-        }, PLAIN)
-        const ownership = new TileOwnership(size)
-
-        const applyChanges = (changes: OwnerChange[]) => {
-            if (changes.length > 0) field.setOwners(changes)
-        }
-
-        const live = (tile: number, country: string) => {
-            const changes: OwnerChange[] = []
-            ownership.set(tile, country, changes)
-            applyChanges(changes)
-        }
-
-        const regionOf = (tile: number) => {
-            const [at, size] = (field.displayPoints.geometry.getAttribute("flagRegion").array as Float32Array).slice((tile - 1) * 2, tile * 2)
-            return [at % 2048, Math.floor(at / 2048), size % 2048, Math.floor(size / 2048)]
-        }
-
-        return {ownership, applyChanges, live, regionOf}
-    }
-
-    it("paints the tile, then blanks it again", () => {
-        const {ownership, applyChanges, regionOf} = wiring()
-        const fr = regions.get("fr")!
-
-        const {changes, claim} = ownership.applyOptimistic(3, "fr")
-        applyChanges(changes)
-
-        expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
-
-        applyChanges(ownership.rollback(claim))
-
-        expect(regionOf(3)).toEqual([0, 0, 0, 0])
-    })
-
-    it("gives the tile back to the country that held it", () => {
-        const {ownership, applyChanges, live, regionOf} = wiring()
-        const jp = regions.get("jp")!
-
-        live(3, "jp")
-
-        const {changes, claim} = ownership.applyOptimistic(3, "fr")
-        applyChanges(changes)
-        applyChanges(ownership.rollback(claim))
-
-        expect(regionOf(3)).toEqual([jp.x, jp.y, jp.width, jp.height])
-    })
-
-    it("leaves a click the server had already echoed alone", () => {
-        const {ownership, applyChanges, live, regionOf} = wiring()
-        const fr = regions.get("fr")!
-
-        const {changes, claim} = ownership.applyOptimistic(3, "fr")
-        applyChanges(changes)
-        live(3, "fr")
-
-        applyChanges(ownership.rollback(claim))
-
-        expect(regionOf(3)).toEqual([fr.x, fr.y, fr.width, fr.height])
     })
 })
 

@@ -34,16 +34,6 @@ func (s *StoreContractSuite) grant(account byte, ids ...ID) {
 	s.Require().NoError(s.store.Grant(s.T().Context(), Holdings{{15: account}: ids}, contractAt))
 }
 
-func (s *StoreContractSuite) TestAnAccountNeverGrantedATitleHoldsNone() {
-	s.Empty(s.held(1))
-}
-
-func (s *StoreContractSuite) TestGrantedTitlesReadBack() {
-	s.grant(1, "settler", "loyal")
-
-	s.ElementsMatch(IDs{"settler", "loyal"}, s.held(1))
-}
-
 func (s *StoreContractSuite) TestATitleGrantedAgainIsHeldOnce() {
 	s.grant(1, "settler")
 

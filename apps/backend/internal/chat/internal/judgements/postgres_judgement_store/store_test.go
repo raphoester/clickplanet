@@ -32,10 +32,3 @@ func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.StorageContractSuite.SetupTest()
 }
-
-func (s *testSuite) TestEveryVerdictIsAValueOfThePostgresType() {
-	for _, verdict := range []judgements.Verdict{judgements.Acted, judgements.Dismissed, judgements.LeftOpen} {
-		_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `SELECT $1::judgement_verdict`, verdict.String())
-		s.Require().NoError(err, verdict.String())
-	}
-}

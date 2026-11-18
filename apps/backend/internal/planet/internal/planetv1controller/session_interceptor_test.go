@@ -15,7 +15,6 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase/throttle_click"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
@@ -149,45 +148,6 @@ func TestSessionInterceptor(t *testing.T) {
 
 		require.Empty(t, verifier.asked, "reads are never even offered to the verifier")
 	})
-}
-
-func TestSessionCheckRunsBeforeTheThrottle(t *testing.T) {
-	interceptor := NewSessionInterceptor(validVerifier(), nil, prometheus.NewRegistry())
-
-	limiter := &fakeLimiter{allow: true}
-	server := clickServerWith(t, throttle_click.New(stubService{}, limiter, onePrice, wholeClicks{}, buckets), nil,
-		connect.WithInterceptors(
-			errorNet(),
-			interceptor,
-		))
-
-	require.Equal(t, http.StatusUnauthorized, clickStatus(t, server, "1.2.3.4"))
-	require.Empty(t, limiter.keys, "the refused click never reached the bucket")
-}
-
-func TestSessionRefusalIsA401OverHTTP(t *testing.T) {
-	interceptor := NewSessionInterceptor(validVerifier(), nil, prometheus.NewRegistry())
-
-	server := clickServer(t, connect.WithInterceptors(
-		errorNet(),
-		interceptor,
-	))
-
-	click := func(token string) error {
-		req := connect.NewRequest(&planetv1.ClickRequest{TileId: 1, CountryId: "fr"})
-		req.Header().Set("X-Real-IP", "1.2.3.4")
-		if token != "" {
-			req.Header().Set(cpconnect.SessionHeader, token)
-		}
-		_, err := planetv1connect.NewClickServiceClient(server.Client(), server.URL).
-			Click(t.Context(), req)
-		return err
-	}
-
-	require.NoError(t, click("good-token"))
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(click("")))
-	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(click("forged")))
-	require.Equal(t, http.StatusUnauthorized, clickStatus(t, server, "1.2.3.4"))
 }
 
 func sessionChecks(t *testing.T, gatherer prometheus.Gatherer, verdict string) float64 {

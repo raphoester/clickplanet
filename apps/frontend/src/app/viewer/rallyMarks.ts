@@ -34,7 +34,7 @@ const ARC_STEPS = 360
 const TIP_MS = 4_000
 
 // The cloth of the planted flag, in CSS pixels.
-export const CLOTH = {width: 40, height: 27} as const
+const CLOTH = {width: 40, height: 27} as const
 
 // The flag around the pole's foot in CSS pixels, y down: the pole with its knob and shadow, and the cloth. A flag behind
 // the globe shows while some of it rises past the globe's edge.

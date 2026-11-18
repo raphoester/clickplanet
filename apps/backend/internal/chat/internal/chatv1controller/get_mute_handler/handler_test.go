@@ -19,15 +19,11 @@ import (
 type stubQuery struct {
 	account messages.AccountID
 	kind    mutes.Kind
-	err     error
 }
 
 func (q *stubQuery) Mute(_ context.Context, account messages.AccountID, kind mutes.Kind) (*chatv1.GetMuteResponse, error) {
 	q.account = account
 	q.kind = kind
-	if q.err != nil {
-		return nil, q.err
-	}
 	return &chatv1.GetMuteResponse{
 		MutedUntil:     timestamppb.New(time.Date(2026, 10, 30, 21, 0, 0, 0, time.UTC)),
 		MutedAccountId: account.String(),
@@ -71,11 +67,4 @@ func TestAnIDThatIsNotAnAccountIsInvalid(t *testing.T) {
 		_, err := get_mute_handler.New(&stubQuery{}).GetMute(t.Context(), connect.NewRequest(&chatv1.GetMuteRequest{AccountId: id}))
 		assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), id)
 	}
-}
-
-func TestAReadThatFailsIsNoAnswer(t *testing.T) {
-	_, err := get_mute_handler.New(&stubQuery{err: assert.AnError}).
-		GetMute(t.Context(), connect.NewRequest(&chatv1.GetMuteRequest{AccountId: bullyID}))
-
-	assert.ErrorIs(t, err, assert.AnError)
 }

@@ -51,15 +51,13 @@ func (c *commanded) PlayAntibot(_ context.Context, turn schedule.Turn, decidedAt
 	return nil
 }
 
-// battles answers whether a battle's set waits, and counts what it was asked.
+// battles answers whether a battle's set waits.
 type battles struct {
 	waits bool
 	err   error
-	asked []schedule.Kind
 }
 
-func (b *battles) SetWaits(_ context.Context, turn schedule.Turn, _ time.Time) (bool, error) {
-	b.asked = append(b.asked, turn.TakeSnapshot().Kind)
+func (b *battles) SetWaits(context.Context, schedule.Turn, time.Time) (bool, error) {
 	return b.waits, b.err
 }
 
@@ -337,13 +335,12 @@ func TestABattlesSetWaitsForPlanetUntilItsBattleTookItsMap(t *testing.T) {
 	}, h.commands.sent, "planet gets it with the turn's decision time")
 }
 
-func TestAPlainTurnNeverAsksWhetherItsSetWaits(t *testing.T) {
+func TestAPlainTurnNeverWaits(t *testing.T) {
 	h := newHarness(t, finale.Add(-time.Hour))
 	h.battles.waits = true
 
 	h.execute()
 
-	assert.Empty(t, h.battles.asked)
 	assert.Equal(t, []command{{set: "default", decidedAt: finale.Add(-time.Hour)}}, h.commands.sent)
 }
 

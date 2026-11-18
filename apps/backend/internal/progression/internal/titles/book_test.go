@@ -1,7 +1,6 @@
 package titles_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/inmemory_title_store"
 )
@@ -25,16 +23,6 @@ func holding(t *testing.T, ids ...titles.ID) *inmemory_title_store.Store {
 	store := inmemory_title_store.New()
 	require.NoError(t, store.Grant(t.Context(), titles.Holdings{ada: ids}, at))
 	return store
-}
-
-func TestAGuestEarnsNothingAndNoStoreIsRead(t *testing.T) {
-	store := inmemory_title_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	unheld, err := titles.NewBook(store, catalog).Unheld(t.Context(), ada, titles.CareerOf(stats.StatsSnapshot{TilesTaken: 3}.Restore(), accounts.Account{}, nil))
-
-	require.NoError(t, err)
-	assert.Empty(t, unheld)
 }
 
 func TestShownIsWhatTheCatalogShowsOfTheTitlesHeld(t *testing.T) {

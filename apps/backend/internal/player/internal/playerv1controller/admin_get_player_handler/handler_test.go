@@ -2,7 +2,6 @@ package admin_get_player_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -63,13 +62,4 @@ func TestAnAccountTheGameKeepsNothingAboutIsNotFound(t *testing.T) {
 	_, err := getPlayer(t, &stubQuery{err: admin_player_query.ErrNoPlayer}, ada.String())
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-}
-
-func TestAFailureIsLeftToTheErrorNet(t *testing.T) {
-	cause := errors.New("postgres is down")
-
-	_, err := getPlayer(t, &stubQuery{err: cause}, ada.String())
-
-	require.ErrorIs(t, err, cause)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

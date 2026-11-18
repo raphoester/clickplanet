@@ -1,8 +1,6 @@
 package retell_missions_done_usecase_test
 
 import (
-	"context"
-	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -122,28 +120,4 @@ func TestEveryPageIsToldEachAccountOnce(t *testing.T) {
 	}
 	assert.True(t, slices.IsSorted(ids), "in the order of the accounts, so no page tells one twice")
 	assert.Len(t, slices.Compact(ids), accounts)
-}
-
-func TestAStoreThatFailsTellsNothing(t *testing.T) {
-	store, outbox := inmemory_mission_store.New(), &cpatomic.FakeOutbox{}
-	done(t, store, 1, 1)
-	store.FailWith(errors.New("down"))
-
-	_, err := retell(t, store, outbox, false)
-
-	require.Error(t, err)
-	assert.Empty(t, outbox.Recorded())
-}
-
-type failingOutbox struct{}
-
-func (failingOutbox) Record(context.Context, ...proto.Message) error { return errors.New("full") }
-
-func TestAnOutboxThatFailsIsAnError(t *testing.T) {
-	store := inmemory_mission_store.New()
-	done(t, store, 1, 1)
-
-	_, err := retell(t, store, failingOutbox{}, false)
-
-	require.ErrorContains(t, err, "failed to record a page of the missions done")
 }

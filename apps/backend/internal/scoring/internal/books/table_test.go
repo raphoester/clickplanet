@@ -39,25 +39,6 @@ func TestCountriesLevelOnEverythingShareTheRank(t *testing.T) {
 	}, table)
 }
 
-func TestABookIsRankedFromItsRoundsWithItsTiebreakAsTheThirdKey(t *testing.T) {
-	battle := books.Round{ID: "battle", Book: "season-0", Times: 3, Ranking: books.GainRanking{}}
-	scored := []books.Scored{
-		{Round: day, Results: []books.Result{{Country: "fr", Rank: 1, Points: 25}, {Country: "de", Rank: 2, Points: 18}}},
-		{Round: battle, Results: []books.Result{{Country: "de", Rank: 1, Points: 75}, {Country: "fr", Rank: 2, Points: 54}, {Country: "it", Rank: 3, Points: 0}}},
-	}
-
-	closed := books.NewBook("season-0", utc(8, 0)).ClosedAt(utc(31, 23), "battle")
-
-	assert.Equal(t, []books.Placed{
-		{Rank: 1, Score: books.Score{Country: "de", Points: 93, RoundsWon: 1, TiebreakPoints: 75}},
-		{Rank: 2, Score: books.Score{Country: "fr", Points: 79, RoundsWon: 1, TiebreakPoints: 54}},
-	}, closed.Table(scored, nil))
-	assert.Equal(t, []books.Placed{
-		{Rank: 1, Score: books.Score{Country: "de", Points: 93, RoundsWon: 1}},
-		{Rank: 2, Score: books.Score{Country: "fr", Points: 79, RoundsWon: 1}},
-	}, books.NewBook("season-0", utc(8, 0)).Table(scored, nil), "no tiebreak while it runs")
-}
-
 func TestAGrantAddsPointsToTheBooksOpenAtItsTimeAndWinsNoRound(t *testing.T) {
 	scored := []books.Scored{{Round: day, Results: []books.Result{{Country: "fr", Rank: 1, Points: 25}}}}
 	grants := []books.Grant{

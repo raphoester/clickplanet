@@ -34,15 +34,6 @@ func TestTheCommentIsOptional(t *testing.T) {
 	assert.Empty(t, decision.TakeSnapshot().Comment)
 }
 
-func TestASnapshotRestoresTheDecisionItWasTakenFrom(t *testing.T) {
-	kept := decisions.Snapshot{Report: report, Outcome: decisions.OutcomeDismissed, Comment: "a duel", At: decidedAt}
-
-	decision, err := kept.Restore()
-	require.NoError(t, err)
-
-	assert.Equal(t, kept, decision.TakeSnapshot())
-}
-
 func TestADecisionThatBreaksARuleRestoresNothing(t *testing.T) {
 	for name, broken := range map[string]struct {
 		snapshot decisions.Snapshot

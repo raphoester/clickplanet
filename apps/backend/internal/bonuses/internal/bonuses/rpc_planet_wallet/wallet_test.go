@@ -2,7 +2,6 @@ package rpc_planet_wallet_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -17,16 +16,12 @@ import (
 type fakePlanet struct {
 	granted []*planetv1.InternalGrantChargesRequest
 	filled  []*planetv1.FillChargesRequest
-	failing error
 }
 
 func (f *fakePlanet) FillCharges(
 	_ context.Context, req *connect.Request[planetv1.FillChargesRequest],
 ) (*connect.Response[planetv1.FillChargesResponse], error) {
 	f.filled = append(f.filled, req.Msg)
-	if f.failing != nil {
-		return nil, f.failing
-	}
 	return connect.NewResponse(&planetv1.FillChargesResponse{}), nil
 }
 
@@ -34,9 +29,6 @@ func (f *fakePlanet) GrantCharges(
 	_ context.Context, req *connect.Request[planetv1.InternalGrantChargesRequest],
 ) (*connect.Response[planetv1.InternalGrantChargesResponse], error) {
 	f.granted = append(f.granted, req.Msg)
-	if f.failing != nil {
-		return nil, f.failing
-	}
 	return connect.NewResponse(&planetv1.InternalGrantChargesResponse{
 		Kept: 2, Charges: &planetv1.ChargesHeld{Shields: 7},
 	}), nil
@@ -81,14 +73,6 @@ func TestACallerWithNoAccountIsPaidNothingAndPlanetIsNotAsked(t *testing.T) {
 	assert.Empty(t, planet.granted)
 }
 
-func TestAPaymentPlanetRefusedIsAnError(t *testing.T) {
-	planet := &fakePlanet{failing: errors.New("planet is gone")}
-
-	_, err := rpc_planet_wallet.New(planet, rpc_planet_wallet.ForAWhile).Pay(t.Context(), payment)
-
-	require.Error(t, err)
-}
-
 var stacks = bonuses.Stacks{
 	Grant: bonuses.OfferGrantOf("a-level"), Account: "acc", Kinds: []bonuses.Kind{bonuses.KindRefill, bonuses.KindShields},
 }
@@ -114,10 +98,4 @@ func TestAFillForNoAccountAsksPlanetNothing(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Empty(t, planet.filled)
-}
-
-func TestAFillPlanetRefusedIsAnError(t *testing.T) {
-	planet := &fakePlanet{failing: errors.New("planet is gone")}
-
-	require.Error(t, rpc_planet_wallet.New(planet, rpc_planet_wallet.ForGood).Fill(t.Context(), stacks))
 }

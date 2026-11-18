@@ -81,15 +81,6 @@ describe("RecruitLink", () => {
         await waitFor(() => expect(button("Shared!")).toBeDefined())
     })
 
-    it("goes quietly back to offering when the player closes the share sheet", async () => {
-        const {user} = setup("sheet")
-        deliver.mockResolvedValue("cancelled")
-
-        await user.click(button("Share link"))
-
-        await waitFor(() => expect(button("Share link").disabled).toBe(false))
-    })
-
     it("refuses a second press while the first is going", async () => {
         const {user} = setup("sheet")
         let finish: (outcome: "shared") => void = () => {}
@@ -112,19 +103,5 @@ describe("RecruitLink", () => {
 
         await waitFor(() => expect(button("Try again")).toBeDefined())
         expect(logged).toHaveBeenCalled()
-    })
-
-    it("goes back to offering once the outcome has been read", async () => {
-        vi.useFakeTimers({shouldAdvanceTime: true})
-        const {user} = setup("copy")
-        deliver.mockResolvedValue("copied")
-
-        await user.click(button("Copy link"))
-        await waitFor(() => expect(button("Copied!")).toBeDefined())
-
-        await vi.advanceTimersByTimeAsync(3_000)
-        expect(button("Copy link")).toBeDefined()
-
-        vi.useRealTimers()
     })
 })

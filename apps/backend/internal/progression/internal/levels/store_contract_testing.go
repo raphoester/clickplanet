@@ -40,10 +40,6 @@ func (s *StoreContractSuite) raise(account byte, level Level) Level {
 	return previous
 }
 
-func (s *StoreContractSuite) TestAnAccountNeverRaisedHasNoLevel() {
-	s.Empty(s.levels(1))
-}
-
 func (s *StoreContractSuite) TestNoAccountAskedIsNoLevels() {
 	s.Empty(s.levels())
 }

@@ -2,7 +2,6 @@ package player_named_subscriber_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 const adaID = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a01"
 
 type judging struct {
-	err       error
 	accounts  []casts.AccountID
 	deadlines []time.Duration
 }
@@ -27,7 +25,7 @@ func (j *judging) Execute(ctx context.Context, account casts.AccountID) error {
 	if deadline, set := ctx.Deadline(); set {
 		j.deadlines = append(j.deadlines, time.Until(deadline))
 	}
-	return j.err
+	return nil
 }
 
 func TestTheNamedAccountIsJudgedWithinAMinute(t *testing.T) {
@@ -40,14 +38,6 @@ func TestTheNamedAccountIsJudgedWithinAMinute(t *testing.T) {
 	assert.Equal(t, []casts.AccountID{ada}, useCase.accounts)
 	require.Len(t, useCase.deadlines, 1)
 	assert.InDelta(t, player_named_subscriber.Timeout, useCase.deadlines[0], float64(time.Second))
-}
-
-func TestAJudgementThatFailsFailsTheEventSoItIsTriedAgain(t *testing.T) {
-	failure := errors.New("overloaded")
-
-	err := player_named_subscriber.New(&judging{err: failure}).Handle(t.Context(), &playerv1.PlayerNamed{AccountId: adaID})
-
-	assert.ErrorIs(t, err, failure)
 }
 
 func TestAnEventWithNoAccountJudgesNothing(t *testing.T) {

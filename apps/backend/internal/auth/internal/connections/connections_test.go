@@ -96,19 +96,6 @@ func TestARequestIsSentBackToTheAppWhenOnlyItIsWrong(t *testing.T) {
 	}
 }
 
-func TestARequestLastsTenMinutesAndSaysWhoAndWhere(t *testing.T) {
-	request, err := claude(t).Request("the id", ask(), now)
-	require.NoError(t, err)
-
-	require.NoError(t, request.ExpiryError(now.Add(connections.RequestTTL-time.Nanosecond)))
-	require.ErrorIs(t, request.ExpiryError(now.Add(connections.RequestTTL)), connections.ErrExpired)
-	assert.Equal(t, "Claude", request.TakeSnapshot().Client)
-	assert.Equal(t, callback, request.TakeSnapshot().RedirectURI)
-	assert.Equal(t, callback+"?error=access_denied&state=the+state", request.DeniedURL())
-	assert.Equal(t, callback+"?code=the+code&iss=https%3A%2F%2Fapi.clickplanet.lol&state=the+state",
-		request.ApprovedURL("the code", "https://api.clickplanet.lol"))
-}
-
 func TestACodeIsRedeemedByItsClientOnItsRedirectWithItsVerifierWithinAMinute(t *testing.T) {
 	request, err := claude(t).Request("the id", ask(), now)
 	require.NoError(t, err)

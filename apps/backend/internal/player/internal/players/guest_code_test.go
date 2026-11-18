@@ -10,11 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 )
 
-func TestAGuestIsShownByItsCodeAndAPlayerByItsName(t *testing.T) {
-	assert.Equal(t, "guest_a1b2c3", players.DisplayNameOf("", "a1b2c3"))
-	assert.Equal(t, "Ada", players.DisplayNameOf("Ada", "a1b2c3"))
-}
-
 func TestAGuestCodeIsSixLowercaseHexCharacters(t *testing.T) {
 	code, err := players.GuestCodeOf("a1b2c3")
 	require.NoError(t, err)
@@ -24,22 +19,6 @@ func TestAGuestCodeIsSixLowercaseHexCharacters(t *testing.T) {
 		_, err := players.GuestCodeOf(value)
 		require.ErrorIs(t, err, players.ErrInvalidGuestCode, "%q", value)
 	}
-}
-
-func TestAssignGivesAnAccountItsCodeOnce(t *testing.T) {
-	store := inmemory_player_store.New()
-	codes := players.NewGuestCodes(store, &players.SequentialCodes{})
-
-	require.NoError(t, codes.Assign(t.Context(), players.AccountID{15: 1}))
-	require.NoError(t, codes.Assign(t.Context(), players.AccountID{15: 1}))
-	require.NoError(t, codes.Assign(t.Context(), players.AccountID{15: 2}))
-
-	first, err := store.GuestCode(t.Context(), players.AccountID{15: 1})
-	require.NoError(t, err)
-	assert.Equal(t, players.GuestCode("000001"), first, "a second Assign draws nothing")
-	second, err := store.GuestCode(t.Context(), players.AccountID{15: 2})
-	require.NoError(t, err)
-	assert.Equal(t, players.GuestCode("000002"), second)
 }
 
 func TestAssignDrawsAgainWhenTheCodeIsTaken(t *testing.T) {

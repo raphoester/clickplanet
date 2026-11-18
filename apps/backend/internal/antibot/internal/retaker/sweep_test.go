@@ -14,10 +14,13 @@ import (
 func TestSweepForgetsIdleCallersAndStaleTiles(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: time.Minute}, bounds(func(r *Rules) {
+	rules := bounds(func(r *Rules) {
 		r.ReactionWindow = time.Second
 		r.MinReactions = 4
-	}), clock, nil)
+	})
+	w := New(Config{TrackWindow: time.Minute}, rules, clock, nil)
+	empty, err := New(Config{TrackWindow: time.Minute}, rules, clock, nil).Save()
+	require.NoError(t, err)
 
 	player := detect.Click{Scope: "player", Tile: 1, Country: "FR", At: clock.Now()}
 	w.Watch(player)
@@ -29,12 +32,14 @@ func TestSweepForgetsIdleCallersAndStaleTiles(t *testing.T) {
 	w.Watch(bot)
 	w.Committed(bot)
 
-	require.Len(t, w.tiles, 1)
-	require.Len(t, w.callers, 1)
+	watched, err := w.Save()
+	require.NoError(t, err)
+	require.NotEqual(t, empty, watched)
 
 	clock.Advance(2 * time.Hour)
 	w.sweep()
 
-	assert.Empty(t, w.tiles, "tiles nobody can still be reacting to are dropped")
-	assert.Empty(t, w.callers, "callers with no reactions left are dropped")
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept, "tiles nobody can still be reacting to and callers with no reactions left are dropped")
 }

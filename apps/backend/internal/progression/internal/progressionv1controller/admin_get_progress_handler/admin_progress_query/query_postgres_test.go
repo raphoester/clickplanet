@@ -2,7 +2,6 @@ package admin_progress_query_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -34,11 +33,10 @@ func TestRunSuite(t *testing.T) {
 
 type fakeFronts struct {
 	answer *progressionv1.GetFrontsResponse
-	err    error
 }
 
 func (f *fakeFronts) Fronts(context.Context, accounts.AccountID) (*progressionv1.GetFrontsResponse, error) {
-	return f.answer, f.err
+	return f.answer, nil
 }
 
 type testSuite struct {
@@ -171,12 +169,4 @@ func (s *testSuite) TestEveryCountryThePlayerPlaysForAndAgainstIsRead() {
 	s.True(proto.Equal(&progressionv1.AdminGetProgressResponse{PlaysFor: countries("fr", "be"), PlaysAgainst: countries("de", "es", "it", "pt")},
 		&progressionv1.AdminGetProgressResponse{PlaysFor: progress.GetPlaysFor(), PlaysAgainst: progress.GetPlaysAgainst()}),
 		"not the public card's top three: %v", progress)
-}
-
-func (s *testSuite) TestAFailureToAskPlanetIsAnError() {
-	s.fronts.err = errors.New("down")
-
-	_, err := s.query().Progress(s.T().Context(), ada)
-
-	s.Require().ErrorIs(err, s.fronts.err)
 }

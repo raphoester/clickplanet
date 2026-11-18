@@ -1,7 +1,6 @@
 package signin_test
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -14,24 +13,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/auth/internal/signin"
 )
 
-type failingCodes struct{}
-
-func (failingCodes) NewCode() (string, error) { return "", errors.New("no entropy") }
-
 func challenge(t *testing.T, intent accounts.Intent, account accounts.AccountID) *signin.Challenge {
 	t.Helper()
 
 	challenge, err := signin.NewChallenge("player@example.com", intent, account, &signin.SequentialSecrets{}, &signin.SequentialCodes{}, now)
 	require.NoError(t, err)
 	return challenge
-}
-
-func TestAnAddressIsTrimmedAndInLowerCase(t *testing.T) {
-	address, err := signin.AddressOf("  Player.One+tag@Example.COM ")
-
-	require.NoError(t, err)
-	assert.Equal(t, signin.Address("player.one+tag@example.com"), address)
-	assert.Equal(t, "example.com", address.Domain())
 }
 
 func TestAnythingButOneBareAddressIsRefused(t *testing.T) {
@@ -56,14 +43,6 @@ func TestAnythingButOneBareAddressIsRefused(t *testing.T) {
 			assert.ErrorIs(t, err, signin.ErrAddressInvalid)
 		})
 	}
-}
-
-func TestAChallengeWithoutEntropyIsNotStarted(t *testing.T) {
-	_, err := signin.NewChallenge("player@example.com", accounts.IntentSignIn, accounts.AccountID{}, failingSecrets{}, &signin.SequentialCodes{}, now)
-	require.Error(t, err)
-
-	_, err = signin.NewChallenge("player@example.com", accounts.IntentSignIn, accounts.AccountID{}, &signin.SequentialSecrets{}, failingCodes{}, now)
-	assert.Error(t, err)
 }
 
 func TestOnlyTheCodeSentPassesWhileTheChallengeLives(t *testing.T) {

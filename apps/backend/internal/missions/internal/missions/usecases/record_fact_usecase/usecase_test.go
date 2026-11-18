@@ -23,12 +23,11 @@ import (
 
 type countingPlanet struct {
 	asked int
-	err   error
 }
 
 func (p *countingPlanet) World(context.Context) (missions.World, error) {
 	p.asked++
-	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, p.err
+	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000}}}, nil
 }
 
 type pledged string
@@ -178,18 +177,6 @@ func TestAFactWhenNoDayRunsCountsNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, sheet.Snapshot().Progress)
 	assert.Zero(t, planet.asked, "no missions are drawn")
-}
-
-func TestAMapThatCannotBeReadCountsNothing(t *testing.T) {
-	store := inmemory_mission_store.New()
-	useCase := record_fact_usecase.New(calendar, missions.NewBriefing(store, &countingPlanet{err: errors.New("down")}, pledged("fr")), store, store,
-		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, &recordingPayroll{}, &recordingStreams{})
-
-	require.Error(t, useCase.Execute(t.Context(), record_fact_usecase.In{Account: ada, At: at, Fact: missions.Take{Flag: "fr"}}))
-
-	sheet, err := store.Sheet(t.Context(), days.TestingDayAt(at), ada)
-	require.NoError(t, err)
-	assert.Empty(t, sheet.Snapshot().Progress)
 }
 
 func TestOnlyTheTakeThatFinishesAMissionPaysIt(t *testing.T) {

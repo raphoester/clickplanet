@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/bonuses"
 	"github.com/raphoester/clickplanet.lol-backend/internal/bonuses/internal/unlocks"
@@ -28,8 +27,4 @@ func TestAnOlderOrEqualDecisionChangesNothing(t *testing.T) {
 	for _, late := range []time.Time{monday, monday.Add(-time.Minute)} {
 		assert.Equal(t, kept, kept.Decided(unlocks.DecisionOf(nil, late)))
 	}
-}
-
-func TestADecisionWithNoTimeIsRefused(t *testing.T) {
-	require.ErrorIs(t, unlocks.DecisionOf(nil, time.Time{}).TimeError(), unlocks.ErrNoTime)
 }

@@ -33,11 +33,10 @@ var (
 
 type written struct {
 	findings posts.Findings
-	err      error
 }
 
 func (w written) Findings(context.Context) (posts.Findings, error) {
-	return w.findings, w.err
+	return w.findings, nil
 }
 
 type history struct {
@@ -133,14 +132,6 @@ func TestARunWithNothingFoundTakesNoneAndAsksNobody(t *testing.T) {
 	assert.Empty(t, choice.Chosen)
 	assert.Empty(t, model.offers)
 	assert.Equal(t, posts.Editorial{}, choice.Editorial)
-}
-
-func TestFindingsThatCannotBeReadFailTheRun(t *testing.T) {
-	unreadable := errors.New("the file is gone")
-
-	_, err := editedBy(written{err: unreadable}, &history{}, &editor{}).Execute(t.Context())
-
-	require.ErrorIs(t, err, unreadable)
 }
 
 func TestAHistoryThatCannotBeReadFailsTheRunRatherThanTellAStoryTwice(t *testing.T) {

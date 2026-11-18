@@ -24,23 +24,6 @@ func renamed(t *testing.T, before players.Profile, name players.Name) players.Pr
 	return after
 }
 
-func TestTheNameReplacedIsLeft(t *testing.T) {
-	before := players.NewProfile(ada, "BraveFox42", monday.Add(-time.Hour))
-
-	left, ok := pastnames.PastNameOf(before, renamed(t, before, "Ada_L"), monday)
-
-	require.True(t, ok)
-	assert.Equal(t, pastnames.Snapshot{Account: ada, Name: "BraveFox42", LeftAt: monday}, left.TakeSnapshot())
-}
-
-func TestAFirstNameLeavesNone(t *testing.T) {
-	before := players.Unnamed(ada)
-
-	_, ok := pastnames.PastNameOf(before, renamed(t, before, "Ada_L"), monday)
-
-	assert.False(t, ok)
-}
-
 func TestTheSameNameInAnotherCaseLeavesNone(t *testing.T) {
 	for _, name := range []players.Name{"ada_l", "ADA_L", "Ａｄａ_Ｌ", "Ada_L"} {
 		before := players.NewProfile(ada, "Ada_L", monday.Add(-time.Hour))

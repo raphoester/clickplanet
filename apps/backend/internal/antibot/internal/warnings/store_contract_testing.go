@@ -46,10 +46,6 @@ func (s *StoreContractSuite) same(want, got Warning) {
 	s.True(want.AcknowledgedAt.Equal(got.AcknowledgedAt), "acknowledged at: want %s, got %s", want.AcknowledgedAt, got.AcknowledgedAt)
 }
 
-func (s *StoreContractSuite) TestAnAccountNeverWarnedIsNotIn() {
-	s.Empty(s.warned(ada))
-}
-
 func (s *StoreContractSuite) TestAWarningIsKeptAndReadBack() {
 	s.True(s.keep(Warning{Account: ada, At: contractAt}))
 

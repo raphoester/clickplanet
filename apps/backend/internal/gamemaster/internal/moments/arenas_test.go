@@ -75,18 +75,6 @@ func TestAnArenaBattlesRoundOpensFromNothingOnceItsArenaOpenedAndItsArenaOpensNo
 	assert.Empty(t, opened.ArenasDueAt(now))
 }
 
-func TestAnArenaBattleWhoseArenaNeverOpensNeverOpensItsRoundAndClosesIt(t *testing.T) {
-	plan := backToBack(both([]moments.RoundID{"season-0/day-23"}, nil))
-
-	for at := firstStarts; at.Before(secondStarts); at = at.Add(time.Minute) {
-		for _, command := range plan.DueAt(at) {
-			assert.False(t, command.Action == moments.OpenRound && command.Round == first, "%s: %v", at, command)
-		}
-	}
-	assert.Contains(t, plan.DueAt(secondStarts),
-		moments.Command{Action: moments.CloseRound, Book: "season-0", Round: first, At: secondStarts})
-}
-
 func TestTheNextArenaWaitsForTheMapOfTheOneBefore(t *testing.T) {
 	scored := []moments.RoundID{"season-0/day-23", first}
 

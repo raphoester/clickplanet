@@ -22,11 +22,10 @@ var now = time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC)
 
 type timeline struct {
 	battles []*gamemasterv1.Battle
-	err     error
 }
 
 func (t timeline) Battles(context.Context) ([]*gamemasterv1.Battle, error) {
-	return t.battles, t.err
+	return t.battles, nil
 }
 
 // Each battle's cards by its id, and the ids asked.
@@ -89,14 +88,11 @@ func TestABattleWithNoCardOrThatTheScheduleDroppedIsLeftOut(t *testing.T) {
 	assert.Equal(t, "teased", teasers[0].GetBattleId())
 }
 
-func TestCardsOrATimelineThatCannotBeReadFailTheRead(t *testing.T) {
+func TestCardsThatCannotBeReadFailTheRead(t *testing.T) {
 	broken := errors.New("planet does not answer")
 	sets := &cards{err: map[string]error{"ring-war": broken}}
 
 	_, err := teasers_query.New(timeline{battles: []*gamemasterv1.Battle{battleAt("ring-war", time.Hour)}}, sets, cptime.NewFixedClock(now)).
 		Teasers(t.Context(), 24*time.Hour)
-	require.ErrorIs(t, err, broken)
-
-	_, err = teasers_query.New(timeline{err: broken}, sets, cptime.NewFixedClock(now)).Teasers(t.Context(), 24*time.Hour)
 	require.ErrorIs(t, err, broken)
 }

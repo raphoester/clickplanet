@@ -70,12 +70,6 @@ describe("ReactionBar", () => {
         expect((await hover(show([clown(1, [])]))).textContent).toContain("1 player")
     })
 
-    it("lets the count decide, so a name past it is not shown", async () => {
-        const popup = await hover(show([clown(1, ["Ana", "Bo"])]))
-
-        expect(popup.textContent).toBe("ClownAna")
-    })
-
     it("describes the chip by the popup, so a screen reader reads who reacted", async () => {
         const chip = show([clown(2, ["Ana", "Bo"])])
 

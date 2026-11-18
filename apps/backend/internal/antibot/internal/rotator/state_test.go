@@ -99,7 +99,11 @@ func TestSlotsSavedUnderAnotherLengthAreDropped(t *testing.T) {
 	restarted := newWatchdog(Config{Slot: 10 * time.Minute}, bounded(), clock)
 	require.NoError(t, restarted.Load(data))
 
-	assert.Empty(t, restarted.accounts, "a mark is a second of the slot it was saved under")
+	loaded, err := restarted.Save()
+	require.NoError(t, err)
+	empty, err := newWatchdog(Config{Slot: 10 * time.Minute}, bounded(), clock).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, loaded, "a mark is a second of the slot it was saved under")
 }
 
 func TestForgetDropsSlotsBeforeTheCutoff(t *testing.T) {
@@ -108,10 +112,11 @@ func TestForgetDropsSlotsBeforeTheCutoff(t *testing.T) {
 	w := newWatchdog(Config{}, bounded(), clock)
 	play(w, clock, 3, inTurns)
 
-	w.Forget(clock.Now().Add(-5 * time.Minute))
-	require.Contains(t, w.accounts, accountID("one"))
-	assert.Len(t, w.accounts["one"].slots, 1, "the slot the cutoff falls in is kept")
-
 	w.Forget(clock.Now().Add(time.Second))
-	assert.Empty(t, w.accounts)
+
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := newWatchdog(Config{}, bounded(), clock).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

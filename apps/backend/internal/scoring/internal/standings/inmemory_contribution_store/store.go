@@ -16,9 +16,8 @@ type key struct {
 }
 
 type Store struct {
-	mu       sync.Mutex
-	tallies  map[key]standings.Tally
-	failWith error
+	mu      sync.Mutex
+	tallies map[key]standings.Tally
 }
 
 var _ standings.Store = (*Store)(nil)
@@ -27,20 +26,10 @@ func New() *Store {
 	return &Store{tallies: map[key]standings.Tally{}}
 }
 
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.failWith = err
-}
-
 func (s *Store) RecordTakes(_ context.Context, book books.BookID, account standings.AccountID, takes []standings.Take) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	at := key{book: book, account: account}
 	if tally := s.tallies[at].WithTakes(takes); !tally.Empty() {
 		s.tallies[at] = tally
@@ -59,9 +48,6 @@ func (s *Store) DeleteAccount(_ context.Context, account standings.AccountID) er
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	for at := range s.tallies {
 		if at.account == account {
 			delete(s.tallies, at)

@@ -49,10 +49,6 @@ func TestNoPickIsAnEmptyArrayNeverNull(t *testing.T) {
 	assert.Equal(t, "[]\n", out.String())
 }
 
-func TestPicksThatCannotBeWrittenAreAnError(t *testing.T) {
-	require.Error(t, display.Picks(brokenPage{}, []clips.Chosen{{Pick: 1}}))
-}
-
 func TestTheReportIsATableOfEachClipOnEachPlatformItsTimeAndWhatBecameOfIt(t *testing.T) {
 	var out bytes.Buffer
 

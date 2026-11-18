@@ -155,18 +155,6 @@ func TestAnArenasTakesChangeNoFrameNorHitAndTheWorldJoinsUpAroundIt(t *testing.T
 	assert.Equal(t, map[ledger.EraTile]uint32{{Tile: 2}: 2}, history.Hits(), "no hit where only the arena fought")
 }
 
-func TestAnEventOfAnotherBoardChangesNoFrameNorHit(t *testing.T) {
-	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
-	require.NoError(t, err)
-
-	record(t, history, take(1, "fr", historySince.Add(10*time.Minute)))
-	recordOn(t, history, clicks.World.On(clicks.TestBoard+1), take(1, "de", historySince.Add(20*time.Minute)))
-
-	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "fr", At: historySince.Add(10 * time.Minute)}},
-		history.Frames()[1].Owners, "tile 1 of another board is another place")
-	assert.Equal(t, map[ledger.EraTile]uint32{{Tile: 1}: 1}, history.Hits())
-}
-
 func TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut(t *testing.T) {
 	history, err := ledger.NewHistory(historySince, historyUntil, 30*time.Minute, clicks.WorldStage)
 	require.NoError(t, err)

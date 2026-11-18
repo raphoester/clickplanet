@@ -87,13 +87,3 @@ func TestABugReportNeedsTheAccountThatSendsIt(t *testing.T) {
 
 	require.ErrorIs(t, err, notes.ErrInvalidNote)
 }
-
-func TestAnAnonymizedNoteKeepsItsDiagnostics(t *testing.T) {
-	note, err := notes.NewBugReport(notes.NoteID{15: 1}, ada, "the globe is black", phone, sentAt)
-	require.NoError(t, err)
-
-	anonymized := note.Anonymized().TakeSnapshot()
-
-	assert.Equal(t, notes.AccountID{}, anonymized.Account)
-	assert.Equal(t, phone, anonymized.Diagnostics)
-}

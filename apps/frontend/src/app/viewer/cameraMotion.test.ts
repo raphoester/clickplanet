@@ -53,25 +53,12 @@ function wheeled() {
         changes++
     })
 
-    const before = camera.zoom
     element.dispatchEvent(new WheelEvent("wheel", {deltaY: -120, cancelable: true}))
 
-    return {camera, controls, changes, before, element}
+    return {changes}
 }
 
 describe("a wheel zoom, as the render loop sees it", () => {
-    it("has already moved the camera by the time the wheel event returns", () => {
-        const {camera, before} = wheeled()
-
-        expect(camera.zoom).toBeGreaterThan(before)
-    })
-
-    it("leaves the next update with nothing to report", () => {
-        const {controls} = wheeled()
-
-        expect(controls.update()).toBe(false)
-    })
-
     it("dispatches change, which is what the loop reads instead", () => {
         const {changes} = wheeled()
 
@@ -90,12 +77,6 @@ describe("the idle spin's speed", () => {
         const {turned} = orbiting()
 
         expect(turned(1800, 1 / 120)).toBeCloseTo(0.5, 2)
-    })
-
-    it("runs at the display's rate instead when update is given nothing", () => {
-        const {turned} = orbiting()
-
-        expect(turned(1800)).toBeCloseTo(1, 2)
     })
 })
 

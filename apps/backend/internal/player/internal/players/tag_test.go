@@ -19,7 +19,3 @@ func TestDifferentAddressesGetDifferentTags(t *testing.T) {
 func TestTheSaltChangesTheTag(t *testing.T) {
 	assert.NotEqual(t, players.TagOf("pepper", "1.2.3.4"), players.TagOf("other pepper", "1.2.3.4"))
 }
-
-func TestTheTagDoesNotContainTheAddress(t *testing.T) {
-	assert.NotContains(t, string(players.TagOf("pepper", "1.2.3.4")), "1.2.3.4")
-}

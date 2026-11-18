@@ -85,9 +85,7 @@ func TestTheRequestSendsTheInstructionsAndTheNamesAsJSON(t *testing.T) {
 	request := api.requests[0]
 	assert.Equal(t, "claude-haiku-5-5", request["model"])
 	assert.Equal(t, []any{map[string]any{"type": "text", "text": claude_name_judge.Instructions}}, request["system"])
-	prompt, err := claude_name_judge.PromptOf([]string{`Ada "the" Great`})
-	require.NoError(t, err)
-	assert.Equal(t, "The names to judge:\n"+`[{"number":1,"name":"Ada \"the\" Great"}]`, prompt)
+	assert.Contains(t, fmt.Sprint(request["messages"]), `[{"number":1,"name":"Ada \"the\" Great"}]`)
 	config := request["output_config"].(map[string]any) //nolint:forcetypeassert // the request's shape is the test.
 	assert.Equal(t, "medium", config["effort"])
 	format := config["format"].(map[string]any) //nolint:forcetypeassert // the request's shape is the test.

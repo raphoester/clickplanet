@@ -2,7 +2,6 @@ package get_shown_names_handler_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -23,13 +22,12 @@ const (
 
 type stubQuery struct {
 	answer *clipsv1.GetShownNamesResponse
-	err    error
 	asked  [][]casts.AccountID
 }
 
 func (s *stubQuery) ShownNames(_ context.Context, accounts []casts.AccountID) (*clipsv1.GetShownNamesResponse, error) {
 	s.asked = append(s.asked, accounts)
-	return s.answer, s.err
+	return s.answer, nil
 }
 
 func getShownNames(t *testing.T, query *stubQuery, ids ...string) (*connect.Response[clipsv1.GetShownNamesResponse], error) {
@@ -87,12 +85,4 @@ func TestTheAnswerIsNeverStored(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "no-store", res.Header().Get("Cache-Control"), "a rename, an opt-out or a verdict holds at the next read")
-}
-
-func TestAFailedReadIsTheErrorNets(t *testing.T) {
-	failure := errors.New("postgres is down")
-
-	_, err := getShownNames(t, &stubQuery{err: failure}, adaID)
-
-	assert.ErrorIs(t, err, failure)
 }

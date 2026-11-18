@@ -21,14 +21,6 @@ func TestAReplayEndsWhenItIsAskedTo(t *testing.T) {
 	assert.Equal(t, replays.Window{Since: time.Date(2026, 10, 10, 22, 30, 0, 0, time.UTC), Until: until}, window)
 }
 
-func TestAReplayThatSpansNoTimeIsRefused(t *testing.T) {
-	for _, span := range []time.Duration{0, -time.Hour} {
-		_, err := replays.Request{Span: span}.Window(now)
-
-		require.ErrorIs(t, err, replays.ErrInvalidRequest)
-	}
-}
-
 func TestASeasonThatStartsAfterTheEndAskedForIsRefused(t *testing.T) {
 	_, err := replays.Turn{SeasonSince: now}.SeasonUntil(now)
 

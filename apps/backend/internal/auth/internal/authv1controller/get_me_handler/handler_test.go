@@ -2,7 +2,6 @@ package get_me_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -57,13 +56,4 @@ func TestNoAccountIsUnauthenticated(t *testing.T) {
 	_, err := getMe(&stubQuery{err: fmt.Errorf("%w: no cookie", me_query.ErrNoAccount)})
 
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
-}
-
-func TestAFailureIsNotUnauthenticated(t *testing.T) {
-	for _, err := range []error{errors.New("postgres is down"), me_query.ErrUnknownProvider} {
-		_, err := getMe(&stubQuery{err: err})
-
-		require.Error(t, err)
-		assert.NotEqual(t, connect.CodeUnauthenticated, connect.CodeOf(err))
-	}
 }

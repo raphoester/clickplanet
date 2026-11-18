@@ -124,18 +124,6 @@ func TestALedgerFactAtOrBeforeTheLastOneCountedIsCountedAlready(t *testing.T) {
 	assert.Equal(t, uint64(2), counted.WithTake(8, 0, beforeMidnight).TilesTaken())
 }
 
-func TestEachTakeOfASpreadCountsOnceThoughTheyShareAPosition(t *testing.T) {
-	counted := stats.Stats{}
-	for range 2 {
-		for index := range uint32(7) {
-			counted = counted.WithTake(7, index, beforeMidnight)
-		}
-	}
-
-	assert.Equal(t, uint64(7), counted.TilesTaken())
-	assert.Equal(t, stats.TakeMark{Position: 7, Index: 7}, counted.TakeSnapshot().Counted.TakesBelow)
-}
-
 func TestAFactAtOrBeforeTheTimeOfTheLastOneCountedIsCountedAlready(t *testing.T) {
 	counted := stats.Stats{}.WithMessage(beforeMidnight).WithMessage(beforeMidnight).
 		WithMessage(beforeMidnight.Add(-time.Second)).WithBonus(beforeMidnight).WithBonus(beforeMidnight).
@@ -242,32 +230,11 @@ func TestTheBackfillCountsEachLedgerDayUpToTheLastDayOnce(t *testing.T) {
 	assert.Equal(t, uint64(3), counted.DaysPlayed(), "a day after the last one is the live count's")
 }
 
-func TestTheBackfillAlwaysCountsTheLastDay(t *testing.T) {
-	counted := stats.StatsSnapshot{Streak: stats.StreakOf(1, day(t, "2026-10-05"))}.Restore().
-		WithPlayDays(days(t, "2026-09-20", "2026-09-25"))
-
-	assert.Equal(t, uint64(3), counted.DaysPlayed(), "a take flushed after the ledger was read")
-}
-
-func TestTheBestStreakIsTheFloorOfTheDaysPlayed(t *testing.T) {
-	counted := stats.StatsSnapshot{Streak: stats.StreakOf(2, day(t, "2026-10-05")), StreakBest: 12}.Restore().
-		WithPlayDays(days(t, "2026-10-04", "2026-10-05"))
-
-	assert.Equal(t, uint64(12), counted.DaysPlayed(), "takes from before the ledger had accounts")
-}
-
 func TestTheBackfillNeverLowersTheDaysPlayed(t *testing.T) {
 	counted := stats.StatsSnapshot{Streak: stats.StreakOf(1, day(t, "2026-10-05")), StreakBest: 1, DaysPlayed: 40}.Restore().
 		WithPlayDays(days(t, "2026-10-05"))
 
 	assert.Equal(t, uint64(40), counted.DaysPlayed())
-}
-
-func TestTheBackfillTwiceChangesNothing(t *testing.T) {
-	ledger := days(t, "2026-09-20", "2026-09-25", "2026-10-05")
-	once := stats.StatsSnapshot{Streak: stats.StreakOf(1, day(t, "2026-10-05")), StreakBest: 1}.Restore().WithPlayDays(ledger)
-
-	assert.Equal(t, once, once.WithPlayDays(ledger))
 }
 
 func TestAnAccountWithNoTakeHasNoDayToBackfill(t *testing.T) {

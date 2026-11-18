@@ -117,7 +117,7 @@ changes, until when to refuse it.
   `shadowbanned_clicks` until 2026-10-20, and the ban metrics beside it `shadowban_flagged` (`banned_callers`) and
   `shadowban_flags` (`ban_flags`): the metrics poller's history files before those days carry the old names. The
   config block was `antiBot.shadowBan` and the package `antibot/internal/shadowban`.
-- `TestARefusedCallerIsToldUntilWhenAndSpendsNoToken` pins the refusal over HTTP, and the e2e
+- `refusal_click`'s `TestARefusedScopeIsRefusedAndToldUntilWhen` pins the refusal, and the e2e
   `TestABanReachesPlanetAndTheCallerIsRefused` the whole way round, through Redis.
 
 ## A ring is warned before its ban

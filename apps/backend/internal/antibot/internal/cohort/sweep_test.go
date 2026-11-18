@@ -14,19 +14,22 @@ import (
 func TestSweepForgetsSilentScopesAndTheirIndexes(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{}, bounds(func(r *Rules) { r.ChainWindow = 10 * time.Minute }), clock, nil)
+	chain := bounds(func(r *Rules) { r.ChainWindow = 10 * time.Minute })
+	w := New(Config{}, chain, clock, nil)
+	empty, err := New(Config{}, chain, clock, nil).Save()
+	require.NoError(t, err)
 
 	w.Watch(detect.Click{Scope: "2a00:8c40:f0c5:6713::/64", Tile: 1, Country: "bg", At: clock.Now()})
-	require.Len(t, w.members, 1)
-	require.Len(t, w.starts, 1)
-	require.Len(t, w.prefixes, 1)
+	watched, err := w.Save()
+	require.NoError(t, err)
+	require.NotEqual(t, empty, watched)
 
 	clock.Advance(time.Hour)
 	w.sweep()
 
-	assert.Empty(t, w.members)
-	assert.Empty(t, w.starts)
-	assert.Empty(t, w.prefixes)
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 func TestSweepKeepsAScopeForTheWholeChain(t *testing.T) {
@@ -37,9 +40,13 @@ func TestSweepKeepsAScopeForTheWholeChain(t *testing.T) {
 	w.Watch(detect.Click{Scope: "198.51.100.7", Tile: 1, Country: "bg", At: clock.Now()})
 
 	clock.Advance(20 * time.Minute)
+	kept, err := w.Save()
+	require.NoError(t, err)
 	w.sweep()
 
-	assert.Len(t, w.members, 1)
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, kept, swept)
 }
 
 func TestSweepReportsScopesInStep(t *testing.T) {

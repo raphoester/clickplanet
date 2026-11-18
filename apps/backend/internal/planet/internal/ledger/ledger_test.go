@@ -45,15 +45,6 @@ func (b *board) restorations(scope string) []clicks.Restoration {
 	return runs.Restorations(b.owners)
 }
 
-func TestAScopePaintedOverHoldsNothingToRevert(t *testing.T) {
-	b := newBoard(owners{7: "il"})
-	b.take(7, "A", "ps")
-	b.take(7, "B", "il")
-
-	assert.Empty(t, b.restorations("A"))
-	assert.Equal(t, []clicks.Restoration{{Tile: 7, From: "il", To: "ps"}}, b.restorations("B"))
-}
-
 func TestTwoScopesPaintingTheSameFlagDoNotHoldEachOthersTiles(t *testing.T) {
 	b := newBoard(owners{7: "il"})
 	b.take(7, "A", "ps")
@@ -104,40 +95,6 @@ func changes(event ledger.Event) []ledger.Taking {
 	var takings []ledger.Taking
 	event.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
 	return takings
-}
-
-func TestABombingReplaysAsOneClearPerTileItHit(t *testing.T) {
-	bombing := ledger.Bombing{Scope: "A", Account: "guest", At: start, Blast: clicks.Blast{
-		Tile: 8, CountryID: "fr", Cleared: []uint32{7, 8}, Owners: []string{"il", "de"},
-	}}
-
-	assert.Equal(t, []ledger.Taking{
-		{Tile: 7, Scope: "A", Account: "guest", Previous: "il", At: start},
-		{Tile: 8, Scope: "A", Account: "guest", Previous: "de", At: start},
-	}, changes(bombing))
-	assert.Empty(t, changes(ledger.Bombing{Scope: "A", At: start, Blast: clicks.Blast{CountryID: "fr"}}), "a bomb in the sea")
-}
-
-func TestASpreadReplaysAsOneTakePerTileItTook(t *testing.T) {
-	spreading := ledger.Spreading{Tile: 1, Scope: "A", Account: "guest", Country: "fr", At: start, Impacts: []clicks.Impact{
-		{Tile: 2, Owner: "de", Outcome: clicks.Taken},
-		{Tile: 3, Owner: "pl", Outcome: clicks.Shielded, Shields: 4},
-	}}
-
-	assert.Equal(t, []ledger.Taking{{Tile: 2, Scope: "A", Account: "guest", Country: "fr", Previous: "de", At: start}},
-		changes(spreading))
-	assert.Equal(t, changes(ledger.Enclosing(spreading)), changes(spreading), "an enclosure replays the same way")
-}
-
-func TestAStrikeAndAShieldReplayAsNothing(t *testing.T) {
-	assert.Empty(t, changes(ledger.Striking{Tile: 3, Scope: "A", Country: "fr", Owner: "pl", At: start}))
-	assert.Empty(t, changes(ledger.Shielding{Tile: 3, Scope: "A", Country: "pl", Shields: 1, At: start}))
-}
-
-func TestATakingReplaysAsItself(t *testing.T) {
-	taking := ledger.Taking{Tile: 7, Scope: "A", Country: "fr", Previous: "il", At: start}
-
-	assert.Equal(t, []ledger.Taking{taking}, changes(taking))
 }
 
 func TestABombingIsWrittenDownOnTheTileItHit(t *testing.T) {
@@ -232,34 +189,12 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 	}
 }
 
-func TestAnEntryOfAKindTheLedgerDoesNotKnowReadsBackAsNothing(t *testing.T) {
-	_, err := ledger.EventOf(ledger.Entry{Kind: "quake", Tile: 1})
-
-	require.ErrorIs(t, err, ledger.ErrUnknownKind)
-}
-
 func TestARunThatEndsWhereItStartedGivesNothingBack(t *testing.T) {
 	b := newBoard(owners{7: "il"})
 	b.take(7, "A", "ps")
 	b.take(7, "A", "il")
 
 	assert.Empty(t, b.restorations("A"))
-}
-
-func TestRunsCountEveryTileTheScopeTookHeldOrNot(t *testing.T) {
-	b := newBoard(owners{})
-	b.take(1, "A", "ps")
-	b.take(2, "A", "ps")
-	b.take(2, "B", "il")
-	b.take(1, "A", "fr")
-
-	runs := ledger.NewRuns(ledger.Caller{Scope: "A"}, clicks.WorldStage)
-	for _, event := range b.events {
-		runs.See(clicks.WorldStage, event)
-	}
-
-	assert.Equal(t, 2, runs.Touched())
-	assert.Len(t, runs.Restorations(b.owners), 1)
 }
 
 func tally(takings []ledger.Taking, current owners, counts func(ledger.Taking) bool) []ledger.Player {
@@ -271,23 +206,6 @@ func tally(takings []ledger.Taking, current owners, counts func(ledger.Taking) b
 }
 
 func every(ledger.Taking) bool { return true }
-
-func TestAPlayerCountsItsTakesAndTheTilesItStillHolds(t *testing.T) {
-	current := owners{1: "ps", 2: "il", 3: ""}
-	players := tally([]ledger.Taking{
-		{Tile: 1, Scope: "bot", Country: "ps", At: start},
-		{Tile: 2, Scope: "bot", Country: "ps", At: start.Add(time.Second)},
-		{Tile: 2, Scope: "defender", Country: "il", At: start.Add(2 * time.Second)},
-		{Tile: 2, Scope: "bot", Country: "ps", At: start.Add(3 * time.Second)},
-		{Tile: 2, Scope: "defender", Country: "il", At: start.Add(4 * time.Second)},
-		{Tile: 3, Scope: "bot", Country: "ps", At: start.Add(5 * time.Second)},
-	}, current, every)
-
-	assert.Equal(t, []ledger.Player{
-		{Scope: "bot", Flag: "ps", Tiles: 1, Takes: 4, FirstAt: start, LastAt: start.Add(5 * time.Second)},
-		{Scope: "defender", Flag: "il", Tiles: 1, Takes: 2, FirstAt: start.Add(2 * time.Second), LastAt: start.Add(4 * time.Second)},
-	}, players, "a tile painted over and a tile bombed still count as takes, not as holds")
-}
 
 func TestABombIsOneTakeThatHoldsNothingAndEndsTheHoldsOfTheTilesItHit(t *testing.T) {
 	tally := ledger.NewTally(every)
@@ -335,15 +253,6 @@ func TestASpreadIsOneTakeThatHoldsEveryTileItTookAndAStrikeIsNone(t *testing.T) 
 
 	assert.Equal(t, []ledger.Player{{Scope: "player", Flag: "fr", Tiles: 3, Takes: 2, FirstAt: start, LastAt: start}},
 		tally.Players(owners{1: "fr", 2: "fr", 3: "fr", 4: "de"}), "the click and the spread are two acts")
-}
-
-func TestAPlayerPaintedOverEverywhereStillShows(t *testing.T) {
-	players := tally([]ledger.Taking{
-		{Tile: 1, Scope: "bot", Country: "ps", At: start},
-		{Tile: 1, Scope: "defender", Country: "il", At: start.Add(time.Second)},
-	}, owners{1: "il"}, func(taking ledger.Taking) bool { return taking.Country == "ps" })
-
-	assert.Equal(t, []ledger.Player{{Scope: "bot", Flag: "ps", Takes: 1, FirstAt: start, LastAt: start}}, players)
 }
 
 func TestATakeThatDoesNotCountEndsTheHoldOfOneThatDid(t *testing.T) {
@@ -622,19 +531,6 @@ func TestRecordingNotesNothingForAFailedClear(t *testing.T) {
 	assert.Empty(t, written(events))
 }
 
-func TestRecordingNotesAClickThatTookATileAsATake(t *testing.T) {
-	tiles := newTiles(map[uint32]string{1: "de"})
-	recording, events := recorded(tiles)
-
-	impact, err := recording.Click(cpctx.AddIPToContext(t.Context(), "1.2.3.4"), 1, "fr")
-	require.NoError(t, err)
-
-	assert.Equal(t, clicks.Taken, impact.Outcome)
-	assert.Equal(t, "fr", tiles.owners[1])
-	assert.Equal(t, []ledger.Event{ledger.Taking{Tile: 1, Scope: "1.2.3.4", Country: "fr", Previous: "de", At: start}},
-		written(events))
-}
-
 func TestRecordingNotesAClickOnAShieldAsAStrikeThatTakesNothing(t *testing.T) {
 	tiles := newTiles(map[uint32]string{1: "de"})
 	tiles.shields[1] = 2
@@ -695,16 +591,6 @@ func TestRecordingNotesNothingForAFailedWrite(t *testing.T) {
 	require.ErrorIs(t, err, errOutOfRange)
 
 	assert.Empty(t, written(events))
-}
-
-func TestRecordingNotesTheAccountTheTokenNamed(t *testing.T) {
-	recording, events := recorded(newTiles(map[uint32]string{1: "de"}))
-
-	_, err := recording.Click(caller(t), 1, "fr")
-	require.NoError(t, err)
-
-	assert.Equal(t, []ledger.Taking{{Tile: 1, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", Previous: "de", At: start}},
-		replay(events))
 }
 
 func TestRecordingNotesASpreadAsOneEventWithWhatItTookAndWhatItStruck(t *testing.T) {

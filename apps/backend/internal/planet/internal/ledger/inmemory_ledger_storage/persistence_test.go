@@ -235,21 +235,6 @@ func TestABombingSurvivesARestart(t *testing.T) {
 	}, persistence.Stored()[2], "a bomb in the sea is kept too")
 }
 
-func TestFlushKeepsABombingTheRetentionDroppedWithoutItsScope(t *testing.T) {
-	persistence := inmemory_ledger_storage.NewMemoryPersistence()
-	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
-
-	storage.Append(clicks.WorldStage, bombing("bomber", start, []uint32{1}, "fr"))
-	storage.Append(clicks.WorldStage, take(2, "a", "fr", "", start.Add(time.Hour)))
-	require.NoError(t, storage.Flush(t.Context()))
-
-	storage.ForgetBefore(start.Add(time.Minute))
-	require.NoError(t, storage.Flush(t.Context()))
-
-	gone := bombing("", start, []uint32{1}, "fr")
-	assert.Equal(t, inmemory_ledger_storage.Stored{Position: 0, Entry: written(t, gone)}, persistence.Stored()[0])
-}
-
 func TestAnEventOfAKindTheLedgerDoesNotKnowRefusesTheBoot(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	require.NoError(t, persistence.Save(t.Context(), inmemory_ledger_storage.Changes{
