@@ -65,12 +65,14 @@ little darker during the handover.
 `npm run borderLines -- <board>` writes the geometry of a board (of every board in `/map` with none named), from its
 runs and borders and nothing else, beside the board's copy: `static/boards/<board>/borderLines-<hash>.bin`, named in
 `BOARDS` (see [Static assets](static-assets.md)). The globe loads the border lines of the board it draws. It walks the whole lattice the tiles were cut from and its triangles,
-in three's order (`latticeTriangles` in `domain/lattice.ts`), because the runs hold
+in the board's order (`latticeTriangles` in `domain/lattice.ts`: three's for `earth-1`, canonical for `earth-2` and
+`siege-1`, at their warped and rotated positions), because the runs hold
 only the land points and a coast needs the sea around it. A cell corner is the circumcentre of a lattice triangle —
 the normal of the plane through its three vertices — which makes the cells a true
 Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
 to cover up at the joins. The edges are then chained into runs, which is what
-keeps the file to one corner per edge rather than two: 53,217 edges in 331 KB.
+keeps the file to one corner per edge rather than two: 56,790 edges in 353 KB on `earth-1`, 129,431 in 791 KB on
+`earth-2`, 14,419 in 96 KB on `siege-1`.
 The smoothing is not baked in — the blob is the outline on the lattice, and how
 finely it is rounded off is the renderer's business and four times the size.
 

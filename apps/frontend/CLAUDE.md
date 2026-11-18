@@ -13,7 +13,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   clip scripts. The production API refuses `localhost`: use a local backend or `VITE_FAKE_BACKEND=1 npm run dev`,
   and the fake's console commands (`giveBomb()`, `closeDay()`, …).
 - [Testing](docs/testing.md) — vitest, co-located, on node by default; jsdom only where a file asks for it; the two
-  boards tests read, `earth-1` and the coarse `fixture-1`, which no page serves.
+  boards tests read, `earth-1` and the coarse `fixture-1`, which no page serves, and the geometry of every shipped board.
 - [Styling](docs/styling.md) — `DESIGN.md` is the design system; `ScrollArea`, the scrolling body of every panel,
   and its fade; a modal's padding; a box as wide as its word in nine languages; how to debug a mobile layout.
 - [Protocol Buffers](docs/protobuf.md) — types from the shared `/proto`, generated into `src/gen/grpc`.

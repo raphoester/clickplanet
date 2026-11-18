@@ -39,12 +39,14 @@ when its own atlas rectangle is the one in the row.
 **The flags are painted by the territory layer, not by the tiles.** `territoryLayer.ts` is a sphere drawn after
 the earth and before the tiles. For each pixel, its fragment shader finds the ground under it (the camera is
 orthographic, so every pixel looks down one axis onto the tiles' sphere of radius 1), then the lattice point nearest
-that ground: the icosahedron face the direction leaves through, the point on that face's flat grid, and its
-canonical id (`cellOf` in `domain/latticeCells.ts` does the same, and its tests check that every one of the 260,503
-shipped tiles falls in its own cell). Whether the id is a tile, and which texel holds that tile, comes from one word
-per 32 ids: their bits and the count of tiles before them (`tileCells`, 226 KB, built from each tile's canonical id
-as the board's runs give it). The tile's flag and landmass come
-from `TileField.tileData`, two u16 per tile (1 MB), of which `TileField.uploadTiles` sends only the rows whose tiles
+that ground: the icosahedron face the direction leaves through, the point on that face's flat grid (on a warped board,
+in the lattice's own weights: two Newton steps undo the warp, `unwarped`; and the tile's centre for its effects is
+warped back, `warped`), and its canonical id (`cellOf` in `domain/latticeCells.ts` does the same, and its tests check
+that every tile of every shipped board falls in its own cell). The face data is the board's: its rotated corners, and
+its warp in `latticeWarp`. Whether the id is a tile, and which texel holds that tile, comes from one word
+per 32 ids: their bits and the count of tiles before them (`tileCells`, 221 KB on `earth-1`, 850 KB on `earth-2`,
+built from each tile's canonical id as the board's runs give it). The tile's flag and landmass come
+from `TileField.tileData`, two u16 per tile (1 MB on `earth-1`, 4 MB on `earth-2`), 1,024 a row, of which `TileField.uploadTiles` sends only the rows whose tiles
 changed hands. So a pixel wears exactly its own tile's flag: a drawing keeps the shape of its cells, and no tile
 reaches over another.
 

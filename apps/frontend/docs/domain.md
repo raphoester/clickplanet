@@ -80,8 +80,9 @@ them in the page's language. See [Translation](i18n.md).
 - `territory.ts` — what the territory card says: `rankHoldings`, `freeTilesOf`,
   `sharePercent`, and `sameTerritory`, which spares a render when nothing moved. See
   [A territory, from orbit](territory-card.md).
-- `lattice.ts` — the lattice every board is cut from: its points in three's order and to the bit, their canonical
-  ids, their neighbours and three's triangles. `board.ts` — a board's manifest, its runs file, and `tilesOf` /
+- `lattice.ts` — the lattice every board is cut from: its points in the board's order (three's walk for `earth-1`,
+  canonical ids for the others) and to the bit, three's or warped and rotated (`positionWriter`), their canonical ids,
+  their neighbours and three's triangles, and `unwarp`, the warp's inverse. `board.ts` — a board's manifest, its runs file, and `tilesOf` /
   `rebuildTiles`, the tiles a board's runs keep, with their cells and their hash. See [Tile
   positions](tile-positions.md). `latticeCells.ts` — `cellOf`, the lattice point nearest a direction, as the
   territory layer's shader finds it, and `cellsOf`, each tile's texel from its canonical id. See [The zoomed-out

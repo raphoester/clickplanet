@@ -4,7 +4,9 @@
 is built (2026-11-17): every tile and event names its board and map, and the boot refuses a map on a board it does not
 carry. PR 3 is built (2026-11-18): every app holds more than one board, the page draws the board an answer names and
 reloads when it changes, every threshold sized from the board reads it, an arena plays the board its set names, and a
-history draws each era on its own board, with the cut.**
+history draws each era on its own board, with the cut. PR 4 is built (2026-11-18): `earth-2` and `siege-1` are
+generated and committed, warped and rotated and in canonical order, every app reads them to the bit, and nothing plays
+them yet.**
 The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
 builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
 [Map geometry](map-geometry.md), and the apps' tile docs (`tile-positions.md`, `tile-layout.md`, `zoomed-out-view.md`,
@@ -39,14 +41,20 @@ also says which board the tile is on.
 
 | board | tiles | apart | plays |
 | --- | --- | --- | --- |
-| `earth-1` | 260,503 | ~25 km | the world until the switch, and all history before it |
-| `earth-2` | ≈1,000,000 (`cols` 590) | ~12.5 km | the world after the switch |
-| `siege-1` | ≈27,000 (`cols` about 97) | ~79 km | Capital Siege's arena |
+| `earth-1` | 260,503 (`cols` 301) | 25.9 km | the world until the switch, and all history before it |
+| `earth-2` | 1,004,682 (`cols` 590) | 13.1 km | the world after the switch |
+| `siege-1` | 27,259 (`cols` 97) | 79.4 km | Capital Siege's arena |
 
-The names are proposals. A board's tile count is fixed by its `cols` and the land the generator finds, so the counts
-above are estimates from `earth-1`'s land share (28.75% of the lattice).
+A board's tile count is fixed by its `cols` and the land the generator finds: 28.9% of `earth-2`'s lattice and 29.0% of
+`siege-1`'s, against 28.75% of `earth-1`'s. `siege-1`'s `cols` is the one whose count is nearest 27,000 (the owner,
+2026-11-17: 15 players at a click a second fill it in about 30 minutes with no spread). The apart column is the median
+arc between two touching tiles, the manifest's `spacing`.
 
 ## The geometry
+
+**Built in PR 4** (2026-11-18): `lattice.ts` in the page (`positionWriter`, `warpedWeights`, `unwarp`, `walkCanonical`),
+its copy in the backoffice, `lattice.go` in the backend, and the generator's `scripts/map/warp.mjs`; the measurements
+below are `npm run map:measure -- <board>`'s.
 
 **Every board is an icosahedral lattice.** Each of the 20 faces is a triangular grid of `cols` steps per edge, so
 `cols + 1` points along it and `10·cols² + 2` on the sphere (906,012 for `earth-1`'s 301). A point is `(face, i, j)`,
@@ -65,36 +73,64 @@ squashes them 1.57× in one direction.
 2. **The warp** (new boards only):
    - `h_k = w_k · (1 + a·w_k + b·w_k²) + c·wa·wb·wc`
    - `w'_k = h_k / (ha + hb + hc)`
-   - with `a = −0.05520744`, `b = −0.16849639`, `c = 0.30479447`.
+   - with each board's own `a`, `b`, `c` in its manifest (below).
 3. `p = w'a·A + w'b·B + w'c·C`, then normalised as today (`× 1 / length`).
-4. A, B, C are three's 12 unnormalised icosahedron corners, **rotated once** (new boards only) and kept as float64
-   literals.
+4. A, B, C are three's 12 unnormalised icosahedron corners, **rotated once** (new boards only), the 36 float64s of the
+   manifest's `corners`.
+
+**The order of operations**, the same in every reader: `w = ((cols − i − j) / cols, j / cols, i / cols)`;
+`h_k = w_k · ((1 + a·w_k) + b·(w_k·w_k)) + ((c·wa)·wb)·wc`; `w'_k = h_k / ((ha + hb) + hc)`;
+`x = (w'a·Ax + w'b·Bx) + w'c·Cx`, and so for y and z; `× 1 / √((x·x + y·y) + z·z)`, then to float32. A point on an edge
+or a corner comes out the same bits from every face it is on: its third weight is 0, which adds nothing and is added in
+any order, so the canonical walk may reach it from any face.
 
 **Only `+ − × ÷ √`**, so the rule of [Tile positions](../apps/frontend/docs/tile-positions.md) holds: every engine
-rebuilds every position bit for bit. With no warp and no rotation it is today's lattice exactly, which is how `earth-1`
-is described, and it is built so: steps 1 and 3 with three's own corners. In Go each product is converted to
-`float64` on its own, or the compiler fuses it into the add (arm64 does, and the hash moves).
+rebuilds every position bit for bit. A lattice with no warp and no rotation is `earth-1`'s, built with three's own lerps
+as before. In Go each product is converted to `float64` on its own, or the compiler fuses it into the add (arm64 does,
+and the hash moves): an arm64 build of the package has no fused instruction, and as an arm64 binary under qemu it
+rebuilds every tile of all three boards to their manifests' hashes (see the backend's
+[Map geography](../apps/backend/docs/map-geography.md)).
 
-Measured on the same lattice (`cols` 48; the ratios do not depend on `cols`):
+**The fit, per board.** The design's coefficients were fitted at `cols` 24 (`a = −0.05520744`, `b = −0.16849639`,
+`c = 0.30479447`). Each board's are fitted again at its own `cols` (`fitWarp` in `scripts/map/warp.mjs`): Nelder-Mead
+from those, on the cells' areas, largest over smallest (a cell is a third of each of its triangles, the twelve
+pentagons left out), rounded to 8 decimals. `warp.test.mjs` pins each: the spread at the manifest's coefficients is
+below a nudge of 0.002 to any of them, and a fit again gives the same numbers.
 
-| | `earth-1` (gnomonic) | warped |
-| --- | --- | --- |
-| tile area, largest ÷ smallest | 1.91 | 1.004 |
-| closest two tiles ÷ median spacing | 0.74 | 0.90 |
-| tiles a 4-ring bomb takes, wherever it lands | 48 to 89 | 54 to 64 (the lattice's own noise) |
-| … on a pentagon | 91 | 61 |
+| board | `a` | `b` | `c` | spread at its fit | at the design's |
+| --- | --- | --- | --- | --- | --- |
+| `earth-2` (590) | −0.09142428 | −0.13039461 | 0.26096331 | 1.00088 | 1.00539 |
+| `siege-1` (97) | −0.08982266 | −0.13216128 | 0.26291902 | 1.00129 | 1.00460 |
 
-Snyder's equal-area projection was measured too: area ratio 1.03, closest two tiles 0.85. It needs sin and cos, which
-break the bit-for-bit rebuild.
+No lattice triangle folds (`lattice.test.ts`, at `cols` 97 and 400).
 
-**The coefficients were fitted at `cols` 24** (Nelder-Mead on the spread of cell areas). Fit them again at each board's
-`cols` before generating, and pin the fit in the generator's tests. No lattice triangle folds (checked at `cols` 400).
+**Measured** (`npm run map:measure`, 2026-11-18). A bomb is every point within 4 × the mean arc between touching tiles
+of the point hit (the backend's `Geography.Spacing`, which its radius reads), counted on the whole lattice so the sea
+cuts no circle. A crease is how far a row of cells turns at a point: 180° less the angle between a neighbour and the one
+opposite it, on land.
 
-**The territory shader inverts the warp.** The gnomonic inverse, as today, gives `w'`. Two Newton steps starting from
-`w = w'` reach 5e-8, against 1.7e-3 for one cell at `cols` 590. A shader that finds the wrong cell makes `cellsOf`
-throw, and the globe does not load, so the inverse's tests matter.
+| | `earth-1` (gnomonic) | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| tile area, largest ÷ smallest | 1.98 | 1.001 | 1.001 |
+| closest two tiles ÷ median spacing, on land | 0.733 (19.0 km) | 0.900 (11.7 km) | 0.899 (71.4 km) |
+| tiles a 4-ring bomb takes, wherever it lands | 55 to 95 | 57 to 63 | 57 to 63 |
+| … on a pentagon | 91 | 61 | 61 |
+| the creases: a row's turn on a face edge, median / 99% / most | 9.7° / 17.8° / 17.9° | 6.8° / 16.4° / 17.0° | 6.9° / 16.6° / 17.0° |
+| … inside a face, most | 0° | 0.09° | 0.55° |
 
-**The rotation puts the 12 corners at sea**, each at least 184 km from an `earth-1` tile. It was found by a random
+Snyder's equal-area projection was measured too, at design: area ratio 1.03, closest two tiles 0.85. It needs sin and
+cos, which break the bit-for-bit rebuild.
+
+**The territory shader inverts the warp, and so does the pick.** The gnomonic inverse, as today, gives `w'`. Two Newton
+steps starting from `w = w'` (`unwarp`) reach 5e-8 on every point of `earth-2`'s faces, against 1.7e-3 for one cell at
+`cols` 590 (`lattice.test.ts`); one step reaches 3.4e-4. The shader's `unwarped` does the same in float32. **A tile its
+cell's inverse misses refuses the globe**: `cellsOf` runs every tile's position through `cellOf` as the page loads and
+throws on one found in another cell, about 200 ms on `earth-2` in the worker (see the page's
+[Tile positions](../apps/frontend/docs/tile-positions.md)); `latticeCells.test.ts` runs it on every tile of every
+shipped board, and on a warped board read without its inverse, which it refuses.
+
+**The rotation puts the 12 corners at sea**, each at least 184 km from an `earth-1` tile, 181 km from an `earth-2` tile
+and 189 km from a `siege-1` tile. It was found by a random
 search over rotations, then refined, maximising the smallest distance to land. A corner `c` goes to `R·c`:
 
 ```
@@ -112,16 +148,37 @@ R = [[0.09926508736568841, -0.49847683751896155, -0.8612010711136958],
 | −42.90, 50.04 (south Indian Ocean) | 1,058 km | | 4.71, 3.60 (Gulf of Guinea) | 200 km |
 | −4.71, −176.40 (central Pacific) | 645 km | | 42.90, −129.96 (off Oregon) | 449 km |
 
-Latitude is `asin(y)` and longitude `atan2(z, −x)`, as everywhere in the map scripts. Check the distances again
-against `earth-2`'s own coasts once it is generated.
+Latitude is `asin(y)` and longitude `atan2(z, −x)`, as everywhere in the map scripts. The generator computes the
+corners once from `R` (`rotatedCorners` in `scripts/map/warp.mjs`), and every manifest carries them; no reader knows `R`.
 
-**What it leaves: creases.** Where hex rows cross one of the 30 face edges they turn, by up to 6 to 9° on land.
-`earth-1` has the same. They stay for now (the owner, 2026-11-17): look at `earth-2` before deciding. A relaxation
+Against each board's own coasts (`warp.test.mjs` holds them at sea, 180 km from `earth-2`'s land and 185 from
+`siege-1`'s at least):
+
+| lat, lon | `earth-1` | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| 17.83, −59.98 | 209 km | 194 km | 226 km |
+| 68.15, 2.63 | 444 km | 431 km | 498 km |
+| −68.15, −177.37 | 611 km | 595 km | 628 km |
+| −17.83, 120.02 | 210 km | 203 km | 226 km |
+| −42.90, 50.04 | 1,058 km | 1,066 km | 1,618 km |
+| 4.71, 3.60 | 200 km | 190 km | 226 km |
+| −4.71, −176.40 | 645 km | 567 km | 638 km |
+| 42.90, −129.96 | 449 km | 448 km | 450 km |
+| 43.48, 137.76 | 184 km | 181 km | 189 km |
+| 18.55, 67.14 | 427 km | 423 km | 448 km |
+| −18.55, −112.86 | 1,932 km | 1,019 km (Easter Island, which `earth-1` misses) | 1,944 km |
+| −43.48, −42.24 | 1,246 km | 1,214 km | 1,240 km |
+
+**What it leaves: creases.** Where hex rows cross one of the 30 face edges they turn: by 6.8° at the median on land,
+up to 17° next to a corner, against `earth-1`'s 9.7° and 17.9° (measured above). They stay for now (the owner,
+2026-11-17): look at `earth-2` before deciding; the screenshots are below ([Screenshots](#screenshots)). A relaxation
 table could smooth them later and keep the bit-for-bit rebuild.
 
 **Tile order.** A lattice point's canonical id is `canonicalId`: the corners, then the 30 edges, then each face's
 inside, row by row. A board's runs are ranges of canonical ids whatever its order.
-- **New boards** number their tiles in canonical id order.
+- **New boards** number their tiles in canonical id order. Built: a tile's id is its rank among the board's tiles in
+  canonical id order, plus one (`walkCanonical` in each reader: the 12 corners, then the 30 edges step by step from
+  their lower corner, then each face's inside, row by row).
 - **`earth-1` keeps three's walk order**, because its ids are the ones the ledger holds. Built: a tile's id is its rank
   among the tiles in `walkLattice`'s order, plus one, and the regenerated `earth-1` has the same 260,503 tiles in the
   same order.
@@ -136,19 +193,21 @@ content-addressed like every file in `/map`:
 - **`board-<hash>.json`**, the manifest:
   - `name`, and `body` (`earth`);
   - the lattice: `cols`, `warp` (`null` or `{a, b, c}`), `corners` (`null`, or the 36 rotated float64s) and `order`
-    (`three` or `canonical`). Every reader refuses a warp, corners or the canonical order until PR 4 builds them;
+    (`three` or `canonical`). Every reader reads both kinds since PR 4, and refuses an order it does not know;
   - `tiles`, the median `spacing` in radians (the arc between two touching tiles: 0.00406 for `earth-1`, 25.9 km), and
     `positionsHash`, FNV-1a over the float32 positions in tile order, a uint32;
   - the names of its other files.
 - **`runs-<hash>.bin`**: `"CPRN" | uint32 version | uint32 count | count × (uint64 first, uint64 last)` canonical ids,
-  ascending. It replaced the landmask: 7,556 runs, 121 KB for `earth-1`.
+  ascending. It replaced the landmask: 7,556 runs, 121 KB for `earth-1`; 17,628 runs, 282 KB for `earth-2`; 1,855 runs,
+  30 KB for `siege-1`.
 - **`borders`, `capitals`, `bridges`**, in their formats, named by the board's tile ids. `earth-1`'s are the files of
   before, byte for byte.
 - **The frontend's own**: the border lines and the landmass names, per board since PR 3: `static/boards/<name>/` beside
   the board's copy, content-addressed, named in the page's board table (`boardsAsset.ts`), with the landmass names'
   translations in `src/i18n/landmasses/<name>/`. The terrain is a file of the board, since it is cut from its runs.
 
-**The generator** (`npm run map:generate`, then `npm run bridges`) writes a board without three: it walks the lattice,
+**The generator** (`npm run map:generate -- <board>`, then `npm run bridges -- <board>` and the rest of the chain in
+[`map/README.md`](../map/README.md)) writes a board without three, each board as `scripts/map/board.mjs` defines it: it walks the lattice,
 takes neighbours and triangles from it, and reads latitude as `asin(y)` and longitude as `atan2(z, −x)` from each point.
 Regenerating `earth-1` writes its runs, borders, capitals, bridges and manifest byte for byte, and the border lines
 and landmass names too.
@@ -168,7 +227,7 @@ positions it computed; the ids come from the runs, so an ulp of difference moves
 **Copies:** each app carries every board, committed, through `npm run map` and `make map`: the frontend every file in
 `static/boards/<name>/` and each manifest in a table by name, the backend every file embedded, the backoffice each
 manifest and its runs. The frontend serves every board's files forever. A board costs the backend about 57 bytes a
-tile (about 60 MB for `earth-2`), loaded when it is first needed (`embedded_board.Registry`, PR 3).
+tile (47 MB kept for `earth-2`, measured), loaded when it is first needed (`embedded_board.Registry`, PR 3).
 
 **A fixture for the tests** (PR 3): `fixture-1`, a coarse earth cut from `earth-1` at `cols` 31 (2,998 tiles, 9.7 times
 as far apart, another positions hash), which the page's `npm run map:fixture` writes into each app's test data alone:
@@ -320,22 +379,50 @@ length`. On `earth-1` every value comes out as before, to the bit. See the backe
 
 ## What `earth-2` costs
 
+Built in PR 4 where it says so, measured 2026-11-18.
+
 - **Frontend:**
   - **GPU tile data:** 5 → 21 MB in the compact layout, 36 MB in the plain one (58 before PR 0).
-  - **`tileData`:** at 512 columns it fills 2,022 of the 2,048 rows WebGL2 guarantees, so it goes to 1,024 columns.
+  - **`tileData`: 1,024 columns since PR 4.** At 512 `earth-2`'s 1,004,682 tiles would fill 1,963 of the 2,048 rows
+    WebGL2 guarantees; at 1,024 they fill 982. **The terrain's texture went to 2,048 columns too**: a byte a lattice
+    point, `earth-2`'s 3,481,002 points would need 3,400 rows at 1,024, and fill 1,700 at 2,048. `tileCells` (425 rows),
+    the landmasses' rows (1,175 of 2,048) and the aimed outlines fit as they were (the page's
+    [What a tile costs on the GPU](../apps/frontend/docs/tile-layout.md)).
   - **`GetMap`:** 0.5 → 2 MB raw, in batches of 10,000.
-  - **The position rebuild:** about 300 ms with a JIT, about 6 s in iOS Lockdown Mode.
+  - **The position rebuild:** 55 ms for the positions and 200 ms for the cells and their check in Node on 4 vCPUs,
+    against 60 and 40 ms on `earth-1`; about 6 s in iOS Lockdown Mode at the design's estimate (not measured).
+  - **The board's files**, served as they ship: runs 282 KB (47 KB packed with brotli), borders 2.0 MB, terrain
+    197 KB, border lines 810 KB, landmass names 27 KB.
   - **The work done per tile on every frame** grew 4× until PR 0, which made it follow what is on screen: see
-    [Slow devices](#slow-devices).
-- **The terrain:** a file of the board, 3.6M points in about twice earth-1's 66,392 runs. `npm run terrain` reads each
-  tile's colour from the 4,096 px photo, where a tile is 1.5 px. The photo's coast was cut to earth-1's tiles, so a
-  coast tile earth-2 adds where earth-1 had sea reads the photo's blue: it needs its kind from its land neighbours.
-- **Natural Earth stays at 1:50m** (the owner). `seats.mjs` loses the countries that now have ground of their own.
+    [Slow devices](#slow-devices), and [PR 4, measured](#pr-4-measured).
+- **The terrain:** a file of the board, 3,481,002 points in 197 KB. `npm run terrain` reads each tile's colour from the
+  4,096 px photo, where a tile is 1.5 px. **Built:** the photo's coast was cut to earth-1's tiles, so a tile where
+  earth-1 had sea reads the photo's blue; it takes the kind most of its land neighbours have, wave by wave from the
+  coast in (10,264 tiles on `earth-2`), and an island earth-1 did not have at all, earth-1's nearest tile's kind (692)
+  (the page's [The terrain](../apps/frontend/docs/terrain.md)).
+- **Natural Earth stays at 1:50m** (the owner), pinned. **Seats are per board** (`SEATS_BY_BOARD` in `seats.mjs`):
+  `earth-2` keeps 13 of `earth-1`'s 34 (20 have ground of their own at 12.5 km, and `io` too), gives Christmas Island
+  Australia's ground (Natural Earth draws it inside Australia, and a vertex of `earth-2` falls on it), and seats the
+  British Virgin Islands, whose vertices fell on `earth-1`'s lattice and not on `earth-2`'s: 15. `siege-1`, at 79 km,
+  seats 52: `earth-1`'s 33 but `io`, and 19 countries smaller than its cell (Luxembourg, Malta, Singapore, Hong Kong,
+  Jersey, the Windward Islands…), each at its capital. Two islands nearest one vertex take the next one beside it
+  (`beside`: Guernsey beside Jersey, the British Virgin Islands beside the US ones). Every flag has ground on all three
+  boards, and `npm run map:audit -- <board>` reads zero faults on each.
+- **Sea lanes are per board too** (`LANES_BY_BOARD` in `bridges.mjs`): on `siege-1` the Rock is Gibraltar's one tile and
+  Morocco's coast is nearer Tarifa than Spain's next, so the lane leaves from Málaga. A lane lands where a stone does, a
+  capital when its land has no other coast (Puerto Rico is one tile on `siege-1`), and its point may lie as many of the
+  board's spacings from its coast as 150 km is of `earth-1`'s (`snapKmOf`). `earth-1`'s bridges are unchanged.
+  `earth-2` has 1,422 bridges over 975 pieces of land, `siege-1` 272 over 173.
+- **The landmass names** come from the generator in English: 936 of `earth-2`'s 1,175 landmasses, 138 of `siege-1`'s
+  374. **Their translations wait for `make translate`**, which needs the translator's key and was not run in PR 4: the
+  page names them in English meanwhile, and its catalogue test lists both boards as awaiting one (the backend's
+  [The page's translator](../apps/backend/docs/translate.md)). Run it before PR 5 names `siege-1`.
 - **The last 24 hours:** its first frame grows 4×, past its 1 MiB budget, so it needs a new format.
-- **The backend:**
-  - **Memory:** about 45 MB more resident, and about 200 MB at the boot's peak while it builds the edges.
-  - **The boot:** 4 to 6 seconds, against a one-minute deadline.
-  - **`Within` and `Nearest`:** tens of milliseconds per bomb or rally.
+- **The backend** (measured on 4 vCPUs, `load_new_boards_test.go`):
+  - **The boot of `earth-2`:** 0.8 to 0.9 s, against the design's 4 to 6 s and a one-minute deadline; 2,966,323 edges.
+  - **Memory:** about 47 MB kept, and 302 MB allocated (about 260 MB of process memory) at the peak while it builds the
+    edges. A board loads only when a map plays it.
+  - **`Within` and `Nearest`:** tens of milliseconds per bomb or rally (the design's estimate, not measured).
 
 ## Slow devices
 
@@ -457,12 +544,14 @@ their numbers.
    - Everything sized from the spacing or the density reads the board.
    - `arena.board`, and replays that draw each era on its board, with the cut.
    - Nothing visible: only `earth-1` exists.
-4. **The new geometry: `earth-2` and `siege-1`.**
-   - The warp, the rotation and the canonical order.
-   - Both boards generated and committed, with their capitals, bridges, border lines and names.
-   - The territory shader's inverse, and the coast in the earth shader.
-   - The frontend measured on both.
-   - Nothing plays them yet.
+4. **The new geometry: `earth-2` and `siege-1`. Built 2026-11-18.**
+   - The warp, fitted per board, the rotation and the canonical order, in every reader.
+   - Both boards generated and committed, with their capitals, bridges, terrain, border lines and English names, and
+     their rows in planet's `boards`.
+   - The territory shader's inverse and the pick's. The coast is the terrain file's since #864 (the earth shader this
+     item first named has no coast left to draw): a tile where earth-1 had sea takes its kind from its land neighbours.
+   - The frontend measured on both, and the backend's load of `earth-2`.
+   - Nothing plays them yet. The landmass names' translations wait for `make translate`.
 5. **Capital Siege on `siege-1`.**
    - Its set names `siege-1` and drops the spread.
    - The first board players see, at the next Capital Siege and before the world's switch. It tries the reload and an

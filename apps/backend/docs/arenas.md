@@ -152,7 +152,7 @@ carry, refuses the open (`ErrRefused`, `FailedPrecondition`), and the world's ma
   world (see [The ledger's readers](#the-ledgers-readers)). The vandal squad waits for the world's map: `GetTiles`
   names the board in play.
 
-Capital Siege's set names `siege-1` in PR 5, once PR 4 ships it.
+Capital Siege's set names `siege-1` in PR 5: PR 4 shipped it (27,259 tiles, 79 km apart), and nothing plays it yet.
 
 ## Seeds
 

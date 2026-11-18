@@ -1,7 +1,8 @@
 # Tile positions, rebuilt from the board
 
-The tiles are points of the board's lattice, the points of `THREE.IcosahedronGeometry(1, cols - 1)` (see
-[`/map/README.md`](../../../map/README.md)). The lattice never changes, so the browser only downloads **which of its
+The tiles are points of the board's lattice (see [`/map/README.md`](../../../map/README.md)): `earth-1`'s are the points
+of `THREE.IcosahedronGeometry(1, cols - 1)`; `earth-2`'s and `siege-1`'s those of a warped and rotated icosahedral
+lattice (see [Boards](../../../docs/boards.md#the-geometry)). The lattice never changes, so the browser only downloads **which of its
 points are tiles**: the board's runs, `static/boards/<board>/runs-<hash>.bin`, 121 KB for `earth-1`. It works every
 position out itself. There is no file of positions to fall back on, on any board.
 
@@ -14,7 +15,8 @@ at 1.3s rather than 3.75s with the 5.2 MB coordinates file it had replaced.
 the page carries (`BOARDS` in `boardsAsset.ts`, which `npm run map` writes from each board's manifest): the game page's
 is the one `GetMap` names (see [The board the page draws](board-reload.md)), the archive's, the clips' and the video's
 the board of each era they draw. It hands them to `latticeWorker.ts`, which runs `rebuildTiles` (`domain/board.ts`, over `domain/lattice.ts`): it walks
-the lattice in three's order and keeps the points whose canonical id is in a run. It sends back the positions as a
+the lattice in the board's order (three's walk for `earth-1`, canonical ids for the others: `walkLattice`) and keeps
+the points whose canonical id is in a run, a tile's id its rank among them plus one. It sends back the positions as a
 transfer, with the cells the territory layer and the pick find a pixel's tile by (`cellsOf`, built from each tile's
 canonical id; see [The zoomed-out view](zoomed-out-view.md)), the chunks the page culls the tiles by (`chunksOf`; see
 [The tiles out of sight are not drawn](far-side.md)) and the positions' hash. **It is a worker because of the engines
@@ -43,6 +45,20 @@ It finds each point once by its canonical id — a corner, a step along one of t
 first time three's walk reaches it. `scripts/map/lattice.test.mjs` checks the walk against three's own geometry, to the
 bit, up to `cols` 301, and `board.test.ts` that the shipped runs rebuild the positions the manifest hashes. Before the
 coordinates file went, every app's rebuild was checked against it, to the bit, for every tile.
+
+## A warped and rotated board
+
+`earth-2` and `siege-1` take each point's barycentric weights `(cols − i − j, j, i) / cols`, warp them (`warpedWeights`:
+`h_k = w_k·((1 + a·w_k) + b·(w_k·w_k)) + ((c·wa)·wb)·wc`, each over `(ha + hb) + hc`) and sum them over the face's
+rotated corners, `(wa·A + wb·B) + wc·C`, normalised as three does (`positionWriter`). The manifest carries the warp and
+the 36 corners; no reader knows the rotation. It is the same rule: only `+ − × ÷` and `Math.sqrt`, in that order, in
+every copy, and a point on an edge or a corner comes out the same bits from every face it is on (`lattice.test.ts`).
+
+**Every tile must find its own cell**: `cellsOf` runs each tile's position through `cellOf`, the inverse the territory
+layer and the pick use, and throws on one it finds in another cell, so a wrong inverse does not load the globe rather
+than paint a tile's flag on its neighbour (see [The tile under the pointer](picking.md)). It costs the rebuild, in Node
+on 4 vCPUs (2026-11-18): `earth-1` 60 ms for the positions and 40 ms for the cells, `earth-2` 55 ms and 200 ms, `siege-1`
+2 ms and 10 ms.
 
 ## The hash is the safety net
 

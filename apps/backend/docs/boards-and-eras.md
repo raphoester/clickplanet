@@ -3,8 +3,9 @@
 **A tile id means a place only on its board, so every row and every event of a tile names its board, and every event
 its map** (PR 2 of [Boards](../../../docs/boards.md), 2026-11-17). **The process carries every board it ships, and
 plays any of them** (PR 3, 2026-11-18): an arena on a board of its own (`arena.board`), a history that draws each era on
-its board, and every threshold sized from the board ([Sized from the board](board-scale.md)). Only `earth-1` ships, so
-production plays `earth-1` alone: PR 4 ships `earth-2` and `siege-1` as files and rows.
+its board, and every threshold sized from the board ([Sized from the board](board-scale.md)). **It ships `earth-2` and
+`siege-1`** (PR 4, 2026-11-18), as files and rows, and nothing plays them yet: no set names `siege-1` until PR 5, and the
+world switches to `earth-2` in PR 6.
 
 ## The words in the code
 
@@ -27,8 +28,8 @@ production plays `earth-1` alone: PR 4 ships `earth-2` and `siege-1` as files an
 ## The boards this process carries
 
 **`embedded_board.Registry` holds every board under `generated/map/boards`** (`cpboards.Files()`, which adds the tests'
-fixture under the `testing` tag). At boot it reads each manifest and refuses a lattice it cannot walk (a warp, a
-rotation, the canonical order: PR 4). It builds a board's ground (`Registry.Ground`: the positions rebuilt from the
+fixture under the `testing` tag). At boot it reads each manifest and refuses a lattice it cannot walk: an order but `three` or `canonical`, a warp
+that is not three numbers, corners that are not 36 ([Map geography](map-geography.md)). It builds a board's ground (`Registry.Ground`: the positions rebuilt from the
 runs and checked against the manifest's hash, the adjacency from the lattice, the borders, bridges and capitals, each
 file refused if it holds another tile count than the manifest) **the first time something asks for it**, once, and
 keeps it: about 57 bytes a tile, about 0.1 s for `earth-1`. The boot asks for the map in play's board alone, so a board
@@ -64,6 +65,11 @@ Migration `20261117133227_boards_and_eras`:
   times: one scan of the ledger, and an update of the arenas' events alone.
 - The vandal squad's `graffiti` got `board text NOT NULL` (migration `20261117133227_graffiti_board`): see
   [The vandal squad](vandalsquad.md).
+
+Migration `20261118092225_earth2_and_siege1` ships PR 4's boards: `(2, 'earth-2', '5a61c10a')` and `(3, 'siege-1',
+'e219e852')`. No era names them, so nothing plays them; the boot matches each carried board with its row (below), and
+builds a board's ground only when a map plays it. Its way down deletes the two rows, which a row of a tile, an era or an
+event naming either refuses.
 
 `internal/planet/internal/migrations/boards_and_eras_test.go` runs it on a real postgres from the version before it:
 `earth-1` everywhere, each arena's events on its map (the second of an open and of a close included), the defaults gone,
@@ -167,8 +173,10 @@ no era, a board carried with no row or another hash) and its contract suite on m
 `inmemory_tile_storage`'s `persistence_test.go` (a load refused on rows of another board, a flush naming the stage's
 board) and `arena_test.go` (the gate); `postgres_tile_store`'s `maps_test.go` (every row naming its stage's board, the
 boards of a map, a board planet does not keep refused); `open_arena_usecase` (the arena's era); `embedded_board`'s
-`TestTheBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash`; `ledger`'s tests of each reader by stage (an arena's
+`TestEachBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash`; `ledger`'s tests of each reader by stage (an arena's
 events and another board's left out) and of each recording naming its write's stage; the postgres store reading each
 event's map and board back; each query's postgres suite with an arena's and another board's events; the relay's tiles
 of a board not carried; the stream's opening heartbeat; `GetMap`'s board. A suite that purges planet's schema seeds
-`earth-1` and the world's era again (`eras.Reseed`); `ledger.Staged` writes a test's event on another stage.
+every board the migrations ship (`eras.Shipped`: `Earth1`, `Earth2`, `Siege1`) and the world's era again
+(`eras.Reseed`); `MemoryStore` starts with the same rows; `ledger.Staged` writes a test's event on another stage, such
+as `earth-2`'s. The fixture's row is `eras.Fixture`, under an id no migration takes (99).

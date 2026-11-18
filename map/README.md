@@ -1,8 +1,13 @@
 # The tile map's geometry
 
 A map's geometry is a **board**: a set of immutable files in `boards/<name>/`, content-addressed, that every app reads
-its tiles from. There is one today, **`earth-1`**, the world's map since the remap of 2026-11-03. See
-[Boards](../docs/boards.md) for the design and what comes next.
+its tiles from. There are three (see [Boards](../docs/boards.md) for the design and what comes next):
+
+| board | lattice | tiles | apart | plays |
+| --- | --- | --- | --- | --- |
+| **`earth-1`** | three's, `cols` 301 | 260,503 | 25.9 km | the world, since the remap of 2026-11-03 |
+| **`earth-2`** | warped and rotated, `cols` 590, canonical order | 1,004,682 | 13.1 km | nothing yet: the world after the switch (PR 6) |
+| **`siege-1`** | warped and rotated, `cols` 97, canonical order | 27,259 | 79.4 km | nothing yet: Capital Siege's arena (PR 5) |
 
 | file | says |
 | --- | --- |
@@ -66,9 +71,12 @@ is written into it:
   blends a one-tile island into open water, so it had to be corrected toward the tile field.
 
 ```bash
-cd apps/frontend && npm run map:generate   # the board's runs, borders and capitals, from the oracle
-cd apps/frontend && npm run map:audit      # the three sources against each other
+cd apps/frontend && npm run map:generate -- earth-2   # a board's runs, borders and capitals, from the oracle
+cd apps/frontend && npm run map:audit -- earth-2      # the three sources against each other
 ```
+
+Every script of the chain takes the board's name, and works on `earth-1` when none is given. `scripts/map/board.mjs`
+defines each board the generator writes (`BOARD_DEFINITIONS`): its name, its `cols`, its warp and corners, its order.
 
 ## Lakes are water
 
@@ -86,7 +94,7 @@ Earth draws them full, and a cell with no tile on what the globe draws as land i
 
 ## A seat for each country the lattice misses
 
-The lattice is 25 km apart, so a country smaller than a cell — the Vatican, Monaco, Liechtenstein — or an island
+`earth-1`'s lattice is 25 km apart, so a country smaller than a cell — the Vatican, Monaco, Liechtenstein — or an island
 nation whose islands all fall between vertices — the Maldives, Palau, Tuvalu, Bahrain, which is bigger than a tile
 and still misses every vertex — would have no ground at all: no tile to take, no territory, no place for a first
 visit's camera to open on. `scripts/map/seats.mjs` gives each of them **one** vertex, after Natural Earth has
@@ -105,8 +113,18 @@ draws as open sea when the country is on land:
   the terrain then paints the cell as land (see below). Two of them touch a neighbour's tile, as the islands do:
   Anguilla touches Sint Maarten and the US Virgin Islands touch the British.
 
+**Each board has its seats** (`SEATS_BY_BOARD`, `seatsOf`): a lattice of another spacing misses other countries.
+`earth-2`, at 13 km, gives 20 of `earth-1`'s 34 their own ground and keeps 13 of the seats; Christmas Island takes
+Australia's vertex there (Natural Earth draws the Indian Ocean Territories inside Australia), and the British Virgin
+Islands, whose vertices fell on `earth-1`'s lattice and not on `earth-2`'s, get one: 15. `siege-1`, at 79 km, seats 52:
+`earth-1`'s but the British Indian Ocean Territory's, and 19 more countries smaller than its cell, each at its capital
+(Luxembourg takes France's vertex, Hong Kong a vertex in the water off the New Territories, whose cell holds the city).
+On a lattice coarser than the gap between two islands both can be nearest one vertex: **`beside`** names the seat
+before it that keeps it, and this one takes the nearest vertex the other did not (Guernsey beside Jersey, the British
+Virgin Islands beside the US ones, on `siege-1`).
+
 A seat for a country that has ground of its own, an island seat that would land on a country's ground, or two seats on
-one vertex refuse the generation. **The audit fails on a flag with no ground**, except the four flags of a region
+one vertex that no `beside` names refuse the generation. **The audit fails on a flag with no ground**, except the four flags of a region
 inside a country's ground (England, Scotland, Wales, Brittany: `REGIONS`), which share it.
 
 **Every fault between the tile set and the oracle is zero, and the audit fails on any one of them.**
@@ -137,7 +155,10 @@ bridges` from the tiles and the capitals written. Both are read only by the rule
     of them, 361 under 100 km. Europe reaches America by the Faroes, Iceland and Greenland as well as by the Bering
     Strait, and Hawaii by Kiribati and the Aleutians.
   - **Sea lanes**, placed by hand (`LANES`): two points [lon, lat] on either shore, snapped to the nearest coast tile
-    that is no capital, within 150 km or the generator stops. 17, for the crossings the stones do not make: the North
+    that is no capital (or a capital whose land has no other coast, as a stone lands), within 150 km or the generator
+    stops (as many of a coarser board's spacings, `snapKmOf`). Each board has its lanes (`LANES_BY_BOARD`): `siege-1`'s
+    Gibraltar lane leaves from Málaga, since the Rock is Gibraltar's one tile and Morocco's coast is nearer Tarifa than
+    Spain's next. 17, for the crossings the stones do not make: the North
     and South Atlantic, Hawaii to California and Japan, the Tasman, the monsoon, Gibraltar. The points are pinned, like
     the seats: moving one moves a bridge.
   - **Second ways**, generated after both (the owner, 2026-11-11: "each group of islands has two ways of being
@@ -147,7 +168,7 @@ bridges` from the tiles and the capitals written. Both are read only by the rule
     them: no single bridge's loss cuts any land off, so every island has two bridges at least (Great Britain 8, Ireland
     3, Sicily 3, Cyprus 2 to two beaches of the mainland, Tasmania 3), and Afro-Eurasia 128.
 
-  744 bridges in all.
+  744 bridges in all on `earth-1`; 1,422 over 975 pieces on `earth-2`, 272 over 173 on `siege-1`.
   Until 2026-11-11 the reach crossed `waters-<hash>.json`, each body of water's coast: the ocean was one body, so a
   flag on any coast reached every coast on Earth, and 130 of the 239 capitals were in reach of every flag at the start.
 
@@ -191,17 +212,22 @@ first run. A second run over its own output would write an identity migration.
 The design keeps a regeneration from ever rewriting the ledger again: a new tile set is a new board, and the old
 one stays (see [Boards](../docs/boards.md)). Until the boards are told apart in the database, this is the way.
 
-**The rest of the checklist**, which the generator prints:
+**The rest of the checklist**, which the generator prints (`<board>` is the board's name; none is `earth-1`):
 
 ```bash
-cd apps/frontend && npm run bridges       # the crossings, from the new tiles and capitals; rewrites the manifest
-cd apps/backend && make map               # copy the board, then commit every copy
-cd apps/backoffice && npm run map         # copy the manifest and the runs
-cd apps/frontend && npm run borderLines -- earth-1   # traced from the board, stale until it is run
-cd apps/frontend && npm run terrain       # each lattice point's look, from the new tiles; rewrites the manifest
-cd apps/frontend && npm run landmassNames -- earth-1 # each landmass's name, keyed by the new borders file
-cd apps/frontend && npm run map:audit     # every fault should read zero
+cd apps/frontend && npm run bridges -- <board>        # the crossings, from the new tiles and capitals; rewrites the manifest
+cd apps/frontend && npm run terrain -- <board>        # each lattice point's look, from the new tiles; rewrites the manifest
+cd apps/backend && make map                           # copy the boards, then commit every copy
+cd apps/backoffice && npm run map                     # copy the manifests and the runs
+cd apps/frontend && npm run borderLines -- <board>    # traced from the board, stale until it is run
+cd apps/frontend && npm run landmassNames -- <board>  # each landmass's name, keyed by the new borders file
+cd apps/frontend && npm run map:audit -- <board>      # every fault should read zero
+cd apps/backend && make translate                     # the landmass names in every language: needs the key
 ```
+
+**A board written the first time** has no bridges nor terrain until those two commands write them: its manifest leaves
+them out, and `npm run map` copies it nowhere until it names every file. A new board's row in planet's `boards` ships
+with the migration that ships the board (name, and `positionsHash` in 8 hex).
 
 No config follows the tile count: the backend reads it from the manifest, and refuses a file of the board that holds
 another (`gameMap.maxIndex` went on 2026-11-18). A board regenerated is another board, with a row of its own in
@@ -230,9 +256,11 @@ Little-endian throughout.
 }
 ```
 
-- `lattice`: `cols` steps along each edge of the icosahedron; `warp` and `corners` are `null` (no warp, no rotation:
-  three's own lattice); `order` is `three`, tile ids in three's walk order. Every reader refuses anything else for
-  now.
+- `lattice`: `cols` steps along each edge of the icosahedron. `earth-1`'s `warp` and `corners` are `null` (no warp, no
+  rotation: three's own lattice) and its `order` is `three`, tile ids in three's walk order. `earth-2`'s and `siege-1`'s
+  `warp` is `{"a", "b", "c"}`, the coefficients fitted at their `cols`, `corners` the 36 float64s of three's corners
+  turned by the rotation (x, y, z of each, in three's order of corners), and `order` is `canonical`, tile ids in
+  canonical id order (see [The board's lattice](#the-boards-lattice)). Every reader refuses another order.
 - `spacing`: the median arc between two touching tiles, in radians (about 25.9 km).
 - `positionsHash`: FNV-1a over the tiles' positions as float32 words, x, y, z per tile in tile order. Every app checks
   its rebuild against it.
@@ -282,7 +310,7 @@ One kind a lattice point, in canonical id order, as runs: a run is one byte, its
 length less one in the low four, and a run of 16 points or more sets the low four to 15 and carries its length less 16
 after it as a varint (seven bits a byte, low first). Kinds 0-7 are land (forest, tundra, boreal, arid, savanna, grass,
 sand, snow), 8-10 the sea one, two and three steps from land, 11 the open sea. `earth-1` is 66,392 runs, 74 KB; one byte
-a point would be 906 KB.
+a point would be 906 KB. `earth-2` is 197 KB, `siege-1` 15 KB.
 
 The frontend draws a black outline along the tile boundary between two countries, and keeps the
 geometry for it in a file of each board's own — `apps/frontend/static/boards/<board>/borderLines-<hash>.bin`, written by
@@ -292,8 +320,9 @@ after these**; it stays out of `/map` because the backend has no use for it. See
 
 ## The board's lattice
 
-Every board is cut from one lattice: the points of `THREE.IcosahedronGeometry(1, cols - 1)`. Each of the 20 faces is a
-triangular grid; a point is `(face, i, j)`, `i` rows from the face's edge AB towards C and `j` steps along the row.
+Every board is cut from one lattice: an icosahedron's 20 faces, each a triangular grid; `earth-1`'s are the points of
+`THREE.IcosahedronGeometry(1, cols - 1)`. A point is `(face, i, j)`, `i` rows from the face's edge AB towards C and `j`
+steps along the row.
 That makes them a geodesic sphere's points, so **every point has exactly 6 neighbours, the ±1 exchanges of its
 barycentric coordinates, and the 12 icosahedron corners have 5** — which is what lets the backend take adjacency
 straight from the lattice rather than by searching.
@@ -304,8 +333,14 @@ then the `cols - 1` points inside each of the 30 edges, then each face's inside,
 
 **`earth-1`'s tile ids are ranks in three's walk.** Three builds each face's triangles row by row and reaches each
 point first from one of them; `walkLattice` visits the points in that order. A tile's id is its place among the tiles
-in that walk, as it was when three built the map, because those are the ids the ledger holds. New boards will number
-their tiles in canonical order (see [Boards](../docs/boards.md)).
+in that walk, as it was when three built the map, because those are the ids the ledger holds.
+
+**`earth-2`'s and `siege-1`'s tile ids are ranks in canonical id order**, and their points are warped and rotated: each
+point's barycentric weights `(cols − i − j, j, i) / cols` warped so every cell covers about as much ground, then summed
+over the face's rotated corners and normalised, only `+ − × ÷ √` in one order of operations every reader keeps (see
+[Boards](../docs/boards.md#the-geometry)). A point on an edge or a corner comes out the same bits from every face it is
+on, so a canonical walk may reach it from any face. The generator's scripts take a point's index in the board's order
+(three's walk, or the canonical id itself) wherever they say "vertex" or "point".
 
 **Nothing builds three's geometry any more**, not the generator nor any app: they all walk `lattice.ts`'s arithmetic
 (the backoffice and the backend in a copy of their own), and three is only the reference
@@ -314,13 +349,15 @@ their tiles in canonical order (see [Boards](../docs/boards.md)).
 same answer as three's uvs did for every point. See [Tile positions](../apps/frontend/docs/tile-positions.md) for
 why every engine rebuilds the same bits.
 
-| | |
-| --- | --- |
-| cols | 301 |
-| full sphere | `10 * 301² + 2` = 906,012 points |
-| land tiles | 260,503, the manifest's `tiles` |
-| landmasses | 694, across 239 countries |
-| spacing | ~25.9 km median, ~563 km² per tile |
+| | `earth-1` | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| cols | 301 | 590 | 97 |
+| full sphere | 906,012 points | 3,481,002 points | 94,092 points |
+| land tiles, the manifest's `tiles` | 260,503 | 1,004,682 | 27,259 |
+| landmasses | 694, across 239 countries | 1,175, across 239 countries | 374, across 236 countries (Saint Pierre and Miquelon, Saint Helena and Heard Island, which no flag plays, are smaller than its cell) |
+| lakes, points on a country's ground that are sea | 1,644 | 6,503 | 98 |
+| seats | 34 | 15 | 52 |
+| spacing, median | 25.9 km | 13.1 km | 79.4 km |
 
 See [`apps/backend/docs/map-geography.md`](../apps/backend/docs/map-geography.md) for the backend's half.
 
