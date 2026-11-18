@@ -176,7 +176,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The countries' outlines](docs/country-outlines.md) — the border lines, straight along the cell edges (the spline
   dropped), the same width at every zoom, only the pieces in sight drawn.
 - [A page from an older build](docs/stale-build.md) — a deploy removes the last build's files and HTML answers for
-  them: the pages that load them are `no-store`, and `/play` reloads once when one fails.
+  them: the pages that load them are `no-store`, and `/play` reloads when one fails, past the cache the second time.
 - [The page's report on a phone](docs/diag.md) — `?diag` shows the errors and the storage on screen, for a page
   left blank on a phone with no console.
 - [A finger iOS took for its swipe back](docs/stray-fingers.md) — the edge swipe that never ends its pointer, the
