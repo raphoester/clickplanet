@@ -786,6 +786,17 @@ backend), page first.
 **Memory**: the backend held 817 MB before PR 6's deploy restarted it (after two hours up), 327 MB after the restart,
 528 MB once the dry run loaded `earth-2`'s ground beside `earth-1`'s, and 481 MB after the switch; the box has 3.9 GB.
 
+**The day's gain jumped with the land**: day 18's round (opened 2026-11-17 21:00 UTC, ranked on held and gain) kept
+each flag's start in `earth-1` tiles, so after the switch every flag "gained" 2.8 times its own land (Ireland +94,224).
+At 14:05 UTC each start in `scoring.round_starts` was rescaled by its flag's own carry ratio, its tiles on `earth-2`
+over its tiles on `earth-1` at the switch (3.0 to 4.4, read from the backup and the carry-over file; a flag with no
+tile at the switch took the map's 3.83). So a gain made before the switch counts in `earth-2` tiles, and the carry-over
+counts none: Ireland's start went 34,753 → 125,356, its gain +94,224 → +3,621. The old rows are kept in
+`scoring.round_starts_before_switch_20261118`, to drop once the round is scored. **Nothing in the code does this**: a
+later switch during an open round needs the same step (runbook step 8b), or scoring rescaling its open rounds on
+planet's `BoardSwitched` with each flag's counts before and after (not built). The board's columns were widened for the
+six-digit counts the same day (#881).
+
 **Left after it**: `earth-2`'s landmass names read English in the other languages until the translations ship, and the
 backup stays on the box: a restore now would also erase every take made since the switch (see step 10 below).
 
@@ -823,6 +834,11 @@ reloads within a second of the answer and shows "The world grew".
 **8. `rally.rings` 18 → 36**, right after: `planet_get_rules` lists the sets, and each that holds `charges.rally.rings`
 (`default` holds 18) is saved with 36 (`planet_save_rule_set`). A save of the set in force takes over at once. Not
 before the switch: on `earth-1`, 36 rings is twice the ground.
+
+**8b. The open day round's starts**, right after: each flag's start (`scoring.round_starts` of the round open at the
+switch) is a count of the old board's tiles, so its gain would count the whole carry-over. Rescale each start by the
+flag's tiles after the switch over its tiles before (the backup's tiles through the carry-over file), keeping the old
+rows aside, as [the switch, live](#the-switch-live) did.
 
 **9. What to watch after:**
 - the Warn `the map switched boards` with the counts, and the World chat's line and Discord's `@everyone`;
