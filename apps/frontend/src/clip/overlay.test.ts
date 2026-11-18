@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {describe, expect, it} from "vitest"
 import {NamedSide} from "../domain/clip/cast.ts"
-import {Day, sidesOf, Story, teamFlagOf, THE_WORLD} from "../domain/clip/story.ts"
+import {Day, Story, THE_WORLD} from "../domain/clip/story.ts"
 import {createOverlay, hashtagsOf, wordsOf, Written} from "./overlay.ts"
 import {nameOf, said} from "./names.ts"
 
@@ -46,15 +46,6 @@ describe("the words of a story the editor tells", () => {
     it("are none of the generator's own: with no words of the editor, there is no clip", () => {
         expect(() => wordsOf(rout)).toThrow("a rout is told in the editor's words, and none were given")
         expect(() => wordsOf({...story("holding", {region: "Europe"}), attacker: "hr", share: 0.8})).toThrow("none were given")
-    })
-})
-
-describe("a flag thrown out of a continent", () => {
-    it("counts the continent under its flag, and the flag thrown out under its own", () => {
-        const rout: Story = {...story("rout", {region: "Europe"}), attacker: "de", victims: ["ps"], team: "Europe"}
-
-        expect(teamFlagOf(rout)).toBe("eu")
-        expect(sidesOf(rout)).toEqual(["ps", "eu"])
     })
 })
 

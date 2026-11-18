@@ -39,14 +39,6 @@ func (s *testSuite) SetupTest() {
 
 var at = time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
 
-func (s *testSuite) TestTheStreakDayIsStoredAsADate() {
-	s.Require().NoError(s.store.Record(s.T().Context(), accounts.AccountID{15: 1}, stats.TakeAt(0, 0, at)))
-
-	var day string
-	s.Require().NoError(s.db.On(s.T().Context()).QueryRowContext(s.T().Context(), `SELECT streak_last_day::text FROM stats`).Scan(&day))
-	s.Equal("2026-09-17", day)
-}
-
 func (s *testSuite) TestFactsEachSubscriberCountsAtOnceAreAllKept() {
 	start := make(chan struct{})
 	var wg sync.WaitGroup

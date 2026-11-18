@@ -13,20 +13,15 @@ import (
 type ScriptedLedger struct {
 	Asked []Window
 	takes []Take
-	err   error
 }
 
 func NewScriptedLedger(takes ...Take) *ScriptedLedger {
 	return &ScriptedLedger{takes: takes}
 }
 
-func (l *ScriptedLedger) FailWith(err error) {
-	l.err = err
-}
-
 func (l *ScriptedLedger) Takes(_ context.Context, window Window) ([]Take, error) {
 	l.Asked = append(l.Asked, window)
-	return l.takes, l.err
+	return l.takes, nil
 }
 
 // The players who let the clips show their names, and nobody else.

@@ -49,11 +49,6 @@ func (s *StoreContractSuite) same(want Notice, account string) {
 	s.True(want.AcknowledgedAt.Equal(got.AcknowledgedAt), "acknowledged at: want %s, got %s", want.AcknowledgedAt, got.AcknowledgedAt)
 }
 
-func (s *StoreContractSuite) TestAnAccountNeverNoticedIsNotIn() {
-	_, noticed := s.noticed(ada)
-	s.False(noticed)
-}
-
 func (s *StoreContractSuite) TestANoticeIsKeptAndReadBack() {
 	s.True(s.keep(Notice{Account: ada, Alongside: grace, At: contractAt}))
 

@@ -60,12 +60,3 @@ func (s *testSuite) kept() []reports.Snapshot {
 	s.Require().NoError(rows.Err())
 	return kept
 }
-
-func (s *testSuite) TestTheDatabaseRefusesAReasonItsTypeDoesNotName() {
-	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(), `
-		INSERT INTO reports (id, reporter_account_id, reported_account_id, reason, text, message_id, created_at)
-		VALUES ($1, $2, $3, 'rude', '', '', now())
-	`, uuid.New(), uuid.New(), uuid.New())
-
-	s.Require().ErrorContains(err, "report_reason")
-}

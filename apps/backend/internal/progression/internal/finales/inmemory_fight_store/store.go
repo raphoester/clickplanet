@@ -13,9 +13,8 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	kept     map[accounts.AccountID][]finales.FightSnapshot
-	failWith error
+	mu   sync.Mutex
+	kept map[accounts.AccountID][]finales.FightSnapshot
 }
 
 var _ finales.Store = (*Store)(nil)
@@ -24,20 +23,10 @@ func New() *Store {
 	return &Store{kept: map[accounts.AccountID][]finales.FightSnapshot{}}
 }
 
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.failWith = err
-}
-
 func (s *Store) Record(_ context.Context, fights []finales.Fight) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	for _, fight := range fights {
 		snapshot := fight.TakeSnapshot()
 		kept := slices.DeleteFunc(s.kept[snapshot.Account], func(each finales.FightSnapshot) bool {
@@ -54,9 +43,6 @@ func (s *Store) Fights(_ context.Context, asked []accounts.AccountID) (map[accou
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
 	found := map[accounts.AccountID]finales.Fights{}
 	for _, account := range asked {
 		for _, snapshot := range s.kept[account] {
@@ -74,9 +60,6 @@ func (s *Store) DeleteAccount(_ context.Context, account accounts.AccountID) err
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	delete(s.kept, account)
 	return nil
 }

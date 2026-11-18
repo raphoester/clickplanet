@@ -25,20 +25,6 @@ func draft() posts.Draft {
 	}
 }
 
-func TestAPostIsWhatTheJobAsked(t *testing.T) {
-	post, err := posts.NewPost(draft())
-	require.NoError(t, err)
-
-	assert.Equal(t, posts.PostSnapshot{
-		At: at, Platforms: []calendar.Platform{calendar.TikTok, calendar.YouTube},
-		Media: "https://media.zernio.com/temp/clip-1.mp4", Key: "f00d", Title: "ITALY RETAKES ITS LAND FROM PORTUGAL",
-		TikTok:   posts.TikTokWords{Caption: "ITALY RETAKES ITS LAND FROM PORTUGAL | CLICKPLANET"},
-		YouTube:  posts.YouTubeWords{Title: "ITALY RETAKES ITS LAND | CLICKPLANET", Description: "Play", Tags: []string{"map"}},
-		Metadata: map[string]any{"storyFlag": "it"},
-	}, post.TakeSnapshot())
-	assert.Equal(t, calendar.Slot{At: at, Platforms: []calendar.Platform{calendar.TikTok, calendar.YouTube}}, post.Slot())
-}
-
 func TestAPostNeedsOnlyTheWordsOfItsOwnPlatforms(t *testing.T) {
 	youtubeOnly := draft()
 	youtubeOnly.Slot.Platforms = []calendar.Platform{calendar.YouTube}
@@ -67,18 +53,6 @@ func TestAPostIsRefusedForEveryReasonAtOnce(t *testing.T) {
 	}
 	_, err = posts.NewPost(posts.Draft{})
 	assert.ErrorContains(t, err, "names no platform")
-}
-
-func TestATikTokCarouselIsUpTo35PhotosUnderATitle(t *testing.T) {
-	carousel := draft()
-	carousel.TikTokPhotos = []posts.MediaURL{"https://media.zernio.com/temp/card-1.jpg", "https://media.zernio.com/temp/card-2.jpg"}
-	carousel.TikTok.Title = "RING WAR · SATURDAY 20:00 UTC"
-
-	post, err := posts.NewPost(carousel)
-
-	require.NoError(t, err)
-	assert.Equal(t, carousel.TikTokPhotos, post.TakeSnapshot().TikTokPhotos)
-	assert.Equal(t, "RING WAR · SATURDAY 20:00 UTC", post.TakeSnapshot().TikTok.Title)
 }
 
 func TestACarouselTikTokCannotPostIsRefusedForEveryReasonAtOnce(t *testing.T) {

@@ -117,12 +117,12 @@ func TestTheRequestCachesThePolicyAndAsksForTheAnswersShape(t *testing.T) {
 	require.Len(t, api.requests, 1)
 	request := api.requests[0]
 	assert.Equal(t, "claude-haiku-5-5", request["model"])
-	assert.Equal(t, []any{
-		map[string]any{"type": "text", "text": claude_judge.Instructions},
-		map[string]any{
-			"type": "text", "text": "# The moderation policy\n\n" + policy, "cache_control": map[string]any{"type": "ephemeral"},
-		},
-	}, request["system"])
+	system := request["system"].([]any) //nolint:forcetypeassert // the request's shape is the test.
+	require.Len(t, system, 2)
+	assert.Equal(t, map[string]any{"type": "text", "text": claude_judge.Instructions}, system[0])
+	cached := system[1].(map[string]any) //nolint:forcetypeassert // the request's shape is the test.
+	assert.Contains(t, cached["text"], policy)
+	assert.Equal(t, map[string]any{"type": "ephemeral"}, cached["cache_control"])
 	config := request["output_config"].(map[string]any) //nolint:forcetypeassert // the request's shape is the test.
 	assert.Equal(t, "medium", config["effort"])
 	format := config["format"].(map[string]any) //nolint:forcetypeassert // the request's shape is the test.

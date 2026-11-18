@@ -6,7 +6,6 @@ import {useLevel} from "../level/levelStore.ts"
 import {MissionsState, NO_MISSIONS, useMissions} from "./missionsStore.ts"
 import {useSeenMissions} from "./seenMissionsStore.ts"
 import {DayMissions, Mission} from "../../backends/missions.ts"
-import {seenNow} from "../../domain/missions.ts"
 
 const now = Date.UTC(2026, 9, 26, 12, 0)
 
@@ -136,7 +135,7 @@ describe("MissionsPlace", () => {
         cleanup()
         render(place(shown))
 
-        expect(useSeenMissions.getState().seen).toEqual(seenNow(shown.day.missions))
+        expect(useSeenMissions.getState().seen).toEqual({bank: "new", rival: "done"})
     })
 
     it("says so when the missions could not be read", () => {

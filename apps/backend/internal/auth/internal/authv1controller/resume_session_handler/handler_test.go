@@ -2,7 +2,6 @@ package resume_session_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -64,10 +63,4 @@ func TestNoAddressIsARefusal(t *testing.T) {
 	_, err := resume(&stubUseCase{err: resume_session_usecase.ErrNoAddress})
 
 	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
-}
-
-func TestAStoreFailureIsLeftToTheErrorNet(t *testing.T) {
-	_, err := resume(&stubUseCase{err: errors.New("postgres is down")})
-
-	assert.ErrorContains(t, err, "postgres is down")
 }

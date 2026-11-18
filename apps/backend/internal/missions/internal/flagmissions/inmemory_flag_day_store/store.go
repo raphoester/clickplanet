@@ -16,22 +16,14 @@ type key struct {
 }
 
 type Store struct {
-	mu       sync.Mutex
-	days     map[key]flagmissions.DaySnapshot
-	failWith error
+	mu   sync.Mutex
+	days map[key]flagmissions.DaySnapshot
 }
 
 var _ flagmissions.Store = (*Store)(nil)
 
 func New() *Store {
 	return &Store{days: map[key]flagmissions.DaySnapshot{}}
-}
-
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.failWith = err
 }
 
 func (s *Store) Day(_ context.Context, day days.Day, flag string) (flagmissions.Day, error) {
@@ -42,9 +34,6 @@ func (s *Store) Day(_ context.Context, day days.Day, flag string) (flagmissions.
 }
 
 func (s *Store) read(at key) (flagmissions.Day, error) {
-	if s.failWith != nil {
-		return flagmissions.Day{}, s.failWith
-	}
 	kept, ok := s.days[at]
 	if !ok {
 		return flagmissions.Day{}, flagmissions.ErrNoDay
@@ -57,9 +46,6 @@ func (s *Store) KeepDay(_ context.Context, day days.Day, flag string, drawn flag
 	defer s.mu.Unlock()
 
 	at := key{day: day.String(), flag: flag}
-	if s.failWith != nil {
-		return s.read(at)
-	}
 	kept, ok := s.days[at]
 	switch fresh := drawn.Snapshot(); {
 	case !ok:

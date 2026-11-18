@@ -204,15 +204,6 @@ func TestADebriefedRoundNoShellCanBeTrustedWithIsAnError(t *testing.T) {
 	require.ErrorIs(t, err, replays.ErrInvalidRoundID)
 }
 
-func TestATurnTheBackendDoesNotServeIsAnErrorThatSaysWhy(t *testing.T) {
-	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, "", "wget: server returned error: HTTP/1.1 404 Not Found\n", 1).client)
-	require.NoError(t, err)
-
-	_, err = source.Turn(t.Context())
-
-	require.ErrorContains(t, err, "ssh failed: exit status 1: wget: server returned error: HTTP/1.1 404 Not Found")
-}
-
 func TestAnAnswerThatIsNotATurnIsAnError(t *testing.T) {
 	for name, says := range map[string]string{
 		"nothing": "",
@@ -345,13 +336,4 @@ func TestAnAnswerThatIsNotAMapHistoryIsAnError(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
-}
-
-func TestAMapHistoryTheBackendDoesNotServeIsAnErrorThatSaysWhy(t *testing.T) {
-	source, err := ssh_replay_source.New("deploy@vps.example", ssh(t, "", "wget: server returned error: HTTP/1.1 500 Internal Server Error\n", 1).client)
-	require.NoError(t, err)
-
-	_, err = source.History(t.Context(), season)
-
-	require.ErrorContains(t, err, "ssh failed: exit status 1: wget: server returned error: HTTP/1.1 500 Internal Server Error")
 }

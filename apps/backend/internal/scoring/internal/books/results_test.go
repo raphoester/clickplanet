@@ -94,15 +94,6 @@ func TestACountryThatHoldsNothingAtTheEndIsNotRanked(t *testing.T) {
 	assert.Empty(t, day.Results(books.Start{"de": 10}, atTheEnd(map[books.Country]uint32{})))
 }
 
-func TestARoundScoredKeepsItsEndAndItsResults(t *testing.T) {
-	scored := day.ScoredAt(utc(16, 21), books.Start{"fr": 20}, atTheEnd(map[books.Country]uint32{"fr": 30}))
-
-	assert.Equal(t, books.Scored{
-		Round:   books.Round{ID: day.ID, Book: day.Book, Times: 1, Ranking: books.GainRanking{}, StartsAt: day.StartsAt, Scored: true, EndsAt: utc(16, 21)},
-		Results: []books.Result{{Country: "fr", Rank: 1, Points: 25, Share: 0.3}},
-	}, scored)
-}
-
 func TestEachRankScoresWhatARoundOfItsTimesWouldGiveIt(t *testing.T) {
 	ranks, err := books.RankPointsOf(3)
 

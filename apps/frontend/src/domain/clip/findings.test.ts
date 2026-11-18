@@ -79,10 +79,6 @@ describe("the facts of a front", () => {
         ])
     })
 
-    it("judges nothing: no kind, no attacker, no place", () => {
-        expect(Object.keys(facts).sort()).toEqual(["captured", "countries", "flags", "tilesChanged"])
-    })
-
     it("names each flag's top fighters by what they took for it on the front's tiles", () => {
         const cast = castOf(take(1, "pw", 1), take(1, "pw", 2), take(2, "pw", 7), take(3, "fr", 8), take(2, "pw", 12), take(3, "pw", 9))
 

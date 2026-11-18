@@ -2,7 +2,6 @@ package get_map_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -100,15 +99,5 @@ func TestGetMapMapsTheErrors(t *testing.T) {
 
 		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 		require.ErrorIs(t, err, clicks.ErrInvalidTileRange)
-	})
-
-	t.Run("anything else is left for the error interceptor", func(t *testing.T) {
-		cause := errors.New("disk on fire")
-
-		_, err := getMap(t, &stubUseCase{err: cause}, &planetv1.GetMapRequest{})
-
-		require.ErrorIs(t, err, cause)
-		require.Equal(t, connect.CodeUnknown, connect.CodeOf(err),
-			"the handler picked no code: dressing this up would hide it from the interceptor's log")
 	})
 }

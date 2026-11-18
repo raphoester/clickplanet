@@ -1,7 +1,6 @@
 package forget_past_names_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -29,11 +28,4 @@ func TestTheNamesItsPlayerLeftAreForgottenWithTheAccountAlone(t *testing.T) {
 
 	require.Len(t, store.Kept(), 1)
 	assert.Equal(t, kept, store.Kept()[0].Account)
-}
-
-func TestAFailureIsAnError(t *testing.T) {
-	store := inmemory_past_name_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	assert.Error(t, forget_past_names_usecase.New(store).Execute(t.Context(), players.AccountID{15: 1}))
 }

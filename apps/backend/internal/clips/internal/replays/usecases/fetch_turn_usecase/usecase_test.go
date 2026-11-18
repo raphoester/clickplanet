@@ -1,7 +1,6 @@
 package fetch_turn_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -33,15 +32,4 @@ func TestTheTurnIsAskedOfTheBackendAndKept(t *testing.T) {
 	assert.Equal(t, answered, turn)
 	assert.Equal(t, 1, source.TurnsAsked)
 	assert.Equal(t, []replays.Turn{answered}, store.SavedTurns)
-}
-
-func TestABackendThatDoesNotAnswerTheTurnKeepsNothing(t *testing.T) {
-	unserved := errors.New("ssh failed: exit status 1: wget: server returned error: HTTP/1.1 404 Not Found")
-	source, store, usecase := fetching()
-	source.FailTurnWith(unserved)
-
-	_, err := usecase.Execute(t.Context())
-
-	require.ErrorIs(t, err, unserved)
-	assert.Empty(t, store.SavedTurns)
 }

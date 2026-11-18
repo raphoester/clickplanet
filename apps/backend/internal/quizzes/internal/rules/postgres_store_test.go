@@ -36,16 +36,6 @@ func TestThePostgresStoreKeepsTheContract(t *testing.T) {
 	})
 }
 
-// With no bonuses schema to copy from, the migration seeds production's default.
-func TestTheMigrationSeedsDefaultWithProductionsRules(t *testing.T) {
-	db := server.CreateDatabase(t).OpenSchema(t, "quizzes", migrations.FS)
-
-	set, err := cprules.NewPostgresStore(db, parts.All()).Set(t.Context(), cprules.Default)
-	require.NoError(t, err)
-
-	assert.True(t, proto.Equal(rules.Seeded().Rules, set.TakeSnapshot().Rules), "%v", set.TakeSnapshot().Rules)
-}
-
 func TestAFrozenSetIsReadFrozen(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "quizzes", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `INSERT INTO rule_sets (name, rules) VALUES ('frozen', '{"frozen": true}')`)

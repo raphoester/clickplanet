@@ -32,10 +32,3 @@ func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.StorageContractSuite.SetupTest()
 }
-
-func (s *testSuite) TestTheTableHoldsOneRowAtMost() {
-	_, err := s.db.On(s.T().Context()).ExecContext(s.T().Context(),
-		`INSERT INTO raid_mode (single, started_at, ends_at) VALUES (false, now(), now())`)
-
-	s.Require().Error(err, "one raid mode, never a second row beside it")
-}

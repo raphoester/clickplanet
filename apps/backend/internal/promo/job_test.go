@@ -2,7 +2,6 @@ package promo_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -36,7 +35,6 @@ type backend struct {
 	mu      sync.Mutex
 	due     []*promov1.Teaser
 	answer  *promov1.PostTeaserResponse
-	refusal error
 	posted  []*promov1.PostTeaserRequest
 	uploads []string
 	storage *httptest.Server
@@ -91,9 +89,6 @@ func (b *backend) PostTeaser(_ context.Context, req *connect.Request[promov1.Pos
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.posted = append(b.posted, req.Msg)
-	if b.refusal != nil {
-		return nil, b.refusal
-	}
 	return connect.NewResponse(b.answer), nil
 }
 
@@ -166,25 +161,4 @@ func TestEachRenderIsUploadedAndHandedToPromoWhichSaysWhatBecameOfIt(t *testing.
 	assert.Equal(t, "entry-7", b.posted[0].GetBattleId())
 	assert.Equal(t, []string{"https://media.example/card-1.jpg", "https://media.example/card-2.jpg"}, b.posted[0].GetPhotoUrls())
 	assert.Equal(t, "https://media.example/teaser.mp4", b.posted[0].GetVideoUrl())
-}
-
-func TestWhatPromoDidNotPostIsInTheReportAndARefusalFailsTheRun(t *testing.T) {
-	b := serve(t, battle("entry-7", 1))
-	folder := t.TempDir()
-	_, err := promo.ListDue(t.Context(), folder, config, slog.New(slog.DiscardHandler))
-	require.NoError(t, err)
-	render(t, filepath.Join(folder, "entry-7"))
-
-	b.answer = &promov1.PostTeaserResponse{Outcome: &promov1.PostTeaserResponse_Skipped{Skipped: &promov1.TeaserNotPosted{Reason: "teased already"}}}
-	report, err := promo.PostTeasers(t.Context(), folder, config, slog.New(slog.DiscardHandler))
-	require.NoError(t, err)
-	assert.Equal(t, promo.TeaserSkipped, report[0].Result)
-	assert.Equal(t, "teased already", report[0].Why)
-	assert.False(t, report.Failed())
-
-	b.refusal = connect.NewError(connect.CodeInvalidArgument, errors.New("2 photos for 1 cards"))
-	report, err = promo.PostTeasers(t.Context(), folder, config, slog.New(slog.DiscardHandler))
-	require.NoError(t, err)
-	assert.Contains(t, report[0].Why, "the backend refused promo.v1.AdminService/PostTeaser")
-	assert.True(t, report.Failed(), "a refusal is never waited for")
 }

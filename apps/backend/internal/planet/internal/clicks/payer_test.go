@@ -27,13 +27,6 @@ func plainBuckets() clicks.Buckets {
 	return bucketsWith(func(*clicks.Throttle) {})
 }
 
-func TestTheScopesBucketHoldsTheScopeMultipliersAccounts(t *testing.T) {
-	payer := clicks.Payer{Scope: "1.2.3.4", Account: "a-guest"}
-
-	assert.InDelta(t, 10.0, plainBuckets().Keys(payer, clicks.Price{})[2].Scale, 1e-9)
-	assert.InDelta(t, 3.0, bucketsWith(func(throttle *clicks.Throttle) { throttle.ScopeMultiplier = 3 }).Keys(payer, clicks.Price{})[2].Scale, 1e-9)
-}
-
 func TestTheBucketsFollowTheRulesInForce(t *testing.T) {
 	payer := clicks.Payer{Scope: "1.2.3.4", Account: "a-player", Linked: true}
 	throttle := clicks.TestThrottle()

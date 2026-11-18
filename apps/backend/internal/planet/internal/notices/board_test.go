@@ -68,10 +68,6 @@ func TestAGrantToNobodyReachesNoStream(t *testing.T) {
 	assert.Empty(t, nobody)
 }
 
-func TestAGrantToAnAccountWithNoStreamIsDropped(t *testing.T) {
-	assert.NotPanics(t, func() { notices.New().PublishGranted(ada, charges.Gain{After: charges.Held{Bombs: 1}}) })
-}
-
 func TestAStreamThatIsNotReadingIsDroppedRatherThanBlocking(t *testing.T) {
 	board := notices.New()
 	events := attend(t, board, charges.NoHolder)

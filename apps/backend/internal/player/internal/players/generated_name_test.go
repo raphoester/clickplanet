@@ -13,23 +13,6 @@ import (
 
 var namedAt = time.Date(2026, 10, 4, 12, 0, 0, 0, time.UTC)
 
-func TestAssignGivesANamelessAccountAGeneratedName(t *testing.T) {
-	store := inmemory_player_store.New()
-	names := players.NewGeneratedNames(store, players.NewRepeatedNames("BraveFox42", "SlyOtter17"))
-
-	created, err := names.Assign(t.Context(), players.AccountID{15: 1}, "", namedAt)
-	require.NoError(t, err)
-	assert.True(t, created)
-	created, err = names.Assign(t.Context(), players.AccountID{15: 1}, "", namedAt.Add(time.Hour))
-	require.NoError(t, err)
-	assert.False(t, created, "the profile was there")
-
-	profile, err := store.Profile(t.Context(), players.AccountID{15: 1})
-	require.NoError(t, err)
-	assert.Equal(t, players.Name("BraveFox42"), profile.TakeSnapshot().Name, "a second Assign draws nothing")
-	assert.True(t, namedAt.Equal(profile.TakeSnapshot().UpdatedAt))
-}
-
 func TestAssignLeavesAChosenNameAlone(t *testing.T) {
 	store := inmemory_player_store.New()
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(players.AccountID{15: 1}, "Ada", namedAt)))

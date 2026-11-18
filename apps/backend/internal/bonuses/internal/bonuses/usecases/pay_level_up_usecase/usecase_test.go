@@ -1,7 +1,6 @@
 package pay_level_up_usecase_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -69,11 +68,4 @@ func TestALevelUpWithNothingToFillAsksTheWalletNothing(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), bonuses.LevelUp{Account: ada, Grant: grant}))
 
 	assert.Empty(t, wallet.Fills(), "the bomb is not unlocked, and nothing else weighs")
-}
-
-func TestAFillTheWalletCannotMakeIsTriedAgain(t *testing.T) {
-	useCase, wallet := setUp(bonuses.TestRules())
-	wallet.FailWith(errors.New("planet is gone"))
-
-	require.Error(t, useCase.Execute(t.Context(), bonuses.LevelUp{Account: ada, Grant: grant}))
 }

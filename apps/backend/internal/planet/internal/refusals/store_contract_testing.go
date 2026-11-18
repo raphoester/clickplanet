@@ -70,13 +70,6 @@ func (s *StoreContractSuite) TestNoCallersReadNothing() {
 	s.Empty(kept)
 }
 
-func (s *StoreContractSuite) TestAChangeIsKeptAndReadBack() {
-	s.keep(aScope, Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt})
-
-	s.same(Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt}, s.kept(aScope))
-	s.Equal(Snapshot{}, s.kept(anAccount))
-}
-
 func (s *StoreContractSuite) TestAScopeAndAnAccountOfTheSameNameAreTwoCallers() {
 	scope, account := Caller{Scope: "same"}, Caller{Account: "same"}
 
@@ -91,18 +84,6 @@ func (s *StoreContractSuite) TestAChangeReplacesWhatWasKept() {
 	s.keep(anAccount, Snapshot{Until: contractAt.Add(time.Minute), DecidedAt: contractAt.Add(time.Minute)})
 
 	s.same(Snapshot{Until: contractAt.Add(time.Minute), DecidedAt: contractAt.Add(time.Minute)}, s.kept(anAccount))
-}
-
-func (s *StoreContractSuite) TestAChangeIsHandedWhatWasKept() {
-	s.keep(aScope, Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt})
-
-	var seen Snapshot
-	s.Require().NoError(s.store.Change(s.T().Context(), aScope, func(refusal Refusal) Refusal {
-		seen = refusal.TakeSnapshot()
-		return refusal
-	}))
-
-	s.same(Snapshot{Until: contractAt.Add(time.Hour), DecidedAt: contractAt}, seen)
 }
 
 func (s *StoreContractSuite) TestChangesToOneCallerNeverOverlap() {

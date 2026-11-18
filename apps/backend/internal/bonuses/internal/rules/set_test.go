@@ -15,12 +15,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 )
 
-func rush() cprules.Snapshot[*bonusesv1.Rules] {
-	return cprules.Snapshot[*bonusesv1.Rules]{Name: "rush", Rules: &bonusesv1.Rules{
-		Shield: &bonusesv1.ShieldRules{MinPerBox: proto.Uint32(10), MaxPerBox: proto.Uint32(30)},
-	}}
-}
-
 func restored(t *testing.T, snapshot cprules.Snapshot[*bonusesv1.Rules]) cprules.Set[*bonusesv1.Rules] {
 	t.Helper()
 

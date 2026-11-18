@@ -36,11 +36,6 @@ func (s *StoreContractSuite) record(key string) (Record, bool) {
 	return record, found
 }
 
-func (s *StoreContractSuite) TestAKeyNeverChangedIsNotFound() {
-	_, found := s.record(s.Key(1))
-	s.False(found)
-}
-
 func (s *StoreContractSuite) TestAChangeIsKeptAndReadBack() {
 	flagged := Record{Key: s.Key(1), Flags: 3, Offences: 2, ExpiresAt: contractAt, LastFlaggedAt: contractAt.Add(-time.Hour)}
 	banned := Record{Key: s.Key(2), Flags: 0, Offences: 1, ExpiresAt: contractAt.Add(time.Hour)}

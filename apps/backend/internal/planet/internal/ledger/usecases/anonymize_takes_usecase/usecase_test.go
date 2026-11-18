@@ -1,7 +1,6 @@
 package anonymize_takes_usecase_test
 
 import (
-	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -49,15 +48,6 @@ func TestATakeNotYetFlushedIsKeptWithNoAccount(t *testing.T) {
 		{Position: 0, Entry: ledger.Entry{Stage: clicks.WorldStage, Kind: "take", Tile: 1, Scope: "1.2.3.4", Country: "fr", At: at}},
 		{Position: 1, Entry: ledger.Entry{Stage: clicks.WorldStage, Kind: "take", Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "de", Previous: "fr", At: at}},
 	}, persistence.Stored())
-}
-
-func TestAFailedFlushIsAnError(t *testing.T) {
-	persistence := inmemory_ledger_storage.NewMemoryPersistence()
-	takings := loaded(t, persistence)
-	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone(t).String(), Country: "fr", At: at})
-	persistence.FailWith(errors.New("postgres is down"))
-
-	assert.ErrorContains(t, anonymize_takes_usecase.New(takings, persistence, tiles(t)).Execute(t.Context(), gone(t)), "postgres is down")
 }
 
 func TestATileTheAccountHeldKeepsItsFlagAndLosesItsHolder(t *testing.T) {

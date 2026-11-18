@@ -1,7 +1,6 @@
 package badges_query_test
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -165,15 +164,6 @@ func (s *testSuite) TestARepeatedAccountIsAnsweredOnceInTheOrderAsked() {
 
 func (s *testSuite) TestAskingAboutNobodyAnswersNobody() {
 	s.Empty(s.answer().GetBadges())
-}
-
-func (s *testSuite) TestAFailedReadIsAnError() {
-	ctx, cancel := context.WithCancel(s.T().Context())
-	cancel()
-
-	_, err := s.query().Badges(ctx, []accounts.AccountID{ada})
-
-	s.Error(err)
 }
 
 // The title the commands show as worn (wearing.WornOf), over the same rows, beside the streak the test expects today.

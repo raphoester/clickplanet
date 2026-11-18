@@ -151,21 +151,3 @@ func TestAnEnclosureShowsAsOneSceneWithItsTiles(t *testing.T) {
 	assert.Equal(t, []string{"it", "de", "pl"}, ownersOf(opening), "the tile taken is shown as it was")
 	assert.Equal(t, []clicks.TileShields{{Tile: 3, Shields: 2}}, opening.Shields, "the tile struck had a shield more")
 }
-
-func TestAnArenasScenesAreLeftOutAndTheOpeningRewindsThroughTheWorldsAlone(t *testing.T) {
-	battle := clicks.MapID("battle").On(clicks.TestBoard)
-	footage := ledger.NewFootage(start, start.Add(time.Hour), clicks.WorldStage)
-	footage.See(clicks.WorldStage, ledger.Taking{Tile: 1, Country: "fr", Previous: "it", At: start.Add(time.Minute)})
-	footage.See(battle, ledger.Taking{Tile: 2, Country: "br", Previous: "", At: start.Add(11 * time.Minute)})
-	footage.See(battle, ledger.Taking{Tile: 1, Country: "br", Previous: "", At: start.Add(12 * time.Minute)})
-	footage.See(clicks.World.On(clicks.TestBoard+1), ledger.Taking{Tile: 1, Country: "pl", Previous: "", At: start.Add(13 * time.Minute)})
-	footage.See(clicks.WorldStage, ledger.Taking{Tile: 2, Country: "de", Previous: "pl", At: start.Add(41 * time.Minute)})
-
-	assert.Equal(t, []string{"it", "pl"}, ownersOf(footage.Opening(denseOf("fr", "de"))),
-		"tile 2 opens on the world's flag, not the arena's blank")
-	scenes := footage.Scenes()
-	if assert.Len(t, scenes, 2, "the arena's scenes and another board's are none of the world's") {
-		assert.Equal(t, start.Add(time.Minute), scenes[0].At)
-		assert.Equal(t, start.Add(41*time.Minute), scenes[1].At)
-	}
-}

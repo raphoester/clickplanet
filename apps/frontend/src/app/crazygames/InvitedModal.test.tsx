@@ -6,8 +6,6 @@ import {AllegianceLockedError} from "../../backends/backend.ts"
 import {Allegiance} from "../../domain/allegiance.ts"
 import {Countries} from "../../domain/countries.ts"
 import InvitedModal from "./InvitedModal.tsx"
-import {LOCKED_LINE} from "../CountryPicker.tsx"
-import {t} from "../../i18n/page.ts"
 
 afterEach(cleanup)
 
@@ -49,7 +47,7 @@ describe("InvitedModal", () => {
     it("offers no switch while a battle's rules lock the flags", () => {
         invited({countryId: "bg", locked: true})
 
-        expect(screen.getByText(t(LOCKED_LINE))).toBeDefined()
+        expect(screen.getByText("You can't change country right now.")).toBeDefined()
         expect((screen.getByRole("button", {name: "Play for Bhutan"}) as HTMLButtonElement).disabled).toBe(true)
     })
 

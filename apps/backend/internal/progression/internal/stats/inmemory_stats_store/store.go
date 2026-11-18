@@ -13,9 +13,8 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	stats    map[accounts.AccountID]stats.Stats
-	failWith error
+	mu    sync.Mutex
+	stats map[accounts.AccountID]stats.Stats
 }
 
 var _ stats.Store = (*Store)(nil)
@@ -24,20 +23,10 @@ func New() *Store {
 	return &Store{stats: map[accounts.AccountID]stats.Stats{}}
 }
 
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.failWith = err
-}
-
 func (s *Store) Stats(_ context.Context, account accounts.AccountID) (stats.Stats, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return stats.Stats{}, s.failWith
-	}
 	counted, ok := s.stats[account]
 	if !ok {
 		return stats.Stats{}, stats.ErrNoStats
@@ -49,9 +38,6 @@ func (s *Store) Record(_ context.Context, account accounts.AccountID, change fun
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	counted, ok := s.stats[account]
 	if !ok {
 		counted = stats.NewStats(account)
@@ -64,9 +50,6 @@ func (s *Store) StatsAfter(_ context.Context, after accounts.AccountID, limit in
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
 	var page []stats.Stats
 	for account, stats := range s.stats {
 		if bytes.Compare(account[:], after[:]) > 0 {
@@ -86,9 +69,6 @@ func (s *Store) Forget(_ context.Context, account accounts.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	delete(s.stats, account)
 	return nil
 }

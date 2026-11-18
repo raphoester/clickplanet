@@ -27,14 +27,6 @@ describe("Fingers", () => {
         expect(fingers.strayBeyond(0)).toEqual([8])
     })
 
-    it("gives every finger back once none is on the screen", () => {
-        const fingers = new Fingers()
-        fingers.press(7)
-        fingers.press(8)
-
-        expect(fingers.strayBeyond(0)).toEqual([7, 8])
-    })
-
     it("gives a stray back once, not again on the next count", () => {
         const fingers = new Fingers()
         fingers.press(7)

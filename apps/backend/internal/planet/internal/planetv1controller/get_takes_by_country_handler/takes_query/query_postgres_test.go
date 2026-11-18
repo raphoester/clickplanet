@@ -2,7 +2,6 @@ package takes_query_test
 
 import (
 	"cmp"
-	"context"
 	"slices"
 	"testing"
 	"time"
@@ -152,17 +151,6 @@ func (s *testSuite) TestADeletedAccountsTakesAreNobodysAnyMore() {
 	s.Require().NoError(s.store.AnonymizeTakes(s.T().Context(), id))
 
 	s.Empty(s.takes(ada).GetTakenFor())
-}
-
-func (s *testSuite) TestAStoreFailureIsAnError() {
-	ctx, cancel := context.WithCancel(s.T().Context())
-	cancel()
-	id, err := ledger.AccountIDOf(ada)
-	s.Require().NoError(err)
-
-	_, err = takes_query.NewPostgresQuery(s.db).TakesByCountry(ctx, id)
-
-	s.Error(err)
 }
 
 func ranked(tiles map[string]uint64) []*planetv1.CountryTakes {

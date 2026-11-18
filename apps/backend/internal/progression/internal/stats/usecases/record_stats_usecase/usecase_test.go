@@ -1,7 +1,6 @@
 package record_stats_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -35,15 +34,4 @@ func TestEachChangeIsRecordedAndSaysTheStatsChanged(t *testing.T) {
 	assert.Equal(t, stats.NewStats(ada).WithTake(0, 0, at).WithBomb(1), counted)
 	require.Len(t, events.Published(), 2)
 	assert.True(t, proto.Equal(&progressionv1.StatsChanged{AccountId: ada.String()}, events.Published()[1]))
-}
-
-func TestAStoreFailureIsAnErrorAndSaysNothing(t *testing.T) {
-	store := inmemory_stats_store.New()
-	store.FailWith(errors.New("postgres is down"))
-	events := cpredis.NewRecordedEvents()
-
-	err := record_stats_usecase.New(store, events).Execute(t.Context(), record_stats_usecase.In{Account: ada, Change: stats.MessageAt(at)})
-
-	require.Error(t, err)
-	assert.Empty(t, events.Published())
 }

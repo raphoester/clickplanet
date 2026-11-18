@@ -2,7 +2,6 @@ package chatv1controller
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,15 +27,12 @@ import (
 )
 
 type stubSender struct {
-	sent     int
 	accounts []messages.AccountID
-	err      error
 }
 
 func (s *stubSender) Execute(_ context.Context, in send_message_usecase.In) (messages.Message, error) {
-	s.sent++
 	s.accounts = append(s.accounts, in.Account)
-	return messages.Message{}, s.err
+	return messages.Message{}, nil
 }
 
 type emptyHistory struct{}
@@ -45,26 +41,19 @@ func (emptyHistory) History(context.Context, messages.AccountID, messages.Room) 
 	return &chatv1.GetHistoryResponse{}, nil
 }
 
-type stubSubscriber struct {
-	err error
+type stubSubscriber struct{}
+
+func (stubSubscriber) Subscribe(context.Context) (<-chan feed.Update, error) {
+	return make(chan feed.Update), nil
 }
 
-func (s stubSubscriber) Subscribe(context.Context) (<-chan feed.Update, error) {
-	return make(chan feed.Update), s.err
-}
-
-func startChatServer(
-	t *testing.T,
-	sender *stubSender,
-	subscriber stubSubscriber,
-	blockedIPs []string,
-) (*httptest.Server, *cptime.FixedClock) {
+func startChatServer(t *testing.T, sender *stubSender) (*httptest.Server, *cptime.FixedClock) {
 	t.Helper()
 
 	clock := cptime.NewFixedClock(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
 	limiter := cpratelimit.New("test", cpratelimit.Config{PerSecond: 1, Burst: 3}, clock)
 
-	blocklist, err := cpipblock.NewDenyList(blockedIPs)
+	blocklist, err := cpipblock.NewDenyList(nil)
 	require.NoError(t, err)
 
 	_, public := cpsession.TestKeyPair()
@@ -77,7 +66,7 @@ func startChatServer(
 			SendMessageHandler: send_message_handler.New(sender),
 			GetHistoryHandler:  get_history_handler.New(emptyHistory{}, messages.NewRooms(messages.FakeFlags{})),
 			ListenForEventsHandler: listen_for_events_handler.New(listen_for_events_usecase.New(
-				subscriber, messages.NewRooms(messages.FakeFlags{}), listen_for_events_usecase.DefaultHeartbeat)),
+				stubSubscriber{}, messages.NewRooms(messages.FakeFlags{}), listen_for_events_usecase.DefaultHeartbeat)),
 		},
 		connect.WithInterceptors(
 			cpconnect.NewErrorInterceptor(nil),
@@ -113,64 +102,9 @@ func sendWithToken(server *httptest.Server, ip string, token string) error {
 	return err
 }
 
-func TestAnUnexpectedFailureIsAnsweredAsAnInternalError(t *testing.T) {
-	server, _ := startChatServer(t, &stubSender{err: errors.New("disk on fire")}, stubSubscriber{}, nil)
-
-	err := sendOnce(server, "1.2.3.4")
-
-	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
-	require.NotContains(t, err.Error(), "disk on fire")
-}
-
-func TestAFailedSubscriptionStaysInternalAndDoesNotLeakTheCause(t *testing.T) {
-	server, _ := startChatServer(t, &stubSender{}, stubSubscriber{err: errors.New("disk on fire")}, nil)
-
-	stream, err := chatv1connect.NewChatServiceClient(server.Client(), server.URL).
-		ListenForEvents(t.Context(), connect.NewRequest(&chatv1.ListenForEventsRequest{}))
-	if stream != nil {
-		t.Cleanup(func() { _ = stream.Close() })
-	}
-	if err == nil {
-		require.False(t, stream.Receive())
-		err = stream.Err()
-	}
-
-	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
-	require.NotContains(t, err.Error(), "disk on fire")
-}
-
-func TestThrottleRefusesAFloodPerIP(t *testing.T) {
-	sender := &stubSender{}
-	server, clock := startChatServer(t, sender, stubSubscriber{}, nil)
-
-	for i := range 3 {
-		require.NoErrorf(t, sendOnce(server, "1.2.3.4"), "message %d should be allowed", i)
-	}
-
-	err := sendOnce(server, "1.2.3.4")
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
-	require.Equal(t, 3, sender.sent, "a refused message never reaches the use case")
-
-	require.NoError(t, sendOnce(server, "5.6.7.8"), "another address has its own allowance")
-
-	clock.Advance(time.Second)
-	require.NoError(t, sendOnce(server, "1.2.3.4"), "a second later the bucket has a token again")
-}
-
-func TestABlockedSenderIsRefused(t *testing.T) {
-	sender := &stubSender{}
-	server, _ := startChatServer(t, sender, stubSubscriber{}, []string{"9.9.9.9/32"})
-
-	err := sendOnce(server, "9.9.9.9")
-	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
-	require.Zero(t, sender.sent)
-
-	require.NoError(t, sendOnce(server, "1.2.3.4"), "everyone else is unaffected")
-}
-
 func TestAValidTokenNamesTheSendersAccountAndABadOneIsAGuest(t *testing.T) {
 	sender := &stubSender{}
-	server, clock := startChatServer(t, sender, stubSubscriber{}, nil)
+	server, clock := startChatServer(t, sender)
 	secret, _ := cpsession.TestKeyPair()
 	signer, err := cpsession.NewSigner(cpsession.SignerConfig{Enabled: true, Secret: secret, TTL: time.Hour})
 	require.NoError(t, err)

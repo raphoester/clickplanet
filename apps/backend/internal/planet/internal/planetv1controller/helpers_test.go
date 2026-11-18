@@ -2,7 +2,6 @@ package planetv1controller
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,25 +12,13 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/click_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_budget_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/listen_for_events_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/map_density_usecase"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/notices"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/click_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_budget_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/map_density_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpconnect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cphttpserver"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpratelimit"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cprules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
@@ -42,38 +29,6 @@ type stubService struct {
 
 func (s stubService) Execute(context.Context, click_usecase.In) (click_usecase.Out, error) {
 	return s.out, s.err
-}
-
-type stubChecker struct{}
-
-func (stubChecker) MaxIndex() uint32 { return 100 }
-
-func (stubChecker) OffMap(start, end uint32) bool { return start == 0 || end > 100 }
-
-type stubSubscriber struct {
-	updates chan clicks.Change
-	err     error
-}
-
-func (s stubSubscriber) Subscribe(context.Context) (<-chan clicks.Change, clicks.MapVersion, error) {
-	return s.updates, clicks.MapVersion{}, s.err
-}
-
-func (stubSubscriber) Stage() clicks.Stage { return clicks.WorldStage }
-
-type stubMapReader struct{}
-
-func (stubMapReader) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, error) {
-	if start > end {
-		return clicks.DenseBatch{}, fmt.Errorf("invalid tile range")
-	}
-
-	return clicks.DenseBatch{Start: start, Codes: []string{"", "fr"}, Tiles: []byte{0x01, 0x00, 0x00, 0x00}}, nil
-}
-
-func clickServer(t *testing.T, options ...connect.HandlerOption) *httptest.Server {
-	t.Helper()
-	return clickServerWith(t, stubService{}, nil, options...)
 }
 
 func clickServerWith(
@@ -87,14 +42,8 @@ func clickServerWith(
 	mux := http.NewServeMux()
 	mux.Handle(planetv1connect.NewClickServiceHandler(
 		ClickService{
-			ClickHandler:      click_handler.New(clickUseCase),
-			GetBudgetHandler:  get_budget_handler.New(get_budget_usecase.New(budgets, onePrice, buckets, thawed)),
-			MapDensityHandler: map_density_handler.New(map_density_usecase.New(stubChecker{})),
-			GetMapHandler: get_map_handler.New(get_map_usecase.New(stubChecker{}, stubMapReader{}, facts.NewLog(cptime.SystemClock{})),
-				eras.CarryingEarth1),
-			ListenForEventsHandler: listen_for_events_handler.New(
-				listen_for_events_usecase.New(stubSubscriber{}, eras.CarryingEarth1, listen_for_events_usecase.DefaultHeartbeat,
-					noNotices{}, noFlag{}, steadyRules{}, facts.NewLog(cptime.SystemClock{}))),
+			ClickHandler:     click_handler.New(clickUseCase),
+			GetBudgetHandler: get_budget_handler.New(get_budget_usecase.New(budgets, onePrice, buckets, thawed)),
 		},
 		options...,
 	))
@@ -103,22 +52,6 @@ func clickServerWith(
 	t.Cleanup(server.Close)
 
 	return server
-}
-
-type fakeLimiter struct {
-	allow bool
-	state cpratelimit.State
-	keys  []cpratelimit.Key
-}
-
-func (l *fakeLimiter) TakeAll(_ float64, keys ...cpratelimit.Key) (bool, []cpratelimit.State) {
-	l.keys = append(l.keys, keys...)
-
-	states := make([]cpratelimit.State, len(keys))
-	for i := range states {
-		states[i] = l.state
-	}
-	return l.allow, states
 }
 
 type stubPricer clicks.Price
@@ -194,21 +127,5 @@ func budgetDetail(t *testing.T, err error) *planetv1.ClickBudget {
 func errorNet() connect.Interceptor {
 	return cpconnect.NewErrorInterceptor(nil)
 }
-
-type steadyRules struct{}
-
-func (steadyRules) Watch() (<-chan cprules.Set[*planetv1.Rules], func()) {
-	return nil, func() {}
-}
-
-type noNotices struct{}
-
-func (noNotices) Attend(charges.Holder, string) (<-chan notices.Event, func()) {
-	return nil, func() {}
-}
-
-type noFlag struct{}
-
-func (noFlag) FlagOf(context.Context, clicks.Payer) (string, error) { return "", nil }
 
 func thawed() clicks.Freeze { return false }

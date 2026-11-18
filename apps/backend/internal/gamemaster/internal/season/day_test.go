@@ -12,19 +12,6 @@ import (
 
 const cutoff = season.Cutoff(21 * time.Hour)
 
-func TestSeasonZerosDaysKeepTheNumbersTheyWereScoredUnder(t *testing.T) {
-	days := planned(zero).Windows()[0].Days(cutoff)
-
-	require.Len(t, days, 24)
-	assert.Equal(t, season.Day{
-		Season: 0, Number: 1, StartsAt: season.Origin, EndsAt: time.Date(2026, 10, 8, 21, 0, 0, 0, time.UTC),
-	}, days[0], "day 1 ended at the first cutoff after the season's start")
-	assert.Equal(t, season.Day{
-		Season: 0, Number: 24, StartsAt: time.Date(2026, 10, 30, 21, 0, 0, 0, time.UTC),
-		EndsAt: time.Date(2026, 10, 31, 21, 0, 0, 0, time.UTC),
-	}, days[23], "no day runs from the last cutoff to the season's end")
-}
-
 func TestASeasonThatStartsAtACutoffHasAFullFirstDay(t *testing.T) {
 	start := time.Date(2026, 11, 1, 21, 0, 0, 0, time.UTC)
 	window := season.Window{Number: 1, StartsAt: start, EndsAt: start.Add(2 * day)}

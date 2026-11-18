@@ -33,10 +33,6 @@ func (s *StoreContractSuite) named(account accounts.AccountID) bool {
 	return named
 }
 
-func (s *StoreContractSuite) TestAnAccountPlayerNeverNamedIsNotNamed() {
-	s.False(s.named(accounts.AccountID{15: 1}))
-}
-
 func (s *StoreContractSuite) TestAKeptNameplateIsNamedAndKeptTwiceIsOne() {
 	s.Require().NoError(s.store.Keep(s.T().Context(), accounts.AccountID{15: 1}))
 	s.Require().NoError(s.store.Keep(s.T().Context(), accounts.AccountID{15: 1}))

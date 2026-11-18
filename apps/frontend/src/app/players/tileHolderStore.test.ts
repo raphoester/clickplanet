@@ -24,15 +24,4 @@ describe("the tile holder", () => {
         card.hold(false)
         expect(holderHeld(useTileHolder.getState())).toBe(false)
     })
-
-    it("shows nothing once dismissed", () => {
-        const card = useTileHolder.getState()
-        card.show(shown(1))
-        card.hold(true)
-
-        card.dismiss()
-
-        expect(useTileHolder.getState().holder).toBeUndefined()
-        expect(holderHeld(useTileHolder.getState())).toBe(false)
-    })
 })

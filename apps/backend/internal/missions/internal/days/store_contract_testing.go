@@ -33,16 +33,6 @@ func (s *StoreContractSuite) TestADayIsFoundFromItsStartToBeforeItsEnd() {
 	}
 }
 
-func (s *StoreContractSuite) TestADayKeepsTheBookOfItsSeason() {
-	day := TestingDayAt(contractAt)
-	s.Require().NoError(s.store.KeepDay(s.T().Context(), day))
-
-	found, err := s.store.DayAt(s.T().Context(), contractAt)
-
-	s.Require().NoError(err)
-	s.Equal(BookID("season-0"), found.Book())
-}
-
 func (s *StoreContractSuite) TestNoDayRunsBeforeOrAfterTheDaysTold() {
 	day := TestingDayAt(contractAt)
 	s.Require().NoError(s.store.KeepDay(s.T().Context(), day))

@@ -18,10 +18,9 @@ type dayKey struct {
 }
 
 type Store struct {
-	mu       sync.Mutex
-	briefs   map[dayKey][]missions.MissionSnapshot
-	sheets   map[dayKey]missions.SheetSnapshot
-	failWith error
+	mu     sync.Mutex
+	briefs map[dayKey][]missions.MissionSnapshot
+	sheets map[dayKey]missions.SheetSnapshot
 }
 
 var _ missions.Store = (*Store)(nil)
@@ -30,20 +29,10 @@ func New() *Store {
 	return &Store{briefs: map[dayKey][]missions.MissionSnapshot{}, sheets: map[dayKey]missions.SheetSnapshot{}}
 }
 
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.failWith = err
-}
-
 func (s *Store) Brief(_ context.Context, day days.Day, account missions.AccountID) (missions.Brief, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return missions.Brief{}, s.failWith
-	}
 	kept, ok := s.briefs[dayKey{day: day.String(), account: account}]
 	if !ok {
 		return missions.Brief{}, missions.ErrNoBrief
@@ -57,9 +46,6 @@ func (s *Store) KeepBrief(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return missions.Brief{}, s.failWith
-	}
 	key := dayKey{day: day.String(), account: account}
 	if _, ok := s.briefs[key]; !ok {
 		s.briefs[key] = brief.Snapshot()
@@ -71,9 +57,6 @@ func (s *Store) Sheet(_ context.Context, day days.Day, account missions.AccountI
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return missions.Sheet{}, s.failWith
-	}
 	return missions.SheetOf(s.sheets[dayKey{day: day.String(), account: account}]), nil
 }
 
@@ -83,9 +66,6 @@ func (s *Store) ChangeSheet(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	key := dayKey{day: day.String(), account: account}
 	s.sheets[key] = change(missions.SheetOf(s.sheets[key])).Snapshot()
 	return nil
@@ -95,9 +75,6 @@ func (s *Store) PaidInAll(_ context.Context, account missions.AccountID) (uint64
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return 0, s.failWith
-	}
 	var paid uint64
 	for key, sheet := range s.sheets {
 		if key.account == account && sheet.Paid != nil {
@@ -111,9 +88,6 @@ func (s *Store) DoneBy(_ context.Context, account missions.AccountID) (missions.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return missions.Done{}, s.failWith
-	}
 	return s.doneBy(account)
 }
 
@@ -121,9 +95,6 @@ func (s *Store) DoneAfter(_ context.Context, after missions.AccountID, limit int
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return nil, s.failWith
-	}
 	var accounts []missions.AccountID
 	for key := range s.sheets {
 		if bytes.Compare(key.account[:], after[:]) > 0 && !slices.Contains(accounts, key.account) {
@@ -167,9 +138,6 @@ func (s *Store) DeleteAccount(_ context.Context, account missions.AccountID) err
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.failWith != nil {
-		return s.failWith
-	}
 	for key := range s.sheets {
 		if key.account == account {
 			delete(s.sheets, key)

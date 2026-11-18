@@ -98,6 +98,5 @@ made by hand with none, each answer kept as it came, the retention, and a busy s
 on a scripted source and a recorded pause: what is kept, the posts lost, the curves stopped once refused as busy, no
 analytics; the `Runner`'s, the snapshot taken once it is due and none since, a restart catching up, and a failure
 tried again an hour later. `postgres_snapshot_store`'s run on postgres: a row read back with its numbers as written,
-a snapshot kept again kept once, the newest, the pages of a window, a page refused, the summaries, the links, and the
-clips module's snapshots copied once and left there. The module's test answers the lists `FailedPrecondition` and
+a snapshot kept again kept once, the newest, the pages of a window, a page refused, the summaries and the links. The module's test answers the lists `FailedPrecondition` and
 no link with no database, while posting still works.

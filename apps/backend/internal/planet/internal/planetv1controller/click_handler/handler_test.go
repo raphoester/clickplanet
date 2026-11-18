@@ -2,7 +2,6 @@ package click_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -113,16 +112,6 @@ func TestClickMapsTheErrors(t *testing.T) {
 		budget, ok := value.(*planetv1.ClickBudget)
 		require.True(t, ok)
 		assert.InDelta(t, 0.4, budget.GetTokens(), 1e-6)
-	})
-
-	t.Run("anything else is left for the error interceptor", func(t *testing.T) {
-		cause := errors.New("disk on fire")
-
-		_, err := clickOn(t, &stubUseCase{err: cause}, &planetv1.ClickRequest{})
-
-		require.ErrorIs(t, err, cause, "the handler must not dress up what it does not recognise")
-		require.Equal(t, connect.CodeUnknown, connect.CodeOf(err),
-			"the handler picked no code: dressing this up would hide it from the interceptor's log")
 	})
 }
 

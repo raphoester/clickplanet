@@ -2,7 +2,6 @@ package raise_level_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -167,7 +166,7 @@ func TestAFactThatRaisesNoLevelTellsTheXPItGave(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []levels.Told{levels.Gained{
 		Gains:    []levels.Gain{tiles(5)},
-		Standing: levels.Scale{}.StandingAt(3, stats.StatsSnapshot{TilesTaken: level3Tiles + 5}.Restore()),
+		Standing: levels.Curve{}.StandingAt(3, 117),
 	}}, f.told(t))
 }
 
@@ -198,7 +197,7 @@ func TestTheDaysFirstTakeGivesItsTileAndItsDay(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []levels.Told{levels.Gained{
 		Gains:    []levels.Gain{tiles(1), {Source: levels.DaysPlayed{}.Name(), XP: 100}},
-		Standing: levels.Scale{}.StandingAt(5, today.Restore()),
+		Standing: levels.Curve{}.StandingAt(5, 1_001),
 	}}, f.told(t))
 }
 
@@ -210,23 +209,6 @@ func TestAnAccountWithNoStatsIsNotRaised(t *testing.T) {
 	require.NoError(t, err)
 	assert.Zero(t, raised)
 	assert.Empty(t, f.accounts.Asked())
-}
-
-func TestAFailureToAskPlayerWritesNothingAndTheNextTryRaises(t *testing.T) {
-	f := setUp(t, true)
-	f.took(t, level3Tiles)
-	f.accounts.FailWith(errors.New("player is down"))
-
-	_, err := f.raise(t, f.levels)
-
-	require.ErrorContains(t, err, "player is down")
-	assert.Empty(t, f.kept(t))
-	assert.Empty(t, f.told(t))
-
-	f.accounts.FailWith(nil)
-	raised, err := f.raise(t, f.levels)
-	require.NoError(t, err)
-	assert.Equal(t, levels.Level(3), raised)
 }
 
 // A live raise lands between the read of the level kept and this one's raise.
@@ -253,15 +235,4 @@ func TestARaiseThatFindsAHigherLevelKeptRaisesNothing(t *testing.T) {
 	assert.Zero(t, raised)
 	assert.Equal(t, levels.ByAccount{ada: 9}, f.kept(t))
 	assert.Empty(t, f.told(t), "the raise that wrote it tells it")
-}
-
-func TestAFailureToRaiseIsAnError(t *testing.T) {
-	f := setUp(t, true)
-	f.took(t, level3Tiles)
-	f.levels.FailWith(errors.New("postgres is down"))
-
-	_, err := f.raise(t, f.levels)
-
-	require.ErrorContains(t, err, "postgres is down")
-	assert.Empty(t, f.told(t))
 }

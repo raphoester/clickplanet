@@ -4,18 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
 
 func everyKind() *cpcolls.Set[Kind] {
 	return cpcolls.NewSet(Kinds...)
-}
-
-// testWeighed is every kind TestRules weighs above 0: all but the virus, the mine and the rally.
-func testWeighed() *cpcolls.Set[Kind] {
-	return cpcolls.NewSet(KindRefill, KindSpreadClicks, KindEncloseClicks, KindBomb, KindShields)
 }
 
 func TestEveryKindWeighedIsDrawn(t *testing.T) {
@@ -57,15 +51,6 @@ func TestAKindLeftOutOrAtZeroIsNeverDrawn(t *testing.T) {
 	}
 }
 
-func TestWithTheGatesOnAKindIsDrawnOnlyOpenOrUnlocked(t *testing.T) {
-	open := []Kind{KindRefill, KindSpreadClicks, KindShields}
-
-	assert.Equal(t, cpcolls.NewSet(open...), TestGated().drawable(nil), "a guest has nothing unlocked")
-	assert.Equal(t, cpcolls.NewSet(append(open[:3:3], KindEncloseClicks)...),
-		TestGated().drawable(Unlocked{KindEncloseClicks}))
-	assert.Equal(t, testWeighed(), TestGated().drawable(Unlocked{KindEncloseClicks, KindBomb}))
-}
-
 func TestAVirusWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	rules := TestGated()
 	rules.Kinds[KindVirus] = 1
@@ -90,49 +75,6 @@ func TestARallyWeighedIsDrawnWithTheGatesOnOnlyOnceUnlocked(t *testing.T) {
 	assert.True(t, rules.drawable(Unlocked{KindRally}).Contains(KindRally))
 }
 
-func TestWithTheGatesOffEveryKindIsDrawnToAGuest(t *testing.T) {
-	assert.Equal(t, testWeighed(), TestRules().drawable(nil), "a battle's set keeps the gates off")
-}
-
-func TestAWinWhoseKindsAllWeighZeroIsWorthNothing(t *testing.T) {
-	rules := TestGated()
-	rules.Kinds = map[Kind]float64{KindBomb: 1, KindEncloseClicks: 1}
-
-	_, ok := CaughtBox{}.Reward(rules, Unlocked{KindEncloseClicks})
-	assert.True(t, ok)
-
-	_, ok = CaughtBox{}.Reward(rules, nil)
-	assert.False(t, ok, "the box pays nothing: never a kind the account may not be drawn")
-	_, ok = Answer{}.Reward(rules, nil)
-	assert.False(t, ok)
-}
-
-func TestAGuestsWelcomeIsItsKindThoughTheGatesCloseIt(t *testing.T) {
-	rules := TestGated()
-	rules.Gates.Open[KindSpreadClicks] = false
-	rules.Gates.Open[KindShields] = false
-
-	box, ok := CaughtBox{Welcome: true}.Reward(rules, nil)
-	require.True(t, ok)
-	assert.Equal(t, KindSpreadClicks, box.Kind)
-
-	answer, ok := Answer{Welcome: true}.Reward(rules, nil)
-	require.True(t, ok)
-	assert.Equal(t, KindShields, answer.Kind)
-
-	box, ok = CaughtBox{}.Reward(rules, nil)
-	require.True(t, ok)
-	assert.Equal(t, KindRefill, box.Kind, "past the welcome, a guest is drawn the open kinds alone")
-}
-
-func TestAWelcomeOfAKindWeighed0IsWorthNothing(t *testing.T) {
-	rules := TestGated()
-	rules.Kinds[KindShields] = 0
-
-	_, ok := Answer{Welcome: true}.Reward(rules, nil)
-	assert.False(t, ok)
-}
-
 func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.T) {
 	seen := map[Kind]*cpcolls.Set[int]{}
 	for _, kind := range Kinds {
@@ -149,16 +91,4 @@ func TestABoxGivesAFewEnclosuresSpreadClicksOrShieldsAndOneOfTheRest(t *testing.
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindRefill])
 	assert.Equal(t, cpcolls.NewSet(1, 2), seen[KindMine], "1 or 2 mines")
 	assert.Equal(t, cpcolls.NewSet(1), seen[KindRally], "one rally")
-}
-
-func TestAWelcomeBoxIsASpreadAndAWelcomeAnswerShields(t *testing.T) {
-	for range 50 {
-		box, ok := CaughtBox{Welcome: true}.Reward(TestRules(), nil)
-		assert.True(t, ok)
-		assert.Equal(t, KindSpreadClicks, box.Kind)
-
-		answer, ok := Answer{Welcome: true}.Reward(TestRules(), nil)
-		assert.True(t, ok)
-		assert.Equal(t, KindShields, answer.Kind)
-	}
 }

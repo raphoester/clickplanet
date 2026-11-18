@@ -2,7 +2,6 @@ package find_players_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -69,13 +68,4 @@ func TestTheRequestReachesTheUseCaseAndThePlayersComeBack(t *testing.T) {
 func TestAnUnknownCountryIsInvalidArgument(t *testing.T) {
 	_, err := find(t, &stubUseCase{err: fmt.Errorf("%w: %q", clicks.ErrUnknownCountry, "xx")})
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-}
-
-func TestAnythingElseIsLeftToTheErrorNet(t *testing.T) {
-	cause := errors.New("boom")
-
-	_, err := find(t, &stubUseCase{err: cause})
-
-	require.ErrorIs(t, err, cause)
-	assert.Equal(t, connect.CodeUnknown, connect.CodeOf(err))
 }

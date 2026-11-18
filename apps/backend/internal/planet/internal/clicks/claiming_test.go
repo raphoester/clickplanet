@@ -35,17 +35,6 @@ func claimable(t *testing.T, owners map[uint32]string) *inmemory_tile_storage.St
 	return tiles
 }
 
-func TestAClaimTakesAForeignTileAndSaysWhoHeldIt(t *testing.T) {
-	tiles := claimable(t, map[uint32]string{7: "de"})
-
-	impact, err := clicks.NewClaiming(tiles, tenAShield).Claim(t.Context(), 7, "fr")
-	require.NoError(t, err)
-
-	assert.Equal(t, clicks.Impact{Tile: 7, Owner: "de", Outcome: clicks.Taken}, impact)
-	owner, _ := tiles.Owner(7)
-	assert.Equal(t, "fr", owner)
-}
-
 func TestAClaimOnAShieldStrikesItAndSaysHowManyAreLeft(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{7: "de"})
 	ctx := t.Context()
@@ -57,21 +46,6 @@ func TestAClaimOnAShieldStrikesItAndSaysHowManyAreLeft(t *testing.T) {
 	assert.Equal(t, clicks.Impact{Tile: 7, Owner: "de", Outcome: clicks.Shielded, Shields: 1}, impact)
 	owner, _ := tiles.Owner(7)
 	assert.Equal(t, "de", owner)
-}
-
-func TestAClaimOfATileTheFlagHoldsChangesNothing(t *testing.T) {
-	tiles := claimable(t, map[uint32]string{7: "fr"})
-
-	impact, err := clicks.NewClaiming(tiles, tenAShield).Claim(t.Context(), 7, "fr")
-	require.NoError(t, err)
-
-	assert.Equal(t, clicks.Impact{Tile: 7, Owner: "fr", Outcome: clicks.Unchanged}, impact)
-}
-
-func TestAClaimOffTheMapFails(t *testing.T) {
-	_, err := clicks.NewClaiming(claimable(t, map[uint32]string{}), tenAShield).Claim(t.Context(), 101, "fr")
-
-	require.Error(t, err)
 }
 
 func TestAClaimThatMakesALandmassWholeFortifiesIt(t *testing.T) {

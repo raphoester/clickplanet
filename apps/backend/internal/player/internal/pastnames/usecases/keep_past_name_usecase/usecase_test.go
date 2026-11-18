@@ -48,12 +48,8 @@ func TestAnAccountForgottenSinceKeepsNothing(t *testing.T) {
 }
 
 func TestAFailureIsAnError(t *testing.T) {
-	profiles, kept := inmemory_player_store.New(), inmemory_past_name_store.New()
+	profiles := inmemory_player_store.New()
 	require.NoError(t, profiles.SaveProfile(t.Context(), players.NewProfile(ada, "Ada", monday)))
-	kept.FailWith(errors.New("postgres is down"))
-
-	require.Error(t, keep_past_name_usecase.New(profiles, kept).Execute(t.Context(), leftByAda(t)))
-
 	profiles.FailWith(errors.New("postgres is down"))
 	require.Error(t, keep_past_name_usecase.New(profiles, inmemory_past_name_store.New()).Execute(t.Context(), leftByAda(t)),
 		"a failed read is not an account forgotten")

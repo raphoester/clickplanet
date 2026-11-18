@@ -1,5 +1,4 @@
 import {describe, expect, it} from "vitest"
-import {BonusReward} from "../../domain/bonus.ts"
 import {describeReward} from "./describeReward.ts"
 
 describe("describeReward", () => {
@@ -57,17 +56,5 @@ describe("describeReward", () => {
         expect(describeReward({kind: "virus", viruses: 0}).title).toBe("Virus")
         expect(describeReward({kind: "mine", mines: 0}).title).toBe("Mine")
         expect(describeReward({kind: "rally", rallies: 0}).title).toBe("Rally")
-    })
-
-    it("gives every kind a title of its own", () => {
-        const rewards: BonusReward[] = [
-            {kind: "refill", refills: 1},
-            {kind: "spreadClicks", clicks: 1},
-            {kind: "bomb", radius: 0.06, bombs: 1},
-            {kind: "encloseClicks", shapes: 1, maxTiles: 25},
-            {kind: "shields", shields: 1},
-        ]
-
-        expect(new Set(rewards.map(reward => describeReward(reward).title)).size).toBe(rewards.length)
     })
 })

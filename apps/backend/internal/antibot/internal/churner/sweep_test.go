@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/detect"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -14,17 +15,23 @@ func TestSweepForgetsSilentAccountsAndTheirIndexes(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 30, 13, 47, 0, 0, time.UTC))
 
 	w := newWatchdog(bounded(), clock)
+	empty, err := newWatchdog(bounded(), clock).Save()
+	require.NoError(t, err)
 	w.Watch(detect.Click{Scope: "2001:db8:a:1::/64", Account: "guest", Tile: 1, Country: "pl", At: clock.Now()})
 
 	clock.Advance(time.Hour)
+	kept, err := w.Save()
+	require.NoError(t, err)
 	w.sweep()
-	assert.Len(t, w.accounts, 1, "kept for the window and one handoff")
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, kept, swept, "kept for the window and one handoff")
 
 	clock.Advance(2 * time.Minute)
 	w.sweep()
-	assert.Empty(t, w.accounts)
-	assert.Empty(t, w.born)
-	assert.Empty(t, w.prefixes)
+	swept, err = w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 type sample struct {

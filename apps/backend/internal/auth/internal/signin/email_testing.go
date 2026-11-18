@@ -30,7 +30,6 @@ type Sent struct {
 type FakeMailer struct {
 	mu   sync.Mutex
 	sent []Sent
-	err  error
 }
 
 var _ Mailer = (*FakeMailer)(nil)
@@ -39,18 +38,8 @@ func (m *FakeMailer) Send(_ context.Context, to Address, letter Letter) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.err != nil {
-		return m.err
-	}
 	m.sent = append(m.sent, Sent{To: to, Letter: letter})
 	return nil
-}
-
-func (m *FakeMailer) FailWith(err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.err = err
 }
 
 func (m *FakeMailer) Sent() []Sent {

@@ -13,7 +13,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/get_profile_handler/profile_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/inprocess_rename_rule"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playermessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/playerread"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
@@ -81,7 +80,6 @@ func (s *testSuite) TestAChosenNameIsRenamableWhenSetNameSaidItIs() {
 
 	answer := s.profile(ada)
 
-	s.Equal(playermessage.Profile(chosen).GetRenamableAtUnixMs(), answer.GetProfile().GetRenamableAtUnixMs())
 	s.Equal(at.Add(7*24*time.Hour).UnixMilli(), answer.GetProfile().GetRenamableAtUnixMs())
 }
 

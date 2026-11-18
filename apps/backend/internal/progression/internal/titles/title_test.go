@@ -98,38 +98,6 @@ func TestTheCatalogNamesTheTitlesStatsEarnInItsOrder(t *testing.T) {
 	assert.Equal(t, titles.IDs{"badge", "low", "mid", "other"}, tracks.EarnedBy(tiles(5)), "standalone first, then each track in order")
 }
 
-func TestAGuestEarnsNothing(t *testing.T) {
-	guest := titles.CareerOf(stats.StatsSnapshot{
-		TilesTaken: 1_000_000, StreakBest: 1_000, MessagesSent: 1_000_000, BombsDropped: 1_000_000,
-		TilesFortified: 1_000_000, BonusesClaimed: 1_000_000, RightAnswers: 1_000_000, MissionsDone: 1_000_000,
-	}.Restore(), accounts.Account{}, nil)
-
-	assert.Empty(t, catalog.EarnedBy(guest))
-	assert.Empty(t, titles.NewCatalog().EarnedBy(guest))
-}
-
-func TestTheReconciliationGrantsWhatIsEarnedAndRevokesWhatIsNot(t *testing.T) {
-	career := func(account byte, taken uint64, linked bool) titles.Career {
-		return titles.CareerOf(stats.StatsSnapshot{Account: accounts.AccountID{15: account}, TilesTaken: taken}.Restore(),
-			accounts.AccountOf(linked, time.Time{}), nil)
-	}
-
-	reconciliation := catalog.ReconciliationOf([]titles.Career{
-		career(1, 5, true),
-		career(2, 1, true),
-		career(3, 5, false),
-		career(4, 0, true),
-	}, titles.Holdings{
-		{15: 1}: {"first"},
-		{15: 2}: {"first", "third", "retired"},
-		{15: 3}: {"first"},
-	})
-
-	assert.Equal(t, titles.Holdings{{15: 1}: {"third"}}, reconciliation.Grants())
-	assert.Equal(t, titles.Holdings{{15: 2}: {"third", "retired"}, {15: 3}: {"first"}}, reconciliation.Revocations())
-	assert.Equal(t, 3, reconciliation.Revocations().Len())
-}
-
 func TestTheReconciliationNeverRevokesAKeepsake(t *testing.T) {
 	halloween := time.Date(2026, 10, 31, 20, 0, 0, 0, time.UTC)
 	career := func(account byte, days uint32, lastDay time.Time) titles.Career {

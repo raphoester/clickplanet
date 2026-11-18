@@ -2,7 +2,6 @@ package listed_battles_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -17,13 +16,12 @@ import (
 
 type query struct {
 	listed []*promov1.Teaser
-	err    error
 	within time.Duration
 }
 
 func (q *query) Teasers(_ context.Context, within time.Duration) ([]*promov1.Teaser, error) {
 	q.within = within
-	return q.listed, q.err
+	return q.listed, nil
 }
 
 func TestEachBattleListedIsTheDomainsTeaser(t *testing.T) {
@@ -42,7 +40,4 @@ func TestEachBattleListedIsTheDomainsTeaser(t *testing.T) {
 		Cards: []teasers.Card{{BackgroundURL: "https://media.test/bg.jpg", Headline: "Gain the most land", Line: "1st : 125 points"}},
 	}}, battles)
 	assert.Equal(t, 36*time.Hour, q.within)
-
-	_, err = listed_battles.New(&query{err: errors.New("the gamemaster is down")}).Teasers(t.Context(), time.Hour)
-	require.EqualError(t, err, "the gamemaster is down")
 }

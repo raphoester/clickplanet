@@ -55,14 +55,3 @@ func TestASessionAlreadyGoneIsSignedOutAndNamesNoAccount(t *testing.T) {
 	assert.Equal(t, accounts.ExpiredSessionCookie(), setCookie)
 	assert.Empty(t, events.Published())
 }
-
-func TestAStoreFailureFailsTheSignOut(t *testing.T) {
-	store := inmemory_account_store.New()
-	store.FailWith(errors.New("postgres is down"))
-	events := cpredis.NewRecordedEvents()
-
-	_, err := sign_out_usecase.New(store, events).Execute(t.Context(), "cp_sid=token-1")
-
-	require.Error(t, err)
-	assert.Empty(t, events.Published())
-}

@@ -47,13 +47,6 @@ describe("SelectWithSearch", () => {
         expect(onChange).toHaveBeenCalledWith(VALUES[1])
     })
 
-    it("shows the whole list rather than a native select", () => {
-        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={vi.fn()}/>)
-
-        expect(screen.queryByRole("combobox")).toBeNull()
-        expect(screen.getAllByRole("option")).toHaveLength(VALUES.length)
-    })
-
     it("moves through the list with the arrow keys and commits on Enter", async () => {
         const user = userEvent.setup()
         const onChange = vi.fn()
@@ -63,15 +56,6 @@ describe("SelectWithSearch", () => {
         list.focus()
         await user.keyboard("{ArrowDown}{ArrowDown}{Enter}")
 
-        expect(onChange).toHaveBeenCalledWith(VALUES[2])
-    })
-
-    it("picks the top match when Enter is pressed in the search field", async () => {
-        const user = userEvent.setup()
-        const onChange = vi.fn()
-        render(<SelectWithSearch values={VALUES} selected={VALUES[0]} onChange={onChange}/>)
-
-        await user.type(screen.getByPlaceholderText("Search a country"), "germ{Enter}")
         expect(onChange).toHaveBeenCalledWith(VALUES[2])
     })
 

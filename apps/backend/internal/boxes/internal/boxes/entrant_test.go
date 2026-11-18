@@ -71,8 +71,6 @@ func TestAGuestBehindTheAddressOfALinkedAccountIsOnTheAddressSchedule(t *testing
 
 	_, claimed := registry.Claim(theirOffer.Token, entrantOf(guest), sharedAddress)
 	assert.True(t, claimed)
-	assert.Contains(t, registry.callers, Entrant(sharedAddress))
-	assert.Contains(t, registry.callers, Entrant("account:alice"))
 }
 
 func TestALinkedAccountsCatchIsReportedToTheAntibotByItsNetwork(t *testing.T) {

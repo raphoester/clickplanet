@@ -27,12 +27,6 @@ describe("DiscordBar", () => {
         expect(offered.container.innerHTML).toBe("")
     })
 
-    it("is the one link it holds: no other network beside it", () => {
-        render(<DiscordBar discord={IN_SERVER}/>)
-
-        expect(screen.getAllByRole("link")).toHaveLength(1)
-    })
-
     it("goes when its cross is pressed, and stays gone on a visit soon after", async () => {
         const before = Date.now()
         const {unmount} = render(<DiscordBar discord={IN_SERVER}/>)

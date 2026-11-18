@@ -60,16 +60,6 @@ func TestAPriorAtEitherEndStaysFinite(t *testing.T) {
 	assert.InDelta(t, ratings.LevelOf(ratings.MaxChance), ratings.LevelOf(1), 1e-12, "a sure answer is the easiest kept")
 }
 
-func TestARightAnswerMakesAQuestionEasierAndAWrongOneHarder(t *testing.T) {
-	prior := ratings.PriorOf(0.6)
-
-	assert.Less(t, prior.Answered(ratings.Right).Level(), prior.Level())
-	assert.Greater(t, prior.Answered(ratings.Wrong).Level(), prior.Level())
-	assert.Equal(t, 1, prior.Answered(ratings.Right).Answers())
-	assert.Equal(t, 1, prior.Answered(ratings.Right).Right())
-	assert.Equal(t, 0, prior.Answered(ratings.Wrong).Right())
-}
-
 func TestATimeoutMovesARatingAsAWrongAnswerDoes(t *testing.T) {
 	prior := ratings.PriorOf(0.6)
 

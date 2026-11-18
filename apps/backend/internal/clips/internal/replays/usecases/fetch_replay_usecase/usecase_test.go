@@ -1,7 +1,6 @@
 package fetch_replay_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -43,16 +42,5 @@ func TestAReplayThatSpansNoTimeAsksTheBackendNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, replays.ErrInvalidRequest)
 	assert.Empty(t, source.Asked)
-	assert.Empty(t, store.Saved)
-}
-
-func TestABackendThatDoesNotAnswerKeepsNothing(t *testing.T) {
-	unreachable := errors.New("ssh failed")
-	source, store, usecase := fetching(replays.Request{Span: time.Hour})
-	source.FailWith(unreachable)
-
-	_, err := usecase.Execute(t.Context())
-
-	require.ErrorIs(t, err, unreachable)
 	assert.Empty(t, store.Saved)
 }

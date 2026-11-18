@@ -42,8 +42,7 @@ was the free way around them.
 ## The migration `20261115123255_identity_mailbox`
 
 - **It folds the rows kept with the same rules in SQL**, once: a `pg_temp` function, gone when the migration ends, so
-  Go stays the one copy from then on. `TestTheMigrationFoldsEachAddressAsMailboxOfDoes` runs both over an address of
-  every listed domain and some that are not.
+  Go stays the one copy from then on.
 - **The owner of each mailbox keeps one code**: the account of the mailbox's oldest verified identity, its oldest
   emailed code's identity, whose subject becomes the mailbox. **Every other emailed code's identity of that mailbox
   gives it up**: its subject becomes `alias:<account>:<address>`, which no sign-in asks for, and its address stays, so
@@ -51,7 +50,6 @@ was the free way around them.
   its sessions and its other identities. The next code to any form of the address signs in to the owner, or joins it
   when the owner holds no code yet.
 - **It bans nobody.** The accounts the forms of an address made are the antibot's to judge (below).
-  `TestTheOwnerOfAMailboxKeepsItAndEveryOtherAccountsCodeGivesItUp` pins who keeps what.
 - **The down gives each code its address back**, the keepers first. It fails when a sign-in after the up linked a form
   of an address an identity given up holds: two identities of one address, as before.
 

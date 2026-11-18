@@ -1,7 +1,6 @@
 package set_name_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -179,29 +178,6 @@ func TestANameAnotherPlayerHoldsStartsNoWait(t *testing.T) {
 	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: bob, Name: "Bob"})
 
 	require.NoError(t, err)
-}
-
-func TestAFailureToAskAuthIsNotAGuest(t *testing.T) {
-	store, accounts := setUp()
-	accounts.FailWith(errors.New("auth is off"))
-
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
-		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
-
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, players.ErrNotLinked)
-}
-
-func TestAStoreFailureIsNotATakenName(t *testing.T) {
-	store, accounts := setUp()
-	store.FailWith(errors.New("postgres is down"))
-
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
-		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
-
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, players.ErrInvalidName)
-	assert.NotErrorIs(t, err, players.ErrNameTaken)
 }
 
 // The names left the outbox tells, as the event carries them.

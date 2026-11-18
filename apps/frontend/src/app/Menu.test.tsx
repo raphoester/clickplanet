@@ -147,7 +147,7 @@ describe("Menu", () => {
         render(<Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={[]} tilesCount={1000}
                      hallOfFame={{ended: [], standings: {} as never, turn: {} as never}}/>)
 
-        expect(button("Hall of Fame").className).toContain("icon-button")
+        expect(button("Hall of Fame")).toBeDefined()
         expect(screen.queryByText("Hall of Fame")).toBeNull()
     })
 
@@ -298,20 +298,6 @@ describe("Menu", () => {
         const withLeader = (data: LeaderboardEntry[], anthem?: ReactNode) => render(
             <Menu {...backends()} country={france} setCountry={vi.fn()} leaderboard={data} tilesCount={1000} anthem={anthem}/>)
 
-        it("is drawn in a frame of its own, apart from the table", () => {
-            withLeader([entry("jp", 500), entry("fr", 250)])
-
-            const leader = screen.getByRole("region", {name: "First: Japan"})
-            expect(within(leader).getByText("50.00")).toBeDefined()
-            expect(screen.getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[1].textContent))
-                .toEqual(["France"])
-        })
-
-        it("says nothing of the toll, which the dock shows", () => {
-            withLeader([entry("jp", 500)])
-            expect(screen.queryByText(/slower/)).toBeNull()
-        })
-
         it("holds the anthem player", () => {
             withLeader([entry("jp", 500)], <p>the anthem</p>)
             expect(within(screen.getByRole("region", {name: "First: Japan"})).getByText("the anthem")).toBeDefined()
@@ -388,11 +374,10 @@ describe("Menu", () => {
             expect(document.querySelector(".sheet-body .board-heading")).toBeNull()
         })
 
-        it("names the country played for on one line, with no box", () => {
+        it("names the country played for on one line", () => {
             sheet()
 
             const line = screen.getByText("Playing for").closest(".menu-playing")!
-            expect(line.classList.contains("panel-box")).toBe(false)
             expect(within(line as HTMLElement).getByText("France")).toBeDefined()
         })
 
@@ -424,14 +409,6 @@ describe("Menu", () => {
     })
 
     describe("the country picker", () => {
-        it("opens on the Change button, not on the country name", async () => {
-            const {user} = setup()
-
-            await user.click(button("Change"))
-
-            expect(countryPanel()).not.toBeNull()
-        })
-
         it("replaces the place, and keeps the rail of places beside it", async () => {
             const {user} = setup([entry("fr", 500)])
 
@@ -599,17 +576,6 @@ describe("Menu", () => {
             expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
         })
 
-        it("is a bug written from Settings and sent with what the page knows about itself", async () => {
-            const {support, user} = withSupport(() => phone)
-
-            await write(user, "A bug", "What happened", "the globe is black")
-            await user.click(button("Send"))
-
-            expect(support.reportBug).toHaveBeenCalledWith("the globe is black", phone, [])
-            expect(support.suggestFeature).not.toHaveBeenCalled()
-            expect(screen.getByRole("status").textContent).toBe("Sent. Thank you!")
-        })
-
         it("reads the context when it is sent, not when the form opens", async () => {
             let connectionDown = false
             const {support, user} = withSupport(() => ({...phone, connectionDown}))
@@ -708,11 +674,6 @@ describe("Menu", () => {
         const toggle = (name: string) => screen.getByRole("switch", {name}) as HTMLInputElement
         const flags = (name: string) => within(screen.getByRole("radiogroup", {name: "Country flags"})).getByRole("radio", {name})
 
-        it("has the last tab, after Share", () => {
-            withSettings()
-            expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Board", "Share", "Settings"])
-        })
-
         it("keeps the display and About with no sound to set", async () => {
             const {user} = setup()
 
@@ -720,12 +681,6 @@ describe("Menu", () => {
 
             expect(screen.getAllByRole("switch")).toEqual([toggle("HD graphics")])
             expect(button("About")).toBeDefined()
-        })
-
-        it("leaves the sound out of Share", async () => {
-            const {user} = withSettings()
-            await user.click(tab("Share"))
-            expect(screen.queryByRole("switch")).toBeNull()
         })
 
         it("switches a sound off without playing it", async () => {

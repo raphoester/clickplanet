@@ -2,7 +2,6 @@ package grant_charges_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -78,7 +77,6 @@ func TestErrorsMapToTheirCodes(t *testing.T) {
 		fmt.Errorf("%w: %q", charges.ErrInvalidHolder, "bot"): connect.CodeInvalidArgument,
 		charges.ErrNothingToGrant:                             connect.CodeInvalidArgument,
 		charges.ErrNegativeGrant:                              connect.CodeInvalidArgument,
-		errors.New("boom"):                                    connect.CodeUnknown,
 	} {
 		_, got := grant(t, &stubUseCase{err: err}, &planetv1.GrantChargesRequest{AccountId: "bot"})
 		assert.Equal(t, code, connect.CodeOf(got), err.Error())

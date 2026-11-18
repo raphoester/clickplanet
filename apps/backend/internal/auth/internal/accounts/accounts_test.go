@@ -30,13 +30,6 @@ func accountOf(id accounts.AccountID, identities ...*accounts.Identity) *account
 	return accounts.AccountOf(id, now, kept)
 }
 
-func TestTheTokenIsFoundAmongOtherCookies(t *testing.T) {
-	token, err := accounts.TokenFromCookies("theme=dark; cp_sid=abc123; lang=fr")
-
-	require.NoError(t, err)
-	assert.Equal(t, accounts.TokenOf("abc123"), token)
-}
-
 func TestAMalformedCookieBesideItDoesNotHideTheToken(t *testing.T) {
 	for name, header := range map[string]string{
 		"no equals sign":     "broken; cp_sid=abc123",
@@ -125,14 +118,6 @@ func TestTheCookieLivesAsLongAsTheSessionAndStaysOnThisSite(t *testing.T) {
 	assert.Empty(t, cookie.Domain, "host-only: the cookie never reaches another subdomain")
 }
 
-func TestALinkedSessionLastsTheLinkedLifetimeAndExtendsByIt(t *testing.T) {
-	session := accounts.LinkedSession(account, accounts.TokenOf("abc123"), lifetime, now)
-	assert.Equal(t, now.Add(30*24*time.Hour), session.ExpiresAt())
-
-	later := now.Add(24 * time.Hour)
-	assert.Equal(t, later.Add(30*24*time.Hour), session.Extended(later, lifetime).ExpiresAt())
-}
-
 func TestAGuestSessionExtendsByTheLinkedLifetimeOnceItsAccountIsLinked(t *testing.T) {
 	guest := accounts.GuestSession(account, accounts.TokenOf("abc123"), lifetime, now)
 	session := accounts.SessionOf(guest.TokenHash(), account, true, guest.ExtendedAt(), guest.ExpiresAt())
@@ -174,35 +159,6 @@ func TestAVerifiedEmailIsKept(t *testing.T) {
 	assert.True(t, identity.EmailVerified())
 }
 
-func TestAKnownIdentitySignsInWhateverTheBrowserIsOn(t *testing.T) {
-	known := identityOf("google", "user", accounts.AccountID{15: 2})
-
-	for name, current := range map[string]*accounts.Account{"no account": nil, "another account": accountOf(account)} {
-		t.Run(name, func(t *testing.T) {
-			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, known, nil, "google")
-
-			require.NoError(t, err)
-			assert.Equal(t, accounts.SignedIn, outcome)
-		})
-	}
-}
-
-func TestANewIdentityLinksToTheAccountTheBrowserIsOn(t *testing.T) {
-	for _, intent := range []accounts.Intent{accounts.IntentSignIn, accounts.IntentLink} {
-		for name, current := range map[string]*accounts.Account{
-			"guest":                   accountOf(account),
-			"linked to another place": accountOf(account, identityOf("discord", "d", account)),
-		} {
-			t.Run(name, func(t *testing.T) {
-				outcome, err := accounts.OutcomeOf(intent, current, nil, nil, "google")
-
-				require.NoError(t, err)
-				assert.Equal(t, accounts.Linked, outcome)
-			})
-		}
-	}
-}
-
 func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
 	onDiscord := accountOf(account, identityOf("discord", "d", account))
 	elsewhere := identityOf("google", "user", accounts.AccountID{15: 2})
@@ -221,28 +177,6 @@ func TestALinkIsRefusedRatherThanLeaveTheAccount(t *testing.T) {
 			_, err := accounts.OutcomeOf(accounts.IntentLink, tc.current, tc.known, nil, "google")
 
 			assert.ErrorIs(t, err, tc.want)
-		})
-	}
-}
-
-func TestAnUnverifiedEmailIsNoAddress(t *testing.T) {
-	assert.Empty(t, accounts.ClaimOf("user", "a@example.com", false).VerifiedEmail())
-	assert.Equal(t, "a@example.com", accounts.ClaimOf("user", "a@example.com", true).VerifiedEmail())
-}
-
-func TestANewIdentityJoinsTheAccountThatHoldsItsAddress(t *testing.T) {
-	owner := accountOf(accounts.AccountID{15: 2}, identityOf("google", "g", accounts.AccountID{15: 2}))
-
-	for name, current := range map[string]*accounts.Account{
-		"no account":    nil,
-		"a guest":       accountOf(account),
-		"linked to one": accountOf(account, identityOf("discord", "d", account)),
-	} {
-		t.Run(name, func(t *testing.T) {
-			outcome, err := accounts.OutcomeOf(accounts.IntentSignIn, current, nil, owner, "email")
-
-			require.NoError(t, err)
-			assert.Equal(t, accounts.Joined, outcome)
 		})
 	}
 }

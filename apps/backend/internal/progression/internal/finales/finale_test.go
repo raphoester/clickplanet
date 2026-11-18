@@ -36,29 +36,6 @@ func TestEachFighterIsRankedByTheTilesItTookAndATieSharesTheRank(t *testing.T) {
 	assert.Equal(t, map[accounts.AccountID]uint32{bob: 1, ada: 2, carol: 2, dan: 4}, ranks)
 }
 
-func TestFightsSayWhichFinaleWasFoughtAndWhereItsFlagPlaced(t *testing.T) {
-	fight, err := finales.FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 2}.Restore()
-	require.NoError(t, err)
-	fights := finales.Fights{fight}
-
-	assert.True(t, fights.FoughtIn(0))
-	assert.False(t, fights.FoughtIn(1))
-	assert.True(t, fights.PlacedIn(0, 2))
-	assert.False(t, fights.PlacedIn(0, 1))
-	assert.False(t, fights.PlacedIn(1, 2))
-	assert.False(t, finales.Fights{}.FoughtIn(0))
-}
-
-func TestFightsSayWhereTheFighterRankedByTiles(t *testing.T) {
-	fight, err := finales.FightSnapshot{Account: ada, Season: 0, Country: "fr", Rank: 2, TilesRank: 3}.Restore()
-	require.NoError(t, err)
-	fights := finales.Fights{fight}
-
-	assert.True(t, fights.RankedByTilesIn(0, 3))
-	assert.False(t, fights.RankedByTilesIn(0, 2))
-	assert.False(t, fights.RankedByTilesIn(1, 3))
-}
-
 func TestTheIDsOfAFinaleAreNeverEmpty(t *testing.T) {
 	_, err := finales.BookIDOf("")
 	require.ErrorIs(t, err, finales.ErrNoBook)

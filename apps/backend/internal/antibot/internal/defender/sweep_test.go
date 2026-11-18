@@ -14,20 +14,25 @@ import (
 func TestSweepForgetsIdleCallersAndOldLosses(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 14, 18, 0, 0, 0, time.UTC))
 
-	w := New(Config{TrackWindow: 5 * time.Minute}, bounds(func(r *Rules) { r.RetakeWindow = time.Minute }), clock, nil)
+	minute := bounds(func(r *Rules) { r.RetakeWindow = time.Minute })
+	w := New(Config{TrackWindow: 5 * time.Minute}, minute, clock, nil)
+	empty, err := New(Config{TrackWindow: 5 * time.Minute}, minute, clock, nil).Save()
+	require.NoError(t, err)
 
 	attacker := detect.Click{Scope: "attacker", Tile: 1, Country: "FR", At: clock.Now(), Held: "BG"}
 	w.Watch(attacker)
 	w.Committed(attacker)
 
-	require.Len(t, w.losses, 1)
-	require.Len(t, w.callers, 1)
+	watched, err := w.Save()
+	require.NoError(t, err)
+	require.NotEqual(t, empty, watched)
 
 	clock.Advance(time.Hour)
 	w.sweep()
 
-	assert.Empty(t, w.losses)
-	assert.Empty(t, w.callers)
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 func TestWithNoShareSetItOnlyMeasures(t *testing.T) {

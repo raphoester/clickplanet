@@ -73,10 +73,10 @@ func TestTheCallerAndItsOpinionsSurviveASaveAndLoad(t *testing.T) {
 	require.NoError(t, restarted.Load(data))
 	restarted.Resume(detect.Outage{From: savedAt, To: clock.Now()})
 
-	loaded := restarted.callers["caller"].opinions["saying"]
-	assert.Equal(t, j.callers["caller"].opinions["saying"].String(), loaded.String(), "the log line reads the same")
-	assert.Equal(t, detect.Suspect, loaded.Verdict)
-	assert.True(t, loaded.Evidence.Zeal, "zeal still counts once after a restart")
+	readings := restarted.Examine("caller", "", false).Readings
+	require.Len(t, readings, 1)
+	assert.Equal(t, j.Examine("caller", "", false).Readings[0].Evidence, readings[0].Evidence, "the log line reads the same")
+	assert.Equal(t, "suspect", readings[0].Level)
 
 	clock.Advance(time.Second)
 	watchdog.verdict = detect.Certain
@@ -105,7 +105,6 @@ func TestAReadingOfTurnsStillCountsForNothingAfterARestart(t *testing.T) {
 	restarted := newJury(clock, Hooks{}, watchdog)
 	require.NoError(t, restarted.Load(data))
 
-	assert.True(t, restarted.callers["caller"].opinions["saying"].Evidence.Turns)
 	assert.Zero(t, restarted.Examine("caller", "", false).Suspects)
 }
 
@@ -119,8 +118,8 @@ func TestForgetDropsSilentCallersAndOldOpinions(t *testing.T) {
 
 	j.Forget(clock.Now().Add(-time.Minute))
 
-	require.Len(t, j.callers, 1)
-	assert.Contains(t, j.callers, "active")
+	assert.False(t, j.Examine("silent", "", false).Tracked)
+	assert.True(t, j.Examine("active", "", false).Tracked)
 }
 
 func TestWhereEachAccountClickedLastSurvivesASaveAndLoad(t *testing.T) {

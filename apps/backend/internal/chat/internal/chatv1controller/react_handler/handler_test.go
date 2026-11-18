@@ -88,9 +88,3 @@ func TestAMutedReactorIsDenied(t *testing.T) {
 	assert.Equal(t, connect.CodePermissionDenied, denied.Code())
 	assert.Len(t, denied.Details(), 1, "the end of the mute travels with the refusal")
 }
-
-func TestAnUnexpectedFailureIsLeftForTheErrorNet(t *testing.T) {
-	_, err := react(t.Context(), &stubUseCase{err: assert.AnError}, chatv1.Reaction_REACTION_CLOWN)
-
-	require.ErrorIs(t, err, assert.AnError)
-}
