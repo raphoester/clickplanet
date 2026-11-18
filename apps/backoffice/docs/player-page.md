@@ -47,7 +47,7 @@ address>`), so Back goes to the list, as it was.
   one key.
 - **An account's page reads its profile** (`profileOf`, `ProfilePanel`) from two calls at once:
   `player.v1.AdminService/GetPlayer`, who it is (signed in or a guest, when it was made, its name and whether it is a
-  username or a guest code, the crown, its color), and `progression.v1.AdminService/GetProgress`, how far it got (the
+  username or a guest code, its **former names**, the crown, its color), and `progression.v1.AdminService/GetProgress`, how far it got (the
   tiles it took, its streak, its messages, its titles, the one worn marked, and every country it plays for and
   against, five of each and the rest behind "All"). A guest has all of it too, which the game's public card does not.
   The heading is its flag and its name: the name the profile answers, which is the name it holds now, over the one
@@ -56,7 +56,13 @@ address>`), so Back goes to the list, as it was.
   and their stats are what a bot case needs. Its name reads "none". `GetPlayer` still answers it while auth knows
   the account, with the Account line (signed in or not, and since when); it answers `not_found` only when auth knows
   nothing of it either (the backend's [Player](../../backend/docs/player.md)), and then the Account line is left
-  out. `GetProgress` never answers `not_found`: an account it keeps nothing about is zeros. **Only both empty**
+  out. `GetProgress` never answers `not_found`: an account it keeps nothing about is zeros.
+  **Former names** (`FormerNames`) are every name the account held before the one it holds now, newest first, each
+  "until" when it changed and ", renamed by an operator" when an operator's rename replaced it (the reason is in the
+  moderation history below), five shown and the rest behind "All". It is the whole list, where the game's public card
+  shows the last five its player chose to leave and never a name an operator took off. The player's own changes are
+  kept since 17 Nov 2026, an operator's 90 days (the backend's [Player](../../backend/docs/player.md#the-names-a-player-left)).
+  "none" for an account that never changed its name. **Only both empty**
   (`not_found` and every stat, message, title and front at zero) says the game keeps nothing about the account. An
   address has no profile, and is not asked.
 - **An account's page shows what it said, in its conversations** (`chat/TheirMessages`, as a report does), folded

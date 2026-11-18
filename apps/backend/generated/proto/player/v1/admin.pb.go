@@ -734,8 +734,12 @@ type AdminGetPlayerResponse struct {
 	Admin           bool                   `protobuf:"varint,4,opt,name=admin,proto3" json:"admin,omitempty"`
 	Color           NameColor              `protobuf:"varint,5,opt,name=color,proto3,enum=player.v1.NameColor" json:"color,omitempty"`
 	CreatedAtUnixMs int64                  `protobuf:"varint,6,opt,name=created_at_unix_ms,json=createdAtUnixMs,proto3" json:"created_at_unix_ms,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Every username the account held before the one it holds now, newest first, each change once: the ones its player
+	// left (kept since 2026-11-17, until the account is forgotten; the public card shows the last 5) and the ones an
+	// operator replaced (ListRenames, kept 90 days). Empty for a guest that never held one.
+	FormerNames   []*FormerName `protobuf:"bytes,13,rep,name=former_names,json=formerNames,proto3" json:"former_names,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AdminGetPlayerResponse) Reset() {
@@ -810,6 +814,75 @@ func (x *AdminGetPlayerResponse) GetCreatedAtUnixMs() int64 {
 	return 0
 }
 
+func (x *AdminGetPlayerResponse) GetFormerNames() []*FormerName {
+	if x != nil {
+		return x.FormerNames
+	}
+	return nil
+}
+
+// A username an account held, until when, and who made it change.
+type FormerName struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Name        string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	UntilUnixMs int64                  `protobuf:"varint,2,opt,name=until_unix_ms,json=untilUnixMs,proto3" json:"until_unix_ms,omitempty"`
+	// An operator's rename replaced it, and ListRenames says why; otherwise its player chose another.
+	RenamedByOperator bool `protobuf:"varint,3,opt,name=renamed_by_operator,json=renamedByOperator,proto3" json:"renamed_by_operator,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *FormerName) Reset() {
+	*x = FormerName{}
+	mi := &file_player_v1_admin_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FormerName) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FormerName) ProtoMessage() {}
+
+func (x *FormerName) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_admin_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FormerName.ProtoReflect.Descriptor instead.
+func (*FormerName) Descriptor() ([]byte, []int) {
+	return file_player_v1_admin_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *FormerName) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *FormerName) GetUntilUnixMs() int64 {
+	if x != nil {
+		return x.UntilUnixMs
+	}
+	return 0
+}
+
+func (x *FormerName) GetRenamedByOperator() bool {
+	if x != nil {
+		return x.RenamedByOperator
+	}
+	return false
+}
+
 var File_player_v1_admin_proto protoreflect.FileDescriptor
 
 const file_player_v1_admin_proto_rawDesc = "" +
@@ -866,17 +939,23 @@ const file_player_v1_admin_proto_rawDesc = "" +
 	"\tlinked_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\blinkedAt\"6\n" +
 	"\x15AdminGetPlayerRequest\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"\xb1\x02\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"\xeb\x02\n" +
 	"\x16AdminGetPlayerResponse\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05guest\x18\x02 \x01(\bR\x05guest\x12\x16\n" +
 	"\x06linked\x18\x03 \x01(\bR\x06linked\x12\x14\n" +
 	"\x05admin\x18\x04 \x01(\bR\x05admin\x12*\n" +
 	"\x05color\x18\x05 \x01(\x0e2\x14.player.v1.NameColorR\x05color\x12+\n" +
-	"\x12created_at_unix_ms\x18\x06 \x01(\x03R\x0fcreatedAtUnixMsJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
+	"\x12created_at_unix_ms\x18\x06 \x01(\x03R\x0fcreatedAtUnixMs\x128\n" +
+	"\fformer_names\x18\r \x03(\v2\x15.player.v1.FormerNameR\vformerNamesJ\x04\b\a\x10\bJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\n" +
 	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rR\x05statsR\rmessages_sentR\x06titlesR\n" +
-	"worn_titleR\tplays_forR\rplays_against2\xed\x04\n" +
+	"worn_titleR\tplays_forR\rplays_against\"t\n" +
+	"\n" +
+	"FormerName\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\"\n" +
+	"\runtil_unix_ms\x18\x02 \x01(\x03R\vuntilUnixMs\x12.\n" +
+	"\x13renamed_by_operator\x18\x03 \x01(\bR\x11renamedByOperator2\xed\x04\n" +
 	"\fAdminService\x12N\n" +
 	"\n" +
 	"GetPlayers\x12\x1c.player.v1.GetPlayersRequest\x1a\x1d.player.v1.GetPlayersResponse\"\x03\x90\x02\x01\x12U\n" +
@@ -902,7 +981,7 @@ func file_player_v1_admin_proto_rawDescGZIP() []byte {
 	return file_player_v1_admin_proto_rawDescData
 }
 
-var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_player_v1_admin_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_player_v1_admin_proto_goTypes = []any{
 	(*RenamePlayerRequest)(nil),          // 0: player.v1.RenamePlayerRequest
 	(*ListRenamesRequest)(nil),           // 1: player.v1.ListRenamesRequest
@@ -917,40 +996,42 @@ var file_player_v1_admin_proto_goTypes = []any{
 	(*EmailMatch)(nil),                   // 10: player.v1.EmailMatch
 	(*AdminGetPlayerRequest)(nil),        // 11: player.v1.AdminGetPlayerRequest
 	(*AdminGetPlayerResponse)(nil),       // 12: player.v1.AdminGetPlayerResponse
-	(*timestamppb.Timestamp)(nil),        // 13: google.protobuf.Timestamp
-	(NameColor)(0),                       // 14: player.v1.NameColor
-	(*GetPlayersRequest)(nil),            // 15: player.v1.GetPlayersRequest
-	(*GetRosterRequest)(nil),             // 16: player.v1.GetRosterRequest
-	(*GetPlayersResponse)(nil),           // 17: player.v1.GetPlayersResponse
-	(*GetRosterResponse)(nil),            // 18: player.v1.GetRosterResponse
+	(*FormerName)(nil),                   // 13: player.v1.FormerName
+	(*timestamppb.Timestamp)(nil),        // 14: google.protobuf.Timestamp
+	(NameColor)(0),                       // 15: player.v1.NameColor
+	(*GetPlayersRequest)(nil),            // 16: player.v1.GetPlayersRequest
+	(*GetRosterRequest)(nil),             // 17: player.v1.GetRosterRequest
+	(*GetPlayersResponse)(nil),           // 18: player.v1.GetPlayersResponse
+	(*GetRosterResponse)(nil),            // 19: player.v1.GetRosterResponse
 }
 var file_player_v1_admin_proto_depIdxs = []int32{
-	13, // 0: player.v1.ListRenamesRequest.since:type_name -> google.protobuf.Timestamp
+	14, // 0: player.v1.ListRenamesRequest.since:type_name -> google.protobuf.Timestamp
 	3,  // 1: player.v1.ListRenamesResponse.renames:type_name -> player.v1.Rename
-	13, // 2: player.v1.Rename.renamed_at:type_name -> google.protobuf.Timestamp
+	14, // 2: player.v1.Rename.renamed_at:type_name -> google.protobuf.Timestamp
 	7,  // 3: player.v1.SearchPlayersResponse.players:type_name -> player.v1.PlayerMatch
 	10, // 4: player.v1.SearchPlayersByEmailResponse.matches:type_name -> player.v1.EmailMatch
-	13, // 5: player.v1.EmailMatch.linked_at:type_name -> google.protobuf.Timestamp
-	14, // 6: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
-	15, // 7: player.v1.AdminService.GetPlayers:input_type -> player.v1.GetPlayersRequest
-	11, // 8: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
-	16, // 9: player.v1.AdminService.GetRoster:input_type -> player.v1.GetRosterRequest
-	5,  // 10: player.v1.AdminService.SearchPlayers:input_type -> player.v1.SearchPlayersRequest
-	8,  // 11: player.v1.AdminService.SearchPlayersByEmail:input_type -> player.v1.SearchPlayersByEmailRequest
-	0,  // 12: player.v1.AdminService.RenamePlayer:input_type -> player.v1.RenamePlayerRequest
-	1,  // 13: player.v1.AdminService.ListRenames:input_type -> player.v1.ListRenamesRequest
-	17, // 14: player.v1.AdminService.GetPlayers:output_type -> player.v1.GetPlayersResponse
-	12, // 15: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
-	18, // 16: player.v1.AdminService.GetRoster:output_type -> player.v1.GetRosterResponse
-	6,  // 17: player.v1.AdminService.SearchPlayers:output_type -> player.v1.SearchPlayersResponse
-	9,  // 18: player.v1.AdminService.SearchPlayersByEmail:output_type -> player.v1.SearchPlayersByEmailResponse
-	4,  // 19: player.v1.AdminService.RenamePlayer:output_type -> player.v1.RenamePlayerResponse
-	2,  // 20: player.v1.AdminService.ListRenames:output_type -> player.v1.ListRenamesResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	14, // 5: player.v1.EmailMatch.linked_at:type_name -> google.protobuf.Timestamp
+	15, // 6: player.v1.AdminGetPlayerResponse.color:type_name -> player.v1.NameColor
+	13, // 7: player.v1.AdminGetPlayerResponse.former_names:type_name -> player.v1.FormerName
+	16, // 8: player.v1.AdminService.GetPlayers:input_type -> player.v1.GetPlayersRequest
+	11, // 9: player.v1.AdminService.GetPlayer:input_type -> player.v1.AdminGetPlayerRequest
+	17, // 10: player.v1.AdminService.GetRoster:input_type -> player.v1.GetRosterRequest
+	5,  // 11: player.v1.AdminService.SearchPlayers:input_type -> player.v1.SearchPlayersRequest
+	8,  // 12: player.v1.AdminService.SearchPlayersByEmail:input_type -> player.v1.SearchPlayersByEmailRequest
+	0,  // 13: player.v1.AdminService.RenamePlayer:input_type -> player.v1.RenamePlayerRequest
+	1,  // 14: player.v1.AdminService.ListRenames:input_type -> player.v1.ListRenamesRequest
+	18, // 15: player.v1.AdminService.GetPlayers:output_type -> player.v1.GetPlayersResponse
+	12, // 16: player.v1.AdminService.GetPlayer:output_type -> player.v1.AdminGetPlayerResponse
+	19, // 17: player.v1.AdminService.GetRoster:output_type -> player.v1.GetRosterResponse
+	6,  // 18: player.v1.AdminService.SearchPlayers:output_type -> player.v1.SearchPlayersResponse
+	9,  // 19: player.v1.AdminService.SearchPlayersByEmail:output_type -> player.v1.SearchPlayersByEmailResponse
+	4,  // 20: player.v1.AdminService.RenamePlayer:output_type -> player.v1.RenamePlayerResponse
+	2,  // 21: player.v1.AdminService.ListRenames:output_type -> player.v1.ListRenamesResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_admin_proto_init() }
@@ -967,7 +1048,7 @@ func file_player_v1_admin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_admin_proto_rawDesc), len(file_player_v1_admin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

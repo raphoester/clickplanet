@@ -29,8 +29,9 @@ export const AdminService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
-     * fronts are progression.v1.AdminService/GetProgress.
+     * Who one account is, a guest's too, with every username it held before the one it holds now: the ones its player
+     * left and the ones an operator replaced. NotFound for an account with no name and no guest code. Its stats, titles
+     * and fronts are progression.v1.AdminService/GetProgress.
      *
      * @generated from rpc player.v1.AdminService.GetPlayer
      */

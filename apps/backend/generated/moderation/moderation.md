@@ -147,7 +147,8 @@ the auditor, not a second moderator: the layers above act within minutes, and it
 ## Not built yet
 
 - **Auditing the names a player left**: the audit reads the names held now, so a bad name its player left itself
-  stays on its card until the account goes, and no tool reads or removes one.
+  stays on its card until the account goes. `player_get_player` lists every name an account held (`former_names`),
+  but nothing goes through them for bad ones, and no tool takes one off a card.
 - **The scheduled audit**, and the five tools allowed on claude.ai.
 - **A push to the operator's phone** from the judge: today it logs at Warn.
 - **Striking a false positive off the count**: an offence the audit undid still counts for 7 days.

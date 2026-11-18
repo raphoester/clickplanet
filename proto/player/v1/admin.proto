@@ -14,8 +14,9 @@ service AdminService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
-  // Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
-  // fronts are progression.v1.AdminService/GetProgress.
+  // Who one account is, a guest's too, with every username it held before the one it holds now: the ones its player
+  // left and the ones an operator replaced. NotFound for an account with no name and no guest code. Its stats, titles
+  // and fronts are progression.v1.AdminService/GetProgress.
   rpc GetPlayer(AdminGetPlayerRequest) returns (AdminGetPlayerResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
@@ -143,4 +144,16 @@ message AdminGetPlayerResponse {
   // progression.v1.AdminService/GetProgress.
   reserved 7, 8, 9, 10, 11, 12;
   reserved "stats", "messages_sent", "titles", "worn_title", "plays_for", "plays_against";
+  // Every username the account held before the one it holds now, newest first, each change once: the ones its player
+  // left (kept since 2026-11-17, until the account is forgotten; the public card shows the last 5) and the ones an
+  // operator replaced (ListRenames, kept 90 days). Empty for a guest that never held one.
+  repeated FormerName former_names = 13;
+}
+
+// A username an account held, until when, and who made it change.
+message FormerName {
+  string name = 1;
+  int64 until_unix_ms = 2;
+  // An operator's rename replaced it, and ListRenames says why; otherwise its player chose another.
+  bool renamed_by_operator = 3;
 }
