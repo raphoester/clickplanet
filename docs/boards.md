@@ -596,7 +596,8 @@ Three runs each, the median. The files are the runs, the borders, the border lin
 
 **What it says:**
 - **The tiles still cost nothing at the landing view.** No tile is drawn there on any board. `earth-2`'s 0.87M more
-  vertices are its outlines: the border lines draw 12 vertices for each cell edge of an outline (4 corners, 3 passes),
+  vertices are its outlines: the border lines then drew 12 vertices for each cell edge of an outline in orbit (the
+  spline's two pieces, 6 indices each; one piece since [the outlines are drawn straight](#the-outlines-drawn-straight-measured)),
   and `earth-2`'s coasts at 13 km have 129,431 edges against `earth-1`'s 56,790. Less 12 a edge, every board draws the same
   335k. PR 0's test map of 1M tiles borrowed `earth-1`'s outlines, so it read 1.01M; the outlines grow with the coast,
   not with the tiles, as [Slow devices](#slow-devices) says.
@@ -724,6 +725,49 @@ and after, the page's panels hidden, 1280×800 at a ratio of 2, on an M2 Max's G
 idle spin, the median of the frames): at zoom 10, 3.5 → 2.5 ms of GPU and 1.6 → 2.1 ms of CPU. At the landing spin,
 1.1 → 1.8 ms of GPU while the vertices went from 1.88M to 1.36M. One run on a shared machine is not a result: three
 interleaved rounds were being measured as this was written.
+
+## The outlines drawn straight, measured
+
+**Why** (the owner, 2026-11-18): the tiles are drawn as straight hexagons, so the outline's B-spline around them read
+worse than their own edges, and its pieces were most of the outline's vertices. **Built:** each cell edge is one piece,
+a quad from corner to corner, in every pass, and the four passes share one set of pieces (the page's [The countries'
+outlines](../apps/frontend/docs/country-outlines.md)). On `earth-2` the under pass went from 520,748 pieces to 129,431,
+the over pass from 260,374.
+
+**Measured 2026-11-18** on an M2 Max, headless Chrome on Metal, the dev server with the fake backend
+(`/play?fakeBoard=earth-2`), 1280×800 at a ratio of 2, the CPU slowed 4×, the camera turning slowly over Europe (45°N,
+5°E; the landing view at 20°N, 10°E). Before is `main` at 9d2c35e12 (with the cull of [the outlines out of
+sight](#the-outlines-out-of-sight-measured)), after is this work, run in turn.
+
+| vertices drawn in a frame, `earth-2`, before → after | the outline | the whole frame |
+| --- | --- | --- |
+| landing view, zoom 0.5 | 1.25M → 0.62M | 1.65M → 0.98M |
+| zoom 1 | 1.33M → 0.66M | 1.66M → 0.99M |
+| the handover band, zoom 10 | 0.42M → 0.14M | 0.84M → 0.55M |
+| zoom 20 | 0.16M → 0.04M | 0.50M → 0.41M |
+| zoom 40 | 0.05M → 0.01M | 0.41M → 0.37M |
+
+**The GPU time at 60 Hz does not tell them apart.** A frame there is 1.5 to 3 ms of GPU, the GPU lowers its clock when
+there is less to do, and the machine was shared: the same build's runs ranged from 1.6 to 6.7 ms at zoom 10. So the GPU
+was kept busy instead. Each frame drew the scene 11 times (the page's own render and 10 more), a one-pixel read emptied
+the GPU's queue before the timer query began, and the outline was shown or hidden at random frame by frame. The
+outline's cost is the difference between the two, over 11. A check with nothing hidden gave two halves within 0.07 ms
+of each other. Eight runs of each build in four interleaved rounds, the median:
+
+| GPU per render of the scene, `earth-2`, before → after | the outline | the whole scene |
+| --- | --- | --- |
+| landing view, zoom 0.5 | 0.78 → 0.31 ms | 1.11 → 0.64 ms |
+| zoom 1 | 0.48 → 0.26 ms | 1.34 → 1.20 ms |
+| the handover band, zoom 10 | 0.14 → 0.00 ms | 1.53 → 1.47 ms |
+| zoom 20 | 0.01 → 0.00 ms | 1.00 → 1.02 ms |
+| zoom 40 | 0.00 → 0.00 ms | 1.01 → 1.04 ms |
+
+**What it says:**
+- **Pushed in, the outline costs nothing that shows**: from the handover band in, it is under the noise. The cull had
+  already brought it down to what is on screen.
+- **In orbit it costs half what it did**, and it is still the heaviest thing at the landing view: 0.31 of the scene's
+  0.64 ms, for 0.62M vertices. There a cell edge of `earth-2` is about a quarter of a CSS pixel, so most of those
+  pieces draw less than a pixel each. Fewer pieces in orbit would cut it; that is not built.
 
 ## Screenshots
 

@@ -17,96 +17,33 @@ export async function loadBorderLines(url: string, signal?: AbortSignal): Promis
     return decodeBorderLines(await response.arrayBuffer())
 }
 
-export const SAMPLES = 4
-
-export const COARSE_SAMPLES = 2
-
-type Run = {at: number, controls: number, closed: boolean}
-
-function runsOf(data: BorderLineData): Run[] {
-    const runs: Run[] = []
-    let at = 0
-    for (const corners of data.runs) {
-        const closed = corners > 2 && sameCorner(data.corners, at, at + corners - 1)
-        runs.push({at, controls: closed ? corners - 1 : corners, closed})
-        at += corners
-    }
-    return runs
-}
-
-function sameCorner(corners: Int16Array, one: number, other: number): boolean {
-    for (let axis = 0; axis < 3; axis++) {
-        if (corners[one * 3 + axis] !== corners[other * 3 + axis]) return false
-    }
-    return true
-}
-
-function control(run: Run, step: number): number {
-    const {at, controls, closed} = run
-    if (closed) return at + ((step % controls) + controls) % controls
-    return at + Math.min(Math.max(step, 0), controls - 1)
-}
-
+// A piece is one cell edge, corner to corner: a run of n corners is n - 1 pieces.
 export type Segments = {from: Int16Array, to: Int16Array}
 
-export function outlineSegments(data: BorderLineData, samples = SAMPLES): Segments {
-    const runs = runsOf(data)
-
-    let pieces = 0
-    for (const run of runs) pieces += run.controls * samples
-
+export function outlineSegments(data: BorderLineData): Segments {
+    const pieces = data.corners.length / 3 - data.runs.length
     const from = new Int16Array(pieces * 3)
     const to = new Int16Array(pieces * 3)
 
-    let piece = 0
-    for (const run of runs) {
-        for (let step = 0; step < run.controls; step++) {
-            const before = control(run, step - 1)
-            const on = control(run, step)
-            const after = control(run, step + 1)
-            for (let cut = 0; cut < samples; cut++) {
-                spline(data.corners, before, on, after, cut / samples, from, piece)
-                spline(data.corners, before, on, after, (cut + 1) / samples, to, piece)
-                piece++
-            }
-        }
+    let at = 0, piece = 0
+    for (const corners of data.runs) {
+        from.set(data.corners.subarray(at * 3, (at + corners - 1) * 3), piece * 3)
+        to.set(data.corners.subarray((at + 1) * 3, (at + corners) * 3), piece * 3)
+        piece += corners - 1
+        at += corners
     }
-
     return {from, to}
 }
 
 // The two landmasses each piece runs between, the sea being 0.
-export function pieceSides(data: BorderLineData, samples = SAMPLES): Uint16Array {
-    const runs = runsOf(data)
-
-    let pieces = 0
-    for (const run of runs) pieces += run.controls * samples
-
-    const sides = new Uint16Array(pieces * 2)
+export function pieceSides(data: BorderLineData): Uint16Array {
+    const sides = new Uint16Array((data.corners.length / 3 - data.runs.length) * 2)
     let piece = 0
-    runs.forEach((run, r) => {
-        for (let i = 0; i < run.controls * samples; i++, piece++) {
-            sides[piece * 2] = data.sides[r * 2]
-            sides[piece * 2 + 1] = data.sides[r * 2 + 1]
-        }
+    data.runs.forEach((corners, run) => {
+        const pair = data.sides.subarray(run * 2, run * 2 + 2)
+        for (let i = 1; i < corners; i++, piece++) sides.set(pair, piece * 2)
     })
     return sides
-}
-
-function spline(
-    corners: Int16Array, before: number, on: number, after: number,
-    t: number, into: Int16Array, piece: number,
-) {
-    const head = 0.5 * (1 - t) * (1 - t)
-    const middle = 0.5 + t - t * t
-    const tail = 0.5 * t * t
-    for (let axis = 0; axis < 3; axis++) {
-        into[piece * 3 + axis] = Math.round(
-            head * corners[before * 3 + axis]
-            + middle * corners[on * 3 + axis]
-            + tail * corners[after * 3 + axis],
-        )
-    }
 }
 
 export const WIDTH = 1.3
@@ -151,7 +88,7 @@ const WIDEST = Math.max(WIDTH, ORBIT_WIDTH, HIGHLIGHT_WIDTH, MISSION_WIDTH)
 const FURTHEST_LIFT = Math.max(OVER - 1, 1 - UNDER)
 
 const MAX_DRAWS = 8
-// In corners of the outline.
+// In pieces.
 const LEAST_GAP = 512
 
 // Of the globe's radius: zoomed out, a quarter of the screen would keep most of the far side.
@@ -166,16 +103,15 @@ export type BorderLines = {
     dispose(): void
 }
 
-// A cap holds the ends of each of its corners' fine pieces, and so the coarse pieces', whose ends are among them.
+// A cap holds both ends of each of its pieces.
 export function outlineChunksOf({from, to}: Segments): TileChunks {
-    const corners = from.length / 3 / SAMPLES
-    const per = SAMPLES + 1
-    const points = new Int16Array(corners * per * 3)
-    for (let corner = 0; corner < corners; corner++) {
-        points.set(from.subarray(corner * SAMPLES * 3, (corner + 1) * SAMPLES * 3), corner * per * 3)
-        points.set(to.subarray(((corner + 1) * SAMPLES - 1) * 3, (corner + 1) * SAMPLES * 3), (corner * per + SAMPLES) * 3)
+    const pieces = from.length / 3
+    const ends = new Int16Array(pieces * 6)
+    for (let piece = 0; piece < pieces; piece++) {
+        ends.set(from.subarray(piece * 3, piece * 3 + 3), piece * 6)
+        ends.set(to.subarray(piece * 3, piece * 3 + 3), piece * 6 + 3)
     }
-    return chunksOf(points, CHUNK_REACH, CHUNK_MOST, per)
+    return chunksOf(ends, CHUNK_REACH, CHUNK_MOST, 2)
 }
 
 function aimedTexture(data: BorderLineData): THREE.DataTexture {
@@ -187,21 +123,19 @@ function aimedTexture(data: BorderLineData): THREE.DataTexture {
 }
 
 type Pieces = {
-    samples: number
     from: THREE.InstancedInterleavedBuffer
     to: THREE.InstancedInterleavedBuffer
     sides: THREE.InstancedInterleavedBuffer
     draws: THREE.InstancedBufferGeometry[]
 }
 
-function piecesOf(data: BorderLineData, samples: number, {from, to}: Segments): Pieces {
+function piecesOf(data: BorderLineData, {from, to}: Segments): Pieces {
     const corner = new THREE.BufferAttribute(new Float32Array([-1, -1, -1, 1, 1, -1, 1, 1]), 2)
     const index = new THREE.Uint16BufferAttribute([0, 1, 2, 2, 1, 3], 1)
     const pieces: Pieces = {
-        samples,
         from: new THREE.InstancedInterleavedBuffer(from, 3),
         to: new THREE.InstancedInterleavedBuffer(to, 3),
-        sides: new THREE.InstancedInterleavedBuffer(pieceSides(data, samples), 2),
+        sides: new THREE.InstancedInterleavedBuffer(pieceSides(data), 2),
         draws: [],
     }
     for (let draw = 0; draw < MAX_DRAWS; draw++) {
@@ -268,23 +202,19 @@ function lineMaterial({lift, width, colour, ink = 1, defines = {}, uniforms = {}
 
 // scale: the board the outline is traced on, whose tiles the painted flags hand over to.
 export function createBorderLines(data: BorderLineData, scale: BoardScale): BorderLines {
-    const fineSegments = outlineSegments(data, SAMPLES)
-    const chunks = outlineChunksOf(fineSegments)
-    const corners = fineSegments.from.length / 3 / SAMPLES
-
-    const coarse = piecesOf(data, COARSE_SAMPLES, outlineSegments(data, COARSE_SAMPLES))
-    const fine = piecesOf(data, SAMPLES, fineSegments)
+    const segments = outlineSegments(data)
+    const chunks = outlineChunksOf(segments)
+    const pieces = piecesOf(data, segments)
     const aimed = aimedTexture(data)
 
     // After the tiles, so their depth hides the under pass; made in drawing order, as three draws one renderOrder by id.
-    const over = passOf(coarse, lineMaterial({lift: OVER, width: ORBIT_WIDTH, colour: ORBIT_COLOUR}), ORBIT_WIDTH, 1)
-    const under = passOf(fine, lineMaterial({lift: UNDER, width: WIDTH, colour: COLOUR}), WIDTH, 1)
-    // Drawn alone in orbit, where the coarse pieces are the resolution it is looked at.
-    const highlight = passOf(coarse, lineMaterial({
+    const over = passOf(pieces, lineMaterial({lift: OVER, width: ORBIT_WIDTH, colour: ORBIT_COLOUR}), ORBIT_WIDTH, 1)
+    const under = passOf(pieces, lineMaterial({lift: UNDER, width: WIDTH, colour: COLOUR}), WIDTH, 1)
+    const highlight = passOf(pieces, lineMaterial({
         lift: OVER, width: HIGHLIGHT_WIDTH, colour: HIGHLIGHT_COLOUR,
         defines: {HIGHLIGHT: true}, uniforms: {landmass: {value: 0}},
     }), HIGHLIGHT_WIDTH, 2)
-    const mission = passOf(fine, lineMaterial({
+    const mission = passOf(pieces, lineMaterial({
         lift: OVER, width: MISSION_WIDTH, colour: MISSION_COLOUR, ink: MISSION_INK,
         defines: {MISSION: true}, uniforms: {aimed: {value: aimed}},
     }), MISSION_WIDTH, 2)
@@ -298,19 +228,17 @@ export function createBorderLines(data: BorderLineData, scale: BoardScale): Bord
     let drawn: readonly Span[] = []
     const draw = (ranges: readonly Span[]) => {
         drawn = ranges
-        for (const pieces of [coarse, fine]) {
-            ranges.forEach(({start, count}, at) => {
-                startAt(pieces.draws[at], pieces, start * pieces.samples)
-                pieces.draws[at].instanceCount = count * pieces.samples
-            })
-        }
+        ranges.forEach(({start, count}, at) => {
+            startAt(pieces.draws[at], pieces, start)
+            pieces.draws[at].instanceCount = count
+        })
         for (const {group} of passes) {
             group.children.forEach((mesh, at) => {
                 mesh.visible = at < ranges.length
             })
         }
     }
-    draw([{start: 0, count: corners}])
+    draw([{start: 0, count: segments.from.length / 3}])
 
     const sight = new ChunkSight(chunks, new Uint32Array(chunkCount(chunks)), MAX_DRAWS, LEAST_GAP)
     const toClip = new THREE.Matrix4()
@@ -357,7 +285,7 @@ export function createBorderLines(data: BorderLineData, scale: BoardScale): Bord
             mission.group.visible = landmasses.size > 0
         },
         dispose() {
-            for (const geometry of [...coarse.draws, ...fine.draws]) geometry.dispose()
+            for (const geometry of pieces.draws) geometry.dispose()
             for (const {material} of passes) disposeMaterial(material)
             aimed.dispose()
         },
