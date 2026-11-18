@@ -5,7 +5,7 @@ import FortifyNews, {FORTIFY_NEWS_MS} from "./FortifyNews.tsx"
 import FortifyCard from "../components/FortifyCard.tsx"
 import {Fortified} from "../../domain/fortify.ts"
 
-const CORSICA: Fortified = {fortification: {landmass: 257, countryId: "bg", tile: 107526, version: {epoch: 1_790_000_000, seq: 9}}, name: "Corsica", tiles: 16, news: true}
+const CORSICA: Fortified = {fortification: {province: 257, countryId: "bg", tile: 107526, version: {epoch: 1_790_000_000, seq: 9}}, name: "Corsica", tiles: 16, news: true}
 
 describe("FortifyNews", () => {
     beforeEach(() => vi.useFakeTimers())
@@ -34,12 +34,12 @@ describe("FortifyNews", () => {
 describe("FortifyCard", () => {
     afterEach(cleanup)
 
-    it("explains the rule on the territory that was just fortified, until the player has read it", () => {
+    it("explains the rule on the province that was just fortified, until the player has read it", () => {
         const onDone = vi.fn()
         render(<FortifyCard fortified={CORSICA} onDone={onDone}/>)
 
         expect(screen.getByText("Bulgaria owns all of Corsica, so every tile there gets +1 shield.")).toBeTruthy()
-        expect(screen.getByText("A flag can't fortify the same territory twice in a row.")).toBeTruthy()
+        expect(screen.getByText("A flag can't fortify the same province twice in a row.")).toBeTruthy()
 
         fireEvent.click(screen.getByRole("button", {name: "Got it"}))
 

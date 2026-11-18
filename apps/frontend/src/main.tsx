@@ -12,12 +12,12 @@ import {NoSession, SessionProvider} from "./backends/session.ts"
 import {localTokenStore, newAuthServiceClient, SessionClient, turnstileAttester} from "./backends/turnstileSession.ts"
 import {ChatServiceBackend, newChatServiceClient, newKeepaliveChatServiceClient} from "./backends/chatBackend.ts"
 import {FakeBackend} from "./backends/fakeBackend.ts"
-import {loadBorders} from "./app/viewer/borderField.ts"
+import {loadBorders, loadProvinces} from "./app/viewer/borderField.ts"
 import {boardNamed, boardOf, FIRST_BOARD} from "./app/viewer/boards.ts"
 import {BoardChanges} from "./backends/boards.ts"
 import type {BoardAsset} from "./domain/board.ts"
 import {scaleOf} from "./domain/boardScale.ts"
-import {landmassNamesOf} from "./i18n/load.ts"
+import {landmassNamesOf, provinceNamesOf} from "./i18n/load.ts"
 import {chatterNamed, chatterNameplateOf, FakeChatBackend} from "./backends/fakeChatBackend.ts"
 import {FakeGifs} from "./backends/fakeGifs.ts"
 import {GifSearch} from "./backends/gifs.ts"
@@ -123,11 +123,15 @@ followBrowser(connection, window)
 // The page draws the board GetMap names at its boot, and reloads when an answer names another (backends/boards.ts).
 const boards = new BoardChanges({reload: () => window.location.reload(), carries: (name) => boardNamed(name) !== undefined})
 
-// A landmass id is a row of one board's borders: the page names them once its board is known, in its language.
+// A landmass id is a row of one board's borders, and a province id of its provinces: the page names them once its board
+// is known, in its language.
 function nameLandmasses(board: Promise<BoardAsset>) {
     void Promise.all([board, speaking]).then(async ([drawn, spoken]) => {
         spoken.nameLandmasses(await landmassNamesOf(drawn, spoken.language))
     }).catch((e) => console.error("could not read the names of the board's landmasses: they read as their countries", e))
+    void Promise.all([board, speaking]).then(async ([drawn, spoken]) => {
+        spoken.nameProvinces(await provinceNamesOf(drawn, spoken.language))
+    }).catch((e) => console.error("could not read the names of the board's provinces: they read as their landmasses", e))
 }
 
 const config = {
@@ -203,11 +207,15 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     // `?fakeBoard=earth-2` plays another board the page carries, to measure it (docs/boards.md); earth-1 otherwise.
     const played = boardOf(new URLSearchParams(window.location.search).get("fakeBoard") ?? FIRST_BOARD)
     const borders = loadBorders(played.urls.borders)
+    const provinces = loadProvinces(played, borders)
     const fake = new FakeBackend(100, {
         board: played,
         boards,
         tilePositions: () => loadPointGeometryData(played).then((data) => data.positions),
-        landmasses: () => borders.then(({assignment, codes}) => ({assignment, count: codes.length})),
+        landmasses: () => Promise.all([borders, provinces]).then(([{assignment, codes}, {province, landmass}]) => ({
+            landmasses: {assignment, count: codes.length},
+            provinces: {assignment: province, count: landmass.length},
+        })),
     })
     const board = boards.choose(() => fake.readBoard()).then(boardOf)
     nameLandmasses(board)
@@ -407,9 +415,12 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const clicker = fakePresence.counting(fakeMissions.counting(fakeStandings.counting(fake)))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
     fakeMissions.listenForFlagMissionsDone((flag, mission) => fakeChat.announceFlagMission(flag, mission))
-    fake.listenForFortifications((fortification) => void borders.then(({codes}) => fakeChat.announceFortify({
-        ...fortification, ground: codes[fortification.landmass], tiles: fake.landmassTiles(fortification.landmass),
-    }, scaleOf(played))))
+    fake.listenForFortifications((fortification) => void Promise.all([borders, provinces]).then(([{codes}, {landmass}]) => {
+        const of = landmass[fortification.province]
+        fakeChat.announceFortify({
+            ...fortification, landmass: of, ground: codes[of], tiles: fake.provinceTiles(fortification.province),
+        }, scaleOf(played))
+    }))
 
     start({
         board,
@@ -437,6 +448,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         warnings: fakeAntibot,
         tileHolders: fake,
         landmasses: fake,
+        provinces: fake,
         turn: fakeTurn,
         standings: fakeStandings,
         support: fakeSupport,
@@ -508,6 +520,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         warnings: antibot,
         tileHolders: backend,
         landmasses: backend,
+        provinces: backend,
         turn,
         standings,
         support,

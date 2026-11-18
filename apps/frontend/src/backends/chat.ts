@@ -61,7 +61,10 @@ export type FortifyAnnouncement = {
     announcedAt: number
     country: string
     ground: string
+    // The landmass the province is inside. A line kept from before fortify played on provinces (2026-11-18) names no
+    // province: it fortified the landmass.
     landmass: number
+    province: number | undefined
     tiles: number
 }
 

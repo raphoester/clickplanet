@@ -4,7 +4,7 @@ import {Fortified} from "../../domain/fortify.ts"
 import {newestNews, useNews} from "./newsStore.ts"
 
 const DROP: BombDrop = {tile: 12, point: {x: 0, y: 0, z: 1}, countryId: "fr", radius: 0.03, cleared: [12, 13], struck: [], version: {epoch: 1, seq: 4}}
-const CORSICA: Fortified = {fortification: {landmass: 257, countryId: "bg", tile: 107526, version: {epoch: 1, seq: 9}}, name: "Corsica", tiles: 16, news: true}
+const CORSICA: Fortified = {fortification: {province: 257, countryId: "bg", tile: 107526, version: {epoch: 1, seq: 9}}, name: "Corsica", tiles: 16, news: true}
 
 const newest = () => newestNews(useNews.getState())
 

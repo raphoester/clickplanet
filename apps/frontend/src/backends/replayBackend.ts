@@ -121,7 +121,8 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         this.landmasses = reel.landmasses
         this.owners = new Map(reel.opening)
         this.shields = new Map(reel.shields)
-        this.tally = new FakeTally(reel.landmasses.assignment, reel.landmasses.count)
+        // A replay is drawn in the countries' divisions: its provinces are its landmasses.
+        this.tally = new FakeTally(reel.landmasses, reel.landmasses)
         this.owners.forEach((owner, tile) => this.tally.moved(tile, undefined, owner))
         this.tally.changes(this.version())
     }

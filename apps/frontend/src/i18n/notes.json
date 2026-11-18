@@ -179,6 +179,7 @@
   "reaction.nerd": "The name of a reaction: a nerd face with glasses.",
   "reaction.earth": "The name of a reaction: the globe.",
   "announcement.fortified": "{landmass} is an island or a country's land: its flag shielded every tile it holds there.",
+  "announcement.fortifiedProvince": "{province} is a state, a region or an island of a country, by its name; {ground} is that country's name, set apart by a comma as an address is (\"Bavaria, Germany\"). {country} is the flag that took all of it.",
   "announcement.champion": "{countries} is one country or a list of them, which won the season together.",
   "announcement.bombedEmptyLand": "The bomb fell on land where no flag held a tile.",
   "bonus.refill": "The name of a bonus, on its slot in the inventory and on the card that gives it: it fills the player's clicks.",

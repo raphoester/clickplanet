@@ -440,14 +440,19 @@ function FortifyLine({announcement}: {announcement: FortifyAnnouncement}) {
     return <li className="chat-announcement" data-at={announcement.announcedAt}>
         <span className="chat-announcement-icon" aria-hidden="true">🛡️</span>
         <CountryFlag code={announcement.country}/>
-        <span className="chat-announcement-text">
-            {rich("announcement.fortified", {
-                country: <strong>{countryName(announcement.country)}</strong>,
-                landmass: translator().landmass(announcement.landmass, announcement.ground),
-            })}
-        </span>
+        <span className="chat-announcement-text">{fortifiedOf(announcement)}</span>
         <AnnouncedAt at={announcement.announcedAt}/>
     </li>
+}
+
+// "France fortified Bavaria, Germany". A province that reads as its country (a country's whole main landmass), and a
+// landmass fortified before provinces, need no country after it.
+function fortifiedOf({country, ground, landmass, province}: FortifyAnnouncement) {
+    const flag = <strong>{countryName(country)}</strong>
+    if (province === undefined) return rich("announcement.fortified", {country: flag, landmass: translator().landmass(landmass, ground)})
+    const name = translator().province(province, landmass, ground)
+    if (ground === "" || name === countryName(ground)) return rich("announcement.fortified", {country: flag, landmass: name})
+    return rich("announcement.fortifiedProvince", {country: flag, province: name, ground: countryName(ground)})
 }
 
 function RoundLine({announcement}: {announcement: RoundAnnouncement}) {

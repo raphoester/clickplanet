@@ -11,7 +11,7 @@ import {innerSphere} from "./sphere.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
-import {BorderField, leastPaintedTiles, loadBorders} from "./borderField.ts";
+import {BorderField, leastPaintedTiles, loadBorders, loadProvinces} from "./borderField.ts";
 import {coarseTolerancesOf, createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import type {BoardAsset} from "../../domain/board.ts";
@@ -423,9 +423,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const sharpness = new Sharpness(graphics, director === undefined, signal);
     const board = await options.board;
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
-    const [geometryData, borders, borderLines, terrain] = await Promise.all([
+    const bordersRead = loadBorders(board.urls.borders, signal)
+    const [geometryData, borders, provinces, borderLines, terrain] = await Promise.all([
         loadPointGeometryData(board, signal),
-        loadBorders(board.urls.borders, signal),
+        bordersRead,
+        loadProvinces(board, bordersRead, signal),
         loadBorderLines(board.urls.borderLines, coarseTolerancesOf(scaleOf(board)), signal),
         loadTerrain(board.urls.terrain, board.lattice.cols, signal),
     ]);
@@ -483,6 +485,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const territories = new BorderField(borders, undefined, leastPaintedTiles(scale))
     const landmasses = new Landmasses(borders.assignment, borders.codes.length)
+    // Fortify plays on provinces: each one's tiles, and its name.
+    const provinceTiles = new Landmasses(provinces.province, provinces.landmass.length)
+    const provinceName = (province: number) => {
+        const landmass = provinces.landmass[province] ?? 0
+        return translator().province(province, landmass, borders.codes[landmass])
+    }
     field.setLandmasses(borders.assignment)
     uniforms.landmassData.value = territories.landmassData
     uniforms.landmassCount.value = borders.codes.length
@@ -566,12 +574,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         plainClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
 
     const targets = new FortifyTargets({
-        sizeOf: (landmass) => territories.sizeOf(landmass),
-        leaderOf: (landmass) => holdings.leaderOf(landmass),
+        sizeOf: (province) => provinces.tiles[province] ?? 0,
+        leaderOf: (province) => holdings.leaderOfProvince(province),
         ownerOf: (tile) => ownership.ownerOf(tile),
         known: (tile) => tiles.known(tile),
-        tilesOf: (landmass) => landmasses.tilesOf(landmass),
-        landmassOf: (tile) => borders.assignment[tile - 1] ?? 0,
+        tilesOf: (province) => provinceTiles.tilesOf(province),
+        provinceOf: (tile) => provinces.province[tile - 1] ?? 0,
     }, (tiles, on) => {
         field.setPulses(tiles, on)
         invalidate()
@@ -583,7 +591,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         try {
             const locks = await ownershipsGetter.getFortresses(lifetime.signal)
             if (lifetime.signal.aborted) return
-            targets.lockAll(locks, borders.codes.length)
+            targets.lockAll(locks, provinces.landmass.length)
             tracking = true
         } catch (e) {
             if (!lifetime.signal.aborted) console.error("could not read the fortresses", e)
@@ -615,9 +623,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const pulsing = (camera: THREE.Camera) => {
         if (tiles.infections.count() > 0) return true
-        for (const landmass of targets.landmasses()) {
-            const at = landmass * 5
-            const along = camera.position.x * borders.frames[at] + camera.position.y * borders.frames[at + 1] + camera.position.z * borders.frames[at + 2]
+        for (const province of targets.provinces()) {
+            const at = province * 5
+            const along = camera.position.x * provinces.frames[at] + camera.position.y * provinces.frames[at + 1] + camera.position.z * provinces.frames[at + 2]
             if (along > 0) return true
         }
         return front?.facing(camera.position) ?? false
@@ -715,11 +723,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         invalidate()
     }
 
-    const recount = ({countries, landmasses}: Recount, live: boolean) => {
+    const recount = ({countries, landmasses, provinces: moved}: Recount, live: boolean) => {
         if (landmasses.length > 0) {
             territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
             arrangeSlots()
-            if (tracking) targets.recount(landmasses)
+            invalidate()
+        }
+        if (moved.length > 0 && tracking) {
+            targets.recount(moved)
             invalidate()
         }
         if (countries) publishBoard(live)
@@ -806,6 +817,14 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let shownLandmass: number | undefined
 
     const landmassOf = (tile: number | undefined) => (tile === undefined ? 0 : borders.assignment[tile - 1]) || undefined
+    // The province under the pointer in orbit: a territory card's fortify is that province's.
+    let pointedProvince: number | undefined
+    const notePointed = (tile: number | undefined) => {
+        if (tile !== undefined) pointedProvince = provinces.province[tile - 1] || undefined
+    }
+    const fortifiedIn = (landmass: number) => pointedProvince !== undefined && provinces.landmass[pointedProvince] === landmass
+        ? pointedProvince
+        : provinces.province[(landmasses.tilesOf(landmass)[0] ?? 0) - 1] ?? 0
 
     const orbiting = () => inOrbit(camera.zoom, renderer.domElement.height / renderer.getPixelRatio(), scale)
 
@@ -1517,6 +1536,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const pressedTile = pressed && picker.pick(camera, pressed.x, pressed.y)
         const orbit = orbiting()
         peek.begin(event, orbit || !loaded ? undefined : pressedTile, performance.now() / 1000)
+        if (orbit) notePointed(pressedTile || undefined)
         territoryPeek.begin(event, orbit ? landmassOf(pressedTile) : undefined, performance.now() / 1000)
         if (!loaded || !armed || !event.isTrusted || !event.isPrimary || event.button !== 0) return
 
@@ -1866,20 +1886,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     })
 
     const stopFortifications = updatesListener.listenForFortifications((fortification) => {
-        const members = landmasses.tilesOf(fortification.landmass)
+        const {province} = fortification
+        const members = provinceTiles.tilesOf(province)
         releaseGhosts(members)
         const fixed = fixedCapitals()
         const shielding = fixed ? members.filter((tile) => !fixed.has(tile)) : members
         const raised = tiles.applyFortification(shielding, fortification.countryId, tileShieldsMost(), fortification.version)
         markMissions(missionMarks.touch(raised.map(({tile}) => tile)))
         if (document.hidden || uniforms.motion.value === 0) showShields(raised)
-        else waves.start(fortification.landmass, members, fortification.tile, performance.now() / 1000)
+        else waves.start(provinces.landmass[province] ?? 0, members, fortification.tile, performance.now() / 1000)
 
         const own = fortification.countryId === country.code
         const news = isNews(fortification, members.length, country.code, scale)
         if (news) playSound("fortify", {volume: own ? 1 : DISTANT_BOMB_VOLUME})
-        onFortified({fortification, name: translator().landmass(fortification.landmass, borders.codes[fortification.landmass]), tiles: members.length, news})
-        if (tracking) targets.lock(fortification.landmass, fortification.countryId)
+        onFortified({fortification, name: provinceName(province), tiles: members.length, news})
+        if (tracking) targets.lock(province, fortification.countryId)
     })
 
     const stopKnockOuts = updatesListener.listenForKnockOuts((knockOut) => {
@@ -1982,6 +2003,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (mouse) {
             const tile = orbit ? undefined : hovered
             const landmass = orbit ? landmassOf(hovered) : undefined
+            if (orbit) notePointed(hovered)
             peek.hover(tile, seconds, pointerAt)
             territoryPeek.hover(landmass, seconds, pointerAt)
             if (tile !== peeking) endPeek()
@@ -2057,15 +2079,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             switchTo(next)
         },
         setClickHue: (hue: number | undefined) => plainClicks.setOwnHue(hue),
-        territoryOf: (landmass: number) => ({
-            landmass,
-            name: translator().landmass(landmass, borders.codes[landmass]),
-            ground: borders.codes[landmass] || undefined,
-            size: territories.sizeOf(landmass),
-            holdings: rankHoldings(holdings.holdingsOf(landmass)),
-            fortifiedBy: targets.lockOf(landmass),
-            target: targets.targetOf(landmass),
-        }),
+        territoryOf: (landmass: number) => {
+            const province = fortifiedIn(landmass)
+            return {
+                landmass,
+                name: translator().landmass(landmass, borders.codes[landmass]),
+                ground: borders.codes[landmass] || undefined,
+                size: territories.sizeOf(landmass),
+                holdings: rankHoldings(holdings.holdingsOf(landmass)),
+                province,
+                provinceName: provinces.tiles[province] === territories.sizeOf(landmass) ? undefined : provinceName(province),
+                fortifiedBy: targets.lockOf(province),
+                target: targets.targetOf(province),
+            }
+        },
         showTerritory: (landmass: number | undefined) => {
             shownLandmass = landmass
         },

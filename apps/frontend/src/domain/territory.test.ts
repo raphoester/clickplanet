@@ -7,6 +7,8 @@ const SICILY: Territory = {
     ground: "it",
     size: 100,
     holdings: [{flag: "fr", tiles: 60}, {flag: "it", tiles: 30}],
+    province: 31,
+    provinceName: "Sicily and Calabria",
     fortifiedBy: "it",
     target: undefined,
 }
@@ -53,6 +55,7 @@ describe("sameTerritory", () => {
         expect(sameTerritory(SICILY, {...SICILY, holdings: [{flag: "fr", tiles: 61}, {flag: "it", tiles: 29}]})).toBe(false)
         expect(sameTerritory(SICILY, {...SICILY, holdings: [{flag: "fr", tiles: 60}]})).toBe(false)
         expect(sameTerritory(SICILY, {...SICILY, fortifiedBy: "fr"})).toBe(false)
+        expect(sameTerritory(SICILY, {...SICILY, province: 32, provinceName: "Apulia"})).toBe(false)
         expect(sameTerritory(SICILY, {...SICILY, target: {flag: "fr", missing: 25}})).toBe(false)
         expect(sameTerritory({...SICILY, target: {flag: "fr", missing: 25}}, {...SICILY, target: {flag: "fr", missing: 24}})).toBe(false)
     })

@@ -16,7 +16,8 @@ export class HistoryBackend implements OwnershipsGetter, UpdatesListener {
 
     constructor(private readonly reel: MapReel, landmasses: ReplayLandmasses) {
         this.shown = reel.ownersAt(0)
-        this.tally = new FakeTally(landmasses.assignment, landmasses.count)
+        // A history is drawn in the countries' divisions: its provinces are its landmasses.
+        this.tally = new FakeTally(landmasses, landmasses)
         this.shown.forEach((owner, tile) => {
             if (owner !== 0) this.tally.moved(tile, undefined, reel.codes[owner])
         })

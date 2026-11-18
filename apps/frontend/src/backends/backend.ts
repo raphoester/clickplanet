@@ -37,6 +37,8 @@ export type Counts = {
     countries: ReadonlyMap<string, number>
     // Each row whole: a flag it does not list holds none of the landmass.
     landmasses: ReadonlyMap<number, ReadonlyMap<string, number>>
+    // Each row whole, as the landmasses'.
+    provinces: ReadonlyMap<number, ReadonlyMap<string, number>>
 }
 
 export interface OwnershipsGetter {
@@ -48,7 +50,7 @@ export interface OwnershipsGetter {
 
     getHoldings(signal?: AbortSignal): Promise<Counts>
 
-    // The flag each locked landmass is locked to.
+    // The flag each locked province is locked to.
     getFortresses(signal?: AbortSignal): Promise<Map<number, string>>
 }
 
@@ -69,19 +71,26 @@ export type LandmassHolder = {
     tiles: number
 }
 
-export type LandmassFortification = {
+export type LandmassState = {
+    holders: LandmassHolder[]
+}
+
+export interface LandmassReader {
+    landmass(landmass: number, signal?: AbortSignal): Promise<LandmassState>
+}
+
+export type ProvinceFortification = {
     accountId: string
     countryCode: string
     at: number
 }
 
-export type LandmassState = {
-    holders: LandmassHolder[]
-    lastFortification: LandmassFortification | undefined
+export type ProvinceState = {
+    lastFortification: ProvinceFortification | undefined
 }
 
-export interface LandmassReader {
-    landmass(landmass: number, signal?: AbortSignal): Promise<LandmassState>
+export interface ProvinceReader {
+    province(province: number, signal?: AbortSignal): Promise<ProvinceState>
 }
 
 export type Update = {
@@ -111,7 +120,7 @@ export interface UpdatesListener {
 }
 
 export type Fortification = {
-    landmass: number
+    province: number
     countryId: string
     tile: number
     version: MapVersion

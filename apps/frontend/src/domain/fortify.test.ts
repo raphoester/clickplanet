@@ -3,7 +3,7 @@ import {isNews, newsFromTiles} from "./fortify.ts"
 import {EARTH_1_SCALE, scaleOf} from "./boardScale.ts"
 import {FIXTURE_1} from "../testdata/boards.ts"
 
-const fortification = {landmass: 257, countryId: "bg", tile: 107526, version: {epoch: 1_790_000_000, seq: 9}}
+const fortification = {province: 257, countryId: "bg", tile: 107526, version: {epoch: 1_790_000_000, seq: 9}}
 
 describe("isNews", () => {
     it("is always news to the flag that fortified", () => {

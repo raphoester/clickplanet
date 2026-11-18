@@ -17,6 +17,12 @@ export type LandmassNames = {english: Lines, own: Lines}
 
 export const NO_LANDMASS_NAMES: LandmassNames = {english: {}, own: {}}
 
+// The names of a board's provinces, by id, as `npm run provinces` writes them beside the board, and in the page's
+// language. A province absent from them is a country's whole main landmass, and reads as it.
+export type ProvinceNames = {english: Lines, own: Lines}
+
+export const NO_PROVINCE_NAMES: ProvinceNames = {english: {}, own: {}}
+
 // Each flag's country inside a sentence, keyed `in.<code>`: "in {flag} the United States".
 export const ENGLISH_COUNTRIES: Lines = englishCountries
 
@@ -53,6 +59,7 @@ export class Translator {
         readonly locale: string = language,
         private readonly countryLines: Lines = ENGLISH_COUNTRIES,
         private landmasses: LandmassNames = NO_LANDMASS_NAMES,
+        private provinces: ProvinceNames = NO_PROVINCE_NAMES,
     ) {
         this.cardinals = new Intl.PluralRules(locale)
         this.ordinals = new Intl.PluralRules(locale, {type: "ordinal"})
@@ -167,6 +174,16 @@ export class Translator {
         const own = this.landmasses.own[id] ?? this.landmasses.english[id]
         if (own) return own
         return ground ? this.country(ground) : ""
+    }
+
+    nameProvinces(names: ProvinceNames): void {
+        this.provinces = names
+    }
+
+    // A province with no name of its own is its landmass, named as the landmass is.
+    province(province: number, landmass: number, ground: string | undefined): string {
+        const id = String(province)
+        return this.provinces.own[id] ?? this.provinces.english[id] ?? this.landmass(landmass, ground)
     }
 
     // "Europe", "Middle East": a region as regions.json names it, in this language.

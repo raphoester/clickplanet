@@ -18,6 +18,9 @@ export type Territory = {
     ground: string | undefined
     size: number
     holdings: Holding[]
+    // Fortify plays on provinces: the foot is the province's under the pointer, named when the territory holds others.
+    province: number
+    provinceName: string | undefined
     fortifiedBy: string | undefined
     target: Target | undefined
 }
@@ -46,6 +49,8 @@ export function sharePercent(tiles: number, size: number): string {
 
 export function sameTerritory(a: Territory, b: Territory): boolean {
     return a.landmass === b.landmass
+        && a.province === b.province
+        && a.provinceName === b.provinceName
         && a.size === b.size
         && a.fortifiedBy === b.fortifiedBy
         && a.target?.flag === b.target?.flag
