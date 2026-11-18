@@ -3,7 +3,6 @@ import * as THREE from "three"
 import {
     COARSE_SAMPLES,
     createBorderLines,
-    decodeBorderLines,
     halfWidthOf,
     limbOf,
     ORBIT_INK,
@@ -19,43 +18,18 @@ import {EARTH_RADIUS} from "./sphere.ts"
 import {flagPaint, tilePointSize, tileSpacing} from "./pointSize.ts"
 import {maxZoomOf, MIN_ZOOM} from "./zoom.ts"
 import {EARTH_1_SCALE} from "../../domain/boardScale.ts"
+import {decodeBorderLines, encodeBorderLines} from "../../domain/borderLinesFile.ts"
 
 const MAX_ZOOM = maxZoomOf(EARTH_1_SCALE)
 
 function blobOf(runs: number[][], sides: number[] = runs.flatMap(() => [0, 1])): ArrayBuffer {
-    const corners = runs.flat()
-    const bytes = new ArrayBuffer(16 + runs.length * 8 + corners.length * 2)
-    const head = new DataView(bytes)
-    for (const [at, code] of [..."CPBL"].entries()) head.setUint8(at, code.charCodeAt(0))
-    head.setUint32(4, 2, true)
-    head.setUint32(8, runs.length, true)
-    head.setUint32(12, corners.length / 3, true)
-    new Uint32Array(bytes, 16, runs.length).set(runs.map((run) => run.length / 3))
-    new Uint16Array(bytes, 16 + runs.length * 4, runs.length * 2).set(sides)
-    new Int16Array(bytes, 16 + runs.length * 8).set(corners)
-    return bytes
+    const bytes = encodeBorderLines({
+        runs: Uint32Array.from(runs, (run) => run.length / 3),
+        sides: Uint16Array.from(sides),
+        corners: Int16Array.from(runs.flat()),
+    })
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
 }
-
-describe("decodeBorderLines", () => {
-    it("reads back the runs, the landmasses either side of each and the corners", () => {
-        const data = decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12, 13, 14, 15]], [0, 4, 4, 9]))
-        expect([...data.runs]).toEqual([2, 3])
-        expect([...data.sides]).toEqual([0, 4, 4, 9])
-        expect([...data.corners]).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
-    })
-
-    it("refuses a blob that is not one", () => {
-        const bytes = blobOf([[1, 2, 3, 4, 5, 6]])
-        new DataView(bytes).setUint8(0, "X".charCodeAt(0))
-        expect(() => decodeBorderLines(bytes)).toThrow(/magic/)
-    })
-
-    it("refuses a version it does not know", () => {
-        const bytes = blobOf([[1, 2, 3, 4, 5, 6]])
-        new DataView(bytes).setUint32(4, 1, true)
-        expect(() => decodeBorderLines(bytes)).toThrow(/version 1/)
-    })
-})
 
 describe("outlineSegments", () => {
     const at = (points: Int16Array, piece: number) => [...points.slice(piece * 3, piece * 3 + 3)]

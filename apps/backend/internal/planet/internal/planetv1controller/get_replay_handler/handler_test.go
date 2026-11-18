@@ -62,6 +62,16 @@ func TestAnInvalidWindowIsTheCallersMistake(t *testing.T) {
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
+func TestAWindowEndedBeforeAResetOrASwitchOfBoardCannotBeRewoundTo(t *testing.T) {
+	for _, refused := range []error{replay_usecase.ErrBeforeReset, replay_usecase.ErrBeforeSwitch} {
+		useCase := &stubUseCase{err: fmt.Errorf("wrapped: %w", refused)}
+
+		_, err := get_replay_handler.New(useCase).GetReplay(t.Context(), connect.NewRequest(&planetv1.GetReplayRequest{}))
+
+		assert.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err), "%v", refused)
+	}
+}
+
 func TestEachSceneGoesOutAsTheLiveStreamSentIt(t *testing.T) {
 	blast := clicks.Blast{
 		Tile: 5, CountryID: "fr", Radius: 0.03, Cleared: []uint32{5, 6}, Struck: []uint32{7}, Left: []int{1}, StruckOwners: []string{"de"},

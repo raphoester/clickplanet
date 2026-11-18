@@ -42,7 +42,7 @@ export type ChatQuote = {
 }
 
 export type ChatAnnouncement = BombAnnouncement | MuteAnnouncement | RoundAnnouncement | FortifyAnnouncement | ChampionAnnouncement
-    | FlagMissionAnnouncement | KnockOutAnnouncement | RallyAnnouncement
+    | FlagMissionAnnouncement | KnockOutAnnouncement | RallyAnnouncement | WorldGrewAnnouncement
 
 export type BombAnnouncement = {
     kind: "bomb"
@@ -130,6 +130,14 @@ export type RallyAnnouncement = {
     // None for a tile the server names no landmass of.
     ground?: string
     landmass?: number
+}
+
+// The world's map moved onto a board of times as many tiles, its land carried over.
+export type WorldGrewAnnouncement = {
+    kind: "board_switched"
+    id: string
+    announcedAt: number
+    times: number
 }
 
 export type ChatHistory = {

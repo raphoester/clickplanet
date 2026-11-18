@@ -4,7 +4,7 @@ import {Timestamp} from "@bufbuild/protobuf"
 import {Debrief as DebriefMessage, EntryKind, GamemasterEvent, Timeline, Turn as TurnMessage} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {BattleEnded, DayEnded, SeasonEnded} from "../gen/grpc/gamemaster/v1/events_pb.ts"
 import {ConnectTurnBackend, historyOf, turnOf} from "./turnBackend.ts"
-import {BoardEra, MapFrame as MapFrameMessage, MapHistory as MapHistoryMessage, TileHits, TileOwner} from "../gen/grpc/planet/v1/history_pb.ts"
+import {BoardEra, MapFrame as MapFrameMessage, MapHistory as MapHistoryMessage, TileHits, TileOwner, WholeMap} from "../gen/grpc/planet/v1/history_pb.ts"
 import {FIRST_ERA} from "../domain/eras.ts"
 import {Seasons} from "./season.ts"
 import {BattleToCome, Debrief, Turn} from "./turn.ts"
@@ -180,10 +180,24 @@ describe("historyOf", () => {
     const frame = (ms: number, owners: [number, string, number?][]) => new MapFrameMessage({
         at: at(ms), owners: owners.map(([tile, countryId, secondsIntoStep]) => new TileOwner({tile, countryId, secondsIntoStep})),
     })
+    // Tile 1 held by the flag, as GetMap writes the map.
+    const whole = (ms: number, flag: string) => new MapFrameMessage({
+        at: at(ms), whole: new WholeMap({startTileId: 1, codes: ["", flag], tiles: new Uint8Array([1, 0])}),
+    })
+
+    it("reads a whole frame as GetMap writes the map: every tile held, at the frame's own time", () => {
+        const history = historyOf(new MapHistoryMessage({frames: [new MapFrameMessage({
+            at: at(since), whole: new WholeMap({startTileId: 3, codes: ["", "de", "fr"], tiles: new Uint8Array([2, 0, 0, 0, 1, 0])}),
+        })]}))
+
+        expect([...history.frames[0].tiles]).toEqual([3, 5])
+        expect(history.frames[0].owners).toEqual(["fr", "de"])
+        expect([...history.frames[0].changedAt]).toEqual([since, since])
+    })
 
     it("reads its eras, and each tile's hits in the era of its board", () => {
         const history = historyOf(new MapHistoryMessage({
-            frames: [frame(since, [[1, "fr"]]), frame(since + 60_000, [[1, "de", 20]]), frame(endsAt, [[1, "it", 50]])],
+            frames: [whole(since, "fr"), frame(since + 60_000, [[1, "de", 20]]), whole(endsAt, "it")],
             hits: [new TileHits({tile: 1, hits: 3, era: 0}), new TileHits({tile: 1, hits: 5, era: 1})],
             eras: [new BoardEra({startedAt: at(0), board: "earth-1"}), new BoardEra({startedAt: at(endsAt), board: "fixture-1"})],
         }))
@@ -196,7 +210,7 @@ describe("historyOf", () => {
     })
 
     it("is one era on the first board for a history from before eras", () => {
-        const history = historyOf(new MapHistoryMessage({frames: [frame(since, [[1, "fr"]])], hits: [new TileHits({tile: 1, hits: 2})]}))
+        const history = historyOf(new MapHistoryMessage({frames: [whole(since, "fr")], hits: [new TileHits({tile: 1, hits: 2})]}))
 
         expect(history.eras).toEqual([FIRST_ERA])
         expect(history.hits).toEqual([new Map([[1, 2]])])

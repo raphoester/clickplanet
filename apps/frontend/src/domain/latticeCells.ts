@@ -152,21 +152,15 @@ export type TileCells = {
 
 export const IDS_PER_WORD = 32
 
-// `ids` holds each tile's canonical id, and `positions` its position, in tile order. Every tile's position must find its
-// own cell, as the territory layer and the pick find a pixel's: a lattice whose inverse misses one is refused, and the
-// globe does not load.
-export function cellsOf(ids: Uint32Array, given: Lattice | number, positions: Float32Array): TileCells {
+// `ids` holds each tile's canonical id, in tile order.
+export function cellsOf(ids: Uint32Array, given: Lattice | number): TileCells {
     const lattice = latticeOf(given)
     const points = latticeSize(lattice.cols)
-    if (positions.length !== ids.length * 3) throw new Error(`${ids.length} tiles but ${positions.length / 3} positions`)
     const isTile = new Uint8Array(points)
-    const faces = latticeFaces(lattice)
     ids.forEach((id, tile) => {
         if (id >= points) throw new Error(`tile ${tile + 1} is past the lattice's ${points} points`)
         if (isTile[id]) throw new Error(`tile ${tile + 1} is in the cell of another tile`)
         isTile[id] = 1
-        const found = cellOf(faces, lattice, positions[tile * 3], positions[tile * 3 + 1], positions[tile * 3 + 2])
-        if (found !== id) throw new Error(`tile ${tile + 1}, point ${id}, is found in the cell of point ${found}`)
     })
 
     const wordCount = Math.ceil(points / IDS_PER_WORD)
@@ -191,6 +185,18 @@ export function cellsOf(ids: Uint32Array, given: Lattice | number, positions: Fl
         byTexel[texel] = tile
     })
     return {lattice, words, texels, tiles: byTexel}
+}
+
+// Every tile's position must find its own cell, as the territory layer and the pick find a pixel's: a lattice whose
+// inverse misses one is refused. `ids` holds each tile's canonical id, and `positions` its position, in tile order.
+export function checkCells(ids: Uint32Array, given: Lattice | number, positions: Float32Array): void {
+    const lattice = latticeOf(given)
+    if (positions.length !== ids.length * 3) throw new Error(`${ids.length} tiles but ${positions.length / 3} positions`)
+    const faces = latticeFaces(lattice)
+    ids.forEach((id, tile) => {
+        const found = cellOf(faces, lattice, positions[tile * 3], positions[tile * 3 + 1], positions[tile * 3 + 2])
+        if (found !== id) throw new Error(`tile ${tile + 1}, point ${id}, is found in the cell of point ${found}`)
+    })
 }
 
 // The tile whose cell holds a direction, by its 1-based id, or undefined over the sea.

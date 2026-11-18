@@ -4,15 +4,15 @@ package planet.v1;
 
 import "google/protobuf/timestamp.proto";
 
-// The map as it was every step of a window, out of the ledger. The first frame holds every tile held at the window's
-// start; each next one the tiles whose owner differs from the frame before.
+// The map as it was every step of a window, out of the ledger. The first frame is whole: every tile held at the window's
+// start. Each next one is the tiles whose owner differs from the frame before.
 message MapHistory {
   repeated MapFrame frames = 1;
   // Each tile's changes of owner and shield hits in the window, in each era; a tile with none is left out.
   repeated TileHits hits = 2;
   // The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
   // started in it. A frame's tile ids are the board of the era in force at its time, and the first frame of each era
-  // holds every tile held on its board, as the window's first frame does: the cut.
+  // is whole, every tile held on its board, as the window's first frame is: the cut.
   repeated BoardEra eras = 3;
 }
 
@@ -23,9 +23,24 @@ message BoardEra {
   string board = 2;
 }
 
+// A frame is whole (the window's first, and the first of each era) or a frame of changes (every other one).
 message MapFrame {
   google.protobuf.Timestamp at = 1;
+  // A frame of changes: each tile whose owner differs from the frame before. Empty in a whole frame.
   repeated TileOwner owners = 2;
+  // A whole frame: every tile held at its time. Unset in a frame of changes.
+  WholeMap whole = 3;
+}
+
+// Every tile held, as GetMap writes the map: two bytes a tile.
+message WholeMap {
+  // The first tile of tiles: every tile before it is held by no one.
+  uint32 start_tile_id = 1;
+  // The flags tiles names, "" (no one) first.
+  repeated string codes = 2;
+  // Two bytes a tile from start_tile_id on, little endian, each an index into codes. A tile past its end is held by no
+  // one.
+  bytes tiles = 3;
 }
 
 message TileOwner {

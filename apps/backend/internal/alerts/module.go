@@ -48,6 +48,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/roles/tidy_roles_runner"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/battle_started_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/board_switched_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/discord_join_granted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/log_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers/nickname_subscriber"
@@ -131,6 +132,10 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		},
 		func() (cpbootstrap.Runner, error) {
 			return cpredis.Subscribe(ctx, streams, "alerts-seasons", log_subscriber.New(season_started_subscriber.New(
+				announce), props.Logger))
+		},
+		func() (cpbootstrap.Runner, error) {
+			return cpredis.Subscribe(ctx, streams, "alerts-board-switches", log_subscriber.New(board_switched_subscriber.New(
 				announce), props.Logger))
 		},
 		func() (cpbootstrap.Runner, error) {

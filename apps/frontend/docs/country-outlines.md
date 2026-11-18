@@ -71,8 +71,20 @@ only the land points and a coast needs the sea around it. A cell corner is the c
 the normal of the plane through its three vertices — which makes the cells a true
 Voronoi diagram of the tiles and the corners meet exactly, so there are no seams
 to cover up at the joins. The edges are then chained into runs, which is what
-keeps the file to one corner per edge rather than two: 56,790 edges in 353 KB on `earth-1`, 129,431 in 791 KB on
-`earth-2`, 14,419 in 96 KB on `siege-1`.
+keeps the file to one corner per edge rather than two, and **each corner after a run's first is written as its
+difference from the one before** (version 3 of the file, 2026-11-18, `domain/borderLinesFile.ts`; the format is in
+[`/map/README.md`](../../../map/README.md#format)): a cell edge is a few dozen units of the int16 corners, a byte as a
+zigzag varint. Version 2 wrote each corner as three plain int16s, which brotli packed poorly, and the file was most of
+what `earth-2`'s globe waited for. Size raw, and packed with brotli at 5:
+
+| board | edges | version 2 | version 3 |
+| --- | --- | --- | --- |
+| `earth-1` | 56,790 | 362 KB, 324 KB packed | 222 KB, 122 KB packed |
+| `earth-2` | 129,431 | 810 KB, 767 KB packed | 422 KB, 220 KB packed |
+| `siege-1` | 14,419 | 99 KB, 90 KB packed | 87 KB, 63 KB packed |
+
+`borderLinesFile.test.ts` pins that version 3 reads back each shipped board's lines to the bit, as version 2 held
+them (a hash of the runs, the sides and the corners), and writes them back to the same bytes.
 The smoothing is not baked in — the blob is the outline on the lattice, and how
 finely it is rounded off is the renderer's business and four times the size.
 

@@ -405,6 +405,16 @@ describe("decodedAnnouncement", () => {
         expect(decodedAnnouncement(bomb(`{"by":"de"}`, "knock_out"))).toBeUndefined()
     })
 
+    it("reads the world's switch of board as how many times the ground it has", () => {
+        expect(decodedAnnouncement(bomb(`{"from":"earth-1","to":"earth-2","fromTiles":260503,"toTiles":1004682}`, "board_switched"))).toEqual({
+            kind: "board_switched",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            times: 4,
+        })
+        expect(decodedAnnouncement(bomb(`{"from":"earth-1","to":"earth-2","toTiles":1004682}`, "board_switched"))).toBeUndefined()
+    })
+
     it("reads a rally: who called it, its flag, and the landmass when the server names one", () => {
         expect(decodedAnnouncement(bomb(`{"name":"le professeur","country":"fr","ground":"au","landmass":420}`, "rally"))).toEqual({
             kind: "rally",

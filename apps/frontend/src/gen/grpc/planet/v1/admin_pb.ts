@@ -10,6 +10,207 @@ import { BoardEra } from "./history_pb.js";
 import { Rules } from "./rules_pb.js";
 
 /**
+ * @generated from message planet.v1.SwitchBoardRequest
+ */
+export class SwitchBoardRequest extends Message<SwitchBoardRequest> {
+  /**
+   * The map to move: "world", the one map that switches.
+   *
+   * @generated from field: string map = 1;
+   */
+  map = "";
+
+  /**
+   * The board to play, as /map/boards names it: "earth-2".
+   *
+   * @generated from field: string board = 2;
+   */
+  board = "";
+
+  /**
+   * Counts what the switch would carry, and changes nothing.
+   *
+   * @generated from field: bool dry_run = 3;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<SwitchBoardRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.SwitchBoardRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "map", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SwitchBoardRequest {
+    return new SwitchBoardRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SwitchBoardRequest {
+    return new SwitchBoardRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SwitchBoardRequest {
+    return new SwitchBoardRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SwitchBoardRequest | PlainMessage<SwitchBoardRequest> | undefined, b: SwitchBoardRequest | PlainMessage<SwitchBoardRequest> | undefined): boolean {
+    return proto3.util.equals(SwitchBoardRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.SwitchBoardResponse
+ */
+export class SwitchBoardResponse extends Message<SwitchBoardResponse> {
+  /**
+   * The board the map played, and the one it plays now (or would, on a dry run).
+   *
+   * @generated from field: string from = 1;
+   */
+  from = "";
+
+  /**
+   * @generated from field: string to = 2;
+   */
+  to = "";
+
+  /**
+   * The new board's tiles: carried are those with an old tile to come from, blank those with none (a new coast or
+   * island). carried + blank = tiles.
+   *
+   * @generated from field: uint32 tiles = 3;
+   */
+  tiles = 0;
+
+  /**
+   * @generated from field: uint32 carried = 4;
+   */
+  carried = 0;
+
+  /**
+   * @generated from field: uint32 blank = 5;
+   */
+  blank = 0;
+
+  /**
+   * Tiles held by a flag, on the old board before and on the new one after.
+   *
+   * @generated from field: uint32 held_before = 6;
+   */
+  heldBefore = 0;
+
+  /**
+   * @generated from field: uint32 held_after = 7;
+   */
+  heldAfter = 0;
+
+  /**
+   * Old tiles no new tile comes from (a coast the new board draws as sea), and how many of them a flag held.
+   *
+   * @generated from field: uint32 dropped = 8;
+   */
+  dropped = 0;
+
+  /**
+   * @generated from field: uint32 dropped_held = 9;
+   */
+  droppedHeld = 0;
+
+  /**
+   * Every shield on the map before and after: the same, but for the shields of the old tiles dropped.
+   *
+   * @generated from field: uint32 shields_before = 10;
+   */
+  shieldsBefore = 0;
+
+  /**
+   * @generated from field: uint32 shields_after = 11;
+   */
+  shieldsAfter = 0;
+
+  /**
+   * The mines moved to a new tile, and the ones on an old tile dropped.
+   *
+   * @generated from field: uint32 mines_moved = 12;
+   */
+  minesMoved = 0;
+
+  /**
+   * @generated from field: uint32 mines_lost = 13;
+   */
+  minesLost = 0;
+
+  /**
+   * Live viruses, which end.
+   *
+   * @generated from field: uint32 viruses_ended = 14;
+   */
+  virusesEnded = 0;
+
+  /**
+   * Landmasses fortified on the old board, whose locks are dropped; the new board settles its own.
+   *
+   * @generated from field: uint32 locks_dropped = 15;
+   */
+  locksDropped = 0;
+
+  /**
+   * When the map switched; unset on a dry run.
+   *
+   * @generated from field: google.protobuf.Timestamp switched_at = 16;
+   */
+  switchedAt?: Timestamp;
+
+  constructor(data?: PartialMessage<SwitchBoardResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.SwitchBoardResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "from", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "carried", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "blank", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "held_before", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 7, name: "held_after", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 8, name: "dropped", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "dropped_held", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 10, name: "shields_before", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 11, name: "shields_after", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 12, name: "mines_moved", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 13, name: "mines_lost", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 14, name: "viruses_ended", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 15, name: "locks_dropped", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 16, name: "switched_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SwitchBoardResponse {
+    return new SwitchBoardResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SwitchBoardResponse {
+    return new SwitchBoardResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SwitchBoardResponse {
+    return new SwitchBoardResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SwitchBoardResponse | PlainMessage<SwitchBoardResponse> | undefined, b: SwitchBoardResponse | PlainMessage<SwitchBoardResponse> | undefined): boolean {
+    return proto3.util.equals(SwitchBoardResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.GetReplayRequest
  */
 export class GetReplayRequest extends Message<GetReplayRequest> {

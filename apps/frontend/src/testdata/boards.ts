@@ -37,7 +37,7 @@ const rebuilt = new Map<string, RebuiltTiles>()
 export function tilesOfBoard(board: Board): RebuiltTiles {
     let tiles = rebuilt.get(board.name)
     if (tiles === undefined) {
-        tiles = rebuildTiles(board.lattice, board.tiles, bytesOf(board, board.files.runs))
+        tiles = rebuildTiles(board.lattice, board.tiles, bytesOf(board, board.files.runs), board.positionsHash)
         rebuilt.set(board.name, tiles)
     }
     return tiles

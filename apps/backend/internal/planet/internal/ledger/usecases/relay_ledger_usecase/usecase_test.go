@@ -369,3 +369,18 @@ func TestATileOfABoardThisProcessDoesNotCarryIsToldWithNoGroundNorPoint(t *testi
 	assert.Nil(t, other.GetPoint())
 	assert.Empty(t, events.sent[1].(*planetv1.TilesTaken).GetBoard(), "a board this process does not carry has no name here")
 }
+
+func TestASwitchOfBoardIsToldAsBoardSwitchedAndAsNoTake(t *testing.T) {
+	storage := flushed(t, ledger.Switching{From: "earth-1", To: "earth-2", FromTiles: 260503, ToTiles: 1004682, At: at})
+	events := &sender{}
+
+	n, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
+	require.NoError(t, err)
+
+	assert.Equal(t, 1, n)
+	require.Len(t, events.sent, 1, "no TilesTaken and no ShieldsStruck: nobody took a tile")
+	assert.True(t, proto.Equal(&planetv1.BoardSwitched{
+		Map: "world", From: "earth-1", To: "earth-2", FromTiles: 260503, ToTiles: 1004682, SwitchedAt: timestamppb.New(at),
+		Position: 0,
+	}, events.sent[0]), "%v", events.sent[0])
+}

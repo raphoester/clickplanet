@@ -74,7 +74,7 @@ func (r *Rewind) frameOf(at time.Time) (int, bool) {
 func (r *Rewind) Frames(now clicks.DenseBatch) []Frame {
 	opening := r.openingOf(now)
 	shown := make(map[uint32]string)
-	frames := []Frame{{At: r.at[0], Owners: opening}}
+	frames := []Frame{{At: r.at[0], Owners: opening, Whole: true}}
 	for frame := 1; frame < len(r.at); frame++ {
 		owners := map[uint32]Owner{}
 		for tile, owner := range r.steps[frame] {

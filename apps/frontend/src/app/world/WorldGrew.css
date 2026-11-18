@@ -1,0 +1,57 @@
+.world-grew-head {
+    max-width: 100%;
+    font-size: clamp(var(--display-l), min(9.5vw, 9vh), var(--display-hero));
+    white-space: normal;
+    text-wrap: balance;
+}
+
+.world-grew-globe {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin: var(--space-6) 0 var(--space-4);
+}
+
+.world-grew-rays {
+    inset: -90% -60%;
+    z-index: 0;
+}
+
+.world-grew-art {
+    position: relative;
+    z-index: 1;
+    font-size: clamp(96px, 20vh, 150px);
+    line-height: 1;
+    filter: drop-shadow(0 4px 0 var(--ink));
+    animation: title-reveal-slam 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) calc(var(--impact) - 200ms) both;
+}
+
+.world-grew-times {
+    position: relative;
+    z-index: 1;
+    max-width: 100%;
+    margin: 0;
+    padding-top: 0.1em;
+    font-family: var(--font-display);
+    font-size: clamp(var(--display-l), min(10vw, 8vh), calc(var(--display-hero) * 0.6));
+    line-height: 1;
+    color: var(--gain);
+    text-shadow: var(--text-outline-l);
+    overflow-wrap: anywhere;
+    animation: title-reveal-pop 380ms cubic-bezier(0.3, 1.6, 0.5, 1) calc(var(--impact) + 250ms) both;
+}
+
+.world-grew-actions {
+    justify-content: center;
+}
+
+.world-grew-actions .button {
+    flex: 0 1 220px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .world-grew-art,
+    .world-grew-times {
+        animation: title-reveal-appear 300ms ease-out both;
+    }
+}

@@ -474,6 +474,88 @@ export class Fortified extends Message<Fortified> {
 }
 
 /**
+ * The world's map moved onto another board, its land carried over (AdminService/SwitchBoard): a new era on that board.
+ * No take: no tile of it is in a TilesTaken.
+ *
+ * @generated from message planet.v1.BoardSwitched
+ */
+export class BoardSwitched extends Message<BoardSwitched> {
+  /**
+   * The map that moved: "world".
+   *
+   * @generated from field: string map = 1;
+   */
+  map = "";
+
+  /**
+   * The boards, as /map/boards names them: "earth-1", "earth-2".
+   *
+   * @generated from field: string from = 2;
+   */
+  from = "";
+
+  /**
+   * @generated from field: string to = 3;
+   */
+  to = "";
+
+  /**
+   * Each board's tiles.
+   *
+   * @generated from field: uint32 from_tiles = 4;
+   */
+  fromTiles = 0;
+
+  /**
+   * @generated from field: uint32 to_tiles = 5;
+   */
+  toTiles = 0;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp switched_at = 6;
+   */
+  switchedAt?: Timestamp;
+
+  /**
+   * @generated from field: uint64 position = 7;
+   */
+  position = protoInt64.zero;
+
+  constructor(data?: PartialMessage<BoardSwitched>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BoardSwitched";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "map", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "from", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "from_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 5, name: "to_tiles", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 6, name: "switched_at", kind: "message", T: Timestamp },
+    { no: 7, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BoardSwitched {
+    return new BoardSwitched().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BoardSwitched {
+    return new BoardSwitched().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BoardSwitched {
+    return new BoardSwitched().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BoardSwitched | PlainMessage<BoardSwitched> | undefined, b: BoardSwitched | PlainMessage<BoardSwitched> | undefined): boolean {
+    return proto3.util.equals(BoardSwitched, a, b);
+  }
+}
+
+/**
  * A shield a player placed, with the tile's shields after it.
  *
  * @generated from message planet.v1.ShieldPlaced

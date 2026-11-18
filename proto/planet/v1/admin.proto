@@ -62,6 +62,52 @@ service AdminService {
 
   // Makes a set, or replaces its values. A save of the set that plays now takes over at once.
   rpc SaveRuleSet(SaveRuleSetRequest) returns (SaveRuleSetResponse);
+
+  // Moves the world's map onto another board, its land carried over, once: each tile of the new board takes the flag
+  // and holder of the old tile it comes from, each old tile's shields are split across its new tiles, each mine moves
+  // to the new tile nearest it, live viruses end and fortify locks are settled again. Then every page reloads onto the
+  // new board. No take: nobody gains tiles, XP or a mission's progress. Refused while an arena is open, for a board
+  // this build does not carry or has no carry-over to, and for the board the map plays already. Run it with dry_run
+  // first: it answers the same counts and changes nothing.
+  rpc SwitchBoard(SwitchBoardRequest) returns (SwitchBoardResponse);
+}
+
+message SwitchBoardRequest {
+  // The map to move: "world", the one map that switches.
+  string map = 1;
+  // The board to play, as /map/boards names it: "earth-2".
+  string board = 2;
+  // Counts what the switch would carry, and changes nothing.
+  bool dry_run = 3;
+}
+
+message SwitchBoardResponse {
+  // The board the map played, and the one it plays now (or would, on a dry run).
+  string from = 1;
+  string to = 2;
+  // The new board's tiles: carried are those with an old tile to come from, blank those with none (a new coast or
+  // island). carried + blank = tiles.
+  uint32 tiles = 3;
+  uint32 carried = 4;
+  uint32 blank = 5;
+  // Tiles held by a flag, on the old board before and on the new one after.
+  uint32 held_before = 6;
+  uint32 held_after = 7;
+  // Old tiles no new tile comes from (a coast the new board draws as sea), and how many of them a flag held.
+  uint32 dropped = 8;
+  uint32 dropped_held = 9;
+  // Every shield on the map before and after: the same, but for the shields of the old tiles dropped.
+  uint32 shields_before = 10;
+  uint32 shields_after = 11;
+  // The mines moved to a new tile, and the ones on an old tile dropped.
+  uint32 mines_moved = 12;
+  uint32 mines_lost = 13;
+  // Live viruses, which end.
+  uint32 viruses_ended = 14;
+  // Landmasses fortified on the old board, whose locks are dropped; the new board settles its own.
+  uint32 locks_dropped = 15;
+  // When the map switched; unset on a dry run.
+  google.protobuf.Timestamp switched_at = 16;
 }
 
 message GetReplayRequest {

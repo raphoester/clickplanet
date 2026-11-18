@@ -640,7 +640,8 @@ export default function PlayScreen(props: PlayScreenProps) {
                  accountId={ownAccountId}
                  play={sound.play}
                  onWear={backends.account.wearTitle}
-                 video={video.offered ? {onMake: showVideo, onMoment: onVideoMoment} : undefined}/>
+                 video={video.offered ? {onMake: showVideo, onMoment: onVideoMoment} : undefined}
+                 board={backends.board}/>
 
         <MissionsDone/>
 

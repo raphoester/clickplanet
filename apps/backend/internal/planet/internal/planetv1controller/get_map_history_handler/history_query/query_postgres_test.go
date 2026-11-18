@@ -1,6 +1,7 @@
 package history_query_test
 
 import (
+	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_map_history_handler/history_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
@@ -29,8 +31,9 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	db    *cppg.Postgres
-	store *postgres_ledger_store.Store
+	db      *cppg.Postgres
+	store   *postgres_ledger_store.Store
+	carries carries
 }
 
 const ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
@@ -48,6 +51,7 @@ func (s *testSuite) SetupSuite() {
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
 	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
+	s.carries = carries{}
 }
 
 func (s *testSuite) record(events ...ledger.Event) {
@@ -72,12 +76,12 @@ func (s *testSuite) TestTheHistoryReplaysTheLedgerFromItsFirstEventIntoAFrameEac
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "jp", At: until},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(s.T().Context(), since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(s.T().Context(), since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: []*planetv1.MapFrame{
-			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr"}}},
+			{At: timestamppb.New(since), Whole: wholeOf(map[uint32]string{1: "fr"})},
 			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{
 				{Tile: 2, CountryId: "de", SecondsIntoStep: 1800}, {Tile: 3, CountryId: "de", SecondsIntoStep: 1800},
 			}},
@@ -99,12 +103,12 @@ func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWin
 	_, err = s.db.On(ctx).ExecContext(ctx, `INSERT INTO map_resets (id, at) VALUES ('season-1', $1)`, since.Add(-time.Hour))
 	s.Require().NoError(err)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: []*planetv1.MapFrame{
-			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 2, CountryId: "de"}}},
+			{At: timestamppb.New(since), Whole: wholeOf(map[uint32]string{2: "de"})},
 			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{}},
 			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
 		},
@@ -127,12 +131,12 @@ func (s *testSuite) TestTheWorldsMapStandsStillOverAnArenaAndJoinsUpAfterIt() {
 		},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: []*planetv1.MapFrame{
-			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{}},
+			{At: timestamppb.New(since), Whole: wholeOf(map[uint32]string{})},
 			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr", SecondsIntoStep: 600}}},
 			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{{Tile: 3, CountryId: "de", SecondsIntoStep: 1200}}},
 		},
@@ -147,6 +151,7 @@ func (s *testSuite) TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut() {
 	switched := since.Add(30 * time.Minute)
 	s.Require().NoError(eras.KeepFixture(ctx, s.db))
 	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, fixture, switched))
+	s.carries[toFixture] = carried{5: 1, 7: 2, 8: 9}
 	s.record(
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(-time.Hour)},
 		ledger.Taking{Tile: 2, Scope: "203.0.113.7", Country: "fr", At: since.Add(10 * time.Minute)},
@@ -155,13 +160,13 @@ func (s *testSuite) TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut() {
 		ledger.Staged{On: fixture, Event: ledger.Taking{Tile: 6, Scope: "203.0.113.7", Country: "jp", At: since.Add(70 * time.Minute)}},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
 		Frames: []*planetv1.MapFrame{
-			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr"}}},
-			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{{Tile: 5, CountryId: "de", SecondsIntoStep: 2400}}},
+			{At: timestamppb.New(since), Whole: wholeOf(map[uint32]string{1: "fr"})},
+			{At: timestamppb.New(since.Add(time.Hour)), Whole: wholeOf(map[uint32]string{5: "de", 7: "fr"})},
 			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{{Tile: 6, CountryId: "jp", SecondsIntoStep: 600}}},
 		},
 		Hits: []*planetv1.TileHits{{Tile: 2, Hits: 1}, {Tile: 5, Hits: 1, Era: 1}, {Tile: 6, Hits: 1, Era: 1}},
@@ -169,8 +174,9 @@ func (s *testSuite) TestAHistoryAcrossTwoErasDrawsEachOnItsBoardWithTheCut() {
 			{StartedAt: timestamppb.New(eras.Epoch), Board: "earth-1"},
 			{StartedAt: timestamppb.New(switched), Board: "fixture-1"},
 		},
-	}, history), "the frame before the cut is earth-1's; the first after it holds every tile held on fixture-1, whole; an "+
-		"earth-1 take after the cut is no longer the world's map, and each hit names its era: %v", history)
+	}, history), "the frame before the cut is earth-1's; the first after it holds every tile held on fixture-1, whole: each "+
+		"carried from the earth-1 tile it comes from, then taken; an earth-1 take after the cut is no longer the world's "+
+		"map, and each hit names its era: %v", history)
 }
 
 func (s *testSuite) TestAWindowInsideTheSecondEraOpensOnItsBoardAlone() {
@@ -178,15 +184,16 @@ func (s *testSuite) TestAWindowInsideTheSecondEraOpensOnItsBoardAlone() {
 	fixture := clicks.World.On(eras.Fixture.ID)
 	s.Require().NoError(eras.KeepFixture(ctx, s.db))
 	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, fixture, since.Add(-time.Hour)))
+	s.carries[toFixture] = carried{}
 	s.record(
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(-2 * time.Hour)},
 		ledger.Staged{On: fixture, Event: ledger.Taking{Tile: 5, Scope: "203.0.113.7", Country: "de", At: since.Add(-time.Minute)}},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
-	s.True(proto.Equal(&planetv1.MapFrame{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{{Tile: 5, CountryId: "de"}}},
+	s.True(proto.Equal(&planetv1.MapFrame{At: timestamppb.New(since), Whole: wholeOf(map[uint32]string{5: "de"})},
 		history.GetFrames()[0]), "earth-1's tile 1 is another era's: %v", history)
 	s.True(proto.Equal(&planetv1.BoardEra{StartedAt: timestamppb.New(since.Add(-time.Hour)), Board: "fixture-1"},
 		history.GetEras()[0]), "the era in force at the window's start, alone")
@@ -195,3 +202,47 @@ func (s *testSuite) TestAWindowInsideTheSecondEraOpensOnItsBoardAlone() {
 
 // The world's one era, as the migration that made eras keeps it.
 var worldOnEarth1 = []*planetv1.BoardEra{{StartedAt: timestamppb.New(eras.Epoch), Board: "earth-1"}}
+
+func (s *testSuite) TestAHistoryAcrossASwitchWithNoCarryOverIsRefused() {
+	ctx := s.T().Context()
+	s.Require().NoError(eras.KeepFixture(ctx, s.db))
+	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, clicks.World.On(eras.Fixture.ID), since.Add(30*time.Minute)))
+
+	_, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db), s.carries).History(ctx, since, until, time.Hour)
+
+	s.Require().ErrorIs(err, errNoCarry, "never a blank board drawn where the switch carried the map over")
+}
+
+func wholeOf(owners map[uint32]string) *planetv1.WholeMap {
+	held := make(map[uint32]ledger.Owner, len(owners))
+	for tile, country := range owners {
+		held[tile] = ledger.Owner{Country: country}
+	}
+	return planetmessage.Whole(held)
+}
+
+var (
+	toFixture  = switchOf{from: "earth-1", to: "fixture-1"}
+	errNoCarry = errors.New("no carry-over")
+)
+
+type switchOf struct{ from, to clicks.BoardName }
+
+// carries is each switch's carry-over a test ships.
+type carries map[switchOf]carried
+
+func (c carries) Carry(from, to eras.Board) (ledger.Carry, error) {
+	carry, ok := c[switchOf{from: from.Name, to: to.Name}]
+	if !ok {
+		return nil, errNoCarry
+	}
+	return carry, nil
+}
+
+type carried map[uint32]uint32
+
+func (c carried) Each(visit func(child, parent uint32)) {
+	for child, parent := range c {
+		visit(child, parent)
+	}
+}

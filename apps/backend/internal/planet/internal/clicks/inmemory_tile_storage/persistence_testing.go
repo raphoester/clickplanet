@@ -300,6 +300,38 @@ func (m *MemoryPersistence) Save(
 	return nil
 }
 
+func (m *MemoryPersistence) Carry(
+	ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot, keep func(ctx context.Context) (bool, error),
+) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return false, m.failing
+	}
+	kept, err := keep(ctx)
+	if err != nil || !kept {
+		return false, err
+	}
+	carried := newMemoryMap()
+	carried.board = onto.Board
+	carried.out = m.mapLocked(onto.Map).out
+	for _, tile := range tiles {
+		carried.rows[tile.ID] = tile.Owner
+		if tile.Shields > 0 {
+			carried.shields[tile.ID] = tile.Shields
+		}
+		if tile.Holder != cpsession.NoAccount {
+			carried.holders[tile.ID] = tile.Holder
+		}
+	}
+	for _, mine := range mines {
+		carried.mines[mine.Tile] = mine
+	}
+	m.maps[onto.Map] = carried
+	return true, nil
+}
+
 func (m *MemoryPersistence) Open(
 	ctx context.Context, played clicks.Stage, tiles []Tile, keep func(ctx context.Context) (bool, error),
 ) (bool, error) {

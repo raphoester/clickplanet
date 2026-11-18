@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
+import { FindPlayersRequest, FindPlayersResponse, GetReplayRequest, GetReplayResponse, GetRulesRequest, GetRulesResponse, GrantChargesRequest, GrantChargesResponse, ReleaseAllegianceRequest, ReleaseAllegianceResponse, RevertPlayerRequest, RevertPlayerResponse, SaveRuleSetRequest, SaveRuleSetResponse, SwitchBoardRequest, SwitchBoardResponse, TopPlayersRequest, TopPlayersResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { GetLedgerRequest, GetLedgerResponse } from "./ledger_pb.js";
 import { GetTerritoriesRequest, GetTerritoriesResponse } from "./internal_pb.js";
@@ -139,6 +139,22 @@ export const AdminService = {
       name: "SaveRuleSet",
       I: SaveRuleSetRequest,
       O: SaveRuleSetResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Moves the world's map onto another board, its land carried over, once: each tile of the new board takes the flag
+     * and holder of the old tile it comes from, each old tile's shields are split across its new tiles, each mine moves
+     * to the new tile nearest it, live viruses end and fortify locks are settled again. Then every page reloads onto the
+     * new board. No take: nobody gains tiles, XP or a mission's progress. Refused while an arena is open, for a board
+     * this build does not carry or has no carry-over to, and for the board the map plays already. Run it with dry_run
+     * first: it answers the same counts and changes nothing.
+     *
+     * @generated from rpc planet.v1.AdminService.SwitchBoard
+     */
+    switchBoard: {
+      name: "SwitchBoard",
+      I: SwitchBoardRequest,
+      O: SwitchBoardResponse,
       kind: MethodKind.Unary,
     },
   }

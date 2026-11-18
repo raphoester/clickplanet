@@ -91,3 +91,20 @@ func TestTheLimitCutsAfterTheRanking(t *testing.T) {
 	assert.Equal(t, "painter", out.Players[0].Scope)
 	assert.True(t, out.Players[0].RefusedUntil.IsZero(), "nobody is refused")
 }
+
+type switched struct{ owners }
+
+func (switched) Stage() clicks.Stage { return clicks.World.On(clicks.TestBoard + 1) }
+
+func TestAfterTheWorldSwitchedBoardsOnlyItsTakesOnTheNewBoardRank(t *testing.T) {
+	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "before", Country: "fr", At: start})
+	book.Append(clicks.World.On(clicks.TestBoard+1), ledger.Taking{Tile: 1, Scope: "after", Country: "de", At: start.Add(time.Minute)})
+
+	out, err := top_players_usecase.New(book, switched{owners{1: "de"}}, refusing(t, "")).Execute(t.Context(), top_players_usecase.In{})
+	require.NoError(t, err)
+
+	assert.Equal(t, top_players_usecase.Out{Total: 1, Players: []ledger.Player{
+		{Scope: "after", Flag: "de", Tiles: 1, Takes: 1, FirstAt: start.Add(time.Minute), LastAt: start.Add(time.Minute)},
+	}}, out, "earth-1's tile 1 is another place: its take before the switch ranks no one")
+}

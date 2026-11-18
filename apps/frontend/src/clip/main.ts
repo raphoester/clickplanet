@@ -228,7 +228,7 @@ async function choose(): Promise<Chosen> {
     const focus = countryParam("focus")
     const {positions} = await loadPointGeometryData(board)
     const borders = await loadBorders(board.urls.borders)
-    const replay = ReplayBackend.ofLastEra(recorded, {assignment: borders.assignment, count: borders.codes.length}, whole)
+    const replay = ReplayBackend.of(recorded, {assignment: borders.assignment, count: borders.codes.length})
     const pointAt = (tile: number) => pointOf(positions, tile)
     const groundAt = (tile: number) => countryOfTile(borders, tile)
     const continentAt = (tile: number) => {

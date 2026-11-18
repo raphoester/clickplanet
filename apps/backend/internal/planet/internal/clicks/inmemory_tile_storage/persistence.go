@@ -35,6 +35,11 @@ type Persistence interface {
 	SaveMines(ctx context.Context, played clicks.Stage, laid []clicks.MineSnapshot, gone []uint32) error
 	// Open writes a map's first tiles in one transaction with keep, once keep says to.
 	Open(ctx context.Context, played clicks.Stage, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
+	// Carry moves a map onto another board in one transaction with keep, once keep says to: every tile, landmass's lock,
+	// virus and mine of the board before deleted, and the tiles and mines carried written on the new one. The flags out
+	// stay: they name no tile.
+	Carry(ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot,
+		keep func(ctx context.Context) (bool, error)) (bool, error)
 	// Wipe deletes every tile, every landmass's lock, every flag out, every virus and every mine of a map, in one
 	// transaction with keep, once keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
@@ -96,12 +101,25 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 				s.stage.Board, board)
 		}
 	}
+	return s.fillFromLocked(ctx, s.persistence)
+}
 
+// Rows are what a map is filled from: what postgres keeps, or what a switch of board carried.
+type Rows interface {
+	Load(ctx context.Context, played clicks.MapID, visit func(tile Tile)) error
+	LoadLandmasses(ctx context.Context, played clicks.MapID, asset string,
+		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
+	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
+	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
+	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
+}
+
+func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
 	var (
 		owned, outside int
 		internErr      error
 	)
-	err = s.persistence.Load(ctx, s.stage.Map, func(tile Tile) {
+	err := rows.Load(ctx, s.stage.Map, func(tile Tile) {
 		if tile.ID > s.board.last() {
 			outside++
 			return
@@ -127,7 +145,7 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 	}
 
 	fortified, strays := 0, 0
-	err = s.persistence.LoadLandmasses(ctx, s.stage.Map, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
+	err = rows.LoadLandmasses(ctx, s.stage.Map, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
 		if !s.landmasses.known(landmass) {
 			strays++
 			return
@@ -147,17 +165,17 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 		return fmt.Errorf("failed to intern a stored country: %w", internErr)
 	}
 
-	err = s.persistence.LoadOutFlags(ctx, s.stage.Map, s.out.restore)
+	err = rows.LoadOutFlags(ctx, s.stage.Map, s.out.restore)
 	if err != nil {
 		return fmt.Errorf("failed to read the stored flags out: %w", err)
 	}
 
-	err = s.persistence.LoadViruses(ctx, s.stage.Map, s.viruses.restore)
+	err = rows.LoadViruses(ctx, s.stage.Map, s.viruses.restore)
 	if err != nil {
 		return fmt.Errorf("failed to read the stored viruses: %w", err)
 	}
 
-	err = s.persistence.LoadMines(ctx, s.stage.Map, s.mines.restore)
+	err = rows.LoadMines(ctx, s.stage.Map, s.mines.restore)
 	if err != nil {
 		return fmt.Errorf("failed to read the stored mines: %w", err)
 	}

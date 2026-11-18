@@ -350,14 +350,17 @@ is the list, and the backend refuses any other.
 ## Announcements
 
 The chat also shows lines nobody sent: `ChatEvent.announcement` on the stream,
-and `GetHistoryResponse.announcements` beside the messages. Eight kinds today:
+and `GetHistoryResponse.announcements` beside the messages. Nine kinds today:
 `bomb`, every bomb that went off, `mute`, every mute an operator gave,
 `round`, every round of a season that closed, `fortify`, every landmass of 50
 tiles or more a flag fortified, `champion`, the country that won a season,
 `flag_mission`, every flag that finished its mission of the day, in the World
 and in that flag's room, `knock_out`, every flag an arena knocked out
 ("👑 Germany knocked out France", `KnockOutLine`), and `rally`, every rally a player called, in its flag's room
-("📣 le professeur calls a rally in Tasmania", `RallyLine`, the landmass named as a fortify's; see [Rally](rally.md)).
+("📣 le professeur calls a rally in Tasmania", `RallyLine`, the landmass named as a fortify's; see [Rally](rally.md)),
+and `board_switched`, the world's map moved onto a larger board ("🌍 The world grew: 4× more ground. Every country kept
+its land.", `WorldGrewLine`, the times rounded from the two boards' tile counts; see [The board the page
+draws](board-reload.md#the-world-grew)).
 
 - **Decoded, not trusted**: `decodedAnnouncement` reads the `kind` and parses
   the JSON `payload` into a typed `ChatAnnouncement`. A kind this build does not

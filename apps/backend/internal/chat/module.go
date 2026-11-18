@@ -95,6 +95,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/account_muted_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/allegiance_pledged_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/battle_ended_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/board_switched_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/bomb_landed_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/day_ended_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/flag_knocked_out_subscriber"
@@ -207,6 +208,13 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		return fmt.Errorf("failed to subscribe to planet.v1.FlagKnockedOut: %w", err)
 	}
 
+	switches, err := cpredis.Subscribe(ctx, streams, "chat-announcements-board-switches",
+		log_subscriber.New(board_switched_subscriber.New(announce), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe to planet.v1.BoardSwitched: %w", err)
+	}
+
 	flagMissions, err := cpredis.Subscribe(ctx, streams, "chat-announcements-flag-missions",
 		log_subscriber.New(flag_mission_done_subscriber.New(announce), props.Logger))
 	if err != nil {
@@ -302,7 +310,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 
 	// Not closers: closers run before the runners stop, and the runners use both.
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune_usecase.NewRunner(storage.PruneInterval, prune),
-		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, knockOuts, flagMissions, deletions, forgottenModeration, mutings, rallies,
+		cpredis.CloseAfter(streams, props.Logger, bombs, fortifies, knockOuts, switches, flagMissions, deletions, forgottenModeration, mutings, rallies,
 			days, battles, champions, departures, reports,
 			cpoutbox.NewRelay("chat-outbox", db, redis_outbox_sender.New(streams, streams.Commands()), props.Logger))))
 

@@ -18,6 +18,7 @@ import (
 var (
 	ErrInvalidWindow = errors.New("a replay needs a since before its until")
 	ErrBeforeReset   = errors.New("the map was reset after this window ended: the map it played on is gone")
+	ErrBeforeSwitch  = errors.New("the world switched boards after this window ended: the map it played on is on another board")
 )
 
 type Ledger interface {
@@ -76,8 +77,9 @@ type UseCase struct {
 }
 
 // Execute rewinds the world's map from now: a reset in the window starts the replay at it, on the blank map, and a
-// window that ended before a reset cannot be rewound to. Only the events of the world's map on the board it plays are
-// its scenes, as each event names them: an arena's are left out, the world's map came back.
+// switch of the world's board at it, on the map carried over; a window that ended before either cannot be rewound to.
+// Only the events of the world's map on the board it plays are its scenes, as each event names them: an arena's are
+// left out, the world's map came back.
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	until := in.Until
 	if until.IsZero() {
@@ -104,6 +106,12 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	world, err := u.eras.Latest(ctx, clicks.World)
 	if err != nil {
 		return Out{}, fmt.Errorf("failed to read the board the world plays: %w", err)
+	}
+	if world.StartedAt.After(in.Since) {
+		if world.StartedAt.After(until) {
+			return Out{}, fmt.Errorf("%w: to %s at %s", ErrBeforeSwitch, world.Board.Name, world.StartedAt.Format(time.RFC3339))
+		}
+		in.Since = world.StartedAt
 	}
 	covering, err := u.eras.Covering(ctx, clicks.World, in.Since, until)
 	if err != nil {

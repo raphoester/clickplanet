@@ -11,6 +11,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/release_allegiance_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/switch_board_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 )
 
@@ -25,6 +26,7 @@ type AdminService struct {
 	get_territories_handler.GetTerritoriesHandler
 	get_rules_handler.GetRulesHandler
 	save_rule_set_handler.SaveRuleSetHandler
+	switch_board_handler.SwitchBoardHandler
 }
 
 var _ planetv1connect.AdminServiceHandler = AdminService{}

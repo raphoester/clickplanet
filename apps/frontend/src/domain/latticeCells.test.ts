@@ -4,7 +4,7 @@ import {describe, expect, it} from "vitest"
 import {BOARDS} from "../app/viewer/boardsAsset.ts"
 import {decodeRuns, tilesOf} from "./board.ts"
 import {type Lattice, latticeIds, latticePositions, latticeSize, threeLattice} from "./lattice.ts"
-import {cellOf, cellsOf, IDS_PER_WORD, latticeFaces, nearestOnGrid, tileAt} from "./latticeCells.ts"
+import {cellOf, cellsOf, checkCells, IDS_PER_WORD, latticeFaces, nearestOnGrid, tileAt} from "./latticeCells.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
@@ -63,16 +63,15 @@ describe("cellsOf", () => {
     const positions = latticePositions(COLS)
     const kept = Array.from({length: latticeSize(COLS)}, (_, point) => point).filter((point) => point % 3 !== 1)
     const tileIds = Uint32Array.from(kept, (point) => ids[point])
-    const tilePositions = Float32Array.from(kept.flatMap((point) => pointOf(positions, point)))
 
     it("gives every tile its own texel, in canonical order", () => {
-        const {texels} = cellsOf(tileIds, COLS, tilePositions)
+        const {texels} = cellsOf(tileIds, COLS)
         const byId = kept.map((point, tile) => ({id: ids[point], tile})).sort((a, b) => a.id - b.id)
         byId.forEach(({tile}, rank) => expect(texels[tile]).toBe(rank))
     })
 
     it("marks the tiles' ids and counts the tiles before each word", () => {
-        const {words, texels, lattice} = cellsOf(tileIds, COLS, tilePositions)
+        const {words, texels, lattice} = cellsOf(tileIds, COLS)
         expect(lattice).toEqual(threeLattice(COLS))
         kept.forEach((point, tile) => {
             const id = ids[point]
@@ -86,12 +85,12 @@ describe("cellsOf", () => {
     })
 
     it("names the tile at each texel", () => {
-        const {texels, tiles} = cellsOf(tileIds, COLS, tilePositions)
+        const {texels, tiles} = cellsOf(tileIds, COLS)
         texels.forEach((texel, tile) => expect(tiles[texel]).toBe(tile))
     })
 
     it("finds each tile at its own position, and nothing in a cell that is not a tile", () => {
-        const cells = cellsOf(tileIds, COLS, tilePositions)
+        const cells = cellsOf(tileIds, COLS)
         const faces = latticeFaces(COLS)
         kept.forEach((point, tile) => expect(tileAt(cells, faces, ...pointOf(positions, point))).toBe(tile + 1))
         const sea = Array.from({length: latticeSize(COLS)}, (_, point) => point).filter((point) => point % 3 === 1)
@@ -99,22 +98,33 @@ describe("cellsOf", () => {
     })
 
     it("refuses two tiles in one cell", () => {
-        const four = pointOf(positions, ids.indexOf(4))
-        expect(() => cellsOf(Uint32Array.from([4, 4]), COLS, Float32Array.from([...four, ...four]))).toThrow(/another tile/)
+        expect(() => cellsOf(Uint32Array.from([4, 4]), COLS)).toThrow(/another tile/)
+    })
+})
+
+describe("checkCells", () => {
+    const ids = latticeIds(COLS)
+    const positions = latticePositions(COLS)
+    const kept = Array.from({length: latticeSize(COLS)}, (_, point) => point).filter((point) => point % 3 !== 1)
+    const tileIds = Uint32Array.from(kept, (point) => ids[point])
+    const tilePositions = Float32Array.from(kept.flatMap((point) => pointOf(positions, point)))
+
+    it("passes tiles that each find their own cell", () => {
+        expect(() => checkCells(tileIds, COLS, tilePositions)).not.toThrow()
     })
 
     it("refuses a tile whose position the inverse finds in another cell: the globe does not load", () => {
         const astray = Float32Array.from(tilePositions)
         astray.set(pointOf(positions, kept[1]), 0)
-        expect(() => cellsOf(tileIds, COLS, astray)).toThrow(/tile 1, point \d+, is found in the cell of point \d+/)
+        expect(() => checkCells(tileIds, COLS, astray)).toThrow(/tile 1, point \d+, is found in the cell of point \d+/)
     })
 
     it("refuses a warped board read without its inverse: the warp moves a point by more than half a cell at 100", () => {
         const lattice = warpedAt(100)
         const every = Uint32Array.from({length: latticeSize(100)}, (_, id) => id)
         const warped = latticePositions(lattice)
-        expect(() => cellsOf(every, {...lattice, warp: null}, warped)).toThrow(/is found in the cell of/)
-        expect(() => cellsOf(every, lattice, warped)).not.toThrow()
+        expect(() => checkCells(every, {...lattice, warp: null}, warped)).toThrow(/is found in the cell of/)
+        expect(() => checkCells(every, lattice, warped)).not.toThrow()
     })
 })
 
@@ -131,7 +141,7 @@ describe("the shipped boards", () => {
                 if (cellOf(faces, board.lattice, ...pointOf(positions, tile)) !== ids[tile]) astray++
             }
             expect(astray).toBe(0)
-            const cells = cellsOf(ids, board.lattice, positions)
+            const cells = cellsOf(ids, board.lattice)
             for (let tile = 0; tile < board.tiles; tile += 97) {
                 expect(tileAt(cells, faces, ...pointOf(positions, tile)), `tile ${tile + 1}`).toBe(tile + 1)
             }

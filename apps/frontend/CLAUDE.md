@@ -41,7 +41,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   backend answers under a new boot; which answers it trusts.
 - [The board the page draws](docs/board-reload.md) — the board `GetMap` names at the boot, the reload when the stream
   opens on another or a read past the cache still names one, and the guard against a loop: a cached read after a
-  reload, a board the bundle does not carry.
+  reload, a board the bundle does not carry; "The world grew", once per browser, on the world's new board.
 - [The screen: four zones](docs/screen.md) — nothing is drawn over the globe but four zones; the phone form at
   768px wide or 600px high and under; the board and the chat folded under 1600px wide until the player opens one, and
   the player's last fold kept.

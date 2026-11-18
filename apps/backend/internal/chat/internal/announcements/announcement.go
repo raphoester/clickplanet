@@ -28,12 +28,16 @@ const (
 	KindFlagMission Kind = "flag_mission"
 	KindKnockOut    Kind = "knock_out"
 	KindRally       Kind = "rally"
+	// The world's map moved onto a larger board (planet's BoardSwitched).
+	KindBoardSwitched Kind = "board_switched"
 )
 
 var ErrUnknownKind = errors.New("an announcement of a kind nobody knows")
 
 func Kinds() []Kind {
-	return []Kind{KindBomb, KindMute, KindRound, KindFortify, KindChampion, KindFlagMission, KindKnockOut, KindRally}
+	return []Kind{
+		KindBomb, KindMute, KindRound, KindFortify, KindChampion, KindFlagMission, KindKnockOut, KindRally, KindBoardSwitched,
+	}
 }
 
 func (k Kind) Known() bool { return slices.Contains(Kinds(), k) }
@@ -162,6 +166,32 @@ func (k KnockOut) Announcement(at time.Time) (Announcement, error) {
 		return Announcement{}, fmt.Errorf("failed to encode a knock-out announcement: %w", err)
 	}
 	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/knock-out", k.position)), KindKnockOut, at, payload), nil
+}
+
+// Switch is the world's map moved onto another board, its land carried over: the page tells how much more ground.
+type Switch struct {
+	position           uint64
+	from, to           string
+	fromTiles, toTiles uint32
+}
+
+func SwitchOf(position uint64, from string, to string, fromTiles uint32, toTiles uint32) Switch {
+	return Switch{position: position, from: from, to: to, fromTiles: fromTiles, toTiles: toTiles}
+}
+
+type switchPayload struct {
+	From      string `json:"from"`
+	To        string `json:"to"`
+	FromTiles uint32 `json:"fromTiles"`
+	ToTiles   uint32 `json:"toTiles"`
+}
+
+func (s Switch) Announcement(at time.Time) (Announcement, error) {
+	payload, err := json.Marshal(switchPayload{From: s.from, To: s.to, FromTiles: s.fromTiles, ToTiles: s.toTiles})
+	if err != nil {
+		return Announcement{}, fmt.Errorf("failed to encode a switch announcement: %w", err)
+	}
+	return NewAnnouncement(toldOnce(fmt.Sprintf("ledger/%d/board-switched", s.position)), KindBoardSwitched, at, payload), nil
 }
 
 type RallyID string

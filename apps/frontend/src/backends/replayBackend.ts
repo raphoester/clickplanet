@@ -17,7 +17,7 @@ import {bindingsOf, bombOf, enclosureOf, shieldsOf, spreadOf, takenOf, updateOf}
 import {TileChange} from "../domain/clip/changes.ts"
 import {FakeTally} from "./fakeTally.ts"
 import {MapHistory, MapReel} from "../domain/mapHistory.ts"
-import {Era, FIRST_ERA, piecesOf} from "../domain/eras.ts"
+import {Era, FIRST_ERA} from "../domain/eras.ts"
 
 type Step = {at: number, event: PlanetEvent}
 
@@ -62,33 +62,6 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
     private readonly bombListeners = new Set<(drop: BombDrop) => void>()
     private readonly holdingsListeners = new Set<(change: Counts) => void>()
     private readonly bonusHandlers = new Set<BonusHandlers>()
-
-    // The replay of the map its window ends on: its last era, whose events are of that era's board. GetReplay holds the
-    // map at its window's start alone, so a later era opens on the map a history holds at its cut, the first frame of
-    // that era (domain/eras.ts); with none, it cannot be drawn.
-    static ofLastEra(response: GetReplayResponse, landmasses: ReplayLandmasses, history?: MapHistory): ReplayBackend {
-        const eras = replayErasOf(response)
-        if (eras.length === 1) return ReplayBackend.of(response, landmasses)
-        const last = eras[eras.length - 1]
-        const cut = history && piecesOf(history).find(({board, startedAt}) => board === last.board && startedAt === last.startedAt)
-        const opening = cut?.history.frames[0]
-        if (!opening || !response.until) {
-            throw new Error(`the replay moves to board ${last.board} at ${new Date(last.startedAt).toISOString()}, and no history holds `
-                + "the map there: GetReplay holds the map at its window's start alone")
-        }
-        const owners = new Map<number, string>()
-        opening.tiles.forEach((tile, i) => {
-            if (opening.owners[i] !== "") owners.set(tile, opening.owners[i])
-        })
-        return new ReplayBackend({
-            since: opening.at,
-            until: response.until.toDate().getTime(),
-            opening: owners,
-            shields: new Map(),
-            steps: stepsOf(response).filter(({at}) => at > opening.at),
-            landmasses,
-        })
-    }
 
     static of(response: GetReplayResponse, landmasses: ReplayLandmasses): ReplayBackend {
         const opening = response.opening
