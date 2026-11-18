@@ -1,0 +1,8 @@
+ALTER TABLE ledger_events DROP COLUMN board, DROP COLUMN map;
+ALTER TABLE viruses DROP COLUMN board;
+ALTER TABLE mines DROP COLUMN board;
+ALTER TABLE landmasses DROP COLUMN board;
+ALTER TABLE tiles DROP COLUMN board;
+
+DROP TABLE eras;
+DROP TABLE boards;

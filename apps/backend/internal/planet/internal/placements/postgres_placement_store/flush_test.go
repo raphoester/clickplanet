@@ -60,7 +60,7 @@ func (f flushed) storage(t *testing.T, confirming inmemory_tile_storage.Placemen
 
 	storage := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.NoCapitals(), inmemory_tile_storage.Config{}, f.tiles, f.db, confirming,
 		cptime.SystemClock{}, slog.New(slog.DiscardHandler))
-	require.NoError(t, storage.Load(t.Context(), clicks.World))
+	require.NoError(t, storage.Load(t.Context(), clicks.WorldStage))
 	require.NoError(t, storage.Set(t.Context(), 7, "fr"))
 	return storage
 }

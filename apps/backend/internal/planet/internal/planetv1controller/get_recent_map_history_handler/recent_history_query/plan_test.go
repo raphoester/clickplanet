@@ -15,8 +15,8 @@ import (
 func TestTheDayIsReadFromTheHeadByThePrimaryKeyAndNotTheWholeLedger(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	for _, statement := range []string{
-		`INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at)
-		SELECT n, 'take'::ledger_event_kind, n % 260503 + 1, '203.0.113.7', 'fr', 'de', now() - (200000 - n) * interval '1 second'
+		`INSERT INTO ledger_events (position, map, board, kind, tile, scope, country, previous, taken_at)
+		SELECT n, 'world', 1, 'take'::ledger_event_kind, n % 260503 + 1, '203.0.113.7', 'fr', 'de', now() - (200000 - n) * interval '1 second'
 		FROM generate_series(0, 199999) n`,
 		`VACUUM ANALYZE ledger_events`,
 	} {

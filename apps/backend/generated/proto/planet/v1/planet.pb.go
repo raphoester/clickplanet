@@ -1118,7 +1118,9 @@ type GetMapResponse struct {
 	// The flags the arena knocked out: each lost its capital to another flag.
 	KnockedOut []string `protobuf:"bytes,7,rep,name=knocked_out,json=knockedOut,proto3" json:"knocked_out,omitempty"`
 	// The tiles of the range a live virus infects.
-	Infected      []*InfectedTile `protobuf:"bytes,8,rep,name=infected,proto3" json:"infected,omitempty"`
+	Infected []*InfectedTile `protobuf:"bytes,8,rep,name=infected,proto3" json:"infected,omitempty"`
+	// The board the map plays, by its name ("earth-1"): every tile id of the answer is a tile of that board.
+	Board         string `protobuf:"bytes,9,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1200,6 +1202,13 @@ func (x *GetMapResponse) GetInfected() []*InfectedTile {
 		return x.Infected
 	}
 	return nil
+}
+
+func (x *GetMapResponse) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
 }
 
 type InfectedTile struct {
@@ -4760,7 +4769,11 @@ func (x *PlaceShieldResponse) GetCharges() *ChargesHeld {
 type Heartbeat struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The last change this stream sent, or the map's when it opened.
-	Version       *MapVersion `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	Version *MapVersion `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	// On the heartbeat a stream opens with: the board the map plays, by its name ("earth-1"). Every tile id the stream
+	// sends after is a tile of that board: a change of board starts a new epoch and cuts every stream. Empty on the
+	// heartbeats after.
+	Board         string `protobuf:"bytes,2,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4800,6 +4813,13 @@ func (x *Heartbeat) GetVersion() *MapVersion {
 		return x.Version
 	}
 	return nil
+}
+
+func (x *Heartbeat) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
 }
 
 type TileUpdate struct {
@@ -4952,7 +4972,7 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\adensity\x18\x01 \x01(\rR\adensity\"S\n" +
 	"\rGetMapRequest\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x1e\n" +
-	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId\"\xa6\x02\n" +
+	"\vend_tile_id\x18\x02 \x01(\rR\tendTileId\"\xbc\x02\n" +
 	"\x0eGetMapResponse\x12\"\n" +
 	"\rstart_tile_id\x18\x01 \x01(\rR\vstartTileId\x12\x14\n" +
 	"\x05codes\x18\x02 \x03(\tR\x05codes\x12\x14\n" +
@@ -4961,7 +4981,8 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\aversion\x18\x05 \x01(\v2\x15.planet.v1.MapVersionR\aversion\x12\x1f\n" +
 	"\vknocked_out\x18\a \x03(\tR\n" +
 	"knockedOut\x123\n" +
-	"\binfected\x18\b \x03(\v2\x17.planet.v1.InfectedTileR\binfectedJ\x04\b\x06\x10\aR\x05arena\"B\n" +
+	"\binfected\x18\b \x03(\v2\x17.planet.v1.InfectedTileR\binfected\x12\x14\n" +
+	"\x05board\x18\t \x01(\tR\x05boardJ\x04\b\x06\x10\aR\x05arena\"B\n" +
 	"\fInfectedTile\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x19\n" +
 	"\bvirus_id\x18\x02 \x01(\tR\avirusId\"4\n" +
@@ -5228,9 +5249,10 @@ const file_planet_v1_planet_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x02 \x01(\tR\tcountryId\"G\n" +
 	"\x13PlaceShieldResponse\x120\n" +
-	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"<\n" +
+	"\acharges\x18\x01 \x01(\v2\x16.planet.v1.ChargesHeldR\acharges\"R\n" +
 	"\tHeartbeat\x12/\n" +
-	"\aversion\x18\x01 \x01(\v2\x15.planet.v1.MapVersionR\aversion\"\xe2\x01\n" +
+	"\aversion\x18\x01 \x01(\v2\x15.planet.v1.MapVersionR\aversion\x12\x14\n" +
+	"\x05board\x18\x02 \x01(\tR\x05board\"\xe2\x01\n" +
 	"\n" +
 	"TileUpdate\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +

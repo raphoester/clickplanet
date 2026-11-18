@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
@@ -19,9 +18,16 @@ var (
 
 func record(t *testing.T, history *ledger.History, events ...ledger.Event) {
 	t.Helper()
+	recordOn(t, history, clicks.WorldStage, events...)
+}
+
+// recordOn records events made on a stage: their map, on the board it played.
+func recordOn(t *testing.T, history *ledger.History, on clicks.Stage, events ...ledger.Event) {
+	t.Helper()
 	for _, event := range events {
 		entry, err := event.Entry()
 		require.NoError(t, err)
+		entry.Stage = on
 		require.False(t, history.Done(entry))
 		require.NoError(t, history.Record(entry))
 	}
@@ -32,7 +38,7 @@ func take(tile uint32, country string, at time.Time) ledger.Taking {
 }
 
 func TestAHistoryOpensOnEveryTileHeldThenKeepsWhatChangedAtEachStep(t *testing.T) {
-	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, arenas.Played{})
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
 	require.NoError(t, err)
 
 	record(t, history,
@@ -58,7 +64,7 @@ func TestAHistoryOpensOnEveryTileHeldThenKeepsWhatChangedAtEachStep(t *testing.T
 }
 
 func TestATileKeepsWhenItWentToItsOwnerLastSoAnEnclosuresTilesLandTogether(t *testing.T) {
-	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, arenas.Played{})
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
 	require.NoError(t, err)
 
 	enclosed := historySince.Add(70 * time.Minute)
@@ -77,7 +83,7 @@ func TestATileKeepsWhenItWentToItsOwnerLastSoAnEnclosuresTilesLandTogether(t *te
 }
 
 func TestAHistoryCountsEachTilesChangesAndShieldHitsDuringTheWindowOnly(t *testing.T) {
-	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, arenas.Played{})
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
 	require.NoError(t, err)
 
 	record(t, history,
@@ -91,7 +97,7 @@ func TestAHistoryCountsEachTilesChangesAndShieldHitsDuringTheWindowOnly(t *testi
 }
 
 func TestAWipeAtTheWindowsStartOpensItOnAnEmptyMap(t *testing.T) {
-	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, arenas.Played{})
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
 	require.NoError(t, err)
 
 	record(t, history, take(1, "fr", historySince.Add(-time.Hour)))
@@ -106,7 +112,7 @@ func TestAWipeAtTheWindowsStartOpensItOnAnEmptyMap(t *testing.T) {
 }
 
 func TestAHistoryIsDoneWithTheEntriesFromItsEnd(t *testing.T) {
-	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, arenas.Played{})
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
 	require.NoError(t, err)
 
 	entry, err := take(1, "fr", historyUntil).Entry()
@@ -115,34 +121,48 @@ func TestAHistoryIsDoneWithTheEntriesFromItsEnd(t *testing.T) {
 }
 
 func TestAHistoryStartsBeforeItEndsAndMovesByAStep(t *testing.T) {
-	_, err := ledger.NewHistory(historyUntil, historySince, time.Hour, arenas.Played{})
+	_, err := ledger.NewHistory(historyUntil, historySince, time.Hour, clicks.WorldStage)
 	require.ErrorIs(t, err, ledger.ErrInvalidHistory)
-	_, err = ledger.NewHistory(historySince, historyUntil, 0, arenas.Played{})
+	_, err = ledger.NewHistory(historySince, historyUntil, 0, clicks.WorldStage)
 	require.ErrorIs(t, err, ledger.ErrInvalidHistory)
 }
 
 func TestAnArenasTakesChangeNoFrameNorHitAndTheWorldJoinsUpAroundIt(t *testing.T) {
-	opened, closed := historySince.Add(20*time.Minute+300*time.Millisecond), historySince.Add(50*time.Minute+600*time.Millisecond)
-	world := arenas.MapsOf([]arenas.Stretch{{ID: "battle", OpenedAt: opened, ClosedAt: closed, Closed: true}}).World()
-	history, err := ledger.NewHistory(historySince, historyUntil, 30*time.Minute, world)
+	history, err := ledger.NewHistory(historySince, historyUntil, 30*time.Minute, clicks.WorldStage)
 	require.NoError(t, err)
+	battle := clicks.MapID("battle").On(clicks.TestBoard)
 
 	record(t, history,
 		take(1, "fr", historySince.Add(-time.Hour)),
 		take(2, "de", historySince.Add(10*time.Minute)),
+	)
+	recordOn(t, history, battle,
 		take(1, "br", historySince.Add(25*time.Minute)),
 		take(3, "br", historySince.Add(40*time.Minute)),
 		ledger.KnockingOut{
 			Tile: 3, Scope: "203.0.113.7", Country: "ar", Out: "br", At: historySince.Add(45 * time.Minute),
 			Cleared: []uint32{4},
 		},
-		take(2, "it", closed.Truncate(time.Second)),
 	)
+	record(t, history, take(2, "it", historySince.Add(46*time.Minute)))
+	recordOn(t, history, battle, take(5, "ar", historySince.Add(47*time.Minute)))
 
 	frames := history.Frames()
 	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "de", At: historySince.Add(10 * time.Minute)}}, frames[1].Owners,
 		"the battle's first take changed nothing on the world's map")
-	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "it", At: closed.Truncate(time.Second)}}, frames[2].Owners,
-		"the battle's takes and its knock-out changed nothing; a world take in the second the arena closed is the world's")
+	assert.Equal(t, map[uint32]ledger.Owner{2: {Country: "it", At: historySince.Add(46 * time.Minute)}}, frames[2].Owners,
+		"the battle's takes and its knock-out changed nothing, and a world take among them is the world's: each names its map")
 	assert.Equal(t, map[uint32]uint32{2: 2}, history.Hits(), "no hit where only the arena fought")
+}
+
+func TestAnEventOfAnotherBoardChangesNoFrameNorHit(t *testing.T) {
+	history, err := ledger.NewHistory(historySince, historyUntil, time.Hour, clicks.WorldStage)
+	require.NoError(t, err)
+
+	record(t, history, take(1, "fr", historySince.Add(10*time.Minute)))
+	recordOn(t, history, clicks.World.On(clicks.TestBoard+1), take(1, "de", historySince.Add(20*time.Minute)))
+
+	assert.Equal(t, map[uint32]ledger.Owner{1: {Country: "fr", At: historySince.Add(10 * time.Minute)}},
+		history.Frames()[1].Owners, "tile 1 of another board is another place")
+	assert.Equal(t, map[uint32]uint32{1: 1}, history.Hits())
 }

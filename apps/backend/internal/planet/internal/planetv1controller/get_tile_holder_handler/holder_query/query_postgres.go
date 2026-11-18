@@ -7,60 +7,52 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lib/pq"
-
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
-type Arenas interface {
-	Stretches(ctx context.Context) ([]arenas.Stretch, error)
+// Stages is the map that plays, on its board.
+type Stages interface {
+	Stage() clicks.Stage
 }
 
-func NewPostgresQuery(db cppg.Conn, arenas Arenas, clock cptime.Clock) *PostgresQuery {
-	return &PostgresQuery{db: db, arenas: arenas, clock: clock}
+func NewPostgresQuery(db cppg.Conn, stages Stages) *PostgresQuery {
+	return &PostgresQuery{db: db, stages: stages}
 }
 
 type PostgresQuery struct {
 	db     cppg.Conn
-	arenas Arenas
-	clock  cptime.Clock
+	stages Stages
 }
 
-// The last of the changes ledger.Taking replays for the tile on the map that plays: a take, a tile a spread, an enclose, a
-// virus or a mine took, or a bomb's clear, after $2 and in none of the gaps ($3, $4). Each kind of payload reads its own index.
+// The last of the changes ledger.Taking replays for the tile on the map that plays, on its board ($2, $3): a take, a
+// tile a spread, an enclose, a virus or a mine took, or a bomb's clear, as each event names its map and its board. Each
+// kind of payload reads its own index.
 const lastChange = `
-	WITH gap AS (SELECT * FROM unnest($3::timestamptz[], $4::timestamptz[]) AS gap (after, before))
 	SELECT COALESCE(account::text, ''), country, taken_at FROM (
 		(SELECT position, account, country, taken_at FROM ledger_events e
-		WHERE kind = 'take' AND tile = $1 AND NOT forgotten AND taken_at > $2
-			AND NOT EXISTS (SELECT 1 FROM gap WHERE e.taken_at > gap.after AND e.taken_at < gap.before)
+		WHERE kind = 'take' AND tile = $1 AND NOT forgotten AND map = $2 AND board = $3
 		ORDER BY position DESC LIMIT 1)
 		UNION ALL
 		(SELECT position, account, country, taken_at FROM ledger_events e
-		WHERE kind IN ('spread', 'enclose') AND NOT forgotten AND taken_at > $2
+		WHERE kind IN ('spread', 'enclose') AND NOT forgotten AND map = $2 AND board = $3
 			AND payload @> jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
-			AND NOT EXISTS (SELECT 1 FROM gap WHERE e.taken_at > gap.after AND e.taken_at < gap.before)
 		ORDER BY position DESC LIMIT 1)
 		UNION ALL
 		(SELECT position, account, country, taken_at FROM ledger_events e
-		WHERE kind = 'virus' AND NOT forgotten AND taken_at > $2
+		WHERE kind = 'virus' AND NOT forgotten AND map = $2 AND board = $3
 			AND payload @> jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
-			AND NOT EXISTS (SELECT 1 FROM gap WHERE e.taken_at > gap.after AND e.taken_at < gap.before)
 		ORDER BY position DESC LIMIT 1)
 		UNION ALL
 		(SELECT position, account, country, taken_at FROM ledger_events e
-		WHERE kind = 'mine' AND NOT forgotten AND taken_at > $2
+		WHERE kind = 'mine' AND NOT forgotten AND map = $2 AND board = $3
 			AND payload @> jsonb_build_object('taken', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
-			AND NOT EXISTS (SELECT 1 FROM gap WHERE e.taken_at > gap.after AND e.taken_at < gap.before)
 		ORDER BY position DESC LIMIT 1)
 		UNION ALL
 		(SELECT position, account, '', taken_at FROM ledger_events e
-		WHERE kind = 'bomb' AND NOT forgotten AND taken_at > $2
+		WHERE kind = 'bomb' AND NOT forgotten AND map = $2 AND board = $3
 			AND payload @> jsonb_build_object('cleared', jsonb_build_array(jsonb_build_object('tile', $1::integer)))
-			AND NOT EXISTS (SELECT 1 FROM gap WHERE e.taken_at > gap.after AND e.taken_at < gap.before)
 		ORDER BY position DESC LIMIT 1)
 		ORDER BY position DESC LIMIT 1
 	) last
@@ -72,13 +64,9 @@ func (q *PostgresQuery) TileHolder(ctx context.Context, tile uint32) (*planetv1.
 		holder  = &planetv1.TileHolder{}
 		takenAt time.Time
 	)
-	stretches, err := q.arenas.Stretches(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the arenas: %w", err)
-	}
-	playing := arenas.MapsOf(stretches).Playing()
-	afters, befores := playing.Bounds(q.clock.Now())
-	err = q.db.On(ctx).QueryRowContext(ctx, lastChange, tile, playing.After, pq.Array(afters), pq.Array(befores)).Scan(&holder.AccountId, &holder.CountryId, &takenAt)
+	playing := q.stages.Stage()
+	err := q.db.On(ctx).QueryRowContext(ctx, lastChange, tile, string(playing.Map), playing.Board).
+		Scan(&holder.AccountId, &holder.CountryId, &takenAt)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return &planetv1.GetTileHolderResponse{}, nil

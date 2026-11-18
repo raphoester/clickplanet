@@ -160,3 +160,12 @@ func (p Player) perMinute(count int) float64 {
 func (p *Player) Refused(refusal clicks.Refusal) {
 	p.RefusedUntil = refusal.Until()
 }
+
+// OnBoard sees only the events made on one board, on whichever map: a tile id means a place only on its board.
+func OnBoard(board clicks.BoardID, see func(Event)) func(on clicks.Stage, event Event) {
+	return func(on clicks.Stage, event Event) {
+		if on.Board == board {
+			see(event)
+		}
+	}
+}

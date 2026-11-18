@@ -59,8 +59,8 @@ and says what is in it. Read the doc before you change its area.
   before comes back at its end; the arena is a shell: it switches the map and seeds it (`seeds`, the capitals pattern);
   the order that waits on answers kept (day K scored, the arena opened, the battle's set played after, the map back),
   the `OpenArena` and `CloseArena` calls whose swap the caller cannot cut, the
-  freeze, the gaps; the ledger's readers (replays, map history, clips, the holder card) skip it by time, so the world's
-  map before and after joins up.
+  freeze, the gaps; the ledger's readers (replays, map history, clips, the holder card) skip it by the map each event
+  names, so the world's map before and after joins up.
 - [The reach](docs/reach.md) — a knob: a take only next to the flag's land or across a bridge from it, on any map; why
   bridges and not the waters.
 - [The capitals' rules](docs/capitals.md) — two knobs: no shield on a capital, and the knock-out (a capital taken clears
@@ -73,6 +73,10 @@ and says what is in it. Read the doc before you change its area.
   loses.
 - [Map geography](docs/map-geography.md) — the board loader: positions rebuilt from the runs and checked against the
   manifest's hash, adjacency taken from the lattice, checked at boot.
+- [Boards and eras](docs/boards-and-eras.md) — `planet.boards` and `eras`, the `board` column on every row of a tile
+  and the `map` and `board` of every event (`clicks.Stage`), the backfill and its test, the gate that keeps a write and
+  its record on one stage, the boot's guard (a board carried by name and hash, rows of another board refused), each
+  reader by column, and the board on the wire.
 - [Rate limiting](docs/rate-limiting.md) — two buckets per click, what the answer says is left, and a big country
   refills slower.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN and Cloudflare WARP ranges, before the

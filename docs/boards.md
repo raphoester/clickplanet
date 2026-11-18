@@ -1,6 +1,8 @@
 # Boards: a map's geometry as files of its own
 
-**Designed 2026-11-17. PR 1 is built (2026-11-17): `earth-1` is a board, and every app reads its geometry from it.**
+**Designed 2026-11-17. PR 1 is built (2026-11-17): `earth-1` is a board, and every app reads its geometry from it. PR 2
+is built (2026-11-17): every tile and event names its board and map, and the boot refuses a map on a board it does not
+carry.**
 The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
 builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
 [Map geometry](map-geometry.md), and the apps' tile docs (`tile-positions.md`, `tile-layout.md`, `zoomed-out-view.md`,
@@ -168,29 +170,44 @@ in PR 1, and refuses more than one until PR 3.
 
 ## Eras and the board column
 
-In planet's schema:
+**Built in PR 2 (2026-11-17)**; the backend's side is [Boards and eras](../apps/backend/docs/boards-and-eras.md).
 
-- **`boards`** `(id smallint, name text unique, hash text unique)`, a row added by the migration that ships a board.
-- **`eras`** `(map text, board smallint, started_at timestamptz)`: a map's latest era is the board it plays.
-- **A `board smallint NOT NULL` column** on `tiles`, `landmasses` (keyed by the borders asset today), `mines`,
-  `viruses`, `ledger_events`, and the vandal squad's `graffiti`.
-- **A `map` column on `ledger_events` too**, so readers stop telling arenas apart by time (`arenas.Played.After`). A
-  reader never guesses a board or a map from a timestamp.
-- **The backfill writes `earth-1` everywhere.** That is true: both past remaps rewrote all history onto today's ids,
-  and arenas played on the world's board.
-- **The boot refuses** a map whose tile rows name a board other than its era's, or a board the process does not
-  carry. Today a skipped remap boots old ids onto new ground with no error.
+- **`boards`** `(id smallint, name text unique, hash text unique)` in planet's schema: a board's row, its name (the
+  directory in `/map/boards`) and its manifest's `positionsHash` in 8 hex (`3fb28bdf` for `earth-1`): what its tile ids
+  mean, which a terrain or borders drawn again leaves alone while it rewrites the manifest. A board's row ships with the
+  migration that ships the board.
+- **`eras`** `(map text, board smallint, started_at timestamptz)`: a map's latest era is the board it plays. The world's
+  first era started at the epoch, on `earth-1`; an arena's map gets its era as it opens, on the board the world plays
+  (until `arena.board`, PR 3).
+- **A `board smallint NOT NULL` column**, a foreign key to `boards`, on `tiles`, `landmasses`, `mines`, `viruses` and
+  `ledger_events`, and **a `map` column on `ledger_events`**. Every write names the board of the map that plays, and
+  every event its map: an arena's events are told apart by that column, no longer by the arena's times
+  (`arenas.Played`, gone).
+- **The vandal squad's `graffiti` keeps its board by name** (`board text`), not as planet's row id: its schema cannot
+  reference planet's `boards`, and the board reaches it by name, on planet's `GetLedger`. A drawing is seen again only on
+  its own board.
+- **The backfill wrote `earth-1` everywhere**, which is true: both past remaps rewrote all history onto today's ids, and
+  arenas played on the world's board. It moved each past arena's events to its map, from its window in `planet.arenas`,
+  the last time those times were read.
+- **The boot refuses** a map whose era plays a board the process does not carry (by name and hash), and a map whose
+  tile, lock, mine or virus rows name a board other than its era's: a skipped remap would boot old ids onto new ground.
 
-**Every answer that names tiles names their board:**
-- `GetMap`;
-- the stream as it opens (a change of board cuts every stream, as a new epoch);
-- `GetMapHistory`, `GetRecentMapHistory`, `GetReplay` and the season replay, once per era they cover.
+**Every answer that names tiles names their board, by name:**
+- `GetMap` (`board`), and `GetReplay`'s opening;
+- the stream as it opens (the first `heartbeat`'s `board`; a change of board cuts every stream, as a new epoch);
+- `GetMapHistory`, `GetRecentMapHistory`, `GetReplay` and the season replay: `eras`, each era of the world the window
+  covers with its board;
+- `GetLedger` (`board`: the world's changes on that board alone) and the vandal squad's `ListGraffiti` (each graffiti's
+  `board`).
 
-**A page that reads a board other than the one it drew reloads** (the owner: a reload, not a rebuild in place).
+The frontend and the backoffice only carry the new fields in PR 2. **A page that reads a board other than the one it
+drew reloads** (the owner: a reload, not a rebuild in place): PR 3.
 
-**Every reader of the ledger resolves each event's board:** replays, clips, the archive, the last 24 hours, the
-holder card, the landmass card, and the relay (its `Ground` and `Position`). FindPlayers, TopPlayers, RevertPlayer and
-the vandal squad read the current board's events only.
+**Every reader of the ledger resolves each event's board and map from its columns:** replays and clips, the archive,
+the last 24 hours and `GetLedger` keep the world's map on the board it plays; the holder and landmass cards the map that
+plays on its board; the relay takes each tile's `Ground` and `Position` from its event's board. FindPlayers, TopPlayers
+and RevertPlayer read the current board's events only, and so does the vandal squad, through `GetLedger`. With one
+board, each reader draws one board: PR 3 draws each era on its own, with the cut.
 
 ## Arena boards
 
@@ -407,7 +424,7 @@ their numbers.
    - Every app reads its geometry from the board.
    - The coordinates file, its readers, and the backend's position matching go.
    - Nothing visible.
-2. **Eras and the board column.**
+2. **Eras and the board column. Built 2026-11-17.**
    - `boards`, `eras`, the `board` and `map` columns, the backfill, and the boot's guard.
    - The board on every answer that names tiles, and every reader resolving its events' board.
    - Arenas told apart by column instead of by time.

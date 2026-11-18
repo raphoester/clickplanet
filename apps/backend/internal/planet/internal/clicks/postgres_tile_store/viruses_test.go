@@ -30,8 +30,8 @@ func (s *testSuite) TestTheLiveVirusesOfAMapAreKeptAsAWholeAndReadBack() {
 	first := virusOf("0192f5a0-7c00-7000-8000-000000000001", 5, 4, 6)
 	second := virusOf("0192f5a0-7c00-7000-8000-000000000002", 9)
 
-	s.Require().NoError(s.store.SaveViruses(ctx, clicks.World, []clicks.VirusSnapshot{first, second}))
-	s.Require().NoError(s.store.SaveViruses(ctx, clicks.World, []clicks.VirusSnapshot{first}),
+	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{first, second}))
+	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{first}),
 		"a virus the next save leaves out ended")
 
 	s.Equal([]clicks.VirusSnapshot{first}, s.virusesOn(clicks.World))
@@ -41,8 +41,8 @@ func (s *testSuite) TestTheLiveVirusesOfAMapAreKeptAsAWholeAndReadBack() {
 func (s *testSuite) TestAWipeDeletesTheVirusesOfItsMapAlone() {
 	ctx := context.Background()
 	world := virusOf("0192f5a0-7c00-7000-8000-000000000001", 5)
-	s.Require().NoError(s.store.SaveViruses(ctx, clicks.World, []clicks.VirusSnapshot{world}))
-	s.Require().NoError(s.store.SaveViruses(ctx, battle, []clicks.VirusSnapshot{virusOf("0192f5a0-7c00-7000-8000-000000000002", 9)}))
+	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{world}))
+	s.Require().NoError(s.store.SaveViruses(ctx, battle.On(clicks.TestBoard), []clicks.VirusSnapshot{virusOf("0192f5a0-7c00-7000-8000-000000000002", 9)}))
 
 	_, err := s.store.Wipe(ctx, battle, func(context.Context) (bool, error) { return true, nil })
 	s.Require().NoError(err)

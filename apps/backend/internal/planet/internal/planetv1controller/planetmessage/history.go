@@ -9,11 +9,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
-func MapHistory(frames []ledger.Frame, hits map[uint32]uint32) *planetv1.MapHistory {
-	answer := &planetv1.MapHistory{}
+func MapHistory(frames []ledger.Frame, hits map[uint32]uint32, covering []eras.Era) *planetv1.MapHistory {
+	answer := &planetv1.MapHistory{Eras: Eras(covering)}
 	for i, frame := range frames {
 		shown := &planetv1.MapFrame{At: timestamppb.New(frame.At), Owners: make([]*planetv1.TileOwner, 0, len(frame.Owners))}
 		for _, tile := range slices.Sorted(maps.Keys(frame.Owners)) {
@@ -29,6 +30,15 @@ func MapHistory(frames []ledger.Frame, hits map[uint32]uint32) *planetv1.MapHist
 	}
 	slices.SortFunc(answer.Hits, func(a, b *planetv1.TileHits) int { return cmp.Compare(a.GetTile(), b.GetTile()) })
 	return answer
+}
+
+// Eras names each era's board by its name, oldest first.
+func Eras(covering []eras.Era) []*planetv1.BoardEra {
+	shown := make([]*planetv1.BoardEra, len(covering))
+	for i, era := range covering {
+		shown[i] = &planetv1.BoardEra{StartedAt: timestamppb.New(era.StartedAt), Board: string(era.Board.Name)}
+	}
+	return shown
 }
 
 // The first frame has no step before it.

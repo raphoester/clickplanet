@@ -2,6 +2,7 @@ package rpc_planet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -34,26 +35,41 @@ type Planet struct {
 	client Client
 }
 
-// Every tile a player took between since and until, oldest first, page by page as the ledger answers.
-func (p Planet) Takes(ctx context.Context, since, until time.Time) ([]paint.Take, error) {
-	var takes []paint.Take
+// ErrBoardMoved is a ledger read whose pages name two boards: the world switched boards during it.
+var ErrBoardMoved = errors.New("planet's ledger answered two boards in one read")
+
+// Every tile a player took between since and until, oldest first, page by page as the ledger answers, on the board
+// the world plays: planet's ledger answers that board's takes alone, and names it.
+func (p Planet) Takes(ctx context.Context, since, until time.Time) (drawings.Board, []paint.Take, error) {
+	var (
+		board drawings.Board
+		takes []paint.Take
+	)
 	page := ""
 	for {
 		answer, err := p.ledger(ctx, since, until, page)
 		if err != nil {
-			return nil, err
+			return "", nil, err
 		}
+		answered := drawings.Board(answer.GetBoard())
+		switch {
+		case answered == "":
+			return "", nil, fmt.Errorf("planet's ledger named no board since %s", since.Format(time.RFC3339))
+		case board != "" && answered != board:
+			return "", nil, fmt.Errorf("%w: %s, then %s", ErrBoardMoved, board, answered)
+		}
+		board = answered
 		for _, change := range answer.GetChanges() {
 			take, ok, err := takeOf(change)
 			if err != nil {
-				return nil, err
+				return "", nil, err
 			}
 			if ok {
 				takes = append(takes, take)
 			}
 		}
 		if answer.GetNextPage() == "" {
-			return takes, nil
+			return board, takes, nil
 		}
 		page = answer.GetNextPage()
 	}

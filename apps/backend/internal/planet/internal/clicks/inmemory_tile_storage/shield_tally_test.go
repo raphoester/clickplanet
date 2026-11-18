@@ -34,7 +34,7 @@ func (s *testSuite) TestTheShieldTallyIsTheShieldsOnEachFlagsTiles() {
 	persistence.Shield(1, 3)
 	persistence.Shield(3, 2)
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(ctx, clicks.World))
+	s.Require().NoError(storage.Load(ctx, clicks.WorldStage))
 	s.Equal(map[string]uint32{"fr": 3, "de": 2}, shieldsOf(storage.ShieldTally()), "booted from what postgres keeps")
 
 	_, err := storage.Shield(ctx, 2, "fr", 10, clicks.PlacementID{})

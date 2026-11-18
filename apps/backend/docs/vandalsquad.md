@@ -49,15 +49,20 @@ internal/vandalsquad/internal/
   their own flag, around the original another's. On the drawings of 2026-11-06 the originals had none of their flag
   around them and the paint-overs 57 to 100%.
 - **A graffiti seen again is one graffiti** (`Patrol.Note`): the same player, flag and kind on some of the same tiles
-  keeps its first flagging and takes its latest tiles, link and sighting. The patrol reads the painter's graffiti,
+  of the same board keeps its first flagging and takes its latest tiles, link and sighting. The patrol reads the painter's graffiti,
   notes the sighting, and saves it. It is told once, after it is saved (the Warn line `graffiti flagged`, with the
   account, the flag, the tiles and the link), and listed every time. A save that fails ends the patrol; the next one
   sees the drawing again and tells it then.
 
 ## What it keeps
 
-**The graffiti, in postgres, for good** (`vandalsquad.graffiti`): its id, its painter's account, its flag, its kind
-(the enum `graffiti_kind`), its tiles, when it was first flagged and last seen, and its link. A row is upserted whole
+**The graffiti, in postgres, for good** (`vandalsquad.graffiti`): its id, its board, its painter's account, its flag,
+its kind (the enum `graffiti_kind`), its tiles, when it was first flagged and last seen, and its link. **The board is
+its name** (`board text`, `drawings.Board`), as planet's `GetLedger` names the board the world plays, whose takes alone it
+answers: a tile id is a place only on its board (see [Boards and eras](boards-and-eras.md)). It is not planet's row id,
+which this schema cannot reference, and the name is how a board crosses modules. A read whose pages name two boards
+(the world switched boards while the patrol read) is refused (`rpc_planet.ErrBoardMoved`), and the next minute reads
+again. Every graffiti before 2026-11-17 was painted on `earth-1` (migration `20261117133227_graffiti_board`). A row is upserted whole
 (`Storage.Save`); the store finds a painter's graffiti (`PaintedBy`) and nothing else. `ListGraffiti` reads the 500
 newest, newest first, with no domain object in between (see [Reads are queries](queries.md)).
 

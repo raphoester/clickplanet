@@ -17,7 +17,8 @@ import (
 const leastTiles = 12
 
 type Planet interface {
-	Takes(ctx context.Context, since, until time.Time) ([]paint.Take, error)
+	// Every take of the world's map on the board it plays, and that board.
+	Takes(ctx context.Context, since, until time.Time) (drawings.Board, []paint.Take, error)
 	// One tile per id asked, in the order asked.
 	Tiles(ctx context.Context, ids []drawings.TileID) ([]drawings.MapTile, error)
 }
@@ -51,7 +52,7 @@ type UseCase struct {
 // swastika that shows on the map flagged.
 func (u *UseCase) Execute(ctx context.Context) error {
 	now := u.clock.Now()
-	takes, err := u.planet.Takes(ctx, u.patrol.Since(now), now)
+	board, takes, err := u.planet.Takes(ctx, u.patrol.Since(now), now)
 	if err != nil {
 		return fmt.Errorf("failed to read what players painted: %w", err)
 	}
@@ -79,7 +80,7 @@ func (u *UseCase) Execute(ctx context.Context) error {
 		for _, drawing := range drawings.Split(painting.Held(onMap)) {
 			if _, ok := swastikas.ReadingOf(drawing); ok {
 				sightings = append(sightings, graffiti.Sighting{
-					Account: painting.Account, Flag: painting.Flag, Kind: graffiti.Swastika, Drawing: drawing, At: now,
+					Board: board, Account: painting.Account, Flag: painting.Flag, Kind: graffiti.Swastika, Drawing: drawing, At: now,
 				})
 				rims = append(rims, drawing.Rim()...)
 			}

@@ -39,7 +39,7 @@ func (s *StorageContractSuite) SetupTest() {
 
 func (s *StorageContractSuite) graffiti(name string, account cpsession.AccountID, flagged time.Time) Snapshot {
 	return Snapshot{
-		ID: contractID(name), Account: account, Flag: "ro", Kind: Swastika, Tiles: []drawings.TileID{3, 1, 2},
+		ID: contractID(name), Board: "earth-1", Account: account, Flag: "ro", Kind: Swastika, Tiles: []drawings.TileID{3, 1, 2},
 		FlaggedAt: flagged, SeenAt: flagged.Add(time.Minute), Link: "https://clickplanet.lol/play?lat=1.00&lon=2.00&zoom=20.0",
 	}
 }

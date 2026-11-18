@@ -22,7 +22,7 @@ func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool
 	if err := s.flushLocked(ctx); err != nil {
 		return false, fmt.Errorf("failed to save the map before wiping it: %w", err)
 	}
-	wiped, err := s.persistence.Wipe(ctx, s.playing, keep)
+	wiped, err := s.persistence.Wipe(ctx, s.stage.Map, keep)
 	if err != nil {
 		return false, fmt.Errorf("failed to wipe the stored map: %w", err)
 	}

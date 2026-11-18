@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
 var ErrUnknownKind = errors.New("an event of a kind this ledger does not know")
@@ -15,7 +17,9 @@ type Event interface {
 	Entry() (Entry, error)
 }
 
+// Entry is an event as it is kept: its stage is the map it was made on and that map's board, which its tiles are ids of.
 type Entry struct {
+	Stage    clicks.Stage
 	Kind     string
 	Tile     uint32
 	Scope    string

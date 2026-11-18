@@ -79,6 +79,14 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
    */
   nextPage = "";
 
+  /**
+   * The board the world's map plays, by its name ("earth-1"): the changes are the world's on that board alone, and
+   * every tile id is a tile of it.
+   *
+   * @generated from field: string board = 3;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<GetLedgerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -89,6 +97,7 @@ export class GetLedgerResponse extends Message<GetLedgerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "changes", kind: "message", T: LedgerChange, repeated: true },
     { no: 2, name: "next_page", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLedgerResponse {

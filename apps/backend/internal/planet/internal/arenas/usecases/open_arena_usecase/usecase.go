@@ -11,7 +11,14 @@ import (
 )
 
 type Tiles interface {
-	Blank(ctx context.Context, arena clicks.MapID, start []clicks.StartTile, keep func(ctx context.Context) (bool, error)) (bool, error)
+	Blank(
+		ctx context.Context, arena clicks.MapID, start []clicks.StartTile, keep func(ctx context.Context, on clicks.Stage) (bool, error),
+	) (bool, error)
+}
+
+// Eras keeps the era an arena's map starts as it opens.
+type Eras interface {
+	Start(ctx context.Context, played clicks.Stage, at time.Time) error
 }
 
 type Setups interface {
@@ -40,23 +47,24 @@ type Executor interface {
 	Execute(ctx context.Context, command Command) (bool, error)
 }
 
-func New(tiles Tiles, setups Setups, kept Arenas, inPlay InPlay, clock cptime.Clock) *UseCase {
-	return &UseCase{tiles: tiles, setups: setups, kept: kept, inPlay: inPlay, clock: clock}
+func New(tiles Tiles, setups Setups, kept Arenas, eras Eras, inPlay InPlay, clock cptime.Clock) *UseCase {
+	return &UseCase{tiles: tiles, setups: setups, kept: kept, eras: eras, inPlay: inPlay, clock: clock}
 }
 
 type UseCase struct {
 	tiles  Tiles
 	setups Setups
 	kept   Arenas
+	eras   Eras
 	inPlay InPlay
 	clock  cptime.Clock
 }
 
 var _ Executor = (*UseCase)(nil)
 
-// Execute keeps the arena open, in one transaction under the map's locks, and plays the arena's fresh map, seeded as the
-// battle's set says: the world's map stays in postgres as it is. The arena is read under the locks, so a call made twice
-// opens it once.
+// Execute keeps the arena open with its map's era, in one transaction under the map's locks, and plays the arena's
+// fresh map, seeded as the battle's set says: the world's map stays in postgres as it is. The arena is read under the
+// locks, so a call made twice opens it once.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	setup, err := u.setups.Setup(ctx, command.Set)
 	if err != nil {
@@ -64,7 +72,7 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 	}
 
 	var opening arenas.Opening
-	opened, err := u.tiles.Blank(ctx, command.Arena.Map(), setup.Seed.Tiles(), func(ctx context.Context) (bool, error) {
+	opened, err := u.tiles.Blank(ctx, command.Arena.Map(), setup.Seed.Tiles(), func(ctx context.Context, on clicks.Stage) (bool, error) {
 		arena, err := u.kept.Find(ctx, command.Arena)
 		if err != nil {
 			return false, err //nolint:wrapcheck // the store names it.
@@ -78,6 +86,9 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
 			return false, err //nolint:wrapcheck // the arena says why.
 		}
 		if err := u.kept.Open(ctx, next); err != nil {
+			return false, err //nolint:wrapcheck // the store names it.
+		}
+		if err := u.eras.Start(ctx, on, next.OpenedAt); err != nil {
 			return false, err //nolint:wrapcheck // the store names it.
 		}
 		opening = next

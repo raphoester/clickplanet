@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/postgres_tile_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
@@ -33,6 +34,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
 }
 
 func (s *testSuite) load() map[uint32]string {
@@ -58,16 +60,16 @@ func (s *testSuite) TestAnEmptyTableLoadsNothing() {
 func (s *testSuite) TestSaveThenLoad() {
 	ctx := context.Background()
 
-	s.Require().NoError(s.store.Save(ctx, clicks.World, append(append(owned("fr", 0), owned("us", 7)...), owned("de", 257_948)...), nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, append(append(owned("fr", 0), owned("us", 7)...), owned("de", 257_948)...), nil, nil))
 
 	s.Equal(map[uint32]string{0: "fr", 7: "us", 257_948: "de"}, s.load())
 }
 
 func (s *testSuite) TestSaveOverwritesAnOwnerAndDeletesAFreedTile() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2, 3), nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2, 3), nil, nil))
 
-	s.Require().NoError(s.store.Save(ctx, clicks.World, append(owned("us", 1), owned("", 2, 4)...), nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, append(owned("us", 1), owned("", 2, 4)...), nil, nil))
 
 	s.Equal(map[uint32]string{1: "us", 3: "fr"}, s.load(),
 		"a freed tile has no row, and freeing one that had none is not an error")
@@ -80,7 +82,7 @@ func (s *testSuite) TestSaveSpansChunks() {
 		ids[i] = uint32(i)
 	}
 
-	s.Require().NoError(s.store.Save(context.Background(), clicks.World, owned("bg", ids...), nil, nil))
+	s.Require().NoError(s.store.Save(context.Background(), clicks.WorldStage, owned("bg", ids...), nil, nil))
 
 	s.Len(s.load(), count)
 }
@@ -92,7 +94,7 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 	for i := range ids {
 		ids[i] = uint32(i)
 	}
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 20_000), nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 20_000), nil, nil))
 	_, err := s.db.On(ctx).ExecContext(ctx, `ALTER TABLE tiles ADD CONSTRAINT not_bg_past_ten_thousand CHECK (id < 10000 OR country <> 'bg')`)
 	s.Require().NoError(err)
 	defer func() {
@@ -100,18 +102,18 @@ func (s *testSuite) TestAFailedSaveWritesNothing() {
 		s.Require().NoError(err)
 	}()
 
-	s.Require().Error(s.store.Save(ctx, clicks.World, owned("bg", ids...), nil, nil))
+	s.Require().Error(s.store.Save(ctx, clicks.WorldStage, owned("bg", ids...), nil, nil))
 
 	s.Equal(map[uint32]string{20_000: "fr"}, s.load())
 }
 
 func (s *testSuite) TestShieldsAreKeptWithTheirTile() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, []inmemory_tile_storage.Tile{
 		{ID: 1, Owner: "fr", Shields: 3},
 		{ID: 2, Owner: "fr"},
 	}, nil, nil))
-	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Shields: 2}}, nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Shields: 2}}, nil, nil))
 
 	shields := map[uint32]int{}
 	s.Require().NoError(s.store.Load(ctx, clicks.World, func(tile inmemory_tile_storage.Tile) {
@@ -123,12 +125,12 @@ func (s *testSuite) TestShieldsAreKeptWithTheirTile() {
 func (s *testSuite) TestTheHolderIsKeptWithItsTile() {
 	ctx := context.Background()
 	ana := cpsession.AccountID(uuid.New())
-	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, []inmemory_tile_storage.Tile{
 		{ID: 1, Owner: "fr", Holder: ana},
 		{ID: 2, Owner: "fr", Holder: ana},
 		{ID: 3, Owner: "de"},
 	}, nil, nil))
-	s.Require().NoError(s.store.Save(ctx, clicks.World, []inmemory_tile_storage.Tile{{ID: 2, Owner: "fr"}}, nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, []inmemory_tile_storage.Tile{{ID: 2, Owner: "fr"}}, nil, nil))
 
 	holders := map[uint32]cpsession.AccountID{}
 	s.Require().NoError(s.store.Load(ctx, clicks.World, func(tile inmemory_tile_storage.Tile) {
@@ -139,12 +141,12 @@ func (s *testSuite) TestTheHolderIsKeptWithItsTile() {
 
 func (s *testSuite) TestALandmassLockIsKeptForItsMapAlone() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, nil, []inmemory_tile_storage.Landmass{
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, nil, []inmemory_tile_storage.Landmass{
 		{ID: 3, Asset: "borders-a.bin", FortifiedBy: "fr"},
 		{ID: 4, Asset: "borders-a.bin", FortifiedBy: "de"},
 		{ID: 3, Asset: "borders-b.bin", FortifiedBy: "us"},
 	}, nil))
-	s.Require().NoError(s.store.Save(ctx, clicks.World, nil, []inmemory_tile_storage.Landmass{
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, nil, []inmemory_tile_storage.Landmass{
 		{ID: 3, Asset: "borders-a.bin", FortifiedBy: "bg"},
 	}, nil))
 

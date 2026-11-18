@@ -229,6 +229,9 @@ message GetMapResponse {
 
   // The tiles of the range a live virus infects.
   repeated InfectedTile infected = 8;
+
+  // The board the map plays, by its name ("earth-1"): every tile id of the answer is a tile of that board.
+  string board = 9;
 }
 
 message InfectedTile {
@@ -778,6 +781,11 @@ message PlaceShieldResponse {
 message Heartbeat {
   // The last change this stream sent, or the map's when it opened.
   MapVersion version = 1;
+
+  // On the heartbeat a stream opens with: the board the map plays, by its name ("earth-1"). Every tile id the stream
+  // sends after is a tile of that board: a change of board starts a new epoch and cuts every stream. Empty on the
+  // heartbeats after.
+  string board = 2;
 }
 
 message TileUpdate {

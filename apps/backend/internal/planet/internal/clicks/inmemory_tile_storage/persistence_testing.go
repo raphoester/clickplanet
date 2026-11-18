@@ -20,6 +20,8 @@ type MemoryPersistence struct {
 }
 
 type memoryMap struct {
+	// The board every row names: the last a write named, TestBoard for the rows a test seeds.
+	board      clicks.BoardID
 	rows       map[uint32]string
 	shields    map[uint32]int
 	holders    map[uint32]cpsession.AccountID
@@ -31,7 +33,8 @@ type memoryMap struct {
 
 func newMemoryMap() *memoryMap {
 	return &memoryMap{
-		rows: map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
+		board: clicks.TestBoard,
+		rows:  map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
 		landmasses: map[string]map[clicks.LandmassID]string{}, out: map[string]OutFlag{},
 		mines: map[uint32]clicks.MineSnapshot{},
 	}
@@ -50,14 +53,14 @@ func (m *MemoryPersistence) LoadMines(_ context.Context, played clicks.MapID, vi
 	return nil
 }
 
-func (m *MemoryPersistence) SaveMines(_ context.Context, played clicks.MapID, laid []clicks.MineSnapshot, gone []uint32) error {
+func (m *MemoryPersistence) SaveMines(_ context.Context, played clicks.Stage, laid []clicks.MineSnapshot, gone []uint32) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
 		return m.failing
 	}
-	kept := m.mapLocked(played).mines
+	kept := m.writeLocked(played).mines
 	for _, mine := range laid {
 		kept[mine.Tile] = mine
 	}
@@ -93,14 +96,14 @@ func (m *MemoryPersistence) LoadViruses(_ context.Context, played clicks.MapID, 
 	return nil
 }
 
-func (m *MemoryPersistence) SaveViruses(_ context.Context, played clicks.MapID, live []clicks.VirusSnapshot) error {
+func (m *MemoryPersistence) SaveViruses(_ context.Context, played clicks.Stage, live []clicks.VirusSnapshot) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.failing != nil {
 		return m.failing
 	}
-	m.mapLocked(played).viruses = slices.Clone(live)
+	m.writeLocked(played).viruses = slices.Clone(live)
 	return nil
 }
 
@@ -124,6 +127,44 @@ func (m *MemoryPersistence) mapLocked(played clicks.MapID) *memoryMap {
 		m.maps[played] = newMemoryMap()
 	}
 	return m.maps[played]
+}
+
+// writeLocked is the map a write names the board of: every row it keeps names that board.
+func (m *MemoryPersistence) writeLocked(played clicks.Stage) *memoryMap {
+	kept := m.mapLocked(played.Map)
+	kept.board = played.Board
+	return kept
+}
+
+// Boards names the map's board when it keeps any row.
+func (m *MemoryPersistence) Boards(_ context.Context, played clicks.MapID) ([]clicks.BoardID, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.failing != nil {
+		return nil, m.failing
+	}
+	kept := m.mapLocked(played)
+	if len(kept.rows) == 0 && len(kept.landmasses) == 0 && len(kept.mines) == 0 && len(kept.viruses) == 0 {
+		return nil, nil
+	}
+	return []clicks.BoardID{kept.board}, nil
+}
+
+// Remapped names another board on every row of a map, as rows written before a switch of boards the code never got.
+func (m *MemoryPersistence) Remapped(played clicks.MapID, board clicks.BoardID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.mapLocked(played).board = board
+}
+
+// BoardOn is the board a map's rows name.
+func (m *MemoryPersistence) BoardOn(played clicks.MapID) clicks.BoardID {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.mapLocked(played).board
 }
 
 func (m *MemoryPersistence) Fortified(asset string, landmass clicks.LandmassID, flag string) {
@@ -214,7 +255,7 @@ func (m *MemoryPersistence) StoredOutFlagsOn(played clicks.MapID) map[string]Out
 }
 
 func (m *MemoryPersistence) Save(
-	_ context.Context, played clicks.MapID, tiles []Tile, landmasses []Landmass, out []OutFlag,
+	_ context.Context, played clicks.Stage, tiles []Tile, landmasses []Landmass, out []OutFlag,
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -225,7 +266,7 @@ func (m *MemoryPersistence) Save(
 	if len(tiles) > 0 {
 		m.saves = append(m.saves, slices.Clone(tiles))
 	}
-	kept := m.mapLocked(played)
+	kept := m.writeLocked(played)
 	for _, flag := range out {
 		if _, ok := kept.out[flag.Flag]; !ok {
 			kept.out[flag.Flag] = flag
@@ -260,7 +301,7 @@ func (m *MemoryPersistence) Save(
 }
 
 func (m *MemoryPersistence) Open(
-	ctx context.Context, played clicks.MapID, tiles []Tile, keep func(ctx context.Context) (bool, error),
+	ctx context.Context, played clicks.Stage, tiles []Tile, keep func(ctx context.Context) (bool, error),
 ) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -272,7 +313,7 @@ func (m *MemoryPersistence) Open(
 	if err != nil || !kept {
 		return false, err
 	}
-	opened := m.mapLocked(played)
+	opened := m.writeLocked(played)
 	for _, tile := range tiles {
 		opened.rows[tile.ID] = tile.Owner
 		opened.shields[tile.ID] = tile.Shields

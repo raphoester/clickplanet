@@ -13,7 +13,7 @@ import (
 )
 
 type Ledger interface {
-	ReplaySaved(from ledger.Position, most int, see func(ledger.Position, ledger.Event)) ledger.Position
+	ReplaySaved(from ledger.Position, most int, see func(ledger.Position, clicks.Stage, ledger.Event)) ledger.Position
 }
 
 type Cursor interface {
@@ -30,6 +30,32 @@ type Positions interface {
 	Position(tile uint32) (clicks.Vec3, bool)
 }
 
+// Boards are the borders and the positions of each board this process carries: an event's tiles are ids of its board.
+type Boards interface {
+	Of(board clicks.BoardID) (Borders, Positions, bool)
+}
+
+// OneBoard is the one board this process carries, until it carries more.
+type OneBoard struct {
+	ID        clicks.BoardID
+	Borders   Borders
+	Positions Positions
+}
+
+func (b OneBoard) Of(board clicks.BoardID) (Borders, Positions, bool) {
+	if board != b.ID {
+		return nil, nil, false
+	}
+	return b.Borders, b.Positions, true
+}
+
+// An event on a board this process does not carry tells its tiles with no ground and no point.
+type noBoard struct{}
+
+func (noBoard) CountryOf(uint32) string             { return "" }
+func (noBoard) LandmassOf(uint32) clicks.LandmassID { return 0 }
+func (noBoard) Position(uint32) (clicks.Vec3, bool) { return clicks.Vec3{}, false }
+
 type Sender interface {
 	Send(ctx context.Context, events ...proto.Message) error
 }
@@ -41,17 +67,16 @@ type Executor interface {
 const Batch = 1000
 
 type UseCase struct {
-	ledger    Ledger
-	cursor    Cursor
-	borders   Borders
-	positions Positions
-	events    Sender
+	ledger Ledger
+	cursor Cursor
+	boards Boards
+	events Sender
 }
 
 var _ Executor = (*UseCase)(nil)
 
-func New(ledger Ledger, cursor Cursor, borders Borders, positions Positions, events Sender) *UseCase {
-	return &UseCase{ledger: ledger, cursor: cursor, borders: borders, positions: positions, events: events}
+func New(ledger Ledger, cursor Cursor, boards Boards, events Sender) *UseCase {
+	return &UseCase{ledger: ledger, cursor: cursor, boards: boards, events: events}
 }
 
 // A crash between the send and the save sends the batch again: each fact names its position.
@@ -62,8 +87,8 @@ func (u *UseCase) Execute(ctx context.Context) (int, error) {
 	}
 
 	var facts []proto.Message
-	next := u.ledger.ReplaySaved(from, Batch, func(position ledger.Position, event ledger.Event) {
-		facts = append(facts, u.factsOf(position, event)...)
+	next := u.ledger.ReplaySaved(from, Batch, func(position ledger.Position, on clicks.Stage, event ledger.Event) {
+		facts = append(facts, u.factsOf(position, on, event)...)
 	})
 	if next == from {
 		return 0, nil
@@ -78,13 +103,21 @@ func (u *UseCase) Execute(ctx context.Context) (int, error) {
 	return int(next - from), nil //nolint:gosec // at most Batch.
 }
 
-func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.Message {
-	facts := u.takenOf(position, event)
+// The ground and the point of each tile are its board's, the board the event names.
+func (u *UseCase) factsOf(position ledger.Position, on clicks.Stage, event ledger.Event) []proto.Message {
+	var (
+		borders   Borders   = noBoard{}
+		positions Positions = noBoard{}
+	)
+	if carried, at, ok := u.boards.Of(on.Board); ok {
+		borders, positions = carried, at
+	}
+	facts := takenOf(position, event, borders, positions)
 	facts = append(facts, struckOf(position, event)...)
 
 	switch told := event.(type) {
 	case ledger.Bombing:
-		facts = append(facts, u.landedOf(position, told))
+		facts = append(facts, landedOf(position, told, borders))
 	case ledger.Fortifying:
 		facts = append(facts, fortifiedOf(position, told))
 	case ledger.Shielding:
@@ -100,7 +133,7 @@ func (u *UseCase) factsOf(position ledger.Position, event ledger.Event) []proto.
 const PartTiles = 4096
 
 // The takes of one event, in parts: a tile's index counts the takes told before it in the event, across the parts.
-func (u *UseCase) takenOf(position ledger.Position, event ledger.Event) []proto.Message {
+func takenOf(position ledger.Position, event ledger.Event, borders Borders, positions Positions) []proto.Message {
 	var parts []proto.Message
 	var part *planetv1.TilesTaken
 	var index uint32
@@ -121,9 +154,9 @@ func (u *UseCase) takenOf(position ledger.Position, event ledger.Event) []proto.
 			TileId:   taking.Tile,
 			Index:    index,
 			Previous: taking.Previous,
-			Ground:   u.borders.CountryOf(taking.Tile),
+			Ground:   borders.CountryOf(taking.Tile),
 		}
-		if at, ok := u.positions.Position(taking.Tile); ok {
+		if at, ok := positions.Position(taking.Tile); ok {
 			tile.Point = &planetv1.GlobePoint{X: at.X, Y: at.Y, Z: at.Z}
 		}
 		part.Tiles = append(part.Tiles, tile)
@@ -152,7 +185,7 @@ func struckOf(position ledger.Position, event ledger.Event) []proto.Message {
 	return parts
 }
 
-func (u *UseCase) landedOf(position ledger.Position, bombing ledger.Bombing) *planetv1.BombLanded {
+func landedOf(position ledger.Position, bombing ledger.Bombing, borders Borders) *planetv1.BombLanded {
 	landed := &planetv1.BombLanded{
 		Country:   bombing.Blast.CountryID,
 		TileId:    bombing.Blast.Tile,
@@ -162,8 +195,8 @@ func (u *UseCase) landedOf(position ledger.Position, bombing ledger.Bombing) *pl
 		Position:  uint64(position),
 	}
 	if bombing.Blast.Tile != 0 {
-		landed.Ground = u.borders.CountryOf(bombing.Blast.Tile)
-		landed.LandmassId = uint32(u.borders.LandmassOf(bombing.Blast.Tile))
+		landed.Ground = borders.CountryOf(bombing.Blast.Tile)
+		landed.LandmassId = uint32(borders.LandmassOf(bombing.Blast.Tile))
 	}
 	return landed
 }

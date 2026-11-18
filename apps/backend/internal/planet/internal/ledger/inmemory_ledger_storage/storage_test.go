@@ -19,7 +19,7 @@ var start = time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 
 func replay(storage *inmemory_ledger_storage.Storage) []ledger.Taking {
 	var takings []ledger.Taking
-	storage.Replay(func(event ledger.Event) {
+	storage.Replay(func(_ clicks.Stage, event ledger.Event) {
 		event.Replay(func(taking ledger.Taking) { takings = append(takings, taking) })
 	})
 	return takings
@@ -50,16 +50,16 @@ func TestEveryTakeIsKeptInOrder(t *testing.T) {
 		take(8, "1.2.3.4", "fr", "", start.Add(2*time.Second)),
 	}
 	for _, taking := range want {
-		storage.Append(taking)
+		storage.Append(clicks.WorldStage, taking)
 	}
 
 	assert.Equal(t, want, replay(storage))
-	assert.Equal(t, ledger.Position(3), storage.Replay(func(ledger.Event) {}))
+	assert.Equal(t, ledger.Position(3), storage.Replay(func(clicks.Stage, ledger.Event) {}))
 }
 
 func TestATimeIsKeptToTheSecond(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
-	storage.Append(take(1, "1.2.3.4", "fr", "", start.Add(900*time.Millisecond)))
+	storage.Append(clicks.WorldStage, take(1, "1.2.3.4", "fr", "", start.Add(900*time.Millisecond)))
 
 	assert.Equal(t, start, replay(storage)[0].At)
 }
@@ -69,7 +69,7 @@ func TestTakesSpanChunks(t *testing.T) {
 
 	const n = 1<<16 + 10
 	for i := range n {
-		storage.Append(take(uint32(i), "1.2.3.4", "fr", "", start.Add(time.Duration(i)*time.Second)))
+		storage.Append(clicks.WorldStage, take(uint32(i), "1.2.3.4", "fr", "", start.Add(time.Duration(i)*time.Second)))
 	}
 
 	takings := replay(storage)
@@ -85,10 +85,10 @@ func TestTakesSpanChunks(t *testing.T) {
 func TestForgetHidesTheScopesTakesBeforeThePositionOnly(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(take(1, "bot", "ps", "il", start))
-	storage.Append(take(2, "player", "il", "", start))
-	end := storage.Replay(func(ledger.Event) {})
-	storage.Append(take(3, "bot", "ps", "", start.Add(time.Second)))
+	storage.Append(clicks.WorldStage, take(1, "bot", "ps", "il", start))
+	storage.Append(clicks.WorldStage, take(2, "player", "il", "", start))
+	end := storage.Replay(func(clicks.Stage, ledger.Event) {})
+	storage.Append(clicks.WorldStage, take(3, "bot", "ps", "", start.Add(time.Second)))
 
 	storage.Forget(ledger.Caller{Scope: "bot"}, end)
 
@@ -101,8 +101,8 @@ func TestForgetHidesTheScopesTakesBeforeThePositionOnly(t *testing.T) {
 func TestForgetBeforeDropsOnlyOlderTakes(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(take(1, "1.2.3.4", "fr", "", start))
-	storage.Append(take(2, "1.2.3.4", "fr", "", start.Add(time.Hour)))
+	storage.Append(clicks.WorldStage, take(1, "1.2.3.4", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(2, "1.2.3.4", "fr", "", start.Add(time.Hour)))
 
 	storage.ForgetBefore(start.Add(time.Minute))
 
@@ -112,9 +112,9 @@ func TestForgetBeforeDropsOnlyOlderTakes(t *testing.T) {
 func TestTheCapDropsTheOldestTakes(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{MaxTakes: 2}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(take(1, "a", "fr", "", start))
-	storage.Append(take(2, "b", "fr", "", start))
-	storage.Append(take(3, "c", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(2, "b", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(3, "c", "fr", "", start))
 
 	takings := replay(storage)
 	require.Len(t, takings, 2)
@@ -127,13 +127,13 @@ func TestAReplayRacingAppendsSeesAConsistentPrefix(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Go(func() {
 		for i := range 1 << 18 {
-			storage.Append(take(uint32(i), "1.2.3.4", "fr", "", start))
+			storage.Append(clicks.WorldStage, take(uint32(i), "1.2.3.4", "fr", "", start))
 		}
 	})
 
 	for range 20 {
 		last := int64(-1)
-		storage.Replay(func(event ledger.Event) {
+		storage.Replay(func(_ clicks.Stage, event ledger.Event) {
 			event.Replay(func(taking ledger.Taking) {
 				assert.Greater(t, int64(taking.Tile), last)
 				last = int64(taking.Tile)
@@ -157,9 +157,9 @@ func TestForgetOnAnAccountHidesItsTakesFromEveryScope(t *testing.T) {
 	noAccount := take(4, "campus", "ps", "il", start)
 
 	for _, taking := range []ledger.Taking{guest, elsewhere, classmate, noAccount} {
-		storage.Append(taking)
+		storage.Append(clicks.WorldStage, taking)
 	}
-	storage.Forget(ledger.Caller{Account: "a-guest"}, storage.Replay(func(ledger.Event) {}))
+	storage.Forget(ledger.Caller{Account: "a-guest"}, storage.Replay(func(clicks.Stage, ledger.Event) {}))
 
 	assert.Equal(t, []ledger.Taking{classmate, noAccount}, replay(storage))
 }
@@ -167,9 +167,9 @@ func TestForgetOnAnAccountHidesItsTakesFromEveryScope(t *testing.T) {
 func TestABombingReplaysAsOneClearPerTileInItsPlace(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(take(1, "a", "fr", "", start))
-	storage.Append(bombing("bomber", start.Add(time.Second), []uint32{1, 2}, "fr", "il"))
-	storage.Append(take(1, "a", "fr", "", start.Add(2*time.Second)))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, bombing("bomber", start.Add(time.Second), []uint32{1, 2}, "fr", "il"))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start.Add(2*time.Second)))
 
 	assert.Equal(t, []ledger.Taking{
 		take(1, "a", "fr", "", start),
@@ -177,14 +177,14 @@ func TestABombingReplaysAsOneClearPerTileInItsPlace(t *testing.T) {
 		bombed(2, "bomber", "il", start.Add(time.Second)),
 		take(1, "a", "fr", "", start.Add(2*time.Second)),
 	}, replay(storage))
-	assert.Equal(t, ledger.Position(3), storage.Replay(func(ledger.Event) {}), "a bombing is one event")
+	assert.Equal(t, ledger.Position(3), storage.Replay(func(clicks.Stage, ledger.Event) {}), "a bombing is one event")
 }
 
 func TestABombingKeepsWhatItHitWhateverTheCallerDoesWithItsBlast(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	hit := bombing("bomber", start, []uint32{1}, "fr")
-	storage.Append(hit)
+	storage.Append(clicks.WorldStage, hit)
 	hit.Blast.Cleared[0], hit.Blast.Owners[0] = 9, "jp"
 
 	assert.Equal(t, []ledger.Taking{bombed(1, "bomber", "fr", start)}, replay(storage))
@@ -193,9 +193,9 @@ func TestABombingKeepsWhatItHitWhateverTheCallerDoesWithItsBlast(t *testing.T) {
 func TestForgetHidesTheCallersBombings(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(bombing("bot", start, []uint32{1}, "fr"))
-	storage.Append(take(2, "player", "il", "", start))
-	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(ledger.Event) {}))
+	storage.Append(clicks.WorldStage, bombing("bot", start, []uint32{1}, "fr"))
+	storage.Append(clicks.WorldStage, take(2, "player", "il", "", start))
+	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(clicks.Stage, ledger.Event) {}))
 
 	assert.Equal(t, []ledger.Taking{take(2, "player", "il", "", start)}, replay(storage))
 }
@@ -203,9 +203,9 @@ func TestForgetHidesTheCallersBombings(t *testing.T) {
 func TestTheRetentionDropsABombingWithItsTime(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(bombing("old", start, []uint32{1}, "fr"))
-	storage.Append(take(2, "a", "fr", "", start.Add(time.Hour)))
-	storage.Append(bombing("new", start.Add(2*time.Hour), []uint32{2}, "fr"))
+	storage.Append(clicks.WorldStage, bombing("old", start, []uint32{1}, "fr"))
+	storage.Append(clicks.WorldStage, take(2, "a", "fr", "", start.Add(time.Hour)))
+	storage.Append(clicks.WorldStage, bombing("new", start.Add(2*time.Hour), []uint32{2}, "fr"))
 
 	storage.ForgetBefore(start.Add(time.Minute))
 
@@ -221,10 +221,10 @@ func TestBombingsSpanChunks(t *testing.T) {
 	const n = 1<<16 + 2
 	for i := range uint32(n) {
 		if i == 1<<16-1 || i == 1<<16 {
-			storage.Append(bombing("bomber", start, []uint32{i}, "fr"))
+			storage.Append(clicks.WorldStage, bombing("bomber", start, []uint32{i}, "fr"))
 			continue
 		}
-		storage.Append(take(i, "1.2.3.4", "fr", "", start))
+		storage.Append(clicks.WorldStage, take(i, "1.2.3.4", "fr", "", start))
 	}
 
 	takings := replay(storage)
@@ -246,9 +246,9 @@ func (unwritable) Entry() (ledger.Entry, error) { return ledger.Entry{}, errors.
 func TestAnEventTheLedgerCannotWriteDownIsNotKept(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(unwritable{})
-	storage.Append(take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, unwritable{})
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
 
 	assert.Equal(t, []ledger.Taking{take(1, "a", "fr", "", start)}, replay(storage))
-	assert.Equal(t, ledger.Position(1), storage.Replay(func(ledger.Event) {}))
+	assert.Equal(t, ledger.Position(1), storage.Replay(func(clicks.Stage, ledger.Event) {}))
 }

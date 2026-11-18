@@ -61,6 +61,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/admit_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/apply_grant_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras/postgres_era_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -227,6 +229,11 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 			capitals = capitals.Flags(countries.CheckCountry)
 
+			carried, err := gameMap.Carried()
+			if err != nil {
+				return fmt.Errorf("failed to name the board this process carries: %w", err)
+			}
+
 			tilesChecker := clicks.NewBoard(config.GameMap.MaxIndex)
 
 			db := cppg.New(config.Database)
@@ -254,6 +261,24 @@ func NewModule(config Config) cpbootstrap.Module {
 				closeStores()
 				return fmt.Errorf("failed to read the arena open: %w", err)
 			}
+			// The boot refuses a map whose era plays a board this process does not carry, and the tile map's Load a map
+			// whose rows name another board: ids of another board would land on other ground.
+			eraStore := postgres_era_store.New(db)
+			kept, err := eraStore.Boards(ctx)
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to read the boards planet keeps: %w", err)
+			}
+			boards, err := eras.BoardsOf(kept, carried)
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("failed to match the board this process carries: %w", err)
+			}
+			stage, err := eras.Playing(ctx, eraStore, boards, playing.Played())
+			if err != nil {
+				closeStores()
+				return fmt.Errorf("refused to play the map: %w", err)
+			}
 			inForce := cprules.NewInForce[*planetv1.Rules](clock)
 			chargeRules := cprules.Reader(inForce, charges.Part)
 			hands := charges.NewCharges(postgres_charge_store.New(db), chargeRules)
@@ -265,7 +290,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			capitalPlay := clicks.NewCapitalPlay(capitals, cprules.Reader(inForce, clicks.CapitalsPart))
 			tilesStorage := inmemory_tile_storage.New(borders, capitalPlay, config.TilesStorage, postgres_tile_store.New(db), db,
 				escrow, clock, props.Logger)
-			if err := tilesStorage.Load(ctx, playing.Played()); err != nil {
+			if err := tilesStorage.Load(ctx, stage); err != nil {
 				closeStores()
 				return fmt.Errorf("failed to load the tile map: %w", err)
 			}
@@ -314,7 +339,8 @@ func NewModule(config Config) cpbootstrap.Module {
 			}
 
 			relay := relay_ledger_usecase.NewRunner(ledgerRelayInterval, log_relay_ledger.New(
-				relay_ledger_usecase.New(takings, ledgerStore, borders, geography, streams), props.Logger))
+				relay_ledger_usecase.New(takings, ledgerStore,
+					relay_ledger_usecase.OneBoard{ID: stage.Board, Borders: borders, Positions: geography}, streams), props.Logger))
 
 			refusalBook := refusals.NewBook(postgres_refusal_store.New(db), clock)
 			refused, err := cpredis.Handle(ctx, streams, log_subscriber.New(refuse_caller_handler.New(refusalBook), props.Logger))
@@ -389,17 +415,17 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			getTerritories := get_territories_handler.New(
 				territories_query.NewMemoryQuery(tilesStorage, tilesStorage, borders, config.GameMap.MaxIndex))
-			getLedger := get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock, arenaStore))
+			getLedger := get_ledger_handler.New(changes_query.NewPostgresQuery(db, clock, eraStore))
 			adminService := planetv1controller.AdminService{
 				FindPlayersHandler: find_players_handler.New(
 					find_players_usecase.New(takings, tilesStorage, borders, refusalBook, countries)),
 				TopPlayersHandler: top_players_handler.New(top_players_usecase.New(takings, tilesStorage, refusalBook)),
 				RevertPlayerHandler: revert_player_handler.New(
-					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, arenaStore, pace), props.Logger)),
+					audit_revert.New(revert_player_usecase.New(takings, tilesStorage, pace), props.Logger)),
 				GrantChargesHandler: grant_charges_handler.New(
 					audit_grant_charges.New(grant_charges_usecase.New(hands, board), props.Logger)),
 				ReleaseAllegianceHandler: release_allegiance_handler.New(audit_release.New(book, props.Logger), lock),
-				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(takings, resetStore, arenaStore, tilesStorage, clock)),
+				GetReplayHandler:         get_replay_handler.New(replay_usecase.New(takings, resetStore, arenaStore, eraStore, tilesStorage, clock)),
 				GetLedgerHandler:         getLedger,
 				GetTerritoriesHandler:    getTerritories,
 				GetRulesHandler:          get_rules_handler.New(rule_sets_query.NewPostgresQuery(db), inForce),
@@ -418,11 +444,11 @@ func NewModule(config Config) cpbootstrap.Module {
 
 			shieldsPerTile := func() int { return chargeRules().Shield.PerTile }
 			infections := ledger.NewVirusRecording(
-				clicks.NewContagion(tilesStorage, geography, rand.IntN, shieldsPerTile), takings, clock) //nolint:gosec // which tile a virus takes is no secret.
+				clicks.NewContagion(tilesStorage, geography, rand.IntN, shieldsPerTile), tilesStorage, takings, clock) //nolint:gosec // which tile a virus takes is no secret.
 			outbreak := viruses.NewOutbreak(chargeRules, clock)
 			props.Runners.Add(spread_viruses_usecase.NewRunner(virusesInterval, log_spread_viruses.New(
 				spread_viruses_usecase.New(tilesStorage, infections, outbreak, freezing), props.Logger)))
-			minefield := ledger.NewMineRecording(clicks.NewMinefield(tilesStorage, geography, shieldsPerTile), takings, clock)
+			minefield := ledger.NewMineRecording(clicks.NewMinefield(tilesStorage, geography, shieldsPerTile), tilesStorage, takings, clock)
 			props.Runners.Add(detonate_mines_usecase.NewRunner(tilesStorage.Fuse(), minesInterval, log_detonate_mines.New(
 				detonate_mines_usecase.New(minefield, mines.NewBlasting(chargeRules)), props.Logger)))
 			internalService := planetv1controller.InternalService{
@@ -430,12 +456,12 @@ func NewModule(config Config) cpbootstrap.Module {
 				ResetMapHandler: reset_map_handler.New(
 					log_reset_map.New(reset_map_usecase.New(tilesStorage, resetStore), props.Logger)),
 				OpenArenaHandler: open_arena_handler.New(
-					log_open_arena.New(open_arena_usecase.New(tilesStorage, setups, arenaStore, inPlay, clock), props.Logger)),
+					log_open_arena.New(open_arena_usecase.New(tilesStorage, setups, arenaStore, eraStore, inPlay, clock), props.Logger)),
 				CloseArenaHandler: close_arena_handler.New(
 					log_close_arena.New(close_arena_usecase.New(tilesStorage, arenaStore, inPlay, clock), props.Logger)),
 				GetLedgerHandler:         getLedger,
 				GetLedgerTotalsHandler:   get_ledger_totals_handler.New(totals_query.NewPostgresQuery(db)),
-				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, arenaStore)),
+				GetMapHistoryHandler:     get_map_history_handler.New(history_query.NewPostgresQuery(db, eraStore)),
 				GetTakesByCountryHandler: get_takes_by_country_handler.New(takes_query.NewPostgresQuery(db)),
 				GetPlayDaysHandler:       get_play_days_handler.New(play_days_query.NewPostgresQuery(db)),
 				GetTerritoriesHandler:    getTerritories,
@@ -485,10 +511,10 @@ func NewModule(config Config) cpbootstrap.Module {
 				ClickHandler:       click_handler.New(clickUseCase),
 				GetBudgetHandler:   get_budget_handler.New(get_budget_usecase.New(limiter, pricer, buckets, freeze)),
 				MapDensityHandler:  map_density_handler.New(map_density_usecase.New(tilesChecker)),
-				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told)),
+				GetMapHandler:      get_map_handler.New(get_map_usecase.New(tilesChecker, tilesStorage, told), boards),
 				GetHoldingsHandler: get_holdings_handler.New(holdings_query.NewMemoryQuery(tilesStorage)),
 				ListenForEventsHandler: listen_for_events_handler.New(
-					listen_for_events_usecase.New(tilesStorage, props.Server.StreamHeartbeat, board, book, inForce, told)),
+					listen_for_events_usecase.New(tilesStorage, boards, props.Server.StreamHeartbeat, board, book, inForce, told)),
 				DropBombHandler:   drop_bomb_handler.New(dropBomb),
 				UseRefillHandler:  use_refill_handler.New(use_refill_usecase.New(hands, limiter, pricer, buckets)),
 				GetChargesHandler: get_charges_handler.New(get_charges_usecase.New(hands)),
@@ -508,11 +534,11 @@ func NewModule(config Config) cpbootstrap.Module {
 					rallies.Tellers{rally_streams.New(board), rally_facts.New(told, borders, geography)})),
 				GetRalliesHandler:    get_rallies_handler.New(rallies_query.NewPostgresQuery(db, clock)),
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
-				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, arenaStore, clock)),
+				GetTileHolderHandler: get_tile_holder_handler.New(tilesChecker, holder_query.NewPostgresQuery(db, tilesStorage)),
 				GetLandmassHandler: get_landmass_handler.New(borders,
-					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage), arenaStore, clock)),
+					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage), tilesStorage)),
 				GetRecentMapHistoryHandler: get_recent_map_history_handler.New(
-					recent_history_query.NewPostgresQuery(db, tilesStorage, arenaStore, resetStore, clock), clock),
+					recent_history_query.NewPostgresQuery(db, tilesStorage, eraStore, resetStore, clock), clock),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),
 				PledgeAllegianceHandler: pledge_allegiance_handler.New(book),
 			}

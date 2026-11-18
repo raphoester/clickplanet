@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/usecases/get_map_usecase"
@@ -14,12 +15,18 @@ type UseCase interface {
 	Execute(ctx context.Context, in get_map_usecase.In) (clicks.DenseBatch, error)
 }
 
-func New(useCase UseCase) GetMapHandler {
-	return GetMapHandler{useCase: useCase}
+// Boards names a board by its row.
+type Boards interface {
+	Name(id clicks.BoardID) clicks.BoardName
+}
+
+func New(useCase UseCase, boards Boards) GetMapHandler {
+	return GetMapHandler{useCase: useCase, boards: boards}
 }
 
 type GetMapHandler struct {
 	useCase UseCase
+	boards  Boards
 }
 
 func (h GetMapHandler) GetMap(
@@ -34,5 +41,7 @@ func (h GetMapHandler) GetMap(
 		return nil, toConnect(err)
 	}
 
-	return connect.NewResponse(planetmessage.Map(batch)), nil
+	answer := planetmessage.Map(batch)
+	answer.Board = string(h.boards.Name(batch.Board))
+	return connect.NewResponse(answer), nil
 }

@@ -21,8 +21,8 @@ func (s *testSuite) TestAFlagOutIsKeptWithItsArenasTilesOnce() {
 	at := time.Date(2026, 11, 11, 20, 3, 4, 500_000_000, time.UTC)
 	out := []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: at}}
 
-	s.Require().NoError(s.store.Save(ctx, battle, owned("de", 4), nil, out))
-	s.Require().NoError(s.store.Save(ctx, battle, nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "it", At: at.Add(time.Minute)}}),
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), owned("de", 4), nil, out))
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "it", At: at.Add(time.Minute)}}),
 		"a flush told it again changes nothing")
 
 	s.Equal(out, s.outOn(battle))
@@ -32,8 +32,8 @@ func (s *testSuite) TestAFlagOutIsKeptWithItsArenasTilesOnce() {
 func (s *testSuite) TestAWipeDeletesTheFlagsOutOfItsMap() {
 	ctx := context.Background()
 	other := clicks.MapID("0192f5a0-7c00-7000-8000-000000000033")
-	s.Require().NoError(s.store.Save(ctx, battle, nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: time.Now()}}))
-	s.Require().NoError(s.store.Save(ctx, other, nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "pl", By: "de", At: time.Now()}}))
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: time.Now()}}))
+	s.Require().NoError(s.store.Save(ctx, other.On(clicks.TestBoard), nil, nil, []inmemory_tile_storage.OutFlag{{Flag: "pl", By: "de", At: time.Now()}}))
 
 	_, err := s.store.Wipe(ctx, battle, func(context.Context) (bool, error) { return true, nil })
 
@@ -46,7 +46,7 @@ func (s *testSuite) TestTheWorldsMapKeepsItsFlagsOutToo() {
 	at := time.Date(2026, 11, 11, 20, 3, 4, 0, time.UTC)
 	out := []inmemory_tile_storage.OutFlag{{Flag: "fr", By: "de", At: at}}
 
-	s.Require().NoError(s.store.Save(context.Background(), clicks.World, nil, nil, out))
+	s.Require().NoError(s.store.Save(context.Background(), clicks.WorldStage, nil, nil, out))
 
 	s.Equal(out, s.outOn(clicks.World))
 	s.Empty(s.outOn(battle))

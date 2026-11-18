@@ -15,10 +15,12 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 )
 
+// written is an event as the storage keeps it once appended on the world's map, on earth-1.
 func written(t *testing.T, event ledger.Event) ledger.Entry {
 	t.Helper()
 	entry, err := event.Entry()
 	require.NoError(t, err)
+	entry.Stage = clicks.WorldStage
 	return entry
 }
 
@@ -33,7 +35,7 @@ func TestAnEmptyStoreLoadsAnEmptyLedger(t *testing.T) {
 	storage := loaded(t, inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
 	assert.Empty(t, replay(storage))
-	assert.Equal(t, ledger.Position(0), storage.Replay(func(ledger.Event) {}))
+	assert.Equal(t, ledger.Position(0), storage.Replay(func(clicks.Stage, ledger.Event) {}))
 }
 
 func TestALedgerSurvivesARestartWithItsPositionsAndMarks(t *testing.T) {
@@ -41,18 +43,18 @@ func TestALedgerSurvivesARestartWithItsPositionsAndMarks(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 
 	before := loaded(t, inmemory_ledger_storage.Config{}, persistence)
-	before.Append(take(1, "bot", "ps", "il", start))
-	before.Append(take(2, "player", "fr", "", start.Add(time.Second)))
+	before.Append(clicks.WorldStage, take(1, "bot", "ps", "il", start))
+	before.Append(clicks.WorldStage, take(2, "player", "fr", "", start.Add(time.Second)))
 	require.NoError(t, before.Flush(ctx))
-	before.Forget(ledger.Caller{Scope: "bot"}, before.Replay(func(ledger.Event) {}))
-	before.Append(take(3, "bot", "ps", "", start.Add(time.Minute)))
+	before.Forget(ledger.Caller{Scope: "bot"}, before.Replay(func(clicks.Stage, ledger.Event) {}))
+	before.Append(clicks.WorldStage, take(3, "bot", "ps", "", start.Add(time.Minute)))
 	require.NoError(t, before.Flush(ctx))
 
 	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 	assert.Equal(t, replay(before), replay(after))
-	assert.Equal(t, ledger.Position(3), after.Replay(func(ledger.Event) {}))
+	assert.Equal(t, ledger.Position(3), after.Replay(func(clicks.Stage, ledger.Event) {}))
 
-	after.Append(take(4, "bot", "ps", "", start.Add(time.Hour)))
+	after.Append(clicks.WorldStage, take(4, "bot", "ps", "", start.Add(time.Hour)))
 	assert.Len(t, replay(after), 3, "positions carry on past the stored takes")
 }
 
@@ -70,9 +72,9 @@ func TestFlushWritesOnlyTheTakesSinceTheLastFlush(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
-	storage.Append(take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
 	require.NoError(t, storage.Flush(ctx))
-	storage.Append(take(2, "b", "de", "", start))
+	storage.Append(clicks.WorldStage, take(2, "b", "de", "", start))
 	require.NoError(t, storage.Flush(ctx))
 	require.NoError(t, storage.Flush(ctx))
 
@@ -88,13 +90,13 @@ func TestAFailedFlushKeepsTheChangesForTheNextOne(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
-	storage.Append(take(1, "bot", "ps", "", start))
-	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(ledger.Event) {}))
+	storage.Append(clicks.WorldStage, take(1, "bot", "ps", "", start))
+	storage.Forget(ledger.Caller{Scope: "bot"}, storage.Replay(func(clicks.Stage, ledger.Event) {}))
 	persistence.FailWith(errors.New("connection reset"))
 	require.Error(t, storage.Flush(ctx))
 
 	persistence.Heal()
-	storage.Append(take(2, "player", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(2, "player", "fr", "", start))
 	require.NoError(t, storage.Flush(ctx))
 
 	assert.Len(t, persistence.Stored(), 2)
@@ -106,8 +108,8 @@ func TestFlushKeepsWhatTheRetentionDroppedWithoutItsScope(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
-	storage.Append(take(1, "a", "fr", "", start))
-	storage.Append(take(2, "a", "fr", "", start.Add(time.Hour)))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(2, "a", "fr", "", start.Add(time.Hour)))
 	require.NoError(t, storage.Flush(ctx))
 
 	storage.ForgetBefore(start.Add(time.Minute))
@@ -125,8 +127,8 @@ func TestARestartLoadsOnlyTheTakesFromTheHead(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	before := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
-	before.Append(take(1, "a", "fr", "", start))
-	before.Append(take(2, "b", "de", "", start.Add(time.Hour)))
+	before.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	before.Append(clicks.WorldStage, take(2, "b", "de", "", start.Add(time.Hour)))
 	require.NoError(t, before.Flush(ctx))
 	before.ForgetBefore(start.Add(time.Minute))
 	require.NoError(t, before.Flush(ctx))
@@ -141,8 +143,8 @@ func TestATakeDroppedBeforeItWasFlushedIsNeverWritten(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	storage := loaded(t, inmemory_ledger_storage.Config{MaxTakes: 1}, persistence)
 
-	storage.Append(take(1, "a", "fr", "", start))
-	storage.Append(take(2, "b", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(2, "b", "fr", "", start))
 	require.NoError(t, storage.Flush(ctx))
 
 	assert.Equal(t, []inmemory_ledger_storage.Stored{{Position: 1, Entry: written(t, take(2, "b", "fr", "", start))}}, persistence.Stored())
@@ -153,13 +155,13 @@ func TestPositionsCarryOnPastALedgerTheRetentionEmptied(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
-	storage.Append(take(1, "a", "fr", "", start))
-	storage.Append(take(2, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(2, "a", "fr", "", start))
 	storage.ForgetBefore(start.Add(time.Hour))
 	require.NoError(t, storage.Flush(ctx))
 
 	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
-	assert.Equal(t, ledger.Position(2), after.Replay(func(ledger.Event) {}))
+	assert.Equal(t, ledger.Position(2), after.Replay(func(clicks.Stage, ledger.Event) {}))
 }
 
 func TestRunFlushesOnShutdown(t *testing.T) {
@@ -173,7 +175,7 @@ func TestRunFlushesOnShutdown(t *testing.T) {
 		storage.Run(ctx)
 	}()
 
-	storage.Append(take(7, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(7, "a", "fr", "", start))
 	cancel()
 
 	require.Eventually(t, func() bool {
@@ -196,7 +198,7 @@ func TestRunFlushesOnItsInterval(t *testing.T) {
 	defer cancel()
 	go storage.Run(ctx)
 
-	storage.Append(take(7, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(7, "a", "fr", "", start))
 
 	assert.Eventually(t, func() bool { return len(persistence.Stored()) == 1 }, 5*time.Second, 10*time.Millisecond)
 }
@@ -206,8 +208,8 @@ func TestFlushWritesABombingAsOneEvent(t *testing.T) {
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
 	hit := bombing("bomber", start, []uint32{1, 2}, "fr", "il")
-	storage.Append(take(1, "a", "fr", "", start))
-	storage.Append(hit)
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, hit)
 	require.NoError(t, storage.Flush(t.Context()))
 
 	assert.Equal(t, []inmemory_ledger_storage.Stored{
@@ -220,14 +222,14 @@ func TestABombingSurvivesARestart(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 
 	before := loaded(t, inmemory_ledger_storage.Config{}, persistence)
-	before.Append(bombing("bomber", start, []uint32{1, 2}, "fr", "il"))
-	before.Append(take(1, "a", "fr", "", start.Add(time.Second)))
-	before.Append(bombing("bomber", start.Add(2*time.Second), nil))
+	before.Append(clicks.WorldStage, bombing("bomber", start, []uint32{1, 2}, "fr", "il"))
+	before.Append(clicks.WorldStage, take(1, "a", "fr", "", start.Add(time.Second)))
+	before.Append(clicks.WorldStage, bombing("bomber", start.Add(2*time.Second), nil))
 	require.NoError(t, before.Flush(t.Context()))
 
 	after := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 	assert.Equal(t, replay(before), replay(after))
-	assert.Equal(t, ledger.Position(3), after.Replay(func(ledger.Event) {}))
+	assert.Equal(t, ledger.Position(3), after.Replay(func(clicks.Stage, ledger.Event) {}))
 	assert.Equal(t, inmemory_ledger_storage.Stored{
 		Position: 2, Entry: written(t, ledger.Bombing{Scope: "bomber", At: start.Add(2 * time.Second), Blast: clicks.Blast{CountryID: "de"}}),
 	}, persistence.Stored()[2], "a bomb in the sea is kept too")
@@ -237,8 +239,8 @@ func TestFlushKeepsABombingTheRetentionDroppedWithoutItsScope(t *testing.T) {
 	persistence := inmemory_ledger_storage.NewMemoryPersistence()
 	storage := loaded(t, inmemory_ledger_storage.Config{}, persistence)
 
-	storage.Append(bombing("bomber", start, []uint32{1}, "fr"))
-	storage.Append(take(2, "a", "fr", "", start.Add(time.Hour)))
+	storage.Append(clicks.WorldStage, bombing("bomber", start, []uint32{1}, "fr"))
+	storage.Append(clicks.WorldStage, take(2, "a", "fr", "", start.Add(time.Hour)))
 	require.NoError(t, storage.Flush(t.Context()))
 
 	storage.ForgetBefore(start.Add(time.Minute))
@@ -259,7 +261,7 @@ func TestAnEventOfAKindTheLedgerDoesNotKnowRefusesTheBoot(t *testing.T) {
 
 func saved(storage *inmemory_ledger_storage.Storage, from ledger.Position, most int) ([]ledger.Position, ledger.Position) {
 	var positions []ledger.Position
-	next := storage.ReplaySaved(from, most, func(position ledger.Position, _ ledger.Event) {
+	next := storage.ReplaySaved(from, most, func(position ledger.Position, _ clicks.Stage, _ ledger.Event) {
 		positions = append(positions, position)
 	})
 	return positions, next
@@ -268,10 +270,10 @@ func saved(storage *inmemory_ledger_storage.Storage, from ledger.Position, most 
 func TestReplaySavedTellsOnlyWhatAFlushWrote(t *testing.T) {
 	storage := loaded(t, inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 
-	storage.Append(take(1, "a", "fr", "", start))
-	storage.Append(take(2, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(1, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(2, "a", "fr", "", start))
 	require.NoError(t, storage.Flush(t.Context()))
-	storage.Append(take(3, "a", "fr", "", start))
+	storage.Append(clicks.WorldStage, take(3, "a", "fr", "", start))
 
 	positions, next := saved(storage, 0, 10)
 	assert.Equal(t, []ledger.Position{0, 1}, positions)
@@ -290,7 +292,7 @@ func TestReplaySavedTellsOnlyWhatAFlushWrote(t *testing.T) {
 func TestReplaySavedTellsAtMostABatch(t *testing.T) {
 	storage := loaded(t, inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
 	for tile := range uint32(5) {
-		storage.Append(take(tile, "a", "fr", "", start))
+		storage.Append(clicks.WorldStage, take(tile, "a", "fr", "", start))
 	}
 	require.NoError(t, storage.Flush(t.Context()))
 

@@ -36,7 +36,7 @@ func (s *testSuite) SetupTest() {
 
 func (s *testSuite) kept() []graffiti.Snapshot {
 	rows, err := s.db.On(s.T().Context()).QueryContext(s.T().Context(), `
-		SELECT id, account, flag, kind, tiles, flagged_at, seen_at, link FROM graffiti ORDER BY flagged_at, id
+		SELECT id, board, account, flag, kind, tiles, flagged_at, seen_at, link FROM graffiti ORDER BY flagged_at, id
 	`)
 	s.Require().NoError(err)
 	defer func() { _ = rows.Close() }()

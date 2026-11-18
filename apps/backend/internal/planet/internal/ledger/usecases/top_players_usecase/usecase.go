@@ -9,10 +9,12 @@ import (
 )
 
 type Ledger interface {
-	Replay(see func(ledger.Event)) ledger.Position
+	Replay(see func(on clicks.Stage, event ledger.Event)) ledger.Position
 }
 
+// Owners is the map that plays, on its board: only that board's events are counted, as each names its board.
 type Owners interface {
+	Stage() clicks.Stage
 	Owner(tile uint32) (string, bool)
 }
 
@@ -41,7 +43,7 @@ type UseCase struct {
 
 func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	tally := ledger.NewTally(func(ledger.Taking) bool { return true })
-	u.ledger.Replay(tally.See)
+	u.ledger.Replay(ledger.OnBoard(u.owners.Stage().Board, tally.See))
 
 	players := ledger.ByTakes(tally.Players(u.owners))
 	out := Out{Total: len(players), Players: ledger.Top(players, in.Limit)}

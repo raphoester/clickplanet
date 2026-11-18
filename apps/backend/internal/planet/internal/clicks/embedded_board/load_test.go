@@ -13,6 +13,7 @@ import (
 	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 )
 
 const tiles = 260503
@@ -67,6 +68,12 @@ func TestTheShippedBoardIsEarth1(t *testing.T) {
 	assert.Equal(t, 301, manifest.Lattice.Cols)
 	assert.Equal(t, uint32(tiles), manifest.Tiles)
 	assert.Equal(t, uint32(tiles), geography.Stats().Tiles)
+}
+
+func TestTheBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash(t *testing.T) {
+	carried, err := loader().Carried()
+	require.NoError(t, err)
+	assert.Equal(t, eras.Earth1Carried, carried, "the row the migration that made boards keeps")
 }
 
 func TestEveryPositionIsThePagesToTheBit(t *testing.T) {

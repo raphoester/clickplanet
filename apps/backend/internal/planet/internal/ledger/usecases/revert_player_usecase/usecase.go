@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
 
 type Ledger interface {
-	Replay(see func(ledger.Event)) ledger.Position
+	Replay(see func(on clicks.Stage, event ledger.Event)) ledger.Position
 	Forget(caller ledger.Caller, before ledger.Position)
 }
 
@@ -19,11 +18,8 @@ type Ledger interface {
 // the revert did not undo.
 var ErrArenaPlays = errors.New("a revert waits for the world's map: an arena's plays")
 
-type Arenas interface {
-	Stretches(ctx context.Context) ([]arenas.Stretch, error)
-}
-
 type Map interface {
+	Stage() clicks.Stage
 	Owner(tile uint32) (string, bool)
 	Restore(ctx context.Context, restorations []clicks.Restoration) (int, error)
 }
@@ -42,14 +38,13 @@ type Out struct {
 	Restored int
 }
 
-func New(ledger Ledger, tiles Map, arenas Arenas, pace clicks.Pacing) *UseCase {
-	return &UseCase{ledger: ledger, tiles: tiles, arenas: arenas, pacing: pace}
+func New(ledger Ledger, tiles Map, pace clicks.Pacing) *UseCase {
+	return &UseCase{ledger: ledger, tiles: tiles, pacing: pace}
 }
 
 type UseCase struct {
 	ledger Ledger
 	tiles  Map
-	arenas Arenas
 	pacing clicks.Pacing
 }
 
@@ -62,16 +57,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 		return Out{}, errors.New("revert batch must be positive")
 	}
 
-	stretches, err := u.arenas.Stretches(ctx)
-	if err != nil {
-		return Out{}, fmt.Errorf("failed to read the arenas: %w", err)
-	}
-	maps := arenas.MapsOf(stretches)
-	if open, plays := maps.Open(); plays {
-		return Out{}, fmt.Errorf("%w: %s", ErrArenaPlays, open.ID)
+	// Only the events of the stage that plays, the world's map on its board, as each names it.
+	playing := u.tiles.Stage()
+	if playing.Map != clicks.World {
+		return Out{}, fmt.Errorf("%w: %s", ErrArenaPlays, playing.Map)
 	}
 
-	runs := ledger.NewRuns(caller, maps.World())
+	runs := ledger.NewRuns(caller, playing)
 	end := u.ledger.Replay(runs.See)
 
 	restorations := runs.Restorations(u.tiles)

@@ -15,7 +15,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
@@ -49,11 +48,12 @@ func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
 	opening := slices.Clone(busy.owners)
 	busy.fight()
 
-	rewound, err := ledger.NewRewind(since, until, 30*time.Minute, arenas.Played{})
+	rewound, err := ledger.NewRewind(since, until, 30*time.Minute, clicks.WorldStage)
 	require.NoError(t, err)
 	for _, event := range busy.events {
 		entry, err := event.Entry()
 		require.NoError(t, err)
+		entry.Stage = clicks.WorldStage
 		require.NoError(t, rewound.Record(entry))
 	}
 	frames := rewound.Frames(denseOf(busy.owners))
@@ -72,7 +72,7 @@ func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
 	}
 	assert.True(t, slices.Equal(busy.owners, replayed), "every frame played after it is the map now")
 
-	answer, err := proto.Marshal(&planetv1.GetRecentMapHistoryResponse{History: planetmessage.MapHistory(frames, rewound.Hits())})
+	answer, err := proto.Marshal(&planetv1.GetRecentMapHistoryResponse{History: planetmessage.MapHistory(frames, rewound.Hits(), nil)})
 	require.NoError(t, err)
 	var zipped bytes.Buffer
 	writer := gzip.NewWriter(&zipped)

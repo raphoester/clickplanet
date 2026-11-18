@@ -38,7 +38,7 @@ func (p Patrol) Note(painted []Graffiti, seen Sighting) (noted Graffiti, fresh b
 		return Graffiti{}, false, fmt.Errorf("failed to name a new graffiti: %w", err)
 	}
 	noted, err = Snapshot{
-		ID: id, Account: seen.Account, Flag: seen.Flag, Kind: seen.Kind, Tiles: seen.Drawing.IDs(),
+		ID: id, Board: seen.Board, Account: seen.Account, Flag: seen.Flag, Kind: seen.Kind, Tiles: seen.Drawing.IDs(),
 		FlaggedAt: seen.At, SeenAt: seen.At, Link: link,
 	}.Restore()
 	if err != nil {

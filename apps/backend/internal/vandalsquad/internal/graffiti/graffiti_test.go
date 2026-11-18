@@ -29,7 +29,9 @@ func drawing(tiles ...drawings.TileID) drawings.Drawing {
 }
 
 func sighting(account cpsession.AccountID, flag string, seen time.Time, tiles ...drawings.TileID) graffiti.Sighting {
-	return graffiti.Sighting{Account: account, Flag: flag, Kind: graffiti.Swastika, Drawing: drawing(tiles...), At: seen}
+	return graffiti.Sighting{
+		Board: "earth-1", Account: account, Flag: flag, Kind: graffiti.Swastika, Drawing: drawing(tiles...), At: seen,
+	}
 }
 
 func patrol() graffiti.Patrol {
@@ -48,7 +50,8 @@ func TestADrawingSeenAgainKeepsItsFirstFlaggingAndTakesItsNewShape(t *testing.T)
 	require.NoError(t, err)
 	assert.False(t, fresh)
 	assert.Equal(t, graffiti.Snapshot{
-		ID: graffiti.ID{15: 1}, Account: ana, Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{3, 4},
+		ID: graffiti.ID{15: 1}, Board: "earth-1", Account: ana, Flag: "ro", Kind: graffiti.Swastika,
+		Tiles:     []drawings.TileID{3, 4},
 		FlaggedAt: at, SeenAt: at.Add(time.Minute), Link: link,
 	}, again.TakeSnapshot())
 }
@@ -62,6 +65,11 @@ func TestAnotherPlayerAnotherFlagOtherTilesOrAForgottenPainterAreAnotherDrawing(
 		"another player": sighting(bob, "ro", at, 1, 2),
 		"another flag":   sighting(ana, "br", at, 1, 2),
 		"other tiles":    sighting(ana, "ro", at, 7, 8),
+		"another board": func() graffiti.Sighting {
+			seen := sighting(ana, "ro", at, 1, 2)
+			seen.Board = "earth-2"
+			return seen
+		}(),
 	} {
 		_, fresh, err := watch.Note([]graffiti.Graffiti{first}, other)
 		require.NoError(t, err)
@@ -75,7 +83,7 @@ func TestAnotherPlayerAnotherFlagOtherTilesOrAForgottenPainterAreAnotherDrawing(
 
 func TestASnapshotMissingAPartDoesNotRestore(t *testing.T) {
 	valid := graffiti.Snapshot{
-		ID: graffiti.ID{15: 1}, Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{1},
+		ID: graffiti.ID{15: 1}, Board: "earth-1", Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{1},
 		FlaggedAt: at, SeenAt: at, Link: link,
 	}
 	_, err := valid.Restore()
@@ -83,6 +91,7 @@ func TestASnapshotMissingAPartDoesNotRestore(t *testing.T) {
 
 	for name, change := range map[string]func(*graffiti.Snapshot){
 		"no id":       func(s *graffiti.Snapshot) { s.ID = graffiti.ID{} },
+		"no board":    func(s *graffiti.Snapshot) { s.Board = "" },
 		"no flag":     func(s *graffiti.Snapshot) { s.Flag = "" },
 		"no kind":     func(s *graffiti.Snapshot) { s.Kind = "smiley" },
 		"no tile":     func(s *graffiti.Snapshot) { s.Tiles = nil },

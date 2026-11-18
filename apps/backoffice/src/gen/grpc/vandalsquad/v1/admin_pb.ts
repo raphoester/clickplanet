@@ -143,6 +143,13 @@ export class Graffiti extends Message<Graffiti> {
    */
   link = "";
 
+  /**
+   * The board its tiles are on, by its name ("earth-1"): a tile id is a place only on its board.
+   *
+   * @generated from field: string board = 8;
+   */
+  board = "";
+
   constructor(data?: PartialMessage<Graffiti>) {
     super();
     proto3.util.initPartial(data, this);
@@ -158,6 +165,7 @@ export class Graffiti extends Message<Graffiti> {
     { no: 5, name: "flagged_at", kind: "message", T: Timestamp },
     { no: 6, name: "seen_at", kind: "message", T: Timestamp },
     { no: 7, name: "link", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Graffiti {

@@ -255,6 +255,114 @@ export class ReconcileLevelsResponse extends Message<ReconcileLevelsResponse> {
 }
 
 /**
+ * @generated from message progression.v1.ForgiveMissedDayRequest
+ */
+export class ForgiveMissedDayRequest extends Message<ForgiveMissedDayRequest> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * The UTC day the account missed, as YYYY-MM-DD.
+   *
+   * @generated from field: string day = 2;
+   */
+  day = "";
+
+  /**
+   * Answers what would change, and writes nothing.
+   *
+   * @generated from field: bool dry_run = 3;
+   */
+  dryRun = false;
+
+  constructor(data?: PartialMessage<ForgiveMissedDayRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.ForgiveMissedDayRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "day", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "dry_run", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ForgiveMissedDayRequest {
+    return new ForgiveMissedDayRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ForgiveMissedDayRequest {
+    return new ForgiveMissedDayRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ForgiveMissedDayRequest {
+    return new ForgiveMissedDayRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ForgiveMissedDayRequest | PlainMessage<ForgiveMissedDayRequest> | undefined, b: ForgiveMissedDayRequest | PlainMessage<ForgiveMissedDayRequest> | undefined): boolean {
+    return proto3.util.equals(ForgiveMissedDayRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message progression.v1.ForgiveMissedDayResponse
+ */
+export class ForgiveMissedDayResponse extends Message<ForgiveMissedDayResponse> {
+  /**
+   * The stats as kept before the call: the streak's days, its last day and the best streak.
+   *
+   * @generated from field: progression.v1.Stats before = 1;
+   */
+  before?: Stats;
+
+  /**
+   * The stats as kept after it, or as they would be after a dry run.
+   *
+   * @generated from field: progression.v1.Stats after = 2;
+   */
+  after?: Stats;
+
+  /**
+   * Every day forgiven to the account, in order, this one too.
+   *
+   * @generated from field: repeated string forgiven_days = 3;
+   */
+  forgivenDays: string[] = [];
+
+  constructor(data?: PartialMessage<ForgiveMissedDayResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.ForgiveMissedDayResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "before", kind: "message", T: Stats },
+    { no: 2, name: "after", kind: "message", T: Stats },
+    { no: 3, name: "forgiven_days", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ForgiveMissedDayResponse {
+    return new ForgiveMissedDayResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ForgiveMissedDayResponse {
+    return new ForgiveMissedDayResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ForgiveMissedDayResponse {
+    return new ForgiveMissedDayResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ForgiveMissedDayResponse | PlainMessage<ForgiveMissedDayResponse> | undefined, b: ForgiveMissedDayResponse | PlainMessage<ForgiveMissedDayResponse> | undefined): boolean {
+    return proto3.util.equals(ForgiveMissedDayResponse, a, b);
+  }
+}
+
+/**
  * @generated from message progression.v1.AdminGetProgressRequest
  */
 export class AdminGetProgressRequest extends Message<AdminGetProgressRequest> {

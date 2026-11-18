@@ -26,6 +26,34 @@ type Store struct {
 
 var _ inmemory_tile_storage.Persistence = (*Store)(nil)
 
+// Boards are the boards a map's rows name: the boot refuses any but the one its era plays.
+func (s *Store) Boards(ctx context.Context, played clicks.MapID) ([]clicks.BoardID, error) {
+	rows, err := s.db.On(ctx).QueryContext(ctx, `
+		SELECT board FROM tiles WHERE map = $1
+		UNION SELECT board FROM landmasses WHERE map = $1
+		UNION SELECT board FROM mines WHERE map = $1
+		UNION SELECT board FROM viruses WHERE map = $1
+		ORDER BY board
+	`, string(played))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the boards of map %s: %w", played, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var boards []clicks.BoardID
+	for rows.Next() {
+		var board clicks.BoardID
+		if err := rows.Scan(&board); err != nil {
+			return nil, fmt.Errorf("failed to read a board of map %s: %w", played, err)
+		}
+		boards = append(boards, board)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read the boards of map %s: %w", played, err)
+	}
+	return boards, nil
+}
+
 func (s *Store) Load(ctx context.Context, played clicks.MapID, visit func(tile inmemory_tile_storage.Tile)) error {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `SELECT id, country, shields, holder FROM tiles WHERE map = $1`, string(played))
 	if err != nil {
@@ -83,7 +111,7 @@ func (s *Store) LoadLandmasses(
 }
 
 func (s *Store) Save(
-	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, landmasses []inmemory_tile_storage.Landmass,
+	ctx context.Context, played clicks.Stage, tiles []inmemory_tile_storage.Tile, landmasses []inmemory_tile_storage.Landmass,
 	out []inmemory_tile_storage.OutFlag,
 ) error {
 	var (
@@ -112,7 +140,7 @@ func (s *Store) Save(
 			end := min(start+chunkSize, len(freed))
 			if _, err := tx.ExecContext(ctx,
 				`DELETE FROM tiles WHERE map = $1 AND id = ANY($2::integer[])`,
-				string(played), pq.Array(freed[start:end]),
+				string(played.Map), pq.Array(freed[start:end]),
 			); err != nil {
 				return fmt.Errorf("failed to delete tiles: %w", err)
 			}
@@ -121,7 +149,7 @@ func (s *Store) Save(
 		if err := saveLandmasses(ctx, tx, played, landmasses); err != nil {
 			return err
 		}
-		return saveOutFlags(ctx, tx, played, out)
+		return saveOutFlags(ctx, tx, played.Map, out)
 	})
 }
 
@@ -172,18 +200,19 @@ func (s *Store) LoadOutFlags(ctx context.Context, played clicks.MapID, visit fun
 }
 
 func upsertTiles(
-	ctx context.Context, tx cppg.Querier, played clicks.MapID, taken []int64, takenBy []string, shields []int64,
+	ctx context.Context, tx cppg.Querier, played clicks.Stage, taken []int64, takenBy []string, shields []int64,
 	holders []string,
 ) error {
 	for start := 0; start < len(taken); start += chunkSize {
 		end := min(start+chunkSize, len(taken))
 		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO tiles (map, id, country, shields, holder)
-			SELECT $1, id, country, shields, NULLIF(holder, '')::uuid
-			FROM unnest($2::integer[], $3::text[], $4::smallint[], $5::text[]) AS t(id, country, shields, holder)
-			ON CONFLICT (map, id) DO UPDATE SET country = EXCLUDED.country, shields = EXCLUDED.shields, holder = EXCLUDED.holder
-		`, string(played), pq.Array(taken[start:end]), pq.Array(takenBy[start:end]), pq.Array(shields[start:end]),
-			pq.Array(holders[start:end])); err != nil {
+			INSERT INTO tiles (map, board, id, country, shields, holder)
+			SELECT $1, $2, id, country, shields, NULLIF(holder, '')::uuid
+			FROM unnest($3::integer[], $4::text[], $5::smallint[], $6::text[]) AS t(id, country, shields, holder)
+			ON CONFLICT (map, id) DO UPDATE SET board = EXCLUDED.board, country = EXCLUDED.country,
+				shields = EXCLUDED.shields, holder = EXCLUDED.holder
+		`, string(played.Map), played.Board, pq.Array(taken[start:end]), pq.Array(takenBy[start:end]),
+			pq.Array(shields[start:end]), pq.Array(holders[start:end])); err != nil {
 			return fmt.Errorf("failed to upsert tiles: %w", err)
 		}
 	}
@@ -193,7 +222,7 @@ func upsertTiles(
 
 // Open writes a map's first tiles in keep's transaction, once keep says to.
 func (s *Store) Open(
-	ctx context.Context, played clicks.MapID, tiles []inmemory_tile_storage.Tile, keep func(ctx context.Context) (bool, error),
+	ctx context.Context, played clicks.Stage, tiles []inmemory_tile_storage.Tile, keep func(ctx context.Context) (bool, error),
 ) (bool, error) {
 	taken := make([]int64, 0, len(tiles))
 	takenBy := make([]string, 0, len(tiles))
@@ -233,7 +262,7 @@ func holderOf(account cpsession.AccountID) string {
 	return account.String()
 }
 
-func saveLandmasses(ctx context.Context, tx cppg.Querier, played clicks.MapID, landmasses []inmemory_tile_storage.Landmass) error {
+func saveLandmasses(ctx context.Context, tx cppg.Querier, played clicks.Stage, landmasses []inmemory_tile_storage.Landmass) error {
 	if len(landmasses) == 0 {
 		return nil
 	}
@@ -249,10 +278,10 @@ func saveLandmasses(ctx context.Context, tx cppg.Querier, played clicks.MapID, l
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO landmasses (map, asset, id, fortified_by)
-		SELECT $1, * FROM unnest($2::text[], $3::smallint[], $4::text[])
-		ON CONFLICT (map, asset, id) DO UPDATE SET fortified_by = EXCLUDED.fortified_by
-	`, string(played), pq.Array(assets), pq.Array(ids), pq.Array(fortifiedBy)); err != nil {
+		INSERT INTO landmasses (map, board, asset, id, fortified_by)
+		SELECT $1, $2, * FROM unnest($3::text[], $4::smallint[], $5::text[])
+		ON CONFLICT (map, asset, id) DO UPDATE SET board = EXCLUDED.board, fortified_by = EXCLUDED.fortified_by
+	`, string(played.Map), played.Board, pq.Array(assets), pq.Array(ids), pq.Array(fortifiedBy)); err != nil {
 		return fmt.Errorf("failed to upsert landmasses: %w", err)
 	}
 

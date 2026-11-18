@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/usecases/top_players_usecase"
@@ -20,6 +21,8 @@ var start = time.Date(2026, 9, 14, 12, 0, 0, 0, time.UTC)
 type owners map[uint32]string
 
 func (o owners) Owner(tile uint32) (string, bool) { return o[tile], true }
+
+func (o owners) Stage() clicks.Stage { return clicks.WorldStage }
 
 func refusing(t *testing.T, scope string) refusals.Book {
 	t.Helper()
@@ -38,7 +41,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, owners) {
 	current := owners{}
 
 	take := func(tile uint32, scope, country string) {
-		book.Append(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
+		book.Append(clicks.WorldStage, ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: current[tile], At: clock.Now()})
 		current[tile] = country
 		clock.Advance(time.Second)
 	}

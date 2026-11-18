@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -76,6 +77,7 @@ type record struct {
 	country  uint16
 	previous uint16
 	kind     uint8
+	stage    uint8
 }
 
 type chunk struct {
@@ -84,11 +86,13 @@ type chunk struct {
 	callers   []string
 	countries []string
 	kinds     []string
+	stages    []clicks.Stage
 	payloads  []payload
 
 	callerIDs  map[string]uint32
 	countryIDs map[string]uint16
 	kindIDs    map[string]uint8
+	stageIDs   map[clicks.Stage]uint8
 }
 
 type payload struct {
@@ -103,6 +107,7 @@ func newChunk(first ledger.Position) *chunk {
 		callerIDs:  make(map[string]uint32),
 		countryIDs: make(map[string]uint16),
 		kindIDs:    make(map[string]uint8),
+		stageIDs:   make(map[clicks.Stage]uint8),
 	}
 }
 
@@ -136,6 +141,21 @@ func (c *chunk) internKind(value string) (uint8, bool) {
 	return id, true
 }
 
+func (c *chunk) internStage(value clicks.Stage) (uint8, bool) {
+	if id, ok := c.stageIDs[value]; ok {
+		return id, true
+	}
+	if len(c.stages) > math.MaxUint8 {
+		return 0, false
+	}
+
+	id := uint8(len(c.stages))
+	c.stageIDs[value] = id
+	c.stages = append(c.stages, value)
+
+	return id, true
+}
+
 func (c *chunk) internCaller(value string) uint32 {
 	id, ok := c.callerIDs[value]
 	if !ok {
@@ -147,12 +167,13 @@ func (c *chunk) internCaller(value string) uint32 {
 	return id
 }
 
-func (s *Storage) Append(event ledger.Event) {
+func (s *Storage) Append(on clicks.Stage, event ledger.Event) {
 	entry, err := event.Entry()
 	if err != nil {
 		s.logger.Error("the ledger cannot write an event down, so it is not kept", slog.Any("error", err))
 		return
 	}
+	entry.Stage = on
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -166,12 +187,14 @@ func (s *Storage) appendLocked(entry ledger.Entry) {
 	country, fits := open.internCountry(entry.Country)
 	previous, fitsToo := open.internCountry(entry.Previous)
 	kind, fitsAlso := open.internKind(entry.Kind)
-	if !fits || !fitsToo || !fitsAlso {
+	stage, fitsEven := open.internStage(entry.Stage)
+	if !fits || !fitsToo || !fitsAlso || !fitsEven {
 		s.sealLocked(open)
 		open = s.openChunkLocked()
 		country, _ = open.internCountry(entry.Country)
 		previous, _ = open.internCountry(entry.Previous)
 		kind, _ = open.internKind(entry.Kind)
+		stage, _ = open.internStage(entry.Stage)
 	}
 
 	if entry.Payload != nil {
@@ -185,6 +208,7 @@ func (s *Storage) appendLocked(entry ledger.Entry) {
 		country:  country,
 		previous: previous,
 		kind:     kind,
+		stage:    stage,
 	})
 	s.next++
 
@@ -216,6 +240,7 @@ func (s *Storage) sealLocked(c *chunk) {
 	c.callerIDs = nil
 	c.countryIDs = nil
 	c.kindIDs = nil
+	c.stageIDs = nil
 }
 
 func (s *Storage) liveLocked() int {
@@ -299,6 +324,7 @@ type view struct {
 	callers   []string
 	countries []string
 	kinds     []string
+	stages    []clicks.Stage
 	payloads  []payload
 }
 
@@ -328,6 +354,7 @@ func (s *Storage) viewsLocked(from ledger.Position) []view {
 			callers:   c.callers[:len(c.callers):len(c.callers)],
 			countries: c.countries[:len(c.countries):len(c.countries)],
 			kinds:     c.kinds[:len(c.kinds):len(c.kinds)],
+			stages:    c.stages[:len(c.stages):len(c.stages)],
 			payloads:  payloads,
 		})
 	}
@@ -335,7 +362,7 @@ func (s *Storage) viewsLocked(from ledger.Position) []view {
 	return views
 }
 
-func (s *Storage) Replay(see func(ledger.Event)) ledger.Position {
+func (s *Storage) Replay(see func(on clicks.Stage, event ledger.Event)) ledger.Position {
 	s.mu.Lock()
 	views := s.viewsLocked(0)
 	end := s.next
@@ -357,7 +384,7 @@ func (s *Storage) Replay(see func(ledger.Event)) ledger.Position {
 					slog.Uint64("position", uint64(stored.Position)), slog.Any("error", err))
 				continue
 			}
-			see(event)
+			see(stored.Entry.Stage, event)
 		}
 	}
 
@@ -365,7 +392,9 @@ func (s *Storage) Replay(see func(ledger.Event)) ledger.Position {
 }
 
 // Only what postgres holds, so a take a hard kill loses is never told; answers the position to read from next.
-func (s *Storage) ReplaySaved(from ledger.Position, most int, see func(ledger.Position, ledger.Event)) ledger.Position {
+func (s *Storage) ReplaySaved(
+	from ledger.Position, most int, see func(ledger.Position, clicks.Stage, ledger.Event),
+) ledger.Position {
 	s.mu.Lock()
 	from = max(from, s.headPositionLocked())
 	end := min(s.saved, from+ledger.Position(most)) //nolint:gosec // most is a batch size.
@@ -387,7 +416,7 @@ func (s *Storage) ReplaySaved(from ledger.Position, most int, see func(ledger.Po
 					slog.Uint64("position", uint64(stored.Position)), slog.Any("error", err))
 				continue
 			}
-			see(stored.Position, event)
+			see(stored.Position, stored.Entry.Stage, event)
 		}
 	}
 
@@ -411,6 +440,7 @@ func (v view) stored(i int, payloads []payload) (Stored, []payload) {
 	position := v.first + ledger.Position(i) //nolint:gosec // i < chunkSize.
 
 	entry := ledger.Entry{
+		Stage:    v.stages[r.stage],
 		Kind:     v.kinds[r.kind],
 		Tile:     r.tile,
 		Scope:    v.callers[r.scope],

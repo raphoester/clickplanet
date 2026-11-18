@@ -20,7 +20,7 @@ var at = time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC)
 
 func painted(id byte, account cpsession.AccountID) graffiti.Snapshot {
 	return graffiti.Snapshot{
-		ID: graffiti.ID{15: id}, Account: account, Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{1},
+		ID: graffiti.ID{15: id}, Board: "earth-1", Account: account, Flag: "ro", Kind: graffiti.Swastika, Tiles: []drawings.TileID{1},
 		FlaggedAt: at.Add(time.Duration(id) * time.Minute), SeenAt: at.Add(time.Hour), Link: "https://clickplanet.lol/play",
 	}
 }

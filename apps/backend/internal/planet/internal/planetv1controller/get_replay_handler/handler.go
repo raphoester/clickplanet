@@ -62,12 +62,15 @@ func (h GetReplayHandler) GetReplay(
 		}
 	}
 
+	opening := planetmessage.Map(out.Opening)
+	opening.Board = string(out.Board.Name)
 	return connect.NewResponse(&planetv1.GetReplayResponse{
-		Opening: planetmessage.Map(out.Opening),
+		Opening: opening,
 		Events:  events,
 		Since:   timestamppb.New(out.Since),
 		Until:   timestamppb.New(out.Until),
 		Asides:  asides,
+		Eras:    planetmessage.Eras(out.Eras),
 	}), nil
 }
 

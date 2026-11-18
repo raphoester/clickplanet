@@ -29,7 +29,7 @@ var errEmptyEvent = errors.New("an event with nothing to send")
 func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	switch {
 	case event.Heartbeat:
-		return s.stream.Send(heartbeatEvent(event.Version))
+		return s.stream.Send(heartbeatEvent(event.Version, event.Board))
 	case event.RulesChanged:
 		return s.stream.Send(&planetv1.PlanetEvent{
 			Event: &planetv1.PlanetEvent_RulesChanged{RulesChanged: &planetv1.RulesChanged{}},
@@ -68,8 +68,10 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 	}
 }
 
-func heartbeatEvent(version clicks.MapVersion) *planetv1.PlanetEvent {
+func heartbeatEvent(version clicks.MapVersion, board clicks.BoardName) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_Heartbeat{Heartbeat: &planetv1.Heartbeat{Version: planetmessage.Version(version)}},
+		Event: &planetv1.PlanetEvent_Heartbeat{Heartbeat: &planetv1.Heartbeat{
+			Version: planetmessage.Version(version), Board: string(board),
+		}},
 	}
 }

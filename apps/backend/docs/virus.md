@@ -63,7 +63,8 @@ no failure. One that fails is logged and tried again the next second; the others
 
 ## A restart
 
-**A virus is flushed with the tiles, in the same transaction** (`planet.viruses`, by map: the account, the scope, the two
+**A virus is flushed with the tiles, in the same transaction** (`planet.viruses`, by map, each row naming its board
+(see [Boards and eras](boards-and-eras.md)): the account, the scope, the two
 flags, the tile it was used on, the tiles it infects, its infections and its next tick). The map's flush writes every
 live virus of the map whenever one changed, in place of the ones kept before, so a virus that ended has no row. The boot
 reads them back with the tiles (`LoadViruses`). A hard kill loses at most the last second, of the tiles and the viruses
