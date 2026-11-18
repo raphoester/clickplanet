@@ -142,7 +142,7 @@ carry, refuses the open (`ErrRefused`, `FailedPrecondition`), and the world's ma
   shields) and spacing (a bomb's radius, a rally's ring). **The seed is laid on it**: the capitals pattern starts each
   country on that board's capital.
 - **Pages reload during the freeze**: an open cuts every stream, and a page whose stream opens on another board than
-  it drew reloads (see the frontend's [A board of its own reloads the page](../../frontend/docs/boards.md)), within the
+  it drew reloads (see the frontend's [The board the page draws](../../frontend/docs/board-reload.md)), within the
   8 s of the arena's start freeze, which outlasts `GetMap`'s 5 s cache.
 - **A play in flight as an arena opens on another board** lands on the arena's map by its id: it passed the freeze
   interceptor before the blank, and its write waits for the swap (`Storage.During`). On the blank map that is a take

@@ -144,8 +144,9 @@ content-addressed like every file in `/map`:
   ascending. It replaced the landmask: 7,556 runs, 121 KB for `earth-1`.
 - **`borders`, `capitals`, `bridges`**, in their formats, named by the board's tile ids. `earth-1`'s are the files of
   before, byte for byte.
-- **The frontend's own**: the border lines and the landmass names. They stay single files in `static/` until PR 3
-  makes them per board. The terrain is a file of the board, since it is cut from its runs.
+- **The frontend's own**: the border lines and the landmass names, per board since PR 3: `static/boards/<name>/` beside
+  the board's copy, content-addressed, named in the page's board table (`boardsAsset.ts`), with the landmass names'
+  translations in `src/i18n/landmasses/<name>/`. The terrain is a file of the board, since it is cut from its runs.
 
 **The generator** (`npm run map:generate`, then `npm run bridges`) writes a board without three: it walks the lattice,
 takes neighbours and triangles from it, and reads latitude as `asin(y)` and longitude as `atan2(z, −x)` from each point.
@@ -217,9 +218,11 @@ and RevertPlayer read the current board's events only, and so does the vandal sq
 
 **Each era on its own board, with the cut** (PR 3): `GetMapHistory` and the season replay keep each world event on the
 board of the era in force at its time; the first frame of an era holds every tile held on its board, as the window's
-first frame does, and each tile's hits name their era (`TileHits.era`). The page's `/archive`, the clips and the
-player's video draw each era on its board, with a visible cut. The rewinders (`GetReplay`, `GetRecentMapHistory`) keep
-the board the world plays now: no rewind crosses into another board, and PR 6 starts them at the switch.
+first frame does, and each tile's hits name their era (`TileHits.era`). The page's `/archive` and the player's video
+draw each era on its board, with a visible cut. The rewinders (`GetReplay`, `GetRecentMapHistory`) keep the board the
+world plays now: no rewind crosses into another board, and PR 6 starts them at the switch. So a clip plays one board,
+its replay's: `GetReplay` has one opening, and a clip whose history crosses a cut opens on the cut and tells the last
+era alone, its sagas measured on it (no visible cut in a clip yet).
 
 ## Arena boards
 
@@ -296,9 +299,9 @@ whatever pays keeps its tile count, and only what describes the map scales with 
 | --- | --- | --- | --- |
 | `rally.rings` | rule sets, edited by the operator at the switch | 18 | 36, the same ground (a rally pays nothing itself) |
 | mission floors | `missions/draw.go` (`rivalAtLeast`, `groundAtLeast`, `openAtLeast`, `raidAtLeast`) | 1,000 / 3,000 / 1,000 / 300 | 3,900 / 11,700 / 3,900 / 1,170 |
-| fortify news | `chat/…/announcement.go` `fortifyNewsTiles`, and the frontend's `NEWS_FROM_TILES` | 50 | 200 |
+| fortify news | `chat/…/announcement.go` `fortifyNewsTiles`, and the frontend's `newsFromTiles` | 50 | 200 |
 | largest drawing | vandal squad `reading.go` `maxTiles` (12 at least stays) | 150 | ×3.9, about 585 (a count of tiles: until PR 3 this row said 300) |
-| clip thresholds | frontend `clip/look.ts`, `clip/changes.ts` | 20, 100, 400, 1,000 | ×3.9 |
+| clip thresholds | frontend `clip/look.ts`, `clip/changes.ts`, `clip/findings.ts` | 20, 100, 400, 1,000 | ×3.9 |
 | attack ping zoom | alerts `pings/view.go` `closestZoom` | 20 | 40 |
 | heatmap cell | frontend `archive/heatmap.ts`, backoffice `home/heat.ts` | 0.4°, 0.3° | 0.2°, 0.15° |
 | max zoom | frontend `zoom.ts` | 50 | 100 |
