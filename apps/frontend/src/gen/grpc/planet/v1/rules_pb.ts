@@ -577,6 +577,14 @@ export class SpreadRules extends Message<SpreadRules> {
    */
   unlimited?: boolean;
 
+  /**
+   * No spread: a click with spread on takes its tile alone and spends nothing, and a grant keeps none, a box's, a
+   * quiz's or an operator's. The spread clicks held are kept. Never with unlimited.
+   *
+   * @generated from field: optional bool off = 5;
+   */
+  off?: boolean;
+
   constructor(data?: PartialMessage<SpreadRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -588,6 +596,7 @@ export class SpreadRules extends Message<SpreadRules> {
     { no: 1, name: "clicks", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 3, name: "rings", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 4, name: "unlimited", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SpreadRules {
@@ -906,6 +915,14 @@ export class RallyRules extends Message<RallyRules> {
    */
   cost?: number;
 
+  /**
+   * No rally: a call is refused (FailedPrecondition) and the rally stays held, and a grant keeps none, a box's, a quiz's,
+   * a level's fill or an operator's. The rallies held are kept.
+   *
+   * @generated from field: optional bool off = 5;
+   */
+  off?: boolean;
+
   constructor(data?: PartialMessage<RallyRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -918,6 +935,7 @@ export class RallyRules extends Message<RallyRules> {
     { no: 2, name: "rings", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
     { no: 3, name: "lasts", kind: "message", T: Duration },
     { no: 4, name: "cost", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
+    { no: 5, name: "off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RallyRules {

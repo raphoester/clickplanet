@@ -154,3 +154,21 @@ func TestARallyIsOnThePointOfTheGlobeUnderTheTap(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, clicks.Vec3{Z: 1}, rally.TakeSnapshot().Centre, "on the unit globe")
 }
+
+func TestWhileRalliesAreOffACallIsRefusedAndTheRallyStaysHeld(t *testing.T) {
+	hands, calls, told := charges.NewMemoryStore(), rallies.NewMemoryStore(), &rallies.RecordedCalls{}
+	hands.Keep(alice, charges.Held{Rallies: 2})
+	off := func() charges.Rules {
+		rules := charges.TestRules()
+		rules.Rally.Off = true
+		return rules
+	}
+	muster := rallies.NewMuster(off, clicks.Spacing(0.004), &rallies.SequentialIDs{}, cptime.NewFixedClock(calledAt))
+	useCase := call_rally_usecase.New(gate{}, charges.NewCharges(hands, off), muster, calls, told)
+
+	_, err := useCase.Execute(calling(t), call_rally_usecase.In{Point: north, CountryID: "fr"})
+
+	require.ErrorIs(t, err, rallies.ErrRalliesOff)
+	assert.Equal(t, charges.Held{Rallies: 2}, hands.Kept(alice), "the rallies held are kept for when the set stops")
+	assert.Empty(t, told.Told())
+}

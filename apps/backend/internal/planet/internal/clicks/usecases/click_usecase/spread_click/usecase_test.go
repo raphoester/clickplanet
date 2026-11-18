@@ -187,6 +187,22 @@ func TestUnlimitedSpreadsSpendNoneOfTheSpreadClicksHeld(t *testing.T) {
 	assert.Equal(t, 3, f.hands.Kept(caller).SpreadClicks)
 }
 
+func TestWhileSpreadsAreOffAClickWithSpreadOnTakesItsTileAloneAndSpendsNothing(t *testing.T) {
+	f := setup(t, 3, nil, func() charges.Rules {
+		rules := charges.TestRules()
+		rules.Spread.Rings, rules.Spread.Off = 2, true
+		return rules
+	})
+
+	_, err := f.useCase.Execute(played(t), click_usecase.In{TileID: 100, CountryID: "fr", Spread: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[uint32]string{100: "fr"}, f.storage.tiles, "the click is played")
+	assert.Empty(t, f.publisher.spreads, "and spreads nothing")
+	assert.Empty(t, f.reach.rings)
+	assert.Equal(t, 3, f.hands.Kept(caller).SpreadClicks, "the spread clicks held are kept for when the set stops")
+}
+
 func TestUnlimitedSpreadsNeedNoAccountAndWaitForSpreadSwitchedOn(t *testing.T) {
 	f := setup(t, 0, nil, spreading(1, true))
 

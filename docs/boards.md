@@ -5,10 +5,11 @@ is built (2026-11-17): every tile and event names its board and map, and the boo
 carry. PR 3 is built (2026-11-18): every app holds more than one board, the page draws the board an answer names and
 reloads when it changes, every threshold sized from the board reads it, an arena plays the board its set names, and a
 history draws each era on its own board, with the cut. PR 4 is built (2026-11-18): `earth-2` and `siege-1` are
-generated and committed, warped and rotated and in canonical order, every app reads them to the bit. PR 6 is built
-(2026-11-18): the carry-over from `earth-1` to `earth-2`, `SwitchBoard` and its dry run, what players see of the switch,
-and its rehearsal on production's map. **The world plays `earth-2` since 2026-11-18 13:41:31 UTC** ([the switch,
-live](#the-switch-live)).**
+generated and committed, warped and rotated and in canonical order, and every app reads them to the bit. PR 5 is built
+(2026-11-18): `charges.spread.off` and `charges.rally.off`, and Capital Siege's set ready to name `siege-1` with no
+spread and no rally, which the owner saves. PR 6 is built (2026-11-18): the carry-over from `earth-1` to `earth-2`, `SwitchBoard` and its dry run, what
+players see of the switch, and its rehearsal on production's map. **The world plays `earth-2` since 2026-11-18 13:41:31
+UTC** ([the switch, live](#the-switch-live)).**
 The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
 builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
 [Map geometry](map-geometry.md), and the apps' tile docs (`tile-positions.md`, `tile-layout.md`, `zoomed-out-view.md`,
@@ -294,7 +295,9 @@ no row of is refused; every rule reads the arena's board while it plays, and its
 [Arena battles](../apps/backend/docs/arenas.md#the-board-an-arena-plays-arenaboard).
 
 **Capital Siege plays `siege-1`, with no spread at all**: `charges.spread` is off in its set, and none comes in its
-boxes (the owner, 2026-11-17). On 260,503 tiles its unlimited spread was inflation on purpose, to fill the map fast,
+boxes (the owner, 2026-11-17). **Built in PR 5** (2026-11-18): `charges.spread.off`, a knob of its own on bombs off's
+pattern (the backend's [Spreads off](../apps/backend/docs/spread.md#spreads-off-chargesspreadoff)), and the set's exact
+JSON in the backend's [Capital Siege's set](../apps/backend/docs/arenas.md#capital-sieges-set), which the owner saves. On 260,503 tiles its unlimited spread was inflation on purpose, to fill the map fast,
 and its animation spammed the screen. With no spread, 15 players at a click a second fill `siege-1` in about 30
 minutes; France is about 100 tiles.
 
@@ -445,8 +448,8 @@ Built in PR 4 where it says so, measured 2026-11-18.
 - **The landmass names** come from the generator in English: 936 of `earth-2`'s 1,175 landmasses, 138 of `siege-1`'s
   374. **`earth-2`'s are translated** (2026-11-18, the page's [Translating](../apps/frontend/docs/i18n.md#translating)):
   615 are the names `earth-1` gives the same English, the other 321 were written by Haiku in the 8 languages.
-  `siege-1`'s come with PR 5: until then the page names them in English, and its catalogue test lists the board as
-  awaiting them.
+  `siege-1`'s are translated by hand in PR 5: 101 of its 135 names are `earth-1`'s same English, Haiku wrote the other
+  34. No board's names read English any more.
 - **The last 24 hours:** built in PR 6. A whole frame goes as `GetMap` sends the map, two bytes a tile into a table of
   flags (`MapFrame.whole`): 442 KB gzipped on `earth-1` and 589 KB on `earth-2`, against 799 KB and 1,953 KB with one
   `TileOwner` a tile, under the 1 MiB budget on both (`size_test.go`, 200 flags; the backend's
@@ -895,10 +898,28 @@ their numbers.
    - The frontend measured on both, and the backend's load of `earth-2`.
    - Nothing plays them yet. The landmass names stay English until they are translated: `earth-2`'s on 2026-11-18,
      `siege-1`'s in PR 5.
-5. **Capital Siege on `siege-1`.**
-   - Its set names `siege-1` and drops the spread.
-   - The first board players see, at the next Capital Siege and before the world's switch. It tries the reload and an
-     arena on another board for real.
+5. **Capital Siege on `siege-1`. Built 2026-11-18.**
+   - `charges.spread.off`: a click with spread on takes its tile alone and spends nothing, a grant keeps none, the
+     spread clicks held are kept, and the page hides the Spread slot.
+   - `charges.rally.off`, as bombs off: a call is refused and the rally kept, a grant keeps none, the page hides the
+     Rally slot. A ring is rings × the board's spacing, so `default`'s 36 (the world's France since the switch) would be
+     about 2,860 km on `siege-1`; the owner chose no rally in the battle (2026-11-18).
+   - Its set names `siege-1` and drops the spread and the rally: the owner saves planet's `capital-siege` and the offers'
+     (`kinds.rally` 0) once it is deployed (the backend's
+     [Capital Siege's set](../apps/backend/docs/arenas.md#capital-sieges-set)); the boxes' and the quizzes' sets need no
+     change.
+   - `siege-1`'s landmass names in every language, written by Haiku with no API credit (PR 4 shipped them in English),
+     and `siege-1` off the page's `AWAITING_TRANSLATION`.
+   - The first arena on a board other than the world's, at the next Capital Siege. The world's switch to `earth-2` ran
+     first (2026-11-18), so the battle's close reloads the pages onto `earth-2`.
+   - **Rehearsed locally** (2026-11-18, the PR's screenshots): the arena opened on `siege-1` and both pages, one framed as
+     on CrazyGames, reloaded inside the freeze and again at the close; every playable flag's capital (235) started with
+     50 shields; the reach crossed a bridge (Malta's one tile to Cap Bon); a capital taken knocked its flag out (the
+     Vatican, by Italy); a click with spread on, 8 spread clicks held, spread nothing and spent nothing; and the battle's
+     ledger events name the arena's map and `siege-1`. **A world history across the battle stays on the world's
+     board** (`earth-1` then): the replays, the last 24 hours and the player's video skip the arena's events, as the
+     backend's [The ledger's readers](../apps/backend/docs/arenas.md#the-ledgers-readers) has it, so nothing draws the
+     battle on `siege-1` and no cut shows.
 6. **The switch. Built 2026-11-18, and run the same day at 13:41:31 UTC** ([the switch, live](#the-switch-live)).
    - The carry-over file, and `SwitchBoard` with its dry run.
    - The moment, the chat line and the Discord ping.

@@ -51,6 +51,8 @@ func (h CallRallyHandler) CallRally(
 		return connect.NewResponse(&planetv1.CallRallyResponse{Rally: planetmessage.Rally(kept, lasts(kept))}), nil
 	case errors.Is(err, clicks.ErrUnknownCountry), errors.Is(err, rallies.ErrNoPoint):
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	case errors.Is(err, rallies.ErrRalliesOff):
+		return nil, connect.NewError(connect.CodeFailedPrecondition, rallies.ErrRalliesOff)
 	case errors.Is(err, rallies.ErrRallyOn):
 		return nil, preconditionWith(rallies.ErrRallyOn, &planetv1.RallyRefusal{})
 	case errors.Is(err, call_rally_usecase.ErrNoRally):

@@ -1,7 +1,7 @@
 import {describe, expect, it} from "vitest"
 import {ALL_OFF, atRest, CHARGE_KINDS, inUnlockOrder, lockedAt, NEVER, NO_CHARGES, NO_GATES, NO_LEVEL, restingSwitch, switched, switchesHeld} from "./bonus.ts"
 
-const PAID = {spreadUnlimited: false, enclosuresUnlimited: false, enclosuresOff: false}
+const PAID = {spreadUnlimited: false, enclosuresUnlimited: false, enclosuresOff: false, spreadOff: false}
 
 describe("switchesHeld", () => {
     const spread = {...ALL_OFF, spread: true}
@@ -43,6 +43,14 @@ describe("switchesHeld", () => {
         expect(switchesHeld(spread, {...NO_CHARGES, spreadClicksLeft: 2}, off)).toBe(spread)
     })
 
+    it("turns spread off while spreads are off, held or unlimited", () => {
+        const off = {...PAID, spreadOff: true}
+
+        expect(switchesHeld(spread, {...NO_CHARGES, spreadClicksLeft: 5}, off)).toEqual(ALL_OFF)
+        expect(switchesHeld(spread, NO_CHARGES, {...off, spreadUnlimited: true})).toEqual(ALL_OFF)
+        expect(switchesHeld(enclose, {...NO_CHARGES, enclosures: 2}, off)).toBe(enclose)
+    })
+
     it("never turns a switch on", () => {
         expect(switchesHeld(ALL_OFF, {...NO_CHARGES, enclosures: 3, spreadClicksLeft: 8, shields: 12}, PAID)).toBe(ALL_OFF)
     })
@@ -78,6 +86,11 @@ describe("restingSwitch", () => {
 
     it("is never enclose while enclosures are off", () => {
         expect(restingSwitch({...PAID, enclosuresUnlimited: true, enclosuresOff: true})).toBeUndefined()
+    })
+
+    it("is never spread while spreads are off", () => {
+        expect(restingSwitch({...PAID, spreadUnlimited: true, spreadOff: true})).toBeUndefined()
+        expect(restingSwitch({...PAID, spreadUnlimited: true, spreadOff: true, enclosuresUnlimited: true})).toBe("enclose")
     })
 })
 

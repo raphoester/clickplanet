@@ -162,6 +162,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                     }),
                 }
             case "spreadClicks":
+                if (rules?.spreadOff) return undefined
                 return {
                     kind,
                     name: t("bonus.spread"),
@@ -243,6 +244,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
                     }),
                 }
             case "rally":
+                if (rules?.ralliesOff) return undefined
                 return {
                     kind,
                     name: t("bonus.rally"),

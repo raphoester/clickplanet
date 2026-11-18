@@ -23,8 +23,9 @@ const ENGLISH_LANDMASSES = Object.fromEntries(Object.values(BOARDS).map((board) 
     (JSON.parse(readFileSync(`${STATIC}boards/${board.name}/${board.page.landmassNames}`, "utf8")) as {names: Record<string, string>}).names,
 ]))
 
-// Boards whose landmass names are not translated yet, read in English (load.ts): siege-1's come with Capital Siege (PR 5).
-const AWAITING_TRANSLATION = new Set(["siege-1"])
+// Boards whose landmass names are not translated yet, read in English (load.ts): none since PR 5 wrote siege-1's, after
+// earth-2's (2026-11-18). A new board waits here until its names are written.
+const AWAITING_TRANSLATION = new Set<string>()
 
 // A count may be a plain number where a language has one form for every count.
 const kindOf = (slot: Slot) => slot === "count" ? "value" : slot

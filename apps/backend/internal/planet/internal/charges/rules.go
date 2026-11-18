@@ -51,7 +51,11 @@ func (r Rules) Off(kind Kind) bool {
 		return r.Bomb.Off
 	case KindEncloseClicks:
 		return r.Enclose.Off
-	case KindRefill, KindSpreadClicks, KindShields, KindVirus, KindMine, KindRally:
+	case KindSpreadClicks:
+		return r.Spread.Off
+	case KindRally:
+		return r.Rally.Off
+	case KindRefill, KindShields, KindVirus, KindMine:
 	}
 
 	return false
@@ -93,6 +97,7 @@ func (r Rules) Validate() error {
 		rules.Positive("shield.perTile", r.Shield.PerTile),
 		rules.AtMost("shield.perTile", r.Shield.PerTile, "what a tile keeps", mostShieldsOnATile),
 		r.Enclose.validate(),
+		r.Spread.validate(),
 		rules.Positive("virus.infections", r.Virus.Infections),
 		rules.AtMost("virus.infections", r.Virus.Infections, "the most a virus makes", mostVirusInfections),
 		rules.AtLeast("virus.every", r.Virus.Every, "a second", quickestVirus),
@@ -119,6 +124,14 @@ type SpreadRules struct {
 	Clicks    int
 	Rings     int
 	Unlimited bool
+	Off       bool
+}
+
+func (r SpreadRules) validate() error {
+	if r.Off && r.Unlimited {
+		return errors.New("spread.off is on with spread.unlimited: a spread cannot be off and free")
+	}
+	return nil
 }
 
 // BombRules: a hand holds Held bombs at most. Off, a bomb held is not dropped, and a grant keeps none.
@@ -165,6 +178,7 @@ type RallyRules struct {
 	Rings float64
 	Lasts time.Duration
 	Cost  float64
+	Off   bool
 }
 
 type ShieldRules struct {

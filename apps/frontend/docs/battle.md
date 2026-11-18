@@ -174,6 +174,11 @@ colour, the description and when it ends, then "To the globe" once it settled
 so a reload does not play it again; a player who arrives mid-battle sees it, since
 the battle is on. It plays through the announcements queue (below).
 
+**An arena on another board reloads the page** in its start freeze, and again about a second after its close (the
+board the stream opens on, see [The board the page draws](board-reload.md)). Nothing of the battle's look is lost: the
+start plays until Close is pressed, so a page that reloads before plays it again, and the day's reveal and the
+debrief are read from the stream as it opens. Rehearsed with Capital Siege on `siege-1` (2026-11-18).
+
 **The start waits for the day the battle ended.** A battle that is a round starts as a day ends (the backend's
 [gamemaster](../../backend/docs/gamemaster.md#a-battle-and-the-days)), and the turn reaches the page about a second
 before that day's debrief. So `useBattleReveal` holds the start until the last debrief read (`closed`) ended at or after

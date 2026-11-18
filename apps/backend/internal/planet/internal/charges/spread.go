@@ -5,9 +5,13 @@ import (
 	"errors"
 )
 
-// TakeSpread answers how many rings an accepted click with spread on spreads: 0 when no spread click is held.
+// TakeSpread answers how many rings an accepted click with spread on spreads: 0 when no spread click is held, or while
+// spreads are off, which spends none.
 func (c Charges) TakeSpread(ctx context.Context, holder Holder) (int, error) {
 	rules := c.rules().Spread
+	if rules.Off {
+		return 0, nil
+	}
 	if rules.Unlimited {
 		return rules.Rings, nil
 	}
