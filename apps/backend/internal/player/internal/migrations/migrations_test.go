@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
@@ -24,6 +25,7 @@ func TestEveryEventPlayerTellsHasAPlaceInItsOutbox(t *testing.T) {
 		&playerv1.PlayerLeaving{AccountId: account},
 		&playerv1.PlayerReturned{AccountId: account},
 		&playerv1.PlayerForgotten{AccountId: account},
+		&playerv1.NameLeft{AccountId: account, Name: "Ada", LeftAt: timestamppb.Now()},
 	} {
 		assert.NoError(t, db.InTx(t.Context(), func(ctx context.Context) error {
 			return cpoutbox.New(db).Record(ctx, event)

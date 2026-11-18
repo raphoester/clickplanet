@@ -8,10 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/inmemory_past_name_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
@@ -36,7 +35,7 @@ func setUp() (*inmemory_player_store.Store, *set_name_usecase.FakeAccounts) {
 func TestTheNameIsKeptAsTyped(t *testing.T) {
 	store, accounts := setUp()
 
-	profile, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	profile, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 
 	require.NoError(t, err)
@@ -51,7 +50,7 @@ func TestOnlyTheFirstNameOfAnAccountWithNoProfileMakesAPlayer(t *testing.T) {
 	store, accounts := setUp()
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", now)))
 	outbox := &cpatomic.FakeOutbox{}
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, outbox, cptime.NewFixedClock(now))
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, cptime.NewFixedClock(now))
 
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 	require.NoError(t, err)
@@ -72,7 +71,7 @@ func TestEveryNameKeptIsTold(t *testing.T) {
 	store, accounts := setUp()
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", now)))
 	outbox := &cpatomic.FakeOutbox{}
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, outbox, cptime.NewFixedClock(now))
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, cptime.NewFixedClock(now))
 
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 	require.NoError(t, err)
@@ -93,7 +92,7 @@ func TestANameRefusedIsNotTold(t *testing.T) {
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", now)))
 	outbox := &cpatomic.FakeOutbox{}
 
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, outbox, cptime.NewFixedClock(now)).
+	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, cptime.NewFixedClock(now)).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "BOB"})
 
 	require.ErrorIs(t, err, players.ErrNameTaken)
@@ -104,7 +103,7 @@ func TestAnInvalidNameChangesNothingAndAsksNobody(t *testing.T) {
 	store, accounts := setUp()
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada", now)))
 
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now.Add(time.Hour))).
+	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now.Add(time.Hour))).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "guest_ada"})
 
 	require.ErrorIs(t, err, players.ErrInvalidName)
@@ -118,7 +117,7 @@ func TestAGuestIsNotLinkedAndKeepsNoName(t *testing.T) {
 	store, accounts := setUp()
 	guest := players.AccountID{15: 9}
 
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), set_name_usecase.In{Account: guest, Name: "Ada"})
 
 	require.ErrorIs(t, err, players.ErrNotLinked)
@@ -129,7 +128,7 @@ func TestAGuestIsNotLinkedAndKeepsNoName(t *testing.T) {
 func TestAPlayerSetsItsOwnNameAgainInAnotherCase(t *testing.T) {
 	store, accounts := setUp()
 	clock := cptime.NewFixedClock(now)
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, clock)
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, clock)
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ada"})
 	require.NoError(t, err)
 	clock.Advance(7 * 24 * time.Hour)
@@ -144,7 +143,7 @@ func TestAGivenNameIsChangedAtOnce(t *testing.T) {
 	store, accounts := setUp()
 	require.NoError(t, store.CreateProfile(t.Context(), players.NewProfile(ada, "BraveFox42", now)))
 
-	profile, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	profile, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
 
 	require.NoError(t, err)
@@ -154,7 +153,7 @@ func TestAGivenNameIsChangedAtOnce(t *testing.T) {
 func TestAChangeOnDay6IsRefusedAndKeepsTheName(t *testing.T) {
 	store, accounts := setUp()
 	clock := cptime.NewFixedClock(now)
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, clock)
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, clock)
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
 	require.NoError(t, err)
 	clock.Advance(6 * 24 * time.Hour)
@@ -171,7 +170,7 @@ func TestAChangeOnDay6IsRefusedAndKeepsTheName(t *testing.T) {
 
 func TestANameAnotherPlayerHoldsStartsNoWait(t *testing.T) {
 	store, accounts := setUp()
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now))
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now))
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
 	require.NoError(t, err)
 	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: bob, Name: "ada"})
@@ -186,7 +185,7 @@ func TestAFailureToAskAuthIsNotAGuest(t *testing.T) {
 	store, accounts := setUp()
 	accounts.FailWith(errors.New("auth is off"))
 
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
 
 	require.Error(t, err)
@@ -197,7 +196,7 @@ func TestAStoreFailureIsNotATakenName(t *testing.T) {
 	store, accounts := setUp()
 	store.FailWith(errors.New("postgres is down"))
 
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
 
 	require.Error(t, err)
@@ -205,23 +204,39 @@ func TestAStoreFailureIsNotATakenName(t *testing.T) {
 	assert.NotErrorIs(t, err, players.ErrNameTaken)
 }
 
-func TestTheNameAPlayerLeavesIsKept(t *testing.T) {
+// The names left the outbox tells, as the event carries them.
+func namesLeft(t *testing.T, outbox *cpatomic.FakeOutbox) []*playerv1.NameLeft {
+	t.Helper()
+
+	var left []*playerv1.NameLeft
+	for _, event := range outbox.Recorded() {
+		if told, ok := event.(*playerv1.NameLeft); ok {
+			left = append(left, told)
+		}
+	}
+	return left
+}
+
+func TestTheNameAPlayerLeavesIsTold(t *testing.T) {
 	store, accounts := setUp()
 	require.NoError(t, store.CreateProfile(t.Context(), players.NewProfile(ada, "BraveFox42", now)))
-	left := inmemory_past_name_store.New()
+	outbox := &cpatomic.FakeOutbox{}
 
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, left, accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
+	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, cptime.NewFixedClock(now)).
 		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada"})
 
 	require.NoError(t, err)
-	assert.Equal(t, []pastnames.Snapshot{{Account: ada, Name: "BraveFox42", LeftAt: now}}, left.Kept())
+	left := namesLeft(t, outbox)
+	require.Len(t, left, 1)
+	assert.True(t, proto.Equal(&playerv1.NameLeft{AccountId: ada.String(), Name: "BraveFox42", LeftAt: timestamppb.New(now)}, left[0]),
+		"%v", left[0])
 }
 
 func TestAFirstNameAndTheSameNameInAnotherCaseLeaveNothing(t *testing.T) {
 	store, accounts := setUp()
 	clock := cptime.NewFixedClock(now)
-	left := inmemory_past_name_store.New()
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, left, accounts, &cpatomic.FakeOutbox{}, clock)
+	outbox := &cpatomic.FakeOutbox{}
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, clock)
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ada"})
 	require.NoError(t, err)
 	clock.Advance(7 * 24 * time.Hour)
@@ -229,7 +244,7 @@ func TestAFirstNameAndTheSameNameInAnotherCaseLeaveNothing(t *testing.T) {
 	_, err = useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "ADA"})
 
 	require.NoError(t, err)
-	assert.Empty(t, left.Kept())
+	assert.Empty(t, namesLeft(t, outbox))
 }
 
 func TestANameRefusedLeavesNothing(t *testing.T) {
@@ -237,8 +252,8 @@ func TestANameRefusedLeavesNothing(t *testing.T) {
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada", now)))
 	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(bob, "Bob", now)))
 	clock := cptime.NewFixedClock(now)
-	left := inmemory_past_name_store.New()
-	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, left, accounts, &cpatomic.FakeOutbox{}, clock)
+	outbox := &cpatomic.FakeOutbox{}
+	useCase := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, accounts, outbox, clock)
 	_, err := useCase.Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
 	require.NoError(t, err)
 	clock.Advance(time.Hour)
@@ -248,20 +263,7 @@ func TestANameRefusedLeavesNothing(t *testing.T) {
 
 	require.Error(t, tooSoon)
 	require.ErrorIs(t, taken, players.ErrNameTaken)
-	assert.Equal(t, []pastnames.Snapshot{{Account: ada, Name: "Ada", LeftAt: now}}, left.Kept())
-}
-
-func TestAFailureToKeepTheNameLeftFailsTheChange(t *testing.T) {
-	store, accounts := setUp()
-	require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(ada, "Ada", now)))
-	left := inmemory_past_name_store.New()
-	left.FailWith(errors.New("postgres is down"))
-	outbox := &cpatomic.FakeOutbox{}
-
-	_, err := set_name_usecase.New(cpatomic.FakeTransactioner{}, store, left, accounts, outbox, cptime.NewFixedClock(now)).
-		Execute(t.Context(), set_name_usecase.In{Account: ada, Name: "Ada_L"})
-
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, players.ErrNameTaken)
-	assert.Empty(t, outbox.Recorded(), "a change that failed is not told")
+	left := namesLeft(t, outbox)
+	require.Len(t, left, 1)
+	assert.Equal(t, "Ada", left[0].GetName())
 }

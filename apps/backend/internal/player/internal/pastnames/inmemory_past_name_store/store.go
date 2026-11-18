@@ -36,7 +36,13 @@ func (s *Store) Record(_ context.Context, name pastnames.PastName) error {
 	if s.err != nil {
 		return s.err
 	}
-	s.kept = append(s.kept, name.TakeSnapshot())
+	kept := name.TakeSnapshot()
+	if slices.ContainsFunc(s.kept, func(was pastnames.Snapshot) bool {
+		return was.Account == kept.Account && was.LeftAt.Equal(kept.LeftAt)
+	}) {
+		return nil
+	}
+	s.kept = append(s.kept, kept)
 	return nil
 }
 

@@ -1,5 +1,5 @@
 -- Every username a player chose to leave for another, from 2026-11-17: nothing kept the earlier ones. The public card
--- shows the last few (GetPlayer). Forgotten with the account.
+-- shows the last few (GetPlayer). Written from player.v1.NameLeft, after the save; forgotten with the account.
 CREATE TABLE past_names (
     id          bigserial   PRIMARY KEY,
     account_id  uuid        NOT NULL,
@@ -9,4 +9,5 @@ CREATE TABLE past_names (
     left_at     timestamptz NOT NULL
 );
 
-CREATE INDEX past_names_account_idx ON past_names (account_id, left_at DESC);
+-- One name left per account at one time: an event heard twice keeps one row. The card reads it newest first.
+CREATE UNIQUE INDEX past_names_account_idx ON past_names (account_id, left_at DESC);

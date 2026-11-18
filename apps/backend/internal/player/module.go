@@ -17,6 +17,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/departures/usecases/forget_departure_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/postgres_past_name_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/usecases/forget_past_names_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/usecases/keep_past_name_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/random_code_generator"
@@ -74,6 +76,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/deletion_requested_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/deletion_requested_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/log_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/name_left_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/player_forgotten_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/restored_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_account_subscriber"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/subscribers/signed_in_subscriber"
@@ -156,7 +160,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 	// Not player-accounts any more: a new group reads every AccountDeleted still in the stream, and tells each one
 	// forgotten again, for the modules that heard AccountDeleted until 2026-11-04 (see docs/player.md).
 	deletions, err := cpredis.Subscribe(ctx, streams, "player-profiles-accounts",
-		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(db, store, renameStore, pastNameStore, outbox)), props.Logger))
+		log_subscriber.New(account_deleted_subscriber.New(forget_account_usecase.New(db, store, renameStore, outbox)), props.Logger))
 	if err != nil {
 		closeStores()
 		return fmt.Errorf("failed to subscribe to auth.v1.AccountDeleted: %w", err)
@@ -221,18 +225,31 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		closeStores()
 		return fmt.Errorf("failed to subscribe the roster to auth.v1.AccountDeletionRequested: %w", err)
 	}
+	pastNames, err := cpredis.Subscribe(ctx, streams, "player-past-names",
+		log_subscriber.New(name_left_subscriber.New(keep_past_name_usecase.New(store, pastNameStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the past names to player.v1.NameLeft: %w", err)
+	}
+	forgottenPastNames, err := cpredis.Subscribe(ctx, streams, "player-past-names-forgotten",
+		log_subscriber.New(player_forgotten_subscriber.New(forget_past_names_usecase.New(pastNameStore)), props.Logger))
+	if err != nil {
+		closeStores()
+		return fmt.Errorf("failed to subscribe the past names to player.v1.PlayerForgotten: %w", err)
+	}
 	// Not closers: closers run before the runners stop, and the runners use both.
 	prune := prune_renames_usecase.NewRunner(retention.PruneInterval, log_prune.New(
 		prune_renames_usecase.New(retention.RenameRetention, clock, renameStore), props.Logger))
 	props.Runners.Add(cppg.CloseAfter(db, props.Logger, prune, cpredis.CloseAfter(streams, props.Logger,
-		deletions, requests, restores, forgottenDepartures, signIns, namings, told, signOuts, gone, leaving,
+		deletions, requests, restores, forgottenDepartures, signIns, namings, told, signOuts, gone, leaving, pastNames,
+		forgottenPastNames,
 		cpoutbox.NewRelay("player-outbox", db, streams, props.Logger))))
 
 	playersQuery := players_query.NewPostgresQuery(db)
 	playerService := playerv1controller.PlayerService{
 		GetProfileHandler: get_profile_handler.New(profile_query.NewPostgresQuery(db, inprocess_rename_rule.New())),
 		SetNameHandler: set_name_handler.New(
-			renaming_set_name.New(set_name_usecase.New(db, store, pastNameStore, accounts, outbox, clock), visits),
+			renaming_set_name.New(set_name_usecase.New(db, store, accounts, outbox, clock), visits),
 		),
 		SetColorHandler: set_color_handler.New(set_color_usecase.New(store)),
 		AnnounceHandler: announce_handler.New(

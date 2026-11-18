@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/inmemory_past_name_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
@@ -36,7 +35,7 @@ func handler(t *testing.T) set_name_handler.SetNameHandler {
 		accounts.Link(linked)
 	}
 
-	return set_name_handler.New(set_name_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)))
+	return set_name_handler.New(set_name_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), accounts, &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)))
 }
 
 var now = time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC)

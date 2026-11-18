@@ -10,8 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames"
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/inmemory_past_name_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/forget_account_usecase"
@@ -27,7 +25,7 @@ func TestTheProfileIsForgottenAndTheOtherModulesAreTold(t *testing.T) {
 		require.NoError(t, store.SaveProfile(t.Context(), players.NewProfile(account, name, time.Now())))
 	}
 
-	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), inmemory_past_name_store.New(), outbox).Execute(t.Context(), gone))
+	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), outbox).Execute(t.Context(), gone))
 
 	_, err := store.Profile(t.Context(), gone)
 	require.ErrorIs(t, err, players.ErrNoProfile)
@@ -40,7 +38,7 @@ func TestTheProfileIsForgottenAndTheOtherModulesAreTold(t *testing.T) {
 func TestAnAccountPlayerNeverKnewIsToldForgottenToo(t *testing.T) {
 	outbox := &cpatomic.FakeOutbox{}
 
-	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), inmemory_rename_store.New(), inmemory_past_name_store.New(), outbox).
+	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), inmemory_rename_store.New(), outbox).
 		Execute(t.Context(), players.AccountID{15: 3}))
 
 	require.Len(t, outbox.Recorded(), 1, "another module may keep its stats")
@@ -50,7 +48,7 @@ func TestAStoreFailureIsAnErrorAndTellsNothing(t *testing.T) {
 	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 	store.FailWith(errors.New("postgres is down"))
 
-	require.Error(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), inmemory_past_name_store.New(), outbox).Execute(t.Context(), players.AccountID{15: 1}))
+	require.Error(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), outbox).Execute(t.Context(), players.AccountID{15: 1}))
 	assert.Empty(t, outbox.Recorded())
 }
 
@@ -64,30 +62,11 @@ func TestTheAccountsRenamesAreForgottenWithItAndAnOperatorIsTakenOffItsOwn(t *te
 		require.NoError(t, history.Record(t.Context(), renames.NewRename(before, after, time.Now(), "a Nazi name", by)))
 	}
 
-	forget := forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, history, inmemory_past_name_store.New(), &cpatomic.FakeOutbox{})
+	forget := forget_account_usecase.New(cpatomic.FakeTransactioner{}, store, history, &cpatomic.FakeOutbox{})
 	require.NoError(t, forget.Execute(t.Context(), gone))
 	require.NoError(t, forget.Execute(t.Context(), operator))
 
 	require.Len(t, history.Kept(), 1)
 	assert.Equal(t, kept, history.Kept()[0].Account)
 	assert.Equal(t, renames.OperatorOf(players.AccountID{}, "Claude"), history.Kept()[0].By)
-}
-
-func TestTheNamesItsPlayerLeftAreForgottenWithIt(t *testing.T) {
-	left := inmemory_past_name_store.New()
-	gone, kept := players.AccountID{15: 1}, players.AccountID{15: 2}
-	for _, account := range []players.AccountID{gone, kept} {
-		before := players.NewProfile(account, "BraveFox42", time.Now())
-		after, err := before.Renamed("Ada", time.Now())
-		require.NoError(t, err)
-		name, ok := pastnames.PastNameOf(before, after, time.Now())
-		require.True(t, ok)
-		require.NoError(t, left.Record(t.Context(), name))
-	}
-
-	require.NoError(t, forget_account_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), inmemory_rename_store.New(), left,
-		&cpatomic.FakeOutbox{}).Execute(t.Context(), gone))
-
-	require.Len(t, left.Kept(), 1)
-	assert.Equal(t, kept, left.Kept()[0].Account)
 }

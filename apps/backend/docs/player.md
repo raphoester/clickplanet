@@ -16,10 +16,9 @@ internal/player/internal/
     rpc_account_reader/             whether an account is linked and when it was made, from auth.v1.InternalService/GetAccount,
                                     and the same of a page at once, from GetAccounts (players.Account)
     usecases/set_name_usecase/  set_color_usecase/  introduce_player_usecase/
-      set_name_usecase/  — keeps the name it replaces in pastnames
+      set_name_usecase/  — tells the name it replaces, player.v1.NameLeft
       set_name_usecase/renaming_set_name/   shows a kept name on the roster at once
-    usecases/forget_account_usecase/  — on auth.v1.AccountDeleted: the profile, the guest code, the renames and the past
-                                    names, then player.v1.PlayerForgotten
+    usecases/forget_account_usecase/  — on auth.v1.AccountDeleted: the profile, the guest code and the renames, then player.v1.PlayerForgotten
     usecases/rename_player_usecase/  — the operator's name for an account; player.v1.AdminService/RenamePlayer; recorded in renames; then player.v1.PlayerNamed
       rename_player_usecase/audit_rename_player/   logs every rename at Warn
     usecases/name_account_usecase/  — a username for an account signed in to with none; on auth.v1.SignedIn; then player.v1.PlayerNamed and PlayerCreated
@@ -30,10 +29,13 @@ internal/player/internal/
     postgres_rename_store/          the Storage over player.renames
     inmemory_rename_store/          the same port in a slice, and Kept for a test, behind the testing tag
     usecases/prune_renames_usecase/ deletes the renames past player.renameRetention; Runner, log_prune
-  pastnames/                        PastName (PastNameOf, TakeSnapshot), Snapshot: every username a player chose to leave
-                                    for another; the Storage port, which only writes
+  pastnames/                        PastName (PastNameOf, TakeSnapshot), Snapshot (Restore, ErrNoName, ErrNoTime): every
+                                    username a player chose to leave for another; the Storage port, which only writes,
+                                    each name once
     postgres_past_name_store/       the Storage over player.past_names
     inmemory_past_name_store/       the same port in a slice, and Kept for a test, behind the testing tag
+    usecases/keep_past_name_usecase/  — on player.v1.NameLeft: the name kept, unless the account was forgotten since
+    usecases/forget_past_names_usecase/  — on player's own player.v1.PlayerForgotten: the account's past names deleted
   departures/                       Departure (Decided), Decision (Leaves, Returns, TakeSnapshot): an account its player
                                     asked to delete, hidden from the others; the Store port and its contract suite
     postgres_departure_store/       the Store over player.departures, under an advisory lock per account
@@ -62,7 +64,8 @@ internal/player/internal/
     playermessage/                  Profile and the roster lines as player.v1 messages, for the commands and the adapters
   subscribers/                      the edge for events, as the controller is for the wire
     account_deleted_subscriber/  signed_in_subscriber/  signed_out_subscriber/  signed_in_account_subscriber/  signed_in_told_subscriber/
-    deletion_requested_subscriber/  restored_subscriber/  deletion_requested_account_subscriber/
+    deletion_requested_subscriber/  restored_subscriber/  deletion_requested_account_subscriber/  name_left_subscriber/
+    player_forgotten_subscriber/
     log_subscriber/
   migrations/
 ```
@@ -227,7 +230,7 @@ internal/player/internal/
 
   **Two steps, and the write names the account.** A name is a handle: a rename frees it, and another account can take it between the moment you read it and the moment you write. So read the id, check it is the player you mean, and act on the id. An account with no username has no profile row, so it cannot be one: pick the name first.
 - **`GetPlayer(account_id)` is what anybody may know about who a player with a username is**: the name it holds now, the last names it left (`past_names`, see [The names a player left](#the-names-a-player-left)), its color, `admin`, and `created_at_unix_ms`, when auth made the account (as a guest or by a first sign-in, so a guest who signs in keeps its first day). How far it went (its stats as of today, its titles, the countries it plays for and against) is progression's `GetProgress`, which the page asks beside it ([The public card](progression.md#the-public-card)); fields 2 and 6 to 9 are reserved. It needs no token (the session interceptor does not list it), is `NO_SIDE_EFFECTS`, and answers `public, max-age=10`. **The account id is the only thing that names a player**: a chat message, a roster line and a standing each carry it, so a card opened from one is the card of that account, whatever it is called now. A name cannot do that: a rename frees it, and the next account to take it would get the first one's card. **It answers the account id it was asked**, as every `Player` carries one. An id that is not an account, an empty one included, is `InvalidArgument` (`players.AccountIDOf`). **A guest is its id and its name alone**: `guest_` and its code, and `guest`, with every other field unset, and nothing asked of auth. It shows no streak and wears no title anywhere else, and the card is what a username gives; the globe names who holds a tile with it (planet's `GetTileHolder`). An account the game never named is `NotFound` (`player_query.ErrNoPlayer`): one that never existed, a deleted one, or one never shown, which has no guest code. `rpc_account_reader.CreatedAt` asks `auth.v1.InternalService/GetAccount` on each call, which also answers `created_at_unix_ms` (zero for an account auth does not know, and the answer then carries zero). **A failure to ask auth is a real error**, the error net's `internal`, as for `SetName`.
-- **`auth.v1.AccountDeleted` deletes the profile, the guest code, the renames and the past names** (`player-profiles-accounts`, `forget_account_usecase`), and tells `player.v1.PlayerForgotten` (below). The group was `player-accounts` until 2026-11-04: see [The deploy that moved the others to player's events](#the-deploy-that-moved-the-others-to-players-events).
+- **`auth.v1.AccountDeleted` deletes the profile, the guest code and the renames** (`player-profiles-accounts`, `forget_account_usecase`), and tells `player.v1.PlayerForgotten` (below), on which the past names go too. The group was `player-accounts` until 2026-11-04: see [The deploy that moved the others to player's events](#the-deploy-that-moved-the-others-to-players-events).
 - **Errors are real errors.** Every `Store` method returns one; absence is `ErrNoProfile`, which the use cases answer as an empty profile. On a request a database error is the error net's `internal`. On an event it is counted in `events_failed_total`, logged by `log_subscriber`, and the event tried again, then buried in `events:dead`. Each event's write has a 5s timeout (`subscribers.Timeout`), so a stuck database cannot hold a subscriber.
 - **`players.StoreContractSuite`** is the port's behaviour, run on `inmemory_player_store` and on postgres. The use cases are tested over the in-memory one, which can `FailWith` an error.
 - **The pool closes after the subscribers stop** (`cppg.CloseAfter`), so what they read before the shutdown is still written.
@@ -240,10 +243,21 @@ changed its name to pass for another, or a rival back under a new one.
 
 - **Every name a player leaves for another is kept** (`pastnames`, `player.past_names`, migration
   `20261117205716_past_names`): the account, the name in the case it was kept, its fold (`Name.Folded`), and when it
-  was left. `set_name_usecase` records it in the transaction of the save, so a name kept always leaves the one it
-  replaced, and a name refused (invalid, taken, too soon) leaves nothing. `pastnames.PastNameOf` decides: a first name
-  replaces nothing (no profile, `Unnamed`), and the same name in another case is the same name. The name drawn at the
-  first sign-in (`BraveFox42`) is a name like any other: it is left at the player's first `SetName`.
+  was left. `pastnames.PastNameOf` decides: a first name replaces nothing (no profile, `Unnamed`), and the same name in
+  another case is the same name. The name drawn at the first sign-in (`BraveFox42`) is a name like any other: it is
+  left at the player's first `SetName`.
+- **Kept after the save, from an event** ([The smallest transaction](transactions.md#the-smallest-transaction-and-events-for-the-rest)):
+  `set_name_usecase` tells `player.v1.NameLeft{account_id, name, left_at}` with `PlayerNamed`, through player's outbox,
+  in the transaction that saves the name (migration `20261118061129_name_left_event` gives it its place in
+  `outbox_event`). So a name kept always tells the one it replaced, a name refused (invalid, taken, too soon) tells
+  nothing, and the save never waits on the ledger nor fails with it. Player alone hears it (`player-past-names`,
+  `name_left_subscriber`, `keep_past_name_usecase`), and the card shows the name a moment after the change. **It is
+  the one player event that carries a name**: the profile no longer holds the old one once it is told.
+  - **Heard twice, kept once**: `past_names_account_idx` is unique on the account and the time left, and the insert
+    ignores a second. An event with no name or no time is refused (`pastnames.ErrNoName`, `ErrNoTime`) and buried.
+  - **Nothing for an account forgotten since**: `keep_past_name_usecase` reads the profile first, and an account with
+    none keeps nothing, so an event heard after `AccountDeleted` leaves no row of a deleted account. A forget at the
+    very moment of the insert can still leave one, which no read shows: the card's query joins `profiles`.
 - **Kept since 2026-11-17 only**: nothing kept a player's names before, so a card shows only the names left since.
 - **An operator's rename keeps none**: `rename_player_usecase` does not record the name it replaces. The audit renames
   a name for its words (see [Chat moderation](../../../docs/moderation.md#usernames)), and a name taken off must not
@@ -256,7 +270,9 @@ changed its name to pass for another, or a rival back under a new one.
   creation date, at once (`errgroup`). A guest has none, and its answer asks nothing more; an account asked deleted is
   not found at all.
 - **Kept until the account is forgotten**, with no retention: a player changes its name once every 7 days at most.
-  `forget_account_usecase` deletes them in the transaction that deletes the profile.
+  They go after the forget, not in it: player hears its own `PlayerForgotten` (`player-past-names-forgotten`,
+  `player_forgotten_subscriber`, `forget_past_names_usecase`), which its outbox never loses. Meanwhile no read shows
+  them, since the card's query joins `profiles`.
 - **Public, and not audited**: anybody who opens a card reads them, and the daily audit reads only the names held now.
   A bad name its player held for its 7 days and left itself shows until the account goes: nothing takes a past name off
   yet (see [Chat moderation](../../../docs/moderation.md#not-built-yet)).
@@ -266,14 +282,15 @@ changed its name to pass for another, or a rival back under a new one.
 **Player is the other modules' one source on an account**, so they need not hear auth: auth is player's detail. Each
 event goes through player's outbox (relay `player-outbox`; `outbox_event` gained `PlayerLeaving`, `PlayerReturned` and
 `PlayerForgotten` in migration `20261104190000_departure_events`, `PlayerSignedIn` in
-`20261104220000_signed_in_event`, `PlayerNamed` in `20261105120000_named_event`), in the transaction of what it tells, since a lost one would leave a module
+`20261104220000_signed_in_event`, `PlayerNamed` in `20261105120000_named_event`, `NameLeft` in
+`20261118061129_name_left_event`), in the transaction of what it tells, since a lost one would leave a module
 disagreeing with player for good (see [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox)).
 **Who hears them**: `PlayerCreated`, the offers (the sign-in refill; planet until 2026-11-11), progression (a nameplate) and scoring (a player it
 may rank); `PlayerSignedIn`, missions (what a guest finished that day is paid); `PlayerNamed`, alerts (the Discord
 member's nickname) and clips (the name judged for the videos); `PlayerLeaving` and `PlayerReturned`, progression, scoring (a player it ranks no more, then again)
 and alerts (a nickname taken off and given back);
 `PlayerForgotten`, every module that keeps something of an account: progression, planet, chat, scoring, support,
-missions, alerts and clips. `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
+missions, alerts and clips, and player itself (the past names); `NameLeft`, player alone (the past names). `GetAccounts` is asked by progression and missions. Since 2026-11-04 no game module but
 alerts hears or asks auth, which needs it for a Discord join's token (see [Discord pings](alerts.md)). The connector
 (`mcp`) asks it too, for a bearer token's operator (`GetTokenOperator`):
 `TestOnlyPlayerAlertsAndTheConnectorSpeakAuthsLanguage` pins it.
@@ -303,7 +320,8 @@ alerts hears or asks auth, which needs it for a Discord join's token (see [Disco
   (`player-profiles-accounts`), in the transaction that deletes the profile and the guest code, **for every account deleted,
   even one player kept nothing about**: a guest that took tiles, chatted or did a mission has no profile, and the
   modules that hear it keep its takes, its stats and its seen mark. The roster and the
-  departure forget the account on their own groups (`player-presence-accounts`, `player-departures-accounts`).
+  departure forget the account on their own groups (`player-presence-accounts`, `player-departures-accounts`), and the
+  past names on player's own `PlayerForgotten` (`player-past-names-forgotten`).
   `TestAnAccountPlayerNeverKnewIsToldForgottenToo` pins it.
 - **`InternalService/GetAccounts(account_ids)`** is the read beside them: what auth says of a page of accounts, as
   player's projection of `auth.v1.InternalService/GetAccounts` (`get_accounts_handler`, through

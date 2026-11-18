@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/inmemory_past_name_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/inmemory_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/usecases/set_name_usecase"
@@ -40,7 +39,7 @@ func setup() fixture {
 	return fixture{
 		accounts: accounts,
 		visits:   visits,
-		useCase:  renaming_set_name.New(set_name_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), inmemory_past_name_store.New(), accounts, &cpatomic.FakeOutbox{}, clock), visits),
+		useCase:  renaming_set_name.New(set_name_usecase.New(cpatomic.FakeTransactioner{}, inmemory_player_store.New(), accounts, &cpatomic.FakeOutbox{}, clock), visits),
 	}
 }
 
