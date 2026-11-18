@@ -20,10 +20,12 @@ var errNoBoard = errors.New("this process carries no board")
 // and its ground (geography, borders, bridges and capitals) built the first time something needs it, about 57 bytes a
 // tile.
 type Registry struct {
-	files  fs.FS
-	boards []*heldBoard
-	flags  func(country string) bool
-	logger *slog.Logger
+	files fs.FS
+	// The carry-overs between two boards (mapdata.Carries).
+	carries fs.FS
+	boards  []*heldBoard
+	flags   func(country string) bool
+	logger  *slog.Logger
 }
 
 type heldBoard struct {
@@ -33,10 +35,10 @@ type heldBoard struct {
 	err    error
 }
 
-// New is a registry of the boards in files, read by Load. flags is whether a player can play for a country: the capitals
-// of the others are dropped.
-func New(files fs.FS, flags func(country string) bool, logger *slog.Logger) *Registry {
-	return &Registry{files: files, flags: flags, logger: logger}
+// New is a registry of the boards in files, read by Load, and of the carry-overs between them in carries. flags is
+// whether a player can play for a country: the capitals of the others are dropped.
+func New(files fs.FS, carries fs.FS, flags func(country string) bool, logger *slog.Logger) *Registry {
+	return &Registry{files: files, carries: carries, flags: flags, logger: logger}
 }
 
 // Load reads every board's manifest, refusing no board, and a board whose manifest names a lattice this build cannot

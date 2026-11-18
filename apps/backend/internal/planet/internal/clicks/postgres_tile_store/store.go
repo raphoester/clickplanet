@@ -320,6 +320,50 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 	return wiped, nil
 }
 
+// Carry moves a map onto another board in keep's transaction, once keep says to: the rows of the board before go, and
+// the tiles and mines carried are written on onto's board, a few seconds for a million tiles. The flags out stay.
+func (s *Store) Carry(
+	ctx context.Context, onto clicks.Stage, tiles []inmemory_tile_storage.Tile, mines []clicks.MineSnapshot,
+	keep func(ctx context.Context) (bool, error),
+) (bool, error) {
+	taken := make([]int64, 0, len(tiles))
+	takenBy := make([]string, 0, len(tiles))
+	holders := make([]string, 0, len(tiles))
+	shields := make([]int64, 0, len(tiles))
+	for _, tile := range tiles {
+		taken = append(taken, int64(tile.ID))
+		takenBy = append(takenBy, tile.Owner)
+		shields = append(shields, int64(tile.Shields))
+		holders = append(holders, holderOf(tile.Holder))
+	}
+
+	carried := false
+	err := s.db.InTx(ctx, func(ctx context.Context) error {
+		kept, err := keep(ctx)
+		if err != nil || !kept {
+			return err
+		}
+		tx := s.db.On(ctx)
+		for _, table := range []string{"tiles", "landmasses", "viruses", "mines"} {
+			if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE map = $1`, string(onto.Map)); err != nil {
+				return fmt.Errorf("failed to delete the map's %s: %w", table, err)
+			}
+		}
+		if err := upsertTiles(ctx, tx, onto, taken, takenBy, shields, holders); err != nil {
+			return err
+		}
+		if err := s.SaveMines(ctx, onto, mines, nil); err != nil {
+			return err
+		}
+		carried = true
+		return nil
+	})
+	if err != nil {
+		return false, err //nolint:wrapcheck // each step names itself.
+	}
+	return carried, nil
+}
+
 func (s *Store) ForgetHolder(ctx context.Context, account cpsession.AccountID) error {
 	if _, err := s.db.On(ctx).ExecContext(ctx, `UPDATE tiles SET holder = NULL WHERE holder = $1`,
 		uuid.UUID(account)); err != nil {

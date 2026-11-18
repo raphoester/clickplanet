@@ -22,6 +22,7 @@
     "og-image": "vite-node scripts/generateOgImage.ts",
     "map": "vite-node scripts/syncBoards.ts",
     "map:generate": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateMap.ts --",
+    "map:carry": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateCarry.ts --",
     "map:fixture": "vite-node scripts/map/fixtureBoard.ts",
     "map:measure": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/measureBoard.ts --",
     "map:audit": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/auditMap.mjs --",

@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1/planetv1connect"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
@@ -64,6 +65,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/commands/refuse_caller_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras/postgres_era_store"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras/usecases/switch_board_usecase"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras/usecases/switch_board_usecase/log_switch_board"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/facts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -152,6 +155,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/reset_map_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/revert_player_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/save_rule_set_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/switch_board_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/top_players_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_refill_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/use_virus_handler"
@@ -210,7 +214,7 @@ func NewModule(config Config) cpbootstrap.Module {
 			countries := cpcountries.New()
 
 			// Every board this process carries, each one's ground built when first needed: the map in play's at the boot.
-			registry := embedded_board.New(cpboards.Files(), countries.CheckCountry, props.Logger)
+			registry := embedded_board.New(cpboards.Files(), mapdata.Carries(), countries.CheckCountry, props.Logger)
 			if err := registry.Load(); err != nil {
 				return fmt.Errorf("failed to read the boards: %w", err)
 			}
@@ -413,6 +417,8 @@ func NewModule(config Config) cpbootstrap.Module {
 				SaveRuleSetHandler: save_rule_set_handler.New(
 					cprules.NewAuditedSave(cprules.NewSaveUseCase(db, ruleSets, ruleParts, playRules), props.Logger,
 						cprules.SaveLog{Saved: "admin rule set saved", Refused: "admin rule set refused"})),
+				SwitchBoardHandler: switch_board_handler.New(log_switch_board.New(
+					switch_board_usecase.New(tilesStorage, grounds, registry, eraStore, takings, clock), props.Logger)),
 			}
 
 			if err := props.AdminRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

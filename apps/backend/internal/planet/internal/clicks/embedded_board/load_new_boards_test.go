@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	mapdata "github.com/raphoester/clickplanet.lol-backend/generated/map"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
@@ -81,7 +82,7 @@ func TestTheNewBoardsLoadEveryTileWhereThePagePutsIt(t *testing.T) {
 // What earth-2 costs the boot, logged for docs/boards.md: about 0.8 s and 300 MB allocated on a CI machine, and about
 // 50 MB kept. Only a bound is asserted: a machine's speed is not the board's.
 func TestEarth2LoadsInSecondsAndKeepsTensOfMegabytes(t *testing.T) {
-	registry := embedded_board.New(cpboards.Files(), func(string) bool { return true }, slog.New(slog.DiscardHandler))
+	registry := embedded_board.New(cpboards.Files(), mapdata.Carries(), func(string) bool { return true }, slog.New(slog.DiscardHandler))
 	require.NoError(t, registry.Load())
 	debug.FreeOSMemory()
 	var before runtime.MemStats

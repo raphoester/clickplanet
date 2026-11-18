@@ -35,6 +35,11 @@ type Persistence interface {
 	SaveMines(ctx context.Context, played clicks.Stage, laid []clicks.MineSnapshot, gone []uint32) error
 	// Open writes a map's first tiles in one transaction with keep, once keep says to.
 	Open(ctx context.Context, played clicks.Stage, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
+	// Carry moves a map onto another board in one transaction with keep, once keep says to: every tile, landmass's lock,
+	// virus and mine of the board before deleted, and the tiles and mines carried written on the new one. The flags out
+	// stay: they name no tile.
+	Carry(ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot,
+		keep func(ctx context.Context) (bool, error)) (bool, error)
 	// Wipe deletes every tile, every landmass's lock, every flag out, every virus and every mine of a map, in one
 	// transaction with keep, once keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)

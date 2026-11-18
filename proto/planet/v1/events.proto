@@ -68,6 +68,21 @@ message Fortified {
   string board = 8;
 }
 
+// The world's map moved onto another board, its land carried over (AdminService/SwitchBoard): a new era on that board.
+// No take: no tile of it is in a TilesTaken.
+message BoardSwitched {
+  // The map that moved: "world".
+  string map = 1;
+  // The boards, as /map/boards names them: "earth-1", "earth-2".
+  string from = 2;
+  string to = 3;
+  // Each board's tiles.
+  uint32 from_tiles = 4;
+  uint32 to_tiles = 5;
+  google.protobuf.Timestamp switched_at = 6;
+  uint64 position = 7;
+}
+
 // A shield a player placed, with the tile's shields after it.
 message ShieldPlaced {
   string account_id = 1;

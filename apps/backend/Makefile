@@ -16,9 +16,10 @@ MAP_ASSET_DIR := generated/map
 
 map:
 	@test -n "$$(ls $(MAP_DIR)/boards/*/board-*.json 2>/dev/null)" || { echo "map: no $(MAP_DIR)/boards/<board>/board-<hash>.json" >&2; exit 1; }
-	@rm -rf generated/map/boards
+	@rm -rf generated/map/boards generated/map/carries
 	@cp -R $(MAP_DIR)/boards $(MAP_ASSET_DIR)/boards
-	@find $(MAP_ASSET_DIR)/boards -type f | sort
+	@cp -R $(MAP_DIR)/carries $(MAP_ASSET_DIR)/carries
+	@find $(MAP_ASSET_DIR)/boards $(MAP_ASSET_DIR)/carries -type f | sort
 
 QUIZ_DIR := ../../quiz
 QUIZ_ASSET_DIR := generated/quiz
