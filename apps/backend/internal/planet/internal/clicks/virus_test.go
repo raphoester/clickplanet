@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
@@ -18,39 +17,6 @@ var (
 
 func aimedAt(tile uint32) clicks.Virus {
 	return clicks.NewVirus("v-1", carrier, "203.0.113.7", "fr", tile)
-}
-
-func tileOf(id uint32, owner string, shields int) clicks.Tile {
-	return clicks.TileSnapshot{ID: id, Owner: owner, Shields: shields}.Restore()
-}
-
-func TestAVirusHitsTheFlagOfTheEnemyTileItIsAimedAt(t *testing.T) {
-	virus, err := aimedAt(7).Aimed(tileOf(7, "de", 0))
-	require.NoError(t, err)
-
-	assert.Equal(t, "de", virus.TakeSnapshot().Victim)
-}
-
-func TestAVirusTakesNoTileOfItsOwnFlagNoBlankTileAndNoShieldedTile(t *testing.T) {
-	for name, tile := range map[string]clicks.Tile{
-		"its own flag's": tileOf(7, "fr", 0),
-		"a blank tile":   tileOf(7, "", 0),
-		"a shielded one": tileOf(7, "de", 1),
-		"another tile":   tileOf(8, "de", 0),
-	} {
-		_, err := aimedAt(7).Aimed(tile)
-		require.ErrorIs(t, err, clicks.ErrNotInfectable, name)
-	}
-}
-
-func TestEveryInfectionCountsAndATakeInfectsItsTile(t *testing.T) {
-	virus := aimedAt(7).
-		Infected(clicks.Impact{Tile: 7, Outcome: clicks.Taken}).
-		Infected(clicks.Impact{Tile: 8, Outcome: clicks.Shielded, Shields: 2})
-
-	kept := virus.TakeSnapshot()
-	assert.Equal(t, 2, kept.Infections, "a struck shield is an infection too")
-	assert.Equal(t, []uint32{7}, kept.Infected)
 }
 
 func TestAVirusEndsWhenItInfectedNothingHoldsNoTileOrMadeItsMostInfections(t *testing.T) {

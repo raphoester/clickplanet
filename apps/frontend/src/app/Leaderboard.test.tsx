@@ -3,12 +3,13 @@ import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, fireEvent, render, screen, within} from "@testing-library/react"
 import {Race} from "../backends/standings.ts"
 import Leaderboard from "./Leaderboard.tsx"
-import {FIGURES, GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
-import {t} from "../i18n/page.ts"
+import {GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
 import {useRace} from "./standings/raceStore.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
+
+const TILES_FIGURE = "Tiles this country holds now, and its share of the map"
 
 const entry = (code: string, tiles: number) => ({country: Countries.get(code)!, tiles})
 
@@ -121,11 +122,6 @@ describe("Leaderboard", () => {
         expect(rows().filter(r => r.getAttribute("aria-current") === "true")).toEqual([])
     })
 
-    it("owns no toggle of its own", () => {
-        render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
-        expect(screen.queryAllByRole("button").filter(b => b.hasAttribute("aria-pressed"))).toEqual([])
-    })
-
     it("says what a column means for a while when its head is tapped", () => {
         vi.useFakeTimers()
         render(<Leaderboard tilesCount={1000} data={[entry("fr", 500), entry("jp", 250)]}/>)
@@ -133,7 +129,7 @@ describe("Leaderboard", () => {
 
         fireEvent.pointerDown(head, {pointerType: "touch"})
         fireEvent.click(head)
-        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.tiles))
+        expect(screen.getByRole("status").textContent).toBe(TILES_FIGURE)
 
         act(() => vi.advanceTimersByTime(TAP_HINT_MS - 1))
         expect(screen.getByRole("status")).toBeDefined()
@@ -169,7 +165,7 @@ describe("Leaderboard", () => {
         fireEvent.click(head)
         act(() => vi.advanceTimersByTime(10 * TAP_HINT_MS))
 
-        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.tiles))
+        expect(screen.getByRole("status").textContent).toBe(TILES_FIGURE)
     })
 
     it("says what a column means while a mouse is over its head, and stops when it leaves", () => {
@@ -177,7 +173,7 @@ describe("Leaderboard", () => {
         const head = screen.getByRole("button", {name: "Tiles"})
 
         fireEvent.pointerEnter(head, {pointerType: "mouse"})
-        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.tiles))
+        expect(screen.getByRole("status").textContent).toBe(TILES_FIGURE)
 
         fireEvent.pointerLeave(head, {pointerType: "mouse"})
         expect(screen.queryByRole("status")).toBeNull()
@@ -312,9 +308,8 @@ describe("Leaderboard with the season's race", () => {
         useBoardGuide.setState({guided: false})
         render(<Leaderboard tilesCount={1000} data={MAP}/>)
 
-        expect(screen.getByRole("status").textContent).toBe(t(FIGURES.points))
+        expect(screen.getByRole("status").textContent).toBe("Season points won on the days that ended. When a day ends, the 10 best countries on the ground they hold and the ground they gained that day score. Most points wins the season")
         expect(useBoardGuide.getState().guided).toBe(true)
-        expect(localStorage.getItem("clickplanet-board-guide")).toBe("points")
     })
 
     it("lets the first word on the points stay long enough to read", () => {

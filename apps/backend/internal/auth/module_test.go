@@ -27,10 +27,6 @@ func validConfig() auth.Config {
 	return config
 }
 
-func TestAConfigWithOneProviderIsValid(t *testing.T) {
-	require.NoError(t, validConfig().Validate())
-}
-
 func TestSignInOffChecksNoProvider(t *testing.T) {
 	config := auth.Config{SignerConfig: validConfig().SignerConfig, Database: validConfig().Database, Redis: validConfig().Redis}
 

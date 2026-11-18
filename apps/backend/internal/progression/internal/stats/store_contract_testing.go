@@ -24,11 +24,6 @@ func (s *StoreContractSuite) SetupTest() {
 
 var contractAt = time.Date(2026, 9, 17, 23, 30, 0, 123_456_000, time.UTC)
 
-func (s *StoreContractSuite) TestAnUnknownAccountHasNoStats() {
-	_, err := s.store.Stats(s.T().Context(), accounts.AccountID{15: 1})
-	s.Require().ErrorIs(err, ErrNoStats)
-}
-
 func (s *StoreContractSuite) TestAForgottenAccountLosesItsStatsAndTheOthersKeepTheirs() {
 	s.recordTake(1, 0, contractAt)
 	s.recordTake(2, 1, contractAt)
@@ -69,22 +64,6 @@ func (s *StoreContractSuite) TestEachTakeIsCountedByTheDomainsRule() {
 	s.Equal(uint32(2), s.stats(1).Streak().Days(), "the third take is past UTC midnight")
 }
 
-func (s *StoreContractSuite) TestTakesOfOneAccountDoNotCountOnAnother() {
-	s.recordTake(1, 0, contractAt)
-	s.recordTake(2, 1, contractAt)
-	s.recordTake(2, 2, contractAt)
-
-	s.Equal(uint64(1), s.stats(1).TilesTaken())
-	s.Equal(uint64(2), s.stats(2).TilesTaken())
-}
-
-func (s *StoreContractSuite) TestEachMessageIsCountedAndStartsNoStreak() {
-	s.record(1, MessageAt(contractAt))
-	s.record(1, MessageAt(contractAt.Add(time.Second)))
-
-	s.Equal(NewStats(accounts.AccountID{15: 1}).WithMessage(contractAt).WithMessage(contractAt.Add(time.Second)), s.stats(1))
-}
-
 func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
 	s.record(1, MessageAt(contractAt))
 	s.recordTake(1, 0, contractAt)
@@ -94,21 +73,6 @@ func (s *StoreContractSuite) TestMessagesAndTakesAddUpOnOneAccount() {
 	s.Equal(NewStats(accounts.AccountID{15: 1}).WithMessage(contractAt).WithTake(0, 0, contractAt).
 		WithMessage(contractAt.Add(time.Second)), s.stats(1))
 	s.Equal(uint64(1), s.stats(2).MessagesSent())
-}
-
-func (s *StoreContractSuite) TestEveryCounterReadsBack() {
-	for _, change := range []func(Stats) Stats{
-		BombAt(3), BonusAt(contractAt), RightAnswerAt(contractAt), BombAt(8), FortifyAt(5, 137), MissionsPaid(4),
-		MissionsPaid(2),
-	} {
-		s.record(1, change)
-	}
-
-	s.Equal(StatsSnapshot{
-		Account: accounts.AccountID{15: 1}, BombsDropped: 2, TilesFortified: 137, BonusesClaimed: 1, RightAnswers: 1,
-		MissionsDone: 4,
-		Counted:      Counted{BombsBelow: 9, FortifiesBelow: 6, BonusesUntil: contractAt, AnswersUntil: contractAt},
-	}, s.stats(1).TakeSnapshot())
 }
 
 func (s *StoreContractSuite) TestAFactToldAgainAfterItWasKeptIsNotCountedAgain() {

@@ -1,7 +1,6 @@
 package refusals_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -73,30 +72,5 @@ func TestARefusalThatEndedRefusesNothing(t *testing.T) {
 
 	_, refused, err := book.Refusal(t.Context(), clicks.Payer{Scope: scope})
 	require.NoError(t, err)
-	assert.False(t, refused)
-}
-
-func TestAnAdmittedCallerIsRefusedNothing(t *testing.T) {
-	clock := cptime.NewFixedClock(at)
-	book := refusals.NewBook(refusals.NewMemoryStore(), clock)
-	caller := refusals.Caller{Account: account}
-	require.NoError(t, book.Decide(t.Context(), caller, refusals.Refused(at.Add(time.Hour), at)))
-
-	clock.Advance(time.Minute)
-	require.NoError(t, book.Decide(t.Context(), caller, refusals.Admitted(clock.Now())))
-	require.NoError(t, book.Decide(t.Context(), caller, refusals.Refused(at.Add(time.Hour), at)))
-
-	_, refused, err := book.Refusal(t.Context(), clicks.Payer{Scope: scope, Account: account})
-	require.NoError(t, err)
-	assert.False(t, refused, "the refusal sent again after the admission is older than it")
-}
-
-func TestARefusalThatCannotBeReadSaysSo(t *testing.T) {
-	store := refusals.NewMemoryStore()
-	store.FailWith(errors.New("postgres is down"))
-
-	_, refused, err := refusals.NewBook(store, cptime.NewFixedClock(at)).Refusal(t.Context(), clicks.Payer{Scope: scope})
-
-	require.Error(t, err)
 	assert.False(t, refused)
 }

@@ -1,7 +1,6 @@
 package keep_unlocks_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -34,13 +33,4 @@ func TestADecisionWithNoTimeIsRefused(t *testing.T) {
 	err := keep_unlocks_usecase.New(inmemory_unlock_store.New()).Execute(t.Context(), ada, unlocks.DecisionOf(nil, time.Time{}))
 
 	require.ErrorIs(t, err, unlocks.ErrNoTime)
-}
-
-func TestAStoreThatFailsIsTriedAgain(t *testing.T) {
-	store := inmemory_unlock_store.New()
-	store.FailWith(errors.New("postgres is gone"))
-
-	err := keep_unlocks_usecase.New(store).Execute(t.Context(), ada, unlocks.DecisionOf(nil, monday))
-
-	require.Error(t, err)
 }

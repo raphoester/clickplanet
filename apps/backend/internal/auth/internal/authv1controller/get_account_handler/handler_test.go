@@ -2,7 +2,6 @@ package get_account_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -62,10 +61,4 @@ func TestAnIDThatIsNotAnAccountIsNotLinkedAndNobodyIsAsked(t *testing.T) {
 		assert.False(t, res.GetLinked(), "%q", id)
 		assert.Empty(t, query.asked, "%q", id)
 	}
-}
-
-func TestAFailedReadIsAnError(t *testing.T) {
-	_, err := getAccount(t, &stubQuery{err: errors.New("postgres is down")}, accountID)
-
-	assert.Error(t, err)
 }

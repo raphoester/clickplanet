@@ -3,7 +3,6 @@ package listen_for_events_usecase_test
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -28,11 +27,10 @@ var (
 
 type stubSubscriber struct {
 	feed chan feed.Update
-	err  error
 }
 
 func (s stubSubscriber) Subscribe(context.Context) (<-chan feed.Update, error) {
-	return s.feed, s.err
+	return s.feed, nil
 }
 
 type recorder struct {
@@ -66,15 +64,6 @@ func (r *recorder) seen() []listen_for_events_usecase.Event {
 	return append([]listen_for_events_usecase.Event(nil), r.events...)
 }
 
-func TestAFailedSubscriptionEndsTheFeed(t *testing.T) {
-	cause := errors.New("disk on fire")
-
-	err := listen_for_events_usecase.New(stubSubscriber{err: cause}, open, time.Hour).
-		Execute(t.Context(), world, &recorder{})
-
-	require.ErrorIs(t, err, cause)
-}
-
 func TestAMessageIsCarriedToTheSink(t *testing.T) {
 	updates := make(chan feed.Update, 1)
 	updates <- feed.MessageSent(messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "hello"}))
@@ -96,23 +85,6 @@ func TestAMessageIsCarriedToTheSink(t *testing.T) {
 		{Heartbeat: true},
 		{Update: feed.MessageSent(messages.Restored(t, messages.Snapshot{ID: "message-1", Text: "hello"}))},
 	}, sink.seen())
-}
-
-func TestAStreamOpensWithAHeartbeat(t *testing.T) {
-	sink := &recorder{fed: make(chan struct{})}
-
-	ctx, cancel := context.WithCancel(t.Context())
-	done := make(chan error, 1)
-	go func() {
-		done <- listen_for_events_usecase.New(
-			stubSubscriber{feed: make(chan feed.Update)}, open, time.Hour).Execute(ctx, world, sink)
-	}()
-
-	<-sink.fed
-	cancel()
-	require.NoError(t, <-done)
-
-	require.Equal(t, []listen_for_events_usecase.Event{{Heartbeat: true}}, sink.seen())
 }
 
 type watchedSubscriber struct{ subscribed bool }

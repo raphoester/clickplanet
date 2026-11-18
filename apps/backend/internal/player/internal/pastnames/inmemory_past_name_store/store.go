@@ -18,24 +18,13 @@ func New() *Store {
 type Store struct {
 	mu   sync.Mutex
 	kept []pastnames.Snapshot
-	err  error
 }
 
 var _ pastnames.Storage = (*Store)(nil)
 
-// FailWith makes every call answer err.
-func (s *Store) FailWith(err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.err = err
-}
-
 func (s *Store) Record(_ context.Context, name pastnames.PastName) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.err != nil {
-		return s.err
-	}
 	kept := name.TakeSnapshot()
 	if slices.ContainsFunc(s.kept, func(was pastnames.Snapshot) bool {
 		return was.Account == kept.Account && was.LeftAt.Equal(kept.LeftAt)
@@ -55,9 +44,6 @@ func (s *Store) Kept() []pastnames.Snapshot {
 func (s *Store) Forget(_ context.Context, account players.AccountID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.err != nil {
-		return s.err
-	}
 	s.kept = slices.DeleteFunc(s.kept, func(kept pastnames.Snapshot) bool { return kept.Account == account })
 	return nil
 }

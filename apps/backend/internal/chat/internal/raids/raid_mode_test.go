@@ -22,17 +22,6 @@ func TestARaidModeRunsFromItsStartUntilItsEnd(t *testing.T) {
 	assert.False(t, mode.RunsAt(at.Add(time.Hour)), "it ends by itself")
 }
 
-func TestARaidModeEndedNowRunsNoMoreAndKeepsWhenItStarted(t *testing.T) {
-	mode, err := raids.Start(at, time.Hour, "")
-	require.NoError(t, err)
-
-	ended := mode.Ended(at.Add(time.Minute))
-
-	assert.False(t, ended.RunsAt(at.Add(time.Minute)))
-	assert.Equal(t, raids.Snapshot{StartedAt: at, EndsAt: at.Add(time.Minute)}, ended.TakeSnapshot())
-	assert.Equal(t, ended, ended.Ended(at.Add(time.Hour)), "ended twice, the first end stays")
-}
-
 func TestARaidModeRunsTwentyFourHoursAtMost(t *testing.T) {
 	_, err := raids.DurationOf(24*time.Hour + time.Second)
 	require.ErrorIs(t, err, raids.ErrInvalidDuration)

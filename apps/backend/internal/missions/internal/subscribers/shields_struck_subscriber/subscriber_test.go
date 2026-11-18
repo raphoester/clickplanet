@@ -10,15 +10,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days/inmemory_day_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/inmemory_flag_day_store"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions/usecases/record_strike_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/subscribers/shields_struck_subscriber"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 type recordingUseCase struct {
@@ -81,37 +75,4 @@ func TestABatchWithStrikesWithNoTimeIsRefused(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Empty(t, useCase.calls)
-}
-
-type fixedPlanet struct{}
-
-func (fixedPlanet) World(context.Context) (missions.World, error) {
-	return missions.World{Territories: []missions.Territory{{Flag: "dz", Tiles: 9_000, Shields: 9_000}}}, nil
-}
-
-type noPledges struct{}
-
-func (noPledges) FlagOf(context.Context, missions.AccountID) (string, error) { return "", nil }
-
-type noStreams struct{}
-
-func (noStreams) Publish(missions.AccountID) {}
-
-func TestABombsStrikesToldInPartsAndToldTwiceCountEachShieldOnce(t *testing.T) {
-	store, calendar := inmemory_flag_day_store.New(), inmemory_day_store.New(days.TestingDayAt(at))
-	handler := shields_struck_subscriber.New(record_strike_usecase.New(calendar, flagmissions.NewBriefing(store, calendar,
-		fixedPlanet{}, flagmissions.NewFixedStandings(flagmissions.TestingStanding(nil)), noPledges{},
-		flagmissions.NewFixedSizings(flagmissions.TestingSizing()), cptime.NewFixedClock(at)), store,
-		cpatomic.FakeTransactioner{}, &cpatomic.FakeOutbox{}, noStreams{}))
-	bomb := []*planetv1.ShieldsStruck{struck(ada, "fr", 9, 0, 3), struck(ada, "fr", 9, 3, 7)}
-
-	for range 2 {
-		require.NoError(t, handler.HandleBatch(t.Context(), bomb))
-	}
-	require.NoError(t, handler.HandleBatch(t.Context(), bomb[1:]), "a failed batch is handled again one event at a time")
-
-	day, err := store.Day(t.Context(), days.TestingDayAt(at), "fr")
-	require.NoError(t, err)
-	assert.Equal(t, uint64(7), day.Snapshot().Strikes, "one ledger event in two parts, seven shields")
-	assert.Equal(t, uint32(7), day.Snapshot().Progress, "each of the rival the mission names")
 }

@@ -132,8 +132,6 @@ func TestEveryTabOfOneCallerIsSentTheBox(t *testing.T) {
 	first := playing(t, registry, "scope-a")
 	second := attend(t, registry, "scope-a")
 
-	require.Len(t, registry.callers, 1, "tabs are one entrant, not many")
-
 	waitOut(t, registry, clock)
 
 	one, two := offered(t, first), offered(t, second)
@@ -234,7 +232,14 @@ func TestCatchingOneClearsTheMissThatCameBefore(t *testing.T) {
 	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	require.True(t, claimed)
 
-	assert.Equal(t, 0, registry.callers["scope-a"].misses)
+	waitOut(t, registry, clock)
+	require.NotNil(t, offered(t, events))
+	clock.Advance(16 * time.Second)
+	registry.sweep()
+
+	clock.Advance(21 * time.Second)
+	registry.sweep()
+	assert.NotNil(t, offered(t, events), "the miss after a catch is a first miss again")
 }
 
 func TestReloadingCannotRerollTheSchedule(t *testing.T) {
@@ -244,16 +249,16 @@ func TestReloadingCannotRerollTheSchedule(t *testing.T) {
 	clicked(registry, "scope-a")
 
 	clock.Advance(30 * time.Second)
-	due := registry.callers["scope-a"].nextOfferAt
-
 	leave()
 	events := attend(t, registry, "scope-a")
-
-	assert.Equal(t, due, registry.callers["scope-a"].nextOfferAt)
 
 	clock.Advance(29 * time.Second)
 	registry.sweep()
 	assert.Nil(t, offered(t, events), "the wait carried over the reconnect")
+
+	clock.Advance(2 * time.Second)
+	registry.sweep()
+	assert.NotNil(t, offered(t, events), "the box comes when it was due before the reconnect")
 }
 
 func TestAScheduleIsForgottenOnceTheCallerHasBeenGoneLongEnough(t *testing.T) {
@@ -327,7 +332,14 @@ func TestCatchingABoxBringsTheNextBoxAWindowAfterTheClaim(t *testing.T) {
 	_, claimed := registry.Claim(offer.Token, "scope-a", "scope-a")
 	require.True(t, claimed)
 
-	assert.Equal(t, clock.Now().Add(window), registry.callers["scope-a"].nextOfferAt,
+	clock.Advance(window - time.Second)
+	clicked(registry, "scope-a")
+	registry.sweep()
+	require.Nil(t, offered(t, events))
+
+	clock.Advance(time.Second)
+	registry.sweep()
+	assert.NotNil(t, offered(t, events),
 		"a charge has no end to wait for, so holding a bomb does not hold back every other box")
 }
 

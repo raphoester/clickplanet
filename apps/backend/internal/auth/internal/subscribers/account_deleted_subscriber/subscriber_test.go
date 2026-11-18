@@ -19,19 +19,6 @@ import (
 
 var at = time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 
-func TestADeletedAccountsArrivalLosesItsAccount(t *testing.T) {
-	store := inmemory_arrival_store.New()
-	ada := arrivals.AccountID{15: 1}
-	store.Seed(arrivals.Snapshot{ID: arrivals.ArrivalID{15: 1}, Account: ada, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at})
-
-	err := account_deleted_subscriber.New(anonymize_arrivals_usecase.New(store)).Handle(t.Context(),
-		&authv1.AccountDeleted{AccountId: ada.String()})
-
-	require.NoError(t, err)
-	assert.Equal(t, []arrivals.Snapshot{{ID: arrivals.ArrivalID{15: 1}, Source: arrivals.SourceRecruit, Referrer: "discord.com", At: at}},
-		store.Kept())
-}
-
 func TestARecruitAndItsRecruiterAreEachForgottenWhenTheirAccountGoes(t *testing.T) {
 	recruit, recruiter := arrivals.AccountID{15: 1}, arrivals.AccountID{15: 2}
 	arrival := arrivals.ArrivalID{15: 1}

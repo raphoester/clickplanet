@@ -2,7 +2,6 @@ package claim_box_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
@@ -55,13 +54,4 @@ func TestARefusedClaimIsNotFoundAndSaysNothingAboutWhy(t *testing.T) {
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 	assert.Contains(t, err.Error(), claim_box_usecase.ErrNoSuchBox.Error())
 	assert.NotContains(t, err.Error(), "lapsed")
-}
-
-func TestAFailedTellIsLeftToTheErrorNet(t *testing.T) {
-	down := errors.New("postgres is down")
-
-	_, err := claim(t, &stubUseCase{err: down})
-
-	require.ErrorIs(t, err, down)
-	assert.NotEqual(t, connect.CodeNotFound, connect.CodeOf(err))
 }

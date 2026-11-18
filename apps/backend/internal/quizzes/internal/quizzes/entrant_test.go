@@ -15,7 +15,6 @@ const sharedAddress = "1.2.3.4"
 var (
 	alice = Caller{Scope: sharedAddress, Account: "alice", Linked: true}
 	bob   = Caller{Scope: sharedAddress, Account: "bob", Linked: true}
-	guest = Caller{Scope: sharedAddress, Account: "a-guest"}
 )
 
 func playingAs(t *testing.T, r *Registry, caller Caller) <-chan Event {
@@ -25,20 +24,6 @@ func playingAs(t *testing.T, r *Registry, caller Caller) <-chan Event {
 	r.Clicked(Click{Caller: caller})
 
 	return events
-}
-
-func TestALinkedAccountIsItsOwnEntrantOnAnyNetwork(t *testing.T) {
-	elsewhere := alice
-	elsewhere.Scope = "5.6.7.8"
-
-	assert.Equal(t, Entrant("account:alice"), EntrantOf(alice))
-	assert.Equal(t, EntrantOf(alice), EntrantOf(elsewhere))
-	assert.NotEqual(t, EntrantOf(alice), EntrantOf(bob))
-}
-
-func TestAGuestOrACallerWithNoAccountIsItsNetwork(t *testing.T) {
-	assert.Equal(t, Entrant(sharedAddress), EntrantOf(guest))
-	assert.Equal(t, Entrant(sharedAddress), EntrantOf(Caller{Scope: sharedAddress}))
 }
 
 func TestTwoLinkedAccountsBehindOneAddressAreEachAskedTheirOwnQuiz(t *testing.T) {

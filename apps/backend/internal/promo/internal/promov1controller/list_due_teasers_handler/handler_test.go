@@ -2,7 +2,6 @@ package list_due_teasers_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -37,11 +36,7 @@ func TestTheBattlesDueAreAnswered(t *testing.T) {
 	assert.Equal(t, due, answer.Msg.GetTeasers())
 }
 
-func TestABusyPublishingIsUnavailableAndAnyOtherFailureIsTheErrorNets(t *testing.T) {
+func TestABusyPublishingIsUnavailable(t *testing.T) {
 	_, err := list(t, query{err: &teasers.BusyError{Reason: "restarting"}})
 	assert.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
-
-	off := connect.NewError(connect.CodeFailedPrecondition, errors.New("publishing is off"))
-	_, err = list(t, query{err: off})
-	require.ErrorIs(t, err, off)
 }

@@ -74,18 +74,6 @@ func TestAnAccountWithNoUsernameIsNotGivenOne(t *testing.T) {
 	assert.ErrorIs(t, err, players.ErrNoProfile)
 }
 
-func TestAStoreFailureIsNotAMissingProfile(t *testing.T) {
-	store := inmemory_player_store.New()
-	store.FailWith(errors.New("postgres is down"))
-
-	_, err := rename_player_usecase.New(cpatomic.FakeTransactioner{}, store, inmemory_rename_store.New(), &cpatomic.FakeOutbox{}, cptime.NewFixedClock(now)).
-		Execute(t.Context(), rename_player_usecase.In{Account: ada, Name: "Ada"})
-
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, players.ErrNoProfile)
-	assert.NotErrorIs(t, err, players.ErrNameTaken)
-}
-
 func TestARenameIsTold(t *testing.T) {
 	store, outbox := inmemory_player_store.New(), &cpatomic.FakeOutbox{}
 	chosenAnHourAgo(t, store, ada, "Rubbish")

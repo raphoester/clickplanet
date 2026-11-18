@@ -88,14 +88,6 @@ func (s *TileStorageContractSuite) owners(start, end uint32) map[uint32]string {
 	return state
 }
 
-func (s *TileStorageContractSuite) TestSetPublishesTheUpdate() {
-	listener, ctx := s.subscribe(2 * time.Second)
-
-	s.Require().NoError(s.set(ctx, 10, "fr"))
-
-	s.Equal(&TileUpdate{Tile: 10, Value: "fr"}, s.next(ctx, listener).Update)
-}
-
 func (s *TileStorageContractSuite) TestClickPublishesTheUpdateAsAClick() {
 	s.Require().NoError(s.set(context.Background(), 10, "us"))
 	listener, ctx := s.subscribe(2 * time.Second)

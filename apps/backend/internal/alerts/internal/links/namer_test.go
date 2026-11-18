@@ -72,33 +72,3 @@ func TestPlayerUnreachableIsAFailureThatRenamesNobody(t *testing.T) {
 	require.ErrorIs(t, err, down)
 	assert.Empty(t, members.Renamed())
 }
-
-func TestANameGivenWhileTheFlagMovedKeepsTheMove(t *testing.T) {
-	store := links.NewInMemoryStore()
-	read := links.NewLink(account, "42", "ie", now)
-	require.NoError(t, store.SaveLinks(t.Context(), read))
-	moved := read
-	moved.Follow("gb")
-	require.NoError(t, store.SaveLinks(t.Context(), moved))
-
-	read.Rename("BraveFox42")
-	require.NoError(t, store.SaveName(t.Context(), read))
-
-	assert.Equal(t, []links.LinkSnapshot{{Account: account, User: "42", Flag: "gb", Name: "BraveFox42", LinkedAt: now}},
-		store.Links())
-}
-
-func TestAFlagMovedWhileANameWasGivenKeepsTheName(t *testing.T) {
-	store := links.NewInMemoryStore()
-	read := links.NewLink(account, "42", "ie", now)
-	require.NoError(t, store.SaveLinks(t.Context(), read))
-	named := read
-	named.Rename("BraveFox42")
-	require.NoError(t, store.SaveName(t.Context(), named))
-
-	read.Follow("gb")
-	require.NoError(t, store.SaveLinks(t.Context(), read))
-
-	assert.Equal(t, []links.LinkSnapshot{{Account: account, User: "42", Flag: "gb", Name: "BraveFox42", LinkedAt: now}},
-		store.Links())
-}

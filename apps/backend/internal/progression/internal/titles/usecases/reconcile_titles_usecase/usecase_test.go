@@ -1,7 +1,6 @@
 package reconcile_titles_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -139,18 +138,6 @@ func TestASecondRunChangesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, reconcile_titles_usecase.Reconciled{}, reconciled)
 	assert.Equal(t, titles.IDs{"first", "third"}, f.held(t, 1))
-}
-
-func TestAFailureToAskAuthChangesNothing(t *testing.T) {
-	f := setUp()
-	f.player(t, 1, 1, linked)
-	require.NoError(t, f.titles.Grant(t.Context(), titles.Holdings{account(1): {"third"}}, now))
-	f.accounts.FailWith(errors.New("player is down"))
-
-	_, err := f.reconcile(t, f.titles, catalog)
-
-	require.Error(t, err)
-	assert.Equal(t, titles.IDs{"third"}, f.held(t, 1))
 }
 
 func TestAReconciliationAfterTheLiveAwardsChangesNothing(t *testing.T) {

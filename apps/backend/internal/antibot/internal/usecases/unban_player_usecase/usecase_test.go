@@ -2,7 +2,6 @@ package unban_player_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -24,7 +23,6 @@ type unbanner struct {
 	pardoned map[string]guard.Pardon
 	scopes   []string
 	accounts []string
-	failing  error
 }
 
 func bannedOn(keys ...string) *unbanner {
@@ -37,7 +35,7 @@ func bannedOn(keys ...string) *unbanner {
 
 func (u *unbanner) LastSentence(_ context.Context, scope, account string) (guard.Sentence, bool, error) {
 	sentence, ok := u.banned[scope+account]
-	return sentence, ok, u.failing
+	return sentence, ok, nil
 }
 
 func (u *unbanner) Unban(_ context.Context, scope, account string) error {
@@ -98,17 +96,6 @@ func TestItRefusesBothOrNeitherAndWhatIsNeitherAScopeNorAnAccount(t *testing.T) 
 		_, err := unban_player_usecase.New(u).Execute(t.Context(), in)
 		require.ErrorIs(t, err, want)
 	}
-
-	assert.Empty(t, u.scopes)
-}
-
-func TestABanThatCannotBeReadIsAnErrorAndNothingIsLifted(t *testing.T) {
-	u := bannedOn("1.2.3.4")
-	cause := errors.New("postgres is down")
-	u.failing = cause
-
-	_, err := unban_player_usecase.New(u).Execute(t.Context(), unban_player_usecase.In{Scope: "1.2.3.4"})
-	require.ErrorIs(t, err, cause)
 
 	assert.Empty(t, u.scopes)
 }

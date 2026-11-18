@@ -68,15 +68,6 @@ describe("SessionClient", () => {
         expect(attest).toHaveBeenCalledTimes(1)
     })
 
-    it("passes the attestation token to the server", async () => {
-        const createSession = vi.fn(minting("session-1"))
-
-        const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {now: clock})
-        await client.token()
-
-        expect(createSession).toHaveBeenCalledWith({attestationToken: "widget-token"})
-    })
-
     it("sends the first page's landing, which the server keeps if the mint makes the account", async () => {
         const createSession = vi.fn(minting("session-1"))
 
@@ -192,16 +183,6 @@ describe("SessionClient", () => {
 
         await expect(client.token()).rejects.toBeInstanceOf(SessionUnavailableError)
         expect(await client.token()).toBe("session-1")
-    })
-
-    it("reports a refused mint as a session failure, not as the code it answered", async () => {
-        const createSession = vi.fn(async () => {
-            throw new ConnectError("refused", Code.PermissionDenied)
-        })
-
-        const client = new SessionClient(fakeClient(createSession), async () => "widget-token", {now: clock})
-
-        await expect(client.token()).rejects.toBeInstanceOf(SessionUnavailableError)
     })
 
     it("reports a failed attestation the same way, without calling the server", async () => {

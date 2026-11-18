@@ -15,14 +15,20 @@ func TestSweepForgetsPayersThatStoppedTrying(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC))
 
 	w := newWatchdog(Config{TrackWindow: time.Minute}, bounds(asIs), clock)
+	empty, err := newWatchdog(Config{TrackWindow: time.Minute}, bounds(asIs), clock).Save()
+	require.NoError(t, err)
 
 	w.Attempted(detect.Click{Scope: "caller", Tile: 1, Country: "FR", At: clock.Now()})
-	require.Len(t, w.payers, 1)
+	watched, err := w.Save()
+	require.NoError(t, err)
+	require.NotEqual(t, empty, watched)
 
 	clock.Advance(2 * time.Hour)
 	w.sweep()
 
-	assert.Empty(t, w.payers)
+	swept, err := w.Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 func TestSweepReportsTheSkewOfAFullWindowOnly(t *testing.T) {
@@ -73,12 +79,20 @@ func TestSweepForgetsPayersPastTheWindow(t *testing.T) {
 
 	w.Watch(detect.Click{Scope: "caller", Account: "a", At: clock.Now()})
 	clock.Advance(59 * time.Minute)
+	kept, err := w.Save()
+	require.NoError(t, err)
 	w.sweep()
-	require.Len(t, w.spenders, 1, "a slice inside the window is kept past trackWindow")
+	swept, err := w.Save()
+	require.NoError(t, err)
+	require.Equal(t, kept, swept, "a slice inside the window is kept past trackWindow")
 
 	clock.Advance(time.Hour)
 	w.sweep()
-	assert.Empty(t, w.spenders)
+	swept, err = w.Save()
+	require.NoError(t, err)
+	empty, err := newWatchdog(Config{TrackWindow: time.Minute}, bounds(asIs), clock).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, swept)
 }
 
 func TestTheShapeRingIsBounded(t *testing.T) {

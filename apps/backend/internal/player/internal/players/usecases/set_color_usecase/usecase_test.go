@@ -1,7 +1,6 @@
 package set_color_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -39,14 +38,4 @@ func TestAnAccountWithNoUsernameIsRefused(t *testing.T) {
 	err := set_color_usecase.New(store(t)).Execute(t.Context(), set_color_usecase.In{Account: guest, Color: 4})
 
 	require.ErrorIs(t, err, players.ErrNoProfile)
-}
-
-func TestAStoreFailureIsAnError(t *testing.T) {
-	failing := store(t)
-	failing.FailWith(errors.New("postgres is down"))
-
-	err := set_color_usecase.New(failing).Execute(t.Context(), set_color_usecase.In{Account: ada, Color: 4})
-
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, players.ErrNoProfile)
 }

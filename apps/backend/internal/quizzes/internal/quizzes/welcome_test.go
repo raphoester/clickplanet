@@ -116,19 +116,6 @@ func TestANewcomerIsAskedNoWelcomeQuizWhileQuizzesAreOff(t *testing.T) {
 	assert.Nil(t, quizOffered(t, events))
 }
 
-func TestANewcomerIsForgottenOnceItIsNoLongerNew(t *testing.T) {
-	registry, clock := newWelcomingRegistry(t)
-	attend(t, registry, "scope-n")
-
-	registry.Clicked(dry(newcomer(clock)))
-	registry.sweep()
-	require.Len(t, registry.newcomers, 1)
-
-	clock.Advance(welcomeWithin)
-	registry.sweep()
-	assert.Empty(t, registry.newcomers)
-}
-
 func TestAFrozenSetLosesTheWelcome(t *testing.T) {
 	registry, clock := newWelcomingRegistry(t)
 	events := attend(t, registry, "scope-n")

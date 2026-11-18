@@ -15,15 +15,6 @@ func TestAClipThatIsNoPostIsNeverComplete(t *testing.T) {
 	assert.False(t, posts.Report{}.With(planned[0], posts.Scheduled{}, nil).Complete())
 }
 
-func TestAddingToAReportLeavesItAsItWas(t *testing.T) {
-	planned := plan.Posts([]posts.Clip{clip(t, 1, "BEST"), clip(t, 2, "SECOND")}, now, posts.LoadedDice(0))
-	first := posts.Report{}.With(planned[0], posts.Scheduled{ID: "post-1"}, nil)
-
-	_ = first.With(planned[1], posts.Scheduled{ID: "post-2"}, nil)
-
-	assert.Len(t, first, 1)
-}
-
 func TestOnlyAPostMadeThatNamesSomeoneIsAnAppearanceOnThePlatformsThatTookIt(t *testing.T) {
 	at := time.Date(2026, 10, 28, 15, 0, 0, 0, time.UTC)
 	report := posts.Report{

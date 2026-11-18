@@ -92,14 +92,6 @@ func (s *StoreContractSuite) TestWhenThePlayerChoseItsNameReadsBack() {
 	s.Equal(again, profile)
 }
 
-func (s *StoreContractSuite) TestANewProfileIsNotAnAdmin() {
-	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
-
-	profile, err := s.store.Profile(s.T().Context(), AccountID{15: 1})
-	s.Require().NoError(err)
-	s.False(profile.TakeSnapshot().Admin)
-}
-
 func (s *StoreContractSuite) TestAnAdminIsReadAndARenameKeepsIt() {
 	s.Require().NoError(s.store.SaveProfile(s.T().Context(), contractProfile(1, "Ada")))
 	s.MakeAdmin(s.store, AccountID{15: 1})

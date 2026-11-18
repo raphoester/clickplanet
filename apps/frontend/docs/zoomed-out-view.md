@@ -79,40 +79,64 @@ straight along the edge tiles of every landmass, over the outline, and across
 open ground wherever a rectangle stopped short, as one capped at
 `MAX_FLAG_RADIUS` does in Russia.
 
-**The flags holding the biggest landmasses are drawn from their SVGs, not read
-from the atlas.** A sprite is 100px wide and a painted flag is as wide as its
-landmass: at the last zoom where the flag is painted alone, about 135 of the
-307 painted landmasses stretch their sprite past 1.5× on a plain screen, about
-180 on a retina one, and the biggest — Russia, Antarctica, Brazil — past 20×,
-so a motto or a device was mud. Eight slots (`SLOT_COUNT` in
-`slotRanking.ts`), cells of 768×512 in one 1536×2048 canvas (`flagSlots.ts`;
-12.6 MB on the GPU, 17 with its mipmaps, allocated the first time a flag is
-drawn into it), hold one flag each, rasterised from
-`static/countries/svg/<code>.svg` at its sprite's aspect, as large as fits
-inside a 32px margin that repeats its last column and row, so a coarse mip
-level finds the flag's own colours at its edge.
+**The flags on screen are drawn from their SVGs, not read from the atlas.** A sprite is 100px wide and a painted
+flag is as wide as its landmass's frame: zoomed out over Africa on a retina screen, Algeria, Libya and Sudan stretch
+their sprite 6 to 7 times, and a crescent, a star or a coat of arms is mud. So each flag in view gets a cell of its
+own in one texture, `flagSlots.ts`, rasterised from `static/countries/svg/<code>.svg` at its sprite's aspect.
 
-`SlotRanking` decides which eight, with no GPU in reach and nothing about the
-camera: the flags holding the biggest painted landmasses, each by the
-half-width of the largest landmass it holds (`BorderField.flagNeeds`). A flag
-keeps its slot while it holds its place; a slot freed by a flag painted nowhere
-any more goes to the next in line, and the weakest holder is evicted only for a
-flag that needs `EVICTION_MARGIN` (1.2×) more, so a tile war over one landmass
-does not redraw the texture every second. The ranking runs on every recount,
-never per frame. **A slotted flag samples its slot wherever it is painted**,
-whatever the landmass's size and whether it leads it or not: `FlagSlots` keeps
-the atlas rectangle of each slot's flag in `slotRegions`, and the territory layer
-finds the tile's flag among them and samples that slot's frame from `slotFrames`,
-with the same uv and the same `textureGrad` footprint as on the atlas. So one flag looks the same everywhere,
-and a flag beyond the eight stays on the atlas everywhere. One slot for the
-biggest flag in view was tried first, and a sharp Brazil beside a blurred Brazil
-on Peru looked worse than neither. The slot was then only for the landmasses a
-flag leads, and that gave the same defect on a contested landmass: a blurred
-Brazil on Argentina, led by Bulgaria. The SVG
-is fetched the first time its flag earns a slot and kept for the session; the
-atlas shows until it is drawn, and a flag whose SVG fails stays on the atlas
-and is not asked for again. Nothing is fetched on a page where no flag is
-painted.
+*How wide a flag must be* (`flagNeedOf` in `slotNeed.ts`): the width of its frame on screen, in drawing-buffer pixels,
+or its height times the flag's aspect if that is more. Each axis is foreshortened by its own slant at the frame's
+centre, so a frame at the edge of the earth still needs its full height. A flag takes the largest need of the
+landmasses it leads. *How much land it shows* (`LandmassSight`): up to 32 tiles of each landmass, each standing for its
+share of it, counted when they face the camera and are on screen, each by its slant. Both are measured from the
+camera: what is behind the earth or off screen needs nothing.
+
+*The texture* is sized from the drawing buffer (`slotBudgetOf` in `slotCells.ts`), because the flags on screen share
+the screen: one 2048×1024 block per 2 million pixels, rounded, 1 to 4 of them, stacked. That is 2048×2048 on a
+retina desktop (2880×1800, 21 MB with its mip levels) and 2048×1024 on a phone (11 MB). No side passes 4096, some
+players' `MAX_TEXTURE_SIZE`. A flag is never drawn wider than the screen's longer side: 2048 on a retina desktop, 1024
+on a phone. The texture is allocated the first time a flag is drawn into it, and only its storage: nothing is sent
+until a cell is.
+
+*The cells* halve down from a 2048×1024 block: a 2:1 cell into two squares side by side, a square into two 2:1
+cells, down to 128×64 (`CellPacking`, a buddy allocator). Every cell sits on a multiple of its own size, so a mip level
+never mixes two cells until a cell is smaller than a texel. A flag sits inside a margin of 1/32 of the cell's shorter
+side, its last column and row repeated out to the cell's edge, so a coarse mip level finds the flag's own colours at
+its edge.
+
+*Which flags, and how large* (`rankSlots` in `slotRanking.ts`). A flag is worth a cell only when it needs 1.25 times
+its sprite's width. It earns the smallest cell that holds it as wide as it needs, but no larger than its land on
+screen pays for: so many texels per pixel of land, one share for the whole view, the largest of 16, 8, 4, 2, 1, ½ and ¼
+whose cells fit the texture. A frame can be far larger than its land: ranked on width alone, Chile's thin strip and
+Brazil took the whole texture over South America, and Russia half of it over Europe. The room left then raises the
+flags with the most land to the share above. A flag keeps its cell unless it needs clearly more (`EVICTION_MARGIN`,
+1.2 times its width) or two sizes less, so a tile war or a small move of the camera redraws nothing. A flag out of
+view keeps its cell while there is room and is dropped first. When the texture is still full, the flags with the
+most land win and the rest drop a size. `SlotLayout` keeps a flag's cell while its size holds, and places the others
+largest first; when the free cells are too broken up for one, it drops a size.
+
+*When*: when the camera settles (`Settling`): once each time it comes to rest somewhere new, sampled every 250 ms, and
+every quarter radian while it turns slowly, as in the idle spin. Never while it moves fast, and never per frame. A
+recount ranks the flags again for the view they were last ranked for, never for a camera in motion. Nothing is ranked
+where no flag is painted: zoomed in past the handover, or with the painted flags off.
+
+*Drawn one at a time, off the frame*: the most land first, a flag's SVG is fetched once a session, its size set on
+the text (parsing the largest flags, 100 to 400 KB, as a document held the page), rasterised into a canvas the cell's
+size in an idle moment, and turned into an `ImageBitmap`, which finishes the raster off the frame. The next frame sends
+that cell alone (`copyTextureToTexture`) and the GPU rebuilds the mip levels; no frame does more than one. Measured
+on a retina desktop with the CPU slowed 4 times, no camera stop made a frame longer than before (17 ms); sending the
+canvas itself, its raster ran inside the frame, up to 100 ms. Until a flag is drawn it stays on the atlas, and a flag
+moved to a new cell shows its old one until the new one is sent or another flag is drawn over it. A flag whose SVG fails stays on the atlas and is not
+asked for again.
+
+**A slotted flag samples its slot wherever it is painted**, whatever the landmass's size and whether it leads it or
+not: a data texture holds each flag's frame in the slot texture by its number (`flagNumbers` in `atlas.ts`), 0 for a
+flag on the atlas, and the territory layer reads it once a pixel, the tile's own flag in Split, the leader's (kept in
+its landmass's row) in Big. So one flag looks the same everywhere, and 50 slotted flags cost a pixel what 8 did. One
+slot for the biggest flag in view was tried first, and a sharp Brazil beside a blurred Brazil on Peru looked worse
+than neither. The slot was then only for the landmasses a flag leads, and that gave the same defect on a contested
+landmass: a blurred Brazil on Argentina, led by Bulgaria. Until November 2026 eight slots went to the flags holding the
+planet's biggest landmasses, whatever was on screen, and the whole 12.6 MB canvas was sent again for any change.
 
 **Split is opaque.** It is how the season-end clips paint the map, every point in
 its own tile's holder's flag, and they looked much better than Big, where a

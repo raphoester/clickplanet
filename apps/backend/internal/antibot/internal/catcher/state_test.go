@@ -57,9 +57,11 @@ func TestForgetDropsBoxesBeforeTheCutoff(t *testing.T) {
 	clock.Advance(time.Minute)
 	w.Caught("player", time.Second)
 
-	w.Forget(clock.Now().Add(-time.Second))
-	require.Len(t, w.callers["player"].outcomes, 1)
-
 	w.Forget(clock.Now().Add(time.Second))
-	assert.Empty(t, w.callers)
+
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

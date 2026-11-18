@@ -34,7 +34,7 @@ const (
 	maxUneven = 3.0
 	// At most one arm of a real one is a single tile; three of a hook-shaped blob the operator judged none.
 	maxShortArms = 2
-	// 88 to 97% of a real one's tiles lie on its four branches, 51 to 65% of the scribbles the rest lets through;
+	// 85 to 100% of a real one's tiles lie on its four strokes, 70% of the scribble the rest lets through in the samples;
 	// every tile is on them or next to them.
 	minOn    = 0.8
 	minCover = 0.85
@@ -165,7 +165,7 @@ func readFrom(links [][]int, flats []drawings.Flat, w walk, centre int) (float64
 	onBranch := cpcolls.NewSet(centre)
 	for _, end := range ends {
 		path := w.pathTo(end)
-		onBranch.Add(path...)
+		onBranch.Add(strokeOf(links, w, path)...)
 		b, ok := branchOf(path, flats)
 		if !ok {
 			return 0, false
@@ -228,6 +228,23 @@ func readFrom(links [][]int, flats []drawings.Flat, w walk, centre int) (float64
 		return 0, false
 	}
 	return on, true
+}
+
+// The path, and each tile beside it on another walk as short to the end: a stroke drawn in pairs of tiles.
+func strokeOf(links [][]int, w walk, path []int) []int {
+	end := path[len(path)-1]
+	back := walkFrom(links, end)
+	onPath := cpcolls.NewSet(path...)
+	stroke := slices.Clone(path)
+	for tile, neighbours := range links {
+		if onPath.Contains(tile) || w.steps[tile]+back.steps[tile] != w.steps[end] {
+			continue
+		}
+		if slices.ContainsFunc(neighbours, onPath.Contains) {
+			stroke = append(stroke, tile)
+		}
+	}
+	return stroke
 }
 
 // The ends of the strokes, two steps out at least. An end is a group of touching tiles as far from the centre as each

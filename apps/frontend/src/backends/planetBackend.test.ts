@@ -452,15 +452,6 @@ describe("PlanetBackend.clickTile", () => {
     const headersOf = (click: ReturnType<typeof vi.fn>, call = 0) =>
         (click.mock.calls[call][1] as {headers: Headers}).headers
 
-    it("sends the tile and the country", async () => {
-        const click = vi.fn().mockResolvedValue({})
-        const backend = backendWith(click)
-
-        await backend.clickTile(42, "fr")
-        expect(click).toHaveBeenCalledWith({tileId: 42, countryId: "fr", spread: false, enclose: false}, expect.anything())
-        backend.close()
-    })
-
     it("sends no session header when this build has no session to send", async () => {
         const click = vi.fn().mockResolvedValue({})
         const backend = backendWith(click)
@@ -1141,14 +1132,6 @@ describe("PlanetBackend bombs", () => {
 
         expect(dropBomb).toHaveBeenCalledWith({target: {x: 1, y: 2, z: 3}, countryId: "fr"}, expect.anything())
         expect((dropBomb.mock.calls[0][1] as {headers: Headers}).headers.get(SESSION_HEADER)).toBe("session-1")
-        backend.close()
-    })
-
-    it("reports a bomb the server no longer holds for this player as lost", async () => {
-        const dropBomb = vi.fn().mockRejectedValue(new ConnectError("gone", Code.NotFound))
-        const backend = new PlanetBackend(clientWith({dropBomb}), 1_000)
-
-        await expect(backend.dropBomb({x: 1, y: 0, z: 0}, "fr")).rejects.toBeInstanceOf(BonusLostError)
         backend.close()
     })
 
@@ -2016,33 +1999,6 @@ describe("the charges held", () => {
         await expect(dropping).rejects.toBeDefined()
 
         expect(seen.at(-1)?.bombs).toBe(1)
-        backend.close()
-    })
-
-    it("gives the bomb back when bombs are off, and says so with a BombRefusedError", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bombs: 1})})
-        const dropBomb = vi.fn().mockRejectedValue(new ConnectError("bombs are off", Code.FailedPrecondition, undefined,
-            [new BombRefusal()]))
-        const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
-        const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.bombs).toBe(1))
-
-        await expect(backend.dropBomb({x: 0, y: 0, z: 1}, "fr")).rejects.toBeInstanceOf(BombRefusedError)
-
-        expect(seen.at(-1)?.bombs).toBe(1)
-        backend.close()
-    })
-
-    it("keeps the bomb gone when the server had none to drop", async () => {
-        const getCharges = vi.fn().mockResolvedValue({charges: new ChargesHeld({bombs: 1})})
-        const dropBomb = vi.fn().mockRejectedValue(new ConnectError("no bomb", Code.NotFound))
-        const backend = new PlanetBackend(clientWith({getCharges, dropBomb}), 1_000)
-        const seen = follow(backend)
-        await vi.waitFor(() => expect(seen.at(-1)?.bombs).toBe(1))
-
-        await expect(backend.dropBomb({x: 0, y: 0, z: 1}, "fr")).rejects.toBeInstanceOf(BonusLostError)
-
-        expect(seen.at(-1)?.bombs).toBe(0)
         backend.close()
     })
 

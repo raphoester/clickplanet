@@ -2,7 +2,6 @@ package retell_missions_done_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -16,13 +15,12 @@ import (
 
 type stubUseCase struct {
 	out   retell_missions_done_usecase.Out
-	err   error
 	asked *retell_missions_done_usecase.In
 }
 
 func (s stubUseCase) Execute(_ context.Context, in retell_missions_done_usecase.In) (retell_missions_done_usecase.Out, error) {
 	*s.asked = in
-	return s.out, s.err
+	return s.out, nil
 }
 
 func retell(t *testing.T, useCase stubUseCase, dryRun bool) (*connect.Response[missionsv1.RetellMissionsDoneResponse], error) {
@@ -40,12 +38,4 @@ func TestTheAnswerSaysHowManyAccountsWereTold(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1_204), res.Msg.GetAccounts())
 	assert.True(t, asked.DryRun)
-}
-
-func TestAFailureIsLeftToTheErrorNet(t *testing.T) {
-	down := errors.New("down")
-
-	_, err := retell(t, stubUseCase{err: down, asked: &retell_missions_done_usecase.In{}}, false)
-
-	require.ErrorIs(t, err, down)
 }

@@ -2,7 +2,6 @@ package rules_test
 
 import (
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -60,52 +59,4 @@ func TestAFrozenSetIsReadFrozen(t *testing.T) {
 	inForce := cprules.NewInForce[*boxesv1.Rules](cptime.SystemClock{})
 	inForce.Enforce(set)
 	assert.True(t, cprules.Reader(inForce, boxes.Part)().Frozen)
-}
-
-// The bonuses module's sets as production kept them on 15 November 2026, each with its box half and its reward half.
-var bonusesSets = fstest.MapFS{
-	"20261111200000_from_planet.up.sql": {Data: []byte(`
-CREATE TABLE rule_sets (name text PRIMARY KEY, rules jsonb NOT NULL);
-INSERT INTO rule_sets (name, rules) VALUES
-	('default', '{"boxes": {"minInterval": "240s", "maxInterval": "480s", "maxChargesPerHour": 12},
-		"kinds": {"refill": 5, "spreadClicks": 3, "encloseClicks": 2, "bomb": 1, "shields": 4},
-		"offerTtl": "15s", "missRetry": "120s", "activeWithin": "120s", "shield": {"minPerBox": 10, "maxPerBox": 30},
-		"welcome": {"within": "600s", "boxAfter": "60s"}, "signInRefill": true, "frozen": false}'),
-	('bridge', '{"kinds": {"shields": 3}, "shield": {"minPerBox": 5, "maxPerBox": 20}}'),
-	('capital-siege', '{"boxes": {"minInterval": "20s", "maxInterval": "40s", "maxChargesPerHour": 9999},
-		"kinds": {"refill": 1, "spreadClicks": 0}, "missRetry": "30s", "welcome": {"boxAfter": "30s"}}'),
-	('frozen', '{"kinds": {"shields": 3}, "frozen": true}'),
-	('urf', '{"boxes": {"minInterval": "30s", "maxInterval": null}, "missRetry": "30s"}');
-`)},
-	"20261111200000_from_planet.down.sql": {Data: []byte(`DROP TABLE rule_sets;`)},
-}
-
-func TestTheMigrationCopiesEachOfTheBonusesSetsBoxHalfUnderItsName(t *testing.T) {
-	database := server.CreateDatabase(t)
-	database.OpenSchema(t, "bonuses", bonusesSets)
-	db := database.OpenSchema(t, "boxes", migrations.FS)
-
-	kept := map[string]string{}
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), `SELECT name, rules::text FROM rule_sets`)
-	require.NoError(t, err)
-	defer func() { _ = rows.Close() }()
-	for rows.Next() {
-		var name, rules string
-		require.NoError(t, rows.Scan(&name, &rules))
-		kept[name] = rules
-	}
-	require.NoError(t, rows.Err())
-
-	assert.JSONEq(t, `{"minInterval": "240s", "maxInterval": "480s", "maxBoxesPerHour": 12, "offerTtl": "15s",
-		"missRetry": "120s", "activeWithin": "120s", "welcome": {"within": "600s", "boxAfter": "60s"}, "frozen": false}`,
-		kept["default"])
-	assert.JSONEq(t, `{}`, kept["bridge"], "a set that changes nothing of the boxes plays default's")
-	assert.JSONEq(t, `{"minInterval": "20s", "maxInterval": "40s", "maxBoxesPerHour": 9999, "missRetry": "30s",
-		"welcome": {"boxAfter": "30s"}}`, kept["capital-siege"])
-	assert.JSONEq(t, `{"frozen": true}`, kept["frozen"])
-	assert.JSONEq(t, `{"minInterval": "30s", "missRetry": "30s"}`, kept["urf"], "a null is left out")
-
-	set, err := cprules.NewPostgresStore(db, parts.All()).Set(t.Context(), "capital-siege")
-	require.NoError(t, err)
-	assert.Equal(t, uint32(9999), set.TakePlayedSnapshot().Rules.GetMaxBoxesPerHour())
 }

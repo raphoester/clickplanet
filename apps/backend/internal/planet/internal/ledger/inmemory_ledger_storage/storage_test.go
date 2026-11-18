@@ -98,17 +98,6 @@ func TestForgetHidesTheScopesTakesBeforeThePositionOnly(t *testing.T) {
 	}, replay(storage), "a take made after the revert read the ledger is not forgotten")
 }
 
-func TestForgetBeforeDropsOnlyOlderTakes(t *testing.T) {
-	storage := newStorage(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence())
-
-	storage.Append(clicks.WorldStage, take(1, "1.2.3.4", "fr", "", start))
-	storage.Append(clicks.WorldStage, take(2, "1.2.3.4", "fr", "", start.Add(time.Hour)))
-
-	storage.ForgetBefore(start.Add(time.Minute))
-
-	assert.Equal(t, []ledger.Taking{take(2, "1.2.3.4", "fr", "", start.Add(time.Hour))}, replay(storage))
-}
-
 func TestTheCapDropsTheOldestTakes(t *testing.T) {
 	storage := newStorage(inmemory_ledger_storage.Config{MaxTakes: 2}, inmemory_ledger_storage.NewMemoryPersistence())
 

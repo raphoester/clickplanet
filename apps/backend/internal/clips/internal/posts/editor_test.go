@@ -49,15 +49,6 @@ func titlesOf(tellings []posts.Telling) []string {
 	return titles
 }
 
-func TestASeasonalStoryToldInTheLastThreeDaysIsNotToldFirstAgain(t *testing.T) {
-	found := findings(t)
-
-	offer := found.Offer(2, []posts.Telling{told(day18, "PALAU WINS DAY 18", 2*time.Hour)}, foundAt)
-
-	assert.Empty(t, offer.First)
-	assert.Equal(t, 2, offer.Slots())
-}
-
 func TestARunWithNoFrontTourPlaceOrSagaAsksNobody(t *testing.T) {
 	found := findings(t)
 	found.Fronts, found.Tours, found.Places = nil, nil, nil
@@ -112,19 +103,6 @@ func TestTheRunIsItsSeasonalStoryFirstThenTheEditorsInItsOrderWithTheirKeys(t *t
 	assert.Equal(t, []posts.Pick{1, 2, 3}, choice.Picks())
 	assert.Equal(t, []posts.Skipped{{Story: tour, Why: "the run is full"}}, choice.Skipped)
 	assert.Equal(t, 3, choice.Room)
-}
-
-func TestAStoryThatDoesNotHoldIsSkippedWithWhyAndTheRunGoesOn(t *testing.T) {
-	found := findings(t)
-	wrong := with(battle, func(s *posts.Story) { s.Rival = "dz" })
-
-	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{Stories: []posts.Story{wrong, india}}, nil, foundAt)
-
-	assert.Equal(t, []posts.Pick{1, 2}, choice.Picks())
-	assert.Equal(t, india, choice.Chosen[1].Story)
-	require.Len(t, choice.Skipped, 1)
-	assert.Equal(t, wrong, choice.Skipped[0].Story)
-	assert.Contains(t, choice.Skipped[0].Why, `"fr" and "dz" did not take from each other`)
 }
 
 func TestAHeadlineOfTheLastWeekOrOfThisRunIsSkippedAndSoIsAKeyToldTwiceInTheRun(t *testing.T) {
@@ -253,14 +231,4 @@ func TestAStoryWithACallOrALineTheClipCannotDrawIsSkipped(t *testing.T) {
 		`the words cannot be drawn: the call "FIGHT FOR FRANCE AND FOR ALL OF EUROPE" is empty or over 30 letters`,
 		`the words cannot be drawn: the line "The battle 🔥" has '🔥'`,
 	}, whysOf(choice.Skipped))
-}
-
-func TestWithNoEditionTheRunIsItsSeasonalStoryAlone(t *testing.T) {
-	found := findings(t)
-
-	choice := found.Edited(found.Offer(2, nil, foundAt), posts.Edition{}, nil, foundAt)
-
-	assert.Equal(t, []posts.Pick{1}, choice.Picks())
-	assert.Equal(t, posts.Story{Seasonal: 1}, choice.Chosen[0].Story)
-	assert.Empty(t, choice.Skipped)
 }

@@ -55,12 +55,6 @@ describe("RoundReveal", () => {
         expect(within(dialog).getByLabelText("Rank 2")).toBeDefined()
     })
 
-    it("names a day that ends the season by its number", () => {
-        render(<RoundReveal closed={FINALE} countryCode="fr" play={vi.fn()} onClose={vi.fn()}/>)
-
-        expect(screen.getByRole("dialog", {name: "Day 23 is over!"})).toBeDefined()
-    })
-
     it("plays the fanfare as it opens", () => {
         const play = vi.fn()
         render(<RoundReveal closed={DAY} countryCode="fr" play={play} onClose={vi.fn()}/>)

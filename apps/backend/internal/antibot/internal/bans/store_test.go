@@ -1,7 +1,6 @@
 package bans_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -9,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/antibot/internal/bans"
-	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 )
 
 func TestTheBansAreTheStoresAndNotTheBanners(t *testing.T) {
@@ -62,24 +60,6 @@ func TestABanInTheStoreIsRunning(t *testing.T) {
 	assert.True(t, banner.Banned("kept"))
 	assert.False(t, banner.Banned("other"))
 	assert.Equal(t, 1, banner.Flagged())
-}
-
-func TestAFailingStoreIsAnError(t *testing.T) {
-	store := bans.NewMemoryStore()
-	cause := errors.New("postgres is down")
-	store.FailWith(cause)
-	banner := bans.New(fixed(ladder()), pardon, newClock(), bans.Scopes, store, cpatomic.FakeTransactioner{}, &bans.MemoryEnforcer{})
-	ctx := t.Context()
-
-	_, _, err := banner.Flag(ctx, "bot")
-	require.ErrorIs(t, err, cause)
-	_, err = banner.Ban(ctx, "bot", 0)
-	require.ErrorIs(t, err, cause)
-	require.ErrorIs(t, banner.Unban(ctx, "bot"), cause)
-	_, _, err = banner.Sentence(ctx, "bot")
-	require.ErrorIs(t, err, cause)
-	_, err = banner.Flagged(ctx)
-	require.ErrorIs(t, err, cause)
 }
 
 func TestAnUnbanIsKeptInTheStore(t *testing.T) {

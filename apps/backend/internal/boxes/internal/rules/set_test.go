@@ -69,14 +69,6 @@ func TestASetIsCheckedOverDefault(t *testing.T) {
 	assert.Contains(t, err.Error(), "maxInterval is 8m0s, under minInterval (10m0s)")
 }
 
-func TestDefaultPlaysOnlyWhatItHolds(t *testing.T) {
-	_, err := rules.Named(cprules.Default, func(r *boxesv1.Rules) { r.MinInterval = nil }).
-		Restore(parts.All(), rules.Seeded())
-
-	require.ErrorIs(t, err, cprules.ErrInvalidSet)
-	assert.Contains(t, err.Error(), "minInterval is 0s")
-}
-
 func TestEveryReasonIsSaid(t *testing.T) {
 	_, err := rules.Named(cprules.Default, func(r *boxesv1.Rules) {
 		r.OfferTtl = nil

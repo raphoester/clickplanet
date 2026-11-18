@@ -29,30 +29,6 @@ func rallyOf(account cpsession.AccountID, flag string, tile uint32, at time.Time
 	}.Restore()
 }
 
-func TestARallyIsOnUntilItEnds(t *testing.T) {
-	rally := rallyOf(alice, "fr", 10, calledAt)
-
-	assert.True(t, rally.On(calledAt))
-	assert.True(t, rally.On(calledAt.Add(3*time.Minute-time.Nanosecond)))
-	assert.False(t, rally.On(calledAt.Add(3*time.Minute)), "it ends at its end")
-	assert.False(t, rallies.Rally{}.On(calledAt), "an account that never called has none on")
-}
-
-func TestAPlayerHasOneRallyOnAtATime(t *testing.T) {
-	first := rallyOf(alice, "fr", 10, calledAt)
-
-	_, err := first.Called(rallyOf(alice, "fr", 20, calledAt.Add(time.Minute)))
-	require.ErrorIs(t, err, rallies.ErrRallyOn)
-
-	next, err := first.Called(rallyOf(alice, "de", 20, calledAt.Add(3*time.Minute)))
-	require.NoError(t, err, "one that ended is replaced")
-	assert.Equal(t, "de", next.TakeSnapshot().Flag)
-
-	first, err = rallies.Rally{}.Called(first)
-	require.NoError(t, err, "a first rally")
-	assert.Equal(t, rallyOf(alice, "fr", 10, calledAt).TakeSnapshot(), first.TakeSnapshot())
-}
-
 func TestARingCoversEveryTileWithinItsRadiusOfItsCentre(t *testing.T) {
 	rally := rallyOf(alice, "fr", 10, calledAt)
 

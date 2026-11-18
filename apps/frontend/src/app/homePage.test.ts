@@ -2,14 +2,13 @@ import {describe, expect, it} from "vitest"
 import home from "../../index.html?raw"
 import {CRAZYGAMES_HOST} from "../domain/crazyGames.ts"
 import {COUNTRY_STORAGE_KEY} from "./countryPreference.ts"
-import {FLAG_CODES_SLOT, withFlagCodes} from "../flagCodes.ts"
+import {withFlagCodes} from "../flagCodes.ts"
 import {HANDED_REFERRER_KEY} from "../backends/landingStore.ts"
 import {RECRUIT_TAG, RECRUITER_PARAM, SOURCE_TAG_PARAM} from "../domain/landing.ts"
 import {SHARE_FLAG_PARAM} from "../domain/shareCard.ts"
 
 describe("the home page", () => {
     it("is never shown on the CrazyGames page: a visitor goes straight to the game, with its invite", () => {
-        expect(home).toContain(`location.hostname === "${CRAZYGAMES_HOST}"`)
         expect(destinationOf(`https://${CRAZYGAMES_HOST}/?f=br&czy_invite=true`, {})).toBe("/play?f=br&czy_invite=true")
         expect(destinationOf(`https://${CRAZYGAMES_HOST}/play/`, {})).toBe("/play")
         expect(destinationOf(`https://${CRAZYGAMES_HOST}/#home`, {})).toBe("/play#home")
@@ -24,13 +23,11 @@ describe("the home page", () => {
     })
 
     it("sends a browser that has played before to the game, under the key the game writes", () => {
-        expect(home).toContain(`localStorage.getItem("${COUNTRY_STORAGE_KEY}")`)
-        expect(home).toContain(`location.replace("/play" + location.search + location.hash)`)
+        expect(destinationOf("https://clickplanet.lol/?gfx=halo#top", {[COUNTRY_STORAGE_KEY]: "fr"})).toBe("/play?gfx=halo#top")
     })
 
     it("stays when the menu links back to it", () => {
-        expect(home).toContain(`location.hash !== "#home"`)
-        expect(home).toContain(`id="home"`)
+        expect(destinationOf("https://clickplanet.lol/#home", {[COUNTRY_STORAGE_KEY]: "fr"})).toBeUndefined()
     })
 
     it("tells a visitor that playing needs no account", () => {
@@ -79,12 +76,10 @@ describe("a flag's address", () => {
     })
 
     it("speaks the game's own words", () => {
-        const script = headScript()
-        expect(script).toContain(`query.set("${SHARE_FLAG_PARAM}", flag)`)
-        expect(script).toContain(`query.set("${SOURCE_TAG_PARAM}", "${RECRUIT_TAG}")`)
-        expect(script).toContain(`query.delete("${RECRUITER_PARAM}")`)
-        expect(script).toContain(`sessionStorage.setItem("${HANDED_REFERRER_KEY}"`)
-        expect(home).toContain(FLAG_CODES_SLOT)
+        const sent = new URL(destinationOf("https://clickplanet.lol/pl/kutza", {})!, "https://clickplanet.lol").searchParams
+        expect(sent.get(SHARE_FLAG_PARAM)).toBe("pl")
+        expect(sent.get(SOURCE_TAG_PARAM)).toBe(RECRUIT_TAG)
+        expect(sent.get(RECRUITER_PARAM)).toBe("kutza")
     })
 })
 

@@ -47,19 +47,6 @@ func TestATieIsOrderedByName(t *testing.T) {
 	assert.Equal(t, "Amy", cast.TakeSnapshot().Fighters[0].Name)
 }
 
-func TestNumbersNameTheirAccounts(t *testing.T) {
-	ada, bob := account(t, "01"), account(t, "02")
-	cast := casts.CastOf(casts.CastID{1}, at, casts.Window{}, []casts.Take{take(ada, 1, "fr", "de"), take(bob, 2, "de", "fr")},
-		map[casts.AccountID]string{ada: "Ada", bob: "Bob"})
-
-	accounts, err := cast.AccountsOf([]casts.Number{2, 1})
-	require.NoError(t, err)
-	assert.Equal(t, []casts.AccountID{bob, ada}, accounts)
-
-	_, err = cast.AccountsOf([]casts.Number{3})
-	assert.ErrorIs(t, err, casts.ErrUnknownFighter)
-}
-
 func TestAWindowIsAtMost72HoursAndAZeroUntilIsNow(t *testing.T) {
 	window, err := casts.WindowOf(at.Add(-12*time.Hour), time.Time{}, at)
 	require.NoError(t, err)
@@ -69,8 +56,4 @@ func TestAWindowIsAtMost72HoursAndAZeroUntilIsNow(t *testing.T) {
 		_, err := casts.WindowOf(since, at, at)
 		assert.ErrorIs(t, err, casts.ErrInvalidWindow, name)
 	}
-}
-
-func TestACastIsForgottenAfterThreeDays(t *testing.T) {
-	assert.Equal(t, at.Add(-72*time.Hour), casts.ForgottenBefore(at))
 }

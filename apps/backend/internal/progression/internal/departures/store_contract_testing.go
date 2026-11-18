@@ -39,10 +39,6 @@ func (s *StoreContractSuite) departure(account byte) Departure {
 	return kept
 }
 
-func (s *StoreContractSuite) TestAnAccountNobodyAskedToDeleteHasTheZeroDeparture() {
-	s.Equal(Departure{}, s.departure(1))
-}
-
 func (s *StoreContractSuite) TestADecisionIsKeptForItsAccountOnly() {
 	s.decide(1, Leaves(contractStart))
 

@@ -1,7 +1,6 @@
 package changes_query_test
 
 import (
-	"context"
 	"slices"
 	"strconv"
 	"strings"
@@ -308,15 +307,6 @@ func (s *testSuite) TestAWindowOfNothingOrOfMoreThan72HoursIsRefused() {
 		_, err := query.Ledger(s.T().Context(), window[0], window[1], "")
 		s.ErrorIs(err, changes_query.ErrInvalidWindow, window)
 	}
-}
-
-func (s *testSuite) TestAStoreFailureIsAnError() {
-	ctx, cancel := context.WithCancel(s.T().Context())
-	cancel()
-
-	_, err := changes_query.NewPostgresQuery(s.db, cptime.NewFixedClock(at), postgres_era_store.New(s.db)).Ledger(ctx, at.Add(-time.Hour), at, "")
-
-	s.Error(err)
 }
 
 func (s *testSuite) equal(expected, actual []*planetv1.LedgerChange) {

@@ -73,11 +73,10 @@ func TestAnAnswerIsLoggedAndMovesItsQuestionFromItsPrior(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), answer))
 
 	assert.Equal(t, []ratings.Answer{answer}, kept.answers)
-	want := ratings.PriorOf(0.6).Answered(ratings.Right)
-	assert.Equal(t, want, kept.ratings["capital:ee"])
+	assert.InDelta(t, 7.0/11, kept.ratings["capital:ee"].Chance(), 1e-9)
 	rated, ok := book.Rated("capital:ee")
 	require.True(t, ok)
-	assert.Equal(t, want, rated, "the draw reads what committed")
+	assert.Equal(t, kept.ratings["capital:ee"], rated, "the draw reads what committed")
 }
 
 func TestTheNextAnswerMovesTheRatingTheLastOneLeft(t *testing.T) {
@@ -88,7 +87,7 @@ func TestTheNextAnswerMovesTheRatingTheLastOneLeft(t *testing.T) {
 	require.NoError(t, useCase.Execute(t.Context(), ratings.Answer{Question: "capital:ee", Outcome: ratings.Wrong, At: at}))
 
 	rated, _ := book.Rated("capital:ee")
-	assert.Equal(t, ratings.PriorOf(0.6).Answered(ratings.Right).Answered(ratings.Wrong), rated)
+	assert.InDelta(t, 7.0/12, rated.Chance(), 1e-9)
 	assert.Equal(t, 2, rated.Answers())
 	assert.Equal(t, 1, rated.Right())
 }

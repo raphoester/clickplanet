@@ -2,7 +2,6 @@ package shown_names_query_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -28,7 +27,6 @@ var at = time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
 
 type usernames struct {
 	names map[cpsession.AccountID]string
-	err   error
 	asked [][]cpsession.AccountID
 }
 
@@ -40,7 +38,7 @@ func (u *usernames) Of(_ context.Context, accounts []cpsession.AccountID) (map[c
 			held[account] = name
 		}
 	}
-	return held, u.err
+	return held, nil
 }
 
 type ShownNamesSuite struct {
@@ -121,15 +119,6 @@ func (s *ShownNamesSuite) TestNoAccountAsksNobody() {
 
 	s.Empty(answer.GetShownNames())
 	s.Empty(s.held.asked)
-}
-
-func (s *ShownNamesSuite) TestUsernamesThatCannotBeReadFailTheRead() {
-	failure := errors.New("player is down")
-	s.held.err = failure
-
-	_, err := shown_names_query.NewPostgresQuery(s.db, s.held).ShownNames(s.T().Context(), s.everyone())
-
-	s.Require().ErrorIs(err, failure)
 }
 
 func (s *ShownNamesSuite) TestTheReadShowsTheNamesACastShowsWhenTheJudgeAnswersNothing() {

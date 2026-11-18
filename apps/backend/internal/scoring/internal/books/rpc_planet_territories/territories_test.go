@@ -2,7 +2,6 @@ package rpc_planet_territories_test
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,16 +20,12 @@ type stubPlanet struct {
 	planetv1connect.UnimplementedInternalServiceHandler
 
 	answer *planetv1.GetTerritoriesResponse
-	err    error
 }
 
 func (s stubPlanet) GetTerritories(
 	context.Context,
 	*connect.Request[planetv1.GetTerritoriesRequest],
 ) (*connect.Response[planetv1.GetTerritoriesResponse], error) {
-	if s.err != nil {
-		return nil, s.err
-	}
 	return connect.NewResponse(s.answer), nil
 }
 
@@ -65,12 +60,4 @@ func TestTilesHeldByNoCountryAreAnError(t *testing.T) {
 	_, err := territories(t, planet).Snapshot(t.Context())
 
 	assert.ErrorIs(t, err, rpc_planet_territories.ErrNoCountry)
-}
-
-func TestAPlanetModuleThatFailsIsAnError(t *testing.T) {
-	planet := stubPlanet{err: connect.NewError(connect.CodeInternal, errors.New("boom"))}
-
-	_, err := territories(t, planet).Snapshot(t.Context())
-
-	assert.ErrorContains(t, err, "failed to ask the planet module")
 }

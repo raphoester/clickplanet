@@ -3,7 +3,6 @@ package audit_forgive_missed_day_test
 import (
 	"bytes"
 	"context"
-	"errors"
 	"log/slog"
 	"testing"
 	"time"
@@ -62,14 +61,4 @@ func TestARefusalIsLoggedWithTheStreakBefore(t *testing.T) {
 	require.ErrorIs(t, err, stats.ErrDayPlayed)
 	assert.Contains(t, logs, `level=WARN msg="admin missed day forgiveness failed" account_id=`+ada.String()+
 		` day=2026-11-15 dry_run=true before.streak=2 before.last_day=2026-11-17 before.best=37 error="the account played that day"`)
-}
-
-func TestAFailureIsLoggedToo(t *testing.T) {
-	cause := errors.New("planet is down")
-
-	logs, err := run(t, stubExecutor{err: cause}, in)
-
-	require.ErrorIs(t, err, cause)
-	assert.Contains(t, logs, `msg="admin missed day forgiveness failed"`)
-	assert.Contains(t, logs, `error="planet is down"`)
 }

@@ -61,20 +61,25 @@ func TestStepsSurviveASaveAndLoad(t *testing.T) {
 func TestTheFirstTryAfterARestartIsNoStep(t *testing.T) {
 	clock := cptime.NewFixedClock(time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC))
 
-	w := New(Config{}, bounds(asIs), clock, func(float64) {})
+	fifth := bounds(func(r *Rules) { r.MinSteps, r.MinShare = 5, 0.5 })
+	w := New(Config{}, fifth, clock, func(float64) {})
 	alternate(w, clock, 5)
 
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(Config{}, bounds(asIs), clock, func(float64) {})
+	restarted := New(Config{}, fifth, clock, func(float64) {})
 	require.NoError(t, restarted.Load(data))
 
 	clock.Advance(time.Second)
-	restarted.Attempted(detect.Click{Scope: "2001:db8::/64", Account: "player", Position: south, At: clock.Now()})
+	try := detect.Click{Scope: "2001:db8::/64", Account: "player", Position: south, At: clock.Now()}
+	w.Attempted(try)
+	restarted.Attempted(try)
 
-	require.Contains(t, restarted.payers, "account:player")
-	assert.Len(t, restarted.payers["account:player"].steps, 4, "the gap across the outage is stitched from two pieces")
+	wantVerdict, _ := w.Watch(try)
+	gotVerdict, _ := restarted.Watch(try)
+	require.Equal(t, detect.Suspect, wantVerdict, "the fifth step, with no restart")
+	assert.Equal(t, detect.Clear, gotVerdict, "the gap across the outage is stitched from two pieces")
 }
 
 func TestForgetDropsStepsBeforeTheCutoff(t *testing.T) {
@@ -85,5 +90,9 @@ func TestForgetDropsStepsBeforeTheCutoff(t *testing.T) {
 
 	w.Forget(clock.Now().Add(time.Second))
 
-	assert.Empty(t, w.payers)
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := New(Config{TrackWindow: 24 * time.Hour}, bounds(asIs), clock, func(float64) {}).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

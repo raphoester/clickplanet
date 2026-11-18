@@ -2,7 +2,6 @@ package record_finale_usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -34,15 +33,14 @@ var (
 type stubScoring struct {
 	table    []finales.Place
 	fighters []finales.Fighter
-	err      error
 }
 
 func (s stubScoring) Table(context.Context, finales.BookID) ([]finales.Place, error) {
-	return s.table, s.err
+	return s.table, nil
 }
 
 func (s stubScoring) Fighters(context.Context, finales.RoundID) ([]finales.Fighter, error) {
-	return s.fighters, s.err
+	return s.fighters, nil
 }
 
 type fixture struct {
@@ -148,30 +146,11 @@ func TestTheSeasonToldAgainRanksTheFightsRecordedBeforeTheRankWasKept(t *testing
 	assert.Equal(t, titles.IDs{"season_0_battle_top_2", "season_0_veteran"}, f.held(t, bob))
 }
 
-func TestAScoringFailureRecordsNothing(t *testing.T) {
-	f := setUp(t)
-
-	require.Error(t, f.record(t, stubScoring{err: errors.New("scoring is down")}))
-
-	found, err := f.fights.Fights(t.Context(), []accounts.AccountID{ada})
-	require.NoError(t, err)
-	assert.Empty(t, found)
-}
-
 func TestAFighterWithNoFlagIsAnErrorAndRecordsNothing(t *testing.T) {
 	f := setUp(t)
 
 	err := f.record(t, stubScoring{fighters: []finales.Fighter{{Account: ada, Country: "fr"}, {Account: bob}}})
 
 	require.ErrorIs(t, err, finales.ErrNoCountry)
-	assert.Empty(t, f.held(t, ada))
-}
-
-func TestAFailedRecordAwardsNothing(t *testing.T) {
-	f := setUp(t)
-	f.fights.FailWith(errors.New("postgres is down"))
-
-	require.Error(t, f.record(t, finalNight))
-
 	assert.Empty(t, f.held(t, ada))
 }

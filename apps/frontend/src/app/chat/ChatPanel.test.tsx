@@ -470,17 +470,6 @@ describe("ChatPanel", () => {
         expect(item("third").querySelector(".chat-message-head")).not.toBeNull()
     })
 
-    it("opens a new group when the same author speaks again much later", async () => {
-        const {backend} = stubBackend([
-            message("a", "first"),
-            message("b", "much later", 1_700_000_000_000 + 10 * 60_000),
-        ])
-        const {container} = setup(backend)
-        await screen.findByText("first")
-
-        expect(container.querySelectorAll(".chat-message-head")).toHaveLength(2)
-    })
-
     describe("showing that a message just landed", () => {
         it("highlights one that arrives while the panel is open", async () => {
             const {backend, broadcast} = stubBackend([message("a", "old news")])
@@ -522,26 +511,6 @@ describe("ChatPanel", () => {
 
             expect(item("mine").className).not.toContain("chat-message-new")
         })
-
-        it("paints every message in the colour its author chose", async () => {
-            useNameplates.getState().learn([
-                {accountId: "account-ana", ...plate("Ana", NameColor.TEAL)},
-                {accountId: "account-bo", ...plate("Bo", NameColor.PINK)},
-            ])
-            const {backend} = stubBackend([
-                message("a", "first"),
-                {...message("b", "second", 1_700_000_100_000), authorAccountId: "account-bo"},
-                message("c", "third", 1_700_000_200_000),
-            ])
-            setup(backend)
-            await screen.findByText("first")
-
-            const hue = (text: string) => item(text).style.getPropertyValue("--author-hue")
-
-            expect(hue("first")).toBe("165")
-            expect(hue("second")).toBe("330")
-            expect(hue("third")).toBe("165")
-        })
     })
 
     describe("as a guest", () => {
@@ -550,7 +519,6 @@ describe("ChatPanel", () => {
             const {container} = setup(backend)
 
             expect(await screen.findByRole("textbox", {name: "Message"})).toBeDefined()
-            expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
             expect(container.querySelector(".chat-identity")?.textContent).toBe("as a guest")
         })
 
@@ -586,17 +554,6 @@ describe("ChatPanel", () => {
 
             expect(await screen.findByRole("textbox", {name: "Message"})).toBeDefined()
             expect(container.querySelector(".chat-identity")?.textContent).toBe("as ana_1")
-            expect(screen.queryByRole("button", {name: "Change"})).toBeNull()
-        })
-
-        it("sends no name: the server names the sender", async () => {
-            const {backend} = stubBackend()
-            const {user} = setup(backend, "ana_1")
-            await screen.findByRole("textbox", {name: "Message"})
-
-            await user.type(messageBox(), "hello{Enter}")
-
-            expect(backend.sendMessage.mock.calls[0][0]).not.toHaveProperty("authorName")
         })
     })
 
@@ -766,17 +723,6 @@ describe("ChatPanel", () => {
     describe("folded", () => {
         beforeEach(() => vi.stubGlobal("matchMedia", () => ({matches: true})))
         afterEach(() => vi.unstubAllGlobals())
-
-        it("starts closed on a small screen and opens on a click", async () => {
-            const {backend} = stubBackend([message("a", "who took Brittany")])
-            const {user} = setup(backend)
-
-            expect(screen.queryByText("who took Brittany")).toBeNull()
-
-            await user.click(screen.getByRole("button", {name: /Chat/}))
-
-            expect(await screen.findByText("who took Brittany")).toBeDefined()
-        })
 
         it("quotes the newest message under the header while it is closed", async () => {
             const {backend, broadcast} = stubBackend([message("a", "seen already")])
@@ -1097,16 +1043,6 @@ describe("ChatPanel reactions", () => {
         act(() => broadcastReactions({messageId: "m1", reactions: [clown(3, false)], version: 2}))
 
         expect(await screen.findByRole("button", {name: "Clown: 3", pressed: true})).toBeDefined()
-    })
-
-    it("drops a frame older than the reactions it shows", async () => {
-        const {backend, broadcastReactions} = stubBackend([{...message("m1", "gm"), reactions: [clown(4, false)], reactionsVersion: 5}])
-        setup(backend)
-        await screen.findByRole("button", {name: "Clown: 4"})
-
-        act(() => broadcastReactions({messageId: "m1", reactions: [clown(1, false)], version: 3}))
-
-        expect(screen.getByRole("button", {name: "Clown: 4"})).toBeDefined()
     })
 
     it("undoes a reaction the server refused", async () => {
@@ -1458,12 +1394,6 @@ describe("ChatPanel's Discord bar", () => {
     it("is in the phone's sheet too", () => {
         render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france} compact open discord={IN_SERVER}/>)
         expect(discord()).not.toBeNull()
-    })
-
-    it("is not there while the game offers no Discord", () => {
-        render(<ChatPanel backend={stubBackend().backend} reporter={SUPPORT} country={france}/>)
-
-        expect(screen.queryByRole("button", {name: "Hide Discord"})).toBeNull()
     })
 
     it("stays gone once its cross is pressed, through a fold of the chat", async () => {

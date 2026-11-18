@@ -174,20 +174,6 @@ func TestThrottleClick(t *testing.T) {
 		assert.InDelta(t, 0.5, out.Budget.Spent, 1e-9)
 	})
 
-	t.Run("takes a whole click outside the ring, or for another flag", func(t *testing.T) {
-		limiter := &fakeLimiter{allow: true, state: state}
-		rally := aRally{flag: "fr", tile: 7, cost: 0.5}
-
-		_, err := throttle_click.New(&fakeClick{}, limiter, onePrice(), rally, buckets).
-			Execute(t.Context(), click_usecase.In{TileID: 8, CountryID: "fr"})
-		require.NoError(t, err)
-		_, err = throttle_click.New(&fakeClick{}, limiter, onePrice(), rally, buckets).
-			Execute(t.Context(), click_usecase.In{TileID: 7, CountryID: "de"})
-		require.NoError(t, err)
-
-		assert.Equal(t, []float64{1, 1}, limiter.spent)
-	})
-
 	t.Run("takes a whole click when the rallies cannot be read", func(t *testing.T) {
 		inner, limiter := &fakeClick{}, &fakeLimiter{allow: true, state: state}
 

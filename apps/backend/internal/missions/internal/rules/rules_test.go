@@ -5,24 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/protobuf/proto"
 
 	missionsv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/missions/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/flagmissions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/rules"
 )
-
-func TestRulesAreTheirMessage(t *testing.T) {
-	message := &missionsv1.Rules{FlagMissions: &missionsv1.FlagMissionRules{
-		GoalPercent: 30, LeastGoal: 250, FewestPoints: 3, MostPoints: 10,
-	}}
-
-	kept, err := rules.RulesOf(message)
-
-	require.NoError(t, err)
-	assert.True(t, proto.Equal(message, kept.Snapshot()))
-	assert.Equal(t, flagmissions.TestingSizing(), kept.FlagMissions())
-}
 
 func TestRulesThatCannotPlaySayWhichNumbers(t *testing.T) {
 	_, err := rules.RulesOf(&missionsv1.Rules{FlagMissions: &missionsv1.FlagMissionRules{

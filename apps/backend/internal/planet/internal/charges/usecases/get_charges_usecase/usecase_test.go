@@ -31,9 +31,11 @@ func TestTheChargesReadAreTheAccounts(t *testing.T) {
 }
 
 func TestWithNoAccountNothingIsHeld(t *testing.T) {
-	wallet := stubCharges{charges.NoHolder: {SpreadClicks: 3}}
+	store := charges.NewMemoryStore()
+	store.Keep(charges.NoHolder, charges.Held{SpreadClicks: 3})
 
-	held, err := get_charges_usecase.New(wallet).Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"))
+	held, err := get_charges_usecase.New(charges.NewCharges(store, charges.TestRules)).
+		Execute(cpctx.AddIPToContext(t.Context(), "1.2.3.4"))
 	require.NoError(t, err)
-	assert.Equal(t, charges.Held{SpreadClicks: 3}, held, "the read goes to NoHolder, which the storage never grants anything")
+	assert.Equal(t, charges.Held{}, held)
 }

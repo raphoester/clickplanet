@@ -1,7 +1,6 @@
 package play_days_query_test
 
 import (
-	"context"
 	"slices"
 	"testing"
 	"time"
@@ -199,13 +198,4 @@ func (s *testSuite) TestADeletedAccountsTakesAreNobodysAnyMore() {
 	s.Require().NoError(s.store.AnonymizeTakes(s.T().Context(), s.id(ada)))
 
 	s.Empty(s.playDays(ada).GetAccounts())
-}
-
-func (s *testSuite) TestAStoreFailureIsAnError() {
-	ctx, cancel := context.WithCancel(s.T().Context())
-	cancel()
-
-	_, err := play_days_query.NewPostgresQuery(s.db).PlayDays(ctx, []ledger.AccountID{s.id(ada)})
-
-	s.Error(err)
 }

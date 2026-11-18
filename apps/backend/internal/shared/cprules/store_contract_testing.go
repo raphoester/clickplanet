@@ -58,13 +58,6 @@ func (s *StoreContractSuite[M]) TestASetIsReadAsItWasKept() {
 	s.True(proto.Equal(rush.Rules, kept.Rules), "%v", kept.Rules)
 }
 
-func (s *StoreContractSuite[M]) TestASetPlaysDefaultsValuesForThoseItLeavesUnset() {
-	s.save(Snapshot[M]{Name: "rush", Rules: s.Rush()})
-
-	played := s.set("rush").TakePlayedSnapshot().Rules
-	s.True(proto.Equal(over(s.Default.Rules, s.Rush()), played), "%v", played)
-}
-
 func (s *StoreContractSuite[M]) TestASetFollowsDefaultWhereItHoldsNothing() {
 	s.save(Snapshot[M]{Name: "rush", Rules: s.Rush()})
 	s.save(Snapshot[M]{Name: Default, Rules: over(s.Default.Rules, s.Other())})

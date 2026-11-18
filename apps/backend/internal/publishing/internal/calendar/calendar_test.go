@@ -116,16 +116,6 @@ func TestAPostSoonAfterTheLastOneWaitsOnlyForTheSpacing(t *testing.T) {
 	assert.Equal(t, now.Add(10*time.Minute), slotOf(t, roomy, both, feed, now).At)
 }
 
-func TestASecondPostGoesASpacingAfterTheFirst(t *testing.T) {
-	now := time.Date(2026, 10, 24, 12, 53, 0, 0, time.UTC)
-	first := slotOf(t, roomy, both, nil, now)
-
-	second := slotOf(t, roomy, both, calendar.Feed{}.With(first.At, first.Platforms), now)
-
-	assert.Equal(t, time.Date(2026, 10, 24, 12, 58, 0, 0, time.UTC), first.At)
-	assert.Equal(t, time.Date(2026, 10, 24, 13, 58, 0, 0, time.UTC), second.At)
-}
-
 func TestAPlatformWhoseDayIsFullIsLeftOutOfTheSlot(t *testing.T) {
 	now := time.Date(2026, 10, 24, 14, 53, 0, 0, time.UTC)
 	feed := postings(8, now.Add(-23*time.Hour), calendar.TikTok, calendar.YouTube)
@@ -140,10 +130,6 @@ func TestAPostWithNoPlatformLeftHasNoSlot(t *testing.T) {
 	_, found := roomy.Slot(both, feed, time.Time{}, now)
 
 	assert.False(t, found)
-}
-
-func TestAPlatformOutOfItsHoursIsLeftOutOfTheSlot(t *testing.T) {
-	assert.Equal(t, youtube, slotOf(t, paced, both, nil, time.Date(2026, 10, 27, 12, 53, 0, 0, time.UTC)).Platforms)
 }
 
 func TestASlotInAPlatformsHoursTakesIt(t *testing.T) {

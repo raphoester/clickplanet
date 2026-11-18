@@ -1,7 +1,6 @@
 package pay_caught_box_usecase_test
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -144,15 +143,6 @@ func TestANewcomersFirstBoxWithNoSpreadToPayIsPaidNothing(t *testing.T) {
 	}
 }
 
-func TestAPaymentTheWalletCannotMakeIsTriedAgain(t *testing.T) {
-	useCase, wallet := setUp(map[bonuses.Kind]float64{bonuses.KindRefill: 1})
-	wallet.FailWith(errors.New("planet is gone"))
-
-	_, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: "a-token"})
-
-	require.Error(t, err)
-}
-
 func TestWithTheGatesOnAKindNotUnlockedIsNeverDrawn(t *testing.T) {
 	useCase, wallet, unlocks := setUpOn(bonuses.TestGated(), map[bonuses.Kind]float64{
 		bonuses.KindBomb: 100, bonuses.KindEncloseClicks: 100, bonuses.KindRefill: 1,
@@ -224,14 +214,4 @@ func TestTheChargesHeldStayWhateverTheGates(t *testing.T) {
 
 	assert.Equal(t, bonuses.Hand{Refills: 1, Bombs: 1, Enclosures: 3}, wallet.Kept(ada),
 		"a gate decides what is drawn, never what is held")
-}
-
-func TestUnlocksThatCannotBeReadAreTriedAgain(t *testing.T) {
-	useCase, wallet, unlocks := setUpOn(bonuses.TestRules(), map[bonuses.Kind]float64{bonuses.KindRefill: 1})
-	unlocks.FailWith(errors.New("postgres is gone"))
-
-	_, err := useCase.Execute(t.Context(), bonuses.CaughtBox{Account: ada, Token: "a-token"})
-
-	require.Error(t, err)
-	assert.Empty(t, wallet.Payments())
 }

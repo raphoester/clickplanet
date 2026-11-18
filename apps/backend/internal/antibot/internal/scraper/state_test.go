@@ -30,7 +30,8 @@ func TestReadsSurviveASaveAndLoad(t *testing.T) {
 	data, err := w.Save()
 	require.NoError(t, err)
 
-	restarted := New(config, bounds, clock, func(float64) {})
+	var reported []float64
+	restarted := New(config, bounds, clock, func(maps float64) { reported = append(reported, maps) })
 	require.NoError(t, restarted.Load(data))
 
 	next := detect.Click{Scope: "bot", Tile: 1, Country: "dz", At: clock.Now()}
@@ -40,7 +41,8 @@ func TestReadsSurviveASaveAndLoad(t *testing.T) {
 	require.Equal(t, detect.Certain, wantVerdict)
 	assert.Equal(t, wantVerdict, gotVerdict)
 	assert.Equal(t, wantEvidence, gotEvidence)
-	assert.True(t, restarted.callers["bot"].clicked.Equal(clock.Now()), "still a caller that clicks, for the histogram")
+	restarted.sweep()
+	assert.Len(t, reported, 1, "still a caller that clicks, for the histogram")
 }
 
 func TestForgetDropsSlicesBeforeTheCutoff(t *testing.T) {
@@ -51,9 +53,11 @@ func TestForgetDropsSlicesBeforeTheCutoff(t *testing.T) {
 	clock.Advance(time.Hour)
 	w.Fetched("player", 1, false)
 
-	w.Forget(clock.Now().Add(-time.Second))
-	require.Len(t, w.callers["player"].slices, 1)
-
 	w.Forget(clock.Now().Add(time.Second))
-	assert.Empty(t, w.callers)
+
+	forgotten, err := w.Save()
+	require.NoError(t, err)
+	empty, err := New(Config{TrackWindow: 24 * time.Hour}, bounds, clock, func(float64) {}).Save()
+	require.NoError(t, err)
+	assert.Equal(t, empty, forgotten, "nothing before the cutoff outlives a flush")
 }

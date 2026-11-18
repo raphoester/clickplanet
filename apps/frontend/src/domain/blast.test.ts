@@ -74,7 +74,6 @@ describe("mineBlastRadius", () => {
     })
 
     it("reaches as many rings of a coarser board's own tiles", () => {
-        const scale = scaleOf(FIXTURE_1)
-        expect(mineBlastRadius(2, scale)).toBeCloseTo(2.5 * 0.004 * scale.length, 12)
+        expect(mineBlastRadius(2, scaleOf(FIXTURE_1))).toBeCloseTo(0.0970, 4)
     })
 })

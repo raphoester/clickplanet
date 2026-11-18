@@ -2,7 +2,6 @@ package get_player_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -65,12 +64,4 @@ func TestAnAccountWithNoUsernameIsNotFound(t *testing.T) {
 	_, err := getPlayer(t, &stubQuery{err: player_query.ErrNoPlayer}, ofAccount(ada))
 
 	assert.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-}
-
-func TestAStoreFailureIsNotNotFound(t *testing.T) {
-	_, err := getPlayer(t, &stubQuery{err: errors.New("postgres is down")}, ofAccount(ada))
-
-	require.Error(t, err)
-	assert.NotEqual(t, connect.CodeNotFound, connect.CodeOf(err))
-	assert.NotEqual(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

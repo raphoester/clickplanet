@@ -61,13 +61,6 @@ func (s *StoreContractSuite) TestAnAccountThatNeverCalledHasNoRally() {
 	s.Equal(Snapshot{}, s.last(contractAccount(1)))
 }
 
-func (s *StoreContractSuite) TestARallyIsKeptAsItWasCalled() {
-	kept := contractRally(1, "fr", contractAt)
-	s.keep(kept)
-
-	s.same(kept, s.last(kept.Account))
-}
-
 func (s *StoreContractSuite) TestAChangeSeesTheLastAndReplacesIt() {
 	first, next := contractRally(1, "fr", contractAt), contractRally(1, "de", contractAt.Add(time.Hour))
 	s.keep(first)

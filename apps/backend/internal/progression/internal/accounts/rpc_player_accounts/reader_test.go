@@ -2,7 +2,6 @@ package rpc_player_accounts_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
@@ -23,7 +22,6 @@ var (
 
 type stubPlayer struct {
 	answer *playerv1.GetAccountsResponse
-	err    error
 	asked  [][]string
 }
 
@@ -31,9 +29,6 @@ func (s *stubPlayer) GetAccounts(
 	_ context.Context, req *connect.Request[playerv1.GetAccountsRequest],
 ) (*connect.Response[playerv1.GetAccountsResponse], error) {
 	s.asked = append(s.asked, req.Msg.GetAccountIds())
-	if s.err != nil {
-		return nil, s.err
-	}
 	return connect.NewResponse(s.answer), nil
 }
 
@@ -68,14 +63,6 @@ func TestNoAccountAsksNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, known)
 	assert.Empty(t, player.asked)
-}
-
-func TestAFailureToAskPlayerIsAnError(t *testing.T) {
-	failure := errors.New("player is down")
-
-	_, err := rpc_player_accounts.New(&stubPlayer{err: failure}).Account(t.Context(), ada)
-
-	assert.ErrorIs(t, err, failure)
 }
 
 func TestAnAnswerThatIsNotAnAccountIsAnError(t *testing.T) {

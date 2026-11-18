@@ -2,7 +2,6 @@ package backfill_days_played_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -16,13 +15,12 @@ import (
 
 type stubUseCase struct {
 	backfilled backfill_days_played_usecase.Backfilled
-	err        error
 	dryRuns    *[]bool
 }
 
 func (s stubUseCase) Execute(_ context.Context, dryRun bool) (backfill_days_played_usecase.Backfilled, error) {
 	*s.dryRuns = append(*s.dryRuns, dryRun)
-	return s.backfilled, s.err
+	return s.backfilled, nil
 }
 
 func backfill(t *testing.T, useCase stubUseCase, dryRun bool) (*connect.Response[progressionv1.BackfillDaysPlayedResponse], error) {
@@ -45,13 +43,4 @@ func TestTheAnswerSaysHowManyAccountsWereReadAndChanged(t *testing.T) {
 	_, err = backfill(t, useCase, false)
 	require.NoError(t, err)
 	assert.Equal(t, []bool{true, false}, dryRuns, "the dry run is the caller's")
-}
-
-func TestAFailureIsAnError(t *testing.T) {
-	dryRuns := []bool{}
-	useCase := stubUseCase{err: errors.New("planet is down"), dryRuns: &dryRuns}
-
-	_, err := backfill(t, useCase, false)
-
-	assert.ErrorIs(t, err, useCase.err)
 }

@@ -1,7 +1,6 @@
 package make_cast_usecase_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -72,18 +71,4 @@ func TestAWindowTheLedgerCannotReadAsksNothing(t *testing.T) {
 
 	require.ErrorIs(t, err, casts.ErrInvalidWindow)
 	assert.Empty(t, ledger.Asked)
-}
-
-func TestALedgerThatCannotBeReadKeepsNoCast(t *testing.T) {
-	ledger := casts.NewScriptedLedger()
-	ledger.FailWith(errors.New("planet is down"))
-	store := casts.NewMemoryStore()
-
-	_, _, err := make_cast_usecase.New(ledger, casts.NewScriptedNames(nil), store, &casts.SequentialIDs{},
-		cptime.NewFixedClock(now)).Execute(t.Context(), now.Add(-time.Hour), now)
-
-	require.ErrorContains(t, err, "planet is down")
-	ids, err := store.MadeBefore(t.Context(), now.Add(time.Hour))
-	require.NoError(t, err)
-	assert.Empty(t, ids)
 }

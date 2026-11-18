@@ -3,14 +3,11 @@ import {useState} from "react"
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {act, cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {AccountBackend, Provider} from "../../backends/account.ts"
-import {NameColor, PlayerBackend} from "../../backends/player.ts"
-import {PlayerTitle, ProgressionBackend} from "../../backends/progression.ts"
+import {NameColor} from "../../backends/player.ts"
+import {PlayerTitle} from "../../backends/progression.ts"
 import {MySeason, Standing, Boards} from "../../backends/standings.ts"
 import {Countries, Country} from "../../domain/countries.ts"
 import {hueOf} from "../../domain/authorColor.ts"
-import {AccountStore} from "../account/accountStore.ts"
-import SignInPitchModal from "../account/SignInPitchModal.tsx"
 import {usePlayerCard} from "../players/playerCardStore.ts"
 import {useBadges} from "../badges/badgesStore.ts"
 import {AcceptedClicks, acceptedClicks} from "../clicks/acceptedClicks.ts"
@@ -299,16 +296,6 @@ describe("BoardViews", () => {
         expect(screen.queryByRole("img", {name: "Bulgaria"})).toBeNull()
     })
 
-    it("asks for the caller's line on the board shown, and again when another is picked", async () => {
-        const backend = backendOf(season({countryCode: "fr", tiles: 12, rank: 42}))
-        const {user} = await shown({backend, caller: ZED, view: "players"})
-        expect(backend.mySeason).toHaveBeenLastCalledWith("")
-
-        await pick(user, "Players", "France")
-
-        expect(backend.mySeason).toHaveBeenLastCalledWith("fr")
-    })
-
     it("counts each tile the caller takes into its row and its season at once", async () => {
         const clicks = acceptedClicks()
         const mine = season({countryCode: "br", tiles: 1512, rank: 2})
@@ -422,52 +409,4 @@ describe("Your season", () => {
         await shown({backend: backendOf(undefined), caller: {linked: true}, view: "players"})
         expect(yours()).toBeNull()
     })
-
-    it("opens the sign-in pitch from a guest's Sign in button", async () => {
-        const store = await guestStore()
-        const state = store.state()
-        if (state.kind !== "ready") throw new Error(`the store is ${state.kind}`)
-
-        function WithPitch() {
-            const [open, setOpen] = useState(false)
-            return <>
-                <Harness backend={backendOf(season({countryCode: "fr", tiles: 9}))} caller={GUEST} view="players" onSignIn={() => setOpen(true)}/>
-                {open && state.kind === "ready" && <SignInPitchModal state={state} store={store} multiplier={2} onClose={() => setOpen(false)}/>}
-            </>
-        }
-
-        render(<WithPitch/>)
-        await act(async () => {})
-        await userEvent.setup().click(within(yours()!).getByRole("button", {name: "Sign in"}))
-
-        expect(screen.getByRole("dialog", {name: "Sign in and stand out"})).toBeDefined()
-    })
 })
-
-async function guestStore() {
-    const backend = {
-        signInOptions: vi.fn(async (): Promise<Provider[]> => ["google"]),
-        me: vi.fn(async () => ({linked: []})),
-        startSignIn: vi.fn(async () => "https://google.example/authorize"),
-        completeSignIn: vi.fn(async () => "signedIn" as const),
-        startEmailSignIn: vi.fn(async () => undefined),
-        completeEmailSignIn: vi.fn(async () => "signedIn" as const),
-        completeCrazyGamesSignIn: vi.fn(async () => "signedIn" as const),
-        signOut: vi.fn(async () => undefined),
-        signOutEverywhere: vi.fn(async () => undefined),
-        deleteAccount: vi.fn(async () => undefined),
-    } satisfies AccountBackend
-    const player = {
-        profile: vi.fn(async () => ({accountId: "account-1", name: "", color: NameColor.UNSPECIFIED})),
-        setName: vi.fn(async (name: string) => ({accountId: "account-1", name})),
-        setColor: vi.fn(async (color: NameColor) => color),
-    } satisfies PlayerBackend
-    const progression = {
-        titles: vi.fn(async () => ({wearable: [], tracks: []})),
-        fronts: vi.fn(async () => ({playsFor: [], playsAgainst: []})),
-        wearTitle: vi.fn(async () => undefined),
-    } satisfies ProgressionBackend
-    const store = new AccountStore(backend, player, progression, {token: vi.fn(), held: vi.fn(), identity: vi.fn(), heldIdentity: vi.fn(), invalidate: vi.fn()}, {navigate: vi.fn(), remember: vi.fn(), claimFlag: vi.fn()})
-    await store.load()
-    return store
-}

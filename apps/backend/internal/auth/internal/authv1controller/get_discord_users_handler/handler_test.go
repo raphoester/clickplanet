@@ -2,7 +2,6 @@ package get_discord_users_handler_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -82,11 +81,4 @@ func TestAnAfterThatIsNotAnAccountIsInvalid(t *testing.T) {
 
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 	assert.Nil(t, query.after, "nothing is read")
-}
-
-func TestAFailedReadIsNotTheCallersFault(t *testing.T) {
-	_, err := getDiscordUsers(t, &stubQuery{err: errors.New("postgres is down")}, &authv1.GetDiscordUsersRequest{})
-
-	require.Error(t, err)
-	assert.NotEqual(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }

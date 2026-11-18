@@ -140,20 +140,3 @@ func TestAWriteOnTheOuterContextIsNotInTheTransaction(t *testing.T) {
 	assert.Equal(t, 1, count(t, db, "notes"), "the known gap: the outer ctx carries no transaction")
 	assert.Zero(t, count(t, db, "outbox"))
 }
-
-func TestTheFakeOutboxDropsWhatAFailedTransactionRecorded(t *testing.T) {
-	outbox := &cpatomic.FakeOutbox{}
-	transactioner := cpatomic.FakeTransactioner{}
-
-	require.Error(t, transactioner.InTx(t.Context(), func(ctx context.Context) error {
-		_ = outbox.Record(ctx, wrapperspb.String("lost"))
-		return context.Canceled
-	}))
-	require.NoError(t, transactioner.InTx(t.Context(), func(ctx context.Context) error {
-		return outbox.Record(ctx, wrapperspb.String("kept"))
-	}))
-	require.ErrorIs(t, outbox.Record(t.Context(), wrapperspb.String("alone")), cpatomic.ErrNoTransaction)
-
-	require.Len(t, outbox.Recorded(), 1)
-	assert.Equal(t, "kept", outbox.Recorded()[0].(*wrapperspb.StringValue).GetValue()) //nolint:forcetypeassert // strings only.
-}

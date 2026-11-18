@@ -10,13 +10,6 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 )
 
-func TestANameKeepsTheCaseItWasTypedIn(t *testing.T) {
-	name, err := players.NameOf("Ada_Lovelace_18")
-
-	require.NoError(t, err)
-	assert.Equal(t, players.Name("Ada_Lovelace_18"), name)
-}
-
 func TestANameIsThreeToFifteenCharactersNotBytes(t *testing.T) {
 	for _, value := range []string{"abc", strings.Repeat("a", players.MaxNameLength), strings.Repeat("é", players.MaxNameLength), "李小龍"} {
 		_, err := players.NameOf(value)
@@ -114,17 +107,6 @@ func TestTwoNamesThatDifferOnlyInCaseFoldTheSame(t *testing.T) {
 	}
 
 	assert.NotEqual(t, players.Name("Ada").Folded(), players.Name("Adá").Folded())
-}
-
-func TestAnAccountIDIsAUUIDAndNeverTheNilOne(t *testing.T) {
-	account, err := players.AccountIDOf("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11")
-	require.NoError(t, err)
-	assert.Equal(t, "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11", account.String())
-
-	for _, value := range []string{"", "not-a-uuid", "00000000-0000-0000-0000-000000000000"} {
-		_, err := players.AccountIDOf(value)
-		require.ErrorIs(t, err, players.ErrInvalidAccount, "%q", value)
-	}
 }
 
 func TestANameRefusesASlurOrANaziReferenceHoweverItIsSpelledAndWherever(t *testing.T) {

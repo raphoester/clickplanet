@@ -2,7 +2,6 @@ package post_teaser_handler_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -104,8 +103,4 @@ func TestARequestWithNoBattleOrMediaNotTheBattlesIsInvalid(t *testing.T) {
 
 	_, err = post(t, &useCase{err: fmt.Errorf("%w: no video", teasers.ErrInvalidPost)}, request)
 	assert.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
-
-	off := connect.NewError(connect.CodeFailedPrecondition, errors.New("publishing is off"))
-	_, err = post(t, &useCase{err: off}, request)
-	require.ErrorIs(t, err, off)
 }

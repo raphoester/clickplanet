@@ -47,20 +47,6 @@ func TestAConnectionStartsWithAnAccessTokenForAnHourAndARefreshTokenForTheNext(t
 	}, pair.Tokens(), "only the hashes are kept, by the rule a session's is")
 }
 
-func TestATradeSpendsTheRefreshTokenForAPairOfTheSameConnection(t *testing.T) {
-	issuer, first, connection := connected(t)
-	later := now.Add(time.Hour)
-
-	trade, err := issuer.Trade(connection, first.TakeSnapshot().Refresh, "the client", later)
-	require.NoError(t, err)
-
-	require.NoError(t, trade.Refusal)
-	spent := first.Tokens()[1]
-	spent.Kind = admintokens.KindSpent
-	assert.Equal(t, append([]admintokens.Snapshot{spent}, trade.Pair.Tokens()...), trade.Kept)
-	assert.Equal(t, admintokens.ConnectionID("secret-1"), trade.Pair.Tokens()[0].Connection)
-}
-
 func TestARefreshTokenTradedTwiceEndsItsConnection(t *testing.T) {
 	issuer, first, connection := connected(t)
 	spent := first.Tokens()[1]

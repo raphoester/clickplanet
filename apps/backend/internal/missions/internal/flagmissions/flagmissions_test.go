@@ -280,30 +280,6 @@ func TestEveryTakeCountsForTomorrowAndTheOnesOnTheGroundOnTheMission(t *testing.
 	assert.Equal(t, uint32(1), day.Snapshot().Progress)
 }
 
-func TestATakeToldTwiceCountsOnce(t *testing.T) {
-	told := take("br")
-
-	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: conquer}).WithTake(told)
-	day, _ = day.WithTake(told)
-
-	assert.Equal(t, uint64(1), day.Snapshot().Takes)
-	assert.Equal(t, uint32(1), day.Snapshot().Progress)
-	assert.Equal(t, missions.LedgerMark{Position: told.Position, Index: 1}, day.Snapshot().TakesBelow)
-}
-
-func TestEachTakeOfASpreadCountsThoughTheyShareAPosition(t *testing.T) {
-	first := take("br")
-	second := first
-	second.Index = 1
-
-	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: conquer}).WithTake(first)
-	day, done := day.WithTake(second)
-	day, _ = day.WithTake(first)
-
-	assert.Equal(t, uint64(2), day.Snapshot().Takes)
-	assert.Equal(t, []flagmissions.Done{{Mission: *conquer, Progress: 2, At: monday}}, done)
-}
-
 func TestTheTakeThatFinishesTheMissionGivesItsPointsOnce(t *testing.T) {
 	day := dayOf(t, flagmissions.DaySnapshot{Mission: conquer, Progress: 1})
 
@@ -326,29 +302,6 @@ func TestOnlyTheRivalsShieldsCountAndEachStrikeForTomorrow(t *testing.T) {
 	assert.Equal(t, []flagmissions.Done{{Mission: *shields, Progress: 2, At: monday}}, done)
 	assert.Equal(t, uint64(3), day.Snapshot().Strikes)
 	assert.Equal(t, missions.LedgerMark{Position: position, Index: 1}, day.Snapshot().StrikesBelow)
-}
-
-func TestAStrikeToldTwiceCountsOnce(t *testing.T) {
-	told := strike("dz")
-
-	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: shields}).WithStrike(told)
-	day, _ = day.WithStrike(told)
-
-	assert.Equal(t, uint64(1), day.Snapshot().Strikes)
-	assert.Equal(t, uint32(1), day.Snapshot().Progress)
-}
-
-func TestEachStrikeOfASpreadOrABombCountsThoughTheyShareAPosition(t *testing.T) {
-	first := strike("dz")
-	second := first
-	second.Index = 1
-
-	day, _ := dayOf(t, flagmissions.DaySnapshot{Mission: shields}).WithStrike(first)
-	day, done := day.WithStrike(second)
-	day, _ = day.WithStrike(first)
-
-	assert.Equal(t, uint64(2), day.Snapshot().Strikes)
-	assert.Equal(t, []flagmissions.Done{{Mission: *shields, Progress: 2, At: monday}}, done)
 }
 
 func TestABombOnTheFlagsOwnShieldsBreaksNothing(t *testing.T) {

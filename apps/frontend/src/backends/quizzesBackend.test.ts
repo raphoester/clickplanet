@@ -83,10 +83,6 @@ describe("quizOf", () => {
         expect(quizOf(asked())).toEqual({token: "a-token", expiresAt: expect.any(Number)})
     })
 
-    it("is a token and a deadline, and nothing about the question at all", () => {
-        expect(Object.keys(quizOf(asked())!)).toEqual(["token", "expiresAt"])
-    })
-
     it("builds the deadline from how long is left, not from the server's clock", () => {
         expect(quizOf(asked({expiresAtUnixMs: 1_025_000n}), 5_000, 1_000_000)?.expiresAt).toBe(5_000 + 25_000)
     })

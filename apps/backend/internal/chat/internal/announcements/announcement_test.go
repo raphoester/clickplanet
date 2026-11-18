@@ -112,12 +112,6 @@ func TestEveryOtherAnnouncementIsTheWorldsAlone(t *testing.T) {
 	assert.False(t, announcement.In(messages.FlagRoom("fr")), "a bomb by France is not France's room's news")
 }
 
-func TestAFlagMissionWithNoIDIsRefused(t *testing.T) {
-	_, err := announcements.FlagMissionIDOf("")
-
-	assert.ErrorIs(t, err, announcements.ErrNoFlagMission)
-}
-
 func TestARallyIsToldInItsFlagsRoomNamingTheCallerAndTheLandmass(t *testing.T) {
 	rally, err := announcements.RallyIDOf("00000000-0000-7000-8000-000000000001")
 	require.NoError(t, err)

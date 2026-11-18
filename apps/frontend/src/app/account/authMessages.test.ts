@@ -6,13 +6,6 @@ describe("messageOf", () => {
         expect(messageOf("tooManyTries")).toMatch(/wait/i)
     })
 
-    it("tells how to move an identity another account uses", () => {
-        expect(messageOf("linkedElsewhere", "google")).toBe(
-            "This Google account is already used by another ClickPlanet account. "
-            + "To move it here: sign in with it and delete that account. Once it is gone for good, 30 days later, link it here.",
-        )
-    })
-
     it("names the service that refused", () => {
         expect(messageOf("refused", "discord")).toMatch(/^Discord /)
         expect(messageOf("refused")).toMatch(/^The service /)

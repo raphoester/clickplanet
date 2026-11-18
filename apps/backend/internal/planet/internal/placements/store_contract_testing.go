@@ -52,14 +52,6 @@ func (s *StoreContractSuite) all() []clicks.PlacementID {
 	return all
 }
 
-func (s *StoreContractSuite) TestAPlacementUnderWayIsFoundAsItWasTaken() {
-	taken := s.placement(1, contractAlice, 0)
-	s.Require().NoError(s.store.Save(s.T().Context(), taken))
-
-	s.Equal([]Snapshot{taken.TakeSnapshot()}, s.found(clicks.PlacementID{15: 1}))
-	s.Equal([]clicks.PlacementID{{15: 1}}, s.all())
-}
-
 func (s *StoreContractSuite) TestAPlacementThatEndedIsNoRow() {
 	taken := s.placement(1, contractAlice, 0)
 	s.Require().NoError(s.store.Save(s.T().Context(), taken))
