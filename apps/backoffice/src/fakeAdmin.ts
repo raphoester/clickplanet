@@ -114,6 +114,8 @@ import {
     RuleSet,
     SaveRuleSetRequest,
     SaveRuleSetResponse,
+    SwitchBoardRequest,
+    SwitchBoardResponse,
     TopPlayersRequest,
     TopPlayersResponse,
 } from "./gen/grpc/planet/v1/admin_pb.ts"
@@ -676,6 +678,11 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
             })
         }
         return answer
+    }
+
+    // No page switches the world's board: the operator does it through Claude (docs/boards.md, the runbook).
+    switchBoard(request: PartialMessage<SwitchBoardRequest>): Promise<SwitchBoardResponse> {
+        return this.answer("switchBoard", request, new SwitchBoardResponse({from: "earth-1", to: request.board ?? ""}))
     }
 
     getRoster(request: PartialMessage<GetRosterRequest>): Promise<GetRosterResponse> {
