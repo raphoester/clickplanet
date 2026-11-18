@@ -30,9 +30,10 @@ island otherwise. The list is `apps/frontend/scripts/map/seats.mjs`, and `npm ru
 ground.
 
 Each file is content-addressed, so all copies carry the same name or one of them is stale.
-The backend rebuilds the board's tiles and their adjacency from its copy at every boot and **refuses to start** if
-the positions do not hash to the manifest's or the tile count is not `gameMap.maxIndex` — drift here silently moves
-every player's territory, so it is worth a crash.
+The backend rebuilds a board's tiles and their adjacency from its copy the first time it plays it, and **refuses the
+board** (and so the boot, for the board the map plays) if the positions do not hash to the manifest's or a file holds
+another tile count than the manifest — drift here silently moves every player's territory, so it is worth a crash.
+Every board an app carries needs a row in planet's `boards` under the same hash, or the boot refuses.
 
 **Regenerating renumbers every tile**, since `earth-1`'s ids are ranks among its tiles. Positions
 do not move, so `npm run map:generate -- --remap <path.up.sql>` writes the postgres migration that

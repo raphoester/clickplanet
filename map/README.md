@@ -199,8 +199,9 @@ cd apps/frontend && npm run landmassNames # each landmass's name, keyed by the n
 cd apps/frontend && npm run map:audit     # every fault should read zero
 ```
 
-`gameMap.maxIndex` follows the tile count, in `apps/backend/cmd/api/example.yaml` and
-`deploy/vps/backend.yaml`; the backend refuses to start on a board whose manifest disagrees with it.
+No config follows the tile count: the backend reads it from the manifest, and refuses a file of the board that holds
+another (`gameMap.maxIndex` went on 2026-11-18). A board regenerated is another board, with a row of its own in
+planet's `boards`, shipped by the migration that ships it.
 
 **Regenerating `earth-1` as it is writes it byte for byte**: the same runs, borders, capitals, bridges, terrain and
 manifest, and the same border lines and landmass names. That was checked when the generator stopped building
@@ -243,7 +244,7 @@ Each run is a stretch of tiles side by side in one row of the lattice, its first
 ascending and apart. `earth-1` is 7,556 runs, 121 KB (the landmask it replaced was 113 KB, the coordinates file 5.2 MB).
 
 **Positions are 0-indexed by tile order; wire tile ids are 1-based.** Tile id = index + 1.
-That is what `clicks.Board` (`tile > 0 && tile <= maxIndex`), `inmemory_tile_storage`
+That is what `clicks.Played.CheckTile` (`tile > 0 && tile <= tiles`), `inmemory_tile_storage`
 (slot 0 unused) and the frontend's GPU picking (`integerToColor(i + 1)`) all agree on.
 
 The borders file, written by the same command and read by `borderField.ts` and `clicks.Borders`:
@@ -313,7 +314,7 @@ why every engine rebuilds the same bits.
 | --- | --- |
 | cols | 301 |
 | full sphere | `10 * 301² + 2` = 906,012 points |
-| land tiles | 260,503, which is `gameMap.maxIndex` |
+| land tiles | 260,503, the manifest's `tiles` |
 | landmasses | 694, across 239 countries |
 | spacing | ~25.9 km median, ~563 km² per tile |
 

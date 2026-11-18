@@ -2,7 +2,9 @@
 
 **Designed 2026-11-17. PR 1 is built (2026-11-17): `earth-1` is a board, and every app reads its geometry from it. PR 2
 is built (2026-11-17): every tile and event names its board and map, and the boot refuses a map on a board it does not
-carry.**
+carry. PR 3 is built (2026-11-18): every app holds more than one board, the page draws the board an answer names and
+reloads when it changes, every threshold sized from the board reads it, an arena plays the board its set names, and a
+history draws each era on its own board, with the cut.**
 The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
 builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
 [Map geometry](map-geometry.md), and the apps' tile docs (`tile-positions.md`, `tile-layout.md`, `zoomed-out-view.md`,
@@ -162,11 +164,15 @@ and landmass names too.
 **A hash that does not match is logged, not fatal**, on a page: it logs the mismatch with its user agent and keeps the
 positions it computed; the ids come from the runs, so an ulp of difference moves a tile by under a metre.
 
-**Copies:** each app carries the boards it plays or reads, committed, through `npm run map` and `make map`: the
-frontend every file in `static/boards/<name>/` and the manifest inline in `boardAsset.ts`, the backend every file
-embedded, the backoffice the manifest and the runs. The frontend serves every board's files forever. A board costs
-the backend about 57 bytes a tile (about 60 MB for `earth-2`), loaded when it is first needed. Each app holds one board
-in PR 1, and refuses more than one until PR 3.
+**Copies:** each app carries every board, committed, through `npm run map` and `make map`: the frontend every file in
+`static/boards/<name>/` and each manifest in a table by name, the backend every file embedded, the backoffice each
+manifest and its runs. The frontend serves every board's files forever. A board costs the backend about 57 bytes a
+tile (about 60 MB for `earth-2`), loaded when it is first needed (`embedded_board.Registry`, PR 3).
+
+**A fixture for the tests** (PR 3): `fixture-1`, a coarse earth cut from `earth-1` at `cols` 31 (2,998 tiles, 9.7 times
+as far apart, another positions hash), which the page's `npm run map:fixture` writes into each app's test data alone:
+the backend's `testing` tag, the page's and the backoffice's `src/testdata`. It is never in `/map/boards`, `generated/`
+or `static/`, and planet keeps a row of it only in a test's database.
 
 ## Eras and the board column
 
@@ -177,8 +183,8 @@ in PR 1, and refuses more than one until PR 3.
   mean, which a terrain or borders drawn again leaves alone while it rewrites the manifest. A board's row ships with the
   migration that ships the board.
 - **`eras`** `(map text, board smallint, started_at timestamptz)`: a map's latest era is the board it plays. The world's
-  first era started at the epoch, on `earth-1`; an arena's map gets its era as it opens, on the board the world plays
-  (until `arena.board`, PR 3).
+  first era started at the epoch, on `earth-1`; an arena's map gets its era as it opens, on the board its set names
+  (`arena.board`, PR 3) or the world's.
 - **A `board smallint NOT NULL` column**, a foreign key to `boards`, on `tiles`, `landmasses`, `mines`, `viruses` and
   `ledger_events`, and **a `map` column on `ledger_events`**. Every write names the board of the map that plays, and
   every event its map: an arena's events are told apart by that column, no longer by the arena's times
@@ -200,18 +206,27 @@ in PR 1, and refuses more than one until PR 3.
 - `GetLedger` (`board`: the world's changes on that board alone) and the vandal squad's `ListGraffiti` (each graffiti's
   `board`).
 
-The frontend and the backoffice only carry the new fields in PR 2. **A page that reads a board other than the one it
-drew reloads** (the owner: a reload, not a rebuild in place): PR 3.
+**A page that reads a board other than the one it drew reloads** (the owner: a reload, not a rebuild in place). Built in
+PR 3: the page builds its globe from the board `GetMap` names, and reloads when `GetMap` or the stream's opening
+heartbeat names another. The backoffice has no globe, and reads again on the board an answer names.
 
 **Every reader of the ledger resolves each event's board and map from its columns:** replays and clips, the archive,
 the last 24 hours and `GetLedger` keep the world's map on the board it plays; the holder and landmass cards the map that
 plays on its board; the relay takes each tile's `Ground` and `Position` from its event's board. FindPlayers, TopPlayers
-and RevertPlayer read the current board's events only, and so does the vandal squad, through `GetLedger`. With one
-board, each reader draws one board: PR 3 draws each era on its own, with the cut.
+and RevertPlayer read the current board's events only, and so does the vandal squad, through `GetLedger`.
+
+**Each era on its own board, with the cut** (PR 3): `GetMapHistory` and the season replay keep each world event on the
+board of the era in force at its time; the first frame of an era holds every tile held on its board, as the window's
+first frame does, and each tile's hits name their era (`TileHits.era`). The page's `/archive`, the clips and the
+player's video draw each era on its board, with a visible cut. The rewinders (`GetReplay`, `GetRecentMapHistory`) keep
+the board the world plays now: no rewind crosses into another board, and PR 6 starts them at the switch.
 
 ## Arena boards
 
-**`arena.board`** is a rule set's knob: the board an arena's map plays on (default: the world's).
+**`arena.board`** is a rule set's knob: the board an arena's map plays on (default: the world's). **Built in PR 3**
+(2026-11-18): `default` names none, a set refuses a board its build does not carry, and an open on a board planet keeps
+no row of is refused; every rule reads the arena's board while it plays, and its seed is laid on it. See the backend's
+[Arena battles](../apps/backend/docs/arenas.md#the-board-an-arena-plays-arenaboard).
 
 **Capital Siege plays `siege-1`, with no spread at all**: `charges.spread` is off in its set, and none comes in its
 boxes (the owner, 2026-11-17). On 260,503 tiles its unlimited spread was inflation on purpose, to fill the map fast,
@@ -282,13 +297,17 @@ whatever pays keeps its tile count, and only what describes the map scales with 
 | `rally.rings` | rule sets, edited by the operator at the switch | 18 | 36, the same ground (a rally pays nothing itself) |
 | mission floors | `missions/draw.go` (`rivalAtLeast`, `groundAtLeast`, `openAtLeast`, `raidAtLeast`) | 1,000 / 3,000 / 1,000 / 300 | 3,900 / 11,700 / 3,900 / 1,170 |
 | fortify news | `chat/…/announcement.go` `fortifyNewsTiles`, and the frontend's `NEWS_FROM_TILES` | 50 | 200 |
-| largest drawing | vandal squad `reading.go` `maxTiles` (12 at least stays) | 150 | 300 |
+| largest drawing | vandal squad `reading.go` `maxTiles` (12 at least stays) | 150 | ×3.9, about 585 (a count of tiles: until PR 3 this row said 300) |
 | clip thresholds | frontend `clip/look.ts`, `clip/changes.ts` | 20, 100, 400, 1,000 | ×3.9 |
 | attack ping zoom | alerts `pings/view.go` `closestZoom` | 20 | 40 |
 | heatmap cell | frontend `archive/heatmap.ts`, backoffice `home/heat.ts` | 0.4°, 0.3° | 0.2°, 0.15° |
 | max zoom | frontend `zoom.ts` | 50 | 100 |
 
-**The thresholds read the board, not constants**, so they hold on `siege-1` too:
+**The thresholds read the board, not constants**, so they hold on `siege-1` too. **Built in PR 3** (2026-11-18), with one
+rule in every app: a board's length ratio is its spacing over `earth-1`'s (0.004063093462255102), its density ratio
+that ratio's square inverted; a count of tiles is `max(1, round(n × density))`, a length `x × length`, a zoom `z ÷
+length`. On `earth-1` every value comes out as before, to the bit. See the backend's
+[Sized from the board](../apps/backend/docs/board-scale.md).
 - **Counts of tiles** scale with the board's density divided by `earth-1`'s: the mission floors, the fortify news, the
   largest drawing, the clip thresholds.
 - **Lengths** scale with its spacing: the heatmap cell, the zoom, the attack ping's zoom.
@@ -429,7 +448,7 @@ their numbers.
    - The board on every answer that names tiles, and every reader resolving its events' board.
    - Arenas told apart by column instead of by time.
    - Nothing visible.
-3. **More than one board.**
+3. **More than one board. Built 2026-11-18.**
    - The backend's registry of boards.
    - The page builds its globe from the board an answer names, and reloads when it changes.
    - Everything sized from the spacing or the density reads the board.
