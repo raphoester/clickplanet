@@ -7,9 +7,9 @@ map each event names: the world's map before and after it joins up (see [The led
 **An arena is a shell** (the owner, 2026-11-10). It switches the tile map that plays, which empties it, and it starts
 the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a battle plays on the fresh map is a knob
 of its own in its rule set, which plays on any map, the world's too: [the reach](reach.md), [the capitals' rules](capitals.md)
-(the knock-out and fixed capital shields). **Capital Siege is one rule set**: `arena.on`, the capitals seed, the reach,
-the knock-out and fixed capital shields, no bombs (`charges.bomb.off`), no enclosures (`charges.enclose.off`), and urf's
-speed with an unlimited, wide spread (see
+(the knock-out and fixed capital shields). **Capital Siege is one rule set**: `arena.on` on `siege-1` (`arena.board`),
+the capitals seed, the reach, the knock-out and fixed capital shields, no bombs (`charges.bomb.off`), no enclosures
+(`charges.enclose.off`), no spread (`charges.spread.off`), and urf's speed (see
 [Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
 used in another mode or on the world's map.
 
@@ -143,7 +143,10 @@ carry, refuses the open (`ErrRefused`, `FailedPrecondition`), and the world's ma
   country on that board's capital.
 - **Pages reload during the freeze**: an open cuts every stream, and a page whose stream opens on another board than
   it drew reloads (see the frontend's [The board the page draws](../../frontend/docs/board-reload.md)), within the
-  8 s of the arena's start freeze, which outlasts `GetMap`'s 5 s cache.
+  8 s of the arena's start freeze, which outlasts `GetMap`'s 5 s cache. **Rehearsed on `siege-1`** (2026-11-18, the
+  local stack, Capital Siege's set as the owner saves it, a page and one framed as on CrazyGames): the arena opened 1.6 s
+  after T1, planet played the set 1 s later, both pages reloaded inside the freeze, and each reloaded again about a
+  second after the close; the day's reveal, the battle's start and its debrief all played after the reloads.
 - **A play in flight as an arena opens on another board** lands on the arena's map by its id: it passed the freeze
   interceptor before the blank, and its write waits for the swap (`Storage.During`). On the blank map that is a take
   of another place, as the gap at T1 already lets through; at the close the end freeze holds every play.
@@ -152,7 +155,8 @@ carry, refuses the open (`ErrRefused`, `FailedPrecondition`), and the world's ma
   world (see [The ledger's readers](#the-ledgers-readers)). The vandal squad waits for the world's map: `GetTiles`
   names the board in play.
 
-Capital Siege's set names `siege-1` in PR 5: PR 4 shipped it (27,259 tiles, 79 km apart), and nothing plays it yet.
+Capital Siege's set names `siege-1` from PR 5 of [Boards](../../../docs/boards.md) (2026-11-18), once the owner saves
+it: see [Capital Siege's set](#capital-sieges-set).
 
 ## Seeds
 
@@ -189,12 +193,40 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 ## Capital Siege's set
 
 `capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, boxes and quizzes, its shield and
-welcome values, flags locked), plus `arena {on, freeze 8s}`, `seed.capitals.shields` 50, `reach`,
-`capitals {knockOut, fixedShields}`, `charges.bomb.off`, `charges.enclose.off`, and a spread that makes the map small:
-`charges.spread.unlimited` with `charges.spread.rings` 2 (see [Spread](spread.md)), so every click with spread on, next
-to the flag's land, takes 19 tiles. Its toll starts at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×,
-0.5 → 4×). The offers' set of the same name grants no spread clicks and no enclosures (`kinds.spreadClicks` and
-`kinds.encloseClicks` 0, since a box of them would be worth nothing), and offers a box every 20 to 40 s.
+welcome values, flags locked), plus `arena {on, freeze 8s, board siege-1}`, `seed.capitals.shields` 50, `reach`,
+`capitals {knockOut, fixedShields}`, `charges.bomb.off`, `charges.enclose.off` and `charges.spread.off`. Its toll starts
+at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×, 0.5 → 4×). The offers' set of the same name grants no spread clicks, no
+enclosures and no bombs (`kinds.spreadClicks`, `kinds.encloseClicks` and `kinds.bomb` 0, since a box of them would pay
+nothing), and the boxes offer one every 20 to 40 s.
+
+**On `siege-1`, with no spread** (PR 5 of [Boards](../../../docs/boards.md), the owner, 2026-11-17). On 260,503 tiles the
+unlimited spread of 2 rings (19 tiles a click) was inflation on purpose, to fill the map fast, and its animation spammed
+the screen. `siege-1` has 27,259 tiles, 79 km apart: with no spread, 15 players at a click a second fill it in about 30
+minutes, and France is about 100 tiles. `charges.spread.off` keeps the spread clicks a player brought from the world for
+after the battle ([Spreads off](spread.md#spreads-off-chargesspreadoff)); without it they still spread there.
+- **XP from a battle drops to a tile a click** (about 19 a click before, at a disc of 2 rings): progression counts every
+  `TilesTaken`, an arena's too, a tile each ([Levels](levels.md)), and a spread's tiles counted one each. Missions count
+  nothing in any battle, before and after. Wanted (no inflation); players will notice.
+- **Capital shields stay at 50.** The march to a capital is about a third as many tiles as on `earth-1`; the owner
+  decides after the first battle on `siege-1`.
+
+**The owner's steps, once PR 5 is deployed** (the sets are production's, saved by hand; `planet_get_rules` and
+`bonuses_get_rules` read them first, and again after). `SaveRuleSet` has no dry run and replaces every value of the
+set, so it carries the whole set; `capital-siege` does not play between battles, so a save changes nothing on the map,
+and a set that cannot play is refused with every reason, which is the check. Planet's `capital-siege`, with
+`arena.board`, `charges.spread.off`, and its `spread` overrides (`clicks` 50, `rings` 2, `unlimited`) dropped:
+
+```json
+{"clicks":{"tempo":3},"toll":{"steps":[{"share":0.3,"slowdown":1.5},{"share":0.4,"slowdown":2.5},{"share":0.5,"slowdown":4}]},
+ "allegianceLocked":true,"arena":{"on":true,"freeze":"8s","board":"siege-1"},"seed":{"capitals":{"shields":50}},
+ "reach":true,"capitals":{"knockOut":true,"fixedShields":true},
+ "charges":{"spread":{"off":true},"bomb":{"rings":8,"off":true},"enclose":{"maxTiles":500,"held":8,"off":true},"shield":{"held":75}}}
+```
+
+The offers' (`bonuses_save_rule_set`), the boxes' and the quizzes' sets of the same name need no change: the offers
+already weigh `spreadClicks` 0 (and `bomb`, `encloseClicks`, `virus`, `mine` 0); the boxes and the quizzes hold nothing
+of the spread. A newcomer's welcome box is a spread, so in the battle it pays nothing, as it did since 2026-11-13. The
+antibot's set and the teaser's cards name no spread either.
 
 **Capitals start with 50 shields** (saved in production on 2026-11-13). A simulation with production's battle numbers
 let the first knock-out wait 20 to 36 minutes with 100, and knocked a flag out after 1 to 4 minutes with 25.
@@ -203,7 +235,8 @@ let the first knock-out wait 20 to 36 minutes with 100, and knocked a flag out a
 enclose on turns the free spread off for that click, which confused players. Until then the set played
 `charges.enclose.maxTiles` 500, and the offers weighed `encloseClicks` 2 against 1 for refill and shields.
 
-**Why** (the owner, 2026-11-12): the point of the mode is eliminations, and the full map felt far too slow in a test.
+**Why it had a spread** (the owner, 2026-11-12, until PR 5): the point of the mode is eliminations, and the full map
+felt far too slow in a test.
 With a pool of 50 and up to 25 a box, only 7-15% of clicks spread, about 1.3 new tiles a click: 15 players at 1 click a
 second, nobody fighting, would fill the 260,503 tiles in about 3.7 h, and a battle lasts 2 h. Unlimited with 2 rings is
 about 19 new tiles a click, so the same 15 fill it in about 15 minutes. Until then it played a pool of 50
@@ -276,6 +309,10 @@ count none: a fact counts only inside a day, and a battle is no day.
   Telling them apart would take the arenas into `find_players_usecase`, past five ports.
 - **A set with `arena.on` on a plain entry** plays its rules on the real map: nothing blanks, since only a battle is
   judged.
+- **An arena battle in a break**, when no season runs, is no round and is not judged ([the
+  gamemaster](gamemaster.md)), so no arena opens and its set plays on the world's map as a plain entry's does, the
+  knock-out included. Met in the rehearsal of 2026-11-18, whose local stack had no season; production's battles run
+  inside a season.
 - **A set with `arena.on` and a freeze of 0**: the fresh map plays the day's rules for the second before planet plays
   the battle's set.
 - **The knock-out without the reach**: a flag that is out can still take tiles. With the reach, a flag with no land
