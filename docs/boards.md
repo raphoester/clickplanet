@@ -95,7 +95,8 @@ rebuilds every tile of all three boards to their manifests' hashes (see the back
 `c = 0.30479447`). Each board's are fitted again at its own `cols` (`fitWarp` in `scripts/map/warp.mjs`): Nelder-Mead
 from those, on the cells' areas, largest over smallest (a cell is a third of each of its triangles, the twelve
 pentagons left out), rounded to 8 decimals. `warp.test.mjs` pins each: the spread at the manifest's coefficients is
-below a nudge of 0.002 to any of them, and a fit again gives the same numbers.
+below a nudge of 0.002 to any of them (a fit at 590 takes 3 minutes, too long for a test), and a fit at `cols` 24 run
+twice gives the same numbers.
 
 | board | `a` | `b` | `c` | spread at its fit | at the design's |
 | --- | --- | --- | --- | --- | --- |
@@ -520,6 +521,76 @@ audience. A headless M2 Max shows the work removed; it cannot show what a phone'
 
 **If a device still struggles**, it cannot have a smaller board: everyone shares the tile ids. But with HD graphics
 off, the painted flags can stay on until the player is closer in, and they cost per pixel, not per tile.
+
+## PR 4, measured
+
+**Measured 2026-11-18**, in the container PR 4 was built in: 4 vCPUs and **no GPU**. Headless Chromium at 1280×800, a
+device ratio of 1, on SwiftShader (software GL); the production build with the fake backend on each board
+(`/play?fakeBoard=<board>`, see the page's [Commands](../apps/frontend/docs/commands.md)), served by a local server that
+packs files with brotli, the cache off. Unlike PR 0's M2 Max there is no GPU: a frame takes the software renderer one to
+ten seconds, `EXT_disjoint_timer_query` is absent, and so **no GPU time is recorded**: only what does not depend on it,
+each board under the same conditions. The CPU per frame is the main thread's in the frame callback, the median of the
+frames drawn in 40 seconds with the CPU slowed 4 times; vertices are the sum of each draw's count of a frame.
+
+| per frame, CPU slowed 4× | `earth-1` | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| idle spin at the landing view, CPU | 7.3 ms | 8.8 ms | 5.8 ms |
+| … vertices drawn | 1.02M | 1.89M | 0.51M |
+| turning at zoom 3 / 10 / 40, CPU | 6.8 / 6.9 / 4.9 ms | 5.9 / 7.4 / 6.7 ms | 6.1 / 4.4 / 5.3 ms |
+| … vertices drawn | 1.01M / 1.73M / 1.72M | 1.88M / 5.09M / 3.49M | 0.71M / 0.69M / 0.69M |
+| a pick (`TilePicker.pick` in Node, CPU as is), median / 90%, in orbit and zoomed in | 0.3 / 3.3 and 0.4 / 0.7 µs | 0.4 / 0.5 and 0.4 / 0.5 µs | 0.4 / 0.5 and 0.4 / 0.4 µs |
+
+| memory, loaded at the landing view | `earth-1` | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| JS heap | 13.6 MB | 24.1 MB | 10.1 MB |
+| array buffers | 24.7 MB | 75.3 MB | 6.8 MB |
+| GPU buffers + textures allocated, compact layout | 8.2 + 26.7 MB | 24.6 + 32.6 MB | 2.5 + 24.8 MB |
+
+The GPU column is summed from the WebGL calls that allocate (`bufferData`, `texImage2D`, `texStorage2D`), as PR 0's was,
+but without the framebuffers, so it is lower than PR 0's figures; the boards compare on it.
+
+| time to the globe, DevTools' Fast 4G (the first WebGL draw) | `earth-1` | `earth-2` | `siege-1` |
+| --- | --- | --- | --- |
+| CPU as is | 2.06 s | 3.00 s | 1.74 s |
+| CPU slowed 4× | 4.19 s | 8.40 s | 3.15 s |
+| the board's files the globe waits for, packed | 401 KB | 960 KB | 110 KB |
+
+Three runs each, the median. The files are the runs, the borders, the border lines and the terrain, fetched together.
+
+**What it says:**
+- **The tiles still cost nothing at the landing view.** No tile is drawn there on any board. `earth-2`'s 0.87M more
+  vertices are its outlines: the border lines draw 12 vertices for each cell edge of an outline (4 corners, 3 passes),
+  and `earth-2`'s coasts at 13 km have 129,431 edges against `earth-1`'s 56,790. Less 12 a edge, every board draws the same
+  335k. PR 0's test map of 1M tiles borrowed `earth-1`'s outlines, so it read 1.01M; the outlines grow with the coast,
+  not with the tiles, as [Slow devices](#slow-devices) says.
+- **Zoomed in, `earth-2` draws its tiles in sight**: 5.1M vertices at zoom 10 against 1.7M. On a real GPU PR 0 measured
+  this case at 1.9 ms on a 1M map; here only the CPU's side is measured, and it stays at 6 to 9 ms a frame on every board.
+- **A pick costs the same on every board**, under a microsecond: the warp's two Newton steps do not show.
+- **Memory:** `earth-2` holds about 10 MB more JS heap, 51 MB more array buffers (the positions, the cells, the chunks,
+  the tile attributes, at four times the tiles) and 22 MB more on the GPU than `earth-1`.
+- **The globe shows 0.94 s later on `earth-2`** with the CPU as is, 4.2 s later slowed 4×: past PR 0's bar of 0.5 s. Of
+  the 0.94 s, about 0.56 s is the files, and most of that the border lines (742 KB packed: their int16 corners pack
+  poorly); the rest is the rebuild, 255 ms against 100 ms in Node (the positions, then the cells and their check of
+  every tile, see [The geometry](#the-geometry)), which the slowed CPU multiplies.
+
+**Still to do before PR 6** switches the world: the border lines' file smaller (its corners delta-coded along each run),
+and the cell check of every tile weighed against its 0.2 s; then the time to the globe measured again, with the GPU rows
+of PR 0's protocol, on a machine with a GPU and on a low-end phone.
+
+## Screenshots
+
+For the owner to judge the creases before deciding on them (they stay as they are for now, the owner looks first).
+Taken 2026-11-18 as the page draws each board, on the fake backend (every tile French), the page's panels hidden,
+1280×800 at a ratio of 1, in software GL. Each board's landing view, then a face edge crossing land at three zooms, so
+a cell spans about 10, 25 and 60 to 80 pixels: on `earth-2` and `siege-1` the edge across Kansas (39.2°N, 100.9°W) and
+the one by the Caspian (47.5°N, 49.9°E); on `earth-1`, whose edges lie elsewhere, the one across Montana (48.2°N,
+109.3°W). `/play?fakeBoard=<board>&lat=…&lon=…&zoom=…` opens each again.
+
+| | landing | about 10 px a cell | about 25 px | about 70 px | the Caspian |
+| --- | --- | --- | --- | --- | --- |
+| `earth-1` | [landing](boards/earth-1-landing.jpg) | [Montana, zoom 6](boards/earth-1-montana-z6.jpg) | [zoom 15](boards/earth-1-montana-z15.jpg) | [zoom 40](boards/earth-1-montana-z40.jpg) | |
+| `earth-2` | [landing](boards/earth-2-landing.jpg) | [Kansas, zoom 12](boards/earth-2-kansas-z12.jpg) | [zoom 30](boards/earth-2-kansas-z30.jpg) | [zoom 80](boards/earth-2-kansas-z80.jpg) | [zoom 30](boards/earth-2-caspian-z30.jpg) |
+| `siege-1` | [landing](boards/siege-1-landing.jpg) | [Kansas, zoom 2](boards/siege-1-kansas-z2.jpg) | [zoom 5](boards/siege-1-kansas-z5.jpg) | [zoom 16, its most](boards/siege-1-kansas-z16.jpg) | [zoom 5](boards/siege-1-caspian-z5.jpg) |
 
 ## The PRs, in order
 
