@@ -10,9 +10,9 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras/postgres_era_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -47,6 +47,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
 }
 
 func (s *testSuite) record(events ...ledger.Event) {
@@ -54,6 +55,7 @@ func (s *testSuite) record(events ...ledger.Event) {
 	for i, event := range events {
 		entry, err := event.Entry()
 		s.Require().NoError(err)
+		entry.Stage = ledger.StageOf(event)
 		stored = append(stored, inmemory_ledger_storage.Stored{Position: ledger.Position(i + 1), Entry: entry}) //nolint:gosec // a few events.
 	}
 	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{Entries: slices.Values(stored)}))
@@ -70,7 +72,7 @@ func (s *testSuite) TestTheHistoryReplaysTheLedgerFromItsFirstEventIntoAFrameEac
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Account: ada, Country: "jp", At: until},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_arena_store.New(s.db)).History(s.T().Context(), since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(s.T().Context(), since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -82,6 +84,7 @@ func (s *testSuite) TestTheHistoryReplaysTheLedgerFromItsFirstEventIntoAFrameEac
 			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
 		},
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 2, Hits: 1}, {Tile: 3, Hits: 1}},
+		Eras: worldOnEarth1,
 	}, history), "%v", history)
 }
 
@@ -90,13 +93,13 @@ func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWin
 	s.record(ledger.Taking{Tile: 2, Scope: "203.0.113.7", Account: ada, Country: "de", At: since.Add(-30 * time.Minute)})
 	// A spread the ledger cannot replay, before the reset: reading it would fail the history.
 	_, err := s.db.On(ctx).ExecContext(ctx, `
-		INSERT INTO ledger_events (position, tile, scope, country, previous, taken_at, kind, payload)
-		VALUES (0, 4, '203.0.113.7', 'fr', '', $1, 'spread', '{"taken":"not a list"}')`, since.Add(-2*time.Hour))
+		INSERT INTO ledger_events (position, map, board, tile, scope, country, previous, taken_at, kind, payload)
+		VALUES (0, 'world', 1, 4, '203.0.113.7', 'fr', '', $1, 'spread', '{"taken":"not a list"}')`, since.Add(-2*time.Hour))
 	s.Require().NoError(err)
 	_, err = s.db.On(ctx).ExecContext(ctx, `INSERT INTO map_resets (id, at) VALUES ('season-1', $1)`, since.Add(-time.Hour))
 	s.Require().NoError(err)
 
-	history, err := history_query.NewPostgresQuery(s.db, postgres_arena_store.New(s.db)).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -106,23 +109,26 @@ func (s *testSuite) TestTheHistoryReadsNothingBeforeTheLastResetAtOrBeforeItsWin
 			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
 		},
 		Hits: []*planetv1.TileHits{},
+		Eras: worldOnEarth1,
 	}, history), "%v", history)
 }
 
 func (s *testSuite) TestTheWorldsMapStandsStillOverAnArenaAndJoinsUpAfterIt() {
 	ctx := s.T().Context()
-	kept := postgres_arena_store.New(s.db)
-	opened, closed := since.Add(20*time.Minute+400*time.Millisecond), since.Add(80*time.Minute+600*time.Millisecond)
-	s.Require().NoError(kept.Open(ctx, arenas.Opening{ID: "battle", OpenedAt: opened, EndsAt: closed.Add(-3 * time.Second)}))
-	s.Require().NoError(kept.Close(ctx, arenas.Closing{ID: "battle", ClosedAt: closed}))
+	battle := clicks.MapID("battle").On(clicks.TestBoard)
+	s.Require().NoError(eras.KeepRow(ctx, s.db, eras.Earth2))
 	s.record(
 		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(10 * time.Minute)},
-		ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "br", At: since.Add(30 * time.Minute)},
-		ledger.Taking{Tile: 2, Scope: "203.0.113.7", Country: "br", At: since.Add(40 * time.Minute)},
-		ledger.Taking{Tile: 3, Scope: "203.0.113.7", Country: "de", At: closed.Truncate(time.Second)},
+		ledger.Staged{On: battle, Event: ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "br", At: since.Add(30 * time.Minute)}},
+		ledger.Staged{On: battle, Event: ledger.Taking{Tile: 2, Scope: "203.0.113.7", Country: "br", At: since.Add(40 * time.Minute)}},
+		ledger.Taking{Tile: 3, Scope: "203.0.113.7", Country: "de", At: since.Add(80 * time.Minute)},
+		ledger.Staged{
+			On:    clicks.World.On(clicks.TestBoard + 1),
+			Event: ledger.Taking{Tile: 4, Scope: "203.0.113.7", Country: "de", At: since.Add(90 * time.Minute)},
+		},
 	)
 
-	history, err := history_query.NewPostgresQuery(s.db, kept).History(ctx, since, until, time.Hour)
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
 	s.Require().NoError(err)
 
 	s.True(proto.Equal(&planetv1.MapHistory{
@@ -132,5 +138,32 @@ func (s *testSuite) TestTheWorldsMapStandsStillOverAnArenaAndJoinsUpAfterIt() {
 			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{{Tile: 3, CountryId: "de", SecondsIntoStep: 1200}}},
 		},
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 3, Hits: 1}},
-	}, history), "the battle's takes are on no frame and no hit: %v", history)
+		Eras: worldOnEarth1,
+	}, history), "the battle's takes, and one on another board, are on no frame and no hit, as each names its map: %v", history)
 }
+
+func (s *testSuite) TestTheHistoryNamesEachEraOfTheWorldItCovers() {
+	ctx := s.T().Context()
+	switched := since.Add(30 * time.Minute)
+	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, clicks.WorldStage, switched))
+	s.record(ledger.Taking{Tile: 1, Scope: "203.0.113.7", Country: "fr", At: since.Add(10 * time.Minute)})
+
+	history, err := history_query.NewPostgresQuery(s.db, postgres_era_store.New(s.db)).History(ctx, since, until, time.Hour)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: []*planetv1.MapFrame{
+			{At: timestamppb.New(since), Owners: []*planetv1.TileOwner{}},
+			{At: timestamppb.New(since.Add(time.Hour)), Owners: []*planetv1.TileOwner{{Tile: 1, CountryId: "fr", SecondsIntoStep: 600}}},
+			{At: timestamppb.New(until), Owners: []*planetv1.TileOwner{}},
+		},
+		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
+		Eras: []*planetv1.BoardEra{
+			{StartedAt: timestamppb.New(eras.Epoch), Board: "earth-1"},
+			{StartedAt: timestamppb.New(switched), Board: "earth-1"},
+		},
+	}, history), "%v", history)
+}
+
+// The world's one era, as the migration that made eras keeps it.
+var worldOnEarth1 = []*planetv1.BoardEra{{StartedAt: timestamppb.New(eras.Epoch), Board: "earth-1"}}

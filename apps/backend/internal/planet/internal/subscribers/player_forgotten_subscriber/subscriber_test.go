@@ -37,12 +37,12 @@ func TestADeletedAccountIsTakenOffEveryTakeItMade(t *testing.T) {
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, store, slog.New(slog.DiscardHandler))
 	require.NoError(t, takings.Load(ctx))
 
-	takings.Append(ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone, Country: "fr", At: at})
-	takings.Append(ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "fr", At: at.Add(time.Hour)})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: gone, Country: "fr", At: at})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: kept, Country: "fr", At: at.Add(time.Hour)})
 	require.NoError(t, takings.Flush(ctx))
 	takings.ForgetBefore(at.Add(time.Minute))
 	require.NoError(t, takings.Flush(ctx))
-	takings.Append(ledger.Taking{Tile: 3, Scope: "1.2.3.4", Account: gone, Country: "de", Previous: "fr", At: at.Add(2 * time.Hour)})
+	takings.Append(clicks.WorldStage, ledger.Taking{Tile: 3, Scope: "1.2.3.4", Account: gone, Country: "de", Previous: "fr", At: at.Add(2 * time.Hour)})
 
 	err := player_forgotten_subscriber.New(anonymize_takes_usecase.New(takings, store, tiles())).
 		Handle(ctx, &playerv1.PlayerForgotten{AccountId: gone})

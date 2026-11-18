@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
@@ -17,9 +16,18 @@ import (
 )
 
 type stubMap struct {
+	// The world's on earth-1 when unset.
+	playing clicks.Stage
 	owners  map[uint32]string
 	batches []int
 	err     error
+}
+
+func (m *stubMap) Stage() clicks.Stage {
+	if m.playing == (clicks.Stage{}) {
+		return clicks.WorldStage
+	}
+	return m.playing
 }
 
 func (m *stubMap) Owner(tile uint32) (string, bool) { return m.owners[tile], true }
@@ -42,7 +50,7 @@ func (m *stubMap) Restore(_ context.Context, restorations []clicks.Restoration) 
 
 func takenBy(book *inmemory_ledger_storage.Storage, scope string) int {
 	n := 0
-	book.Replay(func(event ledger.Event) {
+	book.Replay(func(_ clicks.Stage, event ledger.Event) {
 		event.Replay(func(taking ledger.Taking) {
 			if taking.Scope == scope {
 				n++
@@ -59,10 +67,10 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, *stubMap) {
 	tiles := &stubMap{owners: map[uint32]string{1: "il", 2: "", 3: "il", 4: "il", 5: "il"}}
 
 	for tile := uint32(1); tile <= 5; tile++ {
-		book.Append(ledger.Taking{Tile: tile, Scope: "9.9.9.9", Country: "ps", Previous: tiles.owners[tile]})
+		book.Append(clicks.WorldStage, ledger.Taking{Tile: tile, Scope: "9.9.9.9", Country: "ps", Previous: tiles.owners[tile]})
 		tiles.owners[tile] = "ps"
 	}
-	book.Append(ledger.Taking{Tile: 4, Scope: "1.1.1.1", Country: "il", Previous: "ps"})
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 4, Scope: "1.1.1.1", Country: "il", Previous: "ps"})
 	tiles.owners[4] = "il"
 	tiles.owners[5] = ""
 
@@ -71,7 +79,7 @@ func setup(t *testing.T) (*inmemory_ledger_storage.Storage, *stubMap) {
 
 func TestItGivesBackOnlyTheTilesStillWearingThePaintInBatches(t *testing.T) {
 	book, tiles := setup(t)
-	useCase := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 2})
+	useCase := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2})
 
 	out, err := useCase.Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.NoError(t, err)
@@ -89,7 +97,7 @@ func TestItGivesBackOnlyTheTilesStillWearingThePaintInBatches(t *testing.T) {
 
 func TestADryRunCountsAndRestoresNothing(t *testing.T) {
 	book, tiles := setup(t)
-	useCase := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 2})
+	useCase := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2})
 
 	out, err := useCase.Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9", DryRun: true})
 	require.NoError(t, err)
@@ -104,7 +112,7 @@ func TestItGivesBackOnlyTheScopesLatestRunWhenTakesInterleave(t *testing.T) {
 	tiles := &stubMap{owners: map[uint32]string{7: "il", 8: "il"}}
 
 	take := func(tile uint32, scope, country string) {
-		book.Append(ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: tiles.owners[tile]})
+		book.Append(clicks.WorldStage, ledger.Taking{Tile: tile, Scope: scope, Country: country, Previous: tiles.owners[tile]})
 		tiles.owners[tile] = country
 	}
 	take(7, "9.9.9.9", "ps")
@@ -114,7 +122,7 @@ func TestItGivesBackOnlyTheScopesLatestRunWhenTakesInterleave(t *testing.T) {
 	take(8, "9.9.9.9", "ps")
 	take(8, "1.1.1.1", "il")
 
-	out, err := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 10}).
+	out, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
 		Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.NoError(t, err)
 
@@ -126,13 +134,13 @@ func TestItGivesBackOnlyTheScopesLatestRunWhenTakesInterleave(t *testing.T) {
 func TestItRefusesWhatIsNotAScope(t *testing.T) {
 	book, tiles := setup(t)
 
-	_, err := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "bot"})
+	_, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2}).Execute(t.Context(), revert_player_usecase.In{Scope: "bot"})
 	require.ErrorIs(t, err, ledger.ErrInvalidScope)
 }
 
 func TestItStopsWhenTheContextEndsAndSaysHowFarItGot(t *testing.T) {
 	book, tiles := setup(t)
-	useCase := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 2, Pause: time.Hour})
+	useCase := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 2, Pause: time.Hour})
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
@@ -149,21 +157,21 @@ func TestAnAccountIsRevertedWhateverScopeItTookFrom(t *testing.T) {
 	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	tiles := &stubMap{owners: map[uint32]string{1: "il", 2: "il", 3: "il"}}
 
-	book.Append(ledger.Taking{Tile: 1, Scope: "campus", Account: guest, Country: "ps", Previous: "il"})
-	book.Append(ledger.Taking{Tile: 2, Scope: "home", Account: guest, Country: "ps", Previous: "il"})
-	book.Append(ledger.Taking{Tile: 3, Scope: "campus", Account: "a-classmate", Country: "ps", Previous: "il"})
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "campus", Account: guest, Country: "ps", Previous: "il"})
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 2, Scope: "home", Account: guest, Country: "ps", Previous: "il"})
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 3, Scope: "campus", Account: "a-classmate", Country: "ps", Previous: "il"})
 	for tile := uint32(1); tile <= 3; tile++ {
 		tiles.owners[tile] = "ps"
 	}
 
-	out, err := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 10}).
+	out, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
 		Execute(t.Context(), revert_player_usecase.In{Account: guest})
 	require.NoError(t, err)
 
 	assert.Equal(t, revert_player_usecase.Out{Account: guest, Touched: 2, Held: 2, Restored: 2}, out)
 	assert.Equal(t, map[uint32]string{1: "il", 2: "il", 3: "ps"}, tiles.owners, "the classmate on the same scope keeps its tile")
 
-	again, err := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 10}).
+	again, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
 		Execute(t.Context(), revert_player_usecase.In{Account: guest})
 	require.NoError(t, err)
 	assert.Zero(t, again.Touched, "the account's takes are forgotten")
@@ -173,12 +181,12 @@ func TestAnAccountIsRevertedWhateverScopeItTookFrom(t *testing.T) {
 func TestItGivesTheBombersBlastBackToTheTilesStillEmpty(t *testing.T) {
 	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
 	tiles := &stubMap{owners: map[uint32]string{1: "", 2: "", 3: "fr"}}
-	book.Append(ledger.Bombing{Scope: "9.9.9.9", Blast: clicks.Blast{
+	book.Append(clicks.WorldStage, ledger.Bombing{Scope: "9.9.9.9", Blast: clicks.Blast{
 		Tile: 2, CountryID: "de", Cleared: []uint32{1, 2, 3}, Owners: []string{"il", "il", "ps"},
 	}})
-	book.Append(ledger.Taking{Tile: 3, Scope: "1.1.1.1", Country: "fr"})
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 3, Scope: "1.1.1.1", Country: "fr"})
 
-	out, err := revert_player_usecase.New(book, tiles, arenas.NewMemoryStore(), clicks.Pacing{Batch: 10}).
+	out, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
 		Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.NoError(t, err)
 
@@ -188,30 +196,30 @@ func TestItGivesTheBombersBlastBackToTheTilesStillEmpty(t *testing.T) {
 
 func TestARevertWaitsForTheWorldsMapWhileAnArenaPlays(t *testing.T) {
 	book, tiles := setup(t)
-	kept := arenas.NewMemoryStore()
-	require.NoError(t, kept.Open(t.Context(), arenas.Opening{ID: "battle", OpenedAt: time.Now(), EndsAt: time.Now().Add(time.Hour)}))
+	tiles.playing = clicks.MapID("battle").On(clicks.TestBoard)
 
-	_, err := revert_player_usecase.New(book, tiles, kept, clicks.Pacing{Batch: 10}).
+	_, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
 		Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9", DryRun: true})
 
 	require.ErrorIs(t, err, revert_player_usecase.ErrArenaPlays)
 	assert.Equal(t, 5, takenBy(book, "9.9.9.9"), "nothing forgotten")
 }
 
-func TestARevertAfterAnArenaUndoesNoneOfItsTakes(t *testing.T) {
+func TestARevertAfterAnArenaUndoesNoneOfItsTakesNorAnotherBoards(t *testing.T) {
 	book := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), slog.New(slog.DiscardHandler))
-	tiles := &stubMap{owners: map[uint32]string{1: "ps", 2: "ps"}}
+	tiles := &stubMap{owners: map[uint32]string{1: "ps", 2: "ps", 3: "ps"}}
 	at := time.Date(2026, 11, 11, 21, 0, 0, 0, time.UTC)
-	kept := arenas.NewMemoryStore()
-	require.NoError(t, kept.Open(t.Context(), arenas.Opening{ID: "battle", OpenedAt: at.Add(time.Minute), EndsAt: at.Add(time.Hour)}))
-	require.NoError(t, kept.Close(t.Context(), arenas.Closing{ID: "battle", ClosedAt: at.Add(time.Hour + 3*time.Second)}))
-	book.Append(ledger.Taking{Tile: 1, Scope: "9.9.9.9", Country: "ps", Previous: "il", At: at})
-	book.Append(ledger.Taking{Tile: 2, Scope: "9.9.9.9", Country: "ps", Previous: "", At: at.Add(10 * time.Minute)})
+	book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "9.9.9.9", Country: "ps", Previous: "il", At: at})
+	book.Append(clicks.MapID("battle").On(clicks.TestBoard),
+		ledger.Taking{Tile: 2, Scope: "9.9.9.9", Country: "ps", Previous: "", At: at.Add(10 * time.Minute)})
+	book.Append(clicks.World.On(clicks.TestBoard+1),
+		ledger.Taking{Tile: 3, Scope: "9.9.9.9", Country: "ps", Previous: "il", At: at.Add(20 * time.Minute)})
 
-	out, err := revert_player_usecase.New(book, tiles, kept, clicks.Pacing{Batch: 10}).
+	out, err := revert_player_usecase.New(book, tiles, clicks.Pacing{Batch: 10}).
 		Execute(t.Context(), revert_player_usecase.In{Scope: "9.9.9.9"})
 	require.NoError(t, err)
 
 	assert.Equal(t, 1, out.Restored)
-	assert.Equal(t, map[uint32]string{1: "il", 2: "ps"}, tiles.owners, "the world's tile 2 keeps its flag: the arena's take of it was no run")
+	assert.Equal(t, map[uint32]string{1: "il", 2: "ps", 3: "ps"}, tiles.owners,
+		"the world's tile 2 keeps its flag: the arena's take of it was no run; nor was tile 3 of another board")
 }

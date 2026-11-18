@@ -42,6 +42,8 @@ func AccountIDOf(value string) (cpsession.AccountID, error) {
 }
 
 type Sighting struct {
+	// The board the drawing's tiles are on.
+	Board   drawings.Board
 	Account cpsession.AccountID
 	Flag    string
 	Kind    Kind
@@ -51,6 +53,7 @@ type Sighting struct {
 
 type Graffiti struct {
 	id        ID
+	board     drawings.Board
 	account   cpsession.AccountID
 	flag      string
 	kind      Kind
@@ -60,9 +63,10 @@ type Graffiti struct {
 	link      string
 }
 
-// A graffiti whose painter was forgotten is never seen again.
+// A graffiti whose painter was forgotten is never seen again, nor one on another board: its tile ids are other places.
 func (g Graffiti) shows(seen Sighting) bool {
-	if g.account == cpsession.NoAccount || g.account != seen.Account || g.flag != seen.Flag || g.kind != seen.Kind {
+	if g.account == cpsession.NoAccount || g.account != seen.Account || g.flag != seen.Flag || g.kind != seen.Kind ||
+		g.board != seen.Board {
 		return false
 	}
 	for _, tile := range seen.Drawing.IDs() {
@@ -95,13 +99,15 @@ func AllAnonymized(painted []Graffiti) []Graffiti {
 
 func (g Graffiti) TakeSnapshot() Snapshot {
 	return Snapshot{
-		ID: g.id, Account: g.account, Flag: g.flag, Kind: g.kind, Tiles: slices.Clone(g.tiles),
+		ID: g.id, Board: g.board, Account: g.account, Flag: g.flag, Kind: g.kind, Tiles: slices.Clone(g.tiles),
 		FlaggedAt: g.flaggedAt, SeenAt: g.seenAt, Link: g.link,
 	}
 }
 
 type Snapshot struct {
 	ID ID
+	// The board its tiles are on.
+	Board drawings.Board
 	// NoAccount once the painter's account is forgotten.
 	Account   cpsession.AccountID
 	Flag      string
@@ -116,6 +122,8 @@ func (s Snapshot) Restore() (Graffiti, error) {
 	switch {
 	case s.ID == ID{}:
 		return Graffiti{}, fmt.Errorf("%w: no id", ErrInvalidGraffiti)
+	case s.Board == "":
+		return Graffiti{}, fmt.Errorf("%w: no board", ErrInvalidGraffiti)
 	case s.Flag == "":
 		return Graffiti{}, fmt.Errorf("%w: no flag", ErrInvalidGraffiti)
 	case !s.Kind.known():
@@ -131,7 +139,7 @@ func (s Snapshot) Restore() (Graffiti, error) {
 	}
 
 	return Graffiti{
-		id: s.ID, account: s.Account, flag: s.Flag, kind: s.Kind, tiles: slices.Clone(s.Tiles),
+		id: s.ID, board: s.Board, account: s.Account, flag: s.Flag, kind: s.Kind, tiles: slices.Clone(s.Tiles),
 		flaggedAt: s.FlaggedAt, seenAt: s.SeenAt, link: s.Link,
 	}, nil
 }

@@ -2,9 +2,11 @@
 
 `proto/` is the **single source of truth** for the API contract — every app generates its own bindings from it (nothing here is hand-copied between apps). One package per bounded context:
 
-- `proto/planet/v1/planet.proto` — the tile game (`ClickService`). Beside it, `totals.proto` is `LedgerTotals`, the
+- `proto/planet/v1/planet.proto` — the tile game (`ClickService`). Every answer that names tiles names their board by
+  name since 2026-11-17: `GetMapResponse.board`, the stream's opening `Heartbeat.board`, `MapHistory.eras`,
+  `GetReplayResponse.eras`, `GetLedgerResponse.board` and the vandal squad's `Graffiti.board` (see [Boards](boards.md)). Beside it, `totals.proto` is `LedgerTotals`, the
   ledger's acts of each kind in a window, which the internal `GetLedgerTotals` answers and the gamemaster relays, and
-  `history.proto` is `MapHistory`, the map every step of a window, when in the step each tile changed, and each tile's hits, which the internal
+  `history.proto` is `MapHistory`, the map every step of a window, when in the step each tile changed, each tile's hits, and the eras the window covers (`BoardEra`, each with its board's name, since 2026-11-17), which the internal
   `GetMapHistory` answers and the gamemaster relays as `GetSeasonReplay`, and which `ClickService/GetRecentMapHistory`
   answers for the last 24 hours, every 30 minutes (`TileOwner.account_id`, the account that made each change, is
   `reserved` since 2026-11-12: nothing read it once the player's video named the maker alone). `rules.proto` is `planet.v1.Rules`, a rule set

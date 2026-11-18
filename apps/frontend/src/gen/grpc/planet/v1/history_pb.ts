@@ -25,6 +25,14 @@ export class MapHistory extends Message<MapHistory> {
    */
   hits: TileHits[] = [];
 
+  /**
+   * The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
+   * started in it. A frame's tile ids are the board of the era in force at its time.
+   *
+   * @generated from field: repeated planet.v1.BoardEra eras = 3;
+   */
+  eras: BoardEra[] = [];
+
   constructor(data?: PartialMessage<MapHistory>) {
     super();
     proto3.util.initPartial(data, this);
@@ -35,6 +43,7 @@ export class MapHistory extends Message<MapHistory> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "frames", kind: "message", T: MapFrame, repeated: true },
     { no: 2, name: "hits", kind: "message", T: TileHits, repeated: true },
+    { no: 3, name: "eras", kind: "message", T: BoardEra, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MapHistory {
@@ -51,6 +60,53 @@ export class MapHistory extends Message<MapHistory> {
 
   static equals(a: MapHistory | PlainMessage<MapHistory> | undefined, b: MapHistory | PlainMessage<MapHistory> | undefined): boolean {
     return proto3.util.equals(MapHistory, a, b);
+  }
+}
+
+/**
+ * An era: a stretch of a map on one board, from started_at on.
+ *
+ * @generated from message planet.v1.BoardEra
+ */
+export class BoardEra extends Message<BoardEra> {
+  /**
+   * @generated from field: google.protobuf.Timestamp started_at = 1;
+   */
+  startedAt?: Timestamp;
+
+  /**
+   * The board's name, as /map/boards names it: "earth-1".
+   *
+   * @generated from field: string board = 2;
+   */
+  board = "";
+
+  constructor(data?: PartialMessage<BoardEra>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.BoardEra";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "started_at", kind: "message", T: Timestamp },
+    { no: 2, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BoardEra {
+    return new BoardEra().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BoardEra {
+    return new BoardEra().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BoardEra {
+    return new BoardEra().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BoardEra | PlainMessage<BoardEra> | undefined, b: BoardEra | PlainMessage<BoardEra> | undefined): boolean {
+    return proto3.util.equals(BoardEra, a, b);
   }
 }
 

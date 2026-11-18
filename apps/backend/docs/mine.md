@@ -108,7 +108,8 @@ map's freeze does not hold it back**: the take that set the mines off was played
 
 ## A restart
 
-**The mines are flushed with the tiles, in the same transaction** (`planet.mines`, by map: the tile, the flag, the
+**The mines are flushed with the tiles, in the same transaction** (`planet.mines`, by map, each row naming its board
+(see [Boards and eras](boards-and-eras.md)): the tile, the flag, the
 account and the scope of its player): each mine laid is upserted and each one gone is deleted, by the tiles that changed
 since the last flush. The boot reads them back with the tiles (`LoadMines`). **A mine set off in the second before a
 hard kill is lost**, with no blast, and a mine laid then too, as a bomb dropped: the hand is postgres, the map is memory.

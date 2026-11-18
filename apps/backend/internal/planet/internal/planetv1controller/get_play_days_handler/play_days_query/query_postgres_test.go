@@ -11,6 +11,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -49,6 +50,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
 }
 
 func (s *testSuite) record(events ...ledger.Event) {
@@ -60,6 +62,7 @@ func (s *testSuite) recordMarked(marks inmemory_ledger_storage.Marks, events ...
 	for i, event := range events {
 		entry, err := event.Entry()
 		s.Require().NoError(err)
+		entry.Stage = ledger.StageOf(event)
 		stored = append(stored, inmemory_ledger_storage.Stored{Position: ledger.Position(i), Entry: entry}) //nolint:gosec // a few events.
 	}
 	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{Entries: slices.Values(stored), Marks: marks}))

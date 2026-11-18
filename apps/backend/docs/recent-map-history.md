@@ -14,6 +14,8 @@ the window is the same for every caller. The page makes a player's video of its 
   enclose took, a bomb's clear (no `country_id`). A tile changed twice in a step shows its last change; a tile changed
   back within a step is in no frame.
 - **`hits`**: each tile's changes of owner and shield hits in the window, as in `GetMapHistory`.
+- **`eras`**: the world's eras the window covers, each with its board's name, as in `GetMapHistory` (see [Boards and
+  eras](boards-and-eras.md)).
 - **No account.** Until 2026-11-12 each change carried the account that made it (`TileOwner.account_id`, `reserved`
   now), for the video's end card, which named the flag's top players. A viewer knew none of them, so the end card names
   the maker alone, and nothing reads who made a change.
@@ -39,9 +41,10 @@ and a fortify change no owner.
   them.
 - **A reset in the window** starts the history at the first step at or after it (`Recent.Wiped`), on the blank map:
   the map before the reset is gone. A reset after `until` leaves no frame at all.
-- **It is the world's map**: an act made while an arena played is left out, and while an arena plays it rewinds from
-  the world's map as postgres keeps it (`Storage.Kept`), as `GetReplay` does. The frames stand still over a battle. See
-  [Arena battles](arenas.md#the-ledgers-readers).
+- **It is the world's map, on the board it plays**: each row names its map and its board, and an act made on an arena's
+  map, or on another board, is left out; while an arena plays it rewinds from the world's map as postgres keeps it
+  (`Storage.Kept`), as `GetReplay` does. The frames stand still over a battle. See [Arena
+  battles](arenas.md#the-ledgers-readers).
 
 ## What cannot be rewound
 

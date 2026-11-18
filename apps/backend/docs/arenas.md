@@ -1,8 +1,8 @@
 # Arena battles: a battle on a fresh map
 
 **A battle whose rule set has `arena.on` is an arena battle: it is fought on a fresh map, and the map from before comes
-back, tile for tile, when it ends** (the owner, 2026-11-09). The replays, the map history and the clips skip it: the
-world's map before and after it joins up (see [The ledger's readers](#the-ledgers-readers)).
+back, tile for tile, when it ends** (the owner, 2026-11-09). The replays, the map history and the clips skip it, by the
+map each event names: the world's map before and after it joins up (see [The ledger's readers](#the-ledgers-readers)).
 
 **An arena is a shell** (the owner, 2026-11-10). It switches the tile map that plays, which empties it, and it starts
 the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a battle plays on the fresh map is a knob
@@ -82,7 +82,8 @@ map already, and an arena opened then would keep the old season's map aside. Not
 
 **One table keeps every map** (`tiles` and `landmasses`, keyed by `map`): `world`, the game's own (`clicks.World`), and
 each open arena's, named by the arena's id (`arenas.ID.Map`). The tile map plays one at a time: memory holds it, the
-flush writes it, and the boot loads the open arena's map, or the world's (`Arena.Played`). Nothing is copied: the
+flush writes it, and the boot loads the open arena's map, or the world's (`Arena.Played`), on the board its era names
+(see [Boards and eras](boards-and-eras.md)). Nothing is copied: the
 world's rows stay as they are while an arena plays, and a column added to a tile, or a remap of the ids, reaches every
 map.
 
@@ -90,7 +91,8 @@ map.
   the set in force (it plays only once the arena opened): its `arena.freeze` and its seed ([Seeds](#seeds)). A set planet
   keeps none of, or one that cannot play, is refused. Then, under the flush lock and the tiles lock, `Storage.Blank`
   saves what changed to the world's map (the tiles not flushed yet), and `Persistence.Open` keeps the arena (`arenas`,
-  with its freeze) and writes the seed's tiles, in one transaction, and the arena's map plays. Memory is emptied as
+  with its freeze), starts its map's era on the board the world plays (`eras`, see [Boards and eras](boards-and-eras.md))
+  and writes the seed's tiles, in one transaction, and the arena's map plays. Memory is emptied as
   `Wipe` empties it: a new epoch and every stream cut, so every page reads the blank map again. **An arena opens once,
   never after it closed, never at or after its end, and never while another is open** (`Arena.Open`): a refusal is
   `FailedPrecondition`, logged at Error. An arena open already answers open.
@@ -105,8 +107,8 @@ map.
   detached from the request (`context.WithoutCancel`): a caller that gives up never stops a swap halfway. Planet orders
   them under the map's locks. Until 2026-11-11 they were one ordered command stream, `commands:planet.v1.ArenaCommand`,
   answered by `ArenaOpened` and `ArenaClosed` through planet's outbox, which went with them.
-- **Neither writes a ledger event.** The ledger keeps the battle's takes as any other; its readers tell them apart by
-  time (see [The ledger's readers](#the-ledgers-readers)).
+- **Neither writes a ledger event.** The ledger keeps the battle's takes as any other, each naming its map, the arena's
+  (see [The ledger's readers](#the-ledgers-readers)).
 - **The viruses stay with their map**: the world's are saved with its tiles as the arena opens and spread again once the
   world's map is back; the arena's go with its map (see [The virus](virus.md)). **So do the mines**: the arena's map has
   none, and the world's come back with it (see [The mine](mine.md)). **A rally is no map state**: its ring is a place on
@@ -199,36 +201,33 @@ set of the same name exists. Every value is edited on the backoffice.
 
 **The replays, the map history and the clips skip an arena: the world's map before it and after it joins up** (the
 owner, 2026-11-10; slice 5). A replay of the battle itself is not built. No ledger event marks the open or the close,
-and no copy of the ledger is made: each reader takes the stretches from planet's own rows (`arenas.opened_at`,
-`closed_arenas.closed_at`, `postgres_arena_store.Stretches`; an arena that never opened played no stretch).
+and no copy of the ledger is made: **every event names the map it was made on** (`ledger_events.map`, and its board;
+see [Boards and eras](boards-and-eras.md)), so a reader keeps the events of the map it reads. Until 2026-11-17 the
+readers told an arena's events apart by time, after its open and before the second it closed (`arenas.Stretch.Holds`,
+`arenas.Played`): the migration that made the column read those windows one last time.
 
-- **The one rule** (`arenas.Stretch.Holds`): a ledger entry was made on an arena's map when it is after the arena's
-  open and before the second it closed. The ledger keeps whole seconds and the rows full time: a world take right after
-  the close can share the close's second, and an arena take never can, since the freeze holds play from `ends_at −
-  freeze` until the close. `arenas.Maps` gathers the stretches: `World()` is when the world's map played (around every
-  stretch), `Playing()` when the map on screen now played (the open arena's since it opened, or the world's), and
-  `Played.Bounds` hands the same rule to SQL as two arrays of times.
-- **World readers keep only the world's entries**:
+- **World readers keep only the world's events**, on the board the world plays:
   - `GetReplay` (`replay_usecase`, `ledger.Footage`): no scene of an arena, so each tile opens on the world's flag and
-    the replay plays straight through the battle. **While an arena plays**, it rewinds from the world's map as postgres
-    keeps it (`Storage.Kept`: the world's rows on a board of their own, exact from the open on, since no flush writes
-    them). The answer lists each stretch of the window (`GetReplayResponse.asides`, `ReplayAside {opened_at,
-    closed_at}`, no close while it plays). The clips' replay, cast window and history read it; so does the backoffice's
-    replay file.
+    the replay plays straight through the battle. **While an arena plays** (the stage that plays is not the world's),
+    it rewinds from the world's map as postgres keeps it (`Storage.Kept`: the world's rows on a board of their own,
+    exact from the open on, since no flush writes them). The answer lists each stretch of the window
+    (`GetReplayResponse.asides`, `ReplayAside {opened_at, closed_at}`, no close while it plays), from planet's own rows
+    (`arenas.opened_at`, `closed_arenas.closed_at`, `postgres_arena_store.Stretches`). The clips' replay, cast window
+    and history read it; so does the backoffice's replay file.
   - `GetMapHistory` (`history_query`, `ledger.History`): the frames stand still over the battle, and no hit counts its
     fighting. It feeds the clips' sagas and chapters, and the gamemaster's `GetSeasonReplay` (the `/archive` replay and
     heatmap). An arena finale's 10-second replay shows the world's map standing still.
   - `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`): the frames stand still over the battle, as
     `GetMapHistory`'s, and while an arena plays it rewinds from the world's map kept, as `GetReplay` does. The players'
     videos read it (see [The map's last 24 hours](recent-map-history.md)).
-  - `GetLedger` (`changes_query`, in SQL, so a page still holds 20,000 events): the clips' cast names nobody for a take
-    in an arena, and the backoffice Home counts no battle's change as won or lost.
+  - `GetLedger` (`changes_query`, in SQL, `map = $5 AND board = $6`, so a page still holds 20,000 events): the clips'
+    cast names nobody for a take in an arena, and the backoffice Home counts no battle's change as won or lost.
   - `RevertPlayer` (`ledger.Runs`): an arena take neither breaks nor makes a run, so a revert after a battle never
     blanks a world tile its flag happens to wear. **Refused while an arena plays** (`ErrArenaPlays`,
     `FailedPrecondition`): `Forget` hides by position, and would hide the world's takes the revert did not undo.
-- **Map-that-plays readers keep the entries of the map on screen**: `GetTileHolder` (`holder_query`) and `GetLandmass`'s
-  last fortify (`landmass_query`). While an arena plays, a capital nobody took there names nobody; after it, no arena
-  take names a holder.
+- **Map-that-plays readers keep the events of the map on screen** (`Storage.Stage`): `GetTileHolder` (`holder_query`)
+  and `GetLandmass`'s last fortify (`landmass_query`). While an arena plays, a capital nobody took there names nobody;
+  after it, no arena take names a holder.
 - **The clip generator tells no round that ended in a stretch** (`roundStoryOf`, from the replay's `asides`): its
   fighting is in none of the replay, and the 3 hours before its end are the world's takes from before it.
 
@@ -246,7 +245,6 @@ count none: a fact counts only inside a day, and a battle is no day.
 - **`TopPlayers` and `FindPlayers`' tiles held** match each tile's last take in the ledger to the map that plays, arena
   takes included: just after a battle, a tile the arena's taker's flag also wears on the world's map counts as held.
   Telling them apart would take the arenas into `find_players_usecase`, past five ports.
-- **An arena with a freeze under 1 s** may read a take of its first second as the world's.
 - **A set with `arena.on` on a plain entry** plays its rules on the real map: nothing blanks, since only a battle is
   judged.
 - **A set with `arena.on` and a freeze of 0**: the fresh map plays the day's rules for the second before planet plays
@@ -263,10 +261,9 @@ count none: a fact counts only inside a day, and a battle is no day.
 
 ## Tests
 
-Slice 5: `arenas`' `maps_test.go` pins the rule at the open, at the close's second and for an open arena, the map that
-plays and the asides of a window; `StoreContractSuite` the stretches of every arena that opened. `ledger`'s
-`history_test.go`, `footage_test.go` and `ledger_test.go` pin a battle's takes and knock-out on no frame, no hit, no
-scene and no run; `replay_usecase` a replay across an arena and one while it plays, rewound from the world's map kept
+Slice 5 (by column since 2026-11-17): `arenas`' `maps_test.go` pins the asides of a window;
+`StoreContractSuite` the stretches of every arena that opened. `ledger`'s `history_test.go`, `footage_test.go` and
+`ledger_test.go` pin a battle's takes and knock-out, named on its map, on no frame, no hit, no scene and no run; `replay_usecase` a replay across an arena and one while it plays, rewound from the world's map kept
 (`inmemory_tile_storage`'s `kept_test.go`); `revert_player_usecase` the refusal and a revert after a battle that blanks
 no world tile; `history_query`, `changes_query`, `holder_query` and `landmass_query` the same on postgres, with their
 plans; the handlers the asides and the `FailedPrecondition`; the frontend's `round.test.ts` no round story in a stretch.

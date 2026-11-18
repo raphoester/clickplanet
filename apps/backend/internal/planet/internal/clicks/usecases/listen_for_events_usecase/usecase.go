@@ -20,13 +20,23 @@ import (
 // Must stay well under Cloudflare's ~125s idle cut, which kills a silent stream.
 const DefaultHeartbeat = 30 * time.Second
 
+// UpdatesSubscriber is the map that plays: a change of its stage starts a new epoch and cuts every stream, so a stage
+// read once subscribed is the stage of every change the stream hears.
 type UpdatesSubscriber interface {
 	Subscribe(ctx context.Context) (<-chan clicks.Change, clicks.MapVersion, error)
+	Stage() clicks.Stage
+}
+
+// Boards names a board by its row.
+type Boards interface {
+	Name(id clicks.BoardID) clicks.BoardName
 }
 
 type Event struct {
 	// The change's, or for a heartbeat the last one the stream sent.
-	Version       clicks.MapVersion
+	Version clicks.MapVersion
+	// The board the map plays, on the heartbeat the stream opens with.
+	Board         clicks.BoardName
 	Update        *clicks.TileUpdate
 	Blast         *clicks.Blast
 	Enclosure     *clicks.Enclosure
@@ -69,7 +79,8 @@ type Facts interface {
 }
 
 func New(
-	subscriber UpdatesSubscriber, heartbeat time.Duration, notices Notices, flags Flags, rules RulesFeed, facts Facts,
+	subscriber UpdatesSubscriber, boards Boards, heartbeat time.Duration, notices Notices, flags Flags, rules RulesFeed,
+	facts Facts,
 ) *UseCase {
 	if heartbeat <= 0 {
 		heartbeat = DefaultHeartbeat
@@ -77,6 +88,7 @@ func New(
 
 	return &UseCase{
 		subscriber: subscriber,
+		boards:     boards,
 		heartbeat:  heartbeat,
 		notices:    notices,
 		flags:      flags,
@@ -87,6 +99,7 @@ func New(
 
 type UseCase struct {
 	subscriber UpdatesSubscriber
+	boards     Boards
 	heartbeat  time.Duration
 	notices    Notices
 	flags      Flags
@@ -105,6 +118,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to tile updates: %w", err)
 	}
+	board := u.boards.Name(u.subscriber.Stage().Board)
 
 	payer := clicks.PayerOf(ctx)
 	caller := clicks.CallerOf(payer)
@@ -118,7 +132,7 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 	defer stopWatching()
 
 	// Connect writes nothing until the first Send, and the client resyncs on a stream's first event.
-	if err := sink.Send(Event{Heartbeat: true, Version: version}); err != nil {
+	if err := sink.Send(Event{Heartbeat: true, Version: version, Board: board}); err != nil {
 		return err
 	}
 

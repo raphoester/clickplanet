@@ -28,7 +28,10 @@ type MapHistory struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	Frames []*MapFrame            `protobuf:"bytes,1,rep,name=frames,proto3" json:"frames,omitempty"`
 	// Each tile's changes of owner and shield hits in the window; a tile with none is left out.
-	Hits          []*TileHits `protobuf:"bytes,2,rep,name=hits,proto3" json:"hits,omitempty"`
+	Hits []*TileHits `protobuf:"bytes,2,rep,name=hits,proto3" json:"hits,omitempty"`
+	// The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
+	// started in it. A frame's tile ids are the board of the era in force at its time.
+	Eras          []*BoardEra `protobuf:"bytes,3,rep,name=eras,proto3" json:"eras,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -77,6 +80,67 @@ func (x *MapHistory) GetHits() []*TileHits {
 	return nil
 }
 
+func (x *MapHistory) GetEras() []*BoardEra {
+	if x != nil {
+		return x.Eras
+	}
+	return nil
+}
+
+// An era: a stretch of a map on one board, from started_at on.
+type BoardEra struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	StartedAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	// The board's name, as /map/boards names it: "earth-1".
+	Board         string `protobuf:"bytes,2,opt,name=board,proto3" json:"board,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BoardEra) Reset() {
+	*x = BoardEra{}
+	mi := &file_planet_v1_history_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoardEra) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoardEra) ProtoMessage() {}
+
+func (x *BoardEra) ProtoReflect() protoreflect.Message {
+	mi := &file_planet_v1_history_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoardEra.ProtoReflect.Descriptor instead.
+func (*BoardEra) Descriptor() ([]byte, []int) {
+	return file_planet_v1_history_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *BoardEra) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *BoardEra) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
+}
+
 type MapFrame struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	At            *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=at,proto3" json:"at,omitempty"`
@@ -87,7 +151,7 @@ type MapFrame struct {
 
 func (x *MapFrame) Reset() {
 	*x = MapFrame{}
-	mi := &file_planet_v1_history_proto_msgTypes[1]
+	mi := &file_planet_v1_history_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -99,7 +163,7 @@ func (x *MapFrame) String() string {
 func (*MapFrame) ProtoMessage() {}
 
 func (x *MapFrame) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_history_proto_msgTypes[1]
+	mi := &file_planet_v1_history_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -112,7 +176,7 @@ func (x *MapFrame) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapFrame.ProtoReflect.Descriptor instead.
 func (*MapFrame) Descriptor() ([]byte, []int) {
-	return file_planet_v1_history_proto_rawDescGZIP(), []int{1}
+	return file_planet_v1_history_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MapFrame) GetAt() *timestamppb.Timestamp {
@@ -143,7 +207,7 @@ type TileOwner struct {
 
 func (x *TileOwner) Reset() {
 	*x = TileOwner{}
-	mi := &file_planet_v1_history_proto_msgTypes[2]
+	mi := &file_planet_v1_history_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -155,7 +219,7 @@ func (x *TileOwner) String() string {
 func (*TileOwner) ProtoMessage() {}
 
 func (x *TileOwner) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_history_proto_msgTypes[2]
+	mi := &file_planet_v1_history_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -168,7 +232,7 @@ func (x *TileOwner) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileOwner.ProtoReflect.Descriptor instead.
 func (*TileOwner) Descriptor() ([]byte, []int) {
-	return file_planet_v1_history_proto_rawDescGZIP(), []int{2}
+	return file_planet_v1_history_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TileOwner) GetTile() uint32 {
@@ -202,7 +266,7 @@ type TileHits struct {
 
 func (x *TileHits) Reset() {
 	*x = TileHits{}
-	mi := &file_planet_v1_history_proto_msgTypes[3]
+	mi := &file_planet_v1_history_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -214,7 +278,7 @@ func (x *TileHits) String() string {
 func (*TileHits) ProtoMessage() {}
 
 func (x *TileHits) ProtoReflect() protoreflect.Message {
-	mi := &file_planet_v1_history_proto_msgTypes[3]
+	mi := &file_planet_v1_history_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -227,7 +291,7 @@ func (x *TileHits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TileHits.ProtoReflect.Descriptor instead.
 func (*TileHits) Descriptor() ([]byte, []int) {
-	return file_planet_v1_history_proto_rawDescGZIP(), []int{3}
+	return file_planet_v1_history_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *TileHits) GetTile() uint32 {
@@ -248,11 +312,16 @@ var File_planet_v1_history_proto protoreflect.FileDescriptor
 
 const file_planet_v1_history_proto_rawDesc = "" +
 	"\n" +
-	"\x17planet/v1/history.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"b\n" +
+	"\x17planet/v1/history.proto\x12\tplanet.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8b\x01\n" +
 	"\n" +
 	"MapHistory\x12+\n" +
 	"\x06frames\x18\x01 \x03(\v2\x13.planet.v1.MapFrameR\x06frames\x12'\n" +
-	"\x04hits\x18\x02 \x03(\v2\x13.planet.v1.TileHitsR\x04hits\"d\n" +
+	"\x04hits\x18\x02 \x03(\v2\x13.planet.v1.TileHitsR\x04hits\x12'\n" +
+	"\x04eras\x18\x03 \x03(\v2\x13.planet.v1.BoardEraR\x04eras\"[\n" +
+	"\bBoardEra\x129\n" +
+	"\n" +
+	"started_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12\x14\n" +
+	"\x05board\x18\x02 \x01(\tR\x05board\"d\n" +
 	"\bMapFrame\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12,\n" +
 	"\x06owners\x18\x02 \x03(\v2\x14.planet.v1.TileOwnerR\x06owners\"|\n" +
@@ -280,24 +349,27 @@ func file_planet_v1_history_proto_rawDescGZIP() []byte {
 	return file_planet_v1_history_proto_rawDescData
 }
 
-var file_planet_v1_history_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_planet_v1_history_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_planet_v1_history_proto_goTypes = []any{
 	(*MapHistory)(nil),            // 0: planet.v1.MapHistory
-	(*MapFrame)(nil),              // 1: planet.v1.MapFrame
-	(*TileOwner)(nil),             // 2: planet.v1.TileOwner
-	(*TileHits)(nil),              // 3: planet.v1.TileHits
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*BoardEra)(nil),              // 1: planet.v1.BoardEra
+	(*MapFrame)(nil),              // 2: planet.v1.MapFrame
+	(*TileOwner)(nil),             // 3: planet.v1.TileOwner
+	(*TileHits)(nil),              // 4: planet.v1.TileHits
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_planet_v1_history_proto_depIdxs = []int32{
-	1, // 0: planet.v1.MapHistory.frames:type_name -> planet.v1.MapFrame
-	3, // 1: planet.v1.MapHistory.hits:type_name -> planet.v1.TileHits
-	4, // 2: planet.v1.MapFrame.at:type_name -> google.protobuf.Timestamp
-	2, // 3: planet.v1.MapFrame.owners:type_name -> planet.v1.TileOwner
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 0: planet.v1.MapHistory.frames:type_name -> planet.v1.MapFrame
+	4, // 1: planet.v1.MapHistory.hits:type_name -> planet.v1.TileHits
+	1, // 2: planet.v1.MapHistory.eras:type_name -> planet.v1.BoardEra
+	5, // 3: planet.v1.BoardEra.started_at:type_name -> google.protobuf.Timestamp
+	5, // 4: planet.v1.MapFrame.at:type_name -> google.protobuf.Timestamp
+	3, // 5: planet.v1.MapFrame.owners:type_name -> planet.v1.TileOwner
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_history_proto_init() }
@@ -311,7 +383,7 @@ func file_planet_v1_history_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_planet_v1_history_proto_rawDesc), len(file_planet_v1_history_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -50,9 +50,11 @@ type Change struct {
 // Tiles holds two little-endian bytes per tile, each an index into Codes.
 type DenseBatch struct {
 	Version MapVersion
-	Start   uint32
-	Codes   []string
-	Tiles   []byte
+	// The board the batch's tiles are on: the board the map plays, read with them.
+	Board BoardID
+	Start uint32
+	Codes []string
+	Tiles []byte
 
 	Shields []TileShields
 

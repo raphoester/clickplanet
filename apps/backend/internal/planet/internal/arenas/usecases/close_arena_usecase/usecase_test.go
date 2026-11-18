@@ -14,6 +14,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/usecases/open_arena_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rules/parts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/seeds"
@@ -31,6 +32,7 @@ type harness struct {
 	tiles   *inmemory_tile_storage.Storage
 	stored  *inmemory_tile_storage.MemoryPersistence
 	kept    *arenas.MemoryStore
+	eras    *eras.MemoryStore
 	inPlay  *arenas.InPlay
 	clock   *cptime.FixedClock
 	opening *open_arena_usecase.UseCase
@@ -45,14 +47,15 @@ func newHarness(t *testing.T) harness {
 	tiles := inmemory_tile_storage.New(clicks.BordersOf(100), clicks.NoCapitals(), inmemory_tile_storage.Config{}, stored,
 		cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, clock,
 		slog.New(slog.DiscardHandler))
-	require.NoError(t, tiles.Load(t.Context(), clicks.World))
+	require.NoError(t, tiles.Load(t.Context(), clicks.WorldStage))
 	kept := arenas.NewMemoryStore()
+	keptEras := eras.NewMemoryStore()
 	inPlay := arenas.NewInPlay(clock)
 	setups := arenas.NewSetups(cprules.NewMemoryStore(parts.All(), rules.Seeded()),
 		seeds.NewCatalog(seeds.Ground{Capitals: clicks.NewCapitals(map[string]uint32{})}))
 	return harness{
-		tiles: tiles, stored: stored, kept: kept, inPlay: inPlay, clock: clock,
-		opening: open_arena_usecase.New(tiles, setups, kept, inPlay, clock),
+		tiles: tiles, stored: stored, kept: kept, eras: keptEras, inPlay: inPlay, clock: clock,
+		opening: open_arena_usecase.New(tiles, setups, kept, keptEras, inPlay, clock),
 		useCase: close_arena_usecase.New(tiles, kept, inPlay, clock),
 	}
 }

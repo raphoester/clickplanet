@@ -10,6 +10,7 @@ import (
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rallies_handler/rallies_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/rallies"
@@ -41,6 +42,7 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
 	s.clock = cptime.NewFixedClock(now)
 	s.query = rallies_query.NewPostgresQuery(s.db, s.clock)
 }

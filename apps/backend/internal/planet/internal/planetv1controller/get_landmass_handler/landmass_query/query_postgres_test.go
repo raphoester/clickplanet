@@ -11,10 +11,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas/postgres_arena_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/inmemory_ledger_storage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
@@ -34,10 +33,16 @@ func TestRunSuite(t *testing.T) {
 type testSuite struct {
 	suite.Suite
 
-	db    *cppg.Postgres
-	store *postgres_ledger_store.Store
-	tiles *inmemory_tile_storage.Storage
+	db      *cppg.Postgres
+	store   *postgres_ledger_store.Store
+	tiles   *inmemory_tile_storage.Storage
+	playing clicks.Stage
 }
+
+// stage is the map that plays, on its board.
+type stage clicks.Stage
+
+func (s stage) Stage() clicks.Stage { return clicks.Stage(s) }
 
 const (
 	ada = "0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"
@@ -53,8 +58,10 @@ func (s *testSuite) SetupSuite() {
 
 func (s *testSuite) SetupTest() {
 	s.Require().NoError(s.db.Purge(s.T().Context()))
+	s.Require().NoError(eras.Reseed(s.T().Context(), s.db))
 	s.tiles = inmemory_tile_storage.New(clicks.BordersOf(10, []uint32{1, 2, 3}, []uint32{4}), clicks.NoCapitals(), inmemory_tile_storage.Config{},
 		inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+	s.playing = clicks.WorldStage
 }
 
 func (s *testSuite) record(events ...ledger.Event) {
@@ -62,6 +69,7 @@ func (s *testSuite) record(events ...ledger.Event) {
 	for i, event := range events {
 		entry, err := event.Entry()
 		s.Require().NoError(err)
+		entry.Stage = ledger.StageOf(event)
 		stored = append(stored, inmemory_ledger_storage.Stored{Position: ledger.Position(i), Entry: entry}) //nolint:gosec // a few events.
 	}
 	s.Require().NoError(s.store.Save(s.T().Context(), inmemory_ledger_storage.Changes{Entries: slices.Values(stored)}))
@@ -72,8 +80,8 @@ func (s *testSuite) take(account string, tile uint32, flag string) {
 }
 
 func (s *testSuite) landmass(landmass clicks.LandmassID) *planetv1.GetLandmassResponse {
-	answer, err := landmass_query.NewPostgresQuery(s.db, inmemory_tile_holders.New(s.tiles), postgres_arena_store.New(s.db),
-		cptime.NewFixedClock(at.Add(24*time.Hour))).Landmass(s.T().Context(), landmass)
+	answer, err := landmass_query.NewPostgresQuery(s.db, inmemory_tile_holders.New(s.tiles), stage(s.playing)).
+		Landmass(s.T().Context(), landmass)
 	s.Require().NoError(err)
 	return answer
 }
@@ -119,15 +127,20 @@ func (s *testSuite) TestTheHoldersAreTheTilesOfTheLandmassTheirTakesHold() {
 	s.True(proto.Equal(&planetv1.LandmassHolder{AccountId: bob, CountryId: "de", Tiles: 1}, holders[1]))
 }
 
-func (s *testSuite) TestTheLastFortifyIsOfTheMapThatPlays() {
-	ctx := s.T().Context()
-	kept := postgres_arena_store.New(s.db)
-	s.Require().NoError(kept.Open(ctx, arenas.Opening{ID: "battle", OpenedAt: at.Add(10 * time.Minute), EndsAt: at.Add(time.Hour)}))
-	s.record(fortify(1, ada, "fr", 0), fortify(1, bob, "br", 20))
+func (s *testSuite) TestTheLastFortifyIsOfTheMapThatPlaysOnItsBoard() {
+	battle := clicks.MapID("battle").On(clicks.TestBoard)
+	s.Require().NoError(eras.KeepRow(s.T().Context(), s.db, eras.Earth2))
+	s.record(
+		fortify(1, ada, "fr", 0),
+		ledger.Staged{On: battle, Event: fortify(1, bob, "br", 20)},
+		ledger.Staged{On: clicks.World.On(eras.Earth2.ID), Event: fortify(1, bob, "de", 30)},
+	)
+	s.playing = battle
 
 	s.Equal(bob, s.landmass(1).GetLastFortification().GetAccountId(), "while the arena plays, its own fortify")
 
-	s.Require().NoError(kept.Close(ctx, arenas.Closing{ID: "battle", ClosedAt: at.Add(time.Hour + 3*time.Second)}))
+	s.playing = clicks.WorldStage
 
-	s.Equal(ada, s.landmass(1).GetLastFortification().GetAccountId(), "once it closed, the world's")
+	s.Equal("fr", s.landmass(1).GetLastFortification().GetCountryId(),
+		"once it closed, the world's on its board: landmass 1 of another board is another place")
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/arenas"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger"
 )
@@ -36,9 +35,9 @@ func ownersOf(batch clicks.DenseBatch) []string {
 }
 
 func footageOf(since, until time.Time, events ...ledger.Event) *ledger.Footage {
-	footage := ledger.NewFootage(since, until, arenas.Played{})
+	footage := ledger.NewFootage(since, until, clicks.WorldStage)
 	for _, event := range events {
-		footage.See(event)
+		footage.See(clicks.WorldStage, event)
 	}
 	return footage
 }
@@ -154,23 +153,19 @@ func TestAnEnclosureShowsAsOneSceneWithItsTiles(t *testing.T) {
 }
 
 func TestAnArenasScenesAreLeftOutAndTheOpeningRewindsThroughTheWorldsAlone(t *testing.T) {
-	opened, closed := start.Add(10*time.Minute), start.Add(40*time.Minute)
-	world := arenas.MapsOf([]arenas.Stretch{{ID: "battle", OpenedAt: opened, ClosedAt: closed, Closed: true}}).World()
-	footage := ledger.NewFootage(start, start.Add(time.Hour), world)
-	for _, event := range []ledger.Event{
-		ledger.Taking{Tile: 1, Country: "fr", Previous: "it", At: start.Add(time.Minute)},
-		ledger.Taking{Tile: 2, Country: "br", Previous: "", At: opened.Add(time.Minute)},
-		ledger.Taking{Tile: 1, Country: "br", Previous: "", At: opened.Add(2 * time.Minute)},
-		ledger.Taking{Tile: 2, Country: "de", Previous: "pl", At: closed.Add(time.Minute)},
-	} {
-		footage.See(event)
-	}
+	battle := clicks.MapID("battle").On(clicks.TestBoard)
+	footage := ledger.NewFootage(start, start.Add(time.Hour), clicks.WorldStage)
+	footage.See(clicks.WorldStage, ledger.Taking{Tile: 1, Country: "fr", Previous: "it", At: start.Add(time.Minute)})
+	footage.See(battle, ledger.Taking{Tile: 2, Country: "br", Previous: "", At: start.Add(11 * time.Minute)})
+	footage.See(battle, ledger.Taking{Tile: 1, Country: "br", Previous: "", At: start.Add(12 * time.Minute)})
+	footage.See(clicks.World.On(clicks.TestBoard+1), ledger.Taking{Tile: 1, Country: "pl", Previous: "", At: start.Add(13 * time.Minute)})
+	footage.See(clicks.WorldStage, ledger.Taking{Tile: 2, Country: "de", Previous: "pl", At: start.Add(41 * time.Minute)})
 
 	assert.Equal(t, []string{"it", "pl"}, ownersOf(footage.Opening(denseOf("fr", "de"))),
 		"tile 2 opens on the world's flag, not the arena's blank")
 	scenes := footage.Scenes()
-	if assert.Len(t, scenes, 2) {
+	if assert.Len(t, scenes, 2, "the arena's scenes and another board's are none of the world's") {
 		assert.Equal(t, start.Add(time.Minute), scenes[0].At)
-		assert.Equal(t, closed.Add(time.Minute), scenes[1].At)
+		assert.Equal(t, start.Add(41*time.Minute), scenes[1].At)
 	}
 }

@@ -86,7 +86,10 @@ type GetReplayResponse struct {
 	Until  *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=until,proto3" json:"until,omitempty"`
 	// Each stretch of the window an arena's map played instead of the world's, whose takes are left out; the world's map
 	// came back as it was.
-	Asides        []*ReplayAside `protobuf:"bytes,5,rep,name=asides,proto3" json:"asides,omitempty"`
+	Asides []*ReplayAside `protobuf:"bytes,5,rep,name=asides,proto3" json:"asides,omitempty"`
+	// The eras of the world's map the window covers, oldest first: the one it played at since, then each that started
+	// in the window. An event's tile ids are the board of the era in force at its time.
+	Eras          []*BoardEra `protobuf:"bytes,6,rep,name=eras,proto3" json:"eras,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -152,6 +155,13 @@ func (x *GetReplayResponse) GetUntil() *timestamppb.Timestamp {
 func (x *GetReplayResponse) GetAsides() []*ReplayAside {
 	if x != nil {
 		return x.Asides
+	}
+	return nil
+}
+
+func (x *GetReplayResponse) GetEras() []*BoardEra {
+	if x != nil {
+		return x.Eras
 	}
 	return nil
 }
@@ -1233,16 +1243,17 @@ var File_planet_v1_admin_proto protoreflect.FileDescriptor
 
 const file_planet_v1_admin_proto_rawDesc = "" +
 	"\n" +
-	"\x15planet/v1/admin.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18planet/v1/internal.proto\x1a\x16planet/v1/ledger.proto\x1a\x16planet/v1/planet.proto\x1a\x15planet/v1/rules.proto\"v\n" +
+	"\x15planet/v1/admin.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17planet/v1/history.proto\x1a\x18planet/v1/internal.proto\x1a\x16planet/v1/ledger.proto\x1a\x16planet/v1/planet.proto\x1a\x15planet/v1/rules.proto\"v\n" +
 	"\x10GetReplayRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
-	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"\x8e\x02\n" +
+	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\"\xb7\x02\n" +
 	"\x11GetReplayResponse\x123\n" +
 	"\aopening\x18\x01 \x01(\v2\x19.planet.v1.GetMapResponseR\aopening\x120\n" +
 	"\x06events\x18\x02 \x03(\v2\x18.planet.v1.ReplayedEventR\x06events\x120\n" +
 	"\x05since\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12.\n" +
-	"\x06asides\x18\x05 \x03(\v2\x16.planet.v1.ReplayAsideR\x06asides\"\x7f\n" +
+	"\x06asides\x18\x05 \x03(\v2\x16.planet.v1.ReplayAsideR\x06asides\x12'\n" +
+	"\x04eras\x18\x06 \x03(\v2\x13.planet.v1.BoardEraR\x04eras\"\x7f\n" +
 	"\vReplayAside\x127\n" +
 	"\topened_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bopenedAt\x127\n" +
 	"\tclosed_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\bclosedAt\"i\n" +
@@ -1376,14 +1387,15 @@ var file_planet_v1_admin_proto_goTypes = []any{
 	(*SaveRuleSetResponse)(nil),       // 19: planet.v1.SaveRuleSetResponse
 	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
 	(*GetMapResponse)(nil),            // 21: planet.v1.GetMapResponse
-	(*PlanetEvent)(nil),               // 22: planet.v1.PlanetEvent
-	(*ChargesHeld)(nil),               // 23: planet.v1.ChargesHeld
-	(*durationpb.Duration)(nil),       // 24: google.protobuf.Duration
-	(*Rules)(nil),                     // 25: planet.v1.Rules
-	(*GetLedgerRequest)(nil),          // 26: planet.v1.GetLedgerRequest
-	(*GetTerritoriesRequest)(nil),     // 27: planet.v1.GetTerritoriesRequest
-	(*GetLedgerResponse)(nil),         // 28: planet.v1.GetLedgerResponse
-	(*GetTerritoriesResponse)(nil),    // 29: planet.v1.GetTerritoriesResponse
+	(*BoardEra)(nil),                  // 22: planet.v1.BoardEra
+	(*PlanetEvent)(nil),               // 23: planet.v1.PlanetEvent
+	(*ChargesHeld)(nil),               // 24: planet.v1.ChargesHeld
+	(*durationpb.Duration)(nil),       // 25: google.protobuf.Duration
+	(*Rules)(nil),                     // 26: planet.v1.Rules
+	(*GetLedgerRequest)(nil),          // 27: planet.v1.GetLedgerRequest
+	(*GetTerritoriesRequest)(nil),     // 28: planet.v1.GetTerritoriesRequest
+	(*GetLedgerResponse)(nil),         // 29: planet.v1.GetLedgerResponse
+	(*GetTerritoriesResponse)(nil),    // 30: planet.v1.GetTerritoriesResponse
 }
 var file_planet_v1_admin_proto_depIdxs = []int32{
 	20, // 0: planet.v1.GetReplayRequest.since:type_name -> google.protobuf.Timestamp
@@ -1393,46 +1405,47 @@ var file_planet_v1_admin_proto_depIdxs = []int32{
 	20, // 4: planet.v1.GetReplayResponse.since:type_name -> google.protobuf.Timestamp
 	20, // 5: planet.v1.GetReplayResponse.until:type_name -> google.protobuf.Timestamp
 	2,  // 6: planet.v1.GetReplayResponse.asides:type_name -> planet.v1.ReplayAside
-	20, // 7: planet.v1.ReplayAside.opened_at:type_name -> google.protobuf.Timestamp
-	20, // 8: planet.v1.ReplayAside.closed_at:type_name -> google.protobuf.Timestamp
-	20, // 9: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
-	22, // 10: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
-	23, // 11: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
-	23, // 12: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
-	12, // 13: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
-	12, // 14: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
-	20, // 15: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
-	20, // 16: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
-	20, // 17: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
-	24, // 18: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
-	17, // 19: planet.v1.GetRulesResponse.sets:type_name -> planet.v1.RuleSet
-	25, // 20: planet.v1.RuleSet.rules:type_name -> planet.v1.Rules
-	17, // 21: planet.v1.SaveRuleSetRequest.set:type_name -> planet.v1.RuleSet
-	8,  // 22: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
-	10, // 23: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
-	13, // 24: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
-	4,  // 25: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
-	0,  // 26: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
-	6,  // 27: planet.v1.AdminService.ReleaseAllegiance:input_type -> planet.v1.ReleaseAllegianceRequest
-	26, // 28: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
-	27, // 29: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
-	15, // 30: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
-	18, // 31: planet.v1.AdminService.SaveRuleSet:input_type -> planet.v1.SaveRuleSetRequest
-	9,  // 32: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
-	11, // 33: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
-	14, // 34: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
-	5,  // 35: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
-	1,  // 36: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
-	7,  // 37: planet.v1.AdminService.ReleaseAllegiance:output_type -> planet.v1.ReleaseAllegianceResponse
-	28, // 38: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
-	29, // 39: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
-	16, // 40: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
-	19, // 41: planet.v1.AdminService.SaveRuleSet:output_type -> planet.v1.SaveRuleSetResponse
-	32, // [32:42] is the sub-list for method output_type
-	22, // [22:32] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	22, // 7: planet.v1.GetReplayResponse.eras:type_name -> planet.v1.BoardEra
+	20, // 8: planet.v1.ReplayAside.opened_at:type_name -> google.protobuf.Timestamp
+	20, // 9: planet.v1.ReplayAside.closed_at:type_name -> google.protobuf.Timestamp
+	20, // 10: planet.v1.ReplayedEvent.at:type_name -> google.protobuf.Timestamp
+	23, // 11: planet.v1.ReplayedEvent.event:type_name -> planet.v1.PlanetEvent
+	24, // 12: planet.v1.GrantChargesResponse.before:type_name -> planet.v1.ChargesHeld
+	24, // 13: planet.v1.GrantChargesResponse.after:type_name -> planet.v1.ChargesHeld
+	12, // 14: planet.v1.FindPlayersResponse.players:type_name -> planet.v1.Player
+	12, // 15: planet.v1.TopPlayersResponse.players:type_name -> planet.v1.Player
+	20, // 16: planet.v1.Player.first_at:type_name -> google.protobuf.Timestamp
+	20, // 17: planet.v1.Player.last_at:type_name -> google.protobuf.Timestamp
+	20, // 18: planet.v1.Player.banned_until:type_name -> google.protobuf.Timestamp
+	25, // 19: planet.v1.Player.active_for:type_name -> google.protobuf.Duration
+	17, // 20: planet.v1.GetRulesResponse.sets:type_name -> planet.v1.RuleSet
+	26, // 21: planet.v1.RuleSet.rules:type_name -> planet.v1.Rules
+	17, // 22: planet.v1.SaveRuleSetRequest.set:type_name -> planet.v1.RuleSet
+	8,  // 23: planet.v1.AdminService.FindPlayers:input_type -> planet.v1.FindPlayersRequest
+	10, // 24: planet.v1.AdminService.TopPlayers:input_type -> planet.v1.TopPlayersRequest
+	13, // 25: planet.v1.AdminService.RevertPlayer:input_type -> planet.v1.RevertPlayerRequest
+	4,  // 26: planet.v1.AdminService.GrantCharges:input_type -> planet.v1.GrantChargesRequest
+	0,  // 27: planet.v1.AdminService.GetReplay:input_type -> planet.v1.GetReplayRequest
+	6,  // 28: planet.v1.AdminService.ReleaseAllegiance:input_type -> planet.v1.ReleaseAllegianceRequest
+	27, // 29: planet.v1.AdminService.GetLedger:input_type -> planet.v1.GetLedgerRequest
+	28, // 30: planet.v1.AdminService.GetTerritories:input_type -> planet.v1.GetTerritoriesRequest
+	15, // 31: planet.v1.AdminService.GetRules:input_type -> planet.v1.GetRulesRequest
+	18, // 32: planet.v1.AdminService.SaveRuleSet:input_type -> planet.v1.SaveRuleSetRequest
+	9,  // 33: planet.v1.AdminService.FindPlayers:output_type -> planet.v1.FindPlayersResponse
+	11, // 34: planet.v1.AdminService.TopPlayers:output_type -> planet.v1.TopPlayersResponse
+	14, // 35: planet.v1.AdminService.RevertPlayer:output_type -> planet.v1.RevertPlayerResponse
+	5,  // 36: planet.v1.AdminService.GrantCharges:output_type -> planet.v1.GrantChargesResponse
+	1,  // 37: planet.v1.AdminService.GetReplay:output_type -> planet.v1.GetReplayResponse
+	7,  // 38: planet.v1.AdminService.ReleaseAllegiance:output_type -> planet.v1.ReleaseAllegianceResponse
+	29, // 39: planet.v1.AdminService.GetLedger:output_type -> planet.v1.GetLedgerResponse
+	30, // 40: planet.v1.AdminService.GetTerritories:output_type -> planet.v1.GetTerritoriesResponse
+	16, // 41: planet.v1.AdminService.GetRules:output_type -> planet.v1.GetRulesResponse
+	19, // 42: planet.v1.AdminService.SaveRuleSet:output_type -> planet.v1.SaveRuleSetResponse
+	33, // [33:43] is the sub-list for method output_type
+	23, // [23:33] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_planet_v1_admin_proto_init() }
@@ -1440,6 +1453,7 @@ func file_planet_v1_admin_proto_init() {
 	if File_planet_v1_admin_proto != nil {
 		return
 	}
+	file_planet_v1_history_proto_init()
 	file_planet_v1_internal_proto_init()
 	file_planet_v1_ledger_proto_init()
 	file_planet_v1_planet_proto_init()

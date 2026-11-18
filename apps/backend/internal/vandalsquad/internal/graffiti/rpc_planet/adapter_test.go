@@ -93,16 +93,17 @@ func TestAnAnswerShortOfATileIsAnError(t *testing.T) {
 
 func TestTheTakesAreEveryTileAPlayerTookOnEveryPageOfTheLedger(t *testing.T) {
 	asked := &planet{pages: []*planetv1.GetLedgerResponse{
-		{Changes: []*planetv1.LedgerChange{
+		{Board: "earth-1", Changes: []*planetv1.LedgerChange{
 			change(ana, 1, "ro", "cz", 0),
 			change(ana, 2, "ro", "", 0),
 		}, NextPage: "20000"},
-		{Changes: []*planetv1.LedgerChange{change(ana, 3, "fr", "ro", 0)}},
+		{Board: "earth-1", Changes: []*planetv1.LedgerChange{change(ana, 3, "fr", "ro", 0)}},
 	}}
 
-	takes, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
+	board, takes, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
 
 	require.NoError(t, err)
+	assert.Equal(t, drawings.Board("earth-1"), board)
 	account := cpsession.AccountID(uuid.MustParse(ana))
 	assert.Equal(t, []paint.Take{
 		{Account: account, Tile: 1, Flag: "ro", At: at},
@@ -117,23 +118,34 @@ func TestTheTakesAreEveryTileAPlayerTookOnEveryPageOfTheLedger(t *testing.T) {
 }
 
 func TestAStrikeAShieldAClearOrAChangeOfNoAccountIsNoTake(t *testing.T) {
-	asked := &planet{pages: []*planetv1.GetLedgerResponse{{Changes: []*planetv1.LedgerChange{
+	asked := &planet{pages: []*planetv1.GetLedgerResponse{{Board: "earth-1", Changes: []*planetv1.LedgerChange{
 		change(ana, 1, "cz", "cz", 3),
 		change(ana, 2, "ro", "ro", 5),
 		change(ana, 3, "", "ro", 0),
 		change("", 4, "ro", "cz", 0),
 	}}}}
 
-	takes, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
+	_, takes, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
 
 	require.NoError(t, err)
 	assert.Empty(t, takes)
 }
 
 func TestALedgerNamingANonsenseTakerIsAnError(t *testing.T) {
-	asked := &planet{pages: []*planetv1.GetLedgerResponse{{Changes: []*planetv1.LedgerChange{change("nobody", 1, "ro", "cz", 0)}}}}
+	asked := &planet{pages: []*planetv1.GetLedgerResponse{{Board: "earth-1", Changes: []*planetv1.LedgerChange{change("nobody", 1, "ro", "cz", 0)}}}}
 
-	_, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
+	_, _, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
 
 	assert.ErrorContains(t, err, `planet's ledger named a taker "nobody"`)
+}
+
+func TestALedgerReadWhosePagesNameTwoBoardsIsRefused(t *testing.T) {
+	asked := &planet{pages: []*planetv1.GetLedgerResponse{
+		{Board: "earth-1", Changes: []*planetv1.LedgerChange{change(ana, 1, "ro", "cz", 0)}, NextPage: "20000"},
+		{Board: "earth-2", Changes: []*planetv1.LedgerChange{change(ana, 3, "fr", "ro", 0)}},
+	}}
+
+	_, _, err := rpc_planet.New(asked).Takes(t.Context(), at.Add(-time.Hour), at)
+
+	assert.ErrorIs(t, err, rpc_planet.ErrBoardMoved, "tile ids of two boards are no one drawing")
 }

@@ -38,14 +38,14 @@ func (s *Store) Save(ctx context.Context, saved ...graffiti.Graffiti) error {
 
 func write(ctx context.Context, tx cppg.Querier, kept graffiti.Snapshot) error {
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO graffiti (id, account, flag, kind, tiles, flagged_at, seen_at, link)
-		VALUES ($1, $2, $3, $4::graffiti_kind, $5, $6, $7, $8)
+		INSERT INTO graffiti (id, board, account, flag, kind, tiles, flagged_at, seen_at, link)
+		VALUES ($1, $2, $3, $4, $5::graffiti_kind, $6, $7, $8, $9)
 		ON CONFLICT (id) DO UPDATE SET
-			account = EXCLUDED.account, flag = EXCLUDED.flag, kind = EXCLUDED.kind, tiles = EXCLUDED.tiles,
-			flagged_at = EXCLUDED.flagged_at, seen_at = EXCLUDED.seen_at, link = EXCLUDED.link
+			board = EXCLUDED.board, account = EXCLUDED.account, flag = EXCLUDED.flag, kind = EXCLUDED.kind,
+			tiles = EXCLUDED.tiles, flagged_at = EXCLUDED.flagged_at, seen_at = EXCLUDED.seen_at, link = EXCLUDED.link
 	`,
-		uuid.UUID(kept.ID), accountOf(kept.Account), kept.Flag, string(kept.Kind), pq.Array(tilesOf(kept.Tiles)),
-		kept.FlaggedAt.UTC(), kept.SeenAt.UTC(), kept.Link,
+		uuid.UUID(kept.ID), string(kept.Board), accountOf(kept.Account), kept.Flag, string(kept.Kind),
+		pq.Array(tilesOf(kept.Tiles)), kept.FlaggedAt.UTC(), kept.SeenAt.UTC(), kept.Link,
 	); err != nil {
 		return fmt.Errorf("failed to upsert a graffiti: %w", err)
 	}
@@ -54,7 +54,7 @@ func write(ctx context.Context, tx cppg.Querier, kept graffiti.Snapshot) error {
 
 func (s *Store) PaintedBy(ctx context.Context, account cpsession.AccountID) ([]graffiti.Graffiti, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
-		SELECT id, account, flag, kind, tiles, flagged_at, seen_at, link
+		SELECT id, board, account, flag, kind, tiles, flagged_at, seen_at, link
 		FROM graffiti
 		WHERE account = $1
 		ORDER BY flagged_at, id
@@ -86,11 +86,12 @@ func scan(row interface{ Scan(dest ...any) error }) (graffiti.Snapshot, error) {
 	var (
 		id                uuid.UUID
 		account           uuid.NullUUID
+		board             drawings.Board
 		flag, kind, link  string
 		tiles             pq.Int64Array
 		flagged, lastSeen time.Time
 	)
-	if err := row.Scan(&id, &account, &flag, &kind, &tiles, &flagged, &lastSeen, &link); err != nil {
+	if err := row.Scan(&id, &board, &account, &flag, &kind, &tiles, &flagged, &lastSeen, &link); err != nil {
 		return graffiti.Snapshot{}, fmt.Errorf("failed to read a graffiti: %w", err)
 	}
 
@@ -103,7 +104,7 @@ func scan(row interface{ Scan(dest ...any) error }) (graffiti.Snapshot, error) {
 		owner = cpsession.AccountID(account.UUID)
 	}
 	return graffiti.Snapshot{
-		ID: graffiti.ID(id), Account: owner, Flag: flag, Kind: graffiti.Kind(kind), Tiles: ids,
+		ID: graffiti.ID(id), Board: board, Account: owner, Flag: flag, Kind: graffiti.Kind(kind), Tiles: ids,
 		FlaggedAt: flagged.UTC(), SeenAt: lastSeen.UTC(), Link: link,
 	}, nil
 }

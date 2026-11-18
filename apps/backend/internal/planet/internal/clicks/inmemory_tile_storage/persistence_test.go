@@ -18,7 +18,7 @@ func (s *testSuite) TestLoadRestoresTheMapAndTheShares() {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(rows)
 
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(context.Background(), clicks.World))
+	s.Require().NoError(storage.Load(context.Background(), clicks.WorldStage))
 
 	state, err := stateBatch(storage, 0, maxIndex)
 	s.Require().NoError(err)
@@ -31,11 +31,36 @@ func (s *testSuite) TestLoadSkipsTilesPastTheEndOfTheMap() {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{10: "fr", maxIndex + 1: "us"})
 
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(context.Background(), clicks.World))
+	s.Require().NoError(storage.Load(context.Background(), clicks.WorldStage))
 
 	state, err := stateBatch(storage, 0, maxIndex)
 	s.Require().NoError(err)
 	s.Equal(map[uint32]string{10: "fr"}, state)
+}
+
+func (s *testSuite) TestALoadRefusesAMapWhoseRowsNameAnotherBoard() {
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr"})
+	persistence.Remapped(clicks.World, clicks.TestBoard+1)
+
+	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+
+	err := storage.Load(context.Background(), clicks.WorldStage)
+	s.Require().ErrorIs(err, inmemory_tile_storage.ErrOtherBoard, "ids of another board would land on other ground")
+	owner, _ := storage.Owner(1)
+	s.Empty(owner, "nothing of it is played")
+}
+
+func (s *testSuite) TestAFlushNamesTheBoardTheMapPlays() {
+	ctx := context.Background()
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
+	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	s.Require().NoError(storage.Load(ctx, clicks.World.On(clicks.TestBoard+1)))
+
+	s.Require().NoError(storage.Set(ctx, 1, "fr"))
+	s.Require().NoError(storage.Flush(ctx))
+
+	s.Equal(clicks.TestBoard+1, persistence.BoardOn(clicks.World))
+	s.Equal(clicks.World.On(clicks.TestBoard+1), storage.Stage())
 }
 
 func (s *testSuite) TestAFailedLoadRefusesTheBoot() {
@@ -44,7 +69,7 @@ func (s *testSuite) TestAFailedLoadRefusesTheBoot() {
 
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
 
-	s.Require().ErrorContains(storage.Load(context.Background(), clicks.World), "connection refused")
+	s.Require().ErrorContains(storage.Load(context.Background(), clicks.WorldStage), "connection refused")
 }
 
 func (s *testSuite) TestFlushWritesEachChangedTileOnceAsItIsNow() {
@@ -68,7 +93,7 @@ func (s *testSuite) TestFlushWritesEachChangedTileOnceAsItIsNow() {
 func (s *testSuite) TestShieldsAreKeptWithTheirTileAndGoneWithItsFlag() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
-	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 
 	s.Require().NoError(storage.Set(ctx, 1, "fr"))
 	s.Require().NoError(storage.Set(ctx, 2, "fr"))
@@ -82,7 +107,7 @@ func (s *testSuite) TestShieldsAreKeptWithTheirTileAndGoneWithItsFlag() {
 	s.Equal(map[uint32]int{1: 2}, persistence.StoredShields(), "a tile that changed hands lost its shields")
 
 	restarted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(restarted.Load(ctx, clicks.World))
+	s.Require().NoError(restarted.Load(ctx, clicks.WorldStage))
 	s.Equal(2, restarted.Shields(1))
 	s.Zero(restarted.Shields(2))
 }
@@ -175,7 +200,7 @@ func (s *testSuite) TestRunFlushesOnItsInterval() {
 func (s *testSuite) TestAFortifiedLandmassStaysLockedAcrossARestart() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
-	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 	for _, tile := range island {
 		s.Require().NoError(storage.Set(ctx, tile, "fr"))
 	}
@@ -184,7 +209,7 @@ func (s *testSuite) TestAFortifiedLandmassStaysLockedAcrossARestart() {
 	s.Require().NoError(storage.Flush(ctx))
 
 	restarted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(restarted.Load(ctx, clicks.World))
+	s.Require().NoError(restarted.Load(ctx, clicks.WorldStage))
 	s.Require().NoError(restarted.Set(ctx, 90_001, "de"))
 	s.Require().NoError(restarted.Set(ctx, 90_001, "fr"))
 	_, err = restarted.Fortify(ctx, 90_001, "fr", 10)
@@ -198,7 +223,7 @@ func (s *testSuite) TestAWholeLandmassNobodyFortifiedIsLockedToItsHolderAtLoad()
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "fr", 90_002: "fr", 90_003: "fr"})
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(ctx, clicks.World))
+	s.Require().NoError(storage.Load(ctx, clicks.WorldStage))
 	s.Require().NoError(storage.Flush(ctx))
 
 	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
@@ -213,7 +238,7 @@ func (s *testSuite) TestALockKeptForAnotherMapIsIgnored() {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "de", 90_002: "fr", 90_003: "fr"})
 	persistence.Fortified("borders-older.bin", 1, "fr")
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(storage.Load(ctx, clicks.World))
+	s.Require().NoError(storage.Load(ctx, clicks.WorldStage))
 	s.Require().NoError(storage.Set(ctx, 90_001, "fr"))
 
 	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
@@ -225,7 +250,7 @@ func (s *testSuite) TestAHolderIsFlushedWithItsTileAndReadBackAtBoot() {
 	ana := cpsession.AccountID(uuid.New())
 	asAna := cpctx.AddAccountToContext(context.Background(), ana.String())
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
-	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 	s.Require().NoError(storage.Click(asAna, island[0], "fr"))
 	s.Require().NoError(storage.Set(context.Background(), island[1], "fr"))
 
@@ -233,7 +258,7 @@ func (s *testSuite) TestAHolderIsFlushedWithItsTileAndReadBackAtBoot() {
 	s.Equal(map[uint32]cpsession.AccountID{island[0]: ana}, persistence.StoredHolders())
 
 	booted := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
-	s.Require().NoError(booted.Load(context.Background(), clicks.World))
+	s.Require().NoError(booted.Load(context.Background(), clicks.WorldStage))
 	s.Equal([]clicks.Holding{{Account: ana, Flag: "fr", Tiles: 1}}, booted.HoldingsOf(1))
 }
 

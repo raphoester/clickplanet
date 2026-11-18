@@ -22,8 +22,8 @@ func TestMain(m *testing.M) { server.Run(m) }
 func TestAPageOfAccountsIsFoundThroughTheAccountIndex(t *testing.T) {
 	db := server.CreateDatabase(t).OpenSchema(t, "planet", migrations.FS)
 	_, err := db.On(t.Context()).ExecContext(t.Context(), `
-		INSERT INTO ledger_events (position, kind, tile, scope, country, previous, taken_at, account)
-		SELECT n, 'take'::ledger_event_kind, n % 260503 + 1, NULL, 'fr', 'de', now() - (n % 40) * interval '1 day',
+		INSERT INTO ledger_events (position, map, board, kind, tile, scope, country, previous, taken_at, account)
+		SELECT n, 'world', 1, 'take'::ledger_event_kind, n % 260503 + 1, NULL, 'fr', 'de', now() - (n % 40) * interval '1 day',
 			md5((n % 5000)::text)::uuid
 		FROM generate_series(0, 199999) n`)
 	require.NoError(t, err)

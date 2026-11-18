@@ -206,7 +206,7 @@ export class DemoAdmin extends FakeAdmin {
         // player, and one the operator judged none, which a person must clear by eye.
         const painters = this.accounts.filter(account => account.name !== "")
         this.graffiti = DEMO_GRAFFITI.map(({tiles, flag, hoursAgo, painter, place}) => new Graffiti({
-            accountId: painters[painter].id, countryId: flag, kind: GraffitiKind.SWASTIKA, tileIds: tiles,
+            board: "earth-1", accountId: painters[painter].id, countryId: flag, kind: GraffitiKind.SWASTIKA, tileIds: tiles,
             flaggedAt: at(NOW - hoursAgo * HOUR), seenAt: at(NOW - hoursAgo * HOUR + 40 * MINUTE),
             link: `https://clickplanet.lol/play?lat=${place[0]}&lon=${place[1]}&zoom=20.0`,
         }))

@@ -27,6 +27,10 @@ and `antibot.v1.AdminService/InspectPlayer` for where each painter stands.
   even when it still stands. The globe link shows the map now.
 - **The squad off** (its service absent, `unimplemented`) says so instead of failing.
 
+**Each graffiti names its board** (`Graffiti.board`, since 2026-11-17): its tile ids are places on that board alone.
+The page bundles one board, `earth-1`, which every graffiti names today, and does not read the field yet (see
+[Boards](../../../docs/boards.md)).
+
 ## How a drawing is drawn
 
 `picture.ts`, `pictureOf(places, tileIds, margin)`, on the tile places the page rebuilds from the board it bundles

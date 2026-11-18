@@ -36,7 +36,7 @@ func New(
 		capitals:      capitals,
 		transactioner: transactioner,
 		placements:    placements,
-		playing:       clicks.World,
+		stage:         clicks.Stage{Map: clicks.World},
 		board:         newBoard(borders.Tiles()),
 		landmasses:    newLandmasses(borders),
 		out:           newOutFlags(),
@@ -61,12 +61,17 @@ type Storage struct {
 	// Under mu: the shields placed since the last flush, confirmed by the flush that saves their tiles.
 	placed []clicks.PlacementID
 
+	// Held by a swap of the stage, and read-held by a write and its record (During), so no swap comes between them.
+	// Taken before flushing and mu.
+	staging sync.RWMutex
+
 	// Held through a flush, from what it takes to what it saves, so a wipe never meets a save of the map before it.
 	flushing sync.Mutex
 
-	// Guards the map in play, the board, the landmasses and the version, which change together, and the feed's order.
+	// Guards the stage in play, the board, the landmasses and the version, which change together, and the feed's order.
+	// The stage changes under staging too.
 	mu         sync.RWMutex
-	playing    clicks.MapID
+	stage      clicks.Stage
 	board      *board
 	landmasses *landmasses
 	out        *outFlags
@@ -82,6 +87,23 @@ type Storage struct {
 }
 
 var _ clicks.TileStorage = (*Storage)(nil)
+
+// Stage is the map that plays, on its board.
+func (s *Storage) Stage() clicks.Stage {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.stage
+}
+
+// During runs write on the stage that plays, and hands it that stage: no swap of the map or of its board comes between
+// a write write makes and what it records of it. write never calls During again, and holds no lock of the storage.
+func (s *Storage) During(write func(on clicks.Stage)) {
+	s.staging.RLock()
+	defer s.staging.RUnlock()
+
+	write(s.stage)
+}
 
 func (s *Storage) tileLocked(id uint32) (clicks.Tile, error) {
 	if id > s.board.last() {
@@ -252,6 +274,7 @@ func (s *Storage) StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, 
 
 	batch := s.board.batch(start, end)
 	batch.Version = s.version
+	batch.Board = s.stage.Board
 	batch.KnockedOut = s.out.flags()
 	batch.Infected = s.viruses.infectedIn(start, end)
 

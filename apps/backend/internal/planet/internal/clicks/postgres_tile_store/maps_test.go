@@ -24,8 +24,8 @@ func (s *testSuite) loadOn(played clicks.MapID) map[uint32]string {
 func (s *testSuite) TestEachMapKeepsItsOwnTilesAndLocks() {
 	ctx := context.Background()
 	fortified := []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2), fortified, nil))
-	s.Require().NoError(s.store.Save(ctx, battle, append(owned("it", 2), owned("de", 3)...), nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2), fortified, nil))
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), append(owned("it", 2), owned("de", 3)...), nil, nil))
 
 	s.Equal(map[uint32]string{1: "fr", 2: "fr"}, s.loadOn(clicks.World))
 	s.Equal(map[uint32]string{2: "it", 3: "de"}, s.loadOn(battle))
@@ -36,8 +36,8 @@ func (s *testSuite) TestEachMapKeepsItsOwnTilesAndLocks() {
 
 func (s *testSuite) TestAWipeDeletesOneMapAndLeavesTheOthers() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.World, owned("fr", 1, 2), nil, nil))
-	s.Require().NoError(s.store.Save(ctx, battle, owned("it", 2), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "it"}}, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2), nil, nil))
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), owned("it", 2), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "it"}}, nil))
 
 	wiped, err := s.store.Wipe(ctx, battle, func(context.Context) (bool, error) { return true, nil })
 
@@ -51,8 +51,8 @@ func (s *testSuite) TestAForgottenHolderHoldsNoTileOfAnyMap() {
 	ctx := context.Background()
 	ana := cpsession.AccountID(uuid.New())
 	held := []inmemory_tile_storage.Tile{{ID: 1, Owner: "fr", Holder: ana}}
-	s.Require().NoError(s.store.Save(ctx, clicks.World, held, nil, nil))
-	s.Require().NoError(s.store.Save(ctx, battle, held, nil, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, held, nil, nil))
+	s.Require().NoError(s.store.Save(ctx, battle.On(clicks.TestBoard), held, nil, nil))
 
 	s.Require().NoError(s.store.ForgetHolder(ctx, ana))
 
@@ -68,7 +68,7 @@ func (s *testSuite) TestAnOpenWritesTheStartInKeepsTransaction() {
 	ctx := context.Background()
 	start := []inmemory_tile_storage.Tile{{ID: 4, Owner: "fr", Shields: 100}, {ID: 9, Owner: "de", Shields: 100}}
 
-	opened, err := s.store.Open(ctx, battle, start, func(context.Context) (bool, error) { return true, nil })
+	opened, err := s.store.Open(ctx, battle.On(clicks.TestBoard), start, func(context.Context) (bool, error) { return true, nil })
 
 	s.Require().NoError(err)
 	s.True(opened)
@@ -84,13 +84,52 @@ func (s *testSuite) TestAnOpenKeepRefusesWritesNoStart() {
 	ctx := context.Background()
 	start := []inmemory_tile_storage.Tile{{ID: 4, Owner: "fr", Shields: 100}}
 
-	opened, err := s.store.Open(ctx, battle, start, func(context.Context) (bool, error) { return false, nil })
+	opened, err := s.store.Open(ctx, battle.On(clicks.TestBoard), start, func(context.Context) (bool, error) { return false, nil })
 	s.Require().NoError(err)
 	s.False(opened)
 
 	down := errors.New("the arena could not be kept")
-	_, err = s.store.Open(ctx, battle, start, func(context.Context) (bool, error) { return false, down })
+	_, err = s.store.Open(ctx, battle.On(clicks.TestBoard), start, func(context.Context) (bool, error) { return false, down })
 	s.Require().ErrorIs(err, down)
 
 	s.Empty(s.loadOn(battle))
+}
+
+func (s *testSuite) TestEveryRowAWriteKeepsNamesTheBoardOfItsStage() {
+	ctx := context.Background()
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1),
+		[]inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}, nil))
+	s.Require().NoError(s.store.SaveMines(ctx, clicks.WorldStage, []clicks.MineSnapshot{mineOn(1, "fr")}, nil))
+	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{
+		virusOf("0192f5a0-7c00-7000-8000-000000000001", 1),
+	}))
+	_, err := s.store.Open(ctx, battle.On(clicks.TestBoard), owned("de", 2), func(context.Context) (bool, error) { return true, nil })
+	s.Require().NoError(err)
+
+	boards, err := s.store.Boards(ctx, clicks.World)
+	s.Require().NoError(err)
+	s.Equal([]clicks.BoardID{clicks.TestBoard}, boards)
+	boards, err = s.store.Boards(ctx, battle)
+	s.Require().NoError(err)
+	s.Equal([]clicks.BoardID{clicks.TestBoard}, boards)
+	boards, err = s.store.Boards(ctx, "empty")
+	s.Require().NoError(err)
+	s.Empty(boards)
+}
+
+func (s *testSuite) TestTheBoardsOfAMapAreEveryBoardItsRowsName() {
+	ctx := context.Background()
+	_, err := s.db.On(ctx).ExecContext(ctx, `INSERT INTO boards (id, name, hash) VALUES (2, 'earth-2', '0123abcd')`)
+	s.Require().NoError(err)
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1), nil, nil))
+	s.Require().NoError(s.store.SaveMines(ctx, clicks.World.On(2), []clicks.MineSnapshot{mineOn(5, "fr")}, nil))
+
+	boards, err := s.store.Boards(ctx, clicks.World)
+
+	s.Require().NoError(err)
+	s.Equal([]clicks.BoardID{clicks.TestBoard, 2}, boards, "a mine kept by a switch the code never got")
+}
+
+func (s *testSuite) TestAWriteOnABoardPlanetDoesNotKeepIsRefused() {
+	s.Require().Error(s.store.Save(context.Background(), clicks.World.On(9), owned("fr", 1), nil, nil))
 }

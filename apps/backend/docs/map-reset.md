@@ -31,7 +31,8 @@ restart.
 (`postgres_tile_store.Wipe`) runs `keep`, which keeps the reset in `planet.map_resets` (`postgres_reset_store.Keep`,
 `ON CONFLICT DO NOTHING`), then deletes every row of `tiles` and `landmasses` of the map that plays. **A reset kept already wipes nothing**,
 and a failure rolls back both. Only then does it empty memory: a new board (every tile blank, no holder, no shield),
-no landmass lock, a new recount. The wipe deletes the rows of the map that plays (`map`, the world's); an arena empties
+no landmass lock, a new recount. The map keeps its stage: a reset is no new era, and the board it plays stays (see
+[Boards and eras](boards-and-eras.md)). The wipe deletes the rows of the map that plays (`map`, the world's); an arena empties
 memory the same way (`Storage.Blank`), but keeps the world's rows and plays its own empty map (see
 [Arena battles](arenas.md)).
 

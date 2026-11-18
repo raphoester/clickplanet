@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AdminGetProgressRequest, AdminGetProgressResponse, BackfillDaysPlayedRequest, BackfillDaysPlayedResponse, ReconcileLevelsRequest, ReconcileLevelsResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
+import { AdminGetProgressRequest, AdminGetProgressResponse, BackfillDaysPlayedRequest, BackfillDaysPlayedResponse, ForgiveMissedDayRequest, ForgiveMissedDayResponse, ReconcileLevelsRequest, ReconcileLevelsResponse, ReconcileTitlesRequest, ReconcileTitlesResponse } from "./admin_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -52,6 +52,24 @@ export const AdminService = {
       name: "ReconcileLevels",
       I: ReconcileLevelsRequest,
       O: ReconcileLevelsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Forgives one UTC day an account missed, so its streak runs through it, as though it had played that day. The streak
+     * is counted again over the days planet's ledger holds a take on, the streak's own days, the days forgiven before and
+     * this one; the best streak rises with it. A forgiven day is no take: the days played, the tiles, the XP and every
+     * other stat stay. The day must be before today (UTC), not played, not forgiven already, and join the streak's run: a
+     * gap in it, the day before it, or the day after the last day played (the player missed yesterday and has not played
+     * today), which becomes the streak's last day so the next take extends it. Refused: NotFound for an account with no
+     * stats, InvalidArgument for today or a later day, AlreadyExists for a day forgiven already, FailedPrecondition for a
+     * day played, a day that joins nothing, or an account that never took a tile. Run it with dry_run first.
+     *
+     * @generated from rpc progression.v1.AdminService.ForgiveMissedDay
+     */
+    forgiveMissedDay: {
+      name: "ForgiveMissedDay",
+      I: ForgiveMissedDayRequest,
+      O: ForgiveMissedDayResponse,
       kind: MethodKind.Unary,
     },
     /**

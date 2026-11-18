@@ -90,7 +90,10 @@ type GetLedgerResponse struct {
 	// emptied, a shield placed or raised. A shield a bomb struck is left out: it changed no hands.
 	Changes []*LedgerChange `protobuf:"bytes,1,rep,name=changes,proto3" json:"changes,omitempty"`
 	// Empty on the last page.
-	NextPage      string `protobuf:"bytes,2,opt,name=next_page,json=nextPage,proto3" json:"next_page,omitempty"`
+	NextPage string `protobuf:"bytes,2,opt,name=next_page,json=nextPage,proto3" json:"next_page,omitempty"`
+	// The board the world's map plays, by its name ("earth-1"): the changes are the world's on that board alone, and
+	// every tile id is a tile of it.
+	Board         string `protobuf:"bytes,3,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -135,6 +138,13 @@ func (x *GetLedgerResponse) GetChanges() []*LedgerChange {
 func (x *GetLedgerResponse) GetNextPage() string {
 	if x != nil {
 		return x.NextPage
+	}
+	return ""
+}
+
+func (x *GetLedgerResponse) GetBoard() string {
+	if x != nil {
+		return x.Board
 	}
 	return ""
 }
@@ -218,10 +228,11 @@ const file_planet_v1_ledger_proto_rawDesc = "" +
 	"\x10GetLedgerRequest\x120\n" +
 	"\x05since\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x05since\x120\n" +
 	"\x05until\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05until\x12\x12\n" +
-	"\x04page\x18\x03 \x01(\tR\x04page\"c\n" +
+	"\x04page\x18\x03 \x01(\tR\x04page\"y\n" +
 	"\x11GetLedgerResponse\x121\n" +
 	"\achanges\x18\x01 \x03(\v2\x17.planet.v1.LedgerChangeR\achanges\x12\x1b\n" +
-	"\tnext_page\x18\x02 \x01(\tR\bnextPage\"\x98\x01\n" +
+	"\tnext_page\x18\x02 \x01(\tR\bnextPage\x12\x14\n" +
+	"\x05board\x18\x03 \x01(\tR\x05board\"\x98\x01\n" +
 	"\fLedgerChange\x12*\n" +
 	"\x02at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12-\n" +
 	"\x06update\x18\x02 \x01(\v2\x15.planet.v1.TileUpdateR\x06update\x12\x0e\n" +

@@ -16,7 +16,7 @@ func (s *testSuite) placing() (*inmemory_tile_storage.Storage, *inmemory_tile_st
 	placed := &inmemory_tile_storage.RecordedPlacements{}
 	storage := inmemory_tile_storage.New(borders, clicks.NoCapitals(), inmemory_tile_storage.Config{}, persistence, cpatomic.FakeTransactioner{}, placed,
 		cptime.SystemClock{}, slog.New(slog.DiscardHandler))
-	s.Require().NoError(storage.Load(context.Background(), clicks.World))
+	s.Require().NoError(storage.Load(context.Background(), clicks.WorldStage))
 	return storage, persistence, placed
 }
 
@@ -80,7 +80,7 @@ func (s *testSuite) TestAWipeConfirmsTheShieldsPlacedBeforeIt() {
 func (s *testSuite) TestAPutBackConfirmsTheShieldsPlacedOnTheArena() {
 	ctx := context.Background()
 	storage, _, placed := s.placing()
-	blanked, err := storage.Blank(ctx, battle, noStart, keeps(true))
+	blanked, err := storage.Blank(ctx, battle, noStart, opens(true))
 	s.Require().NoError(err)
 	s.Require().True(blanked)
 	s.Require().NoError(storage.Set(ctx, 3, "fr"))

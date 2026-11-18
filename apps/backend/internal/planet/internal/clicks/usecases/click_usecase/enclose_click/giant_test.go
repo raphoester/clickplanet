@@ -177,7 +177,7 @@ func newGame(t testing.TB, w world) *game {
 
 	tiles := inmemory_tile_storage.New(w.borders, clicks.NoCapitals(), inmemory_tile_storage.Config{SubscriberBuffer: 1024},
 		inmemory_tile_storage.NewMemoryPersistence(nil), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, nil)
-	require.NoError(t, tiles.Load(t.Context(), clicks.World))
+	require.NoError(t, tiles.Load(t.Context(), clicks.WorldStage))
 	takings := inmemory_ledger_storage.New(inmemory_ledger_storage.Config{}, inmemory_ledger_storage.NewMemoryPersistence(), nil)
 	require.NoError(t, takings.Load(t.Context()))
 
@@ -420,7 +420,7 @@ func (g *game) close(t testing.TB, name string, r ring, attacker string, busy bo
 	require.NoError(t, g.ledger.Flush(t.Context()))
 	sender := &countingSender{tiles: map[string]int{}}
 	var cursor memoryCursor
-	g.ledger.ReplaySaved(0, 1<<30, func(position ledger.Position, event ledger.Event) {
+	g.ledger.ReplaySaved(0, 1<<30, func(position ledger.Position, _ clicks.Stage, event ledger.Event) {
 		if enclosing, ok := event.(ledger.Enclosing); ok && enclosing.Tile == r.closing {
 			entry, err := enclosing.Entry()
 			require.NoError(t, err)
@@ -429,7 +429,8 @@ func (g *game) close(t testing.TB, name string, r ring, attacker string, busy bo
 			sender.at = uint64(position)
 		}
 	})
-	relay := relay_ledger_usecase.New(g.ledger, &cursor, g.world.borders, g.world.geography, sender)
+	relay := relay_ledger_usecase.New(g.ledger, &cursor,
+		relay_ledger_usecase.OneBoard{ID: clicks.TestBoard, Borders: g.world.borders, Positions: g.world.geography}, sender)
 	start = time.Now()
 	for {
 		told, err := relay.Execute(t.Context())
