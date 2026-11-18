@@ -62,8 +62,9 @@ drawn across the map. Neither pass writes depth, so the stretch where they overl
 — a coast, which has no tiles on the sea side to hide the under pass — comes out a
 little darker during the handover.
 
-`npm run borderLines` writes the geometry, from the board's runs and borders and
-nothing else. It walks the whole lattice the tiles were cut from and its triangles,
+`npm run borderLines -- <board>` writes the geometry of a board (of every board in `/map` with none named), from its
+runs and borders and nothing else, beside the board's copy: `static/boards/<board>/borderLines-<hash>.bin`, named in
+`BOARDS` (see [Static assets](static-assets.md)). The globe loads the border lines of the board it draws. It walks the whole lattice the tiles were cut from and its triangles,
 in three's order (`latticeTriangles` in `domain/lattice.ts`), because the runs hold
 only the land points and a coast needs the sea around it. A cell corner is the circumcentre of a lattice triangle —
 the normal of the plane through its three vertices — which makes the cells a true
@@ -94,5 +95,6 @@ pieces and adds the pair of landmasses each piece runs between, and the vertex s
 so the outline runs round the ground's coasts and its borders with every other country, and never inside it.
 
 It stays out of `/map`, unlike the two blobs it is built from: the backend has no
-use for it. Where a tile is and who owns the ground under it are the game's rules
+use for it. **Its handover reads the board's tiles**: `createBorderLines(data, scale)` hands the outline over at the zoom
+where the board's own tiles take the frame (see [Sized by the board](board-scale.md)). Where a tile is and who owns the ground under it are the game's rules
 and are shared; how thick a line is drawn between them is this app's.

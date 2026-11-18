@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import {flagPaint} from "./pointSize.ts"
+import type {BoardScale} from "../../domain/boardScale.ts"
 import {MapView} from "../../domain/displaySettings.ts"
 import {disposeMaterial} from "./scene.ts"
 
@@ -195,7 +196,8 @@ function outlineGeometry(data: BorderLineData, samples: number, sided: boolean):
     return geometry
 }
 
-export function createBorderLines(data: BorderLineData): BorderLines {
+// scale: the board the outline is traced on, whose tiles the painted flags hand over to.
+export function createBorderLines(data: BorderLineData, scale: BoardScale): BorderLines {
     const geometries = [
         outlineGeometry(data, COARSE_SAMPLES, true),
         outlineGeometry(data, SAMPLES, false),
@@ -294,7 +296,7 @@ export function createBorderLines(data: BorderLineData): BorderLines {
                 uniforms.halfWidth.value = halfWidthOf(pixelRatio, widthOf(pass))
             }
 
-            const paint = flagPaint(zoom, height / pixelRatio, view)
+            const paint = flagPaint(zoom, height / pixelRatio, view, scale)
             ;(over.material as THREE.ShaderMaterial).uniforms.ink.value = paint * ORBIT_INK
             over.visible = paint > 0
             under.visible = paint < 1

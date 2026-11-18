@@ -521,6 +521,8 @@
   "archive.pause": "Duraklat",
   "archive.time": "Zaman",
   "archive.heat": "Karelerin en çok kapışıldığı yerler",
+  "archive.newMap": "Dünya yeni bir haritaya geçiyor",
+  "archive.newMapAt": "{time} itibarıyla yeni harita",
   "chat.title": "Sohbet",
   "chat.liveChat": "Canlı sohbet",
   "chat.world": "Dünya",

@@ -8,11 +8,12 @@ npm run test:watch # Re-run affected tests on change
 npm run lint       # ESLint check
 npm run proto      # Regenerate protobuf types from the shared ../../proto/ using buf CLI
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
-npm run map        # Copy the shared /map board into static/boards and boardAsset.ts (see static-assets.md)
+npm run map        # Copy every shared /map board into static/boards, and write boardsAsset.ts (see static-assets.md)
+npm run map:fixture # Write the tests' coarse board, fixture-1, into each app's test data (see testing.md)
 npm run map:generate # Rewrite the board's runs, borders and capitals from the ground oracle (see ../../map/README.md)
 npm run map:audit  # Check the tile set, Natural Earth, the bridges and the terrain against each other
 npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
-npm run borderLines # Trace the countries' outlines onto the tile lattice (see country-outlines.md)
+npm run borderLines -- earth-1 # Trace a board's outlines onto its lattice, every board with none named (see country-outlines.md)
 npm run terrain    # Each lattice point's kind of land or sea, from the board (see terrain.md)
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see styling.md)
@@ -24,7 +25,7 @@ npm run clip:anthems # Vendor the anthems only the clips play (Europe's, and the
 npm run clip:highlights # Measure where each anthem a clip plays is worth starting (run by both anthem scripts)
 npm run teaser -- --teaser teaser.json --out teaser/  # A battle's cards as the stills of a TikTok carousel and a slideshow (see teasers.md)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
-npm run landmassNames # Name every landmass but each country's main one, from Natural Earth (see fortify.md)
+npm run landmassNames -- earth-1 # Name a board's landmasses but each country's main one, every board with none named (see fortify.md)
 npm run crazygames:words # Fetch CrazyGames' word list into public/crazygames/words.txt (see crazygames.md)
 ```
 

@@ -2,9 +2,10 @@ import {create} from "zustand"
 import {dotsAfter, dotsTapped, DotTrigger, parseDots, VideoDots} from "../../domain/video/dots.ts"
 import {Ground} from "../../domain/video/story.ts"
 import {MapHistory} from "../../domain/mapHistory.ts"
+import {lastEraOf} from "../../domain/eras.ts"
 import {RecentHistorySource} from "../../backends/recentHistory.ts"
 import {countryOfTile, loadBorders} from "../viewer/borderField.ts"
-import {BOARD} from "../viewer/boardAsset.ts"
+import {boardOf} from "../viewer/boards.ts"
 
 const DOTS_KEY = "clickplanet-video-dots"
 const CLICKED_KEY = "clickplanet-video-clicked"
@@ -12,6 +13,7 @@ const CLICKED_KEY = "clickplanet-video-clicked"
 // The history's frames are 30 minutes apart, on :00 and :30: a newer one is out once a step has passed.
 const STEP_MS = 30 * 60_000
 
+// ground: the board the 24 hours end on, which the story is measured on.
 export type Read = {history: MapHistory, ground: Ground}
 
 type VideoStore = {
@@ -71,19 +73,23 @@ export function stale(read: Read | undefined, now: number): boolean {
     return last === undefined || Math.floor(now / STEP_MS) * STEP_MS > last
 }
 
-let borders: Promise<Ground> | undefined
+const grounds = new Map<string, Promise<Ground>>()
 
-function groundRead(): Promise<Ground> {
-    borders ??= loadBorders(BOARD.urls.borders).then((data) => ({tiles: data.assignment.length, groundOf: (tile) => countryOfTile(data, tile)}))
-    return borders
+function groundRead(board: string): Promise<Ground> {
+    let ground = grounds.get(board)
+    if (ground === undefined) {
+        ground = loadBorders(boardOf(board).urls.borders).then((data) => ({tiles: data.assignment.length, groundOf: (tile) => countryOfTile(data, tile)}))
+        grounds.set(board, ground)
+    }
+    return ground
 }
 
 let reading: Promise<Read> | undefined
 
 export function readHistory(source: RecentHistorySource): Promise<Read> {
-    reading ??= Promise.all([source.recentHistory(), groundRead()])
-        .then(([history, ground]) => {
-            const read = {history, ground}
+    reading ??= source.recentHistory()
+        .then(async (history) => {
+            const read = {history, ground: await groundRead(lastEraOf(history).board)}
             useVideo.getState().learn(read)
             return read
         })

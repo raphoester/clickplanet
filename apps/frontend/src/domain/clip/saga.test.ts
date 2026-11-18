@@ -1,6 +1,8 @@
+import {FIRST_ERA} from "../eras.ts"
 import {describe, expect, it} from "vitest"
 import {MapFrame, MapHistory} from "../mapHistory.ts"
 import {framedTilesOf, pathsOf, sagasOf} from "./saga.ts"
+import {EARTH_1_SCALE} from "../boardScale.ts"
 
 // Tiles 1 to 10 are France, in Europe; 11 to 20 Algeria, in Africa.
 const groundOf = (tile: number) => tile <= 10 ? "fr" : tile <= 20 ? "dz" : undefined
@@ -15,9 +17,9 @@ const frame = (hour: number, ...held: [number, string][]): MapFrame => ({
 
 const take = (owner: string, ...tiles: number[]): [number, string][] => tiles.map((tile) => [tile, owner])
 
-const historyOf = (...frames: MapFrame[]): MapHistory => ({frames, hits: new Map()})
+const historyOf = (...frames: MapFrame[]): MapHistory => ({frames, hits: [new Map()], eras: [FIRST_ERA]})
 
-const europeOf = (history: MapHistory) => sagasOf(history, 20, groundOf, regionOf).find(({continent}) => continent === "Europe")
+const europeOf = (history: MapHistory) => sagasOf(history, 20, groundOf, regionOf, EARTH_1_SCALE).find(({continent}) => continent === "Europe")
 
 describe("a place's saga", () => {
     it("tells each flag that held over half of it, when its conquest began, whom it took it from and whom it fell to", () => {
@@ -83,7 +85,7 @@ describe("a place's saga", () => {
     it("tells a country that is its whole continent once, as the continent", () => {
         const icy = (tile: number) => tile <= 1000 ? "aq" : undefined
         const sagas = sagasOf(historyOf(frame(0), frame(1, ...Array.from({length: 600}, (_, i): [number, string] => [i + 1, "br"]))),
-            1000, icy, () => "Antarctica")
+            1000, icy, () => "Antarctica", EARTH_1_SCALE)
 
         expect(sagas.filter(({kind}) => kind !== "world").map(({kind, continent}) => ({kind, continent})))
             .toEqual([{kind: "continent", continent: "Antarctica"}])
@@ -96,7 +98,7 @@ describe("a place's saga", () => {
     })
 
     it("tells a place no flag held over half of, with each flag that held a tenth of it", () => {
-        const africa = sagasOf(historyOf(frame(0, ...take("ie", 11, 12, 13, 14, 15)), frame(1)), 20, groundOf, regionOf)
+        const africa = sagasOf(historyOf(frame(0, ...take("ie", 11, 12, 13, 14, 15)), frame(1)), 20, groundOf, regionOf, EARTH_1_SCALE)
             .find(({continent}) => continent === "Africa")
 
         expect(africa).toMatchObject({reigns: [], contenders: [{flag: "ie", since: 0, until: undefined, peak: 0.5, share: 0.5}]})
@@ -118,7 +120,7 @@ describe("a place's saga", () => {
     })
 
     it("leaves out a place no flag ever held a tenth of", () => {
-        const sagas = sagasOf(historyOf(frame(0), frame(1)), 20, groundOf, regionOf)
+        const sagas = sagasOf(historyOf(frame(0), frame(1)), 20, groundOf, regionOf, EARTH_1_SCALE)
 
         expect(sagas).toEqual([])
     })

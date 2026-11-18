@@ -1,3 +1,4 @@
+import {BoardScale, scaledCount} from "../boardScale.ts"
 import {Cast, Take, TopFighter, topFightersOf} from "./cast.ts"
 import {ranked, tally, TileChange} from "./changes.ts"
 import {Point} from "./geometry.ts"
@@ -89,8 +90,13 @@ const SOLID_FLAGS = 3
 // its own, and Europe is held without it.
 const OUTSIDE_EUROPE = "ru"
 
-// About a France: 49 countries are this big, and a smaller one held by a foreign flag is a corner of a war.
+// About a France on earth-1: 49 countries are this big, and a smaller one held by a foreign flag is a corner of a war.
+// As much ground on another board.
 const BIG_COUNTRY = 1000
+
+export function bigCountryTiles(scale: BoardScale): number {
+    return scaledCount(BIG_COUNTRY, scale)
+}
 
 const RIVALS = 2
 
@@ -206,9 +212,10 @@ export function placesOf(
     fought: readonly TileChange[],
     regionOf: RegionOf,
     cast: Cast,
+    scale: BoardScale,
 ): PlaceFacts[] {
     const sizes = tally(Array.from({length: tiles}, (_, i) => groundOf(i + 1)).flatMap((ground) => ground ?? []))
-    const keysOf = memo((ground: string | undefined) => placeKeysOf(ground, sizes, regionOf))
+    const keysOf = memo((ground: string | undefined) => placeKeysOf(ground, sizes, regionOf, scale))
 
     const grounds = new Map<string, number>()
     const held = new Map<string, Map<string, number>>()
@@ -266,13 +273,13 @@ export function inHolding(place: Place, ground: string | undefined, regionOf: Re
     return ground !== OUTSIDE_EUROPE && regionOf(ground) === place.region
 }
 
-export function placeKeysOf(ground: string | undefined, sizes: ReadonlyMap<string, number>, regionOf: RegionOf): string[] {
+export function placeKeysOf(ground: string | undefined, sizes: ReadonlyMap<string, number>, regionOf: RegionOf, scale: BoardScale): string[] {
     if (ground === undefined) return [THE_WORLD]
     const continent = ground === OUTSIDE_EUROPE ? undefined : regionOf(ground)
     return [
         THE_WORLD,
         ...continent === undefined ? [] : [`region:${continent}`],
-        ...(sizes.get(ground) ?? 0) >= BIG_COUNTRY ? [`country:${ground}`] : [],
+        ...(sizes.get(ground) ?? 0) >= bigCountryTiles(scale) ? [`country:${ground}`] : [],
     ]
 }
 

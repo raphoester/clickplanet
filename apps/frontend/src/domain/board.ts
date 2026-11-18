@@ -2,6 +2,10 @@ import {latticeSize, positionsHash, walkLattice, writePosition} from "./lattice.
 import {cellsOf, type TileCells} from "./latticeCells.ts"
 import {chunksOf, type TileChunks} from "./tileChunks.ts"
 
+// The board every map played before boards were named: the backfill wrote it everywhere (docs/boards.md). A history or an
+// answer that names no board is of it, and the fake backend plays it.
+export const FIRST_BOARD = "earth-1"
+
 // A board is a geometry: the lattice it is cut from, and which of its points are tiles (/map/README.md).
 export type Board = {
     name: string
@@ -19,8 +23,12 @@ export type Lattice = {cols: number, warp: null, corners: null, order: "three"}
 
 export type BoardFiles = {runs: string, borders: string, capitals: string, bridges: string, terrain: string}
 
-// A board as the page carries it: the manifest, and where each of its files is served.
-export type BoardAsset = Board & {urls: BoardFiles}
+// The page's own files of a board, which /map does not carry: the countries' outlines traced on its lattice, and the
+// names of its landmasses. Content-addressed, beside the board's copy in static/boards/<name>/.
+export type PageFiles = {borderLines: string, landmassNames: string}
+
+// A board as the page carries it: the manifest, its own files, and where each of them is served.
+export type BoardAsset = Board & {page: PageFiles, urls: BoardFiles & PageFiles}
 
 // Tiles side by side in one row of the lattice: the first and the last canonical id, both in.
 export type Run = readonly [first: number, last: number]

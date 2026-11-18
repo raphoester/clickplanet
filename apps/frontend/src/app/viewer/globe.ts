@@ -10,15 +10,15 @@ import {innerSphere} from "./sphere.ts";
 import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
-import {BorderField, loadBorders} from "./borderField.ts";
+import {BorderField, leastPaintedTiles, loadBorders} from "./borderField.ts";
 import {createBorderLines, loadBorderLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
-import {BOARD} from "./boardAsset.ts";
-import {BORDER_LINES_URL} from "./borderLinesAsset.ts";
+import type {BoardAsset} from "../../domain/board.ts";
+import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
 import {loadBridges} from "./bridges.ts";
 import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
-import {flagPaint, flownZoomsOf, inOrbit, tilePointSize} from "./pointSize.ts";
+import {flagPaint, flownZoomsOf, inOrbit, leastFlagRadiusOf, tilePointSize, virusLiftOf} from "./pointSize.ts";
 import {createTerritoryLayer} from "./territoryLayer.ts";
 import {loadTerrain} from "./terrain.ts";
 import {regions} from "./atlas.ts";
@@ -74,7 +74,7 @@ import {Holdings, Recount} from "../../domain/holdings.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {layoutViewport} from "./viewport.ts";
 import {createStarfield} from "./stars.ts";
-import {MAX_ZOOM, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
+import {maxZoomOf, MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts";
 import {createBonusBox} from "./bonusBox.ts";
 import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
@@ -114,6 +114,10 @@ import {AcceptedClick} from "../clicks/acceptedClicks.ts";
 
 type Uniforms = BlastUniforms & FortifyUniforms & {
     pointSize: THREE.IUniform
+    // How far an infected tile is drawn nearer the camera, and the least half-height of a painted flag: in the board's
+    // own spacings.
+    virusLift: THREE.IUniform<number>
+    leastFlagRadius: THREE.IUniform<number>
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
     landmassData: THREE.IUniform
@@ -219,6 +223,9 @@ type Pilot = {
 type Flight = {from: Shot, to: Shot, since: number, seconds: number}
 
 export type GlobeOptions = {
+    // The board the globe draws: every tile id the backends hand it is a tile of it. The game page's is the one GetMap
+    // names, read as the page loads.
+    board: BoardAsset | Promise<BoardAsset>
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -363,16 +370,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
+    const board = await options.board;
+    if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
     const [geometryData, borders, borderLines, terrain] = await Promise.all([
-        loadPointGeometryData(signal),
-        loadBorders(BOARD.urls.borders, signal),
-        loadBorderLines(BORDER_LINES_URL, signal),
-        loadTerrain(BOARD.urls.terrain, BOARD.lattice.cols, signal),
+        loadPointGeometryData(board, signal),
+        loadBorders(board.urls.borders, signal),
+        loadBorderLines(board.urls.borderLines, signal),
+        loadTerrain(board.urls.terrain, board.lattice.cols, signal),
     ]);
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
 
     const lifetime = new AbortController();
     const listenerOptions = {signal: lifetime.signal};
+    const scale = scaleOf(board);
+    const maxZoom = maxZoomOf(scale);
 
     let budget: ClickBudget | undefined
     const stopWatchingBudget = clickBudget?.watchClickBudget((reading) => {
@@ -384,7 +395,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const graphics = graphicsOf(window.location.search, rendering);
     const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
     endStrayFingers(renderer.domElement, lifetime.signal)
-    if (linkedShot) aim(camera, {...linkedShot, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, linkedShot.zoom))})
+    if (linkedShot) aim(camera, {...linkedShot, zoom: Math.min(maxZoom, Math.max(MIN_ZOOM, linkedShot.zoom))})
     let mapView: MapView = initialMapView
 
     let dirty = true
@@ -395,14 +406,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const slots = new FlagSlots(invalidate)
 
     const uniforms: Uniforms = {
-        pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height) * renderer.getPixelRatio()},
+        pointSize: {value: tilePointSize(camera.zoom, layoutViewport().height, scale) * renderer.getPixelRatio()},
+        virusLift: {value: virusLiftOf(scale)},
+        leastFlagRadius: {value: leastFlagRadiusOf(scale)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
         landmassData: {value: null},
         landmassCount: {value: 1},
         pixelsPerRadian: {value: 1},
         pixelRatio: {value: renderer.getPixelRatio()},
-        flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView)},
+        flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView, scale)},
         splitFlags: {value: splitFlagsOf(mapView)},
         shieldMost: {value: SHIELD_MOST_UNTIL_READ},
         shieldMarks: {value: drawShieldMarks(SHIELD_MOST_UNTIL_READ, invalidate)},
@@ -417,7 +430,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const field = new TileField(uniforms, geometryData, graphics);
 
-    const territories = new BorderField(borders)
+    const territories = new BorderField(borders, undefined, leastPaintedTiles(scale))
     const landmasses = new Landmasses(borders.assignment, borders.codes.length)
     field.setLandmasses(borders.assignment)
     uniforms.landmassData.value = territories.landmassData
@@ -458,16 +471,16 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const bonusPointer = createBonusPointer(eventTarget)
 
-    const enclosures = createEnclosureEffects(geometryData.positions)
+    const enclosures = createEnclosureEffects(geometryData.positions, scale)
     scene.add(enclosures.object)
 
-    const bonusClicks = createClickEffects(geometryData.positions)
+    const bonusClicks = createClickEffects(geometryData.positions, scale)
     scene.add(bonusClicks.object)
 
-    const plainClicks = createClickGlints(geometryData.positions)
+    const plainClicks = createClickGlints(geometryData.positions, scale)
     scene.add(plainClicks.object)
 
-    const outline = createBorderLines(borderLines)
+    const outline = createBorderLines(borderLines, scale)
     scene.add(outline.object)
 
     let offered: BoxOffer | undefined
@@ -728,7 +741,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const landmassOf = (tile: number | undefined) => (tile === undefined ? 0 : borders.assignment[tile - 1]) || undefined
 
-    const orbiting = () => inOrbit(camera.zoom, renderer.domElement.height / renderer.getPixelRatio())
+    const orbiting = () => inOrbit(camera.zoom, renderer.domElement.height / renderer.getPixelRatio(), scale)
 
     const peekAt = ({spot: tile, point, touch}: Peeked) => {
         const owner = ownership.ownerOf(tile)
@@ -759,9 +772,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const territoryShot = (landmass: number) => {
         const {width, height} = renderer.domElement
-        const {least, most} = flownZoomsOf(height / renderer.getPixelRatio())
+        const {least, most} = flownZoomsOf(height / renderer.getPixelRatio(), scale)
         const points = Array.from(landmasses.tilesOf(landmass), (tile) => pointOf(geometryData.positions, tile))
-        return territoryShotOf(points, width / height, least, Math.min(most, MAX_ZOOM))
+        return territoryShotOf(points, width / height, least, Math.min(most, maxZoom))
     }
 
     const fly = (to: Shot) => {
@@ -781,8 +794,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     }
 
     const flyDown = (tile: number) => {
-        const {most} = flownZoomsOf(renderer.domElement.height / renderer.getPixelRatio())
-        fly({direction: pointOf(geometryData.positions, tile), zoom: Math.min(most, MAX_ZOOM)})
+        const {most} = flownZoomsOf(renderer.domElement.height / renderer.getPixelRatio(), scale)
+        fly({direction: pointOf(geometryData.positions, tile), zoom: Math.min(most, maxZoom)})
     }
 
     const pilot: Pilot = {
@@ -816,7 +829,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let army: GhostArmy | undefined
 
     let neighbours: Neighbours | undefined
-    const neighbourhood = () => neighbours ??= new Neighbours(geometryData.positions)
+    const neighbourhood = () => neighbours ??= new Neighbours(geometryData.positions, scale)
 
     const ghostGround = (neighbours: Neighbours): Ground => ({
         positions: geometryData.positions,
@@ -951,7 +964,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             leaveReach()
             return
         }
-        bridgesFile ??= loadBridges(BOARD.urls.bridges, field.size, lifetime.signal)
+        bridgesFile ??= loadBridges(board.urls.bridges, field.size, lifetime.signal)
         bridgesFile.then((bridges) => {
             if (rules?.reach && !reach && !lifetime.signal.aborted) playReach(bridges)
         }, (e) => {
@@ -983,7 +996,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             publishStanding()
             return
         }
-        capitalsFile ??= loadCapitals(BOARD.urls.capitals, field.size, lifetime.signal)
+        capitalsFile ??= loadCapitals(board.urls.capitals, field.size, lifetime.signal)
         capitalsFile.then((read) => {
             if (capitalRules(rules) && !capitals && !lifetime.signal.aborted) playCapitals(read)
         }, (e) => {
@@ -1281,7 +1294,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     // Each blast drawn as a bomb's at its impact, with no fall: the take that set it off was the fall.
     const explode = (mines: readonly number[], ours: boolean) => {
         const seconds = performance.now() / 1000
-        const radius = mineBlastRadius(rules?.mineRings ?? 0)
+        const radius = mineBlastRadius(rules?.mineRings ?? 0, scale)
         for (const tile of mines) {
             const {x, y, z} = pointOf(geometryData.positions, tile)
             blasts.start(new THREE.Vector3(x, y, z), radius, seconds - BLAST_TIMELINE.fall)
@@ -1792,7 +1805,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         else waves.start(fortification.landmass, members, fortification.tile, performance.now() / 1000)
 
         const own = fortification.countryId === country.code
-        const news = isNews(fortification, members.length, country.code)
+        const news = isNews(fortification, members.length, country.code, scale)
         if (news) playSound("fortify", {volume: own ? 1 : DISTANT_BOMB_VOLUME})
         onFortified({fortification, name: translator().landmass(fortification.landmass, borders.codes[fortification.landmass]), tiles: members.length, news})
         if (tracking) targets.lock(fortification.landmass, fortification.countryId)
@@ -1851,7 +1864,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (take && !tiles.mines.has(take.tile)) ghostTook(take)
     }
 
-    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, director, pilot, () => mapView, () => {
+    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, scale, director, pilot, () => mapView, () => {
         const was = dirty
         dirty = false
         return was
@@ -2064,6 +2077,7 @@ function startAnimation(
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera,
     uniforms: Uniforms,
+    scale: BoardScale,
     director: Director | undefined,
     pilot: Pilot,
     mapView: () => MapView,
@@ -2077,7 +2091,7 @@ function startAnimation(
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.minZoom = MIN_ZOOM;
-    controls.maxZoom = MAX_ZOOM;
+    controls.maxZoom = maxZoomOf(scale);
     controls.panSpeed = 0.1;
     controls.enableDamping = true;
     controls.autoRotateSpeed = SPIN_TURNS_PER_MINUTE;
@@ -2125,10 +2139,10 @@ function startAnimation(
 
         const {y: height} = renderer.getSize(viewport);
         const ratio = renderer.getPixelRatio();
-        uniforms.pointSize.value = tilePointSize(camera.zoom, height) * ratio;
+        uniforms.pointSize.value = tilePointSize(camera.zoom, height, scale) * ratio;
         uniforms.pixelRatio.value = ratio;
 
-        uniforms.flagPaint.value = flagPaint(camera.zoom, height, mapView());
+        uniforms.flagPaint.value = flagPaint(camera.zoom, height, mapView(), scale);
         uniforms.pixelsPerRadian.value = (renderer.domElement.height / 2) * camera.zoom;
 
         const moving = beforeRender(time / 1000);

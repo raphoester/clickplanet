@@ -3,13 +3,13 @@ import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {TilePicker} from "./tilePicker.ts"
-import {BOARD} from "./boardAsset.ts"
+import {EARTH_1} from "../../testdata/boards.ts"
 import {rebuildTiles} from "../../domain/board.ts"
 
 const STATIC = fileURLToPath(new URL("../../../static/", import.meta.url))
 
-const bytes = readFileSync(`${STATIC}boards/${BOARD.name}/${BOARD.files.runs}`)
-const {positions, cells} = rebuildTiles(BOARD.lattice, BOARD.tiles, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+const bytes = readFileSync(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`)
+const {positions, cells} = rebuildTiles(EARTH_1.lattice, EARTH_1.tiles, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
 
 const canvas = {width: 1001, height: 1001}
 const MIDDLE = 500

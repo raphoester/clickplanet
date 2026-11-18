@@ -1,13 +1,13 @@
-import {BOARD} from "./boardAsset.ts"
 import type {LatticeAnswer, LatticeQuestion} from "./latticeWorker.ts"
-import {rebuildTiles, type RebuiltTiles} from "../../domain/board.ts"
+import {type BoardAsset, rebuildTiles, type RebuiltTiles} from "../../domain/board.ts"
 import type {TileCells} from "../../domain/latticeCells.ts"
 import type {TileChunks} from "../../domain/tileChunks.ts"
 
 export type TileGeometry = {positions: Float32Array, size: number, cells: TileCells, chunks: TileChunks}
 
-export async function loadPointGeometryData(signal?: AbortSignal): Promise<TileGeometry> {
-    const question: LatticeQuestion = {lattice: BOARD.lattice, tiles: BOARD.tiles, runs: await fetched(BOARD.urls.runs, signal)}
+// The board's tiles, rebuilt from its runs.
+export async function loadPointGeometryData(board: BoardAsset, signal?: AbortSignal): Promise<TileGeometry> {
+    const question: LatticeQuestion = {lattice: board.lattice, tiles: board.tiles, runs: await fetched(board.urls.runs, signal)}
     let rebuilt: RebuiltTiles
     try {
         rebuilt = await inWorker(question, signal)
@@ -16,9 +16,9 @@ export async function loadPointGeometryData(signal?: AbortSignal): Promise<TileG
         console.error(`could not rebuild the tile positions in a worker on ${navigator.userAgent}, rebuilding them on the page`, e)
         rebuilt = rebuildTiles(question.lattice, question.tiles, question.runs)
     }
-    if (rebuilt.hash !== BOARD.positionsHash) {
+    if (rebuilt.hash !== board.positionsHash) {
         console.error(`the tile positions rebuilt on ${navigator.userAgent} hash to ${hex(rebuilt.hash)}, `
-            + `${BOARD.name} says ${hex(BOARD.positionsHash)}`)
+            + `${board.name} says ${hex(board.positionsHash)}`)
     }
     return {positions: rebuilt.positions, size: rebuilt.positions.length / 3, cells: rebuilt.cells, chunks: rebuilt.chunks}
 }

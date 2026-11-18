@@ -1,3 +1,4 @@
+import {BoardScale, scaledCount} from "../../domain/boardScale.ts"
 import * as THREE from "three"
 import {regions} from "./atlas.ts"
 import flagFit from "../../../static/countries/flagFit.json"
@@ -167,7 +168,12 @@ export class BorderField {
     }
 }
 
+// A landmass of fewer tiles of earth-1 is too small to paint a flag in: as much ground on another board.
 const MINIMUM_TILES = 4
+
+export function leastPaintedTiles(scale: BoardScale): number {
+    return scaledCount(MINIMUM_TILES, scale)
+}
 
 const MINIMUM_SHARE = 0.08
 

@@ -1,9 +1,11 @@
 import {MapFrame, MapHistory} from "../mapHistory.ts"
+import {lastEraOf} from "../eras.ts"
 
 export type StoryKind = "gain" | "loss" | "quiet"
 
 // The flag's biggest change of the 24 hours, in the one real country where it gained or lost the most tiles: the
-// country's tiles, and the flag's there at the start and at the end.
+// country's tiles, and the flag's there at the start and at the end. Over a change of board, of the last era alone, on
+// its board, from its first frame, a whole map of it: the tiles of two boards do not compare.
 export type VideoStory = {
     flag: string
     country: string
@@ -29,8 +31,9 @@ export const LOSS_MOMENT_SHARE = 0.2
 
 type Held = {country: string, tiles: number, start: number, end: number}
 
+// ground: the board the history ends on.
 export function storyOf(history: MapHistory, ground: Ground, flag: string): VideoStory | undefined {
-    const [first, ...rest] = history.frames
+    const [first, ...rest] = lastEraOf(history).frames
     if (first === undefined) return undefined
     const owners = new Array<string>(ground.tiles + 1).fill("")
     const apply = (frame: MapFrame) => frame.tiles.forEach((tile, i) => {

@@ -1,5 +1,6 @@
 import {fakeAccountId} from "./fakeAccounts.ts"
-import {NEWS_FROM_TILES} from "../domain/fortify.ts"
+import {newsFromTiles} from "../domain/fortify.ts"
+import type {BoardScale} from "../domain/boardScale.ts"
 import {TIKTOK_PROFILE} from "../links.ts"
 import {
     ChatAnnouncement,
@@ -240,9 +241,9 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
         this.announce(announcement)
     }
 
-    // As the server: only a sizeable territory is news in the chat.
-    public announceFortify(fortified: {countryId: string, ground: string, landmass: number, tiles: number}) {
-        if (fortified.tiles < NEWS_FROM_TILES) return
+    // As the server: only a sizeable territory is news in the chat, sized on the board the fake plays.
+    public announceFortify(fortified: {countryId: string, ground: string, landmass: number, tiles: number}, scale: BoardScale) {
+        if (fortified.tiles < newsFromTiles(scale)) return
         this.announce({
             kind: "fortify",
             id: UUIDv4(),

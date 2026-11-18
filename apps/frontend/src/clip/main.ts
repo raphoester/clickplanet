@@ -7,14 +7,16 @@ import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {GetMapHistoryResponse} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {GetRoundResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
-import {ReplayBackend} from "../backends/replayBackend.ts"
+import {replayErasOf, ReplayBackend} from "../backends/replayBackend.ts"
 import {takenOf} from "../backends/planetBackend.ts"
 import {historyOf} from "../backends/turnBackend.ts"
 import {MapReel} from "../domain/mapHistory.ts"
+import {lastEraOf} from "../domain/eras.ts"
+import {scaleOf} from "../domain/boardScale.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
 import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
-import {BOARD} from "../app/viewer/boardAsset.ts"
+import {boardOf} from "../app/viewer/boards.ts"
 import {Countries} from "../domain/countries.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
 import {foughtOver, ownersAfter, ranked as rankedBy, tally, TileChange} from "../domain/clip/changes.ts"
@@ -213,12 +215,20 @@ async function choose(): Promise<Chosen> {
     // The map every hour since the season started, when the run fetched it: each place's saga is told from it.
     const mapped = await fetch("/__clip/history.json")
     const kept = mapped.ok ? GetMapHistoryResponse.fromJson(await mapped.json(), {ignoreUnknownFields: true}).history : undefined
-    const history = kept === undefined ? undefined : historyOf(kept)
+    const whole = kept === undefined ? undefined : historyOf(kept)
+
+    // A clip tells the map the replay ends on, on its board: over a change of board, from the change on, as after a
+    // reset. The sagas too, when the history ends on the same board.
+    const board = boardOf(replayErasOf(recorded).at(-1)!.board)
+    const scale = scaleOf(board)
+    const ended = whole === undefined ? undefined : lastEraOf(whole)
+    const history = ended?.board === board.name ? ended : undefined
+    if (ended !== undefined && history === undefined) console.error(`the history ends on ${ended.board}, the replay on ${board.name}: no saga`)
 
     const focus = countryParam("focus")
-    const {positions} = await loadPointGeometryData()
-    const borders = await loadBorders(BOARD.urls.borders)
-    const replay = ReplayBackend.of(recorded, {assignment: borders.assignment, count: borders.codes.length})
+    const {positions} = await loadPointGeometryData(board)
+    const borders = await loadBorders(board.urls.borders)
+    const replay = ReplayBackend.ofLastEra(recorded, {assignment: borders.assignment, count: borders.codes.length}, whole)
     const pointAt = (tile: number) => pointOf(positions, tile)
     const groundAt = (tile: number) => countryOfTile(borders, tile)
     const continentAt = (tile: number) => {
@@ -242,7 +252,7 @@ async function choose(): Promise<Chosen> {
     const hours = asked ? (until - since) / 3_600_000 : numberParam("hours")
     const inScope = (scope: string | undefined) => (tile: number) => scope === undefined || groundAt(tile) === scope
     // Every scale a front is measured at: the whole map, and each country fought over the most, on its own ground.
-    const scopes = focus !== undefined ? [focus] : [undefined, ...foughtOver(everything, groundAt, since, until)]
+    const scopes = focus !== undefined ? [focus] : [undefined, ...foughtOver(everything, groundAt, since, until, scale)]
     const hoursOf = (candidate: Candidate) => (candidate.until - candidate.since) / 3_600_000
     // The replay from the front's first change to its last, within the window that found it.
     const cutOf = (front: Front, candidate: Candidate) => {
@@ -267,7 +277,7 @@ async function choose(): Promise<Chosen> {
     const frontFound = ({scope, candidate, front, score}: Spotted): FrontFound => {
         const backend = cutOf(front, candidate)
         const changes = backend.changes()
-        const flips = flipsOf(borders.assignment, backend.opening, changes, front.changes.map(({tile}) => tile))
+        const flips = flipsOf(borders.assignment, backend.opening, changes, front.changes.map(({tile}) => tile), scale)
         const facts = frontFactsOf(front.changes, backend.opening, ownersAfter(backend.opening, changes), ground, pointAt, flips,
             castWithin(cast, backend.since, backend.until))
         const inSight = inSightOf(front, pointAt, groundAt, scope)
@@ -298,7 +308,7 @@ async function choose(): Promise<Chosen> {
     const tourFound = ({candidate, flag, front, nextTook}: SpottedTour): TourFound => {
         const backend = cutOf(front, candidate)
         const changes = backend.changes()
-        const flips = flipsOf(borders.assignment, backend.opening, changes, front.changes.map(({tile}) => tile))
+        const flips = flipsOf(borders.assignment, backend.opening, changes, front.changes.map(({tile}) => tile), scale)
         const facts = tourFactsOf(flag, front.changes, ownersAfter(backend.opening, changes), continentAt, pointAt, flips,
             castWithin(cast, backend.since, backend.until))
         return {since: backend.since, until: backend.until, ...facts, flag, nextTook, bombs: backend.drops().filter(({drop}) => drop.tile !== undefined).length}
@@ -310,7 +320,7 @@ async function choose(): Promise<Chosen> {
     // What the map is, beside what changed on it: the flag holding the most of each place, as the map stands at the end.
     const window = everything.filter(({at}) => at >= since && at <= until)
     const end = ownersAfter(replay.opening, everything.filter(({at}) => at <= until))
-    const places = focus !== undefined ? [] : placesOf(end, borders.assignment.length, groundAt, window, regionOf, castWithin(cast, since, until))
+    const places = focus !== undefined ? [] : placesOf(end, borders.assignment.length, groundAt, window, regionOf, castWithin(cast, since, until), scale)
     // The clip of a holding plays its flag's fighting for it, all over the place.
     const holdingReviewOf = (story: Story, look: Look): Review => {
         const changes = window.filter(({tile, from, to}) => from !== to && (from === story.attacker || to === story.attacker)
@@ -322,10 +332,10 @@ async function choose(): Promise<Chosen> {
     }
     // A landmass is one country's: the window's flips, read once, are each place's.
     const flippedInWindow = places.length === 0 ? []
-        : flipsOf(borders.assignment, ownersAfter(replay.opening, everything.filter(({at}) => at < since)), window, window.map(({tile}) => tile))
+        : flipsOf(borders.assignment, ownersAfter(replay.opening, everything.filter(({at}) => at < since)), window, window.map(({tile}) => tile), scale)
     // Each place over the season: who held a tenth of it and who held over half of it, from when to when; and the land of
     // each flag that held over half of a place, on each continent.
-    const sagas = focus !== undefined || history === undefined ? [] : sagasOf(history, borders.assignment.length, groundAt, regionOf)
+    const sagas = focus !== undefined || history === undefined ? [] : sagasOf(history, borders.assignment.length, groundAt, regionOf, scale)
     const reigning = new Set(sagas.flatMap(({reigns}) => reigns.map(({flag}) => flag)))
     const paths = history === undefined ? [] : pathsOf(history, borders.assignment.length, reigning, groundAt, regionOf)
     // The clip of a saga plays its place from the time the editor chose to the end of the history.
@@ -469,11 +479,11 @@ async function choose(): Promise<Chosen> {
         const placed = saga ? Array.from({length: borders.assignment.length}, (_, i) => i + 1).filter(inArea) : []
         const framed = "country" in story.place ? framedTilesOf(placed, (tile) => borders.assignment[tile - 1]) : placed
         const wide = framingOf(saga ? framed.map(pointAt) : territory.length > 0 ? territory : points, aspect)
-        const flips = flipsOf(borders.assignment, backend.opening, changes, touched)
+        const flips = flipsOf(borders.assignment, backend.opening, changes, touched, scale)
         const look = lookParam() ?? picked.look
         const overview = overviewOf(wide)
 
-        const close = Math.max(overview.zoom, tilesZoomOf(root.clientHeight) * DIVE_DEPTH)
+        const close = Math.max(overview.zoom, tilesZoomOf(root.clientHeight, scale) * DIVE_DEPTH)
         const screens = screensOf(front.changes.map(({tile}, i) => ({share: i / front.changes.length, point: pointAt(tile)})), close)
         const pace = saga ? blendedPaceOf(front.changes.map(({at}) => at), backend.since, backend.until, SAGA_CALENDAR, SAGA_LEAD_MS)
             : paceOf(front.changes.map(({at}) => at), backend.since, backend.until)
@@ -485,8 +495,8 @@ async function choose(): Promise<Chosen> {
         const timeline = world ? timelineFor(tourSecondsOf(stops.length), numberParam("seconds"))
             : saga ? timelineFor(SAGA_PLAY_SECONDS, numberParam("seconds"))
             : timelineOf(screens, numberParam("seconds"), seasonal ? PODIUM_ENDING_SECONDS : undefined)
-        const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight))
-            : saga ? sagaCameraOf(wide, flagsZoomOf(root.clientHeight))
+        const camera = world ? tourOf(stops, aspect, timeline.seconds - timeline.ending, flagsZoomOf(root.clientHeight, scale))
+            : saga ? sagaCameraOf(wide, flagsZoomOf(root.clientHeight, scale))
             : cameraOf(overview, front.changes.map(({tile, at}) => ({share: pace.shareOf(at), point: pointAt(tile)})), {
                 close,
                 seconds: timeline.seconds - timeline.ending,
@@ -522,6 +532,7 @@ async function choose(): Promise<Chosen> {
 
         let played = 0
         const globe = await createGlobe({
+            board,
             tileClicker: {clickTile: () => Promise.resolve()},
             ownershipsGetter: backend,
             updatesListener: backend,

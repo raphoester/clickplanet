@@ -521,6 +521,8 @@
   "archive.pause": "Pause",
   "archive.time": "Temps",
   "archive.heat": "Là où les cases ont été le plus disputées",
+  "archive.newMap": "Le monde passe sur une nouvelle carte",
+  "archive.newMapAt": "Nouvelle carte dès {time}",
   "chat.title": "Chat",
   "chat.liveChat": "Chat en direct",
   "chat.world": "Monde",

@@ -46,6 +46,7 @@ import WelcomeBackModal from "../account/WelcomeBackModal.tsx";
 import SharePlace from "../share/SharePlace.tsx";
 import SharePreview from "../share/SharePreview.tsx";
 import {useSharePicture} from "../share/useSharePicture.ts";
+import type {BoardAsset} from "../../domain/board.ts"
 import {shareAddress, shareStats} from "../../domain/shareCard.ts";
 import {Countries, Country} from "../../domain/countries.ts";
 import {Shot} from "../../domain/clip/camera.ts";
@@ -155,6 +156,8 @@ import "./PlayScreen.css"
 const NO_LEADERBOARD: readonly LeaderboardEntry[] = []
 
 export type Backends = {
+    // The board the page draws, as GetMap names it at the boot (backends/boards.ts).
+    board: Promise<BoardAsset>
     tileClicker: TileClicker
     ownershipsGetter: OwnershipsGetter
     updatesListener: UpdatesListener
@@ -333,6 +336,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         flyToMission,
     } = useGlobe({
         container,
+        board: backends.board,
         linkedShot: props.linkedShot,
         showFront: props.showFront,
         tileClicker: backends.tileClicker,

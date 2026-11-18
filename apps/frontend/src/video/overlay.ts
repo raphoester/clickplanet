@@ -12,6 +12,11 @@ const SAFE_BOTTOM = 210
 
 const FADE_SECONDS = 0.5
 
+// A change of board: the screen flashes, and "NEW MAP" stays this long over the next board's map.
+const CUT_FLASH_SECONDS = 0.35
+const CUT_SECONDS = 1.5
+const CUT_FADE_SECONDS = 0.4
+
 export type Look = {
     display: string
     text: string
@@ -35,8 +40,10 @@ export type Moment = {
     seconds: number
     // The share of the 24 hours played.
     played: number
-    // The flag's tiles in the story's country.
+    // The flag's tiles in the story's country, as many on the board the story is measured on.
     held: number
+    // The seconds since the map moved to another board, while the last cut is near; undefined with none.
+    cut?: number
 }
 
 export function lookOfThePage(): Look {
@@ -252,8 +259,25 @@ export function createOverlay(context: CanvasRenderingContext2D, job: VideoJob, 
         context.globalAlpha = 1
     }
 
-    return ({seconds, played, held}) => {
+    // The map moved to another board: a flash, then the words over the new map, in the middle, clear of the rest.
+    const cutSize = 40 * u
+    const drawCut = (since: number) => {
+        if (since < CUT_FLASH_SECONDS) {
+            context.globalAlpha = 0.6 * (1 - since / CUT_FLASH_SECONDS)
+            context.fillStyle = look.white
+            context.fillRect(0, 0, width, height)
+        }
+        context.globalAlpha = Math.min(1, since / CUT_FLASH_SECONDS, (CUT_SECONDS - since) / CUT_FADE_SECONDS)
+        context.font = display(cutSize)
+        context.textAlign = "center"
+        context.textBaseline = "middle"
+        outlined("NEW MAP", width / 2, height * 0.45, look.gold, 6 * u, 4 * u)
+        context.globalAlpha = 1
+    }
+
+    return ({seconds, played, held, cut}) => {
         const over = Math.min(1, Math.max(0, (seconds - VIDEO_PLAY_SECONDS) / FADE_SECONDS))
+        if (cut !== undefined && cut >= 0 && cut < CUT_SECONDS) drawCut(cut)
         context.globalAlpha = 1 - over
         drawTop()
         drawCounter(held)

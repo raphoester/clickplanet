@@ -10,6 +10,7 @@ import type {Globe} from "./globe.ts"
 import {Countries} from "../../domain/countries.ts"
 import type {MapView, Rendering} from "../../domain/displaySettings.ts"
 import type {OwnershipsGetter, TileClicker, UpdatesListener} from "../../backends/backend.ts"
+import type {BoardAsset} from "../../domain/board.ts"
 
 const createGlobe = vi.hoisted(() => vi.fn())
 vi.mock("./globe.ts", () => ({createGlobe}))
@@ -17,7 +18,10 @@ vi.mock("./globe.ts", () => ({createGlobe}))
 const FRANCE = Countries.get("fr")!
 const JAPAN = Countries.get("jp")!
 
+const BOARD = Promise.resolve({name: "earth-1"} as BoardAsset)
+
 const backends = () => ({
+    board: BOARD,
     tileClicker: {} as TileClicker,
     ownershipsGetter: {} as OwnershipsGetter,
     updatesListener: {} as UpdatesListener,

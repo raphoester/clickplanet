@@ -1,3 +1,5 @@
+import {BoardScale, scaledLength} from "./boardScale.ts"
+
 // MAX_BLASTS and BLAST_TIMELINE are mirrored in app/viewer/shaders/tileEffects.glsl.
 export const MAX_BLASTS = 4
 
@@ -5,12 +7,12 @@ export const BLAST_TIMELINE = {fall: 0.8, shock: 1.2, scorch: 5} as const
 
 export const IMPACT_DELAY = BLAST_TIMELINE.fall
 
-// The map's mean arc between two tiles that touch.
+// About earth-1's arc between two tiles that touch.
 const TILE_SPACING = 0.004
 
-// A mine's blast takes its tile and `rings` rings of tiles around it: drawn a half tile past the last.
-export function mineBlastRadius(rings: number): number {
-    return (rings + 0.5) * TILE_SPACING
+// A mine's blast takes its tile and `rings` rings of tiles around it: drawn a half tile past the last, of its board.
+export function mineBlastRadius(rings: number, scale: BoardScale): number {
+    return (rings + 0.5) * scaledLength(TILE_SPACING, scale)
 }
 
 export type Blast =

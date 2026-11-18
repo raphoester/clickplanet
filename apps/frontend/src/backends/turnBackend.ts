@@ -15,6 +15,7 @@ import {BattleEnded as BattleEndedMessage} from "../gen/grpc/gamemaster/v1/event
 import {LedgerTotals} from "../gen/grpc/planet/v1/totals_pb.ts"
 import {MapHistory as MapHistoryMessage} from "../gen/grpc/planet/v1/history_pb.ts"
 import {MapHistory} from "../domain/mapHistory.ts"
+import {Era, eraAt, FIRST_ERA} from "../domain/eras.ts"
 import {Day, NO_SEASONS, Season, Seasons, SeasonTotals} from "./season.ts"
 import {Config, NO_TIMEOUT, openStream, pageWakeups, Wakeups} from "./transport.ts"
 import {BattleEnded, BattleToCome, Debrief, PLAIN_TURN, Turn, TurnBackend, TurnKind, TurnListener} from "./turn.ts"
@@ -105,17 +106,29 @@ export class ConnectTurnBackend implements TurnBackend {
     }
 }
 
+// A history from before eras names none: it is one era, on the first board.
 export function historyOf(history: MapHistoryMessage): MapHistory {
     const ats = history.frames.map((frame) => frame.at?.toDate().getTime() ?? 0)
+    const eras: Era[] = history.eras.length === 0 ? [FIRST_ERA]
+        : history.eras.map(({startedAt, board}) => ({startedAt: startedAt?.toDate().getTime() ?? 0, board: board || FIRST_ERA.board}))
+    const hits = eras.map(() => new Map<number, number>())
+    for (const {tile, hits: count, era} of history.hits) hits[Math.min(era, eras.length - 1)].set(tile, count)
     return {
         frames: history.frames.map((frame, i) => ({
             at: ats[i],
             tiles: Uint32Array.from(frame.owners, (owner) => owner.tile),
             owners: frame.owners.map((owner) => owner.countryId),
-            changedAt: Float64Array.from(frame.owners, (owner) => i === 0 ? ats[i] : ats[i - 1] + owner.secondsIntoStep * 1000),
+            // The first frame of an era is a whole map, as the window's first is: no change in it has a time.
+            changedAt: Float64Array.from(frame.owners, (owner) => i === 0 || cutAt(eras, ats, i) ? ats[i] : ats[i - 1] + owner.secondsIntoStep * 1000),
         })),
-        hits: new Map(history.hits.map((hits) => [hits.tile, hits.hits])),
+        hits,
+        eras,
     }
+}
+
+// Whether frame i is the first of its era: the cut, a whole map of its board.
+function cutAt(eras: readonly Era[], ats: readonly number[], i: number): boolean {
+    return eraAt(eras, ats[i]) !== eraAt(eras, ats[i - 1])
 }
 
 function totalsOf(totals: LedgerTotals): SeasonTotals {

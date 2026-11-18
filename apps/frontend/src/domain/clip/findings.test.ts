@@ -1,7 +1,9 @@
 import {describe, expect, it} from "vitest"
 import {Cast, NO_CAST, Take} from "./cast.ts"
 import {TileChange} from "./changes.ts"
-import {frontFactsOf, Ground, holdingStoryOf, placesOf, tourFactsOf} from "./findings.ts"
+import {bigCountryTiles, frontFactsOf, Ground, holdingStoryOf, placesOf, tourFactsOf} from "./findings.ts"
+import {EARTH_1_SCALE, scaleOf} from "../boardScale.ts"
+import {FIXTURE_1} from "../../testdata/boards.ts"
 import {Point} from "./geometry.ts"
 
 // Tiles 1 to 6 are France, 7 to 10 Germany, 11 and 12 Algeria.
@@ -37,9 +39,9 @@ describe("the facts of a front", () => {
     ]
     const after = new Map<number, string>([[1, "pw"], [2, "pw"], [3, "pw"], [4, "fr"], [5, "fr"], [7, "pw"], [8, "fr"], [9, "pw"], [11, "dz"]])
     const flips = [
-        {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1},
-        {landmass: 2, tiles: 150, holders: ["de", "fr"], tile: 8},
-        {landmass: 3, tiles: 60, holders: ["de", "pw"], tile: 9},
+        {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1, readable: true},
+        {landmass: 2, tiles: 150, holders: ["de", "fr"], tile: 8, readable: true},
+        {landmass: 3, tiles: 60, holders: ["de", "pw"], tile: 9, readable: false},
     ]
 
     const facts = frontFactsOf(changes, opening, after, ground, pointOf, flips, NO_CAST)
@@ -110,10 +112,10 @@ describe("the facts of a tour", () => {
 
     it("sums the tiles of the landmasses whose painted flag switched to it, by continent: all a tour shows from far", () => {
         const flips = [
-            {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1},
-            {landmass: 2, tiles: 140, holders: ["de", "pw"], tile: 7},
-            {landmass: 3, tiles: 80, holders: ["dz", "pw"], tile: 11},
-            {landmass: 4, tiles: 500, holders: ["pw", "de"], tile: 2},
+            {landmass: 1, tiles: 300, holders: ["fr", "pw"], tile: 1, readable: true},
+            {landmass: 2, tiles: 140, holders: ["de", "pw"], tile: 7, readable: true},
+            {landmass: 3, tiles: 80, holders: ["dz", "pw"], tile: 11, readable: false},
+            {landmass: 4, tiles: 500, holders: ["pw", "de"], tile: 2, readable: true},
         ]
 
         const facts = tourFactsOf("pw", changes, after, continentOf, pointOf, flips, NO_CAST)
@@ -142,7 +144,7 @@ describe("the places held", () => {
     it("gives the top holder of the world, each continent and each big country, with its share and its rivals", () => {
         const fought = [change(1, "fr", "pw"), change(2, "fr", "pw"), change(1101, "fr", "dz")]
 
-        const places = placesOf(owners, tiles, groundOf, fought, regionOf, NO_CAST)
+        const places = placesOf(owners, tiles, groundOf, fought, regionOf, NO_CAST, EARTH_1_SCALE)
 
         expect(places.map(({kind, code, continent, tiles, holder, held, changed}) => ({kind, code, continent, tiles, holder, held, changed}))).toEqual([
             {kind: "world", code: undefined, continent: undefined, tiles: 1200, holder: "pw", held: 800, changed: 2},
@@ -154,8 +156,16 @@ describe("the places held", () => {
         expect(places[0].rivals).toEqual({fr: 300, dz: 100})
     })
 
+    it("holds a country of 1,000 tiles on earth-1 a place, and as much ground on a coarser board", () => {
+        expect(bigCountryTiles(EARTH_1_SCALE)).toBe(1000)
+        expect(bigCountryTiles(scaleOf(FIXTURE_1))).toBe(11)
+        const coarse = placesOf(new Map([[1, "pw"], [12, "dz"]]), 12, (tile) => tile <= 11 ? "fr" : "dz",
+            [change(1, "fr", "pw")], regionOf, NO_CAST, scaleOf(FIXTURE_1))
+        expect(coarse.map(({kind, code}) => `${kind} ${code ?? ""}`)).toContain("country fr")
+    })
+
     it("leaves out a place nothing changed hands in for its holder: there is nothing to play", () => {
-        const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf, NO_CAST)
+        const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf, NO_CAST, EARTH_1_SCALE)
 
         expect(places.map(({kind, continent}) => `${kind} ${continent ?? ""}`)).toEqual(["world ", "continent Europe", "country Europe"])
     })
@@ -163,7 +173,7 @@ describe("the places held", () => {
     it("names the holder's top fighters by what they took for it of the place", () => {
         const cast = castOf(take(1, "pw", 1), take(1, "pw", 2), take(2, "pw", 1050), take(3, "dz", 1150), take(3, "fr", 3))
 
-        const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw"), change(1101, "fr", "dz")], regionOf, cast)
+        const places = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw"), change(1101, "fr", "dz")], regionOf, cast, EARTH_1_SCALE)
 
         expect(places.map(({kind, continent, fighters}) => [kind, continent, fighters.map(({number, took}) => `${number}:${took}`)])).toEqual([
             ["world", undefined, ["1:2", "2:1"]],
@@ -174,7 +184,7 @@ describe("the places held", () => {
     })
 
     it("tells a holding from a place: the holder, its share, the next holders as its victims", () => {
-        const [world] = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf, NO_CAST)
+        const [world] = placesOf(owners, tiles, groundOf, [change(1, "fr", "pw")], regionOf, NO_CAST, EARTH_1_SCALE)
 
         expect(holdingStoryOf(world)).toEqual({
             kind: "holding", attacker: "pw", rival: undefined, victims: ["fr", "dz"], place: {region: "the world"}, share: 800 / 1200,

@@ -1,3 +1,4 @@
+import {FIRST_ERA} from "../eras.ts"
 import {describe, expect, it} from "vitest"
 import {MapFrame, MapHistory} from "../mapHistory.ts"
 import {Ground, headlineOf, movedShare, percentOf, storyOf, VideoStory} from "./story.ts"
@@ -20,12 +21,28 @@ function frame(at: number, changes: [tile: number, owner: string][]): MapFrame {
 }
 
 function historyOf(...frames: MapFrame[]): MapHistory {
-    return {frames, hits: new Map()}
+    return {frames, hits: [new Map()], eras: [FIRST_ERA]}
 }
 
 const naming = {nameOf: (code: string) => ({pl: "Poland", de: "Germany", gb: "UK", mc: "Monaco"})[code] ?? code, said: (name: string) => name === "UK" ? `the ${name}` : name}
 
 describe("the video's story", () => {
+    it("is told on the board the 24 hours end on, from the first frame of its era: the cut, a whole map of it", () => {
+        // Germany is tiles 1-100 on the first board; the second numbers its tiles anew and holds the same ground.
+        const history: MapHistory = {
+            frames: [
+                frame(0, range(1, 100).map((tile) => [tile, "pl"])),
+                frame(1, range(1, 60).map((tile) => [tile, "de"])),
+                frame(2, range(1, 20).map((tile) => [tile, "pl"])),
+                frame(3, range(21, 30).map((tile) => [tile, "pl"])),
+            ],
+            hits: [new Map(), new Map()],
+            eras: [FIRST_ERA, {startedAt: 2, board: "fixture-1"}],
+        }
+
+        expect(storyOf(history, ground, "pl")).toEqual({flag: "pl", country: "de", kind: "gain", tiles: 100, start: 20, end: 30})
+    })
+
     it("is the real country where the flag gained the most tiles", () => {
         const history = historyOf(
             frame(0, range(101, 200).map((tile) => [tile, "pl"])),

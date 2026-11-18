@@ -19,7 +19,7 @@ Docker build context is its own directory and none can read the repo root at bui
 ```bash
 cd apps/frontend && npm run map:generate   # rewrite earth-1 in /map from Natural Earth
 cd apps/backend && make map    # → apps/backend/generated/map/boards (embedded)
-cd apps/frontend && npm run map   # → apps/frontend/static/boards (fetched at runtime) and boardAsset.ts
+cd apps/frontend && npm run map   # → apps/frontend/static/boards (fetched at runtime) and boardsAsset.ts
 cd apps/backoffice && npm run map   # → apps/backoffice/src/gen/map (the manifest and the runs, bundled)
 ```
 

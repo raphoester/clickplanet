@@ -27,6 +27,7 @@ import {nameOf, paintOf} from '../nameplates/nameplate.ts';
 import {authorStyle} from '../chat/authorStyle.ts';
 import {useWordFilter} from '../crazygames/wordFilter.ts';
 import {WordFilter} from '../../domain/wordFilter.ts';
+import type {BoardAsset} from '../../domain/board.ts';
 
 export type GlobeStatus =
     | {state: 'loading', territories?: number}
@@ -35,6 +36,8 @@ export type GlobeStatus =
 
 export type UseGlobeOptions = {
     container: React.RefObject<HTMLElement>
+    // The board the page draws, as GetMap names it at the boot: a change reloads the page, never the globe.
+    board: Promise<BoardAsset>
     // Must keep its identity: a new one rebuilds the globe.
     linkedShot?: Shot
     // A change rebuilds the globe: a first visit is guided to its front from the load.
@@ -69,7 +72,7 @@ export type UseGlobeOptions = {
 }
 
 export function useGlobe(options: UseGlobeOptions) {
-    const {container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
+    const {container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, country, crowd, battle, clickHue, mapView, halo, missions, rendering} = options
 
     const [status, setStatus] = useState<GlobeStatus>({state: 'loading'})
     const [tilesCount, setTilesCount] = useState(0)
@@ -130,6 +133,7 @@ export function useGlobe(options: UseGlobeOptions) {
         const standing = useStanding.getState()
 
         createGlobe({
+            board,
             tileClicker,
             ownershipsGetter,
             updatesListener,
@@ -214,7 +218,7 @@ export function useGlobe(options: UseGlobeOptions) {
             globeRef.current?.dispose()
             globeRef.current = null
         }
-    }, [container, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
+    }, [container, board, linkedShot, showFront, tileClicker, ownershipsGetter, updatesListener, clickBudget, bonusListener, boxCatcher, bomber, shielder, infector, miner, rallier, playSound, onClickAccepted, rendering, recordLeaderboard, publishLeaderboard, recordPeek, endPeek, recordTerritoryPeek, endTerritoryPeek])
 
     useEffect(() => () => {
         useRefusedClicks.setState(useRefusedClicks.getInitialState(), true)

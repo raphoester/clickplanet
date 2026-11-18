@@ -1,3 +1,5 @@
+import {EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
+import {FIXTURE_1} from "../../testdata/boards.ts"
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
@@ -26,7 +28,7 @@ const spread: SpreadClick = {countryId: "br", tile: 1, spread: [5, 2, 7, 3, 6, 4
 
 describe("choreographSpread", () => {
     it("bursts at the tile clicked and throws one spark onto each tile around it", () => {
-        const {sparks, centre} = choreographSpread(spread, positions)
+        const {sparks, centre} = choreographSpread(spread, positions, EARTH_1_SCALE)
 
         const bursts = sparks.filter(spark => spark.role === "burst")
         const landings = sparks.filter(spark => spark.role === "landing")
@@ -39,7 +41,7 @@ describe("choreographSpread", () => {
     })
 
     it("throws round the circle rather than in the order the server sent", () => {
-        const landings = choreographSpread(spread, positions).sparks.filter(spark => spark.role === "landing")
+        const landings = choreographSpread(spread, positions, EARTH_1_SCALE).sparks.filter(spark => spark.role === "landing")
         const order = landings.map(landing => [2, 3, 4, 5, 6, 7].find(tile => tileAt(tile).distanceTo(landing.to) < 1e-6))
 
         expect(order).toEqual([6, 7, 2, 3, 4, 5])
@@ -47,7 +49,7 @@ describe("choreographSpread", () => {
     })
 
     it("lands every spark before the effect is over", () => {
-        const last = choreographSpread(spread, positions).sparks.at(-1)!
+        const last = choreographSpread(spread, positions, EARTH_1_SCALE).sparks.at(-1)!
         expect(last.start + last.travel).toBeLessThan(SPREAD_LIFETIME_SECONDS / 2)
     })
 
@@ -67,7 +69,7 @@ describe("choreographSpread", () => {
         }
         const wide: SpreadClick = {countryId: "br", tile: 1, spread: hexes.map((_, i) => i + 1).slice(1).reverse()}
 
-        const landings = choreographSpread(wide, disc).sparks.filter(spark => spark.role === "landing")
+        const landings = choreographSpread(wide, disc, EARTH_1_SCALE).sparks.filter(spark => spark.role === "landing")
         const rings = landings.map(landing => ringOf(1 + hexes.findIndex((_, i) => landing.to.distanceTo(
             new THREE.Vector3(disc[i * 3], disc[i * 3 + 1], disc[i * 3 + 2]).normalize()) < 1e-6)))
 
@@ -76,11 +78,13 @@ describe("choreographSpread", () => {
         expect(landings.at(-1)!.start + landings.at(-1)!.travel).toBeLessThan(SPREAD_LIFETIME_SECONDS / 2)
     })
 
-    it("still bursts on a lone island, which spreads onto nothing", () => {
-        const {sparks, reach} = choreographSpread({...spread, spread: []}, positions)
+    it("still bursts on a lone island, which spreads onto nothing, a tile of its board out", () => {
+        const {sparks, reach} = choreographSpread({...spread, spread: []}, positions, EARTH_1_SCALE)
 
         expect(sparks.map(spark => spark.role)).toEqual(["burst"])
-        expect(reach).toBeGreaterThan(0)
+        expect(reach).toBe(0.004 * 5)
+        const coarse = scaleOf(FIXTURE_1)
+        expect(choreographSpread({...spread, spread: []}, positions, coarse).reach).toBeCloseTo(0.004 * coarse.length * 5, 9)
     })
 })
 
@@ -144,7 +148,7 @@ describe("createClickEffects", () => {
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1)
 
     it("starts an effect on the next frame and takes it off once it is over", () => {
-        const effects = createClickEffects(positions)
+        const effects = createClickEffects(positions, EARTH_1_SCALE)
 
         effects.playSpread(spread)
         expect(effects.object.children.length).toBeGreaterThan(0)
@@ -160,7 +164,7 @@ describe("createClickEffects", () => {
     })
 
     it("tells its marks how big a pixel is on the globe, so they are pulled clear of its curve", () => {
-        const effects = createClickEffects(positions)
+        const effects = createClickEffects(positions, EARTH_1_SCALE)
         const zoomed = new THREE.OrthographicCamera(-1, 1, 1, -1)
         zoomed.zoom = 4
 
@@ -174,7 +178,7 @@ describe("createClickEffects", () => {
     })
 
     it("keeps a fast run of clicks to a bounded number on screen", () => {
-        const effects = createClickEffects(positions)
+        const effects = createClickEffects(positions, EARTH_1_SCALE)
 
         effects.playSpread(spread)
         const perClick = effects.object.children.length

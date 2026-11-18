@@ -1,5 +1,7 @@
 import {describe, expect, it} from "vitest"
-import {BorderField, countryOfTile, type BorderData} from "./borderField.ts"
+import {BorderField, countryOfTile, leastPaintedTiles, type BorderData} from "./borderField.ts"
+import {EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
+import {FIXTURE_1} from "../../testdata/boards.ts"
 import {regions} from "./atlas.ts"
 
 const TEXELS = 4
@@ -179,5 +181,12 @@ describe("the landmass table", () => {
 
         paint(field, {de: 5})
         expect(field.landmassData.version).toBeGreaterThan(uploaded)
+    })
+})
+
+describe("the least landmass a flag is painted in", () => {
+    it("is 4 tiles on earth-1, and as much ground on a coarser board", () => {
+        expect(leastPaintedTiles(EARTH_1_SCALE)).toBe(4)
+        expect(leastPaintedTiles(scaleOf(FIXTURE_1))).toBe(1)
     })
 })

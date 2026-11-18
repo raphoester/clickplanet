@@ -1,5 +1,6 @@
 import * as THREE from "three"
 import {tilePointSize} from "./pointSize.ts"
+import type {BoardScale} from "../../domain/boardScale.ts"
 
 import glintVertex from "./shaders/clickGlint/vertex.glsl"
 import glintFragment from "./shaders/clickGlint/fragment.glsl"
@@ -79,7 +80,7 @@ type Playing = {
     startedAt: number | undefined
 }
 
-export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
+export function createClickGlints(positions: ArrayLike<number>, scale: BoardScale): ClickGlints {
     const group = new THREE.Group()
     group.renderOrder = 1
 
@@ -137,7 +138,7 @@ export function createClickGlints(positions: ArrayLike<number>): ClickGlints {
     const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
         if (playing.length === 0) return false
 
-        const tilePx = tilePointSize(camera.zoom, viewportHeight)
+        const tilePx = tilePointSize(camera.zoom, viewportHeight, scale)
         const unitsPerPixel = 1 / ((viewportHeight / 2) * camera.zoom)
 
         playing = playing.filter((glint) => {

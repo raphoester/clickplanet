@@ -87,6 +87,11 @@ them in the page's language. See [Translation](i18n.md).
   territory layer's shader finds it, and `cellsOf`, each tile's texel from its canonical id. See [The zoomed-out
   view](zoomed-out-view.md). `terrain.ts` — the kinds of land and sea, and the terrain file's runs. See [The
   terrain](terrain.md).
+- `boardScale.ts` — `scaleOf` a board, and `scaledCount`, `scaledLength`, `scaledZoom`: every size tuned on `earth-1`, on
+  another board. See [Sized by the board](board-scale.md).
+- `eras.ts` — a map's eras, each a stretch on one board: `eraAt`, `piecesOf` (a history cut by era, each piece opening
+  on a whole map of its board), `lastEraOf`, and `ErasReel`, any frame's map over several boards with the cuts between
+  them. See [A season's map, browsed](season-map.md).
 - `clipAppearances.ts` — which clip that names the player to show, when to read again, and the link
   per platform. See [In a clip](clip-appearances.md).
 - `warnOnce.ts` — for things that would otherwise warn on every frame.

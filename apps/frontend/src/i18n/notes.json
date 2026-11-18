@@ -145,6 +145,8 @@
   "archive.view": "Screen reader name of the switch between the replay and the heatmap.",
   "archive.play": "Button: plays the replay.",
   "archive.time": "Screen reader name of the time slider of a replay.",
+  "archive.newMap": "Caption over a season's replay while it passes the moment the world's map changed to a new one, with tiles of another size: the replay draws the new map from there.",
+  "archive.newMapAt": "Tooltip of the mark on the replay's time slider where the world's map changed to a new one; time is a day and an hour.",
   "chat.world": "The name of the chat room every player shares, on its tab beside the flag's own room.",
   "chat.online": "A tab of the chat: how many players are online now.",
   "chat.roomUnread": "Read by screen readers on a chat room's tab: the room's name, then what it has not read yet.",

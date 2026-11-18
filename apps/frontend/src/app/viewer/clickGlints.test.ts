@@ -1,3 +1,4 @@
+import {EARTH_1_SCALE} from "../../domain/boardScale.ts"
 import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
@@ -93,7 +94,7 @@ describe("inView", () => {
 
 describe("createClickGlints", () => {
     it("plays a click in view and takes it off once it is over", () => {
-        const glints = createClickGlints(facing)
+        const glints = createClickGlints(facing, EARTH_1_SCALE)
         const camera = lookingAtFront()
 
         glints.playClick(1, camera)
@@ -108,7 +109,7 @@ describe("createClickGlints", () => {
     })
 
     it("plays nothing for a click nobody can see", () => {
-        const glints = createClickGlints(new Float32Array([0, 0, -1]))
+        const glints = createClickGlints(new Float32Array([0, 0, -1]), EARTH_1_SCALE)
         const camera = lookingAtFront()
 
         glints.playClick(1, camera)
@@ -120,7 +121,7 @@ describe("createClickGlints", () => {
     })
 
     it("shows this player's clicks in its hue, and everyone else's in another colour", () => {
-        const glints = createClickGlints(facing)
+        const glints = createClickGlints(facing, EARTH_1_SCALE)
         const camera = lookingAtFront()
 
         glints.setOwnHue(270)
@@ -135,7 +136,7 @@ describe("createClickGlints", () => {
     })
 
     it("tells a hit and a placement from a click, and from each other, by colour", () => {
-        const glints = createClickGlints(facing)
+        const glints = createClickGlints(facing, EARTH_1_SCALE)
         const camera = lookingAtFront()
 
         glints.playClick(1, camera)
@@ -149,7 +150,7 @@ describe("createClickGlints", () => {
     })
 
     it("plays no hit and no placement nobody can see", () => {
-        const glints = createClickGlints(new Float32Array([0, 0, -1]))
+        const glints = createClickGlints(new Float32Array([0, 0, -1]), EARTH_1_SCALE)
         const camera = lookingAtFront()
 
         glints.playHit(1, camera)
@@ -160,7 +161,7 @@ describe("createClickGlints", () => {
     })
 
     it("keeps a fast run of clicks to a bounded number on screen", () => {
-        const glints = createClickGlints(facing)
+        const glints = createClickGlints(facing, EARTH_1_SCALE)
         const camera = lookingAtFront()
 
         for (let i = 0; i < 200; i++) glints.playClick(1, camera)

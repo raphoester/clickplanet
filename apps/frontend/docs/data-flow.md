@@ -1,8 +1,11 @@
 # Data flow
 
-1. `useGlobe` calls `createGlobe`, which fetches the board's runs (and rebuilds the
-   tile positions from them, see [Tile positions](tile-positions.md)) and its borders — in parallel, and before allocating any GPU resource, so an abandoned
-   load never opens a context.
+1. `main.tsx` reads the board the map plays as it loads (a `GetMap` of the first tile, `BoardChanges.choose`: see
+   [The board the page draws](board-reload.md)), and `useGlobe` calls `createGlobe` with it, which fetches that board's
+   runs (and rebuilds the tile positions from them, see [Tile positions](tile-positions.md)), its borders, its border
+   lines and its terrain — in parallel, and before allocating any GPU resource, so an abandoned load never opens a
+   context. Everything sized from the tiles reads the board (see [Sized by the board](board-scale.md)). A later answer
+   naming another board reloads the page.
 2. The server's counts (`GetHoldings`) and the fortresses are read at once, and
    the map batches start with them, eight at a time (see
    [`src/backends/`](backends.md)). **`createGlobe` resolves on the counts**:

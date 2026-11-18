@@ -1,9 +1,11 @@
+import {FIRST_ERA} from "../domain/eras.ts"
 import {Timestamp} from "@bufbuild/protobuf"
 import {describe, expect, it} from "vitest"
 import {GetReplayResponse, ReplayedEvent} from "../gen/grpc/planet/v1/admin_pb.ts"
+import {BoardEra} from "../gen/grpc/planet/v1/history_pb.ts"
 import {BombDropped, GetMapResponse, PlanetEvent, TileShields, TileUpdate, TilesEnclosed, TilesSpread} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {BombDrop, Counts, MapVersion, Ownerships, SpreadClick, Update} from "./backend.ts"
-import {ReplayBackend} from "./replayBackend.ts"
+import {replayErasOf, ReplayBackend} from "./replayBackend.ts"
 import {MapHistory, MapReel} from "../domain/mapHistory.ts"
 
 const SINCE = Date.UTC(2026, 9, 6, 12)
@@ -217,7 +219,8 @@ describe("a map history played as a replay", () => {
             // Tile 3 was taken first, then 1 and 2 were enclosed together.
             {at: 2 * HOUR, tiles: Uint32Array.from([1, 2, 3]), owners: ["de", "de", "de"], changedAt: Float64Array.from([HOUR + 40 * 60_000, HOUR + 40 * 60_000, HOUR + 10 * 60_000])},
         ],
-        hits: new Map(),
+        hits: [new Map()],
+        eras: [FIRST_ERA],
     }
     const played = ReplayBackend.ofHistory(history, new MapReel(history, 3), HOUR + 1, LANDMASSES)
 
@@ -232,5 +235,53 @@ describe("a map history played as a replay", () => {
             {tile: 1, from: "pl", to: "de", at: HOUR + 40 * 60_000},
             {tile: 2, from: "pl", to: "de", at: HOUR + 40 * 60_000},
         ])
+    })
+})
+
+describe("a replay across a change of board", () => {
+    // earth-1 until 30 s in, then fixture-1, whose tile 1 is other ground than earth-1's.
+    const eras = [new BoardEra({startedAt: at(0), board: "earth-1"}), new BoardEra({startedAt: at(30), board: "fixture-1"})]
+    const across = new GetReplayResponse({
+        opening: new GetMapResponse({startTileId: 1, codes: ["", "pl"], tiles: new Uint8Array([1, 0, 1, 0, 0, 0]), board: "earth-1"}),
+        events: [update(10, 3, "", "de"), update(31, 1, "", "jp"), update(40, 2, "it", "fr")],
+        since: at(0),
+        until: at(60),
+        eras,
+    })
+    // The map every 30 s: earth-1 at its start, then fixture-1's whole map at the cut.
+    const history: MapHistory = {
+        frames: [
+            {at: SINCE, tiles: Uint32Array.from([1, 2]), owners: ["pl", "pl"], changedAt: Float64Array.from([SINCE, SINCE])},
+            {at: SINCE + 30_000, tiles: Uint32Array.from([2, 3]), owners: ["it", "es"], changedAt: Float64Array.from([SINCE + 30_000, SINCE + 30_000])},
+        ],
+        hits: [new Map(), new Map()],
+        eras: [{startedAt: SINCE, board: "earth-1"}, {startedAt: SINCE + 30_000, board: "fixture-1"}],
+    }
+
+    it("names its eras, and one on the first board for a replay from before eras", () => {
+        expect(replayErasOf(across)).toEqual([{startedAt: SINCE, board: "earth-1"}, {startedAt: SINCE + 30_000, board: "fixture-1"}])
+        expect(replayErasOf(new GetReplayResponse({opening: new GetMapResponse({board: "earth-1"})}))).toEqual([FIRST_ERA])
+    })
+
+    it("plays its last era alone, opening on the map the history holds at the cut, nothing of the board before", async () => {
+        const backend = ReplayBackend.ofLastEra(across, LANDMASSES, history)
+
+        expect(backend.since).toBe(SINCE + 30_000)
+        expect(backend.opening).toEqual(new Map([[2, "it"], [3, "es"]]))
+        expect(backend.changes()).toEqual([
+            {tile: 1, from: undefined, to: "jp", at: SINCE + 31_000},
+            {tile: 2, from: "it", to: "fr", at: SINCE + 40_000},
+        ])
+    })
+
+    it("cannot be drawn with no history holding the map at the cut", () => {
+        expect(() => ReplayBackend.ofLastEra(across, LANDMASSES)).toThrow(/fixture-1/)
+    })
+
+    it("is the replay as it is with one era", () => {
+        const one = new GetReplayResponse({...across, eras: [eras[0]]})
+
+        expect(ReplayBackend.ofLastEra(one, LANDMASSES).changes()).toEqual(ReplayBackend.of(one, LANDMASSES).changes())
+        expect(ReplayBackend.ofLastEra(one, LANDMASSES).opening).toEqual(new Map([[1, "pl"], [2, "pl"]]))
     })
 })

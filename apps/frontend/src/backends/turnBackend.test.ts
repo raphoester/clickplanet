@@ -3,7 +3,9 @@ import {Code, ConnectError} from "@connectrpc/connect"
 import {Timestamp} from "@bufbuild/protobuf"
 import {Debrief as DebriefMessage, EntryKind, GamemasterEvent, Timeline, Turn as TurnMessage} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
 import {BattleEnded, DayEnded, SeasonEnded} from "../gen/grpc/gamemaster/v1/events_pb.ts"
-import {ConnectTurnBackend, turnOf} from "./turnBackend.ts"
+import {ConnectTurnBackend, historyOf, turnOf} from "./turnBackend.ts"
+import {BoardEra, MapFrame as MapFrameMessage, MapHistory as MapHistoryMessage, TileHits, TileOwner} from "../gen/grpc/planet/v1/history_pb.ts"
+import {FIRST_ERA} from "../domain/eras.ts"
 import {Seasons} from "./season.ts"
 import {BattleToCome, Debrief, Turn} from "./turn.ts"
 
@@ -171,5 +173,32 @@ describe("ConnectTurnBackend", () => {
     it("refuses a turn with no kind, or a kind this build does not know", () => {
         expect(() => turnOf(new TurnMessage({kind: EntryKind.UNSPECIFIED}))).toThrow("no kind")
         expect(() => turnOf(new TurnMessage({kind: 7 as EntryKind}))).toThrow("does not know")
+    })
+})
+
+describe("historyOf", () => {
+    const frame = (ms: number, owners: [number, string, number?][]) => new MapFrameMessage({
+        at: at(ms), owners: owners.map(([tile, countryId, secondsIntoStep]) => new TileOwner({tile, countryId, secondsIntoStep})),
+    })
+
+    it("reads its eras, and each tile's hits in the era of its board", () => {
+        const history = historyOf(new MapHistoryMessage({
+            frames: [frame(since, [[1, "fr"]]), frame(since + 60_000, [[1, "de", 20]]), frame(endsAt, [[1, "it", 50]])],
+            hits: [new TileHits({tile: 1, hits: 3, era: 0}), new TileHits({tile: 1, hits: 5, era: 1})],
+            eras: [new BoardEra({startedAt: at(0), board: "earth-1"}), new BoardEra({startedAt: at(endsAt), board: "fixture-1"})],
+        }))
+
+        expect(history.eras).toEqual([{startedAt: 0, board: "earth-1"}, {startedAt: endsAt, board: "fixture-1"}])
+        expect(history.hits).toEqual([new Map([[1, 3]]), new Map([[1, 5]])])
+        // A change has the time it was made; the first frame of an era is a whole map, at the frame's own time.
+        expect([...history.frames[1].changedAt]).toEqual([since + 20_000])
+        expect([...history.frames[2].changedAt]).toEqual([endsAt])
+    })
+
+    it("is one era on the first board for a history from before eras", () => {
+        const history = historyOf(new MapHistoryMessage({frames: [frame(since, [[1, "fr"]])], hits: [new TileHits({tile: 1, hits: 2})]}))
+
+        expect(history.eras).toEqual([FIRST_ERA])
+        expect(history.hits).toEqual([new Map([[1, 2]])])
     })
 })
