@@ -22,37 +22,33 @@ and the gap it leaves is exactly where this runs. So a tile is never cut, and
 which side of a border it is on is never a matter of where the line happened to
 fall across it. `borderLines.test.ts` pins the width against that gap.
 
-**What is drawn is not that polyline but its quadratic B-spline**, four straight
-pieces to a cell edge (`SAMPLES`). The lattice is a honeycomb, so the bare
-outline turns 60° at every corner and reads as a staircase from a few zooms in;
-the spline is the curve through the middle of every cell edge, reaching a quarter
-of the way toward each corner without touching it.
+**The line is drawn straight along the cell edges**: each cell edge is one piece, a quad from corner to corner, in
+every pass. The outline turns 60° at every corner, as the cells do. Until 2026-11-18 it was drawn as a quadratic
+B-spline through the middle of each cell edge, four pieces to an edge pushed in and two from orbit. The owner dropped it
+that day: the tiles are drawn as straight hexagons, so a curve around them reads worse than their own edges, and on
+`earth-2` the spline's pieces were most of the vertices a frame drew. Straight, the outline is a quarter of the pieces
+pushed in and half of them in orbit, and the code has no smoothing to keep (measured in
+[The outlines drawn straight](../../../docs/boards.md#the-outlines-drawn-straight-measured)).
 
-That curve is not a compromise on the tile rule — it is the most a curve can be
-smoothed and still obey it. The narrowest the corridor between two tiles of
-different countries ever gets is at the middle of the cell edge between them, and
-any line separating them has to thread that point; the spline goes through it
-exactly, and at the corners, where there is half as much room again, it spends a
-fraction of what it has. `borderLines.test.ts` measures the drawn line against a
-lone tile's own cell and pins its near edge clear of the disc at every zoom the
-fine pass is drawn at.
+**A straight cell edge is the corridor's own edge.** The corridor between two tiles of different countries is narrowest
+at the middle of the cell edge between them, half a spacing from each tile's centre, and the line runs through it. At a
+corner, where three cells meet, the corridor is wider (a spacing over √3 from each centre), but a piece's quad runs half
+a width past its end, square, straight at the third tile there. `borderLines.test.ts` measures both on a lone tile's
+cell at every zoom the tiles are drawn alone: the line's solid width clear of the tile's own disc at the middle of each
+side, and each piece's end clear of the neighbours' discs at the corners. The corner is the tighter of the two: it
+holds `WIDTH` under about 2.2px, where the middle alone would allow 2.5px.
 
-**Each pass carries the outline at the resolution it is looked at.** The over
-pass is on screen only while the flag is painted, where a cell edge is at most
-six pixels, so two pieces put it within a tenth of a pixel of the fine one and it
-draws half the geometry — and it is the pass that is up whenever the whole globe
-is. The fine one is only ever drawn pushed in.
+**Every pass draws the same pieces.** The over, the under, the highlight and the mission pass are four materials over
+one set of pieces and the same draws. A second kind of line, with its own colour, would be its own pieces and passes.
 
 **Only the pieces in sight are drawn**, as with the tiles (see [The tiles out of sight are not drawn](far-side.md)).
-Before each frame, `cull` finds the chunks of the outline's corners that are not behind the earth or off screen, and
+Before each frame, `cull` finds the chunks of the outline's pieces that are not behind the earth or off screen, and
 each pass draws them as up to 8 ranges of its pieces, in their order. Every pass shares one cull, made for the
 outermost lift and the widest line, so none of them loses a piece it would draw, and the frame is the same to the pixel.
 
-**A run ends at every junction** — a corner three countries share, or where a
-land border reaches the sea — which is the one corner the smoothing may not round
-off. The generator cuts the runs there so the renderer clamps the curve to it,
-and the three branches meeting there meet on the point rather than a fraction of
-a tile apart.
+**A run ends at every junction** — a corner three countries share, or where a land border reaches the sea. The
+smoothing needed the cut to pin its curve to the point; the straight line does not, but the cut keeps each run between
+one pair of landmasses, which the highlight and the mission outline read (below).
 
 **It is drawn twice, on either side of the tiles, and `flagPaint` picks.**
 Zoomed in the outline sits just inside the tile shell, so the discs' own depth
@@ -90,8 +86,7 @@ what `earth-2`'s globe waited for. Size raw, and packed with brotli at 5:
 
 `borderLinesFile.test.ts` pins that version 3 reads back each shipped board's lines to the bit, as version 2 held
 them (a hash of the runs, the sides and the corners), and writes them back to the same bytes.
-The smoothing is not baked in — the blob is the outline on the lattice, and how
-finely it is rounded off is the renderer's business and four times the size.
+The renderer draws the blob as it is: each two corners side by side in a run are a piece.
 
 **The coast is the tiles' edge and nothing else.** A one-tile lake gets a ring of
 its own, and a bay one tile wide is drawn as a bay. It used to give a sea vertex
@@ -104,12 +99,12 @@ being 0), so one territory's outline can be drawn on its own: the white line rou
 territory in orbit (see [A territory, from orbit](territory-card.md)). A run never
 changes landmass between two junctions, since two tiles of one country that touch are
 one landmass; the generator checks it and refuses otherwise. The highlight is a third
-pass over the coarse pieces, which carry the pair, drawn over the tiles and only while a
+pass over the pieces, each carrying its run's pair, drawn over the tiles and only while a
 territory is lit; the vertex shader drops every piece that does not border it.
 
 **A mission's ground is outlined in red**, the red of a mission's ring on a tile (`setAimed`, see [Missions](missions.md)), a fourth pass drawn over the tiles at
-every zoom, `MISSION_WIDTH` (2px) wide: a ground is looked at pushed in as well as from orbit. It shares the fine pass's
-pieces and adds the pair of landmasses each piece runs between, and the vertex shader reads in a texture of
+every zoom, `MISSION_WIDTH` (2px) wide: a ground is looked at pushed in as well as from orbit. It reads the pair of
+landmasses each piece runs between, and the vertex shader reads in a texture of
 `AIMED_COLUMNS` (1024) a row whether each landmass is a mission's: a piece is drawn when one side is and the other is not,
 so the outline runs round the ground's coasts and its borders with every other country, and never inside it.
 

@@ -51,30 +51,29 @@ width, and how far a blast may throw a tile outward (`LIMB` and `THROW`, the sam
 `borderLines.test.ts` pins `limbOf` against the earth's radius.
 
 **The outlines are cut into chunks too** (`outlineChunksOf` in `borderLines.ts`, culled by `cull` before each frame,
-after the tiles'). On `earth-2` they draw more vertices than the tiles in sight: 129,431 cell edges, each 2 quads in the
-over pass and 4 in the under pass, and before this every frame drew them all.
+after the tiles'). On `earth-2` they drew more vertices than the tiles in sight: 129,431 cell edges, then 2 quads each
+in the over pass and 4 in the under pass (one in every pass since the outline is drawn straight, see [The countries'
+outlines](country-outlines.md)), and before this every frame drew them all.
 
-- **Chunks.** The same `chunksOf`, over the outline's corners in their order: a corner is the stretch of curve around
-  one corner of a run, 4 pieces in the fine passes and 2 in the coarse ones. A chunk's cap holds the ends of every
-  fine piece of its corners, and so the coarse ones', whose ends are among them. 1,035 chunks on `earth-1`, 1,447 on
-  `earth-2` and 712 on `siege-1`, built when the globe is made (about 20 ms on `earth-2` in Node).
+- **Chunks.** The same `chunksOf`, over the outline's pieces in their order, a cell edge each. A chunk's cap holds both
+  ends of every piece. 1,032 chunks on `earth-1`, 1,449 on `earth-2` and 709 on `siege-1`, built when the globe is made
+  (under 20 ms on `earth-2` in Node).
 - **In sight.** The same `showingChunks`, with the limb of the outermost pass (`limbOf(OVER)`), the widest line (the
   highlight's) and the quad's corners, which reach √2 half-widths past a piece's ends. So no pass loses a piece its
   vertex shader would draw.
 - **Draws.** WebGL2 draws no range of an instanced geometry's instances without an extension it does not promise. So a
   pass is up to 8 draws (`MAX_DRAWS`), each a geometry whose attributes start at its range's first piece in the one
   buffer every draw shares (an `InterleavedBufferAttribute` at an offset), with `instanceCount` the range's length.
-  Ranges closer than 512 corners are drawn as one (`LEAST_GAP`). Each draw keeps the pieces' order and the passes keep
-  theirs (the meshes are made in drawing order, and three draws the transparent ones of one `renderOrder` by id), so
-  the lines blend as they did, to the pixel.
+  Ranges closer than 512 pieces are drawn as one (`LEAST_GAP`). Every pass draws the same geometries. Each draw keeps
+  the pieces' order and the passes keep theirs (the meshes are made in drawing order, and three draws the transparent
+  ones of one `renderOrder` by id), so the lines blend as they did, to the pixel.
 - **Kept while the view moves a little** (`ChunkSight` in `chunkSight.ts`, which the tiles use as well): the same
   quarter of the screen's half-height, but at most 0.05 of the globe's radius (`MOST_SLACK`). Zoomed out, a quarter of
   the screen would keep most of the far side.
 - **Also when the globe fills the screen.** Unlike the tiles, the outline is culled at the landing view: its far side
   is about half of it, and the vertex shader runs a piece's four corners before it drops them.
-- **Tested** in `borderLines.test.ts` on every shipped board: every cap holds the ends of its pieces at both
-  resolutions. From several cameras, each turned by 98% of the slack after the cull, no pass has a piece in sight left
-  out. The test copies the vertex shader's rule and reads each pass's own uniforms. A line just off the screen's edge
+- **Tested** in `borderLines.test.ts` on every shipped board: every cap holds both ends of its pieces. From several
+  cameras, each turned by 98% of the slack after the cull, no pass has a piece in sight left out. The test copies the vertex shader's rule and reads each pass's own uniforms. A line just off the screen's edge
   that reaches onto it is kept until the camera has panned by the slack.
 
 **Measured** in headless Chrome with the CPU slowed 4 times (see [Slow devices](../../../docs/boards.md#slow-devices)):

@@ -4,7 +4,6 @@ import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
     type BorderLines,
-    COARSE_SAMPLES,
     createBorderLines,
     halfWidthOf,
     limbOf,
@@ -15,7 +14,6 @@ import {
     outlineSegments,
     OVER,
     pieceSides,
-    SAMPLES,
     UNDER,
     WIDTH,
 } from "./borderLines.ts"
@@ -72,67 +70,82 @@ function blobOf(runs: number[][], sides: number[] = runs.flatMap(() => [0, 1])):
 describe("outlineSegments", () => {
     const at = (points: Int16Array, piece: number) => [...points.slice(piece * 3, piece * 3 + 3)]
 
-    it("starts and ends a run exactly on its own corners", () => {
+    it("draws each cell edge as one piece, from corner to corner", () => {
         const {from, to} = outlineSegments(decodeBorderLines(blobOf([[1000, 0, 0, 1000, 500, 0, 1000, 900, 0]])))
-        expect(at(from, 0)).toEqual([1000, 0, 0])
-        expect(at(to, to.length / 3 - 1)).toEqual([1000, 900, 0])
-    })
-
-    it("hands each piece on to the next with no seam between them", () => {
-        const {from, to} = outlineSegments(decodeBorderLines(blobOf([[1000, 0, 0, 1000, 500, 0, 1000, 900, 300]])))
-        for (let piece = 1; piece < from.length / 3; piece++) {
-            expect(at(from, piece), `piece ${piece}`).toEqual(at(to, piece - 1))
-        }
+        expect([...from]).toEqual([1000, 0, 0, 1000, 500, 0])
+        expect([...to]).toEqual([1000, 500, 0, 1000, 900, 0])
     })
 
     it("closes a run that came back to where it started", () => {
         const loop = [0, 0, 30000, 0, 30000, 0, 30000, 0, 0, 0, 0, 30000]
         const {from, to} = outlineSegments(decodeBorderLines(blobOf([loop])))
-        expect(at(to, to.length / 3 - 1)).toEqual(at(from, 0))
+        expect(from.length / 3).toBe(3)
+        expect(at(to, 2)).toEqual(at(from, 0))
     })
 
     it("never joins the end of one run to the start of the next", () => {
-        const samples = 4
         const one = [0, 0, 30000, 0, 10000, 30000]
         const other = [30000, 0, 0, 30000, 10000, 0]
-        const {from, to} = outlineSegments(decodeBorderLines(blobOf([one, other])), samples)
+        const {from, to} = outlineSegments(decodeBorderLines(blobOf([one, other])))
 
-        expect(at(to, 2 * samples - 1)).toEqual([0, 10000, 30000])
-        expect(at(from, 2 * samples)).toEqual([30000, 0, 0])
+        expect(from.length / 3).toBe(2)
+        expect(at(to, 0)).toEqual([0, 10000, 30000])
+        expect(at(from, 1)).toEqual([30000, 0, 0])
     })
+})
 
+// One tile of a country among another's tiles. Its cell's sides are half a spacing from its centre and its corners a
+// spacing over √3; its six neighbours are a spacing away, each across one side. The line runs along the sides, so the
+// corridor between two discs is narrowest at a side's middle, and widest at a corner, where each piece reaches half a
+// width past its end toward the third tile there.
+describe("a lone tile's outline, at every zoom the tiles are drawn alone", () => {
     const SPACING = 20000
-    const cell = () => [0, 1, 2, 3, 4, 5, 0].flatMap((which) => {
-        const angle = which * Math.PI / 3
-        const reach = SPACING / Math.sqrt(3)
-        return [Math.round(reach * Math.cos(angle)), Math.round(reach * Math.sin(angle)), 0]
+    const around = (reach: number, turn: number) => [0, 1, 2, 3, 4, 5].map((which) => {
+        const angle = which * Math.PI / 3 + turn
+        return [reach * Math.cos(angle), reach * Math.sin(angle)]
     })
+    const corners = around(SPACING / Math.sqrt(3), 0)
+    const cell = [...corners, corners[0]].flatMap(([x, y]) => [Math.round(x), Math.round(y), 0])
+    const {from, to} = outlineSegments(decodeBorderLines(blobOf([cell])))
 
-    const nearest = (samples: number) => {
-        const {from, to} = outlineSegments(decodeBorderLines(blobOf([cell()])), samples)
-        let closest = Infinity
+    // In CSS pixels on the screen's worst ratio, 1, from a disc's centre to the nearest pixel the line paints solid: the
+    // vertex shader's quad runs half a width past each end of a piece, and its sides fade out past WIDTH.
+    const clearance = ([x, y]: number[], perUnit: number) => {
+        const reach = halfWidthOf(1)
+        let nearest = Infinity
         for (let piece = 0; piece < from.length / 3; piece++) {
-            const [ax, ay] = at(from, piece)
-            const [bx, by] = at(to, piece)
-            const run = (bx - ax) ** 2 + (by - ay) ** 2
-            const along = run === 0 ? 0 : Math.min(1, Math.max(0, -(ax * (bx - ax) + ay * (by - ay)) / run))
-            closest = Math.min(closest, Math.hypot(ax + along * (bx - ax), ay + along * (by - ay)))
+            const ax = from[piece * 3] * perUnit, ay = from[piece * 3 + 1] * perUnit
+            const bx = to[piece * 3] * perUnit, by = to[piece * 3 + 1] * perUnit
+            const length = Math.hypot(bx - ax, by - ay)
+            const ux = (bx - ax) / length, uy = (by - ay) / length
+            const along = (x * perUnit - ax) * ux + (y * perUnit - ay) * uy
+            const across = Math.abs((y * perUnit - ay) * ux - (x * perUnit - ax) * uy)
+            const past = Math.max(-reach - along, 0, along - length - reach)
+            nearest = Math.min(nearest, Math.hypot(past, Math.max(0, across - WIDTH / 2)))
         }
-        return closest
+        return nearest
     }
 
-    it("keeps the line clear of the tiles it runs between, at every zoom it is drawn alone", () => {
-        const share = nearest(SAMPLES) / SPACING
+    const zooms: number[] = []
+    for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
+        if (flagPaint(zoom, 900, "split", EARTH_1_SCALE) === 0) zooms.push(zoom)
+    }
 
-        for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            if (flagPaint(zoom, 900, "split", EARTH_1_SCALE) > 0) continue
-            const clearance = share * tileSpacing(zoom, 900, EARTH_1_SCALE) - WIDTH / 2
-            expect(clearance, `zoom ${zoom}`).toBeGreaterThan(tilePointSize(zoom, 900, EARTH_1_SCALE) / 2)
+    const expectClear = (discs: number[][]) => {
+        expect(zooms.length).toBeGreaterThan(0)
+        for (const zoom of zooms) {
+            const perUnit = tileSpacing(zoom, 900, EARTH_1_SCALE) / SPACING
+            const radius = tilePointSize(zoom, 900, EARTH_1_SCALE) / 2
+            for (const disc of discs) expect(clearance(disc, perUnit), `zoom ${zoom}, disc at ${disc}`).toBeGreaterThan(radius)
         }
+    }
+
+    it("keeps the line off the tile's own disc, at the middle of each side", () => {
+        expectClear([[0, 0]])
     })
 
-    it("draws the coarse pass close enough to the fine one to cross-fade with it", () => {
-        expect(Math.abs(nearest(COARSE_SAMPLES) - nearest(SAMPLES))).toBeLessThan(SPACING * 0.02)
+    it("keeps each piece's end off the neighbours' discs, at the corners", () => {
+        expectClear(around(SPACING, Math.PI / 6))
     })
 })
 
@@ -161,11 +174,11 @@ describe("the two passes", () => {
 describe("pieceSides", () => {
     it("gives every piece of a run the two landmasses the run is between", () => {
         const data = decodeBorderLines(blobOf([[1000, 0, 0, 1000, 500, 0], [0, 1000, 0, 0, 1000, 500, 0, 900, 900]], [0, 4, 4, 9]))
-        const {from} = outlineSegments(data, 2)
-        const sides = pieceSides(data, 2)
+        const {from} = outlineSegments(data)
+        const sides = pieceSides(data)
 
         expect(sides.length).toBe(from.length / 3 * 2)
-        expect([...sides]).toEqual([...Array(4).fill([0, 4]), ...Array(6).fill([4, 9])].flat())
+        expect([...sides]).toEqual([0, 4, 4, 9, 4, 9])
     })
 })
 
@@ -231,13 +244,6 @@ describe("the handover", () => {
         lines.dispose()
     })
 
-    it("gives the coarse outline to the pass that is drawn zoomed out", () => {
-        const {lines, over, under} = outline()
-        const count = (pass: Pass) => drawnOf(pass).reduce((sum, {count}) => sum + count, 0)
-        expect(count(over)).toBeLessThan(count(under))
-        lines.dispose()
-    })
-
     it("keeps its width and its handover in CSS pixels on a sharper screen", () => {
         const {lines, over, under, inkOf} = outline()
 
@@ -256,30 +262,25 @@ describe("the handover", () => {
 })
 
 describe.each(SHIPPED)("the chunks of $board.name's outline", ({read}) => {
-    it("hold every corner once, in order, and each cap every end of its corners' pieces at both resolutions", () => {
-        const data = read()
-        const fine = outlineSegments(data, SAMPLES)
-        const chunks = outlineChunksOf(fine)
+    it("hold every piece once, in order, and each cap both ends of its pieces", () => {
+        const {from, to} = outlineSegments(read())
+        const chunks = outlineChunksOf({from, to})
         const count = chunkCount(chunks)
         expect(chunks.starts[0]).toBe(0)
-        expect(chunks.starts[count]).toBe(fine.from.length / 3 / SAMPLES)
-        expect(SAMPLES % COARSE_SAMPLES).toBe(0)
+        expect(chunks.starts[count]).toBe(from.length / 3)
 
-        for (const samples of [COARSE_SAMPLES, SAMPLES]) {
-            const {from, to} = outlineSegments(data, samples)
-            let outside = 0
-            for (let chunk = 0; chunk < count; chunk++) {
-                const [x, y, z, radius] = chunks.caps.subarray(chunk * CAP_FLOATS, chunk * CAP_FLOATS + 4)
-                for (let piece = chunks.starts[chunk] * samples; piece < chunks.starts[chunk + 1] * samples; piece++) {
-                    for (const ends of [from, to]) {
-                        const px = ends[piece * 3], py = ends[piece * 3 + 1], pz = ends[piece * 3 + 2]
-                        const across = Math.hypot(py * z - pz * y, pz * x - px * z, px * y - py * x)
-                        if (Math.atan2(across, px * x + py * y + pz * z) > radius) outside++
-                    }
+        let outside = 0
+        for (let chunk = 0; chunk < count; chunk++) {
+            const [x, y, z, radius] = chunks.caps.subarray(chunk * CAP_FLOATS, chunk * CAP_FLOATS + 4)
+            for (let piece = chunks.starts[chunk]; piece < chunks.starts[chunk + 1]; piece++) {
+                for (const ends of [from, to]) {
+                    const px = ends[piece * 3], py = ends[piece * 3 + 1], pz = ends[piece * 3 + 2]
+                    const across = Math.hypot(py * z - pz * y, pz * x - px * z, px * y - py * x)
+                    if (Math.atan2(across, px * x + py * y + pz * z) > radius) outside++
                 }
             }
-            expect(outside, `${samples} samples`).toBe(0)
         }
+        expect(outside).toBe(0)
     })
 })
 
@@ -412,7 +413,7 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
         lines.dispose()
     })
 
-    it("draws the pieces in their order, pass after pass, the same corners at both resolutions", () => {
+    it("draws the pieces in their order, pass after pass, the same pieces in every pass", () => {
         const lines = createBorderLines(read(), scaleOf(board))
         look(lines, [-0.4, 0.8, -0.1], 3, 2)
         const passes = passesOf(lines)
@@ -420,12 +421,11 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
         const ids = passes.flatMap(({meshes}) => meshes.map(({id}) => id))
         expect(ids).toEqual([...ids].sort((a, b) => a - b))
 
-        const [over, under] = passes.map(drawnOf)
+        const [under, ...others] = [passes[1], passes[0], passes[2], passes[3]].map(drawnOf)
         expect(under.length).toBeGreaterThan(1)
         expect(under.length).toBeLessThanOrEqual(8)
         for (let i = 1; i < under.length; i++) expect(under[i].start).toBeGreaterThan(under[i - 1].start + under[i - 1].count)
-        const ratio = SAMPLES / COARSE_SAMPLES
-        expect(over.map(({start, count}) => ({start: start * ratio, count: count * ratio}))).toEqual(under)
+        for (const pass of others) expect(pass).toEqual(under)
         lines.dispose()
     })
 })
