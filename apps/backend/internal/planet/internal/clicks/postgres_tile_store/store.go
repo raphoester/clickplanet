@@ -30,7 +30,7 @@ var _ inmemory_tile_storage.Persistence = (*Store)(nil)
 func (s *Store) Boards(ctx context.Context, played clicks.MapID) ([]clicks.BoardID, error) {
 	rows, err := s.db.On(ctx).QueryContext(ctx, `
 		SELECT board FROM tiles WHERE map = $1
-		UNION SELECT board FROM landmasses WHERE map = $1
+		UNION SELECT board FROM provinces WHERE map = $1
 		UNION SELECT board FROM mines WHERE map = $1
 		UNION SELECT board FROM viruses WHERE map = $1
 		ORDER BY board
@@ -82,36 +82,36 @@ func (s *Store) Load(ctx context.Context, played clicks.MapID, visit func(tile i
 	return nil
 }
 
-func (s *Store) LoadLandmasses(
-	ctx context.Context, played clicks.MapID, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string),
+func (s *Store) LoadProvinces(
+	ctx context.Context, played clicks.MapID, asset string, visit func(province clicks.ProvinceID, fortifiedBy string),
 ) error {
 	rows, err := s.db.On(ctx).QueryContext(ctx,
-		`SELECT id, fortified_by FROM landmasses WHERE map = $1 AND asset = $2`, string(played), asset)
+		`SELECT id, fortified_by FROM provinces WHERE map = $1 AND asset = $2`, string(played), asset)
 	if err != nil {
-		return fmt.Errorf("failed to read landmasses: %w", err)
+		return fmt.Errorf("failed to read the provinces' locks: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
 	for rows.Next() {
 		var (
-			landmass    clicks.LandmassID
+			province    clicks.ProvinceID
 			fortifiedBy string
 		)
-		if err := rows.Scan(&landmass, &fortifiedBy); err != nil {
-			return fmt.Errorf("failed to scan a landmass: %w", err)
+		if err := rows.Scan(&province, &fortifiedBy); err != nil {
+			return fmt.Errorf("failed to scan a province's lock: %w", err)
 		}
-		visit(landmass, fortifiedBy)
+		visit(province, fortifiedBy)
 	}
 
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("failed to read landmasses: %w", err)
+		return fmt.Errorf("failed to read the provinces' locks: %w", err)
 	}
 
 	return nil
 }
 
 func (s *Store) Save(
-	ctx context.Context, played clicks.Stage, tiles []inmemory_tile_storage.Tile, landmasses []inmemory_tile_storage.Landmass,
+	ctx context.Context, played clicks.Stage, tiles []inmemory_tile_storage.Tile, provinces []inmemory_tile_storage.Province,
 	out []inmemory_tile_storage.OutFlag,
 ) error {
 	var (
@@ -146,7 +146,7 @@ func (s *Store) Save(
 			}
 		}
 
-		if err := saveLandmasses(ctx, tx, played, landmasses); err != nil {
+		if err := saveProvinces(ctx, tx, played, provinces); err != nil {
 			return err
 		}
 		return saveOutFlags(ctx, tx, played.Map, out)
@@ -262,8 +262,8 @@ func holderOf(account cpsession.AccountID) string {
 	return account.String()
 }
 
-func saveLandmasses(ctx context.Context, tx cppg.Querier, played clicks.Stage, landmasses []inmemory_tile_storage.Landmass) error {
-	if len(landmasses) == 0 {
+func saveProvinces(ctx context.Context, tx cppg.Querier, played clicks.Stage, provinces []inmemory_tile_storage.Province) error {
+	if len(provinces) == 0 {
 		return nil
 	}
 
@@ -271,18 +271,18 @@ func saveLandmasses(ctx context.Context, tx cppg.Querier, played clicks.Stage, l
 		assets, fortifiedBy []string
 		ids                 []int64
 	)
-	for _, landmass := range landmasses {
-		assets = append(assets, landmass.Asset)
-		ids = append(ids, int64(landmass.ID))
-		fortifiedBy = append(fortifiedBy, landmass.FortifiedBy)
+	for _, province := range provinces {
+		assets = append(assets, province.Asset)
+		ids = append(ids, int64(province.ID))
+		fortifiedBy = append(fortifiedBy, province.FortifiedBy)
 	}
 
 	if _, err := tx.ExecContext(ctx, `
-		INSERT INTO landmasses (map, board, asset, id, fortified_by)
+		INSERT INTO provinces (map, board, asset, id, fortified_by)
 		SELECT $1, $2, * FROM unnest($3::text[], $4::smallint[], $5::text[])
 		ON CONFLICT (map, asset, id) DO UPDATE SET board = EXCLUDED.board, fortified_by = EXCLUDED.fortified_by
 	`, string(played.Map), played.Board, pq.Array(assets), pq.Array(ids), pq.Array(fortifiedBy)); err != nil {
-		return fmt.Errorf("failed to upsert landmasses: %w", err)
+		return fmt.Errorf("failed to upsert the provinces' locks: %w", err)
 	}
 
 	return nil
@@ -299,8 +299,8 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 		if _, err := tx.ExecContext(ctx, `DELETE FROM tiles WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the tiles: %w", err)
 		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM landmasses WHERE map = $1`, string(played)); err != nil {
-			return fmt.Errorf("failed to delete the landmasses' locks: %w", err)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM provinces WHERE map = $1`, string(played)); err != nil {
+			return fmt.Errorf("failed to delete the provinces' locks: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM knockouts WHERE map = $1`, string(played)); err != nil {
 			return fmt.Errorf("failed to delete the flags out: %w", err)
@@ -334,7 +334,7 @@ func (s *Store) Carry(
 			return err
 		}
 		tx := s.db.On(ctx)
-		for _, table := range []string{"tiles", "landmasses", "viruses", "mines"} {
+		for _, table := range []string{"tiles", "provinces", "viruses", "mines"} {
 			if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE map = $1`, string(onto.Map)); err != nil {
 				return fmt.Errorf("failed to delete the map's %s: %w", table, err)
 			}

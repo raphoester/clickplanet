@@ -34,10 +34,10 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.Fortified) error
 	}
 	account, err := missions.AccountIDOf(event.GetAccountId())
 	if err != nil {
-		return fmt.Errorf("fortify of landmass %d: %w", event.GetLandmassId(), err)
+		return fmt.Errorf("fortify at %d: %w", event.GetPosition(), err)
 	}
 	if err := event.GetFortifiedAt().CheckValid(); err != nil {
-		return fmt.Errorf("fortify of landmass %d: %w: %w", event.GetLandmassId(), errNoTime, err)
+		return fmt.Errorf("fortify at %d: %w: %w", event.GetPosition(), errNoTime, err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, subscribers.Timeout)

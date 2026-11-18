@@ -264,14 +264,28 @@ describe("decodedAnnouncement", () => {
         })
     })
 
-    it("reads a fortify, with the territory's ground for naming it", () => {
-        expect(decodedAnnouncement(bomb(`{"country":"es","ground":"fr","landmass":359,"tiles":137}`, "fortify"))).toEqual({
+    it("reads a fortify, with its province, the landmass it is inside and their ground for naming it", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"es","ground":"fr","province":1031,"landmass":359,"tiles":137}`, "fortify"))).toStrictEqual({
             kind: "fortify",
             id: "announcement-1",
             announcedAt: 1_700_000_000_000,
             country: "es",
             ground: "fr",
             landmass: 359,
+            province: 1031,
+            tiles: 137,
+        })
+    })
+
+    it("reads a fortify made before provinces, with its landmass alone", () => {
+        expect(decodedAnnouncement(bomb(`{"country":"es","ground":"fr","landmass":359,"tiles":137}`, "fortify"))).toStrictEqual({
+            kind: "fortify",
+            id: "announcement-1",
+            announcedAt: 1_700_000_000_000,
+            country: "es",
+            ground: "fr",
+            landmass: 359,
+            province: undefined,
             tiles: 137,
         })
     })

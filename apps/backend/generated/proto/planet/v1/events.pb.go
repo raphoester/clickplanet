@@ -464,16 +464,20 @@ func (x *FlagKnockedOut) GetPosition() uint64 {
 }
 
 type Fortified struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Country     string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Country string                 `protobuf:"bytes,1,opt,name=country,proto3" json:"country,omitempty"`
+	// The landmass the province is inside; a fortify made before fortify played on provinces (2026-11-18) fortified this
+	// landmass, and names no province.
 	LandmassId  uint32                 `protobuf:"varint,2,opt,name=landmass_id,json=landmassId,proto3" json:"landmass_id,omitempty"`
 	Tiles       uint32                 `protobuf:"varint,3,opt,name=tiles,proto3" json:"tiles,omitempty"`
 	FortifiedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=fortified_at,json=fortifiedAt,proto3" json:"fortified_at,omitempty"`
 	Ground      string                 `protobuf:"bytes,5,opt,name=ground,proto3" json:"ground,omitempty"`
 	AccountId   string                 `protobuf:"bytes,6,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Position    uint64                 `protobuf:"varint,7,opt,name=position,proto3" json:"position,omitempty"`
-	// The board the landmass is on, as /map/boards names it: a landmass of tiles is a count of that board's tiles.
-	Board         string `protobuf:"bytes,8,opt,name=board,proto3" json:"board,omitempty"`
+	// The board the province is on, as /map/boards names it: a province of tiles is a count of that board's tiles.
+	Board string `protobuf:"bytes,8,opt,name=board,proto3" json:"board,omitempty"`
+	// An index into the board's provinces file.
+	ProvinceId    uint32 `protobuf:"varint,9,opt,name=province_id,json=provinceId,proto3" json:"province_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -562,6 +566,13 @@ func (x *Fortified) GetBoard() string {
 		return x.Board
 	}
 	return ""
+}
+
+func (x *Fortified) GetProvinceId() uint32 {
+	if x != nil {
+		return x.ProvinceId
+	}
+	return 0
 }
 
 // The world's map moved onto another board, its land carried over (AdminService/SwitchBoard): a new era on that board.
@@ -1346,7 +1357,7 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"account_id\x18\x04 \x01(\tR\taccountId\x12\x18\n" +
 	"\acleared\x18\x05 \x01(\rR\acleared\x12@\n" +
 	"\x0eknocked_out_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\fknockedOutAt\x12\x1a\n" +
-	"\bposition\x18\a \x01(\x04R\bposition\"\x84\x02\n" +
+	"\bposition\x18\a \x01(\x04R\bposition\"\xa5\x02\n" +
 	"\tFortified\x12\x18\n" +
 	"\acountry\x18\x01 \x01(\tR\acountry\x12\x1f\n" +
 	"\vlandmass_id\x18\x02 \x01(\rR\n" +
@@ -1357,7 +1368,9 @@ const file_planet_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x06 \x01(\tR\taccountId\x12\x1a\n" +
 	"\bposition\x18\a \x01(\x04R\bposition\x12\x14\n" +
-	"\x05board\x18\b \x01(\tR\x05board\"\xd8\x01\n" +
+	"\x05board\x18\b \x01(\tR\x05board\x12\x1f\n" +
+	"\vprovince_id\x18\t \x01(\rR\n" +
+	"provinceId\"\xd8\x01\n" +
 	"\rBoardSwitched\x12\x10\n" +
 	"\x03map\x18\x01 \x01(\tR\x03map\x12\x12\n" +
 	"\x04from\x18\x02 \x01(\tR\x04from\x12\x0e\n" +

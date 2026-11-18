@@ -1,4 +1,4 @@
-// A flag this many tiles from holding a whole landmass, and holding most of it, is close to fortifying it.
+// A flag this many tiles from holding a whole province, and holding most of it, is close to fortifying it.
 export const CLOSE_TILES = 25
 
 export type Target = {

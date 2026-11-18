@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -18,21 +19,25 @@ import (
 
 const contractMaxIndex = 100_000
 
+// The island and its cape are one landmass, two provinces; the islet is a landmass and a province of its own.
 var (
 	contractIsland = []uint32{90_001, 90_002, 90_003}
+	contractCape   = []uint32{90_005}
 	contractIslet  = []uint32{90_004}
 )
 
 type TileStorageContractSuite struct {
 	suite.Suite
 
-	NewStorage func(borders *Borders) TileStorage
+	NewStorage func(ground *Ground) TileStorage
 
 	storage TileStorage
 }
 
 func (s *TileStorageContractSuite) SetupTest() {
-	s.storage = s.NewStorage(BordersOf(contractMaxIndex, contractIsland, contractIslet))
+	borders := BordersOf(contractMaxIndex, append(slices.Clone(contractIsland), contractCape...), contractIslet)
+	s.storage = s.NewStorage(GroundOfProvinces("test-board", borders, NewCapitals(map[string]uint32{}),
+		ProvincesOf("test-provinces", borders, contractIsland, contractCape, contractIslet)))
 }
 
 func (s *TileStorageContractSuite) subscribe(timeout time.Duration) (<-chan Change, context.Context) {
@@ -215,7 +220,7 @@ func (s *TileStorageContractSuite) TestAStateBatchReadsTheHeldTilesInRange() {
 }
 
 func (s *TileStorageContractSuite) TestAStateBatchIsDenseAndKeepsItsOffset() {
-	storage := s.NewStorage(BordersOf(9))
+	storage := s.NewStorage(GroundOf(BordersOf(9)))
 	s.Require().NoError(Seed(context.Background(), storage, 2, "fr"))
 	s.Require().NoError(Seed(context.Background(), storage, 4, "gb-eng"))
 
@@ -439,16 +444,17 @@ func (s *TileStorageContractSuite) shieldsOn(tiles ...uint32) []int {
 	return shields
 }
 
-func (s *TileStorageContractSuite) TestAWholeLandmassFortifiedGivesEachOfItsTilesAShield() {
+func (s *TileStorageContractSuite) TestAWholeProvinceFortifiedGivesEachOfItsTilesAShield() {
 	s.own("fr", contractIsland...)
 	listener, ctx := s.subscribe(time.Second)
 
 	fortification, err := s.fortify(cpctx.AddAccountToContext(ctx, "ada"), 90_003, "fr", 10)
 	s.Require().NoError(err)
 
-	s.Equal(Fortification{Landmass: 1, Ground: "l1", Country: "fr", Tile: 90_003, Account: "ada", Tiles: 3, Raised: []TileShields{
-		{Tile: 90_001, Shields: 1}, {Tile: 90_002, Shields: 1}, {Tile: 90_003, Shields: 1},
-	}}, fortification)
+	s.Equal(Fortification{
+		Province: 1, Asset: "test-provinces", Ground: "l1", Country: "fr", Tile: 90_003, Account: "ada", Tiles: 3,
+		Raised: []TileShields{{Tile: 90_001, Shields: 1}, {Tile: 90_002, Shields: 1}, {Tile: 90_003, Shields: 1}},
+	}, fortification)
 	s.Equal([]int{1, 1, 1}, s.shieldsOn(contractIsland...))
 	s.Equal(0, s.storage.Shields(90_004))
 	change := s.next(ctx, listener)
@@ -456,7 +462,34 @@ func (s *TileStorageContractSuite) TestAWholeLandmassFortifiedGivesEachOfItsTile
 	s.Equal(fortification, *change.Fortification)
 }
 
-func (s *TileStorageContractSuite) TestTheFortressesSayWhoFortifiedEachLandmassLast() {
+func (s *TileStorageContractSuite) TestAProvinceIsFortifiedWholeThoughItsLandmassIsNot() {
+	s.own("fr", contractIsland...)
+	s.own("de", contractCape...)
+
+	fortification, err := s.fortify(context.Background(), 90_002, "fr", 10)
+
+	s.Require().NoError(err)
+	s.Equal(3, fortification.Tiles)
+	s.Equal([]int{1, 1, 1}, s.shieldsOn(contractIsland...))
+	s.Equal(0, s.storage.Shields(contractCape[0]), "another province of the landmass gains nothing")
+}
+
+func (s *TileStorageContractSuite) TestEachProvinceOfALandmassIsFortifiedApart() {
+	ctx := context.Background()
+	s.own("fr", contractIsland...)
+	s.own("fr", contractCape...)
+	_, err := s.fortify(ctx, 90_001, "fr", 10)
+	s.Require().NoError(err)
+
+	fortification, err := s.fortify(ctx, contractCape[0], "fr", 10)
+
+	s.Require().NoError(err)
+	s.Equal(ProvinceID(2), fortification.Province)
+	s.Equal([]TileShields{{Tile: contractCape[0], Shields: 1}}, fortification.Raised)
+	s.Equal([]int{1, 1, 1}, s.shieldsOn(contractIsland...), "the island was fortified once")
+}
+
+func (s *TileStorageContractSuite) TestTheFortressesSayWhoFortifiedEachProvinceLast() {
 	ctx := context.Background()
 	s.Empty(s.storage.Fortresses())
 
@@ -467,10 +500,10 @@ func (s *TileStorageContractSuite) TestTheFortressesSayWhoFortifiedEachLandmassL
 	_, err = s.storage.Restore(ctx, []Restoration{{Tile: contractIslet[0], From: "dz", To: "de"}})
 	s.Require().NoError(err)
 
-	s.Equal(map[LandmassID]string{1: "fr", 2: "de"}, s.storage.Fortresses())
+	s.Equal(map[ProvinceID]string{1: "fr", 3: "de"}, s.storage.Fortresses())
 }
 
-func (s *TileStorageContractSuite) TestALandmassNotWholeIsNotFortified() {
+func (s *TileStorageContractSuite) TestAProvinceNotWholeIsNotFortified() {
 	s.own("fr", 90_001, 90_002)
 	s.own("de", 90_003)
 
@@ -480,7 +513,7 @@ func (s *TileStorageContractSuite) TestALandmassNotWholeIsNotFortified() {
 	s.Equal([]int{0, 0, 0}, s.shieldsOn(contractIsland...))
 }
 
-func (s *TileStorageContractSuite) TestATileOnNoLandmassIsNeverFortified() {
+func (s *TileStorageContractSuite) TestATileInNoProvinceIsNeverFortified() {
 	s.own("fr", 5)
 
 	_, err := s.fortify(context.Background(), 5, "fr", 10)
@@ -489,7 +522,7 @@ func (s *TileStorageContractSuite) TestATileOnNoLandmassIsNeverFortified() {
 	s.Equal(0, s.storage.Shields(5))
 }
 
-func (s *TileStorageContractSuite) TestAFlagCannotFortifyTheSameLandmassTwiceInARow() {
+func (s *TileStorageContractSuite) TestAFlagCannotFortifyTheSameProvinceTwiceInARow() {
 	ctx := context.Background()
 	s.own("fr", contractIsland...)
 	_, err := s.fortify(ctx, 90_003, "fr", 10)
@@ -503,7 +536,7 @@ func (s *TileStorageContractSuite) TestAFlagCannotFortifyTheSameLandmassTwiceInA
 	s.Equal([]int{0, 1, 1}, s.shieldsOn(contractIsland...))
 }
 
-func (s *TileStorageContractSuite) TestAnotherFlagFortifyingALandmassLetsTheFirstFortifyItAgain() {
+func (s *TileStorageContractSuite) TestAnotherFlagFortifyingAProvinceLetsTheFirstFortifyItAgain() {
 	ctx := context.Background()
 	s.own("fr", contractIsland...)
 	_, err := s.fortify(ctx, 90_003, "fr", 10)
@@ -531,7 +564,7 @@ func (s *TileStorageContractSuite) TestAFortifyStopsAtTheMostATileHolds() {
 	s.Equal([]TileShields{{Tile: 90_002, Shields: 1}, {Tile: 90_003, Shields: 1}}, fortification.Raised)
 }
 
-func (s *TileStorageContractSuite) TestABlastBreaksAWholeLandmass() {
+func (s *TileStorageContractSuite) TestABlastBreaksAWholeProvince() {
 	ctx := context.Background()
 	s.own("fr", contractIsland...)
 	_, err := s.storage.Clear(ctx, Blast{Tile: 90_001, CountryID: "de", Cleared: []uint32{90_001}})
@@ -542,7 +575,7 @@ func (s *TileStorageContractSuite) TestABlastBreaksAWholeLandmass() {
 	s.Require().ErrorIs(err, ErrNotWhole)
 }
 
-func (s *TileStorageContractSuite) TestARestoreThatMakesALandmassWholeLocksItToItsNewHolder() {
+func (s *TileStorageContractSuite) TestARestoreThatMakesAProvinceWholeLocksItToItsNewHolder() {
 	ctx := context.Background()
 	s.own("fr", 90_001, 90_002)
 	s.own("ps", 90_003)

@@ -17,30 +17,31 @@ import (
 // other ground, so the boot refuses it.
 var ErrOtherBoard = errors.New("the map's rows name a board other than its era's")
 
-// Persistence keeps each map's tiles, fortify locks and flags out: the world's, and each arena's. Each row names the
-// board its tile is on.
+// Persistence keeps each map's tiles, the fortify lock of each province and the flags out: the world's, and each arena's.
+// Each row names the board its tile is on.
 type Persistence interface {
 	// Boards are the boards a map's tiles, locks, mines and viruses name.
 	Boards(ctx context.Context, played clicks.MapID) ([]clicks.BoardID, error)
 	Load(ctx context.Context, played clicks.MapID, visit func(tile Tile)) error
-	LoadLandmasses(ctx context.Context, played clicks.MapID, asset string,
-		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
+	// LoadProvinces reads the locks of the provinces of that provinces file alone: another cut numbers them again.
+	LoadProvinces(ctx context.Context, played clicks.MapID, asset string,
+		visit func(province clicks.ProvinceID, fortifiedBy string)) error
 	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
 	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
 	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
-	Save(ctx context.Context, played clicks.Stage, tiles []Tile, landmasses []Landmass, out []OutFlag) error
+	Save(ctx context.Context, played clicks.Stage, tiles []Tile, provinces []Province, out []OutFlag) error
 	// SaveViruses keeps a map's live viruses in place of the ones it kept before.
 	SaveViruses(ctx context.Context, played clicks.Stage, live []clicks.VirusSnapshot) error
 	// SaveMines keeps each mine laid, in place of what its tile kept, and deletes the mine of each tile gone.
 	SaveMines(ctx context.Context, played clicks.Stage, laid []clicks.MineSnapshot, gone []uint32) error
 	// Open writes a map's first tiles in one transaction with keep, once keep says to.
 	Open(ctx context.Context, played clicks.Stage, tiles []Tile, keep func(ctx context.Context) (bool, error)) (bool, error)
-	// Carry moves a map onto another board in one transaction with keep, once keep says to: every tile, landmass's lock,
+	// Carry moves a map onto another board in one transaction with keep, once keep says to: every tile, province's lock,
 	// virus and mine of the board before deleted, and the tiles and mines carried written on the new one. The flags out
 	// stay: they name no tile.
 	Carry(ctx context.Context, onto clicks.Stage, tiles []Tile, mines []clicks.MineSnapshot,
 		keep func(ctx context.Context) (bool, error)) (bool, error)
-	// Wipe deletes every tile, every landmass's lock, every flag out, every virus and every mine of a map, in one
+	// Wipe deletes every tile, every province's lock, every flag out, every virus and every mine of a map, in one
 	// transaction with keep, once keep says to.
 	Wipe(ctx context.Context, played clicks.MapID, keep func(ctx context.Context) (bool, error)) (bool, error)
 	// ForgetHolder takes an account off every tile of every map, and takes its mines off them.
@@ -60,9 +61,9 @@ type Tile struct {
 	Holder cpsession.AccountID
 }
 
-// Asset is the borders blob the id indexes: a new map numbers its landmasses again.
-type Landmass struct {
-	ID          clicks.LandmassID
+// Asset is the provinces file the id indexes: a new cut numbers its provinces again.
+type Province struct {
+	ID          clicks.ProvinceID
 	Asset       string
 	FortifiedBy string
 }
@@ -89,7 +90,7 @@ func (s *Storage) Load(ctx context.Context, playing clicks.Stage) error {
 }
 
 // fillLocked puts the tiles, the locks and the flags out the map in play keeps on the board, as on a blank one, and
-// settles every landmass. A row of the map on a board other than the stage's refuses it.
+// settles every province. A row of the map on a board other than the stage's refuses it.
 func (s *Storage) fillLocked(ctx context.Context) error {
 	boards, err := s.persistence.Boards(ctx, s.stage.Map)
 	if err != nil {
@@ -107,8 +108,8 @@ func (s *Storage) fillLocked(ctx context.Context) error {
 // Rows are what a map is filled from: what postgres keeps, or what a switch of board carried.
 type Rows interface {
 	Load(ctx context.Context, played clicks.MapID, visit func(tile Tile)) error
-	LoadLandmasses(ctx context.Context, played clicks.MapID, asset string,
-		visit func(landmass clicks.LandmassID, fortifiedBy string)) error
+	LoadProvinces(ctx context.Context, played clicks.MapID, asset string,
+		visit func(province clicks.ProvinceID, fortifiedBy string)) error
 	LoadOutFlags(ctx context.Context, played clicks.MapID, visit func(out OutFlag)) error
 	LoadViruses(ctx context.Context, played clicks.MapID, visit func(virus clicks.VirusSnapshot)) error
 	LoadMines(ctx context.Context, played clicks.MapID, visit func(mine clicks.MineSnapshot)) error
@@ -135,6 +136,7 @@ func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
 			holder:  s.board.holders.intern(tile.Holder),
 		})
 		s.landmasses.moved(tile.ID, unownedCode, id)
+		s.provinces.moved(tile.ID, unownedCode, id)
 		owned++
 	})
 	if err != nil {
@@ -145,8 +147,8 @@ func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
 	}
 
 	fortified, strays := 0, 0
-	err = rows.LoadLandmasses(ctx, s.stage.Map, s.landmasses.asset(), func(landmass clicks.LandmassID, fortifiedBy string) {
-		if !s.landmasses.known(landmass) {
+	err = rows.LoadProvinces(ctx, s.stage.Map, s.provinces.asset(), func(province clicks.ProvinceID, fortifiedBy string) {
+		if !s.provinces.known(province) {
 			strays++
 			return
 		}
@@ -155,11 +157,11 @@ func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
 			internErr = err
 			return
 		}
-		s.landmasses.restore(landmass, id)
+		s.provinces.restore(province, id)
 		fortified++
 	})
 	if err != nil {
-		return fmt.Errorf("failed to read stored landmasses: %w", err)
+		return fmt.Errorf("failed to read the stored provinces' locks: %w", err)
 	}
 	if internErr != nil {
 		return fmt.Errorf("failed to intern a stored country: %w", internErr)
@@ -180,17 +182,17 @@ func (s *Storage) fillFromLocked(ctx context.Context, rows Rows) error {
 		return fmt.Errorf("failed to read the stored mines: %w", err)
 	}
 
-	s.landmasses.each(s.settleLandmassLocked)
+	s.provinces.each(s.settleProvinceLocked)
 
 	if outside > 0 {
 		s.logger.Warn("stored tiles past the end of the map were ignored", slog.Int("tiles", outside))
 	}
 	if strays > 0 {
-		s.logger.Warn("stored landmasses past the end of the borders were ignored", slog.Int("landmasses", strays))
+		s.logger.Warn("stored locks of provinces past the end of the provinces were ignored", slog.Int("provinces", strays))
 	}
 
 	s.logger.Info("loaded the tile map", slog.String("map", string(s.stage.Map)), slog.Int("board", int(s.stage.Board)), slog.Int("ownedTiles", owned), slog.Int("countryCodes", s.board.countries()),
-		slog.Int("fortifiedLandmasses", fortified), slog.Int("flagsOut", len(s.out.flags())),
+		slog.Int("fortifiedProvinces", fortified), slog.Int("flagsOut", len(s.out.flags())),
 		slog.Int("viruses", len(s.viruses.live)), slog.Int("mines", len(s.mines.laid)))
 
 	return nil
@@ -255,28 +257,28 @@ func (s *Storage) flushLocked(ctx context.Context) error {
 
 // What changed since the last flush, saved in one transaction.
 type unsaved struct {
-	tiles      []Tile
-	landmasses []Landmass
-	out        []OutFlag
-	viruses    Viruses
-	mines      Mines
-	placed     []clicks.PlacementID
+	tiles     []Tile
+	provinces []Province
+	out       []OutFlag
+	viruses   Viruses
+	mines     Mines
+	placed    []clicks.PlacementID
 }
 
 func (s *Storage) drainLocked() unsaved {
 	return unsaved{
-		tiles: s.board.drainDirty(), landmasses: s.landmasses.drainDirty(s.board.nameOf), out: s.out.drainUnsaved(),
+		tiles: s.board.drainDirty(), provinces: s.provinces.drainDirty(s.board.nameOf), out: s.out.drainUnsaved(),
 		viruses: s.viruses.drainUnsaved(), mines: s.mines.drainUnsaved(), placed: s.drainPlacedLocked(),
 	}
 }
 
 func (s *Storage) save(ctx context.Context, playing clicks.Stage, changes unsaved) error {
-	if len(changes.tiles) == 0 && len(changes.landmasses) == 0 && len(changes.out) == 0 && len(changes.placed) == 0 &&
+	if len(changes.tiles) == 0 && len(changes.provinces) == 0 && len(changes.out) == 0 && len(changes.placed) == 0 &&
 		!changes.viruses.Changed && changes.mines.empty() {
 		return nil
 	}
 	if err := s.transactioner.InTx(ctx, func(ctx context.Context) error {
-		if err := s.persistence.Save(ctx, playing, changes.tiles, changes.landmasses, changes.out); err != nil {
+		if err := s.persistence.Save(ctx, playing, changes.tiles, changes.provinces, changes.out); err != nil {
 			return err //nolint:wrapcheck // wrapped once below.
 		}
 		if changes.viruses.Changed {
@@ -291,8 +293,8 @@ func (s *Storage) save(ctx context.Context, playing clicks.Stage, changes unsave
 		}
 		return s.placements.Confirm(ctx, changes.placed) //nolint:wrapcheck // wrapped once below.
 	}); err != nil {
-		return fmt.Errorf("failed to save %d tiles, %d landmasses, %d flags out and %d shields placed: %w",
-			len(changes.tiles), len(changes.landmasses), len(changes.out), len(changes.placed), err)
+		return fmt.Errorf("failed to save %d tiles, %d provinces' locks, %d flags out and %d shields placed: %w",
+			len(changes.tiles), len(changes.provinces), len(changes.out), len(changes.placed), err)
 	}
 	return nil
 }
@@ -301,8 +303,8 @@ func (s *Storage) markDirtyLocked(changes unsaved) {
 	for _, tile := range changes.tiles {
 		s.board.markDirty(tile.ID)
 	}
-	for _, landmass := range changes.landmasses {
-		s.landmasses.markDirty(landmass.ID)
+	for _, province := range changes.provinces {
+		s.provinces.markDirty(province.ID)
 	}
 	s.out.markUnsaved(changes.out)
 	s.viruses.markUnsaved(changes.viruses)

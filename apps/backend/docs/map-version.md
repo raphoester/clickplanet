@@ -4,13 +4,13 @@
 is `{epoch, seq}`: `seq` counts the writes since the map last started, and `epoch` is the second it started, since
 `seq` starts from zero at every start. The map starts at boot, and again (`restartLocked`, every stream cut) when a
 reset wipes it, when an arena opens or closes and when the world switches boards; a new epoch is always later than the one before. On the wire it is
-`planet.v1.MapVersion`, on `GetMapResponse`, `GetHoldingsResponse`, `TileUpdate`, `BombDropped`, `LandmassFortified`,
+`planet.v1.MapVersion`, on `GetMapResponse`, `GetHoldingsResponse`, `TileUpdate`, `BombDropped`, `ProvinceFortified`,
 `HoldingsChanged` and `Heartbeat`. A client compares two versions of one epoch; a version of another epoch means the
 map started again, and what it holds is to be read again.
 
 ## One counter, under the tiles lock
 
-- **`inmemory_tile_storage` keeps the counter beside the board and the landmasses**, under the same `s.mu`.
+- **`inmemory_tile_storage` keeps the counter beside the board, the landmasses and the provinces**, under the same `s.mu`.
   `publishLocked` raises it and stamps the `clicks.Change` it publishes, so a write that changes nothing (a click on
   a tile already its flag, a strike with no shield left) counts nothing. A bomb, a fortify and each tile of a restore
   count one each.
@@ -27,8 +27,10 @@ map started again, and what it holds is to be read again.
 
 ## The tally: what each flag holds
 
-`Storage.Tally()` walks `board.held` and `landmasses.held` under one read lock: every flag that holds a tile, and
-every landmass with a tile held, whole (a flag a row does not list holds none of it), at the version it read.
+`Storage.Tally()` walks `board.held`, `landmasses.held` and `provinces.held` under one read lock: every flag that holds
+a tile, and every landmass and every province with a tile held, whole (a flag a row does not list holds none of it), at
+the version it read. The provinces' rows (`ProvinceHoldings`, since 2026-11-18) are what the page reads a province's
+leader and the fortify pulse from.
 `ClickService/GetHoldings` serves it (`get_holdings_handler/holdings_query`, a `MemoryQuery`). It is not
 `HoldingsOf`, which is the accounts holding one landmass (see [Who holds the tiles](tile-holders.md)). The internal
 `GetTerritories` reads the tally too (`territories_query`), adding each landmass row to its country, so a flag's
@@ -36,11 +38,11 @@ territory says how many of its tiles lie on each country's land. It also reads `
 each flag's tiles, from `board.shielded`: a count per flag kept beside `board.held` by every write of a tile (`put`,
 `restore`, `raise`, `strike`), so no read walks the tiles. No stream carries it.
 
-**`holdings_changed` carries what changed, at most once a second.** `putLocked` marks the landmass and the two
-flags of every change of owner in a `recount` (two `dirtySet`s, nothing else in memory). `Storage.Run` starts a
+**`holdings_changed` carries what changed, at most once a second.** `putLocked` marks the landmass, the province and
+the two flags of every change of owner in a `recount` (three `dirtySet`s, nothing else in memory). `Storage.Run` starts a
 one-second tick, `PublishTally`, that drains them under the write lock and publishes one `clicks.Change{Tally}` with
-the whole row of each landmass marked and the total of each flag marked, at the current version. It counts no write
-of its own. A flag that left the map is listed with no tile, and a landmass nobody holds any more with no flag.
+the whole row of each landmass and each province marked and the total of each flag marked, at the current version. It counts no write
+of its own. A flag that left the map is listed with no tile, and a landmass or a province nobody holds any more with no flag.
 **Always totals, never "+1"**: a bomb, an enclosure (one put per tile, up to 75 per click) and an operator's batch
 (256 puts every 50 ms) are a single event at the next tick, and a missed one is healed by the next.
 
@@ -55,7 +57,7 @@ compression, and one row is 14 to 111 bytes.
 `If-None-Match` that names the map's current version with a 304 before the handler runs, so nothing is read and no
 `MapRead` is told. It compares weakly, as RFC 9110 asks: Cloudflare turns a tag weak (`W/`) when it compresses. Caddy
 adds `-zstd` or `-gzip` to a strong tag it compresses and takes it off the `If-None-Match` it passes on, so the
-backend sees its own tag. `MapDensity`, `GetFortresses` and `GetLandmass` get the same `Cache-Control` and no
+backend sees its own tag. `MapDensity`, `GetFortresses`, `GetLandmass` and `GetProvince` get the same `Cache-Control` and no
 `ETag`.
 
 ## Tests

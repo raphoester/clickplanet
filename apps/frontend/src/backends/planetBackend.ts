@@ -27,6 +27,8 @@ import {
     LandmassReader,
     LandmassState,
     MapVersion,
+    ProvinceReader,
+    ProvinceState,
     TileHolder,
     TileHolders,
     TileRange,
@@ -61,6 +63,7 @@ import {
     GetMapResponse,
     HoldingsChanged,
     LandmassHoldings,
+    ProvinceHoldings,
     MapVersion as MapVersionMessage,
     PlanetEvent,
     ReachRefusal,
@@ -102,7 +105,7 @@ function sameGrant(a: GrantRules, b: GrantRules): boolean {
     return a.signInRefill === b.signInRefill && a.gatesOn === b.gatesOn && a.openKinds.join() === b.openKinds.join()
 }
 
-export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
+export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, GrantSource, SessionSource, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader {
     private pendingUpdates: Update[] = []
     private readonly updateBatchCallbacks = new Map<string, (updates: Update[]) => void>()
     private readonly updateCallbacks = new Map<string, (update: Update) => void>()
@@ -364,7 +367,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     public async getFortresses(signal?: AbortSignal): Promise<Map<number, string>> {
         try {
             const res = await retrying(() => this.client.getFortresses({}, {signal}), "getFortresses", signal)
-            return new Map(res.fortresses.map(({landmassId, countryId}) => [landmassId, countryId]))
+            return new Map(res.fortresses.map(({provinceId, countryId}) => [provinceId, countryId]))
         } catch (e) {
             // A server from before fortifying has no locks to tell.
             if (e instanceof ConnectError && e.code === Code.Unimplemented) return new Map()
@@ -379,9 +382,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     }
 
     public async landmass(landmass: number, signal?: AbortSignal): Promise<LandmassState> {
-        const {holders, lastFortification: last} = await this.client.getLandmass({landmassId: landmass}, {signal})
+        const {holders} = await this.client.getLandmass({landmassId: landmass}, {signal})
+        return {holders: holders.map(({accountId, countryId, tiles}) => ({accountId, countryCode: countryId, tiles}))}
+    }
+
+    public async province(province: number, signal?: AbortSignal): Promise<ProvinceState> {
+        const {lastFortification: last} = await this.client.getProvince({provinceId: province}, {signal})
         return {
-            holders: holders.map(({accountId, countryId, tiles}) => ({accountId, countryCode: countryId, tiles})),
             lastFortification: last && {accountId: last.accountId, countryCode: last.countryId, at: Number(last.fortifiedAtUnixMs)},
         }
     }
@@ -1160,10 +1167,10 @@ export function takenOf(enclosure: Enclosure): number[] {
 }
 
 export function fortificationOf(event: PlanetEvent): Fortification | undefined {
-    if (event.event.case !== "landmassFortified") return undefined
+    if (event.event.case !== "provinceFortified") return undefined
 
     const fortified = event.event.value
-    return {landmass: fortified.landmassId, countryId: fortified.countryId, tile: fortified.tileId, version: versionOf(fortified.version)}
+    return {province: fortified.provinceId, countryId: fortified.countryId, tile: fortified.tileId, version: versionOf(fortified.version)}
 }
 
 export function knockOutOf(event: PlanetEvent): KnockOut | undefined {
@@ -1390,6 +1397,9 @@ export function countsOf(message: GetHoldingsResponse | HoldingsChanged): Counts
         countries: new Map(message.countries.map(({countryId, tiles}) => [countryId, tiles])),
         landmasses: new Map(message.landmasses.map((row: LandmassHoldings) => [
             row.landmassId, new Map(row.holdings.map(({countryId, tiles}) => [countryId, tiles])),
+        ])),
+        provinces: new Map(message.provinces.map((row: ProvinceHoldings) => [
+            row.provinceId, new Map(row.holdings.map(({countryId, tiles}) => [countryId, tiles])),
         ])),
     }
 }

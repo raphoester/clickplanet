@@ -19,7 +19,7 @@ export default function FortifyCard({fortified, onDone}: FortifyCardProps) {
             <span className="bonus-award-box" aria-hidden="true"><BonusIcon kind="shields"/></span>
             <strong className="bonus-award-title">{t("fortifyCard.title")}</strong>
             <span className="bonus-award-detail">
-                {t("fortifyCard.ownsAll", {country, territory: fortified.name})}
+                {t("fortifyCard.ownsAll", {country, province: fortified.name})}
             </span>
             <span className="bonus-award-detail">{t("fortifyCard.notTwice")}</span>
             <button type="button" className="button button-gold bonus-award-done" onClick={onDone}>{t("fortifyCard.gotIt")}</button>

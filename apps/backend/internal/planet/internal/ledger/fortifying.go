@@ -10,22 +10,26 @@ import (
 
 const kindFortify = "fortify"
 
+// A fortify names its province and the provinces file it is a row of. One made before fortify played on provinces
+// (2026-11-18) names its landmass instead, a row of its board's borders, and no province.
 type Fortifying struct {
-	Tile     uint32
-	Landmass clicks.LandmassID
-	Ground   string
-	Tiles    int
-	Scope    string
-	Account  string
-	Country  string
-	At       time.Time
-	Raised   []clicks.TileShields
+	Tile      uint32
+	Province  clicks.ProvinceID
+	Provinces string
+	Landmass  clicks.LandmassID
+	Ground    string
+	Tiles     int
+	Scope     string
+	Account   string
+	Country   string
+	At        time.Time
+	Raised    []clicks.TileShields
 }
 
 func fortifyingOfImpact(by Caller, at time.Time, flag string, fortified *clicks.Fortification) Fortifying {
 	return Fortifying{
-		Tile: fortified.Tile, Landmass: fortified.Landmass, Ground: fortified.Ground, Tiles: fortified.Tiles,
-		Scope: by.Scope, Account: by.Account, Country: flag, At: at, Raised: fortified.Raised,
+		Tile: fortified.Tile, Province: fortified.Province, Provinces: fortified.Asset, Ground: fortified.Ground,
+		Tiles: fortified.Tiles, Scope: by.Scope, Account: by.Account, Country: flag, At: at, Raised: fortified.Raised,
 	}
 }
 
@@ -48,10 +52,12 @@ type raisedJSON struct {
 }
 
 type fortifyPayload struct {
-	Landmass clicks.LandmassID `json:"landmass"`
-	Ground   string            `json:"ground,omitempty"`
-	Tiles    int               `json:"tiles,omitempty"`
-	Raised   []raisedJSON      `json:"raised"`
+	Province  clicks.ProvinceID `json:"province,omitempty"`
+	Provinces string            `json:"provinces,omitempty"`
+	Landmass  clicks.LandmassID `json:"landmass,omitempty"`
+	Ground    string            `json:"ground,omitempty"`
+	Tiles     int               `json:"tiles,omitempty"`
+	Raised    []raisedJSON      `json:"raised"`
 }
 
 func (f Fortifying) Entry() (Entry, error) {
@@ -60,9 +66,11 @@ func (f Fortifying) Entry() (Entry, error) {
 		raised[i] = raisedJSON{Tile: tile.Tile, Shields: tile.Shields}
 	}
 
-	payload, err := json.Marshal(fortifyPayload{Landmass: f.Landmass, Ground: f.Ground, Tiles: f.Tiles, Raised: raised})
+	payload, err := json.Marshal(fortifyPayload{
+		Province: f.Province, Provinces: f.Provinces, Landmass: f.Landmass, Ground: f.Ground, Tiles: f.Tiles, Raised: raised,
+	})
 	if err != nil {
-		return Entry{}, fmt.Errorf("failed to write down the fortify of landmass %d: %w", f.Landmass, err)
+		return Entry{}, fmt.Errorf("failed to write down the fortify of province %d: %w", f.Province, err)
 	}
 
 	return Entry{
@@ -83,7 +91,8 @@ func fortifyingOf(entry Entry) (Event, error) {
 	}
 
 	return Fortifying{
-		Tile: entry.Tile, Landmass: payload.Landmass, Ground: payload.Ground, Tiles: payload.Tiles,
-		Scope: entry.Scope, Account: entry.Account, Country: entry.Country, At: entry.At, Raised: raised,
+		Tile: entry.Tile, Province: payload.Province, Provinces: payload.Provinces, Landmass: payload.Landmass,
+		Ground: payload.Ground, Tiles: payload.Tiles, Scope: entry.Scope, Account: entry.Account, Country: entry.Country,
+		At: entry.At, Raised: raised,
 	}, nil
 }

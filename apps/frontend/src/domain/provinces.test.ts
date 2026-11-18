@@ -2,7 +2,7 @@ import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
 import {BOARDS} from "../app/viewer/boardsAsset.ts"
-import {bordersHashOf, decodeProvinces, encodeProvinces, type Provinces} from "./provinces.ts"
+import {bordersHashOf, decodeProvinces, encodeProvinces, landmassProvinces, type Provinces} from "./provinces.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
@@ -45,6 +45,15 @@ describe("a provinces file", () => {
     it("names its borders by the 8 hex of their file", () => {
         expect(bordersHashOf("borders-0ae1a037.bin")).toBe(0x0ae1a037)
         expect(() => bordersHashOf("terrain-0ae1a037.bin")).toThrow()
+    })
+})
+
+describe("a board with no provinces file", () => {
+    it("has each landmass as one province of the same id", () => {
+        const provinces = landmassProvinces(0x0ae1a037, Uint16Array.of(1, 2, 2), new Float32Array(15), Uint32Array.of(0, 1, 2))
+        expect([...provinces.province]).toEqual([1, 2, 2])
+        expect([...provinces.landmass]).toEqual([0, 1, 2])
+        expect([...provinces.tiles]).toEqual([0, 1, 2])
     })
 })
 

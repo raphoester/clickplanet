@@ -402,6 +402,9 @@ export class Fortified extends Message<Fortified> {
   country = "";
 
   /**
+   * The landmass the province is inside; a fortify made before fortify played on provinces (2026-11-18) fortified this
+   * landmass, and names no province.
+   *
    * @generated from field: uint32 landmass_id = 2;
    */
   landmassId = 0;
@@ -432,11 +435,18 @@ export class Fortified extends Message<Fortified> {
   position = protoInt64.zero;
 
   /**
-   * The board the landmass is on, as /map/boards names it: a landmass of tiles is a count of that board's tiles.
+   * The board the province is on, as /map/boards names it: a province of tiles is a count of that board's tiles.
    *
    * @generated from field: string board = 8;
    */
   board = "";
+
+  /**
+   * An index into the board's provinces file.
+   *
+   * @generated from field: uint32 province_id = 9;
+   */
+  provinceId = 0;
 
   constructor(data?: PartialMessage<Fortified>) {
     super();
@@ -454,6 +464,7 @@ export class Fortified extends Message<Fortified> {
     { no: 6, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "position", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
     { no: 8, name: "board", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "province_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Fortified {

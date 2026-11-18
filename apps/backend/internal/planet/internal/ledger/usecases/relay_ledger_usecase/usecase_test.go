@@ -103,6 +103,23 @@ func flushed(t *testing.T, events ...ledger.Event) *inmemory_ledger_storage.Stor
 	return storage
 }
 
+func TestAFortifyMadeBeforeProvincesIsToldWithItsLandmass(t *testing.T) {
+	storage := flushed(t, ledger.Fortifying{
+		Tile: 3, Landmass: 7, Ground: "is", Tiles: 60, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at,
+		Raised: []clicks.TileShields{{Tile: 3, Shields: 1}},
+	})
+	events := &sender{}
+
+	_, err := relay_ledger_usecase.New(storage, &cursor{}, earth1(borders{}, positions{}), events).Execute(t.Context())
+	require.NoError(t, err)
+
+	require.Len(t, events.sent, 1)
+	assert.True(t, proto.Equal(&planetv1.Fortified{
+		Board: "earth-1", Country: "fr", LandmassId: 7, Tiles: 60, Ground: "is", FortifiedAt: timestamppb.New(at),
+		AccountId: ada,
+	}, events.sent[0]), "%v", events.sent[0])
+}
+
 func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	storage := flushed(t,
 		ledger.Taking{Tile: 1, Scope: "1.2.3.4", Account: ada, Country: "fr", Previous: "de", At: at},
@@ -111,8 +128,8 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 			Tile: 9, CountryID: "fr", Cleared: []uint32{8, 9}, Owners: []string{"de", "de"},
 		}},
 		ledger.Fortifying{
-			Tile: 3, Landmass: 7, Ground: "is", Tiles: 60, Scope: "1.2.3.4", Account: ada, Country: "fr", At: at,
-			Raised: []clicks.TileShields{{Tile: 3, Shields: 1}},
+			Tile: 3, Province: 7, Provinces: "provinces.bin", Ground: "is", Tiles: 60, Scope: "1.2.3.4", Account: ada,
+			Country: "fr", At: at, Raised: []clicks.TileShields{{Tile: 3, Shields: 1}},
 		},
 		ledger.Shielding{Tile: 3, Scope: "1.2.3.4", Account: ada, Country: "fr", Shields: 2, At: at},
 		ledger.KnockingOut{Tile: 4, Scope: "1.2.3.4", Account: ada, Country: "fr", Out: "de", At: at, Cleared: []uint32{5, 6}},
@@ -120,7 +137,7 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 	events := &sender{}
 	told := &cursor{}
 
-	n, err := relay_ledger_usecase.New(storage, told, earth1(borders{1: "es", 9: "au"}, positions{1: {X: 0.6, Z: 0.8}}), events).Execute(t.Context())
+	n, err := relay_ledger_usecase.New(storage, told, earth1(borders{1: "es", 3: "is", 9: "au"}, positions{1: {X: 0.6, Z: 0.8}}), events).Execute(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, 6, n)
@@ -132,7 +149,10 @@ func TestEachFactOfTheLedgerIsToldWithItsPositionInOrder(t *testing.T) {
 		&planetv1.BombLanded{
 			Country: "fr", TileId: 9, Ground: "au", LandmassId: uint32(tasmania), Cleared: 2, LandedAt: timestamppb.New(at), AccountId: ada, Position: 2,
 		},
-		&planetv1.Fortified{Board: "earth-1", Country: "fr", LandmassId: 7, Tiles: 60, Ground: "is", FortifiedAt: timestamppb.New(at), AccountId: ada, Position: 3},
+		&planetv1.Fortified{
+			Board: "earth-1", Country: "fr", ProvinceId: 7, LandmassId: uint32(tasmania), Tiles: 60, Ground: "is",
+			FortifiedAt: timestamppb.New(at), AccountId: ada, Position: 3,
+		},
 		&planetv1.ShieldPlaced{AccountId: ada, TileId: 3, Country: "fr", Shields: 2, PlacedAt: timestamppb.New(at), Position: 4},
 		&planetv1.FlagKnockedOut{
 			Country: "de", By: "fr", TileId: 4, AccountId: ada, Cleared: 2, KnockedOutAt: timestamppb.New(at), Position: 5,

@@ -55,7 +55,8 @@ internal/planet/internal/
     get_tile_holder_handler/holder_query/       ClickService/GetTileHolder, the last take of one tile, from ledger_events
     get_recent_map_history_handler/recent_history_query/  ClickService/GetRecentMapHistory: the map in memory rewound
                                                 over ledger_events from its head, kept until the next half hour
-    get_landmass_handler/landmass_query/       ClickService/GetLandmass: the holders from the tiles, the last fortify from ledger_events
+    get_landmass_handler/landmass_query/       ClickService/GetLandmass: the holders from the tiles
+    get_province_handler/province_query/       ClickService/GetProvince: the last fortify from ledger_events
     get_holdings_handler/holdings_query/       ClickService/GetHoldings: what each flag holds, from the tile map's tally
   subscribers/                    the edge for events: player.v1.PlayerForgotten → anonymize_takes_usecase
   commands/                       the edge for commands: planet.v1.GrantCharges → apply_grant_usecase,

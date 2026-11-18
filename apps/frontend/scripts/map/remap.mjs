@@ -151,14 +151,14 @@ SET tile = r.to_id + (e.tile - r.from_id)
 FROM tile_remap r
 WHERE e.tile >= r.from_id AND e.tile < r.from_id + r.span;
 
-${PAYLOAD_TILE_LISTS.map(payloadTilesSQL).join("\n")}${borders ? landmassesSQL(landmasses, borders, down) : ""}`
+${PAYLOAD_TILE_LISTS.map(payloadTilesSQL).join("\n")}${borders ? landmassesSQL(landmasses, down) : ""}`
 }
 
-// A landmass id is a row of the borders blob's table, so it moves with the blob too: the fortify a territory card
-// reads last, and the lock the boot loads for the blob it runs on.
-function landmassesSQL(pairs, borders, down) {
+// A landmass id is a row of the borders blob's table, so it moves with the blob too: the landmass a fortify made before
+// provinces names. No lock moves: a lock is a province's, keyed by its provinces file, and the boot settles the provinces
+// of a new cut again (docs/provinces.md).
+function landmassesSQL(pairs, down) {
     const walked = down ? pairs.map(({from: f, to: t}) => ({from: t, to: f})) : pairs
-    const [was, now] = down ? [borders.to, borders.from] : [borders.from, borders.to]
     const values = walked.map(({from: f, to: t}) => `    (${f}, ${t})`).join(",\n")
 
     return `
@@ -173,12 +173,5 @@ SET payload = jsonb_set(e.payload, '{landmass}', to_jsonb(COALESCE((
     SELECT r.to_id FROM landmass_remap r WHERE r.from_id = (e.payload->>'landmass')::integer
 ), 0)))
 WHERE e.payload ? 'landmass';
-
-INSERT INTO landmasses (map, asset, id, fortified_by)
-SELECT l.map, '${now}', r.to_id, l.fortified_by
-FROM landmasses l
-JOIN landmass_remap r ON r.from_id = l.id
-WHERE l.asset = '${was}'
-ON CONFLICT (map, asset, id) DO UPDATE SET fortified_by = EXCLUDED.fortified_by;
 `
 }

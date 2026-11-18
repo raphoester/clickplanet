@@ -36,7 +36,7 @@ export type TerritoryCardProps = {
 
 export default function TerritoryCard({shown, flag, players, missions, now = Date.now(), onHold, onClose}: TerritoryCardProps) {
     const {territory, point, touch} = shown
-    const {name, ground, size, holdings, fortifiedBy, target} = territory
+    const {name, ground, size, holdings, provinceName, fortifiedBy, target} = territory
     const free = freeTilesOf(territory)
     const listed = holdings.slice(0, FLAGS_SHOWN)
     const more = holdings.length - listed.length
@@ -96,6 +96,7 @@ export default function TerritoryCard({shown, flag, players, missions, now = Dat
         </section>}
         {missions && <MissionsHere missions={missionsOnTerritory(missions, territory)}/>}
         <div className="pointer-card-foot territory-card-fortify">
+            {provinceName && <h4 className="territory-card-heading territory-card-province" title={provinceName}>{provinceName}</h4>}
             <p className="territory-card-fortify-line">
                 <span className="territory-card-shield"><BonusIcon kind="shields"/></span>
                 {fortifiedBy

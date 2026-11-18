@@ -33,13 +33,13 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.Fortified) error
 		return fmt.Errorf("%w: %w", errNoTime, err)
 	}
 
-	// A landmass of tiles is a count of its board's: as much ground is as newsworthy on any board.
+	// A province of tiles is a count of its board's: as much ground is as newsworthy on any board.
 	scale, err := cpboards.ScaleOf(event.GetBoard())
 	if err != nil {
 		return fmt.Errorf("failed to scale the fortify to its board: %w", err)
 	}
-	fortify := announcements.FortifyOf(event.GetPosition(), event.GetCountry(), event.GetGround(), event.GetLandmassId(),
-		event.GetTiles(), scale)
+	fortify := announcements.FortifyOf(event.GetPosition(), event.GetCountry(), event.GetGround(), event.GetProvinceId(),
+		event.GetLandmassId(), event.GetTiles(), scale)
 	if !fortify.Newsworthy() {
 		return nil
 	}

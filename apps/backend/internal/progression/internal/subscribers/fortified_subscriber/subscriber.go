@@ -32,7 +32,7 @@ func (s Subscriber) Handle(ctx context.Context, event *planetv1.Fortified) error
 	}
 	account, err := accounts.AccountIDOf(event.GetAccountId())
 	if err != nil {
-		return fmt.Errorf("fortify of landmass %d: %w", event.GetLandmassId(), err)
+		return fmt.Errorf("fortify at %d: %w", event.GetPosition(), err)
 	}
 	tiles := uint64(event.GetTiles())
 

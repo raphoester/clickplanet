@@ -85,3 +85,8 @@ export function decodeProvinces(buffer: ArrayBuffer, tileCount: number): Provinc
     }
     return {borders: view.getUint32(16, true), province, landmass, frames, tiles}
 }
+
+// The provinces of a board with no provinces file: its landmasses, each one province of the same id.
+export function landmassProvinces(borders: number, assignment: Uint16Array, frames: Float32Array, totals: Uint32Array): Provinces {
+    return {borders, province: assignment, landmass: Uint16Array.from(totals, (_, landmass) => landmass), frames, tiles: totals}
+}

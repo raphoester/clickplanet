@@ -39,7 +39,7 @@ func (s *testSuite) TestAWipeLeavesABlankMapInMemoryAndStored() {
 	}
 	s.Zero(storage.Held("fr"))
 	s.Empty(persistence.Stored())
-	s.Empty(persistence.StoredLandmasses(borders.Asset()))
+	s.Empty(persistence.StoredProvinces("test-provinces"))
 	s.Require().NoError(storage.Flush(ctx))
 	s.Empty(persistence.Stored(), "nothing of the map before it is flushed back")
 

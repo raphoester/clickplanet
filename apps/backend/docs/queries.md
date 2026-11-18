@@ -4,7 +4,7 @@
 a read that reuses them forces public fields onto them for its own sake. So a read is a query of its own. Chat
 (`GetHistory`, `GetMessage`, `ListMessages`, `ListModeration`), player (`GetProfile`, `GetPlayer`, `GetPlayers`, `GetNameplates`, `AdminService/GetRoster`, `ListRenames`, `AdminService/SearchPlayersByEmail`), progression
 (`GetTitles`, `GetBadges`, `GetProgress`, `GetLevel`, `AdminService/GetProgress`), planet
-(`GetTakesByCountry`, `GetPlayDays`, `GetLedgerTotals`, `GetMapHistory`, `GetRecentMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetHoldings`, `GetTiles`), vandalsquad (`AdminService/ListGraffiti`),
+(`GetTakesByCountry`, `GetPlayDays`, `GetLedgerTotals`, `GetMapHistory`, `GetRecentMapHistory`, `GetTerritories`, `GetLedger`, `GetTileHolder`, `GetLandmass`, `GetProvince`, `GetHoldings`, `GetTiles`), vandalsquad (`AdminService/ListGraffiti`),
 gamemaster (`GetSeasonTotals`, `GetSeasonReplay`), missions (`AdminService/ListFlagDays`,
 `AdminService/GetMissionTotals`, `AdminService/GetRules`), quizzes (`AdminService/ListQuizQuestions`, of memory), auth
 (`GetMe`, `GetAccount`, `GetAccounts`, `SearchEmails`), scoring (`GetBoard`, `GetMyTally`, `GetRound`, `GetScores`, `GetBookHistory` and the live stream), support (`ListNotes`, `ListReports`) and clips (`GetAppearances`, `ListNameVerdicts`, `GetShownNames`) follow this so far. **A command may

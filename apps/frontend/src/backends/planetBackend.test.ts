@@ -36,17 +36,21 @@ import {
     GetHoldingsResponse,
     GetMapResponse,
     GetLandmassResponse,
+    GetProvinceResponse,
+    GetFortressesResponse,
+    Fortress as FortressMessage,
     Holding,
     HoldingsChanged,
     LandmassHoldings,
+    ProvinceHoldings,
     MapVersion as MapVersionMessage,
     GetTileHolderResponse,
-    LandmassFortification as LandmassFortificationMessage,
+    ProvinceFortification as ProvinceFortificationMessage,
     LandmassHolder as LandmassHolderMessage,
     GlobePoint,
     Heartbeat,
     KnockOut as KnockOutMessage,
-    LandmassFortified,
+    ProvinceFortified,
     PlanetEvent,
     ReachRefusal,
     RulesChanged,
@@ -1029,15 +1033,15 @@ describe("spreadOf", () => {
 })
 
 describe("fortificationOf", () => {
-    it("reads the landmass, the flag and the tile that made it whole", () => {
+    it("reads the province, the flag and the tile that made it whole", () => {
         const event = new PlanetEvent({
-            event: {case: "landmassFortified", value: new LandmassFortified({landmassId: 42, countryId: "us", tileId: 1234})},
+            event: {case: "provinceFortified", value: new ProvinceFortified({provinceId: 42, countryId: "us", tileId: 1234})},
         })
 
-        expect(fortificationOf(event)).toEqual({landmass: 42, countryId: "us", tile: 1234, version: NO_VERSION})
+        expect(fortificationOf(event)).toEqual({province: 42, countryId: "us", tile: 1234, version: NO_VERSION})
     })
 
-    it("drops everything that is not a fortified landmass", () => {
+    it("drops everything that is not a fortified province", () => {
         expect(fortificationOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
     })
 })
@@ -1257,6 +1261,7 @@ describe("PlanetBackend bombs", () => {
                 version: versionAt(11),
                 countries: [new Holding({countryId: "jp", tiles: 4}), new Holding({countryId: "fr"})],
                 landmasses: [new LandmassHoldings({landmassId: 7, holdings: [new Holding({countryId: "jp", tiles: 4})]})],
+                provinces: [new ProvinceHoldings({provinceId: 31, holdings: [new Holding({countryId: "jp", tiles: 1})]})],
             })}})
             await new Promise(() => {})
         })
@@ -1275,6 +1280,7 @@ describe("PlanetBackend bombs", () => {
             version: {epoch: 1_790_000_000, seq: 11},
             countries: new Map([["jp", 4], ["fr", 0]]),
             landmasses: new Map([[7, new Map([["jp", 4]])]]),
+            provinces: new Map([[31, new Map([["jp", 1]])]]),
         }])
         backend.close()
     })
@@ -1284,6 +1290,7 @@ describe("PlanetBackend bombs", () => {
             version: versionAt(30),
             countries: [new Holding({countryId: "fr", tiles: 3})],
             landmasses: [new LandmassHoldings({landmassId: 2, holdings: [new Holding({countryId: "fr", tiles: 3})]})],
+            provinces: [new ProvinceHoldings({provinceId: 5, holdings: [new Holding({countryId: "fr", tiles: 2})]})],
         }))
         const backend = new PlanetBackend(clientWith({getHoldings}), 60_000)
 
@@ -1291,6 +1298,7 @@ describe("PlanetBackend bombs", () => {
             version: {epoch: 1_790_000_000, seq: 30},
             countries: new Map([["fr", 3]]),
             landmasses: new Map([[2, new Map([["fr", 3]])]]),
+            provinces: new Map([[5, new Map([["fr", 2]])]]),
         })
         backend.close()
     })
@@ -2447,13 +2455,12 @@ describe("PlanetBackend landmass", () => {
         1_000,
     )
 
-    it("reads who holds a landmass and who fortified it last, with no token", async () => {
+    it("reads who holds a landmass, with no token", async () => {
         const getLandmass = vi.fn().mockResolvedValue(new GetLandmassResponse({
             holders: [
                 new LandmassHolderMessage({accountId: "account-ana", countryId: "fr", tiles: 40}),
                 new LandmassHolderMessage({accountId: "account-kiran", countryId: "in", tiles: 3}),
             ],
-            lastFortification: new LandmassFortificationMessage({accountId: "account-ana", countryId: "fr", fortifiedAtUnixMs: 1_761_393_600_000n}),
         }))
         const backend = backendWith(getLandmass)
 
@@ -2462,17 +2469,50 @@ describe("PlanetBackend landmass", () => {
                 {accountId: "account-ana", countryCode: "fr", tiles: 40},
                 {accountId: "account-kiran", countryCode: "in", tiles: 3},
             ],
-            lastFortification: {accountId: "account-ana", countryCode: "fr", at: 1_761_393_600_000},
         })
         expect(getLandmass.mock.calls[0][0]).toEqual({landmassId: 12})
         expect((getLandmass.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
         backend.close()
     })
+})
 
-    it("answers no fortify for a landmass nobody fortified", async () => {
-        const backend = backendWith(vi.fn().mockResolvedValue(new GetLandmassResponse()))
+describe("PlanetBackend province", () => {
+    const backendWith = (getProvince: ReturnType<typeof vi.fn>) => new PlanetBackend(
+        {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getProvince} as never,
+        1_000,
+    )
 
-        expect(await backend.landmass(12)).toEqual({holders: [], lastFortification: undefined})
+    it("reads who fortified a province last, with no token", async () => {
+        const getProvince = vi.fn().mockResolvedValue(new GetProvinceResponse({
+            lastFortification: new ProvinceFortificationMessage({accountId: "account-ana", countryId: "fr", fortifiedAtUnixMs: 1_761_393_600_000n}),
+        }))
+        const backend = backendWith(getProvince)
+
+        expect(await backend.province(1031)).toEqual({
+            lastFortification: {accountId: "account-ana", countryCode: "fr", at: 1_761_393_600_000},
+        })
+        expect(getProvince.mock.calls[0][0]).toEqual({provinceId: 1031})
+        expect((getProvince.mock.calls[0][1] as {headers?: Headers}).headers).toBeUndefined()
+        backend.close()
+    })
+
+    it("reads each lock by its province", async () => {
+        const getFortresses = vi.fn().mockResolvedValue(new GetFortressesResponse({
+            fortresses: [new FortressMessage({provinceId: 1031, countryId: "fr"}), new FortressMessage({provinceId: 7, countryId: "de"})],
+        }))
+        const backend = new PlanetBackend(
+            {click: vi.fn(), getMap: vi.fn(), getBudget: noBudget(), ...bonusReads(), mapDensity: vi.fn(), listenForEvents: noEvents(), getFortresses} as never,
+            1_000,
+        )
+
+        expect(await backend.getFortresses()).toEqual(new Map([[1031, "fr"], [7, "de"]]))
+        backend.close()
+    })
+
+    it("answers no fortify for a province nobody fortified", async () => {
+        const backend = backendWith(vi.fn().mockResolvedValue(new GetProvinceResponse()))
+
+        expect(await backend.province(1031)).toEqual({lastFortification: undefined})
         backend.close()
     })
 })

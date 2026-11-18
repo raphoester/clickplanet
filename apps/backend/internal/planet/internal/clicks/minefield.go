@@ -148,7 +148,7 @@ func (f Minefield) blast(ctx context.Context, tiles Exploding, mine Mine, rings 
 	return Detonation{Mine: kept, Impacts: impacts}, reached, nil
 }
 
-// fortifiedAll asks each take whether it made its landmass whole.
+// fortifiedAll asks each take whether it made its province whole.
 func fortifiedAll(ctx context.Context, tiles Claimable, flag string, impacts []Impact, most int) ([]Impact, error) {
 	for i := range impacts {
 		if impacts[i].Outcome != Taken {

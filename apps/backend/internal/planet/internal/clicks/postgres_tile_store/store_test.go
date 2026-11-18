@@ -139,25 +139,25 @@ func (s *testSuite) TestTheHolderIsKeptWithItsTile() {
 	s.Equal(map[uint32]cpsession.AccountID{1: ana, 2: cpsession.NoAccount, 3: cpsession.NoAccount}, holders)
 }
 
-func (s *testSuite) TestALandmassLockIsKeptForItsMapAlone() {
+func (s *testSuite) TestAProvinceLockIsKeptForItsMapAlone() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, nil, []inmemory_tile_storage.Landmass{
-		{ID: 3, Asset: "borders-a.bin", FortifiedBy: "fr"},
-		{ID: 4, Asset: "borders-a.bin", FortifiedBy: "de"},
-		{ID: 3, Asset: "borders-b.bin", FortifiedBy: "us"},
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, nil, []inmemory_tile_storage.Province{
+		{ID: 3, Asset: "provinces-a.bin", FortifiedBy: "fr"},
+		{ID: 4, Asset: "provinces-a.bin", FortifiedBy: "de"},
+		{ID: 3, Asset: "provinces-b.bin", FortifiedBy: "us"},
 	}, nil))
-	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, nil, []inmemory_tile_storage.Landmass{
-		{ID: 3, Asset: "borders-a.bin", FortifiedBy: "bg"},
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, nil, []inmemory_tile_storage.Province{
+		{ID: 3, Asset: "provinces-a.bin", FortifiedBy: "bg"},
 	}, nil))
 
-	s.Equal(map[clicks.LandmassID]string{3: "bg", 4: "de"}, s.landmasses("borders-a.bin"))
-	s.Equal(map[clicks.LandmassID]string{3: "us"}, s.landmasses("borders-b.bin"))
-	s.Empty(s.landmasses("borders-c.bin"))
+	s.Equal(map[clicks.ProvinceID]string{3: "bg", 4: "de"}, s.provinces("provinces-a.bin"))
+	s.Equal(map[clicks.ProvinceID]string{3: "us"}, s.provinces("provinces-b.bin"))
+	s.Empty(s.provinces("provinces-c.bin"))
 }
 
-func (s *testSuite) landmasses(asset string) map[clicks.LandmassID]string {
-	held := map[clicks.LandmassID]string{}
-	s.Require().NoError(s.store.LoadLandmasses(context.Background(), clicks.World, asset,
-		func(landmass clicks.LandmassID, fortifiedBy string) { held[landmass] = fortifiedBy }))
+func (s *testSuite) provinces(asset string) map[clicks.ProvinceID]string {
+	held := map[clicks.ProvinceID]string{}
+	s.Require().NoError(s.store.LoadProvinces(context.Background(), clicks.World, asset,
+		func(province clicks.ProvinceID, fortifiedBy string) { held[province] = fortifiedBy }))
 	return held
 }

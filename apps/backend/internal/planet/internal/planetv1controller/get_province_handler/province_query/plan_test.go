@@ -1,4 +1,4 @@
-package landmass_query_test
+package province_query_test
 
 import (
 	"strings"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_landmass_handler/landmass_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_province_handler/province_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
 
@@ -23,13 +23,15 @@ func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
 		SELECT n, 'world', 1,
 			CASE WHEN n % 1000 = 0 THEN 'fortify' ELSE 'take' END::ledger_event_kind,
 			n % 260503 + 1, NULL, 'fr', 'de', now(), md5((n % 500)::text)::uuid,
-			CASE WHEN n % 1000 = 0 THEN jsonb_build_object('landmass', n % 657 + 1, 'raised', '[]'::jsonb) END
+			CASE WHEN n % 1000 = 0 THEN jsonb_build_object('province', n % 2097 + 1, 'provinces', 'provinces-286f4c3e.bin',
+				'raised', '[]'::jsonb) END
 		FROM generate_series(0, 199999) n`)
 	require.NoError(t, err)
 	_, err = db.On(t.Context()).ExecContext(t.Context(), `VACUUM ANALYZE ledger_events`)
 	require.NoError(t, err)
 
-	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+landmass_query.LastFortify, 42, "world", 1)
+	rows, err := db.On(t.Context()).QueryContext(t.Context(), "EXPLAIN "+province_query.LastFortify, 42,
+		"provinces-286f4c3e.bin", "world", 1)
 	require.NoError(t, err)
 	defer func() { require.NoError(t, rows.Close()) }()
 	var lines []string
@@ -41,6 +43,6 @@ func TestTheLastFortifyIsFoundThroughItsIndex(t *testing.T) {
 	require.NoError(t, rows.Err())
 	plan := strings.Join(lines, "\n")
 
-	assert.Contains(t, plan, "ledger_events_fortify", plan)
+	assert.Contains(t, plan, "ledger_events_fortify_province", plan)
 	assert.NotContains(t, plan, "Seq Scan", plan)
 }

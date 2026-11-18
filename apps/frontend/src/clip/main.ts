@@ -7,7 +7,7 @@ import {GetReplayResponse} from "../gen/grpc/planet/v1/admin_pb.ts"
 import {GetMapHistoryResponse} from "../gen/grpc/planet/v1/internal_pb.ts"
 import {GetRoundResponse} from "../gen/grpc/scoring/v1/scoring_pb.ts"
 import {GetTurnResponse} from "../gen/grpc/gamemaster/v1/gamemaster_pb.ts"
-import {replayErasOf, ReplayBackend} from "../backends/replayBackend.ts"
+import {replayErasOf, ReplayBackend, replayGroundsOf} from "../backends/replayBackend.ts"
 import {takenOf} from "../backends/planetBackend.ts"
 import {historyOf} from "../backends/turnBackend.ts"
 import {MapReel} from "../domain/mapHistory.ts"
@@ -15,7 +15,7 @@ import {lastEraOf} from "../domain/eras.ts"
 import {scaleOf} from "../domain/boardScale.ts"
 import {createGlobe} from "../app/viewer/globe.ts"
 import {loadPointGeometryData} from "../app/viewer/points.ts"
-import {countryOfTile, loadBorders} from "../app/viewer/borderField.ts"
+import {countryOfTile, loadBorders, loadProvinces} from "../app/viewer/borderField.ts"
 import {boardOf} from "../app/viewer/boards.ts"
 import {Countries} from "../domain/countries.ts"
 import {continents, flagOfContinent, regionOf} from "../domain/regions.ts"
@@ -227,8 +227,10 @@ async function choose(): Promise<Chosen> {
 
     const focus = countryParam("focus")
     const {positions} = await loadPointGeometryData(board)
-    const borders = await loadBorders(board.urls.borders)
-    const replay = ReplayBackend.of(recorded, {assignment: borders.assignment, count: borders.codes.length})
+    const bordersRead = loadBorders(board.urls.borders)
+    const [borders, provinces] = await Promise.all([bordersRead, loadProvinces(board, bordersRead)])
+    const grounds = replayGroundsOf(borders, provinces)
+    const replay = ReplayBackend.of(recorded, grounds)
     const pointAt = (tile: number) => pointOf(positions, tile)
     const groundAt = (tile: number) => countryOfTile(borders, tile)
     const continentAt = (tile: number) => {
@@ -346,8 +348,7 @@ async function choose(): Promise<Chosen> {
             throw new Error(`saga ${told.saga} runs from ${new Date(found.since).toISOString()} to ${new Date(found.until).toISOString()}, `
                 + `not from ${new Date(told.since).toISOString()}`)
         }
-        const backend = ReplayBackend.ofHistory(history, new MapReel(history, borders.assignment.length), told.since,
-            {assignment: borders.assignment, count: borders.codes.length})
+        const backend = ReplayBackend.ofHistory(history, new MapReel(history, borders.assignment.length), told.since, grounds)
         const inSaga = (tile: number) => inHolding(found.place, groundAt(tile), regionOf)
         // With no rival, the flag holding the most of the place after the attacker when the clip starts.
         const [next] = rankedBy(tally([...backend.opening].flatMap(([tile, owner]) => owner !== told.attacker && inSaga(tile) ? [owner] : [])))

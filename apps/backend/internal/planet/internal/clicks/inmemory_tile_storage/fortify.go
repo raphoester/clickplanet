@@ -10,86 +10,86 @@ import (
 )
 
 func (s *Storage) fortifyLocked(ctx context.Context, tile uint32, flag string, most int) (clicks.Fortification, error) {
-	landmass := s.landmasses.of(tile)
-	if err := s.fortifyErrorLocked(landmass, flag); err != nil {
+	province := s.provinces.of(tile)
+	if err := s.fortifyErrorLocked(province, flag); err != nil {
 		return clicks.Fortification{}, err
 	}
 
 	most = min(most, math.MaxUint8)
-	members := s.landmasses.tilesOf(landmass)
+	members := s.provinces.tilesOf(province)
 	raised := make([]clicks.TileShields, 0, len(members))
 	for _, member := range members {
 		if s.board.shieldsOn(member) < most && !s.capitalLocked(member) {
 			raised = append(raised, clicks.TileShields{Tile: member, Shields: s.board.raise(member)})
 		}
 	}
-	s.lockLocked(landmass, flag)
+	s.lockLocked(province, flag)
 
 	return clicks.Fortification{
-		Landmass: landmass, Ground: s.landmasses.groundOf(tile), Country: flag, Tile: tile,
+		Province: province, Asset: s.provinces.asset(), Ground: s.landmasses.groundOf(tile), Country: flag, Tile: tile,
 		Account: cpctx.GetAccount(ctx), Tiles: len(members), Raised: raised,
 	}, nil
 }
 
-// The flag each locked landmass is locked to: the one that fortified it last, or settled on it whole.
-func (s *Storage) Fortresses() map[clicks.LandmassID]string {
+// The flag each locked province is locked to: the one that fortified it last, or settled on it whole.
+func (s *Storage) Fortresses() map[clicks.ProvinceID]string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	fortresses := map[clicks.LandmassID]string{}
-	s.landmasses.each(func(landmass clicks.LandmassID) {
-		if flag := s.lockedToLocked(landmass); flag != "" {
-			fortresses[landmass] = flag
+	fortresses := map[clicks.ProvinceID]string{}
+	s.provinces.each(func(province clicks.ProvinceID) {
+		if flag := s.lockedToLocked(province); flag != "" {
+			fortresses[province] = flag
 		}
 	})
 
 	return fortresses
 }
 
-func (s *Storage) fortifyErrorLocked(landmass clicks.LandmassID, flag string) error {
+func (s *Storage) fortifyErrorLocked(province clicks.ProvinceID, flag string) error {
 	if err := clicks.FortifyError(
-		landmass, flag, s.heldLocked(landmass, flag), len(s.landmasses.tilesOf(landmass)), s.lockedToLocked(landmass),
+		province, flag, s.heldLocked(province, flag), len(s.provinces.tilesOf(province)), s.lockedToLocked(province),
 	); err != nil {
-		return fmt.Errorf("landmass %d: %w", landmass, err)
+		return fmt.Errorf("province %d: %w", province, err)
 	}
 
 	return nil
 }
 
-// A whole landmass nobody fortified is locked to its holder, so a write that made it whole earns nothing later.
+// A whole province nobody fortified is locked to its holder, so a write that made it whole earns nothing later.
 func (s *Storage) settleLocked(updates []clicks.TileUpdate) {
 	for _, update := range updates {
-		s.settleLandmassLocked(s.landmasses.of(update.Tile))
+		s.settleProvinceLocked(s.provinces.of(update.Tile))
 	}
 }
 
-func (s *Storage) settleLandmassLocked(landmass clicks.LandmassID) {
-	members := s.landmasses.tilesOf(landmass)
-	if landmass == clicks.NoLandmass || len(members) == 0 {
+func (s *Storage) settleProvinceLocked(province clicks.ProvinceID) {
+	members := s.provinces.tilesOf(province)
+	if province == clicks.NoProvince || len(members) == 0 {
 		return
 	}
 
 	holder := s.board.ownerOf(members[0])
-	settler, ok := clicks.SettlerOf(holder, s.heldLocked(landmass, holder), len(members), s.lockedToLocked(landmass))
+	settler, ok := clicks.SettlerOf(holder, s.heldLocked(province, holder), len(members), s.lockedToLocked(province))
 	if ok {
-		s.lockLocked(landmass, settler)
+		s.lockLocked(province, settler)
 	}
 }
 
-func (s *Storage) heldLocked(landmass clicks.LandmassID, flag string) int {
+func (s *Storage) heldLocked(province clicks.ProvinceID, flag string) int {
 	id, ok := s.board.codeOf(flag)
 	if !ok {
 		return 0
 	}
-	return s.landmasses.heldBy(landmass, id)
+	return s.provinces.heldBy(province, id)
 }
 
-func (s *Storage) lockedToLocked(landmass clicks.LandmassID) string {
-	return s.board.nameOf(s.landmasses.lockedTo(landmass))
+func (s *Storage) lockedToLocked(province clicks.ProvinceID) string {
+	return s.board.nameOf(s.provinces.lockedTo(province))
 }
 
-// The flag holds tiles of the landmass, so the board already knows its code.
-func (s *Storage) lockLocked(landmass clicks.LandmassID, flag string) {
+// The flag holds tiles of the province, so the board already knows its code.
+func (s *Storage) lockLocked(province clicks.ProvinceID, flag string) {
 	id, _ := s.board.codeOf(flag)
-	s.landmasses.lock(landmass, id)
+	s.provinces.lock(province, id)
 }

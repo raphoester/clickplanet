@@ -110,7 +110,7 @@ type SwitchBoardResponse struct {
 	MinesLost  uint32 `protobuf:"varint,13,opt,name=mines_lost,json=minesLost,proto3" json:"mines_lost,omitempty"`
 	// Live viruses, which end.
 	VirusesEnded uint32 `protobuf:"varint,14,opt,name=viruses_ended,json=virusesEnded,proto3" json:"viruses_ended,omitempty"`
-	// Landmasses fortified on the old board, whose locks are dropped; the new board settles its own.
+	// Provinces locked on the old board, whose locks are dropped; the new board settles its own.
 	LocksDropped uint32 `protobuf:"varint,15,opt,name=locks_dropped,json=locksDropped,proto3" json:"locks_dropped,omitempty"`
 	// When the map switched; unset on a dry run.
 	SwitchedAt    *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=switched_at,json=switchedAt,proto3" json:"switched_at,omitempty"`

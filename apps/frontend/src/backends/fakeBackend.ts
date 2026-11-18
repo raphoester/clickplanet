@@ -25,10 +25,12 @@ import {
     Shielder,
     ShieldRefusedError,
     TileClicker,
-    LandmassFortification,
     LandmassHolder,
     LandmassReader,
     LandmassState,
+    ProvinceFortification,
+    ProvinceReader,
+    ProvinceState,
     MapVersion,
     TileHolder,
     TileHolders,
@@ -49,6 +51,7 @@ import {ALL_OFF, BonusReward, BonusRules, Charges, NO_CHARGES, Switches} from ".
 import type {Board} from "../domain/board.ts";
 import {BoardScale, scaledLength, scaleOf} from "../domain/boardScale.ts";
 import type {BoardChanges} from "./boards.ts";
+import type {Cut} from "./fakeTally.ts";
 import {QuizOffer, QuizOutcome, QuizQuestion} from "../domain/quiz.ts";
 import {Allegiance, lockOf} from "../domain/allegiance.ts";
 import {ClickBudget, ClickBudgetSource, ClickPrice, now as budgetNow, SharedBy} from "./clickBudget.ts";
@@ -57,6 +60,7 @@ import {Countries} from "../domain/countries.ts";
 import {nearestTile, tilesWithin} from "../domain/blast.ts";
 import {clickCostOf, Rallies, Rally} from "../domain/rallies.ts";
 import {FakeFortresses} from "./fakeFortresses.ts";
+import {Landmasses} from "../domain/landmasses.ts";
 import {FakeTally} from "./fakeTally.ts";
 import {FAKE_TAKERS, FAKE_YOU} from "./fakeAccounts.ts";
 
@@ -179,13 +183,15 @@ export type FakeBackendOptions = {
     boards?: BoardChanges
     tilePositions?: () => Promise<Float32Array>
     // The borders blob's tile → landmass table: the map's tiles, what each flag holds of each landmass, and fortifying.
-    landmasses: () => Promise<{assignment: Uint16Array, count: number}>
+    // The board's landmasses, and its provinces: its landmasses again on a board with no provinces file.
+    landmasses: () => Promise<{landmasses: Cut, provinces: Cut}>
 }
 
-export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader {
+export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListener, ClickBudgetSource, BonusListener, BoxCatcher, QuizMaster, Bomber, Refiller, Shielder, Infector, Miner, Rallier, AllegianceSource, ChargesRefresher, GrantRulesRefresher, TileHolders, LandmassReader, ProvinceReader {
     private tileBindings: Map<number, string> = new Map()
     private holders: Map<number, TileHolder> = new Map()
-    private readonly fortifications = new Map<number, LandmassFortification>()
+    private readonly fortifications = new Map<number, ProvinceFortification>()
+    private landmasses: Landmasses | undefined
     private tileCount = 0
     private tally: FakeTally | undefined
     private readonly ready: Promise<void>
@@ -247,15 +253,17 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         this.lengths = lengthsOf(scaleOf(options.board))
         this.rules = rulesOf(this.lengths)
         this.tilePositions = options.tilePositions
-        this.ready = options.landmasses().then(({assignment, count}) => {
-            const tally = new FakeTally(assignment, count)
+        this.ready = options.landmasses().then(({landmasses, provinces}) => {
+            const {assignment, count} = landmasses
+            const tally = new FakeTally(landmasses, provinces)
             for (let tile = 1; tile <= assignment.length; tile++) {
                 this.tileBindings.set(tile, "fr")
                 tally.moved(tile, undefined, "fr")
             }
             this.tally = tally
             this.tileCount = assignment.length
-            this.fortresses = new FakeFortresses(assignment, count, tally, (tile) => this.tileBindings.get(tile))
+            this.landmasses = new Landmasses(assignment, count)
+            this.fortresses = new FakeFortresses(provinces, tally, (tile) => this.tileBindings.get(tile))
         })
 
         this.listenForUpdates((update) => {
@@ -797,20 +805,20 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         for (const member of fortified.tiles) {
             this.shields.set(member, Math.min((this.shields.get(member) ?? 0) + 1, TILE_SHIELDS))
         }
-        this.fortifications.set(fortified.landmass, {accountId: this.holders.get(tile)?.accountId ?? "", countryCode: countryId, at: Date.now()})
+        this.fortifications.set(fortified.province, {accountId: this.holders.get(tile)?.accountId ?? "", countryCode: countryId, at: Date.now()})
         const version = this.write()
         this.flushUpdates()
-        this.fortificationCallbacks.forEach((callback) => callback({landmass: fortified.landmass, countryId, tile, version}))
+        this.fortificationCallbacks.forEach((callback) => callback({province: fortified.province, countryId, tile, version}))
     }
 
-    public landmassTiles(landmass: number): number {
-        return this.fortresses?.tilesOf(landmass).length ?? 0
+    public provinceTiles(province: number): number {
+        return this.fortresses?.tilesOf(province).length ?? 0
     }
 
     // Takes a landmass for a flag, shields and all, leaving `leave` tiles to take by hand.
     public takeLandmass(landmass: number, countryId: string, leave = 0) {
-        if (!this.fortresses) throw new Error("the landmasses are not loaded yet")
-        const tiles = [...this.fortresses.tilesOf(landmass)]
+        if (!this.landmasses) throw new Error("the landmasses are not loaded yet")
+        const tiles = [...this.landmasses.tilesOf(landmass)]
         for (const tile of tiles.slice(0, Math.max(0, tiles.length - leave))) {
             for (let tries = 0; tries <= TILE_SHIELDS && this.tileBindings.get(tile) !== countryId; tries++) {
                 this.applyClick(tile, countryId, false)
@@ -1163,7 +1171,7 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
 
     public async landmass(landmass: number): Promise<LandmassState> {
         const held = new Map<string, LandmassHolder>()
-        for (const tile of this.fortresses?.tilesOf(landmass) ?? []) {
+        for (const tile of this.landmasses?.tilesOf(landmass) ?? []) {
             const holder = this.holders.get(tile)
             if (!holder?.accountId || this.tileBindings.get(tile) !== holder.countryCode) continue
             const key = `${holder.accountId} ${holder.countryCode}`
@@ -1172,7 +1180,11 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
             held.set(key, holding)
         }
         const holders = [...held.values()].sort((a, b) => b.tiles - a.tiles || a.accountId.localeCompare(b.accountId))
-        return {holders, lastFortification: this.fortifications.get(landmass)}
+        return {holders}
+    }
+
+    public async province(province: number): Promise<ProvinceState> {
+        return {lastFortification: this.fortifications.get(province)}
     }
 
     public async tileHolder(tile: number): Promise<TileHolder | undefined> {

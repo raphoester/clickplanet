@@ -1,7 +1,8 @@
 # Provinces: fortify on smaller ground
 
 **Designed 2026-11-18, with the owner. PR 2 is built (2026-11-18): the generator, the file, the names and their
-translations, the preview and the audit. Nothing reads the provinces yet.** Each PR at the end turns its part of this doc
+translations, the preview and the audit. PR 3 is built (2026-11-18): fortify plays on provinces, on the backend and the
+page.** Each PR at the end turns its part of this doc
 into "how it works" and updates the docs it makes stale: [Fortify](../apps/backend/docs/fortify.md), the frontend's
 `fortify.md`, `zoomed-out-view.md`, `territory-card.md` and `country-outlines.md`, [Map geometry](map-geometry.md) and
 [`map/README.md`](../map/README.md).
@@ -116,23 +117,35 @@ and positions hash, so no new board, no era, no remap (see `boards-and-eras.md`)
 brotli at 5; `siege-1`'s 73 KB.
 
 - **The backend** embeds it (`make map`), reads it as it builds the board's ground and refuses a file cut on other
-  borders (`embedded_board.loadProvinces`, `clicks.Provinces`, `clicks.ProvinceID`), and logs its count. No rule reads
-  it yet.
+  borders (`embedded_board.loadProvinces`, `clicks.Provinces`, `clicks.ProvinceID`), and logs its count. Fortify reads
+  it (`Provinces.ProvinceOf`, `TilesOf`).
 - **The page** carries it in `static/boards/<board>/` (`npm run map`), with the names beside it (`page.provinceNames` in
-  `BOARDS`), and reads it with `domain/provinces.ts`. Nothing fetches it yet.
+  `BOARDS`), reads it with `domain/provinces.ts` and fetches it as the globe loads (`loadProvinces`), with the names
+  (`provinceNamesOf`).
 - **The backoffice** has none.
 
-## Fortify on provinces
+## Fortify on provinces (PR 3, built 2026-11-18)
 
-- **Fortify, the lock and "never the same flag twice in a row" play on provinces** instead of landmasses.
-- **The switch**: the deploy drops the landmass locks, and the boot settles every whole province to its holder with no
-  shield, as it does for a whole landmass with no lock. No shield is taken away, and nobody gets a free fortify.
-- **The wire**: `province_fortified` in place of `landmass_fortified`, `GetFortresses` by province, and the hover card's
-  last fortify read for the province. The ledger's `fortify` names the province and its file; an old event keeps its
-  landmass and borders file. A wire change, so the backend and the page ship together (see
+- **Fortify, the lock and "never the same flag twice in a row" play on provinces** instead of landmasses: the
+  backend's `inmemory_tile_storage` counts each province's tiles per flag and keeps its lock, kept in
+  `planet.provinces (map, board, asset, id, fortified_by)`, keyed by the provinces file (see the backend's
+  [Fortify](../apps/backend/docs/fortify.md)). A board with no provinces file (`earth-1`) fortifies nothing.
+- **The switch**: migration `20261118171922_province_locks` drops `planet.landmasses`, and the boot settles every
+  whole province to its holder with no shield, as it did for a whole landmass with no lock. No shield is taken away,
+  and nobody gets a free fortify (`TestTheBootAfterTheLocksMovedToProvincesSettlesEachWholeProvinceWithNoShield`).
+- **The wire**: `province_fortified{province_id, country_id, tile_id, version}` in place of `landmass_fortified`,
+  `Fortress.province_id`, `GetHoldings` and `holdings_changed` with each province's row (`ProvinceHoldings`), and the
+  hover card's last fortify read for the province (`ClickService/GetProvince`; `GetLandmass` answers the holders
+  alone). The ledger's `fortify` names the `province` and its `provinces` file; an old event keeps its `landmass`, and
+  every reader takes both. A hard switch of the wire, so the backend and the page ship together (see
   [A server restart reloads the page](reload-on-restart.md)).
-- **The chat** names the province and its country: "France fortified Bavaria, Germany". The floor stays
-  `fortifyNewsTiles` (200 `earth-2` tiles).
+- **The chat** names the province and its country: "France fortified Bavaria, Germany" (`announcement.fortifiedProvince`),
+  "France fortified Belgium" for a province that reads as its country. `planet.v1.Fortified` carries the province and
+  the landmass it is inside. The floor stays `fortifyNewsTiles` (200 `earth-2` tiles).
+- **The page**: the shields and the wave on the province's tiles the flag owns, the gold pulse and `GetFortresses` by
+  province, the "Fortified!" card ("France owns all of Bavaria", "province" in all 9 languages), and the territory
+  card's foot on the province under the pointer (see the frontend's [Fortify](../apps/frontend/docs/fortify.md) and
+  [A territory, from orbit](../apps/frontend/docs/territory-card.md)).
 - **Unchanged**: the fortify missions (they count tiles), 0.2 XP a tile fortified, the bomb and rally lines, the clips'
   `landmasses_flipped`, the country sizes.
 - **Balance**: every knob as it is. For a week after the deploy, measure the shielded share of the map (83% on
@@ -161,6 +174,6 @@ brotli at 5; `siege-1`'s 73 KB.
    helps the lag of 2026-11-18. Culling the outlines by chunk comes only if the GPU timer still finds them heavy.
 2. **The generator** (built 2026-11-18): the provinces file of `earth-2` and `siege-1`, the names, the overrides and
    their translations, the preview, the audit, the copy in each app. Nothing reads it yet. This doc landed with it.
-3. **The backend and the page together**: fortify by province, the switch of the locks, the wire, the ledger, the hover
-   card's last fortify, the chat line.
+3. **The backend and the page together** (built 2026-11-18): fortify by province, the switch of the locks, the wire,
+   the ledger, the hover card's last fortify, the chat line.
 4. **The page**: the setting, the hover and the big flags by province, the grey lines, the taller texture.

@@ -25,7 +25,7 @@ type TileStorage interface {
 	MinesOf(flag string) ([]uint32, MapVersion)
 	// A value each time a take sets a mine off: the explosion waits for Explode.
 	Fuse() <-chan struct{}
-	Fortresses() map[LandmassID]string
+	Fortresses() map[ProvinceID]string
 	// A player's take holds its tile for the account in its context; any other write leaves the tile held by nobody.
 	HoldingsOf(landmass LandmassID) []Holding
 	ForgetHolder(ctx context.Context, account cpsession.AccountID) (int, error)

@@ -21,21 +21,21 @@ type MemoryPersistence struct {
 
 type memoryMap struct {
 	// The board every row names: the last a write named, TestBoard for the rows a test seeds.
-	board      clicks.BoardID
-	rows       map[uint32]string
-	shields    map[uint32]int
-	holders    map[uint32]cpsession.AccountID
-	landmasses map[string]map[clicks.LandmassID]string
-	out        map[string]OutFlag
-	viruses    []clicks.VirusSnapshot
-	mines      map[uint32]clicks.MineSnapshot
+	board     clicks.BoardID
+	rows      map[uint32]string
+	shields   map[uint32]int
+	holders   map[uint32]cpsession.AccountID
+	provinces map[string]map[clicks.ProvinceID]string
+	out       map[string]OutFlag
+	viruses   []clicks.VirusSnapshot
+	mines     map[uint32]clicks.MineSnapshot
 }
 
 func newMemoryMap() *memoryMap {
 	return &memoryMap{
 		board: clicks.TestBoard,
 		rows:  map[uint32]string{}, shields: map[uint32]int{}, holders: map[uint32]cpsession.AccountID{},
-		landmasses: map[string]map[clicks.LandmassID]string{}, out: map[string]OutFlag{},
+		provinces: map[string]map[clicks.ProvinceID]string{}, out: map[string]OutFlag{},
 		mines: map[uint32]clicks.MineSnapshot{},
 	}
 }
@@ -145,7 +145,7 @@ func (m *MemoryPersistence) Boards(_ context.Context, played clicks.MapID) ([]cl
 		return nil, m.failing
 	}
 	kept := m.mapLocked(played)
-	if len(kept.rows) == 0 && len(kept.landmasses) == 0 && len(kept.mines) == 0 && len(kept.viruses) == 0 {
+	if len(kept.rows) == 0 && len(kept.provinces) == 0 && len(kept.mines) == 0 && len(kept.viruses) == 0 {
 		return nil, nil
 	}
 	return []clicks.BoardID{kept.board}, nil
@@ -167,19 +167,19 @@ func (m *MemoryPersistence) BoardOn(played clicks.MapID) clicks.BoardID {
 	return m.mapLocked(played).board
 }
 
-func (m *MemoryPersistence) Fortified(asset string, landmass clicks.LandmassID, flag string) {
+func (m *MemoryPersistence) Fortified(asset string, province clicks.ProvinceID, flag string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	world := m.mapLocked(clicks.World)
-	if world.landmasses[asset] == nil {
-		world.landmasses[asset] = map[clicks.LandmassID]string{}
+	if world.provinces[asset] == nil {
+		world.provinces[asset] = map[clicks.ProvinceID]string{}
 	}
-	world.landmasses[asset][landmass] = flag
+	world.provinces[asset][province] = flag
 }
 
-func (m *MemoryPersistence) LoadLandmasses(
-	_ context.Context, played clicks.MapID, asset string, visit func(landmass clicks.LandmassID, fortifiedBy string),
+func (m *MemoryPersistence) LoadProvinces(
+	_ context.Context, played clicks.MapID, asset string, visit func(province clicks.ProvinceID, fortifiedBy string),
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -187,22 +187,22 @@ func (m *MemoryPersistence) LoadLandmasses(
 	if m.failing != nil {
 		return m.failing
 	}
-	for landmass, flag := range m.mapLocked(played).landmasses[asset] {
-		visit(landmass, flag)
+	for province, flag := range m.mapLocked(played).provinces[asset] {
+		visit(province, flag)
 	}
 	return nil
 }
 
-// StoredLandmasses is the world's.
-func (m *MemoryPersistence) StoredLandmasses(asset string) map[clicks.LandmassID]string {
-	return m.StoredLandmassesOn(clicks.World, asset)
+// StoredProvinces is the world's.
+func (m *MemoryPersistence) StoredProvinces(asset string) map[clicks.ProvinceID]string {
+	return m.StoredProvincesOn(clicks.World, asset)
 }
 
-func (m *MemoryPersistence) StoredLandmassesOn(played clicks.MapID, asset string) map[clicks.LandmassID]string {
+func (m *MemoryPersistence) StoredProvincesOn(played clicks.MapID, asset string) map[clicks.ProvinceID]string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return maps.Clone(m.mapLocked(played).landmasses[asset])
+	return maps.Clone(m.mapLocked(played).provinces[asset])
 }
 
 func (m *MemoryPersistence) Shield(tile uint32, shields int) {
@@ -255,7 +255,7 @@ func (m *MemoryPersistence) StoredOutFlagsOn(played clicks.MapID) map[string]Out
 }
 
 func (m *MemoryPersistence) Save(
-	_ context.Context, played clicks.Stage, tiles []Tile, landmasses []Landmass, out []OutFlag,
+	_ context.Context, played clicks.Stage, tiles []Tile, provinces []Province, out []OutFlag,
 ) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -272,11 +272,11 @@ func (m *MemoryPersistence) Save(
 			kept.out[flag.Flag] = flag
 		}
 	}
-	for _, landmass := range landmasses {
-		if kept.landmasses[landmass.Asset] == nil {
-			kept.landmasses[landmass.Asset] = map[clicks.LandmassID]string{}
+	for _, province := range provinces {
+		if kept.provinces[province.Asset] == nil {
+			kept.provinces[province.Asset] = map[clicks.ProvinceID]string{}
 		}
-		kept.landmasses[landmass.Asset][landmass.ID] = landmass.FortifiedBy
+		kept.provinces[province.Asset][province.ID] = province.FortifiedBy
 	}
 	for _, tile := range tiles {
 		if tile.Owner == "" {

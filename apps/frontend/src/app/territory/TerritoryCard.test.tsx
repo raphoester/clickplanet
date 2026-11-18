@@ -24,6 +24,8 @@ const SICILY: Territory = {
         {flag: "be", tiles: 10},
         {flag: "nl", tiles: 1},
     ],
+    province: 31,
+    provinceName: undefined,
     fortifiedBy: "it",
     target: undefined,
 }
@@ -90,6 +92,20 @@ describe("TerritoryCard", () => {
         show(SICILY)
 
         expect(screen.getByText(/Fortified by/).textContent).toBe("Fortified by Italy")
+    })
+
+    it("names the province its fortify is about when the territory holds others", () => {
+        show({...SICILY, provinceName: "Calabria"})
+
+        expect(screen.getByRole("heading", {name: "Calabria"})).toBeTruthy()
+        expect(screen.getByText(/Fortified by/).textContent).toBe("Fortified by Italy")
+    })
+
+    it("names no province when the territory is one", () => {
+        show(SICILY)
+
+        expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).not.toContain("Sicily and Calabria")
+        expect(document.querySelector(".territory-card-province")).toBeNull()
     })
 
     it("says when nobody ever fortified it, and nothing free when no tile is", () => {

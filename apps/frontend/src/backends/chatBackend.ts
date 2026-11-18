@@ -351,6 +351,7 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 country: values.country,
                 ground: typeof values.ground === "string" ? values.ground : "",
                 landmass: values.landmass,
+                province: typeof values.province === "number" && values.province > 0 ? values.province : undefined,
                 tiles: values.tiles,
             }
         case "round":

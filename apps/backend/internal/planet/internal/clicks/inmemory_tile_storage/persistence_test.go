@@ -3,14 +3,17 @@ package inmemory_tile_storage_test
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/inmemory_tile_storage"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpctx"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpsession"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
 )
 
 func (s *testSuite) TestLoadRestoresTheMapAndTheShares() {
@@ -197,7 +200,7 @@ func (s *testSuite) TestRunFlushesOnItsInterval() {
 	}, 5*time.Second, 10*time.Millisecond)
 }
 
-func (s *testSuite) TestAFortifiedLandmassStaysLockedAcrossARestart() {
+func (s *testSuite) TestAFortifiedProvinceStaysLockedAcrossARestart() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
 	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
@@ -215,11 +218,11 @@ func (s *testSuite) TestAFortifiedLandmassStaysLockedAcrossARestart() {
 	_, err = restarted.Fortify(ctx, 90_001, "fr", 10)
 
 	s.Require().ErrorIs(err, clicks.ErrFortifiedAlready)
-	s.Equal(map[clicks.LandmassID]string{1: "fr"}, persistence.StoredLandmasses(borders.Asset()))
+	s.Equal(map[clicks.ProvinceID]string{1: "fr"}, persistence.StoredProvinces("test-provinces"))
 	s.Equal(1, restarted.Shields(90_002))
 }
 
-func (s *testSuite) TestAWholeLandmassNobodyFortifiedIsLockedToItsHolderAtLoad() {
+func (s *testSuite) TestAWholeProvinceNobodyFortifiedIsLockedToItsHolderAtLoad() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "fr", 90_002: "fr", 90_003: "fr"})
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
@@ -229,14 +232,14 @@ func (s *testSuite) TestAWholeLandmassNobodyFortifiedIsLockedToItsHolderAtLoad()
 	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
 
 	s.Require().ErrorIs(err, clicks.ErrFortifiedAlready)
-	s.Equal(map[clicks.LandmassID]string{1: "fr"}, persistence.StoredLandmasses(borders.Asset()))
+	s.Equal(map[clicks.ProvinceID]string{1: "fr"}, persistence.StoredProvinces("test-provinces"))
 	s.Zero(storage.Shields(90_001))
 }
 
 func (s *testSuite) TestALockKeptForAnotherMapIsIgnored() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{90_001: "de", 90_002: "fr", 90_003: "fr"})
-	persistence.Fortified("borders-older.bin", 1, "fr")
+	persistence.Fortified("provinces-older.bin", 1, "fr")
 	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
 	s.Require().NoError(storage.Load(ctx, clicks.WorldStage))
 	s.Require().NoError(storage.Set(ctx, 90_001, "fr"))
@@ -244,6 +247,41 @@ func (s *testSuite) TestALockKeptForAnotherMapIsIgnored() {
 	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
 
 	s.Require().NoError(err)
+}
+
+// The deploy that moved fortify onto provinces dropped every landmass's lock (docs/provinces.md): its boot finds no lock,
+// and settles each province one flag holds whole to that flag. No shield is raised, none is taken away, and no take of
+// a province settled so is a fortify.
+func (s *testSuite) TestTheBootAfterTheLocksMovedToProvincesSettlesEachWholeProvinceWithNoShield() {
+	ctx := context.Background()
+	coast := []uint32{90_001, 90_002, 90_003, 90_004, 90_005}
+	borders := clicks.BordersOf(maxIndex, coast)
+	ground := clicks.GroundOfProvinces("earth-2", borders, clicks.NewCapitals(map[string]uint32{}),
+		clicks.ProvincesOf("provinces-286f4c3e.bin", borders, coast[:3], coast[3:]))
+	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{
+		90_001: "fr", 90_002: "fr", 90_003: "fr", 90_004: "fr", 90_005: "de",
+	})
+	for _, tile := range coast[:4] {
+		persistence.Shield(tile, 2)
+	}
+	storage := inmemory_tile_storage.New(clicks.OneGround{Ground: ground}, clicks.NewPlayed(), clicks.NoCapitals(),
+		inmemory_tile_storage.Config{}, persistence, cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{},
+		cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+
+	s.Require().NoError(storage.Load(ctx, clicks.WorldStage))
+	s.Require().NoError(storage.Flush(ctx))
+
+	s.Equal(map[clicks.ProvinceID]string{1: "fr"}, storage.Fortresses(), "the province France holds whole, not the coast")
+	s.Equal(map[clicks.ProvinceID]string{1: "fr"}, persistence.StoredProvinces("provinces-286f4c3e.bin"))
+	s.Equal(map[uint32]int{90_001: 2, 90_002: 2, 90_003: 2, 90_004: 2}, persistence.StoredShields(),
+		"no shield raised, none taken away")
+	s.Require().NoError(storage.Set(ctx, 90_001, "de"))
+	s.Require().NoError(storage.Set(ctx, 90_001, "fr"))
+	_, err := storage.Fortify(ctx, 90_001, "fr", 10)
+	s.Require().ErrorIs(err, clicks.ErrFortifiedAlready, "no free fortify for France")
+	s.Require().NoError(storage.Set(ctx, 90_004, "de"))
+	_, err = storage.Fortify(ctx, 90_004, "de", 10)
+	s.Require().NoError(err, "the province no flag held whole is fortified by the first to")
 }
 
 func (s *testSuite) TestAHolderIsFlushedWithItsTileAndReadBackAtBoot() {

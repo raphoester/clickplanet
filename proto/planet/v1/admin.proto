@@ -104,7 +104,7 @@ message SwitchBoardResponse {
   uint32 mines_lost = 13;
   // Live viruses, which end.
   uint32 viruses_ended = 14;
-  // Landmasses fortified on the old board, whose locks are dropped; the new board settles its own.
+  // Provinces locked on the old board, whose locks are dropped; the new board settles its own.
   uint32 locks_dropped = 15;
   // When the map switched; unset on a dry run.
   google.protobuf.Timestamp switched_at = 16;

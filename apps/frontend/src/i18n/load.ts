@@ -1,9 +1,10 @@
 import type {BoardAsset} from "../domain/board.ts"
 import {Language, SOURCE_LANGUAGE} from "./languages.ts"
-import {ENGLISH, ENGLISH_COUNTRIES, LandmassNames, Lines, Translator} from "./translator.ts"
+import {ENGLISH, ENGLISH_COUNTRIES, LandmassNames, Lines, NO_PROVINCE_NAMES, ProvinceNames, Translator} from "./translator.ts"
 
 const FILES = import.meta.glob<{default: Lines}>(["./locales/*.json", "!./locales/en.json"])
 const LANDMASS_FILES = import.meta.glob<{default: Lines}>("./landmasses/*/*.json")
+const PROVINCE_FILES = import.meta.glob<{default: Lines}>("./provinces/*/*.json")
 const COUNTRY_FILES = import.meta.glob<{default: Lines}>(["./countries/*.json", "!./countries/en.json"])
 
 // Only the player's language is downloaded: English is in the bundle, and fills any line a file lacks.
@@ -24,6 +25,22 @@ export async function landmassNamesOf(board: BoardAsset, language: Language, sig
     const [english, own] = await Promise.all([
         fetch(board.urls.landmassNames, {signal}).then(async (answer) => {
             if (!answer.ok) throw new Error(`Failed to fetch ${board.urls.landmassNames}: ${answer.status} ${answer.statusText}`)
+            return ((await answer.json()) as {names: Lines}).names
+        }),
+        translated ? translated().then((file) => file.default) : {},
+    ])
+    return {english, own}
+}
+
+// A board's province names, as its landmass names: English beside the board, the language's from the catalogue. A board
+// with no provinces has none.
+export async function provinceNamesOf(board: BoardAsset, language: Language, signal?: AbortSignal): Promise<ProvinceNames> {
+    const url = board.urls.provinceNames
+    if (url === undefined) return NO_PROVINCE_NAMES
+    const translated = language === SOURCE_LANGUAGE ? undefined : PROVINCE_FILES[`./provinces/${board.name}/${language}.json`]
+    const [english, own] = await Promise.all([
+        fetch(url, {signal}).then(async (answer) => {
+            if (!answer.ok) throw new Error(`Failed to fetch ${url}: ${answer.status} ${answer.statusText}`)
             return ((await answer.json()) as {names: Lines}).names
         }),
         translated ? translated().then((file) => file.default) : {},

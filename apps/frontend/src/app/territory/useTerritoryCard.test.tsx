@@ -9,7 +9,7 @@ import {Territory, TerritoryPeek} from "../../domain/territory.ts"
 
 const SICILY: Territory = {
     landmass: 12, name: "Sicily", ground: "it", size: 100,
-    holdings: [{flag: "fr", tiles: 60}], fortifiedBy: undefined, target: undefined,
+    holdings: [{flag: "fr", tiles: 60}], province: 31, provinceName: undefined, fortifiedBy: undefined, target: undefined,
 }
 
 const PEEK: TerritoryPeek = {landmass: 12, point: {x: 300, y: 200}, touch: false}

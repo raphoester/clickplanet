@@ -36,7 +36,7 @@ func (s *Storage) Wipe(ctx context.Context, keep func(ctx context.Context) (bool
 	return true, nil
 }
 
-// A blank board, no landmass held or locked, no flag out, nothing to recount.
+// A blank board, no landmass or province held, no province locked, no flag out, nothing to recount.
 func (s *Storage) emptyLocked() {
 	s.groundLocked(s.played.Ground())
 }
@@ -44,16 +44,17 @@ func (s *Storage) emptyLocked() {
 // groundLocked empties the map onto ground, the board of the stage, and plays it: every rule reads it from then on. No
 // ground is a map of no tile.
 func (s *Storage) groundLocked(ground *clicks.Ground) {
-	borders := clicks.NoBorders()
+	borders, table := clicks.NoBorders(), clicks.NoProvinces()
 	if ground != nil {
-		borders = ground.Borders()
+		borders, table = ground.Borders(), ground.Provinces()
 	}
 	s.board = newBoard(borders.Tiles())
 	s.landmasses = newLandmasses(borders)
+	s.provinces = newProvinces(table)
 	s.out = newOutFlags()
 	s.viruses = newVirusBook()
 	s.mines = newMineBook()
-	s.recount = newRecount(borders.Landmasses())
+	s.recount = newRecount(borders.Landmasses(), table.Count()+1)
 	s.played.Play(ground)
 }
 

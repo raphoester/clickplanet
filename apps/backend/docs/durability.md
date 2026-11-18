@@ -33,7 +33,7 @@ fails or takes longer refuses nothing (see [Anti-bot](antibot.md) and [Allegianc
   - `spread` and `enclose`: the bonus used on a click, on the tile clicked; `{taken, struck}` lists the tiles it took and the tiles a shield kept. The click itself is a row of its own.
   - `bomb`: one blast; `country` is empty, `previous` the owner of the tile it emptied (tile 0 in the sea), and `{flag, point, radius, cleared, struck}` the rest.
   - `shield`: a shield placed; `{shields}` is what the tile holds now.
-  - `fortify`: a landmass fortified, on the tile whose take made it whole; `{landmass, raised}` lists each tile that gained a shield with the shields it holds now.
+  - `fortify`: a province fortified, on the tile whose take made it whole; `{province, provinces, ground, tiles, raised}` names the province and its provinces file, and lists each tile that gained a shield with the shields it holds now. One made before 2026-11-18 names its `landmass` instead, a row of its board's borders, and no province (see [Fortify](fortify.md)).
   - `virus`: one use or tick of a virus, on the tile it was used on; `{taken, struck}` as a spread's. See [The virus](virus.md).
   - `mine`: one mine gone off, on the tile it was laid on; `{taken}` as a spread's, a blast striking no shield. See [The mine](mine.md).
   - `board_switched`: the world's map moved onto another board (tile 0, no country, no account); `{from, to, fromTiles,
@@ -53,7 +53,7 @@ fails or takes longer refuses nothing (see [Anti-bot](antibot.md) and [Allegianc
 - **One pool for every runner.** `cppg.CloseAfter(db, logger, tilesStorage, takings, cpredis.CloseAfter(streams, logger, deletions, relay, …))` runs them together and closes the pool after the last flushes, after the subscriber handled what it read, and after the ledger relay's last pass.
 - **The ledger is the outbox of the map's facts.** `ledger/usecases/relay_ledger_usecase` runs every second: it reads what the ledger flushed past `ledger_relayed` (one row, the next position to tell) from memory (`ReplaySaved`), sends a `TilesTaken` per event that took tiles with an account (in parts of 4,096 tiles at most) and a `ShieldsStruck` per event that broke shields, a `BombLanded` per bomb, a `Fortified` per fortify, a `FlagKnockedOut` per knock-out and a `ShieldPlaced` per shield placed, each with its position, in ledger order (each tile also with its index in its event), and then moves the row. A batch is 1,000 events; a failed send keeps the row, so the next tick sends them again. Memory holds everything from the head on, so a row behind the retention only skips what is gone. See [What may not be lost](composite-layer.md#what-may-not-be-lost-the-outbox).
 
-**`tiles` and `landmasses` keep every map, keyed by `map`**: `world`, the game's own, and each open arena's. Every row
+**`tiles` and `provinces` (the fortify locks) keep every map, keyed by `map`**: `world`, the game's own, and each open arena's. Every row
 names its board too, as `mines` and `viruses` do (see [Boards and eras](boards-and-eras.md)). The tile
 map plays one at a time: the boot loads it, the flush writes it, and the others' rows stay as they are. Opening an arena
 saves what changed first, under the flush lock, then plays the arena's empty map; closing it deletes the arena's rows and

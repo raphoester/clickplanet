@@ -30,28 +30,13 @@ func NewBorders(asset string, regions []uint16, codes []string) (*Borders, error
 	}
 
 	indexed := make([]uint16, len(regions)+1)
-	sizes := make([]uint32, len(codes))
 	for i, region := range regions {
 		if int(region) >= len(codes) {
 			return nil, fmt.Errorf("tile %d is in region %d, past the %d regions named", i+1, region, len(codes))
 		}
 		indexed[i+1] = region
-		sizes[region]++
 	}
-
-	starts := make([]uint32, len(codes)+1)
-	for region, size := range sizes {
-		starts[region+1] = starts[region] + size
-	}
-
-	members := make([]uint32, len(regions))
-	next := make([]uint32, len(codes))
-	copy(next, starts)
-	for tile := 1; tile < len(indexed); tile++ {
-		region := indexed[tile]
-		members[next[region]] = uint32(tile) //nolint:gosec // one entry per tile, bounded by the blob.
-		next[region]++
-	}
+	starts, members := membersOf(indexed, len(codes))
 
 	return &Borders{asset: asset, regions: indexed, codes: codes, starts: starts, members: members}, nil
 }

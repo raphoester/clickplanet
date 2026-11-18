@@ -1,3 +1,3 @@
-package landmass_query
+package province_query
 
 const LastFortify = lastFortify

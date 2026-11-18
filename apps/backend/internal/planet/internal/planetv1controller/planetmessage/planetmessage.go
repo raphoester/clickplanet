@@ -49,11 +49,11 @@ func BombDropped(blast *clicks.Blast, version clicks.MapVersion) *planetv1.Plane
 	}
 }
 
-func LandmassFortified(fortification *clicks.Fortification, version clicks.MapVersion) *planetv1.PlanetEvent {
+func ProvinceFortified(fortification *clicks.Fortification, version clicks.MapVersion) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
-		Event: &planetv1.PlanetEvent_LandmassFortified{
-			LandmassFortified: &planetv1.LandmassFortified{
-				LandmassId: uint32(fortification.Landmass),
+		Event: &planetv1.PlanetEvent_ProvinceFortified{
+			ProvinceFortified: &planetv1.ProvinceFortified{
+				ProvinceId: uint32(fortification.Province),
 				CountryId:  fortification.Country,
 				TileId:     fortification.Tile,
 				Version:    Version(version),
@@ -83,6 +83,7 @@ func HoldingsChanged(tally *clicks.Tally, version clicks.MapVersion) *planetv1.P
 				Version:    Version(version),
 				Countries:  Holdings(tally.Countries),
 				Landmasses: LandmassHoldings(tally.Landmasses),
+				Provinces:  ProvinceHoldings(tally.Provinces),
 			},
 		},
 	}
@@ -102,6 +103,14 @@ func LandmassHoldings(rows []clicks.LandmassTiles) []*planetv1.LandmassHoldings 
 		landmasses[i] = &planetv1.LandmassHoldings{LandmassId: uint32(row.Landmass), Holdings: Holdings(row.Flags)}
 	}
 	return landmasses
+}
+
+func ProvinceHoldings(rows []clicks.ProvinceTiles) []*planetv1.ProvinceHoldings {
+	provinces := make([]*planetv1.ProvinceHoldings, len(rows))
+	for i, row := range rows {
+		provinces[i] = &planetv1.ProvinceHoldings{ProvinceId: uint32(row.Province), Holdings: Holdings(row.Flags)}
+	}
+	return provinces
 }
 
 func TilesSpread(country string, tile uint32, spread []uint32) *planetv1.PlanetEvent {

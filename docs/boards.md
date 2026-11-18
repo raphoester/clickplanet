@@ -336,7 +336,8 @@ children (1 to 7); 66 old coast tiles have none, so what they hold is lost (60 s
   to the first children in id order), so the switch creates no protection;
 - each mine moves to the child nearest its old tile, and one on a tile with no child is lost;
 - live viruses end;
-- fortify locks are dropped, and each landmass of `earth-2` is settled again (230 locked in the rehearsal);
+- fortify locks are dropped, and each landmass of `earth-2` is settled again (230 locked in the rehearsal); each
+  province since fortify plays on provinces (see [Provinces](provinces.md));
 - a new era on `earth-2`, in the same transaction.
 - **One `board_switched` event in the ledger. It is not a take**: no `TilesTaken`, no XP, no mission, no stat. **It
   follows the transaction, not inside it**, as the design had it: the ledger is kept in memory and flushed within a
@@ -972,7 +973,7 @@ fingerprints, and so are the page's new lines of this PR (the page's
 
 ```
 docker compose exec postgres pg_dump -U clickplanet -d clickplanet --data-only \
-  -t planet.tiles -t planet.landmasses -t planet.mines -t planet.viruses > before-switch.sql
+  -t planet.tiles -t planet.provinces -t planet.mines -t planet.viruses > before-switch.sql
 ```
 
 **6. The dry run**: `planet_switch_board {"map": "world", "board": "earth-2", "dry_run": true}`. Expect what the

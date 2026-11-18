@@ -93,7 +93,7 @@ func (RightAnswers) Rate() Rate { return Rate{XP: 30, Per: 1} }
 
 func (s RightAnswers) XP(record Record) XP { return s.Rate().XPOf(record.RightAnswers()) }
 
-// A tile fortified is 0.2 XP, floored on the total: a fortify counts the whole landmass, often thousands of tiles.
+// A tile fortified is 0.2 XP, floored on the total: a fortify counts the whole province, often hundreds of tiles.
 type TilesFortified struct{}
 
 func (TilesFortified) Name() SourceName { return "tiles_fortified" }

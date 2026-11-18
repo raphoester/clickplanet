@@ -11,21 +11,33 @@ import (
 type counts struct {
 	countries  map[string]uint32
 	landmasses map[clicks.LandmassID]map[string]uint32
+	provinces  map[clicks.ProvinceID]map[string]uint32
 }
 
 func countsOf(tally clicks.Tally) counts {
-	read := counts{countries: map[string]uint32{}, landmasses: map[clicks.LandmassID]map[string]uint32{}}
+	read := counts{
+		countries:  map[string]uint32{},
+		landmasses: map[clicks.LandmassID]map[string]uint32{},
+		provinces:  map[clicks.ProvinceID]map[string]uint32{},
+	}
 	for _, country := range tally.Countries {
 		read.countries[country.Flag] = country.Tiles
 	}
 	for _, row := range tally.Landmasses {
-		flags := map[string]uint32{}
-		for _, flag := range row.Flags {
-			flags[flag.Flag] = flag.Tiles
-		}
-		read.landmasses[row.Landmass] = flags
+		read.landmasses[row.Landmass] = flagsOf(row.Flags)
+	}
+	for _, row := range tally.Provinces {
+		read.provinces[row.Province] = flagsOf(row.Flags)
 	}
 	return read
+}
+
+func flagsOf(rows []clicks.FlagTiles) map[string]uint32 {
+	flags := map[string]uint32{}
+	for _, flag := range rows {
+		flags[flag.Flag] = flag.Tiles
+	}
+	return flags
 }
 
 func (s *testSuite) tally(storage *inmemory_tile_storage.Storage) (clicks.MapVersion, counts) {
@@ -64,12 +76,8 @@ func (s *testSuite) assertTheTallyIsTheReadAfter(storage *inmemory_tile_storage.
 	for flag, tiles := range published.countries {
 		s.Equal(after.countries[flag], tiles, "flag %s, at zero too", flag)
 	}
-	for landmass, flags := range published.landmasses {
-		s.Len(flags, len(after.landmasses[landmass]), "landmass %d is whole", landmass)
-		for flag, tiles := range after.landmasses[landmass] {
-			s.Equal(tiles, flags[flag], "landmass %d flag %s", landmass, flag)
-		}
-	}
+	assertWholeRows(s, "landmass", published.landmasses, after.landmasses)
+	assertWholeRows(s, "province", published.provinces, after.provinces)
 	for flag, tiles := range after.countries {
 		if before.countries[flag] != tiles {
 			s.Contains(published.countries, flag, "flag %s changed", flag)
@@ -80,10 +88,25 @@ func (s *testSuite) assertTheTallyIsTheReadAfter(storage *inmemory_tile_storage.
 			s.Contains(published.countries, flag, "flag %s left the map: listed at zero", flag)
 		}
 	}
-	for _, rows := range []map[clicks.LandmassID]map[string]uint32{before.landmasses, after.landmasses} {
-		for landmass := range rows {
-			if !equalRows(before.landmasses[landmass], after.landmasses[landmass]) {
-				s.Contains(published.landmasses, landmass, "landmass %d changed", landmass)
+	assertChangedRowsListed(s, "landmass", before.landmasses, after.landmasses, published.landmasses)
+	assertChangedRowsListed(s, "province", before.provinces, after.provinces, published.provinces)
+}
+
+// Each row published is whole: every flag holding some of it, as a read after it says.
+func assertWholeRows[Row comparable](s *testSuite, kind string, published, after map[Row]map[string]uint32) {
+	for row, flags := range published {
+		s.Len(flags, len(after[row]), "%s %v is whole", kind, row)
+		for flag, tiles := range after[row] {
+			s.Equal(tiles, flags[flag], "%s %v flag %s", kind, row, flag)
+		}
+	}
+}
+
+func assertChangedRowsListed[Row comparable](s *testSuite, kind string, before, after, published map[Row]map[string]uint32) {
+	for _, rows := range []map[Row]map[string]uint32{before, after} {
+		for row := range rows {
+			if !equalRows(before[row], after[row]) {
+				s.Contains(published, row, "%s %v changed", kind, row)
 			}
 		}
 	}
@@ -167,7 +190,7 @@ func (s *testSuite) TestAFortifyChangesNoCount() {
 	s.Empty(listener, "no tally: no count moved")
 }
 
-func (s *testSuite) TestTheTallyListsEveryFlagAndEveryLandmassHeld() {
+func (s *testSuite) TestTheTallyListsEveryFlagAndEveryLandmassAndProvinceHeld() {
 	storage := s.seeded()
 
 	_, read := s.tally(storage)
@@ -175,6 +198,7 @@ func (s *testSuite) TestTheTallyListsEveryFlagAndEveryLandmassHeld() {
 	s.Equal(map[string]uint32{"fr": 2, "de": 1, "it": 20}, read.countries)
 	s.Equal(map[clicks.LandmassID]map[string]uint32{1: {"fr": 2, "de": 1}}, read.landmasses,
 		"tiles on no landmass count for their flag only")
+	s.Equal(map[clicks.ProvinceID]map[string]uint32{1: {"fr": 2, "de": 1}}, read.provinces)
 }
 
 func (s *testSuite) TestRunPublishesTheTallyOnItsOwn() {
@@ -190,5 +214,6 @@ func (s *testSuite) TestRunPublishesTheTallyOnItsOwn() {
 	s.Equal(&clicks.Tally{
 		Countries:  []clicks.FlagTiles{{Flag: "fr", Tiles: 1}},
 		Landmasses: []clicks.LandmassTiles{{Landmass: 1, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 1}}}},
+		Provinces:  []clicks.ProvinceTiles{{Province: 1, Flags: []clicks.FlagTiles{{Flag: "fr", Tiles: 1}}}},
 	}, s.nextTally(ctx, listener).Tally)
 }

@@ -70,7 +70,7 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 	for name, told := range map[string]func(time.Time) (announcements.Announcement, error){
 		"bomb 7":         announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement,
 		"bomb 8":         announcements.BombOf(8, "fr", "de", 7, 42, 3).Announcement,
-		"fortify 7":      announcements.FortifyOf(7, "fr", "is", 3, 60, cpboards.Earth1()).Announcement,
+		"fortify 7":      announcements.FortifyOf(7, "fr", "is", 3, 0, 60, cpboards.Earth1()).Announcement,
 		"knock-out 7":    announcements.KnockOutOf(7, "fr", "de").Announcement,
 		"mute 1":         announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", mutes.Chat, time.Hour).Announcement,
 		"day 5":          announcements.DayOf(0, 5).Announcement,

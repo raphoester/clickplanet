@@ -19,6 +19,7 @@ import {
     TileClicker,
     TileHolders,
     LandmassReader,
+    ProvinceReader,
     UpdatesListener,
 } from "../../backends/backend.ts";
 import News from "../news/News.tsx";
@@ -183,6 +184,7 @@ export type Backends = {
     warnings: WarningsListener & WarningAcknowledger
     tileHolders: TileHolders
     landmasses: LandmassReader
+    provinces: ProvinceReader
     turn: TurnBackend
     standings: StandingsBackend
     support: SupportBackend
@@ -622,6 +624,7 @@ export default function PlayScreen(props: PlayScreenProps) {
 
         <TerritoryCardPlace shown={territoryCard.shown}
                             reader={backends.landmasses}
+                            provinces={backends.provinces}
                             players={backends.playerInfo}
                             missions={missionsShown}
                             onHold={territoryCard.hold}

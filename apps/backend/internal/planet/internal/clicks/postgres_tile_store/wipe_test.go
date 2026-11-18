@@ -14,7 +14,7 @@ import (
 
 func (s *testSuite) TestAWipeDeletesTheMapInTheResetsTransaction() {
 	ctx := context.Background()
-	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2, 3), []inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}}, nil))
+	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2, 3), []inmemory_tile_storage.Province{{ID: 1, Asset: "provinces.bin", FortifiedBy: "fr"}}, nil))
 	kept := postgres_reset_store.New(s.db)
 	seasonOne, err := resets.New("season-1", time.Date(2026, 11, 1, 15, 0, 0, 0, time.UTC))
 	s.Require().NoError(err)
@@ -24,8 +24,8 @@ func (s *testSuite) TestAWipeDeletesTheMapInTheResetsTransaction() {
 	s.Require().NoError(err)
 	s.True(wiped)
 	s.Empty(s.load())
-	locks := map[clicks.LandmassID]string{}
-	s.Require().NoError(s.store.LoadLandmasses(ctx, clicks.World, "borders.bin", func(id clicks.LandmassID, by string) { locks[id] = by }))
+	locks := map[clicks.ProvinceID]string{}
+	s.Require().NoError(s.store.LoadProvinces(ctx, clicks.World, "provinces.bin", func(id clicks.ProvinceID, by string) { locks[id] = by }))
 	s.Empty(locks)
 
 	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("de", 7), nil, nil))

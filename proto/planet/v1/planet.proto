@@ -67,6 +67,10 @@ service ClickService {
     option idempotency_level = NO_SIDE_EFFECTS;
   }
 
+  rpc GetProvince(GetProvinceRequest) returns (GetProvinceResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+
   // The world's map over the 24 hours up to the last :00 or :30 UTC, a frame every 30 minutes.
   rpc GetRecentMapHistory(GetRecentMapHistoryRequest) returns (GetRecentMapHistoryResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
@@ -257,6 +261,9 @@ message GetHoldingsResponse {
 
   // Every landmass with a tile held, each whole: a flag it does not list holds none of it.
   repeated LandmassHoldings landmasses = 3;
+
+  // Every province with a tile held, each whole, as the landmasses.
+  repeated ProvinceHoldings provinces = 4;
 }
 
 message Holding {
@@ -272,6 +279,13 @@ message LandmassHoldings {
   repeated Holding holdings = 2;
 }
 
+message ProvinceHoldings {
+  // An index into the board's provinces file.
+  uint32 province_id = 1;
+
+  repeated Holding holdings = 2;
+}
+
 // Totals, never differences, of what the writes since the last one changed: at most one a second.
 message HoldingsChanged {
   MapVersion version = 1;
@@ -281,6 +295,9 @@ message HoldingsChanged {
 
   // Each whole, as in GetHoldingsResponse: a landmass nobody holds any more lists no flag.
   repeated LandmassHoldings landmasses = 3;
+
+  // Each whole, as the landmasses: a province nobody holds any more lists no flag.
+  repeated ProvinceHoldings provinces = 4;
 }
 
 message TileShields {
@@ -293,8 +310,8 @@ message TileShields {
 message ListenForEventsRequest {}
 
 message PlanetEvent {
-  reserved 3, 4, 8;
-  reserved "bonus_offered", "bonus_taken", "quiz_offered";
+  reserved 3, 4, 8, 9;
+  reserved "bonus_offered", "bonus_taken", "quiz_offered", "landmass_fortified";
 
   oneof event {
     TileUpdate tile_update = 1;
@@ -305,8 +322,6 @@ message PlanetEvent {
     TilesEnclosed tiles_enclosed = 6;
 
     TilesSpread tiles_spread = 7;
-
-    LandmassFortified landmass_fortified = 9;
 
     HoldingsChanged holdings_changed = 10;
 
@@ -325,6 +340,8 @@ message PlanetEvent {
     MinesExploded mines_exploded = 16;
 
     Rally rally_called = 17;
+
+    ProvinceFortified province_fortified = 18;
   }
 }
 
@@ -459,10 +476,11 @@ message GetLandmassRequest {
 }
 
 message GetLandmassResponse {
+  reserved 2;
+  reserved "last_fortification";
+
   // Most tiles first. A tile no player's take holds is in none: an operator wrote it, or its account was deleted.
   repeated LandmassHolder holders = 1;
-  // The last fortify a player made of the landmass. Unset when none was kept: a flag can hold the lock with no fortify.
-  LandmassFortification last_fortification = 2;
 }
 
 // The tiles of the landmass one account's takes hold for one flag.
@@ -472,7 +490,17 @@ message LandmassHolder {
   uint32 tiles = 3;
 }
 
-message LandmassFortification {
+message GetProvinceRequest {
+  // An index into the board's provinces file.
+  uint32 province_id = 1;
+}
+
+message GetProvinceResponse {
+  // The last fortify a player made of the province. Unset when none was kept: a flag can hold the lock with no fortify.
+  ProvinceFortification last_fortification = 1;
+}
+
+message ProvinceFortification {
   // Empty once its account is deleted.
   string account_id = 1;
   string country_id = 2;
@@ -487,26 +515,30 @@ message GetRecentMapHistoryResponse {
 
 message GetFortressesRequest {}
 
-// Every landmass a flag fortified last, or holds whole with nobody having fortified it.
+// Every province a flag fortified last, or holds whole with nobody having fortified it.
 message GetFortressesResponse {
   repeated Fortress fortresses = 1;
 }
 
 message Fortress {
-  uint32 landmass_id = 1;
+  reserved 1;
+  reserved "landmass_id";
 
-  // The flag that may not fortify the landmass next.
+  // An index into the board's provinces file.
+  uint32 province_id = 3;
+
+  // The flag that may not fortify the province next.
   string country_id = 2;
 }
 
-// Every tile of the landmass gained one shield, up to GetChargeRules.tile_shields.
-message LandmassFortified {
-  // An index into the borders blob's landmass table.
-  uint32 landmass_id = 1;
+// Every tile of the province gained one shield, up to GetChargeRules.tile_shields.
+message ProvinceFortified {
+  // An index into the board's provinces file.
+  uint32 province_id = 1;
 
   string country_id = 2;
 
-  // The tile whose take made the landmass whole.
+  // The tile whose take made the province whole.
   uint32 tile_id = 3;
 
   MapVersion version = 4;

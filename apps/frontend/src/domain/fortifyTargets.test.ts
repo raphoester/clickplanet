@@ -1,23 +1,23 @@
 import {describe, expect, it} from "vitest"
 import {FortifyTargets, Holdings} from "./fortifyTargets.ts"
 
-// Landmass 1 is tiles 1 to 4; landmass 2 is tile 5. The leader comes from the owners, as the server counts them.
+// Province 1 is tiles 1 to 4; province 2 is tile 5. The leader comes from the owners, as the server counts them.
 function island(owners: Record<number, string>, known = new Set([1, 2, 3, 4, 5])) {
-    const landmassOf = (tile: number) => (tile <= 4 ? 1 : tile === 5 ? 2 : 0)
+    const provinceOf = (tile: number) => (tile <= 4 ? 1 : tile === 5 ? 2 : 0)
     const holdings: Holdings = {
-        sizeOf: (landmass) => (landmass === 1 ? 4 : landmass === 2 ? 1 : 0),
-        leaderOf: (landmass) => {
+        sizeOf: (province) => (province === 1 ? 4 : province === 2 ? 1 : 0),
+        leaderOf: (province) => {
             const held = new Map<string, number>()
             for (const [tile, flag] of Object.entries(owners)) {
-                if (landmassOf(Number(tile)) === landmass) held.set(flag, (held.get(flag) ?? 0) + 1)
+                if (provinceOf(Number(tile)) === province) held.set(flag, (held.get(flag) ?? 0) + 1)
             }
             const [holder, count] = [...held].sort((a, b) => b[1] - a[1])[0] ?? []
             return holder === undefined ? undefined : {holder, held: count}
         },
         ownerOf: (tile) => (known.has(tile) ? owners[tile] : undefined),
         known: (tile) => known.has(tile),
-        tilesOf: (landmass) => (landmass === 1 ? [1, 2, 3, 4] : landmass === 2 ? [5] : []),
-        landmassOf,
+        tilesOf: (province) => (province === 1 ? [1, 2, 3, 4] : province === 2 ? [5] : []),
+        provinceOf,
     }
     const pulsing = new Set<number>()
     const targets = new FortifyTargets(holdings, (tiles, on) => tiles.forEach((tile) => on ? pulsing.add(tile) : pulsing.delete(tile)))
@@ -49,7 +49,7 @@ describe("FortifyTargets", () => {
         expect(pulsing.size).toBe(0)
     })
 
-    it("stops pulsing once the landmass is fortified by its leader", () => {
+    it("stops pulsing once the province is fortified by its leader", () => {
         const {owners, targets, pulsing} = island({1: "us", 2: "us", 3: "us", 4: "ca"})
         targets.lockAll(new Map(), 3)
 

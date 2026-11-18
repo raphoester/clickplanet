@@ -85,7 +85,7 @@ memory.
 
 ## The other rules on the map
 
-A virus's takes are claims like a spread's (`clicks.claim`): **a take that makes a landmass whole fortifies it**, and
+A virus's takes are claims like a spread's (`clicks.claim`): **a take that makes a province whole fortifies it**, and
 **a take of a capital knocks its flag out** while the knock-out plays, once every take of the tick is written, as for an
 enclosure. **A capital whose shields the rules fix** keeps them: the virus strikes them like a click. **The reach** is
 checked on the aim; a spread is always next to the flag's own infected tile.

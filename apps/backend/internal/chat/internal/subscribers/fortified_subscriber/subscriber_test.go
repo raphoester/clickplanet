@@ -24,7 +24,23 @@ func subscriber(store *inmemory_announcement_storage.Storage) fortified_subscrib
 	return fortified_subscriber.New(announce_usecase.New(store, inprocess_feed.New(0, slog.New(slog.DiscardHandler))))
 }
 
-func TestAFortifyOfASizeableTerritoryIsAnnounced(t *testing.T) {
+func TestAFortifyOfASizeableProvinceIsAnnouncedWithItsProvince(t *testing.T) {
+	store := inmemory_announcement_storage.New()
+
+	err := subscriber(store).Handle(t.Context(), &planetv1.Fortified{
+		Country: "es", Ground: "fr", ProvinceId: 1031, LandmassId: 359, Tiles: 137, FortifiedAt: timestamppb.New(at),
+	})
+
+	require.NoError(t, err)
+	kept := store.Kept()
+	require.Len(t, kept, 1)
+	assert.Equal(t, announcements.KindFortify, kept[0].Kind())
+	assert.Equal(t, at, kept[0].At())
+	assert.JSONEq(t, `{"country":"es","ground":"fr","province":1031,"landmass":359,"tiles":137}`, string(kept[0].Payload()),
+		"the page names the province, or its landmass when it has no name of its own")
+}
+
+func TestAFortifyMadeBeforeProvincesIsAnnouncedWithItsLandmass(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
 	err := subscriber(store).Handle(t.Context(), &planetv1.Fortified{
@@ -34,16 +50,14 @@ func TestAFortifyOfASizeableTerritoryIsAnnounced(t *testing.T) {
 	require.NoError(t, err)
 	kept := store.Kept()
 	require.Len(t, kept, 1)
-	assert.Equal(t, announcements.KindFortify, kept[0].Kind())
-	assert.Equal(t, at, kept[0].At())
 	assert.JSONEq(t, `{"country":"es","ground":"fr","landmass":359,"tiles":137}`, string(kept[0].Payload()))
 }
 
-func TestAFortifyOfASmallIslandIsNotAnnounced(t *testing.T) {
+func TestAFortifyOfASmallProvinceIsNotAnnounced(t *testing.T) {
 	store := inmemory_announcement_storage.New()
 
 	err := subscriber(store).Handle(t.Context(), &planetv1.Fortified{
-		Country: "bg", LandmassId: 257, Tiles: 16, FortifiedAt: timestamppb.New(at),
+		Country: "bg", ProvinceId: 257, Tiles: 16, FortifiedAt: timestamppb.New(at),
 	})
 
 	require.NoError(t, err)
@@ -62,7 +76,7 @@ func TestAFortifyIsAsNewsworthyOnABoardOfItsOwnAsTheGroundItCovers(t *testing.T)
 		store := inmemory_announcement_storage.New()
 
 		err := subscriber(store).Handle(t.Context(), &planetv1.Fortified{
-			Country: "jp", LandmassId: 12, Tiles: tiles, FortifiedAt: timestamppb.New(at), Board: cpboards.Fixture,
+			Country: "jp", ProvinceId: 12, Tiles: tiles, FortifiedAt: timestamppb.New(at), Board: cpboards.Fixture,
 		})
 
 		require.NoError(t, err)
@@ -71,7 +85,7 @@ func TestAFortifyIsAsNewsworthyOnABoardOfItsOwnAsTheGroundItCovers(t *testing.T)
 
 	store := inmemory_announcement_storage.New()
 	require.NoError(t, subscriber(store).Handle(t.Context(), &planetv1.Fortified{
-		Country: "bg", LandmassId: 257, Tiles: 49, FortifiedAt: timestamppb.New(at), Board: "earth-1",
+		Country: "bg", ProvinceId: 257, Tiles: 49, FortifiedAt: timestamppb.New(at), Board: "earth-1",
 	}))
 	assert.Empty(t, store.Kept(), "50 on earth-1, as before")
 }

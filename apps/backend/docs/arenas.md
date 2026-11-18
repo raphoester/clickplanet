@@ -100,7 +100,7 @@ map.
 - **`CloseArena`** (`close_arena_usecase`): under the same locks, `Storage.PutBack` runs `Wipe` on the arena's map in
   one transaction with the arena kept closed (`closed_arenas`). Only after the commit does the world's map play again,
   on the board of the world's era (`eras.Maps.Playing`: its era resumes, whatever board the arena played), read as the
-  boot reads it (`Load`'s steps: every tile, every lock, each landmass settled), with a new epoch and every stream cut. **An arena that never opened closes too**, with the map left as it is, and answers closed, so day K+1
+  boot reads it (`Load`'s steps: every tile, every lock, each province settled), with a new epoch and every stream cut. **An arena that never opened closes too**, with the map left as it is, and answers closed, so day K+1
   never waits for ever. One closed already changes nothing, and answers closed again.
   The world's map is never an arena's (`ParseID` refuses `world`, `InvalidArgument`, and `Blank` and `PutBack` refuse
   it).
@@ -174,7 +174,7 @@ pattern, and `seeds.Catalog`, built with what the map gives (`seeds.Ground`: the
   `/map`'s `capitals-<hash>.json`): each country's tile nearest its capital city, picked by the map generator (see
   [`/map/README.md`](../../../map/README.md)). Planet keeps the 235 of the flags a player can play for; a region flag
   (England, Scotland, Wales, Brittany) has no ground, so no capital. No ledger event and no holder: no player took them.
-  A one-tile landmass held whole settles locked to its holder, as at boot.
+  A one-tile province held whole settles locked to its holder, as at boot.
 - **A new pattern** is a message in `Seed`'s `oneof`, a type in `seeds` and one case in `seeds.Part`. The arena does not
   change. A set that holds the pattern default holds is overlaid value by value; a set that holds another plays its own
   alone (`cpproto.Overlay`, pinned in its tests).
@@ -306,7 +306,7 @@ readers told an arena's events apart by time, after its open and before the seco
     blanks a world tile its flag happens to wear. **Refused while an arena plays** (`ErrArenaPlays`,
     `FailedPrecondition`): `Forget` hides by position, and would hide the world's takes the revert did not undo.
 - **Map-that-plays readers keep the events of the map on screen** (`Storage.Stage`): `GetTileHolder` (`holder_query`)
-  and `GetLandmass`'s last fortify (`landmass_query`). While an arena plays, a capital nobody took there names nobody;
+  and `GetProvince`'s last fortify (`province_query`). While an arena plays, a capital nobody took there names nobody;
   after it, no arena take names a holder.
 - **The clip generator tells no round that ended in a stretch** (`roundStoryOf`, from the replay's `asides`): its
   fighting is in none of the replay, and the 3 hours before its end are the world's takes from before it.

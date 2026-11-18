@@ -148,6 +148,30 @@ func TestAShieldIsWrittenDownOnTheTileWithItsOwnFlagAndTheShieldsItNowHolds(t *t
 	}, entry)
 }
 
+func TestAFortifyIsWrittenDownWithItsProvinceAndTheProvincesFile(t *testing.T) {
+	entry, err := ledger.Fortifying{
+		Tile: 6, Province: 1031, Provinces: "provinces-286f4c3e.bin", Ground: "de", Tiles: 2, Scope: "A", Country: "fr",
+		At: start, Raised: []clicks.TileShields{{Tile: 5, Shields: 1}},
+	}.Entry()
+	require.NoError(t, err)
+
+	assert.JSONEq(t, `{"province": 1031, "provinces": "provinces-286f4c3e.bin", "ground": "de", "tiles": 2,
+		"raised": [{"tile": 5, "shields": 1}]}`, string(entry.Payload))
+}
+
+func TestAFortifyMadeBeforeProvincesReadsBackWithItsLandmass(t *testing.T) {
+	read, err := ledger.EventOf(ledger.Entry{
+		Kind: "fortify", Tile: 6, Scope: "A", Country: "fr", Previous: "fr", At: start,
+		Payload: []byte(`{"landmass": 257, "ground": "de", "tiles": 2, "raised": [{"tile": 5, "shields": 1}]}`),
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, ledger.Fortifying{
+		Tile: 6, Landmass: 257, Ground: "de", Tiles: 2, Scope: "A", Country: "fr", At: start,
+		Raised: []clicks.TileShields{{Tile: 5, Shields: 1}},
+	}, read)
+}
+
 func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 	for _, event := range []ledger.Event{
 		ledger.Taking{Tile: 7, Scope: "A", Account: "guest", Country: "fr", Previous: "il", At: start},
@@ -173,6 +197,11 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 			{Tile: 9, Owner: "de", Outcome: clicks.Shielded},
 		}},
 		ledger.Shielding{Tile: 4, Scope: "A", Account: "guest", Country: "fr", Shields: 10, At: start},
+		ledger.Fortifying{
+			Tile: 6, Province: 1031, Provinces: "provinces-286f4c3e.bin", Ground: "de", Tiles: 2, Scope: "A",
+			Account: "guest", Country: "fr", At: start,
+			Raised: []clicks.TileShields{{Tile: 5, Shields: 1}, {Tile: 6, Shields: 10}},
+		},
 		ledger.Fortifying{
 			Tile: 6, Landmass: 257, Ground: "de", Tiles: 2, Scope: "A", Account: "guest", Country: "fr", At: start,
 			Raised: []clicks.TileShields{{Tile: 5, Shields: 1}, {Tile: 6, Shields: 10}},
@@ -668,9 +697,10 @@ func TestRecordingNotesAShieldPlacedWithTheShieldsTheTileNowHolds(t *testing.T) 
 
 func TestRecordingNotesAFortifyAfterTheTakeThatEarnedIt(t *testing.T) {
 	tiles := newTiles(map[uint32]string{1: "fr", 2: "de"})
-	tiles.fortify = &clicks.Fortification{Landmass: 3, Ground: "fr", Country: "fr", Tile: 2, Tiles: 2, Raised: []clicks.TileShields{
-		{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1},
-	}}
+	tiles.fortify = &clicks.Fortification{
+		Province: 3, Asset: "provinces.bin", Ground: "fr", Country: "fr", Tile: 2, Tiles: 2,
+		Raised: []clicks.TileShields{{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1}},
+	}
 	recording, events := recorded(tiles)
 
 	_, err := recording.Click(caller(t), 2, "fr")
@@ -679,8 +709,8 @@ func TestRecordingNotesAFortifyAfterTheTakeThatEarnedIt(t *testing.T) {
 	assert.Equal(t, []ledger.Event{
 		ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", Previous: "de", At: start},
 		ledger.Fortifying{
-			Tile: 2, Landmass: 3, Ground: "fr", Tiles: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "fr", At: start,
-			Raised: []clicks.TileShields{{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1}},
+			Tile: 2, Province: 3, Provinces: "provinces.bin", Ground: "fr", Tiles: 2, Scope: "1.2.3.4", Account: "a-guest",
+			Country: "fr", At: start, Raised: []clicks.TileShields{{Tile: 1, Shields: 1}, {Tile: 2, Shields: 1}},
 		},
 	}, written(events))
 	assert.Len(t, replay(events), 1, "a fortify takes no tile")

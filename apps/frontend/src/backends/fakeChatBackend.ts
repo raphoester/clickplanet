@@ -242,7 +242,9 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
     }
 
     // As the server: only a sizeable territory is news in the chat, sized on the board the fake plays.
-    public announceFortify(fortified: {countryId: string, ground: string, landmass: number, tiles: number}, scale: BoardScale) {
+    public announceFortify(
+        fortified: {countryId: string, ground: string, province: number, landmass: number, tiles: number}, scale: BoardScale,
+    ) {
         if (fortified.tiles < newsFromTiles(scale)) return
         this.announce({
             kind: "fortify",
@@ -251,6 +253,7 @@ export class FakeChatBackend implements ChatSender, ChatHistoryGetter, ChatListe
             country: fortified.countryId,
             ground: fortified.ground,
             landmass: fortified.landmass,
+            province: fortified.province,
             tiles: fortified.tiles,
         })
     }

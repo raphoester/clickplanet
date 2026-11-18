@@ -1,4 +1,6 @@
 import {BoardScale, scaledCount} from "../../domain/boardScale.ts"
+import type {BoardAsset} from "../../domain/board.ts"
+import {bordersHashOf, decodeProvinces, landmassProvinces, type Provinces} from "../../domain/provinces.ts"
 import * as THREE from "three"
 import {flagNumbers, regions} from "./atlas.ts"
 import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
@@ -30,6 +32,21 @@ export async function loadBorders(url: string, signal?: AbortSignal): Promise<Bo
     const totals = new Uint32Array(buffer, at, header.codes.length)
 
     return {codes: header.codes, assignment, frames, totals}
+}
+
+// The board's provinces, read beside its borders; a board with no provinces file has its landmasses as provinces.
+export async function loadProvinces(board: BoardAsset, borders: Promise<BorderData>, signal?: AbortSignal): Promise<Provinces> {
+    const borderHash = bordersHashOf(board.files.borders)
+    if (!board.files.provinces) {
+        const {assignment, frames, totals} = await borders
+        return landmassProvinces(borderHash, assignment, frames, totals)
+    }
+    const url = board.urls.provinces!
+    const response = await fetch(url, {signal})
+    if (!response.ok) throw new Error(`${url} answered ${response.status}`)
+    const provinces = decodeProvinces(await response.arrayBuffer(), board.tiles)
+    if (provinces.borders !== borderHash) throw new Error(`${url} was cut on other borders than ${board.files.borders}`)
+    return provinces
 }
 
 export function countryOfTile(data: BorderData, tile: number): string | undefined {

@@ -60,7 +60,7 @@ func spreadVirus() clicks.Virus {
 
 func TestAVirusTickIsRecordedAsItsPlayersActWhoeverAsks(t *testing.T) {
 	events := &recordedEvents{}
-	fortified := &clicks.Fortification{Landmass: 3, Country: "fr", Tile: 4, Tiles: 2}
+	fortified := &clicks.Fortification{Province: 3, Country: "fr", Tile: 4, Tiles: 2}
 	recording := ledger.NewVirusRecording(contagion{virus: spreadVirus(), impacts: []clicks.Impact{
 		{Tile: 4, Owner: "de", Outcome: clicks.Taken, Fortified: fortified},
 	}}, events, events, cptime.NewFixedClock(start))

@@ -63,7 +63,7 @@ func detonationOf(tile uint32, scope string, impacts ...clicks.Impact) clicks.De
 
 func TestEveryBlastIsRecordedAsItsPlayersActBeforeTheFortifiesAndTheKnockOuts(t *testing.T) {
 	events := &recordedEvents{}
-	fortified := &clicks.Fortification{Landmass: 3, Country: "fr", Tile: 4, Tiles: 2}
+	fortified := &clicks.Fortification{Province: 3, Country: "fr", Tile: 4, Tiles: 2}
 	knocked := &clicks.KnockOut{Country: "de", By: "fr", Tile: 6, Cleared: []uint32{8}}
 	recording := ledger.NewMineRecording(minefield{detonations: []clicks.Detonation{
 		detonationOf(5, "203.0.113.7", clicks.Impact{Tile: 4, Owner: "de", Outcome: clicks.Taken, Fortified: fortified}),

@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useRef, useState} from "react"
-import {ReplayLandmasses} from "../../backends/replayBackend.ts"
+import {ReplayGrounds} from "../../backends/replayBackend.ts"
 import {HistoryBackend} from "../../backends/historyBackend.ts"
 import {Season} from "../../backends/season.ts"
 import {TurnBackend} from "../../backends/turn.ts"
@@ -18,7 +18,7 @@ import {drawHeat, heatOf, lookOfThePage} from "./heatmap.ts"
 import "./SeasonMap.css"
 
 // A board's tiles, the cells they cover and their landmasses, as the archive draws them.
-export type BoardGeometry = {board: BoardAsset, positions: Float32Array, cells: TileCells, landmasses: ReplayLandmasses}
+export type BoardGeometry = {board: BoardAsset, positions: Float32Array, cells: TileCells, grounds: ReplayGrounds}
 
 export type SeasonMapProps = {
     turn: Pick<TurnBackend, "follow" | "seasonReplay">
@@ -171,7 +171,7 @@ function Replay({reel, boards}: {reel: ErasReel, boards: Geometries}) {
         const geometry = boards.get(piece.board)
         if (!container || !geometry) return
         const aborted = new AbortController()
-        const shown = new HistoryBackend(piece.reel, geometry.landmasses)
+        const shown = new HistoryBackend(piece.reel, geometry.grounds)
         shown.seek(latest.current - piece.from)
         backend.current = shown
         const none = () => {}

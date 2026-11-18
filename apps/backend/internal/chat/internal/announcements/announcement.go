@@ -113,18 +113,26 @@ func (b Bomb) Announcement(at time.Time) (Announcement, error) {
 // board, as much ground.
 const fortifyNewsTiles = 50
 
+// A fortify names its province and the landmass it is inside; one made before fortify played on provinces (2026-11-18)
+// names its landmass alone.
 type Fortify struct {
 	position uint64
 	country  string
 	ground   string
+	province uint32
 	landmass uint32
 	tiles    uint32
 	scale    cpboards.Scale
 }
 
 // FortifyOf is a fortify of tiles of a board of that scale.
-func FortifyOf(position uint64, country string, ground string, landmass uint32, tiles uint32, scale cpboards.Scale) Fortify {
-	return Fortify{position: position, country: country, ground: ground, landmass: landmass, tiles: tiles, scale: scale}
+func FortifyOf(
+	position uint64, country string, ground string, province uint32, landmass uint32, tiles uint32, scale cpboards.Scale,
+) Fortify {
+	return Fortify{
+		position: position, country: country, ground: ground, province: province, landmass: landmass, tiles: tiles,
+		scale: scale,
+	}
 }
 
 func (f Fortify) Newsworthy() bool { return int(f.tiles) >= f.scale.Tiles(fortifyNewsTiles) }
@@ -132,12 +140,15 @@ func (f Fortify) Newsworthy() bool { return int(f.tiles) >= f.scale.Tiles(fortif
 type fortifyPayload struct {
 	Country  string `json:"country"`
 	Ground   string `json:"ground"`
+	Province uint32 `json:"province,omitempty"`
 	Landmass uint32 `json:"landmass"`
 	Tiles    uint32 `json:"tiles"`
 }
 
 func (f Fortify) Announcement(at time.Time) (Announcement, error) {
-	payload, err := json.Marshal(fortifyPayload{Country: f.country, Ground: f.ground, Landmass: f.landmass, Tiles: f.tiles})
+	payload, err := json.Marshal(fortifyPayload{
+		Country: f.country, Ground: f.ground, Province: f.province, Landmass: f.landmass, Tiles: f.tiles,
+	})
 	if err != nil {
 		return Announcement{}, fmt.Errorf("failed to encode a fortify announcement: %w", err)
 	}

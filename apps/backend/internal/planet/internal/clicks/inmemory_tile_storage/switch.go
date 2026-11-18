@@ -15,7 +15,7 @@ import (
 // to, in keep's transaction, which is told what is carried:
 //   - each new tile takes its parent's flag and holder, and its share of the parent's shields (carry.Share);
 //   - each mine moves to its tile's child nearest it (carry.Heir), and one on a tile with no child is lost;
-//   - every live virus ends, and every fortify lock is dropped, then each landmass of the new board settled again;
+//   - every live virus ends, and every fortify lock is dropped, then each province of the new board settled again;
 //   - the flags out stay: they name no tile.
 //
 // What changed is saved first, so every shield placed is confirmed. Once committed, recorded is told what was carried
@@ -111,8 +111,8 @@ func (c carriedRows) Load(_ context.Context, _ clicks.MapID, visit func(tile Til
 	return nil
 }
 
-// A switch keeps no fortify lock: each landmass of the new board is settled again.
-func (carriedRows) LoadLandmasses(context.Context, clicks.MapID, string, func(clicks.LandmassID, string)) error {
+// A switch keeps no fortify lock: each province of the new board is settled again.
+func (carriedRows) LoadProvinces(context.Context, clicks.MapID, string, func(clicks.ProvinceID, string)) error {
 	return nil
 }
 
@@ -212,8 +212,8 @@ func (s *Storage) carryLocked(ground *clicks.Ground, carry clicks.Carryover) (ca
 	}
 
 	carried.VirusesEnded = uint32(len(s.viruses.live)) //nolint:gosec // a virus a player, at most.
-	s.landmasses.each(func(landmass clicks.LandmassID) {
-		if s.landmasses.lockedTo(landmass) != unownedCode {
+	s.provinces.each(func(province clicks.ProvinceID) {
+		if s.provinces.lockedTo(province) != unownedCode {
 			carried.LocksDropped++
 		}
 	})

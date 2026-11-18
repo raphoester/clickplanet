@@ -31,8 +31,8 @@ var island = []uint32{90_001, 90_002, 90_003}
 var borders = clicks.BordersOf(maxIndex, island)
 
 func (s *testSuite) SetupSuite() {
-	s.NewStorage = func(borders *clicks.Borders) clicks.TileStorage {
-		return inmemory_tile_storage.New(clicks.OneGround{Ground: clicks.GroundOf(borders)}, clicks.NewPlayed(), clicks.NoCapitals(), inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
+	s.NewStorage = func(ground *clicks.Ground) clicks.TileStorage {
+		return inmemory_tile_storage.New(clicks.OneGround{Ground: ground}, clicks.NewPlayed(), clicks.NoCapitals(), inmemory_tile_storage.Config{}, inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{}), cpatomic.FakeTransactioner{}, &inmemory_tile_storage.RecordedPlacements{}, cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	}
 }
 

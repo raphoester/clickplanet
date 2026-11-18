@@ -371,11 +371,36 @@ describe("ChatPanel", () => {
         setup(backend)
 
         await screen.findByText("Nobody has said anything yet. Go on.")
-        act(() => announce({kind: "fortify", id: "wall", announcedAt: Date.now(), country: "es", ground: "fr", landmass: 380, tiles: 137}))
+        act(() => announce({kind: "fortify", id: "wall", announcedAt: Date.now(), country: "es", ground: "fr", landmass: 380, province: undefined, tiles: 137}))
 
         const line = (await screen.findByText("fortified French Guiana", {exact: false})).closest("li")!
         expect(line.className).toBe("chat-announcement")
         expect(line.textContent).toContain("Spain fortified French Guiana")
+    })
+
+    it("says which flag fortified which province, and the country it is in", async () => {
+        translator().nameProvinces({english: {"31": "Bavaria"}, own: {}})
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "fortify", id: "wall", announcedAt: Date.now(), country: "fr", ground: "de", landmass: 2, province: 31, tiles: 4_675}))
+
+        const line = (await screen.findByText("fortified Bavaria, Germany", {exact: false})).closest("li")!
+        expect(line.textContent).toContain("France fortified Bavaria, Germany")
+    })
+
+    it("names a province that reads as its country once", async () => {
+        translator().nameProvinces({english: {}, own: {}})
+        const {backend, announce} = stubBackend()
+        setup(backend)
+
+        await screen.findByText("Nobody has said anything yet. Go on.")
+        act(() => announce({kind: "fortify", id: "wall", announcedAt: Date.now(), country: "fr", ground: "be", landmass: 9_999, province: 40, tiles: 300}))
+
+        const line = (await screen.findByText("fortified Belgium", {exact: false})).closest("li")!
+        expect(line.textContent).toContain("France fortified Belgium")
+        expect(line.textContent).not.toContain("Belgium, Belgium")
     })
 
     it("says which country won the season, with its flag", async () => {

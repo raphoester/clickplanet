@@ -27,7 +27,7 @@
     },
     {
       "en": "fortify",
-      "means": "a take that makes a landmass all yours gives each of its tiles a shield",
+      "means": "a take that makes a province all yours gives each of its tiles a shield",
       "fr": "fortifier", "de": "befestigen", "tr": "tahkim etmek", "pt-BR": "fortificar", "pl": "ufortyfikować", "id": "membentengi", "es": "fortificar", "cs": "opevnit"
     },
     {
@@ -134,6 +134,11 @@
       "en": "landmass",
       "means": "an island or a region of a country, drawn as one territory",
       "fr": "territoire", "de": "Gebiet", "tr": "bölge", "pt-BR": "território", "pl": "terytorium", "id": "wilayah", "es": "territorio", "cs": "území"
+    },
+    {
+      "en": "province",
+      "means": "a state, a region or a few of them inside one landmass of a country (a US state, a German Land): the ground fortify plays on",
+      "fr": "province", "de": "Provinz", "tr": "eyalet", "pt-BR": "província", "pl": "prowincja", "id": "provinsi", "es": "provincia", "cs": "provincie"
     },
     {
       "en": "board",

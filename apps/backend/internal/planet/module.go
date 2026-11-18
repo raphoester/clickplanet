@@ -122,6 +122,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_mines_handler/mines_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_play_days_handler/play_days_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_province_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_province_handler/province_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rallies_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_rallies_handler/rallies_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler"
@@ -525,7 +527,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				GetFortressesHandler: get_fortresses_handler.New(fortresses_query.NewMemoryQuery(tilesStorage)),
 				GetTileHolderHandler: get_tile_holder_handler.New(played, holder_query.NewPostgresQuery(db, tilesStorage)),
 				GetLandmassHandler: get_landmass_handler.New(played,
-					landmass_query.NewPostgresQuery(db, inmemory_tile_holders.New(tilesStorage), tilesStorage)),
+					landmass_query.NewMemoryQuery(inmemory_tile_holders.New(tilesStorage))),
+				GetProvinceHandler: get_province_handler.New(played,
+					province_query.NewPostgresQuery(db, tilesStorage, played)),
 				GetRecentMapHistoryHandler: get_recent_map_history_handler.New(
 					recent_history_query.NewPostgresQuery(db, tilesStorage, eraStore, resetStore, clock), clock),
 				GetAllegianceHandler:    get_allegiance_handler.New(allegiance_query.NewPostgresQuery(db, lock)),

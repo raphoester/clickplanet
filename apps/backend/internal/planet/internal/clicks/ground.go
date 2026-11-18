@@ -32,6 +32,9 @@ func NewGround(
 	if bridges.Tiles() != tiles {
 		return nil, fmt.Errorf("board %s: the bridges hold %d tiles, the geography %d", name, bridges.Tiles(), tiles)
 	}
+	if provinces.Count() > 0 && provinces.tiles() != tiles {
+		return nil, fmt.Errorf("board %s: the provinces hold %d tiles, the geography %d", name, provinces.tiles(), tiles)
+	}
 	return &Ground{
 		name: name, geography: geography, borders: borders, bridges: bridges, capitals: capitals, provinces: provinces,
 		spacing: geography.Spacing(),
@@ -115,6 +118,8 @@ func (p *Played) Landmasses() int { return p.in().borders.Landmasses() }
 func (p *Played) Across(tile uint32) []uint32 { return p.in().bridges.Across(tile) }
 
 func (p *Played) Capitals() *Capitals { return p.in().capitals }
+
+func (p *Played) Provinces() *Provinces { return p.in().provinces }
 
 // CheckTile is true for a tile of the board in play.
 func (p *Played) CheckTile(tile uint32) bool {

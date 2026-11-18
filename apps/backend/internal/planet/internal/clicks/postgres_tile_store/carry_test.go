@@ -17,7 +17,7 @@ var earth2 = clicks.World.On(eras.Earth2.ID)
 func (s *testSuite) worldBeforeASwitch() {
 	ctx := context.Background()
 	s.Require().NoError(s.store.Save(ctx, clicks.WorldStage, owned("fr", 1, 2, 3),
-		[]inmemory_tile_storage.Landmass{{ID: 1, Asset: "borders.bin", FortifiedBy: "fr"}},
+		[]inmemory_tile_storage.Province{{ID: 1, Asset: "provinces.bin", FortifiedBy: "fr"}},
 		[]inmemory_tile_storage.OutFlag{{Flag: "pl", By: "de", At: time.Date(2026, 11, 21, 20, 0, 0, 0, time.UTC)}}))
 	s.Require().NoError(s.store.SaveMines(ctx, clicks.WorldStage, []clicks.MineSnapshot{mineOn(1, "fr")}, nil))
 	s.Require().NoError(s.store.SaveViruses(ctx, clicks.WorldStage, []clicks.VirusSnapshot{
@@ -48,8 +48,8 @@ func (s *testSuite) TestACarryMovesTheMapOntoTheNewBoardInTheEraStartsTransactio
 	var viruses []clicks.VirusSnapshot
 	s.Require().NoError(s.store.LoadViruses(ctx, clicks.World, func(virus clicks.VirusSnapshot) { viruses = append(viruses, virus) }))
 	s.Empty(viruses, "live viruses end")
-	locks := map[clicks.LandmassID]string{}
-	s.Require().NoError(s.store.LoadLandmasses(ctx, clicks.World, "borders.bin", func(id clicks.LandmassID, by string) { locks[id] = by }))
+	locks := map[clicks.ProvinceID]string{}
+	s.Require().NoError(s.store.LoadProvinces(ctx, clicks.World, "provinces.bin", func(id clicks.ProvinceID, by string) { locks[id] = by }))
 	s.Empty(locks, "the old board's locks are dropped")
 	var out []inmemory_tile_storage.OutFlag
 	s.Require().NoError(s.store.LoadOutFlags(ctx, clicks.World, func(flag inmemory_tile_storage.OutFlag) { out = append(out, flag) }))

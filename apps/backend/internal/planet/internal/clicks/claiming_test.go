@@ -48,14 +48,14 @@ func TestAClaimOnAShieldStrikesItAndSaysHowManyAreLeft(t *testing.T) {
 	assert.Equal(t, "de", owner)
 }
 
-func TestAClaimThatMakesALandmassWholeFortifiesIt(t *testing.T) {
+func TestAClaimThatMakesAProvinceWholeFortifiesIt(t *testing.T) {
 	tiles := claimable(t, map[uint32]string{20: "fr", 21: "fr", 22: "de"})
 
 	impact, err := clicks.NewClaiming(tiles, tenAShield).Claim(t.Context(), 22, "fr")
 	require.NoError(t, err)
 
 	require.NotNil(t, impact.Fortified)
-	assert.Equal(t, clicks.LandmassID(1), impact.Fortified.Landmass)
+	assert.Equal(t, clicks.ProvinceID(1), impact.Fortified.Province)
 	assert.Equal(t, "fr", impact.Fortified.Country)
 	assert.Equal(t, uint32(22), impact.Fortified.Tile, "the take that made it whole")
 	assert.Equal(t, 1, impact.Shields)
