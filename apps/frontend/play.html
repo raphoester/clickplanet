@@ -11,31 +11,67 @@
             document.head.appendChild(referrer)
         }
     </script>
-    <!-- Before every /assets/ file: a page from an older build gets HTML for the files a deploy removed, and reloads
-         once (docs/stale-build.md). -->
+    <!-- Before every /assets/ file: a page whose /assets/ file fails reloads, at most twice in a minute
+         (docs/stale-build.md). -->
     <script>
         (function () {
             var KEY = "clickplanet-stale-reload"
             var AGAIN_MS = 60000
+            var REFETCH_MS = 3000
             var assets = location.origin + "/assets/"
 
-            function reloadOnce() {
+            function triesSoFar() {
+                var kept = JSON.parse(sessionStorage.getItem(KEY) || "null")
+                return kept && Date.now() - kept.at < AGAIN_MS ? kept.tries : 0
+            }
+
+            function askedFor() {
+                var urls = {}
+                var tags = document.querySelectorAll("script[src], link[href]")
+                var entries = performance.getEntriesByType("resource")
+                for (var i = 0; i < tags.length; i++) urls[tags[i].src || tags[i].href] = true
+                for (var j = 0; j < entries.length; j++) urls[entries[j].name] = true
+                return Object.keys(urls).filter(function (url) {
+                    return url.indexOf(assets) === 0
+                })
+            }
+
+            function reload() {
+                location.reload()
+            }
+
+            // The first reload brings the current page, never kept, for a page from an older build. The second asks
+            // for every file past the browser's cache before: a fallback kept under a current name is replaced.
+            var recovering = false
+
+            function recover() {
+                if (recovering) return true
+                var tries
                 try {
-                    if (Date.now() - Number(sessionStorage.getItem(KEY)) < AGAIN_MS) return false
-                    sessionStorage.setItem(KEY, String(Date.now()))
+                    tries = triesSoFar()
+                    if (tries >= 2) return false
+                    sessionStorage.setItem(KEY, JSON.stringify({at: Date.now(), tries: tries + 1}))
                 } catch (e) {
                     return false
                 }
-                location.reload()
+                recovering = true
+                if (tries === 0) {
+                    reload()
+                    return true
+                }
+                setTimeout(reload, REFETCH_MS)
+                Promise.all(askedFor().map(function (url) {
+                    return fetch(url, {cache: "reload"}).catch(function () {})
+                })).then(reload)
                 return true
             }
 
             addEventListener("error", function (e) {
                 var url = e.target && (e.target.src || e.target.href)
-                if (typeof url === "string" && url.indexOf(assets) === 0) reloadOnce()
+                if (typeof url === "string" && url.indexOf(assets) === 0) recover()
             }, true)
             addEventListener("vite:preloadError", function (e) {
-                if (reloadOnce()) e.preventDefault()
+                if (recover()) e.preventDefault()
             })
         })()
     </script>
