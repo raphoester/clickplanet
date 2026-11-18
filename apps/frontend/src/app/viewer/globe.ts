@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
-import {addDisplayObjects, pixelRatio, setupScene} from "./scene.ts";
+import {addDisplayObjects, setupScene} from "./scene.ts";
+import {Sharpness} from "./sharpness.ts";
 import {endStrayFingers} from "./strayFingers.ts";
 import {Halo, paintHalo} from "./atmosphere.ts";
 import {graphicsOf} from "./graphics.ts";
@@ -420,6 +421,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         signal,
     } = options
 
+    const graphics = graphicsOf(window.location.search, rendering);
+    const sharpness = new Sharpness(graphics, director === undefined, signal);
     const board = await options.board;
     if (signal.aborted) throw new DOMException("globe load aborted", "AbortError");
     const [geometryData, borders, borderLines, terrain] = await Promise.all([
@@ -442,8 +445,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     let loaded = false
 
-    const graphics = graphicsOf(window.location.search, rendering);
-    const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics);
+    const {scene, camera, cameraSize, renderer, cleanup} = setupScene(eventTarget, graphics, sharpness.ratio());
     endStrayFingers(renderer.domElement, lifetime.signal)
     if (linkedShot) aim(camera, {...linkedShot, zoom: Math.min(maxZoom, Math.max(MIN_ZOOM, linkedShot.zoom))})
     let mapView: MapView = initialMapView
@@ -1744,7 +1746,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         camera.right = cameraSize * (width / height);
         camera.updateProjectionMatrix();
 
-        renderer.setPixelRatio(pixelRatio(graphics));
+        renderer.setPixelRatio(sharpness.ratio());
         renderer.setSize(width, height);
         invalidate();
     };
@@ -1798,6 +1800,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (share === 1) {
                 loaded = true
                 tilesWereRead()
+                sharpness.startMeasuring(performance.now())
                 releaseGhosts(ghosts.snapshot().filter(({tile}) => ownership.ownerOf(tile) === undefined).map(({tile}) => tile))
                 if (showFront) goToFront()
             }
@@ -1936,6 +1939,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         dirty = false
         return was
     }, (seconds) => {
+        sharpness.tick(seconds * 1000)
         const motion = settling.tick(seconds * 1000, viewpointOf(camera, renderer.domElement))
         if (motion === "settled") {
             settle()
@@ -1990,6 +1994,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         outline.cull(camera)
     }, () => {
         undoShake()
+        // Out of this frame: sizing the canvas again clears it, and this frame is drawn.
+        if (sharpness.drew()) setTimeout(resizeListener)
         if (captureRequests.length === 0) return
 
         const frame = readDrawingBuffer(renderer)
