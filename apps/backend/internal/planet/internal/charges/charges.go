@@ -61,6 +61,22 @@ func (c Charges) Grant(ctx context.Context, holder Holder, kind Kind, amount int
 	return gain, nil
 }
 
+func (c Charges) Fill(ctx context.Context, holder Holder, kinds []Kind) (Gain, error) {
+	if holder == NoHolder {
+		return Gain{}, nil
+	}
+
+	rules := c.rules()
+	var gain Gain
+	if err := c.store.Change(ctx, holder, func(held Held) (Held, error) {
+		gain = held.Filling(kinds, rules)
+		return gain.After, nil
+	}); err != nil {
+		return Gain{}, fmt.Errorf("failed to fill %s's %v: %w", holder, kinds, err)
+	}
+	return gain, nil
+}
+
 func (c Charges) Spend(ctx context.Context, holder Holder, after func(Held) (Held, bool)) error {
 	if holder == NoHolder {
 		return ErrNotHeld

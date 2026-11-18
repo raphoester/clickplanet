@@ -226,7 +226,7 @@
   "level.up": "Subiu de nível!",
   "level.nextUnlock": "Próximo: {bonus}, desbloqueia no nível {level}",
   "level.allUnlocked": "Todos os bônus estão desbloqueados",
-  "level.levelUpBonus": "Cada nível que você sobe também te dá um bônus grátis",
+  "level.levelUpBonus": "Cada nível que você sobe também enche todos os seus bônus",
   "level.unlockedNow": "Novo bônus desbloqueado: {bonus}",
   "level.gained": "+{xp} XP",
   "level.rate.missions": "Indicado em cada uma",

@@ -226,7 +226,7 @@
   "level.up": "Seviye atladın!",
   "level.nextUnlock": "Sıradaki: {bonus}, {level}. seviyede açılır",
   "level.allUnlocked": "Tüm bonusların kilidi açık",
-  "level.levelUpBonus": "Her seviye atladığında ayrıca bedava bir bonus kazanırsın",
+  "level.levelUpBonus": "Her seviye atladığında tüm bonusların da dolar",
   "level.unlockedNow": "Yeni bonus açıldı: {bonus}",
   "level.gained": "+{xp} XP",
   "level.rate.missions": "Her görevde yazar",

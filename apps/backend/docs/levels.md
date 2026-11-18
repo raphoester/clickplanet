@@ -217,18 +217,19 @@ changes the scale or the curve, and once after the one that added the level. Con
 
 ## The level-up bonus
 
-**Each raise that writes pays one bonus**, as a box caught: `Book.Raise` records `bonuses.v1.PayLevelUp{grant_id,
-account_id, level, unlocked}` in the raise's transaction, through `outbox_bonuses`, and the bonuses module draws one kind
-among the ones the account may be drawn and pays it in a box's amounts ([The bonuses](bonuses.md#a-level-reached)).
+**Each raise that writes fills every stack**: `Book.Raise` records `bonuses.v1.PayLevelUp{grant_id, account_id, level,
+unlocked}` in the raise's transaction, through `outbox_bonuses`, and the bonuses module fills each kind the account may
+be drawn up to its size ([The bonuses](bonuses.md#a-level-reached)). The owner's call on 2026-11-18: until then it drew
+one kind, as a box.
 
-- **One per raise, however many levels it jumps**: from 1 to 9 is one bonus.
+- **One per raise, however many levels it jumps**: from 1 to 9 is one fill.
 - **Reaching level 1 is no level-up**: a linked account starts there. A first raise to 2 or more pays, a guest's history
   counted once it links too.
 - **A reconciliation pays none**, and a raise another write beat pays none: a fact told twice raises once.
 - **The grant is named by the account and the level** (a SHA-1 uuid in `outbox_bonuses`), so a command told twice, or a
   level reached again after a forget, pays once: planet keeps the grant for good.
 - **The kinds the level unlocks travel with it** (`unlocked`): `KeepUnlocks` comes on a stream of its own, in no order
-  with this one, so the draw does not wait on it.
+  with this one, so the fill does not wait on it.
 
 ## The unlocks
 

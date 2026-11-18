@@ -41,7 +41,7 @@ describe("XpHelp", () => {
         fireEvent.click(help())
 
         expect(ways()?.textContent).toBe("XP to level 131,366 / 5,558 XPNext: Mine, unlocks at level 13" +
-            "Each level up also gives you a free bonusHow to gain XP" +
+            "Each level up also fills all your bonusesHow to gain XP" +
             "Take tiles+1 XPFirst take of each day+100 XPComplete missionsShown on eachDrop bombs+50 XP" +
             "Catch boxes+30 XPAnswer quizzes right+30 XPFortify tiles+0.2 XP")
         expect(help().getAttribute("aria-expanded")).toBe("true")

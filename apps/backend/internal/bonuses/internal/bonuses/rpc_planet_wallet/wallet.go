@@ -14,6 +14,8 @@ import (
 type Planet interface {
 	GrantCharges(context.Context, *connect.Request[planetv1.InternalGrantChargesRequest],
 	) (*connect.Response[planetv1.InternalGrantChargesResponse], error)
+	FillCharges(context.Context, *connect.Request[planetv1.FillChargesRequest],
+	) (*connect.Response[planetv1.FillChargesResponse], error)
 }
 
 // Lasting is how long planet knows a payment's id: a box's or a right answer's for ten minutes, in memory as the offer
@@ -53,4 +55,22 @@ func (w Wallet) Pay(ctx context.Context, payment bonuses.Payment) (int, error) {
 		return 0, fmt.Errorf("planet did not pay %s %d %s: %w", payment.Account, payment.Amount, payment.Kind, err)
 	}
 	return int(res.Msg.GetKept()), nil
+}
+
+// Fill tops each stack up to planet's size for it, and planet keeps the grant for good, lasting or not.
+func (w Wallet) Fill(ctx context.Context, stacks bonuses.Stacks) error {
+	if stacks.Account == bonuses.NoAccount {
+		return nil
+	}
+
+	kinds := make([]planetv1.BonusKind, 0, len(stacks.Kinds))
+	for _, kind := range stacks.Kinds {
+		kinds = append(kinds, planetwords.Kind(kind))
+	}
+	if _, err := w.planet.FillCharges(ctx, connect.NewRequest(&planetv1.FillChargesRequest{
+		GrantId: stacks.Grant.String(), AccountId: string(stacks.Account), Kinds: kinds,
+	})); err != nil {
+		return fmt.Errorf("planet did not fill %s's %v: %w", stacks.Account, stacks.Kinds, err)
+	}
+	return nil
 }

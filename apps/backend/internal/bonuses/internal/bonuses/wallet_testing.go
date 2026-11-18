@@ -35,6 +35,7 @@ type FakeWallet struct {
 	sizes    map[Kind]int
 	paid     *cpcolls.Set[GrantID]
 	payments []Payment
+	fills    []Stacks
 	failing  error
 	gone     []error
 }
@@ -113,6 +114,38 @@ func (w *FakeWallet) Pay(ctx context.Context, payment Payment) (int, error) {
 	w.hands[payment.Account] = hand
 
 	return *count - before, nil
+}
+
+// Fills are every fill asked, a grant told again included.
+func (w *FakeWallet) Fills() []Stacks {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	return append([]Stacks(nil), w.fills...)
+}
+
+// Fill tops each kind up to the size it is told: a kind with no size is kept none of.
+func (w *FakeWallet) Fill(_ context.Context, stacks Stacks) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.fills = append(w.fills, stacks)
+	if w.failing != nil {
+		return w.failing
+	}
+	if stacks.Account == NoAccount || w.paid.Contains(stacks.Grant) {
+		return nil
+	}
+	w.paid.Add(stacks.Grant)
+
+	hand := w.hands[stacks.Account]
+	for _, kind := range stacks.Kinds {
+		if count := hand.count(kind); count != nil {
+			*count = max(*count, w.sizes[kind])
+		}
+	}
+	w.hands[stacks.Account] = hand
+	return nil
 }
 
 func (h *Hand) count(kind Kind) *int {

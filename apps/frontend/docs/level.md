@@ -46,7 +46,9 @@ slots, which are taller than the clicks. Picked by
   over the Progress tab's level. A mouse over it, or a press, opens a `Bubble` above it, 320px wide. The bubble says what
   the bar is: "XP to level 13" and the XP on the bar ("1,366 / 5,558 XP"); what the levels give: the next kind a level
   unlocks ("Next: Mine, unlocks at level 13", with the kind's box), or "Every bonus is unlocked" past the ladder's top,
-  and that each level up also gives a free bonus ([the level-up bonus](../../backend/docs/levels.md#the-level-up-bonus)).
+  and that each level up also fills every bonus the player unlocked
+  ([the level-up bonus](../../backend/docs/levels.md#the-level-up-bonus)): "Each level up also fills all your bonuses"
+  since 2026-11-18, when a level up stopped drawing one bonus.
   Then it lists the ways to gain XP, each with what it pays, from `GetLevel`'s `xp_rates`: take tiles (+1 XP), the first
   take of each day (+100 XP), missions ("Shown on each": each mission says its own), bombs, boxes, quizzes, and fortify
   (+0.2 XP: 1 per 5 tiles, said per tile). A press keeps it open until a press elsewhere, Escape or a scroll. No "?"
@@ -62,7 +64,7 @@ slots, which are taller than the clicks. Picked by
   unlocks at level 15", `nextUnlock`), both from the ladder `GetLevel` answers. An account's first level names no kind
   unlocked: the page knew no level before it. Nothing closes it before it has landed. A jump of several levels is one
   `level_reached`, so one moment, which names every kind it passed. A level reached while no tab is open is never
-  announced. **The free bonus a level up pays is not named**: it comes as a grant on planet's stream, which says no
+  announced. **The bonuses a level up fills are not named**: they come as one grant on planet's stream, which says no
   reason, and a box or a quiz answered right paid at the same moment would be taken for it.
 
 ## The numbers

@@ -67,7 +67,7 @@ export type UseGlobeOptions = {
     halo: Halo
     // Each change is a scan of every tile: keep its identity while the targets are the same.
     missions: readonly MissionTarget[]
-    // A change rebuilds the globe: antialiasing is fixed when the context is made.
+    // A change rebuilds the globe: the earth's shader and the tiles' layout are fixed when it is built.
     rendering: Rendering
 }
 
