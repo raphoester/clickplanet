@@ -3,7 +3,7 @@ import {Country} from "../components/Country.tsx"
 import {Fact} from "../components/Fact.tsx"
 import {FailureNotice} from "../components/FailureNotice.tsx"
 import {When} from "../components/When.tsx"
-import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
+import {AdminGetPlayerResponse, FormerName} from "../gen/grpc/player/v1/admin_pb.ts"
 import {NameColor} from "../gen/grpc/player/v1/color_pb.ts"
 import {AdminGetProgressResponse} from "../gen/grpc/progression/v1/admin_pb.ts"
 import {CountryTiles} from "../gen/grpc/progression/v1/progression_pb.ts"
@@ -13,6 +13,9 @@ import {Profile} from "./actions.ts"
 
 // The fronts past these fold behind "All": a player who clicked everywhere plays for a hundred countries.
 const SHOWN_FRONTS = 5
+
+// The former names past these fold behind "All", the newest shown.
+const SHOWN_FORMER_NAMES = 5
 
 export const NO_PROFILE = "The game keeps nothing about this account: no name and no stats."
 
@@ -48,6 +51,7 @@ function Facts({profile: {identity, progress}}: {profile: Profile}) {
                 </Fact>
             )}
             <Fact label="Name"><NameLine identity={identity}/></Fact>
+            {identity !== undefined && <Fact label="Former names"><FormerNames names={identity.formerNames}/></Fact>}
             {identity?.admin === true && <Fact label="Admin">Yes: the game draws a crown beside its name</Fact>}
             {identity !== undefined && !identity.guest && <Fact label="Color">{colorLabel(identity.color)}</Fact>}
             <Fact label="Tiles taken">{String(progress.stats?.tilesTaken ?? 0n)}</Fact>
@@ -67,6 +71,35 @@ function NameLine({identity}: {identity: AdminGetPlayerResponse | undefined}) {
     return (
         <>
             {identity.name} <span className="muted">{identity.guest ? "(guest code: no username)" : "(username)"}</span>
+        </>
+    )
+}
+
+// Every name the account held before, newest first: the player's own changes, kept since 17 Nov 2026, and the names an
+// operator replaced, kept 90 days.
+function FormerNames({names}: {names: FormerName[]}) {
+    const [all, setAll] = useState(false)
+    if (names.length === 0) return <span className="muted">none</span>
+
+    const shown = all ? names : names.slice(0, SHOWN_FORMER_NAMES)
+    return (
+        <>
+            <ul className="former-names">
+                {shown.map(name => (
+                    <li key={`${name.name}-${String(name.untilUnixMs)}`}>
+                        {name.name}{" "}
+                        <span className="muted">
+                            until <When at={new Date(Number(name.untilUnixMs))}/>
+                            {name.renamedByOperator ? ", renamed by an operator" : ""}
+                        </span>
+                    </li>
+                ))}
+            </ul>
+            {names.length > SHOWN_FORMER_NAMES && (
+                <button type="button" className="button-small" onClick={() => setAll(!all)}>
+                    {all ? "Fewer" : `All ${names.length}`}
+                </button>
+            )}
         </>
     )
 }

@@ -57,8 +57,9 @@ const (
 type AdminServiceClient interface {
 	// InternalService/GetPlayers, for the admin page naming a page of players.
 	GetPlayers(context.Context, *connect.Request[v1.GetPlayersRequest]) (*connect.Response[v1.GetPlayersResponse], error)
-	// Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
-	// fronts are progression.v1.AdminService/GetProgress.
+	// Who one account is, a guest's too, with every username it held before the one it holds now: the ones its player
+	// left and the ones an operator replaced. NotFound for an account with no name and no guest code. Its stats, titles
+	// and fronts are progression.v1.AdminService/GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
 	// Who is playing now, for the admin page's home.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)
@@ -189,8 +190,9 @@ func (c *adminServiceClient) ListRenames(ctx context.Context, req *connect.Reque
 type AdminServiceHandler interface {
 	// InternalService/GetPlayers, for the admin page naming a page of players.
 	GetPlayers(context.Context, *connect.Request[v1.GetPlayersRequest]) (*connect.Response[v1.GetPlayersResponse], error)
-	// Who one account is, a guest's too. NotFound for an account with no name and no guest code. Its stats, titles and
-	// fronts are progression.v1.AdminService/GetProgress.
+	// Who one account is, a guest's too, with every username it held before the one it holds now: the ones its player
+	// left and the ones an operator replaced. NotFound for an account with no name and no guest code. Its stats, titles
+	// and fronts are progression.v1.AdminService/GetProgress.
 	GetPlayer(context.Context, *connect.Request[v1.AdminGetPlayerRequest]) (*connect.Response[v1.AdminGetPlayerResponse], error)
 	// Who is playing now, for the admin page's home.
 	GetRoster(context.Context, *connect.Request[v1.GetRosterRequest]) (*connect.Response[v1.GetRosterResponse], error)

@@ -120,7 +120,8 @@ internal/player/internal/
   - **`GetPlayer(account_id)` is who one account is**, a guest's too, which the public `GetPlayer` refuses
     (`admin_get_player_handler`, `admin_player_query`): its name (the username, `guest_` and the code, or empty for
     an account never shown), `guest` (no username), `linked` and `created_at_unix_ms` from auth (`GetAccount`, one
-    call), `admin` and its color. How far it went (its stats, messages, titles and fronts) is
+    call), `admin`, its color, and `former_names`, every name it held before (see [The names a player
+    left](#the-names-a-player-left)). How far it went (its stats, messages, titles and fronts) is
     `progression.v1.AdminService/GetProgress`, which the back office asks beside it (see [Progression](progression.md)).
     `NotFound` (`admin_player_query.ErrNoPlayer`) is only an account with no name, no guest code, and that auth knows
     nothing of (not linked, no creation date): an account never shown that auth made answers with an empty name. Until
@@ -273,6 +274,12 @@ changed its name to pass for another, or a rival back under a new one.
   They go after the forget, not in it: player hears its own `PlayerForgotten` (`player-past-names-forgotten`,
   `player_forgotten_subscriber`, `forget_past_names_usecase`), which its outbox never loses. Meanwhile no read shows
   them, since the card's query joins `profiles`.
+- **The operator reads every name an account held** (`AdminService/GetPlayer`'s `former_names`, `admin_player_query`):
+  each name its player left and each one an operator replaced (`renames`, while kept: 90 days), in one list newest
+  first, each a `FormerName`: the name, `until_unix_ms`, and `renamed_by_operator`. Every change is listed, with no
+  limit and nothing merged: a name left twice is there twice. So the bad name the card hides (an operator's rename) is
+  there for the operator, and Claude reads the same through the connector's `player_get_player`. Read beside auth's
+  call, at once. The back office shows it on the player page's profile (its [Player page](../../backoffice/docs/player-page.md)).
 - **Public, and not audited**: anybody who opens a card reads them, and the daily audit reads only the names held now.
   A bad name its player held for its 7 days and left itself shows until the account goes: nothing takes a past name off
   yet (see [Chat moderation](../../../docs/moderation.md#not-built-yet)).
