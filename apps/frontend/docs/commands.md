@@ -10,11 +10,13 @@ npm run proto      # Regenerate protobuf types from the shared ../../proto/ usin
 npm run atlas      # Repack the flag sprite atlas from static/countries/png100px
 npm run map        # Copy every shared /map board into static/boards, and write boardsAsset.ts (see static-assets.md)
 npm run map:fixture # Write the tests' coarse board, fixture-1, into each app's test data (see testing.md)
-npm run map:generate # Rewrite the board's runs, borders and capitals from the ground oracle (see ../../map/README.md)
-npm run map:audit  # Check the tile set, Natural Earth, the bridges and the terrain against each other
+npm run map:generate -- earth-2 # Rewrite a board's runs, borders and capitals from the ground oracle; earth-1 with none named (see ../../map/README.md)
+npm run bridges -- earth-2 # A board's crossings, from its tiles and capitals; earth-1 with none named
+npm run map:audit -- earth-2 # Check a board's tile set, Natural Earth, the bridges and the terrain against each other; earth-1 with none named
+npm run map:measure -- earth-2 # A board's geometry as docs/boards.md records it: areas, spacing, a bomb, the pentagons, the creases
 npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
 npm run borderLines -- earth-1 # Trace a board's outlines onto its lattice, every board with none named (see country-outlines.md)
-npm run terrain    # Each lattice point's kind of land or sea, from the board (see terrain.md)
+npm run terrain -- earth-2 # Each lattice point's kind of land or sea, from the board; earth-1 with none named (see terrain.md)
 npm run flagFit    # Work out which flags stretch, and where each one is cropped
 npm run mobile     # Screenshot/inspect a URL as a phone (see styling.md)
 npm run clip -- --replay replay.json --findings findings.json  # What the replay holds for the editor, as data (clips.v1.Findings), and no clip
@@ -43,6 +45,10 @@ chat can show.
 The switch is gated on `import.meta.env.DEV` as well, because an unset `VITE_*`
 variable is **not** folded away in a build: without the `DEV` check both fakes
 ship in the production bundle.
+
+**The fake plays `earth-1`; `/play?fakeBoard=earth-2` plays another board the page carries**, read only in fake mode, to
+look at it or measure it (docs/boards.md). A build that keeps the fake, for timing the page as it ships:
+`NODE_ENV=development VITE_FAKE_BACKEND=1 npx vite build --mode development`, still bundled and minified, `DEV` kept.
 
 `VITE_KLIPY_KEY` turns the chat's GIFs on (see [Live chat](chat.md#gifs)); fake mode needs none, it draws its own.
 

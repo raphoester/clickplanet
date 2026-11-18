@@ -23,6 +23,7 @@
     "map": "vite-node scripts/syncBoards.ts",
     "map:generate": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateMap.ts --",
     "map:fixture": "vite-node scripts/map/fixtureBoard.ts",
+    "map:measure": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/measureBoard.ts --",
     "map:audit": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/auditMap.mjs --",
     "bridges": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateBridges.ts --",
     "quiz:generate": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateQuiz.mjs",
