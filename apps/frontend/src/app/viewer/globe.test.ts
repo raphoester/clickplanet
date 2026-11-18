@@ -1,5 +1,6 @@
 import {describe, expect, it, vi} from "vitest"
-import {drawsFrame, reportClaimFailure, reportClickFailure, spinStep} from "./globe.ts"
+import {drawsFrame, reportClaimFailure, reportClickFailure, spins, spinStep} from "./globe.ts"
+import {MIN_ZOOM, RESTING_ZOOM} from "./zoom.ts"
 import {AllegianceLockedError, BannedError, BonusLostError, FrozenError, OutOfReachError, RateLimitedError, VPNBlockedError} from "../../backends/backend.ts"
 import {SessionUnavailableError} from "../../backends/session.ts"
 import {OwnerChange, TileOwnership} from "../../domain/tileOwnership.ts"
@@ -240,6 +241,36 @@ describe("drawsFrame", () => {
 
     it("never holds a change back for the spin's sake", () => {
         expect(tick({turned: true, changed: true, drawnAt: 9_999})).toBe(true)
+    })
+})
+
+describe("spins", () => {
+    const spin = (over: Partial<Parameters<typeof spins>[0]>) => spins({
+        zoom: RESTING_ZOOM, lastInputAt: 0, now: 0, ...over,
+    })
+
+    it("turns the resting globe from the page's load", () => {
+        expect(spin({})).toBe(true)
+    })
+
+    it("keeps turning for the minute after the last input", () => {
+        expect(spin({lastInputAt: 1_000, now: 60_999})).toBe(true)
+    })
+
+    it("stops once nobody has touched the page for a minute", () => {
+        expect(spin({lastInputAt: 1_000, now: 61_000})).toBe(false)
+    })
+
+    it("turns again from the next input", () => {
+        expect(spin({lastInputAt: 120_000, now: 120_016})).toBe(true)
+    })
+
+    it("never turns a globe zoomed in past the resting zoom", () => {
+        expect(spin({zoom: RESTING_ZOOM + 0.01})).toBe(false)
+    })
+
+    it("turns a globe zoomed out past the resting zoom", () => {
+        expect(spin({zoom: MIN_ZOOM})).toBe(true)
     })
 })
 

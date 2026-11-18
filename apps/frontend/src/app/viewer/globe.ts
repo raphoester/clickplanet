@@ -175,6 +175,20 @@ export function spinStep(sinceLastTick: number): number {
     return Math.min(Math.max(sinceLastTick, 0), MAX_SPIN_STEP_MS) / 1000
 }
 
+const SPIN_AFTER_INPUT_MS = 60_000
+
+const INPUTS = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const
+
+export type Spin = {
+    zoom: number
+    lastInputAt: number
+    now: number
+}
+
+export function spins({zoom, lastInputAt, now}: Spin): boolean {
+    return zoom <= RESTING_ZOOM && now - lastInputAt < SPIN_AFTER_INPUT_MS
+}
+
 const INTERACTION_GRACE_MS = 1_000
 
 export type Tick = {
@@ -2103,10 +2117,16 @@ function startAnimation(
     controls.addEventListener('change', () => {
         moved = true;
 
-        controls.autoRotate = camera.zoom <= RESTING_ZOOM;
-
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
+
+    let lastInputAt = performance.now();
+    const listening = new AbortController();
+    for (const input of INPUTS) {
+        window.addEventListener(input, () => {
+            lastInputAt = performance.now();
+        }, {capture: true, passive: true, signal: listening.signal});
+    }
 
     let interactingUntil = 0;
     controls.addEventListener('start', () => {
@@ -2125,6 +2145,7 @@ function startAnimation(
         const sinceLastTick = tickedAt === undefined ? 0 : time - tickedAt;
         tickedAt = time;
 
+        controls.autoRotate = spins({zoom: camera.zoom, lastInputAt, now: time});
         let turned = director
             ? aim(camera, director(time / 1000))
             : controls.update(spinStep(sinceLastTick)) || moved;
@@ -2162,6 +2183,7 @@ function startAnimation(
     return {
         stop: () => {
             renderer.setAnimationLoop(null);
+            listening.abort();
             controls.dispose();
             starfield.dispose();
         },

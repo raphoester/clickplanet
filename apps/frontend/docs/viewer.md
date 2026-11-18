@@ -65,7 +65,8 @@
   orthographic against a globe of radius 1, so `zoom` reads as the share of the
   viewport's height the globe fills: it opens at 1, edge to edge, and pulls back
   to 0.5, the whole sphere with sky around it. The idle spin runs at or below
-  the opening zoom and stops once the view is pushed in past it.
+  the opening zoom and stops once the view is pushed in past it, or once nobody has touched the page for a minute
+  (see [Drawing only when something changed](render-on-demand.md)).
 - `stars.ts` — the sky behind the globe, drawn as a **pass of its own**. Its
   camera borrows the main camera's orientation and nothing else, so the sky
   turns with the view and holds still through a zoom. Stars in the main scene
