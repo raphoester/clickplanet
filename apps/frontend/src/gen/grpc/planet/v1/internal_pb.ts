@@ -1510,6 +1510,86 @@ export class InternalGrantChargesResponse extends Message<InternalGrantChargesRe
 }
 
 /**
+ * @generated from message planet.v1.FillChargesRequest
+ */
+export class FillChargesRequest extends Message<FillChargesRequest> {
+  /**
+   * @generated from field: string grant_id = 1;
+   */
+  grantId = "";
+
+  /**
+   * @generated from field: string account_id = 2;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: repeated planet.v1.BonusKind kinds = 3;
+   */
+  kinds: BonusKind[] = [];
+
+  constructor(data?: PartialMessage<FillChargesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FillChargesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "grant_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "kinds", kind: "enum", T: proto3.getEnumType(BonusKind), repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FillChargesRequest {
+    return new FillChargesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FillChargesRequest {
+    return new FillChargesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FillChargesRequest {
+    return new FillChargesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FillChargesRequest | PlainMessage<FillChargesRequest> | undefined, b: FillChargesRequest | PlainMessage<FillChargesRequest> | undefined): boolean {
+    return proto3.util.equals(FillChargesRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message planet.v1.FillChargesResponse
+ */
+export class FillChargesResponse extends Message<FillChargesResponse> {
+  constructor(data?: PartialMessage<FillChargesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.FillChargesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FillChargesResponse {
+    return new FillChargesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FillChargesResponse {
+    return new FillChargesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FillChargesResponse {
+    return new FillChargesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FillChargesResponse | PlainMessage<FillChargesResponse> | undefined, b: FillChargesResponse | PlainMessage<FillChargesResponse> | undefined): boolean {
+    return proto3.util.equals(FillChargesResponse, a, b);
+  }
+}
+
+/**
  * @generated from message planet.v1.GetFreezeRequest
  */
 export class GetFreezeRequest extends Message<GetFreezeRequest> {

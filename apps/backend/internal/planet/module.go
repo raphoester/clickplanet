@@ -33,6 +33,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase/prom_drop_bomb"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/drop_bomb_usecase/refusal_drop_bomb"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/fill_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/get_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/grant_charges_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/charges/usecases/grant_charges_usecase/audit_grant_charges"
@@ -138,6 +139,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tiles_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_tiles_handler/tiles_query"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/grant_charges_handler"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_fill_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/internal_grant_charges_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/lay_mine_handler"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/listen_for_events_handler"
@@ -453,8 +455,9 @@ func NewModule(config Config) cpbootstrap.Module {
 				GrantChargesHandler: internal_grant_charges_handler.New(
 					pay_usecase.New(db, inmemory_grant_store.New(briefGrantsKept), hands, board, clock),
 					pay_usecase.New(db, grantStore, hands, board, clock)),
-				GetFreezeHandler: get_freeze_handler.New(freezing),
-				GetTilesHandler:  get_tiles_handler.New(played, tiles_query.NewMemoryQuery(tilesStorage, played)),
+				FillChargesHandler: internal_fill_charges_handler.New(fill_usecase.New(db, grantStore, hands, board, clock)),
+				GetFreezeHandler:   get_freeze_handler.New(freezing),
+				GetTilesHandler:    get_tiles_handler.New(played, tiles_query.NewMemoryQuery(tilesStorage, played)),
 			}
 			if err := props.InternalRPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {
 				return planetv1connect.NewInternalServiceHandler(internalService, options...)

@@ -86,15 +86,15 @@ func (x *KeepUnlocks) GetDecidedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// A level an account reached by playing: one bonus, drawn as a box is among the kinds the account may be drawn, in a box's
-// amounts. A jump of several levels is one; a reconciliation sends none. The bonuses module pays it once per grant_id,
-// which planet keeps for good.
+// A level an account reached by playing: every stack of the kinds the account may be drawn filled to its size. A jump of
+// several levels is one; a reconciliation sends none. The bonuses module fills it once per grant_id, which planet keeps
+// for good.
 type PayLevelUp struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	GrantId   string                 `protobuf:"bytes,1,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
 	AccountId string                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Level     uint32                 `protobuf:"varint,3,opt,name=level,proto3" json:"level,omitempty"`
-	// Every kind the level unlocks, as KeepUnlocks tells them: the draw reads them here, since KeepUnlocks comes on a
+	// Every kind the level unlocks, as KeepUnlocks tells them: the fill reads them here, since KeepUnlocks comes on a
 	// stream of its own, in no order with this one.
 	Unlocked      []v1.BonusKind `protobuf:"varint,4,rep,packed,name=unlocked,proto3,enum=planet.v1.BonusKind" json:"unlocked,omitempty"`
 	unknownFields protoimpl.UnknownFields

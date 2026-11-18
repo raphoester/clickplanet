@@ -226,7 +226,7 @@
   "level.up": "Naik level!",
   "level.nextUnlock": "Berikutnya: {bonus}, terbuka di level {level}",
   "level.allUnlocked": "Semua bonus sudah terbuka",
-  "level.levelUpBonus": "Setiap naik level kamu juga dapat bonus gratis",
+  "level.levelUpBonus": "Setiap naik level juga mengisi penuh semua bonusmu",
   "level.unlockedNow": "Bonus baru terbuka: {bonus}",
   "level.gained": "+{xp} XP",
   "level.rate.missions": "Tertulis di tiap misi",

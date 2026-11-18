@@ -27,3 +27,10 @@ type Payment struct {
 	Kind    Kind
 	Amount  int
 }
+
+// Stacks are the kinds a win fills up to their size, once per Grant.
+type Stacks struct {
+	Grant   GrantID
+	Account Account
+	Kinds   []Kind
+}

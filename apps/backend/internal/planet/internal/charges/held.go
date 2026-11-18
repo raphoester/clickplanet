@@ -3,6 +3,7 @@ package charges
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/google/uuid"
 
@@ -119,6 +120,19 @@ func (h Held) Gain(kind Kind, amount int, rules Rules) Gain {
 	}
 
 	return Gain{Paid: []Kind{kind}, Before: h, After: after}
+}
+
+// Filling tops each kind up to its size: a full stack is paid too, and keeps none.
+func (h Held) Filling(kinds []Kind, rules Rules) Gain {
+	filling := Gain{Before: h, After: h}
+	for _, kind := range Kinds {
+		if slices.Contains(kinds, kind) {
+			gain := filling.After.Gain(kind, rules.Size(kind), rules)
+			filling.Paid, filling.After = append(filling.Paid, gain.Paid...), gain.After
+		}
+	}
+
+	return filling
 }
 
 // count is the field that holds the kind, nil for no kind.

@@ -78,6 +78,9 @@ const (
 	// InternalServiceGrantChargesProcedure is the fully-qualified name of the InternalService's
 	// GrantCharges RPC.
 	InternalServiceGrantChargesProcedure = "/planet.v1.InternalService/GrantCharges"
+	// InternalServiceFillChargesProcedure is the fully-qualified name of the InternalService's
+	// FillCharges RPC.
+	InternalServiceFillChargesProcedure = "/planet.v1.InternalService/FillCharges"
 	// InternalServiceGetFreezeProcedure is the fully-qualified name of the InternalService's GetFreeze
 	// RPC.
 	InternalServiceGetFreezeProcedure = "/planet.v1.InternalService/GetFreeze"
@@ -133,6 +136,9 @@ type InternalServiceClient interface {
 	// grant_id once: a call made again keeps nothing and answers the hand as it is. What does not fit is not granted.
 	// InvalidArgument for a bad id, an unknown kind or no amount.
 	GrantCharges(context.Context, *connect.Request[v1.InternalGrantChargesRequest]) (*connect.Response[v1.InternalGrantChargesResponse], error)
+	// Fills each stack named up to its size, at once, in one grant. Planet keeps the grant_id for good and grants it
+	// once. A kind the rules turn off is kept none of. InvalidArgument for a bad id, an unknown kind or no kind.
+	FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error)
 	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
 	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
 	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
@@ -257,6 +263,13 @@ func NewInternalServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		fillCharges: connect.NewClient[v1.FillChargesRequest, v1.FillChargesResponse](
+			httpClient,
+			baseURL+InternalServiceFillChargesProcedure,
+			connect.WithSchema(internalServiceMethods.ByName("FillCharges")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		getFreeze: connect.NewClient[v1.GetFreezeRequest, v1.GetFreezeResponse](
 			httpClient,
 			baseURL+InternalServiceGetFreezeProcedure,
@@ -291,6 +304,7 @@ type internalServiceClient struct {
 	getRuleSetNames   *connect.Client[v1.GetRuleSetNamesRequest, v1.GetRuleSetNamesResponse]
 	getRuleSet        *connect.Client[v1.GetRuleSetRequest, v1.GetRuleSetResponse]
 	grantCharges      *connect.Client[v1.InternalGrantChargesRequest, v1.InternalGrantChargesResponse]
+	fillCharges       *connect.Client[v1.FillChargesRequest, v1.FillChargesResponse]
 	getFreeze         *connect.Client[v1.GetFreezeRequest, v1.GetFreezeResponse]
 	getTiles          *connect.Client[v1.GetTilesRequest, v1.GetTilesResponse]
 }
@@ -370,6 +384,11 @@ func (c *internalServiceClient) GrantCharges(ctx context.Context, req *connect.R
 	return c.grantCharges.CallUnary(ctx, req)
 }
 
+// FillCharges calls planet.v1.InternalService.FillCharges.
+func (c *internalServiceClient) FillCharges(ctx context.Context, req *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error) {
+	return c.fillCharges.CallUnary(ctx, req)
+}
+
 // GetFreeze calls planet.v1.InternalService.GetFreeze.
 func (c *internalServiceClient) GetFreeze(ctx context.Context, req *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error) {
 	return c.getFreeze.CallUnary(ctx, req)
@@ -427,6 +446,9 @@ type InternalServiceHandler interface {
 	// grant_id once: a call made again keeps nothing and answers the hand as it is. What does not fit is not granted.
 	// InvalidArgument for a bad id, an unknown kind or no amount.
 	GrantCharges(context.Context, *connect.Request[v1.InternalGrantChargesRequest]) (*connect.Response[v1.InternalGrantChargesResponse], error)
+	// Fills each stack named up to its size, at once, in one grant. Planet keeps the grant_id for good and grants it
+	// once. A kind the rules turn off is kept none of. InvalidArgument for a bad id, an unknown kind or no kind.
+	FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error)
 	// Whether the map takes no play now: the rules in force freeze it, or an arena's freeze holds it.
 	GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error)
 	// Each tile asked, as the map holds it now: its flag, the account whose take holds it, where it is on the globe and
@@ -547,6 +569,13 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalServiceFillChargesHandler := connect.NewUnaryHandler(
+		InternalServiceFillChargesProcedure,
+		svc.FillCharges,
+		connect.WithSchema(internalServiceMethods.ByName("FillCharges")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalServiceGetFreezeHandler := connect.NewUnaryHandler(
 		InternalServiceGetFreezeProcedure,
 		svc.GetFreeze,
@@ -593,6 +622,8 @@ func NewInternalServiceHandler(svc InternalServiceHandler, opts ...connect.Handl
 			internalServiceGetRuleSetHandler.ServeHTTP(w, r)
 		case InternalServiceGrantChargesProcedure:
 			internalServiceGrantChargesHandler.ServeHTTP(w, r)
+		case InternalServiceFillChargesProcedure:
+			internalServiceFillChargesHandler.ServeHTTP(w, r)
 		case InternalServiceGetFreezeProcedure:
 			internalServiceGetFreezeHandler.ServeHTTP(w, r)
 		case InternalServiceGetTilesProcedure:
@@ -664,6 +695,10 @@ func (UnimplementedInternalServiceHandler) GetRuleSet(context.Context, *connect.
 
 func (UnimplementedInternalServiceHandler) GrantCharges(context.Context, *connect.Request[v1.InternalGrantChargesRequest]) (*connect.Response[v1.InternalGrantChargesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.GrantCharges is not implemented"))
+}
+
+func (UnimplementedInternalServiceHandler) FillCharges(context.Context, *connect.Request[v1.FillChargesRequest]) (*connect.Response[v1.FillChargesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("planet.v1.InternalService.FillCharges is not implemented"))
 }
 
 func (UnimplementedInternalServiceHandler) GetFreeze(context.Context, *connect.Request[v1.GetFreezeRequest]) (*connect.Response[v1.GetFreezeResponse], error) {

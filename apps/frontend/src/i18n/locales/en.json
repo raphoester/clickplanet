@@ -226,7 +226,7 @@
   "level.up": "Level up!",
   "level.nextUnlock": "Next: {bonus}, unlocks at level {level}",
   "level.allUnlocked": "Every bonus is unlocked",
-  "level.levelUpBonus": "Each level up also gives you a free bonus",
+  "level.levelUpBonus": "Each level up also fills all your bonuses",
   "level.unlockedNow": "New bonus unlocked: {bonus}",
   "level.gained": "+{xp} XP",
   "level.rate.missions": "Shown on each",

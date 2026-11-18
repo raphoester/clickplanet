@@ -18,7 +18,7 @@ progression: progression sends it a command in its words instead (`TestProgressi
 
 | package | what |
 |---|---|
-| `internal/bonuses` | a kind and its draw (`kind.go`), a box caught (`box.go`), a right answer (`answer.go`) and a level reached (`level_up.go`), the ports it asks planet through (`wallet.go`), the kinds an account unlocked (`unlocked.go`), the sign-in grant (`sign_in.go`), its rules and gates (`rules.go`, `message.go`) and the use cases `pay_caught_box`, `pay_right_answer`, `pay_level_up` and `grant_sign_in_refill` |
+| `internal/bonuses` | a kind and its draw (`kind.go`), a box caught (`box.go`), a right answer (`answer.go`) and a level reached, every stack it fills (`level_up.go`), the ports it asks planet through (`wallet.go`), the kinds an account unlocked (`unlocked.go`), the sign-in grant (`sign_in.go`), its rules and gates (`rules.go`, `message.go`) and the use cases `pay_caught_box`, `pay_right_answer`, `pay_level_up` and `grant_sign_in_refill` |
 | `internal/unlocks` | what progression last decided an account may be drawn (`Unlocks`, the latest by its time), its stores and the use cases `keep_unlocks` and `forget_unlocks` |
 | `internal/commands` | `bonuses.v1.KeepUnlocks` and `PayLevelUp`, handled |
 | `internal/rules` | the list of its parts (`parts.All()`) and its fixtures (`rules.Seeded()`); the machinery is `cprules` ([Shared](shared.md)) |
@@ -55,7 +55,8 @@ Its postgres schema is `bonuses` (`bonuses.rule_sets`, `bonuses.rule_set_choice`
 
 | port | planet's answer | when |
 |---|---|---|
-| `Wallet.Pay` | `InternalService/GrantCharges` | each box caught, right answer, level reached, sign-in refill |
+| `Wallet.Pay` | `InternalService/GrantCharges` | each box caught, right answer, sign-in refill |
+| `Wallet.Fill` | `InternalService/FillCharges` | each level reached |
 
 - **No room asked** (since 2026-11-16). The draw ignores the hand, and planet's wallet keeps what fits: a kind drawn
   into a full stack is kept none of, and so is **a bomb while planet's `charges.bomb.off` is on**, or an enclosure
@@ -103,16 +104,22 @@ nothing.
 
 ## A level reached
 
-**The bonuses module pays each level-up progression sends** (`bonuses.v1.PayLevelUp`, `commands:bonuses.v1.PayLevelUp`,
-`pay_level_up_usecase`), as a box caught: one kind drawn from `kinds` among those the gates let, whatever the hand
-holds (`bonuses.LevelUp.Reward`), in a box's amounts. Progression sends one per raise, however many levels it jumps, from
-level 2 on, and none for a reconciliation ([Levels](levels.md#the-level-up-bonus)).
+**The bonuses module fills every stack at each level-up progression sends** (`bonuses.v1.PayLevelUp`,
+`commands:bonuses.v1.PayLevelUp`, `pay_level_up_usecase`): each kind weighed above 0 in `kinds` that the gates let
+(`bonuses.LevelUp.Stacks`), whatever the hand holds, in one call to planet's `FillCharges`, which tops each stack up to
+planet's size for it. Progression sends one per raise, however many levels it jumps, from level 2 on, and none for a
+reconciliation ([Levels](levels.md#the-level-up-bonus)). Until 2026-11-18 a level-up drew one kind, as a box; the
+owner's call.
 
-- **The kinds the level unlocks come with the command** (`unlocked`): the draw does not read the unlocks kept, which
+- **One grant, so one notice**: planet fills every stack in one transaction and tells the page one `charges_granted`,
+  whose `gained` names each kind, a full stack's with 0 kept ([Charges](charges.md)).
+- **The size is planet's** (`charges.*.held`): the bonuses module names the kinds and never an amount. A kind planet's
+  rules turn off (a bomb while `charges.bomb.off`) is kept none of.
+- **The kinds the level unlocks come with the command** (`unlocked`): the fill does not read the unlocks kept, which
   `KeepUnlocks` brings on another stream, in no order with this one.
-- **The grant is progression's** (`grant_id`, one per account and level), paid with `lasting`: planet keeps it for good
-  in `charge_grants`, so a command told again any day pays nothing more.
-- A level-up whose kinds all weigh 0, or drawn into a full stack, pays nothing, as a box.
+- **The grant is progression's** (`grant_id`, one per account and level): planet keeps it for good in `charge_grants`,
+  so a command told again any day fills nothing more.
+- A level-up whose kinds all weigh 0 asks planet nothing.
 
 ## The gates
 
@@ -200,7 +207,7 @@ account (`SignInGrantOf`, the same id as before, so a grant planet made before t
 
 ## Tests
 
-The kinds' draw and amounts, a box's and an answer's welcome kind, a level-up's draw and grant, the gates (a kind not unlocked never drawn, a guest
+The kinds' draw and amounts, a box's and an answer's welcome kind, a level-up's stacks and fill, the gates (a kind not unlocked never drawn, a guest
 drawn the open kinds, a set with the gates off giving a guest a bomb, a win whose kinds all weigh 0, the charges held
 untouched), the use cases' (a box's and a right answer's reward, the welcome's spread and shields, a draw that ignores the hand, a
 kind drawn into a full stack, a box that pays nothing), the unlocks (the latest decision kept, its stores' contract suite on postgres and in memory, the

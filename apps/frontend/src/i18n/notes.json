@@ -265,7 +265,7 @@
   "level.up": "The big line of the moment a player reaches a new level, as in a game.",
   "level.nextUnlock": "A line of the bubble over the XP bar and of the level-up moment: the next kind of bonus a level opens, and that level. {bonus} is the bonus's name with its icon, as its slot in the bonus bar names it.",
   "level.allUnlocked": "A line of the bubble over the XP bar, once the player's level opened every kind of bonus.",
-  "level.levelUpBonus": "A line of the bubble over the XP bar: on top of the kinds some levels open, every level reached pays one bonus, as a bonus box would.",
+  "level.levelUpBonus": "A line of the bubble over the XP bar: on top of the kinds some levels open, every level reached fills each bonus the player has unlocked to the most it can hold.",
   "level.unlockedNow": "A line of the level-up moment: the kind of bonus the level just reached opens. {bonus} is the bonus's name with its icon.",
   "level.gained": "The XP the player just gained, in a small pill on the XP bar.",
   "level.rate.missions": "Beside \"Complete missions\" in the list of how to gain XP, where each other line says the XP it gives: each mission says its own XP.",

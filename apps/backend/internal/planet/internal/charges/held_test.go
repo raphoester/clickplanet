@@ -210,6 +210,31 @@ func TestAGainPaysNoKindTheRulesTurnOff(t *testing.T) {
 	assert.Equal(t, Held{}, gain.After)
 }
 
+func TestAFillingTopsEachStackNamedUpToItsSize(t *testing.T) {
+	gain := Held{Shields: 5, SpreadClicks: 8, Mines: 1}.Filling([]Kind{KindShields, KindSpreadClicks, KindBomb}, chargeRules)
+
+	assert.Equal(t, []Kind{KindSpreadClicks, KindBomb, KindShields}, gain.Paid, "a full stack is paid too")
+	assert.Equal(t, Held{Shields: 12, SpreadClicks: 8, Bombs: 1, Mines: 1}, gain.After, "a kind not named is left")
+	assert.Equal(t, 7, gain.Count(KindShields))
+	assert.Zero(t, gain.Count(KindSpreadClicks))
+}
+
+func TestAFillingNeverTakesFromAStackHeldAboveItsSize(t *testing.T) {
+	gain := Held{Shields: 20}.Filling([]Kind{KindShields}, chargeRules)
+
+	assert.Equal(t, Held{Shields: 20}, gain.After)
+}
+
+func TestAFillingPaysNoKindTheRulesTurnOff(t *testing.T) {
+	off := TestRules()
+	off.Bomb.Off = true
+
+	gain := Held{}.Filling([]Kind{KindBomb, KindRefill}, off)
+
+	assert.Equal(t, []Kind{KindRefill}, gain.Paid)
+	assert.Equal(t, Held{Refills: 1}, gain.After)
+}
+
 func TestAGrantKeepsNoEnclosureWhileEnclosuresAreOff(t *testing.T) {
 	off := TestRules()
 	off.Enclose.Off = true

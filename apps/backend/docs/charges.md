@@ -72,6 +72,12 @@ its own.
   `PlayerCreated` ([A guest's first sign-in](sign-in-refill.md)). Without it, ten minutes in memory
   (`inmemory_grant_store`): a box's or an answer's id is its token's, which lives minutes and never outlives a
   restart. A bad id or account, an unknown kind or no amount is `InvalidArgument`.
+- **Or with a fill**, `InternalService/FillCharges{grant_id, account_id, kinds}` (`internal_fill_charges_handler`,
+  `fill_usecase`): each stack named topped up to its size (`Held.Filling`), in one transaction and one grant, its id kept
+  for good in `charge_grants`, so one `charges_granted` names every kind, a full stack's with 0 kept. A kind the rules
+  turn off is kept none of. No amount: the size is the wallet's alone. The bonuses module fills this way at each level
+  reached ([A level reached](bonuses.md#a-level-reached)). A bad id or account, an unknown kind or no kind is
+  `InvalidArgument`.
 - <a id="a-grant-on-the-stream"></a>**A grant reaches the player at once, on the planet stream it has open**:
   `charges_granted`, all it holds after the grant and **what the grant added** (`gained`, each kind the grant paid and
   how many the stack kept, 0 for a full stack), sent once it is committed (`notices.Board.PublishGranted`, a `notices.Event`'s `Granted`, a

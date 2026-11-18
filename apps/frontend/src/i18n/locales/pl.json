@@ -226,7 +226,7 @@
   "level.up": "Nowy poziom!",
   "level.nextUnlock": "Następne: {bonus}, odblokowanie na poziomie {level}",
   "level.allUnlocked": "Wszystkie bonusy są odblokowane",
-  "level.levelUpBonus": "Każdy nowy poziom daje ci też darmowy bonus",
+  "level.levelUpBonus": "Każdy nowy poziom napełnia też wszystkie twoje bonusy",
   "level.unlockedNow": "Nowy bonus odblokowany: {bonus}",
   "level.gained": "+{xp} XP",
   "level.rate.missions": "Podane przy każdej",

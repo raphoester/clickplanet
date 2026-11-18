@@ -61,9 +61,9 @@ export class KeepUnlocks extends Message<KeepUnlocks> {
 }
 
 /**
- * A level an account reached by playing: one bonus, drawn as a box is among the kinds the account may be drawn, in a box's
- * amounts. A jump of several levels is one; a reconciliation sends none. The bonuses module pays it once per grant_id,
- * which planet keeps for good.
+ * A level an account reached by playing: every stack of the kinds the account may be drawn filled to its size. A jump of
+ * several levels is one; a reconciliation sends none. The bonuses module fills it once per grant_id, which planet keeps
+ * for good.
  *
  * @generated from message bonuses.v1.PayLevelUp
  */
@@ -84,7 +84,7 @@ export class PayLevelUp extends Message<PayLevelUp> {
   level = 0;
 
   /**
-   * Every kind the level unlocks, as KeepUnlocks tells them: the draw reads them here, since KeepUnlocks comes on a
+   * Every kind the level unlocks, as KeepUnlocks tells them: the fill reads them here, since KeepUnlocks comes on a
    * stream of its own, in no order with this one.
    *
    * @generated from field: repeated planet.v1.BonusKind unlocked = 4;

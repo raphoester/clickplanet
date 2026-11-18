@@ -226,7 +226,7 @@
   "level.up": "Nová úroveň!",
   "level.nextUnlock": "Další: {bonus}, odemkne se na úrovni {level}",
   "level.allUnlocked": "Všechny bonusy jsou odemčené",
-  "level.levelUpBonus": "Každá nová úroveň ti dá navíc bonus zdarma",
+  "level.levelUpBonus": "Každá nová úroveň ti navíc doplní všechny bonusy",
   "level.unlockedNow": "Nový bonus odemčen: {bonus}",
   "level.gained": "+{xp} XP",
   "level.rate.missions": "Uvedeno u každé",
