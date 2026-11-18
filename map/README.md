@@ -326,10 +326,13 @@ after these**; it stays out of `/map` because the backend has no use for it. See
        | runs × 3 int16 first corner | for each corner after its run's first: 3 zigzag varints, x y z less the corner before
 ```
 
-Little-endian. A corner is a cell's corner, its unit direction × 32767 rounded. Two corners side by side are one cell
+Little-endian. A corner is where the ground's cells meet, its unit direction × 32767 rounded: a lattice triangle's
+centroid on its face's grid, or on an edge of the icosahedron the middle of a lattice edge, where a cell edge bends from
+one face's grid into the next (see the outlines' doc). Two corners side by side are one cell
 edge apart, a few dozen units, so most differences take a byte (zigzag: `(d << 1) ^ (d >> 31)`, then seven bits a byte,
 low first). Version 2 (until 2026-11-18) held every corner as three plain int16s; version 3 holds the same lines in
-half the bytes, and packs to a third: `earth-2` 810 → 422 KB raw, 767 → 220 KB with brotli at 5 (`domain/borderLinesFile.ts`).
+half the bytes, and packs to a third: `earth-2` 810 → 422 KB raw, 767 → 220 KB with brotli at 5 (`domain/borderLinesFile.ts`),
+179 KB since its corners are the ground's (2026-11-18).
 
 A board with provinces gets its province lines beside it, from the same run of `npm run borderLines`:
 `provinceLines-<hash>.bin` (`domain/provinceLinesFile.ts`), the cell edges between two provinces of one country, and the
@@ -342,9 +345,10 @@ provinces either side of each piece of the countries' outline:
 ```
 
 `outline` and `provinces` are the 8 hex of the outline's and the provinces file's names, as numbers: the file pairs with
-those two alone. A piece is a cell edge of the outline, in its order (each run of n corners is n − 1 of them), and a span
+those two alone. A piece is a cell edge of the outline, or half of one on an edge of the icosahedron, in its order (each
+run of n corners is n − 1 of them), and a span
 is the pieces in a row with the same two provinces, the first on the side of the run's first landmass, the sea 0.
-`earth-2`: 90,568 cell edges, 3,372 spans, 315 KB raw, 163 KB with brotli at 5.
+`earth-2`: 90,701 pieces, 3,372 spans, 315 KB raw, 135 KB with brotli at 5.
 
 ### Provinces
 

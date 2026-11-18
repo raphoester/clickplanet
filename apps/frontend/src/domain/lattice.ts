@@ -235,6 +235,44 @@ function walkTriangles(cols: number, push: (face: number, i: number, j: number) 
     }
 }
 
+// Triangle `t` of `latticeTriangles` on its face's grid, into `out`: the face, then each corner's i and j, in the order
+// `latticeTriangles` lists them. Face by face, row i of a face holds 2·(cols − i) − 1 triangles, so 2·cols·i − i² come
+// before it.
+export function triangleOnGrid(cols: number, t: number, out: Int32Array): void {
+    const perFace = cols * cols
+    const face = Math.floor(t / perFace)
+    const n = t - face * perFace
+    const before = (row: number) => 2 * cols * row - row * row
+    let i = Math.max(0, Math.floor(cols - Math.sqrt(cols * cols - n)))
+    while (i > 0 && before(i) > n) i--
+    while (i + 1 < cols && before(i + 1) <= n) i++
+    const step = n - before(i)
+    const k = step >> 1
+    out[0] = face
+    if (step % 2 === 0) out.set([i, k + 1, i + 1, k, i, k], 1)
+    else out.set([i, k + 1, i + 1, k + 1, i + 1, k], 1)
+}
+
+// The direction of the point (i, j) of a face's grid, whole or not, in float64 into `out` at `at`: its weights warped,
+// over the face's corners, normalised. The ground finds its cell on the same grid (`cellOf` in latticeCells.ts), so a
+// point the ground puts between two cells, or where three meet, is where this puts it. A lattice point comes out as its
+// position, to within float32.
+export function gridDirection(given: Lattice | number, face: number, i: number, j: number, out: Float64Array, at = 0): void {
+    const lattice = latticeOf(given)
+    const {cols} = lattice
+    const corners = cornersOf(lattice)
+    const weights = new Float64Array(3)
+    warpedWeights(lattice.warp, (cols - i - j) / cols, j / cols, i / cols, weights)
+    const a = FACES[face * 3] * 3, b = FACES[face * 3 + 1] * 3, c = FACES[face * 3 + 2] * 3
+    const x = weights[0] * corners[a] + weights[1] * corners[b] + weights[2] * corners[c]
+    const y = weights[0] * corners[a + 1] + weights[1] * corners[b + 1] + weights[2] * corners[c + 1]
+    const z = weights[0] * corners[a + 2] + weights[1] * corners[b + 2] + weights[2] * corners[c + 2]
+    const scale = 1 / Math.sqrt(x * x + y * y + z * z)
+    out[at] = x * scale
+    out[at + 1] = y * scale
+    out[at + 2] = z * scale
+}
+
 // The 30 edges, as their two corners, the lower first, in the order their canonical ids run.
 function edgeList(): [number, number][] {
     const seen = new Set<number>()

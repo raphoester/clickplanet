@@ -173,10 +173,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   manifest's hash, which a mismatch logs; no file of positions.
 - [Sized by the board](docs/board-scale.md) — every count of tiles, length and zoom tuned on `earth-1` reads the board
   (`domain/boardScale.ts`): the rule, what reads it, and what does not.
-- [The countries' outlines](docs/country-outlines.md) — the border lines, straight along the cell edges (the spline
-  dropped), the same width at every zoom, only the pieces in sight drawn, and from orbit coarser pieces within half a
-  pixel of the cell edges, inked as the cell edges were; the light grey province lines, from orbit in Provinces only, and
-  the file they are in.
+- [The countries' outlines](docs/country-outlines.md) — the border lines, straight along the cell edges the ground draws
+  (its corners, not the circumcentres), the same width at every zoom, only the pieces in sight drawn, and from orbit
+  coarser pieces within half a pixel of the cell edges, inked as the cell edges were; the province lines, from orbit in
+  Provinces only, pushed in dark and dashed, and the file they are in.
 - [A page from an older build](docs/stale-build.md) — a deploy removes the last build's files and HTML answers for
   them: the pages that load them are `no-store`, and `/play` reloads when one fails, past the cache the second time.
 - [The page's report on a phone](docs/diag.md) — `?diag` shows the errors and the storage on screen, for a page

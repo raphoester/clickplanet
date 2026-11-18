@@ -4,6 +4,7 @@ import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
     type BorderLines,
+    COLOUR,
     coarseTolerancesOf,
     createBorderLines,
     halfWidthOf,
@@ -14,6 +15,11 @@ import {
     ORBIT_WIDTH,
     OVER,
     pieceSides,
+    PROVINCE_COLOUR,
+    PROVINCE_DARK_FROM,
+    PROVINCE_DARK_UNTIL,
+    PROVINCE_DASH,
+    PROVINCE_GAP,
     PROVINCE_ORBIT_INK,
     TOLERANCE,
     UNDER,
@@ -437,6 +443,28 @@ describe("the province lines", () => {
         lines.dispose()
     })
 
+    it("darken under the tiles as they grow, to the countries' line and dashed once a tile is big", () => {
+        const {lines, provinceUnder} = outline()
+        const {uniforms} = provinceUnder.material
+        let last = 0
+        for (let zoom = tilesZoomOf(900, EARTH_1_SCALE); zoom <= MAX_ZOOM; zoom += 0.05) {
+            lines.update(zoom, 1600, 900, 2, "split", "countries")
+            const tile = tilePointSize(zoom, 900 / 2, EARTH_1_SCALE)
+            const colour = uniforms.colour.value as THREE.Color
+            const dashed = uniforms.dashed.value as number
+            expect(dashed, `zoom ${zoom}`).toBeGreaterThanOrEqual(last)
+            last = dashed
+            if (tile <= PROVINCE_DARK_FROM) expect([colour.r, dashed], `zoom ${zoom}`).toEqual([PROVINCE_COLOUR.r, 0])
+            if (tile >= PROVINCE_DARK_UNTIL) expect([colour.r, dashed], `zoom ${zoom}`).toEqual([COLOUR.r, 1])
+            expect(colour.r, `zoom ${zoom}`).toBeCloseTo(PROVINCE_COLOUR.r + (COLOUR.r - PROVINCE_COLOUR.r) * dashed, 6)
+            // In drawing-buffer pixels, at a ratio of 2.
+            expect([uniforms.dashPeriod.value, uniforms.dashHalf.value]).toEqual([(PROVINCE_DASH + PROVINCE_GAP) * 2, PROVINCE_DASH])
+        }
+        expect(last).toBe(1)
+        expect(PROVINCE_COLOUR.r).toBe(0.6)
+        lines.dispose()
+    })
+
     it("keep the countries' lines as they are in every divisions", () => {
         const {lines, over, under} = outline()
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
@@ -689,5 +717,47 @@ describe("the stacked ink", () => {
         const x0 = corners[40][0], x1 = corners[80][0]
         const cells = inkOf(quadsOf(corners, 1), halfWidth, ink, false, x0, x1)
         expect(inkOf(quadsOf(corners, 4), halfWidth, ink, false, x0, x1) / cells).toBeLessThan(0.7)
+    })
+})
+
+// The fragment shader's dashOf (shaders/borderLine/fragment.glsl), copied: how much of a pixel `along` a piece of
+// `length` drawing-buffer pixels its dashes ink.
+function dashOf(along: number, length: number, period: number, half: number): number {
+    if (length < 1) return 1
+    const count = Math.max(1, Math.floor(length / period + 0.5))
+    const step = length / count
+    const dash = half * (count > 1 ? step : Math.max(step, period)) / period
+    const t = along / step
+    return Math.min(1, Math.max(0, dash + 0.5 - Math.abs(t - Math.floor(t + 0.5)) * step))
+}
+
+describe("the province line's dashes", () => {
+    const period = PROVINCE_DASH + PROVINCE_GAP, half = PROVINCE_DASH / 2
+
+    it("ink both ends of every piece, so a line turning from one cell edge to the next is drawn at the turn", () => {
+        for (let length = 1; length <= 120; length += 0.5) {
+            expect(dashOf(0, length, period, half), `${length}px`).toBe(1)
+            expect(dashOf(length, length, period, half), `${length}px`).toBe(1)
+        }
+    })
+
+    it("leave a gap in every piece a dash and a gap long, as many as its whole periods", () => {
+        for (let length = period; length <= 120; length += 0.5) {
+            const gaps = Math.max(1, Math.floor(length / period + 0.5))
+            let found = 0
+            for (let along = 0, inGap = false; along <= length; along += 0.05) {
+                const gap = dashOf(along, length, period, half) === 0
+                if (gap && !inGap) found++
+                inGap = gap
+            }
+            expect(found, `${length}px`).toBe(gaps)
+        }
+    })
+
+    it("ink about as much of a long line as a dash is of a period", () => {
+        let ink = 0
+        const length = 100 * period
+        for (let along = 0; along < length; along += 0.05) ink += dashOf(along, length, period, half) * 0.05
+        expect(ink / length).toBeCloseTo(PROVINCE_DASH / period, 1)
     })
 })

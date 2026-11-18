@@ -43,6 +43,10 @@ out float vAcross;
 // The cell edges a piece stands for, and their chord over their length.
 attribute vec2 standsFor;
 flat out float vLayers;
+#endif
+
+#if defined(STACKED) || defined(DASHED)
+// The piece's length on screen, and how far along it from its head, past its ends by the quad's reach.
 flat out float vLength;
 out float vAlong;
 #endif
@@ -93,6 +97,8 @@ void main() {
 #ifdef STACKED
     // How many of its cell edges' quads would have covered a pixel of this piece.
     vLayers = min(1.0 + 2.0 * halfWidth * standsFor.x * standsFor.y / max(length2, 1e-3), MOST_LAYERS);
+#endif
+#if defined(STACKED) || defined(DASHED)
     vLength = length2;
     vAlong = corner.x < 0.0 ? -halfWidth : length2 + halfWidth;
 #endif

@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import {flagPaint, inOrbit} from "./pointSize.ts"
+import {flagPaint, inOrbit, tilePointSize} from "./pointSize.ts"
 import {type BoardScale, EARTH_1_SPACING} from "../../domain/boardScale.ts"
 import type {Divisions, MapView} from "../../domain/displaySettings.ts"
 import {type BorderLineData, decodeBorderLines} from "../../domain/borderLinesFile.ts"
@@ -105,7 +105,7 @@ export function limbOf(lift: number): number {
     return Math.sin(Math.acos(Math.min(EARTH / lift, 1)))
 }
 
-const COLOUR = new THREE.Color(0.25, 0.25, 0.25)
+export const COLOUR = new THREE.Color(0.25, 0.25, 0.25)
 
 // Over a painted flag the line darkens what is under it rather than drawing grey across it.
 const ORBIT_COLOUR = new THREE.Color(0, 0, 0)
@@ -113,11 +113,26 @@ export const ORBIT_INK = 0.7
 
 const HIGHLIGHT_COLOUR = new THREE.Color(1, 1, 1)
 
-// Between two provinces of one country: lighter than the countries' line under the tiles, and over a painted flag a light
-// line rather than a dark one.
+// Between two provinces of one country. Under the tiles, as they hand over from the painted flags, lighter than the
+// countries' line; pushed in, as dark as theirs and dashed, so a province reads as clearly as a country and is not
+// taken for one. Over a painted flag a light line rather than a dark one.
 export const PROVINCE_COLOUR = new THREE.Color(0.6, 0.6, 0.6)
 const PROVINCE_ORBIT_COLOUR = new THREE.Color(0.85, 0.85, 0.85)
 export const PROVINCE_ORBIT_INK = 0.55
+
+// A tile's disc on screen, in CSS pixels, from which the province line darkens, and at which it is the countries' and
+// dashed. The tiles take the frame at 8 (pointSize.ts); the ground's own cell edges darken from 10 to 18 cells wide.
+export const PROVINCE_DARK_FROM = 10
+export const PROVINCE_DARK_UNTIL = 20
+
+// In CSS pixels: a dash and the gap after it, which a piece rounds to a whole number of.
+export const PROVINCE_DASH = 8
+export const PROVINCE_GAP = 4
+
+// 0 the light solid line, 1 the countries' ink, dashed.
+export function provinceDarkOf(tileSize: number): number {
+    return Math.min(1, Math.max(0, (tileSize - PROVINCE_DARK_FROM) / (PROVINCE_DARK_UNTIL - PROVINCE_DARK_FROM)))
+}
 
 // Must match MISSION in shaders/display/fragment.glsl and --mission in tokens.css: one colour for a mission's place.
 const MISSION_COLOUR = new THREE.Color(0.784, 0.341, 0.298)
@@ -378,6 +393,7 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
     const showLines = () => {
         const {zoom, height, ratio, view, divisions} = shown
         const paint = flagPaint(zoom, height / ratio, view, scale)
+        const dark = provinceDarkOf(tilePointSize(zoom, height / ratio, scale))
         over.material.uniforms.ink.value = paint * ORBIT_INK
         over.group.visible = paint > 0
         under.group.visible = paint < 1
@@ -387,6 +403,11 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
         provinces.over.material.uniforms.ink.value = paint * PROVINCE_ORBIT_INK
         provinces.over.group.visible = divisions === "provinces" && paint > 0
         provinces.under.group.visible = drawn && paint < 1
+        const {uniforms} = provinces.under.material
+        uniforms.colour.value.lerpColors(PROVINCE_COLOUR, COLOUR, dark)
+        uniforms.dashed.value = dark
+        uniforms.dashPeriod.value = (PROVINCE_DASH + PROVINCE_GAP) * ratio
+        uniforms.dashHalf.value = PROVINCE_DASH * ratio / 2
     }
 
     const showHighlight = () => {
@@ -471,7 +492,10 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
                 over: orbitPassOf(kind.fine, lineMaterial({
                     lift: OVER, width: ORBIT_WIDTH, colour: PROVINCE_ORBIT_COLOUR, ink: 0,
                 }), ORBIT_WIDTH, 1),
-                under: passOf(kind.fine, lineMaterial({lift: UNDER, width: WIDTH, colour: PROVINCE_COLOUR}), WIDTH, 1),
+                under: passOf(kind.fine, lineMaterial({
+                    lift: UNDER, width: WIDTH, colour: PROVINCE_COLOUR.clone(), defines: {DASHED: true},
+                    uniforms: {dashed: {value: 0}, dashPeriod: {value: 1}, dashHalf: {value: 1}},
+                }), WIDTH, 1),
                 highlight: orbitPassOf(kind.fine, highlightOf(), HIGHLIGHT_WIDTH, 2),
             }
             provinces = {kind, ...added}
