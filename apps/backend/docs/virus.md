@@ -80,6 +80,8 @@ memory.
 - **A reset wipes them** with the map (`postgres_tile_store.Wipe`, `emptyLocked`).
 - **A remap ends every live virus** (`DELETE FROM viruses` in `scripts/map/remap.mjs`): it lasts minutes, and the tiles it
   took keep their flag.
+- **A switch of the world's board ends every live virus** too, in its transaction (`viruses_ended` in the dry run): see
+  [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard).
 
 ## The other rules on the map
 

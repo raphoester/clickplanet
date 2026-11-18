@@ -4,8 +4,8 @@
 its map** (PR 2 of [Boards](../../../docs/boards.md), 2026-11-17). **The process carries every board it ships, and
 plays any of them** (PR 3, 2026-11-18): an arena on a board of its own (`arena.board`), a history that draws each era on
 its board, and every threshold sized from the board ([Sized from the board](board-scale.md)). **It ships `earth-2` and
-`siege-1`** (PR 4, 2026-11-18), as files and rows, and nothing plays them yet: no set names `siege-1` until PR 5, and the
-world switches to `earth-2` in PR 6.
+`siege-1`** (PR 4, 2026-11-18), as files and rows: no set names `siege-1` until PR 5. **The world switches to `earth-2`
+once, when the operator calls `SwitchBoard`** (PR 6, 2026-11-18, [below](#the-worlds-switch-of-board-switchboard)).
 
 ## The words in the code
 
@@ -55,7 +55,8 @@ Migration `20261117133227_boards_and_eras`:
   ships with the migration that adds its row, and its hash never moves.
 - **`eras`** `(map, board, started_at)`, keyed by `(map, started_at)`: a map's latest era is the board it plays. Seeded
   with the world on `earth-1` since the epoch, and each arena that ever opened on `earth-1` since its open.
-- **A `board smallint NOT NULL` column**, a foreign key to `boards`, on `tiles`, `landmasses`, `mines` and `viruses`, and
+- **A `board smallint NOT NULL` column**, a foreign key to `boards` (on `tiles` until PR 6, below), on `tiles`,
+  `landmasses`, `mines` and `viruses`, and
   **`map text` and `board smallint`** on `ledger_events`. Each was added with a constant default, a change of the catalog
   alone, and the default dropped right after, so every write must name it. The ledger's foreign key and its `map`
   check are `NOT VALID`: they hold for every row written since, and the rows before hold the defaults, so no scan of
@@ -65,6 +66,12 @@ Migration `20261117133227_boards_and_eras`:
   times: one scan of the ledger, and an update of the arenas' events alone.
 - The vandal squad's `graffiti` got `board text NOT NULL` (migration `20261117133227_graffiti_board`): see
   [The vandal squad](vandalsquad.md).
+
+**`tiles.board` has no foreign key since PR 6** (`20261118123254_tiles_board_without_foreign_key`): a switch writes a
+million tiles in the transaction that holds every click, and the key's check of each row took 22 of the 26 seconds of
+the `COPY` in the rehearsal (see [Boards](../../../docs/boards.md#pr-6-the-rehearsal)). Every tile names its stage's
+board, which its era names (whose key stays), and the boot refuses a map whose rows name another board than its era's.
+`landmasses`, `mines`, `viruses` and `ledger_events` keep theirs.
 
 Migration `20261118092225_earth2_and_siege1` ships PR 4's boards: `(2, 'earth-2', '5a61c10a')` and `(3, 'siege-1',
 'e219e852')`. No era names them, so nothing plays them; the boot matches each carried board with its row (below), and
@@ -145,6 +152,47 @@ memory, and no rewind crosses into another board. A window across a change of th
 in PR 6, as after a reset; until then the world never changes board, so it never covers two. Their hits are the last
 era's of the window (`ledger.InEra`).
 
+## The world's switch of board (`SwitchBoard`)
+
+**`planet.v1.AdminService/SwitchBoard{map, board, dry_run}` moves the world's map onto another board, its land carried
+over, once** (PR 6 of [Boards](../../../docs/boards.md), 2026-11-18). An MCP tool like every admin method
+([Claude as a connector](connector.md)); the operator's steps are the runbook in [Boards](../../../docs/boards.md#the-operators-runbook).
+
+- **The carry-over** (`clicks.Carryover`): one parent on the old board for each tile of the new, read from
+  `generated/map/carries/carry-<from>-<to>-<hash>.bin` (`embedded_board.Registry.Carryover`, a copy of `/map/carries`
+  by `make map`; the format is in [`/map/README.md`](../../../map/README.md#the-carry-over)). The file names both boards'
+  positions hash and tile count, and is refused when either is not the board this process carries
+  (`clicks.ErrCarryover`). An old tile's children are the new tiles it is parent of, in id order. `earth-1` to `earth-2`:
+  997,267 new tiles carried, 7,415 blank (new coasts and islands), 66 old coast tiles with no child.
+- **`switch_board_usecase`** (in `eras/usecases`, logged by `log_switch_board`) refuses another map than the world's
+  (`InvalidArgument`), and a board this process does not carry, one with no carry-over to it, an arena open and the
+  board the world plays (`FailedPrecondition`). The handler runs it on a context detached from the request, as an
+  arena's swap.
+- **`Storage.Switch`**, under the staging, flush and tiles locks: it reads the stage again (`clicks.ErrNotInPlay` while
+  an arena plays, `clicks.ErrPlaysAlready` for a second call), saves what changed, and carries memory over
+  (`carryLocked`): each new tile takes its parent's flag and holder, and its share of the parent's shields
+  (`Carryover.Share`: split evenly in id order, the remainder to the first children, 10 → 3, 3, 2, 2); each mine moves
+  to its tile's child nearest it (`Carryover.Heir`), and one on a tile with no child is lost; live viruses end; the
+  flags out stay. Then **one transaction** (`Persistence.Carry`): the use case's keep starts the world's era on the new
+  board (`eras.Store.Start`), the map's tiles, locks, viruses and mines are deleted, the carried tiles are `COPY`ed and
+  the mines written. After the commit memory plays the new board's ground, filled from the carried rows as the boot
+  fills it from postgres (`fillFromLocked`, so each landmass is settled again: fortify locks are dropped and the new
+  board's taken), and **one `board_switched` event** is appended to the ledger on the new stage while no write runs. A
+  new epoch, and every stream cut: every page reloads onto the new board.
+- **The event is the one thing outside the transaction**: the ledger is kept in memory and flushed within a second, as
+  every event is; the era is the switch's record. Its kind (`ledger.Switching`, migration
+  `20261118113619_ledger_board_switched`) is **no take**: no `Taking`, `Strike` or `Scene`, so no `TilesTaken`, no XP, no
+  mission's progress, no stat, and no replay draws it. The relay tells it as **`planet.v1.BoardSwitched`** (the map, both
+  boards and their tile counts, the time and the position), which chat announces in the World and alerts pings Discord
+  with ([Chat](chat.md#announcements), [Discord pings](alerts.md#the-pings-pings)).
+- **The dry run** (`Storage.Carried`, under the tiles read lock) answers the same counts and changes nothing:
+  `clicks.Carried`, the response's `tiles`, `carried`, `blank`, `held_before`, `held_after`, `dropped`, `dropped_held`,
+  `shields_before`, `shields_after`, `mines_moved`, `mines_lost`, `viruses_ended` and `locks_dropped`.
+- **A log line times the locks** (`carried the map onto its new board under the locks`: the flush, the carry, the
+  transaction, the fill). Rehearsed on production's map: 1.9 to 6.1 s, the transaction most of it.
+- **The process holds both grounds from the switch on**, `earth-1`'s for the events before it (the relay, the history);
+  a boot after it loads `earth-2`'s alone, until a reader asks for `earth-1`'s.
+
 ## The wire
 
 Every answer that names tiles names its board, by name (`eras.Boards.Name`): `GetMapResponse.board` (read with the
@@ -158,6 +206,16 @@ each fact's board, empty for one this process does not carry), `GetTerritoriesRe
 (which the vandal squad checks against the ledger's), and the rule set's `ArenaRules.board`.
 
 ## Tests
+
+PR 6's: `clicks`' `carryover_test.go` (parents, children in id order, the split, the heir); `embedded_board`'s
+`carry_test.go` (the file read and fitted to both boards, none back or to a board not carried, a file of boards
+regenerated since refused); the tile map's `switch_test.go` (the carry in memory and stored, the shares, holders, the
+mine's heir, the viruses ended, the locks settled again, the new epoch and every stream cut, keep refusing, the count
+changing nothing, refused onto the board it plays, while an arena plays, a second time, and with another board's
+carry-over); `postgres_tile_store`'s `carry_test.go` (the rows moved in the era's transaction, and rolled back with it);
+`switch_board_usecase`'s tests (the era, the event, the refusals, dry or not); the relay's `BoardSwitched`;
+`changes_query`'s every kind.
+
 
 PR 3's: `embedded_board`'s `registry_test.go` (a second board loaded the first time it is needed and kept, a board not
 carried refused, every board carried needing planet's row under its hash, a file of another board refused, a lattice

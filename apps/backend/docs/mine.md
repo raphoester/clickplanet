@@ -121,6 +121,8 @@ hard kill is lost**, with no blast, and a mine laid then too, as a bomb dropped:
 - **A reset wipes them** with the map (`postgres_tile_store.Wipe`, `emptyLocked`).
 - **A remap moves every mine with its tile** (`mines_remapped` in `scripts/map/remap.mjs`), as it moves the tile's flag,
   and drops one whose tile the new map lost. A virus lasts minutes and is ended; a mine may wait days.
+- **A switch of the world's board moves each mine to its tile's new tile nearest it** (`Carryover.Heir`), on a tile of
+  the same flag, and loses one whose tile the new board draws as sea (`mines_lost` in the dry run): see [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard).
 
 ## The ledger: kind `mine`, and its takes count
 

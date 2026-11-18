@@ -78,8 +78,9 @@ and says what is in it. Read the doc before you change its area.
   `planet.boards` and `eras`, the `board` column on every row of a tile and the `map` and `board` of every event
   (`clicks.Stage`), the backfill and its test, the gate that keeps a write and its record on one stage, the ground in
   play swapped with the stage (`clicks.Played`), the boot's guard (every board carried by name and hash, rows of
-  another board refused), each reader by column, the history drawing each era on its board with the cut, and the board
-  on the wire.
+  another board refused), each reader by column, the history drawing each era on its board with the cut, the board
+  on the wire, and the world's switch of board (`SwitchBoard`: the carry-over, one transaction under the locks, the
+  `board_switched` event that is no take, `BoardSwitched`, the dry run).
 - [Sized from the board](docs/board-scale.md) — `cpboards`' scale against `earth-1`: counts of tiles with the density,
   lengths with the spacing, zooms the other way; the mission floors, the fortify news, the vandal squad's largest
   drawing and link, the attack ping's zoom; unchanged on `earth-1`.
@@ -251,8 +252,8 @@ and says what is in it. Read the doc before you change its area.
 ## Operator tools and jobs
 
 - [Operator tools (`AdminService`)](docs/admin.md) — the console and admin listeners; `GrantCharges`,
-  `ReleaseAllegiance`, `GetReplay`, `GetLedger`, manual bans and warnings, a player's Discord link, linking the
-  Discord members.
+  `ReleaseAllegiance`, `GetReplay`, `GetLedger`, `SwitchBoard`, manual bans and warnings, a player's Discord link,
+  linking the Discord members.
 - [Claude as a connector](docs/connector.md) — every admin method is a tool Claude calls over MCP, read from the
   admin protos (a method's comment is its description); what is hidden; auth's OAuth 2.1 server and the tokens; the
   bearer path through the gate.

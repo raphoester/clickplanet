@@ -13,6 +13,8 @@ thousands of index probes, or a scan of the whole ledger, for one card on the pr
   keeps the holder.
 - **Any other write leaves nobody**: a bomb's clear, `Restore` (a revert), and a take with no
   account in its context. This is `GetTileHolder`'s rule too: an operator's write keeps no take.
+- **A switch of the world's board carries it**: each new tile is held by the account that held the old tile it comes
+  from, so the holder card names the same players on the new board (see [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard)).
 - **Kept in `planet.tiles.holder`** (NULL for nobody), loaded at boot. Migration `20261026180000_tile_holders`
   filled it once from the ledger: the account of each tile's last change, while that change gave the tile the flag
   it wears.

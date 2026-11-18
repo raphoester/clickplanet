@@ -184,7 +184,10 @@ linked or not:
 > @everyone ⚔️ The battle is on: 2x points until 21:00. https://clickplanet.lol/play
 
 The end is `<t:…:t>`, which Discord draws in each reader's own time. The finale says "The Final Battle of season N",
-a season "Season N has started on a blank map". A start is told once by its round's or book's id (`start_pings`), in
+a season "Season N has started on a blank map". **The world's switch of board is told as a start too**: planet's
+`BoardSwitched` (`alerts-board-switches`, `board_switched_subscriber`; an arena's map is no switch) is
+`pings.WorldGrew`, "🌍 The world grew: 4x more ground. Every country kept its land.", the times the new board's tiles
+over the old's, told once by the board (`world/earth-2`); see [Boards and eras](boards-and-eras.md#the-worlds-switch-of-board-switchboard). A start is told once by its round's or book's id (`start_pings`), in
 the transaction of the post: a post Discord refused is tried again as the event comes again, until the start is 10
 minutes old.
 

@@ -5,8 +5,9 @@ is built (2026-11-17): every tile and event names its board and map, and the boo
 carry. PR 3 is built (2026-11-18): every app holds more than one board, the page draws the board an answer names and
 reloads when it changes, every threshold sized from the board reads it, an arena plays the board its set names, and a
 history draws each era on its own board, with the cut. PR 4 is built (2026-11-18): `earth-2` and `siege-1` are
-generated and committed, warped and rotated and in canonical order, every app reads them to the bit, and nothing plays
-them yet.**
+generated and committed, warped and rotated and in canonical order, every app reads them to the bit. PR 6 is built
+(2026-11-18): the carry-over from `earth-1` to `earth-2`, `SwitchBoard` and its dry run, what players see of the switch,
+and its rehearsal on production's map; the operator runs the switch with [the runbook](#the-operators-runbook).**
 The rest is the reference the later PRs at the end of this doc build from. Each PR turns the part of this doc it
 builds into "how it works", and updates the docs it makes stale: [`map/README.md`](../map/README.md),
 [Map geometry](map-geometry.md), and the apps' tile docs (`tile-positions.md`, `tile-layout.md`, `zoomed-out-view.md`,
@@ -300,44 +301,62 @@ minutes; France is about 100 tiles.
 
 ## The world's switch to `earth-2`
 
+**Built in PR 6 (2026-11-18)**; the backend's side is [Boards and eras](../apps/backend/docs/boards-and-eras.md#the-worlds-switch-of-board-switchboard).
+Where this section was wrong in the design, it says so.
+
 **Two steps.** First a deploy: the code knows `earth-1` and `earth-2`, and the world still plays `earth-1`. Then the
-operator calls `AdminService/SwitchBoard{map, board, dry_run}`, an MCP tool, at a quiet hour.
+operator calls `AdminService/SwitchBoard{map, board, dry_run}`, the MCP tool `planet_switch_board`, at a quiet hour
+([the runbook](#the-operators-runbook)).
 
 **When:** mid-season, as soon as the rehearsal is clean, and not within 48 hours of the Final Battle. Season 1's
-finale starts 2026-11-28 17:00 UTC, so the switch is before 2026-11-26 17:00 UTC.
+finale starts 2026-11-28 17:00 UTC, so the switch is before 2026-11-26 17:00 UTC, and after Capital Siege on Saturday
+2026-11-21 (19:00 to 21:00 UTC): no switch while an arena is open.
 
-**The carry-over file** (`carry-earth-1-earth-2-<hash>.bin`) gives each new tile a parent: the nearest old tile, when
-it is within about 0.6 old spacings. Otherwise the tile has none, so new coasts and islands start blank. The generator
-writes it with the board.
+**The carry-over file** (`map/carries/carry-earth-1-earth-2-<hash>.bin`, `npm run map:carry -- earth-1 earth-2`; the
+format is in [`map/README.md`](../map/README.md#the-carry-over)) gives each new tile a parent. **The design's rule, "the
+nearest old tile when it is within about 0.6 old spacings", would have left inland holes**: `earth-1`'s gnomonic cells
+are uneven, and an inland new tile lies up to 0.62 of the median spacing from the old tile whose cell holds it. So the
+parent is the old tile whose lattice cell holds the new tile (the tile a click there would have taken), and where that
+cell is the sea, the nearest old tile among its neighbours within 0.6 spacings; otherwise none, so new coasts and
+islands start blank. It carries 997,267 of the 1,004,682 new tiles; 7,415 start blank; an inland old tile has 3.85
+children (1 to 7); 66 old coast tiles have none, so what they hold is lost (60 shields of 177,274 in the rehearsal).
 
-**The switch runs in one transaction, under the flush lock and the tiles lock:**
+**The switch runs in one transaction, under the staging, flush and tiles locks:**
 
 - each new tile takes its parent's owner and holder;
 - **each old tile's shields are split across its children, keeping the total** (10 → 3, 3, 2, 2, the remainder going
   to the first children in id order), so the switch creates no protection;
-- each mine moves to the child nearest its old tile;
+- each mine moves to the child nearest its old tile, and one on a tile with no child is lost;
 - live viruses end;
-- fortify locks are dropped and settled again;
-- a new era, and one `board_switched` event in the ledger. **It is not a take**: no `TilesTaken`, no XP, no mission,
-  no stat.
+- fortify locks are dropped, and each landmass of `earth-2` is settled again (230 locked in the rehearsal);
+- a new era on `earth-2`, in the same transaction.
+- **One `board_switched` event in the ledger. It is not a take**: no `TilesTaken`, no XP, no mission, no stat. **It
+  follows the transaction, not inside it**, as the design had it: the ledger is kept in memory and flushed within a
+  second, as every event is. It is appended under the locks right after the commit, so it comes before any take on
+  `earth-2`; the era is the switch's record.
+- **`tiles.board` lost its foreign key** (the design put one on every table): the key's check of each of a million rows
+  held every click for minutes in the rehearsal ([below](#pr-6-the-rehearsal)). The boot's guard holds the rows to the
+  era's board, which keeps its key.
 
 **Then:**
-- a new epoch: every stream is cut, and every page reloads;
-- a full-screen moment ("The world grew: 4× more ground"), a line in the World chat, and a Discord `@everyone`, as
-  for a season start.
+- a new epoch: every stream is cut, and every page reloads onto `earth-2` (within half a second in the rehearsal);
+- a full-screen moment ("The world grew: 4× more ground", once per browser, never on a first visit: the page's [The
+  board the page draws](../apps/frontend/docs/board-reload.md#the-world-grew)), a line in the World chat, and a Discord
+  `@everyone`, as for a season start. Each module hears planet's `BoardSwitched`, which the relay tells from the
+  `board_switched` event: none reaches into planet.
 
-**The dry run** answers the counts (tiles carried, tiles blank, shields, mines moved, viruses ended) and changes
-nothing.
+**The dry run** answers the counts (tiles carried and blank, held before and after, old tiles dropped, shields before
+and after, mines moved and lost, viruses ended, locks dropped) and changes nothing.
 
-**Scoring that day is as usual**: rankings compare countries, and every count jumps about 3.9× at the same moment.
+**Refused:** another map than the world's, a board the process does not carry or has no carry-over to, the board the
+world plays (a second call), and any call while an arena is open, read again under the locks.
+
+**Scoring that day is as usual**: rankings compare countries, and every count jumps about 3.8× at the same moment.
 
 **History across the switch** (the owner, 2026-11-17):
 - The season-1 archive plays through it, with a visible cut and a caption.
 - For their first 24 hours after it, player videos, clips and the last 24 hours start at the switch, as after a reset.
 - RevertPlayer and the operator tools act only on the current board's events.
-
-**The rehearsal** uses production's public `GetMap` (owners and shields) on a local postgres, with made-up holders and
-ledger: the switch, the boot, and the measurements.
 
 ## Rules at the new density
 
@@ -417,12 +436,14 @@ Built in PR 4 where it says so, measured 2026-11-18.
 - **The landmass names** come from the generator in English: 936 of `earth-2`'s 1,175 landmasses, 138 of `siege-1`'s
   374. **Their translations wait for `make translate`**, which needs the translator's key and was not run in PR 4: the
   page names them in English meanwhile, and its catalogue test lists both boards as awaiting one (the backend's
-  [The page's translator](../apps/backend/docs/translate.md)). Run it before PR 5 names `siege-1`.
+  [The page's translator](../apps/backend/docs/translate.md)). Run it before PR 5 names `siege-1`. PR 6 had no key
+  either: it is step 2 of [the runbook](#the-operators-runbook).
 - **The last 24 hours:** its first frame grows 4×, past its 1 MiB budget, so it needs a new format.
 - **The backend** (measured on 4 vCPUs, `load_new_boards_test.go`):
   - **The boot of `earth-2`:** 0.8 to 0.9 s, against the design's 4 to 6 s and a one-minute deadline; 2,966,323 edges.
   - **Memory:** about 47 MB kept, and 302 MB allocated (about 260 MB of process memory) at the peak while it builds the
-    edges. A board loads only when a map plays it.
+    edges. A board loads only when a map plays it. Rehearsed (PR 6): the process that switched holds both grounds, 422
+    to 439 MB; a boot on `earth-2` holds 264 MB, against 98 MB on `earth-1`.
   - **`Within` and `Nearest`:** tens of milliseconds per bomb or rally (the design's estimate, not measured).
 
 ## Slow devices
@@ -592,6 +613,122 @@ the one by the Caspian (47.5°N, 49.9°E); on `earth-1`, whose edges lie elsewhe
 | `earth-2` | [landing](boards/earth-2-landing.jpg) | [Kansas, zoom 12](boards/earth-2-kansas-z12.jpg) | [zoom 30](boards/earth-2-kansas-z30.jpg) | [zoom 80](boards/earth-2-kansas-z80.jpg) | [zoom 30](boards/earth-2-caspian-z30.jpg) |
 | `siege-1` | [landing](boards/siege-1-landing.jpg) | [Kansas, zoom 2](boards/siege-1-kansas-z2.jpg) | [zoom 5](boards/siege-1-kansas-z5.jpg) | [zoom 16, its most](boards/siege-1-kansas-z16.jpg) | [zoom 5](boards/siege-1-caspian-z5.jpg) |
 
+## PR 6, the rehearsal
+
+**Rehearsed 2026-11-18 on production's real map**, on a MacBook (M2 Max): the backend built from this PR, a postgres 16
+and a Redis in Docker, the page's dev server in front. Production's public `GetMap` read at 12:10 UTC: 260,350 of
+260,503 tiles held by 30 flags, 177,274 shields on 175,862 tiles. Made up beside it: five holders a flag on 80% of the
+tiles, 40 mines on held tiles, one live virus, and 20,000 takes over the last 24 hours in the ledger.
+
+| | |
+| --- | --- |
+| the dry run | 0.83 s the first time (it loads `earth-2`'s ground), 0.4 to 0.7 s after |
+| tiles | 1,004,682: 997,267 carried + 7,415 blank |
+| held | 260,350 → 996,607 (3.83×) |
+| old tiles dropped | 66, all held |
+| shields | 177,274 → 177,214: the 60 on the dropped tiles |
+| mines | 40 moved, 0 lost |
+| viruses ended, locks dropped | 1, 653; `earth-2` settled 230 locks of its own |
+| the dry run's counts against the switch's | the same, three runs |
+| `GetMap` after, all 101 batches | 996,607 held, 177,214 shields |
+
+**Under the locks** (the log line `carried the map onto its new board under the locks`):
+
+| | first run | after the fix, second run | third run |
+| --- | --- | --- | --- |
+| the carry in memory | 194 ms | 79 ms | 41 ms |
+| the transaction | 3 min 25 s | 6.0 s | 1.85 s |
+| memory filled | 5.7 s (read back from postgres) | 27 ms (from the carried rows) | 24 ms |
+| every click held | **3 min 31 s** | **6.1 s** | **1.9 s** |
+
+The first run wrote the tiles as the flush does, by `INSERT … unnest … ON CONFLICT`, and read them back. Measured in
+psql on the same postgres: a million inserted after a million deleted in one transaction 70 s; into a truncated table
+33 s; by `COPY` 26 s; **by `COPY` without the foreign key on `board` 3.8 s**; into a table with no index 1.3 s. So the
+key went, the tiles are `COPY`ed, and memory is filled from the rows carried. **Production is slower**: the backend's
+[Durability](../apps/backend/docs/durability.md) measures its box at about ten times a laptop, so the clicks may wait 20
+to 60 s there. A click times out on the page after 5 s and is rolled back, so the switch goes at the quietest hour.
+
+**The boot and the memory**: on `earth-1` the boot took 4.9 s and the process 98 MB; the dry run loads `earth-2`'s
+ground beside it (404 MB in all); after the switch, 422 to 439 MB, both grounds held until the next boot. The boot on
+`earth-2`: 1.5 s (the board in 324 ms, the tile map 0.6 s), 264 MB.
+
+**The stream cut and the reload**: the page open on Europe reloaded 0.47 and 0.48 s after the switch answered, drew
+`earth-2` and showed the moment; the World chat kept its `board_switched` line. Discord was off in the rehearsal's
+config (the ping is tested on its own). Refused as designed: a second call (`failed_precondition`, "the world plays
+that board already"), a board not carried, another map (`invalid_argument`).
+
+**One thing the rehearsal could not show as production would**: a local stack serves HTTP/1.1, where a page's six
+streams (planet, quizzes, boxes, player, gamemaster, chat) take all six connections Chrome gives a host, and `GetMap`'s
+101 batches of `earth-2` time out behind them; on `earth-1`'s 27 the page got through. Production serves HTTP/2 through
+Cloudflare. The rehearsal put a proxy in front that refused the quizzes' and the boxes' streams.
+
+| | `earth-1`, before | `earth-2`, after |
+| --- | --- | --- |
+| Europe, zoom 3 | [before](boards/switch-earth-1-europe.jpg) | [after](boards/switch-earth-2-europe.jpg) |
+| Belgium, zoom 15 | [before](boards/switch-earth-1-belgium-z15.jpg) | [after](boards/switch-earth-2-belgium-z15.jpg) |
+| the moment | | [The world grew](boards/switch-world-grew.jpg) |
+
+The map on `earth-2` is the map on `earth-1`: every flag where it was, the drawings still readable ("NI POLVE" in
+Russia), the coasts a little finer.
+
+## The operator's runbook
+
+**1. Deploy** this PR's backend and page, after Capital Siege (Saturday 2026-11-21, 19:00 to 21:00 UTC) and before
+2026-11-26 17:00 UTC. Nothing changes for players. Three migrations run at boot, each a change of the catalog: the
+`board_switched` kind in the ledger and in chat, and `tiles.board`'s foreign key dropped.
+
+**2. The landmass names' translations**, if not done: `ANTHROPIC_API_KEY=... make translate` in `apps/backend`
+writes `earth-2`'s 936 names in the 8 languages, with their fingerprints (see the backend's
+[translator](../apps/backend/docs/translate.md)); commit, and deploy the page. Until then the page names `earth-2`'s
+landmasses in English. The page's new lines of this PR are translated by hand; the next run fingerprints them.
+
+**3. No arena open**: `gamemaster_get_schedule` shows none running now. The switch refuses one anyway.
+
+**4. Pick the quiet hour**: the hour with the fewest takes, e.g.
+`docker compose exec postgres psql -U clickplanet -c "select extract(hour from taken_at) h, count(*) from planet.ledger_events where taken_at > now() - interval '3 days' and map = 'world' group by h order by count(*)"`.
+
+**5. Back up the world's rows** a minute before, on the box:
+
+```
+docker compose exec postgres pg_dump -U clickplanet -d clickplanet --data-only \
+  -t planet.tiles -t planet.landmasses -t planet.mines -t planet.viruses > before-switch.sql
+```
+
+**6. The dry run**: `planet_switch_board {"map": "world", "board": "earth-2", "dry_run": true}`. Expect what the
+rehearsal read: `carried` 997,267, `blank` 7,415, `held_after` about 3.83 × `held_before`, `dropped` 66,
+`shields_after` a few dozen under `shields_before`, `mines_lost` 0 or near it.
+
+**7. The switch**: the same call without `dry_run`. Clicks wait under the locks: 2 to 6 s on a laptop, perhaps up to a
+minute on the box; the log says how long (`journalctl CONTAINER_NAME=cp-backend | grep "under the locks"`). Every page
+reloads within a second of the answer and shows "The world grew".
+
+**8. `rally.rings` 18 → 36**, right after: `planet_get_rules` lists the sets, and each that holds `charges.rally.rings`
+(`default` holds 18) is saved with 36 (`planet_save_rule_set`). A save of the set in force takes over at once. Not
+before the switch: on `earth-1`, 36 rings is twice the ground.
+
+**9. What to watch after:**
+- the Warn `the map switched boards` with the counts, and the World chat's line and Discord's `@everyone`;
+- `docker stats cp-backend`: about 430 MB in the process that switched (both grounds), about 260 MB after the next boot;
+- the page: `GetMap` is 101 batches of 20 KB now, against 27; a player who cannot load the globe;
+- the day's scoring: every count jumps about 3.8× at once, which scoring takes as it comes;
+- clips and player videos: for 24 hours they start at the switch.
+
+**10. If it goes wrong:**
+- **A switch refused or failed changed nothing**: the world plays `earth-1`, and its answer says why.
+- **Undoing a switch made, within minutes, is a restore**, exact to the switch and losing what was played after it:
+  stop the backend; in psql, `DELETE FROM planet.tiles WHERE map = 'world'` (and the same for `landmasses`, `mines` and
+  `viruses`, the four tables the switch rewrote) and `DELETE FROM planet.eras WHERE map = 'world' AND board = 2`, then
+  `docker compose exec -T postgres psql -U clickplanet -d clickplanet < before-switch.sql`; start the backend. Every page reloads onto `earth-1`. **Lost**: every take, shield,
+  mine and virus since the switch (their events stay in the ledger under `earth-2`, which no reader shows once it has no
+  era). **Kept**: the XP, missions and stats they paid, which are other modules' counts; the chat line and the Discord
+  ping, which a message of the operator's can correct; and each browser's note that it saw the moment, so a second
+  switch later shows it to nobody who saw the first. Rehearsed (2026-11-18): the dump of the rehearsal's map, the
+  switch, then these steps, and the boot played `earth-1` with its 260,350 tiles, 177,274 shields, 40 mines and its
+  virus; the `board_switched` event stayed in the ledger, and the boot read it.
+- **Not possible**: switching back with `SwitchBoard` (no carry-over leads from `earth-2` to `earth-1`, by design: one
+  would lose three shields in four); and deploying a build from before this PR, whose code knows neither the planet
+  schema's newest migration nor the `board_switched` kind its ledger then holds. Roll forward instead.
+
 ## The PRs, in order
 
 Each one ships on its own, and players see nothing new until the PR that says so. PR 0 is numbered so the rest keep
@@ -627,10 +764,12 @@ their numbers.
    - Its set names `siege-1` and drops the spread.
    - The first board players see, at the next Capital Siege and before the world's switch. It tries the reload and an
      arena on another board for real.
-6. **The switch.**
+6. **The switch. Built 2026-11-18.**
    - The carry-over file, and `SwitchBoard` with its dry run.
    - The moment, the chat line and the Discord ping.
    - The 24-hour readers starting at the switch, and the new format of the last 24 hours.
-   - The rehearsal's report.
-   - Then the operator's steps: deploy, dry run, switch at a quiet hour, and `rally.rings` 18 → 36 in every set that
-     holds it.
+   - The border lines' file smaller and the globe's load measured again ([PR 6, the globe's
+     load](#pr-6-the-globes-load-measured)).
+   - The rehearsal's report ([PR 6, the rehearsal](#pr-6-the-rehearsal)).
+   - Then the operator's steps ([the runbook](#the-operators-runbook)): deploy, the translations, dry run, switch at a
+     quiet hour, and `rally.rings` 18 → 36 in every set that holds it.
