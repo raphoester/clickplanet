@@ -6,6 +6,7 @@ uniform float shieldMost;
 uniform sampler2D shieldMarks;
 uniform vec2 shieldCells;
 uniform float time;
+uniform float pulseTime;
 
 flat in vec4 vRegionVector;
 flat in float vSpriteSize;
@@ -163,7 +164,7 @@ vec4 tileColour(vec2 coordinates, float shown) {
 
     float rings = mod(vPulse, 4.0);
     if (rings > 0.5) {
-        float beat = 0.5 + 0.5 * sin(time * 6.2831853 / 1.1);
+        float beat = 0.5 + 0.5 * sin(pulseTime * 6.2831853 / 1.1);
         float r = length(coordinates);
         float ring = smoothstep(0.31, 0.38, r) * (1.0 - smoothstep(0.46, 0.5, r));
         vec3 gold = vec3(1.0, 0.8, 0.22);

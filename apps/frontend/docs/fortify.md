@@ -32,7 +32,8 @@ A landmass is a row of the borders blob's table.
   is read: a batch that lands `touch`es its tiles. The locks come from
   `GetFortresses` at load and after a gap, then from the events; nothing pulses before
   they are read. **The pulse is drawn at `AMBIENT_FRAME_MS` (20 fps), and only while a
-  pulsing landmass faces the camera** (`drawsFrame`'s `ambient`).
+  pulsing landmass faces the camera** (`drawsFrame`'s `ambient`). It stops at its faintest a minute after the last
+  input (see [Drawing only when something changed](render-on-demand.md)).
 - **Names**: each board's own, `static/boards/<board>/landmassNames-<hash>.json`, written by
   `npm run landmassNames -- <board>` from Natural Earth at the map's pin (`scripts/map/names/`:
   subunits, islands, island groups, admin-1 and its region, by tiles in common), one

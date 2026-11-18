@@ -134,6 +134,7 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     highlight: THREE.IUniform<number>
     slotTexture: THREE.IUniform<THREE.Texture | null>
     slotFrames: THREE.IUniform<THREE.DataTexture>
+    pulseTime: THREE.IUniform<number>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -176,18 +177,46 @@ export function spinStep(sinceLastTick: number): number {
     return Math.min(Math.max(sinceLastTick, 0), MAX_SPIN_STEP_MS) / 1000
 }
 
-const SPIN_AFTER_INPUT_MS = 60_000
+const WATCHED_FOR_MS = 60_000
 
 const INPUTS = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const
 
-export type Spin = {
-    zoom: number
+export type Attention = {
     lastInputAt: number
     now: number
 }
 
-export function spins({zoom, lastInputAt, now}: Spin): boolean {
-    return zoom <= RESTING_ZOOM && now - lastInputAt < SPIN_AFTER_INPUT_MS
+export function watched({lastInputAt, now}: Attention): boolean {
+    return now - lastInputAt < WATCHED_FOR_MS
+}
+
+export type Spin = Attention & {
+    zoom: number
+}
+
+export function spins({zoom, ...attention}: Spin): boolean {
+    return zoom <= RESTING_ZOOM && watched(attention)
+}
+
+// The shaders' beat (display/vertex.glsl's PULSE_RATE): faintest at three quarters of each period.
+const BEAT_SECONDS = 1.1
+
+// A clock held on a trough is one only to rounding: without the slack it would creep on to the next.
+const TROUGH_SLACK = 1e-9
+
+export type Beat = {
+    clock: number
+    step: number
+    attended: boolean
+}
+
+export function beatClock({clock, step, attended}: Beat): number {
+    if (attended) return clock + step
+    return Math.min(clock + step, nextTrough(clock))
+}
+
+function nextTrough(clock: number): number {
+    return (Math.ceil(clock / BEAT_SECONDS - 0.75 - TROUGH_SLACK) + 0.75) * BEAT_SECONDS
 }
 
 const INTERACTION_GRACE_MS = 1_000
@@ -438,6 +467,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         highlight: {value: 0},
         slotTexture: slots.texture,
         slotFrames: slots.frames,
+        pulseTime: {value: 0},
         ...blastUniforms(prefersReducedMotion()),
         ...fortifyUniforms(),
     };
@@ -2158,6 +2188,7 @@ function startAnimation(
     });
 
     let drawnAt = -Infinity;
+    let beatDrawn: number | undefined;
     let tickedAt: number | undefined;
     const viewport = new THREE.Vector2();
 
@@ -2189,11 +2220,17 @@ function startAnimation(
         const moving = beforeRender(time / 1000);
         const changed = takeChange() || moving;
 
-        const ambient = pulsing(camera);
+        uniforms.pulseTime.value = beatClock({
+            clock: uniforms.pulseTime.value,
+            step: sinceLastTick / 1000,
+            attended: director !== undefined || watched({lastInputAt, now: time}),
+        });
+        const ambient = uniforms.pulseTime.value !== beatDrawn && pulsing(camera);
         if (!drawsFrame({turned, changed, ambient, at: time, drawnAt, interactingUntil, sinceLastTick})) return;
 
         moved = false;
         drawnAt = time;
+        beatDrawn = uniforms.pulseTime.value;
 
         beforeDraw();
         starfield.render(renderer, camera, () => renderer.render(scene, camera));
