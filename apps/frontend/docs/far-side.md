@@ -20,7 +20,8 @@ size of the map. `TileField.cull` runs before each frame that is drawn.
   three draws each group.
 - **Kept while the view moves a little.** The pieces are found with a quarter of the screen's half-height to spare
   (`CULL_SLACK`), and kept while the camera has turned and moved by less than that, the screen has not grown and the
-  sprites have not widened (`stillHolds`). A drag or a flight finds them again every few frames, not every frame.
+  sprites have not widened (`ChunkSight` in `chunkSight.ts`). A drag or a flight finds them again every few frames,
+  not every frame.
 - **Not when the globe fills the screen.** While the screen shows more than half the globe's disc (`CULL_BELOW`), the
   zoom of the landing view and below, every tile is one draw, as before: what is out of sight then is mostly the far
   side, which the vertex shader drops as cheaply, and finding the pieces cost more than it saved.
@@ -49,9 +50,32 @@ tiles at 1, and `limbOf(lift)` for each outline pass. On top of that comes half 
 width, and how far a blast may throw a tile outward (`LIMB` and `THROW`, the same in `tileField.ts` and the shader).
 `borderLines.test.ts` pins `limbOf` against the earth's radius.
 
-**The border lines are not cut into chunks.** Their passes are instanced, and three draws a range of an instanced
-geometry's instances only with an extension WebGL2 does not promise. They are traced from the countries, so they grow
-with the coastline, not 4 times with the tiles.
+**The outlines are cut into chunks too** (`outlineChunksOf` in `borderLines.ts`, culled by `cull` before each frame,
+after the tiles'). On `earth-2` they draw more vertices than the tiles in sight: 129,431 cell edges, each 2 quads in the
+over pass and 4 in the under pass, and before this every frame drew them all.
+
+- **Chunks.** The same `chunksOf`, over the outline's corners in their order: a corner is the stretch of curve around
+  one corner of a run, 4 pieces in the fine passes and 2 in the coarse ones. A chunk's cap holds the ends of every
+  fine piece of its corners, and so the coarse ones', whose ends are among them. 1,035 chunks on `earth-1`, 1,447 on
+  `earth-2` and 712 on `siege-1`, built when the globe is made (about 20 ms on `earth-2` in Node).
+- **In sight.** The same `showingChunks`, with the limb of the outermost pass (`limbOf(OVER)`), the widest line (the
+  highlight's) and the quad's corners, which reach √2 half-widths past a piece's ends. So no pass loses a piece its
+  vertex shader would draw.
+- **Draws.** WebGL2 draws no range of an instanced geometry's instances without an extension it does not promise. So a
+  pass is up to 8 draws (`MAX_DRAWS`), each a geometry whose attributes start at its range's first piece in the one
+  buffer every draw shares (an `InterleavedBufferAttribute` at an offset), with `instanceCount` the range's length.
+  Ranges closer than 512 corners are drawn as one (`LEAST_GAP`). Each draw keeps the pieces' order and the passes keep
+  theirs (the meshes are made in drawing order, and three draws the transparent ones of one `renderOrder` by id), so
+  the lines blend as they did, to the pixel.
+- **Kept while the view moves a little** (`ChunkSight` in `chunkSight.ts`, which the tiles use as well): the same
+  quarter of the screen's half-height, but at most 0.05 of the globe's radius (`MOST_SLACK`). Zoomed out, a quarter of
+  the screen would keep most of the far side.
+- **Also when the globe fills the screen.** Unlike the tiles, the outline is culled at the landing view: its far side
+  is about half of it, and the vertex shader runs a piece's four corners before it drops them.
+- **Tested** in `borderLines.test.ts` on every shipped board: every cap holds the ends of its pieces at both
+  resolutions. From several cameras, each turned by 98% of the slack after the cull, no pass has a piece in sight left
+  out. The test copies the vertex shader's rule and reads each pass's own uniforms. A line just off the screen's edge
+  that reaches onto it is kept until the camera has panned by the slack.
 
 **Measured** in headless Chrome with the CPU slowed 4 times (see [Slow devices](../../../docs/boards.md#slow-devices)):
 the landing view draws no tile, and its GPU time on a test map of 1M tiles went from 8.8 to 1.9 ms; at zoom 10 a few

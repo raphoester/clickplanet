@@ -1985,7 +1985,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         }
         const relit = highlight(orbit)
         return field.setHover(hovered) || relit || lit || boxed || blasting
-    }, () => field.cull(camera), () => {
+    }, () => {
+        field.cull(camera)
+        outline.cull(camera)
+    }, () => {
         undoShake()
         if (captureRequests.length === 0) return
 

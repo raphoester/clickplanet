@@ -485,8 +485,9 @@ devices?"). At the same zoom a tile covers a quarter of the pixels, so the pixel
    skips the chunks behind the earth (with the vertex shader's limb) or off screen, and draws the rest as at most 16
    ranges. It keeps them while the camera moves by less than a quarter of the screen's half-height, and does not cull
    at all while the screen shows more than half the globe, where the shader's own far-side drop is as cheap. The
-   border-line passes are not chunked: they are instanced, three draws no range of instances, and they grow with the
-   coastline, not with the tiles.
+   border-line passes were left whole: they are instanced, three draws no range of instances, and they grow with the
+   coastline, not with the tiles. They are chunked since 2026-11-18 (see
+   [The outlines out of sight, measured](#the-outlines-out-of-sight-measured)).
 3. **Picking on the CPU.** The pixel's ray meets the tiles' sphere, and `cellOf` gives the lattice cell; anywhere in a
    tile's cell is that tile, at every zoom (a tile's disc is 0.76 of its cell, and the gap between two discs is the
    ground the territory layer paints there). The GPU picker, its scene, buffers, shaders and the plain layout's picking
@@ -690,6 +691,39 @@ against 1.7M, and the frame takes 11 ms of GPU, inside a 60 Hz frame on this GPU
 - **`GetMap` on `earth-2` over a slow network**: 101 batches of 10,000 tiles. The rehearsal found the page reads 8 in
   flight with a 5 s timeout each; on HTTP/2 a wave of 8 is about 160 KB. The fake answers them at once, so none of the
   rows above holds them.
+
+## The outlines out of sight, measured
+
+**Why** (2026-11-18): players called the game laggy as the world switched to `earth-2`, and turning HD graphics off
+helped them. That setting changes only the pixel ratio. Most of the vertices were the outlines: every pass drew every
+piece of the world's outline on every frame, behind the earth and off screen too. `earth-2` has 129,431 cell edges
+against `earth-1`'s 56,790. **Built:** the outlines are cut into chunks and culled as the tiles are, each pass drawn as
+up to 8 ranges of its pieces (the page's [The tiles out of sight are not drawn](../apps/frontend/docs/far-side.md)).
+
+**The same to the pixel.** Screenshots of the production build with the fake backend, before (`main` at 0384f3172)
+and after, the page's panels hidden, 1280×800 at a ratio of 2, on an M2 Max's GPU. On `earth-2` and `earth-1` there are
+16 views: the landing view, zoom 1, the handover band at zoom 10, zoom 40, the limb at zoom 10, a lit territory at zoom
+1.5 and 1, and a mission's ground at zoom 1, 6 and 12. Every pixel is the same in every view.
+
+| vertices drawn in a frame, before → after | `earth-1` | `earth-2` |
+| --- | --- | --- |
+| landing view, zoom 0.5 | 1.01M → 0.93M | 1.88M → 1.65M |
+| zoom 1 | 1.01M → 0.90M | 1.88M → 1.62M |
+| handover band, zoom 10 | 1.73M → 0.54M | 5.09M → 0.87M |
+| zoom 40 | 1.72M → 0.40M | 3.49M → 0.40M |
+| a mission's ground, zoom 12 | 3.09M → 0.38M | 8.18M → 0.55M |
+
+**What it says:**
+- **Pushed in, the outline costs what is on screen**, as the tiles do: at zoom 10 on `earth-2` a frame draws 0.87M
+  vertices, not 5.09M.
+- **From orbit it saves less**, about 12% of the frame at the landing view. Half the globe is in sight, and the chunks
+  in sight, in the outline's order, need ranges with gaps between them.
+- **A frame makes more draws**: up to 8 a pass, 12 to 20 in a frame against 5 to 9.
+
+**The GPU time, one round** (the protocol of [PR 6](#pr-6-the-globes-load-measured): the CPU slowed 4×, a drag or the
+idle spin, the median of the frames): at zoom 10, 3.5 → 2.5 ms of GPU and 1.6 → 2.1 ms of CPU. At the landing spin,
+1.1 → 1.8 ms of GPU while the vertices went from 1.88M to 1.36M. One run on a shared machine is not a result: three
+interleaved rounds were being measured as this was written.
 
 ## Screenshots
 
