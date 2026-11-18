@@ -42,6 +42,15 @@ func (o *outFlags) restore(out OutFlag) {
 	o.out[out.Flag] = out
 }
 
+// kept is every flag out, as a map's rows keep them.
+func (o *outFlags) kept() []OutFlag {
+	kept := make([]OutFlag, 0, len(o.out))
+	for _, flag := range o.flags() {
+		kept = append(kept, o.out[flag])
+	}
+	return kept
+}
+
 func (o *outFlags) flags() []string {
 	return slices.Sorted(maps.Keys(o.out))
 }

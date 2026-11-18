@@ -3,8 +3,10 @@ package inmemory_tile_storage
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"maps"
 	"slices"
+	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
@@ -16,9 +18,10 @@ import (
 //   - every live virus ends, and every fortify lock is dropped, then each landmass of the new board settled again;
 //   - the flags out stay: they name no tile.
 //
-// What changed is saved first, so every shield placed is confirmed. Then the map is read as the boot reads it, on the new
-// board's ground, which every rule reads from then on, and recorded is told what was carried while no write runs: a
-// write after it lands on the new board. A new epoch, and every stream cut, so every page reads the new board.
+// What changed is saved first, so every shield placed is confirmed. Then memory is filled from the rows carried as the
+// boot fills it from postgres, on the new board's ground, which every rule reads from then on, and recorded is told what
+// was carried while no write runs: a write after it lands on the new board. A new epoch, and every stream cut, so every
+// page reads the new board.
 func (s *Storage) Switch(
 	ctx context.Context, onto clicks.Stage, carry clicks.Carryover,
 	keep func(ctx context.Context, carried clicks.Carried) (bool, error), recorded func(carried clicks.Carried),
@@ -40,27 +43,36 @@ func (s *Storage) Switch(
 	if err := s.playsLocked(onto); err != nil {
 		return clicks.Carried{}, false, err
 	}
+	locked := time.Now()
 	if err := s.flushLocked(ctx); err != nil {
 		return clicks.Carried{}, false, fmt.Errorf("failed to save the map before carrying it over: %w", err)
 	}
+	flushed := time.Now()
 	carrying, err := s.carryLocked(ground, carry)
 	if err != nil {
 		return clicks.Carried{}, false, err
 	}
+	computed := time.Now()
 	switched, err := s.persistence.Carry(ctx, onto, carrying.tiles, carrying.mines, func(ctx context.Context) (bool, error) {
 		return keep(ctx, carrying.carried)
 	})
 	if err != nil || !switched {
 		return carrying.carried, false, err //nolint:wrapcheck // keep and the store name it.
 	}
+	committed := time.Now()
 
+	out := s.out.kept()
 	s.stage = onto
 	s.groundLocked(ground)
 	defer s.restartLocked()
-	if err := s.fillLocked(ctx); err != nil {
-		return carrying.carried, true, fmt.Errorf("switched the map's board, but could not read it: %w", err)
+	if err := s.fillFromLocked(ctx, carriedRows{tiles: carrying.tiles, mines: carrying.mines, out: out}); err != nil {
+		return carrying.carried, true, fmt.Errorf("switched the map's board, but could not fill it: %w", err)
 	}
 	recorded(carrying.carried)
+	s.logger.Info("carried the map onto its new board under the locks", slog.String("board", string(ground.Name())),
+		slog.Duration("flush", flushed.Sub(locked)), slog.Duration("carry", computed.Sub(flushed)),
+		slog.Duration("transaction", committed.Sub(computed)), slog.Duration("fill", time.Since(committed)),
+		slog.Duration("locked", time.Since(locked)), slog.Int("rows", len(carrying.tiles)))
 
 	return carrying.carried, true, nil
 }
@@ -83,6 +95,44 @@ func (s *Storage) Carried(onto clicks.Stage, carry clicks.Carryover) (clicks.Car
 		return clicks.Carried{}, err
 	}
 	return carrying.carried, nil
+}
+
+// The rows a switch wrote, which memory is filled from as the boot fills it from postgres: no million rows read back.
+type carriedRows struct {
+	tiles []Tile
+	mines []clicks.MineSnapshot
+	out   []OutFlag
+}
+
+func (c carriedRows) Load(_ context.Context, _ clicks.MapID, visit func(tile Tile)) error {
+	for _, tile := range c.tiles {
+		visit(tile)
+	}
+	return nil
+}
+
+// A switch keeps no fortify lock: each landmass of the new board is settled again.
+func (carriedRows) LoadLandmasses(context.Context, clicks.MapID, string, func(clicks.LandmassID, string)) error {
+	return nil
+}
+
+func (c carriedRows) LoadOutFlags(_ context.Context, _ clicks.MapID, visit func(out OutFlag)) error {
+	for _, out := range c.out {
+		visit(out)
+	}
+	return nil
+}
+
+// Every live virus ends.
+func (carriedRows) LoadViruses(context.Context, clicks.MapID, func(clicks.VirusSnapshot)) error {
+	return nil
+}
+
+func (c carriedRows) LoadMines(_ context.Context, _ clicks.MapID, visit func(mine clicks.MineSnapshot)) error {
+	for _, mine := range c.mines {
+		visit(mine)
+	}
+	return nil
 }
 
 // A switch moves the map that plays, onto another board.

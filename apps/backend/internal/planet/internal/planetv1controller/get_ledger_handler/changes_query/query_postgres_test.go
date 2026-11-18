@@ -116,6 +116,8 @@ func everyKind() []ledger.Event {
 		}},
 		ledger.Taking{Tile: 13, Scope: "198.51.100.4", Account: bob, Country: "de", Previous: "fr", At: at},
 		ledger.Taking{Tile: 14, Scope: "198.51.100.4", Country: "fr", Previous: "de", At: at},
+		// A switch of board shows nothing: no tile changed by a player.
+		ledger.Switching{From: "earth-1", To: "earth-2", FromTiles: 260503, ToTiles: 1004682, At: at},
 	}
 }
 

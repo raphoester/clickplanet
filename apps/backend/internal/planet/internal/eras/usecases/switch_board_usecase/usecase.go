@@ -90,7 +90,7 @@ func (u *UseCase) Execute(ctx context.Context, command Command) (Out, error) {
 	}
 	to, _, err := u.boards.Named(command.Board)
 	if err != nil {
-		return Out{}, err //nolint:wrapcheck // the boards name it.
+		return Out{}, fmt.Errorf("cannot play %q: %w", command.Board, err)
 	}
 	playing := u.tiles.Stage()
 	if playing.Map != clicks.World {

@@ -321,22 +321,12 @@ func (s *Store) Wipe(ctx context.Context, played clicks.MapID, keep func(ctx con
 }
 
 // Carry moves a map onto another board in keep's transaction, once keep says to: the rows of the board before go, and
-// the tiles and mines carried are written on onto's board, a few seconds for a million tiles. The flags out stay.
+// the tiles carried are copied onto onto's board (COPY, a few seconds for a million), with the mines carried. The flags
+// out stay.
 func (s *Store) Carry(
 	ctx context.Context, onto clicks.Stage, tiles []inmemory_tile_storage.Tile, mines []clicks.MineSnapshot,
 	keep func(ctx context.Context) (bool, error),
 ) (bool, error) {
-	taken := make([]int64, 0, len(tiles))
-	takenBy := make([]string, 0, len(tiles))
-	holders := make([]string, 0, len(tiles))
-	shields := make([]int64, 0, len(tiles))
-	for _, tile := range tiles {
-		taken = append(taken, int64(tile.ID))
-		takenBy = append(takenBy, tile.Owner)
-		shields = append(shields, int64(tile.Shields))
-		holders = append(holders, holderOf(tile.Holder))
-	}
-
 	carried := false
 	err := s.db.InTx(ctx, func(ctx context.Context) error {
 		kept, err := keep(ctx)
@@ -349,7 +339,7 @@ func (s *Store) Carry(
 				return fmt.Errorf("failed to delete the map's %s: %w", table, err)
 			}
 		}
-		if err := upsertTiles(ctx, tx, onto, taken, takenBy, shields, holders); err != nil {
+		if err := copyTiles(ctx, tx, onto, tiles); err != nil {
 			return err
 		}
 		if err := s.SaveMines(ctx, onto, mines, nil); err != nil {
@@ -362,6 +352,29 @@ func (s *Store) Carry(
 		return false, err //nolint:wrapcheck // each step names itself.
 	}
 	return carried, nil
+}
+
+func copyTiles(ctx context.Context, tx cppg.Querier, onto clicks.Stage, tiles []inmemory_tile_storage.Tile) error {
+	stmt, err := tx.PrepareContext(ctx, pq.CopyIn("tiles", "map", "board", "id", "country", "shields", "holder"))
+	if err != nil {
+		return fmt.Errorf("failed to start copying the tiles: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+
+	for _, tile := range tiles {
+		var holder any
+		if tile.Holder != cpsession.NoAccount {
+			holder = tile.Holder.String()
+		}
+		if _, err := stmt.ExecContext(ctx, string(onto.Map), int64(onto.Board), int64(tile.ID), tile.Owner,
+			int64(tile.Shields), holder); err != nil {
+			return fmt.Errorf("failed to copy tile %d: %w", tile.ID, err)
+		}
+	}
+	if _, err := stmt.ExecContext(ctx); err != nil {
+		return fmt.Errorf("failed to copy %d tiles: %w", len(tiles), err)
+	}
+	return nil
 }
 
 func (s *Store) ForgetHolder(ctx context.Context, account cpsession.AccountID) error {
