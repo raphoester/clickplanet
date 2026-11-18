@@ -90,4 +90,9 @@ export class ErasReel {
     cuts(): Cut[] {
         return this.pieces.slice(1).map(({from, startedAt, board}) => ({frame: from, at: startedAt, board}))
     }
+
+    // Whether a frame is within `frames` of a cut, from the cut on: the caption of a change of board shows then.
+    passingCut(frame: number, frames: number): boolean {
+        return this.cuts().some((cut) => frame >= cut.frame && frame < cut.frame + frames)
+    }
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/ledger/postgres_ledger_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/get_recent_map_history_handler/recent_history_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/planetv1controller/planetmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/resets/postgres_reset_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
@@ -132,8 +133,8 @@ func (s *testSuite) record(forgotten map[ledger.Caller]ledger.Position, events .
 }
 
 func frames(from time.Time, changed map[time.Time][]*planetv1.TileOwner) []*planetv1.MapFrame {
-	var all []*planetv1.MapFrame
-	for at := from; !at.After(until); at = at.Add(30 * time.Minute) {
+	all := []*planetv1.MapFrame{{At: timestamppb.New(from), Whole: wholeOf(changed[from])}}
+	for at := from.Add(30 * time.Minute); !at.After(until); at = at.Add(30 * time.Minute) {
 		owners := changed[at]
 		if owners == nil {
 			owners = []*planetv1.TileOwner{}
@@ -141,6 +142,14 @@ func frames(from time.Time, changed map[time.Time][]*planetv1.TileOwner) []*plan
 		all = append(all, &planetv1.MapFrame{At: timestamppb.New(at), Owners: owners})
 	}
 	return all
+}
+
+func wholeOf(owners []*planetv1.TileOwner) *planetv1.WholeMap {
+	held := make(map[uint32]ledger.Owner, len(owners))
+	for _, owner := range owners {
+		held[owner.GetTile()] = ledger.Owner{Country: owner.GetCountryId()}
+	}
+	return planetmessage.Whole(held)
 }
 
 func take(account string, tile uint32, previous, country string, at time.Time) ledger.Taking {
@@ -291,6 +300,45 @@ func (s *testSuite) TestWhileAnArenaPlaysTheWorldsMapKeptIsRewoundAndTheArenasTa
 		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}},
 		Eras: worldOnEarth1,
 	}, history), "%v", history)
+}
+
+func (s *testSuite) TestASwitchOfTheWorldsBoardInTheDayStartsTheHistoryAtTheFirstStepAfterIt() {
+	ctx := s.T().Context()
+	switched := until.Add(-70 * time.Minute)
+	earth2 := clicks.World.On(eras.Earth2.ID)
+	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, earth2, switched))
+	s.tiles.now = mapOf("de", "", "it")
+	s.record(map[ledger.Caller]ledger.Position{},
+		take(ada, 1, "", "jp", until.Add(-2*time.Hour)),
+		ledger.Staged{On: earth2, Event: take(ada, 1, "fr", "pl", until.Add(-65*time.Minute))},
+		ledger.Staged{On: earth2, Event: take(ada, 1, "pl", "de", until.Add(-20*time.Minute))},
+		ledger.Staged{On: earth2, Event: take(bob, 3, "", "it", until.Add(-50*time.Minute))},
+	)
+
+	history, _, err := s.query().RecentHistory(ctx)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{
+		Frames: frames(until.Add(-time.Hour), map[time.Time][]*planetv1.TileOwner{
+			until.Add(-time.Hour):        {{Tile: 1, CountryId: "pl"}},
+			until.Add(-30 * time.Minute): {{Tile: 3, CountryId: "it", SecondsIntoStep: 600}},
+			until:                        {{Tile: 1, CountryId: "de", SecondsIntoStep: 600}},
+		}),
+		Hits: []*planetv1.TileHits{{Tile: 1, Hits: 1}, {Tile: 3, Hits: 1}},
+		Eras: []*planetv1.BoardEra{{StartedAt: timestamppb.New(switched), Board: "earth-2"}},
+	}, history), "as after a reset: the first frame is earth-2's map rewound from now, the take on earth-1 before "+
+		"is on another board, and so is every frame before the switch: %v", history)
+}
+
+func (s *testSuite) TestASwitchAfterTheDaysEndLeavesNothingOfIt() {
+	ctx := s.T().Context()
+	s.Require().NoError(postgres_era_store.New(s.db).Start(ctx, clicks.World.On(eras.Earth2.ID), until.Add(time.Minute)))
+
+	history, _, err := s.query().RecentHistory(ctx)
+	s.Require().NoError(err)
+
+	s.True(proto.Equal(&planetv1.MapHistory{}, history), "the day was on earth-1, which the map no longer plays: %v", history)
+	s.Equal(int32(0), s.tiles.reads.Load())
 }
 
 // The world's one era, as the migration that made eras keeps it.

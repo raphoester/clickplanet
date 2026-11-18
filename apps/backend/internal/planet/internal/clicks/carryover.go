@@ -74,6 +74,15 @@ func (c Carryover) Parent(child uint32) uint32 {
 	return c.parents[child-1]
 }
 
+// Each visits each new tile with its parent, in the new board's id order: a tile with none is left out.
+func (c Carryover) Each(visit func(child, parent uint32)) {
+	for child, parent := range c.parents {
+		if parent != 0 {
+			visit(uint32(child+1), parent) //nolint:gosec // bounded in NewCarryover.
+		}
+	}
+}
+
 // Children are the new tiles an old tile's parent of, in id order: none for a coast the new board draws as sea.
 func (c Carryover) Children(parent uint32) []uint32 {
 	if parent == 0 || parent > c.OldTiles() {

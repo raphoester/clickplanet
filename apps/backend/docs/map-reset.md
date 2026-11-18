@@ -60,6 +60,9 @@ The ledger keeps every take, the ones before the reset too, and `GetReplay` rewi
 - **A window that ended before a reset is refused** (`ErrBeforeReset`, `FailedPrecondition`): the map it played on is
   gone.
 
+A switch of the world's board starts a replay the same way, at the switch, on the map it carried over, and a window
+that ended before it is refused (`ErrBeforeSwitch`): see [Boards and eras](boards-and-eras.md#readers).
+
 An arena is the other change of the map the ledger does not see; a replay skips its stretch rather than starting at it,
 since the world's map comes back: see [Arena battles](arenas.md#the-ledgers-readers).
 

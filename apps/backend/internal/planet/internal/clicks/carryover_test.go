@@ -77,3 +77,10 @@ func TestACarryOverRefusesAParentPastTheOldBoard(t *testing.T) {
 	_, err = clicks.NewCarryover("earth-1", "earth-2", 3, nil)
 	require.ErrorIs(t, err, clicks.ErrCarryover)
 }
+
+func TestEachVisitsEveryCarriedTileWithItsParentInIdOrder(t *testing.T) {
+	var visited [][2]uint32
+	carryover(t).Each(func(child, parent uint32) { visited = append(visited, [2]uint32{child, parent}) })
+
+	assert.Equal(t, [][2]uint32{{1, 1}, {2, 1}, {3, 1}, {4, 1}, {6, 2}}, visited, "new tile 5 comes from nowhere")
+}

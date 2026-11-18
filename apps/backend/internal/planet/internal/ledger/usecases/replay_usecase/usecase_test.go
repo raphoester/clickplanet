@@ -115,6 +115,35 @@ func TestAReplayThatEndedBeforeAResetIsRefused(t *testing.T) {
 	require.ErrorIs(t, err, replay_usecase.ErrBeforeReset)
 }
 
+func TestAReplayOverASwitchOfTheWorldsBoardStartsAtItOnTheMapCarriedOver(t *testing.T) {
+	h := setup(t, "de")
+	earth2 := clicks.World.On(eras.Earth2.ID)
+	switched := start.Add(time.Minute)
+	h.book.Append(clicks.WorldStage, ledger.Taking{Tile: 1, Scope: "a", Country: "fr", Previous: "it", At: start})
+	require.NoError(t, h.eras.Start(t.Context(), earth2, switched))
+	h.book.Append(earth2, ledger.Taking{Tile: 1, Scope: "b", Country: "de", Previous: "pl", At: start.Add(2 * time.Minute)})
+
+	out, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start})
+	require.NoError(t, err)
+
+	assert.Equal(t, switched, out.Since)
+	assert.Equal(t, eras.Earth2, out.Board)
+	assert.Equal(t, []eras.Era{{Map: clicks.World, Board: eras.Earth2, StartedAt: switched}}, out.Eras)
+	assert.Equal(t, "pl", out.Opening.Codes[binary.LittleEndian.Uint16(out.Opening.Tiles)],
+		"earth-2's tile as the switch carried it over, rewound from now")
+	require.Len(t, out.Scenes, 1, "earth-1's take before the switch is another board's")
+	assert.Equal(t, "de", out.Scenes[0].Change.Value)
+}
+
+func TestAReplayThatEndedBeforeASwitchOfTheWorldsBoardIsRefused(t *testing.T) {
+	h := setup(t, "de")
+	require.NoError(t, h.eras.Start(t.Context(), clicks.World.On(eras.Earth2.ID), start.Add(30*time.Minute)))
+
+	_, err := h.useCase.Execute(t.Context(), replay_usecase.In{Since: start, Until: start.Add(10 * time.Minute)})
+
+	require.ErrorIs(t, err, replay_usecase.ErrBeforeSwitch)
+}
+
 func TestAResetBeforeTheWindowChangesNothing(t *testing.T) {
 	h := setup(t, "de")
 	reset(t, h.resets, "season-1", start.Add(-time.Hour))

@@ -24,8 +24,11 @@ type Registry struct {
 	// The carry-overs between two boards (mapdata.Carries).
 	carries fs.FS
 	boards  []*heldBoard
-	flags   func(country string) bool
-	logger  *slog.Logger
+	// Each carry-over read, by its two boards.
+	carried    sync.Mutex
+	carryovers map[[2]clicks.BoardName]clicks.Carryover
+	flags      func(country string) bool
+	logger     *slog.Logger
 }
 
 type heldBoard struct {

@@ -19,10 +19,27 @@ const (
 	carryHeader  = 24
 )
 
-// Carryover is the carry-over from one board to another (/map/carries, map/README.md#format), read each time it is
-// asked for: a switch reads it once. Refused when this process carries no such file, or a file whose boards' positions
+// Carryover is the carry-over from one board to another (/map/carries, map/README.md#the-carry-over), read the first
+// time it is asked for and kept, about 9 MB from earth-1 to earth-2: the switch reads it, and the history across it. Refused when this process carries no such file, or a file whose boards' positions
 // or tile counts are not the boards' it carries: a board regenerated since is another board.
 func (r *Registry) Carryover(from, to clicks.BoardName) (clicks.Carryover, error) {
+	r.carried.Lock()
+	defer r.carried.Unlock()
+	if kept, ok := r.carryovers[[2]clicks.BoardName{from, to}]; ok {
+		return kept, nil
+	}
+	carry, err := r.readCarryover(from, to)
+	if err != nil {
+		return clicks.Carryover{}, err
+	}
+	if r.carryovers == nil {
+		r.carryovers = map[[2]clicks.BoardName]clicks.Carryover{}
+	}
+	r.carryovers[[2]clicks.BoardName{from, to}] = carry
+	return carry, nil
+}
+
+func (r *Registry) readCarryover(from, to clicks.BoardName) (clicks.Carryover, error) {
 	old, ok := r.board(from)
 	if !ok {
 		return clicks.Carryover{}, fmt.Errorf("%w: %s to %s", ErrNoCarryover, from, to)

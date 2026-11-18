@@ -67,7 +67,7 @@ func TestARewindOpensEachTileOnWhatItHeldBeforeItsFirstChangeAndEveryOtherOneAsI
 	)
 
 	assert.Equal(t, []ledger.Frame{
-		{At: historySince, Owners: map[uint32]ledger.Owner{1: {Country: "fr"}, 2: {Country: "fr"}, 3: {Country: "it"}, 4: {Country: "jp"}}},
+		{At: historySince, Whole: true, Owners: map[uint32]ledger.Owner{1: {Country: "fr"}, 2: {Country: "fr"}, 3: {Country: "it"}, 4: {Country: "jp"}}},
 		{At: historySince.Add(time.Hour), Owners: map[uint32]ledger.Owner{
 			1: {Country: "jp", At: historySince.Add(20 * time.Minute)},
 		}},
@@ -166,7 +166,7 @@ func TestARewindOfNoTimeIsTheMapAlone(t *testing.T) {
 	require.NoError(t, err)
 	recordAt(t, rewound, clicks.WorldStage, takeBy(ada, 1, "fr", "de", historySince))
 
-	assert.Equal(t, []ledger.Frame{{At: historySince, Owners: map[uint32]ledger.Owner{1: {Country: "fr"}}}},
+	assert.Equal(t, []ledger.Frame{{At: historySince, Whole: true, Owners: map[uint32]ledger.Owner{1: {Country: "fr"}}}},
 		rewound.Frames(mapNow("de")))
 }
 
