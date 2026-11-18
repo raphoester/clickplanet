@@ -1,5 +1,8 @@
 import {describe, expect, it} from "vitest"
-import {BorderField, countryOfTile, leastPaintedTiles, type BorderData} from "./borderField.ts"
+import {BorderField, countryOfTile, leastPaintedTiles, MOST_GROUNDS, type BorderData} from "./borderField.ts"
+import {BOARDS} from "./boardsAsset.ts"
+import {bytesOf} from "../../testdata/boards.ts"
+import {decodeProvinces} from "../../domain/provinces.ts"
 import {EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
 import {FIXTURE_1} from "../../testdata/boards.ts"
 import {flagNumbers, regions} from "./atlas.ts"
@@ -212,6 +215,29 @@ describe("the landmass table", () => {
 
         paint(field, {de: 5})
         expect(field.texture.version).toBeGreaterThan(uploaded)
+    })
+})
+
+describe("the provinces' table", () => {
+    it("is a row a province, taller than the 2,048 rows WebGL2 guarantees on earth-2, and paints a province's leader", () => {
+        const board = BOARDS["earth-2"]
+        const provinces = decodeProvinces(bytesOf(board, board.files.provinces!), board.tiles)
+        const field = new BorderField({frames: provinces.frames, totals: provinces.tiles})
+
+        expect(field.count).toBe(2_098)
+        expect([field.texture.image.width, field.texture.image.height]).toEqual([TEXELS, 2_098])
+
+        const texas = provinces.tiles.indexOf(4_675)
+        field.setRows([texas], () => ({holder: "us", held: 4_675}))
+        expect(field.holderOf(texas)).toBe("us")
+        expect(rows(field)[texas * TEXELS * 4 + 12]).toBe(1)
+        field.dispose()
+    })
+
+    it("refuses more rows than some players' GPUs take", () => {
+        const grounds = (count: number) => ({frames: new Float32Array(count * 5), totals: new Uint32Array(count)})
+        expect(() => new BorderField(grounds(MOST_GROUNDS))).not.toThrow()
+        expect(() => new BorderField(grounds(MOST_GROUNDS + 1))).toThrow("4096")
     })
 })
 

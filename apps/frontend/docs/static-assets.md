@@ -40,6 +40,12 @@ cache entirely:
   which reads the board's runs and borders — and **regenerate it whenever either of them changes**,
   or the outline is drawn around a map nobody is playing on. Unlike them it is this
   app's alone and is not in `/map`.
+- `/static/boards/<board>/provinceLines-<hash>.bin` — a board's province lines, for a board with provinces: the cell
+  edges between two provinces of one country, and the provinces either side of each piece of the countries' outline
+  (see [`/map/README.md`](../../../map/README.md#format) and [The countries' outlines](country-outlines.md)), fetched by
+  `borderLines.ts` once the globe is up, read by `domain/provinceLinesFile.ts`. URL in `BOARDS`. `npm run borderLines`
+  writes it with the countries' outline, from the same walk, and **regenerate both whenever the runs, the borders or the
+  provinces change**: it names the outline and the provinces file it was traced with, and the globe refuses another.
 - `/static/boards/<board>/landmassNames-<hash>.json` — the English names of a board's landmasses that are not a
   country's main one, keyed by its borders file (which the file names) and its landmass ids, fetched by `landmassNamesOf`
   once the page knows its board (see [Translation](i18n.md)). Regenerate with `npm run landmassNames -- <board>` after

@@ -151,6 +151,25 @@ describe("a landmass's name", () => {
     })
 })
 
+describe("a province's name", () => {
+    it("is its own, in the language when its file has it, English otherwise", () => {
+        const fr = new Translator("fr", {}, "fr")
+        fr.nameProvinces({english: {"7": "Bavaria", "8": "Saxony"}, own: {"7": "Bavière"}})
+
+        expect(fr.province(7, 30, "de")).toBe("Bavière")
+        expect(fr.province(8, 30, "de")).toBe("Saxony")
+    })
+
+    it("is its landmass's where it has none: a country's whole main landmass", () => {
+        const en = new Translator("en", {})
+        en.nameLandmasses({english: {"264": "Corsica"}, own: {}})
+        en.nameProvinces({english: {"7": "Bavaria"}, own: {}})
+
+        expect(en.province(400, 264, "fr")).toBe("Corsica")
+        expect(en.province(401, 231, "be")).toBe("Belgium")
+    })
+})
+
 describe("a country inside a sentence", () => {
     it("takes the preposition, article and case its language gives it, with the flag before the name", () => {
         const fr = new Translator("fr", {}, "fr", {"in.ar": "en {flag} Argentine", "in.br": "au {flag} Brésil"})

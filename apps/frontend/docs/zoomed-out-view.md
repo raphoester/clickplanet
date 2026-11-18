@@ -36,6 +36,19 @@ landmass of fewer than 4 tiles of `earth-1` (as much ground on another board, `l
 flag is fitted to its frame: see [Sized by the board](board-scale.md). A tile knows it holds the leader's flag
 when its own atlas rectangle is the one in the row.
 
+**In Provinces, each flag is framed by its province** (the Map setting, `divisions` in the display settings; see
+[Provinces](../../../docs/provinces.md#the-page)): the US flag repeats over each state. The territory layer reads a
+second table, one row per province of the board's provinces file (`provinceFrames`, a `BorderField` over the file's
+frames and counts), indexed by each tile's province, which `TileField.tileData` holds where the landmass was (see
+[What a tile costs on the GPU](tile-layout.md)). Its leader is the province's, from the server's holdings per province
+(`Holdings.leaderOfProvince`, see [The counts are the server's](counts.md)), and `leastPaintedTiles` holds per province.
+In Countries a pixel finds its landmass from its province (`provinceLandmass`, a u16 per province). The choice is three
+uniforms, `groundData`, `groundCount` and `byProvince`, swapped by `Globe.setDivisions`, so it never rebuilds the globe.
+The slots then rank the flags by the provinces they lead, on a second `LandmassSight` over the provinces, made the
+first time Provinces is chosen. **The table is taller than the landmasses'**: `earth-2`'s 2,098 rows (its 2,097
+provinces and the none) pass the 2,048 rows WebGL2 guarantees, and `BorderField` refuses more than 4,096, some players'
+`MAX_TEXTURE_SIZE`. The video, the archive and the clips keep Countries.
+
 **The flags are painted by the territory layer, not by the tiles.** `territoryLayer.ts` is a sphere drawn after
 the earth and before the tiles. For each pixel, its fragment shader finds the ground under it (the camera is
 orthographic, so every pixel looks down one axis onto the tiles' sphere of radius 1), then the lattice point nearest

@@ -79,8 +79,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   painted on that page only, kept in its storage, read by the board and the front, and taken back with no click.
 - [Who is playing](docs/who-is-playing.md) — the "Online · N" list beside the chat.
 - [Who holds a tile](docs/tile-holder.md) — a rest or a long press on a tile opens a card on its holder.
-- [A territory, from orbit](docs/territory-card.md) — zoomed out, the same gestures open a card on the territory
-  (flags, shares, fortify) and light it up; a click flies down to it.
+- [A territory, from orbit](docs/territory-card.md) — zoomed out, the same gestures open a card on the territory, a
+  landmass or in Provinces a province (flags, shares, fortify), and light it up; a click flies down to it.
 - [Support](docs/support.md) — suggestions, bug reports and reports of a player.
 - [Titles](docs/titles.md) — the ranks on each track, the medals, the unlock moment.
 - [The level](docs/level.md) — a signed-in player's level: its bar across the dock, each XP gain shown on it with why
@@ -166,7 +166,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The light](docs/light.md) — one pass for every player: the season-end clips' light, rim and halo, on a navy
   sky.
 - [The zoomed-out view](docs/zoomed-out-view.md) — the flags painted in each landmass's frame when tiles are small,
-  pixel by pixel by the territory layer under the tiles: Split, Big or Off.
+  or each province's in Provinces, pixel by pixel by the territory layer under the tiles: Split, Big or Off.
 - [The terrain](docs/terrain.md) — the board-game ground: a kind of land per tile and the coast's bands, a file of the
   board painted by the territory layer at every zoom over a flat sea; no photo.
 - [Tile positions](docs/tile-positions.md) — rebuilt in a worker from the board's runs and checked against the
@@ -175,7 +175,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   (`domain/boardScale.ts`): the rule, what reads it, and what does not.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, straight along the cell edges (the spline
   dropped), the same width at every zoom, only the pieces in sight drawn, and from orbit coarser pieces within half a
-  pixel of the cell edges, inked as the cell edges were.
+  pixel of the cell edges, inked as the cell edges were; the light grey province lines, from orbit in Provinces only, and
+  the file they are in.
 - [A page from an older build](docs/stale-build.md) — a deploy removes the last build's files and HTML answers for
   them: the pages that load them are `no-store`, and `/play` reloads when one fails, past the cache the second time.
 - [The page's report on a phone](docs/diag.md) — `?diag` shows the errors and the storage on screen, for a page

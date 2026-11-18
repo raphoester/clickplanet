@@ -138,6 +138,18 @@ describe("TerritoryCardPlace", () => {
         expect(reader.landmass).toHaveBeenCalledTimes(2)
     })
 
+    it("names no players on a province's card: the planet counts them by landmass", async () => {
+        const reader = readerOf(SICILY)
+        const province: Territory = {...territoryOf(12), place: {kind: "province", province: 40, landmass: 12}, name: "Palermo"}
+
+        render(place({shown: {territory: province, point: {x: 300, y: 200}, touch: false, id: 1}, reader, players: players()}))
+
+        expect(screen.getByRole("region", {name: "Palermo"})).toBeDefined()
+        await Promise.resolve()
+        expect(reader.landmass).not.toHaveBeenCalled()
+        expect(screen.queryByRole("region", {name: "Top players"})).toBeNull()
+    })
+
     it("keeps nothing once it goes", async () => {
         const view = render(place({shown: shownOf(12), reader: readerOf(SICILY), provinces: provincesOf(CALABRIA), players: players()}))
         await waitFor(() => expect(readTop(12)).toBeDefined())

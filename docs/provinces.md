@@ -2,7 +2,8 @@
 
 **Designed 2026-11-18, with the owner. PR 2 is built (2026-11-18): the generator, the file, the names and their
 translations, the preview and the audit. PR 3 is built (2026-11-18): fortify plays on provinces, on the backend and the
-page.** Each PR at the end turns its part of this doc
+page. PR 4 is built (2026-11-18): the page's Countries / Provinces setting, the hover and the big flags by province, the
+province lines, the taller texture.** Each PR at the end turns its part of this doc
 into "how it works" and updates the docs it makes stale: [Fortify](../apps/backend/docs/fortify.md), the frontend's
 `fortify.md`, `zoomed-out-view.md`, `territory-card.md` and `country-outlines.md`, [Map geometry](map-geometry.md) and
 [`map/README.md`](../map/README.md).
@@ -120,8 +121,10 @@ brotli at 5; `siege-1`'s 73 KB.
   borders (`embedded_board.loadProvinces`, `clicks.Provinces`, `clicks.ProvinceID`), and logs its count. Fortify reads
   it (`Provinces.ProvinceOf`, `TilesOf`).
 - **The page** carries it in `static/boards/<board>/` (`npm run map`), with the names beside it (`page.provinceNames` in
-  `BOARDS`), reads it with `domain/provinces.ts` and fetches it as the globe loads (`loadProvinces`), with the names
-  (`provinceNamesOf`).
+  `BOARDS`), and reads it with `domain/provinces.ts`: `createGlobe` fetches it with the board's other files
+  (`loadProvinces`, which refuses one cut on other borders) and the names (`provinceNamesOf`), and a board with none has
+  its landmasses as provinces. Its province lines are a file of the page's own (`page.provinceLines`, see the page's
+  `country-outlines.md`).
 - **The backoffice** has none.
 
 ## Fortify on provinces (PR 3, built 2026-11-18)
@@ -153,20 +156,27 @@ brotli at 5; `siege-1`'s 73 KB.
 
 ## The page
 
-- **A setting, "Countries / Provinces"**, beside "Country flags", kept in `clickplanet-display-settings` like the
-  others, Countries by default. It changes the hover's outline and name, and the frame each big flag stretches over: in
-  Provinces, the US flag repeats over each state. A big flag's leader is read from holdings per province.
+- **A setting, "Map": Countries or Provinces**, beside "Country flags", kept in `clickplanet-display-settings` as
+  `divisions`, Countries by default, so a new player knows the map. It reaches the running globe as the map view does
+  (`Globe.setDivisions`), and changes three things only: the territory the pointer lights and names in orbit, the frame
+  each big flag stretches over (in Provinces, the US flag repeats over each state), and the lines seen from orbit. The
+  video, the archive and the clips keep Countries. How each works is in the page's docs: the hover in
+  `territory-card.md`, the frames in `zoomed-out-view.md`, the lines in `country-outlines.md`, the tile's province on the
+  GPU in `tile-layout.md`, the counts in `counts.md`.
+- **A big flag's leader in a province is read from the holdings per province**: `ProvinceHoldings` in `GetHoldings`
+  and `HoldingsChanged`, beside the landmasses' (`Holdings.leaderOfProvince`). The least painted size,
+  `leastPaintedTiles`, is per province as it is per landmass.
 - **Fortify reads provinces in both modes**: the pulse on the tiles a flag still misses, the "Fortified!" card ("France
   owns all of Bavaria"), the hover card's last fortify.
 - **The lines.** From orbit, Countries draws the country lines and Provinces adds the province lines in light grey.
-  Zoomed in, both, in every mode.
+  Zoomed in, both, in every mode. The country lines are as they were.
 - **The outlines are straight cell edges, with no B-spline** (the owner, 2026-11-18). The tiles are straight hexagons,
   so a curve round them reads worse, and it costs four pieces a cell edge pushed in and two from orbit, where straight
-  costs one. Province lines add 70% to `earth-2`'s outline edges at N 200 (90,834 on 129,431); the straight edges pay
+  costs one. Province lines add 70% to `earth-2`'s outline edges at N 200 (90,568 on 129,431); the straight edges pay
   for them. From orbit they take coarse sets of their own, as the country lines do (`coarseOutlinesOf`, see
   `country-outlines.md`), so there their 70% costs about a fifth as much.
-- **The landmass texture holds 2,048 rows** and `earth-2` has 2,097 provinces, so the provinces' texture is taller (4,096
-  at most, see the players' GPU limits).
+- **The landmass texture holds 2,048 rows** and `earth-2` has 2,097 provinces, so the provinces' texture is taller: a
+  row a province, 2,098 on `earth-2`, and `BorderField` refuses more than 4,096 (see the players' GPU limits).
 
 ## The PRs, in order
 
@@ -176,4 +186,5 @@ brotli at 5; `siege-1`'s 73 KB.
    their translations, the preview, the audit, the copy in each app. Nothing reads it yet. This doc landed with it.
 3. **The backend and the page together** (built 2026-11-18): fortify by province, the switch of the locks, the wire,
    the ledger, the hover card's last fortify, the chat line.
-4. **The page**: the setting, the hover and the big flags by province, the grey lines, the taller texture.
+4. **The page** (built 2026-11-18): the setting, the hover and the big flags by province, the grey lines, the taller
+   texture.

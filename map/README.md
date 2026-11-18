@@ -331,6 +331,21 @@ edge apart, a few dozen units, so most differences take a byte (zigzag: `(d << 1
 low first). Version 2 (until 2026-11-18) held every corner as three plain int16s; version 3 holds the same lines in
 half the bytes, and packs to a third: `earth-2` 810 → 422 KB raw, 767 → 220 KB with brotli at 5 (`domain/borderLinesFile.ts`).
 
+A board with provinces gets its province lines beside it, from the same run of `npm run borderLines`:
+`provinceLines-<hash>.bin` (`domain/provinceLinesFile.ts`), the cell edges between two provinces of one country, and the
+provinces either side of each piece of the countries' outline:
+
+```
+"CPPL" | uint32 version (1) | uint32 outline | uint32 provinces | uint32 the outline's pieces | uint32 spans
+       | uint32 lines' bytes | the lines, a "CPBL" version 3 blob whose sides are two provinces
+       | spans × 2 uint16 provinces either side | spans × varint pieces
+```
+
+`outline` and `provinces` are the 8 hex of the outline's and the provinces file's names, as numbers: the file pairs with
+those two alone. A piece is a cell edge of the outline, in its order (each run of n corners is n − 1 of them), and a span
+is the pieces in a row with the same two provinces, the first on the side of the run's first landmass, the sea 0.
+`earth-2`: 90,568 cell edges, 3,372 spans, 315 KB raw, 163 KB with brotli at 5.
+
 ### Provinces
 
 **`provinces-<hash>.bin`**, written by `npm run provinces -- <board>` (`scripts/generateProvinces.ts`) for a board whose

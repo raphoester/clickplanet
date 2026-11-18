@@ -153,6 +153,32 @@ landmasses each piece runs between, and the vertex shader reads in a texture of
 `AIMED_COLUMNS` (1024) a row whether each landmass is a mission's: a piece is drawn when one side is and the other is not,
 so the outline runs round the ground's coasts and its borders with every other country, and never inside it.
 
+**The province lines** are the cell edges between two tiles of one country in different provinces (see
+[Provinces](../../../docs/provinces.md)), light grey: under the tiles `PROVINCE_COLOUR` (0.6 grey, the countries' line is
+0.25) at `WIDTH`, and over the painted flags 0.85 grey at `PROVINCE_ORBIT_INK` (55%) and `ORBIT_WIDTH`. **From orbit only
+Provinces draws them; pushed in, every mode does**: the over pass shows in Provinces while a flag is painted, the under
+pass while the tiles show and in Provinces or out of orbit. So the country lines are drawn as they were in every mode.
+They are a second kind of line in `borderLines.ts`: their own pieces, chunks and cull (`LineSet`), and their own over,
+under and highlight passes. `npm run borderLines` writes them beside the countries' for a board with provinces
+(`earth-2`, `siege-1`): `static/boards/<board>/provinceLines-<hash>.bin`, named in `BOARDS` (`page.provinceLines`),
+in `domain/provinceLinesFile.ts` (format in [`/map/README.md`](../../../map/README.md#format)). It holds:
+
+- **the province lines**, in the countries' format, each run between two provinces of one landmass: 90,568 cell edges
+  on `earth-2` in 1,863 runs, 8,177 on `siege-1`;
+- **the two provinces either side of each piece of the countries' lines**, in their order, as spans of the same pair
+  (3,372 on `earth-2`): a province's outline is its province lines and its stretch of the coast and the country
+  borders. It names the countries' file and the provinces file it was traced with, and the globe refuses another.
+
+| board | raw | brotli at 5 |
+| --- | --- | --- |
+| `earth-2` | 315 KB | 163 KB |
+| `siege-1` | 61 KB | 43 KB |
+
+**The globe reads them once it is up** (`loadProvinceLines`), not with the files it waits for: the landing view in
+Countries draws none of them. **A province is lit by its whole outline**: the province lines' highlight pass draws the
+pieces with the province on a side, and a second highlight pass over the countries' pieces reads their provinces
+(`PROVINCES` in the line shaders, the `provinces` attribute). In Countries the highlight is the landmass's, as before.
+
 It stays out of `/map`, unlike the two blobs it is built from: the backend has no
 use for it. **Its handover reads the board's tiles**: `createBorderLines(data, scale)` hands the outline over at the zoom
 where the board's own tiles take the frame (see [Sized by the board](board-scale.md)). Where a tile is and who owns the ground under it are the game's rules

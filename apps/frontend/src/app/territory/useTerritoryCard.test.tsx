@@ -78,6 +78,18 @@ describe("useTerritoryCard", () => {
         expect(planet.showTerritory).toHaveBeenLastCalledWith(undefined)
     })
 
+    it("shows a province pointed at after its landmass, and lights the province", () => {
+        const planet = globe()
+        const {result, rerender} = render(planet)
+        const palermo: Place = {kind: "province", province: 40, landmass: 12}
+        planet.state.territory = {...SICILY, place: palermo, name: "Palermo", size: 20}
+
+        rerender({pointing: {peek: {...PEEK, place: palermo}, id: 2}})
+
+        expect(result.current.shown?.territory.name).toBe("Palermo")
+        expect(planet.showTerritory).toHaveBeenLastCalledWith(palermo)
+    })
+
     it("closes at once when dismissed", () => {
         const planet = globe()
         const {result} = render(planet)
