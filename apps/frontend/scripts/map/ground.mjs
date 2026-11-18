@@ -2,7 +2,7 @@ import {naturalEarth} from "./naturalEarth.mjs"
 
 export const SEA = ""
 
-const ABSORBED = {SOL: "so", CYN: "cy"}
+const ABSORBED = {SOL: "so", CYN: "cy", KAB: "kz"}
 
 const ANTARCTICA = "aq"
 
@@ -29,12 +29,15 @@ for (let k = 0; k < 12; k++) {
 const seamed = (lon) => lon > SEAM || lon < -SEAM ? (lon > 0 ? SEAM : -SEAM) : lon
 
 /**
+ * A country's feature, or an admin-1 unit's: the admin-1 layer names its fields in lower case, and says "-1" where the
+ * countries say "-99".
  * @param {{properties: Record<string, unknown>}} feature
  * @returns {string | null}
  */
 export function countryCodeOf(feature) {
-    const named = String(feature.properties.ISO_A2_EH ?? feature.properties.ISO_A2 ?? "").toLowerCase()
-    const code = named && named !== "-99" ? named : ABSORBED[feature.properties.ADM0_A3] ?? ""
+    const p = feature.properties
+    const named = String(p.ISO_A2_EH ?? p.ISO_A2 ?? p.iso_a2 ?? "").toLowerCase()
+    const code = named && !named.startsWith("-") ? named : ABSORBED[p.ADM0_A3 ?? p.adm0_a3] ?? ""
     return code || null
 }
 

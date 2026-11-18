@@ -45,6 +45,11 @@ cache entirely:
   once the page knows its board (see [Translation](i18n.md)). Regenerate with `npm run landmassNames -- <board>` after
   the board's borders change. The [`translate` skill](i18n.md#translating) reads it, and writes each language's names
   in `src/i18n/landmasses/<board>/`.
+- `/static/boards/<board>/provinceNames-<hash>.json` — the English names of a board's provinces, keyed by its provinces
+  file (which the file names) and its province ids, but a province that is its country's whole main landmass, which
+  reads as the country (see [Provinces](../../../docs/provinces.md#names)). `earth-2` and `siege-1` only; named in
+  `BOARDS` as `page.provinceNames`, and nothing fetches it yet. `npm run provinces -- <board>` writes it with the board's
+  provinces file; the translate skill writes each language's names in `src/i18n/provinces/<board>/`.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in

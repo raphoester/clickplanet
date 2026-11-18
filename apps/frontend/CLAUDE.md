@@ -18,11 +18,11 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   and its fade; a modal's padding; a box as wide as its word in nine languages; how to debug a mobile layout.
 - [Protocol Buffers](docs/protobuf.md) — types from the shared `/proto`, generated into `src/gen/grpc`.
 - [Static assets](docs/static-assets.md) — the content-addressed files in `static/`, and how each is made: every board's
-  copy and its own border lines and landmass names in `static/boards/<board>/`, named in `BOARDS`.
+  copy and its own border lines, landmass names and province names in `static/boards/<board>/`, named in `BOARDS`.
 - [Translation](docs/i18n.md) — the catalogue (`src/i18n/locales/en.json` and one file per language), whole
   sentences with slots and ICU plurals, `t`/`rich`/`translator()`, `domain/` returns facts, Intl for every number and
-  name, "in" a country as a phrase per language ("au Brésil"), each board's landmass names, how the language is chosen
-  (pick, CrazyGames, browser), adding a string or a language.
+  name, "in" a country as a phrase per language ("au Brésil"), each board's landmass and province names, how the
+  language is chosen (pick, CrazyGames, browser), adding a string or a language.
 - [Pages and routes](docs/routes.md) — the five pages Vite builds, and their routes; a flag's address,
   `clickplanet.lol/<flag>/<name>`, which the home page's first script opens on the game.
 - [Search](docs/search.md) — what Google reads: the titles, the one description, the JSON-LD that names us

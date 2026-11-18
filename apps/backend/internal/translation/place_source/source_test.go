@@ -1,4 +1,4 @@
-package landmass_source_test
+package place_source_test
 
 import (
 	"os"
@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation"
-	"github.com/raphoester/clickplanet.lol-backend/internal/translation/landmass_source"
+	"github.com/raphoester/clickplanet.lol-backend/internal/translation/place_source"
 )
 
 type gazetteer map[string]map[string]string
@@ -26,7 +26,7 @@ func TestALandmassCarriesNaturalEarthsNamesAndKeepsItsNumber(t *testing.T) {
 		"Split-Dalmatia": {"fr": "Split-Dalmatie"},
 	}
 
-	lines, order, err := landmass_source.Read(path, known)
+	lines, order, err := place_source.Read(path, known)
 
 	require.NoError(t, err)
 	assert.Equal(t, []translation.Key{"20", "13", "9"}, order)
@@ -49,10 +49,10 @@ func TestEachBoardHasItsOwnNamesAndOneWithNoneYetIsLeftOut(t *testing.T) {
 	write("siege-1/landmassNames-4567cdef.json")
 	write("earth-2/runs-89abcdef.bin")
 
-	found, err := landmass_source.Boards(boards)
+	found, err := place_source.Boards(boards, place_source.Landmasses)
 
 	require.NoError(t, err)
-	assert.Equal(t, []landmass_source.Board{
+	assert.Equal(t, []place_source.Board{
 		{Name: "earth-1", Path: filepath.Join(boards, "earth-1", "landmassNames-0123abcd.json")},
 		{Name: "siege-1", Path: filepath.Join(boards, "siege-1", "landmassNames-4567cdef.json")},
 	}, found)
@@ -65,13 +65,13 @@ func TestABoardWithTwoFilesOfNamesIsRefused(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(boards, "earth-1", name), []byte("{}"), 0o600))
 	}
 
-	_, err := landmass_source.Boards(boards)
+	_, err := place_source.Boards(boards, place_source.Landmasses)
 
-	require.ErrorIs(t, err, landmass_source.ErrNamesTwice)
+	require.ErrorIs(t, err, place_source.ErrNamesTwice)
 }
 
 func TestABoardTakesTheNameAnotherGivesTheSameEnglishWithItsNumber(t *testing.T) {
-	names := landmass_source.Names{}
+	names := place_source.Names{}
 	names.Learn([]translation.Line{{Key: "1", English: "Crete"}, {Key: "2", English: "Ionian Islands"}, {Key: "3", English: "Zealand"}}, translation.Catalogue{
 		Lines: map[translation.Key]string{"1": "Crète", "2": "Îles Ioniennes", "3": "Seeland"},
 		Fingerprints: map[translation.Key]translation.Fingerprint{
@@ -91,4 +91,33 @@ func TestABoardTakesTheNameAnotherGivesTheSameEnglishWithItsNumber(t *testing.T)
 		_, ok := names.Recall(english)
 		assert.False(t, ok, english)
 	}
+}
+
+func TestAProvinceTakesNaturalEarthsNameInItsLanguagesWithItsNumber(t *testing.T) {
+	known := gazetteer{"Bavaria": {"fr": "Bavière", "de": "Bayern"}, "Isfahan": {"tr": "İsfahan Eyaleti", "fr": "Ispahan"}}
+
+	for english, want := range map[string]string{"Bavaria": "Bavière", "Bavaria 2": "Bavière 2"} {
+		got, ok := place_source.NaturalEarth{Gazetteer: known, Language: "fr"}.Recall(english)
+		assert.True(t, ok, english)
+		assert.Equal(t, want, got)
+	}
+	_, ok := place_source.NaturalEarth{Gazetteer: known, Language: "cs"}.Recall("Bavaria")
+	assert.False(t, ok, "Natural Earth has no Czech")
+	_, ok = place_source.NaturalEarth{Gazetteer: known, Language: "fr"}.Recall("Central Germany")
+	assert.False(t, ok)
+	_, ok = place_source.NaturalEarth{Gazetteer: known, Language: "tr"}.Recall("Isfahan")
+	assert.False(t, ok, "a word for the kind of division the English does not have")
+}
+
+func TestEachBoardsProvincesAreNamedInAFileOfTheirOwn(t *testing.T) {
+	boards := t.TempDir()
+	for _, path := range []string{"earth-1/landmassNames-0123abcd.json", "earth-2/landmassNames-4567cdef.json", "earth-2/provinceNames-89abcdef.json"} {
+		require.NoError(t, os.MkdirAll(filepath.Dir(filepath.Join(boards, path)), 0o750))
+		require.NoError(t, os.WriteFile(filepath.Join(boards, path), []byte("{}"), 0o600))
+	}
+
+	found, err := place_source.Boards(boards, place_source.Provinces)
+
+	require.NoError(t, err)
+	assert.Equal(t, []place_source.Board{{Name: "earth-2", Path: filepath.Join(boards, "earth-2", "provinceNames-89abcdef.json")}}, found)
 }

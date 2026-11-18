@@ -36,7 +36,9 @@
     "reactions": "node scripts/generateReactions.mjs",
     "crazygames:words": "node scripts/fetchCrazyGamesWords.mjs",
     "regions": "node scripts/generateRegions.mjs",
-    "landmassNames": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateLandmassNames.mjs --"
+    "landmassNames": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateLandmassNames.mjs --",
+    "provinces": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/generateProvinces.ts --",
+    "map:provinces": "NODE_OPTIONS=--max-old-space-size=8192 vite-node scripts/previewProvinces.ts --"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^1.10.0",

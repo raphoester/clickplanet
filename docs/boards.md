@@ -206,9 +206,12 @@ content-addressed like every file in `/map`:
   30 KB for `siege-1`.
 - **`borders`, `capitals`, `bridges`**, in their formats, named by the board's tile ids. `earth-1`'s are the files of
   before, byte for byte.
+- **`provinces`**, on `earth-2` and `siege-1` alone (since 2026-11-18): each tile's province, cut from Natural Earth's
+  admin-1 units by `npm run provinces -- <board>`. See [Provinces](provinces.md).
 - **The frontend's own**: the border lines and the landmass names, per board since PR 3: `static/boards/<name>/` beside
   the board's copy, content-addressed, named in the page's board table (`boardsAsset.ts`), with the landmass names'
-  translations in `src/i18n/landmasses/<name>/`. The terrain is a file of the board, since it is cut from its runs.
+  translations in `src/i18n/landmasses/<name>/`; and the province names of a board that has provinces, with theirs in
+  `src/i18n/provinces/<name>/`. The terrain is a file of the board, since it is cut from its runs.
 
 **The generator** (`npm run map:generate -- <board>`, then `npm run bridges -- <board>` and the rest of the chain in
 [`map/README.md`](../map/README.md)) writes a board without three, each board as `scripts/map/board.mjs` defines it: it walks the lattice,

@@ -22,11 +22,13 @@ export type Board = {
 // and `siege-1` are warped and rotated, and number theirs in canonical order (lattice.ts).
 export type {Lattice, TileOrder, Warp} from "./lattice.ts"
 
-export type BoardFiles = {runs: string, borders: string, capitals: string, bridges: string, terrain: string}
+// `earth-1` has no provinces: it only draws history (docs/provinces.md).
+export type BoardFiles = {runs: string, borders: string, capitals: string, bridges: string, terrain: string, provinces?: string}
 
 // The page's own files of a board, which /map does not carry: the countries' outlines traced on its lattice, and the
-// names of its landmasses. Content-addressed, beside the board's copy in static/boards/<name>/.
-export type PageFiles = {borderLines: string, landmassNames: string}
+// names of its landmasses and of its provinces, if it has any. Content-addressed, beside the board's copy in
+// static/boards/<name>/.
+export type PageFiles = {borderLines: string, landmassNames: string, provinceNames?: string}
 
 // A board as the page carries it: the manifest, its own files, and where each of them is served.
 export type BoardAsset = Board & {page: PageFiles, urls: BoardFiles & PageFiles}

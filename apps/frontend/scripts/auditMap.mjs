@@ -3,12 +3,13 @@ import path from "node:path"
 
 import {latticeIds} from "../src/domain/lattice.ts"
 import {LAND} from "../src/domain/terrain.ts"
-import {boardAsked, boardDir, readBoard, readBorders, readBridges, readCapitals, readTerrain, staticDir, tileOfPoint} from "./map/board.mjs"
+import {boardAsked, boardDir, readBoard, readBorders, readBridges, readCapitals, readProvinces, readTerrain, staticDir, tileOfPoint} from "./map/board.mjs"
 import {bridgesOf, lanesOf, piecesApart, snapKmOf} from "./map/bridges.mjs"
 import {SEA, loadGround} from "./map/ground.mjs"
 import {lattice, lonLatOf, neighbours} from "./map/lattice.mjs"
 import {NATURAL_EARTH_TAG} from "./map/naturalEarth.mjs"
 import {latticeGround} from "./map/oracle.mjs"
+import {cutOf} from "./map/provinces.mjs"
 import {REGIONS, seatsOf} from "./map/seats.mjs"
 import {terrainOf} from "./map/terrain.mjs"
 
@@ -16,7 +17,8 @@ const ANTIMERIDIAN_DEGREES = 1
 
 async function main() {
     // `npm run map:audit -- earth-2`; earth-1 when no board is named.
-    const tiles = readBoard(boardDir(boardAsked(process.argv.slice(2)).name))
+    const definition = boardAsked(process.argv.slice(2))
+    const tiles = readBoard(boardDir(definition.name))
     const borders = readBorders(tiles)
     const ground = await loadGround()
     const {lattice: shape} = tiles.manifest
@@ -43,6 +45,7 @@ async function main() {
         bridgesAstray: 0,
         landNoBridgeReaches: 0,
         terrainAstray: 0,
+        ...(definition.provinceFloor ? {tilesInNoProvince: 0, provincesOffTheirLandmass: 0, provincesUnderTheFloor: 0, provincesAstray: 0} : {}),
     }
     const seam = {land: 0, tiles: 0}
     const elsewhere = {land: 0, tiles: 0}
@@ -99,7 +102,9 @@ async function main() {
     const rebuilt = terrainOf(kinds, crossings, latticeIds(shape))
     for (let id = 0; id < terrain.length; id++) if (rebuilt[id] !== terrain[id]) faults.terrainAstray++
 
-    report({counts, faults, seam, elsewhere, tiles, borders, seated, groundless, lakes})
+    const provinces = definition.provinceFloor ? await auditProvinces(tiles, borders, definition.provinceFloor, faults) : undefined
+
+    report({counts, faults, seam, elsewhere, tiles, borders, seated, groundless, lakes, provinces})
 
     const broken = Object.entries(faults).filter(([, n]) => n > 0)
     if (broken.length === 0) {
@@ -113,6 +118,40 @@ async function main() {
     process.exitCode = 1
 }
 
+// Every tile in a province on its own landmass, every province of the floor or more but a whole landmass or a whole UK
+// nation, and the file as a fresh cut writes it.
+async function auditProvinces(tiles, borders, floor, faults) {
+    let file
+    try {
+        file = readProvinces(tiles)
+    } catch (error) {
+        console.error(String(error))
+        faults.tilesInNoProvince++
+        return undefined
+    }
+    const {province, landmass, tiles: sizes} = file.provinces
+    for (let t = 0; t < tiles.count; t++) if (landmass[province[t]] !== borders.landmass[t]) faults.provincesOffTheirLandmass++
+
+    const {cut} = await cutOf(tiles.manifest.name, floor)
+    for (let t = 0; t < tiles.count; t++) if (cut.province[t] !== province[t]) faults.provincesAstray++
+
+    const onLandmass = new Map()
+    const ofNation = new Map()
+    for (let k = 1; k < landmass.length; k++) {
+        onLandmass.set(landmass[k], (onLandmass.get(landmass[k]) ?? 0) + 1)
+        const nation = cut.nations[k] ?? ""
+        if (nation) ofNation.set(`${landmass[k]} ${nation}`, (ofNation.get(`${landmass[k]} ${nation}`) ?? 0) + 1)
+    }
+    const small = {wholeLandmasses: 0, wholeNations: 0}
+    for (let k = 1; k < landmass.length; k++) {
+        if (sizes[k] >= floor) continue
+        if (onLandmass.get(landmass[k]) === 1) small.wholeLandmasses++
+        else if (cut.nations[k] && ofNation.get(`${landmass[k]} ${cut.nations[k]}`) === 1) small.wholeNations++
+        else faults.provincesUnderTheFloor++
+    }
+    return {name: file.name, count: landmass.length - 1, floor, ...small}
+}
+
 async function iceOnly() {
     const {groundIndex} = await import("./map/ground.mjs")
     const {naturalEarth} = await import("./map/naturalEarth.mjs")
@@ -122,7 +161,7 @@ async function iceOnly() {
     })
 }
 
-function report({counts, faults, seam, elsewhere, tiles, borders, seated, groundless, lakes}) {
+function report({counts, faults, seam, elsewhere, tiles, borders, seated, groundless, lakes, provinces}) {
     const pct = (n, of) => `${(n / of * 100).toFixed(2)}%`
     console.log(`Natural Earth ${NATURAL_EARTH_TAG} | ${tiles.manifest.name} ${tiles.file} | ${borders.name}`)
     console.log(`
@@ -141,7 +180,11 @@ faults between the tile set and the ground oracle
   capitals off their ground ${faults.capitalsOffTheirGround}
   bridges astray from the generator ${faults.bridgesAstray}
   land no bridge reaches ${faults.landNoBridgeReaches}
-  terrain astray from the tiles ${faults.terrainAstray}
+  terrain astray from the tiles ${faults.terrainAstray}${provinces === undefined ? "" : `
+  tiles in no province  ${faults.tilesInNoProvince}
+  provinces off their landmass ${faults.provincesOffTheirLandmass}
+  provinces under ${provinces.floor} tiles ${faults.provincesUnderTheFloor}, but whole landmasses and whole nations
+  provinces astray from the generator ${faults.provincesAstray}`}
 
 lakes, sea on a country's ground where most of the cell is lake
   ${lakes} lattice vertices
@@ -152,6 +195,11 @@ seats, one tile each for a country the lattice misses
 the antimeridian, within ${ANTIMERIDIAN_DEGREES} degree of the dateline
   land ${seam.land}, tiles ${seam.tiles}  -> ${seam.land ? (seam.tiles / seam.land).toFixed(3) : "n/a"} tiles per land vertex
   elsewhere: land ${elsewhere.land}, tiles ${elsewhere.tiles} -> ${(elsewhere.tiles / elsewhere.land).toFixed(3)}`)
+    if (provinces !== undefined) {
+        console.log(`
+provinces, ${provinces.name}
+  ${provinces.count} provinces; under ${provinces.floor} tiles, ${provinces.wholeLandmasses} whole landmasses and ${provinces.wholeNations} whole UK nations`)
+    }
 }
 
 await main()

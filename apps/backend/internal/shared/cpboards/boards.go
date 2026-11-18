@@ -41,6 +41,8 @@ type Manifest struct {
 		Capitals string `json:"capitals"`
 		Bridges  string `json:"bridges"`
 		Terrain  string `json:"terrain"`
+		// None on earth-1, which only draws history (docs/provinces.md).
+		Provinces string `json:"provinces,omitempty"`
 	} `json:"files"`
 }
 

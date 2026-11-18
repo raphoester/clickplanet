@@ -9,7 +9,7 @@ import (
 var ErrNoGround = errors.New("no board plays yet")
 
 // Ground is one board's geometry as the rules read it: which tiles touch and where each is, whose ground each is, the
-// bridges and the capitals. A tile id means a place only on its board, so a rule reads the ground of the board its map
+// bridges, the capitals and the provinces. A tile id means a place only on its board, so a rule reads the ground of the board its map
 // plays (Played).
 type Ground struct {
 	name      BoardName
@@ -17,11 +17,14 @@ type Ground struct {
 	borders   *Borders
 	bridges   *Bridges
 	capitals  *Capitals
+	provinces *Provinces
 	spacing   float64
 }
 
 // NewGround refuses files of another size than the geography's: they are another board's. The spacing is measured once.
-func NewGround(name BoardName, geography *Geography, borders *Borders, bridges *Bridges, capitals *Capitals) (*Ground, error) {
+func NewGround(
+	name BoardName, geography *Geography, borders *Borders, bridges *Bridges, capitals *Capitals, provinces *Provinces,
+) (*Ground, error) {
 	tiles := geography.Stats().Tiles
 	if borders.Tiles() != tiles {
 		return nil, fmt.Errorf("board %s: the borders hold %d tiles, the geography %d", name, borders.Tiles(), tiles)
@@ -30,7 +33,7 @@ func NewGround(name BoardName, geography *Geography, borders *Borders, bridges *
 		return nil, fmt.Errorf("board %s: the bridges hold %d tiles, the geography %d", name, bridges.Tiles(), tiles)
 	}
 	return &Ground{
-		name: name, geography: geography, borders: borders, bridges: bridges, capitals: capitals,
+		name: name, geography: geography, borders: borders, bridges: bridges, capitals: capitals, provinces: provinces,
 		spacing: geography.Spacing(),
 	}, nil
 }
@@ -40,6 +43,7 @@ func (g *Ground) Geography() *Geography { return g.geography }
 func (g *Ground) Borders() *Borders     { return g.borders }
 func (g *Ground) Bridges() *Bridges     { return g.bridges }
 func (g *Ground) Capitals() *Capitals   { return g.capitals }
+func (g *Ground) Provinces() *Provinces { return g.provinces }
 func (g *Ground) Tiles() uint32         { return g.geography.Stats().Tiles }
 func (g *Ground) Spacing() float64      { return g.spacing }
 

@@ -54,13 +54,19 @@ export function landmasses({count, positions, grounds, tileOf, at, to}) {
     const totals = new Uint32Array(codes.length)
     for (let k = 1; k < codes.length; k++) totals[k] = members[k].length
 
-    return {codes, assignment, frames: framesOf(positions, codes, members), totals}
+    return {codes, assignment, frames: framesOf(positions, members), totals}
 }
 
-function framesOf(positions, codes, members) {
-    const frames = new Float32Array(codes.length * 5)
+/**
+ * Each group's frame: the centre (its tile nearest the mean direction) and the half extents east and north, in radians,
+ * 5 floats a group. Group 0 is none, and its frame zero.
+ * @param {ArrayLike<number>} positions
+ * @param {number[][]} members each group's tiles
+ */
+export function framesOf(positions, members) {
+    const frames = new Float32Array(members.length * 5)
 
-    for (let k = 1; k < codes.length; k++) {
+    for (let k = 1; k < members.length; k++) {
         const own = members[k]
         if (own.length === 0) continue
 

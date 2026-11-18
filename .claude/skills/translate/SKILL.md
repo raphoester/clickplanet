@@ -1,6 +1,6 @@
 ---
 name: translate
-description: Translate the game page's catalogues (its lines in apps/frontend/src/i18n/locales/en.json, each board's landmass names, "in" each flag's country) into every language it has, with Haiku subagents and no API key. Use after an English line is added or changed, a board gets new landmass names, a flag or a language is added, or when asked to translate the page.
+description: Translate the game page's catalogues (its lines in apps/frontend/src/i18n/locales/en.json, each board's landmass and province names, "in" each flag's country) into every language it has, with Haiku subagents and no API key. Use after an English line is added or changed, a board gets new landmass or province names, a flag or a language is added, or when asked to translate the page.
 ---
 
 # Translate the game page
@@ -19,13 +19,15 @@ that is not empty, so no answer of an older round is taken.
 cd apps/backend && go run ./cmd/translations plan -work <folder>
 ```
 
-It prints, for each catalogue (`lines`, `landmasses/<board>`, `countries`) and language, the lines to translate, the
-lines kept, the lines written by hand (no fingerprint: they are kept and get one), the landmass names another board
-already gives, and the keys English no longer has. It writes `<folder>/<catalogue>/<tag>.<n>.json`, at most 400 lines
+It prints, for each catalogue (`lines`, `landmasses/<board>`, `provinces/<board>`, `countries`) and language, the lines to translate, the
+lines kept, the lines written by hand (no fingerprint: they are kept and get one), the place names another board
+already gives or, for a province, Natural Earth gives, and the keys English no longer has. It writes `<folder>/<catalogue>/<tag>.<n>.json`, at most 400 lines
 each (`-batch`). `-languages fr,de` limits it.
 
 - **Nothing to translate**: still run step 4 when a line was written by hand, to fingerprint it.
-- **A landmass line carries Natural Earth's names** when the page's cache has them
+- **Two boards' new province names**: translate the board with the most first, apply, then plan again: the other takes
+  the same English from it.
+- **A landmass or province line carries Natural Earth's names** when the page's cache has them
   (`apps/frontend/node_modules/.cache/natural-earth/`). The plan says when it lacks them: `npm run landmassNames`
   downloads them.
 

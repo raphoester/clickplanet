@@ -1,8 +1,9 @@
-// Package landmass_source reads the names of the landmasses that are not a country's main one, as the page serves them
-// beside each board (static/boards/<board>/landmassNames-<hash>.json), each with the names Natural Earth gives it in
-// other languages. A landmass id is a row of one board's borders file, so each board has names of its own, but a name
-// one board translates is the same on another.
-package landmass_source
+// Package place_source reads the names of a board's places as the page serves them beside the board: its landmasses
+// that are not a country's main one (static/boards/<board>/landmassNames-<hash>.json) and its provinces
+// (provinceNames-<hash>.json), each with the names Natural Earth gives it in other languages. A landmass id is a row of
+// one board's borders file, a province id of its provinces file, so each board has names of its own, but a name one
+// board translates is the same on another.
+package place_source
 
 import (
 	"encoding/json"
@@ -23,21 +24,26 @@ type Gazetteer interface {
 	NamesOf(english string) map[string]string
 }
 
-// One board's landmass names, as the page serves them beside the board.
+// Kind is the places a file names, by the start of its name.
+type Kind string
+
+const (
+	Landmasses Kind = "landmassNames"
+	Provinces  Kind = "provinceNames"
+)
+
+// One board's names of one kind of place, as the page serves them beside the board.
 type Board struct {
 	Name string
 	Path string
 }
 
-var (
-	namesFile = regexp.MustCompile(`^landmassNames-[0-9a-f]{8}\.json$`)
+var ErrNamesTwice = errors.New("a board has more than one file of names of a kind")
 
-	ErrNamesTwice = errors.New("a board has more than one file of landmass names")
-)
-
-// Each board's names, by the board's name, in the page's copies of the boards (its static/boards). A board with none
-// yet is left out: the page cannot play it until `npm run landmassNames` names it.
-func Boards(copies string) ([]Board, error) {
+// Each board's names of a kind, by the board's name, in the page's copies of the boards (its static/boards). A board
+// with none is left out: earth-1 has no provinces, and a board's landmasses are named by `npm run landmassNames`.
+func Boards(copies string, kind Kind) ([]Board, error) {
+	namesFile := regexp.MustCompile(`^` + string(kind) + `-[0-9a-f]{8}\.json$`)
 	entries, err := os.ReadDir(copies)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list the boards in %s: %w", copies, err)
@@ -113,8 +119,8 @@ func contextOf(english string, gazetteer Gazetteer) string {
 	return strings.Join(append(context, "Natural Earth names it: "+strings.Join(named, ", ")+"."), " ")
 }
 
-// A language's names for the landmasses of every board, by their English: a board takes the name another gives the
-// same English, or the same before a trailing number ("Ionian Islands 2" is "Îles Ioniennes 2").
+// A language's names for the places of every board, by their English: a board takes the name another gives the same
+// English, or the same before a trailing number ("Ionian Islands 2" is "Îles Ioniennes 2").
 type Names map[string]string
 
 func (n Names) Recall(english string) (string, bool) {
@@ -140,6 +146,24 @@ func (n Names) Learn(source []translation.Line, current translation.Catalogue) {
 		}
 		n[line.English] = name
 	}
+}
+
+// NaturalEarth is what Natural Earth names a place in one of its languages ("fr", "pt"), with the place's number kept:
+// a province takes its unit's name in each language Natural Earth has (docs/provinces.md). A name of more words than
+// the English is left to the translator: Natural Earth names as a gazetteer does, with the kind of division the English
+// does not have ("İsfahan Eyaleti", "Gespanschaft Split-Dalmatien").
+type NaturalEarth struct {
+	Gazetteer Gazetteer
+	Language  string
+}
+
+func (n NaturalEarth) Recall(english string) (string, bool) {
+	base, number := split(english)
+	name, ok := n.Gazetteer.NamesOf(base)[n.Language]
+	if !ok || len(strings.Fields(name)) > len(strings.Fields(base)) {
+		return "", false
+	}
+	return name + number, true
 }
 
 // "Ionian Islands 2" is the second of the name.

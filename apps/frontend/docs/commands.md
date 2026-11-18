@@ -12,7 +12,7 @@ npm run map        # Copy every shared /map board into static/boards, and write 
 npm run map:fixture # Write the tests' coarse board, fixture-1, into each app's test data (see testing.md)
 npm run map:generate -- earth-2 # Rewrite a board's runs, borders and capitals from the ground oracle; earth-1 with none named (see ../../map/README.md)
 npm run bridges -- earth-2 # A board's crossings, from its tiles and capitals; earth-1 with none named
-npm run map:audit -- earth-2 # Check a board's tile set, Natural Earth, the bridges and the terrain against each other; earth-1 with none named
+npm run map:audit -- earth-2 # Check a board's tile set, Natural Earth, the bridges, the terrain and the provinces against each other; earth-1 with none named
 npm run map:carry -- earth-1 earth-2 # Write map/carries/carry-earth-1-earth-2-<hash>.bin, each new tile's parent, and print what it carries (map/README.md)
 npm run map:measure -- earth-2 # A board's geometry as docs/boards.md records it: areas, spacing, a bomb, the pentagons, the creases
 npm run quiz:generate # Rewrite the shared quiz bank (see ../../quiz/README.md). The backend embeds it; this app never does
@@ -29,6 +29,8 @@ npm run clip:highlights # Measure where each anthem a clip plays is worth starti
 npm run teaser -- --teaser teaser.json --out teaser/  # A battle's cards as the stills of a TikTok carousel and a slideshow (see teasers.md)
 npm run regions    # Rewrite each country's continent (Asia's part of it) from Natural Earth, for the clips' headlines
 npm run landmassNames -- earth-1 # Name a board's landmasses but each country's main one, every board with none named (see fortify.md)
+npm run provinces -- earth-2 # Cut a board's provinces from Natural Earth's admin-1 units and name them, every board with a floor with none named (see ../../docs/provinces.md)
+npm run map:provinces -- earth-2 100,200,400 # PNGs of a board's provinces at each floor: the world, Europe, the USA (node_modules/.cache/provinces, or --out)
 npm run crazygames:words # Fetch CrazyGames' word list into public/crazygames/words.txt (see crazygames.md)
 ```
 
