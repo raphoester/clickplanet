@@ -36,6 +36,10 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   its sets saved by the owner; the world's switch to `earth-2`: its carry-over, `SwitchBoard`, the moment, its
   rehearsal on production's map and the operator's runbook; the world plays `earth-2` since 2026-11-18), the rest
   designed: the rules at the new density, and the PRs in order.
+- [Provinces](docs/provinces.md) — fortify on Natural Earth's admin-1 units, joined under N tiles (200 on `earth-2`, 20
+  on `siege-1`) inside one landmass; PR 2 built: `npm run provinces`, the board's `provinces-<hash>.bin`, the names, the
+  overrides Claude wrote for the owner's review and their translations, the preview and the audit; the rest designed:
+  the locks' switch, the Countries / Provinces setting, straight outlines with grey province lines, the PRs.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.

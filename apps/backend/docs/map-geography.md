@@ -15,8 +15,8 @@ survives a change of input format*:
   **no asymmetric edge** — a tile that spreads onto a neighbour which would not spread back is a
   one-way street on the map.
 - **`clicks/embedded_board`** — the registry of boards. For each board it reads the manifest and runs, rebuilds the
-  positions, and takes the edges from the lattice; it reads the board's borders, capitals and bridges too, and makes
-  them its `clicks.Ground`. The manifest, the
+  positions, and takes the edges from the lattice; it reads the board's borders, capitals, bridges and provinces too,
+  and makes them its `clicks.Ground`. The manifest, the
   runs and the lattice are knowledge of the shipped files, not of the game: **ship an edge list one day and the
   lattice walk goes while `clicks.Geography` does not change at all.**
 

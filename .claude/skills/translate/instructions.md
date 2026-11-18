@@ -52,8 +52,8 @@ inside a translation as `\"`), and do not touch any other file.
 
 ## Place names
 
-A line of a catalogue `landmasses/<board>` is a place on the world map: an island, a region or a province. It is a
-name, not a sentence. Write it as a map or an atlas in the language names it, the way a reader of that language knows
+A line of a catalogue `landmasses/<board>` or `provinces/<board>` is a place on the world map: an island, a region or a
+province. It is a name, not a sentence. Write it as a map or an atlas in the language names it, the way a reader of that language knows
 it ("Crète", "Kreta", "Creta"); keep a local name the language keeps as it is. When the context gives Natural Earth's
 names, take the one for the target language as the reference (Natural Earth's `pt` is Portugal's, and it has no
 Czech), but drop a word for the kind of division the English does not have ("Gespanschaft", "Kabupaten", "Région",

@@ -29,7 +29,7 @@ func NamedGround(name BoardName, borders *Borders, capitals *Capitals) *Ground {
 	if err != nil {
 		panic(err)
 	}
-	ground, err := NewGround(name, geography, borders, bridges, capitals)
+	ground, err := NewGround(name, geography, borders, bridges, capitals, NoProvinces())
 	if err != nil {
 		panic(err)
 	}

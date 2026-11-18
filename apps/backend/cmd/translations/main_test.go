@@ -49,8 +49,8 @@ func TestThePlanWritesTheLinesEachLanguageLacksInBatches(t *testing.T) {
 
 	require.NoError(t, run([]string{"plan", "-page", dir, "-work", work}, &out))
 
-	assert.Contains(t, out.String(), "lines fr: 2 to translate, 0 kept, 1 written by hand, 0 named on another board, 0 no longer in English\n")
-	assert.Contains(t, out.String(), "landmasses/earth-2 fr: 1 to translate, 0 kept, 0 written by hand, 1 named on another board")
+	assert.Contains(t, out.String(), "lines fr: 2 to translate, 0 kept, 1 written by hand, 0 named on another board or by Natural Earth, 0 no longer in English\n")
+	assert.Contains(t, out.String(), "landmasses/earth-2 fr: 1 to translate, 0 kept, 0 written by hand, 1 named on another board or by Natural Earth")
 	assert.Contains(t, out.String(), "Natural Earth: the page's cache lacks ne_10m_geography_regions_polys")
 	assert.JSONEq(t, `{"catalogue": "lines", "language": "fr", "lines": [
 		{"key": "chat.title", "english": "Chat"},
@@ -109,4 +109,18 @@ func TestApplyWithEveryLineAnsweredSucceeds(t *testing.T) {
 	require.NoError(t, run([]string{"plan", "-page", dir, "-work", filepath.Join(work, "again")}, &bytes.Buffer{}))
 
 	assert.NoDirExists(t, filepath.Join(work, "again"))
+}
+
+func TestAProvinceNamedAsALandmassIsNotPlannedAgain(t *testing.T) {
+	dir := page(t)
+	write(t, filepath.Join(dir, "static/boards/earth-2/provinceNames-89abcdef.json"),
+		`{"provinces": "p.bin", "names": {"1": "Corsica", "2": "Corsica 3", "3": "Bavaria"}}`)
+	work := filepath.Join(t.TempDir(), "work")
+	var out bytes.Buffer
+
+	require.NoError(t, run([]string{"plan", "-page", dir, "-work", work}, &out))
+
+	assert.Contains(t, out.String(), "provinces/earth-2 fr: 1 to translate, 0 kept, 0 written by hand, 2 named on another board or by Natural Earth")
+	assert.JSONEq(t, `{"catalogue": "provinces/earth-2", "language": "fr", "lines": [{"key": "3", "english": "Bavaria"}]}`,
+		read(t, filepath.Join(work, "provinces", "earth-2", "fr.1.json")))
 }

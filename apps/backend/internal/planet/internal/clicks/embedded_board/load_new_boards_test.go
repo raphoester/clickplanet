@@ -29,7 +29,7 @@ var newBoards = map[clicks.BoardName]struct {
 	pieces  int
 }{
 	"earth-2": {
-		asset:   "board-ea03c042.json",
+		asset:   "board-4cbbd3d4.json",
 		tiles:   1004682,
 		edges:   2966323,
 		degrees: [clicks.MaxDegree + 1]uint32{391, 1021, 2534, 10116, 16340, 14831, 959449},
@@ -37,7 +37,7 @@ var newBoards = map[clicks.BoardName]struct {
 		pieces:  975,
 	},
 	"siege-1": {
-		asset:   "board-95e08f3d.json",
+		asset:   "board-009129b7.json",
 		tiles:   27259,
 		edges:   77006,
 		degrees: [clicks.MaxDegree + 1]uint32{105, 159, 340, 897, 1373, 1320, 23065},

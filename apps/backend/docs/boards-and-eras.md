@@ -32,7 +32,9 @@ plays `earth-2` since 2026-11-18 13:41:31 UTC**: clicks held 7.9 s (see [Boards]
 fixture under the `testing` tag). At boot it reads each manifest and refuses a lattice it cannot walk: an order but `three` or `canonical`, a warp
 that is not three numbers, corners that are not 36 ([Map geography](map-geography.md)). It builds a board's ground (`Registry.Ground`: the positions rebuilt from the
 runs and checked against the manifest's hash, the adjacency from the lattice, the borders, bridges and capitals, each
-file refused if it holds another tile count than the manifest) **the first time something asks for it**, once, and
+file refused if it holds another tile count than the manifest, and the provinces of a board that has them, refused if cut
+on other borders or if a tile's province is on another landmass: `clicks.Provinces`, by `clicks.ProvinceID`, which no
+rule reads yet, [Provinces](../../../docs/provinces.md)) **the first time something asks for it**, once, and
 keeps it: about 57 bytes a tile, about 0.1 s for `earth-1`. The boot asks for the map in play's board alone, so a board
 no map plays costs its manifest. One log line a board as it loads:
 

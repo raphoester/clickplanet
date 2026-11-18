@@ -1,5 +1,5 @@
 // Package page_catalogues brings the game page's catalogues up to their English: its lines, the names of each board's
-// landmasses, and each flag's country inside a sentence, in every language it has a file for.
+// landmasses and provinces, and each flag's country inside a sentence, in every language it has a file for.
 package page_catalogues
 
 import (
@@ -10,13 +10,14 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/catalogue_files"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/country_source"
-	"github.com/raphoester/clickplanet.lol-backend/internal/translation/landmass_source"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/natural_earth"
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation/page_source"
+	"github.com/raphoester/clickplanet.lol-backend/internal/translation/place_source"
 )
 
 type Name string
@@ -29,6 +30,11 @@ const (
 // A board's landmass names: "landmasses/earth-1".
 func LandmassesOf(board string) Name {
 	return Name("landmasses/" + board)
+}
+
+// A board's province names: "provinces/earth-2".
+func ProvincesOf(board string) Name {
+	return Name("provinces/" + board)
 }
 
 // The page's own language: its lines are the source, but a country inside a sentence is written for it too.
@@ -87,7 +93,7 @@ func Load(page string, languages []translation.Language) (Work, error) {
 	if err := work.plan(pageCatalogue, func(translation.Language) translation.Memory { return translation.NoMemory{} }); err != nil {
 		return Work{}, err
 	}
-	if err := work.planLandmasses(page, i18n, translated); err != nil {
+	if err := work.planPlaces(page, i18n, translated); err != nil {
 		return Work{}, err
 	}
 	countries := Catalogue{
@@ -104,49 +110,87 @@ func Load(page string, languages []translation.Language) (Work, error) {
 
 var ErrUnknownLanguage = errors.New("the page has no file for the language")
 
-// Each board's names are a catalogue of their own, but a name one board translates is not planned again on another.
-func (w *Work) planLandmasses(page, i18n string, languages []translation.Language) error {
+// Each board's landmass names and province names are a catalogue of their own, but a name one board translates is not
+// planned again on another, nor a province named as a landmass is. A province takes Natural Earth's name for it where
+// Natural Earth has its language.
+func (w *Work) planPlaces(page, i18n string, languages []translation.Language) error {
 	gazetteer, missing, err := natural_earth.Load(filepath.Join(page, "node_modules", ".cache", "natural-earth", natural_earth.Tag))
 	if err != nil {
 		return fmt.Errorf("failed to read Natural Earth's names: %w", err)
 	}
 	w.MissingLayers = missing
-	boards, err := landmass_source.Boards(filepath.Join(page, "static", "boards"))
-	if err != nil {
-		return fmt.Errorf("failed to find the boards' landmass names: %w", err)
-	}
-	catalogues := make([]Catalogue, 0, len(boards))
-	names := map[translation.Language]landmass_source.Names{}
+	names := map[translation.Language]place_source.Names{}
 	for _, language := range languages {
-		names[language] = landmass_source.Names{}
+		names[language] = place_source.Names{}
 	}
-	for _, board := range boards {
-		source, order, err := landmass_source.Read(board.Path, gazetteer)
+	read := func(kind place_source.Kind, name func(board string) Name, folder string) ([]Catalogue, error) {
+		boards, err := place_source.Boards(filepath.Join(page, "static", "boards"), kind)
 		if err != nil {
-			return fmt.Errorf("failed to read the landmass names of %s: %w", board.Name, err)
+			return nil, fmt.Errorf("failed to find the boards' %s: %w", kind, err)
 		}
-		catalogue := Catalogue{
-			Name: LandmassesOf(board.Name), Source: source, Order: order, Languages: languages,
-			Place: catalogue_files.Place{
-				Lines:        filepath.Join(i18n, "landmasses", board.Name),
-				Fingerprints: filepath.Join(i18n, "fingerprints", "landmasses", board.Name),
-			},
-		}
-		for _, language := range languages {
-			current, err := catalogue.Place.Catalogue(language)
+		catalogues := make([]Catalogue, 0, len(boards))
+		for _, board := range boards {
+			source, order, err := place_source.Read(board.Path, gazetteer)
 			if err != nil {
-				return fmt.Errorf("failed to read the %s %s: %w", language, catalogue.Name, err)
+				return nil, fmt.Errorf("failed to read the %s of %s: %w", kind, board.Name, err)
 			}
-			names[language].Learn(source, current)
+			catalogue := Catalogue{
+				Name: name(board.Name), Source: source, Order: order, Languages: languages,
+				Place: catalogue_files.Place{
+					Lines:        filepath.Join(i18n, folder, board.Name),
+					Fingerprints: filepath.Join(i18n, "fingerprints", folder, board.Name),
+				},
+			}
+			for _, language := range languages {
+				current, err := catalogue.Place.Catalogue(language)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read the %s %s: %w", language, catalogue.Name, err)
+				}
+				names[language].Learn(source, current)
+			}
+			catalogues = append(catalogues, catalogue)
 		}
-		catalogues = append(catalogues, catalogue)
+		return catalogues, nil
 	}
-	for _, catalogue := range catalogues {
+	landmasses, err := read(place_source.Landmasses, LandmassesOf, "landmasses")
+	if err != nil {
+		return err
+	}
+	provinces, err := read(place_source.Provinces, ProvincesOf, "provinces")
+	if err != nil {
+		return err
+	}
+	for _, catalogue := range landmasses {
 		if err := w.plan(catalogue, func(language translation.Language) translation.Memory { return names[language] }); err != nil {
 			return err
 		}
 	}
+	for _, catalogue := range provinces {
+		if err := w.plan(catalogue, func(language translation.Language) translation.Memory {
+			return firstOf{names[language], place_source.NaturalEarth{Gazetteer: gazetteer, Language: naturalEarthLanguage(language)}}
+		}); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// Natural Earth names its languages by their first subtag: pt-BR is "pt".
+func naturalEarthLanguage(language translation.Language) string {
+	primary, _, _ := strings.Cut(string(language), "-")
+	return primary
+}
+
+// firstOf recalls what the first memory that knows an English says.
+type firstOf []translation.Memory
+
+func (f firstOf) Recall(english string) (string, bool) {
+	for _, memory := range f {
+		if name, ok := memory.Recall(english); ok {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 func (w *Work) plan(catalogue Catalogue, memoryOf func(translation.Language) translation.Memory) error {

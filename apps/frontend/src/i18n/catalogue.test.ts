@@ -11,6 +11,7 @@ import {BOARDS} from "../app/viewer/boardsAsset.ts"
 
 const FILES = import.meta.glob<Record<string, unknown>>("./locales/*.json", {eager: true, import: "default"})
 const LANDMASS_FILES = import.meta.glob<Record<string, unknown>>("./landmasses/*/*.json", {eager: true, import: "default"})
+const PROVINCE_FILES = import.meta.glob<Record<string, unknown>>("./provinces/*/*.json", {eager: true, import: "default"})
 const COUNTRY_FILES = import.meta.glob<Record<string, unknown>>("./countries/*.json", {eager: true, import: "default"})
 
 const linesOf = (language: string) => FILES[`./locales/${language}.json`]
@@ -21,6 +22,12 @@ const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 const ENGLISH_LANDMASSES = Object.fromEntries(Object.values(BOARDS).map((board) => [
     board.name,
     (JSON.parse(readFileSync(`${STATIC}boards/${board.name}/${board.page.landmassNames}`, "utf8")) as {names: Record<string, string>}).names,
+]))
+
+// Each board's province names in English, for the boards that have provinces (docs/provinces.md).
+const ENGLISH_PROVINCES = Object.fromEntries(Object.values(BOARDS).filter((board) => board.page.provinceNames).map((board) => [
+    board.name,
+    (JSON.parse(readFileSync(`${STATIC}boards/${board.name}/${board.page.provinceNames}`, "utf8")) as {names: Record<string, string>}).names,
 ]))
 
 // Boards whose landmass names are not translated yet, read in English (load.ts): none since PR 5 wrote siege-1's, after
@@ -38,6 +45,11 @@ describe("the catalogue", () => {
     it("names the landmasses of the boards the page carries, and of no other", () => {
         const boards = new Set(Object.keys(LANDMASS_FILES).map((path) => path.split("/")[2]))
         expect([...boards].filter((board) => !(board in BOARDS))).toEqual([])
+    })
+
+    it("names the provinces of the boards that have them, and of no other", () => {
+        const boards = new Set(Object.keys(PROVINCE_FILES).map((path) => path.split("/")[2]))
+        expect([...boards].filter((board) => !(board in ENGLISH_PROVINCES))).toEqual([])
     })
 
     it("gives each glossary term a word in every language", () => {
@@ -68,6 +80,14 @@ describe("the catalogue", () => {
                         continue
                     }
                     const names = LANDMASS_FILES[`./landmasses/${board}/${language}.json`] ?? {}
+                    expect(Object.keys(names).filter((id) => !(id in english)), `${board}: ids English no longer has`).toEqual([])
+                    expect(Object.keys(english).filter((id) => typeof names[id] !== "string" || !names[id]), `${board}: names missing`).toEqual([])
+                }
+            })
+
+            if (language !== SOURCE_LANGUAGE) it("names every province of every board English names, and no other", () => {
+                for (const [board, english] of Object.entries(ENGLISH_PROVINCES)) {
+                    const names = PROVINCE_FILES[`./provinces/${board}/${language}.json`] ?? {}
                     expect(Object.keys(names).filter((id) => !(id in english)), `${board}: ids English no longer has`).toEqual([])
                     expect(Object.keys(english).filter((id) => typeof names[id] !== "string" || !names[id]), `${board}: names missing`).toEqual([])
                 }

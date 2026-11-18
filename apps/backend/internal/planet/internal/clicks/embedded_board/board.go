@@ -157,7 +157,11 @@ func (r *Registry) load(board cpboards.Board) (*clicks.Ground, error) {
 		return nil, fmt.Errorf("failed to load the capitals of board %s: %w", name, err)
 	}
 	capitals = capitals.Flags(r.flags)
-	ground, err := clicks.NewGround(clicks.BoardName(name), geography, borders, bridges, capitals)
+	provinces, err := loadProvinces(board, borders)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load the provinces of board %s: %w", name, err)
+	}
+	ground, err := clicks.NewGround(clicks.BoardName(name), geography, borders, bridges, capitals, provinces)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build the ground of board %s: %w", name, err)
 	}
@@ -172,6 +176,8 @@ func (r *Registry) load(board cpboards.Board) (*clicks.Ground, error) {
 		slog.String("borders", board.Manifest.Files.Borders),
 		slog.Int("bridges", bridges.Count()),
 		slog.Int("capitals", len(capitals.All())),
+		slog.String("provinces", ground.Provinces().Asset()),
+		slog.Int("provinceCount", ground.Provinces().Count()),
 		slog.Any("took", time.Since(started).Round(time.Millisecond)),
 	)
 

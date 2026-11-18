@@ -36,7 +36,8 @@ func groundAt(name clicks.BoardName, landmasses [][]uint32, angles ...float64) *
 	if err != nil {
 		panic(err)
 	}
-	ground, err := clicks.NewGround(name, geography, clicks.BordersOf(tiles, landmasses...), bridges, clicks.NewCapitals(nil))
+	ground, err := clicks.NewGround(name, geography, clicks.BordersOf(tiles, landmasses...), bridges, clicks.NewCapitals(nil),
+		clicks.NoProvinces())
 	if err != nil {
 		panic(err)
 	}

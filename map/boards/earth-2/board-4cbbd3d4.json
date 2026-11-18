@@ -1,12 +1,12 @@
 {
-  "name": "siege-1",
+  "name": "earth-2",
   "body": "earth",
   "lattice": {
-    "cols": 97,
+    "cols": 590,
     "warp": {
-      "a": -0.08982266,
-      "b": -0.13216128,
-      "c": 0.26291902
+      "a": -0.09142428,
+      "b": -0.13039461,
+      "c": 0.26096331
     },
     "corners": [
       -0.905817553075927,
@@ -48,14 +48,15 @@
     ],
     "order": "canonical"
   },
-  "tiles": 27259,
-  "spacing": 0.01246182994864059,
-  "positionsHash": 3793348690,
+  "tiles": 1004682,
+  "spacing": 0.0020487843705180907,
+  "positionsHash": 1516355850,
   "files": {
-    "runs": "runs-2ee22074.bin",
-    "borders": "borders-1ba19e6a.bin",
-    "capitals": "capitals-f3ccc72a.json",
-    "bridges": "bridges-076fbedd.json",
-    "terrain": "terrain-9743bde0.bin"
+    "runs": "runs-e8e9ed89.bin",
+    "borders": "borders-0ae1a037.bin",
+    "capitals": "capitals-4341096e.json",
+    "bridges": "bridges-ea57ae09.json",
+    "terrain": "terrain-b7b508e8.bin",
+    "provinces": "provinces-286f4c3e.bin"
   }
 }

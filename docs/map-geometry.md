@@ -8,7 +8,8 @@ them, `map/carries/` holds the carry-over from `earth-1` to `earth-2`, each new 
 (the backend's copy alone). A board's manifest says which lattice it is cut from, how many
 tiles it has and the hash of their positions; its runs say which lattice points are tiles, and so where every tile
 is and what a tile id means; its borders say which country's ground each tile sits on; its capitals and bridges are
-what an arena battle's rules read; its terrain is what the globe draws at each point of the lattice. **They are written by one command from one oracle**, so "is this sea or land" and
+what an arena battle's rules read; its terrain is what the globe draws at each point of the lattice; the provinces of
+`earth-2` and `siege-1` are the ground fortify plays on (see [Provinces](provinces.md)). **They are written by one command from one oracle**, so "is this sea or land" and
 "which country is this" cannot disagree and a tile in no country cannot be built. See
 [`map/README.md`](../map/README.md), and [Boards](boards.md) for the design and what comes next.
 
@@ -22,6 +23,7 @@ Docker build context is its own directory and none can read the repo root at bui
 
 ```bash
 cd apps/frontend && npm run map:generate -- earth-2   # rewrite a board in /map from Natural Earth (earth-1 with none named)
+cd apps/frontend && npm run provinces -- earth-2      # its provinces, from Natural Earth's admin-1 units, and their names
 cd apps/backend && make map    # → apps/backend/generated/map/boards (embedded)
 cd apps/frontend && npm run map   # → apps/frontend/static/boards (fetched at runtime) and boardsAsset.ts
 cd apps/backoffice && npm run map   # → apps/backoffice/src/gen/map (the manifest and the runs, bundled)

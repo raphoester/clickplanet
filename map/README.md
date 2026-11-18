@@ -5,9 +5,9 @@ its tiles from. There are three (see [Boards](../docs/boards.md) for the design 
 
 | board | lattice | tiles | apart | plays |
 | --- | --- | --- | --- | --- |
-| **`earth-1`** | three's, `cols` 301 | 260,503 | 25.9 km | the world, since the remap of 2026-11-03 |
-| **`earth-2`** | warped and rotated, `cols` 590, canonical order | 1,004,682 | 13.1 km | nothing yet: the world after the switch (PR 6) |
-| **`siege-1`** | warped and rotated, `cols` 97, canonical order | 27,259 | 79.4 km | nothing yet: Capital Siege's arena (PR 5) |
+| **`earth-1`** | three's, `cols` 301 | 260,503 | 25.9 km | the world until 2026-11-18, and all history before |
+| **`earth-2`** | warped and rotated, `cols` 590, canonical order | 1,004,682 | 13.1 km | the world, since 2026-11-18 |
+| **`siege-1`** | warped and rotated, `cols` 97, canonical order | 27,259 | 79.4 km | Capital Siege's arena |
 
 | file | says |
 | --- | --- |
@@ -17,6 +17,7 @@ its tiles from. There are three (see [Boards](../docs/boards.md) for the design 
 | `capitals-<hash>.json` | which tile is each country's capital (see [Capitals and bridges](#capitals-and-bridges)) |
 | `bridges-<hash>.json` | which crossings join two shores over the sea |
 | `terrain-<hash>.bin` | what each point of the lattice looks like: a kind of land under a tile, or the sea by its distance from land (see [The terrain follows too](#the-terrain-follows-too)) |
+| `provinces-<hash>.bin` | which province each tile is in, the ground fortify plays on (see [Provinces](#provinces)); `earth-2` and `siege-1` only |
 
 **There is no coordinates file.** Every app rebuilds every tile's position from the lattice and the runs, to the bit
 (see [The board's lattice](#the-boards-lattice)).
@@ -221,8 +222,9 @@ cd apps/backend && make map                           # copy the boards, then co
 cd apps/backoffice && npm run map                     # copy the manifests and the runs
 cd apps/frontend && npm run borderLines -- <board>    # traced from the board, stale until it is run
 cd apps/frontend && npm run landmassNames -- <board>  # each landmass's name, keyed by the new borders file
+cd apps/frontend && npm run provinces -- <board>      # its provinces and their names, from the new borders; rewrites the manifest
 cd apps/frontend && npm run map:audit -- <board>      # every fault should read zero
-# then Claude Code's translate skill (.claude/skills/translate): the landmass names in every language
+# then Claude Code's translate skill (.claude/skills/translate): the landmass and province names in every language
 ```
 
 **A board written the first time** has no bridges nor terrain until those two commands write them: its manifest leaves
@@ -328,6 +330,24 @@ Little-endian. A corner is a cell's corner, its unit direction × 32767 rounded.
 edge apart, a few dozen units, so most differences take a byte (zigzag: `(d << 1) ^ (d >> 31)`, then seven bits a byte,
 low first). Version 2 (until 2026-11-18) held every corner as three plain int16s; version 3 holds the same lines in
 half the bytes, and packs to a third: `earth-2` 810 → 422 KB raw, 767 → 220 KB with brotli at 5 (`domain/borderLinesFile.ts`).
+
+### Provinces
+
+**`provinces-<hash>.bin`**, written by `npm run provinces -- <board>` (`scripts/generateProvinces.ts`) for a board whose
+definition has a `provinceFloor`, read by `domain/provinces.ts` and `embedded_board.loadProvinces`. How the provinces are
+cut and named is in [Provinces](../docs/provinces.md).
+
+```
+"CPPV" | uint32 version (1) | uint32 tiles | uint32 provinces, none included | uint32 borders
+       | provinces × 5 float32 frame | provinces × uint32 tiles | provinces × uint16 landmass | tiles × uint16 province
+```
+
+Province 0 is none: no tile is in it, and its frame, count and landmass are 0. `borders` is the borders file the
+provinces were cut on, the 8 hex of its name as a number (`borders-0ae1a037.bin` is 0x0ae1a037): its landmass ids are the
+ones the provinces name, and a reader refuses another. A frame is the borders' (centre x, y, z and the half extents east
+and north, in radians). The arrays of 4-byte values come first, so every one is aligned for the browser's typed arrays.
+`earth-2`'s is 2,016 KB (113 KB with brotli at 5), `siege-1`'s 73 KB. The names are the page's alone, beside its copy:
+`static/boards/<board>/provinceNames-<hash>.json`, keyed by the provinces file.
 
 ### The carry-over
 

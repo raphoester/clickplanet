@@ -87,7 +87,8 @@ export const BOARDS = {
                 "borders": "borders-0ae1a037.bin",
                 "capitals": "capitals-4341096e.json",
                 "bridges": "bridges-ea57ae09.json",
-                "terrain": "terrain-b7b508e8.bin"
+                "terrain": "terrain-b7b508e8.bin",
+                "provinces": "provinces-286f4c3e.bin"
             }
         },
         runs: earth2Runs,
@@ -151,7 +152,8 @@ export const BOARDS = {
                 "borders": "borders-1ba19e6a.bin",
                 "capitals": "capitals-f3ccc72a.json",
                 "bridges": "bridges-076fbedd.json",
-                "terrain": "terrain-9743bde0.bin"
+                "terrain": "terrain-9743bde0.bin",
+                "provinces": "provinces-8b268165.bin"
             }
         },
         runs: siege1Runs,
