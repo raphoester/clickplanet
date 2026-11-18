@@ -48,7 +48,7 @@ func TestACapitalsShieldsAreFixedOnlyWhileTheRuleSaysSo(t *testing.T) {
 	capitals := clicks.NewCapitals(map[string]uint32{"fr": 7})
 	fixed := clicks.CapitalRules{FixedShields: true}
 
-	assert.True(t, clicks.NewCapitalPlay(capitals, func() clicks.CapitalRules { return fixed }).Fixes(7))
-	assert.False(t, clicks.NewCapitalPlay(capitals, func() clicks.CapitalRules { return fixed }).Fixes(8), "no capital")
-	assert.False(t, clicks.NewCapitalPlay(capitals, func() clicks.CapitalRules { return clicks.CapitalRules{} }).Fixes(7))
+	assert.True(t, clicks.NewCapitalPlay(func() *clicks.Capitals { return capitals }, func() clicks.CapitalRules { return fixed }).Fixes(7))
+	assert.False(t, clicks.NewCapitalPlay(func() *clicks.Capitals { return capitals }, func() clicks.CapitalRules { return fixed }).Fixes(8), "no capital")
+	assert.False(t, clicks.NewCapitalPlay(func() *clicks.Capitals { return capitals }, func() clicks.CapitalRules { return clicks.CapitalRules{} }).Fixes(7))
 }

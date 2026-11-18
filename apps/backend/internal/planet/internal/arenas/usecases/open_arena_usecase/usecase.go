@@ -11,8 +11,9 @@ import (
 )
 
 type Tiles interface {
+	Stage() clicks.Stage
 	Blank(
-		ctx context.Context, arena clicks.MapID, start []clicks.StartTile, keep func(ctx context.Context, on clicks.Stage) (bool, error),
+		ctx context.Context, arena clicks.Stage, start []clicks.StartTile, keep func(ctx context.Context, on clicks.Stage) (bool, error),
 	) (bool, error)
 }
 
@@ -22,7 +23,7 @@ type Eras interface {
 }
 
 type Setups interface {
-	Setup(ctx context.Context, set cprules.SetName) (arenas.Setup, error)
+	Setup(ctx context.Context, set cprules.SetName, world clicks.BoardID) (arenas.Setup, error)
 }
 
 type Arenas interface {
@@ -63,16 +64,18 @@ type UseCase struct {
 var _ Executor = (*UseCase)(nil)
 
 // Execute keeps the arena open with its map's era, in one transaction under the map's locks, and plays the arena's
-// fresh map, seeded as the battle's set says: the world's map stays in postgres as it is. The arena is read under the
-// locks, so a call made twice opens it once.
+// fresh map on the board the battle's set names (arena.board; the world's when it names none), seeded as the set says:
+// the world's map stays in postgres as it is, and its era resumes at the close. The arena is read under the locks, so a
+// call made twice opens it once.
 func (u *UseCase) Execute(ctx context.Context, command Command) (bool, error) {
-	setup, err := u.setups.Setup(ctx, command.Set)
+	setup, err := u.setups.Setup(ctx, command.Set, u.tiles.Stage().Board)
 	if err != nil {
 		return false, err //nolint:wrapcheck // the setups name the set.
 	}
 
 	var opening arenas.Opening
-	opened, err := u.tiles.Blank(ctx, command.Arena.Map(), setup.Seed.Tiles(), func(ctx context.Context, on clicks.Stage) (bool, error) {
+	arena := command.Arena.Map().On(setup.Board)
+	opened, err := u.tiles.Blank(ctx, arena, setup.Seed.Tiles(), func(ctx context.Context, on clicks.Stage) (bool, error) {
 		arena, err := u.kept.Find(ctx, command.Arena)
 		if err != nil {
 			return false, err //nolint:wrapcheck // the store names it.

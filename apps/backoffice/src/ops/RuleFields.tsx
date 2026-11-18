@@ -28,6 +28,38 @@ export function SwitchField({label, on, defaults, inherits, onChange}: SwitchPro
     )
 }
 
+type BoardProps = {
+    label: string, board: string | undefined, defaults: string | undefined, inherits: boolean,
+    // The boards the page carries, by name.
+    boards: string[],
+    onChange: (board: string | undefined) => void,
+}
+
+const WORLD = "world"
+const DEFAULT = "default"
+
+// The board an arena's fresh map plays: the world's, or one the page carries, by name; one the set holds that the page
+// does not carry is listed too. Outside default, default's as well; in default, the world's is holding none.
+export function BoardField({label, board, defaults, inherits, boards, onChange}: BoardProps) {
+    const names = board === undefined || board === "" || boards.includes(board) ? boards : [...boards, board]
+    const value = board === undefined ? (inherits ? DEFAULT : WORLD) : board === "" ? WORLD : `board:${board}`
+    const picked = (option: string): string | undefined => {
+        if (option === DEFAULT) return undefined
+        if (option === WORLD) return inherits ? "" : undefined
+        return option.slice("board:".length)
+    }
+    return (
+        <div className="field">
+            <span className="muted">{label}</span>
+            <select aria-label={label} value={value} onChange={e => onChange(picked(e.target.value))}>
+                {inherits && <option value={DEFAULT}>Default ({defaults === undefined || defaults === "" ? "the world's" : defaults})</option>}
+                <option value={WORLD}>The world's</option>
+                {names.map(name => <option key={name} value={`board:${name}`}>{name}</option>)}
+            </select>
+        </div>
+    )
+}
+
 type ValueProps = {
     field: Field, typed: string, inherited: string | undefined, was: string | undefined, onChange: (typed: string) => void,
 }

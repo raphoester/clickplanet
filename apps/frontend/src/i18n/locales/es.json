@@ -534,6 +534,8 @@
   "archive.pause": "Pausar",
   "archive.time": "Tiempo",
   "archive.heat": "Dónde se disputaron las casillas",
+  "archive.newMap": "El mundo pasa a un mapa nuevo",
+  "archive.newMapAt": "Mapa nuevo desde {time}",
   "chat.title": "Chat",
   "chat.liveChat": "Chat en vivo",
   "chat.world": "Mundo",

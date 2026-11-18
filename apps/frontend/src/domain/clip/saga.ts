@@ -1,4 +1,5 @@
 import {MapHistory} from "../mapHistory.ts"
+import type {BoardScale} from "../boardScale.ts"
 import {ranked, tally} from "./changes.ts"
 import {PlaceFacts, placeKeysOf, placeOf} from "./findings.ts"
 import {RegionOf} from "./story.ts"
@@ -66,6 +67,7 @@ export function sagasOf(
     tiles: number,
     groundOf: (tile: number) => string | undefined,
     regionOf: RegionOf,
+    scale: BoardScale,
 ): SagaFacts[] {
     const frames = history.frames
     if (frames.length === 0) return []
@@ -78,7 +80,7 @@ export function sagasOf(
         const ground = groundOf(tile)
         let keys = keysOf.get(ground)
         if (keys === undefined) {
-            keys = placeKeysOf(ground, sizes, regionOf).map((key) => {
+            keys = placeKeysOf(ground, sizes, regionOf, scale).map((key) => {
                 let index = indexes.get(key)
                 if (index === undefined) {
                     index = names.length

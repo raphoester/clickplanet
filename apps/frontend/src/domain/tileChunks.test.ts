@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {BOARD} from "../app/viewer/boardAsset.ts"
+import {EARTH_1} from "../testdata/boards.ts"
 import {decodeRuns, tilesOf} from "./board.ts"
 import {
     CAP_FLOATS,
@@ -18,8 +18,8 @@ import {
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
 function shippedPositions(): Float32Array {
-    const bytes = readFileSync(`${STATIC}boards/${BOARD.name}/${BOARD.files.runs}`)
-    return tilesOf(BOARD.lattice, decodeRuns(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)), BOARD.tiles).positions
+    const bytes = readFileSync(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`)
+    return tilesOf(EARTH_1.lattice, decodeRuns(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)), EARTH_1.tiles).positions
 }
 
 const positions = shippedPositions()

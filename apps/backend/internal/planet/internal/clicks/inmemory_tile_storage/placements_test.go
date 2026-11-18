@@ -14,7 +14,7 @@ import (
 func (s *testSuite) placing() (*inmemory_tile_storage.Storage, *inmemory_tile_storage.MemoryPersistence, *inmemory_tile_storage.RecordedPlacements) {
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{1: "fr", 2: "fr"})
 	placed := &inmemory_tile_storage.RecordedPlacements{}
-	storage := inmemory_tile_storage.New(borders, clicks.NoCapitals(), inmemory_tile_storage.Config{}, persistence, cpatomic.FakeTransactioner{}, placed,
+	storage := inmemory_tile_storage.New(clicks.OneGround{Ground: clicks.GroundOf(borders)}, clicks.NewPlayed(), clicks.NoCapitals(), inmemory_tile_storage.Config{}, persistence, cpatomic.FakeTransactioner{}, placed,
 		cptime.SystemClock{}, slog.New(slog.DiscardHandler))
 	s.Require().NoError(storage.Load(context.Background(), clicks.WorldStage))
 	return storage, persistence, placed
@@ -80,13 +80,13 @@ func (s *testSuite) TestAWipeConfirmsTheShieldsPlacedBeforeIt() {
 func (s *testSuite) TestAPutBackConfirmsTheShieldsPlacedOnTheArena() {
 	ctx := context.Background()
 	storage, _, placed := s.placing()
-	blanked, err := storage.Blank(ctx, battle, noStart, opens(true))
+	blanked, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
 	s.Require().NoError(err)
 	s.Require().True(blanked)
 	s.Require().NoError(storage.Set(ctx, 3, "fr"))
 	s.place(storage, 3, 1)
 
-	dropped, err := storage.PutBack(ctx, battle, keeps(true))
+	dropped, err := storage.PutBack(ctx, battle, clicks.WorldStage, keeps(true))
 
 	s.Require().NoError(err)
 	s.True(dropped)

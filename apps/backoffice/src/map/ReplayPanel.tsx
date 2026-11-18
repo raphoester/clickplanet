@@ -4,13 +4,14 @@ import {timeOf} from "../components/time.ts"
 import {wordsOf} from "../refusal.ts"
 import {countOf} from "../support/labels.ts"
 import {useAction} from "../useAction.ts"
-import {replay, replayFileOf, RETENTION_HOURS} from "./actions.ts"
+import {boardsOf, erasOf, replay, replayFileOf, RETENTION_HOURS} from "./actions.ts"
 import {download, SavedFile} from "./download.ts"
 
 const HOUR_MS = 60 * 60 * 1000
 const SPANS = [1, 6, 12, 24, RETENTION_HOURS]
 
-type Saved = {name: string, events: number, since: Date | undefined, until: Date | undefined}
+// boards: the boards it is on, in words, each era's.
+type Saved = {name: string, events: number, since: Date | undefined, until: Date | undefined, boards: string}
 
 // The map as it was, and every act on it since: what the clip generator plays back. A read, so it asks nothing.
 export function ReplayPanel({planet, save = download}: {planet: PlanetAdmin, save?: (file: SavedFile) => void}) {
@@ -25,14 +26,18 @@ export function ReplayPanel({planet, save = download}: {planet: PlanetAdmin, sav
         const answer = await replay(planet, {since, until})
         const file = replayFileOf(answer)
         save(file)
-        return {name: file.name, events: answer.events.length, since: answer.since?.toDate(), until: answer.until?.toDate()}
+        return {
+            name: file.name, events: answer.events.length, since: answer.since?.toDate(), until: answer.until?.toDate(),
+            boards: boardsOf(erasOf(answer)),
+        }
     })
 
     return (
         <section className="panel" aria-label="Download a replay">
             <p className="hint">
                 The file <code>clips fetch</code> saves, for the frontend's <code>npm run clip</code>. The ledger keeps
-                {" "}{RETENTION_HOURS} hours: an older start opens on the oldest act it has. A day is a few MB.
+                {" "}{RETENTION_HOURS} hours: an older start opens on the oldest act it has. A day is a few MB. The file
+                keeps each board the world played in the span, and when it switched.
             </p>
             <div className="fields">
                 <label className="picker">
@@ -55,7 +60,8 @@ export function ReplayPanel({planet, save = download}: {planet: PlanetAdmin, sav
                     <p className="action-said" role="status">
                         Saved {saved.value.name}: {countOf(saved.value.events, "event")}
                         {saved.value.since !== undefined && saved.value.until !== undefined
-                            && `, ${timeOf(saved.value.since)} to ${timeOf(saved.value.until)}`}.
+                            && `, ${timeOf(saved.value.since)} to ${timeOf(saved.value.until)}`}
+                        {saved.value.boards !== "" && `, ${saved.value.boards}`}.
                     </p>
                 )}
             </div>

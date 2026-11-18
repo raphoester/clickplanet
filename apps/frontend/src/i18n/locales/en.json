@@ -534,6 +534,8 @@
   "archive.pause": "Pause",
   "archive.time": "Time",
   "archive.heat": "Where the tiles were fought over",
+  "archive.newMap": "The world moves to a new map",
+  "archive.newMapAt": "New map from {time}",
   "chat.title": "Chat",
   "chat.liveChat": "Live chat",
   "chat.world": "World",

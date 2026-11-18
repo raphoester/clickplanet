@@ -5,34 +5,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
-func (l *Loader) LoadBorders() (*clicks.Borders, error) {
-	board, err := l.board()
+func loadBorders(board cpboards.Board) (*clicks.Borders, error) {
+	asset := board.Manifest.Files.Borders
+	blob, err := board.File(asset)
 	if err != nil {
-		return nil, err
-	}
-	asset := board.manifest.Files.Borders
-	blob, err := board.file(asset)
-	if err != nil {
-		return nil, err
+		return nil, err //nolint:wrapcheck // the board names the file.
 	}
 
 	borders, err := decodeBorders(asset, blob)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode %s: %w", asset, err)
 	}
-
-	if borders.Tiles() != l.expectTiles {
-		return nil, fmt.Errorf(
-			"%s holds %d tiles but gameMap.maxIndex is %d: the board and the config were updated apart",
-			asset, borders.Tiles(), l.expectTiles)
+	if err := checkTiles(board, asset, borders.Tiles()); err != nil {
+		return nil, err
 	}
-
-	l.logger.Info("map borders loaded", slog.String("asset", asset))
 
 	return borders, nil
 }

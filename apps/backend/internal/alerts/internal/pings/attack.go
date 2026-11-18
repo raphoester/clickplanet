@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 // One flag took this many of another's tiles within the window: replayed on the last week of season 0, about ten
@@ -22,6 +23,8 @@ type Take struct {
 	Ground   nations.Flag
 	Point    Point
 	At       time.Time
+	// The scale of the board the tile is on: the zero Scale is earth-1's.
+	Scale cpboards.Scale
 }
 
 type Attack struct {
@@ -88,7 +91,7 @@ func (w *Watch) Hear(take Take) (Attack, bool) {
 	}
 	w.takes[take.Victim] = others
 	return Attack{
-		Victim: take.Victim, Attacker: take.Attacker, Ground: ground, Tiles: tiles, View: viewOf(points), At: take.At,
+		Victim: take.Victim, Attacker: take.Attacker, Ground: ground, Tiles: tiles, View: viewOf(points, take.Scale), At: take.At,
 	}, true
 }
 

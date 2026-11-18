@@ -8,10 +8,11 @@ import "google/protobuf/timestamp.proto";
 // start; each next one the tiles whose owner differs from the frame before.
 message MapHistory {
   repeated MapFrame frames = 1;
-  // Each tile's changes of owner and shield hits in the window; a tile with none is left out.
+  // Each tile's changes of owner and shield hits in the window, in each era; a tile with none is left out.
   repeated TileHits hits = 2;
   // The eras of the map the window covers, oldest first: the one it played at the window's start, then each that
-  // started in it. A frame's tile ids are the board of the era in force at its time.
+  // started in it. A frame's tile ids are the board of the era in force at its time, and the first frame of each era
+  // holds every tile held on its board, as the window's first frame does: the cut.
   repeated BoardEra eras = 3;
 }
 
@@ -42,4 +43,6 @@ message TileOwner {
 message TileHits {
   uint32 tile = 1;
   uint32 hits = 2;
+  // The era the tile is of, by its place in MapHistory.eras: 0 for the first.
+  uint32 era = 3;
 }

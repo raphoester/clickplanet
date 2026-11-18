@@ -534,6 +534,8 @@
   "archive.pause": "Pauza",
   "archive.time": "Čas",
   "archive.heat": "Kde se o pole nejvíc bojovalo",
+  "archive.newMap": "Svět přechází na novou mapu",
+  "archive.newMapAt": "Nová mapa od {time}",
   "chat.title": "Chat",
   "chat.liveChat": "Živý chat",
   "chat.world": "Svět",

@@ -106,14 +106,16 @@ func takeOf(change *planetv1.LedgerChange) (paint.Take, bool, error) {
 	}, true, nil
 }
 
-func (p Planet) Tiles(ctx context.Context, ids []drawings.TileID) ([]drawings.MapTile, error) {
+// Tiles reads each tile as the map in play holds it, refused (drawings.ErrOtherBoard) when the map in play plays another
+// board than the one the ids are of.
+func (p Planet) Tiles(ctx context.Context, board drawings.Board, ids []drawings.TileID) ([]drawings.MapTile, error) {
 	tiles := make([]drawings.MapTile, 0, len(ids))
 	for start := 0; start < len(ids); start += batch {
 		asked := make([]uint32, 0, batch)
 		for _, id := range ids[start:min(start+batch, len(ids))] {
 			asked = append(asked, uint32(id))
 		}
-		answer, err := p.ask(ctx, asked)
+		answer, err := p.ask(ctx, board, asked)
 		if err != nil {
 			return nil, err
 		}
@@ -128,13 +130,16 @@ func (p Planet) Tiles(ctx context.Context, ids []drawings.TileID) ([]drawings.Ma
 	return tiles, nil
 }
 
-func (p Planet) ask(ctx context.Context, asked []uint32) ([]*planetv1.MapTile, error) {
+func (p Planet) ask(ctx context.Context, board drawings.Board, asked []uint32) ([]*planetv1.MapTile, error) {
 	ctx, cancel := context.WithTimeout(ctx, askTimeout)
 	defer cancel()
 
 	res, err := p.client.GetTiles(ctx, connect.NewRequest(&planetv1.GetTilesRequest{TileIds: asked}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to ask planet %d tiles: %w", len(asked), err)
+	}
+	if named := drawings.Board(res.Msg.GetBoard()); named != "" && named != board {
+		return nil, fmt.Errorf("%w: %s, asked of %s", drawings.ErrOtherBoard, named, board)
 	}
 	if got := len(res.Msg.GetTiles()); got != len(asked) {
 		return nil, fmt.Errorf("planet answered %d tiles of the %d asked", got, len(asked))

@@ -2,11 +2,13 @@ package tiles_taken_subscriber
 
 import (
 	"context"
+	"fmt"
 
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/nations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/pings"
 	"github.com/raphoester/clickplanet.lol-backend/internal/alerts/internal/subscribers"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpredis"
 )
 
@@ -45,6 +47,11 @@ func (s Subscriber) HandleBatch(ctx context.Context, events []*planetv1.TilesTak
 }
 
 func takesOf(event *planetv1.TilesTaken) ([]pings.Take, error) {
+	// The tiles' points are their board's, and so is how close a ping's view comes.
+	scale, err := cpboards.ScaleOf(event.GetBoard())
+	if err != nil {
+		return nil, fmt.Errorf("failed to scale the takes to their board: %w", err)
+	}
 	var takes []pings.Take
 	for _, tile := range event.GetTiles() {
 		if tile.GetPrevious() == "" || tile.GetPrevious() == event.GetCountry() {
@@ -66,7 +73,7 @@ func takesOf(event *planetv1.TilesTaken) ([]pings.Take, error) {
 		point := tile.GetPoint()
 		takes = append(takes, pings.Take{
 			Victim: victim, Attacker: attacker, Ground: ground, At: event.GetTakenAt().AsTime(),
-			Point: pings.Point{X: point.GetX(), Y: point.GetY(), Z: point.GetZ()},
+			Point: pings.Point{X: point.GetX(), Y: point.GetY(), Z: point.GetZ()}, Scale: scale,
 		})
 	}
 	return takes, nil

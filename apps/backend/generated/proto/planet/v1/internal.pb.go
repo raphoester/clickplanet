@@ -69,8 +69,10 @@ func (x *GetTilesRequest) GetTileIds() []uint32 {
 
 // One per tile asked, in the order asked.
 type GetTilesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tiles         []*MapTile             `protobuf:"bytes,1,rep,name=tiles,proto3" json:"tiles,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Tiles []*MapTile             `protobuf:"bytes,1,rep,name=tiles,proto3" json:"tiles,omitempty"`
+	// The board the map in play plays, as /map/boards names it: the ids asked are read as its tiles.
+	Board         string `protobuf:"bytes,2,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -110,6 +112,13 @@ func (x *GetTilesResponse) GetTiles() []*MapTile {
 		return x.Tiles
 	}
 	return nil
+}
+
+func (x *GetTilesResponse) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
 }
 
 type MapTile struct {
@@ -717,9 +726,11 @@ func (*GetTerritoriesRequest) Descriptor() ([]byte, []int) {
 }
 
 type GetTerritoriesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Tiles         uint32                 `protobuf:"varint,1,opt,name=tiles,proto3" json:"tiles,omitempty"`
-	Territories   []*Territory           `protobuf:"bytes,2,rep,name=territories,proto3" json:"territories,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Tiles       uint32                 `protobuf:"varint,1,opt,name=tiles,proto3" json:"tiles,omitempty"`
+	Territories []*Territory           `protobuf:"bytes,2,rep,name=territories,proto3" json:"territories,omitempty"`
+	// The board the map in play plays, as /map/boards names it: the tiles are counted on it.
+	Board         string `protobuf:"bytes,3,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -766,6 +777,13 @@ func (x *GetTerritoriesResponse) GetTerritories() []*Territory {
 		return x.Territories
 	}
 	return nil
+}
+
+func (x *GetTerritoriesResponse) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
 }
 
 type Territory struct {
@@ -928,8 +946,10 @@ func (*GetCountrySizesRequest) Descriptor() ([]byte, []int) {
 
 // How many tiles of land each country has, all its landmasses together.
 type GetCountrySizesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CountrySizes  []*CountrySize         `protobuf:"bytes,1,rep,name=country_sizes,json=countrySizes,proto3" json:"country_sizes,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	CountrySizes []*CountrySize         `protobuf:"bytes,1,rep,name=country_sizes,json=countrySizes,proto3" json:"country_sizes,omitempty"`
+	// The board the sizes are counted on, as /map/boards names it: the board the map in play plays.
+	Board         string `protobuf:"bytes,2,opt,name=board,proto3" json:"board,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -969,6 +989,13 @@ func (x *GetCountrySizesResponse) GetCountrySizes() []*CountrySize {
 		return x.CountrySizes
 	}
 	return nil
+}
+
+func (x *GetCountrySizesResponse) GetBoard() string {
+	if x != nil {
+		return x.Board
+	}
+	return ""
 }
 
 type CountrySize struct {
@@ -1951,9 +1978,10 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"\x18planet/v1/internal.proto\x12\tplanet.v1\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17planet/v1/history.proto\x1a\x16planet/v1/ledger.proto\x1a\x16planet/v1/planet.proto\x1a\x15planet/v1/rules.proto\x1a\x16planet/v1/totals.proto\",\n" +
 	"\x0fGetTilesRequest\x12\x19\n" +
-	"\btile_ids\x18\x01 \x03(\rR\atileIds\"<\n" +
+	"\btile_ids\x18\x01 \x03(\rR\atileIds\"R\n" +
 	"\x10GetTilesResponse\x12(\n" +
-	"\x05tiles\x18\x01 \x03(\v2\x12.planet.v1.MapTileR\x05tiles\"\xba\x01\n" +
+	"\x05tiles\x18\x01 \x03(\v2\x12.planet.v1.MapTileR\x05tiles\x12\x14\n" +
+	"\x05board\x18\x02 \x01(\tR\x05board\"\xba\x01\n" +
 	"\aMapTile\x12\x17\n" +
 	"\atile_id\x18\x01 \x01(\rR\x06tileId\x12\x1d\n" +
 	"\n" +
@@ -1994,10 +2022,11 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\x04R\x05tiles\"\x17\n" +
-	"\x15GetTerritoriesRequest\"f\n" +
+	"\x15GetTerritoriesRequest\"|\n" +
 	"\x16GetTerritoriesResponse\x12\x14\n" +
 	"\x05tiles\x18\x01 \x01(\rR\x05tiles\x126\n" +
-	"\vterritories\x18\x02 \x03(\v2\x14.planet.v1.TerritoryR\vterritories\"\x87\x01\n" +
+	"\vterritories\x18\x02 \x03(\v2\x14.planet.v1.TerritoryR\vterritories\x12\x14\n" +
+	"\x05board\x18\x03 \x01(\tR\x05board\"\x87\x01\n" +
 	"\tTerritory\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
@@ -2008,9 +2037,10 @@ const file_planet_v1_internal_proto_rawDesc = "" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +
 	"\x05tiles\x18\x02 \x01(\rR\x05tiles\"\x18\n" +
-	"\x16GetCountrySizesRequest\"V\n" +
+	"\x16GetCountrySizesRequest\"l\n" +
 	"\x17GetCountrySizesResponse\x12;\n" +
-	"\rcountry_sizes\x18\x01 \x03(\v2\x16.planet.v1.CountrySizeR\fcountrySizes\"B\n" +
+	"\rcountry_sizes\x18\x01 \x03(\v2\x16.planet.v1.CountrySizeR\fcountrySizes\x12\x14\n" +
+	"\x05board\x18\x02 \x01(\tR\x05board\"B\n" +
 	"\vCountrySize\x12\x1d\n" +
 	"\n" +
 	"country_id\x18\x01 \x01(\tR\tcountryId\x12\x14\n" +

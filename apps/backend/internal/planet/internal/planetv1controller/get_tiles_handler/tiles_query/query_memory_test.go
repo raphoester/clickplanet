@@ -34,6 +34,8 @@ func (g stubGeography) Position(id uint32) (clicks.Vec3, bool) {
 
 func (g stubGeography) Neighbours(id uint32) []uint32 { return g.neighbours[id] }
 
+func (stubGeography) Name() clicks.BoardName { return "earth-1" }
+
 func TestEachTileIsItsFlagItsHolderItsPlaceAndWhatItTouches(t *testing.T) {
 	ana := cpsession.AccountID(uuid.MustParse("0b6d4f7e-5d7c-4a36-9a51-3f1f8f0c2a11"))
 	table := []uint32{3, 5}
@@ -51,5 +53,6 @@ func TestEachTileIsItsFlagItsHolderItsPlaceAndWhatItTouches(t *testing.T) {
 			Neighbours: []uint32{3, 5},
 		},
 		{TileId: 9, CountryId: "de", Point: &planetv1.GlobePoint{X: 9, Y: 1, Z: -1}},
-	}}, answer), "a tile nobody holds names no account, and the answer is a copy of the map's table: %v", answer)
+	}, Board: "earth-1"}, answer), "a tile nobody holds names no account, the answer is a copy of the map's table, and it "+
+		"names the board in play: %v", answer)
 }

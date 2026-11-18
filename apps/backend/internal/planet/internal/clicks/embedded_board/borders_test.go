@@ -1,19 +1,16 @@
 package embedded_board_test
 
 import (
-	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
-	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 )
 
 func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
-	borders, err := loader().LoadBorders()
-	require.NoError(t, err)
+	borders := earth1.Borders()
 
 	manifest, _ := shipped(t)
 	assert.Equal(t, "borders-e6851c0e.bin", manifest.Files.Borders)
@@ -37,8 +34,7 @@ func TestTheShippedBordersPutEveryTileInItsCountry(t *testing.T) {
 }
 
 func TestTheShippedBordersSplitEachCountryIntoItsLandmasses(t *testing.T) {
-	borders, err := loader().LoadBorders()
-	require.NoError(t, err)
+	borders := earth1.Borders()
 
 	assert.Equal(t, 695, borders.Landmasses(), "694 landmasses and none")
 	assert.Empty(t, borders.TilesOf(clicks.NoLandmass))
@@ -54,11 +50,6 @@ func TestTheShippedBordersSplitEachCountryIntoItsLandmasses(t *testing.T) {
 	assert.Len(t, us, 36)
 	assert.Contains(t, us, 15728, "the lower 48, the Great Lakes water")
 	assert.Contains(t, us, 2828, "alaska")
-}
-
-func TestBordersForAnotherMapRefuseTheBoot(t *testing.T) {
-	_, err := embedded_board.New(tiles-1, slog.New(slog.DiscardHandler)).LoadBorders()
-	require.Error(t, err)
 }
 
 func TestARegionPastTheCodeTableIsRefused(t *testing.T) {

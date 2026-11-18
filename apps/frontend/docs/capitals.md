@@ -8,7 +8,7 @@ map too.
 - **Where the page learns them.** `GetChargeRules.knock_out` and `capital_shields_fixed`, read into `BonusRules` and read
   again on `rules_changed`. `globe.ts` follows them in `onRules` (`followCapitals`).
 - **What it reads then.** The board's `capitals-<hash>.json`, once, the first time either rule plays (`capitals.ts`;
-  URL in `BOARD.urls.capitals`, `boardAsset.ts`). It is a copy of [`/map`](../../../map/README.md). A file written for a map of another size is
+  URL in the board's `urls.capitals`, `boardsAsset.ts`). It is a copy of [`/map`](../../../map/README.md). A file written for a map of another size is
   refused.
 - **The capitals still standing** (`domain/capitalMarks.ts`), while either rule plays. A capital is marked while its own
   country holds it:

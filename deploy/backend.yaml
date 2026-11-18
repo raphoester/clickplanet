@@ -4,9 +4,6 @@ httpServer:
   internalBindAddress: 127.0.0.1:8082
   allowedOrigin: http://localhost
 
-gameMap:
-  maxIndex: 260503
-
 database:
   host: postgres
   port: "5432"

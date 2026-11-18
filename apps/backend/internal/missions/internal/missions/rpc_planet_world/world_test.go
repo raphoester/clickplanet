@@ -12,9 +12,11 @@ import (
 	planetv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/planet/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions"
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/missions/rpc_planet_world"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 type stubPlanet struct {
+	board       string
 	territories []*planetv1.Territory
 	sizes       []*planetv1.CountrySize
 	err         error
@@ -26,7 +28,7 @@ func (p stubPlanet) GetTerritories(
 	if p.err != nil {
 		return nil, p.err
 	}
-	return connect.NewResponse(&planetv1.GetTerritoriesResponse{Territories: p.territories}), nil
+	return connect.NewResponse(&planetv1.GetTerritoriesResponse{Territories: p.territories, Board: p.board}), nil
 }
 
 func (p stubPlanet) GetCountrySizes(
@@ -46,6 +48,17 @@ func TestTheWorldIsWhatEachFlagHoldsAndWhereAndHowBigEachCountryIs(t *testing.T)
 		Territories:  []missions.Territory{{Flag: "dz", Tiles: 9, Grounds: []missions.Holding{{Country: "ma", Tiles: 9}}, Shields: 4}},
 		CountrySizes: []missions.Holding{{Country: "br", Tiles: 900}},
 	}, world)
+}
+
+func TestTheWorldIsScaledToTheBoardPlanetCountsOn(t *testing.T) {
+	world, err := rpc_planet_world.New(stubPlanet{board: cpboards.Fixture}).World(t.Context())
+
+	require.NoError(t, err)
+	assert.InDelta(t, 9.697, world.Scale.Length(), 0.001)
+
+	world, err = rpc_planet_world.New(stubPlanet{board: "earth-1"}).World(t.Context())
+	require.NoError(t, err)
+	assert.InDelta(t, 1.0, world.Scale.Length(), 0, "earth-1's floors, exactly")
 }
 
 func TestAPlanetThatFailsIsAnError(t *testing.T) {

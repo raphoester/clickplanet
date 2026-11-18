@@ -80,6 +80,7 @@ import {createConnectTransport} from "@connectrpc/connect-web";
 import {v4 as generateUUID} from 'uuid';
 import {Config, NO_TIMEOUT, openStream, retrying, retryingAtOnce} from "./transport.ts";
 import {NoSession, SESSION_HEADER, SessionProvider, SessionUnavailableError} from "./session.ts";
+import type {BoardChanges} from "./boards.ts";
 
 export type {Config}
 
@@ -151,12 +152,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
     private readonly stopFollowingTokens: () => void
 
-    // With no bonuses client, as in a test of the map alone, a sign-in earns no refill the page says.
+    // With no bonuses client, as in a test of the map alone, a sign-in earns no refill the page says. With no board
+    // changes, every answer is drawn whatever board it names.
     constructor(
         private client: PromiseClient<typeof ClickService>,
         batchUpdateDurationMs: number,
         private session: SessionProvider = new NoSession(),
         private bonuses?: PromiseClient<typeof BonusService>,
+        private boards?: BoardChanges,
     ) {
         void this.readBudget()
         void this.readRules()
@@ -317,6 +320,14 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         return () => this.budgetCallbacks.delete(id)
     }
 
+    // The board the map plays, as GetMap names it: one tile, the first, which every board has.
+    public async readBoard(signal?: AbortSignal): Promise<string> {
+        const res = await retrying(() => this.client.getMap({startTileId: 1, endTileId: 1}, {signal}), "getMap's board", signal)
+        return res.board
+    }
+
+    // A batch on another board than the one drawn is not handed over: the page reads it again once the browser's copy is
+    // past, or reloads (boards.ts).
     public async getOwnerships(
         ranges: readonly TileRange[],
         callback: (ownerships: Ownerships) => void,
@@ -337,7 +348,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     reading.signal,
                 )
                 reading.signal.throwIfAborted()
-                callback(ownershipsOf(res, range))
+                if ((this.boards?.answered(res.board) ?? "drawn") === "drawn") callback(ownershipsOf(res, range))
             }
         }
 
@@ -393,7 +404,8 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
 
                 const heartbeat = heartbeatOf(event)
                 if (heartbeat) {
-                    if (opened) this.streamOpened(heartbeat)
+                    // A stream on another board than the page drew reloads it: nothing it sends is of the tiles drawn.
+                    if (opened && !this.boards?.opened(openingBoardOf(event))) this.streamOpened(heartbeat)
                     return
                 }
 
@@ -1386,6 +1398,11 @@ export function holdingsChangeOf(event: PlanetEvent): Counts | undefined {
 
 export function heartbeatOf(event: PlanetEvent): MapVersion | undefined {
     return event.event.case === "heartbeat" ? versionOf(event.event.value.version) : undefined
+}
+
+// The board a stream opens on, as its first heartbeat names it: empty on the heartbeats after.
+export function openingBoardOf(event: PlanetEvent): string {
+    return event.event.case === "heartbeat" ? event.event.value.board : ""
 }
 
 export function bindingsOf(res: GetMapResponse): Map<number, string> {

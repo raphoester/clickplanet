@@ -42,7 +42,7 @@ type Arenas interface {
 type Tiles interface {
 	Stage() clicks.Stage
 	StateBatchDense(start uint32, end uint32) (clicks.DenseBatch, error)
-	Kept(ctx context.Context, kept clicks.MapID) (clicks.DenseBatch, error)
+	Kept(ctx context.Context, kept clicks.Stage) (clicks.DenseBatch, error)
 }
 
 type In struct {
@@ -111,7 +111,7 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}
 
 	// The map before the ledger: a change made between the two reads is then in the ledger, and rewound.
-	now, err := u.world(ctx)
+	now, err := u.world(ctx, world.Stage())
 	if err != nil {
 		return Out{}, err
 	}
@@ -125,10 +125,10 @@ func (u *UseCase) Execute(ctx context.Context, in In) (Out, error) {
 	}, nil
 }
 
-// The world's map as it plays, or as postgres keeps it while an arena's plays.
-func (u *UseCase) world(ctx context.Context) (clicks.DenseBatch, error) {
+// The world's map as it plays, or as postgres keeps it on the board of its era while an arena's plays.
+func (u *UseCase) world(ctx context.Context, world clicks.Stage) (clicks.DenseBatch, error) {
 	if u.tiles.Stage().Map != clicks.World {
-		kept, err := u.tiles.Kept(ctx, clicks.World)
+		kept, err := u.tiles.Kept(ctx, world)
 		if err != nil {
 			return clicks.DenseBatch{}, fmt.Errorf("failed to read the world's map kept: %w", err)
 		}

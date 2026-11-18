@@ -45,7 +45,8 @@ video made, shared or saved. There is no reward in the game (see [Delivery](#del
 All of it is pure and tested, in `src/domain/video/story.ts`:
 
 - **The country**: the one real country (the ground of `countryOfTile`) where the flag gained or lost the most tiles
-  between the first frame and the last. Under a hundredth of that country is a quiet day: then it is the country where
+  between the first frame and the last. **Over a change of board, of the last era alone**, from its first frame, on its
+  board (`lastEraOf`): the tiles of two boards do not compare. `videoStore` reads that board's borders. Under a hundredth of that country is a quiet day: then it is the country where
   the flag holds the most, weighed by its share, so 62% of Poland comes before 1% of Russia.
 - **The headline**, a fixed English sentence: "POLAND TOOK 40% OF GERMANY", "POLAND IS LOSING GERMANY. HELP", "POLAND
   HOLDS 62% OF GERMANY". When the country is the flag's own (`atHome`), it is not named twice: "POLAND TOOK BACK 40% OF
@@ -68,6 +69,12 @@ judged within seconds.
 - **Drawn in a page of its own**, `/video` (`video.html`, `src/video/main.ts`), in a hidden frame
   (`app/video/makeVideo.ts`). The page has its own clock and its own globe, so the game's globe and clock run on. It
   keeps no storage of the game's: `isolate.ts` gives it an empty one, or its globe would paint the player's ghosts.
+- **Each era of the 24 hours is drawn on its own board** (`domain/eras.ts`): one globe per era, each in a layer of its own,
+  all built before the first frame, and the one whose era is in force at the replay's clock shows. Past an era's start
+  its board is shown, cleared and drawn whole from the era's first frame: **the cut**. The video flashes white for a
+  third of a second and says "NEW MAP" in gold over the middle for a second and a half (`overlay.ts`). The counter counts
+  on each era's board, as many tiles of the country on the board the story is of. With one era, the only one until the
+  world's switch, the video is as before.
 - **The frames are drawn one by one on the virtual clock** (`src/clip/virtualClock.ts`), never in real time: 240 frames,
   720x1280, 30 fps. The globe plays the 24 hours as a replay (`ReplayBackend.ofHistory`). The camera is the clips'
   front camera (`cameraOf`): it dives where the flag fought in the country and comes back out over it at the end.

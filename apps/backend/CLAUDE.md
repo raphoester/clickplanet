@@ -72,12 +72,17 @@ and says what is in it. Read the doc before you change its area.
   shutdown.
 - [Durability](docs/durability.md) — the map lives in memory and goes to postgres every second; what a crash
   loses.
-- [Map geography](docs/map-geography.md) — the board loader: positions rebuilt from the runs and checked against the
-  manifest's hash, adjacency taken from the lattice, checked at boot.
-- [Boards and eras](docs/boards-and-eras.md) — `planet.boards` and `eras`, the `board` column on every row of a tile
-  and the `map` and `board` of every event (`clicks.Stage`), the backfill and its test, the gate that keeps a write and
-  its record on one stage, the boot's guard (a board carried by name and hash, rows of another board refused), each
-  reader by column, and the board on the wire.
+- [Map geography](docs/map-geography.md) — a board's ground: positions rebuilt from the runs and checked against the
+  manifest's hash, adjacency taken from the lattice, each file's tile count checked as the board loads.
+- [Boards and eras](docs/boards-and-eras.md) — the registry of every board carried, each loaded when first needed;
+  `planet.boards` and `eras`, the `board` column on every row of a tile and the `map` and `board` of every event
+  (`clicks.Stage`), the backfill and its test, the gate that keeps a write and its record on one stage, the ground in
+  play swapped with the stage (`clicks.Played`), the boot's guard (every board carried by name and hash, rows of
+  another board refused), each reader by column, the history drawing each era on its board with the cut, and the board
+  on the wire.
+- [Sized from the board](docs/board-scale.md) — `cpboards`' scale against `earth-1`: counts of tiles with the density,
+  lengths with the spacing, zooms the other way; the mission floors, the fortify news, the vandal squad's largest
+  drawing and link, the attack ping's zoom; unchanged on `earth-1`.
 - [Rate limiting](docs/rate-limiting.md) — two buckets per click, what the answer says is left, and a big country
   refills slower.
 - [VPN blocklist](docs/vpn-blocklist.md) — `Click` refused from vendored VPN and Cloudflare WARP ranges, before the

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"log/slog"
 	"math/rand/v2"
 	"slices"
 	"testing"
@@ -41,8 +40,9 @@ type day struct {
 }
 
 func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
-	geography, err := embedded_board.New(mapTiles, slog.New(slog.DiscardHandler)).LoadGeography()
+	ground, err := embedded_board.Shipped("earth-1")
 	require.NoError(t, err)
+	geography := ground.Geography()
 	busy := &day{geography: geography, random: rand.New(rand.NewPCG(11, 11)), owners: make([]string, mapTiles+1)} //nolint:gosec // a fixed draw, not a secret.
 	busy.hold()
 	opening := slices.Clone(busy.owners)
@@ -72,7 +72,7 @@ func TestTheAnswerOfADayAsBusyAsProductionsFitsItsBudget(t *testing.T) {
 	}
 	assert.True(t, slices.Equal(busy.owners, replayed), "every frame played after it is the map now")
 
-	answer, err := proto.Marshal(&planetv1.GetRecentMapHistoryResponse{History: planetmessage.MapHistory(frames, rewound.Hits(), nil)})
+	answer, err := proto.Marshal(&planetv1.GetRecentMapHistoryResponse{History: planetmessage.MapHistory(frames, ledger.InEra(0, rewound.Hits()), nil)})
 	require.NoError(t, err)
 	var zipped bytes.Buffer
 	writer := gzip.NewWriter(&zipped)

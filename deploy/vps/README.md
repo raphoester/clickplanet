@@ -280,8 +280,8 @@ Generated protobuf code is committed, so the build needs no `buf`.
 
 The `.bin` name carries a content hash, and `public/_headers` caches it
 `immutable` for a year: regenerating the tile map ships a new file name, so a
-stale blob can never be served. If you regenerate it, `gameMap.maxIndex` in
-`backend.yaml` must be updated to match the new tile count.
+stale blob can never be served. The backend reads each board's tile count from its manifest, so no config follows
+it (`gameMap.maxIndex` went on 2026-11-18).
 
 ## 5. Turnstile and the click session
 

@@ -534,6 +534,8 @@
   "archive.pause": "Pause",
   "archive.time": "Zeit",
   "archive.heat": "Wo um die Felder gekämpft wurde",
+  "archive.newMap": "Die Welt wechselt auf eine neue Karte",
+  "archive.newMapAt": "Neue Karte ab {time}",
   "chat.title": "Chat",
   "chat.liveChat": "Live-Chat",
   "chat.world": "Welt",

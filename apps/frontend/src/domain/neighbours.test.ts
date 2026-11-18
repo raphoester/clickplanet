@@ -1,16 +1,17 @@
 import {readFileSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {describe, expect, it} from "vitest"
-import {BOARD} from "../app/viewer/boardAsset.ts"
+import {EARTH_1, FIXTURE_1, tilesOfBoard} from "../testdata/boards.ts"
+import {EARTH_1_SCALE, scaleOf} from "./boardScale.ts"
 import {rebuildTiles} from "./board.ts"
 import {Neighbours} from "./neighbours.ts"
 
 const STATIC = fileURLToPath(new URL("../../static/", import.meta.url))
 
 function shippedPositions(): Float32Array {
-    const bytes = readFileSync(`${STATIC}boards/${BOARD.name}/${BOARD.files.runs}`)
+    const bytes = readFileSync(`${STATIC}boards/${EARTH_1.name}/${EARTH_1.files.runs}`)
     const runs = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
-    return rebuildTiles(BOARD.lattice, BOARD.tiles, runs).positions
+    return rebuildTiles(EARTH_1.lattice, EARTH_1.tiles, runs).positions
 }
 
 describe("Neighbours", () => {
@@ -21,7 +22,7 @@ describe("Neighbours", () => {
             Math.cos(0.008), Math.sin(0.008), 0,
             0, 1, 0,
         ])
-        const neighbours = new Neighbours(positions)
+        const neighbours = new Neighbours(positions, EARTH_1_SCALE)
 
         expect(neighbours.of(1)).toEqual([2])
         expect(neighbours.of(2).sort()).toEqual([1, 3])
@@ -30,11 +31,22 @@ describe("Neighbours", () => {
 
     it("gives an inland tile of the shipped map its six around, and no tile more", () => {
         const positions = shippedPositions()
-        const neighbours = new Neighbours(positions)
+        const neighbours = new Neighbours(positions, EARTH_1_SCALE)
         const counts: number[] = []
         for (let tile = 1; tile * 3 <= positions.length; tile += 7) counts.push(neighbours.of(tile).length)
 
         expect(Math.max(...counts)).toBe(6)
         expect(counts.filter((count) => count === 6).length / counts.length).toBeGreaterThan(0.9)
+    })
+
+    it("gives an inland tile of a coarser board its own six around, at its own spacing", () => {
+        const {positions} = tilesOfBoard(FIXTURE_1)
+        const neighbours = new Neighbours(positions, scaleOf(FIXTURE_1))
+        const counts: number[] = []
+        for (let tile = 1; tile * 3 <= positions.length; tile++) counts.push(neighbours.of(tile).length)
+
+        expect(Math.max(...counts)).toBe(6)
+        expect(counts.filter((count) => count === 6).length / counts.length).toBeGreaterThan(0.5)
+        expect(new Neighbours(positions, EARTH_1_SCALE).of(1)).toEqual([])
     })
 })

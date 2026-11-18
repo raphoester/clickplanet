@@ -13,9 +13,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
-// Eras names the board the world plays, and the eras a window covers.
+// Eras names the eras of the world a window covers.
 type Eras interface {
-	Latest(ctx context.Context, played clicks.MapID) (eras.Era, error)
 	Covering(ctx context.Context, played clicks.MapID, since, until time.Time) ([]eras.Era, error)
 }
 
@@ -30,7 +29,7 @@ type PostgresQuery struct {
 
 // The map at the window's start is every take before it, from the last reset at or before it, where the map was blank.
 // Positions follow time, so the read stops at the first event at or after the window's end. Each event names its map
-// and its board, and the history keeps the world's on the board it plays.
+// and its board, and the history keeps the world's on the board of the era in force at its time.
 const events = `
 	SELECT map, board, kind, tile, COALESCE(scope, ''), COALESCE(account::text, ''), country, previous, taken_at, payload
 	FROM ledger_events
@@ -38,24 +37,27 @@ const events = `
 	ORDER BY position
 `
 
+// History draws each era of the world the window covers on its board, with the cut: the frames before an era's start
+// are on the board before, and the first after it holds every tile held on its own.
 func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, step time.Duration) (*planetv1.MapHistory, error) {
-	world, err := q.eras.Latest(ctx, clicks.World)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the board the world plays: %w", err)
-	}
-	covering, err := q.eras.Covering(ctx, clicks.World, since, until)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the world's eras: %w", err)
-	}
-	history, err := ledger.NewHistory(since, until, step, world.Stage())
-	if err != nil {
-		return nil, fmt.Errorf("failed to start the map's history: %w", err)
-	}
 	resets, err := q.resets(ctx)
 	if err != nil {
 		return nil, err
 	}
 	resets, blank := blankBefore(resets, since)
+	// The eras from the blank map on: the one in force then is the board the first entries replay on.
+	all, err := q.eras.Covering(ctx, clicks.World, blank, until)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read the world's eras: %w", err)
+	}
+	if len(all) == 0 {
+		return nil, fmt.Errorf("failed to read the world's eras: %w", eras.ErrNoEra)
+	}
+	history, err := ledger.NewHistory(since, until, step, all[0].Stage())
+	if err != nil {
+		return nil, fmt.Errorf("failed to start the map's history: %w", err)
+	}
+	cuts := all[1:]
 	rows, err := q.db.On(ctx).QueryContext(ctx, events, blank)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the ledger: %w", err)
@@ -72,10 +74,7 @@ func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, ste
 		if history.Done(entry) {
 			break
 		}
-		for len(resets) > 0 && !resets[0].After(entry.At) {
-			history.Wipe(resets[0])
-			resets = resets[1:]
-		}
+		resets, cuts = changesUpTo(history, resets, cuts, entry.At)
 		if err := history.Record(entry); err != nil {
 			return nil, fmt.Errorf("failed to replay an event: %w", err)
 		}
@@ -83,10 +82,26 @@ func (q *PostgresQuery) History(ctx context.Context, since, until time.Time, ste
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read the ledger: %w", err)
 	}
-	for _, reset := range resets {
-		history.Wipe(reset)
+	changesUpTo(history, resets, cuts, until)
+	return planetmessage.MapHistory(history.Frames(), history.Hits(), eras.From(all, since)), nil
+}
+
+// changesUpTo plays the resets and the cuts at or before at on the history, in time order, and returns those after it.
+func changesUpTo(history *ledger.History, resets []time.Time, cuts []eras.Era, at time.Time) ([]time.Time, []eras.Era) {
+	for {
+		reset := len(resets) > 0 && !resets[0].After(at)
+		cut := len(cuts) > 0 && !cuts[0].StartedAt.After(at)
+		switch {
+		case reset && (!cut || !cuts[0].StartedAt.Before(resets[0])):
+			history.Wipe(resets[0])
+			resets = resets[1:]
+		case cut:
+			history.Cut(cuts[0].StartedAt, cuts[0].Board.ID)
+			cuts = cuts[1:]
+		default:
+			return resets, cuts
+		}
 	}
-	return planetmessage.MapHistory(history.Frames(), history.Hits(), covering), nil
 }
 
 // The resets from the last one at or before since, and that one's time; the zero time when none precedes since.

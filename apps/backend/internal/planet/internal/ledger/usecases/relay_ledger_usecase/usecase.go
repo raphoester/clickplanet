@@ -30,23 +30,23 @@ type Positions interface {
 	Position(tile uint32) (clicks.Vec3, bool)
 }
 
-// Boards are the borders and the positions of each board this process carries: an event's tiles are ids of its board.
+// Boards are the name, the borders and the positions of each board this process carries: an event's tiles are ids of
+// its board.
 type Boards interface {
-	Of(board clicks.BoardID) (Borders, Positions, bool)
+	Of(board clicks.BoardID) (clicks.BoardName, Borders, Positions, bool)
 }
 
-// OneBoard is the one board this process carries, until it carries more.
-type OneBoard struct {
-	ID        clicks.BoardID
-	Borders   Borders
-	Positions Positions
+// OnGrounds reads each board's from its ground.
+type OnGrounds struct {
+	Grounds clicks.Grounds
 }
 
-func (b OneBoard) Of(board clicks.BoardID) (Borders, Positions, bool) {
-	if board != b.ID {
-		return nil, nil, false
+func (g OnGrounds) Of(board clicks.BoardID) (clicks.BoardName, Borders, Positions, bool) {
+	ground, err := g.Grounds.GroundOf(board)
+	if err != nil {
+		return "", nil, nil, false
 	}
-	return b.Borders, b.Positions, true
+	return ground.Name(), ground.Borders(), ground.Geography(), true
 }
 
 // An event on a board this process does not carry tells its tiles with no ground and no point.
@@ -103,23 +103,24 @@ func (u *UseCase) Execute(ctx context.Context) (int, error) {
 	return int(next - from), nil //nolint:gosec // at most Batch.
 }
 
-// The ground and the point of each tile are its board's, the board the event names.
+// The ground and the point of each tile are its board's, the board the event names, which the facts name too.
 func (u *UseCase) factsOf(position ledger.Position, on clicks.Stage, event ledger.Event) []proto.Message {
 	var (
+		board     clicks.BoardName
 		borders   Borders   = noBoard{}
 		positions Positions = noBoard{}
 	)
-	if carried, at, ok := u.boards.Of(on.Board); ok {
-		borders, positions = carried, at
+	if name, carried, at, ok := u.boards.Of(on.Board); ok {
+		board, borders, positions = name, carried, at
 	}
-	facts := takenOf(position, event, borders, positions)
+	facts := takenOf(position, event, board, borders, positions)
 	facts = append(facts, struckOf(position, event)...)
 
 	switch told := event.(type) {
 	case ledger.Bombing:
 		facts = append(facts, landedOf(position, told, borders))
 	case ledger.Fortifying:
-		facts = append(facts, fortifiedOf(position, told))
+		facts = append(facts, fortifiedOf(position, told, board))
 	case ledger.Shielding:
 		facts = append(facts, shieldPlacedOf(position, told))
 	case ledger.KnockingOut:
@@ -133,7 +134,7 @@ func (u *UseCase) factsOf(position ledger.Position, on clicks.Stage, event ledge
 const PartTiles = 4096
 
 // The takes of one event, in parts: a tile's index counts the takes told before it in the event, across the parts.
-func takenOf(position ledger.Position, event ledger.Event, borders Borders, positions Positions) []proto.Message {
+func takenOf(position ledger.Position, event ledger.Event, board clicks.BoardName, borders Borders, positions Positions) []proto.Message {
 	var parts []proto.Message
 	var part *planetv1.TilesTaken
 	var index uint32
@@ -147,6 +148,7 @@ func takenOf(position ledger.Position, event ledger.Event, borders Borders, posi
 				Country:   taking.Country,
 				TakenAt:   timestamppb.New(taking.At),
 				Position:  uint64(position),
+				Board:     string(board),
 			}
 			parts = append(parts, part)
 		}
@@ -201,7 +203,7 @@ func landedOf(position ledger.Position, bombing ledger.Bombing, borders Borders)
 	return landed
 }
 
-func fortifiedOf(position ledger.Position, fortifying ledger.Fortifying) *planetv1.Fortified {
+func fortifiedOf(position ledger.Position, fortifying ledger.Fortifying, board clicks.BoardName) *planetv1.Fortified {
 	return &planetv1.Fortified{
 		Country:     fortifying.Country,
 		Ground:      fortifying.Ground,
@@ -210,6 +212,7 @@ func fortifiedOf(position ledger.Position, fortifying ledger.Fortifying) *planet
 		FortifiedAt: timestamppb.New(fortifying.At),
 		AccountId:   fortifying.Account,
 		Position:    uint64(position),
+		Board:       string(board),
 	}
 }
 

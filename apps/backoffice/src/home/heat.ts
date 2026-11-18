@@ -1,4 +1,5 @@
-import {Places} from "./places.ts"
+import {Places} from "../boards/places.ts"
+import {scaleOf} from "../boards/scale.ts"
 
 // One cell per degree, for naming where a pointer is: row 0 is the north pole, column 0 is 180° west.
 export const COLUMNS = 360
@@ -43,17 +44,21 @@ function degreesOf(value: number, positive: string, negative: string): string {
 
 export type Picture = {width: number, height: number, land: Uint8Array, heat: Float32Array}
 
-// A little more than the spacing between two tiles, in degrees, so no land is left with holes far north.
-const TILE_DEGREES = 0.3
+// A tile's width on earth-1, in degrees: a little more than the spacing between two of its tiles, so no land is left
+// with holes far north. A board reads it at its own spacing (boards/scale.ts).
+export const TILE_DEGREES = 0.3
 // Three box blurs are close to a gaussian: no square around a lone change.
 const GLOW = 2
 const PASSES = 3
 
 // The map seen flat: each tile is drawn where it is, as wide as its longitude stretches, and what changed hands
-// glows over the land around it.
+// glows over the land around it. A tile is as wide as its board's spacing: on earth-1 it covers the pixel row under
+// it, its rows being about a pixel apart; on a coarser board, the rows between its own as well.
 export function pictureOf(places: Places, changes: Uint32Array, width: number): Picture {
     const height = width / 2
     const pixelDegrees = 360 / width
+    const tileDegrees = scaleOf(places.board).length(TILE_DEGREES)
+    const rows = Math.floor(tileDegrees / 2 / pixelDegrees)
     const land = new Uint8Array(width * height)
     const raw = new Float32Array(width * height)
 
@@ -62,13 +67,15 @@ export function pictureOf(places: Places, changes: Uint32Array, width: number): 
         const y = Math.min(height - 1, Math.max(0, Math.floor(((90 - latitude) / 180) * height)))
         const x = ((places.longitudes[i] + 180) / 360) * width
         const half = Math.min(width / 2, Math.max(0.5,
-            TILE_DEGREES / 2 / Math.max(Math.cos((latitude * Math.PI) / 180), 1e-3) / pixelDegrees))
+            tileDegrees / 2 / Math.max(Math.cos((latitude * Math.PI) / 180), 1e-3) / pixelDegrees))
         const changed = changes[i + 1] ?? 0
 
-        for (let column = Math.floor(x - half); column < Math.ceil(x + half); column++) {
-            const pixel = y * width + ((column % width) + width) % width
-            land[pixel] = 1
-            raw[pixel] += changed
+        for (let row = Math.max(0, y - rows); row <= Math.min(height - 1, y + rows); row++) {
+            for (let column = Math.floor(x - half); column < Math.ceil(x + half); column++) {
+                const pixel = row * width + ((column % width) + width) % width
+                land[pixel] = 1
+                raw[pixel] += changed
+            }
         }
     }
 

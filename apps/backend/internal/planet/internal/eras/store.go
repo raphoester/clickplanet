@@ -29,3 +29,18 @@ func Playing(ctx context.Context, store Store, boards Boards, played clicks.MapI
 	}
 	return boards.Stage(era)
 }
+
+// Maps names the stage each map plays, from its eras and the boards this process carries.
+type Maps struct {
+	store  Store
+	boards Boards
+}
+
+func NewMaps(store Store, boards Boards) Maps {
+	return Maps{store: store, boards: boards}
+}
+
+// Playing is the stage a map plays: its latest era's board, which this process carries.
+func (m Maps) Playing(ctx context.Context, played clicks.MapID) (clicks.Stage, error) {
+	return Playing(ctx, m.store, m.boards, played)
+}

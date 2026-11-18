@@ -7,19 +7,24 @@ kind of hash-named file needs its own `_headers` rule. Each has a generated TS m
 edit those by hand, and do not add a `?ts=` cache-buster, which defeats the
 cache entirely:
 
-- `/static/boards/<board>/` — a board's files, every one content-addressed: its manifest
+- `/static/boards/<board>/` — each board's files, for every board in `/map`, every one content-addressed: its manifest
   (`board-<hash>.json`), its runs (`runs-<hash>.bin`, which lattice points are tiles: `points.ts`
   rebuilds every tile's position from them in a worker, see [Tile positions](tile-positions.md)),
   its borders (whose ground each tile sits on, fetched by `borderField.ts`), and its capitals and
   bridges (fetched by `capitals.ts` and `bridges.ts` the first time a capitals' rule or the reach
   plays, see [The capitals](capitals.md) and [The reach](reach.md)), and its terrain (each lattice point's kind of
-  land or sea, fetched by `terrain.ts` with the globe, see [The terrain](terrain.md)). `boardAsset.ts` holds the manifest
-  and each file's URL as `BOARD`. Formats in [`/map/README.md`](../../../map/README.md#format).
+  land or sea, fetched by `terrain.ts` with the globe, see [The terrain](terrain.md)). Beside them, **the page's own
+  files of the board**, which `/map` does not carry: its border lines and its landmass names (below). `boardsAsset.ts`
+  holds every board's manifest, its own files and each file's URL as `BOARDS`, keyed by the board's name, and
+  `viewer/boards.ts` finds one (`boardOf`, which throws on a board this build does not carry). A board missing one of its
+  own files is left out of the table, and `npm run map` says which command writes it. Formats in
+  [`/map/README.md`](../../../map/README.md#format).
   **These are not ours alone.** The source of truth is the monorepo-shared
   [`/map`](../../../map/README.md), which the backend builds its tile adjacency from
   and its admin tools read; `static/boards/` holds a generated copy, exactly as
-  `src/gen/grpc/` holds a copy of the proto contract. `npm run map` re-copies the
-  board and rewrites `boardAsset.ts`; `npm run map:generate` rewrites the runs, the borders and the
+  `src/gen/grpc/` holds a copy of the proto contract. `npm run map` re-copies every
+  board, sweeps the copies of files `/map` no longer has (never the page's own files) and rewrites `boardsAsset.ts`;
+  `npm run map:generate` rewrites the runs, the borders and the
   capitals — one command, because a tile exists exactly where the borders say a country does and the
   two must not be able to disagree — and `npm run bridges` and `npm run terrain` the bridges and the terrain after
   it. **Run the backend's
@@ -27,13 +32,17 @@ cache entirely:
   disagree about what a tile id means. A regeneration renumbers every tile, so it also writes the
   postgres migration that follows the owned ones across; see `/map/README.md`. One `_headers` rule
   keeps the whole directory a year, immutable.
-- `/static/borderLines-<hash>.bin` — the countries' outlines, traced onto the
-  tile lattice, with the two landmasses each run is between, fetched at runtime by
-  `borderLines.ts`. URL in
-  `borderLinesAsset.ts`. Regenerate with `npm run borderLines`, which reads the
-  board's runs and borders — and **regenerate it whenever either of them changes**,
+- `/static/boards/<board>/borderLines-<hash>.bin` — a board's countries' outlines, traced onto its
+  lattice, with the two landmasses each run is between, fetched at runtime by
+  `borderLines.ts`. URL in `BOARDS`. Regenerate with `npm run borderLines -- <board>` (every board with none named),
+  which reads the board's runs and borders — and **regenerate it whenever either of them changes**,
   or the outline is drawn around a map nobody is playing on. Unlike them it is this
-  app's alone and is not copied to `/map`.
+  app's alone and is not in `/map`.
+- `/static/boards/<board>/landmassNames-<hash>.json` — the English names of a board's landmasses that are not a
+  country's main one, keyed by its borders file (which the file names) and its landmass ids, fetched by `landmassNamesOf`
+  once the page knows its board (see [Translation](i18n.md)). Regenerate with `npm run landmassNames -- <board>` after
+  the board's borders change. The backend's `make translate` reads it, and writes each language's names in
+  `src/i18n/landmasses/<board>/`.
 - `/static/countries/atlas-<hash>.png` — the flag sprite atlas. URL and pixel
   size in `atlasAsset.ts`. Regenerate with `npm run atlas`.
 - `/static/reactions/<name>-<hash>.svg` — the chat's reaction images. URLs in
@@ -41,7 +50,9 @@ cache entirely:
   [Reactions](chat.md#reactions).
 
 `/static/og-source.png`, the raw screenshot the social preview is built from, is kept in the repo but **not
-deployed** (`copy:static` deletes it from `dist/static/`). No photo of the earth is served: the terrain's source,
+deployed** (`copy:static` deletes it from `dist/static/`). **`copy:static` fails the build on a board directory missing
+any of its files**: the manifest, the runs, the borders, the capitals, the bridges, the terrain, the border lines and the
+landmass names, naming the command that writes it. No photo of the earth is served: the terrain's source,
 `scripts/map/earth.jpg`, is read by `npm run terrain` alone.
 
 `/static/og-image-<hash>.jpg` is that preview, generated by `npm run og-image` at
@@ -115,7 +126,7 @@ first landing. **It sells the game, not its mechanics**: country
 against country on one live planet. What only makes sense once playing (signing
 in to click faster, bonus boxes, the camera) stays in the game. The hero's
 counts are written by hand, since plain HTML cannot read them: 262,000 tiles is
-`gameMap.maxIndex` in `deploy/vps/backend.yaml`, 239 flags is
+`earth-1`'s manifest's `tiles` (260,503), 239 flags is
 `static/countries/countries.json`. Its screenshots are `static/home/*.jpg`,
 taken from the live game at 1440×900 (390×844 for the phone) at 2× with a fresh
 profile; a new one must not show the chat, which carries players' own words, and

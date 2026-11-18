@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/migrations"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
@@ -20,6 +21,10 @@ func Migrate(ctx context.Context, database cppg.Config) error {
 
 	if err := db.Migrate(ctx, migrations.FS); err != nil {
 		return fmt.Errorf("failed to migrate the %s schema: %w", database.Schema, err)
+	}
+	// A test binary carries the fixture beside the boards shipped, and the boot refuses a board planet keeps no row of.
+	if err := eras.KeepFixture(ctx, db); err != nil {
+		return fmt.Errorf("failed to keep the fixture board: %w", err)
 	}
 	return nil
 }

@@ -8,15 +8,18 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 )
 
-// Kept is a map as postgres keeps it, on a board of its own: the world's while an arena's plays, which no flush writes.
-func (s *Storage) Kept(ctx context.Context, kept clicks.MapID) (clicks.DenseBatch, error) {
-	s.mu.RLock()
-	last := s.board.last()
-	s.mu.RUnlock()
+// Kept is a map as postgres keeps it, on a board of its own: the world's while an arena's plays, which no flush writes,
+// on the board of its era.
+func (s *Storage) Kept(ctx context.Context, kept clicks.Stage) (clicks.DenseBatch, error) {
+	ground, err := s.grounds.GroundOf(kept.Board)
+	if err != nil {
+		return clicks.DenseBatch{}, fmt.Errorf("failed to read the ground of the %s map kept: %w", kept.Map, err)
+	}
+	last := ground.Tiles()
 
 	board := newBoard(last)
 	var internErr error
-	err := s.persistence.Load(ctx, kept, func(tile Tile) {
+	err = s.persistence.Load(ctx, kept.Map, func(tile Tile) {
 		if tile.ID > last || internErr != nil {
 			return
 		}
@@ -28,10 +31,12 @@ func (s *Storage) Kept(ctx context.Context, kept clicks.MapID) (clicks.DenseBatc
 		board.restore(tile.ID, tileState{owner: owner, shields: uint8(min(max(tile.Shields, 0), math.MaxUint8))}) //nolint:gosec // clamped to a byte.
 	})
 	if err != nil {
-		return clicks.DenseBatch{}, fmt.Errorf("failed to read the %s map kept: %w", kept, err)
+		return clicks.DenseBatch{}, fmt.Errorf("failed to read the %s map kept: %w", kept.Map, err)
 	}
 	if internErr != nil {
-		return clicks.DenseBatch{}, fmt.Errorf("failed to intern a country of the %s map kept: %w", kept, internErr)
+		return clicks.DenseBatch{}, fmt.Errorf("failed to intern a country of the %s map kept: %w", kept.Map, internErr)
 	}
-	return board.batch(1, last), nil
+	batch := board.batch(1, last)
+	batch.Board = kept.Board
+	return batch, nil
 }

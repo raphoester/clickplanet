@@ -23,7 +23,7 @@ type mapReader struct {
 
 func (m mapReader) StateBatchDense(uint32, uint32) (clicks.DenseBatch, error) { return m.batch, m.err }
 
-func read(t *testing.T, board clicks.Board, reader mapReader, in get_map_usecase.In) (clicks.DenseBatch, []*planetv1.MapRead, error) {
+func read(t *testing.T, board *clicks.Played, reader mapReader, in get_map_usecase.In) (clicks.DenseBatch, []*planetv1.MapRead, error) {
 	t.Helper()
 	log := facts.NewLog(cptime.NewFixedClock(time.Date(2026, 10, 26, 20, 0, 0, 0, time.UTC)))
 
@@ -42,7 +42,7 @@ func read(t *testing.T, board clicks.Board, reader mapReader, in get_map_usecase
 func TestAReadIsToldAsAShareOfTheMap(t *testing.T) {
 	batch := clicks.DenseBatch{Start: 1, Codes: []string{"", "fr"}, Tiles: make([]byte, 2*250)}
 
-	got, reads, err := read(t, clicks.NewBoard(1000), mapReader{batch: batch}, get_map_usecase.In{Start: 1, End: 251})
+	got, reads, err := read(t, clicks.PlayedOf(1000), mapReader{batch: batch}, get_map_usecase.In{Start: 1, End: 251})
 
 	require.NoError(t, err)
 	assert.Equal(t, batch, got)
@@ -67,7 +67,7 @@ func TestAReadOutsideTheMapIsToldAsSuch(t *testing.T) {
 		{"the bot's last batch runs past the end", get_map_usecase.In{Start: 250000, End: 260509}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, reads, err := read(t, clicks.NewBoard(260503), mapReader{batch: batch}, tc.in)
+			_, reads, err := read(t, clicks.PlayedOf(260503), mapReader{batch: batch}, tc.in)
 
 			require.NoError(t, err)
 			require.Len(t, reads, 1)
@@ -77,7 +77,7 @@ func TestAReadOutsideTheMapIsToldAsSuch(t *testing.T) {
 }
 
 func TestARefusedReadTellsNothing(t *testing.T) {
-	_, reads, err := read(t, clicks.NewBoard(1000), mapReader{err: errors.New("out of range")}, get_map_usecase.In{Start: 5000, End: 6000})
+	_, reads, err := read(t, clicks.PlayedOf(1000), mapReader{err: errors.New("out of range")}, get_map_usecase.In{Start: 5000, End: 6000})
 
 	require.ErrorIs(t, err, clicks.ErrInvalidTileRange)
 	assert.Empty(t, reads)

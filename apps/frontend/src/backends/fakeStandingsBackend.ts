@@ -45,7 +45,8 @@ const DAY_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
 const PLAYERS_SHOWN = 10
 // The part of what a flag holds its players took during a battle.
 const TAKEN_IN_BATTLE = 0.2
-const MAP_TILES = 262_119
+// earth-1's tiles: the board the fake plays, unless told another.
+const MAP_TILES = 260_503
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export const MOVE_EVERY_MS = 1_500
@@ -65,6 +66,7 @@ export class FakeStandingsBackend implements StandingsBackend {
         players: readonly FakePlayer[] = PLAYERS,
         private readonly random: () => number = Math.random,
         private readonly now: () => number = Date.now,
+        private readonly mapTiles: number = MAP_TILES,
     ) {
         this.players = players.map((player) => ({...player, tiles: {...player.tiles}}))
     }
@@ -268,7 +270,7 @@ export class FakeStandingsBackend implements StandingsBackend {
             .map(([countryCode, tiles], i) => ({
                 rank: i + 1,
                 countryCode,
-                share: tiles / MAP_TILES,
+                share: tiles / this.mapTiles,
                 points: (DAY_POINTS[i] ?? 0) * times,
             }))
     }

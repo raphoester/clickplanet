@@ -19,6 +19,11 @@ type Borders struct {
 	members []uint32
 }
 
+// NoBorders are the borders of no tile: a tile map's before any board plays.
+func NoBorders() *Borders {
+	return &Borders{regions: []uint16{0}, codes: []string{""}, starts: []uint32{0, 0}}
+}
+
 func NewBorders(asset string, regions []uint16, codes []string) (*Borders, error) {
 	if len(codes) == 0 || codes[0] != "" {
 		return nil, fmt.Errorf("region 0 must be no country")

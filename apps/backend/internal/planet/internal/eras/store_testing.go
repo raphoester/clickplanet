@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 )
 
@@ -22,6 +23,13 @@ var Earth2 = Board{ID: clicks.TestBoard + 1, Name: "earth-2", Hash: "0123abcd"}
 
 // Earth1Carried is earth-1 as this process's files name it.
 var Earth1Carried = Carried{Name: Earth1.Name, Hash: Earth1.Hash}
+
+// Fixture is the tests' second board (cpboards.Fixture), as a test's planet keeps it: a test binary carries it beside
+// earth-1.
+var Fixture = Board{ID: clicks.TestBoard + 2, Name: cpboards.Fixture, Hash: "cb8330a8"}
+
+// FixtureCarried is the fixture as a test binary's files name it.
+var FixtureCarried = Carried{Name: Fixture.Name, Hash: Fixture.Hash}
 
 // Epoch is when the world's first era started, as the migration keeps it.
 var Epoch = time.Unix(0, 0).UTC()
@@ -138,6 +146,19 @@ func Reseed(ctx context.Context, db cppg.Conn) error {
 
 // CarryingEarth1 is a process that carries earth-1 alone, as planet keeps it.
 var CarryingEarth1 = Boards{carried: []Board{Earth1}}
+
+// CarryingFixture is a process that carries earth-1 and the fixture, as a test's planet keeps them.
+var CarryingFixture = Boards{carried: []Board{Earth1, Fixture}}
+
+// KeepFixture keeps the fixture's row, which a test binary's planet needs since it carries the fixture: no migration
+// ships it.
+func KeepFixture(ctx context.Context, db cppg.Conn) error {
+	if _, err := db.On(ctx).ExecContext(ctx, `INSERT INTO boards (id, name, hash) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+		Fixture.ID, string(Fixture.Name), Fixture.Hash); err != nil {
+		return fmt.Errorf("failed to keep the fixture: %w", err)
+	}
+	return nil
+}
 
 // KeepRow keeps a board's row, as the migration that ships it does.
 func KeepRow(ctx context.Context, db cppg.Conn, board Board) error {

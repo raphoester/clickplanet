@@ -1,7 +1,10 @@
 import {Code, ConnectError} from "@connectrpc/connect"
+import {Places} from "../boards/places.ts"
 import {AntibotAdmin, PlayerAdmin, VandalsquadAdmin} from "../clients.ts"
 import {Graffiti} from "../gen/grpc/vandalsquad/v1/admin_pb.ts"
 import {Reading, readingOf} from "../players/actions.ts"
+import {failureOf} from "../refusal.ts"
+import {Call} from "../useCall.ts"
 
 // What the page read: the graffiti, newest first, and each painter's name, or that the squad is off on this server.
 export type Listed =
@@ -32,6 +35,20 @@ export async function listOf(vandalsquad: VandalsquadAdmin, player: PlayerAdmin,
 // Each painter once, in the list's order. A forgotten player's graffiti has none.
 export function paintersOf(graffiti: Graffiti[]): string[] {
     return [...new Set(graffiti.map(each => each.accountId).filter(id => id !== ""))]
+}
+
+// The boards the graffiti are on, each once, in the list's order: a graffiti's tile ids are places on its board alone.
+export function boardsOf(graffiti: Graffiti[]): string[] {
+    return [...new Set(graffiti.map(each => each.board))]
+}
+
+// Each board's places, read apart: one that cannot be read, a board the page does not carry, fails alone.
+export async function placesByBoard(boards: string[], read: (board: string) => Promise<Places>): Promise<Map<string, Call<Places>>> {
+    const settled = await Promise.allSettled(boards.map(board => read(board)))
+    return new Map(boards.map((board, i): [string, Call<Places>] => {
+        const each = settled[i]
+        return [board, each.status === "fulfilled" ? {state: "done", value: each.value} : {state: "failed", ...failureOf(each.reason)}]
+    }))
 }
 
 // Where each painter stands with the antibot, by account; one that could not be read is left out.

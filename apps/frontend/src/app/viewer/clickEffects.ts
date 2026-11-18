@@ -1,12 +1,14 @@
 import * as THREE from "three"
 import type {SpreadClick} from "../../backends/backend.ts"
 import {tilePointSize} from "./pointSize.ts"
+import {BoardScale, scaledLength} from "../../domain/boardScale.ts"
 
 import markVertex from "./shaders/enclosureMark/vertex.glsl"
 import markFragment from "./shaders/enclosureMark/fragment.glsl"
 import waveVertex from "./shaders/enclosureWave/vertex.glsl"
 import waveFragment from "./shaders/enclosureWave/fragment.glsl"
 
+// About earth-1's arc between two touching tiles: a spread onto nothing still reaches a tile out.
 const TILE_SPACING = 0.004
 
 export const SPREAD_THROW_FROM = 0.04
@@ -60,7 +62,7 @@ function groundFrame(centre: THREE.Vector3): {east: THREE.Vector3, north: THREE.
     return {east, north: centre.clone().cross(east)}
 }
 
-export function choreographSpread(spread: SpreadClick, positions: ArrayLike<number>): Choreography {
+export function choreographSpread(spread: SpreadClick, positions: ArrayLike<number>, scale: BoardScale): Choreography {
     const centre = at(positions, spread.tile)
     const {east, north} = groundFrame(centre)
 
@@ -83,7 +85,7 @@ export function choreographSpread(spread: SpreadClick, positions: ArrayLike<numb
         role: "landing",
     }))
 
-    let radius = TILE_SPACING
+    let radius = scaledLength(TILE_SPACING, scale)
     for (const {p} of around) radius = Math.max(radius, p.distanceTo(centre))
 
     return {
@@ -166,7 +168,7 @@ type Playing = {
     waves: {mesh: THREE.Mesh, material: THREE.ShaderMaterial, wave: Wave}[]
 }
 
-export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
+export function createClickEffects(positions: ArrayLike<number>, scale: BoardScale): ClickEffects {
     const group = new THREE.Group()
     group.renderOrder = 1
 
@@ -256,7 +258,7 @@ export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
     const update = (seconds: number, camera: THREE.OrthographicCamera, viewportHeight: number, pixelRatio: number) => {
         if (playing.length === 0) return false
 
-        const tileSize = tilePointSize(camera.zoom, viewportHeight)
+        const tileSize = tilePointSize(camera.zoom, viewportHeight, scale)
         const minMark = MIN_MARK_PX * pixelRatio
         const pixelsPerUnit = (viewportHeight / 2) * camera.zoom
 
@@ -305,7 +307,7 @@ export function createClickEffects(positions: ArrayLike<number>): ClickEffects {
 
     return {
         object: group,
-        playSpread: (spread) => play(choreographSpread(spread, positions)),
+        playSpread: (spread) => play(choreographSpread(spread, positions, scale)),
         update,
         dispose: () => {
             for (const effect of playing) stop(effect)

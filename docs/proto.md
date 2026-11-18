@@ -4,7 +4,10 @@
 
 - `proto/planet/v1/planet.proto` — the tile game (`ClickService`). Every answer that names tiles names their board by
   name since 2026-11-17: `GetMapResponse.board`, the stream's opening `Heartbeat.board`, `MapHistory.eras`,
-  `GetReplayResponse.eras`, `GetLedgerResponse.board` and the vandal squad's `Graffiti.board` (see [Boards](boards.md)). Beside it, `totals.proto` is `LedgerTotals`, the
+  `GetReplayResponse.eras`, `GetLedgerResponse.board` and the vandal squad's `Graffiti.board` (see [Boards](boards.md)).
+  Since 2026-11-18 (PR 3) also each tile's hits' era (`TileHits.era`, as two eras' tile ids collide), the board of each
+  `TilesTaken` and `Fortified`, of `GetTerritories`, `GetCountrySizes` and `GetTiles` (the board in play's), and the
+  rule set's `ArenaRules.board`, the board an arena's map plays. Beside it, `totals.proto` is `LedgerTotals`, the
   ledger's acts of each kind in a window, which the internal `GetLedgerTotals` answers and the gamemaster relays, and
   `history.proto` is `MapHistory`, the map every step of a window, when in the step each tile changed, each tile's hits, and the eras the window covers (`BoardEra`, each with its board's name, since 2026-11-17), which the internal
   `GetMapHistory` answers and the gamemaster relays as `GetSeasonReplay`, and which `ClickService/GetRecentMapHistory`

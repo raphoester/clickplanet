@@ -30,6 +30,11 @@ import {SMALL_FRAME} from "../compact.ts"
 import {AccountNameplate, Nameplate} from "../../backends/nameplates.ts"
 import {useNameplates} from "../nameplates/nameplatesStore.ts"
 import {FakeSupportBackend} from "../../backends/fakeSupportBackend.ts"
+import {translator} from "../../i18n/page.ts"
+import {EARTH_1, englishLandmassNamesOf} from "../../testdata/boards.ts"
+
+// The page names the landmasses of its board once it is known: earth-1's here.
+translator().nameLandmasses({english: englishLandmassNamesOf(EARTH_1), own: {}})
 
 const france = Countries.get("fr")!
 const SUPPORT = new FakeSupportBackend()

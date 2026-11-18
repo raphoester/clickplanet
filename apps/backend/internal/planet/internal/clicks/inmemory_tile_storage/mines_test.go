@@ -91,14 +91,14 @@ func (s *testSuite) TestAWipeTakesTheMinesWithTheMap() {
 func (s *testSuite) TestAnArenaPlaysWithNoMineAndTheWorldsComeBackWithItsMap() {
 	ctx := context.Background()
 	persistence := inmemory_tile_storage.NewMemoryPersistence(map[uint32]string{})
-	storage := s.newStorageOn(inmemory_tile_storage.Config{}, persistence)
+	storage := s.loadedOn(inmemory_tile_storage.Config{}, persistence)
 	s.mined(storage, "fr", 5)
 
-	_, err := storage.Blank(ctx, battle, noStart, opens(true))
+	_, err := storage.Blank(ctx, battle.On(clicks.TestBoard), noStart, opens(true))
 	s.Require().NoError(err)
 	s.Empty(s.minesOf(storage, "fr"), "the arena's map holds none")
 
-	_, err = storage.PutBack(ctx, battle, keeps(true))
+	_, err = storage.PutBack(ctx, battle, clicks.WorldStage, keeps(true))
 	s.Require().NoError(err)
 	s.Equal([]uint32{5}, s.minesOf(storage, "fr"))
 }

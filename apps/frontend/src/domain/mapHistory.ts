@@ -1,17 +1,23 @@
+import type {Era} from "./eras.ts"
+
 // The map every step of a window: the first frame holds every tile held at its start, each next one the tiles whose
 // owner changed since the frame before ("" for a tile a bomb left empty), and when each went to that owner (changedAt,
-// its last change of the step; the frame's own time in the first frame).
+// its last change of the step; the frame's own time in the first frame). The first frame of each era after the first
+// holds every tile held on its board, as the window's first does: the cut (eras.ts).
 export type MapFrame = {at: number, tiles: Uint32Array, owners: string[], changedAt: Float64Array}
 
 export type MapHistory = {
     frames: MapFrame[]
-    // Each tile's changes of owner and shield hits in the window.
-    hits: Map<number, number>
+    // Each tile's changes of owner and shield hits in the window, in each era: hits[era] by the tiles of its board.
+    hits: ReadonlyMap<number, number>[]
+    // The eras the window covers, oldest first: one at least. A frame's tiles are of the board of the era at its time.
+    eras: readonly Era[]
 }
 
 const CHECKPOINT_EVERY = 32
 
 // Any frame's map, from a copy kept every few frames: a seek back costs a copy and a few frames, never the whole replay.
+// A history of one board: a history over several plays each era's reel on its own (eras.ts, ErasReel).
 export class MapReel {
     readonly codes: string[] = [""]
     private readonly indexes = new Map<string, number>([["", 0]])

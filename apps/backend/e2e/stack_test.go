@@ -49,7 +49,6 @@ const (
 	callerIP      = "203.0.113.7"
 	adminOrigin   = "https://backoffice.clickplanet.lol"
 	mediaOrigin   = "https://media.example"
-	mapTiles      = 260503
 	// The fake Messages API's: it checks none.
 	judgeKey = "sk-ant-e2e-key"
 )
@@ -94,7 +93,6 @@ func startGame(t *testing.T) gameStack {
 
 	planetConfig := planet.Config{Database: postgres.ConfigFor("planet"), Redis: redis}
 	clickAtWill(t, planetConfig.Database)
-	planetConfig.GameMap.MaxIndex = mapTiles
 	planetConfig.Auth = cpsession.VerifierConfig{Enabled: true}
 
 	antibotConfig := antibot.Config{Enabled: true, Database: postgres.ConfigFor("antibot"), Redis: redis}

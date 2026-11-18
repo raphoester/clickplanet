@@ -1,3 +1,4 @@
+import {FIRST_ERA} from "./eras.ts"
 import {describe, expect, it} from "vitest"
 import {MapFrame, MapHistory, MapReel} from "./mapHistory.ts"
 
@@ -8,7 +9,7 @@ const frame = (at: number, owners: Record<number, string>): MapFrame => ({
     changedAt: new Float64Array(Object.keys(owners).length).fill(at),
 })
 
-const history = (frames: MapFrame[]): MapHistory => ({frames, hits: new Map()})
+const history = (frames: MapFrame[]): MapHistory => ({frames, hits: [new Map()], eras: [FIRST_ERA]})
 
 const ownersOf = (reel: MapReel, at: number) =>
     Object.fromEntries([...reel.ownersAt(at)].flatMap((owner, tile) => owner === 0 ? [] : [[tile, reel.codes[owner]]]))

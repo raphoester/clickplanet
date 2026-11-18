@@ -1,6 +1,7 @@
 import {Timestamp} from "@bufbuild/protobuf"
 import {ReactNode, useCallback, useEffect, useMemo, useRef, useState} from "react"
 import {LONG_CALL_MS} from "../api.ts"
+import {loadPlaces, Places} from "../boards/places.ts"
 import {Clients, CLIENTS, PlanetAdmin, SupportAdmin} from "../clients.ts"
 import {clockOf} from "../components/time.ts"
 import {FailureNotice} from "../components/FailureNotice.tsx"
@@ -12,8 +13,7 @@ import {ActivityCharts} from "./ActivityCharts.tsx"
 import {FIRST_SPAN, Span, SPANS, totalsOf, wholeOf} from "./activity.ts"
 import {CountryTable} from "./CountryTable.tsx"
 import {Heatmap} from "./Heatmap.tsx"
-import {caughtUp, changesOf, countriesOf, Ledger, playersOf, sinceOf, slotsOf, windowOf} from "./ledger.ts"
-import {loadPlaces, Places} from "./places.ts"
+import {addsTo, boardOfPages, caughtUp, changesOf, countriesOf, Ledger, playersOf, sinceOf, slotsOf, windowOf} from "./ledger.ts"
 import {PlayingNow} from "./PlayingNow.tsx"
 
 export const REFRESH_MS = 60_000
@@ -21,7 +21,11 @@ const DAY_MS = 24 * 3600_000
 // The most ListReports and ListNotes answer at once.
 const PAGE = 500
 
-type Props = {clients?: Clients, onGo?: (page: PageId) => void, places?: () => Promise<Places>}
+// A ledger's read that the world's board changed under, again and again, gives up.
+const READS = 3
+
+// places: a board's places, by the name an answer gives.
+type Props = {clients?: Clients, onGo?: (page: PageId) => void, places?: (board: string) => Promise<Places>}
 
 export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlaces}: Props) {
     const [span, setSpan] = useState<Span>(FIRST_SPAN)
@@ -39,12 +43,23 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
         [clients],
     )
     const readInbox = useCallback((signal: AbortSignal) => inboxOf(clients.support, signal), [clients])
-    const readTiles = useCallback(() => readPlaces(), [readPlaces])
 
     const [ledgerCall, readLedgerAgain] = useCall(readLedger)
     const [mapCall, readMapAgain] = useCall(readMap)
     const [rosterCall, readRosterAgain] = useCall(readRoster)
     const [inboxCall, readInboxAgain] = useCall(readInbox)
+
+    const ledger = useLast(ledgerCall)
+    const map = useLast(mapCall)
+    const roster = useLast(rosterCall)
+    const inbox = useLast(inboxCall)
+
+    // The tiles are placed on the board the ledger names, read once that board is known.
+    const board = ledger?.board
+    const readTiles = useCallback(
+        () => board === undefined ? new Promise<Places>(() => {}) : readPlaces(board),
+        [readPlaces, board],
+    )
     const [placesCall, readPlacesAgain] = useCall(readTiles)
 
     const reload = useCallback(() => {
@@ -68,11 +83,7 @@ export function HomePage({clients = CLIENTS, onGo, places: readPlaces = loadPlac
         return () => clearTimeout(timer)
     }, [reading, visible, reload])
 
-    const ledger = useLast(ledgerCall)
-    const map = useLast(mapCall)
-    const roster = useLast(rosterCall)
-    const inbox = useLast(inboxCall)
-    const places = placesCall.state === "done" ? placesCall.value : undefined
+    const places = placesCall.state === "done" && placesCall.value.board.name === board ? placesCall.value : undefined
 
     const slots = useMemo(() => ledger === undefined ? [] : slotsOf(ledger, ledger.window), [ledger])
     const players = useMemo(() => ledger === undefined ? 0 : playersOf(ledger), [ledger])
@@ -165,20 +176,34 @@ function useLast<T>(call: Call<T>): T | undefined {
     return call.state === "done" ? call.value : last
 }
 
+// The span's changes: what was kept, and what was read since. A read that finds the world on another board than the
+// one kept, or a board switched between two of its pages, reads the span whole again, on the board the world plays now.
 async function ledgerOf(planet: PlanetAdmin, span: Span, kept: Ledger | undefined, signal: AbortSignal) {
     const window = windowOf(new Date(), span.hours, span.step)
-    const since = sinceOf(kept, window)
-    const read: LedgerChange[] = []
+    let since = sinceOf(kept, window)
+    for (let reads = 1; ; reads++) {
+        const {changes, board} = await pagesOf(planet, since, window.until, signal)
+        if (board !== undefined && addsTo(kept, window, since, board)) return {...caughtUp(kept, window, since, changes, board), span}
+        if (reads === READS) throw new Error("the world's board changed while its ledger was read: reload")
+        since = window.since
+    }
+}
+
+// Every page of the ledger from `since`, one after the other, and the board they all name.
+async function pagesOf(planet: PlanetAdmin, since: Date, until: Date, signal: AbortSignal) {
+    const changes: LedgerChange[] = []
+    const boards: string[] = []
     let page = ""
     do {
         const answer = await planet.getLedger(
-            {since: Timestamp.fromDate(since), until: Timestamp.fromDate(window.until), page},
+            {since: Timestamp.fromDate(since), until: Timestamp.fromDate(until), page},
             {signal, timeoutMs: LONG_CALL_MS},
         )
-        for (const change of answer.changes) read.push(change)
+        for (const change of answer.changes) changes.push(change)
+        boards.push(answer.board)
         page = answer.nextPage
     } while (page !== "")
-    return {...caughtUp(kept, window, since, read), span}
+    return {changes, board: boardOfPages(boards)}
 }
 
 async function mapOf(planet: PlanetAdmin, signal: AbortSignal) {

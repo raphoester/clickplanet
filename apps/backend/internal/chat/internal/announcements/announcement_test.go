@@ -10,6 +10,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/messages"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/mutes"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 func payloadOf(t *testing.T, told func(time.Time) (announcements.Announcement, error)) string {
@@ -69,7 +70,7 @@ func TestAFactIsAnnouncedUnderAnIDOfItsOwn(t *testing.T) {
 	for name, told := range map[string]func(time.Time) (announcements.Announcement, error){
 		"bomb 7":         announcements.BombOf(7, "fr", "de", 7, 42, 3).Announcement,
 		"bomb 8":         announcements.BombOf(8, "fr", "de", 7, 42, 3).Announcement,
-		"fortify 7":      announcements.FortifyOf(7, "fr", "is", 3, 60).Announcement,
+		"fortify 7":      announcements.FortifyOf(7, "fr", "is", 3, 60, cpboards.Earth1()).Announcement,
 		"knock-out 7":    announcements.KnockOutOf(7, "fr", "de").Announcement,
 		"mute 1":         announcements.MutedOf(mutes.MuteID{15: 1}, "guest_a1b2c3", mutes.Chat, time.Hour).Announcement,
 		"day 5":          announcements.DayOf(0, 5).Announcement,

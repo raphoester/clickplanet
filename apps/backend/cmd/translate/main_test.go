@@ -26,9 +26,11 @@ func page(t *testing.T, french string) string {
 	}
 	write("src/i18n/locales/en.json", `{"chat.send": "Send", "chat.title": "Chat"}`)
 	write("src/i18n/locales/fr.json", french)
-	write("src/i18n/landmasses/fr.json", `{"264": "Corse"}`)
+	write("src/i18n/landmasses/earth-1/fr.json", `{"264": "Corse"}`)
 	write("src/app/Chat.tsx", `t("chat.send")`)
-	write("static/landmassNames.json", `{"borders": "b.bin", "names": {"264": "Corsica"}}`)
+	write("static/boards/earth-1/landmassNames-0123abcd.json", `{"borders": "b.bin", "names": {"264": "Corsica"}}`)
+	write("static/boards/earth-1/runs-0123abcd.bin", "")
+	write("static/boards/siege-1/runs-4567cdef.bin", "")
 	write("static/countries/countries.json", `{"ar": "Argentina"}`)
 	write("src/i18n/countries/en.json", `{"in.ar": "in {flag} Argentina"}`)
 	write("src/i18n/countries/fr.json", `{"in.ar": "en {flag} Argentine"}`)
@@ -49,7 +51,7 @@ func TestThePlanSaysWhatWouldBeSentAndAsksNothing(t *testing.T) {
 
 	assert.Equal(t, "lines fr: 1 to send, 0 kept, 1 written by hand, 0 no longer in English\n"+
 		"  chat.title: \"Chat\"\n"+
-		"landmasses fr: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n"+
+		"landmasses/earth-1 fr: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n"+
 		"countries en: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n"+
 		"countries fr: 0 to send, 0 kept, 1 written by hand, 0 no longer in English\n", out.String())
 }
@@ -72,7 +74,7 @@ func TestLinesWrittenByHandAreFingerprintedWithNoKey(t *testing.T) {
 	fingerprints, err := os.ReadFile(filepath.Join(dir, "src/i18n/fingerprints/fr.json")) //nolint:gosec // the test's own folder.
 	require.NoError(t, err)
 	assert.JSONEq(t, fmt.Sprintf(`{"chat.send": %q, "chat.title": %q}`, translation.FingerprintOf("Send"), translation.FingerprintOf("Chat")), string(fingerprints))
-	landmasses, err := os.ReadFile(filepath.Join(dir, "src/i18n/fingerprints/landmasses/fr.json")) //nolint:gosec // the test's own folder.
+	landmasses, err := os.ReadFile(filepath.Join(dir, "src/i18n/fingerprints/landmasses/earth-1/fr.json")) //nolint:gosec // the test's own folder.
 	require.NoError(t, err)
 	assert.Contains(t, string(landmasses), `"264"`)
 	countries, err := os.ReadFile(filepath.Join(dir, "src/i18n/fingerprints/countries/en.json")) //nolint:gosec // the test's own folder.

@@ -1,4 +1,5 @@
-import {Places} from "../home/places.ts"
+import {Places} from "../boards/places.ts"
+import {scaleOf} from "../boards/scale.ts"
 
 // A point of the picture: east to the right and south down, the view from -1 to 1 both ways.
 export type Point = [number, number]
@@ -11,7 +12,12 @@ export type Picture = {cells: Cell[], latitude: number, longitude: number}
 
 type Vector = [number, number, number]
 
-// The map's convention, as its generator reads a vertex (home/places.ts reads it the same way).
+// How far a tile's nearest neighbour is looked for, and the step a tile with none within it is drawn at, in radians on
+// earth-1 (about 12 steps, and about 2): a board reads them at its own spacing.
+const NEIGHBOUR_REACH = 0.05
+const LONE_STEP = 0.0075
+
+// The map's convention, as its generator reads a vertex (boards/places.ts reads it the same way).
 function vectorOf(places: Places, index: number): Vector {
     const lat = places.latitudes[index] * Math.PI / 180
     const lon = places.longitudes[index] * Math.PI / 180
@@ -100,14 +106,15 @@ export function pictureOf(places: Places, tileIds: number[], margin = 4): Pictur
         Math.sin(latitude) * Math.cos(longitude), Math.cos(latitude), -Math.sin(latitude) * Math.sin(longitude),
     ]
 
-    // The lattice's step, from the first tile's nearest neighbour: about 0.43° on the game's map.
+    // The lattice's step, from the first tile's nearest neighbour: 0.17° to 0.25° on earth-1, as the lattice stretches.
+    const scale = scaleOf(places.board)
     const first = vectors[0]
     const firstId = [...drawn][0]
     let spacing = Infinity
-    for (const index of tilesNear(places, first, 0.05)) {
+    for (const index of tilesNear(places, first, scale.length(NEIGHBOUR_REACH))) {
         if (index !== firstId - 1) spacing = Math.min(spacing, angle(vectorOf(places, index), first))
     }
-    if (!Number.isFinite(spacing)) spacing = 0.0075
+    if (!Number.isFinite(spacing)) spacing = scale.length(LONE_STEP)
     const reach = Math.max(...vectors.map(v => angle(v, centre)))
     const half = reach + margin * spacing
 

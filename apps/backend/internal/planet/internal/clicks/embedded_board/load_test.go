@@ -1,8 +1,6 @@
 package embedded_board_test
 
 import (
-	"encoding/json"
-	"log/slog"
 	"math"
 	"slices"
 	"testing"
@@ -14,52 +12,36 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/clicks/embedded_board"
 	"github.com/raphoester/clickplanet.lol-backend/internal/planet/internal/eras"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 const tiles = 260503
 
-var geography = mustLoad()
+var (
+	earth1    = mustLoad()
+	geography = earth1.Geography()
+)
 
-func mustLoad() *clicks.Geography {
-	geography, err := loader().LoadGeography()
+func mustLoad() *clicks.Ground {
+	ground, err := embedded_board.Shipped("earth-1")
 	if err != nil {
 		panic(err)
 	}
-	return geography
+	return ground
 }
 
-func loader() *embedded_board.Loader {
-	return embedded_board.New(tiles, slog.New(slog.DiscardHandler))
-}
-
-type shippedManifest struct {
-	Name    string `json:"name"`
-	Lattice struct {
-		Cols int `json:"cols"`
-	} `json:"lattice"`
-	Tiles         uint32 `json:"tiles"`
-	PositionsHash uint32 `json:"positionsHash"`
-	Files         struct {
-		Runs     string `json:"runs"`
-		Borders  string `json:"borders"`
-		Capitals string `json:"capitals"`
-		Bridges  string `json:"bridges"`
-	} `json:"files"`
-}
-
-func shipped(t *testing.T) (shippedManifest, string) {
+func shipped(t *testing.T) (cpboards.Manifest, string) {
 	t.Helper()
-	blob, asset, err := mapdata.Manifest("earth-1")
+	board, err := cpboards.Named(mapdata.FS(), "earth-1")
 	require.NoError(t, err)
-	var manifest shippedManifest
-	require.NoError(t, json.Unmarshal(blob, &manifest))
-	return manifest, asset
+	return board.Manifest, board.Asset
 }
 
 func TestTheShippedBoardIsEarth1(t *testing.T) {
-	boards, err := mapdata.Boards()
+	boards, err := cpboards.Boards(mapdata.FS())
 	require.NoError(t, err)
-	assert.Equal(t, []string{"earth-1"}, boards)
+	require.Len(t, boards, 1, "earth-1 alone until PR 4 ships earth-2 and siege-1")
+	assert.Equal(t, "earth-1", boards[0].Manifest.Name)
 
 	manifest, asset := shipped(t)
 	assert.Equal(t, "board-725d8920.json", asset,
@@ -70,10 +52,9 @@ func TestTheShippedBoardIsEarth1(t *testing.T) {
 	assert.Equal(t, uint32(tiles), geography.Stats().Tiles)
 }
 
-func TestTheBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash(t *testing.T) {
-	carried, err := loader().Carried()
-	require.NoError(t, err)
-	assert.Equal(t, eras.Earth1Carried, carried, "the row the migration that made boards keeps")
+func TestEachBoardCarriedIsNamedByItsDirectoryAndItsPositionsHash(t *testing.T) {
+	assert.Equal(t, []eras.Carried{eras.Earth1Carried, eras.FixtureCarried}, registry(t).Carried(),
+		"earth-1 as the migration that made boards keeps it, and the test binary's fixture")
 }
 
 func TestEveryPositionIsThePagesToTheBit(t *testing.T) {
@@ -147,13 +128,6 @@ func TestAdjacencyAloneFindsTheContinents(t *testing.T) {
 	assert.Len(t, sizes, 505, "connected landmasses")
 	assert.Equal(t, []int{142792, 67352, 22871, 12402}, sizes[:4],
 		"Afro-Eurasia, the Americas, Antarctica, Australia")
-}
-
-func TestLoadRefusesABoardThatDisagreesWithTheConfiguredTileCount(t *testing.T) {
-	_, err := embedded_board.New(tiles-1, slog.New(slog.DiscardHandler)).LoadGeography()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "updated apart")
 }
 
 func landmassSizes(g *clicks.Geography) []int {

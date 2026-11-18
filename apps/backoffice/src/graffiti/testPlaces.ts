@@ -1,10 +1,12 @@
-import {Places} from "../home/places.ts"
+import {Board} from "../boards/boards.ts"
+import {Places} from "../boards/places.ts"
+import {EARTH_1} from "../boards/testBoards.ts"
 
-// For the tests: a patch of the game's lattice, a hexagon of tiles `radius` steps wide around a place, a step of
-// 0.43° as on the map. Each tile's id is its index plus one; `idOf(i, j)` finds the tile `i` steps east and `j` rows
-// north (each row half a step east of the one below).
-export function patch(latitude: number, longitude: number, radius = 12) {
-    const step = 0.43 * Math.PI / 180
+// For the tests: a patch of a board's lattice, a hexagon of tiles `radius` steps wide around a place, a step of the
+// board's spacing (0.23° on earth-1). Each tile's id is its index plus one; `idOf(i, j)` finds the tile `i` steps east
+// and `j` rows north (each row half a step east of the one below).
+export function patch(latitude: number, longitude: number, radius = 12, board: Board = EARTH_1) {
+    const step = board.spacing
     const lat = latitude * Math.PI / 180, lon = longitude * Math.PI / 180
     const centre = [-Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)]
     const east = [Math.sin(lon), 0, Math.cos(lon)]
@@ -22,6 +24,6 @@ export function patch(latitude: number, longitude: number, radius = 12) {
             ids.set(`${i},${j}`, latitudes.length)
         }
     }
-    const places: Places = {latitudes: Float32Array.from(latitudes), longitudes: Float32Array.from(longitudes)}
+    const places: Places = {board, latitudes: Float32Array.from(latitudes), longitudes: Float32Array.from(longitudes)}
     return {places, idOf: (i: number, j: number) => ids.get(`${i},${j}`)!}
 }

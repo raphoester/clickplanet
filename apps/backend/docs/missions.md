@@ -101,7 +101,8 @@ internal/missions/internal/
     players' days, so the leaders share the heat and a small rival gets its turn (with no rival, twice that for the flag);
     3. take 300 to 600 tiles on a ground of 3,000 tiles or more (`groundAtLeast`) that is not the flag's and of which
     1,000 tiles or more are not the flag's (`openAtLeast`), seventeen countries on today's map (with none, the same
-    for the flag). **Then one or two feats** (`draw.feats`), since a day has 4 or 5 missions (`fewestMissions`,
+    for the flag). The three floors are `earth-1`'s tiles: on another board, as much ground (`World.atLeast`, the board
+    planet's territories name; see [Sized from the board](board-scale.md)), and the goals stay. **Then one or two feats** (`draw.feats`), since a day has 4 or 5 missions (`fewestMissions`,
     `mostMissions`), each kind once at most, drawn evenly: catch 3 to 6 boxes, answer 2 to 4 quizzes right, bring 1 to
     3 tiles to 10 shields (`wallShields`, planet's `charges.shield.perTile`), fortify 20 to 60 tiles, drop 1 or 2
     bombs on a big ground (drawn as the third mission's is, so it may be the same), and take 40 to 80 tiles from a

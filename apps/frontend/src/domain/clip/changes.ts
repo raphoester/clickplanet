@@ -1,3 +1,5 @@
+import {BoardScale, scaledCount} from "../boardScale.ts"
+
 export type TileChange = {
     tile: number
     from: string | undefined
@@ -25,8 +27,13 @@ export function ranked(counts: ReadonlyMap<string, number>): [string, number][] 
     return [...counts].sort(([a, x], [b, y]) => y - x || a.localeCompare(b))
 }
 
-// A country fought over this much is a story of its own, told on its own ground, besides the wars across the map.
+// A country fought over this many tiles of earth-1 is a story of its own, told on its own ground, besides the wars across
+// the map: as much ground on another board.
 const FOUGHT_OVER_LEAST = 400
+
+export function foughtOverLeast(scale: BoardScale): number {
+    return scaledCount(FOUGHT_OVER_LEAST, scale)
+}
 
 const MOST_COUNTRIES = 12
 
@@ -36,10 +43,12 @@ export function foughtOver(
     groundOf: (tile: number) => string | undefined,
     since: number,
     until: number,
+    scale: BoardScale,
 ): string[] {
+    const least = foughtOverLeast(scale)
     const grounds = tally(changes.flatMap(({tile, from, to, at}) => {
         const ground = groundOf(tile)
         return at < since || at > until || from === undefined || to === undefined || ground === undefined ? [] : [ground]
     }))
-    return ranked(grounds).filter(([, count]) => count >= FOUGHT_OVER_LEAST).slice(0, MOST_COUNTRIES).map(([country]) => country)
+    return ranked(grounds).filter(([, count]) => count >= least).slice(0, MOST_COUNTRIES).map(([country]) => country)
 }

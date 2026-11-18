@@ -16,19 +16,21 @@ type ShieldTally interface {
 	ShieldTally() []clicks.FlagShields
 }
 
-type Borders interface {
+// Board is the board in play: its name, its tile count, and whose ground each landmass is.
+type Board interface {
+	Name() clicks.BoardName
+	Tiles() uint32
 	CountryOfLandmass(landmass clicks.LandmassID) string
 }
 
-func NewMemoryQuery(tally Tally, shields ShieldTally, borders Borders, tiles uint32) *MemoryQuery {
-	return &MemoryQuery{tally: tally, shields: shields, borders: borders, tiles: tiles}
+func NewMemoryQuery(tally Tally, shields ShieldTally, board Board) *MemoryQuery {
+	return &MemoryQuery{tally: tally, shields: shields, board: board}
 }
 
 type MemoryQuery struct {
 	tally   Tally
 	shields ShieldTally
-	borders Borders
-	tiles   uint32
+	board   Board
 }
 
 func (q *MemoryQuery) Territories() *planetv1.GetTerritoriesResponse {
@@ -37,7 +39,7 @@ func (q *MemoryQuery) Territories() *planetv1.GetTerritoriesResponse {
 	// A tile on no country's land counts for its flag and lies on no ground.
 	grounds := make(map[string]map[string]uint32)
 	for _, row := range tally.Landmasses {
-		ground := q.borders.CountryOfLandmass(row.Landmass)
+		ground := q.board.CountryOfLandmass(row.Landmass)
 		if ground == "" {
 			continue
 		}
@@ -64,7 +66,7 @@ func (q *MemoryQuery) Territories() *planetv1.GetTerritoriesResponse {
 		return cmp.Compare(a.GetCountryId(), b.GetCountryId())
 	})
 
-	return &planetv1.GetTerritoriesResponse{Tiles: q.tiles, Territories: territories}
+	return &planetv1.GetTerritoriesResponse{Tiles: q.board.Tiles(), Territories: territories, Board: string(q.board.Name())}
 }
 
 func groundsOf(held map[string]uint32) []*planetv1.Ground {

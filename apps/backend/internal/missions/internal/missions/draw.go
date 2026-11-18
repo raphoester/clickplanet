@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/missions/internal/days"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 type Holding struct {
@@ -24,9 +25,16 @@ type Territory struct {
 	Shields uint32
 }
 
+// World is the map the day is drawn on, and its board's scale: a floor of tiles is as much ground on any board.
 type World struct {
 	Territories  []Territory
 	CountrySizes []Holding
+	Scale        cpboards.Scale
+}
+
+// atLeast is a floor of earth-1's tiles, on the world's board.
+func (w World) atLeast(tiles uint32) uint32 {
+	return uint32(w.Scale.Tiles(int(tiles))) //nolint:gosec // a floor of a few thousand tiles.
 }
 
 // A span is what a goal may be, drawn in its steps.
@@ -46,6 +54,7 @@ var (
 	fortifyGoal = span{least: 20, most: 60, step: 10}
 )
 
+// The floors, in earth-1's tiles: each is as much ground on the world's board (World.atLeast).
 const (
 	rivalAtLeast  = 1_000
 	groundAtLeast = 3_000
@@ -86,7 +95,7 @@ func drawnID(day days.Day, account AccountID, n int) MissionID {
 func (w World) RivalsOf(flag string) []Holding {
 	var rivals []Holding
 	for _, held := range w.Territories {
-		if held.Flag != flag && held.Tiles >= rivalAtLeast {
+		if held.Flag != flag && held.Tiles >= w.atLeast(rivalAtLeast) {
 			rivals = append(rivals, Holding{Country: held.Flag, Tiles: held.Tiles})
 		}
 	}
@@ -126,7 +135,7 @@ func (w World) GroundsOf(flag string) []Ground {
 
 	var grounds []Ground
 	for _, size := range w.CountrySizes {
-		if size.Country != flag && size.Tiles >= groundAtLeast && size.Tiles >= held[size.Country]+openAtLeast {
+		if size.Country != flag && size.Tiles >= w.atLeast(groundAtLeast) && size.Tiles >= held[size.Country]+w.atLeast(openAtLeast) {
 			grounds = append(grounds, Ground{Country: size.Country, Open: size.Tiles - held[size.Country]})
 		}
 	}
@@ -142,11 +151,11 @@ type raid struct {
 func raidsOf(flag string, world World) []raid {
 	var raids []raid
 	for _, held := range world.Territories {
-		if held.Flag == flag || held.Tiles < rivalAtLeast {
+		if held.Flag == flag || held.Tiles < world.atLeast(rivalAtLeast) {
 			continue
 		}
 		for _, ground := range held.Grounds {
-			if ground.Tiles >= raidAtLeast {
+			if ground.Tiles >= world.atLeast(raidAtLeast) {
 				raids = append(raids, raid{flag: held.Flag, ground: ground.Country})
 			}
 		}

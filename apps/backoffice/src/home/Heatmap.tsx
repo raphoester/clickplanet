@@ -1,7 +1,7 @@
 import {PointerEvent, useEffect, useMemo, useRef, useState} from "react"
+import {Places} from "../boards/places.ts"
 import {wholeOf} from "./activity.ts"
 import {busiestOf, cellOf, Cells, cellsOf, colorAt, levelsOf, Picture, pictureOf, placeOf, Rgb, rgbOf} from "./heat.ts"
-import {Places} from "./places.ts"
 
 const WIDTH = 1440
 const HEAT_STOPS = ["--heat-0", "--heat-1", "--heat-2", "--heat-3"]

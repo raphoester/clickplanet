@@ -15,6 +15,7 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/announcements/usecases/announce_usecase"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/feed/inprocess_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/chat/internal/subscribers/fortified_subscriber"
+	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpboards"
 )
 
 var at = time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)
@@ -54,4 +55,23 @@ func TestAFortifyWithNoTimeIsRefused(t *testing.T) {
 
 	require.Error(t, subscriber(store).Handle(t.Context(), &planetv1.Fortified{Country: "es", Tiles: 137}))
 	assert.Empty(t, store.Kept())
+}
+
+func TestAFortifyIsAsNewsworthyOnABoardOfItsOwnAsTheGroundItCovers(t *testing.T) {
+	for tiles, announced := range map[uint32]bool{0: false, 1: true} {
+		store := inmemory_announcement_storage.New()
+
+		err := subscriber(store).Handle(t.Context(), &planetv1.Fortified{
+			Country: "jp", LandmassId: 12, Tiles: tiles, FortifiedAt: timestamppb.New(at), Board: cpboards.Fixture,
+		})
+
+		require.NoError(t, err)
+		assert.Equal(t, announced, len(store.Kept()) == 1, "%d tiles of the fixture: 50 of earth-1 are one", tiles)
+	}
+
+	store := inmemory_announcement_storage.New()
+	require.NoError(t, subscriber(store).Handle(t.Context(), &planetv1.Fortified{
+		Country: "bg", LandmassId: 257, Tiles: 49, FortifiedAt: timestamppb.New(at), Board: "earth-1",
+	}))
+	assert.Empty(t, store.Kept(), "50 on earth-1, as before")
 }

@@ -23,9 +23,12 @@ src/
   components/       Menu and Sidebar, ConfirmAction, FailureNotice, AccountId and Copyable (with Copy), Country, CountryField,
                     Fact, Person, When and Ago, Fold (a panel read once opened), ChangeList (what a form changes);
                     time.ts (a time in words, a span of two, as a datetime-local holds it, the operator's time zone)
-  home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts),
-                    heat.ts (the picture), places.ts (where each tile is), board.ts (each tile's position, rebuilt
-                    from the board's runs) and activity.ts; useWidth.ts (a chart's width as it resizes)
+  boards/           the boards: boards.ts (BOARDS by name, boardOf), places.ts (a board's places, read once by name),
+                    lattice.ts (each tile's position, rebuilt from the board's runs), scale.ts (a number tuned on
+                    earth-1, read at a board's spacing); testBoards.ts (earth-1 and fixture-1, for the tests)
+  home/             Home: the tiles, ActivityCharts, Heatmap, CountryTable, PlayingNow, over ledger.ts (the counts, and
+                    the board the ledger is on), heat.ts (the picture) and activity.ts; useWidth.ts (a chart's width as
+                    it resizes)
   support/          Ideas and bugs: NoteList, Attachments, labels.ts (names, outcomes, device lines, sizes)
   chat/             Conversation and TheirMessages, which reports/ and players/ show, over chatPages.ts (a page of
                     ListMessages, the parties a report names) and theirConversations.ts; said.ts (what a message said,
@@ -38,9 +41,10 @@ src/
                     words), durations.ts (the mute and ban choices, a span in words)
   graffiti/         Graffiti: GraffitiView (the inbox), GraffitiDetail (one, with its painter's Ban and Revert),
                     GraffitiPicture over picture.ts (a drawing as the globe shows it, each tile its cell), graffiti.ts
-                    (the list, the painters' names and standings, a graffiti's key); testPlaces.ts (a patch of the
-                    lattice, for the tests)
-  map/              Download a replay; download.ts (a file saved from memory)
+                    (the list, the painters' names and standings, the boards' places, a graffiti's key); testPlaces.ts
+                    (a patch of a board's lattice, for the tests)
+  map/              Download a replay, actions.ts (the file, and the eras it is on); download.ts (a file saved from
+                    memory)
   clips/            Clip stats: ClipStatsPage, actions.ts (the CSV's file), table.ts (its columns)
   videos/           Videos: VideosPage (the list), UploadPanel, actions.ts (the upload's steps, copyText)
   promo/            Promo, the battle teasers: PromoPage, BackgroundsPanel (the library and its uploads), CardsPanel (a set's cards,
@@ -52,13 +56,15 @@ src/
                     cutoff.ts (the daily cutoff: when days end, a battle off it); rules.ts (a planet set in words and as
                     the form edits it), ruleBook.ts (a module's set as RuleSetsPanel edits it, by a book: its frozen
                     switch, its groups, its set from protojson), boxRules.ts, bonusRules.ts and quizRules.ts (the boxes' book, the bonuses' and
-                    the quizzes', and each set in words), RuleFields.tsx (the forms' switch and value fields) over
+                    the quizzes', and each set in words), RuleFields.tsx (the forms' switch, value and board fields) over
                     ruleValues.ts (a value as typed, sent and read; a pace in words), antibotRules.ts (the antibot
                     form's fields, read off the proto), overlay.ts (a set's JSON over default's), schedule.ts (the
                     schedule's rows and what each module plays), seasons.ts (the seasons' rows and form), timeline.ts
                     (the Timeline's lanes and instants)
   gen/grpc/         generated from ../../proto, committed
-  gen/map/          the board's manifest and runs, copied from ../../map/boards, committed
+  gen/map/          every board's manifest and runs, copied from ../../map/boards, and boards.ts, the table of them by
+                    name; committed
+  testdata/boards/  fixture-1, the tests' second board, read by the tests alone and never bundled
 ```
 
 **An account is shown by its id, with Copy**, beside its name, wherever a tool takes it: a name can change hands,

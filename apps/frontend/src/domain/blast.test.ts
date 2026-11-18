@@ -1,5 +1,7 @@
 import {describe, expect, it} from "vitest"
-import {BLAST_TIMELINE, blastOf, blastOver, nearestTile, tilesWithin} from "./blast.ts"
+import {BLAST_TIMELINE, blastOf, blastOver, mineBlastRadius, nearestTile, tilesWithin} from "./blast.ts"
+import {EARTH_1_SCALE, scaleOf} from "./boardScale.ts"
+import {FIXTURE_1} from "../testdata/boards.ts"
 
 const POSITIONS = new Float32Array([
     1, 0, 0,
@@ -63,5 +65,16 @@ describe("blastOver", () => {
     it("lasts through the fall and the scorch", () => {
         expect(blastOver(BLAST_TIMELINE.fall)).toBe(false)
         expect(blastOver(BLAST_TIMELINE.fall + BLAST_TIMELINE.scorch)).toBe(true)
+    })
+})
+
+describe("mineBlastRadius", () => {
+    it("reaches its rings and a half tile past the last, on earth-1", () => {
+        expect(mineBlastRadius(2, EARTH_1_SCALE)).toBe(2.5 * 0.004)
+    })
+
+    it("reaches as many rings of a coarser board's own tiles", () => {
+        const scale = scaleOf(FIXTURE_1)
+        expect(mineBlastRadius(2, scale)).toBeCloseTo(2.5 * 0.004 * scale.length, 12)
     })
 })

@@ -117,6 +117,11 @@ an ordinary HTTP POST, or a GET for reads.
 - `useHttpGet: true` — without it the side-effect-free reads go out as POSTs,
   which no cache will serve.
 
+**Every `GetMap` answer and the stream's opening name the board the map plays.** `readBoard` reads it at the boot from
+the first tile alone, and `BoardChanges` (`boards.ts`), which `PlanetBackend` and `FakeBackend` are given, decides what
+a batch or an opening on another board than the one drawn does: a batch is read again past the browser's copy, an
+opening reloads the page. See [The board the page draws](board-reload.md).
+
 The map arrives as `GetMapResponse`: `start_tile_id`, a `codes` table, and
 `tiles`, two bytes per tile indexing into it. `bindingsOf` reads it. Tile ids
 are implicit in the position, so it is far smaller than a keyed map — 516 KB
@@ -132,7 +137,7 @@ was playable: on DevTools' Fast 4G, 4.7s of a 9.6s load. Eight at a time it is
 0.7s, and four at a time 1.2s. A batch that fails after its retries stops the
 others, and nothing that lands after that, or after the caller's abort, is handed
 over. **The server's end is inclusive**, so a batch ends at `start + batchSize - 1`,
-and no read starts at 0 or ends past `maxIndex`: the backend's antibot takes a
+and no read starts at 0 or ends past the board's last tile: the backend's antibot takes a
 read off the map for a bot's walk (its `scraper`, in
 [antibot.md](../../backend/docs/antibot.md)).
 
