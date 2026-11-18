@@ -18,6 +18,13 @@ turning it off now saves `"soft"`. **Changing it rebuilds the globe**: the
 earth's shader and the tiles' layout are fixed when the globe is built, so
 `rendering` is in `useGlobe`'s dependencies and the map loads again.
 
+**With HD graphics on and a build with `VITE_ADAPTIVE_RATIO=on`, slow frames lower
+the ratio by themselves**, from 2 to 1.5 to 1, and the next visit starts at the
+lowered one (see [Slow frames lower the
+ratio](pixel-ratio.md#slow-frames-lower-the-ratio)). Only the ratio: the earth's
+shader and the compact layout stay. The setting does not change, and nothing on
+screen says so. Built without the flag, HD graphics keeps the screen's ratio.
+
 **HD graphics does not antialias, and nothing else does either.** It did until
 Nov 2026. Measured on `/play` in Chrome, antialiasing cost about 60 MB of GPU
 memory per million pixels drawn: about 167 MB on a 1440×900 screen at ratio 2,
@@ -31,7 +38,8 @@ query only the parts it names are on, so `?gfx=` alone is the plain globe:
 
 | `?gfx=` | Turns on |
 |---|---|
-| `ratio` | the screen's pixel ratio, capped at 2, instead of 1 |
+| `ratio` | the screen's pixel ratio, capped at 2, instead of 1; slow frames never lower it |
+| `adaptive` | the screen's pixel ratio, lowered on slow frames, whatever the build's flag |
 | `earth` | the earth's own shader, with the sea's glint |
 | `compact` | the tiles' compact layout: 20 bytes a tile on the GPU, not 36 |
 | `all` | all of the above: everything HD graphics turns on |

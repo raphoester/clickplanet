@@ -4,7 +4,7 @@ import {layoutViewport} from "./viewport.ts";
 import {createEarth} from "./earth.ts";
 import {type Graphics} from "./graphics.ts";
 
-export function setupScene(container: HTMLElement, graphics: Graphics) {
+export function setupScene(container: HTMLElement, graphics: Graphics, ratio: number) {
     const scene = new THREE.Scene();
     const cameraSize = 1;
     const {width, height} = layoutViewport();
@@ -17,7 +17,7 @@ export function setupScene(container: HTMLElement, graphics: Graphics) {
     camera.position.z = 5
 
     const renderer = new THREE.WebGLRenderer({antialias: graphics.antialias});
-    renderer.setPixelRatio(pixelRatio(graphics));
+    renderer.setPixelRatio(ratio);
     renderer.setSize(width, height);
     renderer.setClearColor(SKY);
     container.appendChild(renderer.domElement);
@@ -33,11 +33,11 @@ export function setupScene(container: HTMLElement, graphics: Graphics) {
     return {scene, camera, cameraSize, renderer, cleanup};
 }
 
-const MAX_PIXEL_RATIO = 2;
+export const MAX_PIXEL_RATIO = 2;
 
-export function pixelRatio(graphics: Graphics): number {
-    if (!graphics.ratio) return 1;
-    return Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO);
+export function pixelRatio(graphics: Graphics, most: number): number {
+    if (graphics.ratio === "one") return 1;
+    return Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO, most);
 }
 
 export function disposeScene(scene: THREE.Scene) {
