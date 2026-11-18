@@ -52,9 +52,10 @@ of another epoch is not taken.
    flags, the leaderboard, a flight in orbit and the territory card work from there.
 3. The map batches start with them, eight at a time: on Fast 4G that put the counts in at 1.56s and the tiles at
    2.06s, where waiting for the counts first put the tiles at 2.27s. **A tile is clicked only once they are all
-   read** (`Globe.tilesRead`;
-   `onLoadProgress` says the share). Until then a click zoomed in does nothing, and `PlayScreen` shows the loading card
-   when zoomed in (`onOrbitChange`); in orbit nothing waits.
+   read** (`Globe.tilesRead`). Until then a click zoomed in does nothing, and `PlayScreen` shows the loading card, in
+   orbit too, with the share read (`onLoadProgress`). **The painted flags show whole**: no tile's owner is sent to the
+   GPU (`TileField.uploadTiles`) before every batch is read, so the map is never seen filling up, and `onLoadProgress`
+   says 1 only after the frame that draws them all. On `earth-2` the batches come well after the counts.
 4. **A read older than the stream's opening may miss what happened in between**, which the stream never sends.
    So, once the opening is known, every range and the counts still older than it are read again
    `READ_AGAIN_MS` (5s, the reads' `max-age`, so the browser does not hand back the same copy) later, four reads at

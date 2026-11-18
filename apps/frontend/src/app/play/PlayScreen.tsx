@@ -319,7 +319,6 @@ export default function PlayScreen(props: PlayScreenProps) {
     const {
         status,
         tilesLoading,
-        orbit,
         leaderboard,
         tileDeltas,
         tilesCount,
@@ -506,7 +505,7 @@ export default function PlayScreen(props: PlayScreenProps) {
         <div ref={container} className="viewer-canvas"/>
 
         {!ready && <StatusCard status={status}/>}
-        {ready && !orbit && tilesLoading !== undefined && <StatusCard status={{state: 'loading', territories: tilesLoading}}/>}
+        {ready && tilesLoading !== undefined &&<StatusCard status={{state: 'loading', territories: tilesLoading}}/>}
 
         {ready && !compact && <Menu {...board} {...you} {...share} {...settings}
                                     missions={missions}
