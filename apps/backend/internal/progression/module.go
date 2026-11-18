@@ -215,7 +215,7 @@ func build(ctx context.Context, config Config, props cpbootstrap.Props) error {
 		)),
 		GetLevelHandler: get_level_handler.New(level_query.NewPostgresQuery(db, levelBars)),
 		ListenForEventsHandler: listen_for_events_handler.New(
-			listen_for_events_usecase.New(titleFeed, catalog, levelFeed, props.Server.StreamHeartbeat),
+			listen_for_events_usecase.New(titleFeed, catalog, levelFeed, statsStore, props.Server.StreamHeartbeat),
 		),
 	}
 	if err := props.RPC.Mount(func(options ...connect.HandlerOption) (string, http.Handler) {

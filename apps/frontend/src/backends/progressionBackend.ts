@@ -10,6 +10,9 @@ import {
     Progress as ProgressPb,
     ProgressionEvent,
     Track as TrackPb,
+    XpGain as XpGainPb,
+    XpRate as XpRatePb,
+    XpSource as XpSourcePb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {AccountBadge, BadgesBackend} from "./badges.ts"
 import {UnlockLevels} from "../domain/bonus.ts"
@@ -29,6 +32,9 @@ import {
     ProgressReader,
     TitleDashboard,
     TitleTrack,
+    XpGain,
+    XpRates,
+    XpSource,
 } from "./progression.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 import {titleOf} from "./title.ts"
@@ -78,7 +84,12 @@ export class ConnectProgressionBackend implements ProgressionBackend, ProgressRe
 
         const headers = new Headers({[SESSION_HEADER]: token})
         const res = await retrying(() => this.client.getLevel({}, {headers}), "GetLevel")
-        return {level: levelOf(res.level), unlocks: unlocksOf(res.unlocks), missionRates: missionRatesOf(res.missionRates)}
+        return {
+            level: levelOf(res.level),
+            unlocks: unlocksOf(res.unlocks),
+            missionRates: missionRatesOf(res.missionRates),
+            xpRates: xpRatesOf(res.xpRates),
+        }
     }
 
     public async progress(accountId: string): Promise<Progress | undefined> {
@@ -148,6 +159,44 @@ function missionRatesOf(rates: MissionRatePb[]): MissionRates {
     }))
 }
 
+export function xpRatesOf(rates: XpRatePb[]): XpRates {
+    return Object.fromEntries(rates.flatMap((rate) => {
+        const source = xpSourceOf(rate.source)
+        return source && rate.per > 0 ? [[source, {xp: rate.xp, per: rate.per}]] : []
+    }))
+}
+
+// A source this build does not name is left out.
+export function xpGainsOf(gains: XpGainPb[]): XpGain[] {
+    return gains.flatMap((gain) => {
+        const source = xpSourceOf(gain.source)
+        return source && gain.xp > 0n ? [{source, xp: Number(gain.xp)}] : []
+    })
+}
+
+function xpSourceOf(source: XpSourcePb): XpSource | undefined {
+    switch (source) {
+        case XpSourcePb.TILES_TAKEN:
+            return "tilesTaken"
+        case XpSourcePb.DAYS_PLAYED:
+            return "daysPlayed"
+        case XpSourcePb.MISSIONS_DONE:
+            return "missionsDone"
+        case XpSourcePb.BOMBS_DROPPED:
+            return "bombsDropped"
+        case XpSourcePb.BOXES_CAUGHT:
+            return "boxesCaught"
+        case XpSourcePb.RIGHT_ANSWERS:
+            return "rightAnswers"
+        case XpSourcePb.TILES_FORTIFIED:
+            return "tilesFortified"
+        case XpSourcePb.UNSPECIFIED:
+            return undefined
+        default:
+            return undefined
+    }
+}
+
 function orderKindOf(kind: MissionKind): MissionOrder["kind"] | undefined {
     switch (kind) {
         case MissionKind.TAKE_FOR:
@@ -183,6 +232,11 @@ function tell(event: ProgressionEvent, on: ProgressionEvents): void {
         case "levelReached": {
             const level = levelOf(event.event.value)
             if (level) on.levelReached(level)
+            return
+        }
+        case "xpGained": {
+            const gains = xpGainsOf(event.event.value.gains)
+            if (gains.length > 0) on.xpGained({gains, level: levelOf(event.event.value.level)})
             return
         }
         case "heartbeat":

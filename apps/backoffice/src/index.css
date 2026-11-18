@@ -723,6 +723,14 @@ textarea {
     overflow-wrap: anywhere;
 }
 
+.former-names {
+    display: grid;
+    gap: 2px;
+    margin: 0 0 4px;
+    padding: 0;
+    list-style: none;
+}
+
 .text {
     margin: 8px 0;
     white-space: pre-wrap;

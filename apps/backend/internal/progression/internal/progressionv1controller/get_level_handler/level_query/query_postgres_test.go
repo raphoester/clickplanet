@@ -110,3 +110,12 @@ func (s *testSuite) TestEveryAnswerTellsTheLevelEachKindUnlocksAt() {
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_MINE, Level: 13}, unlocks[5]))
 	s.True(proto.Equal(&progressionv1.Unlock{Kind: planetv1.BonusKind_BONUS_KIND_RALLY, Level: 15}, unlocks[6]))
 }
+
+func (s *testSuite) TestEveryAnswerTellsWhatEachSourceOfXPPaysAGuestToo() {
+	s.took(ada)
+
+	rates := s.level(ada).GetXpRates()
+
+	s.Require().NotEmpty(rates)
+	s.True(proto.Equal(&progressionv1.XpRate{Source: progressionv1.XpSource_XP_SOURCE_TILES_TAKEN, Xp: 1, Per: 1}, rates[0]))
+}

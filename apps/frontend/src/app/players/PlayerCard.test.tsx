@@ -24,7 +24,7 @@ describe("PlayerCard", () => {
     it("shows who was clicked, and the player's stats once read", async () => {
         const backend = backendAnswering(async () => ({
             name: "Ana", guest: false, tilesTaken: 1234, streakCurrent: 1, streakBest: 7, createdAt: Date.UTC(2026, 8, 1, 12), admin: false, color: NameColor.UNSPECIFIED,
-            titles: [], playsFor: [], playsAgainst: [],
+            titles: [], playsFor: [], pastNames: [], playsAgainst: [],
         }))
         render(<PlayerCard player={ana} backend={backend} onClose={() => {}}/>)
 
@@ -42,7 +42,7 @@ describe("PlayerCard", () => {
     })
 
     it("shows the player's level beside the name, and none when the server keeps none", async () => {
-        const info = {name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}
+        const info = {name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], pastNames: [], playsAgainst: []}
         const view = render(<PlayerCard player={ana}
                                         backend={backendAnswering(async () => ({...info, level: {level: 12, xp: 20_000, levelXp: 18_634, nextLevelXp: 24_192}}))}
                                         onClose={() => {}}/>)
@@ -57,7 +57,7 @@ describe("PlayerCard", () => {
 
     it("leaves out a creation date the server does not know", async () => {
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}))}
+                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], pastNames: [], playsAgainst: []}))}
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
@@ -71,7 +71,7 @@ describe("PlayerCard", () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 12_000, streakCurrent: 0, streakBest: 30, admin: false, color: NameColor.UNSPECIFIED,
-                               titles: [{id: "og", name: "OG"}, warlord, devoted], playsFor: [], playsAgainst: [],
+                               titles: [{id: "og", name: "OG"}, warlord, devoted], playsFor: [], pastNames: [], playsAgainst: [],
                                wornTitle: warlord,
                            }))}
                            onClose={() => {}}/>)
@@ -93,7 +93,7 @@ describe("PlayerCard", () => {
                                    {id: "raider", name: "Raider", rank: {trackId: "conquest", trackName: "Conquest", number: 2, count: 5}, feat: "Took 1,000 tiles"},
                                    {id: "new_title", name: "New title"},
                                ],
-                               playsFor: [], playsAgainst: [],
+                               playsFor: [], pastNames: [], playsAgainst: [],
                            }))}
                            onClose={() => {}}/>)
 
@@ -118,7 +118,7 @@ describe("PlayerCard", () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 12_000, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
-                               titles: [warlord], playsFor: [], playsAgainst: [],
+                               titles: [warlord], playsFor: [], pastNames: [], playsAgainst: [],
                            }))}
                            onClose={() => {}}/>)
 
@@ -132,7 +132,7 @@ describe("PlayerCard", () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
-                               titles: [{id: "og", name: "OG"}], playsFor: [], playsAgainst: [],
+                               titles: [{id: "og", name: "OG"}], playsFor: [], pastNames: [], playsAgainst: [],
                                wornTitle: {id: "og", name: "OG"},
                            }))}
                            onClose={() => {}}/>)
@@ -144,7 +144,7 @@ describe("PlayerCard", () => {
 
     it("draws no frame and no stamp for a player with no title", async () => {
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}))}
+                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], pastNames: [], playsAgainst: []}))}
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
@@ -154,7 +154,7 @@ describe("PlayerCard", () => {
 
     it("shows no list for a player with no title", async () => {
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}))}
+                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 3, streakCurrent: 1, streakBest: 1, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], pastNames: [], playsAgainst: []}))}
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
@@ -188,7 +188,7 @@ describe("PlayerCard", () => {
     it("reads the card again when it is given another account under the same name", async () => {
         const backend = backendAnswering(async (accountId: string) => ({
             name: "Ana", guest: false, tilesTaken: accountId === "account-ana" ? 1 : 2, streakCurrent: 0, streakBest: 0, admin: false,
-            color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
+            color: NameColor.UNSPECIFIED, titles: [], playsFor: [], pastNames: [], playsAgainst: [],
         }))
         const {rerender} = render(<PlayerCard player={ana} backend={backend} onClose={() => {}}/>)
         await screen.findByText("Tiles taken")
@@ -208,12 +208,34 @@ describe("PlayerCard", () => {
         expect(await screen.findByText("The stats could not be loaded.")).toBeDefined()
     })
 
+    it("shows the names the player went by before, newest first", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({
+                               name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED,
+                               titles: [], playsFor: [], playsAgainst: [],
+                               pastNames: [{name: "BraveFox42", leftAt: Date.UTC(2026, 10, 12)}, {name: "Ana_L", leftAt: Date.UTC(2026, 10, 1)}],
+                           }))}
+                           onClose={() => {}}/>)
+
+        const line = await screen.findByText(/^Previously known as/)
+        expect(line.textContent).toBe("Previously known as BraveFox42, Ana_L")
+    })
+
+    it("says nothing of past names for a player that never changed its own", async () => {
+        render(<PlayerCard player={ana}
+                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [], pastNames: []}))}
+                           onClose={() => {}}/>)
+
+        await screen.findByText("Tiles taken")
+        expect(screen.queryByText(/Previously known as/)).toBeNull()
+    })
+
     it("shows the countries the server says a player fought for and against, most tiles first", async () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 1300, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [],
                                playsFor: [{countryCode: "fr", tiles: 1200}, {countryCode: "be", tiles: 100}],
-                               playsAgainst: [{countryCode: "de", tiles: 500}, {countryCode: "es", tiles: 300}, {countryCode: "it", tiles: 150}],
+                               pastNames: [], playsAgainst: [{countryCode: "de", tiles: 500}, {countryCode: "es", tiles: 300}, {countryCode: "it", tiles: 150}],
                            }))}
                            onClose={() => {}}/>)
 
@@ -229,7 +251,7 @@ describe("PlayerCard", () => {
         render(<PlayerCard player={ana}
                            backend={backendAnswering(async () => ({
                                name: "Ana", guest: false, tilesTaken: 4, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [],
-                               playsFor: [{countryCode: "fr", tiles: 4}], playsAgainst: [],
+                               playsFor: [{countryCode: "fr", tiles: 4}], pastNames: [], playsAgainst: [],
                            }))}
                            onClose={() => {}}/>)
 
@@ -238,7 +260,7 @@ describe("PlayerCard", () => {
         cleanup()
 
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}))}
+                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: false, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], pastNames: [], playsAgainst: []}))}
                            onClose={() => {}}/>)
 
         await screen.findByText("Tiles taken")
@@ -253,7 +275,7 @@ describe("PlayerCard", () => {
         cleanup()
 
         render(<PlayerCard player={ana}
-                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: true, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: []}))}
+                           backend={backendAnswering(async () => ({name: "Ana", guest: false, tilesTaken: 0, streakCurrent: 0, streakBest: 0, admin: true, color: NameColor.UNSPECIFIED, titles: [], playsFor: [], pastNames: [], playsAgainst: []}))}
                            onClose={() => {}}/>)
         expect(screen.queryByRole("img", {name: "Admin"})).toBeNull()
         expect(await screen.findByRole("img", {name: "Admin"})).toBeDefined()

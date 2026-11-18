@@ -25,7 +25,9 @@ type Levels interface {
 	Raise(ctx context.Context, account accounts.AccountID, level levels.Level, at time.Time) (levels.Level, error)
 }
 
+// Feed tells the account's open streams: the XP each fact gave, and each level reached.
 type Feed interface {
+	Count(account accounts.AccountID, earned levels.Earned, standing levels.Standing)
 	Publish(account accounts.AccountID, reached levels.Standing)
 }
 
@@ -58,6 +60,8 @@ func (u *UseCase) Execute(ctx context.Context, account accounts.AccountID) (leve
 	scale := levels.Scale{}
 	reach := scale.Reach(counted)
 	if reach <= kept[account] {
+		// A level is kept, so the account is linked: it hears the XP the fact gave.
+		u.feed.Count(account, scale.EarnedOf(counted), scale.StandingAt(kept[account], counted))
 		return 0, nil
 	}
 
@@ -76,6 +80,8 @@ func (u *UseCase) Execute(ctx context.Context, account accounts.AccountID) (leve
 	if previous >= reach {
 		return 0, nil
 	}
-	u.feed.Publish(account, scale.StandingAt(reach, counted))
+	reached := scale.StandingAt(reach, counted)
+	u.feed.Count(account, scale.EarnedOf(counted), reached)
+	u.feed.Publish(account, reached)
 	return reach, nil
 }

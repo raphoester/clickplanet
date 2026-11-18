@@ -8,7 +8,7 @@ import {afterEach, describe, expect, it} from "vitest"
 import {AROUND} from "../chat/theirConversations.ts"
 import {timeOf} from "../components/time.ts"
 import {ACCOUNT, AT, FakeAdmin} from "../fakeAdmin.ts"
-import {AdminGetPlayerResponse} from "../gen/grpc/player/v1/admin_pb.ts"
+import {AdminGetPlayerResponse, FormerName} from "../gen/grpc/player/v1/admin_pb.ts"
 import {GetMuteResponse, KeptMessage} from "../gen/grpc/chat/v1/admin_pb.ts"
 import {MuteKind} from "../gen/grpc/chat/v1/chat_pb.ts"
 import {InspectPlayerResponse, WarnPlayerResponse} from "../gen/grpc/antibot/v1/admin_pb.ts"
@@ -206,6 +206,45 @@ describe("one player", () => {
         release()
         const profile = await screen.findByRole("region", {name: "Profile"})
         expect(await within(profile).findByText("1200")).toBeTruthy()
+    })
+
+    it("lists every name the account held before, newest first, and which an operator replaced", async () => {
+        const admin = new FakeAdmin()
+        const day = 24 * 3600 * 1000
+        admin.profile = new AdminGetPlayerResponse({
+            ...admin.profile,
+            formerNames: [
+                new FormerName({name: "Player42", untilUnixMs: BigInt(AT.getTime() - day)}),
+                new FormerName({name: "Hitler88", untilUnixMs: BigInt(AT.getTime() - 9 * day), renamedByOperator: true}),
+            ],
+        })
+        render(<Page admin={admin} first={account}/>)
+
+        const profile = await screen.findByRole("region", {name: "Profile"})
+        const names = within(await within(profile).findByRole("list")).getAllByRole("listitem").map(item => item.textContent)
+        expect(names).toEqual([
+            `Player42 until ${timeOf(new Date(AT.getTime() - day))}`,
+            `Hitler88 until ${timeOf(new Date(AT.getTime() - 9 * day))}, renamed by an operator`,
+        ])
+    })
+
+    it("says none for an account that never changed its name, and folds a long list behind All", async () => {
+        const admin = new FakeAdmin()
+        const view = render(<Page admin={admin} first={account}/>)
+        const profile = await screen.findByRole("region", {name: "Profile"})
+        expect((await within(profile).findByText("Former names")).nextElementSibling?.textContent).toBe("none")
+        view.unmount()
+
+        admin.profile = new AdminGetPlayerResponse({
+            ...admin.profile,
+            formerNames: Array.from({length: 7}, (_, i) => new FormerName({name: `Name_${i}`, untilUnixMs: BigInt(AT.getTime() - i * 1000)})),
+        })
+        render(<Page admin={admin} first={account}/>)
+        const again = await screen.findByRole("region", {name: "Profile"})
+        expect(within(await within(again).findByRole("list")).getAllByRole("listitem")).toHaveLength(5)
+
+        fireEvent.click(within(again).getByRole("button", {name: "All 7"}))
+        expect(within(within(again).getByRole("list")).getAllByRole("listitem")).toHaveLength(7)
     })
 
     it("folds the countries past five behind All", async () => {

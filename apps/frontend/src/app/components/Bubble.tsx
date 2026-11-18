@@ -20,16 +20,18 @@ export type BubbleProps = {
     anchor: RefObject<HTMLElement | null>
     id?: string
     gap?: number
+    // A bubble that lists things side by side is wider than one that says one thing.
+    width?: number
     onLost?: () => void
     children: ReactNode
 }
 
-export default function Bubble({anchor, id, gap = GAP_PX, onLost, children}: BubbleProps) {
+export default function Bubble({anchor, id, gap = GAP_PX, width = MAX_WIDTH_PX, onLost, children}: BubbleProps) {
     const [place, setPlace] = useState<Place | undefined>()
 
     useLayoutEffect(() => {
-        setPlace(placeOver(anchor.current, gap))
-    }, [anchor, gap, children])
+        setPlace(placeOver(anchor.current, gap, width))
+    }, [anchor, gap, width, children])
 
     useLayoutEffect(() => {
         if (!onLost) return
@@ -48,17 +50,17 @@ export default function Bubble({anchor, id, gap = GAP_PX, onLost, children}: Bub
         <div id={id}
              role="status"
              className={place.above ? "bubble bubble--above" : "bubble"}
-             style={{left: `${place.left}px`, top: `${place.top}px`, maxWidth: `${MAX_WIDTH_PX}px`, "--bubble-arrow": `${place.arrow}px`} as CSSProperties}>
+             style={{left: `${place.left}px`, top: `${place.top}px`, maxWidth: `${width}px`, "--bubble-arrow": `${place.arrow}px`} as CSSProperties}>
             {children}
         </div>,
         document.body)
 }
 
-function placeOver(anchor: HTMLElement | null, gap: number): Place | undefined {
+function placeOver(anchor: HTMLElement | null, gap: number, width: number): Place | undefined {
     const box = anchor?.getBoundingClientRect()
     if (!box) return undefined
 
-    const half = Math.min(MAX_WIDTH_PX, window.innerWidth - 2 * EDGE_PX) / 2
+    const half = Math.min(width, window.innerWidth - 2 * EDGE_PX) / 2
     const middle = box.left + box.width / 2
     const left = Math.min(Math.max(middle, half + EDGE_PX), window.innerWidth - half - EDGE_PX)
     const above = box.top > ROOM_PX

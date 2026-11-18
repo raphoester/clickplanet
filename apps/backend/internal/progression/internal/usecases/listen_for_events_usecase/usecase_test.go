@@ -14,6 +14,8 @@ import (
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/accounts"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels/inprocess_level_feed"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats/inmemory_stats_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles/inprocess_title_feed"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/usecases/listen_for_events_usecase"
@@ -29,6 +31,7 @@ type recordingSink struct {
 	mu         sync.Mutex
 	earned     []titles.ID
 	reached    []levels.Standing
+	gained     []levels.Gained
 	heartbeats int
 	err        error
 }
@@ -64,6 +67,21 @@ func (r *recordingSink) SendLevelReached(standing levels.Standing) error {
 	return r.err
 }
 
+func (r *recordingSink) SendXPGained(gained levels.Gained) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.gained = append(r.gained, gained)
+	return r.err
+}
+
+func (r *recordingSink) gains() []levels.Gained {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return slices.Clone(r.gained)
+}
+
 func (r *recordingSink) received() []titles.ID {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -81,16 +99,28 @@ func (r *recordingSink) levels() []levels.Standing {
 type feeds struct {
 	titles *inprocess_title_feed.Feed
 	levels *inprocess_level_feed.Feed
+	stats  *inmemory_stats_store.Store
+}
+
+func newFeeds() feeds {
+	return feeds{titles: inprocess_title_feed.New(), levels: inprocess_level_feed.New(), stats: inmemory_stats_store.New()}
+}
+
+func (f feeds) listen(ctx context.Context, heartbeat time.Duration, sink *recordingSink) error {
+	return listen_for_events_usecase.New(f.titles, titles.NewCatalog(), f.levels, f.stats, heartbeat).Execute(ctx, ada, sink) //nolint:wrapcheck // the tests read the use case's error.
 }
 
 func listening(t *testing.T, ctx context.Context, heartbeat time.Duration, sink *recordingSink) (feeds, <-chan error) {
 	t.Helper()
 
-	f := feeds{titles: inprocess_title_feed.New(), levels: inprocess_level_feed.New()}
+	return listeningOn(t, ctx, newFeeds(), heartbeat, sink)
+}
+
+func listeningOn(t *testing.T, ctx context.Context, f feeds, heartbeat time.Duration, sink *recordingSink) (feeds, <-chan error) {
+	t.Helper()
+
 	done := make(chan error, 1)
-	go func() {
-		done <- listen_for_events_usecase.New(f.titles, titles.NewCatalog(), f.levels, heartbeat).Execute(ctx, ada, sink)
-	}()
+	go func() { done <- f.listen(ctx, heartbeat, sink) }()
 	require.Eventually(t, func() bool { return sink.beats() > 0 }, time.Second, time.Millisecond)
 	return f, done
 }
@@ -123,6 +153,51 @@ func TestALevelReachedIsSentAsTheRaiseToldIt(t *testing.T) {
 	assert.Empty(t, sink.received())
 }
 
+func took(tiles uint64) stats.Stats {
+	return stats.StatsSnapshot{Account: ada, TilesTaken: tiles}.Restore()
+}
+
+func TestTheXPOfEachFactIsSentPastWhatTheStatsGaveAsTheStreamOpened(t *testing.T) {
+	sink := &recordingSink{}
+	ctx, cancel := context.WithCancel(t.Context())
+	f := newFeeds()
+	require.NoError(t, f.stats.Record(t.Context(), ada, func(stats.Stats) stats.Stats { return took(900) }))
+	f, done := listeningOn(t, ctx, f, time.Hour, sink)
+
+	f.levels.Count(ada, levels.Scale{}.EarnedOf(took(907)), fifth)
+	require.Eventually(t, func() bool { return len(sink.gains()) > 0 }, time.Second, time.Millisecond)
+	cancel()
+
+	require.NoError(t, <-done)
+	assert.Equal(t, []levels.Gained{{
+		Gains: []levels.Gain{{Source: levels.TilesTaken{}.Name(), XP: 7}}, Standing: fifth,
+	}}, sink.gains())
+}
+
+func TestAnAccountWithNoStatsGainsFromNothing(t *testing.T) {
+	sink := &recordingSink{}
+	ctx, cancel := context.WithCancel(t.Context())
+	f, done := listening(t, ctx, time.Hour, sink)
+
+	f.levels.Count(ada, levels.Scale{}.EarnedOf(took(1)), fifth)
+	require.Eventually(t, func() bool { return len(sink.gains()) > 0 }, time.Second, time.Millisecond)
+	cancel()
+
+	require.NoError(t, <-done)
+	assert.Equal(t, []levels.Gain{{Source: levels.TilesTaken{}.Name(), XP: 1}}, sink.gains()[0].Gains)
+}
+
+func TestAStreamThatCannotReadTheStatsFailsBeforeItIsLive(t *testing.T) {
+	sink := &recordingSink{}
+	f := newFeeds()
+	f.stats.FailWith(errors.New("postgres is down"))
+
+	err := f.listen(t.Context(), time.Hour, sink)
+
+	require.ErrorContains(t, err, "postgres is down")
+	assert.Zero(t, sink.beats())
+}
+
 func TestASinkFailureEndsTheListening(t *testing.T) {
 	failed := errors.New("the stream is gone")
 	for _, c := range []struct {
@@ -131,6 +206,7 @@ func TestASinkFailureEndsTheListening(t *testing.T) {
 	}{
 		{name: "on a title", publish: func(f feeds) { f.titles.Publish(ada, titles.IDs{"settler"}) }},
 		{name: "on a level", publish: func(f feeds) { f.levels.Publish(ada, fifth) }},
+		{name: "on XP", publish: func(f feeds) { f.levels.Count(ada, levels.Scale{}.EarnedOf(took(1)), fifth) }},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			f, done := listening(t, t.Context(), time.Hour, &recordingSink{err: failed})

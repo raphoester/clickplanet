@@ -11,7 +11,9 @@ import (
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/inprocess_level_scale"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionmessage"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/progressionv1controller/progressionread"
+	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/stats"
 )
 
 func TestEachSourceHasItsOwnFieldAndTheyAddUpToTheTotal(t *testing.T) {
@@ -83,4 +85,45 @@ func TestThePagesIntegerMathPaysWhatTheServerDoes(t *testing.T) {
 	assert.True(t, proto.Equal(
 		&progressionv1.MissionRate{Kind: missionsv1.MissionKind_MISSION_KIND_TAKE_FROM, Xp: 3, Per: 2}, sent[1],
 	), "1.5 a tile, sent as 3 for 2: %v", sent[1])
+}
+
+func TestEachRatedSourceSaysWhatItPaysOnTheWire(t *testing.T) {
+	rates, err := inprocess_level_scale.New(levels.Scale{}).XPRates()
+	require.NoError(t, err)
+
+	assert.True(t, proto.Equal(&progressionv1.GetLevelResponse{XpRates: []*progressionv1.XpRate{
+		{Source: progressionv1.XpSource_XP_SOURCE_TILES_TAKEN, Xp: 1, Per: 1},
+		{Source: progressionv1.XpSource_XP_SOURCE_DAYS_PLAYED, Xp: 100, Per: 1},
+		{Source: progressionv1.XpSource_XP_SOURCE_BOMBS_DROPPED, Xp: 50, Per: 1},
+		{Source: progressionv1.XpSource_XP_SOURCE_BOXES_CAUGHT, Xp: 30, Per: 1},
+		{Source: progressionv1.XpSource_XP_SOURCE_RIGHT_ANSWERS, Xp: 30, Per: 1},
+		{Source: progressionv1.XpSource_XP_SOURCE_TILES_FORTIFIED, Xp: 1, Per: 5},
+	}}, &progressionv1.GetLevelResponse{XpRates: rates}), "got %v", rates)
+}
+
+// A gain whose source the wire does not name would never reach the page.
+func TestEverySourceThatGivesXPIsNamedOnTheWire(t *testing.T) {
+	everything := stats.StatsSnapshot{
+		TilesTaken: 100, DaysPlayed: 100, BombsDropped: 100, BonusesClaimed: 100, RightAnswers: 100, TilesFortified: 100,
+		MessagesSent:   100,
+		MissionsByKind: map[stats.MissionKind]stats.MissionTally{"take_for": {Done: 1, Goals: 100}},
+	}.Restore()
+
+	named := []progressionv1.XpSource{}
+	for _, source := range (levels.Scale{}).Sources() {
+		if source.XP(everything) == 0 {
+			continue
+		}
+		wire, ok := progressionmessage.XPSource(source.Name())
+		require.True(t, ok, "%q has no XpSource", source.Name())
+		named = append(named, wire)
+	}
+
+	all := []progressionv1.XpSource{}
+	for number := range progressionv1.XpSource_name {
+		if number != int32(progressionv1.XpSource_XP_SOURCE_UNSPECIFIED) {
+			all = append(all, progressionv1.XpSource(number))
+		}
+	}
+	assert.ElementsMatch(t, all, named, "every XpSource is a source that gives XP")
 }

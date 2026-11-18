@@ -13,7 +13,7 @@ import {useCountry} from "../countryStore.ts"
 
 const infoOf = (name: string): PlayerInfo => ({
     name, guest: false, tilesTaken: 100, streakCurrent: 4, streakBest: 9, admin: false, color: NameColor.TEAL,
-    titles: [], playsFor: [], playsAgainst: [],
+    titles: [], playsFor: [], pastNames: [], playsAgainst: [],
 })
 
 const KNOWN: Record<string, PlayerInfo> = {

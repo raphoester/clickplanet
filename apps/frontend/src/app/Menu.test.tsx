@@ -933,7 +933,7 @@ describe("Menu", () => {
             const playerInfo = {
                 playerInfo: vi.fn(async () => ({
                     name: "ana", guest: false, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
-                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
+                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [], pastNames: [],
                 })),
             }
             const {user, progression} = withAccount(["google"], {linked: ["google"]}, "ana", undefined, playerInfo)
@@ -949,7 +949,7 @@ describe("Menu", () => {
             const playerInfo = {
                 playerInfo: vi.fn(async () => ({
                     name: "ana", guest: false, tilesTaken: 14_212, streakCurrent: 31, streakBest: 31, admin: false,
-                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [],
+                    color: NameColor.UNSPECIFIED, titles: [], playsFor: [], playsAgainst: [], pastNames: [],
                 })),
             }
             const clicks = acceptedClicks()

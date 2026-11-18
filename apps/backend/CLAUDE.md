@@ -36,8 +36,9 @@ and says what is in it. Read the doc before you change its area.
 - [Inside the chat module](docs/chat-module.md) — the same shape, for chat's ten concepts.
 - [Reads are queries](docs/queries.md) — a read endpoint does not go through the write model.
 - [Adapters](docs/adapters.md) — the primary (Connect handlers) and secondary (stores) adapters.
-- [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; a store
-  reaches postgres only through `db.On(ctx)`.
+- [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; the
+  smallest one possible, one change and its event, and every other change eventually consistent through events unless
+  it must be atomic; a store reaches postgres only through `db.On(ctx)`.
 - [Every id is a type of its own](docs/ids.md) — never a bare `uuid.UUID`, `string` or `[]byte` in a signature.
 - [Manipulators are verbs, builders are nouns](docs/verbs-and-nouns.md) — a name says if calling it changes
   anything.
@@ -176,7 +177,7 @@ and says what is in it. Read the doc before you change its area.
   steps applied in code, one judgement per report and per message, an hourly cap), replies, reactions, and what each
   account saw; why each context keeps its own history.
 - [Player](docs/player.md) — who an account is: names (a slur or a Nazi reference refused however it is spelled) and
-  guest codes, colors, the nameplates the page draws every name
+  guest codes, the names a player left (the last 5 on its card, since 2026-11-17), colors, the nameplates the page draws every name
   from (`GetNameplates`), the player that holds a name (`GetPlayerByName`, for a player's address), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
   an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,
@@ -186,9 +187,11 @@ and says what is in it. Read the doc before you change its area.
   moved from schema `player`.
 - [Levels](docs/levels.md) — a level per linked account, from XP computed from the stats row and never stored: one type
   per XP source and per mission kind's rate, the curve 14 × (L − 1)³ with no top, no XP and no level for a guest; the
-  level kept, raised on each fact and told to the caller's own stream, the ladder of the kinds each level unlocks, told
+  level kept, raised on each fact and told to the caller's own stream with the XP each fact gave by source (`xp_gained`,
+  a difference from what the stream knew), the ladder of the kinds each level unlocks, told
   to the bonuses as a command through progression's outbox, the public reads the page draws (`GetLevel` with each
-  mission kind's exact rate and the ladder, the card's level), the level-up bonus, `ReconcileLevels` (raise-only), the
+  mission kind's exact rate, what each other source pays and the ladder, the card's level), the level-up bonus,
+  `ReconcileLevels` (raise-only), the
   operator's read, what ships together at the reveal, the steps after the deploy.
 - [Season titles](docs/season-titles.md) — Season 0 Gold, Silver, Bronze, Battle Top 1-3 and Veteran: who fought the
   Final Battle, where its flag placed and who took the most tiles there, read from scoring when the gamemaster tells

@@ -637,6 +637,15 @@ export class AdminGetPlayerResponse extends Message<AdminGetPlayerResponse> {
    */
   createdAtUnixMs = protoInt64.zero;
 
+  /**
+   * Every username the account held before the one it holds now, newest first, each change once: the ones its player
+   * left (kept since 2026-11-17, until the account is forgotten; the public card shows the last 5) and the ones an
+   * operator replaced (ListRenames, kept 90 days). Empty for a guest that never held one.
+   *
+   * @generated from field: repeated player.v1.FormerName former_names = 13;
+   */
+  formerNames: FormerName[] = [];
+
   constructor(data?: PartialMessage<AdminGetPlayerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -651,6 +660,7 @@ export class AdminGetPlayerResponse extends Message<AdminGetPlayerResponse> {
     { no: 4, name: "admin", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "color", kind: "enum", T: proto3.getEnumType(NameColor) },
     { no: 6, name: "created_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 13, name: "former_names", kind: "message", T: FormerName, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminGetPlayerResponse {
@@ -667,6 +677,59 @@ export class AdminGetPlayerResponse extends Message<AdminGetPlayerResponse> {
 
   static equals(a: AdminGetPlayerResponse | PlainMessage<AdminGetPlayerResponse> | undefined, b: AdminGetPlayerResponse | PlainMessage<AdminGetPlayerResponse> | undefined): boolean {
     return proto3.util.equals(AdminGetPlayerResponse, a, b);
+  }
+}
+
+/**
+ * A username an account held, until when, and who made it change.
+ *
+ * @generated from message player.v1.FormerName
+ */
+export class FormerName extends Message<FormerName> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * @generated from field: int64 until_unix_ms = 2;
+   */
+  untilUnixMs = protoInt64.zero;
+
+  /**
+   * An operator's rename replaced it, and ListRenames says why; otherwise its player chose another.
+   *
+   * @generated from field: bool renamed_by_operator = 3;
+   */
+  renamedByOperator = false;
+
+  constructor(data?: PartialMessage<FormerName>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.FormerName";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "until_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "renamed_by_operator", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FormerName {
+    return new FormerName().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FormerName {
+    return new FormerName().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FormerName {
+    return new FormerName().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FormerName | PlainMessage<FormerName> | undefined, b: FormerName | PlainMessage<FormerName> | undefined): boolean {
+    return proto3.util.equals(FormerName, a, b);
   }
 }
 

@@ -267,9 +267,11 @@ export default function PlayScreen(props: PlayScreenProps) {
             if (ownAccountId) useBadges.getState().expire(ownAccountId)
         },
         levelReached: (level) => {
+            const from = useLevel.getState().own?.level
             useLevel.getState().reached(level)
-            announce({kind: "level", level})
+            announce({kind: "level", level, from})
         },
+        xpGained: (gained) => useLevel.getState().gained(gained),
     })
     useWarningFeed(backends.warnings)
     const crowd = useRoster(onlineCount)

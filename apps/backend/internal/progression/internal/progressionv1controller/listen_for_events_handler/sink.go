@@ -39,3 +39,9 @@ func (s *Sink) SendLevelReached(standing levels.Standing) error {
 		Event: &progressionv1.ProgressionEvent_LevelReached{LevelReached: progressionmessage.Level(standing)},
 	})
 }
+
+func (s *Sink) SendXPGained(gained levels.Gained) error {
+	return s.stream.Send(&progressionv1.ProgressionEvent{
+		Event: &progressionv1.ProgressionEvent_XpGained{XpGained: progressionmessage.XPGained(gained)},
+	})
+}

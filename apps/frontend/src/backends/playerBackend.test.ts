@@ -1,6 +1,8 @@
 import {afterEach, describe, expect, it, vi} from "vitest"
 import {Code, ConnectError} from "@connectrpc/connect"
 import {
+    GetPlayerResponse,
+    PastName as PastNamePb,
     Player as PlayerPb,
     PlayerEvent as PlayerEventPb,
     PlayerLeft as PlayerLeftPb,
@@ -363,22 +365,27 @@ describe("ConnectPlayerBackend live roster", () => {
 describe("ConnectPlayerBackend public card", () => {
     it("reads who a player is by its account id without a token, and maps it", async () => {
         const session = sessionOf("token-1")
-        const getPlayer = vi.fn(async () => ({
+        const getPlayer = vi.fn(async () => new GetPlayerResponse({
             player: new PlayerPb({name: "Ana", createdAtUnixMs: 1_788_000_000_000n, admin: true, color: NameColor.VIOLET}),
+            pastNames: [
+                new PastNamePb({name: "BraveFox42", leftAtUnixMs: 1_790_000_000_000n}),
+                new PastNamePb({name: "Ana_L", leftAtUnixMs: 1_789_000_000_000n}),
+            ],
         }))
 
         expect(await backendWith({getPlayer}, session).player("account-1")).toEqual({
             name: "Ana", guest: false, createdAt: 1_788_000_000_000, admin: true, color: NameColor.VIOLET,
+            pastNames: [{name: "BraveFox42", leftAt: 1_790_000_000_000}, {name: "Ana_L", leftAt: 1_789_000_000_000}],
         })
         expect(getPlayer).toHaveBeenCalledWith({accountId: "account-1"})
         expect(session.token).not.toHaveBeenCalled()
     })
 
     it("reads a guest as its name alone", async () => {
-        const getPlayer = vi.fn(async () => ({player: new PlayerPb({name: "guest_91aa3d", guest: true})}))
+        const getPlayer = vi.fn(async () => new GetPlayerResponse({player: new PlayerPb({name: "guest_91aa3d", guest: true})}))
 
         expect(await backendWith({getPlayer}).player("account-2")).toEqual({
-            name: "guest_91aa3d", guest: true, createdAt: undefined, admin: false, color: NameColor.UNSPECIFIED,
+            name: "guest_91aa3d", guest: true, createdAt: undefined, admin: false, color: NameColor.UNSPECIFIED, pastNames: [],
         })
     })
 
@@ -390,7 +397,7 @@ describe("ConnectPlayerBackend public card", () => {
         vi.spyOn(console, "error").mockImplementation(() => {})
         const getPlayer = vi.fn()
             .mockRejectedValueOnce(new ConnectError("down", Code.Unavailable))
-            .mockResolvedValue({player: new PlayerPb({name: "Ana"})})
+            .mockResolvedValue(new GetPlayerResponse({player: new PlayerPb({name: "Ana"})}))
 
         expect(await backendWith({getPlayer}).player("account-1")).toMatchObject({name: "Ana"})
         expect(getPlayer).toHaveBeenCalledTimes(2)

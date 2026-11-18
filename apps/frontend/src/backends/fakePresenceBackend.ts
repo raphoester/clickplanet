@@ -3,7 +3,7 @@ import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {Badge} from "./badges.ts"
 import {Nameplate} from "./nameplates.ts"
-import {NameColor, Player, PlayerReader, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
+import {NameColor, PastName, Player, PlayerReader, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
 import {
     CountryTiles,
     Fronts,
@@ -14,7 +14,9 @@ import {
     ProgressionListener,
     ProgressReader,
     TitleDashboard,
+    XpSource,
 } from "./progression.ts"
+import {TileClicker} from "./backend.ts"
 import {fakeLevelOf, fakeXpOf} from "./fakeLevels.ts"
 
 const SHIFT_MS = 25_000
@@ -100,8 +102,10 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
     private own?: {presence: Presence, at: number}
     // The title the signed-in player chose to wear, if any.
     private ownChoice?: string
-    // The signed-in player's XP: giveXp() adds to it.
+    // The signed-in player's XP: giveXp() and each take add to it.
     private ownXp?: number
+    // Whether this page took a tile yet: its first take is the day's, worth a day played.
+    private tookToday = false
     private readonly listeners = new Set<ProgressionEvents>()
 
     constructor(private readonly now: () => number = () => Date.now()) {
@@ -134,11 +138,30 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
         return this.listeners.size > 0
     }
 
-    // As the server: the XP counted, and one level_reached for a jump of any size. Whether a page heard a raise.
-    public giveXp(xp: number): {level: PlayerLevel, heard: boolean} {
+    // As the server: the XP counted, told as gained, then one level_reached for a jump of any size. Whether a page heard
+    // a raise.
+    public giveXp(xp: number, source: XpSource = "missionsDone"): {level: PlayerLevel, heard: boolean} {
+        return this.gain([{source, xp}])
+    }
+
+    // Each take is 1 XP, and the page's first one is the day's first take too.
+    public counting(clicker: TileClicker): TileClicker {
+        return {
+            clickTile: async (tileId, countryId, switches) => {
+                await clicker.clickTile(tileId, countryId, switches)
+                const day = this.tookToday ? [] : [{source: "daysPlayed" as const, xp: 100}]
+                this.tookToday = true
+                this.gain([{source: "tilesTaken", xp: 1}, ...day])
+            },
+        }
+    }
+
+    private gain(gains: {source: XpSource, xp: number}[]): {level: PlayerLevel, heard: boolean} {
         const before = this.ownLevel()
-        this.ownXp = before.xp + Math.max(0, Math.floor(xp))
+        const counted = gains.map(({source, xp}) => ({source, xp: Math.max(0, Math.floor(xp))})).filter(({xp}) => xp > 0)
+        this.ownXp = before.xp + counted.reduce((sum, {xp}) => sum + xp, 0)
         const level = this.ownLevel()
+        if (counted.length > 0) this.listeners.forEach((listener) => listener.xpGained({gains: counted, level}))
         if (level.level === before.level) return {level, heard: false}
         this.listeners.forEach((listener) => listener.levelReached(level))
         return {level, heard: this.listeners.size > 0}
@@ -191,11 +214,9 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
     public async player(accountId: string): Promise<Player | undefined> {
         const player = playerOf(accountId)
         if (!player) return undefined
-        if (player.guest) return {name: player.name, guest: true, admin: false, color: NameColor.UNSPECIFIED}
-        return {
-            name: player.name, guest: false, admin: player.admin, color: player.color,
-            createdAt: this.career(player).createdAt,
-        }
+        if (player.guest) return {name: player.name, guest: true, admin: false, color: NameColor.UNSPECIFIED, pastNames: []}
+        const {createdAt, pastNames} = this.career(player)
+        return {name: player.name, guest: false, admin: player.admin, color: player.color, createdAt, pastNames}
     }
 
     public async progress(accountId: string): Promise<Progress | undefined> {
@@ -263,6 +284,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
         return {
             tilesTaken, streakBest, createdAt, titles, wornTitle: titles.find((title) => title.rank) ?? titles[0],
             xp: fakeXpOf(seed),
+            pastNames: fakePastNames(seed, this.now()),
             playsFor: fronts([player.countryCode, ...rivals(player.countryCode, seed, seed % 4)], tilesTaken, 6),
             playsAgainst: fronts(rivals(player.countryCode, seed >>> 3, 2 + seed % 9), Math.floor(tilesTaken * 0.7), 2),
         }
@@ -270,6 +292,16 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
 }
 
 const SHOWN_FRONTS = 3
+
+const FAKE_PAST_NAMES = ["BraveFox42", "QuietOwl17", "Nova_8", "Tiny Comet", "RedPanda61", "Kartograf"]
+
+// Up to three names left, a little over a week apart, newest first.
+function fakePastNames(seed: number, now: number): PastName[] {
+    return Array.from({length: seed % 4}, (_, i) => ({
+        name: FAKE_PAST_NAMES[(seed + i * 5) % FAKE_PAST_NAMES.length],
+        leftAt: now - (2 + i * 9) * 86_400_000,
+    }))
+}
 
 function playerOf(accountId: string): FakePlayer | undefined {
     return accountId === FAKE_YOU ? YOU : PLAYERS.find((p) => p.accountId === accountId)

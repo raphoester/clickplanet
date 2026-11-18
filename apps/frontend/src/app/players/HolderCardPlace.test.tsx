@@ -18,7 +18,7 @@ const PEEK: Peek = {tile: 7, countryCode: "fr", ground: "fr", shields: 0, point:
 
 const ANA_INFO: PlayerInfo = {
     name: "Ana", guest: false, tilesTaken: 4_000, streakCurrent: 12, streakBest: 30, admin: true, color: NameColor.PINK,
-    titles: [], playsFor: [{countryCode: "fr", tiles: 3_000}], playsAgainst: [],
+    titles: [], playsFor: [{countryCode: "fr", tiles: 3_000}], pastNames: [], playsAgainst: [],
 }
 
 const holdersOf = (holder: TileHolder | undefined) => ({tileHolder: vi.fn(async () => holder)})

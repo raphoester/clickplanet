@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpatomic"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cptime"
@@ -64,7 +66,8 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 		return players.Profile{}, fmt.Errorf("failed to read the profile: %w", err)
 	}
 
-	profile, err := current.Renamed(name, u.clock.Now())
+	now := u.clock.Now()
+	profile, err := current.Renamed(name, now)
 	if err != nil {
 		return players.Profile{}, err //nolint:wrapcheck // the handler maps the domain's refusal.
 	}
@@ -76,6 +79,13 @@ func (u *UseCase) Execute(ctx context.Context, in In) (players.Profile, error) {
 		told := []proto.Message{&playerv1.PlayerNamed{AccountId: in.Account.String()}}
 		if made {
 			told = append(told, &playerv1.PlayerCreated{AccountId: in.Account.String()})
+		}
+		// The past names follow from the event: the save does not wait on them (docs/transactions.md).
+		if left, ok := pastnames.PastNameOf(current, profile, now); ok {
+			kept := left.TakeSnapshot()
+			told = append(told, &playerv1.NameLeft{
+				AccountId: kept.Account.String(), Name: string(kept.Name), LeftAt: timestamppb.New(kept.LeftAt),
+			})
 		}
 		return u.outbox.Record(ctx, told...) //nolint:wrapcheck // wrapped below.
 	})

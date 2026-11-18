@@ -14,10 +14,14 @@ import {
     TitleEarned as TitleEarnedPb,
     Track as TrackPb,
     Unlock as UnlockPb,
+    XpGain as XpGainPb,
+    XpGained as XpGainedPb,
+    XpRate as XpRatePb,
+    XpSource as XpSourcePb,
 } from "../gen/grpc/progression/v1/progression_pb.ts"
 import {BonusKind} from "../gen/grpc/planet/v1/planet_pb.ts"
 import {Rank as RankPb, Title as TitlePb} from "../gen/grpc/progression/v1/title_pb.ts"
-import {PlayerLevel, PlayerTitle} from "./progression.ts"
+import {PlayerLevel, PlayerTitle, XpGained} from "./progression.ts"
 import {ConnectProgressionBackend} from "./progressionBackend.ts"
 import {SESSION_HEADER, SessionProvider} from "./session.ts"
 
@@ -228,7 +232,7 @@ describe("ConnectProgressionBackend public card", () => {
     })
 })
 
-const ignoring = {titleEarned: () => {}, levelReached: () => {}}
+const ignoring = {titleEarned: () => {}, levelReached: () => {}, xpGained: () => {}}
 
 const failingWith = (error: ConnectError) => (): AsyncIterable<ProgressionEventPb> => ({
     [Symbol.asyncIterator]: () => ({
@@ -251,6 +255,7 @@ describe("ConnectProgressionBackend progression stream", () => {
         const stop = backendWith({listenForEvents}, session).listenForProgression({
             titleEarned: (title) => titles.push(title),
             levelReached: () => {},
+            xpGained: () => {},
         })
         await vi.waitFor(() => expect(titles).toEqual([settler]))
         stop()
@@ -271,9 +276,40 @@ describe("ConnectProgressionBackend progression stream", () => {
         const stop = backendWith({listenForEvents}, holding("identity-1")).listenForProgression({
             titleEarned: () => {},
             levelReached: (level) => levels.push(level),
+            xpGained: () => {},
         })
         await vi.waitFor(() => expect(levels).toEqual([{level: 9, xp: 7200, levelXp: 7168, nextLevelXp: 10206}]))
         stop()
+    })
+
+    it("hands each XP gain with the level after it, leaving out a source this build does not name", async () => {
+        const listenForEvents = vi.fn(async function* () {
+            yield new ProgressionEventPb({event: {case: "xpGained", value: new XpGainedPb({
+                gains: [
+                    new XpGainPb({source: XpSourcePb.TILES_TAKEN, xp: 1n}),
+                    new XpGainPb({source: XpSourcePb.DAYS_PLAYED, xp: 100n}),
+                    new XpGainPb({source: 99 as XpSourcePb, xp: 5n}),
+                ],
+                level: new LevelPb({level: 9, xp: 7300n, levelXp: 7168n, nextLevelXp: 10206n}),
+            })}})
+            yield new ProgressionEventPb({event: {case: "xpGained", value: new XpGainedPb({
+                gains: [new XpGainPb({source: 99 as XpSourcePb, xp: 5n})],
+            })}})
+            await new Promise(() => {})
+        })
+        const gained: XpGained[] = []
+
+        const stop = backendWith({listenForEvents}, holding("identity-1")).listenForProgression({
+            ...ignoring,
+            xpGained: (gain) => gained.push(gain),
+        })
+        await vi.waitFor(() => expect(gained).toHaveLength(1))
+        stop()
+
+        expect(gained[0]).toEqual({
+            gains: [{source: "tilesTaken", xp: 1}, {source: "daysPlayed", xp: 100}],
+            level: {level: 9, xp: 7300, levelXp: 7168, nextLevelXp: 10206},
+        })
     })
 
     it("stops for good on a refused token", async () => {
@@ -317,6 +353,12 @@ describe("the level read", () => {
                 new MissionRatePb({kind: 99 as MissionKindPb, xp: 9, per: 1}),
                 new MissionRatePb({kind: MissionKindPb.CATCH_BOXES, xp: 50, per: 0}),
             ],
+            xpRates: [
+                new XpRatePb({source: XpSourcePb.TILES_TAKEN, xp: 1, per: 1}),
+                new XpRatePb({source: XpSourcePb.TILES_FORTIFIED, xp: 1, per: 5}),
+                new XpRatePb({source: XpSourcePb.UNSPECIFIED, xp: 9, per: 1}),
+                new XpRatePb({source: XpSourcePb.BOXES_CAUGHT, xp: 30, per: 0}),
+            ],
         }))
         const session = holding("token-1")
 
@@ -324,6 +366,7 @@ describe("the level read", () => {
             level: {level: 3, xp: 222, levelXp: 112, nextLevelXp: 378},
             unlocks: {encloseClicks: 4, bomb: 5},
             missionRates: {takeFrom: {xp: 3, per: 2}, bombIn: {xp: 150, per: 1}},
+            xpRates: {tilesTaken: {xp: 1, per: 1}, tilesFortified: {xp: 1, per: 5}},
         })
         expect(getLevel).toHaveBeenCalledTimes(1)
         expect(headersOf(getLevel).headers.get(SESSION_HEADER)).toBe("token-1")
@@ -337,7 +380,7 @@ describe("the level read", () => {
         }))
 
         expect(await backendWith({getLevel}, holding("guest")).readLevel())
-            .toEqual({level: undefined, unlocks: {bomb: 5}, missionRates: {takeFor: {xp: 1, per: 1}}})
+            .toEqual({level: undefined, unlocks: {bomb: 5}, missionRates: {takeFor: {xp: 1, per: 1}}, xpRates: {}})
     })
 
     it("reads nothing, and makes no session, while none is held", async () => {

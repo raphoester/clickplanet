@@ -85,6 +85,8 @@ Counted per account from its **moderation history**, the chat and the GIFs apart
   a neutral name, `Player` and digits, with the reason, lists the rename in the digest (`player_list_renames` keeps it
   90 days, with the old name), and proposes the word for the list. The player can choose another name at once.
 - **Kept**: every other name, political ones included.
+- **A player's card shows the last 5 names it left** (see the backend's [Player](../apps/backend/docs/player.md#the-names-a-player-left)).
+  A rename by the audit leaves none there: the name it took off never shows again.
 
 ## Reports
 
@@ -144,6 +146,9 @@ the auditor, not a second moderator: the layers above act within minutes, and it
 
 ## Not built yet
 
+- **Auditing the names a player left**: the audit reads the names held now, so a bad name its player left itself
+  stays on its card until the account goes. `player_get_player` lists every name an account held (`former_names`),
+  but nothing goes through them for bad ones, and no tool takes one off a card.
 - **The scheduled audit**, and the five tools allowed on claude.ai.
 - **A push to the operator's phone** from the judge: today it logs at Warn.
 - **Striking a false positive off the count**: an offence the audit undid still counts for 7 days.

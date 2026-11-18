@@ -10,6 +10,74 @@ import { BonusKind } from "../../planet/v1/planet_pb.js";
 import { MissionKind } from "../../missions/v1/kind_pb.js";
 
 /**
+ * What gives XP: one value per source of the server's scale. A message sent gives none, so it has none.
+ *
+ * @generated from enum progression.v1.XpSource
+ */
+export enum XpSource {
+  /**
+   * @generated from enum value: XP_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * A tile taken.
+   *
+   * @generated from enum value: XP_SOURCE_TILES_TAKEN = 1;
+   */
+  TILES_TAKEN = 1,
+
+  /**
+   * A day played: the first take of a UTC day.
+   *
+   * @generated from enum value: XP_SOURCE_DAYS_PLAYED = 2;
+   */
+  DAYS_PLAYED = 2,
+
+  /**
+   * A mission done, its goal times its kind's rate.
+   *
+   * @generated from enum value: XP_SOURCE_MISSIONS_DONE = 3;
+   */
+  MISSIONS_DONE = 3,
+
+  /**
+   * @generated from enum value: XP_SOURCE_BOMBS_DROPPED = 4;
+   */
+  BOMBS_DROPPED = 4,
+
+  /**
+   * @generated from enum value: XP_SOURCE_BOXES_CAUGHT = 5;
+   */
+  BOXES_CAUGHT = 5,
+
+  /**
+   * A quiz answered right: a wrong answer gives nothing.
+   *
+   * @generated from enum value: XP_SOURCE_RIGHT_ANSWERS = 6;
+   */
+  RIGHT_ANSWERS = 6,
+
+  /**
+   * A tile a fortify shielded.
+   *
+   * @generated from enum value: XP_SOURCE_TILES_FORTIFIED = 7;
+   */
+  TILES_FORTIFIED = 7,
+}
+// Retrieve enum metadata with: proto3.getEnumType(XpSource)
+proto3.util.setEnumType(XpSource, "progression.v1.XpSource", [
+  { no: 0, name: "XP_SOURCE_UNSPECIFIED" },
+  { no: 1, name: "XP_SOURCE_TILES_TAKEN" },
+  { no: 2, name: "XP_SOURCE_DAYS_PLAYED" },
+  { no: 3, name: "XP_SOURCE_MISSIONS_DONE" },
+  { no: 4, name: "XP_SOURCE_BOMBS_DROPPED" },
+  { no: 5, name: "XP_SOURCE_BOXES_CAUGHT" },
+  { no: 6, name: "XP_SOURCE_RIGHT_ANSWERS" },
+  { no: 7, name: "XP_SOURCE_TILES_FORTIFIED" },
+]);
+
+/**
  * @generated from message progression.v1.Stats
  */
 export class Stats extends Message<Stats> {
@@ -822,6 +890,13 @@ export class GetLevelResponse extends Message<GetLevelResponse> {
    */
   unlocks: Unlock[] = [];
 
+  /**
+   * What each source of XP pays but the missions, which pay by kind (mission_rates), for the page to say how to gain XP.
+   *
+   * @generated from field: repeated progression.v1.XpRate xp_rates = 4;
+   */
+  xpRates: XpRate[] = [];
+
   constructor(data?: PartialMessage<GetLevelResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -833,6 +908,7 @@ export class GetLevelResponse extends Message<GetLevelResponse> {
     { no: 1, name: "level", kind: "message", T: Level },
     { no: 2, name: "mission_rates", kind: "message", T: MissionRate, repeated: true },
     { no: 3, name: "unlocks", kind: "message", T: Unlock, repeated: true },
+    { no: 4, name: "xp_rates", kind: "message", T: XpRate, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetLevelResponse {
@@ -894,6 +970,57 @@ export class Unlock extends Message<Unlock> {
 
   static equals(a: Unlock | PlainMessage<Unlock> | undefined, b: Unlock | PlainMessage<Unlock> | undefined): boolean {
     return proto3.util.equals(Unlock, a, b);
+  }
+}
+
+/**
+ * Each one of the source's count pays xp / per XP, floored on the total.
+ *
+ * @generated from message progression.v1.XpRate
+ */
+export class XpRate extends Message<XpRate> {
+  /**
+   * @generated from field: progression.v1.XpSource source = 1;
+   */
+  source = XpSource.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint32 xp = 2;
+   */
+  xp = 0;
+
+  /**
+   * @generated from field: uint32 per = 3;
+   */
+  per = 0;
+
+  constructor(data?: PartialMessage<XpRate>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.XpRate";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "source", kind: "enum", T: proto3.getEnumType(XpSource) },
+    { no: 2, name: "xp", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 3, name: "per", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): XpRate {
+    return new XpRate().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): XpRate {
+    return new XpRate().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): XpRate {
+    return new XpRate().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: XpRate | PlainMessage<XpRate> | undefined, b: XpRate | PlainMessage<XpRate> | undefined): boolean {
+    return proto3.util.equals(XpRate, a, b);
   }
 }
 
@@ -1004,6 +1131,12 @@ export class ProgressionEvent extends Message<ProgressionEvent> {
      */
     value: Level;
     case: "levelReached";
+  } | {
+    /**
+     * @generated from field: progression.v1.XpGained xp_gained = 4;
+     */
+    value: XpGained;
+    case: "xpGained";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<ProgressionEvent>) {
@@ -1017,6 +1150,7 @@ export class ProgressionEvent extends Message<ProgressionEvent> {
     { no: 1, name: "heartbeat", kind: "message", T: Heartbeat, oneof: "event" },
     { no: 2, name: "title_earned", kind: "message", T: TitleEarned, oneof: "event" },
     { no: 3, name: "level_reached", kind: "message", T: Level, oneof: "event" },
+    { no: 4, name: "xp_gained", kind: "message", T: XpGained, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProgressionEvent {
@@ -1033,6 +1167,95 @@ export class ProgressionEvent extends Message<ProgressionEvent> {
 
   static equals(a: ProgressionEvent | PlainMessage<ProgressionEvent> | undefined, b: ProgressionEvent | PlainMessage<ProgressionEvent> | undefined): boolean {
     return proto3.util.equals(ProgressionEvent, a, b);
+  }
+}
+
+/**
+ * The XP the caller's last facts gave, by source, and its level on its bar after them. Told only to an account with a
+ * level kept, before the level_reached the same facts bring.
+ *
+ * @generated from message progression.v1.XpGained
+ */
+export class XpGained extends Message<XpGained> {
+  /**
+   * @generated from field: repeated progression.v1.XpGain gains = 1;
+   */
+  gains: XpGain[] = [];
+
+  /**
+   * @generated from field: progression.v1.Level level = 2;
+   */
+  level?: Level;
+
+  constructor(data?: PartialMessage<XpGained>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.XpGained";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "gains", kind: "message", T: XpGain, repeated: true },
+    { no: 2, name: "level", kind: "message", T: Level },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): XpGained {
+    return new XpGained().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): XpGained {
+    return new XpGained().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): XpGained {
+    return new XpGained().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: XpGained | PlainMessage<XpGained> | undefined, b: XpGained | PlainMessage<XpGained> | undefined): boolean {
+    return proto3.util.equals(XpGained, a, b);
+  }
+}
+
+/**
+ * @generated from message progression.v1.XpGain
+ */
+export class XpGain extends Message<XpGain> {
+  /**
+   * @generated from field: progression.v1.XpSource source = 1;
+   */
+  source = XpSource.UNSPECIFIED;
+
+  /**
+   * @generated from field: uint64 xp = 2;
+   */
+  xp = protoInt64.zero;
+
+  constructor(data?: PartialMessage<XpGain>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "progression.v1.XpGain";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "source", kind: "enum", T: proto3.getEnumType(XpSource) },
+    { no: 2, name: "xp", kind: "scalar", T: 4 /* ScalarType.UINT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): XpGain {
+    return new XpGain().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): XpGain {
+    return new XpGain().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): XpGain {
+    return new XpGain().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: XpGain | PlainMessage<XpGain> | undefined, b: XpGain | PlainMessage<XpGain> | undefined): boolean {
+    return proto3.util.equals(XpGain, a, b);
   }
 }
 
