@@ -37,17 +37,25 @@
   ! Cache-Control
   Cache-Control: public, max-age=3600
 
+# The pages that load /assets/ files are never kept: a copy kept and shown again (iOS restores a tab from its cache)
+# runs an older build, whose files the last deploy removed (docs/stale-build.md).
+/
+  Cache-Control: no-store
+
 /index.html
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store
 
 /play
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store
+
+/archive
+  Cache-Control: no-store
 
 /video
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store
 
 /auth/callback
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store
   Referrer-Policy: no-referrer
 
 # The CrazyGames host is the same build, framed by CrazyGames: kept out of Google so it never competes with clickplanet.lol.
