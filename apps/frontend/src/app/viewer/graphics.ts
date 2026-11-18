@@ -9,7 +9,7 @@ export type Graphics = {
 
 export const PLAIN: Graphics = {ratio: false, antialias: false, earth: false, compact: false}
 
-export const SHARP: Graphics = {ratio: true, antialias: true, earth: true, compact: true}
+export const SHARP: Graphics = {ratio: true, antialias: false, earth: true, compact: true}
 
 // A Map, not an object, so ?gfx=constructor finds nothing rather than a function.
 const WORDS = new Map<string, (keyof Graphics)[]>([
@@ -17,7 +17,7 @@ const WORDS = new Map<string, (keyof Graphics)[]>([
     ["aa", ["antialias"]],
     ["earth", ["earth"]],
     ["compact", ["compact"]],
-    ["all", ["ratio", "antialias", "earth", "compact"]],
+    ["all", ["ratio", "earth", "compact"]],
 ])
 
 export function graphicsOf(search: string, rendering: Rendering): Graphics {

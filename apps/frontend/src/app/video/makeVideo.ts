@@ -6,7 +6,7 @@ export type MadeVideo = {video: Blob, silent: boolean}
 // game's own globe runs on.
 export function makeVideo(job: VideoJob, onProgress: (share: number) => void, signal: AbortSignal): Promise<MadeVideo> {
     const frame = document.createElement("iframe")
-    frame.src = `${VIDEO_PAGE}?gfx=aa,earth,compact`
+    frame.src = `${VIDEO_PAGE}?gfx=earth,compact`
     frame.setAttribute("aria-hidden", "true")
     frame.tabIndex = -1
     Object.assign(frame.style, {

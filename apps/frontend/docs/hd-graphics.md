@@ -14,9 +14,16 @@ default, so that a player who gets the white globe would not have to find the
 switch; the owner turned it on for everyone and took that risk. **Every page had
 saved `"plain"`, the old off, on its first load**, chosen or not, so `"plain"` is
 not a value any more and reads as the default: every player got HD once, and
-turning it off now saves `"soft"`. **Changing it rebuilds the globe**:
-`antialias` is fixed when the WebGL context is made, so `rendering` is in
-`useGlobe`'s dependencies and the map loads again.
+turning it off now saves `"soft"`. **Changing it rebuilds the globe**: the
+earth's shader and the tiles' layout are fixed when the globe is built, so
+`rendering` is in `useGlobe`'s dependencies and the map loads again.
+
+**HD graphics does not antialias, and nothing else does either.** It did until
+Nov 2026. Measured on `/play` in Chrome, antialiasing cost about 60 MB of GPU
+memory per million pixels drawn: about 167 MB on a 1440×900 screen at ratio 2,
+about 40 MB on a phone. The shaders' own one-pixel feathers already soften the
+edges of the tiles and the outlines. `?gfx=aa` still turns it on, to compare
+(`?gfx=all,aa`).
 
 **The URL still wins over the setting**, part by part, for the bisection below
 (`graphicsOf` in `graphics.ts`, read once in `createGlobe`). With `gfx` in the
@@ -25,10 +32,10 @@ query only the parts it names are on, so `?gfx=` alone is the plain globe:
 | `?gfx=` | Turns on |
 |---|---|
 | `ratio` | the screen's pixel ratio, capped at 2, instead of 1 |
-| `aa` | `antialias` on the context |
 | `earth` | the earth's own shader, with the sea's glint |
 | `compact` | the tiles' compact layout: 20 bytes a tile on the GPU, not 36 |
 | `all` | all of the above: everything HD graphics turns on |
+| `aa` | `antialias` on the context, which no player gets |
 
 Words add up (`?gfx=ratio,earth`), and sit beside the rest of the query
 (`?f=fr&gfx=earth`). A word it does not know turns nothing on.
@@ -49,6 +56,6 @@ arithmetic, which is a multiplication by 1.
 
 **To use it**, send a player who has the bug the links, one per part, and ask
 which come out white: `https://clickplanet.lol/play?gfx=all` first, which must
-show the bug, then `ratio`, `aa`, `earth`, `compact`. Ask for
+show the bug, then `ratio`, `earth`, `compact`. Ask for
 `chrome://gpu` too: it names the driver. **Once the culprit is fixed, take the
 URL switches out**; the setting stays.

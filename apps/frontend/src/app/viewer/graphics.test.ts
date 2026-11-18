@@ -9,8 +9,14 @@ describe("graphicsOf", () => {
         expect(graphicsOf("?f=fr", "soft")).toEqual(PLAIN)
     })
 
-    it("is #254 whole when sharp", () => {
+    it("turns on with all what HD graphics turns on", () => {
         expect(graphicsOf("?gfx=all", "soft")).toEqual(SHARP)
+    })
+
+    it("antialiases only when the URL asks for it", () => {
+        expect(graphicsOf("", "sharp").antialias).toBe(false)
+        expect(graphicsOf("?gfx=all", "sharp").antialias).toBe(false)
+        expect(graphicsOf("?gfx=all,aa", "soft")).toEqual({...SHARP, antialias: true})
     })
 
     it("lets the URL override the setting either way", () => {

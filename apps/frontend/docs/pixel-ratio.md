@@ -6,9 +6,10 @@
 pixels and the whole globe is soft. Past 2 is more than twice the work again for
 a difference nobody sees at arm's length.
 
-**Antialiasing comes with HD graphics** (`?gfx=aa` alone). #254 turned it on below a ratio of 2,
-and it was the first suspect for the white globe on Intel; turning it off
-(#255) did not fix that, so it is one of the switches rather than a verdict.
+**No player gets antialiasing** (`?gfx=aa` turns it on, to compare). Its cost
+grows with the pixels drawn, about 60 MB of GPU memory per million, and the
+one-pixel feathers below already soften the edges. See [HD
+graphics](hd-graphics.md).
 
 **Every size in pixels in this viewer is a CSS pixel**, and is multiplied by the
 ratio on its way to the GPU: the tile's point size, the outline's width
