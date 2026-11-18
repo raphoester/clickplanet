@@ -78,6 +78,8 @@ judged within seconds.
 - **The frames are drawn one by one on the virtual clock** (`src/clip/virtualClock.ts`), never in real time: 240 frames,
   720x1280, 30 fps. The globe plays the 24 hours as a replay (`ReplayBackend.ofHistory`). The camera is the clips'
   front camera (`cameraOf`): it dives where the flag fought in the country and comes back out over it at the end.
+- **The globe is drawn at a ratio of 1, with no antialiasing** (`?gfx=earth,compact`), like the game's: see [HD
+  graphics](hd-graphics.md).
 - **The look is the official clips'** (`src/video/overlay.ts`, on a canvas, in their 540-wide sizes): the headline at
   the top with the flag, the flag's share of the country and its change, the address small, and a track. They stay
   out of the apps' buttons: never the bottom fifth, never the right edge. After 6 s, the end card: the flag, the
