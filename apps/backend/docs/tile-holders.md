@@ -25,13 +25,16 @@ thousands of index probes, or a scan of the whole ledger, for one card on the pr
   of the lock (`Storage.HoldsOf`), with its point and its neighbours from the geography (`tiles_query`), 20,000 tiles
   a call at most. See [The vandal squad](vandalsquad.md).
 - **`ClickService/GetLandmass(landmass_id)`** (`NO_SIDE_EFFECTS`, cached 5s like the map) answers who holds the
-  landmass now, `{account_id, country_id, tiles}` per account and flag, most tiles first, and its last fortify,
-  `{account_id, country_id, fortified_at_unix_ms}`. `landmass_query` reads the fortify from `ledger_events` on the
-  partial index `ledger_events_fortify` (`((payload ->> 'landmass')::integer), position` where `kind = 'fortify'`),
-  and the holders through its port `Holders`, which `landmass_query/inmemory_tile_holders` answers from
-  `HoldingsOf`. It knows no name: the client asks `player.v1.PlayerService/GetPlayer`, as for a tile.
-- **The last fortify is the ledger's, the lock the tiles'**: the last of the map that plays, on its board, as each event
-  names them (while an arena plays its own, after it none of its, see [Arena battles](arenas.md#the-ledgers-readers));
-  a lock settled at boot or by an operator has no fortify,
-  and a landmass's id in an old fortify's payload is the borders blob of its day. The client shows who fortified only
-  when the fortify's flag is the lock's.
+  landmass now, `{account_id, country_id, tiles}` per account and flag, most tiles first: `landmass_query`, a
+  `MemoryQuery` over its port `Holders`, which `landmass_query/inmemory_tile_holders` answers from `HoldingsOf`. It
+  knows no name: the client asks `player.v1.PlayerService/GetPlayer`, as for a tile.
+- **`ClickService/GetProvince(province_id)`** (`NO_SIDE_EFFECTS`, cached 5s) answers the province's last fortify,
+  `{account_id, country_id, fortified_at_unix_ms}`, for the territory card's foot (since 2026-11-18; `GetLandmass`
+  answered it while fortify played on landmasses). `province_query` reads it from `ledger_events` on the partial index
+  `ledger_events_fortify_province` (`((payload ->> 'province')::integer), position` where `kind = 'fortify'`), and
+  matches the provinces file of the board in play (`payload ->> 'provinces'`).
+- **The last fortify is the ledger's, the lock the tiles'**: the last of the map that plays, on its board and of its
+  provinces file, as each event names them (while an arena plays its own, after it none of its, see
+  [Arena battles](arenas.md#the-ledgers-readers)); a lock settled at boot or by an operator has no fortify, and a
+  fortify made before provinces names a landmass, no province. The client shows who fortified only when the
+  fortify's flag is the lock's.

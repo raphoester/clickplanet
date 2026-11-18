@@ -98,9 +98,10 @@ and says what is in it. Read the doc before you change its area.
   writes it under one lock; why a lock and not a version per tile.
 - [A shield's way from the hand to the tile](docs/placements.md) — the placement row between the spend and the map's
   flush; a refusal gives the shield back with no cap; the boot gives back what a stop left.
-- [Fortify](docs/fortify.md) — a take that makes a landmass whole gives every tile of it a shield.
+- [Fortify](docs/fortify.md) — a take that makes a province whole gives every tile of it a shield; the lock per
+  province, the switch from landmasses (2026-11-18), the wire, the ledger's old and new `fortify`.
 - [Who holds the tiles](docs/tile-holders.md) — each tile keeps the account whose take holds it; `GetLandmass`
-  reads a landmass's holders and its last fortify.
+  reads a landmass's holders, `GetProvince` a province's last fortify.
 - [The map's last 24 hours](docs/recent-map-history.md) — `GetRecentMapHistory`, public: a frame each half hour, rewound
   from the map in memory over the ledger's rows from its head, built once per step; what cannot be rewound; its size;
   why it names no account.

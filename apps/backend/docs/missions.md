@@ -89,7 +89,7 @@ internal/missions/internal/
   `AnswerQuizzes{Goal}` (right answers), `BombIn{Ground, Goal}` (bombs that went off on a country's land; a bomb in the
   sea counts nothing), `ShieldTiles{Shields, Goal}` (tiles brought to `Shields` by the player's own placement: the
   placement that makes it `Shields` counts, so a tile struck back and filled again counts again; a fortify's shields do
-  not count) and `FortifyTiles{Goal}` (each landmass the player made whole counts its tiles). It decides how a fact
+  not count) and `FortifyTiles{Goal}` (each province the player made whole counts its tiles). It decides how a fact
   moves its progress (`advanced`, which reads only the facts of its kind) and when it is done (`done`). The progress of
   a mission is one counter from 0 that only its order reads. A new kind is a new type and its cases in the store and
   the encoder.

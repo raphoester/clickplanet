@@ -45,7 +45,7 @@ to the jury.
   [A ban is told](antibot.md#a-ban-is-told)). The answer is the charges left.
 - **A capital takes no shield while the rules fix its shields** (`capitals.fixedShields`; `ErrCapital`,
   `FailedPrecondition`), whoever holds it: it keeps the shields it has (a fresh map's seed gives them, past the per-tile
-  cap), and a fortify raises every tile of its landmass but it. The storage reads it under its lock, as it reads a full
+  cap), and a fortify raises every tile of its province but it. The storage reads it under its lock, as it reads a full
   tile, so the charge is given back. See [The capitals' rules](capitals.md).
 - **Kept with the tile**: `planet.tiles.shields`, written by the flush that writes
   the owner.

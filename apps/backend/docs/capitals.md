@@ -13,7 +13,7 @@ under its lock.
 ## Fixed shields (`capitals.fixedShields`)
 
 **No shield is added to a capital**, whoever holds it: `PlaceShield` is refused with `clicks.ErrCapital`
-(`FailedPrecondition`, the charge given back), and a fortify raises every tile of the landmass but it
+(`FailedPrecondition`, the charge given back), and a fortify raises every tile of the province but it
 (`capitalLocked`). A capital keeps the shields it has, the seed's on a fresh map. See [Shields](shields.md).
 
 **No mine goes on a capital while the knock-out plays** (`CapitalPlay.KnocksOut`, `mines.Gate`): its take would clear

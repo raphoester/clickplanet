@@ -27,10 +27,13 @@ the globe. A click or a tap flies down to it.
   the tiles no flag holds; the first five flags by tiles held (`rankHoldings`, ties on
   the code), each with its tiles and its share (`sharePercent`: never 0% for a few
   tiles, never 100% one short of all), and how many more flags hold some; the
-  player's own flag wears the board's white coin. Its foot is about fortifying: the
-  flag that fortified it last (`FortifyTargets.lockOf`, "Never fortified" without
+  player's own flag wears the board's white coin. **Its foot is about fortifying the province under the pointer**
+  (`Territory.province`, from the last tile the pointer rested or pressed on in orbit, else the territory's first tile;
+  fortify plays on provinces since 2026-11-18): the province's name when the territory holds others
+  (`provinceName`), the flag that fortified it last (`FortifyTargets.lockOf`, "Never fortified" without
   one) and, when a flag is close to fortifying it, how many tiles that flag still
-  misses (`targetOf`, the same rule as the gold pulse, see [Fortify](fortify.md)).
+  misses (`targetOf`, the same rule as the gold pulse, see [Fortify](fortify.md)). The card follows the pointer from
+  one province to the next while it stays open.
 - **Above the foot, the missions on the territory** (`MissionsHere`, `missionsOnTerritory`): one whose ground it is,
   or one against a rival that holds some of it, in the tile card's strip (see [Who holds a tile](tile-holder.md)).
 - **The flags are already on the client**: `Holdings` keeps the tiles each flag
@@ -39,12 +42,13 @@ the globe. A click or a tap flies down to it.
   `Globe.territoryOf` builds it, and asks no server. It works as soon as the
   globe is ready, before the tiles are read.
 - **The players are the server's**: `TerritoryCardPlace` asks `LandmassReader.landmass`
-  (`ClickService/GetLandmass`) once the card opens, then the public card (`GetPlayer` and
+  (`ClickService/GetLandmass`) once the card opens, and `ProvinceReader.province` (`ClickService/GetProvince`) for the
+  province of its foot, again when the pointer moves to another, then the public card (`GetPlayer` and
   `GetProgress`) for the first `TOP_PLAYERS` (3) holders and the last fortifier, as the tile card names its
   holder. **They are a store**, `useTerritoryPlayers` (`app/territory/territoryPlayersStore.ts`,
-  see [Stores](stores.md)), kept with the territory they were read for, so a card says nothing
-  of another one's (`playersOf`), and the same territory opened again shows them at once while
-  they are read again. `PlayScreen` renders the place with the backends and what `useTerritoryCard`
+  see [Stores](stores.md)): the top players kept with the territory they were read for (`topOf`), the fortifier with
+  the province (`fortifiedOf`), so a card says nothing of another one's, and the same territory opened again shows
+  them at once while they are read again. `PlayScreen` renders the place with the backends and what `useTerritoryCard`
   shows, and reads none of it; the place keeps nothing once it goes. "Top players" lists them
   with their flag and tiles, in their name's colour with its streak (its badge, by the take's account, see
   [Badges](badges.md)); a signed-in one's name opens its card. The crown and the

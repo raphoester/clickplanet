@@ -75,7 +75,7 @@ one). So the claim's own change and its events go out as before, whatever the mi
 `detonate_mines_usecase`, run by `planet-mines` as soon as the fuse is lit, and every second for a mine a failure left
 waiting: `ledger.MineRecording.Detonate` takes every mine set off, under one lock of the tiles (`TileStorage.Explode`).
 Each blast takes or strikes its tiles nearest first, and every mine it reaches goes off after it. When none is left,
-each take that made its landmass whole fortifies it, then each take that felled a capital knocks its flag out. **The
+each take that made its province whole fortifies it, then each take that felled a capital knocks its flag out. **The
 map's freeze does not hold it back**: the take that set the mines off was played before.
 
 - **One `mines_exploded` event per explosion**, at one map version, with each blast in order (the mine's tile, its flag,
@@ -154,7 +154,7 @@ the mine's player, as a virus's.
 refused, a take that sets the mine off and its blast as one change nearest first, a shielded tile struck once and the
 flag's own left as it is, mines that go off together whatever their flag, a spread's, an enclosure's and a virus's take
 setting one off, a bomb and a revert that take it off with no blast, the blast's takes held for its player and the
-fortify they earn, and a landmass a later blast broke earning none. `inmemory_tile_storage`'s `mines_test.go`: the flush and the boot, a mine gone with no row, a failed flush kept
+fortify they earn, and a province a later blast broke earning none. `inmemory_tile_storage`'s `mines_test.go`: the flush and the boot, a mine gone with no row, a failed flush kept
 for the next, a wipe, an arena, a deleted account, a knock-out (laid and set off). `postgres_tile_store`'s: the rows
 upserted and deleted, a wipe, a forgotten holder. The ledger's `mining_test.go` and the relay's `TilesTaken`; the SQL
 readers' parity tests each hold a mine. `mines`' gate, `lay_mine_usecase` (the spend, the mine back, none held, a wallet

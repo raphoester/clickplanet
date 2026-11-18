@@ -9,12 +9,13 @@ holds from its holder to the ghost: see [Ghosts](ghosts.md).
 
 ## `domain/holdings.ts`: what each flag holds
 
-`Holdings` keeps two kinds of row: the tiles of each flag on the map, and each landmass whole (the tiles each flag
-holds of it). A read (`read`) lists every row; a change (`change`) lists the rows that moved, a flag that left the
+`Holdings` keeps three kinds of row: the tiles of each flag on the map, each landmass whole (the tiles each flag
+holds of it), and each province whole, the same way (`ProvinceHoldings`, since 2026-11-18). A read (`read`) lists every row; a change (`change`) lists the rows that moved, a flag that left the
 map at 0 and a landmass nobody holds any more with no flag. **Each row keeps the version it was set at, and takes
 only a newer one.** A row at 0 is kept with its version, so an older copy cannot bring it back, and a newer read
 drops a row it no longer lists. It answers `counts()` (the board, through `rankCountries`), `holdingsOf(landmass)`
-(the territory card) and `leaderOf(landmass)` (the painted flag and the fortify target; ties on the flag's code).
+(the territory card), `leaderOf(landmass)` (the painted flag; ties on the flag's code), and `holdingsOfProvince` and
+`leaderOfProvince` (the fortify target, which plays on provinces).
 
 ## `domain/mapTiles.ts`: one rule for every value of a tile
 
@@ -27,7 +28,7 @@ old batch never paints over what the stream said, why a later take wins over a c
 impact, and why a value heard twice changes nothing. A bomb says the shields each struck tile kept, so no event
 changes a value by one, except the fortify.
 
-**A fortify adds a shield** to each tile of its landmass below the most, with no tile list. It is taken at once on a
+**A fortify adds a shield** to each tile of its province below the most, with no tile list. It is taken at once on a
 tile whose range was read at the stream's opening or after; a tile of a range older than that waits for its next
 read (`waiting`), then gets the shield if that read is older than the fortify. The waiting fortifies are dropped
 once every range is current.
@@ -70,7 +71,7 @@ A tile load that fails after its retries is tried again 5s later, so the loading
 ## The fakes
 
 `FakeBackend` plays the server: the real tile count (the borders blob's), a version on every write, `FakeTally`
-counting what each flag holds and sending `holdings_changed` after every flush of its updates, and an opening at
-once. `ReplayBackend` numbers each step it plays from its opening, counts with the same `FakeTally` (it takes the
+counting what each flag holds of each landmass and each province and sending `holdings_changed` after every flush of
+its updates, `FakeFortresses` fortifying a whole province as the server does, and an opening at once. `ReplayBackend` numbers each step it plays from its opening, counts with the same `FakeTally` (it takes the
 borders' landmasses: `ReplayBackend.of(response, landmasses)`), and fills the shields a struck tile kept from its
 own map for a replay recorded before the server said them. The clip awaits `Globe.tilesRead` before its first frame.

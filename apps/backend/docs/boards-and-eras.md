@@ -134,7 +134,7 @@ Each reads an event's map and board from its columns (or the memory ledger's rec
 | `GetMapHistory` (`history_query`, `ledger.History`), the season replay | the world's map on the board of each era, with the cut |
 | `GetRecentMapHistory` (`recent_history_query`, `ledger.Rewind`) | the world's map on the board it plays, from its era's start |
 | `GetLedger` (`changes_query`), the backoffice Home, the clips' cast, the vandal squad | the same, in SQL (`map = $5 AND board = $6`) |
-| `GetTileHolder` (`holder_query`), `GetLandmass`'s last fortify (`landmass_query`) | the stage that plays (`Storage.Stage`) |
+| `GetTileHolder` (`holder_query`), `GetProvince`'s last fortify (`province_query`) | the stage that plays (`Storage.Stage`) |
 | `RevertPlayer` (`ledger.Runs`) | the stage that plays, refused unless it is the world's |
 | `FindPlayers`, `TopPlayers` (`ledger.OnBoard`) | the board that plays, on any map |
 | the relay (`relay_ledger_usecase`) | every event, with each tile's ground and point from its event's board (`Boards.Of`; none for a board not carried) |
@@ -186,7 +186,7 @@ over, once** (PR 6 of [Boards](../../../docs/boards.md), 2026-11-18). An MCP too
   flags out stay. Then **one transaction** (`Persistence.Carry`): the use case's keep starts the world's era on the new
   board (`eras.Store.Start`), the map's tiles, locks, viruses and mines are deleted, the carried tiles are `COPY`ed and
   the mines written. After the commit memory plays the new board's ground, filled from the carried rows as the boot
-  fills it from postgres (`fillFromLocked`, so each landmass is settled again: fortify locks are dropped and the new
+  fills it from postgres (`fillFromLocked`, so each province is settled again: fortify locks are dropped and the new
   board's taken), and **one `board_switched` event** is appended to the ledger on the new stage while no write runs. A
   new epoch, and every stream cut: every page reloads onto the new board.
 - **The event is the one thing outside the transaction**: the ledger is kept in memory and flushed within a second, as

@@ -203,7 +203,7 @@ reads player's tables (but once, at its first migration, below).
   sent before it are not replayed.
 - **What a player did with the bonuses comes from planet's events and the offers'**, one counter each in `progression.stats` (player's
   migration `20261025120000_title_tracks`): `bombs_dropped` from `planet.v1.BombLanded` (`player-stats-bombs`,
-  `Stats.WithBomb`), `tiles_fortified` from `planet.v1.Fortified` (`player-stats-fortifies`), the landmass's whole size
+  `Stats.WithBomb`), `tiles_fortified` from `planet.v1.Fortified` (`player-stats-fortifies`), the province's whole size
   (`Stats.WithFortify`), so a 1-tile island taken back and forth is worth one tile each time, `bonuses_claimed` from
   `boxes.v1.BoxClaimed` (`player-stats-bonuses`), a caught box (`Stats.WithBonus`), and `right_answers` from
   `quizzes.v1.QuizAnswered` when `correct` (`player-stats-quizzes`, `Stats.WithRightAnswer`). Those two were planet's

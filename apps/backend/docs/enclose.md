@@ -62,7 +62,7 @@ moment ago.
 `bomb_dropped`. `Claiming.Enclose` claims every tile inside, each with its shields and its fortify, as
 `Storage.Enclose` holds the tiles lock through all of them; the storage then publishes one `clicks.Change{Enclosure}`
 at one map version, with every tile it wrote (`filled`, nearest the closing tile first) and the shields each struck
-tile kept (`struck`), then the fortifies the takes earned, each a `landmass_fortified` of its own. So a pocket of any
+tile kept (`struck`), then the fortifies the takes earned, each a `province_fortified` of its own. So a pocket of any
 size takes one slot in each stream's buffer (`tilesStorage.subscriberBuffer`, 1,024: a stream that falls that far
 behind is cut, see [The live streams](live-streams.md)), and one frame on the wire. Until then each tile went out as
 a `tile_update` and the shape again in `tiles_enclosed`, and a pocket of more than about 1,000 tiles would have cut
