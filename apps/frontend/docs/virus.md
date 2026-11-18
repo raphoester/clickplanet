@@ -37,7 +37,8 @@ and is drawn 0.012 nearer the camera, so its pods lie over the tiles next to it 
 pods' edges are hard, since a soft edge would write depth where it hardly draws. Under 9 CSS pixels a tile has no room
 for pods: it is washed in `--virus` alone. The owner, 2026-11-16: the first look, a tile washed in purple that swelled,
 was "pretty lame", and a flag shrunk into a smaller body looked smaller than the other tiles and weird. While any tile
-is infected, the loop keeps drawing (`pulsing`).
+is infected, the loop keeps drawing (`pulsing`), until nobody has touched the page for a minute: then the pods stop
+where they are (see [Drawing only when something changed](render-on-demand.md)).
 
 **No ghost while a virus works**: while one is aimed or any tile is infected, the ghosts stand down and their tiles go
 back (see [Ghosts](ghosts.md)).
