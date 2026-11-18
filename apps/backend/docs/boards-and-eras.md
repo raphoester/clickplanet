@@ -146,8 +146,9 @@ carried over onto the new board** as the switch carried it, each of its tiles ta
 before it comes from (a `ledger.Carry`, which `history_query` reads through its `Carries` port for each cut; 2026-11-18,
 PR 6), and the first frame after is whole, every tile held, as the window's first frame is: a reader clears its globe
 and draws that frame, on the new board. The carry-over is no take: it hits no tile. **A cut whose carry-over is not read
-refuses the history**, never a blank board drawn: the module answers none (`carriesUnread`) until the switch reads the
-carry-over files. Each tile's hits name their era (`ledger.EraTile`, `TileHits.era`), since two boards' tile ids
+refuses the history**, never a blank board drawn: the module reads it from the carry-over files this process carries
+(`carriesOf`, `embedded_board.Registry.Carryover`, kept once read), and a cut with no file between its boards is
+refused. Each tile's hits name their era (`ledger.EraTile`, `TileHits.era`), since two boards' tile ids
 collide. A reset and a cut at one time play the reset first.
 
 **The rewinders keep the board the world plays now** (`GetReplay`, `GetRecentMapHistory`): they rewind from the map in
