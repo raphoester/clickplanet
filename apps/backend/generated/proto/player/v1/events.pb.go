@@ -267,6 +267,69 @@ func (x *PlayerNamed) GetAccountId() string {
 	return ""
 }
 
+// The account's player chose a new username, and left this one: player keeps it among the account's past names, which
+// its public card shows (GetPlayer's past_names). Heard by player alone. It carries the name, unlike PlayerNamed, since
+// the profile no longer holds it once this is told. An operator's rename tells none.
+type NameLeft struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AccountId     string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	LeftAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=left_at,json=leftAt,proto3" json:"left_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NameLeft) Reset() {
+	*x = NameLeft{}
+	mi := &file_player_v1_events_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NameLeft) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NameLeft) ProtoMessage() {}
+
+func (x *NameLeft) ProtoReflect() protoreflect.Message {
+	mi := &file_player_v1_events_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NameLeft.ProtoReflect.Descriptor instead.
+func (*NameLeft) Descriptor() ([]byte, []int) {
+	return file_player_v1_events_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *NameLeft) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *NameLeft) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *NameLeft) GetLeftAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LeftAt
+	}
+	return nil
+}
+
 // Player forgot the account: its name and its guest code. What another module keeps of the account goes too.
 type PlayerForgotten struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -277,7 +340,7 @@ type PlayerForgotten struct {
 
 func (x *PlayerForgotten) Reset() {
 	*x = PlayerForgotten{}
-	mi := &file_player_v1_events_proto_msgTypes[5]
+	mi := &file_player_v1_events_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -289,7 +352,7 @@ func (x *PlayerForgotten) String() string {
 func (*PlayerForgotten) ProtoMessage() {}
 
 func (x *PlayerForgotten) ProtoReflect() protoreflect.Message {
-	mi := &file_player_v1_events_proto_msgTypes[5]
+	mi := &file_player_v1_events_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -302,7 +365,7 @@ func (x *PlayerForgotten) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlayerForgotten.ProtoReflect.Descriptor instead.
 func (*PlayerForgotten) Descriptor() ([]byte, []int) {
-	return file_player_v1_events_proto_rawDescGZIP(), []int{5}
+	return file_player_v1_events_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PlayerForgotten) GetAccountId() string {
@@ -335,7 +398,12 @@ const file_player_v1_events_proto_rawDesc = "" +
 	"decided_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tdecidedAt\",\n" +
 	"\vPlayerNamed\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\tR\taccountId\"0\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\"r\n" +
+	"\bNameLeft\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x123\n" +
+	"\aleft_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06leftAt\"0\n" +
 	"\x0fPlayerForgotten\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountIdB\xb3\x01\n" +
@@ -354,24 +422,26 @@ func file_player_v1_events_proto_rawDescGZIP() []byte {
 	return file_player_v1_events_proto_rawDescData
 }
 
-var file_player_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_player_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_player_v1_events_proto_goTypes = []any{
 	(*PlayerCreated)(nil),         // 0: player.v1.PlayerCreated
 	(*PlayerSignedIn)(nil),        // 1: player.v1.PlayerSignedIn
 	(*PlayerLeaving)(nil),         // 2: player.v1.PlayerLeaving
 	(*PlayerReturned)(nil),        // 3: player.v1.PlayerReturned
 	(*PlayerNamed)(nil),           // 4: player.v1.PlayerNamed
-	(*PlayerForgotten)(nil),       // 5: player.v1.PlayerForgotten
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*NameLeft)(nil),              // 5: player.v1.NameLeft
+	(*PlayerForgotten)(nil),       // 6: player.v1.PlayerForgotten
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_player_v1_events_proto_depIdxs = []int32{
-	6, // 0: player.v1.PlayerLeaving.decided_at:type_name -> google.protobuf.Timestamp
-	6, // 1: player.v1.PlayerReturned.decided_at:type_name -> google.protobuf.Timestamp
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	7, // 0: player.v1.PlayerLeaving.decided_at:type_name -> google.protobuf.Timestamp
+	7, // 1: player.v1.PlayerReturned.decided_at:type_name -> google.protobuf.Timestamp
+	7, // 2: player.v1.NameLeft.left_at:type_name -> google.protobuf.Timestamp
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_player_v1_events_proto_init() }
@@ -385,7 +455,7 @@ func file_player_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_player_v1_events_proto_rawDesc), len(file_player_v1_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

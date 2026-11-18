@@ -67,7 +67,8 @@ export const PlayerService = {
       kind: MethodKind.ServerStreaming,
     },
     /**
-     * Who a player is on its public card. Its stats, titles and fronts are progression.v1's GetProgress.
+     * Who a player is on its public card, with the last names it chose to leave. Its stats, titles and fronts are
+     * progression.v1's GetProgress.
      *
      * @generated from rpc player.v1.PlayerService.GetPlayer
      */

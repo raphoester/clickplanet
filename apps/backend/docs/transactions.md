@@ -21,6 +21,30 @@ err = u.transactioner.InTx(ctx, func(ctx context.Context) error {
 - **Recording an event is the use case's decision**, so the store does not take the event. `DeleteAccount`,
   `PruneGuests`, `SaveSignIn` and `rounds.Store.Close` write their rows and nothing else.
 
+## The smallest transaction, and events for the rest
+
+**A transaction holds only what must change together: one change, and the event that tells of it.** Everything that
+can follow a moment later is eventually consistent: the use case records an event, and a subscriber makes the other
+change. That is the default; strong atomicity needs a reason.
+
+- **What must be atomic**: a change and its outbox record, so the event is never lost nor told of a change that did
+  not happen; and the rows one rule reads together, where a reader seeing one without the other would be wrong (a
+  shield spent from the hand and the placement that holds it until the map saves it: see
+  [Placements](placements.md)).
+- **What follows by an event**: a history or a ledger beside the change, a projection or a count, another concept of
+  the same module, and always another module's state. Ask: if this write lands a second later, or after a retry, does
+  anybody see something wrong that matters? If not, it is not in the transaction.
+- **Why**: a transaction holds a connection and its locks for as long as it runs, and it couples what it holds. A
+  failed write of a side table (a history, a counter) undoes the change the caller asked for, and the caller is told
+  it failed.
+- **The subscriber is idempotent**, since an event can come twice, and the event goes through the outbox when a lost
+  one would leave the data wrong for good, or is published plain when the next one repairs it (see [What may not be
+  lost](composite-layer.md#what-may-not-be-lost-the-outbox) and [Idempotent
+  receivers](composite-layer.md#idempotent-receivers)). An event a module hears from itself is fine:
+  `progression.v1.StatsChanged` is progression's alone.
+- **The code is not all checked against it yet**: when you touch a use case whose transaction holds more than it
+  must, move the rest behind an event.
+
 ## How a store reaches postgres
 
 **Only through `db.On(ctx)`.** A store holds `cppg.Conn`:

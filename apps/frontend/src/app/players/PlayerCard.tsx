@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useId, useRef, useState} from "react"
-import {PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
+import {PastName, PlayerInfo, PlayerInfoBackend, PlayerLine} from "../../backends/player.ts"
 import {PlayerTitle} from "../../backends/progression.ts"
 import {PlayerReporter} from "../../backends/support.ts"
 import {useBadge, useBadges} from "../badges/badgesStore.ts"
@@ -20,6 +20,7 @@ import {useWordFilter} from "../crazygames/wordFilter.ts"
 import PlayerFronts from "./PlayerFronts.tsx"
 import {usePlayerInfo} from "./usePlayerInfo.ts"
 import {t, translator} from "../../i18n/page.ts"
+import {rich} from "../../i18n/rich.tsx"
 import "./PlayerCard.css"
 
 const NAME_MAX_LENGTH = 24
@@ -73,6 +74,7 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
             </span>
             <span className="player-card-country-name">{country}</span>
         </div>
+        {info && <PastNames names={info.pastNames}/>}
 
         {state.kind === "loading" && <p className="player-card-note" role="status">{t("common.loading")}</p>}
         {state.kind === "missing" && <p className="player-card-note">{t("player.gone")}</p>}
@@ -82,6 +84,17 @@ export default function PlayerCard({player, backend, reporter, onClose}: PlayerC
         {info && <PlayerStats info={info}/>}
         {info && <PlayerFronts playsFor={info.playsFor} playsAgainst={info.playsAgainst}/>}
     </Modal>
+}
+
+// The names the player went by before, so the others know who it was.
+function PastNames({names}: {names: PastName[]}) {
+    const words = useWordFilter()
+    if (names.length === 0) return null
+
+    const list = translator().list(names.map((past) => words.masked(past.name)), "unit")
+    return <p className="player-card-past-names">
+        {rich("player.pastNames", {names: <span className="player-card-past-names-list">{list}</span>})}
+    </p>
 }
 
 function PlayerTitles({titles}: {titles: PlayerTitle[]}) {

@@ -185,6 +185,7 @@
   "player.streak": "Hari beruntun",
   "player.bestStreak": "Rekor beruntun",
   "player.playingSince": "Main sejak",
+  "player.pastNames": "Sebelumnya dikenal sebagai {names}",
   "player.foughtFor": "Berjuang untuk",
   "player.foughtAgainst": "Melawan",
   "player.countries": "{count} negara",

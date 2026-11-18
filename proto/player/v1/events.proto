@@ -37,6 +37,15 @@ message PlayerNamed {
   string account_id = 1;
 }
 
+// The account's player chose a new username, and left this one: player keeps it among the account's past names, which
+// its public card shows (GetPlayer's past_names). Heard by player alone. It carries the name, unlike PlayerNamed, since
+// the profile no longer holds it once this is told. An operator's rename tells none.
+message NameLeft {
+  string account_id = 1;
+  string name = 2;
+  google.protobuf.Timestamp left_at = 3;
+}
+
 // Player forgot the account: its name and its guest code. What another module keeps of the account goes too.
 message PlayerForgotten {
   string account_id = 1;

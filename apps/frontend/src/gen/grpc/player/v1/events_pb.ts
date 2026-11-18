@@ -218,6 +218,59 @@ export class PlayerNamed extends Message<PlayerNamed> {
 }
 
 /**
+ * The account's player chose a new username, and left this one: player keeps it among the account's past names, which
+ * its public card shows (GetPlayer's past_names). Heard by player alone. It carries the name, unlike PlayerNamed, since
+ * the profile no longer holds it once this is told. An operator's rename tells none.
+ *
+ * @generated from message player.v1.NameLeft
+ */
+export class NameLeft extends Message<NameLeft> {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId = "";
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp left_at = 3;
+   */
+  leftAt?: Timestamp;
+
+  constructor(data?: PartialMessage<NameLeft>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.NameLeft";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "account_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "left_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NameLeft {
+    return new NameLeft().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NameLeft {
+    return new NameLeft().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NameLeft {
+    return new NameLeft().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NameLeft | PlainMessage<NameLeft> | undefined, b: NameLeft | PlainMessage<NameLeft> | undefined): boolean {
+    return proto3.util.equals(NameLeft, a, b);
+  }
+}
+
+/**
  * Player forgot the account: its name and its guest code. What another module keeps of the account goes too.
  *
  * @generated from message player.v1.PlayerForgotten

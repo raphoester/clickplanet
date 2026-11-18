@@ -36,8 +36,9 @@ and says what is in it. Read the doc before you change its area.
 - [Inside the chat module](docs/chat-module.md) — the same shape, for chat's ten concepts.
 - [Reads are queries](docs/queries.md) — a read endpoint does not go through the write model.
 - [Adapters](docs/adapters.md) — the primary (Connect handlers) and secondary (stores) adapters.
-- [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; a store
-  reaches postgres only through `db.On(ctx)`.
+- [Transactions](docs/transactions.md) — a use case opens one with `InTx` and records its events in it; the
+  smallest one possible, one change and its event, and every other change eventually consistent through events unless
+  it must be atomic; a store reaches postgres only through `db.On(ctx)`.
 - [Every id is a type of its own](docs/ids.md) — never a bare `uuid.UUID`, `string` or `[]byte` in a signature.
 - [Manipulators are verbs, builders are nouns](docs/verbs-and-nouns.md) — a name says if calling it changes
   anything.
@@ -171,7 +172,7 @@ and says what is in it. Read the doc before you change its area.
   steps applied in code, one judgement per report and per message, an hourly cap), replies, reactions, and what each
   account saw; why each context keeps its own history.
 - [Player](docs/player.md) — who an account is: names (a slur or a Nazi reference refused however it is spelled) and
-  guest codes, colors, the nameplates the page draws every name
+  guest codes, the names a player left (the last 5 on its card, since 2026-11-17), colors, the nameplates the page draws every name
   from (`GetNameplates`), the player that holds a name (`GetPlayerByName`, for a player's address), who is playing now, and an account
   asked deleted, hidden from the other players until it is purged or comes back; what it tells the other modules of
   an account (`PlayerCreated`, `PlayerNamed`, `PlayerSignedIn`, `PlayerLeaving`, `PlayerReturned`, `PlayerForgotten`,

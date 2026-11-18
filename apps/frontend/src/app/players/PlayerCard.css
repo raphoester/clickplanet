@@ -43,6 +43,22 @@
     color: var(--text-soft);
 }
 
+.player-card-who:has(+ .player-card-past-names) {
+    margin-bottom: var(--space-1);
+}
+
+.player-card-past-names {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-s);
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.player-card-past-names-list {
+    font-weight: 600;
+    color: var(--text-soft);
+}
+
 .player-card-note {
     margin: var(--space-1) 0 var(--space-5);
 }

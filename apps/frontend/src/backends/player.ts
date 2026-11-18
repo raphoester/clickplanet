@@ -111,6 +111,12 @@ export interface PresenceBackend {
     listenForRoster(onEvent: (event: RosterEvent) => void, onUnavailable: () => void): () => void
 }
 
+// A username its player left for another, and when.
+export type PastName = {
+    name: string
+    leftAt: number
+}
+
 // A guest is its name alone.
 export type Player = {
     name: string
@@ -118,6 +124,8 @@ export type Player = {
     createdAt?: number
     admin: boolean
     color: NameColor
+    // The last names its player left, newest first: never the name it holds now, and none for a guest.
+    pastNames: PastName[]
 }
 
 export interface PlayerReader {

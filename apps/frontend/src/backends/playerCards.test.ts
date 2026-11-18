@@ -3,7 +3,7 @@ import {NameColor, Player} from "./player.ts"
 import {PlayerCards} from "./playerCards.ts"
 import {Progress} from "./progression.ts"
 
-const ana: Player = {name: "Ana", guest: false, createdAt: 1_788_000_000_000, admin: true, color: NameColor.VIOLET}
+const ana: Player = {name: "Ana", guest: false, createdAt: 1_788_000_000_000, admin: true, color: NameColor.VIOLET, pastNames: []}
 const og = {id: "og", name: "OG"}
 const anaProgress: Progress = {
     tilesTaken: 1234, streakCurrent: 3, streakBest: 7, titles: [og], wornTitle: og,
@@ -36,7 +36,7 @@ describe("PlayerCards", () => {
     })
 
     it("shows a guest as its name alone", async () => {
-        const guest: Player = {name: "guest_91aa3d", guest: true, admin: false, color: NameColor.UNSPECIFIED}
+        const guest: Player = {name: "guest_91aa3d", guest: true, admin: false, color: NameColor.UNSPECIFIED, pastNames: []}
         const {cards} = cardsOf(async () => guest, async () => anaProgress)
 
         expect(await cards.playerInfo("account-guest")).toEqual({...guest, ...zeros})

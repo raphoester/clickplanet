@@ -2,7 +2,7 @@ import {Code, ConnectError, createPromiseClient, PromiseClient} from "@connectrp
 import {createConnectTransport} from "@connectrpc/connect-web"
 import {PlayerService} from "../gen/grpc/player/v1/player_connect.ts"
 import {
-    Player as PlayerPb,
+    GetPlayerResponse,
     PlayerEvent as PlayerEventPb,
     Profile as ProfilePb,
     RenameRefusal,
@@ -150,7 +150,7 @@ export class ConnectPlayerBackend implements PlayerBackend, PresenceBackend, Pla
     public async player(accountId: string): Promise<Player | undefined> {
         try {
             const res = await retrying(() => this.client.getPlayer({accountId}), "GetPlayer")
-            return playerOf(res.player)
+            return playerOf(res)
         } catch (e) {
             if (e instanceof ConnectError && e.code === Code.NotFound) return undefined
             throw e
@@ -225,7 +225,7 @@ function rosterEventOf(event: PlayerEventPb): RosterEvent | undefined {
     }
 }
 
-function playerOf(player: PlayerPb | undefined): Player {
+function playerOf({player, pastNames}: GetPlayerResponse): Player {
     const createdAt = Number(player?.createdAtUnixMs ?? 0)
     return {
         name: player?.name ?? "",
@@ -233,5 +233,6 @@ function playerOf(player: PlayerPb | undefined): Player {
         createdAt: createdAt > 0 ? createdAt : undefined,
         admin: player?.admin ?? false,
         color: player?.color ?? NameColor.UNSPECIFIED,
+        pastNames: pastNames.map((past) => ({name: past.name, leftAt: Number(past.leftAtUnixMs)})),
     }
 }

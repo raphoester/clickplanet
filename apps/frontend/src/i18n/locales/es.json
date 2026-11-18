@@ -185,6 +185,7 @@
   "player.streak": "Racha",
   "player.bestStreak": "Mejor racha",
   "player.playingSince": "Juega desde",
+  "player.pastNames": "Nombres anteriores: {names}",
   "player.foughtFor": "Luchó por",
   "player.foughtAgainst": "Luchó contra",
   "player.countries": "{count, plural, one {# país} many {# de países} other {# países}}",

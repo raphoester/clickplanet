@@ -185,6 +185,7 @@
   "player.streak": "Série",
   "player.bestStreak": "Nejlepší série",
   "player.playingSince": "Hraje od",
+  "player.pastNames": "Dřívější přezdívky: {names}",
   "player.foughtFor": "Bojuje za",
   "player.foughtAgainst": "Bojuje proti",
   "player.countries": "{count, plural, one {# země} few {# země} many {# země} other {# zemí}}",

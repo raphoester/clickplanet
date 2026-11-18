@@ -3,7 +3,7 @@ import {OWN_GUEST_NAME} from "./fakeChatBackend.ts"
 import {compareRosterEntries} from "../domain/roster.ts"
 import {Badge} from "./badges.ts"
 import {Nameplate} from "./nameplates.ts"
-import {NameColor, Player, PlayerReader, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
+import {NameColor, PastName, Player, PlayerReader, Presence, PresenceBackend, RosterEntry, RosterEvent} from "./player.ts"
 import {
     CountryTiles,
     Fronts,
@@ -191,11 +191,9 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
     public async player(accountId: string): Promise<Player | undefined> {
         const player = playerOf(accountId)
         if (!player) return undefined
-        if (player.guest) return {name: player.name, guest: true, admin: false, color: NameColor.UNSPECIFIED}
-        return {
-            name: player.name, guest: false, admin: player.admin, color: player.color,
-            createdAt: this.career(player).createdAt,
-        }
+        if (player.guest) return {name: player.name, guest: true, admin: false, color: NameColor.UNSPECIFIED, pastNames: []}
+        const {createdAt, pastNames} = this.career(player)
+        return {name: player.name, guest: false, admin: player.admin, color: player.color, createdAt, pastNames}
     }
 
     public async progress(accountId: string): Promise<Progress | undefined> {
@@ -263,6 +261,7 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
         return {
             tilesTaken, streakBest, createdAt, titles, wornTitle: titles.find((title) => title.rank) ?? titles[0],
             xp: fakeXpOf(seed),
+            pastNames: fakePastNames(seed, this.now()),
             playsFor: fronts([player.countryCode, ...rivals(player.countryCode, seed, seed % 4)], tilesTaken, 6),
             playsAgainst: fronts(rivals(player.countryCode, seed >>> 3, 2 + seed % 9), Math.floor(tilesTaken * 0.7), 2),
         }
@@ -270,6 +269,16 @@ export class FakePresenceBackend implements PresenceBackend, PlayerReader, Progr
 }
 
 const SHOWN_FRONTS = 3
+
+const FAKE_PAST_NAMES = ["BraveFox42", "QuietOwl17", "Nova_8", "Tiny Comet", "RedPanda61", "Kartograf"]
+
+// Up to three names left, a little over a week apart, newest first.
+function fakePastNames(seed: number, now: number): PastName[] {
+    return Array.from({length: seed % 4}, (_, i) => ({
+        name: FAKE_PAST_NAMES[(seed + i * 5) % FAKE_PAST_NAMES.length],
+        leftAt: now - (2 + i * 9) * 86_400_000,
+    }))
+}
 
 function playerOf(accountId: string): FakePlayer | undefined {
     return accountId === FAKE_YOU ? YOU : PLAYERS.find((p) => p.accountId === accountId)

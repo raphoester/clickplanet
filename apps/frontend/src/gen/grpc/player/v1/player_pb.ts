@@ -832,6 +832,14 @@ export class GetPlayerResponse extends Message<GetPlayerResponse> {
    */
   player?: Player;
 
+  /**
+   * The last usernames its player chose to leave, newest first, at most 5, each once and never the name it holds now.
+   * Kept since 2026-11-17; a name an operator replaced is not one. Empty for a guest.
+   *
+   * @generated from field: repeated player.v1.PastName past_names = 2;
+   */
+  pastNames: PastName[] = [];
+
   constructor(data?: PartialMessage<GetPlayerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -841,6 +849,7 @@ export class GetPlayerResponse extends Message<GetPlayerResponse> {
   static readonly typeName = "player.v1.GetPlayerResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "player", kind: "message", T: Player },
+    { no: 2, name: "past_names", kind: "message", T: PastName, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetPlayerResponse {
@@ -857,6 +866,51 @@ export class GetPlayerResponse extends Message<GetPlayerResponse> {
 
   static equals(a: GetPlayerResponse | PlainMessage<GetPlayerResponse> | undefined, b: GetPlayerResponse | PlainMessage<GetPlayerResponse> | undefined): boolean {
     return proto3.util.equals(GetPlayerResponse, a, b);
+  }
+}
+
+/**
+ * A username a player held, and when it chose another.
+ *
+ * @generated from message player.v1.PastName
+ */
+export class PastName extends Message<PastName> {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * @generated from field: int64 left_at_unix_ms = 2;
+   */
+  leftAtUnixMs = protoInt64.zero;
+
+  constructor(data?: PartialMessage<PastName>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "player.v1.PastName";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "left_at_unix_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PastName {
+    return new PastName().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PastName {
+    return new PastName().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PastName {
+    return new PastName().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PastName | PlainMessage<PastName> | undefined, b: PastName | PlainMessage<PastName> | undefined): boolean {
+    return proto3.util.equals(PastName, a, b);
   }
 }
 
