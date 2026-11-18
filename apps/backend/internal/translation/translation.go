@@ -1,12 +1,11 @@
 // Package translation keeps keyed lines of English and their translations, each translation with the fingerprint of
-// the English it was made from, so a translator is sent only the lines that are new or whose English changed.
+// the English it was made from, so a translator is given only the lines that are new or whose English changed.
 package translation
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	"strings"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cpcolls"
 )
@@ -42,19 +41,32 @@ func EmptyCatalogue() Catalogue {
 	return Catalogue{Lines: map[Key]string{}, Fingerprints: map[Key]Fingerprint{}}
 }
 
+// What a language already says for an English outside the catalogue planned: a line it knows is not sent.
+type Memory interface {
+	Recall(english string) (string, bool)
+}
+
+// A catalogue whose lines are said nowhere else.
+type NoMemory struct{}
+
+func (NoMemory) Recall(string) (string, bool) {
+	return "", false
+}
+
 // What a language needs: the lines to send, and the lines it keeps as they are.
 type Plan struct {
 	Language Language
 	Send     []Line
 	// A line with no fingerprint was written by hand: it is taken as the translation of today's English.
-	Adopted int
-	Kept    int
+	Adopted  int
+	Kept     int
+	Recalled int
 	// Lines whose key English no longer has.
 	Dropped int
 	kept    Catalogue
 }
 
-func PlanOf(language Language, source []Line, current Catalogue) Plan {
+func PlanOf(language Language, source []Line, current Catalogue, memory Memory) Plan {
 	plan := Plan{Language: language, kept: EmptyCatalogue()}
 	inSource := cpcolls.NewSetWithCapacity[Key](len(source))
 	for _, line := range source {
@@ -68,8 +80,13 @@ func PlanOf(language Language, source []Line, current Catalogue) Plan {
 		case held && !fingerprinted:
 			plan.Adopted++
 		default:
-			plan.Send = append(plan.Send, line)
-			continue
+			recalled, known := memory.Recall(line.English)
+			if !known {
+				plan.Send = append(plan.Send, line)
+				continue
+			}
+			text = recalled
+			plan.Recalled++
 		}
 		plan.kept.Lines[line.Key] = text
 		plan.kept.Fingerprints[line.Key] = fingerprint
@@ -82,22 +99,7 @@ func PlanOf(language Language, source []Line, current Catalogue) Plan {
 	return plan
 }
 
-// Spend is what the calls cost, in the model's tokens.
-type Spend struct {
-	InputTokens  int64
-	OutputTokens int64
-}
-
-func (s Spend) Plus(other Spend) Spend {
-	return Spend{InputTokens: s.InputTokens + other.InputTokens, OutputTokens: s.OutputTokens + other.OutputTokens}
-}
-
-// A Translator answers each line it is sent, keyed as it was sent.
-type Translator interface {
-	Translate(ctx context.Context, language Language, lines []Line) (map[Key]string, Spend, error)
-}
-
-// A translation that does not keep its English's slots is not written: the line is sent again next time.
+// A translation that is empty, or does not keep its English's slots, is not written: the line is planned again.
 type Refusal struct {
 	Key    Key
 	Reason string
@@ -108,37 +110,28 @@ type Outcome struct {
 	Catalogue  Catalogue
 	Translated int
 	Refused    []Refusal
-	Spend      Spend
 }
 
-// Brings one language's catalogue up to its English, sending the translator only the plan's lines.
-func Translate(ctx context.Context, plan Plan, translator Translator) (Outcome, error) {
+// Brings one language's catalogue up to its English with the answers to the plan's lines.
+func Apply(plan Plan, answers map[Key]string) Outcome {
 	outcome := Outcome{Plan: plan, Catalogue: plan.kept}
-	if len(plan.Send) == 0 {
-		return outcome, nil
-	}
-	answered, spend, err := translator.Translate(ctx, plan.Language, plan.Send)
-	outcome.Spend = spend
-	if err != nil {
-		return outcome, fmt.Errorf("failed to translate %d lines into %s: %w", len(plan.Send), plan.Language, err)
-	}
 	for _, line := range plan.Send {
-		text, ok := answered[line.Key]
+		text, ok := answers[line.Key]
 		if !ok {
 			outcome.Refused = append(outcome.Refused, Refusal{Key: line.Key, Reason: "no answer"})
+			continue
+		}
+		if strings.TrimSpace(text) == "" {
+			outcome.Refused = append(outcome.Refused, Refusal{Key: line.Key, Reason: "empty"})
 			continue
 		}
 		if reason := SlotsDiffer(line.English, text); reason != "" {
 			outcome.Refused = append(outcome.Refused, Refusal{Key: line.Key, Reason: reason})
 			continue
 		}
-		outcome.take(line, text)
+		outcome.Catalogue.Lines[line.Key] = text
+		outcome.Catalogue.Fingerprints[line.Key] = FingerprintOf(line.English)
 		outcome.Translated++
 	}
-	return outcome, nil
-}
-
-func (o *Outcome) take(line Line, text string) {
-	o.Catalogue.Lines[line.Key] = text
-	o.Catalogue.Fingerprints[line.Key] = FingerprintOf(line.English)
+	return outcome
 }

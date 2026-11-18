@@ -39,9 +39,11 @@ make moderation
 # Refresh the embedded boards from the shared /map/boards, then commit them
 make map
 
-# Translate the game page's new or changed English lines (and landmass names) with Claude, then commit the files it
-# writes in ../frontend/src/i18n (see translate.md). ARGS="-plan" says what would be sent and asks nothing
-ANTHROPIC_API_KEY=... make translate [ARGS="-languages fr,de -model claude-sonnet-5-5"]
+# The game page's translations, for Claude Code's translate skill (.claude/skills/translate): plan writes the new or
+# changed lines as batch files, apply writes the answers back into ../frontend/src/i18n with their fingerprints. No
+# network, no key (see the frontend's i18n.md, "Translating")
+go run ./cmd/translations plan -work <folder> [-languages fr,de] [-batch 400]
+go run ./cmd/translations apply -work <folder>
 
 # Refresh the vendored VPN/datacenter ranges from upstream, then commit them
 make vpn-lists

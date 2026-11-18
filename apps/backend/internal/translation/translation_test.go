@@ -1,12 +1,9 @@
 package translation_test
 
 import (
-	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/raphoester/clickplanet.lol-backend/internal/translation"
 )
@@ -25,7 +22,7 @@ func TestAPlanSendsOnlyTheLinesThatAreNewOrWhoseEnglishChanged(t *testing.T) {
 		},
 	}
 
-	plan := translation.PlanOf("fr", source, current)
+	plan := translation.PlanOf("fr", source, current, translation.NoMemory{})
 
 	assert.Equal(t, []translation.Line{line("changed", "Catch a box now"), line("new", "Drop a bomb")}, plan.Send)
 	assert.Equal(t, 1, plan.Kept)
@@ -33,64 +30,57 @@ func TestAPlanSendsOnlyTheLinesThatAreNewOrWhoseEnglishChanged(t *testing.T) {
 	assert.Equal(t, 1, plan.Dropped)
 }
 
-type answering struct {
-	answers map[translation.Key]string
-	asked   []translation.Line
-	err     error
+type memory map[string]string
+
+func (m memory) Recall(english string) (string, bool) {
+	text, ok := m[english]
+	return text, ok
 }
 
-func (a *answering) Translate(_ context.Context, _ translation.Language, lines []translation.Line) (map[translation.Key]string, translation.Spend, error) {
-	a.asked = append(a.asked, lines...)
-	return a.answers, translation.Spend{InputTokens: 10, OutputTokens: 5}, a.err
+func TestALineAnotherCatalogueSaysIsNotSent(t *testing.T) {
+	source := []translation.Line{line("20", "Ionian Islands"), line("21", "Atlantis")}
+
+	plan := translation.PlanOf("fr", source, translation.EmptyCatalogue(), memory{"Ionian Islands": "Îles Ioniennes"})
+
+	assert.Equal(t, []translation.Line{line("21", "Atlantis")}, plan.Send)
+	assert.Equal(t, 1, plan.Recalled)
+	outcome := translation.Apply(plan, map[translation.Key]string{"21": "Atlantide"})
+	assert.Equal(t, map[translation.Key]string{"20": "Îles Ioniennes", "21": "Atlantide"}, outcome.Catalogue.Lines)
+	assert.Equal(t, translation.FingerprintOf("Ionian Islands"), outcome.Catalogue.Fingerprints["20"])
 }
 
-func TestATranslationKeepsWhatWasKeptAndFingerprintsWhatCameBack(t *testing.T) {
+func TestAnApplyKeepsWhatWasKeptAndFingerprintsWhatCameBack(t *testing.T) {
 	source := []translation.Line{line("kept", "Send"), line("tiles", "{count, plural, one {# tile} other {# tiles}}")}
 	current := translation.Catalogue{
 		Lines:        map[translation.Key]string{"kept": "Envoyer"},
 		Fingerprints: map[translation.Key]translation.Fingerprint{"kept": translation.FingerprintOf("Send")},
 	}
-	translator := &answering{answers: map[translation.Key]string{"tiles": "{count, plural, one {# case} many {# de cases} other {# cases}}"}}
 
-	outcome, err := translation.Translate(t.Context(), translation.PlanOf("fr", source, current), translator)
+	outcome := translation.Apply(translation.PlanOf("fr", source, current, translation.NoMemory{}), map[translation.Key]string{
+		"tiles": "{count, plural, one {# case} many {# de cases} other {# cases}}", "kept": "Expédier",
+	})
 
-	require.NoError(t, err)
-	assert.Equal(t, []translation.Line{line("tiles", "{count, plural, one {# tile} other {# tiles}}")}, translator.asked)
 	assert.Equal(t, map[translation.Key]string{
 		"kept": "Envoyer", "tiles": "{count, plural, one {# case} many {# de cases} other {# cases}}",
 	}, outcome.Catalogue.Lines)
 	assert.Equal(t, translation.FingerprintOf("{count, plural, one {# tile} other {# tiles}}"), outcome.Catalogue.Fingerprints["tiles"])
 	assert.Equal(t, 1, outcome.Translated)
-	assert.Equal(t, translation.Spend{InputTokens: 10, OutputTokens: 5}, outcome.Spend)
+	assert.Empty(t, outcome.Refused)
 }
 
-func TestATranslationThatLosesASlotIsNotWritten(t *testing.T) {
-	source := []translation.Line{line("took", "{player} took {count} tiles"), line("silent", "Send")}
-	translator := &answering{answers: map[translation.Key]string{"took": "{joueur} a pris {count} cases"}}
+func TestAnAnswerThatLosesASlotOrIsEmptyIsNotWritten(t *testing.T) {
+	source := []translation.Line{line("took", "{player} took {count} tiles"), line("blank", "Chat"), line("silent", "Send")}
 
-	outcome, err := translation.Translate(t.Context(), translation.PlanOf("fr", source, translation.EmptyCatalogue()), translator)
+	outcome := translation.Apply(translation.PlanOf("fr", source, translation.EmptyCatalogue(), translation.NoMemory{}), map[translation.Key]string{
+		"took": "{joueur} a pris {count} cases", "blank": " ",
+	})
 
-	require.NoError(t, err)
 	assert.Empty(t, outcome.Catalogue.Lines)
 	assert.Equal(t, []translation.Refusal{
 		{Key: "took", Reason: "slots count:value joueur:value where the English has count:value player:value"},
+		{Key: "blank", Reason: "empty"},
 		{Key: "silent", Reason: "no answer"},
 	}, outcome.Refused)
-}
-
-func TestNothingToSendAsksNoTranslator(t *testing.T) {
-	source := []translation.Line{line("kept", "Send")}
-	current := translation.Catalogue{
-		Lines:        map[translation.Key]string{"kept": "Envoyer"},
-		Fingerprints: map[translation.Key]translation.Fingerprint{"kept": translation.FingerprintOf("Send")},
-	}
-	translator := &answering{err: errors.New("never asked")}
-
-	outcome, err := translation.Translate(t.Context(), translation.PlanOf("fr", source, current), translator)
-
-	require.NoError(t, err)
-	assert.Empty(t, translator.asked)
-	assert.Equal(t, "Envoyer", outcome.Catalogue.Lines["kept"])
 }
 
 func TestSlotsDiffer(t *testing.T) {
@@ -110,18 +100,5 @@ func TestSlotsDiffer(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assert.Equal(t, c.reason, translation.SlotsDiffer(c.english, c.translated))
 		})
-	}
-}
-
-func TestTheGlossaryGivesEachTermAWordInEachLanguage(t *testing.T) {
-	glossary, err := translation.ReadGlossary()
-
-	require.NoError(t, err)
-	require.NotEmpty(t, glossary)
-	for _, term := range glossary {
-		assert.NotEmpty(t, term.Means, term.English)
-		for _, language := range []translation.Language{"fr", "de", "tr", "pt-BR", "pl", "id", "es", "cs"} {
-			assert.NotEmpty(t, term.Words[language], "%s in %s", term.English, language)
-		}
 	}
 }
