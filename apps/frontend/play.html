@@ -11,6 +11,34 @@
             document.head.appendChild(referrer)
         }
     </script>
+    <!-- Before every /assets/ file: a page from an older build gets HTML for the files a deploy removed, and reloads
+         once (docs/stale-build.md). -->
+    <script>
+        (function () {
+            var KEY = "clickplanet-stale-reload"
+            var AGAIN_MS = 60000
+            var assets = location.origin + "/assets/"
+
+            function reloadOnce() {
+                try {
+                    if (Date.now() - Number(sessionStorage.getItem(KEY)) < AGAIN_MS) return false
+                    sessionStorage.setItem(KEY, String(Date.now()))
+                } catch (e) {
+                    return false
+                }
+                location.reload()
+                return true
+            }
+
+            addEventListener("error", function (e) {
+                var url = e.target && (e.target.src || e.target.href)
+                if (typeof url === "string" && url.indexOf(assets) === 0) reloadOnce()
+            }, true)
+            addEventListener("vite:preloadError", function (e) {
+                if (reloadOnce()) e.preventDefault()
+            })
+        })()
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta name="description" content="A live world map shared by players everywhere. Pick your country's flag, click tiles and take land from other countries. Free in the browser, no download."/>
     <meta name="author" content="Raphaël Oester"/>
