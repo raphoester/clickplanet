@@ -770,7 +770,76 @@ of each other. Eight runs of each build in four interleaved rounds, the median:
   already brought it down to what is on screen.
 - **In orbit it costs half what it did**, and it is still the heaviest thing at the landing view: 0.31 of the scene's
   0.64 ms, for 0.62M vertices. There a cell edge of `earth-2` is about a quarter of a CSS pixel, so most of those
-  pieces draw less than a pixel each. Fewer pieces in orbit would cut it; that is not built.
+  pieces draw less than a pixel each. Fewer pieces in orbit cut it: [The outlines from orbit,
+  measured](#the-outlines-from-orbit-measured).
+
+## The outlines from orbit, measured
+
+**Why** (2026-11-18): after [the outlines drawn straight](#the-outlines-drawn-straight-measured), the outline was still
+half the landing view's GPU time, and the province lines planned next add 70% to its cell edges. **Built** (the owner
+chose half a pixel): from orbit the over and the highlight pass draw a coarse set of pieces whose dropped corners stay
+within half a drawing-buffer pixel of the cell edges, inked as the cell edges' quads were (the page's [The countries'
+outlines](../apps/frontend/docs/country-outlines.md)). The under and the mission pass, and every pass from zoom 1.06 in
+on a buffer 1,600 pixels high, draw the cell edges as before.
+
+**Measured 2026-11-18** as [the outlines drawn straight](#the-outlines-drawn-straight-measured) were: an M2 Max,
+headless Chrome on Metal, the dev server with the fake backend (`/play?fakeBoard=earth-2`), 1280×800 at a ratio of 2,
+the CPU slowed 4×, the camera turning slowly over Europe (45°N, 5°E; the landing view at 20°N, 10°E). Before is `main`
+at 3cbfec18d, after is this work.
+
+| the outline in a frame, `earth-2`, before → after | pieces | vertices |
+| --- | --- | --- |
+| landing view, zoom 0.5 | 111,872 → 23,141 | 0.67M → 0.14M |
+| zoom 0.75 | 110,434 → 54,560 | 0.66M → 0.33M |
+| zoom 1 | 110,424 → 54,560 | 0.66M → 0.33M |
+| zoom 2 | 88,353 → 88,353 | 0.53M → 0.53M |
+| the handover band, zoom 10 | 24,350 → 24,350 | 0.15M → 0.15M |
+
+**The GPU time**, the GPU kept busy as before (11 renders a frame, a one-pixel read before the timer query, the outline
+shown or hidden at random frame by frame; the outline's cost is the difference over 11). Four runs of each build in
+four interleaved rounds, the median, and the four runs of the outline's cost:
+
+| GPU per render of the scene, `earth-2`, before → after | the outline | its runs, before; after | the whole scene |
+| --- | --- | --- | --- |
+| landing view, zoom 0.5 | 0.30 → 0.06 ms | 0.24 to 0.36; 0.02 to 0.07 | 0.66 → 0.47 ms |
+| zoom 0.75 | 0.32 → 0.16 ms | 0.27 to 0.34; 0.15 to 0.17 | 0.92 → 0.74 ms |
+| zoom 1 | 0.23 → 0.14 ms | 0.18 to 0.27; 0.10 to 0.18 | 1.14 → 1.07 ms |
+| zoom 2 | 0.10 → 0.06 ms | −0.12 to 0.21; 0.03 to 0.17 | 1.61 → 1.50 ms |
+| the handover band, zoom 10 | 0.02 → 0.11 ms | 0.01 to 0.11; −0.03 to 0.23 | 2.16 → 1.85 ms |
+
+From zoom 2 in both builds draw the same pieces with the same shader, and the two rows are noise: the machine was
+shared (a load average of 8 to 62). A first build drew the cell edges with the coarse sets' shader as well, and its
+zoom 2 came out 0.04 ms dearer in every run; the cell edges have their own material since.
+
+**The look.** Each view shot with both builds, then again with the outline hidden, the page's panels hidden, the clock
+frozen. The outline's ink is how much darker it makes a view, summed over its pixels:
+
+| view, `earth-2` | ink, after over before | pixels changed by more than 8, 48 (of 255) |
+| --- | --- | --- |
+| landing view, zoom 0.5 | 1.01 | 0.86%, 0.28% |
+| Europe, zoom 0.75 | 1.05 | 1.13%, 0.33% |
+| Europe, zoom 1 | 1.04 | 1.93%, 0.50% |
+| Asia, zoom 1 | 1.04 | 1.71%, 0.45% |
+| the limb, zoom 1 | 1.04 | 1.96%, 0.50% |
+| France lit, zoom 0.5, 1 | 1.03, 1.04 | 0.62%, 0.23%; 1.93%, 0.50% |
+| Europe at zoom 2, France lit at 1.5 (the cell edges) | 1.00 | none |
+
+At zoom 0.5 the views without the outline also differed between the builds (0.4% of the landing view's pixels, by 3 to
+7% of the outline's ink), so that row is the least sure. The pixels that change are on the line, which moves by up to
+half a pixel: magnified four times the two are hard to tell apart.
+
+**The load.** The coarse sets and every set's chunks are built in a worker, beside the lattice's: both take about 90 ms
+in the dev server and start together. The page's main thread no longer decodes the file or cuts the cell edges into
+chunks (about 20 ms in Node). The first WebGL draw, three runs of each, the median: 1,108 → 1,123 ms with the CPU as
+is, 4,309 → 4,311 ms slowed 4×.
+
+**What it says:**
+- **At the landing view the outline costs a fifth of what it did**: 0.06 of the scene's 0.47 ms, for 0.14M vertices.
+  The rest of the scene is now most of the frame there.
+- **At zoom 0.75 to 1 it costs half**, the finest set, 0.5 cell edge, being what half a pixel allows.
+- **The line looks the same**: 1 to 5% more ink, moved by at most half a pixel.
+- **Province lines from orbit** would take coarse sets of their own, so their 70% more cell edges would cost about a
+  fifth of that at the landing view.
 
 ## Screenshots
 

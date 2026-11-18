@@ -150,7 +150,8 @@ brotli at 5; `siege-1`'s 73 KB.
 - **The outlines are straight cell edges, with no B-spline** (the owner, 2026-11-18). The tiles are straight hexagons,
   so a curve round them reads worse, and it costs four pieces a cell edge pushed in and two from orbit, where straight
   costs one. Province lines add 70% to `earth-2`'s outline edges at N 200 (90,834 on 129,431); the straight edges pay
-  for them.
+  for them. From orbit they take coarse sets of their own, as the country lines do (`coarseOutlinesOf`, see
+  `country-outlines.md`), so there their 70% costs about a fifth as much.
 - **The landmass texture holds 2,048 rows** and `earth-2` has 2,097 provinces, so the provinces' texture is taller (4,096
   at most, see the players' GPU limits).
 

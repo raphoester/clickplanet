@@ -4,27 +4,29 @@ import {describe, expect, it} from "vitest"
 import * as THREE from "three"
 import {
     type BorderLines,
+    coarseTolerancesOf,
     createBorderLines,
     halfWidthOf,
+    HIGHLIGHT_WIDTH,
     limbOf,
     MOST_SLACK,
     ORBIT_INK,
     ORBIT_WIDTH,
-    outlineChunksOf,
-    outlineSegments,
     OVER,
     pieceSides,
+    TOLERANCE,
     UNDER,
     WIDTH,
 } from "./borderLines.ts"
 import {BOARDS} from "./boardsAsset.ts"
 import {CULL_SLACK} from "./chunkSight.ts"
 import {EARTH_RADIUS} from "./sphere.ts"
-import {flagPaint, tilePointSize, tileSpacing} from "./pointSize.ts"
+import {flagPaint, flagsZoomOf, tilePointSize, tileSpacing, tilesZoomOf} from "./pointSize.ts"
 import {maxZoomOf, MIN_ZOOM} from "./zoom.ts"
-import {EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
-import {decodeBorderLines, encodeBorderLines} from "../../domain/borderLinesFile.ts"
-import {CAP_FLOATS, chunkCount} from "../../domain/tileChunks.ts"
+import {type BoardScale, EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
+import {type BorderLineData, decodeBorderLines, encodeBorderLines} from "../../domain/borderLinesFile.ts"
+import {directionsOf, MOST_DIP, offsetOf} from "../../domain/coarseOutline.ts"
+import {outlineSegments, outlineSetsOf} from "../../domain/outlineSets.ts"
 
 const MAX_ZOOM = maxZoomOf(EARTH_1_SCALE)
 
@@ -40,6 +42,11 @@ const SHIPPED = Object.values(BOARDS).map((board) => {
     }
     return {board, read}
 })
+
+// As the globe makes it, from the cell edges and the board's coarse sets.
+function linesOf(data: BorderLineData, scale: BoardScale): BorderLines {
+    return createBorderLines(outlineSetsOf(data, coarseTolerancesOf(scale)), scale)
+}
 
 type Pass = {group: THREE.Group, material: THREE.ShaderMaterial, meshes: THREE.Mesh[]}
 
@@ -66,33 +73,6 @@ function blobOf(runs: number[][], sides: number[] = runs.flatMap(() => [0, 1])):
     })
     return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
 }
-
-describe("outlineSegments", () => {
-    const at = (points: Int16Array, piece: number) => [...points.slice(piece * 3, piece * 3 + 3)]
-
-    it("draws each cell edge as one piece, from corner to corner", () => {
-        const {from, to} = outlineSegments(decodeBorderLines(blobOf([[1000, 0, 0, 1000, 500, 0, 1000, 900, 0]])))
-        expect([...from]).toEqual([1000, 0, 0, 1000, 500, 0])
-        expect([...to]).toEqual([1000, 500, 0, 1000, 900, 0])
-    })
-
-    it("closes a run that came back to where it started", () => {
-        const loop = [0, 0, 30000, 0, 30000, 0, 30000, 0, 0, 0, 0, 30000]
-        const {from, to} = outlineSegments(decodeBorderLines(blobOf([loop])))
-        expect(from.length / 3).toBe(3)
-        expect(at(to, 2)).toEqual(at(from, 0))
-    })
-
-    it("never joins the end of one run to the start of the next", () => {
-        const one = [0, 0, 30000, 0, 10000, 30000]
-        const other = [30000, 0, 0, 30000, 10000, 0]
-        const {from, to} = outlineSegments(decodeBorderLines(blobOf([one, other])))
-
-        expect(from.length / 3).toBe(2)
-        expect(at(to, 0)).toEqual([0, 10000, 30000])
-        expect(at(from, 1)).toEqual([30000, 0, 0])
-    })
-})
 
 // One tile of a country among another's tiles. Its cell's sides are half a spacing from its centre and its corners a
 // spacing over √3; its six neighbours are a spacing away, each across one side. The line runs along the sides, so the
@@ -157,6 +137,10 @@ describe("the two passes", () => {
         expect(OVER).toBeGreaterThan(1)
     })
 
+    it("lift the over pass above the tiles five times as far as a coarse piece's middle dips", () => {
+        expect(MOST_DIP * 5).toBeLessThanOrEqual(OVER - 1 + 1e-12)
+    })
+
     it("say how far past the limb each pass can still be seen", () => {
         const earth = EARTH_RADIUS
 
@@ -184,7 +168,7 @@ describe("pieceSides", () => {
 
 describe("the highlight", () => {
     it("draws one landmass's outline over the tiles, and nothing when none is set", () => {
-        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])), EARTH_1_SCALE)
+        const lines = linesOf(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])), EARTH_1_SCALE)
         const {group, material: {uniforms}} = passesOf(lines)[2]
         expect(group.visible).toBe(false)
 
@@ -200,7 +184,7 @@ describe("the highlight", () => {
 
 describe("the handover", () => {
     const outline = () => {
-        const lines = createBorderLines(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]])), EARTH_1_SCALE)
+        const lines = linesOf(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]])), EARTH_1_SCALE)
         const [over, under] = passesOf(lines)
         const inkOf = ({group, material}: Pass) => group.visible ? material.uniforms.ink.value as number : 0
         return {lines, over, under, inkOf}
@@ -261,32 +245,9 @@ describe("the handover", () => {
     })
 })
 
-describe.each(SHIPPED)("the chunks of $board.name's outline", ({read}) => {
-    it("hold every piece once, in order, and each cap both ends of its pieces", () => {
-        const {from, to} = outlineSegments(read())
-        const chunks = outlineChunksOf({from, to})
-        const count = chunkCount(chunks)
-        expect(chunks.starts[0]).toBe(0)
-        expect(chunks.starts[count]).toBe(from.length / 3)
-
-        let outside = 0
-        for (let chunk = 0; chunk < count; chunk++) {
-            const [x, y, z, radius] = chunks.caps.subarray(chunk * CAP_FLOATS, chunk * CAP_FLOATS + 4)
-            for (let piece = chunks.starts[chunk]; piece < chunks.starts[chunk + 1]; piece++) {
-                for (const ends of [from, to]) {
-                    const px = ends[piece * 3], py = ends[piece * 3 + 1], pz = ends[piece * 3 + 2]
-                    const across = Math.hypot(py * z - pz * y, pz * x - px * z, px * y - py * x)
-                    if (Math.atan2(across, px * x + py * y + pz * z) > radius) outside++
-                }
-            }
-        }
-        expect(outside).toBe(0)
-    })
-})
-
 const directions = new WeakMap<ArrayLike<number>, Float32Array>()
 
-function directionsOf(ends: Int16Array): Float32Array {
+function unitsOf(ends: Int16Array): Float32Array {
     let found = directions.get(ends)
     if (found) return found
     found = new Float32Array(ends.length)
@@ -307,7 +268,9 @@ function missedBy(lines: BorderLines, camera: THREE.OrthographicCamera): {missed
     return passesOf(lines).map((pass) => {
         const geometry = pass.meshes[0].geometry as THREE.InstancedBufferGeometry
         const endsOf = (name: string) => (geometry.getAttribute(name) as THREE.InterleavedBufferAttribute).data.array as Int16Array
-        const from = directionsOf(endsOf("from")), to = directionsOf(endsOf("to"))
+        const from = unitsOf(endsOf("from")), to = unitsOf(endsOf("to"))
+        const stacked = pass.material.defines.STACKED === true
+        const standsFor = stacked ? (geometry.getAttribute("standsFor") as THREE.InterleavedBufferAttribute).data.array as Float32Array : undefined
         const pieces = from.length / 3
 
         const covered = new Uint8Array(pieces)
@@ -319,7 +282,6 @@ function missedBy(lines: BorderLines, camera: THREE.OrthographicCamera): {missed
 
         const {halfViewport, halfWidth, lift, limb} = pass.material.uniforms
         const hx = halfViewport.value.x, hy = halfViewport.value.y, w = halfWidth.value as number, l = lift.value as number
-        const slack = limb.value + (w + 1) / Math.max(hy * p11, 1)
         const screenX = (ends: Float32Array, i: number) => ((m[0] * ends[i] + m[4] * ends[i + 1] + m[8] * ends[i + 2]) * l + m[12]) * hx
         const screenY = (ends: Float32Array, i: number) => ((m[1] * ends[i] + m[5] * ends[i + 1] + m[9] * ends[i + 2]) * l + m[13]) * hy
 
@@ -327,6 +289,8 @@ function missedBy(lines: BorderLines, camera: THREE.OrthographicCamera): {missed
         for (let piece = 0; piece < pieces; piece++) {
             if (covered[piece]) continue
             const i = piece * 3
+            const across = standsFor ? w / standsFor[piece * 2 + 1] : w
+            const slack = limb.value + (across + 1) / Math.max(hy * p11, 1)
             const headFacing = from[i] * back.x + from[i + 1] * back.y + from[i + 2] * back.z
             const tailFacing = to[i] * back.x + to[i + 1] * back.y + to[i + 2] * back.z
             if (headFacing < -slack && tailFacing < -slack) continue
@@ -334,8 +298,8 @@ function missedBy(lines: BorderLines, camera: THREE.OrthographicCamera): {missed
             const ax = screenX(from, i), ay = screenY(from, i), bx = screenX(to, i), by = screenY(to, i)
             const length = Math.hypot(bx - ax, by - ay)
             const ux = length > 1e-6 ? (bx - ax) / length : 1, uy = length > 1e-6 ? (by - ay) / length : 0
-            const minX = Math.min(ax - ux * w, bx + ux * w) - Math.abs(uy) * w, maxX = Math.max(ax - ux * w, bx + ux * w) + Math.abs(uy) * w
-            const minY = Math.min(ay - uy * w, by + uy * w) - Math.abs(ux) * w, maxY = Math.max(ay - uy * w, by + uy * w) + Math.abs(ux) * w
+            const minX = Math.min(ax - ux * w, bx + ux * w) - Math.abs(uy) * across, maxX = Math.max(ax - ux * w, bx + ux * w) + Math.abs(uy) * across
+            const minY = Math.min(ay - uy * w, by + uy * w) - Math.abs(ux) * across, maxY = Math.max(ay - uy * w, by + uy * w) + Math.abs(ux) * across
             if (maxX >= -hx && minX <= hx && maxY >= -hy && minY <= hy) missed++
         }
         return {missed, drawn, pieces}
@@ -366,7 +330,7 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
     }
 
     it("keeps every piece any pass would draw, from every camera, until it has turned by the slack", {timeout: 120_000}, () => {
-        const lines = createBorderLines(read(), scaleOf(board))
+        const lines = linesOf(read(), scaleOf(board))
         const directions = [[1, 0.3, 0.2], [-0.4, 0.8, -0.1], [0.1, -0.9, 0.5], [-0.7, -0.2, -0.7]]
         directions.forEach((direction, d) => [40, 10, 3, 1, 0.5].forEach((zoom, z) => {
             const ratio = 1 + (d + z) % 2
@@ -391,7 +355,7 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
     })
 
     it("keeps them through a turn, a zoom in and a pan, finding them again once the view has moved too far", {timeout: 120_000}, () => {
-        const lines = createBorderLines(read(), scaleOf(board))
+        const lines = linesOf(read(), scaleOf(board))
         for (const start of [1, 10]) {
             for (let step = 0; step < 14; step++) {
                 const angle = Math.min(step, 8) * 0.006
@@ -406,7 +370,7 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
     })
 
     it("draws a small share of the outline pushed in, and less than all of it from orbit", {timeout: 60_000}, () => {
-        const lines = createBorderLines(read(), scaleOf(board))
+        const lines = linesOf(read(), scaleOf(board))
         const shareAt = (zoom: number) => look(lines, [1, 0.3, 0.2], zoom, 2).map(({drawn, pieces}) => drawn / pieces)
         expect(Math.max(...shareAt(10))).toBeLessThan(0.1)
         expect(Math.max(...shareAt(0.5))).toBeLessThan(0.9)
@@ -414,7 +378,7 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
     })
 
     it("draws the pieces in their order, pass after pass, the same pieces in every pass", () => {
-        const lines = createBorderLines(read(), scaleOf(board))
+        const lines = linesOf(read(), scaleOf(board))
         look(lines, [-0.4, 0.8, -0.1], 3, 2)
         const passes = passesOf(lines)
 
@@ -444,7 +408,7 @@ describe("the cull at the screen's edge", () => {
             runs.push([...point(x, y), ...point(x + 0.00005, y + 0.00005), ...point(x + 0.0001, y + 0.0001)])
             runs.push([...point(0.1, line * 0.01), ...point(0.1, line * 0.01 + 0.002)].map((v, i) => i % 3 === 2 ? -v : v))
         }
-        const lines = createBorderLines(decodeBorderLines(blobOf(runs)), EARTH_1_SCALE)
+        const lines = linesOf(decodeBorderLines(blobOf(runs)), EARTH_1_SCALE)
 
         const pan = Math.min(CULL_SLACK / zoom, MOST_SLACK) * 0.9999
         lines.update(zoom, WIDE * ratio, HIGH * ratio, ratio, "split")
@@ -459,5 +423,172 @@ describe("the cull at the screen's edge", () => {
             expect(missed, PASS_NAMES[pass]).toBe(0)
         })
         lines.dispose()
+    })
+})
+
+type Ends = {from: Int16Array, to: Int16Array}
+
+function endsOf({meshes}: Pass): Ends {
+    const geometry = meshes[0].geometry as THREE.InstancedBufferGeometry
+    const array = (name: string) => (geometry.getAttribute(name) as THREE.InterleavedBufferAttribute).data.array as Int16Array
+    return {from: array("from"), to: array("to")}
+}
+
+const deviations = new WeakMap<Int16Array, number>()
+
+// The farthest a set's pieces lie from the cell edges they stand for, on the globe of radius 1: each piece runs from a
+// cell edges' corner to a later one of the same run, and the corners between are the ones it dropped.
+function deviationOf(coarse: Ends, cells: Ends): number {
+    const known = deviations.get(coarse.from)
+    if (known !== undefined) return known
+    const same = (a: Int16Array, i: number, b: Int16Array, j: number) => [0, 1, 2].every((axis) => a[i * 3 + axis] === b[j * 3 + axis])
+    const cellTo = directionsOf(cells.to), coarseFrom = directionsOf(coarse.from), coarseTo = directionsOf(coarse.to)
+    const three = new Float64Array(9)
+    let farthest = 0, cell = 0
+    for (let piece = 0; piece < coarse.from.length / 3; piece++) {
+        expect(same(cells.from, cell, coarse.from, piece), `piece ${piece} starts on a cell edge's corner`).toBe(true)
+        three.set(coarseFrom.subarray(piece * 3, piece * 3 + 3), 0)
+        three.set(coarseTo.subarray(piece * 3, piece * 3 + 3), 3)
+        for (; !same(cells.to, cell, coarse.to, piece); cell++) {
+            three.set(cellTo.subarray(cell * 3, cell * 3 + 3), 6)
+            farthest = Math.max(farthest, offsetOf(three, 2, 0, 1))
+        }
+        cell++
+    }
+    expect(cell).toBe(cells.from.length / 3)
+    deviations.set(coarse.from, farthest)
+    return farthest
+}
+
+describe.each(SHIPPED)("the over and the highlight pass of $board.name's outline", ({board, read}) => {
+    it("stay within the tolerance of the cell edges at every zoom they are drawn at, on every screen", {timeout: 120_000}, () => {
+        const scale = scaleOf(board)
+        const lines = linesOf(read(), scale)
+        const cells = outlineSegments(read())
+        // CSS pixels wide and high, and the ratio.
+        const screens = [[390, 640, 2], [430, 932, 2], [1280, 800, 2], [1920, 1000, 1], [1280, 1400, 1.5]]
+        let coarse = 0
+        for (const [wide, high, ratio] of screens) {
+            for (let zoom = MIN_ZOOM; zoom < tilesZoomOf(high, scale); zoom *= 1.04) {
+                lines.update(zoom, wide * ratio, high * ratio, ratio, "split")
+                lines.cull(cameraOf([1, 0.3, 0.2], zoom))
+                const [over, , highlight] = passesOf(lines)
+                const drawn = endsOf(over)
+                expect(over.group.visible, `zoom ${zoom}`).toBe(true)
+                expect(endsOf(highlight).from).toBe(drawn.from)
+                if (drawn.from.length === cells.from.length) continue
+                coarse++
+                const perUnit = high * ratio / 2 * zoom
+                expect(deviationOf(drawn, cells) * OVER * perUnit, `zoom ${zoom} on ${wide}×${high} at ${ratio}`).toBeLessThanOrEqual(TOLERANCE)
+            }
+            expect(flagsZoomOf(high, scale)).toBeLessThan(tilesZoomOf(high, scale))
+        }
+        if (board.name !== "siege-1") expect(coarse).toBeGreaterThan(0)
+        lines.dispose()
+    })
+})
+
+describe("the outline of earth-2 from orbit", () => {
+    const shipped = SHIPPED.find(({board}) => board.name === "earth-2")!
+
+    it("draws under a quarter of its pieces at the landing view over the flags, and the cell edges under them", () => {
+        const lines = linesOf(shipped.read(), scaleOf(shipped.board))
+        const cells = outlineSegments(shipped.read()).from.length / 3
+        const piecesAt = (zoom: number) => {
+            lines.update(zoom, 1280 * 2, 800 * 2, 2, "split")
+            lines.cull(cameraOf([1, 0.3, 0.2], zoom))
+            return passesOf(lines).map((pass) => endsOf(pass).from.length / 3)
+        }
+
+        const [over, under, highlight, mission] = piecesAt(0.5)
+        expect(over / cells).toBeLessThan(0.25)
+        expect(highlight).toBe(over)
+        expect([under, mission]).toEqual([cells, cells])
+
+        expect(piecesAt(2)).toEqual([cells, cells, cells, cells])
+        lines.dispose()
+    })
+})
+
+// The vertex and the fragment shader's ink, copied, on screen in pixels: a run of cell edges along x, drawn as its cell
+// edges and as pieces through every few corners. A coarse piece inks as its cell edges' quads laid over one another.
+describe("the stacked ink", () => {
+    type Quad = {ax: number, ay: number, ux: number, uy: number, length: number, edges: number, slant: number}
+
+    // Each cell edge 30° across the run, or along it and 60° across in turn.
+    const zigzag = (edge: number) => Array.from({length: 121}, (_, at) => [at * edge * Math.cos(Math.PI / 6), at % 2 ? edge / 2 : 0])
+    const armchair = (edge: number) => {
+        const corners = [[0, 0]]
+        for (let at = 0; at < 120; at++) {
+            const [x, y] = corners[at], turn = [0, Math.PI / 3, 0, -Math.PI / 3][at % 4]
+            corners.push([x + edge * Math.cos(turn), y + edge * Math.sin(turn)])
+        }
+        return corners
+    }
+
+    const quadsOf = (corners: number[][], every: number): Quad[] => {
+        const quads: Quad[] = []
+        for (let at = 0; at + every < corners.length; at += every) {
+            let path = 0
+            for (let corner = at; corner < at + every; corner++) path += Math.hypot(corners[corner + 1][0] - corners[corner][0], corners[corner + 1][1] - corners[corner][1])
+            const [ax, ay] = corners[at], [bx, by] = corners[at + every]
+            const length = Math.hypot(bx - ax, by - ay)
+            quads.push({ax, ay, ux: (bx - ax) / length, uy: (by - ay) / length, length, edges: every, slant: length / path})
+        }
+        return quads
+    }
+
+    // The line's ink across, averaged along its middle third: the integral of its opacity, in pixels.
+    const inkOf = (quads: Quad[], halfWidth: number, ink: number, stacked: boolean, x0: number, x1: number) => {
+        let total = 0, samples = 0
+        for (let x = x0; x < x1; x += 0.1) {
+            for (let y = -3 * halfWidth - 1; y <= 3 * halfWidth + 1; y += 0.1) {
+                let clear = 1
+                for (const {ax, ay, ux, uy, length, edges, slant} of quads) {
+                    const along = (x - ax) * ux + (y - ay) * uy, across = (y - ay) * ux - (x - ax) * uy
+                    const wide = stacked ? halfWidth / slant : halfWidth
+                    if (along < -halfWidth || along > length + halfWidth || Math.abs(across) > wide) continue
+                    let alpha = Math.min(1, Math.max(0, halfWidth - Math.abs(across) * halfWidth / wide)) * ink
+                    if (stacked) {
+                        const layers = Math.min(1 + 2 * halfWidth * edges * slant / Math.max(length, 1e-3), 64)
+                        const covering = 1 + (along <= halfWidth ? 1 : 0) + (along >= length - halfWidth ? 1 : 0)
+                        alpha = 1 - (1 - alpha) ** (layers / covering)
+                    }
+                    clear *= 1 - alpha
+                }
+                total += 1 - clear
+            }
+            samples++
+        }
+        return total * 0.1 / samples
+    }
+
+    const lines = [
+        {name: "over, at a ratio of 1", halfWidth: halfWidthOf(1, ORBIT_WIDTH), ink: ORBIT_INK},
+        {name: "over, at a ratio of 2", halfWidth: halfWidthOf(2, ORBIT_WIDTH), ink: ORBIT_INK},
+        {name: "highlight, at a ratio of 2", halfWidth: halfWidthOf(2, HIGHLIGHT_WIDTH), ink: 1},
+    ]
+    const cases = [{shape: "zigzag", run: zigzag}, {shape: "armchair", run: armchair}].flatMap((shape) => lines.map((line) => ({...shape, ...line})))
+
+    // The cell edges a coarse set's pieces are drawn over: under a pixel each.
+    it.each(cases)("inks the $name line as its cell edges did, $shape", ({run, halfWidth, ink}) => {
+        for (const edge of [0.25, 0.5, 1]) {
+            const corners = run(edge)
+            const x0 = corners[40][0], x1 = corners[80][0]
+            const cells = inkOf(quadsOf(corners, 1), halfWidth, ink, false, x0, x1)
+            for (const every of [4, 16]) {
+                const ratio = inkOf(quadsOf(corners, every), halfWidth, ink, true, x0, x1) / cells
+                expect(ratio, `cell edges of ${edge}px, pieces of ${every}`).toBeGreaterThan(0.85)
+                expect(ratio, `cell edges of ${edge}px, pieces of ${every}`).toBeLessThan(1.15)
+            }
+        }
+    })
+
+    it("would ink the line a third lighter from orbit, each pixel once", () => {
+        const {halfWidth, ink} = lines[1]
+        const corners = zigzag(0.5)
+        const x0 = corners[40][0], x1 = corners[80][0]
+        const cells = inkOf(quadsOf(corners, 1), halfWidth, ink, false, x0, x1)
+        expect(inkOf(quadsOf(corners, 4), halfWidth, ink, false, x0, x1) / cells).toBeLessThan(0.7)
     })
 })
