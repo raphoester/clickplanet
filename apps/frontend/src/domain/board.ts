@@ -26,9 +26,9 @@ export type {Lattice, TileOrder, Warp} from "./lattice.ts"
 export type BoardFiles = {runs: string, borders: string, capitals: string, bridges: string, terrain: string, provinces?: string}
 
 // The page's own files of a board, which /map does not carry: the countries' outlines traced on its lattice, and the
-// names of its landmasses and of its provinces, if it has any. Content-addressed, beside the board's copy in
-// static/boards/<name>/.
-export type PageFiles = {borderLines: string, landmassNames: string, provinceNames?: string}
+// names of its landmasses; and of its provinces, the names and the lines between two of one country, if it has any.
+// Content-addressed, beside the board's copy in static/boards/<name>/.
+export type PageFiles = {borderLines: string, landmassNames: string, provinceNames?: string, provinceLines?: string}
 
 // A board as the page carries it: the manifest, its own files, and where each of them is served.
 export type BoardAsset = Board & {page: PageFiles, urls: BoardFiles & PageFiles}

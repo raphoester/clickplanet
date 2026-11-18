@@ -12,7 +12,7 @@ import {CapturedFrame, readDrawingBuffer} from "./capture.ts";
 import {GraphicsReport, graphicsReportOf} from "./graphicsReport.ts";
 import {TileField} from "./tileField.ts";
 import {BorderField, leastPaintedTiles, loadBorders, loadProvinces} from "./borderField.ts";
-import {coarseTolerancesOf, createBorderLines, loadBorderLines} from "./borderLines.ts";
+import {coarseTolerancesOf, createBorderLines, loadBorderLines, loadProvinceLines} from "./borderLines.ts";
 import {ATLAS_SIZE, ATLAS_URL} from "./atlasAsset.ts";
 import type {BoardAsset} from "../../domain/board.ts";
 import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
@@ -29,7 +29,7 @@ import {LandmassSight, type ScreenView, tileAreaOf} from "./slotNeed.ts";
 import {Settling, type Viewpoint} from "./settling.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
-import {MapView, Rendering} from "../../domain/displaySettings.ts";
+import {Divisions, MapView, Rendering} from "../../domain/displaySettings.ts";
 import {
     AllegianceLockedError,
     BannedError,
@@ -114,6 +114,7 @@ import {createFortifyWaves, FortifyUniforms, fortifyUniforms} from "./fortifyWav
 import {PlaySound} from "../sound/soundPlayer.ts";
 import {drawShieldMarks, shieldCellsOf} from "./shieldMarks.ts";
 import {AcceptedClick} from "../clicks/acceptedClicks.ts";
+import {fileHashOf} from "../../domain/provinceLinesFile.ts";
 
 type Uniforms = BlastUniforms & FortifyUniforms & {
     pointSize: THREE.IUniform
@@ -289,6 +290,7 @@ export type GlobeOptions = {
     showTap?: boolean
     country: Country
     mapView: MapView
+    divisions: Divisions
     rendering: Rendering
     onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
     // The share of the tiles read, and 1 once the frame that draws them all is drawn: a tile is clicked only then.
@@ -344,6 +346,7 @@ export type Globe = {
     // A battle runs: no ghost raid, and the ghost tiles go back.
     setBattle(on: boolean): void
     setMapView(view: MapView): void
+    setDivisions(divisions: Divisions): void
     setHalo(halo: Halo): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
@@ -379,6 +382,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         showTap = false,
         country: initialCountry,
         mapView: initialMapView,
+        divisions: initialDivisions,
         rendering,
         onLeaderboardChange: updateLeaderboard,
         onLoadProgress,
@@ -450,6 +454,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     endStrayFingers(renderer.domElement, lifetime.signal)
     if (linkedShot) aim(camera, {...linkedShot, zoom: Math.min(maxZoom, Math.max(MIN_ZOOM, linkedShot.zoom))})
     let mapView: MapView = initialMapView
+    let divisions: Divisions = initialDivisions
 
     let dirty = true
     const invalidate = () => {
@@ -554,6 +559,20 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const outline = createBorderLines(borderLines, scale)
     scene.add(outline.object)
+    // Read once the globe is up: nothing is drawn with them in the landing view of the countries' divisions.
+    const {provinceLines} = board.urls
+    if (provinceLines && board.files.provinces) {
+        loadProvinceLines(provinceLines, coarseTolerancesOf(scale), lifetime.signal).then((read) => {
+            if (lifetime.signal.aborted) return
+            if (read.countryLines !== fileHashOf(board.page.borderLines) || read.provinces !== fileHashOf(board.files.provinces!)) {
+                throw new Error(`${provinceLines} was traced on other countries' lines or provinces`)
+            }
+            outline.takeProvinces(read)
+            invalidate()
+        }).catch((e) => {
+            if (!lifetime.signal.aborted) console.error("could not read the province lines", e)
+        })
+    }
 
     let offered: BoxOffer | undefined
 
@@ -1099,7 +1118,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const landmass = orbit ? hoveredLandmass ?? shownLandmass ?? 0 : 0
         if (uniforms.highlight.value === landmass) return false
         uniforms.highlight.value = landmass
-        outline.setHighlight(landmass)
+        outline.setHighlight("countries", landmass)
         return true
     }
 
@@ -1973,7 +1992,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const boxed = driveBonusBox(seconds)
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
-        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView)
+        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView, divisions)
         // The painted flags show whole or not at all: no batch fills the map on screen.
         if (loaded) field.uploadTiles(renderer)
 
@@ -2056,6 +2075,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             mapView = view
             uniforms.splitFlags.value = splitFlagsOf(view)
             arrangeSlots()
+            invalidate()
+        },
+        setDivisions: (next: Divisions) => {
+            if (next === divisions) return
+            divisions = next
             invalidate()
         },
         setHalo: (halo: Halo) => {

@@ -1,5 +1,5 @@
 import {useState} from "react";
-import {MapView} from "../../domain/displaySettings.ts";
+import {Divisions, MapView} from "../../domain/displaySettings.ts";
 import {FeedbackBackend, PageContext} from "../../backends/support.ts";
 import About from "../About.tsx";
 import {DiscordOffer} from "../alerts/useDiscordAlerts.ts";
@@ -34,6 +34,11 @@ const MAP_VIEWS: {value: MapView, label: Key}[] = [
     {value: "tiles", label: "settings.mapViewOff"},
 ]
 
+const DIVISIONS: {value: Divisions, label: Key}[] = [
+    {value: "countries", label: "settings.mapCountries"},
+    {value: "provinces", label: "settings.mapProvinces"},
+]
+
 export default function SettingsPlace({sound, support, pageContext = pageAlone, discord}: SettingsPlaceProps) {
     const [open, setOpen] = useState<"feedback" | "about">()
     const close = () => setOpen(undefined)
@@ -49,6 +54,12 @@ export default function SettingsPlace({sound, support, pageContext = pageAlone, 
                          options={MAP_VIEWS.map(({value, label}) => ({value, label: t(label)}))}
                          picked={display.mapView}
                          onPick={display.setMapView}/>
+            </li>
+            <li className="settings-choices">
+                <Choices label={t("settings.map")}
+                         options={DIVISIONS.map(({value, label}) => ({value, label: t(label)}))}
+                         picked={display.divisions}
+                         onPick={display.setDivisions}/>
             </li>
             <li>
                 <Switch label={t("settings.hdGraphics")}

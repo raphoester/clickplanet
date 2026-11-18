@@ -1,17 +1,31 @@
 import {decodeBorderLines} from "../../domain/borderLinesFile.ts"
-import {buffersOf, type OutlineSets, outlineSetsOf} from "../../domain/outlineSets.ts"
+import {decodeProvinceLines} from "../../domain/provinceLinesFile.ts"
+import {buffersOf, type OutlineSets, outlineSetsOf, type ProvinceOutline, provinceOutlineOf} from "../../domain/outlineSets.ts"
 
-// tolerances: the coarse sets' (coarseTolerancesOf).
-export type OutlineQuestion = {file: ArrayBuffer, tolerances: readonly number[]}
+// file: the countries' lines or the provinces'; tolerances: the coarse sets' (coarseTolerancesOf).
+export type OutlineQuestion = {kind: "countries" | "provinces", file: ArrayBuffer, tolerances: readonly number[]}
 
-export type OutlineAnswer = OutlineSets | {error: string}
+export type OutlineAnswer =
+    | {kind: "countries", sets: OutlineSets}
+    | {kind: "provinces", outline: ProvinceOutline}
+    | {kind: "error", error: string}
 
 self.onmessage = ({data}: MessageEvent<OutlineQuestion>) => {
     let answer: OutlineAnswer
     try {
-        answer = outlineSetsOf(decodeBorderLines(data.file), data.tolerances)
+        answer = data.kind === "countries"
+            ? {kind: "countries", sets: outlineSetsOf(decodeBorderLines(data.file), data.tolerances)}
+            : {kind: "provinces", outline: provinceOutlineOf(decodeProvinceLines(data.file), data.tolerances)}
     } catch (e) {
-        answer = {error: e instanceof Error ? e.message : String(e)}
+        answer = {kind: "error", error: e instanceof Error ? e.message : String(e)}
     }
-    self.postMessage(answer, {transfer: "cells" in answer ? buffersOf(answer) : []})
+    self.postMessage(answer, {transfer: transferOf(answer)})
+}
+
+function transferOf(answer: OutlineAnswer): ArrayBuffer[] {
+    switch (answer.kind) {
+        case "countries": return buffersOf(answer.sets)
+        case "provinces": return [...new Set([...buffersOf(answer.outline.sets), answer.outline.countrySides.buffer as ArrayBuffer])]
+        case "error": return []
+    }
 }

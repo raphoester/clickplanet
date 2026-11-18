@@ -1,4 +1,5 @@
 import type {BorderLineData} from "./borderLinesFile.ts"
+import type {ProvinceLineData} from "./provinceLinesFile.ts"
 import {coarseOutlinesOf} from "./coarseOutline.ts"
 import {CHUNK_MOST, CHUNK_REACH, chunksOf, type TileChunks} from "./tileChunks.ts"
 
@@ -61,4 +62,11 @@ export function buffersOf({cells, coarse}: OutlineSets): ArrayBuffer[] {
     }
     for (const {standsFor} of coarse) buffers.add(standsFor.buffer)
     return [...buffers] as ArrayBuffer[]
+}
+
+// A board's province lines, as their sets, and the provinces either side of each of the countries' cell edges.
+export type ProvinceOutline = Omit<ProvinceLineData, "lines"> & {sets: OutlineSets}
+
+export function provinceOutlineOf({lines, ...rest}: ProvinceLineData, tolerances: readonly number[]): ProvinceOutline {
+    return {...rest, sets: outlineSetsOf(lines, tolerances)}
 }

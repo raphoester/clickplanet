@@ -161,6 +161,7 @@ async function make(job: VideoJob, progress: (share: number) => void): Promise<{
                 container: own,
                 country: Countries.get(story.flag) ?? {code: story.flag},
                 mapView: "split",
+                divisions: "countries",
                 rendering: "sharp",
                 director: () => camera(played),
                 onLeaderboardChange: () => {},

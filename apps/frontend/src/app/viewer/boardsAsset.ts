@@ -100,7 +100,8 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
         "page": {
             "borderLines": "borderLines-0cd29f62.bin",
             "landmassNames": "landmassNames-375f1f2c.json",
-            "provinceNames": "provinceNames-2fda4176.json"
+            "provinceNames": "provinceNames-2fda4176.json",
+            "provinceLines": "provinceLines-05a7a41b.bin"
         },
         "urls": {
             "runs": "/static/boards/earth-2/runs-e8e9ed89.bin",
@@ -111,7 +112,8 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "provinces": "/static/boards/earth-2/provinces-286f4c3e.bin",
             "borderLines": "/static/boards/earth-2/borderLines-0cd29f62.bin",
             "landmassNames": "/static/boards/earth-2/landmassNames-375f1f2c.json",
-            "provinceNames": "/static/boards/earth-2/provinceNames-2fda4176.json"
+            "provinceNames": "/static/boards/earth-2/provinceNames-2fda4176.json",
+            "provinceLines": "/static/boards/earth-2/provinceLines-05a7a41b.bin"
         }
     },
     "siege-1": {
@@ -178,7 +180,8 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
         "page": {
             "borderLines": "borderLines-e9a28dcc.bin",
             "landmassNames": "landmassNames-398b8cdb.json",
-            "provinceNames": "provinceNames-c11b682a.json"
+            "provinceNames": "provinceNames-c11b682a.json",
+            "provinceLines": "provinceLines-2841af5e.bin"
         },
         "urls": {
             "runs": "/static/boards/siege-1/runs-2ee22074.bin",
@@ -189,7 +192,8 @@ export const BOARDS: Readonly<Record<string, BoardAsset>> = {
             "provinces": "/static/boards/siege-1/provinces-8b268165.bin",
             "borderLines": "/static/boards/siege-1/borderLines-e9a28dcc.bin",
             "landmassNames": "/static/boards/siege-1/landmassNames-398b8cdb.json",
-            "provinceNames": "/static/boards/siege-1/provinceNames-c11b682a.json"
+            "provinceNames": "/static/boards/siege-1/provinceNames-c11b682a.json",
+            "provinceLines": "/static/boards/siege-1/provinceLines-2841af5e.bin"
         }
     }
 }

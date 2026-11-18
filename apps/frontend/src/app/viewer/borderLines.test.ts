@@ -14,6 +14,7 @@ import {
     ORBIT_WIDTH,
     OVER,
     pieceSides,
+    PROVINCE_ORBIT_INK,
     TOLERANCE,
     UNDER,
     WIDTH,
@@ -21,26 +22,38 @@ import {
 import {BOARDS} from "./boardsAsset.ts"
 import {CULL_SLACK} from "./chunkSight.ts"
 import {EARTH_RADIUS} from "./sphere.ts"
-import {flagPaint, flagsZoomOf, tilePointSize, tileSpacing, tilesZoomOf} from "./pointSize.ts"
+import {flagPaint, flagsZoomOf, inOrbit, tilePointSize, tileSpacing, tilesZoomOf} from "./pointSize.ts"
 import {maxZoomOf, MIN_ZOOM} from "./zoom.ts"
 import {type BoardScale, EARTH_1_SCALE, scaleOf} from "../../domain/boardScale.ts"
 import {type BorderLineData, decodeBorderLines, encodeBorderLines} from "../../domain/borderLinesFile.ts"
 import {directionsOf, MOST_DIP, offsetOf} from "../../domain/coarseOutline.ts"
-import {outlineSegments, outlineSetsOf} from "../../domain/outlineSets.ts"
+import {outlineSegments, outlineSetsOf, type ProvinceOutline, provinceOutlineOf} from "../../domain/outlineSets.ts"
+import {decodeProvinceLines} from "../../domain/provinceLinesFile.ts"
 
 const MAX_ZOOM = maxZoomOf(EARTH_1_SCALE)
 
 const STATIC = fileURLToPath(new URL("../../../static/", import.meta.url))
 
-// Every shipped board's outline, read once by the first test that needs it.
+function fileOf(board: string, name: string): ArrayBuffer {
+    const bytes = readFileSync(`${STATIC}boards/${board}/${name}`)
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+}
+
+// Every shipped board's outline, and its province lines if it has any, read once by the first test that needs them.
 const SHIPPED = Object.values(BOARDS).map((board) => {
     let data: ReturnType<typeof decodeBorderLines> | undefined
-    const read = () => {
-        if (data) return data
-        const bytes = readFileSync(`${STATIC}boards/${board.name}/${board.page.borderLines}`)
-        return data = decodeBorderLines(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+    let provinces: ProvinceOutline | undefined
+    const read = () => data ??= decodeBorderLines(fileOf(board.name, board.page.borderLines))
+    const {provinceLines} = board.page
+    // As the globe draws it once its province lines are read.
+    const outline = () => {
+        const lines = linesOf(read(), scaleOf(board))
+        if (provinceLines) {
+            lines.takeProvinces(provinces ??= provinceOutlineOf(decodeProvinceLines(fileOf(board.name, provinceLines)), coarseTolerancesOf(scaleOf(board))))
+        }
+        return lines
     }
-    return {board, read}
+    return {board, read, outline}
 })
 
 // As the globe makes it, from the cell edges and the board's coarse sets.
@@ -172,10 +185,10 @@ describe("the highlight", () => {
         const {group, material: {uniforms}} = passesOf(lines)[2]
         expect(group.visible).toBe(false)
 
-        lines.setHighlight(7)
-        expect([group.visible, uniforms.landmass.value, uniforms.lift.value]).toEqual([true, 7, OVER])
+        lines.setHighlight("countries", 7)
+        expect([group.visible, uniforms.highlit.value, uniforms.lift.value]).toEqual([true, 7, OVER])
 
-        lines.setHighlight(0)
+        lines.setHighlight("countries", 0)
         expect(group.visible).toBe(false)
 
         lines.dispose()
@@ -194,7 +207,7 @@ describe("the handover", () => {
         const {lines, over, under, inkOf} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 1600, 900, 1, "split")
+            lines.update(zoom, 1600, 900, 1, "split", "countries")
 
             const painted = flagPaint(zoom, 900, "split", EARTH_1_SCALE)
             expect(inkOf(over), `over at zoom ${zoom}`).toBe(painted * ORBIT_INK)
@@ -208,10 +221,10 @@ describe("the handover", () => {
     it("draws nothing it cannot see", () => {
         const {lines, over, under} = outline()
 
-        lines.update(MIN_ZOOM, 1600, 900, 1, "split")
+        lines.update(MIN_ZOOM, 1600, 900, 1, "split", "countries")
         expect([over.group.visible, under.group.visible]).toEqual([true, false])
 
-        lines.update(MAX_ZOOM, 1600, 900, 1, "split")
+        lines.update(MAX_ZOOM, 1600, 900, 1, "split", "countries")
         expect([over.group.visible, under.group.visible]).toEqual([false, true])
 
         lines.dispose()
@@ -221,7 +234,7 @@ describe("the handover", () => {
         const {lines, over, under} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 1600, 900, 1, "tiles")
+            lines.update(zoom, 1600, 900, 1, "tiles", "countries")
             expect([over.group.visible, under.group.visible], `zoom ${zoom}`).toEqual([false, true])
         }
 
@@ -232,7 +245,7 @@ describe("the handover", () => {
         const {lines, over, under, inkOf} = outline()
 
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
-            lines.update(zoom, 3200, 1800, 2, "split")
+            lines.update(zoom, 3200, 1800, 2, "split", "countries")
             expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "split", EARTH_1_SCALE) * ORBIT_INK)
         }
 
@@ -319,18 +332,18 @@ function cameraOf(direction: readonly number[], zoom: number, target: readonly n
     return camera
 }
 
-const PASS_NAMES = ["over", "under", "highlight", "mission"]
+const PASS_NAMES = ["over", "under", "highlight", "mission", "province highlight", "provinces over", "provinces under", "provinces' highlight"]
 
-describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
+describe.each(SHIPPED)("the cull of $board.name's outline", ({outline}) => {
     const look = (lines: BorderLines, direction: readonly number[], zoom: number, ratio: number, target?: readonly number[]) => {
-        lines.update(zoom, WIDE * ratio, HIGH * ratio, ratio, "split")
+        lines.update(zoom, WIDE * ratio, HIGH * ratio, ratio, "split", "countries")
         const camera = cameraOf(direction, zoom, target)
         lines.cull(camera)
         return missedBy(lines, camera)
     }
 
     it("keeps every piece any pass would draw, from every camera, until it has turned by the slack", {timeout: 120_000}, () => {
-        const lines = linesOf(read(), scaleOf(board))
+        const lines = outline()
         const directions = [[1, 0.3, 0.2], [-0.4, 0.8, -0.1], [0.1, -0.9, 0.5], [-0.7, -0.2, -0.7]]
         directions.forEach((direction, d) => [40, 10, 3, 1, 0.5].forEach((zoom, z) => {
             const ratio = 1 + (d + z) % 2
@@ -355,7 +368,7 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
     })
 
     it("keeps them through a turn, a zoom in and a pan, finding them again once the view has moved too far", {timeout: 120_000}, () => {
-        const lines = linesOf(read(), scaleOf(board))
+        const lines = outline()
         for (const start of [1, 10]) {
             for (let step = 0; step < 14; step++) {
                 const angle = Math.min(step, 8) * 0.006
@@ -370,26 +383,112 @@ describe.each(SHIPPED)("the cull of $board.name's outline", ({board, read}) => {
     })
 
     it("draws a small share of the outline pushed in, and less than all of it from orbit", {timeout: 60_000}, () => {
-        const lines = linesOf(read(), scaleOf(board))
+        const lines = outline()
         const shareAt = (zoom: number) => look(lines, [1, 0.3, 0.2], zoom, 2).map(({drawn, pieces}) => drawn / pieces)
         expect(Math.max(...shareAt(10))).toBeLessThan(0.1)
         expect(Math.max(...shareAt(0.5))).toBeLessThan(0.9)
         lines.dispose()
     })
 
-    it("draws the pieces in their order, pass after pass, the same pieces in every pass", () => {
-        const lines = linesOf(read(), scaleOf(board))
+    it("draws the pieces in their order, pass after pass, the same pieces in every pass of the countries' cell edges", () => {
+        const lines = outline()
         look(lines, [-0.4, 0.8, -0.1], 3, 2)
         const passes = passesOf(lines)
 
         const ids = passes.flatMap(({meshes}) => meshes.map(({id}) => id))
         expect(ids).toEqual([...ids].sort((a, b) => a - b))
 
-        const [under, ...others] = [passes[1], passes[0], passes[2], passes[3]].map(drawnOf)
+        const cells = passes.filter((pass) => pass.meshes[0].geometry === passes[1].meshes[0].geometry)
+        const [under, ...others] = [cells[1], cells[0], ...cells.slice(2)].map(drawnOf)
         expect(under.length).toBeGreaterThan(1)
         expect(under.length).toBeLessThanOrEqual(8)
         for (let i = 1; i < under.length; i++) expect(under[i].start).toBeGreaterThan(under[i - 1].start + under[i - 1].count)
         for (const pass of others) expect(pass).toEqual(under)
+        lines.dispose()
+    })
+})
+
+describe("the province lines", () => {
+    // Two landmasses, 3 and 7, the second cut into provinces 11 and 12 by one line of two pieces.
+    const outline = (sides = Uint16Array.from([5, 11, 5, 12])) => {
+        const lines = linesOf(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])), EARTH_1_SCALE)
+        lines.takeProvinces({
+            countryLines: 0, provinces: 0, countrySides: sides,
+            sets: outlineSetsOf(decodeBorderLines(blobOf([[10, 11, 12, 13, 14, 15, 16, 17, 18]], [11, 12])), coarseTolerancesOf(EARTH_1_SCALE)),
+        })
+        const [over, under, highlight, mission, countryHighlight, provinceOver, provinceUnder, provinceHighlight] = passesOf(lines)
+        return {lines, over, under, highlight, mission, countryHighlight, provinceOver, provinceUnder, provinceHighlight}
+    }
+
+    it("draw from orbit only in the provinces' divisions, and pushed in in every one", () => {
+        const {lines, provinceOver, provinceUnder} = outline()
+        for (const view of ["big", "split", "tiles"] as const) {
+            for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
+                const painted = flagPaint(zoom, 900, view, EARTH_1_SCALE)
+                const orbit = inOrbit(zoom, 900, EARTH_1_SCALE)
+                lines.update(zoom, 1600, 900, 1, view, "countries")
+                expect([provinceOver.group.visible, provinceUnder.group.visible], `${view} at zoom ${zoom}`).toEqual([false, !orbit && painted < 1])
+
+                lines.update(zoom, 1600, 900, 1, view, "provinces")
+                expect([provinceOver.group.visible, provinceUnder.group.visible], `${view} at zoom ${zoom}`).toEqual([painted > 0, painted < 1])
+                expect(provinceOver.material.uniforms.ink.value).toBe(painted * PROVINCE_ORBIT_INK)
+            }
+        }
+        lines.dispose()
+    })
+
+    it("keep the countries' lines as they are in every divisions", () => {
+        const {lines, over, under} = outline()
+        for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
+            const seen = (divisions: "countries" | "provinces") => {
+                lines.update(zoom, 1600, 900, 1, "split", divisions)
+                return [over.group.visible, under.group.visible, over.material.uniforms.ink.value]
+            }
+            expect(seen("provinces"), `zoom ${zoom}`).toEqual(seen("countries"))
+        }
+        lines.dispose()
+    })
+
+    it("light a province's whole outline, its province lines and its stretch of the coast, and no landmass", () => {
+        const {lines, highlight, countryHighlight, provinceHighlight} = outline()
+
+        lines.setHighlight("provinces", 12)
+        expect([highlight.group.visible, countryHighlight.group.visible, provinceHighlight.group.visible]).toEqual([false, true, true])
+        expect([countryHighlight.material.defines.PROVINCES, countryHighlight.material.uniforms.highlit.value]).toEqual([true, 12])
+        expect(provinceHighlight.material.uniforms.highlit.value).toBe(12)
+
+        lines.setHighlight("countries", 7)
+        expect([highlight.group.visible, countryHighlight.group.visible, provinceHighlight.group.visible]).toEqual([true, false, false])
+
+        lines.setHighlight("provinces", 0)
+        expect([highlight.group.visible, countryHighlight.group.visible, provinceHighlight.group.visible]).toEqual([false, false, false])
+        lines.dispose()
+    })
+
+    it("light a province asked for before its lines were read once they are", () => {
+        const lines = linesOf(decodeBorderLines(blobOf([[1, 2, 3, 4, 5, 6, 7, 8, 9]], [3, 7])), EARTH_1_SCALE)
+        lines.setHighlight("provinces", 12)
+        lines.takeProvinces({
+            countryLines: 0, provinces: 0, countrySides: Uint16Array.from([5, 11, 5, 12]),
+            sets: outlineSetsOf(decodeBorderLines(blobOf([[10, 11, 12, 13, 14, 15]], [11, 12])), coarseTolerancesOf(EARTH_1_SCALE)),
+        })
+        const [, , highlight, , countryHighlight, , , provinceHighlight] = passesOf(lines)
+        expect([highlight.group.visible, countryHighlight.group.visible, provinceHighlight.group.visible]).toEqual([false, true, true])
+        lines.dispose()
+    })
+
+    it("light a province's stretch of the coast on the cell edges, each with its provinces from its range's first piece", () => {
+        const {lines, countryHighlight} = outline()
+        lines.update(MIN_ZOOM, 1600, 900, 1, "split", "provinces")
+        lines.cull(cameraOf([0, 0, 1], MIN_ZOOM))
+        for (const mesh of countryHighlight.meshes) {
+            const geometry = mesh.geometry as THREE.InstancedBufferGeometry
+            const from = geometry.getAttribute("from") as THREE.InterleavedBufferAttribute
+            const provinces = geometry.getAttribute("provinces") as THREE.InterleavedBufferAttribute
+            expect(provinces.offset).toBe(from.offset / 3 * 2)
+            expect(Array.from(provinces.data.array as Uint16Array)).toEqual([5, 11, 5, 12])
+            expect(geometry.getAttribute("standsFor")).toBeUndefined()
+        }
         lines.dispose()
     })
 })
@@ -411,7 +510,7 @@ describe("the cull at the screen's edge", () => {
         const lines = linesOf(decodeBorderLines(blobOf(runs)), EARTH_1_SCALE)
 
         const pan = Math.min(CULL_SLACK / zoom, MOST_SLACK) * 0.9999
-        lines.update(zoom, WIDE * ratio, HIGH * ratio, ratio, "split")
+        lines.update(zoom, WIDE * ratio, HIGH * ratio, ratio, "split", "countries")
         lines.cull(cameraOf([0, 0, 1], zoom, [-pan, 0, 0]))
         const found = drawnOf(passesOf(lines)[1])
 
@@ -470,7 +569,7 @@ describe.each(SHIPPED)("the over and the highlight pass of $board.name's outline
         let coarse = 0
         for (const [wide, high, ratio] of screens) {
             for (let zoom = MIN_ZOOM; zoom < tilesZoomOf(high, scale); zoom *= 1.04) {
-                lines.update(zoom, wide * ratio, high * ratio, ratio, "split")
+                lines.update(zoom, wide * ratio, high * ratio, ratio, "split", "countries")
                 lines.cull(cameraOf([1, 0.3, 0.2], zoom))
                 const [over, , highlight] = passesOf(lines)
                 const drawn = endsOf(over)
@@ -495,7 +594,7 @@ describe("the outline of earth-2 from orbit", () => {
         const lines = linesOf(shipped.read(), scaleOf(shipped.board))
         const cells = outlineSegments(shipped.read()).from.length / 3
         const piecesAt = (zoom: number) => {
-            lines.update(zoom, 1280 * 2, 800 * 2, 2, "split")
+            lines.update(zoom, 1280 * 2, 800 * 2, 2, "split", "countries")
             lines.cull(cameraOf([1, 0.3, 0.2], zoom))
             return passesOf(lines).map((pass) => endsOf(pass).from.length / 3)
         }
