@@ -1154,6 +1154,13 @@ export class GetHoldingsResponse extends Message<GetHoldingsResponse> {
    */
   landmasses: LandmassHoldings[] = [];
 
+  /**
+   * Every province with a tile held, each whole, as the landmasses.
+   *
+   * @generated from field: repeated planet.v1.ProvinceHoldings provinces = 4;
+   */
+  provinces: ProvinceHoldings[] = [];
+
   constructor(data?: PartialMessage<GetHoldingsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1165,6 +1172,7 @@ export class GetHoldingsResponse extends Message<GetHoldingsResponse> {
     { no: 1, name: "version", kind: "message", T: MapVersion },
     { no: 2, name: "countries", kind: "message", T: Holding, repeated: true },
     { no: 3, name: "landmasses", kind: "message", T: LandmassHoldings, repeated: true },
+    { no: 4, name: "provinces", kind: "message", T: ProvinceHoldings, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetHoldingsResponse {
@@ -1273,6 +1281,51 @@ export class LandmassHoldings extends Message<LandmassHoldings> {
 }
 
 /**
+ * @generated from message planet.v1.ProvinceHoldings
+ */
+export class ProvinceHoldings extends Message<ProvinceHoldings> {
+  /**
+   * An index into the board's provinces file.
+   *
+   * @generated from field: uint32 province_id = 1;
+   */
+  provinceId = 0;
+
+  /**
+   * @generated from field: repeated planet.v1.Holding holdings = 2;
+   */
+  holdings: Holding[] = [];
+
+  constructor(data?: PartialMessage<ProvinceHoldings>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.ProvinceHoldings";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "province_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "holdings", kind: "message", T: Holding, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ProvinceHoldings {
+    return new ProvinceHoldings().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ProvinceHoldings {
+    return new ProvinceHoldings().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ProvinceHoldings {
+    return new ProvinceHoldings().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ProvinceHoldings | PlainMessage<ProvinceHoldings> | undefined, b: ProvinceHoldings | PlainMessage<ProvinceHoldings> | undefined): boolean {
+    return proto3.util.equals(ProvinceHoldings, a, b);
+  }
+}
+
+/**
  * Totals, never differences, of what the writes since the last one changed: at most one a second.
  *
  * @generated from message planet.v1.HoldingsChanged
@@ -1297,6 +1350,13 @@ export class HoldingsChanged extends Message<HoldingsChanged> {
    */
   landmasses: LandmassHoldings[] = [];
 
+  /**
+   * Each whole, as the landmasses: a province nobody holds any more lists no flag.
+   *
+   * @generated from field: repeated planet.v1.ProvinceHoldings provinces = 4;
+   */
+  provinces: ProvinceHoldings[] = [];
+
   constructor(data?: PartialMessage<HoldingsChanged>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1308,6 +1368,7 @@ export class HoldingsChanged extends Message<HoldingsChanged> {
     { no: 1, name: "version", kind: "message", T: MapVersion },
     { no: 2, name: "countries", kind: "message", T: Holding, repeated: true },
     { no: 3, name: "landmasses", kind: "message", T: LandmassHoldings, repeated: true },
+    { no: 4, name: "provinces", kind: "message", T: ProvinceHoldings, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): HoldingsChanged {

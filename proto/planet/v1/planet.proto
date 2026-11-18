@@ -257,6 +257,9 @@ message GetHoldingsResponse {
 
   // Every landmass with a tile held, each whole: a flag it does not list holds none of it.
   repeated LandmassHoldings landmasses = 3;
+
+  // Every province with a tile held, each whole, as the landmasses.
+  repeated ProvinceHoldings provinces = 4;
 }
 
 message Holding {
@@ -272,6 +275,13 @@ message LandmassHoldings {
   repeated Holding holdings = 2;
 }
 
+message ProvinceHoldings {
+  // An index into the board's provinces file.
+  uint32 province_id = 1;
+
+  repeated Holding holdings = 2;
+}
+
 // Totals, never differences, of what the writes since the last one changed: at most one a second.
 message HoldingsChanged {
   MapVersion version = 1;
@@ -281,6 +291,9 @@ message HoldingsChanged {
 
   // Each whole, as in GetHoldingsResponse: a landmass nobody holds any more lists no flag.
   repeated LandmassHoldings landmasses = 3;
+
+  // Each whole, as the landmasses: a province nobody holds any more lists no flag.
+  repeated ProvinceHoldings provinces = 4;
 }
 
 message TileShields {
