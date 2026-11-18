@@ -303,10 +303,10 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
         giveTitle: (id?: string) => fakePresence.earnTitle(id)
             ? "a title is unlocked"
             : "no page listens: a guest earns no title, signIn() first",
-        giveXp: (xp = 500) => {
-            const {level, heard} = fakePresence.giveXp(xp)
+        giveXp: (xp = 500, source?: Parameters<typeof fakePresence.giveXp>[1]) => {
+            const {level, heard} = fakePresence.giveXp(xp, source)
             if (heard) return `level ${level.level} reached`
-            return `${level.xp} XP at level ${level.level}: the bar shows it at the next read, after a run of clicks or on the next load`
+            return `${level.xp} XP at level ${level.level}: a signed-in page shows the gain on its XP bar`
         },
         finishMissions: () => {
             fakeMissions.prime()
@@ -375,7 +375,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_FAKE_BACKEND) {
     const fakeBadges = new FakeBadges([fakePresence, fakeStandings])
     const fakeNameplates = new FakeNameplates([fakeAccount, fakePresence, {nameplateOf: chatterNameplateOf}, fakeStandings])
     Object.assign(window, {fakeBadges, fakeNameplates})
-    const clicker = fakeMissions.counting(fakeStandings.counting(fake))
+    const clicker = fakePresence.counting(fakeMissions.counting(fakeStandings.counting(fake)))
     fake.listenForBombs((drop) => fakeChat.announceBomb(drop))
     fakeMissions.listenForFlagMissionsDone((flag, mission) => fakeChat.announceFlagMission(flag, mission))
     fake.listenForFortifications((fortification) => void borders.then(({codes}) => fakeChat.announceFortify({

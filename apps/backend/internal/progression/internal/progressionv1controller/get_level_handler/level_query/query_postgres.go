@@ -17,6 +17,7 @@ import (
 type Levels interface {
 	Level(record progressionread.Record, kept uint32) *progressionv1.Level
 	MissionRates() ([]*progressionv1.MissionRate, error)
+	XPRates() ([]*progressionv1.XpRate, error)
 	Unlocks() ([]*progressionv1.Unlock, error)
 }
 
@@ -46,6 +47,10 @@ func (q *PostgresQuery) Level(ctx context.Context, account accounts.AccountID) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to tell the ladder: %w", err)
 	}
+	xpRates, err := q.levels.XPRates()
+	if err != nil {
+		return nil, fmt.Errorf("failed to tell what each source of XP pays: %w", err)
+	}
 
 	var (
 		record progressionread.Record
@@ -53,10 +58,12 @@ func (q *PostgresQuery) Level(ctx context.Context, account accounts.AccountID) (
 	)
 	err = q.db.On(ctx).QueryRowContext(ctx, level, uuid.UUID(account)).Scan(append(record.Into(), &kept)...)
 	if errors.Is(err, sql.ErrNoRows) {
-		return &progressionv1.GetLevelResponse{MissionRates: rates, Unlocks: unlocks}, nil
+		return &progressionv1.GetLevelResponse{MissionRates: rates, Unlocks: unlocks, XpRates: xpRates}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read the level: %w", err)
 	}
-	return &progressionv1.GetLevelResponse{Level: q.levels.Level(record, kept), MissionRates: rates, Unlocks: unlocks}, nil
+	return &progressionv1.GetLevelResponse{
+		Level: q.levels.Level(record, kept), MissionRates: rates, Unlocks: unlocks, XpRates: xpRates,
+	}, nil
 }

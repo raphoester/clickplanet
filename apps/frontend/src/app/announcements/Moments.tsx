@@ -102,7 +102,7 @@ export default function Moments(props: MomentsProps) {
                                   onWear={props.onWear}
                                   onClose={dismiss}/>
         case "level":
-            return <LevelUp key={key} level={current.level} play={props.play} onClose={dismiss}/>
+            return <LevelUp key={key} level={current.level} from={current.from} play={props.play} onClose={dismiss}/>
         case "round":
         case "results":
             return <RoundReveal key={key}

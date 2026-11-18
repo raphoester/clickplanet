@@ -62,15 +62,18 @@ shields, a box adding 1 to 4, 1 to 3 and 5 to 20 of them, spread and enclose
 spent only while switched on,
 both at once refused, a refill refused on a full bank), `giveQuiz()` puts a quiz
 banner up at once, `giveTitle("warlord")` plays the unlock of any title (after
-`signIn()`: a guest earns no title, so no stream listens), `giveXp(500)` adds XP to the signed-in player and plays
-the level-up when it passes a level, once for a jump of several (the bar shows XP below a level at the next read, after
-a run of clicks; see [The level](level.md)), `closeDay()` closes the
+`signIn()`: a guest earns no title, so no stream listens), `giveXp(500)` adds XP to the signed-in player as a
+mission's, `giveXp(30, "boxesCaught")` as any source's (`tilesTaken`, `daysPlayed`, `missionsDone`, `bombsDropped`,
+`boxesCaught`, `rightAnswers`, `tilesFortified`): the gain shows on the XP bar, and the level-up plays when it passes a
+level, once for a jump of several. Each take of a signed-in page is 1 XP, its first 100 more (see [The
+level](level.md)). `closeDay()` closes the
 fake's day: scoring scores today's round, its countries with a little luck, the
 fake gamemaster debriefs it and the next day runs, and the chat announces the
 podium, so the cutoff plays (see [The cutoff, revealed](cutoff.md)). Each call
 closes the next day, so the reveal plays again.
-`playGates()` turns the bonuses' gates on and `playGates(false)` off; the fake's ladder opens enclose at level 4 and the
-bomb at 5, and the page plays level 0, so those show locked in the tray (see [Charges](charges.md#the-inventory)).
+`playGates()` turns the bonuses' gates on and `playGates(false)` off; the fake's ladder is the server's (spread at
+level 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, rally 15), and a guest plays level 0, so those show locked in
+the tray (see [Charges](charges.md#the-inventory)).
 `playReach()` plays the reach on the page: the bridges drawn and the front rung across them (see
 [The reach](reach.md)); `playReach(false)` stops it. The fake refuses no click out of reach.
 `startBattle(minutes = 120, description, times = 3)` plays a battle at once, under a

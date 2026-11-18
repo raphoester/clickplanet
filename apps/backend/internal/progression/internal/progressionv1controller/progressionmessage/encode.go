@@ -1,6 +1,8 @@
 package progressionmessage
 
 import (
+	"strings"
+
 	progressionv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/progression/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/levels"
 	"github.com/raphoester/clickplanet.lol-backend/internal/progression/internal/titles"
@@ -41,4 +43,26 @@ func Level(standing levels.Standing) *progressionv1.Level {
 		LevelXp:     uint64(standing.LevelXP()),
 		NextLevelXp: uint64(standing.NextLevelXP()),
 	}
+}
+
+// XPSource is the source in the wire's words: its name in upper case, after XP_SOURCE_. A source the wire does not name
+// is not one.
+func XPSource(source levels.SourceName) (progressionv1.XpSource, bool) {
+	value, known := progressionv1.XpSource_value["XP_SOURCE_"+strings.ToUpper(string(source))]
+	if !known || value == int32(progressionv1.XpSource_XP_SOURCE_UNSPECIFIED) {
+		return progressionv1.XpSource_XP_SOURCE_UNSPECIFIED, false
+	}
+	return progressionv1.XpSource(value), true
+}
+
+// XPGained leaves out a gain whose source the wire does not name: TestEverySourceThatGivesXPIsNamedOnTheWire keeps
+// there being none.
+func XPGained(gained levels.Gained) *progressionv1.XpGained {
+	encoded := &progressionv1.XpGained{Level: Level(gained.Standing)}
+	for _, gain := range gained.Gains {
+		if source, named := XPSource(gain.Source); named {
+			encoded.Gains = append(encoded.Gains, &progressionv1.XpGain{Source: source, Xp: uint64(gain.XP)})
+		}
+	}
+	return encoded
 }

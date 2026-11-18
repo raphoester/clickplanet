@@ -133,12 +133,38 @@ message GetLevelResponse {
   // Each kind a level unlocks, at its level, for the page to draw a locked kind. A kind not here unlocks at no level:
   // whether anyone may draw it is the bonuses' open_kinds (bonuses.v1.GetGrantRulesResponse).
   repeated Unlock unlocks = 3;
+  // What each source of XP pays but the missions, which pay by kind (mission_rates), for the page to say how to gain XP.
+  repeated XpRate xp_rates = 4;
 }
 
 // From this level on, a box or a right answer may be drawn as this kind while the bonuses' gates are on.
 message Unlock {
   planet.v1.BonusKind kind = 1;
   uint32 level = 2;
+}
+
+// What gives XP: one value per source of the server's scale. A message sent gives none, so it has none.
+enum XpSource {
+  XP_SOURCE_UNSPECIFIED = 0;
+  // A tile taken.
+  XP_SOURCE_TILES_TAKEN = 1;
+  // A day played: the first take of a UTC day.
+  XP_SOURCE_DAYS_PLAYED = 2;
+  // A mission done, its goal times its kind's rate.
+  XP_SOURCE_MISSIONS_DONE = 3;
+  XP_SOURCE_BOMBS_DROPPED = 4;
+  XP_SOURCE_BOXES_CAUGHT = 5;
+  // A quiz answered right: a wrong answer gives nothing.
+  XP_SOURCE_RIGHT_ANSWERS = 6;
+  // A tile a fortify shielded.
+  XP_SOURCE_TILES_FORTIFIED = 7;
+}
+
+// Each one of the source's count pays xp / per XP, floored on the total.
+message XpRate {
+  XpSource source = 1;
+  uint32 xp = 2;
+  uint32 per = 3;
 }
 
 // A mission of this kind pays goal × xp / per XP, floored.
@@ -155,7 +181,20 @@ message ProgressionEvent {
     Heartbeat heartbeat = 1;
     TitleEarned title_earned = 2;
     Level level_reached = 3;
+    XpGained xp_gained = 4;
   }
+}
+
+// The XP the caller's last facts gave, by source, and its level on its bar after them. Told only to an account with a
+// level kept, before the level_reached the same facts bring.
+message XpGained {
+  repeated XpGain gains = 1;
+  Level level = 2;
+}
+
+message XpGain {
+  XpSource source = 1;
+  uint64 xp = 2;
 }
 
 message Heartbeat {}

@@ -139,7 +139,7 @@ load, on each new session (`listenForSessions`: a guest's first click makes one)
 clicks settle. A level reached on the stream opens the kinds at once. With no session held it reads nothing, so a page
 that has not clicked makes none, and a gated kind shows "Locked for now" until then. A guest, or an account no fact has
 raised yet, is level 0 (`NO_LEVEL`) and holds only the open kinds. In the fake the ladder is
-enclose at 4 and the bomb at 5, a guest at level 0 and a signed-in player at its fake level (`giveXp()` raises it), and
+the server's (spread 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, rally 15), a guest at level 0 and a signed-in player at its fake level (`giveXp()` raises it), and
 `playGates()` turns the gates on, `playGates(false)` off.
 
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in

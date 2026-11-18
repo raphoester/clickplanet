@@ -33,6 +33,24 @@ export type CountryTiles = {
     tiles: number
 }
 
+// What gives XP, as the server's scale names it. A message gives none.
+export type XpSource =
+    | "tilesTaken"
+    | "daysPlayed"
+    | "missionsDone"
+    | "bombsDropped"
+    | "boxesCaught"
+    | "rightAnswers"
+    | "tilesFortified"
+
+// Each count of a source pays xp / per XP. The missions pay by kind instead (MissionRates).
+export type XpRates = Readonly<Partial<Record<XpSource, {xp: number, per: number}>>>
+
+export type XpGain = {source: XpSource, xp: number}
+
+// The XP the account's last facts gave, by source, and its level on its bar after them.
+export type XpGained = {gains: XpGain[], level?: PlayerLevel}
+
 // What GetLevel answers the caller, read once for every part of the page that shows it.
 export type LevelRead = {
     // None for a guest, or an account no fact has raised yet.
@@ -41,6 +59,8 @@ export type LevelRead = {
     unlocks: UnlockLevels
     // What each kind of mission pays in XP.
     missionRates: MissionRates
+    // What each other source of XP pays.
+    xpRates: XpRates
 }
 
 export interface LevelReader {
@@ -85,6 +105,8 @@ export interface ProgressReader {
 export type ProgressionEvents = {
     titleEarned: (title: PlayerTitle) => void
     levelReached: (level: PlayerLevel) => void
+    // Before the levelReached the same facts bring.
+    xpGained: (gained: XpGained) => void
 }
 
 export interface ProgressionListener {

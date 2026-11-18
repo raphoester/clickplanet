@@ -1,6 +1,6 @@
 import {describe, expect, it} from "vitest"
 import {PlayerLevel} from "../backends/progression.ts"
-import {barOf, newerLevel} from "./level.ts"
+import {barOf, gainedOn, newerLevel, nextUnlock, unlockedBy} from "./level.ts"
 
 const twelve: PlayerLevel = {level: 12, xp: 20_000, levelXp: 18_634, nextLevelXp: 24_192}
 
@@ -35,5 +35,63 @@ describe("newerLevel", () => {
 
     it("keeps what it shows when a read answers none", () => {
         expect(newerLevel(twelve, undefined)).toBe(twelve)
+    })
+
+    it("keeps the XP a gain showed over a read sent before it", () => {
+        const gained = {...twelve, xp: 20_100}
+        expect(newerLevel(gained, twelve)).toBe(gained)
+    })
+})
+
+describe("gainedOn", () => {
+    it("moves the XP on the level shown", () => {
+        expect(gainedOn(twelve, {...twelve, xp: 20_100})).toEqual({...twelve, xp: 20_100})
+    })
+
+    it("leaves the level to the levelReached that follows, the bar full meanwhile", () => {
+        const thirteen = {level: 13, xp: 24_200, levelXp: 24_192, nextLevelXp: 30_758}
+        const shown = gainedOn(twelve, thirteen)
+
+        expect(shown).toEqual({...twelve, xp: 24_200})
+        expect(barOf(shown!).fill).toBe(1)
+    })
+
+    it("shows no level the page had none of", () => {
+        expect(gainedOn(undefined, twelve)).toBeUndefined()
+    })
+
+    it("keeps what it shows when the gain carries no level", () => {
+        expect(gainedOn(twelve, undefined)).toBe(twelve)
+    })
+})
+
+const LADDER = {spreadClicks: 2, shields: 3, encloseClicks: 5, bomb: 7, virus: 10, mine: 13, rally: 15}
+
+describe("nextUnlock", () => {
+    it("is the lowest rung above the level", () => {
+        expect(nextUnlock(LADDER, 1)).toEqual({kind: "spreadClicks", level: 2})
+        expect(nextUnlock(LADDER, 10)).toEqual({kind: "mine", level: 13})
+        expect(nextUnlock(LADDER, 12)).toEqual({kind: "mine", level: 13})
+    })
+
+    it("is none once every kind is unlocked", () => {
+        expect(nextUnlock(LADDER, 15)).toBeUndefined()
+        expect(nextUnlock(LADDER, 25)).toBeUndefined()
+        expect(nextUnlock({}, 1)).toBeUndefined()
+    })
+})
+
+describe("unlockedBy", () => {
+    it("is the rung a raise reached", () => {
+        expect(unlockedBy(LADDER, 12, 13)).toEqual([{kind: "mine", level: 13}])
+    })
+
+    it("is every rung a jump passed, in order", () => {
+        expect(unlockedBy(LADDER, 6, 11)).toEqual([{kind: "bomb", level: 7}, {kind: "virus", level: 10}])
+    })
+
+    it("is none for a level that unlocks nothing", () => {
+        expect(unlockedBy(LADDER, 15, 16)).toEqual([])
+        expect(unlockedBy(LADDER, 13, 14)).toEqual([])
     })
 })

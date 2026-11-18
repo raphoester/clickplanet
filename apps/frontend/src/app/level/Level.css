@@ -85,11 +85,69 @@
     margin-top: var(--space-2);
 }
 
+.xp-help-unlock {
+    margin-top: var(--space-1);
+}
+
 .xp-help-ways {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    column-gap: var(--space-3);
+    row-gap: 2px;
     margin: var(--space-1) 0 0;
     padding: 0;
     list-style: none;
+    text-align: left;
 }
+
+.xp-help-ways li {
+    display: contents;
+}
+
+.xp-help-rate {
+    color: var(--xp);
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A kind of bonus inside a line: its box in its color, then its name. */
+.bonus-name {
+    white-space: nowrap;
+}
+
+.bonus-name-text {
+    font-weight: 700;
+    color: var(--text);
+}
+
+.bonus-name-box {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 1.5em;
+    height: 1.5em;
+    margin-right: 0.3em;
+    vertical-align: -0.35em;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-xs);
+    background: var(--bonus-box);
+}
+
+.bonus-name-box .bonus-icon {
+    width: 1.2em;
+    height: 1.2em;
+}
+
+.bonus-name--refill { --bonus-box: var(--refill); }
+.bonus-name--spreadClicks { --bonus-box: var(--spread); }
+.bonus-name--bomb { --bonus-box: var(--bomb); }
+.bonus-name--encloseClicks { --bonus-box: var(--enclose); }
+.bonus-name--shields { --bonus-box: var(--shield); }
+.bonus-name--virus { --bonus-box: var(--virus); }
+.bonus-name--mine { --bonus-box: var(--mine); }
+.bonus-name--rally { --bonus-box: var(--rally); }
 
 .level-line .xp-bar {
     flex: 1;
@@ -103,6 +161,75 @@
     color: var(--text-soft);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+}
+
+/* A gain, in the XP's place: the amount pops in a pill and bumps at each gain added to it, the reason beside it, and the
+   bar glows while it fills. */
+.xp-gain {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    flex-shrink: 1;
+    animation: xp-gain-in 180ms ease-out both;
+}
+
+.xp-gain-amount {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    height: 22px;
+    padding: 3px 7px 0;
+    border: var(--outline-thin) solid var(--ink);
+    border-radius: var(--radius-pill);
+    background: var(--xp);
+    box-shadow: var(--drop-xs);
+    color: var(--xp-ink);
+    font-family: var(--font-display);
+    font-size: var(--display-s);
+    line-height: 1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    animation: xp-gain-bump 320ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.xp-gain-why {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    color: var(--text);
+}
+
+.level-line--gain .xp-bar {
+    box-shadow: 0 0 10px color-mix(in srgb, var(--xp) 70%, transparent);
+}
+
+@keyframes xp-gain-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+@keyframes xp-gain-bump {
+    0% {
+        transform: scale(0.6);
+    }
+    60% {
+        transform: scale(1.18);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .xp-gain,
+    .xp-gain-amount {
+        animation: none;
+    }
 }
 
 .level-chip--large {
@@ -178,4 +305,18 @@
     font-size: calc(var(--medal) * 0.52);
     line-height: 1;
     font-variant-numeric: tabular-nums;
+}
+
+.level-up-unlocked {
+    color: var(--cream);
+}
+
+.level-up-unlocked .bonus-name,
+.level-up-next .bonus-name {
+    font-size: var(--text-l);
+}
+
+.level-up-next {
+    margin-top: var(--space-2);
+    font-size: var(--text-m);
 }

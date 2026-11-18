@@ -4,7 +4,7 @@ import {FAKE_YOU} from "./fakeAccounts.ts"
 import {FAKE_MISSION_RATES} from "./fakeMissionsBackend.ts"
 import {Nameplate} from "./nameplates.ts"
 import {ColoredProfile, NameColor, PlayerBackend, PlayerError, Profile} from "./player.ts"
-import {Fronts, LevelRead, LevelReader, PlayerLevel, PlayerTitle, ProgressionBackend, TitleDashboard} from "./progression.ts"
+import {Fronts, LevelRead, LevelReader, PlayerLevel, PlayerTitle, ProgressionBackend, TitleDashboard, XpRates} from "./progression.ts"
 
 // Offers no provider until offerSignIn(). completeSignIn takes the code for the name to sign in with: the console's
 // signIn() calls it, as the callback page would.
@@ -16,8 +16,18 @@ export type FakeCareer = {
     wear(id: string): PlayerTitle | undefined
 }
 
-// The server's ladder: enclose opens at level 4, the bomb at 5.
-const FAKE_UNLOCKS = {encloseClicks: 4, bomb: 5}
+// The server's ladder.
+const FAKE_UNLOCKS = {spreadClicks: 2, shields: 3, encloseClicks: 5, bomb: 7, virus: 10, mine: 13, rally: 15}
+
+// The server's scale: what each source of XP but the missions pays.
+export const FAKE_XP_RATES: XpRates = {
+    tilesTaken: {xp: 1, per: 1},
+    daysPlayed: {xp: 100, per: 1},
+    bombsDropped: {xp: 50, per: 1},
+    boxesCaught: {xp: 30, per: 1},
+    rightAnswers: {xp: 30, per: 1},
+    tilesFortified: {xp: 1, per: 5},
+}
 
 export class FakeAccountBackend implements AccountBackend, PlayerBackend, ProgressionBackend, LevelReader {
     constructor(private readonly career?: FakeCareer) {
@@ -126,6 +136,7 @@ export class FakeAccountBackend implements AccountBackend, PlayerBackend, Progre
             level: this.linked.length > 0 ? this.career?.ownLevel() : undefined,
             unlocks: FAKE_UNLOCKS,
             missionRates: FAKE_MISSION_RATES,
+            xpRates: FAKE_XP_RATES,
         }
     }
 

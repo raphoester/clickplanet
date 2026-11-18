@@ -67,7 +67,7 @@ system exists to stop.
 | `--action` | The one thing to press on a screen (sign in, send, wear), and the player's own row |
 | `--secondary` | Every other button |
 | `--gold` | Reward and progress: panel headers, title names, progress fills, first place |
-| `--xp` (and `-shade`, `-ink`) | The level: its chip, its bar, "XP to level 13". Not the level-up moment, which is a reward |
+| `--xp` (and `-shade`, `-ink`) | The level: its chip, its bar, "XP to level 13", the pill of an XP gain ("+100 XP") and what each way to gain XP pays. Not the level-up moment, which is a reward |
 | `--gain`, `--loss` | Tiles won and lost, nowhere else |
 | `--mission` | A mission's place: the ring that names it in a card, the red of the ring and the outline the globe draws for it |
 | `--streak` | The streak flame |
@@ -151,7 +151,7 @@ it is open: the tray of every bonus floats over the dock as "Your clicks" does, 
 |---|---|---|
 | **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar. Desktop: the menu's head, the season at the top centre |
 | **Moments** | Something that just happened: the quiz, a bomb, a caught box. One at a time, then gone | Under the status zone |
-| **Play** | What every click needs: the clicks left, the slowdown, the bonuses held, and All, which opens every bonus in the bar; and under them, across the bar, the player's level and its XP, which every take fills | One bar, at the bottom |
+| **Play** | What every click needs: the clicks left, the slowdown, the bonuses held, and All, which opens every bonus in the bar; and under them, across the bar, the player's level and its XP, which every take fills, and each gain in the XP's place for a moment, with why | One bar, at the bottom |
 | **Places** | Everything read or set: the board, the chat, the account, sharing, the settings. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
 
 - **Ask in this order.** A moment? Moments. Needed on every click? Play, and that
