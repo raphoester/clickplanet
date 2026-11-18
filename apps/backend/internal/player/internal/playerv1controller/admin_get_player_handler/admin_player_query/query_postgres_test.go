@@ -12,9 +12,13 @@ import (
 
 	playerv1 "github.com/raphoester/clickplanet.lol-backend/generated/proto/player/v1"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/migrations"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/pastnames/postgres_past_name_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/players/postgres_player_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/playerv1controller/admin_get_player_handler/admin_player_query"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames"
+	"github.com/raphoester/clickplanet.lol-backend/internal/player/internal/renames/postgres_rename_store"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg"
 	"github.com/raphoester/clickplanet.lol-backend/internal/shared/cppg/cppgtest"
 )
@@ -137,4 +141,58 @@ func (s *testSuite) TestAStoreFailureIsNotNoPlayer() {
 
 	s.Require().Error(err)
 	s.NotErrorIs(err, admin_player_query.ErrNoPlayer)
+}
+
+// A name its player left, kept as the past names' subscriber keeps it.
+func (s *testSuite) left(account players.AccountID, name players.Name, at time.Time) {
+	kept, err := pastnames.Snapshot{Account: account, Name: name, LeftAt: at}.Restore()
+	s.Require().NoError(err)
+	s.Require().NoError(postgres_past_name_store.New(s.db).Record(s.T().Context(), kept))
+}
+
+// A name an operator replaced, kept as RenamePlayer keeps it.
+func (s *testSuite) renamedByOperator(account players.AccountID, from, to players.Name, at time.Time) {
+	before := players.ProfileSnapshot{Account: account, Name: from}.Restore()
+	after := players.ProfileSnapshot{Account: account, Name: to}.Restore()
+	s.Require().NoError(postgres_rename_store.New(s.db).Record(s.T().Context(),
+		renames.NewRename(before, after, at, "a Nazi name", renames.OperatorOf(players.AccountID{15: 9}, "Claude"))))
+}
+
+func (s *testSuite) TestEveryNameHeldBeforeIsListedNewestFirstWithWhoChangedIt() {
+	s.left(ada, "BraveFox42", monday.Add(time.Hour))
+	s.renamedByOperator(ada, "Hitler88", "Player42", monday.Add(2*time.Hour))
+	s.left(ada, "Player42", monday.Add(3*time.Hour))
+
+	held := s.player(ada).GetFormerNames()
+
+	want := []*playerv1.FormerName{
+		{Name: "Player42", UntilUnixMs: monday.Add(3 * time.Hour).UnixMilli()},
+		{Name: "Hitler88", UntilUnixMs: monday.Add(2 * time.Hour).UnixMilli(), RenamedByOperator: true},
+		{Name: "BraveFox42", UntilUnixMs: monday.Add(time.Hour).UnixMilli()},
+	}
+	s.Require().Len(held, len(want), "%v", held)
+	for i := range want {
+		s.True(proto.Equal(want[i], held[i]), "%d: want %v, got %v", i, want[i], held[i])
+	}
+}
+
+func (s *testSuite) TestANameLeftTwiceIsListedEachTime() {
+	s.left(ada, "Countess", monday.Add(time.Hour))
+	s.left(ada, "Ada_L", monday.Add(2*time.Hour))
+	s.left(ada, "Countess", monday.Add(3*time.Hour))
+
+	names := make([]string, 0, 3)
+	for _, held := range s.player(ada).GetFormerNames() {
+		names = append(names, held.GetName())
+	}
+
+	s.Equal([]string{"Countess", "Ada_L", "Countess"}, names)
+}
+
+func (s *testSuite) TestAnotherAccountsNamesAreNotListed() {
+	bob := players.AccountID{15: 3}
+	s.left(bob, "QuietOwl17", monday.Add(time.Hour))
+	s.renamedByOperator(bob, "Hitler88", "Player42", monday.Add(2*time.Hour))
+
+	s.Empty(s.player(ada).GetFormerNames())
 }

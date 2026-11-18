@@ -72,6 +72,7 @@ import {
 import {
     AdminGetPlayerRequest,
     AdminGetPlayerResponse,
+    FormerName,
     ListRenamesRequest,
     ListRenamesResponse,
     Rename,
@@ -144,10 +145,14 @@ const seconds = (n: number) => new Duration({seconds: BigInt(Math.round(n))})
 
 type Account = {id: string, name: string, guest: boolean, flag: string, scope: string, createdAt: number, bot: boolean}
 
+const FORMER_NAMES = ["BraveFox42", "QuietOwl17", "Nova_8", "Tiny Comet", "RedPanda61", "Kartograf", "SilentElk9"]
+
 // A fake of every admin method that keeps what the operator does to it, over a few hundred made-up players, for
 // `npm run demo`.
 export class DemoAdmin extends FakeAdmin {
     accounts: Account[]
+    // The names each account's player left, newest first: the operator's renames are added on read, as the server does.
+    formerNames = new Map<string, FormerName[]>()
     // By account and kind: a mute of the GIFs holds apart from one of the whole chat.
     mutedUntil = new Map<string, number>()
     inspections = new Map<string, InspectPlayerResponse>()
@@ -176,6 +181,15 @@ export class DemoAdmin extends FakeAdmin {
         })
         // Some accounts never got a name: most likely scripts.
         for (const account of this.accounts.filter(account => account.bot)) account.name = ""
+        // Some players changed their name: up to three, a little over a week apart. Picked by index, so every other
+        // made-up value stays as it was.
+        this.accounts.forEach((account, i) => {
+            if (account.guest || account.name === "") return
+            this.formerNames.set(account.id, Array.from({length: i % 4}, (_, n) => new FormerName({
+                name: FORMER_NAMES[(i + n * 3) % FORMER_NAMES.length],
+                untilUnixMs: BigInt(NOW - (2 + n * 9) * 24 * HOUR),
+            })))
+        })
 
         this.identities = this.accounts.filter(account => account.name !== "")
             .map(account => new Identity({accountId: account.id, name: account.name, guest: account.guest}))
@@ -509,8 +523,14 @@ export class DemoAdmin extends FakeAdmin {
         if (account === undefined || account.name === "") {
             return this.refuseLater("getPlayer", request, "no player for this account", Code.NotFound)
         }
+        const replaced = this.renames.filter(rename => rename.accountId === account.id).map(rename => new FormerName({
+            name: rename.oldName, untilUnixMs: BigInt(rename.renamedAt?.toDate().getTime() ?? NOW), renamedByOperator: true,
+        }))
+        const formerNames = [...replaced, ...this.formerNames.get(account.id) ?? []]
+            .sort((a, b) => Number(b.untilUnixMs - a.untilUnixMs))
         return this.answer("getPlayer", request, new AdminGetPlayerResponse({
             name: account.name, guest: account.guest, linked: !account.guest, createdAtUnixMs: BigInt(account.createdAt),
+            formerNames,
         }))
     }
 
