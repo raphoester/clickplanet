@@ -14,6 +14,8 @@ import {useTeaserCards} from "../battle/teaserCardsStore.ts"
 import {acceptedClicks} from "../clicks/acceptedClicks.ts"
 import {useAnnouncements} from "./announcementsStore.ts"
 import Moments from "./Moments.tsx"
+import {boardOf} from "../viewer/boards.ts"
+import {WORLD_GREW_STORAGE_KEY} from "../../domain/worldGrew.ts"
 
 const raider: PlayerTitle = {id: "raider", name: "Raider", rank: {trackId: "conquest", trackName: "Conquest", number: 2, count: 5}}
 const mission: FlagMission = {
@@ -24,7 +26,10 @@ const mission: FlagMission = {
 }
 
 const clicks = acceptedClicks()
+const onEarth1 = Promise.resolve(boardOf("earth-1"))
+const onEarth2 = Promise.resolve(boardOf("earth-2"))
 const moments = (shown: boolean) => <Moments shown={shown}
+                                             board={onEarth1}
                                              guided={false}
                                              clips={new FakeClipsBackend()}
                                              onWear={vi.fn()}
@@ -116,7 +121,7 @@ describe("Moments", () => {
     })
 
     it("asks nothing on a first visit", async () => {
-        render(<Moments shown guided clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
+        render(<Moments shown board={onEarth1} guided clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
                         play={vi.fn()} onWear={vi.fn()}/>)
         await act(async () => vi.advanceTimersByTime(NUDGE_SETTLE_MS))
 
@@ -128,7 +133,7 @@ describe("Moments", () => {
         const startsAt = Date.now() + 3 * 24 * 60 * 60 * 1000
         const next = {entryId: "friday", startsAt, endsAt: startsAt + 60 * 60 * 1000, description: "", times: 2, endsSeason: false, roundId: "friday"}
         useAnnouncements.getState().announce({kind: "teaser", battle: next, cards: new FakePromoBackend().cards, asked: true})
-        render(<Moments shown guided={false} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
+        render(<Moments shown board={onEarth1} guided={false} clips={new FakeClipsBackend()} listenForClicks={clicks.listenForClicks}
                         play={play} onWear={vi.fn()}/>)
 
         expect(screen.getByRole("dialog", {name: "Battle"})).toBeDefined()
@@ -137,5 +142,32 @@ describe("Moments", () => {
 
         expect(screen.queryByRole("dialog")).toBeNull()
         expect(JSON.parse(window.localStorage.getItem(BATTLE_TEASED_STORAGE_KEY) ?? "")).toMatchObject({key: "friday"})
+    })
+
+    it("tells a browser that saw the world before that it grew, once, on the world's new board", async () => {
+        const play = vi.fn()
+        const {unmount} = render(<Moments shown board={onEarth2} guided={false} clips={new FakeClipsBackend()}
+                                          listenForClicks={clicks.listenForClicks} play={play} onWear={vi.fn()}/>)
+
+        expect(await screen.findByRole("dialog", {name: "The world grew 4× more ground"})).toBeDefined()
+        await act(async () => vi.advanceTimersByTime(TITLE_REVEAL.ready * 1000))
+        await userEvent.setup({advanceTimers: vi.advanceTimersByTime}).click(screen.getByRole("button", {name: "Close"}))
+        expect(window.localStorage.getItem(WORLD_GREW_STORAGE_KEY)).toBe("earth-2")
+        unmount()
+        useAnnouncements.setState({queue: []})
+
+        render(<Moments shown board={onEarth2} guided={false} clips={new FakeClipsBackend()}
+                        listenForClicks={clicks.listenForClicks} play={play} onWear={vi.fn()}/>)
+        await act(async () => {})
+        expect(screen.queryByRole("dialog", {name: "The world grew 4× more ground"})).toBeNull()
+    })
+
+    it("tells a first visit to the new board nothing, and never later", async () => {
+        render(<Moments shown board={onEarth2} guided clips={new FakeClipsBackend()}
+                        listenForClicks={clicks.listenForClicks} play={vi.fn()} onWear={vi.fn()}/>)
+        await act(async () => {})
+
+        expect(screen.queryByRole("dialog")).toBeNull()
+        expect(window.localStorage.getItem(WORLD_GREW_STORAGE_KEY)).toBe("earth-2")
     })
 })

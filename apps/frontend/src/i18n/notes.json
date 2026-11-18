@@ -280,5 +280,7 @@
   "level.why.bombsDropped": "Beside the XP just gained on the XP bar: why.",
   "level.why.boxesCaught": "Beside the XP just gained on the XP bar: why. A bonus box caught.",
   "level.why.rightAnswers": "Beside the XP just gained on the XP bar: why. A quiz answered right.",
-  "level.why.tilesFortified": "Beside the XP just gained on the XP bar: why. A fortify shielded a whole landmass."
+  "level.why.tilesFortified": "Beside the XP just gained on the XP bar: why. A fortify shielded a whole landmass.",
+  "world.grew.times": "The world's map moved to a board of about four times as many tiles: each country kept its land, in smaller tiles. {times} is that ratio, 4. Shown big under a globe, after the head \"The world grew\".",
+  "announcement.worldGrew": "A line in the World chat when the world's map moved to a board of about four times as many tiles; {times} is that ratio, 4."
 }

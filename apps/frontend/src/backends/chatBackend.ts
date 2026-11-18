@@ -412,6 +412,16 @@ export function decodedAnnouncement(announcement: AnnouncementPb): ChatAnnouncem
                 ground: typeof values.ground === "string" && values.ground !== "" ? values.ground : undefined,
                 landmass: typeof values.landmass === "number" && values.landmass > 0 ? values.landmass : undefined,
             }
+        case "board_switched": {
+            if (typeof values.fromTiles !== "number" || !(values.fromTiles > 0)) return undefined
+            if (typeof values.toTiles !== "number" || !(values.toTiles > 0)) return undefined
+            return {
+                kind: "board_switched",
+                id: announcement.id,
+                announcedAt: Number(announcement.announcedAtUnixMs),
+                times: Math.round(values.toTiles / values.fromTiles),
+            }
+        }
         default:
             return undefined
     }

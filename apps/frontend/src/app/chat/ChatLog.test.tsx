@@ -2,7 +2,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest"
 import {cleanup, render, screen, within} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import {BombAnnouncement, ChatMessage, FlagMissionAnnouncement, KnockOutAnnouncement} from "../../backends/chat.ts"
+import {BombAnnouncement, ChatMessage, FlagMissionAnnouncement, KnockOutAnnouncement, WorldGrewAnnouncement} from "../../backends/chat.ts"
 import {quoteOf} from "../../domain/chatLog.ts"
 import ChatLog from "./ChatLog.tsx"
 import {QUOTE_MAX_LENGTH} from "./QuoteLine.tsx"
@@ -63,6 +63,16 @@ describe("ChatLog's knock-out line", () => {
 
         const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
         expect(line.textContent).toBe("Germany knocked out France")
+    })
+})
+
+describe("ChatLog's line of the world's switch", () => {
+    it("says how many times the ground the world has", () => {
+        const grew: WorldGrewAnnouncement = {kind: "board_switched", id: "a1", announcedAt: Date.UTC(2026, 10, 22, 4), times: 4}
+        render(<ChatLog loading={false} messages={[]} announcements={[grew]}/>)
+
+        const line = screen.getByText((_, element) => element?.classList.contains("chat-announcement-text") ?? false)
+        expect(line.textContent).toBe("The world grew: 4× more ground. Every country kept its land.")
     })
 })
 
