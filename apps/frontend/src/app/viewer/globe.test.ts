@@ -122,8 +122,8 @@ describe("reportClaimFailure", () => {
 
 describe("drawsFrame", () => {
     const tick = (over: Partial<Parameters<typeof drawsFrame>[0]>) => drawsFrame({
-        turned: false, changed: false, ambient: false, at: 10_000, drawnAt: 0, interactingUntil: 0,
-        sinceLastTick: 0, ...over,
+        turned: false, changed: false, glints: "none", ambient: false, attended: true, at: 10_000, drawnAt: 0,
+        interactingUntil: 0, sinceLastTick: 0, ...over,
     })
 
     it("draws nothing while the globe sits still", () => {
@@ -163,6 +163,23 @@ describe("drawsFrame", () => {
 
     it("never holds a change back for the spin's sake", () => {
         expect(tick({turned: true, changed: true, drawnAt: 9_999})).toBe(true)
+    })
+
+    it("draws every frame of a glint while the page is in use", () => {
+        expect(tick({glints: "playing", drawnAt: 9_999})).toBe(true)
+    })
+
+    it("draws a glint at the pulse's pace once nobody touches the page", () => {
+        expect(tick({glints: "playing", attended: false, drawnAt: 9_960})).toBe(false)
+        expect(tick({glints: "playing", attended: false, drawnAt: 9_950})).toBe(true)
+    })
+
+    it("takes the last glint off the screen at once, even on a page nobody touches", () => {
+        expect(tick({glints: "over", attended: false, drawnAt: 9_999})).toBe(true)
+    })
+
+    it("never holds a change back for a glint's sake", () => {
+        expect(tick({glints: "playing", attended: false, changed: true, drawnAt: 9_999})).toBe(true)
     })
 })
 
