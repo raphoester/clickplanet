@@ -353,10 +353,17 @@ world plays (a second call), and any call while an arena is open, read again und
 
 **Scoring that day is as usual**: rankings compare countries, and every count jumps about 3.8× at the same moment.
 
-**History across the switch** (the owner, 2026-11-17):
-- The season-1 archive plays through it, with a visible cut and a caption.
-- For their first 24 hours after it, player videos, clips and the last 24 hours start at the switch, as after a reset.
-- RevertPlayer and the operator tools act only on the current board's events.
+**History across the switch** (the owner, 2026-11-17), built in PR 6:
+- **The season-1 archive plays through it, with a visible cut and a caption** ("The world moves to a new map"):
+  `GetMapHistory` and the season replay carry the map over at the cut, each tile of `earth-2` taking the owner of the
+  tile it comes from (`ledger.Carry`, read from the same carry-over file), and a history across a switch with no
+  carry-over is refused rather than drawn on a blank board. The carry-over counts no hits.
+- **For their first 24 hours after it, player videos, clips and the last 24 hours start at the switch**, as after a
+  reset: `GetReplay` and `GetRecentMapHistory` start at the world's latest era when it falls inside their window, on the
+  map the switch carried over, and `GetReplay` refuses a window that ended before the switch (`ErrBeforeSwitch`,
+  `FailedPrecondition`). So each holds one era; the clip page's replay of several eras went.
+- **RevertPlayer and the operator tools act only on the current board's events**: FindPlayers, TopPlayers,
+  RevertPlayer and `GetLedger` read the board that plays, pinned by tests after a switch of the world.
 
 ## Rules at the new density
 
@@ -438,7 +445,10 @@ Built in PR 4 where it says so, measured 2026-11-18.
   page names them in English meanwhile, and its catalogue test lists both boards as awaiting one (the backend's
   [The page's translator](../apps/backend/docs/translate.md)). Run it before PR 5 names `siege-1`. PR 6 had no key
   either: it is step 2 of [the runbook](#the-operators-runbook).
-- **The last 24 hours:** its first frame grows 4×, past its 1 MiB budget, so it needs a new format.
+- **The last 24 hours:** built in PR 6. A whole frame goes as `GetMap` sends the map, two bytes a tile into a table of
+  flags (`MapFrame.whole`): 442 KB gzipped on `earth-1` and 589 KB on `earth-2`, against 799 KB and 1,953 KB with one
+  `TileOwner` a tile, under the 1 MiB budget on both (`size_test.go`, 200 flags; the backend's
+  [The map's last 24 hours](../apps/backend/docs/recent-map-history.md)).
 - **The backend** (measured on 4 vCPUs, `load_new_boards_test.go`):
   - **The boot of `earth-2`:** 0.8 to 0.9 s, against the design's 4 to 6 s and a one-minute deadline; 2,966,323 edges.
   - **Memory:** about 47 MB kept, and 302 MB allocated (about 260 MB of process memory) at the peak while it builds the
