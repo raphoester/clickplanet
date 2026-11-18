@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type {OwnerChange} from "../../domain/tileOwnership.ts";
 import type {ShieldChange} from "../../domain/shields.ts";
-import {regions} from "./atlas.ts";
+import {flagNumbers, regions} from "./atlas.ts";
 import {warnOnce} from "../../domain/warnOnce.ts";
 import {disposeMaterial} from "./scene.ts";
 import type {TileGeometry} from "./points.ts";
@@ -59,11 +59,9 @@ const RECTANGLE = 4
 // Must match PACK in shaders/display/vertex.glsl: the plain layout holds a rectangle as x + y * PACK, width + height * PACK.
 const PACK = 2048
 
-const FLAGS = new Map<string, number>()
 const RECTANGLES = new Float32Array((regions.size + 1) * RECTANGLE)
 const PACKED = new Float32Array((regions.size + 1) * 2)
-Array.from(regions).forEach(([code, {x, y, width, height}], i) => {
-    FLAGS.set(code, i + 1)
+Array.from(regions.values()).forEach(({x, y, width, height}, i) => {
     RECTANGLES.set([x, y, width, height], (i + 1) * RECTANGLE)
     PACKED.set([x + y * PACK, width + height * PACK], (i + 1) * 2)
 })
@@ -209,7 +207,7 @@ export class TileField {
         const tiles: number[] = []
         const flags: number[] = []
         for (const {tile, country} of changes) {
-            const flag = country === undefined ? UNOWNED : FLAGS.get(country)
+            const flag = country === undefined ? UNOWNED : flagNumbers.get(country)
             if (flag === undefined) {
                 warnOnce(`No sprite region for country "${country}", leaving its tiles blank`)
                 continue

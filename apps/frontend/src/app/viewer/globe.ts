@@ -22,8 +22,10 @@ import {flagPaint, flownZoomsOf, inOrbit, leastFlagRadiusOf, tilePointSize, viru
 import {createTerritoryLayer} from "./territoryLayer.ts";
 import {loadTerrain} from "./terrain.ts";
 import {regions} from "./atlas.ts";
-import {SlotRanking} from "./slotRanking.ts";
 import {FlagSlots} from "./flagSlots.ts";
+import {slotBudgetOf} from "./slotCells.ts";
+import {LandmassSight, type ScreenView, tileAreaOf} from "./slotNeed.ts";
+import {Settling, type Viewpoint} from "./settling.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
 import {MapView, Rendering} from "../../domain/displaySettings.ts";
@@ -131,8 +133,7 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     shieldCells: THREE.IUniform<THREE.Vector2>
     highlight: THREE.IUniform<number>
     slotTexture: THREE.IUniform<THREE.Texture | null>
-    slotFrames: THREE.IUniform<THREE.Vector4[]>
-    slotRegions: THREE.IUniform<THREE.Vector4[]>
+    slotFrames: THREE.IUniform<THREE.DataTexture>
 }
 
 const SHAKE_SECONDS = 0.5
@@ -437,7 +438,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         highlight: {value: 0},
         slotTexture: slots.texture,
         slotFrames: slots.frames,
-        slotRegions: slots.regions,
         ...blastUniforms(prefersReducedMotion()),
         ...fortifyUniforms(),
     };
@@ -450,9 +450,22 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     uniforms.landmassData.value = territories.landmassData
     uniforms.landmassCount.value = borders.codes.length
 
-    const ranking = new SlotRanking()
+    const sight = new LandmassSight((landmass) => landmasses.tilesOf(landmass), borders.codes.length, geometryData.positions, tileAreaOf(board.lattice.cols))
+    const settling = new Settling()
+    // The view the flags were last ranked for: a recount ranks them for it too, never for a camera in motion.
+    let settled: {view: ScreenView, areas: Float32Array} | undefined
+    const settle = () => {
+        const view = screenViewOf(camera, renderer.domElement)
+        settled = {view, areas: sight.areasOnScreen(view)}
+        return settled
+    }
+    const viewSize = new THREE.Vector2()
 
-    const slotFlags = () => slots.show(ranking.rank(territories.flagNeeds()), (code) => regions.get(code))
+    const arrangeSlots = () => {
+        if (flagPaint(camera.zoom, renderer.getSize(viewSize).y, mapView, scale) <= 0) return
+        const {view, areas} = settled ?? settle()
+        slots.arrange(territories.flagNeeds(view, areas), slotBudgetOf(renderer.domElement.width, renderer.domElement.height))
+    }
 
     const sphere = innerSphere()
     const picker = new TilePicker(renderer.domElement, geometryData.cells);
@@ -666,7 +679,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const recount = ({countries, landmasses}: Recount, live: boolean) => {
         if (landmasses.length > 0) {
             territories.setRows(landmasses, (landmass) => holdings.leaderOf(landmass))
-            slotFlags()
+            arrangeSlots()
             if (tracking) targets.recount(landmasses)
             invalidate()
         }
@@ -1883,6 +1896,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         dirty = false
         return was
     }, (seconds) => {
+        const motion = settling.tick(seconds * 1000, viewpointOf(camera, renderer.domElement))
+        if (motion === "settled") {
+            settle()
+            arrangeSlots()
+        }
+        if (motion !== "moving") slots.upload(renderer)
         driveGhosts(seconds)
         driveTap(seconds)
         const boxed = driveBonusBox(seconds)
@@ -1960,6 +1979,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (view === mapView) return
             mapView = view
             uniforms.splitFlags.value = splitFlagsOf(view)
+            arrangeSlots()
             invalidate()
         },
         setHalo: (halo: Halo) => {
@@ -2197,6 +2217,31 @@ function aim(camera: THREE.OrthographicCamera, {direction, zoom}: Shot): boolean
     camera.zoom = zoom
     camera.updateProjectionMatrix()
     return true
+}
+
+function pixelsPerRadianOf(camera: THREE.OrthographicCamera, canvas: HTMLCanvasElement): number {
+    return canvas.height * camera.zoom / (camera.top - camera.bottom)
+}
+
+function viewpointOf(camera: THREE.OrthographicCamera, canvas: HTMLCanvasElement): Viewpoint {
+    const {x, y, z} = camera.position
+    const distance = camera.position.length()
+    return {x: x / distance, y: y / distance, z: z / distance, scale: pixelsPerRadianOf(camera, canvas)}
+}
+
+function screenViewOf(camera: THREE.OrthographicCamera, canvas: HTMLCanvasElement): ScreenView {
+    const pixelsPerRadian = pixelsPerRadianOf(camera, canvas)
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion)
+    return {
+        toward: new THREE.Vector3(0, 0, 1).applyQuaternion(camera.quaternion),
+        right,
+        up,
+        origin: {x: -camera.position.dot(right) * pixelsPerRadian, y: -camera.position.dot(up) * pixelsPerRadian},
+        pixelsPerRadian,
+        width: canvas.width,
+        height: canvas.height,
+    }
 }
 
 function splitFlagsOf(view: MapView): number {

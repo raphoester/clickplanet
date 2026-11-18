@@ -1,6 +1,8 @@
 import {BoardScale, scaledCount} from "../../domain/boardScale.ts"
 import * as THREE from "three"
-import {regions} from "./atlas.ts"
+import {flagNumbers, regions} from "./atlas.ts"
+import {flagNeedOf, type ScreenView} from "./slotNeed.ts"
+import type {FlagNeed} from "./slotRanking.ts"
 import flagFit from "../../../static/countries/flagFit.json"
 
 const LANDMASS_TEXELS = 4
@@ -79,14 +81,19 @@ export class BorderField {
         return this.data.totals[landmass] ?? 0
     }
 
-    // Each painted flag's largest landmass, as the half-width of its frame along the ground.
-    flagNeeds(): Map<string, number> {
-        const needs = new Map<string, number>()
+    // Each painted flag on screen, over the landmasses it leads: its widest frame and all their land.
+    flagNeeds(view: ScreenView, areas: Float32Array): Map<string, FlagNeed> {
+        const needs = new Map<string, FlagNeed>()
         for (let landmass = 1; landmass < this.landmassCount; landmass++) {
             const holder = this.painted[landmass]
             const at = landmass * LANDMASS_TEXELS * 4
             if (holder === undefined || this.rows[at + 10] <= 0) continue
-            needs.set(holder, Math.max(needs.get(holder) ?? 0, this.rows[at + 3]))
+            const aspect = this.rows[at + 10] / this.rows[at + 11]
+            const area = areas[landmass]
+            const centre = {x: this.rows[at], y: this.rows[at + 1], z: this.rows[at + 2]}
+            const need = area > 0 ? flagNeedOf(centre, this.rows[at + 3], this.rows[at + 7], aspect, view) : 0
+            const was = needs.get(holder)
+            needs.set(holder, {need: Math.max(need, was?.need ?? 0), area: area + (was?.area ?? 0), aspect, spriteWidth: this.rows[at + 10]})
         }
         return needs
     }
@@ -122,6 +129,7 @@ export class BorderField {
             this.rows[at + 10] = 0
             this.rows[at + 11] = 0
             this.rows[at + 12] = 0
+            this.rows[at + 13] = 0
             return true
         }
 
@@ -160,6 +168,7 @@ export class BorderField {
         this.rows[at + 10] = region.width
         this.rows[at + 11] = region.height
         this.rows[at + 12] = opacity
+        this.rows[at + 13] = flagNumbers.get(named) ?? 0
         return true
     }
 

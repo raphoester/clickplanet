@@ -1,46 +1,82 @@
 import {describe, expect, it} from "vitest"
-import {SLOT_COUNT, SlotRanking} from "./slotRanking.ts"
+import {type FlagNeed, rankSlots, SlotLayout} from "./slotRanking.ts"
 
-const needs = (entries: Record<string, number>) => new Map(Object.entries(entries))
+const BUDGET = {roots: 1, largest: 1}
 
-describe("SlotRanking", () => {
-    it("gives the flags holding the biggest landmasses a slot each, biggest first", () => {
-        const ranking = new SlotRanking(3)
+const flag = (need: number, area = 1e6): FlagNeed => ({need, area, aspect: 1.5, spriteWidth: 100})
 
-        expect(ranking.rank(needs({fr: 0.1, br: 0.6, de: 0.3, es: 0.2}))).toEqual(["br", "de", "es"])
+const needs = (entries: Record<string, FlagNeed>) => new Map(Object.entries(entries))
+
+const levels = (ranked: {code: string, level: number}[]) => Object.fromEntries(ranked.map(({code, level}) => [code, level]))
+
+describe("rankSlots", () => {
+    it("leaves a flag no wider on screen than its sprite on the atlas", () => {
+        expect(rankSlots(needs({fr: flag(120)}), new Map(), BUDGET)).toEqual([])
     })
 
-    it("leaves slots empty while fewer flags are painted", () => {
-        const ranking = new SlotRanking(3)
-
-        expect(ranking.rank(needs({fr: 0.1}))).toEqual(["fr", undefined, undefined])
-        expect(ranking.rank(needs({}))).toEqual([undefined, undefined, undefined])
+    it("gives a flag in view the smallest cell that holds it as wide as it needs", () => {
+        expect(rankSlots(needs({fr: flag(300)}), new Map(), BUDGET)).toEqual([{code: "fr", level: 4, least: 6}])
     })
 
-    it("keeps a flag in its slot while it holds its place, whatever the others do", () => {
-        const ranking = new SlotRanking(3)
-        ranking.rank(needs({fr: 0.1, br: 0.6, de: 0.3}))
-
-        expect(ranking.rank(needs({fr: 0.1, br: 0.6, de: 0.7}))).toEqual(["br", "de", "fr"])
-        expect(ranking.rank(needs({fr: 0.5, br: 0.6, de: 0.7}))).toEqual(["br", "de", "fr"])
+    it("holds a flag with little land on screen to a cell its land pays for, however wide its frame", () => {
+        expect(levels(rankSlots(needs({cl: flag(1500, 10_000), br: flag(1500)}), new Map(), BUDGET))).toEqual({br: 1, cl: 4})
     })
 
-    it("frees the slot of a flag painted nowhere any more, for the next in line", () => {
-        const ranking = new SlotRanking(3)
-        ranking.rank(needs({br: 0.6, de: 0.3, fr: 0.1, es: 0.05}))
+    it("shares a full texture by land, and raises the most land it has room for to the share above", () => {
+        const ranked = rankSlots(needs({ru: flag(2000, 600_000), kz: flag(2000, 300_000), ua: flag(2000, 100_000)}), new Map(), BUDGET)
 
-        expect(ranking.rank(needs({br: 0.6, fr: 0.1, es: 0.05}))).toEqual(["br", "es", "fr"])
+        expect(ranked.map(({code}) => code)).toEqual(["ru", "kz", "ua"])
+        expect(levels(ranked)).toEqual({ru: 1, kz: 2, ua: 3})
     })
 
-    it("evicts the weakest only for a flag that needs clearly more", () => {
-        const ranking = new SlotRanking(2, 1.2)
-        ranking.rank(needs({br: 0.6, de: 0.3}))
+    it("keeps a flag's cell while it needs neither clearly more nor far less", () => {
+        const held = new Map([["fr", 4]])
 
-        expect(ranking.rank(needs({br: 0.6, de: 0.3, es: 0.35}))).toEqual(["br", "de"])
-        expect(ranking.rank(needs({br: 0.6, de: 0.3, es: 0.37}))).toEqual(["br", "es"])
+        expect(levels(rankSlots(needs({fr: flag(380)}), held, BUDGET))).toEqual({fr: 4})
+        expect(levels(rankSlots(needs({fr: flag(500)}), held, BUDGET))).toEqual({fr: 2})
+        expect(levels(rankSlots(needs({fr: flag(400)}), new Map([["fr", 2]]), BUDGET))).toEqual({fr: 2})
+        expect(levels(rankSlots(needs({fr: flag(300)}), new Map([["fr", 2]]), BUDGET))).toEqual({fr: 4})
     })
 
-    it("holds eight by default", () => {
-        expect(new SlotRanking().rank(needs({}))).toHaveLength(SLOT_COUNT)
+    it("keeps a flag out of view in its cell while there is room, and drops it first", () => {
+        const held = new Map([["br", 1]])
+
+        expect(levels(rankSlots(needs({br: flag(0, 0), fr: flag(700)}), held, BUDGET))).toEqual({br: 1, fr: 2})
+        expect(levels(rankSlots(needs({fr: flag(700)}), held, BUDGET))).toEqual({br: 1, fr: 2})
+        expect(levels(rankSlots(needs({br: flag(0, 0), fr: flag(2000), de: flag(2000)}), held, BUDGET))).toEqual({fr: 1, de: 1})
+    })
+})
+
+describe("SlotLayout", () => {
+    it("keeps a flag's cell while its size holds", () => {
+        const layout = new SlotLayout(BUDGET)
+        const first = layout.arrange(needs({fr: flag(300), de: flag(450)}))
+
+        expect(layout.arrange(needs({fr: flag(320), de: flag(440)}))).toEqual(first)
+    })
+
+    it("frees the cell of a flag gone for one that comes", () => {
+        const layout = new SlotLayout(BUDGET)
+        layout.arrange(needs({ru: flag(2000), kz: flag(2000)}))
+
+        expect(layout.arrange(needs({ru: flag(2000), br: flag(2000), kz: flag(0, 0)})))
+            .toEqual([
+                {code: "ru", cell: {x: 1024, y: 0, width: 1024, height: 1024}},
+                {code: "br", cell: {x: 0, y: 0, width: 1024, height: 1024}},
+            ])
+    })
+
+    it("drops a size for a flag the free cells are too broken up for", () => {
+        const layout = new SlotLayout(BUDGET)
+        layout.arrange(needs({a: flag(450, 400_000), b: flag(450, 300_000), c: flag(450, 200_000), d: flag(450, 100_000)}))
+
+        const placed = layout.arrange(needs({a: flag(450, 400_000), d: flag(450, 100_000), e: flag(2000, 2e6), f: flag(700, 1.5e6)}))
+
+        expect(placed).toEqual([
+            {code: "e", cell: {x: 1024, y: 0, width: 1024, height: 1024}},
+            {code: "f", cell: {x: 512, y: 0, width: 512, height: 512}},
+            {code: "a", cell: {x: 0, y: 0, width: 512, height: 512}},
+            {code: "d", cell: {x: 512, y: 512, width: 512, height: 512}},
+        ])
     })
 })

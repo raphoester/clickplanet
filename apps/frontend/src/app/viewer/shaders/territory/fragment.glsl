@@ -11,11 +11,7 @@ uniform sampler2D atlasTexture;
 uniform vec2 atlasTextureSize;
 uniform sampler2D slotTexture;
 uniform sampler2D flagRectangles;
-
-// Must match SLOT_COUNT in slotRanking.ts.
-#define FLAG_SLOTS 8
-uniform vec4 slotFrames[FLAG_SLOTS];
-uniform vec4 slotRegions[FLAG_SLOTS];
+uniform sampler2D slotFrames;
 
 // Must match latticeCells.ts, which finds a direction's cell the same way.
 #define FACES 20
@@ -160,7 +156,7 @@ vec2 coverOf(vec2 reach, float aspect) {
     return vec2(halfV * aspect, halfV);
 }
 
-vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, float landmass) {
+vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, int ownNumber, float landmass) {
     float row = (landmass + 0.5) / landmassCount;
     vec4 region = texture(landmassData, vec2(5.0 / 8.0, row));
     vec4 held = texture(landmassData, vec2(7.0 / 8.0, row));
@@ -187,10 +183,7 @@ vec4 paintedFlag(vec3 ground, vec3 acrossStep, vec3 upStep, vec4 own, float land
     vec2 across = flagUVof(normalize(ground + acrossStep), centre, east, north, halfSize, anchor) - uv;
     vec2 upward = flagUVof(normalize(ground + upStep), centre, east, north, halfSize, anchor) - uv;
 
-    vec4 slotFrame = vec4(0.0);
-    for (int i = 0; i < FLAG_SLOTS; i++) {
-        if (all(equal(slotRegions[i], flag))) slotFrame = slotFrames[i];
-    }
+    vec4 slotFrame = texelFetch(slotFrames, ivec2(split ? ownNumber : int(held.g + 0.5), 0), 0);
     bool slotted = slotFrame.z > 0.0;
     vec4 flagFrame = slotted ? slotFrame : atlasFrameOf(flag);
 
@@ -260,7 +253,7 @@ void main() {
     float landmass = float(tile.y);
     vec4 own = texelFetch(flagRectangles, ivec2(int(tile.x), 0), 0);
 
-    vec4 colour = landmass > 0.5 ? paintedFlag(ground, acrossStep, upStep, own, landmass) : vec4(0.0);
+    vec4 colour = landmass > 0.5 ? paintedFlag(ground, acrossStep, upStep, own, int(tile.x), landmass) : vec4(0.0);
 
     if (highlight > 0.5 && abs(landmass - highlight) < 0.5) {
         colour = vec4(mix(colour.rgb, vec3(1.0), HIGHLIGHT_LIFT), max(colour.a, HIGHLIGHT_FLOOR));
