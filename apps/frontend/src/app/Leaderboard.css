@@ -48,13 +48,15 @@
     padding-left: var(--space-3);
 }
 
-/* A count up to 99,999 and its share on one line; a longer count puts the share under it. */
+/* A count up to 999,999 and its share on one line, as earth-2's million tiles need; a longer count puts the share under
+   it. */
 .leaderboard-table-tiles {
-    width: 90px;
+    width: 116px;
 }
 
+/* A day's gain up to six digits: +128,977. */
 .leaderboard-table-gain {
-    width: 58px;
+    width: 84px;
 }
 
 .leaderboard-table-points {
@@ -411,8 +413,13 @@
         font-size: var(--text-m);
     }
 
+    /* A phone writes a six-digit count and a five-digit gain short ("129K", "+94K"), so they keep their earth-1 widths. */
     .leaderboard-table-tiles {
         width: 86px;
+    }
+
+    .leaderboard-table-gain {
+        width: 58px;
     }
 }
 
