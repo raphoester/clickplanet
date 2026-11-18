@@ -3,6 +3,9 @@ import {flagPaint} from "./pointSize.ts"
 import type {BoardScale} from "../../domain/boardScale.ts"
 import {MapView} from "../../domain/displaySettings.ts"
 import {type BorderLineData, decodeBorderLines} from "../../domain/borderLinesFile.ts"
+import {CHUNK_MOST, CHUNK_REACH, chunkCount, chunksOf, type TileChunks} from "../../domain/tileChunks.ts"
+import type {Span} from "../../domain/spans.ts"
+import {ChunkSight, CULL_SLACK} from "./chunkSight.ts"
 import {disposeMaterial} from "./scene.ts"
 
 import vertexShader from "./shaders/borderLine/vertex.glsl"
@@ -44,7 +47,9 @@ function control(run: Run, step: number): number {
     return at + Math.min(Math.max(step, 0), controls - 1)
 }
 
-export function outlineSegments(data: BorderLineData, samples = SAMPLES): {from: Int16Array, to: Int16Array} {
+export type Segments = {from: Int16Array, to: Int16Array}
+
+export function outlineSegments(data: BorderLineData, samples = SAMPLES): Segments {
     const runs = runsOf(data)
 
     let pieces = 0
@@ -141,12 +146,36 @@ export function halfWidthOf(pixelRatio: number, width = WIDTH): number {
     return width * pixelRatio / 2 + FEATHER
 }
 
+// Every pass's at most, so the cull keeps any piece one of them would draw.
+const WIDEST = Math.max(WIDTH, ORBIT_WIDTH, HIGHLIGHT_WIDTH, MISSION_WIDTH)
+const FURTHEST_LIFT = Math.max(OVER - 1, 1 - UNDER)
+
+const MAX_DRAWS = 8
+// In corners of the outline.
+const LEAST_GAP = 512
+
+// Of the globe's radius: zoomed out, a quarter of the screen would keep most of the far side.
+export const MOST_SLACK = 0.05
+
 export type BorderLines = {
     object: THREE.Object3D
     update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView): void
+    cull(camera: THREE.Camera): void
     setHighlight(landmass: number): void
     setAimed(landmasses: ReadonlySet<number>): void
     dispose(): void
+}
+
+// A cap holds the ends of each of its corners' fine pieces, and so the coarse pieces', whose ends are among them.
+export function outlineChunksOf({from, to}: Segments): TileChunks {
+    const corners = from.length / 3 / SAMPLES
+    const per = SAMPLES + 1
+    const points = new Int16Array(corners * per * 3)
+    for (let corner = 0; corner < corners; corner++) {
+        points.set(from.subarray(corner * SAMPLES * 3, (corner + 1) * SAMPLES * 3), corner * per * 3)
+        points.set(to.subarray(((corner + 1) * SAMPLES - 1) * 3, (corner + 1) * SAMPLES * 3), (corner * per + SAMPLES) * 3)
+    }
+    return chunksOf(points, CHUNK_REACH, CHUNK_MOST, per)
 }
 
 function aimedTexture(data: BorderLineData): THREE.DataTexture {
@@ -157,141 +186,179 @@ function aimedTexture(data: BorderLineData): THREE.DataTexture {
     return texture
 }
 
-function outlineGeometry(data: BorderLineData, samples: number, sided: boolean): THREE.InstancedBufferGeometry {
-    const {from, to} = outlineSegments(data, samples)
+type Pieces = {
+    samples: number
+    from: THREE.InstancedInterleavedBuffer
+    to: THREE.InstancedInterleavedBuffer
+    sides: THREE.InstancedInterleavedBuffer
+    draws: THREE.InstancedBufferGeometry[]
+}
 
-    const geometry = new THREE.InstancedBufferGeometry()
-    geometry.setAttribute("corner", new THREE.BufferAttribute(
-        new Float32Array([-1, -1, -1, 1, 1, -1, 1, 1]), 2,
-    ))
-    geometry.setIndex([0, 1, 2, 2, 1, 3])
-    geometry.setAttribute("from", new THREE.InstancedBufferAttribute(from, 3, true))
-    geometry.setAttribute("to", new THREE.InstancedBufferAttribute(to, 3, true))
-    if (sided) geometry.setAttribute("sides", new THREE.InstancedBufferAttribute(pieceSides(data, samples), 2))
-    geometry.instanceCount = from.length / 3
+function piecesOf(data: BorderLineData, samples: number, {from, to}: Segments): Pieces {
+    const corner = new THREE.BufferAttribute(new Float32Array([-1, -1, -1, 1, 1, -1, 1, 1]), 2)
+    const index = new THREE.Uint16BufferAttribute([0, 1, 2, 2, 1, 3], 1)
+    const pieces: Pieces = {
+        samples,
+        from: new THREE.InstancedInterleavedBuffer(from, 3),
+        to: new THREE.InstancedInterleavedBuffer(to, 3),
+        sides: new THREE.InstancedInterleavedBuffer(pieceSides(data, samples), 2),
+        draws: [],
+    }
+    for (let draw = 0; draw < MAX_DRAWS; draw++) {
+        const geometry = new THREE.InstancedBufferGeometry()
+        geometry.setAttribute("corner", corner)
+        geometry.setIndex(index)
+        startAt(geometry, pieces, 0)
+        geometry.instanceCount = 0
+        pieces.draws.push(geometry)
+    }
+    return pieces
+}
 
-    return geometry
+// WebGL2 draws no range of instances, so a draw's attributes start at its range's first piece.
+function startAt(geometry: THREE.InstancedBufferGeometry, pieces: Pieces, first: number) {
+    const from = geometry.getAttribute("from") as THREE.InterleavedBufferAttribute | undefined
+    if (from?.offset === first * 3) return
+    geometry.setAttribute("from", new THREE.InterleavedBufferAttribute(pieces.from, 3, first * 3, true))
+    geometry.setAttribute("to", new THREE.InterleavedBufferAttribute(pieces.to, 3, first * 3, true))
+    geometry.setAttribute("sides", new THREE.InterleavedBufferAttribute(pieces.sides, 2, first * 2))
+}
+
+type Pass = {group: THREE.Group, material: THREE.ShaderMaterial, width: number}
+
+function passOf(pieces: Pieces, material: THREE.ShaderMaterial, width: number, renderOrder: number): Pass {
+    const group = new THREE.Group()
+    for (const geometry of pieces.draws) {
+        const mesh = new THREE.Mesh(geometry, material)
+        mesh.renderOrder = renderOrder
+        mesh.frustumCulled = false
+        group.add(mesh)
+    }
+    return {group, material, width}
+}
+
+type Line = {
+    lift: number
+    width: number
+    colour: THREE.Color
+    ink?: number
+    defines?: Record<string, boolean>
+    uniforms?: Record<string, THREE.IUniform>
+}
+
+function lineMaterial({lift, width, colour, ink = 1, defines = {}, uniforms = {}}: Line): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({
+        defines,
+        uniforms: {
+            halfViewport: {value: new THREE.Vector2(1, 1)},
+            halfWidth: {value: halfWidthOf(1, width)},
+            lift: {value: lift},
+            limb: {value: limbOf(lift)},
+            colour: {value: colour},
+            ink: {value: ink},
+            ...uniforms,
+        },
+        vertexShader,
+        fragmentShader,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+    })
 }
 
 // scale: the board the outline is traced on, whose tiles the painted flags hand over to.
 export function createBorderLines(data: BorderLineData, scale: BoardScale): BorderLines {
-    const geometries = [
-        outlineGeometry(data, COARSE_SAMPLES, true),
-        outlineGeometry(data, SAMPLES, false),
-    ]
+    const fineSegments = outlineSegments(data, SAMPLES)
+    const chunks = outlineChunksOf(fineSegments)
+    const corners = fineSegments.from.length / 3 / SAMPLES
 
-    const passes = [OVER, UNDER].map((lift, at) => {
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                halfViewport: {value: new THREE.Vector2(1, 1)},
-                halfWidth: {value: halfWidthOf(1, lift === OVER ? ORBIT_WIDTH : WIDTH)},
-                lift: {value: lift},
-                limb: {value: limbOf(lift)},
-                colour: {value: lift === OVER ? ORBIT_COLOUR : COLOUR},
-                ink: {value: 1},
-            },
-            vertexShader,
-            fragmentShader,
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: false,
-        })
-        const mesh = new THREE.Mesh(geometries[at], material)
-        // After the tiles, so their depth already hides the under pass where they cover it.
-        mesh.renderOrder = 1
-        mesh.frustumCulled = false
-        return mesh
-    })
-    const [over, under] = passes
-
-    // Drawn alone in orbit, where the coarse pieces are the resolution it is looked at.
-    const highlight = new THREE.Mesh(geometries[0], new THREE.ShaderMaterial({
-        defines: {HIGHLIGHT: true},
-        uniforms: {
-            halfViewport: {value: new THREE.Vector2(1, 1)},
-            halfWidth: {value: halfWidthOf(1, HIGHLIGHT_WIDTH)},
-            lift: {value: OVER},
-            limb: {value: limbOf(OVER)},
-            colour: {value: HIGHLIGHT_COLOUR},
-            ink: {value: 1},
-            landmass: {value: 0},
-        },
-        vertexShader,
-        fragmentShader,
-        transparent: true,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-    }))
-    highlight.renderOrder = 2
-    highlight.frustumCulled = false
-    highlight.visible = false
-
-    const fine = geometries[1]
-    const aimedGeometry = new THREE.InstancedBufferGeometry()
-    for (const name of ["corner", "from", "to"]) aimedGeometry.setAttribute(name, fine.getAttribute(name))
-    aimedGeometry.setIndex(fine.getIndex())
-    aimedGeometry.setAttribute("sides", new THREE.InstancedBufferAttribute(pieceSides(data, SAMPLES), 2))
-    aimedGeometry.instanceCount = fine.instanceCount
+    const coarse = piecesOf(data, COARSE_SAMPLES, outlineSegments(data, COARSE_SAMPLES))
+    const fine = piecesOf(data, SAMPLES, fineSegments)
     const aimed = aimedTexture(data)
-    const mission = new THREE.Mesh(aimedGeometry, new THREE.ShaderMaterial({
-        defines: {MISSION: true},
-        uniforms: {
-            halfViewport: {value: new THREE.Vector2(1, 1)},
-            halfWidth: {value: halfWidthOf(1, MISSION_WIDTH)},
-            lift: {value: OVER},
-            limb: {value: limbOf(OVER)},
-            colour: {value: MISSION_COLOUR},
-            ink: {value: MISSION_INK},
-            aimed: {value: aimed},
-        },
-        vertexShader,
-        fragmentShader,
-        transparent: true,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-    }))
-    mission.renderOrder = 2
-    mission.frustumCulled = false
-    mission.visible = false
 
-    const widthOf = (pass: THREE.Mesh) => {
-        if (pass === highlight) return HIGHLIGHT_WIDTH
-        if (pass === mission) return MISSION_WIDTH
-        return pass === over ? ORBIT_WIDTH : WIDTH
-    }
-    const drawn = [...passes, highlight, mission]
+    // After the tiles, so their depth hides the under pass; made in drawing order, as three draws one renderOrder by id.
+    const over = passOf(coarse, lineMaterial({lift: OVER, width: ORBIT_WIDTH, colour: ORBIT_COLOUR}), ORBIT_WIDTH, 1)
+    const under = passOf(fine, lineMaterial({lift: UNDER, width: WIDTH, colour: COLOUR}), WIDTH, 1)
+    // Drawn alone in orbit, where the coarse pieces are the resolution it is looked at.
+    const highlight = passOf(coarse, lineMaterial({
+        lift: OVER, width: HIGHLIGHT_WIDTH, colour: HIGHLIGHT_COLOUR,
+        defines: {HIGHLIGHT: true}, uniforms: {landmass: {value: 0}},
+    }), HIGHLIGHT_WIDTH, 2)
+    const mission = passOf(fine, lineMaterial({
+        lift: OVER, width: MISSION_WIDTH, colour: MISSION_COLOUR, ink: MISSION_INK,
+        defines: {MISSION: true}, uniforms: {aimed: {value: aimed}},
+    }), MISSION_WIDTH, 2)
+    highlight.group.visible = false
+    mission.group.visible = false
+    const passes = [over, under, highlight, mission]
 
     const object = new THREE.Group()
-    object.add(over, under, highlight, mission)
+    object.add(...passes.map(({group}) => group))
+
+    let drawn: readonly Span[] = []
+    const draw = (ranges: readonly Span[]) => {
+        drawn = ranges
+        for (const pieces of [coarse, fine]) {
+            ranges.forEach(({start, count}, at) => {
+                startAt(pieces.draws[at], pieces, start * pieces.samples)
+                pieces.draws[at].instanceCount = count * pieces.samples
+            })
+        }
+        for (const {group} of passes) {
+            group.children.forEach((mesh, at) => {
+                mesh.visible = at < ranges.length
+            })
+        }
+    }
+    draw([{start: 0, count: corners}])
+
+    const sight = new ChunkSight(chunks, new Uint32Array(chunkCount(chunks)), MAX_DRAWS, LEAST_GAP)
+    const toClip = new THREE.Matrix4()
+    let halfHeight = 1
+    let ratio = 1
 
     return {
         object,
         update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView) {
-            for (const pass of drawn) {
-                const {uniforms} = pass.material as THREE.ShaderMaterial
-                uniforms.halfViewport.value.set(width / 2, height / 2)
-                uniforms.halfWidth.value = halfWidthOf(pixelRatio, widthOf(pass))
+            halfHeight = height / 2
+            ratio = pixelRatio
+            for (const {material, width: line} of passes) {
+                material.uniforms.halfViewport.value.set(width / 2, height / 2)
+                material.uniforms.halfWidth.value = halfWidthOf(pixelRatio, line)
             }
 
             const paint = flagPaint(zoom, height / pixelRatio, view, scale)
-            ;(over.material as THREE.ShaderMaterial).uniforms.ink.value = paint * ORBIT_INK
-            over.visible = paint > 0
-            under.visible = paint < 1
+            over.material.uniforms.ink.value = paint * ORBIT_INK
+            over.group.visible = paint > 0
+            under.group.visible = paint < 1
+        },
+        cull(camera: THREE.Camera) {
+            camera.updateMatrixWorld()
+            toClip.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
+            const m = toClip.elements
+            const sy = Math.hypot(m[1], m[5], m[9])
+            const perUnit = halfHeight * sy
+            const halfWidth = halfWidthOf(ratio, WIDEST)
+            // The vertex shader's own drop, and the quad's corners, which reach past its ends by √2 half-widths.
+            const limb = limbOf(OVER) + (halfWidth + 1) / Math.max(perUnit, 1)
+            const reach = (Math.SQRT2 * halfWidth + 1) / perUnit + FURTHEST_LIFT
+            const ranges = sight.rangesFor(camera, m, limb, reach, Math.min(CULL_SLACK / sy, MOST_SLACK))
+            if (ranges !== drawn) draw(ranges)
         },
         setHighlight(landmass: number) {
-            ;(highlight.material as THREE.ShaderMaterial).uniforms.landmass.value = landmass
-            highlight.visible = landmass > 0
+            highlight.material.uniforms.landmass.value = landmass
+            highlight.group.visible = landmass > 0
         },
         setAimed(landmasses: ReadonlySet<number>) {
             const marks = aimed.image.data as Uint8Array
             marks.fill(0)
             for (const landmass of landmasses) marks[landmass] = 255
             aimed.needsUpdate = true
-            mission.visible = landmasses.size > 0
+            mission.group.visible = landmasses.size > 0
         },
         dispose() {
-            for (const geometry of [...geometries, aimedGeometry]) geometry.dispose()
-            for (const pass of drawn) disposeMaterial(pass.material as THREE.Material)
+            for (const geometry of [...coarse.draws, ...fine.draws]) geometry.dispose()
+            for (const {material} of passes) disposeMaterial(material)
             aimed.dispose()
         },
     }

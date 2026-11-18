@@ -19,25 +19,26 @@ export const CHUNK_MOST = 1024
 // Float32 positions and centres: a cap a little wider than its tiles never leaves one out.
 const CAP_SLACK = 1e-4
 
-export function chunksOf(positions: Float32Array, reach = CHUNK_REACH, most = CHUNK_MOST): TileChunks {
-    const tiles = positions.length / 3
+// per: the points of each item, one after the other; a chunk's cap holds every point of its items.
+export function chunksOf(positions: ArrayLike<number>, reach = CHUNK_REACH, most = CHUNK_MOST, per = 1): TileChunks {
+    const items = positions.length / 3 / per
     const starts: number[] = []
     const least = Math.cos(reach)
     let anchor = -1
-    for (let tile = 0; tile < tiles; tile++) {
-        if (anchor >= 0 && tile - anchor < most && cosineOf(positions, tile * 3, positions, anchor * 3) >= least) continue
-        starts.push(tile)
-        anchor = tile
+    for (let item = 0; item < items; item++) {
+        if (anchor >= 0 && item - anchor < most && cosineOf(positions, item * per * 3, positions, anchor * per * 3) >= least) continue
+        starts.push(item)
+        anchor = item
     }
-    starts.push(tiles)
+    starts.push(items)
 
     const count = starts.length - 1
     const caps = new Float32Array(count * CAP_FLOATS)
     for (let chunk = 0; chunk < count; chunk++) {
-        const centre = directionOf(positions, 3, starts[chunk], starts[chunk + 1])
+        const centre = directionOf(positions, 3, starts[chunk] * per, starts[chunk + 1] * per)
         let nearest = 1
-        for (let tile = starts[chunk]; tile < starts[chunk + 1]; tile++) {
-            nearest = Math.min(nearest, cosineOf(positions, tile * 3, centre, 0))
+        for (let point = starts[chunk] * per; point < starts[chunk + 1] * per; point++) {
+            nearest = Math.min(nearest, cosineOf(positions, point * 3, centre, 0))
         }
         writeCap(caps, chunk, centre, Math.acos(nearest))
     }
@@ -57,7 +58,7 @@ export function chunksOf(positions: Float32Array, reach = CHUNK_REACH, most = CH
     return {starts: Uint32Array.from(starts), caps, blocks}
 }
 
-function directionOf(points: Float32Array, stride: number, from: number, to: number): Float64Array {
+function directionOf(points: ArrayLike<number>, stride: number, from: number, to: number): Float64Array {
     let x = 0, y = 0, z = 0
     for (let point = from; point < to; point++) {
         x += points[point * stride]

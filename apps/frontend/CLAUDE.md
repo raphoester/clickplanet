@@ -153,8 +153,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 - [The GPU layer](docs/viewer.md) — `globe.ts` and the files around it: marks, glints, passes.
 - [Drawing only when something changed](docs/render-on-demand.md) — the loop draws a frame only when needed.
-- [The tiles out of sight are not drawn](docs/far-side.md) — the map cut into chunks the CPU skips when behind the
-  earth or off screen, and no tile under the painted flags but those wearing a ring.
+- [The tiles out of sight are not drawn](docs/far-side.md) — the map and the countries' outlines cut into chunks the CPU
+  skips when behind the earth or off screen, an outline pass drawn as up to 8 ranges of its pieces, and no tile under
+  the painted flags but those wearing a ring.
 - [The tile under the pointer](docs/picking.md) — picked on the CPU from the lattice cell under the pixel, anywhere in
   the cell, at every zoom.
 - [HD graphics](docs/hd-graphics.md) — the sharper globe, and `?gfx=`.
@@ -171,6 +172,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   manifest's hash, which a mismatch logs; no file of positions.
 - [Sized by the board](docs/board-scale.md) — every count of tiles, length and zoom tuned on `earth-1` reads the board
   (`domain/boardScale.ts`): the rule, what reads it, and what does not.
-- [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom.
+- [The countries' outlines](docs/country-outlines.md) — the border lines, the same width at every zoom, only the pieces
+  in sight drawn.
 - [A finger iOS took for its swipe back](docs/stray-fingers.md) — the edge swipe that never ends its pointer, the
   pinch OrbitControls was left in, and the `pointercancel` sent for iOS when the touch count says the finger is gone.

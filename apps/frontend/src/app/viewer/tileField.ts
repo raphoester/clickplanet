@@ -6,8 +6,9 @@ import {warnOnce} from "../../domain/warnOnce.ts";
 import {disposeMaterial} from "./scene.ts";
 import type {TileGeometry} from "./points.ts";
 import type {Graphics} from "./graphics.ts";
-import {chunkCount, chunkOf, type ChunkView, drawnRanges, showingChunks, type TileChunks} from "../../domain/tileChunks.ts";
+import {chunkCount, chunkOf, drawnRanges, type TileChunks} from "../../domain/tileChunks.ts";
 import {joinSpans, type Span, spansOf} from "../../domain/spans.ts";
+import {ChunkSight, CULL_SLACK} from "./chunkSight.ts";
 
 import displayVertex from "./shaders/display/vertex.glsl"
 import displayFragment from "./shaders/display/fragment.glsl"
@@ -22,9 +23,6 @@ const LEAST_GAP = 8192
 
 // Past this share of the globe's disc on screen, the cull skips little more than the shader's own far-side drop.
 const CULL_BELOW = 0.5
-
-// In screen half-heights: the pieces are found with this much to spare, and kept until the view has moved by it.
-const CULL_SLACK = 0.25
 
 const MAX_ROW_UPLOADS = 16
 
@@ -72,16 +70,6 @@ type Slots = {flag: Slot, landmass: Slot, hover: Slot, shield: Slot, pulse: Slot
 
 type Layout = {slots: Slots, attributes: Record<string, THREE.BufferAttribute>}
 
-// The pieces in sight, and the view they were found for.
-type Sighting = {
-    ranges: Span[]
-    right: THREE.Vector3
-    up: THREE.Vector3
-    back: THREE.Vector3
-    sx: number, sy: number, tx: number, ty: number
-    limb: number, reach: number, slack: number
-}
-
 export type TileUniforms = {
     pointSize: THREE.IUniform<number>
     pixelsPerRadian: THREE.IUniform<number>
@@ -109,7 +97,7 @@ export class TileField {
     // How many tiles of each chunk wear a ring, and the ranges of those chunks, until a ring changes.
     private readonly ringed: Uint32Array
     private rings: Span[] | undefined
-    private sighting: Sighting | undefined
+    private readonly sight: ChunkSight
     private readonly toClip = new THREE.Matrix4()
     private hovered: number | undefined
 
@@ -126,6 +114,7 @@ export class TileField {
         this.chunks = chunks
         this.shown = new Uint32Array(chunkCount(chunks))
         this.ringed = new Uint32Array(chunkCount(chunks))
+        this.sight = new ChunkSight(chunks, this.shown, MAX_DRAWS, LEAST_GAP)
         this.flagRectangles = flagRectangles()
 
         const rows = Math.ceil(size / TILE_COLUMNS)
@@ -170,25 +159,10 @@ export class TileField {
         const pointSize = this.uniforms.pointSize.value
         const perUnit = Math.max(this.uniforms.pixelsPerRadian.value, 1)
         const thrown = this.uniforms.motion.value * Math.max(0, ...this.uniforms.blastRadii.value) * THROW
-        const sx = 2 / width, sy = 2 / height
-        const now = {
-            right: new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize(),
-            up: new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1).normalize(),
-            back: new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 2).normalize(),
-            sx, sy, tx: m[12] / sx, ty: m[13] / sy,
-            limb: LIMB + (pointSize * 0.5 + 1) / perUnit + thrown,
-            reach: (pointSize * SPRITE_MOST * 0.5 + 1) / perUnit + thrown,
-        }
-
-        if (!this.sighting || !stillHolds(this.sighting, now)) {
-            const slack = CULL_SLACK / sy
-            const {right, up, back, limb, reach} = now
-            const view: ChunkView = {toClip: m, back: [back.x, back.y, back.z], limb: limb + slack, reach: reach + slack}
-            const shown = showingChunks(this.chunks, view, this.shown)
-            const ranges = drawnRanges(this.chunks, this.shown, shown, MAX_DRAWS, LEAST_GAP)
-            this.sighting = {...now, right, up, back, ranges, slack}
-        }
-        for (const {start, count} of this.sighting.ranges) geometry.addGroup(start, count, 0)
+        const limb = LIMB + (pointSize * 0.5 + 1) / perUnit + thrown
+        const reach = (pointSize * SPRITE_MOST * 0.5 + 1) / perUnit + thrown
+        const ranges = this.sight.rangesFor(camera, m, limb, reach, CULL_SLACK * height / 2)
+        for (const {start, count} of ranges) geometry.addGroup(start, count, 0)
     }
 
     // Wherever they are: a ring is a handful of tiles, and the vertex shader drops those behind the earth.
@@ -334,15 +308,6 @@ export class TileField {
         for (const {start, count} of spans) attribute.addUpdateRange(start, count)
         attribute.needsUpdate = true
     }
-}
-
-// The screen no larger, the sprites no wider, and the camera turned and moved by less than the slack.
-function stillHolds(last: Sighting, now: Omit<Sighting, "ranges" | "slack">): boolean {
-    const close = 1 - 1e-9
-    if (now.sx < last.sx * close || now.sy < last.sy * close || now.limb * close > last.limb || now.reach * close > last.reach) return false
-    return now.right.distanceTo(last.right) + Math.abs(now.tx - last.tx) <= last.slack
-        && now.up.distanceTo(last.up) + Math.abs(now.ty - last.ty) <= last.slack
-        && now.back.distanceTo(last.back) <= last.slack
 }
 
 // Only 32-bit floats: the white globe on Intel under Windows came with the compact layout's small integers.

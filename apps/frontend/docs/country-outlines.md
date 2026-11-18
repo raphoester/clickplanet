@@ -43,6 +43,11 @@ six pixels, so two pieces put it within a tenth of a pixel of the fine one and i
 draws half the geometry — and it is the pass that is up whenever the whole globe
 is. The fine one is only ever drawn pushed in.
 
+**Only the pieces in sight are drawn**, as with the tiles (see [The tiles out of sight are not drawn](far-side.md)).
+Before each frame, `cull` finds the chunks of the outline's corners that are not behind the earth or off screen, and
+each pass draws them as up to 8 ranges of its pieces, in their order. Every pass shares one cull, made for the
+outermost lift and the widest line, so none of them loses a piece it would draw, and the frame is the same to the pixel.
+
 **A run ends at every junction** — a corner three countries share, or where a
 land border reaches the sea — which is the one corner the smoothing may not round
 off. The generator cuts the runs there so the renderer clamps the curve to it,
