@@ -46,8 +46,11 @@ With no book there are no boards. `app/standings/` draws it.
   green ("+18") and left-aligned. **The share of the map is beside the tiles**
   (`MapShare`), small and grey, in whole percents and "<1%" (`sharePercent`, as the
   [territory card](territory-card.md) writes it), in a box of one width so the counts line
-  up. The Tiles column (90px, 86px on a phone) holds a count up to 99,999 and its share
-  on one line; a longer count, a country with 38% of the map, puts its share under it
+  up. The Tiles column (116px, 86px on a phone) holds a count up to 999,999 and its share
+  on one line, as `earth-2`'s million tiles need (it was 90px for `earth-1`'s 99,999), and the Gain column (84px, 58px on a
+  phone) a gain of six digits. **A phone writes earth-2's big counts short** (`SHORT_TILES`, `SHORT_GAIN`): a count from
+  100,000 and a gain from 10,000 in Intl's compact notation, "129K", "+94K" ("129 k" in French), so its columns keep
+  their widths and the names their room; the leader frame keeps them whole. A longer count puts its share under it
   rather than run into the next column (`white-space: normal` on the cell; the count's
   group separator does not break); the leader frame has it beside its tiles too once a race is on, and with none
   has it as its big figure. It was a column of its own, "% of map", to two decimals,
@@ -87,7 +90,8 @@ With no book there are no boards. `app/standings/` draws it.
   on its own** (`GUIDE_MS`, 10s), once per browser: the store `useBoardGuide`
   (`boardGuideStore.ts`), which the board reads, in the `clickplanet-board-guide` key. The bubble renders beside its button, not inside:
   inside, it mounts before the button's ref is set and has nothing to sit on.
-- **The desktop menu is `clamp(340px, 40vw, 480px)` wide** (`.menu`), every tab alike.
+- **The desktop menu is `clamp(340px, 40vw, 540px)` wide** (`.menu`), every tab alike: 480px until the world's switch to
+  `earth-2` (2026-11-18), whose six-digit counts and gains took 52px more from the Country column.
   From 1200px wide the board's Country column is 157px: 95% of the countries' names show in full, "Netherlands"
   and "Switzerland" too; at 1024px it is 87px, a short name ("Brazil"). It was `clamp(340px, 28vw, 420px)`, which
   left a name a few letters below 1500px, or only its flag at 1280px and under; the owner asked for it wider on

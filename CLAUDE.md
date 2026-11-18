@@ -34,7 +34,8 @@ Read the relevant app's `CLAUDE.md` before working inside `apps/` — this file 
   `earth-2` at 1,004,682 tiles and `siege-1` at 27,259, the warped and rotated lattice with its pentagons at sea, fitted
   per board, in canonical order, measured; Capital Siege on `siege-1` with `charges.spread.off`, its set saved by the
   owner; the world's switch to `earth-2`: its carry-over, `SwitchBoard`, the moment, its rehearsal on production's map
-  and the operator's runbook), the rest designed: the rules at the new density, and the PRs in order.
+  and the operator's runbook; the world plays `earth-2` since 2026-11-18), the rest designed: the rules at the new
+  density, and the PRs in order.
 - [Git hooks](docs/git-hooks.md) — `./.githooks/install`, once per clone; what pre-commit, commit-msg and pre-push
   check.
 - [Local full stack](docs/local-stack.md) — `deploy/docker-compose.yaml`: backend, frontend and postgres together.

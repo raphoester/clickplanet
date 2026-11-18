@@ -84,7 +84,8 @@ that does not.
   (2026-11-13). The centre is the screen's, unless that
   leaves less than 240px (half the 440px quiz and its margins) right of the menu: then it is 240px right of the
   menu, and never past the middle of the room right of it. With no menu, on a phone, it is the screen's centre.
-  The menu is `clamp(340px, 40vw, 480px)` wide so the board shows the countries' names (see
+  The menu is `clamp(340px, 40vw, 540px)` wide so the board shows the countries' names beside `earth-2`'s six-digit
+  counts (see
   [Season standings](season-standings.md)); a chip centred on the screen, 368px wide, left it at most 417px at
   1440px wide (2026-11-11). Centred in the whole room right of the menu, the chips sat right of the globe on a
   wide screen. The 40vw always leaves the chip its room right of the menu from 834px wide.

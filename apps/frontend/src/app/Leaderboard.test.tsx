@@ -6,6 +6,7 @@ import Leaderboard from "./Leaderboard.tsx"
 import {GUIDE_MS, TAP_HINT_MS} from "./boardFigures.ts"
 import {useBoardGuide} from "./boardGuideStore.ts"
 import {useRace} from "./standings/raceStore.ts"
+import {COMPACT} from "./compact.ts"
 import {Countries} from "../domain/countries.ts"
 import {TileDelta, TileDeltas} from "../domain/tileDeltas.ts"
 
@@ -424,5 +425,30 @@ describe("Leaderboard with the season's race", () => {
             ["2", "France", "300 30%", "-10", "43", "+18 today"],
             ["3", "Spain", "100 10%", "+100", "0", ""],
         ])
+    })
+})
+
+describe("Leaderboard's big counts", () => {
+    const board = () => render(<Leaderboard tilesCount={1_004_682}
+                                            data={[entry("ie", 130_000), entry("fr", 128_977), entry("de", 85_932)]}/>)
+
+    it("writes earth-2's six-digit counts whole on a desktop", () => {
+        board()
+
+        expect(cells()[0][2]).toContain("128,977")
+        expect(cells()[1][2]).toContain("85,932")
+    })
+
+    describe("on a phone", () => {
+        beforeEach(() => vi.stubGlobal("matchMedia", (query: string) => ({matches: query === COMPACT})))
+        afterEach(() => vi.unstubAllGlobals())
+
+        it("writes a count from 100,000 short, and a smaller one whole", () => {
+            board()
+
+            expect(cells()[0][2]).toContain("129K")
+            expect(cells()[0][2]).not.toContain("128,977")
+            expect(cells()[1][2]).toContain("85,932")
+        })
     })
 })
