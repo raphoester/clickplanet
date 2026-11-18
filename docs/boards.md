@@ -418,9 +418,9 @@ Built in PR 4 where it says so, measured 2026-11-18.
   board's spacings from its coast as 150 km is of `earth-1`'s (`snapKmOf`). `earth-1`'s bridges are unchanged.
   `earth-2` has 1,422 bridges over 975 pieces of land, `siege-1` 272 over 173.
 - **The landmass names** come from the generator in English: 936 of `earth-2`'s 1,175 landmasses, 138 of `siege-1`'s
-  374. **Their translations wait for `make translate`**, which needs the translator's key and was not run in PR 4: the
-  page names them in English meanwhile, and its catalogue test lists both boards as awaiting one (the backend's
-  [The page's translator](../apps/backend/docs/translate.md)). Run it before PR 5 names `siege-1`.
+  374. **`earth-2`'s translations wait for `make translate`**, which needs the translator's key and was not run in PR 4:
+  the page names them in English meanwhile, and its catalogue test lists the board as awaiting one (the backend's
+  [The page's translator](../apps/backend/docs/translate.md)). `siege-1` is done by hand (PR 5).
 - **The last 24 hours:** its first frame grows 4×, past its 1 MiB budget, so it needs a new format.
 - **The backend** (measured on 4 vCPUs, `load_new_boards_test.go`):
   - **The boot of `earth-2`:** 0.8 to 0.9 s, against the design's 4 to 6 s and a one-minute deadline; 2,966,323 edges.
@@ -632,8 +632,9 @@ their numbers.
    - Its set names `siege-1` and drops the spread: the owner saves planet's `capital-siege` once it is deployed (the
      backend's [Capital Siege's set](../apps/backend/docs/arenas.md#capital-sieges-set)); the offers', the boxes' and the
      quizzes' sets need no change.
-   - Before 2026-11-21 19:00 UTC, `make translate` with the translator's key names `siege-1`'s landmasses in every
-     language (PR 4 ran without it), and both boards come off the page's `AWAITING_TRANSLATION`.
+   - Before 2026-11-21 19:00 UTC, `siege-1`'s landmasses are translated in every language by hand (PR 4 ran without the
+     translator's key; no `make translate` run, to save its credits), and `siege-1` comes off the page's
+     `AWAITING_TRANSLATION`; `earth-2` still waits.
    - The first board players see, at the next Capital Siege and before the world's switch. It tries the reload and an
      arena on another board for real.
    - **Rehearsed locally** (2026-11-18, the PR's screenshots): the arena opened on `siege-1` and both pages, one framed as

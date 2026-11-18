@@ -23,8 +23,9 @@ const ENGLISH_LANDMASSES = Object.fromEntries(Object.values(BOARDS).map((board) 
 ]))
 
 // Boards whose landmass names no `make translate` has run on yet: the page reads them in English (load.ts). earth-2
-// and siege-1 were written without the translator's key (PR 4); a run before a rule set names one takes them off.
-const AWAITING_TRANSLATION = new Set(["earth-2", "siege-1"])
+// was written without the translator's key (PR 4) and still waits; siege-1 was translated by hand in PR 5. A run
+// before a rule set names earth-2 takes it off.
+const AWAITING_TRANSLATION = new Set(["earth-2"])
 
 // A count may be a plain number where a language has one form for every count.
 const kindOf = (slot: Slot) => slot === "count" ? "value" : slot

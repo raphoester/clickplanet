@@ -53,11 +53,15 @@ leaves out a board with none yet (the page cannot play it until it has them) and
 catalogue of its own, `landmasses/<board>` in the plan and the outcomes, written to `src/i18n/landmasses/<board>/` with
 its fingerprints in `fingerprints/landmasses/<board>/`. A new board's names are sent whole at the next run.
 
-**`earth-2` and `siege-1` wait for their first run** (2026-11-18): PR 4 of [Boards](../../../docs/boards.md) wrote them
-in a session with no key. `-plan` says 936 names of `earth-2` and 138 of `siege-1` to send in each of the 8 languages.
-Until then the page names their landmasses in English (`landmassNamesOf` reads English where a board has no catalogue),
-and the page's catalogue test lists them in `AWAITING_TRANSLATION` (`src/i18n/catalogue.test.ts`), which a run must
-empty: it fails on a board translated and still listed. Run it before a rule set names `siege-1` (PR 5).
+**`siege-1`'s names were written by hand** (2026-11-18, PR 5 of [Boards](../../../docs/boards.md), with no run and no
+credits spent): 104 of its 138 names reuse `earth-1`'s translation of the same English, 34 were written by hand, in the
+8 languages, with their fingerprints in `fingerprints/landmasses/siege-1/`. A run keeps them: it sends none of them.
+
+**`earth-2` waits for its first run** (2026-11-18): PR 4 of [Boards](../../../docs/boards.md) wrote it in a session with
+no key. `-plan` says 936 names of `earth-2` to send in each of the 8 languages. Until then the page names its landmasses
+in English (`landmassNamesOf` reads English where a board has no catalogue), and the page's catalogue test lists it in
+`AWAITING_TRANSLATION` (`src/i18n/catalogue.test.ts`), which a run must empty: it fails on a board translated and still
+listed.
 
 The names are made from Natural Earth (`v5.1.2`), in English.
 Natural Earth names most of those places in French, German, Spanish, Portuguese, Polish, Turkish and Indonesian (not
