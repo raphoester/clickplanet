@@ -275,19 +275,6 @@
     .inventory-slots:has(.inventory-slot--virus) .inventory-slot {
         width: 38px;
     }
-
-    /* A phone's slots stand 3 to 5px apart: a count pinned to the corner ran left over the next slot's ("26/60" over "1/3"). It sits under its slot's middle, and the bar's is small enough to be no wider than its slot and its gap. */
-    .inventory-count {
-        right: auto;
-        left: 50%;
-        transform: translateX(-50%);
-        white-space: nowrap;
-    }
-
-    .inventory-slots .inventory-count {
-        padding: 2px;
-        font-size: 11px;
-    }
 }
 
 @media (prefers-reduced-motion: reduce) {

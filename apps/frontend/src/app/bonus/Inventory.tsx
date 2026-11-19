@@ -63,6 +63,8 @@ type Shown = {
     name: string
     held: boolean
     count?: string
+    // The count on a phone's bar, with no room for the size: the number held alone ("26", not "26/60").
+    brief?: string
     endless?: boolean
     on?: boolean
     state?: string
@@ -264,7 +266,11 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
     const every: Shown[] = inUnlockOrder(CHARGE_KINDS, gates).flatMap((kind) => {
         const shown = shownOf(kind)
         if (!shown) return []
-        return [{...shown, lockedAt: shown.held ? undefined : lockedAt(kind, gates, ladder.level)}]
+        return [{
+            ...shown,
+            brief: shown.count && (shown.endless ? shown.count : translator().number(amountOf(charges, kind))),
+            lockedAt: shown.held ? undefined : lockedAt(kind, gates, ladder.level),
+        }]
     })
     const held = every.filter((shown) => shown.held)
     const room = compact ? PHONE_BAR_ROOM : DESKTOP_BAR_ROOM
@@ -276,6 +282,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
 
     const slot = (shown: Shown, place: Place) => <Slot key={shown.kind}
                                                        {...shown}
+                                                       pill={place === "bar" && compact ? shown.brief : shown.count}
                                                        guide={guide}
                                                        said={shownSaid(shown.kind, place)}
                                                        onPress={place === "tray" && shown.onPress
@@ -416,6 +423,7 @@ function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Sa
 }
 
 type SlotProps = Shown & {
+    pill?: string
     guide: BonusGuide
     said?: Said
     onHint: (text: string) => void
@@ -424,7 +432,7 @@ type SlotProps = Shown & {
     onLocked: (level: number) => void
 }
 
-function Slot({kind, name, held, count, endless, on, state, hint, lockedAt, guide, said, onPress, onHint, onUnhint, onEmpty, onLocked}: SlotProps) {
+function Slot({kind, name, held, count, pill, endless, on, state, hint, lockedAt, guide, said, onPress, onHint, onUnhint, onEmpty, onLocked}: SlotProps) {
     const button = useRef<HTMLButtonElement>(null)
     const described = useId()
     const usable = held && onPress !== undefined
@@ -471,7 +479,7 @@ function Slot({kind, name, held, count, endless, on, state, hint, lockedAt, guid
                     aria-hidden="true">
                 <LockIcon size={10}/>{lockedAt !== NEVER && translator().number(lockedAt)}
             </span>
-            : count && <span className="inventory-count" aria-hidden="true">{count}</span>}
+            : pill && <span className="inventory-count" aria-hidden="true">{pill}</span>}
         <span id={described} hidden>{description}</span>
         {said && <Bubble anchor={button} gap={STATE_CLEARANCE_PX}>{said.text}</Bubble>}
     </button>
