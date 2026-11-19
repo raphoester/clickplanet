@@ -8,6 +8,9 @@ export const SMALL_FRAME = "(max-width: 1599px)"
 // The dock's narrow width in index.css.
 export const NARROW_DOCK = "(max-width: 1279px)"
 
+// A phone held upright, whose dock has room for two bonuses beside All; see docs/charges.md.
+export const NARROW_PHONE = "(max-width: 480px)"
+
 const matches = (query: string) => window.matchMedia?.(query).matches ?? false
 
 function useMatches(query: string): boolean {
@@ -30,3 +33,5 @@ export const useCompact = () => useMatches(COMPACT)
 export const useSmallFrame = () => useMatches(SMALL_FRAME)
 
 export const useNarrowDock = () => useMatches(NARROW_DOCK)
+
+export const useNarrowPhone = () => useMatches(NARROW_PHONE)

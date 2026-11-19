@@ -20,7 +20,7 @@ import {useBonusGuide} from './bonusGuideStore.ts'
 import {useBonus} from './bonusStore.ts'
 import {useLevel} from '../level/levelStore.ts'
 import {useScreen} from '../hud/screenStore.ts'
-import {useCompact} from '../compact.ts'
+import {useCompact, useNarrowPhone} from '../compact.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import Bubble, {BUBBLE_MS} from '../components/Bubble.tsx'
 import {LockIcon} from '../components/icons.tsx'
@@ -33,6 +33,7 @@ export const NOTICE_MS = 3500
 export const NOT_ENCLOSED_MS = 5000
 
 // The held kinds the bar shows beside All; the others wait in the tray.
+export const NARROW_PHONE_BAR_ROOM = 2
 export const PHONE_BAR_ROOM = 3
 export const DESKTOP_BAR_ROOM = 4
 
@@ -63,8 +64,6 @@ type Shown = {
     name: string
     held: boolean
     count?: string
-    // The count on a phone's bar, with no room for the size: the number held alone ("26", not "26/60").
-    brief?: string
     endless?: boolean
     on?: boolean
     state?: string
@@ -89,6 +88,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
     const togglePopover = useScreen((screen) => screen.togglePopover)
     const closePopover = useScreen((screen) => screen.closePopover)
     const compact = useCompact()
+    const narrowPhone = useNarrowPhone()
     const {guide, markUsed} = useBonusGuide()
     const [said, setSaid] = useState<Said | undefined>()
     const [shownNotice, setShownNotice] = useState(notice?.seq)
@@ -266,14 +266,10 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
     const every: Shown[] = inUnlockOrder(CHARGE_KINDS, gates).flatMap((kind) => {
         const shown = shownOf(kind)
         if (!shown) return []
-        return [{
-            ...shown,
-            brief: shown.count && (shown.endless ? shown.count : translator().number(amountOf(charges, kind))),
-            lockedAt: shown.held ? undefined : lockedAt(kind, gates, ladder.level),
-        }]
+        return [{...shown, lockedAt: shown.held ? undefined : lockedAt(kind, gates, ladder.level)}]
     })
     const held = every.filter((shown) => shown.held)
-    const room = compact ? PHONE_BAR_ROOM : DESKTOP_BAR_ROOM
+    const room = narrowPhone ? NARROW_PHONE_BAR_ROOM : compact ? PHONE_BAR_ROOM : DESKTOP_BAR_ROOM
     const onBar = held.slice(0, room)
     const tucked = held.slice(room)
 
@@ -282,7 +278,6 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
 
     const slot = (shown: Shown, place: Place) => <Slot key={shown.kind}
                                                        {...shown}
-                                                       pill={place === "bar" && compact ? shown.brief : shown.count}
                                                        guide={guide}
                                                        said={shownSaid(shown.kind, place)}
                                                        onPress={place === "tray" && shown.onPress
@@ -423,7 +418,6 @@ function noticeSaid(notice: BonusNotice, rules: BonusRules | undefined): Omit<Sa
 }
 
 type SlotProps = Shown & {
-    pill?: string
     guide: BonusGuide
     said?: Said
     onHint: (text: string) => void
@@ -432,7 +426,7 @@ type SlotProps = Shown & {
     onLocked: (level: number) => void
 }
 
-function Slot({kind, name, held, count, pill, endless, on, state, hint, lockedAt, guide, said, onPress, onHint, onUnhint, onEmpty, onLocked}: SlotProps) {
+function Slot({kind, name, held, count, endless, on, state, hint, lockedAt, guide, said, onPress, onHint, onUnhint, onEmpty, onLocked}: SlotProps) {
     const button = useRef<HTMLButtonElement>(null)
     const described = useId()
     const usable = held && onPress !== undefined
@@ -479,7 +473,7 @@ function Slot({kind, name, held, count, pill, endless, on, state, hint, lockedAt
                     aria-hidden="true">
                 <LockIcon size={10}/>{lockedAt !== NEVER && translator().number(lockedAt)}
             </span>
-            : pill && <span className="inventory-count" aria-hidden="true">{pill}</span>}
+            : count && <span className="inventory-count" aria-hidden="true">{count}</span>}
         <span id={described} hidden>{description}</span>
         {said && <Bubble anchor={button} gap={STATE_CLEARANCE_PX}>{said.text}</Bubble>}
     </button>

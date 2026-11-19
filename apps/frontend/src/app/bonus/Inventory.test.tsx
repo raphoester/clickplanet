@@ -10,6 +10,7 @@ import {useBonus} from "./bonusStore.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import {useLevel} from "../level/levelStore.ts"
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx"
+import {COMPACT, NARROW_PHONE} from "../compact.ts"
 
 afterEach(() => {
     cleanup()
@@ -523,36 +524,17 @@ describe("Inventory", () => {
     })
 
     it("keeps three on a phone's bar", () => {
-        vi.stubGlobal("matchMedia", (query: string) => ({matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
+        vi.stubGlobal("matchMedia", (query: string) => ({matches: query === COMPACT, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
         render(inventory({charges: EVERY, guide: learned}))
 
         expect(onBar()).toEqual(["Refill", "Bomb", "Spread, 5/8", "All bonuses, 2 more held"])
     })
 
-    it("counts the number held alone on a phone's bar, and against its size in the tray", () => {
-        vi.stubGlobal("matchMedia", (query: string) => ({matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
-        const rules = {...RULES, refills: 3, shields: 60}
-        const {container} = render(inventory({rules, charges: {...NO_CHARGES, refills: 1, shields: 26}, guide: learned}))
+    it("keeps two on a narrow phone's bar", () => {
+        vi.stubGlobal("matchMedia", (query: string) => ({matches: query === COMPACT || query === NARROW_PHONE, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
+        render(inventory({charges: EVERY, guide: learned}))
 
-        expect(container.querySelector(".inventory-slots .inventory-slot--shields .inventory-count")?.textContent).toBe("26")
-        expect(container.querySelector(".inventory-slots .inventory-slot--refill .inventory-count")?.textContent).toBe("1")
-        expect(slot(/^Shield/).getAttribute("aria-label")).toBe("Shield, 26/60")
-
-        fireEvent.click(all())
-        expect(within(tray()!).getByRole("button", {name: /^Shield/}).querySelector(".inventory-count")?.textContent).toBe("26/60")
-    })
-
-    it("counts against the size on a desktop's bar", () => {
-        const {container} = render(inventory({rules: {...RULES, shields: 60}, charges: {...NO_CHARGES, shields: 26}, guide: learned}))
-
-        expect(container.querySelector(".inventory-slots .inventory-slot--shields .inventory-count")?.textContent).toBe("26/60")
-    })
-
-    it("counts ∞ on a phone's bar while spreads are unlimited", () => {
-        vi.stubGlobal("matchMedia", (query: string) => ({matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
-        const {container} = render(inventory({rules: {...RULES, spreadUnlimited: true}, guide: learned}))
-
-        expect(container.querySelector(".inventory-slots .inventory-slot--spreadClicks .inventory-count")?.textContent).toBe("∞")
+        expect(onBar()).toEqual(["Refill", "Bomb", "All bonuses, 3 more held"])
     })
 
     it("says on All that a kind it holds is on", () => {

@@ -110,11 +110,16 @@ stops it.
 the dock** (the meter takes it as `children`, and shows it even with no budget).
 It draws no border or background of its own: the one panel is `.click-budget-dock`.
 
-**The bar holds the kinds held, and All.** Up to `PHONE_BAR_ROOM` (3) of them on a phone, `DESKTOP_BAR_ROOM` (4) on a desktop, in the order they
-unlock, then the **All** button. A kind held past that room waits in the tray, and All counts it (`+2`); it wears the
+**The bar holds the kinds held, and All.** Up to `NARROW_PHONE_BAR_ROOM` (2) of them on a phone 480px wide or under
+(`NARROW_PHONE`, a phone held upright), `PHONE_BAR_ROOM` (3) on a wider phone form, `DESKTOP_BAR_ROOM` (4) on a desktop, in
+the order they unlock, then the **All** button. A kind held past that room waits in the tray, and All counts it (`+2`); it wears the
 state of one switched on (`On`, `Aim`) or `New`, so nothing on goes unseen. With nothing held, All is alone. A slot moves
 when a kind runs out or comes in: the bar was chosen over a strip that scrolls sideways and over rows that wrap, on
-screenshots at 5, 8 and 11 kinds (2026-11-16), because the dock keeps its size whatever the number of kinds.
+screenshots at 5, 8 and 11 kinds (2026-11-16), because the dock keeps its size whatever the number of kinds. An upright
+phone held three and All first, squeezed to 38px slots 3px apart while a virus was held: a count pinned to its slot's
+corner grows to the left, and "26/60" ran over the "1/3" beside it. A smaller count centred under its slot, then the
+number alone ("26"), still read as crammed, and the owner chose one kind fewer (2026-11-19). The phone's slots stand
+`--space-2` apart, which keeps "26/60" off the next one's count.
 
 **All opens the tray**, a panel that floats over the dock, the way "Your clicks" does (`popovers.bonuses` in
 `useScreen`, see [The screen](screen.md)): every kind but the hidden ones (below), in the order they unlock. On a
@@ -157,15 +162,12 @@ the server's (spread 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, rally 1
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is
 dimmed, and a press on it does nothing but say how to get one. A pool shows its count against its size (`5/8`,
-`2/3`) in a pill on its corner. **On a phone's bar the pill holds the number alone** (`26`, the `brief` count): the size
-is in the tray and the `aria-label`. The phone's slots stand 3 to 5px apart, and "26/60" ran over the pill of the slot
-beside it; a smaller pill centred under its slot still read as crammed, so the owner chose to show less (2026-11-19).
-**The refills, the bombs and the viruses are counted the same way once they stack**
+`2/3`) in a pill on its corner. **The refills, the bombs and the viruses are counted the same way once they stack**
 (`stackCountOf`): while the rules let a hand hold one at most and it holds no more (production for now), their slot
 shows no count, as when each was held or not; once a hand holds more than one, or may, the pill says it (`2/3`, an
 empty one `0/3`), so two bombs read as 2. A drop or a use spends one and puts the bomb or the virus away: the next
 is aimed again from its slot, where the mines stay aimed. **A slot is a square with no word in it**, at every width and in the tray too: 56px,
-48px on the bar under 1280px wide, 38 to 44px on a phone's. Its name is in its `aria-label`, and a mouse's hover says
+48px on the bar under 1280px wide, 44px on a phone's. Its name is in its `aria-label`, and a mouse's hover says
 how to use it in its bubble. A name drawn under the icon widened its own slot ("Encerclement"), which the owner turned
 down on 2026-11-16. What the slot is doing (`On`, `Aim`, `Full`, `New`) is in its `aria-label` too, not over it: a
 `New` slot wears a dot on its corner, and one switched on keeps its ring and its glow. Two words side by side ran over
