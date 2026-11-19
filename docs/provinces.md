@@ -157,10 +157,9 @@ brotli at 5; `siege-1`'s 73 KB.
 ## The page
 
 - **The zoom chooses the divisions, as it does the tiles: the countries from orbit, their provinces from where a CSS
-  pixel is 7 km of ground** (zoom 2.74 on a phone, 2.02 on a 900 px tall desktop, never below 1.25), 5% each side of
-  the line so a zoom held on it does not flicker, the one framing fading into the other over a quarter of a second as
-  the zoom crosses it. No setting: a new player lands on the countries and finds the provinces
-  by zooming in. They change three things only: the territory the pointer lights and names in orbit, the frame each big
+  pixel is 7 km of ground and the screen's shorter side 2,700 km** (zoom 2.77 on a phone, 4.72 on a laptop), 5% each
+  side of the line so a zoom held on it does not flicker, the one framing fading into the other over a quarter of a
+  second as the zoom crosses it. No setting: a new player lands on the countries and finds the provinces by zooming in. They change three things only: the territory the pointer lights and names in orbit, the frame each big
   flag stretches over (past the line, the US flag repeats over each state), and the lines seen from orbit. The video,
   the archive and the clips keep the countries at every zoom. Why, the measures and the shots that put the line there:
   [The provinces come in with the zoom](../apps/frontend/docs/zoomed-out-view.md#the-provinces-come-in-with-the-zoom).
@@ -196,6 +195,7 @@ brotli at 5; `siege-1`'s 73 KB.
    the ledger, the hover card's last fortify, the chat line.
 4. **The page** (built 2026-11-18): the setting, the hover and the big flags by province, the grey lines, the taller
    texture.
-5. **The zoom chooses** (built 2026-11-19): the countries from orbit, the provinces from 7 km a CSS pixel (10 km on the
-   first day, which left the countries too little of the zoom), a quarter of a second's fade between them; the setting
+5. **The zoom chooses** (built 2026-11-19): the countries from orbit, the provinces from 7 km a CSS pixel and 2,700 km
+   across the screen's shorter side (10 km a pixel alone on the first day, which left the countries too little of the
+   zoom, then 7 km alone, which a laptop crossed at zoom 2.1), a quarter of a second's fade between them; the setting
    goes.
