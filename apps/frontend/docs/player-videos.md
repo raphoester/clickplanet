@@ -103,7 +103,8 @@ After the video is made the player taps again, which `navigator.share` needs (`v
 shares files gets Share, an iPhone Share and Save (TikTok is often missing from its sheet), a computer Save. A guest
 also gets "Sign in to put your name on it".
 
-**Under the video: "Tag @clickplanetlol on TikTok. We repost the best."** The handle is `TIKTOK_HANDLE` in
+**Above the video: "Tag @clickplanetlol on TikTok. We repost the best."** Under it, the line hid below the fold on a
+phone. The video is also shrunk to the visible screen (`100dvh`), so the modal does not scroll. The handle is `TIKTOK_HANDLE` in
 `links.ts`, selected whole by a press. The operator reposts by hand with TikTok's Repost button: the video stays the
 player's, and a repost is the one thing a player gets for posting. Never download and upload a player's video again:
 TikTok takes it for unoriginal content and keeps it off the For You feed. Nothing reads the tags: no API lists a
