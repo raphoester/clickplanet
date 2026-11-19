@@ -52,13 +52,13 @@ export default function TerritoryCard({shown, flag, players, missions, now = Dat
                         touch={touch}
                         label={name}
                         className="territory-card"
-                        shape={`${listed.length} ${top.length} ${fortifier !== undefined}`}
+                        shape={`${name} ${listed.length} ${top.length} ${fortifier !== undefined}`}
                         onHold={onHold}
                         onClose={onClose}>
         <header className="territory-card-head">
             <h3 className="territory-card-name">
                 {ground && <CountryFlag code={ground}/>}
-                <span className="territory-card-name-text" title={name}>{name}</span>
+                <span className="territory-card-name-text">{name}</span>
             </h3>
             <p className="territory-card-size">
                 {free > 0 ? t("territory.sizeFree", {tiles: size, free}) : t("common.tiles", {count: size})}

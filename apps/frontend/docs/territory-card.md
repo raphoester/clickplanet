@@ -26,7 +26,8 @@ flies down to it.
   and it draws every frame, as a drag does.
 - **The card** says the territory's name with the flag of its ground, its size and
   the tiles no flag holds (a province's name from the board's province names, `translator().province`, and one with no
-  name of its own, a country's whole main landmass, its landmass's); the first five flags by tiles held
+  name of its own, a country's whole main landmass, its landmass's), whole: a name too long for the card's width
+  ("Bretagne et Pays de la Loire") goes on a second line, never cut with an ellipsis; the first five flags by tiles held
   (`rankHoldings`, ties on the code), each with its tiles and its share (`sharePercent`: never 0% for a few
   tiles, never 100% one short of all), and how many more flags hold some; the
   player's own flag wears the board's white coin. **Its foot is about fortifying the province under the pointer**
