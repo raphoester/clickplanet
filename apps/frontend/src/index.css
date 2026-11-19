@@ -455,6 +455,20 @@ th {
     }
 }
 
+/* Held sideways the tabs are a rail on the left, and the dock is centred in the room right of it; see docs/screen.md. */
+@media (max-height: 600px) and (orientation: landscape) {
+    :root {
+        --rail-width: 64px;
+        --rail-room: calc(var(--rail-width) + env(safe-area-inset-left, 0px));
+        --tab-bar-height: 0px;
+        --status-bar-height: 52px;
+        --landscape-dock-width: min(560px, calc(100vw - var(--rail-room) - 24px - env(safe-area-inset-right, 0px)));
+        --dock-left: calc(var(--rail-room) + 12px + (100vw - var(--rail-room) - 24px - env(safe-area-inset-right, 0px) - var(--landscape-dock-width)) / 2);
+        /* What is centred at the top keeps clear of the rail as it does of the desktop menu. */
+        --menu-right: var(--rail-room);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .button,
     .icon-button,

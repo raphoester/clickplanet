@@ -14,12 +14,35 @@ chat and the globe between them, so it keeps that form. Every stylesheet's phone
 rules use the same `@media` query as `COMPACT`; `compact.test.ts` fails on one
 that does not.
 
+**Held sideways, the phone form turns its bars into a rail** (`LANDSCAPE` in `compact.ts`, 600px high or less and wider
+than high, which only a compact screen is). A phone on its side is 320 to 430px high: the status bar, the dock and the
+tab bar stacked as upright left the globe a strip 60 to 100px high between them (iPhone SE 568×320, iPhone 14 750×340,
+Pixel 7 863×360, CrazyGames' 821×462; 2026-11-19). The same components, so a turn keeps the open sheet, laid out
+by CSS alone:
+
+- **The tabs are a rail down the left edge** (`--rail-width`, 64px, and `--rail-room` with the notch's inset), the six
+  icons centred down it.
+- **The status bar is two pills over the globe**, the logo, flag, country and rank (`.status-bar-lead`) on the left
+  and the season's chip on the right, and no bar between them: `--status-bottom` is under the pills.
+- **The dock is as short as its slots**: the clicks and their line ("+1 in 1s") on one row, the level's line under
+  them, the slots on the right of both, 66px high, 75px with the level. It is centred right of the rail, at most 560px
+  wide (`--dock-left`, `--landscape-dock-width`), and the chat's balloons start at its left edge.
+- **A sheet is a drawer out of the rail**, as tall as the screen and at most 400px wide, so the globe stays in view
+  beside it; it covers the left pill, and the dock hides while it is open, as a sheet covers it upright.
+- **What is centred at the top keeps clear of the rail** as of the desktop menu: `--menu-right` is the rail's edge.
+  The quiz is up to 520px wide and tighter, so a three-line question ends above a 320px screen's bottom.
+- **The player's card rises in the middle**, 520px wide, not as a strip across the screen.
+
+Which form a turn lands on is unchanged: a phone is compact upright and sideways, so `useCompact` does not change and
+nothing closes. Checked with Playwright's devices on their sides (iPhone SE, 14 and 15 Pro Max, Pixel 7, Galaxy S9+),
+882×344, 821×462, 700×500 and 1024×600; upright and the desktop measure as before, box for box.
+
 | Zone | Phone | Desktop |
 |---|---|---|
-| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays) | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top, centred in the room right of the menu (`BattleChip` while a battle plays) |
+| **Status** | `hud/StatusBar`: logo, flag, country and rank (opens the board), `SeasonChip` at its end (`BattleChip` while a battle plays); sideways, two pills | `Menu`'s "playing for" (a pill beside the rail while the panel is folded), `SeasonChip` at the top, centred in the room right of the menu (`BattleChip` while a battle plays) |
 | **Moments** | under the status bar (`--status-bottom`) | under the season chip |
 | **Play** | the dock (`ClickBudgetMeter` + `Inventory`, and the player's level and its bar across the dock under them) above the tab bar, the chat's peek above it | the dock at the bottom centre, the same |
-| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings: icons alone, of one width, each named by its label), each a `hud/Sheet` | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
+| **Places** | `hud/TabBar` (Board, Missions, Chat, Sign in / You, Share, Settings: icons alone, of one width, each named by its label), each a `hud/Sheet`; sideways, a rail on the left and each sheet a drawer beside it | `Menu`'s rail (logo, Board, Missions, Share or Invite, Settings, and Sign in / You at its foot) on the left with the open place beside it, the chat on the right |
 
 - **What is open is one store**, `useScreen` (`hud/screenStore.ts`, see
   [Stores](stores.md)): the phone's sheet (`sheet`), the desktop menu's place

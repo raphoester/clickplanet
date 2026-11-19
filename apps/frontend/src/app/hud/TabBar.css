@@ -62,6 +62,28 @@
     background: var(--gold);
 }
 
+/* Held sideways the tabs are a rail down the left edge: a sideways phone has width to spare and no height. */
+@media (max-height: 600px) and (orientation: landscape) {
+    .tab-bar {
+        top: 0;
+        right: auto;
+        flex-direction: column;
+        justify-content: center;
+        width: var(--rail-room);
+        height: auto;
+        padding: var(--space-2) 0 var(--space-2) env(safe-area-inset-left, 0px);
+        border-top: none;
+        border-right: var(--outline) solid var(--ink);
+        border-radius: 0 var(--radius-l) var(--radius-l) 0;
+    }
+
+    .tab-bar-tab {
+        flex: 0 1 52px;
+        min-height: 0;
+        margin: 2px 7px;
+    }
+}
+
 @keyframes tab-bar-badge-pop {
     from {
         transform: scale(0.4);

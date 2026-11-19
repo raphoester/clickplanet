@@ -149,10 +149,10 @@ it is open: the tray of every bonus floats over the dock as "Your clicks" does, 
 
 | Zone | What goes there | Where |
 |---|---|---|
-| **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar. Desktop: the menu's head, the season at the top centre |
+| **Status** | Who you play for, its rank, the season's clock: chips that are read at a glance | Phone: the top bar, and on its side two pills. Desktop: the menu's head, the season at the top centre |
 | **Moments** | Something that just happened: the quiz, a bomb, a caught box. One at a time, then gone | Under the status zone |
 | **Play** | What every click needs: the clicks left, the slowdown, the bonuses held, and All, which opens every bonus in the bar; and under them, across the bar, the player's level and its XP, which every take fills, and each gain in the XP's place for a moment, with why | One bar, at the bottom |
-| **Places** | Everything read or set: the board, the chat, the account, sharing, the settings. One open at a time | Phone: tabs at the bottom, each a sheet. Desktop: the menu's tabs on the left, the chat on the right |
+| **Places** | Everything read or set: the board, the chat, the account, sharing, the settings. One open at a time | Phone: tabs at the bottom, each a sheet; on its side a rail on the left, each sheet a drawer beside it. Desktop: the menu's tabs on the left, the chat on the right |
 
 - **Ask in this order.** A moment? Moments. Needed on every click? Play, and that
   is rare. Anything else is a place, or a line inside one.

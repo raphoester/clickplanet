@@ -23,18 +23,21 @@ export default function StatusBar({rank, trailing}: StatusBarProps) {
 
     const name = translator().country(country.code)
 
+    // Held sideways the bar is two pills over the globe, this lead and the trailing chip: see docs/screen.md.
     return <header ref={setBar} className="status-bar panel">
-        <HomeLogo size={34} className="status-bar-logo"/>
+        <div className="status-bar-lead">
+            <HomeLogo size={34} className="status-bar-logo"/>
 
-        <button type="button"
-                className="status-bar-country"
-                aria-label={rank === null ? t("hud.countryNoRank", {country: name}) : t("hud.countryRank", {country: name, rank})}
-                aria-expanded={boardOpen}
-                onClick={() => toggleSheet("board")}>
-            <CountryFlag code={country.code}/>
-            <span className="status-bar-name">{name}</span>
-            <span className="panel-box status-bar-rank" aria-hidden="true">{rank === null ? "—" : t("board.rankNumber", {rank})}</span>
-        </button>
+            <button type="button"
+                    className="status-bar-country"
+                    aria-label={rank === null ? t("hud.countryNoRank", {country: name}) : t("hud.countryRank", {country: name, rank})}
+                    aria-expanded={boardOpen}
+                    onClick={() => toggleSheet("board")}>
+                <CountryFlag code={country.code}/>
+                <span className="status-bar-name">{name}</span>
+                <span className="panel-box status-bar-rank" aria-hidden="true">{rank === null ? "—" : t("board.rankNumber", {rank})}</span>
+            </button>
+        </div>
 
         {trailing}
     </header>

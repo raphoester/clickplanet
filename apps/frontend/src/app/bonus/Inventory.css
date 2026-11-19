@@ -288,6 +288,13 @@
     }
 }
 
+/* Held sideways half the screen is under the dock's height: the tray takes the room between the status pills and the dock. */
+@media (max-height: 600px) and (orientation: landscape) {
+    .inventory-tray {
+        max-height: calc(100dvh - var(--status-bar-height) - var(--dock-drawn-height, 72px) - 52px);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .inventory-slot--on .inventory-box::before,
     .inventory-slot--new::before,

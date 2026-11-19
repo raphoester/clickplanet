@@ -15,6 +15,14 @@
     border-radius: 0 0 var(--radius-l) var(--radius-l);
 }
 
+.status-bar-lead {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 .status-bar-logo {
     flex-shrink: 0;
 }
@@ -59,4 +67,52 @@
     line-height: 1.2;
     color: var(--gold);
     text-shadow: var(--text-drop);
+}
+
+/* Held sideways there is no bar across the top: the lead and the season's chip are two pills over the globe, right of
+   the rail, and a sheet out of the rail covers the lead. */
+@media (max-height: 600px) and (orientation: landscape) {
+    .status-bar.panel {
+        left: var(--rail-room);
+        right: env(safe-area-inset-right, 0px);
+        z-index: 135;
+        justify-content: space-between;
+        height: auto;
+        padding: var(--space-2) var(--space-3) 0;
+        border: none;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+        pointer-events: none;
+    }
+
+    .status-bar.panel > * {
+        pointer-events: auto;
+    }
+
+    .status-bar-lead {
+        flex: 0 1 auto;
+        gap: var(--space-1);
+        height: 44px;
+        padding: 0 3px 0 var(--space-1);
+        background: var(--panel);
+        border: var(--outline-thin) solid var(--ink);
+        border-radius: var(--radius-l);
+        box-shadow: var(--drop-s), inset 0 2px 0 var(--sheen);
+    }
+
+    .status-bar-logo {
+        width: 32px;
+        height: 32px;
+    }
+
+    .status-bar-country {
+        height: 36px;
+        padding: 0 var(--space-2) 0 var(--space-1);
+        border-radius: var(--radius-l);
+    }
+
+    .status-bar-name {
+        font-size: var(--display-s);
+    }
 }
