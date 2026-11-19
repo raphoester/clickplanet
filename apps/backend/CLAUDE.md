@@ -64,8 +64,9 @@ and says what is in it. Read the doc before you change its area.
   names, so the world's map before and after joins up.
 - [The reach](docs/reach.md) — a knob: a take only next to the flag's land or across a bridge from it, on any map; why
   bridges and not the waters.
-- [The capitals' rules](docs/capitals.md) — two knobs: no shield on a capital, and the knock-out (a capital taken clears
-  its flag's land in one event, the flags out kept with the tiles, the pick of a flag still in).
+- [The capitals' rules](docs/capitals.md) — three knobs: no shield on a capital, the knock-out (a capital taken clears
+  its flag's land in one event, the flags out kept with the tiles, the pick of a flag still in), and the cut-off (land
+  a take cuts from its capital, over the flag's tiles and bridges, cleared in one event).
 - [The map's version](docs/map-version.md) — every write counts one, published under the tiles lock so streams get
   them in order; `GetHoldings` and the one-second `holdings_changed`; the ETag and the 304.
 - [The live streams](docs/live-streams.md) — the `ListenForEvents` streams, served two ways, and how they end on

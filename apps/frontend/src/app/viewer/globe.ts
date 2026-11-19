@@ -2022,6 +2022,15 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         publishStanding()
     })
 
+    const stopCutOffs = updatesListener.listenForCutOffs((cutOff) => {
+        const changes = noChanges()
+        tiles.applyCutOff(cutOff.cleared, cutOff.version, changes)
+        applyChanges(changes.owners)
+        showShields(changes.shields)
+        markInfections(changes.infections)
+        markMines(changes.mines)
+    })
+
     const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)
     // A bomb's effects built and first drawn at its drop froze the page for ~0.8 s: both happen at load, and the
     // virus's goo with them.
@@ -2290,6 +2299,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             stopHoldings()
             stopFortifications()
             stopKnockOuts()
+            stopCutOffs()
             reading?.abort()
             stopBoxes?.()
             stopBonuses?.()

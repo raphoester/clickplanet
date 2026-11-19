@@ -65,7 +65,8 @@ the quizzes every answer; see the backend's
 fought on a fresh map" (the set's `arena.on`, never shown on `default`, which the backend refuses it for: see the
 backend's [Arena battles](../../backend/docs/arenas.md)), "Reach: a take lands only next to the flag's land or across
 a bridge" (`reach`: see the backend's [The reach](../../backend/docs/reach.md)), "Knock-out: a capital taken clears
-its flag" and "No shield on a capital" (`capitals.knockOut`, `capitals.fixedShields`: see the backend's
+its flag", "No shield on a capital" and "Cut-off: land cut from its capital clears" (`capitals.knockOut`,
+`capitals.fixedShields`, `capitals.cutOff`: see the backend's
 [The capitals' rules](../../backend/docs/capitals.md)): Clicks (the tempo with them), Charges (the set's `charges`, the
 wallet's: how many refills, spread clicks, bombs, enclosures, shields, viruses, mines and rallies a hand holds
 (`charges.refill.held`, `bomb.held` and `virus.held` beside `mine.held` and `rally.held`: the refill, the bomb and the

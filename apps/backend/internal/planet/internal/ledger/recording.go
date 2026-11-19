@@ -65,6 +65,7 @@ func (r Recording) Click(ctx context.Context, tile uint32, flag string) (clicks.
 		}
 		r.recordFortified(ctx, on, flag, []clicks.Impact{impact})
 		r.recordKnockedOut(ctx, on, []clicks.Impact{impact})
+		r.recordCutOff(ctx, on, []clicks.Impact{impact})
 	})
 	if err != nil {
 		return clicks.Impact{}, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
@@ -83,6 +84,7 @@ func (r Recording) Spread(ctx context.Context, tile uint32, flag string, neighbo
 		})
 		r.recordFortified(ctx, on, flag, impacts)
 		r.recordKnockedOut(ctx, on, impacts)
+		r.recordCutOff(ctx, on, impacts)
 	})
 
 	return err
@@ -102,6 +104,7 @@ func (r Recording) Enclose(ctx context.Context, enclosure clicks.Enclosure, insi
 		})
 		r.recordFortified(ctx, on, enclosure.Country, impacts)
 		r.recordKnockedOut(ctx, on, impacts)
+		r.recordCutOff(ctx, on, impacts)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to enclose from tile %d: %w", enclosure.ClosingTile, err)
@@ -179,6 +182,14 @@ func (r Recording) recordKnockedOut(ctx context.Context, on clicks.Stage, impact
 	for _, impact := range impacts {
 		if impact.KnockedOut != nil {
 			r.record(ctx, on, func(by Caller, at time.Time) Event { return knockingOutOfImpact(by, at, impact.KnockedOut) })
+		}
+	}
+}
+
+func (r Recording) recordCutOff(ctx context.Context, on clicks.Stage, impacts []clicks.Impact) {
+	for _, impact := range impacts {
+		if impact.CutOff != nil {
+			r.record(ctx, on, func(by Caller, at time.Time) Event { return cuttingOffOfImpact(by, at, impact.CutOff) })
 		}
 	}
 }

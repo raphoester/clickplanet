@@ -264,6 +264,14 @@ export class CapitalRules extends Message<CapitalRules> {
    */
   fixedShields?: boolean;
 
+  /**
+   * A take that cuts a flag's land from its capital clears the land cut off: a flag's tiles hold together through its
+   * own tiles and the bridges whose both ends it holds.
+   *
+   * @generated from field: optional bool cut_off = 3;
+   */
+  cutOff?: boolean;
+
   constructor(data?: PartialMessage<CapitalRules>) {
     super();
     proto3.util.initPartial(data, this);
@@ -274,6 +282,7 @@ export class CapitalRules extends Message<CapitalRules> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "knock_out", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 2, name: "fixed_shields", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 3, name: "cut_off", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CapitalRules {

@@ -83,7 +83,7 @@ const changes = `
 		UNION ALL
 		SELECT cleared::bigint, '', e.previous, false, 0, place
 		FROM jsonb_array_elements_text(COALESCE(e.payload->'cleared', '[]'::jsonb)) WITH ORDINALITY AS k(cleared, place)
-		WHERE e.kind = 'knock_out'
+		WHERE e.kind IN ('knock_out', 'cut_off')
 		UNION ALL
 		SELECT e.tile, e.country, e.country, false, (e.payload->>'shields')::int, 0
 		WHERE e.kind = 'shield'

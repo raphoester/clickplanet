@@ -7,10 +7,11 @@ import (
 
 // CapitalRules is what a rule set says of the capitals. KnockOut: a take of a flag's capital by another flag clears
 // every other tile of the flag, and the flag is out. FixedShields: no shield is placed on a capital, and a fortify skips
-// it.
+// it. CutOff: a take that cuts a flag's land from its capital clears the land cut off.
 type CapitalRules struct {
 	KnockOut     bool
 	FixedShields bool
+	CutOff       bool
 }
 
 func (CapitalRules) Validate() error { return nil }
@@ -18,7 +19,10 @@ func (CapitalRules) Validate() error { return nil }
 var CapitalsPart = cprules.PartOf[*planetv1.Rules, CapitalRules]{
 	Key: "capitals",
 	Read: func(m *planetv1.Rules) CapitalRules {
-		return CapitalRules{KnockOut: m.GetCapitals().GetKnockOut(), FixedShields: m.GetCapitals().GetFixedShields()}
+		return CapitalRules{
+			KnockOut: m.GetCapitals().GetKnockOut(), FixedShields: m.GetCapitals().GetFixedShields(),
+			CutOff: m.GetCapitals().GetCutOff(),
+		}
 	},
 }
 
@@ -55,4 +59,18 @@ func (p CapitalPlay) Felled(tile uint32, flag string, out func(flag string) bool
 // Stands says whether the flag is still in the game, given whether it is out.
 func (p CapitalPlay) Stands(flag string, out bool) bool {
 	return p.rules().Stands(p.capitals().Has(flag), out)
+}
+
+// Stranded is the flag's land that the loss of the tiles lost cut from its capital, read by holds after they left it:
+// ErrNoCutOff when they cut none, or while the cut-off does not play.
+func (p CapitalPlay) Stranded(flag string, lost []uint32, links Links, holds func(tile uint32) bool) ([]uint32, error) {
+	capital, ok := p.capitals().Of(flag)
+	if err := p.rules().CutOffError(ok); err != nil {
+		return nil, err
+	}
+	cut := stranded(links, capital, holds, lost)
+	if len(cut) == 0 {
+		return nil, ErrNoCutOff
+	}
+	return cut, nil
 }

@@ -57,6 +57,9 @@ message CapitalRules {
   optional bool knock_out = 1;
   // No shield is placed on a capital, and a fortify skips it.
   optional bool fixed_shields = 2;
+  // A take that cuts a flag's land from its capital clears the land cut off: a flag's tiles hold together through its
+  // own tiles and the bridges whose both ends it holds.
+  optional bool cut_off = 3;
 }
 
 message ClickRules {

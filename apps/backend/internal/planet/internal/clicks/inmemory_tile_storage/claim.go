@@ -64,3 +64,13 @@ func (c *insideClaim) KnockOut(ctx context.Context, tile uint32, flag string) (c
 
 	return knockOut, nil
 }
+
+func (c *insideClaim) CutOff(losses clicks.Losses) (clicks.CutOff, error) {
+	cutOff, err := c.storage.cutOffLocked(losses)
+	if err != nil {
+		return clicks.CutOff{}, err
+	}
+	c.storage.publishLocked(clicks.Change{CutOff: &cutOff})
+
+	return cutOff, nil
+}

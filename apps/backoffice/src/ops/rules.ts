@@ -75,7 +75,7 @@ export type TollStep = {share: string, slowdown: string}
 export type Draft = {
     name: string, values: Record<string, string>, frozen?: boolean, allegianceLocked?: boolean, arena?: boolean,
     enclosuresUnlimited?: boolean, spreadUnlimited?: boolean, toll?: TollStep[], reach?: boolean, knockOut?: boolean,
-    fixedShields?: boolean, bombsOff?: boolean, enclosuresOff?: boolean, spreadOff?: boolean, ralliesOff?: boolean, board?: string
+    fixedShields?: boolean, cutOff?: boolean, bombsOff?: boolean, enclosuresOff?: boolean, spreadOff?: boolean, ralliesOff?: boolean, board?: string
 }
 
 export function draftOf(set: RuleSet): Draft {
@@ -98,6 +98,7 @@ export function draftOf(set: RuleSet): Draft {
         reach: rules.reach,
         knockOut: rules.capitals?.knockOut,
         fixedShields: rules.capitals?.fixedShields,
+        cutOff: rules.capitals?.cutOff,
         toll: rules.toll?.steps.map(step => ({
             share: String(Number((step.share * 100).toPrecision(12))), slowdown: String(step.slowdown),
         })),
@@ -132,6 +133,7 @@ export const SWITCHES = [
     {key: "reach", label: "Reach"},
     {key: "knockOut", label: "Knock-out"},
     {key: "fixedShields", label: "No shield on a capital"},
+    {key: "cutOff", label: "Cut-off"},
     {key: "enclosuresUnlimited", label: "Enclosures unlimited"},
     {key: "spreadUnlimited", label: "Spread unlimited"},
     {key: "bombsOff", label: "Bombs off"},
@@ -182,7 +184,7 @@ export function ruleSetOf(draft: Draft): RuleSet {
     const json: JsonObject = {}
     const switches = {
         "frozen": draft.frozen, "allegianceLocked": draft.allegianceLocked, "arena.on": draft.arena, "reach": draft.reach,
-        "capitals.knockOut": draft.knockOut, "capitals.fixedShields": draft.fixedShields,
+        "capitals.knockOut": draft.knockOut, "capitals.fixedShields": draft.fixedShields, "capitals.cutOff": draft.cutOff,
         "charges.enclose.unlimited": draft.enclosuresUnlimited, "charges.spread.unlimited": draft.spreadUnlimited,
         "charges.bomb.off": draft.bombsOff, "charges.enclose.off": draft.enclosuresOff, "charges.spread.off": draft.spreadOff,
         "charges.rally.off": draft.ralliesOff,

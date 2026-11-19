@@ -41,6 +41,7 @@ type Change struct {
 	Enclosure     *Enclosure
 	Fortification *Fortification
 	KnockOut      *KnockOut
+	CutOff        *CutOff
 	Infection     *Infection
 	Explosion     *Explosion
 	// The rows the writes since the last tally changed, each whole: a flag at zero is listed.

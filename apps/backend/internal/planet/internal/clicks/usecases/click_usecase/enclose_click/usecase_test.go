@@ -87,6 +87,10 @@ func (b board) KnockOut(context.Context, uint32, string) (clicks.KnockOut, error
 	return clicks.KnockOut{}, clicks.ErrNoKnockOut
 }
 
+func (b board) CutOff(clicks.Losses) (clicks.CutOff, error) {
+	return clicks.CutOff{}, clicks.ErrNoCutOff
+}
+
 func (b board) Enclose(_ context.Context, _ clicks.Enclosure, write func(clicks.Claimable) error) error {
 	return write(b)
 }

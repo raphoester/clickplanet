@@ -342,6 +342,8 @@ message PlanetEvent {
     Rally rally_called = 17;
 
     ProvinceFortified province_fortified = 18;
+
+    CutOff cut_off = 19;
   }
 }
 
@@ -428,6 +430,23 @@ message KnockOut {
   string by_country_id = 2;
 
   // The capital.
+  uint32 tile_id = 3;
+
+  repeated uint32 cleared_tile_ids = 4;
+
+  MapVersion version = 5;
+}
+
+// The one event of a cut-off, after the takes that cut a flag's land from its capital: every tile of the land cut off
+// went blank, with no shield.
+message CutOff {
+  // The flag whose land was cut off.
+  string country_id = 1;
+
+  // The flag whose take cut it.
+  string by_country_id = 2;
+
+  // The tile whose take cut it.
   uint32 tile_id = 3;
 
   repeated uint32 cleared_tile_ids = 4;

@@ -238,6 +238,34 @@ describe("a knock-out", () => {
     })
 })
 
+describe("a cut-off", () => {
+    it("clears every tile the cut-off names and keeps no flag out", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {1: "fr", 2: "fr", 3: "de"}, {2: 3}))
+
+        const cut = changes()
+        tiles.applyCutOff([2], at(12), cut)
+
+        expect(cut.owners).toEqual([{tile: 2, country: undefined}])
+        expect(tiles.ownership.ownerOf(2)).toBeUndefined()
+        expect(tiles.shields.shieldsOf(2)).toBe(0)
+        expect(tiles.ownership.ownerOf(1)).toBe("fr")
+        expect([...tiles.knockedOut]).toEqual([])
+    })
+
+    it("leaves a tile a later change already wrote", () => {
+        const tiles = tilesOf()
+        tiles.opened(at(10))
+        read(tiles, batch(1, 4, at(10), {2: "fr"}, {}))
+        live(tiles, update(2, "de", at(13)))
+
+        tiles.applyCutOff([2], at(12), changes())
+
+        expect(tiles.ownership.ownerOf(2)).toBe("de")
+    })
+})
+
 describe("a fortify adds a shield to each tile of the landmass its flag holds", () => {
     const landmass = [1, 2, 5]
 

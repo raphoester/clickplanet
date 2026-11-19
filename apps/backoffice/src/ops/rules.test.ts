@@ -30,7 +30,7 @@ describe("the rules", () => {
     })
 
     it("edits every value of a set", () => {
-        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "charges.spread.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "charges.bomb.off", "charges.enclose.off", "charges.spread.off", "charges.rally.off", "arena.board"])
+        const edited = new Set([...GROUPS.flatMap(group => group.fields.map(field => field.path)), "charges.enclose.unlimited", "charges.spread.unlimited", "toll.steps", "frozen", "allegianceLocked", "arena.on", "reach", "capitals.knockOut", "capitals.fixedShields", "capitals.cutOff", "charges.bomb.off", "charges.enclose.off", "charges.spread.off", "charges.rally.off", "arena.board"])
 
         const values = leaves(played().rules!.toJson({emitDefaultValues: true}))
 

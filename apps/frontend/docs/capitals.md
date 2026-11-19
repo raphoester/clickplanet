@@ -1,7 +1,7 @@
 # The capitals
 
-**Two knobs of the rules in force play on the capitals: no shield on a capital, and the knock-out** (see the backend's
-[The capitals' rules](../../backend/docs/capitals.md)). Capital Siege plays both on its fresh map, which starts from
+**Three knobs of the rules in force play on the capitals: no shield on a capital, the knock-out and the cut-off** (see
+the backend's [The capitals' rules](../../backend/docs/capitals.md)). Capital Siege plays all three on its fresh map, which starts from
 each country's capital (the backend's [Arena battles](../../backend/docs/arenas.md)); any set may play them on the world's
 map too.
 
@@ -38,6 +38,11 @@ map too.
   capital clears every other tile of the flag. The stream sends it as one `knock_out`, after the take (`knockOutOf`,
   `listenForKnockOuts`); the globe flushes the earlier updates first, as for a bomb, and `MapTiles.applyKnockOut`
   clears each tile at its version. The crown goes with the capital's owner.
+- **A cut-off** (the backend's [The cut-off](../../backend/docs/capitals.md#the-cut-off-capitalscutoff)): a take that
+  cuts a flag's land from its capital clears the land cut off. The stream sends it as one `cut_off`, after the take
+  (`cutOffOf`, `listenForCutOffs`); the globe flushes the earlier updates first, as for a knock-out, and
+  `MapTiles.applyCutOff` clears each tile at its version. No flag goes out. The page does not need the rule: it reads
+  no `GetChargeRules` field for it, and draws nothing more than the blank tiles.
 - **The flags out**: every map read says them (`Ownerships.knockedOut`), and `MapTiles` keeps them with each knock-out
   heard. A read of the same start adds to them; a new start replaces them.
 - **The flags still in reach React**: while the knock-out plays, the globe hands `onStanding` the capitals' countries

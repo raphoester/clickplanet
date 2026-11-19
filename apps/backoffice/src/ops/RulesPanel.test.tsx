@@ -260,7 +260,7 @@ describe("the game rules page", () => {
         await waitFor(() => expect(sent(admin)?.rules?.arena?.board).toBeUndefined())
     })
 
-    it("plays the reach, the knock-out and fixed capital shields, each a switch of its own", async () => {
+    it("plays the reach, the knock-out, fixed capital shields and the cut-off, each a switch of its own", async () => {
         const admin = withCalm()
         render(<RulesPanel planet={admin}/>)
 
@@ -268,12 +268,14 @@ describe("the game rules page", () => {
         pick("Reach: a take lands only next to the flag's land or across a bridge", "yes")
         pick("Knock-out: a capital taken clears its flag", "yes")
         pick("No shield on a capital", "no")
+        pick("Cut-off: land cut from its capital clears", "yes")
         save()
 
         await waitFor(() => expect(sent(admin)).toBeDefined())
         expect(sent(admin)?.rules?.reach).toBe(true)
         expect(sent(admin)?.rules?.capitals?.knockOut).toBe(true)
         expect(sent(admin)?.rules?.capitals?.fixedShields).toBe(false)
+        expect(sent(admin)?.rules?.capitals?.cutOff).toBe(true)
     })
 
     it("turns enclose off with a switch of its own, and keeps every other value", async () => {

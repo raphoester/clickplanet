@@ -15,6 +15,7 @@ import {
     Enclosure,
     Fortification,
     KnockOut,
+    CutOff,
     GlobePoint,
     Ownerships,
     OwnershipsGetter,
@@ -118,6 +119,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
     private readonly holdingsCallbacks = new Map<string, (change: Counts) => void>()
     private readonly fortificationCallbacks = new Map<string, (fortification: Fortification) => void>()
     private readonly knockOutCallbacks = new Map<string, (knockOut: KnockOut) => void>()
+    private readonly cutOffCallbacks = new Map<string, (cutOff: CutOff) => void>()
     private readonly allegianceCallbacks = new Map<string, (allegiance: Allegiance | undefined) => void>()
     private readonly flushTimer: ReturnType<typeof setInterval>
     private stopListening: () => void
@@ -202,6 +204,7 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.holdingsCallbacks.clear()
         this.fortificationCallbacks.clear()
         this.knockOutCallbacks.clear()
+        this.cutOffCallbacks.clear()
         this.allegianceCallbacks.clear()
         this.pendingUpdates = []
     }
@@ -460,6 +463,15 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
                     this.flushUpdates()
                     this.streamVersion = knockOut.version
                     this.knockOutCallbacks.forEach(callback => callback(knockOut))
+                    return
+                }
+
+                const cutOff = cutOffOf(event)
+                if (cutOff) {
+                    // The take that cut the land goes first.
+                    this.flushUpdates()
+                    this.streamVersion = cutOff.version
+                    this.cutOffCallbacks.forEach(callback => callback(cutOff))
                     return
                 }
 
@@ -801,6 +813,13 @@ export class PlanetBackend implements TileClicker, OwnershipsGetter, UpdatesList
         this.knockOutCallbacks.set(id, callback)
 
         return () => this.knockOutCallbacks.delete(id)
+    }
+
+    public listenForCutOffs(callback: (cutOff: CutOff) => void): () => void {
+        const id = generateUUID()
+        this.cutOffCallbacks.set(id, callback)
+
+        return () => this.cutOffCallbacks.delete(id)
     }
 
     public listenForBonuses(handlers: BonusHandlers): () => void {
@@ -1183,6 +1202,19 @@ export function knockOutOf(event: PlanetEvent): KnockOut | undefined {
         tile: knocked.tileId,
         cleared: knocked.clearedTileIds,
         version: versionOf(knocked.version),
+    }
+}
+
+export function cutOffOf(event: PlanetEvent): CutOff | undefined {
+    if (event.event.case !== "cutOff") return undefined
+
+    const cut = event.event.value
+    return {
+        countryId: cut.countryId,
+        byCountryId: cut.byCountryId,
+        tile: cut.tileId,
+        cleared: cut.clearedTileIds,
+        version: versionOf(cut.version),
     }
 }
 

@@ -22,11 +22,24 @@ func NamedGround(name BoardName, borders *Borders, capitals *Capitals) *Ground {
 
 // GroundOfProvinces is NamedGround, with the provinces.
 func GroundOfProvinces(name BoardName, borders *Borders, capitals *Capitals, provinces *Provinces) *Ground {
+	return groundOf(name, borders, capitals, provinces, nil)
+}
+
+// LinkedGround is GroundWith, its tiles touching as the edges say, each both ways.
+func LinkedGround(borders *Borders, capitals *Capitals, edges []Edge) *Ground {
+	both := make([]Edge, 0, 2*len(edges))
+	for _, edge := range edges {
+		both = append(both, edge, Edge{From: edge.To, To: edge.From})
+	}
+	return groundOf("test-board", borders, capitals, ProvincesOfLandmasses(borders), both)
+}
+
+func groundOf(name BoardName, borders *Borders, capitals *Capitals, provinces *Provinces, edges []Edge) *Ground {
 	positions := make([]float32, borders.Tiles()*3)
 	for i := 0; i < len(positions); i += 3 {
 		positions[i] = 1
 	}
-	geography, err := NewGeography(positions, nil)
+	geography, err := NewGeography(positions, edges)
 	if err != nil {
 		panic(err)
 	}

@@ -183,7 +183,7 @@ func (l *insideLaying) Put(mine clicks.Mine) {
 }
 
 // Explode holds the lock through every write of `write`: one change at one version with every blast, then the fortifies
-// they earned, then the knock-outs.
+// they earned, then the knock-outs, then the cut-offs.
 func (s *Storage) Explode(_ context.Context, write func(tiles clicks.Exploding) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -199,6 +199,9 @@ func (s *Storage) Explode(_ context.Context, write func(tiles clicks.Exploding) 
 	for i := range inside.knockedOut {
 		s.publishLocked(clicks.Change{KnockOut: &inside.knockedOut[i]})
 	}
+	for i := range inside.cutOff {
+		s.publishLocked(clicks.Change{CutOff: &inside.cutOff[i]})
+	}
 
 	return err
 }
@@ -208,6 +211,7 @@ type insideExplosion struct {
 	blasts     []clicks.MineBlast
 	fortified  []clicks.Fortification
 	knockedOut []clicks.KnockOut
+	cutOff     []clicks.CutOff
 }
 
 var _ clicks.Exploding = (*insideExplosion)(nil)
@@ -259,4 +263,14 @@ func (e *insideExplosion) SetOff(tile uint32) (clicks.Mine, bool) {
 
 func (e *insideExplosion) Blasted(blast clicks.MineBlast) {
 	e.blasts = append(e.blasts, blast)
+}
+
+func (e *insideExplosion) CutOff(losses clicks.Losses) (clicks.CutOff, error) {
+	cutOff, err := e.storage.cutOffLocked(losses)
+	if err != nil {
+		return clicks.CutOff{}, err
+	}
+	e.cutOff = append(e.cutOff, cutOff)
+
+	return cutOff, nil
 }

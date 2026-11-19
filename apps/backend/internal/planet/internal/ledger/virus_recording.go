@@ -71,4 +71,9 @@ func (r VirusRecording) record(on clicks.Stage, virus clicks.Virus, impacts []cl
 			r.events.Append(on, knockingOutOfImpact(by, at, impact.KnockedOut))
 		}
 	}
+	for _, impact := range impacts {
+		if impact.CutOff != nil {
+			r.events.Append(on, cuttingOffOfImpact(by, at, impact.CutOff))
+		}
+	}
 }

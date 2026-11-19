@@ -417,7 +417,7 @@ export class FakeAdmin implements ChatAdmin, PlanetAdmin, PlayerAdmin, SupportAd
         arena: {on: false, freeze: "8s"},
         seed: {capitals: {shields: 100}},
         reach: false,
-        capitals: {knockOut: false, fixedShields: false},
+        capitals: {knockOut: false, fixedShields: false, cutOff: false},
     })})], playing: "default"})
     // The bonuses module's set the migration keeps: what a box caught or a right answer grants, and the sign-in refill.
     bonusRules = new BonusesGetRulesResponse({sets: [new BonusesRuleSet({name: "default", rules: BonusesRules.fromJson({
