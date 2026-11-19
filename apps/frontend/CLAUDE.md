@@ -123,7 +123,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Quizzes](docs/quizzes.md), [Bombs](docs/bombs.md), [Shields](docs/shields.md), [Fortify](docs/fortify.md) —
   each bonus on the client.
 - [Virus](docs/virus.md) — aimed from a slot shown only while one is held, a tap on an enemy tile with no shield, one
-  `virus_spread` per tick, each tile's virus a versioned tile value cured by any change of owner, the purple beat.
+  `virus_spread` per tick, each tile's virus a versioned tile value cured by any change of owner, the purple beat; the
+  goo that oozes onto each tile it takes (the tiles turn as it lands) and bursts on a cure.
 - [Mine](docs/mine.md) — aimed from its slot, a tap on a tile of the flag lays one, on another flag's takes it first; only the flag's players see it
   (`GetMines` at each stream open and flag change, `mine_laid`), each kept at the map version it is known at and taken
   off by any change of its tile; `mines_exploded` drawn as a bomb's blast with no fall; the still olive dome.

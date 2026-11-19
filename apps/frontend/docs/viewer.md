@@ -95,6 +95,9 @@
   last lands in `SPREAD_THROW_WINDOW` (0.3 s) and 36 sparks land as soon as 6 did. It reuses the enclosure's shaders, with normal rather than
   additive rings, which vanished on the white of a flag. A busy planet spreads a
   lot, so at most `MAX_PLAYING` run at once.
+- `virusSlime.ts` — a virus's goo: a tendril oozing from the tile it holds onto each tile it takes, and a cured
+  tile's goo bursting. One instanced quad per goo laid on the ground, its timeline in TypeScript and the goo in
+  `shaders/virusSlime/`. See [Virus](virus.md#the-goo).
 - `clickGlints.ts` — **every other click glints on its tile**: this player's at
   once, and anyone else's when its `TileUpdate` says `clicked` — the server sets
   it only on the tile a click named, never on a spread's neighbours, an

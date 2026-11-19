@@ -62,6 +62,7 @@ import {
     MineRefusedError,
     Rallier,
     RallyRefusedError,
+    VirusSpread,
 } from "../../backends/backend.ts";
 import {clickCostOf, Rallies, WHOLE_CLICK} from "../../domain/rallies.ts";
 import {createRallyMarks, RallyCallers} from "./rallyMarks.ts";
@@ -83,6 +84,7 @@ import {createBonusPointer} from "./bonusPointer.ts";
 import {createEnclosureEffects} from "./enclosureEffect.ts";
 import {createClickEffects} from "./clickEffects.ts";
 import {createClickGlints, type Glints} from "./clickGlints.ts";
+import {createVirusSlime, SLIME_IMPACT} from "./virusSlime.ts";
 import {ALL_OFF, atRest, BonusNotice, BonusReward, BonusRules, Charges, NO_CHARGES, restingSwitch, sameSwitches, Switches, switched, switchesHeld} from "../../domain/bonus.ts";
 import {canClick, ClickBudget, ClickBudgetSource, now as monotonicNow} from "../../backends/clickBudget.ts";
 import {BlastUniforms, blastUniforms, createBlasts} from "./blasts.ts";
@@ -573,6 +575,9 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const plainClicks = createClickGlints(geometryData.positions, scale)
     scene.add(plainClicks.object)
 
+    const slime = createVirusSlime(geometryData.positions, scale, uniforms.virusLift)
+    scene.add(slime.object)
+
     const outline = createBorderLines(borderLines, scale)
     scene.add(outline.object)
     // Read once the globe is up: nothing is drawn with them in the landing view of the countries' divisions.
@@ -600,9 +605,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     const driveBonusBox = (seconds: number) => {
         const enclosing = enclosures.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const spreading = bonusClicks.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
+        const landed = flushInfections(seconds)
+        const sliming = slime.update(seconds, camera, renderer.domElement.height, renderer.getPixelRatio())
         const boxed = bonusBox.update(seconds, camera)
         bonusPointer.update(bonusBox.flying ? bonusBox.object.position : undefined, camera)
-        return enclosing || spreading || boxed
+        return enclosing || spreading || landed || sliming || boxed
     }
 
     const driveGlints = (seconds: number) =>
@@ -742,13 +749,44 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
     const noChanges = noTileChanges
 
+    // Every cure bursts the tile's goo, whatever cured it: a take, a blast, the virus's end.
     const markInfections = (changes: readonly InfectionChange[]) => {
         if (changes.length === 0) return
         const {on, off} = infectionMarksOf(changes)
         field.setInfectedMarks(off, false)
         field.setInfectedMarks(on, true)
+        slime.cure(off)
         invalidate()
     }
+
+    // A virus's use or tick waits for its goo to land, as a bomb's clear waits for its blast: a later change of a tile
+    // wins over it by its version, and they land in the order they came.
+    let pendingInfections: {at: number, spread: VirusSpread}[] = []
+
+    const infectNow = (spread: VirusSpread) => {
+        const changes = noChanges()
+        tiles.applyInfection(spread, changes)
+        applyChanges(changes.owners)
+        showShields(changes.shields)
+        playShields(changes.shields)
+        markInfections(changes.infections)
+        markMines(changes.mines)
+    }
+
+    const flushInfections = (upTo: number) => {
+        let landed = false
+        while (pendingInfections.length > 0 && pendingInfections[0].at <= upTo) {
+            infectNow(pendingInfections.shift()!.spread)
+            landed = true
+        }
+        return landed
+    }
+
+    // The virus's tiles, with those its ticks still in flight took: a tendril sets out from the nearest of them.
+    const virusHolding = (virus: string) => [
+        ...tiles.infections.tilesOf(virus),
+        ...pendingInfections.filter(({spread}) => spread.virus === virus).flatMap(({spread}) => spread.taken),
+    ]
 
     const markMines = (changes: readonly MineChange[]) => {
         if (changes.length === 0) return
@@ -1296,15 +1334,18 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             ownEnclosures.record(enclosure.closingTile, enclosure.countryId, performance.now() / 1000)
         },
         onVirusSpread: (spread) => {
+            tiles.heard(spread.version)
             releaseGhosts([...spread.taken, ...spread.struck.map(({tile}) => tile)])
             lost = spread.taken.find((tile) => ownership.ownerOf(tile) === country.code) ?? lost
-            const changes = noChanges()
-            tiles.applyInfection(spread, changes)
-            applyChanges(changes.owners)
-            showShields(changes.shields)
-            playShields(changes.shields)
-            markInfections(changes.infections)
-            markMines(changes.mines)
+            // A hidden tab draws no frame: its tiles turn at once.
+            if (document.hidden) {
+                flushInfections(Infinity)
+                infectNow(spread)
+                return
+            }
+            slime.spread(spread, virusHolding(spread.virus))
+            pendingInfections.push({at: performance.now() / 1000 + SLIME_IMPACT, spread})
+            invalidate()
         },
         onMines: (read) => {
             const changes = noChanges()
@@ -1962,8 +2003,12 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     })
 
     const atmosphere = addDisplayObjects(scene, field.displayPoints, graphics, sphere)
-    // A bomb's effects built and first drawn at its drop froze the page for ~0.8 s: both happen at load.
-    void renderer.compileAsync(scene, camera).then(() => blasts.prime())
+    // A bomb's effects built and first drawn at its drop froze the page for ~0.8 s: both happen at load, and the
+    // virus's goo with them.
+    void renderer.compileAsync(scene, camera).then(() => {
+        blasts.prime()
+        slime.prime()
+    })
 
     let captureRequests: CaptureRequest[] = []
 
@@ -2230,6 +2275,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             enclosures.dispose()
             bonusClicks.dispose()
             plainClicks.dispose()
+            slime.dispose()
+            pendingInfections = []
             dropArcs()
 
             cleanup()

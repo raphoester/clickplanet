@@ -26,7 +26,7 @@ under test. Six things can ask for a frame:
   cap, as a drag does.
 - **Something the loop drives is still moving** — every `update` that animates
   answers a boolean: `blasts`, `bonusBox`, `enclosureEffect`, `clickEffects`,
-  `fortifyWaves` and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
+  `virusSlime`, `fortifyWaves` and `TileField.setHover`. **The frame an effect *ends* on counts**: it is the
   one that takes the flash, the box or the highlight off the screen, so each one
   answers `true` on the tick it stops as well as while it runs.
 - **A glint plays** — `clickGlints.update` answers `"playing"` while a glint of a
