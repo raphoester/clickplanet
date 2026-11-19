@@ -10,6 +10,7 @@ import {useBonus} from "./bonusStore.ts"
 import {useScreen} from "../hud/screenStore.ts"
 import {useLevel} from "../level/levelStore.ts"
 import ClickBudgetMeter from "../components/ClickBudgetMeter.tsx"
+import {COMPACT, NARROW_PHONE} from "../compact.ts"
 
 afterEach(() => {
     cleanup()
@@ -523,10 +524,17 @@ describe("Inventory", () => {
     })
 
     it("keeps three on a phone's bar", () => {
-        vi.stubGlobal("matchMedia", (query: string) => ({matches: true, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
+        vi.stubGlobal("matchMedia", (query: string) => ({matches: query === COMPACT, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
         render(inventory({charges: EVERY, guide: learned}))
 
         expect(onBar()).toEqual(["Refill", "Bomb", "Spread, 5/8", "All bonuses, 2 more held"])
+    })
+
+    it("keeps two on a narrow phone's bar", () => {
+        vi.stubGlobal("matchMedia", (query: string) => ({matches: query === COMPACT || query === NARROW_PHONE, media: query, addEventListener: () => {}, removeEventListener: () => {}}))
+        render(inventory({charges: EVERY, guide: learned}))
+
+        expect(onBar()).toEqual(["Refill", "Bomb", "All bonuses, 3 more held"])
     })
 
     it("says on All that a kind it holds is on", () => {

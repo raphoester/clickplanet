@@ -20,7 +20,7 @@ import {useBonusGuide} from './bonusGuideStore.ts'
 import {useBonus} from './bonusStore.ts'
 import {useLevel} from '../level/levelStore.ts'
 import {useScreen} from '../hud/screenStore.ts'
-import {useCompact} from '../compact.ts'
+import {useCompact, useNarrowPhone} from '../compact.ts'
 import BonusIcon from '../components/BonusIcon.tsx'
 import Bubble, {BUBBLE_MS} from '../components/Bubble.tsx'
 import {LockIcon} from '../components/icons.tsx'
@@ -33,6 +33,7 @@ export const NOTICE_MS = 3500
 export const NOT_ENCLOSED_MS = 5000
 
 // The held kinds the bar shows beside All; the others wait in the tray.
+export const NARROW_PHONE_BAR_ROOM = 2
 export const PHONE_BAR_ROOM = 3
 export const DESKTOP_BAR_ROOM = 4
 
@@ -87,6 +88,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
     const togglePopover = useScreen((screen) => screen.togglePopover)
     const closePopover = useScreen((screen) => screen.closePopover)
     const compact = useCompact()
+    const narrowPhone = useNarrowPhone()
     const {guide, markUsed} = useBonusGuide()
     const [said, setSaid] = useState<Said | undefined>()
     const [shownNotice, setShownNotice] = useState(notice?.seq)
@@ -267,7 +269,7 @@ export default function Inventory({onToggle, onToggleBomb, onToggleVirus, onTogg
         return [{...shown, lockedAt: shown.held ? undefined : lockedAt(kind, gates, ladder.level)}]
     })
     const held = every.filter((shown) => shown.held)
-    const room = compact ? PHONE_BAR_ROOM : DESKTOP_BAR_ROOM
+    const room = narrowPhone ? NARROW_PHONE_BAR_ROOM : compact ? PHONE_BAR_ROOM : DESKTOP_BAR_ROOM
     const onBar = held.slice(0, room)
     const tucked = held.slice(room)
 

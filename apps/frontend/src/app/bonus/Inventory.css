@@ -259,21 +259,14 @@
         justify-items: center;
     }
 
+    /* A count pinned to a slot's corner grows to the left, so the gap is what keeps "26/60" off the next slot's count. */
     .inventory-slots {
-        gap: 5px;
+        gap: var(--space-2);
     }
 
     .inventory-slots .inventory-slot {
         width: 44px;
         height: 44px;
-    }
-
-    .inventory-slots:has(.inventory-slot--virus) {
-        gap: 3px;
-    }
-
-    .inventory-slots:has(.inventory-slot--virus) .inventory-slot {
-        width: 38px;
     }
 }
 
