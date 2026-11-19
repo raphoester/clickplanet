@@ -9,6 +9,7 @@
     min-width: 0;
     margin: 0;
     padding-right: var(--space-3);
+    text-align: left;
     font-family: var(--font-display);
     font-weight: normal;
     font-size: var(--display-m);
@@ -22,11 +23,11 @@
     margin-right: 0;
 }
 
+/* A long name ("Bretagne et Pays de la Loire") goes on a second line, never cut. */
 .territory-card-name-text {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
 }
 
 .territory-card-size {
