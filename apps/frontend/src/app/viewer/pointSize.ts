@@ -40,8 +40,10 @@ export type Divisions = "countries" | "provinces"
 
 // The ground a CSS pixel spans from which the provinces divide the map, in radians: PROVINCES_KM of the earth's 6,371.
 // The province a point of land is in is about 500 km across on every board that has provinces (earth-2 and siege-1),
-// so about 50 px from here on, and its flag reads; farther out, it is a few pixels and the map is noise.
-const PROVINCES_KM = 10
+// so about 70 px from here on, and its flag reads; farther out, it is a few pixels and the map is noise. 10 km came
+// first (2026-11-19), and left the countries too little of the zoom: 7 gives them about half again as much, and stops
+// short of zoom 3 on a phone, where one band of the biggest countries' flags fills the screen.
+const PROVINCES_KM = 7
 const PROVINCES_FROM = 6371 / PROVINCES_KM
 // The whole globe in view is the countries' on any screen, however tall.
 const PROVINCES_LEAST_ZOOM = 1.25

@@ -134,12 +134,13 @@ describe("the provinces", () => {
     const PHONE = 664
     const PROVINCED = Object.values(BOARDS).filter((board) => board.files.provinces !== undefined)
 
-    it("come in where a CSS pixel is 10 km of the ground: about zoom 1.9 on a phone", () => {
-        expect(provincesZoomOf(PHONE)).toBeCloseTo(1.919, 3)
-        expect(provincesZoomOf(900)).toBeCloseTo(1.416, 3)
-        for (const height of [PHONE, 900]) {
-            expect(6371 / (provincesZoomOf(height) * height / 2), `${height}px`).toBeCloseTo(10, 9)
+    it("come in where a CSS pixel is 7 km of the ground: about zoom 2.7 on a phone, short of 3", () => {
+        expect(provincesZoomOf(PHONE)).toBeCloseTo(2.741, 3)
+        expect(provincesZoomOf(900)).toBeCloseTo(2.023, 3)
+        for (const height of [PHONE, 900, 1243]) {
+            expect(6371 / (provincesZoomOf(height) * height / 2), `${height}px`).toBeCloseTo(7, 9)
         }
+        expect(provincesZoomOf(PHONE) * 1.05).toBeLessThan(3)
     })
 
     it("never divide the whole globe in view, on any screen", () => {
@@ -165,8 +166,8 @@ describe("the provinces", () => {
         for (const height of VIEWPORTS) {
             expect(inOrbit(provincesZoomOf(height) * 1.05 * 1.25, height, scale), `${height}px`).toBe(true)
         }
-        // A phone sees the provinces' flags over 4 times the zoom before the tiles.
-        expect(inOrbit(provincesZoomOf(PHONE) * 1.05 * 4, PHONE, scale)).toBe(true)
+        // A phone sees the provinces' flags over 3 times the zoom before the tiles.
+        expect(inOrbit(provincesZoomOf(PHONE) * 1.05 * 3, PHONE, scale)).toBe(true)
     })
 
     it("are not seen in orbit on siege-1, whose tiles, 6 times earth-2's, take over first on every screen", () => {

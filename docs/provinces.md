@@ -157,7 +157,7 @@ brotli at 5; `siege-1`'s 73 KB.
 ## The page
 
 - **The zoom chooses the divisions, as it does the tiles: the countries from orbit, their provinces from where a CSS
-  pixel is 10 km of ground** (zoom 1.92 on a phone, 1.42 on a 900 px tall desktop, never below 1.25), 5% each side of
+  pixel is 7 km of ground** (zoom 2.74 on a phone, 2.02 on a 900 px tall desktop, never below 1.25), 5% each side of
   the line so a zoom held on it does not flicker, the one framing fading into the other over a quarter of a second as
   the zoom crosses it. No setting: a new player lands on the countries and finds the provinces
   by zooming in. They change three things only: the territory the pointer lights and names in orbit, the frame each big
@@ -196,5 +196,6 @@ brotli at 5; `siege-1`'s 73 KB.
    the ledger, the hover card's last fortify, the chat line.
 4. **The page** (built 2026-11-18): the setting, the hover and the big flags by province, the grey lines, the taller
    texture.
-5. **The zoom chooses** (built 2026-11-19): the countries from orbit, the provinces from 10 km a CSS pixel, a quarter
-   of a second's fade between them; the setting goes.
+5. **The zoom chooses** (built 2026-11-19): the countries from orbit, the provinces from 7 km a CSS pixel (10 km on the
+   first day, which left the countries too little of the zoom), a quarter of a second's fade between them; the setting
+   goes.

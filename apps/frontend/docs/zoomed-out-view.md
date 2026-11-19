@@ -58,14 +58,17 @@ went the next day: from orbit Provinces painted some 2,000 flags a few pixels ea
 Countries, pushed in, stretched one band of a big country's flag over the whole screen (China, the USA or Brazil came
 out one white or one red). Each was right at one end only, and a player would have switched it at every zoom.
 
-- **The line is a ground length a CSS pixel spans: 10 km** (`PROVINCES_KM`), whatever the board. The province a point
+- **The line is a ground length a CSS pixel spans: 7 km** (`PROVINCES_KM`), whatever the board. The province a point
   of land is in is about 500 km across on `earth-2` (1,659 tiles, the land-weighted median) and on `siege-1` (52 tiles),
-  so from the line on it is about 50 CSS px and its flag reads. On a phone (iPhone 13's 390 by 664) that is zoom 1.92,
-  where the screen is about 3,900 km across: a little less than China, the owner's mark for it ("the camera frame shows
-  about China"); on a 900 px tall desktop, zoom 1.42. Shots of the live map on a phone at zoom 1 to 9, each region in
-  both divisions, put it there: at 1.5 Europe's provinces are still noise, at 2 every region reads.
+  so from the line on it is about 70 CSS px and its flag reads. On a phone (iPhone 13's 390 by 664) that is zoom 2.74,
+  the provinces coming in at 2.88, where the screen is about 2,700 km across; on a 900 px tall desktop, zoom 2.02 (2.12 in).
+  Shots of the live map on a phone at zoom 1 to 9, each region in both divisions, found the range: at 1.5 (the screen as
+  wide as China, the owner's first mark) Europe's provinces are still noise, at 2 every region reads, and at 3 the
+  countries stretch one band of the biggest flags (the USA, China, Brazil) over the whole screen. The line was 10 km
+  (zoom 1.92) on the first day; the owner found it left the countries too little of the zoom, and 7 km gives them about
+  half again as much (2026-11-19), still short of 3.
 - **Never with the whole globe in view**: never below zoom 1.25 (`PROVINCES_LEAST_ZOOM`), so a screen taller than about
-  1,000 CSS px, where 10 km a pixel comes before zoom 1.25, still lands on the countries.
+  1,450 CSS px, where 7 km a pixel comes before zoom 1.25, still lands on the countries.
 - **A zoom held on the line does not flicker**: the provinces come 5% past it and go 5% short of it (`PROVINCES_MARGIN`).
 - **The switch happens in the frame tick** (`divide` in `globe.ts`), mid-pinch: it ends the peek of a territory so the
   pointer finds the new one, and asks `Settling` to rank the flags again once the camera rests (`rankAgain`), never for
