@@ -667,13 +667,12 @@ describe("Menu", () => {
             return {...view, preview, user: userEvent.setup()}
         }
         const displayed = (): DisplaySettings => {
-            const {mapView, divisions, rendering} = useDisplaySettings.getState()
-            return {mapView, divisions, rendering}
+            const {mapView, rendering} = useDisplaySettings.getState()
+            return {mapView, rendering}
         }
 
         const toggle = (name: string) => screen.getByRole("switch", {name}) as HTMLInputElement
         const flags = (name: string) => within(screen.getByRole("radiogroup", {name: "Country flags"})).getByRole("radio", {name})
-        const map = (name: string) => within(screen.getByRole("radiogroup", {name: "Map"})).getByRole("radio", {name})
 
         it("keeps the display and About with no sound to set", async () => {
             const {user} = setup()
@@ -698,13 +697,11 @@ describe("Menu", () => {
         })
 
         it("says what the display is set to", async () => {
-            const {user} = withSettings({mapView: "tiles", divisions: "provinces", rendering: "sharp"})
+            const {user} = withSettings({mapView: "tiles", rendering: "sharp"})
             await user.click(tab("Settings"))
 
             expect(flags("Off").getAttribute("aria-checked")).toBe("true")
             expect(flags("Split").getAttribute("aria-checked")).toBe("false")
-            expect(map("Provinces").getAttribute("aria-checked")).toBe("true")
-            expect(map("Countries").getAttribute("aria-checked")).toBe("false")
             expect(toggle("HD graphics").checked).toBe(true)
         })
 
@@ -720,23 +717,18 @@ describe("Menu", () => {
             }
         })
 
-        it("picks the countries or their provinces, the countries first", async () => {
+        it("has no Map setting: the zoom chooses the countries or their provinces", async () => {
             const {user} = withSettings()
             await user.click(tab("Settings"))
-            expect(map("Countries").getAttribute("aria-checked")).toBe("true")
 
-            for (const [label, divisions] of [["Provinces", "provinces"], ["Countries", "countries"]]) {
-                await user.click(map(label))
-                expect(displayed()).toEqual({...DEFAULT_DISPLAY_SETTINGS, divisions})
-                expect(map(label).getAttribute("aria-checked")).toBe("true")
-            }
+            expect(screen.queryByRole("radiogroup", {name: "Map"})).toBeNull()
         })
 
         it("turns the HD graphics off, keeping the map view", async () => {
-            const {user} = withSettings({mapView: "tiles", divisions: "provinces", rendering: "sharp"})
+            const {user} = withSettings({mapView: "tiles", rendering: "sharp"})
             await user.click(tab("Settings"))
             await user.click(toggle("HD graphics"))
-            expect(displayed()).toEqual({mapView: "tiles", divisions: "provinces", rendering: "soft"})
+            expect(displayed()).toEqual({mapView: "tiles", rendering: "soft"})
         })
     })
 

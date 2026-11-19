@@ -16,7 +16,7 @@ map at 0 and a landmass nobody holds any more with no flag. **Each row keeps the
 only a newer one.** A row at 0 is kept with its version, so an older copy cannot bring it back, and a newer read
 drops a row it no longer lists. It answers `counts()` (the board, through `rankCountries`), `holdingsOf(landmass)`
 (the territory card), `leaderOf(landmass)` (the painted flag; ties on the flag's code), and `holdingsOfProvince` and
-`leaderOfProvince` (the fortify target, which plays on provinces, and in Provinces a province's card and its painted
+`leaderOfProvince` (the fortify target, which plays on provinces, and past the provinces' line a province's card and its painted
 flag).
 
 ## `domain/mapTiles.ts`: one rule for every value of a tile

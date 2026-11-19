@@ -542,7 +542,7 @@ async function choose(): Promise<Chosen> {
             container: stage,
             country: Countries.get(story.attacker) ?? {code: story.attacker},
             mapView: "split",
-            divisions: "countries",
+            provinces: false,
             rendering: "sharp",
             director: () => camera(played),
             onLeaderboardChange: () => {},

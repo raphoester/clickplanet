@@ -34,6 +34,33 @@ export function tilesZoomOf(viewportHeight: number, scale: BoardScale): number {
     return COARSE_UNTIL / tilePointSize(1, viewportHeight, scale)
 }
 
+// What the painted flags are framed by, the pointer lights in orbit and the lines from orbit add: the countries'
+// landmasses, or their provinces.
+export type Divisions = "countries" | "provinces"
+
+// The ground a CSS pixel spans from which the provinces divide the map, in radians: PROVINCES_KM of the earth's 6,371.
+// The province a point of land is in is about 500 km across on every board that has provinces (earth-2 and siege-1),
+// so about 50 px from here on, and its flag reads; farther out, it is a few pixels and the map is noise.
+const PROVINCES_KM = 10
+const PROVINCES_FROM = 6371 / PROVINCES_KM
+// The whole globe in view is the countries' on any screen, however tall.
+const PROVINCES_LEAST_ZOOM = 1.25
+// A zoom held on the line does not switch to and fro: the provinces come 5% past it and go 5% short of it.
+const PROVINCES_MARGIN = 1.05
+
+// The zoom from which the provinces divide the map, on a viewport this high in CSS pixels.
+export function provincesZoomOf(viewportHeight: number): number {
+    // The camera's frustum is 2 tall at zoom 1: a radian is half the viewport high.
+    return Math.max(PROVINCES_LEAST_ZOOM, PROVINCES_FROM / (viewportHeight / 2))
+}
+
+// The divisions drawn at this zoom, by the ones drawn now.
+export function divisionsAt(zoom: number, viewportHeight: number, shown: Divisions): Divisions {
+    const from = provincesZoomOf(viewportHeight)
+    const line = shown === "provinces" ? from / PROVINCES_MARGIN : from * PROVINCES_MARGIN
+    return zoom >= line ? "provinces" : "countries"
+}
+
 // A territory flown to is seen with its tiles on screen, and a small one no closer than tiles of this size.
 const FLOWN_TILE_MOST = 28
 

@@ -1,9 +1,10 @@
 # A territory, from orbit
 
 **In orbit the pointer asks about a territory, not a tile.** A territory is a landmass (see [The zoomed-out
-view](zoomed-out-view.md)), or in Provinces (the Map setting, see [Provinces](../../../docs/provinces.md#the-page)) one
-of its provinces: a `Place` (`domain/territory.ts`), which the peek, the card and `Globe.territoryOf` carry. Changing the
-setting ends the peek, and the pointer finds its territory again. From that far a tile is a pixel or two: nobody aims at
+view](zoomed-out-view.md)), or, zoomed in past the provinces' line (see [The provinces come in with the
+zoom](zoomed-out-view.md#the-provinces-come-in-with-the-zoom)), one of its provinces: a `Place` (`domain/territory.ts`),
+which the peek, the card and `Globe.territoryOf` carry. Crossing the line ends the peek, and the pointer finds its
+territory again. From that far a tile is a pixel or two: nobody aims at
 one, and the card on who holds it said nothing anyone could use. So a rest of the mouse, or a long press of a finger,
 opens a card on the territory under it (`TerritoryCard`), and the territory lights up on the globe. A click or a tap
 flies down to it.

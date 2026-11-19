@@ -19,7 +19,7 @@ import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
 import {loadBridges} from "./bridges.ts";
 import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
-import {flagPaint, flownZoomsOf, inOrbit, leastFlagRadiusOf, tilePointSize, virusLiftOf} from "./pointSize.ts";
+import {Divisions, divisionsAt, flagPaint, flownZoomsOf, inOrbit, leastFlagRadiusOf, tilePointSize, virusLiftOf} from "./pointSize.ts";
 import {createTerritoryLayer} from "./territoryLayer.ts";
 import {loadTerrain} from "./terrain.ts";
 import {regions} from "./atlas.ts";
@@ -29,7 +29,7 @@ import {LandmassSight, type ScreenView, tileAreaOf} from "./slotNeed.ts";
 import {Settling, type Viewpoint} from "./settling.ts";
 import {Country} from "../../domain/countries.ts";
 import {Allegiance} from "../../domain/allegiance.ts";
-import {Divisions, MapView, Rendering} from "../../domain/displaySettings.ts";
+import {MapView, Rendering} from "../../domain/displaySettings.ts";
 import {
     AllegianceLockedError,
     BannedError,
@@ -294,7 +294,9 @@ export type GlobeOptions = {
     showTap?: boolean
     country: Country
     mapView: MapView
-    divisions: Divisions
+    // The provinces divide the map once zoomed in close enough (divisionsAt in pointSize.ts), on a board that has them:
+    // the play page. The video, the archive and the clips keep the countries at every zoom.
+    provinces: boolean
     rendering: Rendering
     onLeaderboardChange: (entries: LeaderboardEntry[], live: boolean) => void
     // The share of the tiles read, and 1 once the frame that draws them all is drawn: a tile is clicked only then.
@@ -350,7 +352,6 @@ export type Globe = {
     // A battle runs: no ghost raid, and the ghost tiles go back.
     setBattle(on: boolean): void
     setMapView(view: MapView): void
-    setDivisions(divisions: Divisions): void
     setHalo(halo: Halo): void
     takeReward(claimed: ClaimedBonus): void
     setArmed(armed: boolean): void
@@ -387,7 +388,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         showTap = false,
         country: initialCountry,
         mapView: initialMapView,
-        divisions: initialDivisions,
+        provinces: byZoom,
         rendering,
         onLeaderboardChange: updateLeaderboard,
         onLoadProgress,
@@ -459,7 +460,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     endStrayFingers(renderer.domElement, lifetime.signal)
     if (linkedShot) aim(camera, {...linkedShot, zoom: Math.min(maxZoom, Math.max(MIN_ZOOM, linkedShot.zoom))})
     let mapView: MapView = initialMapView
-    let divisions: Divisions = initialDivisions
+    const divides = byZoom && board.files.provinces !== undefined
+    const divisionsNow = (shown: Divisions): Divisions => divides
+        ? divisionsAt(camera.zoom, renderer.domElement.height / renderer.getPixelRatio(), shown)
+        : "countries"
+    let divisions: Divisions = divisionsNow("countries")
 
     let dirty = true
     const invalidate = () => {
@@ -2004,6 +2009,23 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (take && !tiles.mines.has(take.tile)) ghostTook(take)
     }
 
+    // The zoom crossed the provinces' line: the flags are framed, and the pointer finds its territory, by the others.
+    const divide = (next: Divisions) => {
+        divisions = next
+        const frames = framesOf(next)
+        uniforms.groundData.value = frames.texture
+        uniforms.groundCount.value = frames.count
+        uniforms.byProvince.value = next === "provinces" ? 1 : 0
+        territoryPeek.hover(undefined, 0, pointerAt)
+        endTerritoryPeek()
+        hoveredTerritory = undefined
+        pendingPointer ??= mouseOnCanvas
+        // The camera is in motion: the flags are ranked again for the new frames once it comes to rest.
+        settled = undefined
+        settling.rankAgain()
+        invalidate()
+    }
+
     const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, scale, director, pilot, () => mapView, () => {
         const was = dirty
         dirty = false
@@ -2021,6 +2043,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const boxed = driveBonusBox(seconds)
         const fortifying = waves.update(seconds)
         const blasting = driveBlasts(seconds) || fortifying
+        const shown = divisionsNow(divisions)
+        if (shown !== divisions) divide(shown)
         outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView, divisions)
         // The painted flags show whole or not at all: no batch fills the map on screen.
         if (loaded) field.uploadTiles(renderer)
@@ -2103,22 +2127,6 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
             if (view === mapView) return
             mapView = view
             uniforms.splitFlags.value = splitFlagsOf(view)
-            arrangeSlots()
-            invalidate()
-        },
-        setDivisions: (next: Divisions) => {
-            if (next === divisions) return
-            divisions = next
-            const frames = framesOf(next)
-            uniforms.groundData.value = frames.texture
-            uniforms.groundCount.value = frames.count
-            uniforms.byProvince.value = next === "provinces" ? 1 : 0
-            // The territory under the pointer is of the other divisions now: it is found again.
-            territoryPeek.hover(undefined, 0, pointerAt)
-            endTerritoryPeek()
-            hoveredTerritory = undefined
-            pendingPointer ??= mouseOnCanvas
-            settled = undefined
             arrangeSlots()
             invalidate()
         },

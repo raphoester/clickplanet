@@ -244,7 +244,6 @@ export default function PlayScreen(props: PlayScreenProps) {
     const crazyGames = useCrazyGames(backends.crazyGames)
     const sound = useSound(crazyGames.silenced)
     const mapView = useDisplaySettings((settings) => settings.mapView)
-    const divisions = useDisplaySettings((settings) => settings.divisions)
     const rendering = useDisplaySettings((settings) => settings.rendering)
     const account = useAccount(backends.account)
     const username = account.kind === 'ready' ? account.username : undefined
@@ -361,7 +360,6 @@ export default function PlayScreen(props: PlayScreenProps) {
         battle: battle !== undefined,
         clickHue: hueOf(color),
         mapView,
-        divisions,
         halo: haloOf(battle),
         missions: missionTargets,
         rendering,
