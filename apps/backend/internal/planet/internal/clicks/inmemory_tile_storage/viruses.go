@@ -123,7 +123,7 @@ func (s *Storage) Viruses() []clicks.Virus {
 }
 
 // Infect holds the lock through every write of `write`: one change at one version with what it took and struck and the
-// virus after it, then the fortifies it earned, then the knock-outs.
+// virus after it, then the fortifies it earned, then the knock-outs, then the cut-offs.
 func (s *Storage) Infect(_ context.Context, write func(tiles clicks.Infecting) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -141,6 +141,9 @@ func (s *Storage) Infect(_ context.Context, write func(tiles clicks.Infecting) e
 	for i := range inside.knockedOut {
 		s.publishLocked(clicks.Change{KnockOut: &inside.knockedOut[i]})
 	}
+	for i := range inside.cutOff {
+		s.publishLocked(clicks.Change{CutOff: &inside.cutOff[i]})
+	}
 
 	return err
 }
@@ -152,6 +155,7 @@ type insideInfection struct {
 	struck     []clicks.TileShields
 	fortified  []clicks.Fortification
 	knockedOut []clicks.KnockOut
+	cutOff     []clicks.CutOff
 }
 
 var _ clicks.Infecting = (*insideInfection)(nil)
@@ -213,4 +217,14 @@ func (i *insideInfection) Virus(id clicks.VirusID) (clicks.Virus, bool) {
 func (i *insideInfection) Keep(virus clicks.Virus) {
 	i.storage.viruses.keep(virus)
 	i.kept = &virus
+}
+
+func (i *insideInfection) CutOff(losses clicks.Losses) (clicks.CutOff, error) {
+	cutOff, err := i.storage.cutOffLocked(losses)
+	if err != nil {
+		return clicks.CutOff{}, err
+	}
+	i.cutOff = append(i.cutOff, cutOff)
+
+	return cutOff, nil
 }

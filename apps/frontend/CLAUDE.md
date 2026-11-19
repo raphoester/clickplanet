@@ -75,8 +75,9 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The reach](docs/reach.md) — a rule knob: the bridges drawn as dotted arcs, the tiles the flag can take (next to its
   land, or across a bridge from it) ringed, a click elsewhere stopped with "Take a tile next to your land"; learnt from
   `GetChargeRules`.
-- [The capitals](docs/capitals.md) — two rule knobs: each capital still standing marked with a crown, no shield on a
-  capital, a knock-out cleared in one event, and the out window that asks for a flag still in.
+- [The capitals](docs/capitals.md) — three rule knobs: each capital still standing marked with a crown, no shield on a
+  capital, a knock-out cleared in one event, and the out window that asks for a flag still in; the land a cut-off
+  clears, in one event.
 - [Ghosts, for a quiet first visit](docs/ghosts.md) — while fewer than 7 play, a guided page sees fake raids near it,
   painted on that page only, kept in its storage, read by the board and the front, and taken back with no click.
 - [Who is playing](docs/who-is-playing.md) — the "Online · N" list beside the chat.

@@ -43,6 +43,7 @@ type Event struct {
 	Yours         bool
 	Fortification *clicks.Fortification
 	KnockOut      *clicks.KnockOut
+	CutOff        *clicks.CutOff
 	Infection     *clicks.Infection
 	Explosion     *clicks.Explosion
 	Tally         *clicks.Tally
@@ -158,8 +159,8 @@ func (u *UseCase) Execute(ctx context.Context, sink Sink) error {
 			if err := sink.Send(Event{
 				Version: change.Version, Update: change.Update, Blast: change.Blast, Enclosure: change.Enclosure,
 				Yours:         change.Enclosure != nil && clicks.CallerOf(change.Enclosure.By) == caller,
-				Fortification: change.Fortification, KnockOut: change.KnockOut, Infection: change.Infection,
-				Explosion: change.Explosion, Tally: change.Tally,
+				Fortification: change.Fortification, KnockOut: change.KnockOut, CutOff: change.CutOff,
+				Infection: change.Infection, Explosion: change.Explosion, Tally: change.Tally,
 			}); err != nil {
 				return err
 			}

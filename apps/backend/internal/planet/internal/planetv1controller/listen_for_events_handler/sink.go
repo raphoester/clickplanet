@@ -42,6 +42,8 @@ func (s Sink) Send(event listen_for_events_usecase.Event) error {
 		return s.stream.Send(planetmessage.ProvinceFortified(event.Fortification, event.Version))
 	case event.KnockOut != nil:
 		return s.stream.Send(planetmessage.KnockOut(event.KnockOut, event.Version))
+	case event.CutOff != nil:
+		return s.stream.Send(planetmessage.CutOff(event.CutOff, event.Version))
 	case event.Tally != nil:
 		return s.stream.Send(planetmessage.HoldingsChanged(event.Tally, event.Version))
 	case event.Infection != nil:

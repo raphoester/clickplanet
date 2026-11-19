@@ -44,7 +44,8 @@ func (k KnockingOut) Show(see func(Scene)) {
 	}
 }
 
-type knockOutPayload struct {
+// The tiles a knock-out or a cut-off cleared.
+type clearedPayload struct {
 	Cleared []uint32 `json:"cleared"`
 }
 
@@ -53,7 +54,7 @@ func (k KnockingOut) Entry() (Entry, error) {
 	if cleared == nil {
 		cleared = []uint32{}
 	}
-	payload, err := json.Marshal(knockOutPayload{Cleared: cleared})
+	payload, err := json.Marshal(clearedPayload{Cleared: cleared})
 	if err != nil {
 		return Entry{}, fmt.Errorf("failed to write down the knock-out of %s: %w", k.Out, err)
 	}
@@ -65,7 +66,7 @@ func (k KnockingOut) Entry() (Entry, error) {
 }
 
 func knockingOutOf(entry Entry) (Event, error) {
-	var payload knockOutPayload
+	var payload clearedPayload
 	if err := json.Unmarshal(entry.Payload, &payload); err != nil {
 		return nil, fmt.Errorf("failed to read the knock-out at tile %d: %w", entry.Tile, err)
 	}

@@ -310,6 +310,10 @@ export class ReplayBackend implements OwnershipsGetter, UpdatesListener, BonusLi
         return () => {}
     }
 
+    listenForCutOffs(): () => void {
+        return () => {}
+    }
+
     listenForBonuses(handlers: BonusHandlers): () => void {
         this.bonusHandlers.add(handlers)
         return () => this.bonusHandlers.delete(handlers)

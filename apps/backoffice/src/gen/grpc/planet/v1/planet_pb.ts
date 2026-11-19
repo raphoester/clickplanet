@@ -1559,6 +1559,12 @@ export class PlanetEvent extends Message<PlanetEvent> {
      */
     value: ProvinceFortified;
     case: "provinceFortified";
+  } | {
+    /**
+     * @generated from field: planet.v1.CutOff cut_off = 19;
+     */
+    value: CutOff;
+    case: "cutOff";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PlanetEvent>) {
@@ -1583,6 +1589,7 @@ export class PlanetEvent extends Message<PlanetEvent> {
     { no: 16, name: "mines_exploded", kind: "message", T: MinesExploded, oneof: "event" },
     { no: 17, name: "rally_called", kind: "message", T: Rally, oneof: "event" },
     { no: 18, name: "province_fortified", kind: "message", T: ProvinceFortified, oneof: "event" },
+    { no: 19, name: "cut_off", kind: "message", T: CutOff, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetEvent {
@@ -1992,6 +1999,76 @@ export class KnockOut extends Message<KnockOut> {
 
   static equals(a: KnockOut | PlainMessage<KnockOut> | undefined, b: KnockOut | PlainMessage<KnockOut> | undefined): boolean {
     return proto3.util.equals(KnockOut, a, b);
+  }
+}
+
+/**
+ * The one event of a cut-off, after the takes that cut a flag's land from its capital: every tile of the land cut off
+ * went blank, with no shield.
+ *
+ * @generated from message planet.v1.CutOff
+ */
+export class CutOff extends Message<CutOff> {
+  /**
+   * The flag whose land was cut off.
+   *
+   * @generated from field: string country_id = 1;
+   */
+  countryId = "";
+
+  /**
+   * The flag whose take cut it.
+   *
+   * @generated from field: string by_country_id = 2;
+   */
+  byCountryId = "";
+
+  /**
+   * The tile whose take cut it.
+   *
+   * @generated from field: uint32 tile_id = 3;
+   */
+  tileId = 0;
+
+  /**
+   * @generated from field: repeated uint32 cleared_tile_ids = 4;
+   */
+  clearedTileIds: number[] = [];
+
+  /**
+   * @generated from field: planet.v1.MapVersion version = 5;
+   */
+  version?: MapVersion;
+
+  constructor(data?: PartialMessage<CutOff>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "planet.v1.CutOff";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "by_country_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tile_id", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "cleared_tile_ids", kind: "scalar", T: 13 /* ScalarType.UINT32 */, repeated: true },
+    { no: 5, name: "version", kind: "message", T: MapVersion },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CutOff {
+    return new CutOff().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CutOff {
+    return new CutOff().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CutOff {
+    return new CutOff().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CutOff | PlainMessage<CutOff> | undefined, b: CutOff | PlainMessage<CutOff> | undefined): boolean {
+    return proto3.util.equals(CutOff, a, b);
   }
 }
 

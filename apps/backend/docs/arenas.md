@@ -7,8 +7,8 @@ map each event names: the world's map before and after it joins up (see [The led
 **An arena is a shell** (the owner, 2026-11-10). It switches the tile map that plays, which empties it, and it starts
 the fresh map from a seed ([Seeds](#seeds)). It plays no game rule. Each rule a battle plays on the fresh map is a knob
 of its own in its rule set, which plays on any map, the world's too: [the reach](reach.md), [the capitals' rules](capitals.md)
-(the knock-out and fixed capital shields). **Capital Siege is one rule set**: `arena.on` on `siege-1` (`arena.board`),
-the capitals seed, the reach, the knock-out and fixed capital shields, no bombs (`charges.bomb.off`), no enclosures
+(the knock-out, fixed capital shields and the cut-off). **Capital Siege is one rule set**: `arena.on` on `siege-1`
+(`arena.board`), the capitals seed, the reach, the knock-out, fixed capital shields and the cut-off, no bombs (`charges.bomb.off`), no enclosures
 (`charges.enclose.off`), no spread (`charges.spread.off`), no rally (`charges.rally.off`), and urf's speed (see
 [Capital Siege's set](#capital-sieges-set)). Until 2026-11-10 the arena carried those rules, and a rule could not be
 used in another mode or on the world's map.
@@ -187,8 +187,8 @@ pattern, and `seeds.Catalog`, built with what the map gives (`seeds.Ground`: the
 Each is a knob of its own, read from the rules in force, on whatever map plays:
 
 - **The reach** (`reach`): a take lands only next to the flag's land or across a bridge from it. See [The reach](reach.md).
-- **The knock-out** (`capitals.knockOut`) and **fixed capital shields** (`capitals.fixedShields`): see
-  [The capitals' rules](capitals.md).
+- **The knock-out** (`capitals.knockOut`), **fixed capital shields** (`capitals.fixedShields`) and **the cut-off**
+  (`capitals.cutOff`): see [The capitals' rules](capitals.md).
 - **The page** learns them from `GetChargeRules` (`reach`, `knock_out`, `capital_shields_fixed`), read again on
   `rules_changed`: see the frontend's [The reach](../../frontend/docs/reach.md) and
   [The capitals](../../frontend/docs/capitals.md). No map read says whether the map is an arena's: `GetMapResponse.arena`
@@ -198,7 +198,7 @@ Each is a knob of its own, read from the rules in force, on whatever map plays:
 
 `capital-siege` in production (saved by hand, not scheduled): urf's values (tempo 3, boxes and quizzes, its shield and
 welcome values, flags locked), plus `arena {on, freeze 8s, board siege-1}`, `seed.capitals.shields` 50, `reach`,
-`capitals {knockOut, fixedShields}`, `charges.bomb.off`, `charges.enclose.off`, `charges.spread.off` and
+`capitals {knockOut, fixedShields, cutOff}`, `charges.bomb.off`, `charges.enclose.off`, `charges.spread.off` and
 `charges.rally.off`. Its toll starts at 30% of the map (0.3 → 1.5×, 0.4 → 2.5×, 0.5 → 4×). The offers' set of the same
 name grants no spread clicks, no enclosures, no bombs and no rally (`kinds.spreadClicks`, `kinds.encloseClicks`,
 `kinds.bomb` and `kinds.rally` 0, since a box of them would pay nothing), and the boxes offer one every 20 to 40 s.
@@ -219,17 +219,22 @@ after the battle ([Spreads off](spread.md#spreads-off-chargesspreadoff)); withou
   the rallies held ([Rallies off](rally.md#rallies-off-chargesrallyoff)); the offers' `kinds.rally` 0 keeps boxes from
   drawing one that would pay nothing. Until then the set inherited `default`'s rally, and a box drew one in about 1 of 5.
 
+**The cut-off** (the owner, 2026-11-19): a take that cuts a flag's land from its capital clears the land cut off, so a
+flag holds one land around its capital, joined over its bridges (see [The cut-off](capitals.md#the-cut-off-capitalscutoff)).
+With the reach, a march on a capital is a corridor the enemy can cut behind it.
+
 **The owner's steps, once PR 5 is deployed** (the sets are production's, saved by hand; `planet_get_rules` and
 `bonuses_get_rules` read them first, and again after). `SaveRuleSet` has no dry run and replaces every value of the
 set, so it carries the whole set; `capital-siege` does not play between battles, so a save changes nothing on the map,
 and a set that cannot play is refused with every reason, which is the check. Planet's `capital-siege`, with
-`arena.board`, `charges.spread.off`, `charges.rally.off`, and its `spread` overrides (`clicks` 50, `rings` 2,
-`unlimited`) dropped:
+`arena.board`, `charges.spread.off`, `charges.rally.off`, `capitals.cutOff` (once the cut-off is deployed), and its
+`spread` overrides (`clicks` 50, `rings` 2, `unlimited`) dropped. On 2026-11-19 production's set still held the
+`spread` overrides and no `spread.off` or `rally.off`:
 
 ```json
 {"clicks":{"tempo":3},"toll":{"steps":[{"share":0.3,"slowdown":1.5},{"share":0.4,"slowdown":2.5},{"share":0.5,"slowdown":4}]},
  "allegianceLocked":true,"arena":{"on":true,"freeze":"8s","board":"siege-1"},"seed":{"capitals":{"shields":50}},
- "reach":true,"capitals":{"knockOut":true,"fixedShields":true},
+ "reach":true,"capitals":{"knockOut":true,"fixedShields":true,"cutOff":true},
  "charges":{"spread":{"off":true},"bomb":{"rings":8,"off":true},"enclose":{"maxTiles":500,"held":8,"off":true},"shield":{"held":75},
             "rally":{"off":true}}}
 ```

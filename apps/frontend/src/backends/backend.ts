@@ -117,6 +117,8 @@ export interface UpdatesListener {
     listenForFortifications(callback: (fortification: Fortification) => void): () => void
 
     listenForKnockOuts(callback: (knockOut: KnockOut) => void): () => void
+
+    listenForCutOffs(callback: (cutOff: CutOff) => void): () => void
 }
 
 export type Fortification = {
@@ -128,6 +130,15 @@ export type Fortification = {
 
 // A flag knocked out: another flag took its capital, and every other tile it held went blank.
 export type KnockOut = {
+    countryId: string
+    byCountryId: string
+    tile: number
+    cleared: number[]
+    version: MapVersion
+}
+
+// A flag's land cut from its capital by a take: every tile of it went blank.
+export type CutOff = {
     countryId: string
     byCountryId: string
     tile: number

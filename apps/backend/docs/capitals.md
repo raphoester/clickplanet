@@ -1,14 +1,14 @@
-# The capitals' rules: the knock-out and fixed shields
+# The capitals' rules: the knock-out, fixed shields and the cut-off
 
-**Two knobs of a rule set play on the capitals** (`capitals`, `clicks.CapitalsPart`; knobs of their own since
-2026-11-10). Both are off in `default`. Capital Siege plays both on its fresh map, which starts with each capital (see
+**Three knobs of a rule set play on the capitals** (`capitals`, `clicks.CapitalsPart`; knobs of their own since
+2026-11-10, the cut-off since 2026-11-19). All are off in `default`. Capital Siege plays all three on its fresh map, which starts with each capital (see
 [Arena battles](arenas.md#seeds)); any set may play them on the world's map too. The capitals are the map's
 (`clicks.Capitals`): each country's tile nearest its capital city. A region flag (England, Scotland, Wales, Brittany)
 has no capital.
 
 The tile storage holds `clicks.CapitalPlay`: the capitals and the reader of the rules in force. The rules are pure
-(`clicks.CapitalRules`: `KnockOutError`, `Stands`; `CapitalPlay.Fixes`, `Felled`); the storage only does the atomic work
-under its lock.
+(`clicks.CapitalRules`: `KnockOutError`, `Stands`, `CutOffError`; `CapitalPlay.Fixes`, `Felled`, `Stranded`); the
+storage only does the atomic work under its lock.
 
 ## Fixed shields (`capitals.fixedShields`)
 
@@ -57,7 +57,51 @@ takes racing for one capital knock the flag out once.
 - **The page** shows the knock-out and asks a player whose flag is out to pick one still in: see the frontend's
   [The capitals](../../frontend/docs/capitals.md).
 
+## The cut-off (`capitals.cutOff`)
+
+**A flag's land must hold to its capital at all times: a take that cuts land of a flag from its capital clears the land
+cut off** (the owner, 2026-11-19, for Capital Siege). Land holds together through the flag's own tiles next to each
+other (`Geography.Neighbours`) and the bridges whose both ends it holds (`clicks.Bridges.Across`): the same links as
+[the reach](reach.md), so with the reach every take joins its flag's land. The taker keeps the tile it took.
+
+- **The rule** (`CapitalPlay.Stranded`, pure, in `clicks/cut_off.go`): the cut-off plays and the flag has a capital
+  (`CutOffError`), and some of its land next to the tiles it lost no longer reaches the capital. It reads only that
+  land: the flag's tiles linked to a lost tile (the edge). Nothing is cut when the edge holds together by itself and the
+  capital is still the flag's, which most takes at a front are; otherwise a walk from the capital, stopped once it
+  reached every edge tile, and every edge tile it did not reach is cut with all the land linked to it. So land cut off
+  before the rule played stays (a set switched on over the world's map clears nothing at once), and a flag that lost its
+  capital loses all the land next to it.
+- **Every write that takes asks** (`clicks.Claiming`, the virus's `Contagion`, the mine's `Minefield`), after its takes
+  and their knock-outs: `Claimable.CutOff` once per flag the write took tiles from, with every tile it lost
+  (`clicks.Losses`). One ask per flag and per write matters: two tiles of an enclosure or of two mines' blasts can cut
+  together what neither cuts alone. A spread is one claim per tile, each its own write.
+- **With the knock-out**, a take of a capital knocks its flag out first, and the cut-off finds no land left. **Without
+  it**, the capital taken cuts the flag's whole land, and the flag still stands.
+- **The storage** (`cut_off.go`) clears each tile cut off (no shield, no holder, the counts moved, a mine on it gone, a
+  virus cured, dirty for the flush) and publishes **one** `clicks.Change{CutOff}` per flag at one map version, after the
+  take's update and its knock-out: right after for a click, after the enclosure, the infection or the explosion and their
+  fortifies and knock-outs otherwise. The impact of the flag's last tile lost carries it (`Impact.CutOff`). The stream
+  sends it as `PlanetEvent.cut_off` (`country_id`, `by_country_id`, `tile_id`, `cleared_tile_ids`, `version`).
+- **In the ledger**: a `cut_off` event after the take (kind added by `20261119154301_ledger_cut_off`), on the tile
+  whose take cut the land, the taker's account and flag, the flag cut off as `previous`, and the cleared tiles. Its takes
+  are each cleared tile as a bomb's (for nobody), so the map history and the replays see the blank, and no account gains
+  XP or a take for it; `GetLedger` shows each as a blank tile. No fact goes to the other modules and the chat says
+  nothing: a cut-off is too common for a line.
+- **Its cost**: the walk is over the flag's land, under the tiles lock, only for the takes whose edge does not hold
+  together. On `siege-1` a flag holds a few thousand tiles at most.
+- **Known gaps**: a bomb clears tiles with no cut-off after it, and so does an operator's paint or revert. Capital Siege
+  plays no bomb. Without the reach, a take away from the flag's land is not cut.
+- **The page** clears the tiles it names: see the frontend's [The capitals](../../frontend/docs/capitals.md).
+
 ## Tests
+
+`clicks`' `cut_off_test.go` pins the land past a take in a corridor, the tip of the land and a loop that cut nothing, a
+bridge both ends held and its end taken, two tiles lost together read together, a capital lost, land cut before that
+stays, the rule off, a flag with no capital, and the part's read; `inmemory_tile_storage`'s `cut_off_test.go` a take
+that clears the land cut off in one change after the take (a shield on it too, and the flush), a take at the tip, the
+rule off, a capital taken with the knock-out and without it, and an enclosure cut once its pocket is written;
+`ledger_test.go` the event's entry, takes and scenes, and `Recording` noting it after the take; the stream's sink;
+`GetLedger`'s query with every kind.
 
 `clicks`' `knock_out_test.go` pins the rule, the standing and fixed shields by the rule; `inmemory_tile_storage`'s
 `capitals_test.go` a capital refused a shield while its shields are fixed (the world's map too) and taking one while

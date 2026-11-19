@@ -14,6 +14,8 @@ type Impact struct {
 	Fortified *Fortification
 	// Set when this take felled a flag's capital in an arena.
 	KnockedOut *KnockOut
+	// Set on the last take of a write from a flag when the write cut land of that flag from its capital.
+	CutOff *CutOff
 }
 
 // The tiles under the lock of one claim: nothing else reads or writes them until it ends.
@@ -23,6 +25,8 @@ type Claimable interface {
 	Click(ctx context.Context, tile Tile) error
 	Fortify(ctx context.Context, tile uint32, flag string, most int) (Fortification, error)
 	KnockOut(ctx context.Context, tile uint32, flag string) (KnockOut, error)
+	// CutOff clears the land of the flag its losses cut from its capital.
+	CutOff(losses Losses) (CutOff, error)
 	// Trip sets off the tile's mine, if it holds one: a take by another flag is landing on it.
 	Trip(tile uint32)
 }
@@ -50,7 +54,8 @@ func (c Claiming) Claim(ctx context.Context, tile uint32, flag string) (Impact, 
 }
 
 // Enclose claims the tiles inside as one write, which every stream hears as one change. A capital it takes knocks its flag
-// out once the whole pocket is written, so the blank leaves the pocket's takes as they are.
+// out once the whole pocket is written, so the blank leaves the pocket's takes as they are; the land it cuts off goes
+// after.
 func (c Claiming) Enclose(ctx context.Context, enclosure Enclosure, inside []uint32) ([]Impact, error) {
 	enclosure.By = PayerOf(ctx)
 	most := c.shieldsPerTile()
@@ -71,7 +76,7 @@ func (c Claiming) Enclose(ctx context.Context, enclosure Enclosure, inside []uin
 			impacts[i] = knocked
 		}
 
-		return nil
+		return cutOffAll(tiles, takesOf(enclosure.Country, impacts))
 	})
 
 	return impacts, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
@@ -86,6 +91,12 @@ func (c Claiming) claimOne(ctx context.Context, tile uint32, flag string, write 
 			return err
 		}
 		impact, err = knockedOut(ctx, tiles, flag, taken)
+		if err != nil {
+			return err
+		}
+		impacts := []Impact{impact}
+		err = cutOffAll(tiles, takesOf(flag, impacts))
+		impact = impacts[0]
 		return err
 	})
 

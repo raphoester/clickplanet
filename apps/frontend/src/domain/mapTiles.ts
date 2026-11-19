@@ -207,9 +207,20 @@ export class MapTiles {
         this.heard(version)
         if (!this.clock.counts(version)) return
         this.knockOut([flag], version)
+        this.blank(cleared, version, changes)
+    }
+
+    // The land a take cut from its flag's capital: each tile blank, with no shield.
+    public applyCutOff(cleared: readonly number[], version: MapVersion, changes: TileChanges): void {
+        this.heard(version)
+        if (!this.clock.counts(version)) return
+        this.blank(cleared, version, changes)
+    }
+
+    private blank(cleared: readonly number[], {seq}: MapVersion, changes: TileChanges) {
         for (const tile of cleared) {
-            this.mines.takeOff(tile, version.seq, changes.mines)
-            if (!this.take(tile, version.seq)) continue
+            this.mines.takeOff(tile, seq, changes.mines)
+            if (!this.take(tile, seq)) continue
             this.ownership.set(tile, undefined, changes.owners)
             this.shields.set(tile, 0, changes.shields)
             this.infections.set(tile, undefined, changes.infections)

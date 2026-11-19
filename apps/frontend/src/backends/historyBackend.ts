@@ -87,6 +87,10 @@ export class HistoryBackend implements OwnershipsGetter, UpdatesListener {
         return () => {}
     }
 
+    listenForCutOffs(): () => void {
+        return () => {}
+    }
+
     private codeOf(index: number): string | undefined {
         return index === 0 ? undefined : this.reel.codes[index] || undefined
     }

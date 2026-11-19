@@ -140,6 +140,9 @@ function SetForm({planet, editing, onCancel, onSaved}: {
                              onChange={knockOut => change({knockOut})}/>
                 <SwitchField label="No shield on a capital" on={draft.fixedShields} defaults={defaults?.fixedShields}
                              inherits={defaults !== undefined} onChange={fixedShields => change({fixedShields})}/>
+                <SwitchField label="Cut-off: land cut from its capital clears" on={draft.cutOff}
+                             defaults={defaults?.cutOff} inherits={defaults !== undefined}
+                             onChange={cutOff => change({cutOff})}/>
             </div>
             <div className="rule-groups">
                 {GROUPS.map(group => (

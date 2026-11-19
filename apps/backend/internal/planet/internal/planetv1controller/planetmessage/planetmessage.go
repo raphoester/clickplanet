@@ -76,6 +76,20 @@ func KnockOut(knockOut *clicks.KnockOut, version clicks.MapVersion) *planetv1.Pl
 	}
 }
 
+func CutOff(cutOff *clicks.CutOff, version clicks.MapVersion) *planetv1.PlanetEvent {
+	return &planetv1.PlanetEvent{
+		Event: &planetv1.PlanetEvent_CutOff{
+			CutOff: &planetv1.CutOff{
+				CountryId:      cutOff.Country,
+				ByCountryId:    cutOff.By,
+				TileId:         cutOff.Tile,
+				ClearedTileIds: cutOff.Cleared,
+				Version:        Version(version),
+			},
+		},
+	}
+}
+
 func HoldingsChanged(tally *clicks.Tally, version clicks.MapVersion) *planetv1.PlanetEvent {
 	return &planetv1.PlanetEvent{
 		Event: &planetv1.PlanetEvent_HoldingsChanged{

@@ -208,6 +208,8 @@ func TestEveryKindReadsBackAsItWasWrittenDown(t *testing.T) {
 		},
 		ledger.KnockingOut{Tile: 6, Scope: "A", Account: "guest", Country: "de", Out: "fr", At: start, Cleared: []uint32{5, 7}},
 		ledger.KnockingOut{Tile: 6, Scope: "A", Country: "de", Out: "fr", At: start, Cleared: []uint32{}},
+		ledger.CuttingOff{Tile: 6, Scope: "A", Account: "guest", Country: "de", Cut: "fr", At: start, Cleared: []uint32{5, 7}},
+		ledger.CuttingOff{Tile: 6, Scope: "A", Country: "de", Cut: "fr", At: start, Cleared: []uint32{}},
 	} {
 		entry, err := event.Entry()
 		require.NoError(t, err)
@@ -402,6 +404,7 @@ type stubTiles struct {
 	shields  map[uint32]int
 	fortify  *clicks.Fortification
 	knockOut *clicks.KnockOut
+	cutOff   *clicks.CutOff
 }
 
 func newTiles(owners map[uint32]string) *stubTiles {
@@ -430,6 +433,13 @@ func (s *stubTiles) KnockOut(context.Context, uint32, string) (clicks.KnockOut, 
 		return clicks.KnockOut{}, clicks.ErrNoKnockOut
 	}
 	return *s.knockOut, nil
+}
+
+func (s *stubTiles) CutOff(clicks.Losses) (clicks.CutOff, error) {
+	if s.cutOff == nil {
+		return clicks.CutOff{}, clicks.ErrNoCutOff
+	}
+	return *s.cutOff, nil
 }
 
 func (s *stubTiles) Tile(id uint32) (clicks.Tile, error) {
@@ -752,6 +762,48 @@ func TestAKnockOutShowsEachTileItClearedAndStrikesNothing(t *testing.T) {
 	knockOut.Show(func(scene ledger.Scene) { scenes = append(scenes, scene) })
 	var strikes []ledger.Strike
 	knockOut.Strikes(func(strike ledger.Strike) { strikes = append(strikes, strike) })
+
+	require.Len(t, scenes, 1)
+	assert.Equal(t, &ledger.Change{TileUpdate: clicks.TileUpdate{Tile: 2, Previous: "fr"}}, scenes[0].Change)
+	assert.Empty(t, strikes)
+}
+
+func TestRecordingNotesACutOffAfterTheTakeThatCutTheLand(t *testing.T) {
+	tiles := newTiles(map[uint32]string{1: "fr", 2: "fr", 3: "fr"})
+	tiles.cutOff = &clicks.CutOff{Country: "fr", By: "de", Tile: 2, Cleared: []uint32{3}}
+	recording, events := recorded(tiles)
+
+	_, err := recording.Click(caller(t), 2, "de")
+	require.NoError(t, err)
+
+	assert.Equal(t, []ledger.Event{
+		ledger.Taking{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "de", Previous: "fr", At: start},
+		ledger.CuttingOff{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "de", Cut: "fr", At: start, Cleared: []uint32{3}},
+	}, written(events))
+	assert.Equal(t, []ledger.Taking{
+		{Tile: 2, Scope: "1.2.3.4", Account: "a-guest", Country: "de", Previous: "fr", At: start},
+		{Tile: 3, Scope: "1.2.3.4", Account: "a-guest", Previous: "fr", At: start},
+	}, replay(events), "each tile the cut-off cleared replays as a bomb's")
+}
+
+func TestACutOffIsWrittenDownOnTheTakeWithTheTilesItCleared(t *testing.T) {
+	entry, err := ledger.CuttingOff{
+		Tile: 1, Scope: "A", Account: "guest", Country: "de", Cut: "fr", At: start, Cleared: []uint32{2, 9},
+	}.Entry()
+	require.NoError(t, err)
+
+	assert.Equal(t, ledger.Entry{
+		Kind: "cut_off", Tile: 1, Scope: "A", Account: "guest", Country: "de", Previous: "fr", At: start,
+		Payload: []byte(`{"cleared":[2,9]}`),
+	}, entry)
+}
+
+func TestACutOffShowsEachTileItClearedAndStrikesNothing(t *testing.T) {
+	cutOff := ledger.CuttingOff{Tile: 1, Country: "de", Cut: "fr", At: start, Cleared: []uint32{2}}
+	var scenes []ledger.Scene
+	cutOff.Show(func(scene ledger.Scene) { scenes = append(scenes, scene) })
+	var strikes []ledger.Strike
+	cutOff.Strikes(func(strike ledger.Strike) { strikes = append(strikes, strike) })
 
 	require.Len(t, scenes, 1)
 	assert.Equal(t, &ledger.Change{TileUpdate: clicks.TileUpdate{Tile: 2, Previous: "fr"}}, scenes[0].Change)

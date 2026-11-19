@@ -55,6 +55,12 @@ func (c *Capitals) CountryOf(tile uint32) string {
 	return c.countries[tile]
 }
 
+// Of is the country's capital: false for a country with none.
+func (c *Capitals) Of(country string) (uint32, bool) {
+	tile, ok := c.tiles[country]
+	return tile, ok
+}
+
 // Has is true for a country with a capital.
 func (c *Capitals) Has(country string) bool {
 	_, ok := c.tiles[country]

@@ -6,6 +6,7 @@ import {
     countsOf,
     fortificationOf,
     knockOutOf,
+    cutOffOf,
     shieldsOf,
     enclosureOf,
     takenOf,
@@ -50,6 +51,7 @@ import {
     GlobePoint,
     Heartbeat,
     KnockOut as KnockOutMessage,
+    CutOff as CutOffMessage,
     ProvinceFortified,
     PlanetEvent,
     ReachRefusal,
@@ -1065,6 +1067,25 @@ describe("knockOutOf", () => {
     })
 })
 
+describe("cutOffOf", () => {
+    it("reads the flag cut off, the flag whose take cut it, and the tiles it cleared at their version", () => {
+        const event = new PlanetEvent({
+            event: {case: "cutOff", value: new CutOffMessage({
+                countryId: "fr", byCountryId: "de", tileId: 4, clearedTileIds: [5, 6],
+                version: new MapVersionMessage({epoch: 1_790_000_000, seq: BigInt(9)}),
+            })},
+        })
+
+        expect(cutOffOf(event)).toEqual({
+            countryId: "fr", byCountryId: "de", tile: 4, cleared: [5, 6], version: {epoch: 1_790_000_000, seq: 9},
+        })
+    })
+
+    it("drops everything that is not a cut-off", () => {
+        expect(cutOffOf(new PlanetEvent({event: {case: "heartbeat", value: new Heartbeat()}}))).toBeUndefined()
+    })
+})
+
 describe("bombOf", () => {
     const dropped = (fields: Partial<{tileId: number, clearedTileIds: number[], struck: TileShields[]}> = {}) => new PlanetEvent({
         event: {
@@ -1187,6 +1208,27 @@ describe("PlanetBackend bombs", () => {
         backend.listenForKnockOuts(() => order.push("knock-out"))
 
         await vi.waitFor(() => expect(order).toEqual(["updates", "knock-out"]))
+        backend.close()
+    })
+
+    it("hands over the take that cut a flag's land before the cut-off it made", async () => {
+        const events = [
+            tileUpdateEvent({tileId: 4, countryId: "de"}),
+            new PlanetEvent({
+                event: {case: "cutOff", value: new CutOffMessage({countryId: "fr", byCountryId: "de", tileId: 4, clearedTileIds: [5]})},
+            }),
+        ]
+        const listenForEvents = vi.fn(async function* () {
+            yield* events
+            await new Promise(() => {})
+        })
+        const backend = new PlanetBackend(clientWith({listenForEvents}), 60_000)
+
+        const order: string[] = []
+        backend.listenForUpdatesBatch(() => order.push("updates"))
+        backend.listenForCutOffs(() => order.push("cut-off"))
+
+        await vi.waitFor(() => expect(order).toEqual(["updates", "cut-off"]))
         backend.close()
     })
 

@@ -112,8 +112,9 @@ zero or a `false` of its own; nothing falls back to a default in Go or in SQL. I
   country with that many shields, past `charges.shield.perTile`, 0 to 255 (100). Until 2026-11-10 it was
   `arena.capitalShields`. See [Seeds](arenas.md#seeds)
 - `reach` — a take lands only next to the flag's land or across a bridge from it (off). See [The reach](reach.md)
-- `capitals.knockOut`, `capitals.fixedShields` — a capital taken by another flag knocks its flag out; no shield goes on a
-  capital (off, off). See [The capitals' rules](capitals.md)
+- `capitals.knockOut`, `capitals.fixedShields`, `capitals.cutOff` — a capital taken by another flag knocks its flag
+  out; no shield goes on a capital; a take that cuts a flag's land from its capital clears the land cut off (off, off,
+  off; the cut-off seeded in `default` by `20261119154302_capitals_cut_off`). See [The capitals' rules](capitals.md)
 
 ## A frozen map
 

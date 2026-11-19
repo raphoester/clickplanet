@@ -39,6 +39,7 @@ var kinds = map[string]func(Entry) (Event, error){
 	kindShield:   shieldingOf,
 	kindFortify:  fortifyingOf,
 	kindKnockOut: knockingOutOf,
+	kindCutOff:   cuttingOffOf,
 	kindVirus:    infectingOf,
 	kindMine:     miningOf,
 

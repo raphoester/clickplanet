@@ -7,7 +7,7 @@ import (
 )
 
 // Enclose holds the lock through every write of `write`: one change at one version, then the fortifies it earned, then
-// the knock-outs.
+// the knock-outs, then the cut-offs.
 func (s *Storage) Enclose(_ context.Context, enclosure clicks.Enclosure, write func(tiles clicks.Claimable) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -23,6 +23,9 @@ func (s *Storage) Enclose(_ context.Context, enclosure clicks.Enclosure, write f
 	for i := range inside.knockedOut {
 		s.publishLocked(clicks.Change{KnockOut: &inside.knockedOut[i]})
 	}
+	for i := range inside.cutOff {
+		s.publishLocked(clicks.Change{CutOff: &inside.cutOff[i]})
+	}
 
 	return err
 }
@@ -32,6 +35,7 @@ type insideEnclosure struct {
 	enclosure  clicks.Enclosure
 	fortified  []clicks.Fortification
 	knockedOut []clicks.KnockOut
+	cutOff     []clicks.CutOff
 }
 
 var _ clicks.Claimable = (*insideEnclosure)(nil)
@@ -83,4 +87,14 @@ func (e *insideEnclosure) KnockOut(ctx context.Context, tile uint32, flag string
 	e.knockedOut = append(e.knockedOut, knockOut)
 
 	return knockOut, nil
+}
+
+func (e *insideEnclosure) CutOff(losses clicks.Losses) (clicks.CutOff, error) {
+	cutOff, err := e.storage.cutOffLocked(losses)
+	if err != nil {
+		return clicks.CutOff{}, err
+	}
+	e.cutOff = append(e.cutOff, cutOff)
+
+	return cutOff, nil
 }

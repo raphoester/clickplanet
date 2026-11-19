@@ -1163,6 +1163,10 @@ export class FakeBackend implements TileClicker, OwnershipsGetter, UpdatesListen
         return () => {}
     }
 
+    public listenForCutOffs(): () => void {
+        return () => {}
+    }
+
     public listenForFortifications(callback: (fortification: Fortification) => void): () => void {
         const id = UUIDv4()
         this.fortificationCallbacks.set(id, callback)

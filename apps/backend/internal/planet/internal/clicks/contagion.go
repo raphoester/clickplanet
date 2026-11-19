@@ -60,8 +60,11 @@ func (c Contagion) Start(ctx context.Context, virus Virus, most int, next time.T
 		virus = virus.Infected(impact).Ticked(true, most, next)
 		tiles.Keep(virus)
 		impacts, err = knockedOutAll(ctx, tiles, virus.flag, []Impact{impact})
+		if err != nil {
+			return err
+		}
 
-		return err
+		return cutOffAll(tiles, takesOf(virus.flag, impacts))
 	})
 
 	return virus, impacts, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
@@ -103,6 +106,9 @@ func (c Contagion) Spread(ctx context.Context, id VirusID, most int, next time.T
 		tiles.Keep(virus)
 		var err error
 		impacts, err = knockedOutAll(ctx, tiles, virus.flag, impacts)
+		if err == nil {
+			err = cutOffAll(tiles, takesOf(virus.flag, impacts))
+		}
 
 		return errors.Join(failed, err)
 	})

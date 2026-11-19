@@ -320,7 +320,10 @@ type CapitalRules struct {
 	// A take of a flag's capital by another flag clears every other tile of the flag, and the flag is out.
 	KnockOut *bool `protobuf:"varint,1,opt,name=knock_out,json=knockOut,proto3,oneof" json:"knock_out,omitempty"`
 	// No shield is placed on a capital, and a fortify skips it.
-	FixedShields  *bool `protobuf:"varint,2,opt,name=fixed_shields,json=fixedShields,proto3,oneof" json:"fixed_shields,omitempty"`
+	FixedShields *bool `protobuf:"varint,2,opt,name=fixed_shields,json=fixedShields,proto3,oneof" json:"fixed_shields,omitempty"`
+	// A take that cuts a flag's land from its capital clears the land cut off: a flag's tiles hold together through its
+	// own tiles and the bridges whose both ends it holds.
+	CutOff        *bool `protobuf:"varint,3,opt,name=cut_off,json=cutOff,proto3,oneof" json:"cut_off,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -365,6 +368,13 @@ func (x *CapitalRules) GetKnockOut() bool {
 func (x *CapitalRules) GetFixedShields() bool {
 	if x != nil && x.FixedShields != nil {
 		return *x.FixedShields
+	}
+	return false
+}
+
+func (x *CapitalRules) GetCutOff() bool {
+	if x != nil && x.CutOff != nil {
+		return *x.CutOff
 	}
 	return false
 }
@@ -1170,13 +1180,16 @@ const file_planet_v1_rules_proto_rawDesc = "" +
 	"\vCapitalSeed\x12\x1d\n" +
 	"\ashields\x18\x01 \x01(\rH\x00R\ashields\x88\x01\x01B\n" +
 	"\n" +
-	"\b_shields\"z\n" +
+	"\b_shields\"\xa4\x01\n" +
 	"\fCapitalRules\x12 \n" +
 	"\tknock_out\x18\x01 \x01(\bH\x00R\bknockOut\x88\x01\x01\x12(\n" +
-	"\rfixed_shields\x18\x02 \x01(\bH\x01R\ffixedShields\x88\x01\x01B\f\n" +
+	"\rfixed_shields\x18\x02 \x01(\bH\x01R\ffixedShields\x88\x01\x01\x12\x1c\n" +
+	"\acut_off\x18\x03 \x01(\bH\x02R\x06cutOff\x88\x01\x01B\f\n" +
 	"\n" +
 	"_knock_outB\x10\n" +
-	"\x0e_fixed_shields\"\xbd\x04\n" +
+	"\x0e_fixed_shieldsB\n" +
+	"\n" +
+	"\b_cut_off\"\xbd\x04\n" +
 	"\n" +
 	"ClickRules\x12\x19\n" +
 	"\x05tempo\x18\x01 \x01(\x01H\x00R\x05tempo\x88\x01\x01\x12\"\n" +

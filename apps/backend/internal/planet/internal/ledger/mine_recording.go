@@ -72,6 +72,13 @@ func (r MineRecording) record(on clicks.Stage, detonations []clicks.Detonation) 
 			}
 		}
 	}
+	for _, detonation := range recorded {
+		for _, impact := range detonation.Impacts {
+			if impact.CutOff != nil {
+				r.events.Append(on, cuttingOffOfImpact(callerOf(detonation.Mine), at, impact.CutOff))
+			}
+		}
+	}
 }
 
 func callerOf(mine clicks.MineSnapshot) Caller {

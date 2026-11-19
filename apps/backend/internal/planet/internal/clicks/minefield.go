@@ -61,8 +61,8 @@ func (f Minefield) Lay(ctx context.Context, mine Mine) (MapVersion, error) {
 }
 
 // Detonate sets off every mine a take tripped. Each blast claims the tiles within rings of its own for its mine's flag,
-// nearest first, and every mine it reaches goes off after it, whatever its flag. Fortifies, then knock-outs, wait for the
-// last blast: a stream hears them after the one change. A failure stops it, and what it wrote is kept and told.
+// nearest first, and every mine it reaches goes off after it, whatever its flag. Fortifies, then knock-outs, then
+// cut-offs, wait for the last blast: a stream hears them after the one change. A failure stops it, and what it wrote is kept and told.
 func (f Minefield) Detonate(ctx context.Context, rings int) ([]Detonation, error) {
 	most := f.shieldsPerTile()
 	var detonations []Detonation
@@ -104,7 +104,11 @@ func (f Minefield) Detonate(ctx context.Context, rings int) ([]Detonation, error
 			}
 		}
 
-		return nil
+		var takes []take
+		for i := range detonations {
+			takes = append(takes, takesOf(detonations[i].Mine.Flag, detonations[i].Impacts)...)
+		}
+		return cutOffAll(tiles, takes)
 	})
 
 	return detonations, err //nolint:wrapcheck // a pure delegation: the storage already named what failed.
