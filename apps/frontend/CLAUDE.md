@@ -178,7 +178,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [Sized by the board](docs/board-scale.md) — every count of tiles, length and zoom tuned on `earth-1` reads the board
   (`domain/boardScale.ts`): the rule, what reads it, and what does not.
 - [The countries' outlines](docs/country-outlines.md) — the border lines, straight along the cell edges the ground draws
-  (its corners, not the circumcentres), the same width at every zoom, only the pieces in sight drawn, and from orbit
+  (its corners, not the circumcentres), the same width at every zoom from orbit and half the gap between the discs
+  under the tiles, only the pieces in sight drawn, and from orbit
   coarser pieces within half a pixel of the cell edges, inked as the cell edges were; the province lines, from orbit only
   past the provinces' line, pushed in dark and dashed, and the file they are in.
 - [A page from an older build](docs/stale-build.md) — a deploy removes the last build's files and HTML answers for

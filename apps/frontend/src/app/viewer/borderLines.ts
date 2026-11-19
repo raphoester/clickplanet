@@ -1,5 +1,5 @@
 import * as THREE from "three"
-import {type Divisions, flagPaint, inOrbit, tilePointSize} from "./pointSize.ts"
+import {type Divisions, flagPaint, inOrbit, tilePointSize, tileSpacing} from "./pointSize.ts"
 import {type BoardScale, EARTH_1_SPACING} from "../../domain/boardScale.ts"
 import type {MapView} from "../../domain/displaySettings.ts"
 import {type BorderLineData, decodeBorderLines} from "../../domain/borderLinesFile.ts"
@@ -90,6 +90,15 @@ export function pieceSides(data: BorderLineData): Uint16Array {
 
 export const WIDTH = 1.3
 
+// Under the tiles, this share of the gap between two discs: thinner, the line is taken for one of the ground's cell edges.
+export const GAP_SHARE = 0.5
+export const MOST_WIDTH = 5
+
+export function underWidthOf(zoom: number, viewportHeight: number, scale: BoardScale): number {
+    const gap = tileSpacing(zoom, viewportHeight, scale) - tilePointSize(zoom, viewportHeight, scale)
+    return Math.min(MOST_WIDTH, Math.max(WIDTH, GAP_SHARE * gap))
+}
+
 export const ORBIT_WIDTH = 0.25
 
 export const HIGHLIGHT_WIDTH = 2.6
@@ -105,7 +114,7 @@ export function limbOf(lift: number): number {
     return Math.sin(Math.acos(Math.min(EARTH / lift, 1)))
 }
 
-export const COLOUR = new THREE.Color(0.25, 0.25, 0.25)
+export const COLOUR = new THREE.Color(0.15, 0.15, 0.15)
 
 // Over a painted flag the line darkens what is under it rather than drawing grey across it.
 const ORBIT_COLOUR = new THREE.Color(0, 0, 0)
@@ -386,6 +395,11 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
 
     const toClip = new THREE.Matrix4()
 
+    const widen = () => {
+        under.width = underWidthOf(shown.zoom, shown.height / shown.ratio, scale)
+        if (provinces) provinces.under.width = under.width
+    }
+
     const size = (pass: Pass) => {
         pass.material.uniforms.halfViewport.value.copy(halfViewport)
         pass.material.uniforms.halfWidth.value = halfWidthOf(shown.ratio, pass.width)
@@ -424,6 +438,7 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
         update(zoom: number, width: number, height: number, pixelRatio: number, view: MapView, provinces: number) {
             halfViewport.set(width / 2, height / 2)
             shown = {zoom, height, ratio: pixelRatio, view, share: provinces}
+            widen()
             for (const pass of passes) size(pass)
             showLines()
         },
@@ -449,7 +464,7 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
                 drawFrom(provinces.highlight, orbitOf(provinces.kind))
             }
 
-            const halfWidth = halfWidthOf(shown.ratio, WIDEST)
+            const halfWidth = halfWidthOf(shown.ratio, Math.max(WIDEST, under.width))
             const slack = Math.min(CULL_SLACK / sy, MOST_SLACK)
             const kinds = provinces ? [countries, provinces.kind] : [countries]
             for (const kind of kinds) {
@@ -500,6 +515,7 @@ export function createBorderLines(sets: OutlineSets, scale: BoardScale): BorderL
                 highlight: orbitPassOf(kind.fine, highlightOf(), HIGHLIGHT_WIDTH, 2),
             }
             provinces = {kind, ...added}
+            widen()
             const more = [added.countryHighlight, added.over, added.under, added.highlight]
             passes.push(...more)
             orbitPasses.push(added.over, added.highlight)
