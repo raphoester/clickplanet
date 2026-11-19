@@ -61,6 +61,19 @@ export function divisionsAt(zoom: number, viewportHeight: number, shown: Divisio
     return zoom >= line ? "provinces" : "countries"
 }
 
+// The provinces' frames fade in, or out, over this long from the frame the zoom crosses their line: a pinch that stops
+// just past it rests on one framing, never on both, as a fade over a band of zooms would.
+export const DIVISIONS_FADE_SECONDS = 0.25
+
+// How far the provinces divide the map, 0 to 1, `seconds` after `share`, on its way to the divisions drawn; at once
+// for a player who asks for less motion.
+export function provinceShareAfter(share: number, divisions: Divisions, seconds: number, instant: boolean): number {
+    const target = divisions === "provinces" ? 1 : 0
+    if (instant) return target
+    const step = Math.max(0, seconds) / DIVISIONS_FADE_SECONDS
+    return target > share ? Math.min(target, share + step) : Math.max(target, share - step)
+}
+
 // A territory flown to is seen with its tiles on screen, and a small one no closer than tiles of this size.
 const FLOWN_TILE_MOST = 28
 

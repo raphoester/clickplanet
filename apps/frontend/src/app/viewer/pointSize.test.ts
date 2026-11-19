@@ -1,11 +1,13 @@
 import {describe, expect, it} from "vitest"
 import {
     coarseHandover,
+    DIVISIONS_FADE_SECONDS,
     divisionsAt,
     flagPaint,
     flownZoomsOf,
     inOrbit,
     leastFlagRadiusOf,
+    provinceShareAfter,
     provincesZoomOf,
     tilePointSize,
     tileSpacing,
@@ -173,6 +175,32 @@ describe("the provinces", () => {
         for (const height of VIEWPORTS) {
             expect(inOrbit(provincesZoomOf(height) * 1.05, height, scale), `${height}px`).toBe(false)
         }
+    })
+})
+
+describe("the fade between the countries and the provinces", () => {
+    it("takes a quarter of a second each way, and stops at the divisions drawn", () => {
+        expect(DIVISIONS_FADE_SECONDS).toBe(0.25)
+        expect(provinceShareAfter(0, "provinces", 0.1, false)).toBeCloseTo(0.4, 9)
+        expect(provinceShareAfter(0.4, "provinces", 0.1, false)).toBeCloseTo(0.8, 9)
+        expect(provinceShareAfter(0.8, "provinces", 0.1, false)).toBe(1)
+        expect(provinceShareAfter(1, "countries", 0.05, false)).toBeCloseTo(0.8, 9)
+        expect(provinceShareAfter(0.1, "countries", 0.1, false)).toBe(0)
+    })
+
+    it("turns back from where it is when the zoom crosses the line again mid-fade", () => {
+        expect(provinceShareAfter(0.6, "countries", 0.05, false)).toBeCloseTo(0.4, 9)
+        expect(provinceShareAfter(0.6, "provinces", 0.05, false)).toBeCloseTo(0.8, 9)
+    })
+
+    it("does not move on a frame with no time, and never backwards in time", () => {
+        expect(provinceShareAfter(0.3, "provinces", 0, false)).toBe(0.3)
+        expect(provinceShareAfter(0.3, "provinces", -1, false)).toBe(0.3)
+    })
+
+    it("switches at once for a player who asks for less motion", () => {
+        expect(provinceShareAfter(0, "provinces", 0, true)).toBe(1)
+        expect(provinceShareAfter(0.7, "countries", 0, true)).toBe(0)
     })
 })
 

@@ -19,7 +19,17 @@ import {BoardScale, scaleOf} from "../../domain/boardScale.ts";
 import {Capitals, loadCapitals} from "./capitals.ts";
 import {loadBridges} from "./bridges.ts";
 import {type BridgeArcs, createBridgeArcs} from "./bridgeArcs.ts";
-import {Divisions, divisionsAt, flagPaint, flownZoomsOf, inOrbit, leastFlagRadiusOf, tilePointSize, virusLiftOf} from "./pointSize.ts";
+import {
+    Divisions,
+    divisionsAt,
+    flagPaint,
+    flownZoomsOf,
+    inOrbit,
+    leastFlagRadiusOf,
+    provinceShareAfter,
+    tilePointSize,
+    virusLiftOf,
+} from "./pointSize.ts";
 import {createTerritoryLayer} from "./territoryLayer.ts";
 import {loadTerrain} from "./terrain.ts";
 import {regions} from "./atlas.ts";
@@ -125,10 +135,13 @@ type Uniforms = BlastUniforms & FortifyUniforms & {
     leastFlagRadius: THREE.IUniform<number>
     atlasTexture: THREE.IUniform
     atlasTextureSize: THREE.IUniform
-    // The rows of the grounds the flags are painted over, landmasses or provinces, by the divisions.
-    groundData: THREE.IUniform<THREE.DataTexture>
-    groundCount: THREE.IUniform<number>
-    byProvince: THREE.IUniform<number>
+    // The rows of the grounds the flags are painted over, the landmasses' and the provinces', and how far the provinces
+    // divide the map: 0 or 1, and in between while the one fades into the other.
+    landmassData: THREE.IUniform<THREE.DataTexture>
+    landmassCount: THREE.IUniform<number>
+    provinceData: THREE.IUniform<THREE.DataTexture>
+    provinceCount: THREE.IUniform<number>
+    provinceShare: THREE.IUniform<number>
     pixelsPerRadian: THREE.IUniform<number>
     pixelRatio: THREE.IUniform<number>
     flagPaint: THREE.IUniform
@@ -485,9 +498,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         leastFlagRadius: {value: leastFlagRadiusOf(scale)},
         atlasTexture: {value: textureLoader.load(ATLAS_URL)},
         atlasTextureSize: {value: new THREE.Vector2(ATLAS_SIZE.width, ATLAS_SIZE.height)},
-        groundData: {value: framesOf(divisions).texture},
-        groundCount: {value: framesOf(divisions).count},
-        byProvince: {value: divisions === "provinces" ? 1 : 0},
+        landmassData: {value: territories.texture},
+        landmassCount: {value: territories.count},
+        provinceData: {value: provinceFrames.texture},
+        provinceCount: {value: provinceFrames.count},
+        provinceShare: {value: divisions === "provinces" ? 1 : 0},
         pixelsPerRadian: {value: 1},
         pixelRatio: {value: renderer.getPixelRatio()},
         flagPaint: {value: flagPaint(camera.zoom, layoutViewport().height, mapView, scale)},
@@ -2009,13 +2024,10 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         if (take && !tiles.mines.has(take.tile)) ghostTook(take)
     }
 
-    // The zoom crossed the provinces' line: the flags are framed, and the pointer finds its territory, by the others.
+    // The zoom crossed the provinces' line: the flags fade to the other frames, and the pointer finds its territory by
+    // the other divisions.
     const divide = (next: Divisions) => {
         divisions = next
-        const frames = framesOf(next)
-        uniforms.groundData.value = frames.texture
-        uniforms.groundCount.value = frames.count
-        uniforms.byProvince.value = next === "provinces" ? 1 : 0
         territoryPeek.hover(undefined, 0, pointerAt)
         endTerritoryPeek()
         hoveredTerritory = undefined
@@ -2024,6 +2036,21 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         settled = undefined
         settling.rankAgain()
         invalidate()
+    }
+
+    const reducedMotion = prefersReducedMotion()
+    let fadedAt: number | undefined
+    // A step of the fade to the divisions drawn, each frame until it is done: true while it runs.
+    const fade = (seconds: number): boolean => {
+        const share = uniforms.provinceShare.value
+        if (share === (divisions === "provinces" ? 1 : 0)) {
+            fadedAt = undefined
+            return false
+        }
+        uniforms.provinceShare.value = provinceShareAfter(share, divisions, fadedAt === undefined ? 0 : seconds - fadedAt, reducedMotion)
+        fadedAt = seconds
+        invalidate()
+        return true
     }
 
     const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, scale, director, pilot, () => mapView, () => {
@@ -2045,7 +2072,8 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         const blasting = driveBlasts(seconds) || fortifying
         const shown = divisionsNow(divisions)
         if (shown !== divisions) divide(shown)
-        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView, divisions)
+        fade(seconds)
+        outline.update(camera.zoom, renderer.domElement.width, renderer.domElement.height, renderer.getPixelRatio(), mapView, uniforms.provinceShare.value)
         // The painted flags show whole or not at all: no batch fills the map on screen.
         if (loaded) field.uploadTiles(renderer)
 

@@ -179,7 +179,8 @@ as a country's border; dashed, it is not taken for one. `borderLines.test.ts` ch
 copy of `dashOf`: both ends of every piece inked, one gap a period. **From orbit only
 the provinces' divisions draw them, zoomed in past their line (see [The provinces come in with the
 zoom](zoomed-out-view.md#the-provinces-come-in-with-the-zoom)); out of orbit they always are**: the over pass shows past
-the line while a flag is painted, the under pass while the tiles show, past the line or out of orbit. So the country
+the line while a flag is painted, its ink fading in and out with the provinces' frames (`PROVINCE_ORBIT_INK` times the
+territory layer's `provinceShare`), the under pass while the tiles show, past the line or out of orbit. So the country
 lines are drawn as they were at every zoom.
 They are a second kind of line in `borderLines.ts`: their own cell edges and five coarse sets, of the same tolerances,
 culled as the countries' are (`kindOf`), and their own over, under and highlight passes; from orbit the over and the
