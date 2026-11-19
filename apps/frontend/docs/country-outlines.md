@@ -1,13 +1,19 @@
 # The countries' outlines
 
-A thin dark-grey line runs between one country's ground and the next, and it is
-the **same width at every zoom** — `borderLines.ts` builds each piece as a quad
-laid out in screen pixels, not on the sphere, so pulling the view back thins
+A dark-grey line runs between one country's ground and the next, and its width is
+**set in screen pixels, not on the sphere** — `borderLines.ts` builds each piece as a quad
+laid out in screen pixels, so pulling the view back thins
 nothing. That is the only way a border survives the range this camera covers: at
 0.5 the whole planet is half a screen tall, at 50 a single tile is a disc you can
-aim at. Grey and not black: black carried fine at map scale but up close, where
-the line is the only thing between two rows of discs, it read as a bar drawn over
-the planet rather than a border on it.
+aim at. Over the painted flags it is the same width at every zoom.
+
+**Under the tiles it is half the gap between two discs** (`underWidthOf`: `GAP_SHARE` of the gap at a cell edge's
+middle), `WIDTH` (1.3 px) where the tiles take the frame, growing with them up to `MOST_WIDTH` (5 px), and 0.15 grey.
+Until 2026-11-19 it was 1.3 px of 0.25 grey at every zoom. The ground draws every cell edge 14% darker once a cell is
+10 pixels wide (see [The terrain](terrain.md)), so the border ran on the same edges, about as thin and as dark: on the
+forest green, between discs covered by shields, it read as one more of them and could not be seen. A cream line was
+tried too: it reads as well, but it is the white of a lit territory's outline and the cream of the reach's rings.
+Black, at 1.3 px, had read up close as a bar drawn over the planet; at half the gap, 0.15 grey reads as a border.
 
 **The line is not the administrative border.** It is the boundary of each
 country's *tiles*. The tiles are the vertices of a geodesic sphere, so their
@@ -36,8 +42,9 @@ at the middle of the cell edge between them, half a spacing from each tile's cen
 corner, where three cells meet, the corridor is wider (a spacing over √3 from each centre), but a piece's quad runs half
 a width past its end, square, straight at the third tile there. `borderLines.test.ts` measures both on a lone tile's
 cell at every zoom the tiles are drawn alone: the line's solid width clear of the tile's own disc at the middle of each
-side, and each piece's end clear of the neighbours' discs at the corners. The corner is the tighter of the two: it
-holds `WIDTH` under about 2.2px, where the middle alone would allow 2.5px.
+side, and each piece's end clear of the neighbours' discs at the corners, each at the width `underWidthOf` gives that
+zoom. The corner is the tighter of the two: where the tiles take the frame it holds the width under about 2.2px, where
+the middle alone would allow 2.5px.
 
 **The passes share their pieces.** The over, the under, the highlight and the mission pass are four materials over the
 cell edges and the same draws, except from orbit, where the over and the highlight pass draw one coarse set of pieces
@@ -168,8 +175,8 @@ so the outline runs round the ground's coasts and its borders with every other c
 
 **The province lines** are the cell edges between two tiles of one country in different provinces (see
 [Provinces](../../../docs/provinces.md)). Over the painted flags they are 0.85 grey at `PROVINCE_ORBIT_INK` (55%) and
-`ORBIT_WIDTH`. **Under the tiles they darken as the tiles grow, and turn dashed**: at `WIDTH`, `PROVINCE_COLOUR` (0.6
-grey) while a tile's disc is `PROVINCE_DARK_FROM` (10 CSS px) or less, the countries' 0.25 grey from
+`ORBIT_WIDTH`. **Under the tiles they darken as the tiles grow, and turn dashed**: as wide as the countries' line,
+`PROVINCE_COLOUR` (0.6 grey) while a tile's disc is `PROVINCE_DARK_FROM` (10 CSS px) or less, the countries' 0.15 grey from
 `PROVINCE_DARK_UNTIL` (20 px), the colour and the dashes coming in together in between (`provinceDarkOf`). A dash is
 `PROVINCE_DASH` (8 px) and its gap `PROVINCE_GAP` (4 px). Each piece rounds that period to a whole number of periods,
 with a dash centred on each of its ends, so the line is inked at every corner where it turns (`dashOf` in the fragment

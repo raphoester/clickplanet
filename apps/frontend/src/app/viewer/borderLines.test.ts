@@ -7,10 +7,12 @@ import {
     COLOUR,
     coarseTolerancesOf,
     createBorderLines,
+    GAP_SHARE,
     halfWidthOf,
     HIGHLIGHT_WIDTH,
     limbOf,
     MOST_SLACK,
+    MOST_WIDTH,
     ORBIT_INK,
     ORBIT_WIDTH,
     OVER,
@@ -23,6 +25,7 @@ import {
     PROVINCE_ORBIT_INK,
     TOLERANCE,
     UNDER,
+    underWidthOf,
     WIDTH,
 } from "./borderLines.ts"
 import {BOARDS} from "./boardsAsset.ts"
@@ -108,9 +111,9 @@ describe("a lone tile's outline, at every zoom the tiles are drawn alone", () =>
     const {from, to} = outlineSegments(decodeBorderLines(blobOf([cell])))
 
     // In CSS pixels on the screen's worst ratio, 1, from a disc's centre to the nearest pixel the line paints solid: the
-    // vertex shader's quad runs half a width past each end of a piece, and its sides fade out past WIDTH.
-    const clearance = ([x, y]: number[], perUnit: number) => {
-        const reach = halfWidthOf(1)
+    // vertex shader's quad runs half a width past each end of a piece, and its sides fade out past the width.
+    const clearance = ([x, y]: number[], perUnit: number, width: number) => {
+        const reach = halfWidthOf(1, width)
         let nearest = Infinity
         for (let piece = 0; piece < from.length / 3; piece++) {
             const ax = from[piece * 3] * perUnit, ay = from[piece * 3 + 1] * perUnit
@@ -120,7 +123,7 @@ describe("a lone tile's outline, at every zoom the tiles are drawn alone", () =>
             const along = (x * perUnit - ax) * ux + (y * perUnit - ay) * uy
             const across = Math.abs((y * perUnit - ay) * ux - (x * perUnit - ax) * uy)
             const past = Math.max(-reach - along, 0, along - length - reach)
-            nearest = Math.min(nearest, Math.hypot(past, Math.max(0, across - WIDTH / 2)))
+            nearest = Math.min(nearest, Math.hypot(past, Math.max(0, across - width / 2)))
         }
         return nearest
     }
@@ -135,7 +138,8 @@ describe("a lone tile's outline, at every zoom the tiles are drawn alone", () =>
         for (const zoom of zooms) {
             const perUnit = tileSpacing(zoom, 900, EARTH_1_SCALE) / SPACING
             const radius = tilePointSize(zoom, 900, EARTH_1_SCALE) / 2
-            for (const disc of discs) expect(clearance(disc, perUnit), `zoom ${zoom}, disc at ${disc}`).toBeGreaterThan(radius)
+            const width = underWidthOf(zoom, 900, EARTH_1_SCALE)
+            for (const disc of discs) expect(clearance(disc, perUnit, width), `zoom ${zoom}, disc at ${disc}`).toBeGreaterThan(radius)
         }
     }
 
@@ -145,6 +149,34 @@ describe("a lone tile's outline, at every zoom the tiles are drawn alone", () =>
 
     it("keeps each piece's end off the neighbours' discs, at the corners", () => {
         expectClear(around(SPACING, Math.PI / 6))
+    })
+})
+
+describe("the width under the tiles", () => {
+    const gapAt = (zoom: number) => tileSpacing(zoom, 900, EARTH_1_SCALE) - tilePointSize(zoom, 900, EARTH_1_SCALE)
+
+    it("is WIDTH where the tiles take the frame, and grows with the gap between the discs up to MOST_WIDTH", () => {
+        expect(underWidthOf(tilesZoomOf(900, EARTH_1_SCALE), 900, EARTH_1_SCALE)).toBe(WIDTH)
+        expect(underWidthOf(MAX_ZOOM, 900, EARTH_1_SCALE)).toBe(MOST_WIDTH)
+
+        const between = 2 * WIDTH / GAP_SHARE / gapAt(1)
+        expect(underWidthOf(between, 900, EARTH_1_SCALE)).toBeCloseTo(GAP_SHARE * gapAt(between), 9)
+        expect(underWidthOf(between, 900, EARTH_1_SCALE)).toBeCloseTo(2 * WIDTH, 9)
+    })
+
+    it("is the width of the countries' and the provinces' line under the tiles", () => {
+        const {board, outline} = SHIPPED.find(({board}) => board.page.provinceLines)!
+        const scale = scaleOf(board)
+        const lines = outline()
+        const zoom = 3 * tilesZoomOf(450, scale)
+        lines.update(zoom, 1600, 900, 2, "split", 0)
+
+        const unders = passesOf(lines).filter(({material}) => material.uniforms.lift.value === UNDER)
+        expect(unders).toHaveLength(2)
+        const width = underWidthOf(zoom, 450, scale)
+        expect(width).toBeGreaterThan(WIDTH)
+        for (const {material} of unders) expect(material.uniforms.halfWidth.value).toBeCloseTo(halfWidthOf(2, width), 9)
+        lines.dispose()
     })
 })
 
@@ -253,10 +285,10 @@ describe("the handover", () => {
         for (let zoom = MIN_ZOOM; zoom <= MAX_ZOOM; zoom += 0.05) {
             lines.update(zoom, 3200, 1800, 2, "split", 0)
             expect(inkOf(over), `over at zoom ${zoom}`).toBe(flagPaint(zoom, 900, "split", EARTH_1_SCALE) * ORBIT_INK)
+            expect(under.material.uniforms.halfWidth.value, `under at zoom ${zoom}`).toBe(halfWidthOf(2, underWidthOf(zoom, 900, EARTH_1_SCALE)))
         }
 
         expect(over.material.uniforms.halfWidth.value).toBe(halfWidthOf(2, ORBIT_WIDTH))
-        expect(under.material.uniforms.halfWidth.value).toBe(halfWidthOf(2))
 
         expect(halfWidthOf(2) - halfWidthOf(1)).toBeCloseTo(WIDTH / 2)
 
@@ -457,7 +489,10 @@ describe("the province lines", () => {
             expect(dashed, `zoom ${zoom}`).toBeGreaterThanOrEqual(last)
             last = dashed
             if (tile <= PROVINCE_DARK_FROM) expect([colour.r, dashed], `zoom ${zoom}`).toEqual([PROVINCE_COLOUR.r, 0])
-            if (tile >= PROVINCE_DARK_UNTIL) expect([colour.r, dashed], `zoom ${zoom}`).toEqual([COLOUR.r, 1])
+            if (tile >= PROVINCE_DARK_UNTIL) {
+                expect(dashed, `zoom ${zoom}`).toBe(1)
+                expect(colour.r, `zoom ${zoom}`).toBeCloseTo(COLOUR.r, 9)
+            }
             expect(colour.r, `zoom ${zoom}`).toBeCloseTo(PROVINCE_COLOUR.r + (COLOUR.r - PROVINCE_COLOUR.r) * dashed, 6)
             // In drawing-buffer pixels, at a ratio of 2.
             expect([uniforms.dashPeriod.value, uniforms.dashHalf.value]).toEqual([(PROVINCE_DASH + PROVINCE_GAP) * 2, PROVINCE_DASH])
