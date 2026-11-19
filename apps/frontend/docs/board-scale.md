@@ -51,6 +51,6 @@ the clips' solidity (measured from the tiles' own spacing), and the cells of the
   the ghosts' raids of 3 to 8 takes, the antibot's thresholds.
 - **What is geographic**: the clips' 10° cells, their fronts' radians and their framing (`camera.ts`'s closest framing,
   `tour.ts`'s stops), the bridges' dots (about 38 km apart), the chunks the page culls by (0.1 rad), and the provinces'
-  line, 10 km of ground a CSS pixel (`provincesZoomOf` in `pointSize.ts`): a province is about 500 km across on
+  line, 7 km of ground a CSS pixel (`provincesZoomOf` in `pointSize.ts`): a province is about 500 km across on
   `earth-2` and on `siege-1` alike (see [The zoomed-out view](zoomed-out-view.md#the-provinces-come-in-with-the-zoom)).
 - **What measures work**: the map's batches of 10,000 tiles, the ghosts' search of 4,000 tiles.

@@ -168,7 +168,7 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 - [The light](docs/light.md) — one pass for every player: the season-end clips' light, rim and halo, on a navy
   sky.
 - [The zoomed-out view](docs/zoomed-out-view.md) — the flags painted in each landmass's frame when tiles are small,
-  or each province's from where a CSS pixel is 10 km of ground (the zoom chooses, no setting, a quarter of a second's
+  or each province's from where a CSS pixel is 7 km of ground (the zoom chooses, no setting, a quarter of a second's
   fade between them), pixel by pixel by the territory layer under the tiles: Split, Big or Off.
 - [The terrain](docs/terrain.md) — the board-game ground: a kind of land per tile and the coast's bands, a file of the
   board painted by the territory layer at every zoom over a flat sea; no photo.
