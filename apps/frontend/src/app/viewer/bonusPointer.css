@@ -20,9 +20,54 @@
     background: var(--enclose);
     color: var(--ink);
     box-shadow: var(--drop-s);
-    animation:
-        bonus-pointer-pulse 1.4s ease-in-out infinite,
-        bonus-pointer-badge-colours 2.8s ease-in-out infinite;
+    isolation: isolate;
+    animation: bonus-pointer-pulse 1.4s ease-in-out infinite var(--endless, running);
+}
+
+.bonus-pointer-badge-colour {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: calc(var(--radius-xs) - var(--outline-thin));
+}
+
+/* Each a copy of the arrow, on top of it. */
+.bonus-pointer-arrow-colour {
+    position: absolute;
+    top: -7px;
+    left: -11px;
+    width: 0;
+    height: 0;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 11px solid;
+}
+
+.bonus-pointer-badge-colour,
+.bonus-pointer-arrow-colour {
+    opacity: 0;
+}
+
+.bonus-pointer-badge-colour--bomb { background: var(--bomb); }
+.bonus-pointer-badge-colour--refill { background: var(--refill); }
+.bonus-pointer-badge-colour--spread { background: var(--spread); }
+.bonus-pointer-arrow-colour--bomb { border-left-color: var(--bomb-light); }
+.bonus-pointer-arrow-colour--refill { border-left-color: var(--refill-light); }
+.bonus-pointer-arrow-colour--spread { border-left-color: var(--spread-light); }
+
+.bonus-pointer-badge-colour--bomb,
+.bonus-pointer-arrow-colour--bomb {
+    animation: bonus-pointer-colour-bomb 2.8s ease-in-out infinite var(--endless, running);
+}
+
+.bonus-pointer-badge-colour--refill,
+.bonus-pointer-arrow-colour--refill {
+    animation: bonus-pointer-colour-refill 2.8s ease-in-out infinite var(--endless, running);
+}
+
+.bonus-pointer-badge-colour--spread,
+.bonus-pointer-arrow-colour--spread {
+    animation: bonus-pointer-colour-spread 2.8s ease-in-out infinite var(--endless, running);
 }
 
 .bonus-pointer-mark {
@@ -46,17 +91,14 @@
         drop-shadow(0 -1.5px 0 var(--ink));
     transform: rotate(var(--bonus-pointer-angle, 0deg)) translateX(24px);
     transform-origin: 3px 7px;
-    animation: bonus-pointer-arrow-colours 2.8s ease-in-out infinite;
 }
 
 .bonus-pointer--blast .bonus-pointer-badge {
     background: var(--bomb);
-    animation: bonus-pointer-pulse 1.4s ease-in-out infinite;
 }
 
 .bonus-pointer--blast .bonus-pointer-arrow {
     border-left-color: var(--bomb-light);
-    animation: none;
 }
 
 .bonus-pointer--rally .bonus-pointer-badge {
@@ -66,37 +108,23 @@
 
 .bonus-pointer--rally .bonus-pointer-arrow {
     border-left-color: var(--rally-light);
-    animation: none;
 }
 
-@keyframes bonus-pointer-badge-colours {
-    0%, 100% {
-        background-color: var(--enclose);
-    }
-    25% {
-        background-color: var(--bomb);
-    }
-    50% {
-        background-color: var(--refill);
-    }
-    75% {
-        background-color: var(--spread);
-    }
+/* Enclose, bomb, refill, spread and back: each layer fades in over the ones under it, which drop out under the spread's. */
+@keyframes bonus-pointer-colour-bomb {
+    25%, 75% { opacity: 1; }
+    75.01% { opacity: 0; }
 }
 
-@keyframes bonus-pointer-arrow-colours {
-    0%, 100% {
-        border-left-color: var(--enclose-light);
-    }
-    25% {
-        border-left-color: var(--bomb-light);
-    }
-    50% {
-        border-left-color: var(--refill-light);
-    }
-    75% {
-        border-left-color: var(--spread-light);
-    }
+@keyframes bonus-pointer-colour-refill {
+    0%, 25% { opacity: 0; }
+    50%, 75% { opacity: 1; }
+    75.01% { opacity: 0; }
+}
+
+@keyframes bonus-pointer-colour-spread {
+    0%, 50% { opacity: 0; }
+    75% { opacity: 1; }
 }
 
 @keyframes bonus-pointer-pulse {
@@ -110,7 +138,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .bonus-pointer-badge,
-    .bonus-pointer-arrow {
+    .bonus-pointer-badge-colour,
+    .bonus-pointer-arrow-colour {
         animation: none;
     }
 }

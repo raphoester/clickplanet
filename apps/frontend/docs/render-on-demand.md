@@ -32,7 +32,8 @@ under test. Six things can ask for a frame:
 - **A glint plays** — `clickGlints.update` answers `"playing"` while a glint of a
   click, a hit or a shield is on screen, and `"over"` on the tick the last one
   ends, which is drawn at once for the same reason. While the page is watched a
-  glint is drawn every frame. After that it is paced like a pulse (see below).
+  glint is drawn at the spin's pace (see below), and every frame while the globe
+  is handled. After that it is paced like a pulse.
 - **Something outside the loop touched the scene** — `invalidate()`, which
   `applyChanges` calls for every claim, batch and rollback, and which the resize
   listener, the lapsed-box branch and `capture()` call for themselves. It is
@@ -80,6 +81,8 @@ capture phase, so a panel that stops an event still counts it. The page's load
 counts as an input, so the landing view turns for its first minute. `spins`
 turns the globe on its own only at or below `RESTING_ZOOM`, and only while the
 page is watched. The next input turns it again, and the pulses beat again.
+The same minute puts `data-unwatched` on `<html>`, which pauses the endless CSS
+animations (see [Endless animations](styling.md#endless-animations)).
 
 - **Why.** The cost of the spin is its frame rate, not its scene: a bare WebGL
   page that draws one triangle every frame costs as much. A page left open
@@ -118,9 +121,30 @@ page is watched. The next input turns it again, and the pulses beat again.
   of other players' claims are paced, as below.
 - **The director takes no part.** A clip or a player video aims the camera
   itself and never calls `controls.update()`, so `autoRotate` is not read. Its
-  pulses always beat and its glints are drawn every frame: nobody touches a page
-  while it records, and a clip's clock is the video's (see [Clips](clips.md)),
+  pulses always beat and its glints are drawn as on a watched page: nobody touches
+  a page while it records, and a clip's clock is the video's (see [Clips](clips.md)),
   which can run past a minute.
+
+**On a watched page, a glint is drawn at the spin's pace: 60 frames a second at
+most.** `drawsFrame` paces a glint that plays on a page in use at `IDLE_FRAME_MS`,
+with the same half frame of slack as the spin. A drag and the glide after it
+still draw every frame the display offers, and so does anything that changed.
+
+- **Why.** A glint was drawn on every frame the display offered: 120 a second on
+  a 120Hz phone, 144 on some desktop screens, for a picture that changes no
+  faster than the spin. Measured on 2026-11-19 in headless Chrome on an M2 Max,
+  renderer and GPU process together, the camera still just past the resting zoom,
+  the page in use, the fake's bots at 2.2 claims a second (seeded, the same claims
+  in every run), the display's frames at 120 a second from a clock injected in the
+  page, median of 4 runs. Desktop screen: 101 frames a second and 24.1% of a core
+  before, 52 and 22.5% after. Phone screen: 60 and 18.4% before, 31 and 16.1%
+  after. Headless Chrome shows the page at 60Hz whatever the clock, so the cost
+  of showing the extra frames is not in these numbers: a 120Hz phone pays it too.
+- **Tried: 30 frames a second.** It cut more: 26 frames and 16.8% on the desktop
+  screen, 16 frames and 12.8% on the phone screen. The pace holds only while the
+  camera is still (a turning camera is paced by the spin), so a glint only fades
+  and a strike shrinks in place, in 21 frames instead of 42. It was not shipped:
+  60 matches the spin, and the step from 60 to 30 was not looked at on a phone.
 
 **On a page that is not watched, a glint is drawn at 20 frames a second.** After
 the same minute with no input, `drawsFrame` draws a glint that plays at most

@@ -37,6 +37,41 @@ overrode the shared mobile size. Anchors styled as buttons (`BuyMeACoffee`, the
 menu's Home link) legitimately need `display: flex` with both axes centred and
 `text-decoration: none` — a `<button>` gets those for free — and nothing more.
 
+## Endless animations
+
+**An endless animation moves only `opacity` or `transform`.** The compositor plays those on its own. A `box-shadow`,
+a colour, a `filter` or a dash offset that is animated is a repaint of the element on every frame, on the main
+thread, for as long as it is on screen. Some are on screen for days: a bonus held and never used wears its New glow
+until it is used.
+
+- **A glow is drawn once, on a pseudo-element, and only fades**: `.inventory-slot--new::before`,
+  `.inventory-slot--on .inventory-box::before`, `.battle-chip.panel::after`, `.chat-waiting::before`. The pulse on the
+  next title is a gold disc behind the medal that swells past its rim and fades. The box pointer runs through the
+  kinds' colours as three layers, each fading in over the ones under it (`colourLayers` in `bonusPointer.ts`). The
+  tap hand's hard shadow is its own silhouette under it, moved with the hand's transform and one more drop.
+- **The battle chip clips nothing** (`overflow: hidden` would clip its glow): the tape's box is as tall as the
+  panel's inner corner and rounds with it.
+- **It plays as `var(--endless, running)`**, the last word of its `animation` shorthand. `:root[data-unwatched]`
+  (in `index.css`) sets `--endless: paused`, and `globe.ts` puts `data-unwatched` on `<html>` a minute after the last
+  input, the rule that stops the spin (see [Drawing only when something changed](render-on-demand.md)). The next input
+  takes it off, and every animation goes on from where it stopped. A page with no globe never pauses.
+- **A spinner the player waits on does not name it**: the sign-in callback's, the globe's loading status, the
+  "results are coming" line (`battle-over-wait`) and the quiz's picked answer, which waits for the server. Nor does a
+  finite animation: one that starts on a page nobody watches would stay on its first frame, often invisible.
+- The marching dashes of an armed bonus with no end (`.inventory-loop`) still animate a dash offset: they show only
+  while the player aims, and they pause with the rest.
+- **`endlessAnimations.test.ts` holds all of this**: it fails on an endless animation that does not name
+  `var(--endless, running)`, but the waits above, or whose keyframes move anything but `opacity` and `transform`, but
+  the dashes and the picked answer.
+- **Why.** Measured on 2026-11-19 in headless Chrome on an M2 Max, renderer and GPU process together, the globe still
+  and drawing nothing, the page in use. A bomb held and never used: 21–23% of a core and 122 repaints a second before,
+  9–12% and 2–4 after. The battle chip on a desktop screen: 26–31% and 120 repaints before, 11–15% and 2 after. The
+  tap hand of a first visit on a desktop screen: 16–20% before, 10–12% after. On a page nobody watches, a held bomb:
+  23–24% before, 7–8% after, and the compositor's frames fall from 60 a second to about 10.
+- **The look is the same.** Each glow was shot at eight points of its cycle in both builds, every animation held at
+  the same point: the mean difference is under 2 of 255 at every point. The slot's ring and the title's pulse grow
+  in a little less at the start, as a fade does against a spread that grows.
+
 ## A panel that scrolls
 
 **`components/ScrollArea.tsx` is the one scrolling body of a panel**: `Modal`,

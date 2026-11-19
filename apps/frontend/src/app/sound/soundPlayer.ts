@@ -1,4 +1,4 @@
-import {SoundName} from "../../domain/soundSettings.ts";
+import {SoundName, SOUNDS} from "../../domain/soundSettings.ts";
 import {Synth, SynthOptions, SYNTHS} from "./synths.ts";
 
 export type PlaySound = (name: SoundName, options?: Partial<SynthOptions>) => void
@@ -20,6 +20,9 @@ export const MIN_GAP_MS: Record<SoundName, number> = {
 }
 
 const LATE_MS = 300
+
+// Longer than the longest sound: a bomb's fall, its 4.5 s tail and the room's echo.
+export const SILENCE_MS = 10_000
 
 export type SoundPlayerOptions = {
     isAudible: (name: SoundName) => boolean
@@ -46,19 +49,44 @@ export function createSoundPlayer(options: SoundPlayerOptions): SoundPlayer {
     } = options
 
     let ctx: AudioContext | undefined
+    let resting: ReturnType<typeof setTimeout> | undefined
+    let suspending: Promise<void> | undefined
     const lastPlayed = new Map<SoundName, number>()
+
+    // A running context keeps the audio hardware awake, sound or not.
+    const restLater = () => {
+        clearTimeout(resting)
+        resting = setTimeout(() => {
+            const context = ctx
+            if (!context || context.state !== "running") return
+            const done: Promise<void> = context.suspend()
+                .catch(() => {
+                })
+                .then(() => {
+                    if (suspending === done) suspending = undefined
+                })
+            suspending = done
+        }, SILENCE_MS)
+    }
+
+    // Called at once when it can be: iOS lets a context start only inside a gesture.
+    const wake = (context: AudioContext): Promise<void> =>
+        suspending ? suspending.then(() => context.resume()) : context.resume()
+
+    const awake = (context: AudioContext) => context.state === "running" && !suspending
 
     const start = (name: SoundName, options: SynthOptions) => {
         if (!ctx) return
         const context = ctx
+        restLater()
 
-        if (context.state === "running") {
+        if (awake(context)) {
             synths[name](context, context.currentTime, options)
             return
         }
 
         const asked = now()
-        context.resume()
+        wake(context)
             .then(() => {
                 if (context.state === "running" && now() - asked <= LATE_MS) {
                     synths[name](context, context.currentTime, options)
@@ -84,11 +112,15 @@ export function createSoundPlayer(options: SoundPlayerOptions): SoundPlayer {
             start(name, {volume: 1, onWater: false})
         },
         unlock: () => {
+            if (!SOUNDS.some(isAudible)) return
             if (!ctx) ctx = createContext()
-            if (ctx && ctx.state !== "running") ctx.resume().catch(() => {
+            if (!ctx) return
+            restLater()
+            if (!awake(ctx)) wake(ctx).catch(() => {
             })
         },
         dispose: () => {
+            clearTimeout(resting)
             ctx?.close().catch(() => {
             })
             ctx = undefined

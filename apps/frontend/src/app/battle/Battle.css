@@ -6,22 +6,35 @@
 }
 
 .battle-chip.panel {
-    overflow: hidden;
     padding-top: calc(8px + var(--space-2));
     box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 18px color-mix(in srgb, var(--war) 35%, transparent);
-    animation: battle-chip-live 2.4s ease-in-out infinite;
 }
 
+/* No overflow clips the tape, so the glow can stand outside the chip: the tape's box is as tall as the panel's inner corner, and rounds with it. */
 .battle-chip.panel::before {
     content: "";
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 6px;
-    background: var(--tape);
-    border-bottom: var(--outline-thin) solid var(--ink);
+    height: calc(var(--radius-l) - var(--outline));
+    border-radius: calc(var(--radius-l) - var(--outline)) calc(var(--radius-l) - var(--outline)) 0 0;
+    background:
+        linear-gradient(var(--ink), var(--ink)) 0 6px / 100% var(--outline-thin) no-repeat,
+        var(--tape) 0 0 / 100% 6px no-repeat;
     pointer-events: none;
+}
+
+/* The glow only fades: a box-shadow animated repaints the chip every frame. Its own drop on top keeps the glow under it. */
+.battle-chip.panel::after {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--outline));
+    border-radius: inherit;
+    box-shadow: var(--drop-l), 0 0 30px color-mix(in srgb, var(--war) 50%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    animation: battle-chip-live 2.4s ease-in-out infinite var(--endless, running);
 }
 
 .season-chip--compact.battle-chip {
@@ -520,7 +533,7 @@
 
 @keyframes battle-chip-live {
     50% {
-        box-shadow: var(--drop-l), inset 0 2px 0 var(--sheen), 0 0 30px color-mix(in srgb, var(--war) 60%, transparent);
+        opacity: 1;
     }
 }
 
@@ -573,7 +586,7 @@
         transition: none;
     }
 
-    .battle-chip.panel,
+    .battle-chip.panel::after,
     .battle-reveal-disc,
     .battle-brief-row,
     .battle-brief-row::before,

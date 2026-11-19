@@ -6,15 +6,24 @@
     pointer-events: none;
 }
 
-.tap-pointer-hand {
+.tap-pointer-hand,
+.tap-pointer-shadow {
     position: absolute;
     left: calc(-1 * var(--tap-tip-x));
     top: calc(-1 * var(--tap-tip-y));
     overflow: visible;
     transform-origin: var(--tap-tip-x) var(--tap-tip-y);
+}
+
+.tap-pointer-hand {
     transform: translateY(-5px) rotate(-20deg) scale(1.04);
-    filter: drop-shadow(0 5px 0 var(--ink));
-    animation: tap-pointer-press 1.6s ease-in-out infinite;
+    animation: tap-pointer-press 1.6s ease-in-out infinite var(--endless, running);
+}
+
+/* The hand's transform, then the shadow's drop under it: the hand comes down onto it. */
+.tap-pointer-shadow {
+    transform: translateY(-5px) rotate(-20deg) scale(1.04) translateY(5px);
+    animation: tap-pointer-shadow 1.6s ease-in-out infinite var(--endless, running);
 }
 
 .tap-pointer-outline {
@@ -41,7 +50,7 @@
     height: 40px;
     overflow: visible;
     opacity: 0;
-    animation: tap-pointer-burst 1.6s ease-out infinite;
+    animation: tap-pointer-burst 1.6s ease-out infinite var(--endless, running);
 }
 
 .tap-pointer-burst line {
@@ -61,11 +70,18 @@
 @keyframes tap-pointer-press {
     0%, 35%, 85%, 100% {
         transform: translateY(-5px) rotate(-20deg) scale(1.04);
-        filter: drop-shadow(0 5px 0 var(--ink));
     }
     50%, 65% {
         transform: translateY(0) rotate(-20deg) scale(1);
-        filter: drop-shadow(0 0 0 var(--ink));
+    }
+}
+
+@keyframes tap-pointer-shadow {
+    0%, 35%, 85%, 100% {
+        transform: translateY(-5px) rotate(-20deg) scale(1.04) translateY(5px);
+    }
+    50%, 65% {
+        transform: translateY(0) rotate(-20deg) scale(1) translateY(0);
     }
 }
 
@@ -86,6 +102,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .tap-pointer-hand,
+    .tap-pointer-shadow,
     .tap-pointer-burst {
         animation: none;
     }

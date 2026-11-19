@@ -165,8 +165,25 @@ describe("drawsFrame", () => {
         expect(tick({turned: true, changed: true, drawnAt: 9_999})).toBe(true)
     })
 
-    it("draws every frame of a glint while the page is in use", () => {
-        expect(tick({glints: "playing", drawnAt: 9_999})).toBe(true)
+    it("draws a glint at the spin's pace while the page is in use", () => {
+        expect(tick({glints: "playing", drawnAt: 9_990})).toBe(false)
+        expect(tick({glints: "playing", drawnAt: 9_984})).toBe(true)
+    })
+
+    it("draws every other frame of a glint on a 120Hz display", () => {
+        const ticks = [8.33, 16.67, 25, 33.33, 41.67, 50].map((at) => 10_000 + at)
+        let drawnAt = 10_000
+        const drawn = ticks.filter((at) => {
+            const draws = tick({glints: "playing", at, drawnAt, sinceLastTick: 8.33})
+            if (draws) drawnAt = at
+            return draws
+        })
+
+        expect(drawn).toEqual([10_016.67, 10_033.33, 10_050])
+    })
+
+    it("draws every frame of a glint while the player handles the globe", () => {
+        expect(tick({glints: "playing", drawnAt: 9_999, interactingUntil: 10_000})).toBe(true)
     })
 
     it("draws a glint at the pulse's pace once nobody touches the page", () => {

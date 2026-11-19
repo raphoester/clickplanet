@@ -110,7 +110,7 @@
     box-shadow: 0 0 20px 2px color-mix(in srgb, var(--gold) 45%, transparent);
     opacity: 0;
     pointer-events: none;
-    animation: chat-attention 2.6s ease-in-out infinite;
+    animation: chat-attention 2.6s ease-in-out infinite var(--endless, running);
 }
 
 .chat-waiting .chat-header {

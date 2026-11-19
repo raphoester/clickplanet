@@ -1,5 +1,8 @@
 export const FADE_S = 2
 
+// A fade out under setTargetAtTime's 0.25 s constant is all but silent by then.
+const QUIET_MS = 1000
+
 export type AnthemPlayer = {
     setTrack: (url: string | undefined) => void
     setAudible: (audible: boolean) => void
@@ -30,6 +33,7 @@ export function createAnthemPlayer(options: AnthemPlayerOptions = {}): AnthemPla
     let wantedUrl: string | undefined
     let audible = false
     let volume = 0
+    let unlocked = false
 
     const level = () => (audible ? volume : 0)
 
@@ -61,29 +65,48 @@ export function createAnthemPlayer(options: AnthemPlayerOptions = {}): AnthemPla
         return {url, audio, gain, source}
     }
 
+    // A recording is fetched only to be heard.
     const sync = () => {
-        if (!ctx || !master) return
+        if (!ctx || !master || !audible) return
         if (current?.url === wantedUrl) return
 
         if (current) retire(current, ctx)
         current = wantedUrl ? start(wantedUrl, ctx, master) : undefined
     }
 
+    // Made only once a gesture has been seen and the anthem is heard: a running context keeps the audio hardware awake.
+    const open = () => {
+        if (ctx || !unlocked || !audible) return
+        ctx = createContext()
+        if (!ctx) return
+        master = ctx.createGain()
+        master.gain.value = level()
+        master.connect(ctx.destination)
+    }
+
     const applyLevel = () => {
         if (!ctx || !master) return
-        const now = ctx.currentTime
+        const context = ctx
+        const now = context.currentTime
         master.gain.cancelScheduledValues(now)
         master.gain.setTargetAtTime(level(), now, 0.25)
 
-        const audio = current?.audio
-        if (!audio) return
-        if (audible && audio.paused) audio.play().catch(() => {
-        })
-        if (!audible && !audio.paused) {
-            setTimeout(() => {
-                if (!audible && current?.audio === audio) audio.pause()
-            }, 1000)
+        if (audible) {
+            if (context.state !== "running") context.resume().catch(() => {
+            })
+            sync()
+            if (current?.audio.paused) current.audio.play().catch(() => {
+            })
+            return
         }
+
+        const audio = current?.audio
+        setTimeout(() => {
+            if (audible || ctx !== context) return
+            if (audio && current?.audio === audio) audio.pause()
+            context.suspend().catch(() => {
+            })
+        }, QUIET_MS)
     }
 
     return {
@@ -94,6 +117,7 @@ export function createAnthemPlayer(options: AnthemPlayerOptions = {}): AnthemPla
         setAudible: (value) => {
             if (value === audible) return
             audible = value
+            open()
             applyLevel()
         },
         setVolume: (value) => {
@@ -101,18 +125,10 @@ export function createAnthemPlayer(options: AnthemPlayerOptions = {}): AnthemPla
             applyLevel()
         },
         unlock: () => {
-            if (!ctx) {
-                ctx = createContext()
-                if (!ctx) return
-                master = ctx.createGain()
-                master.gain.value = level()
-                master.connect(ctx.destination)
-                sync()
-            }
-            if (ctx.state !== "running") ctx.resume().catch(() => {
-            })
-            if (audible && current?.audio.paused) current.audio.play().catch(() => {
-            })
+            unlocked = true
+            if (!audible) return
+            open()
+            applyLevel()
         },
         position: () => {
             const audio = current?.audio

@@ -202,6 +202,9 @@ const WATCHED_FOR_MS = 60_000
 
 const INPUTS = ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart'] as const
 
+// On <html> while nobody watches: index.css pauses the endless animations under it.
+const UNWATCHED_ATTRIBUTE = 'data-unwatched'
+
 export type Attention = {
     lastInputAt: number
     now: number
@@ -257,11 +260,12 @@ export type Tick = {
 export function drawsFrame(
     {turned, changed, glints, ambient, attended, at, drawnAt, interactingUntil, sinceLastTick}: Tick,
 ): boolean {
-    const atOnce = changed || glints === "over" || (glints === "playing" && attended)
+    const atOnce = changed || glints === "over"
     const paced = ambient || glints === "playing"
     if (!turned && !atOnce && !paced) return false
     if (atOnce || at <= interactingUntil) return true
-    return at + sinceLastTick / 2 >= drawnAt + (turned ? IDLE_FRAME_MS : AMBIENT_FRAME_MS)
+    const idlePace = turned || (glints === "playing" && attended)
+    return at + sinceLastTick / 2 >= drawnAt + (idlePace ? IDLE_FRAME_MS : AMBIENT_FRAME_MS)
 }
 
 const CLAIM_MARGIN_MS = 2_000
@@ -2393,6 +2397,7 @@ function startAnimation(
         interactingUntil = performance.now() + INTERACTION_GRACE_MS;
     });
 
+    let shownAttended = true;
     let drawnAt = -Infinity;
     let beatDrawn: number | undefined;
     let tickedAt: number | undefined;
@@ -2428,6 +2433,10 @@ function startAnimation(
         const glints = driveGlints(time / 1000);
 
         const attended = director !== undefined || watched({lastInputAt, now: time});
+        if (attended !== shownAttended) {
+            shownAttended = attended;
+            document.documentElement.toggleAttribute(UNWATCHED_ATTRIBUTE, !attended);
+        }
         uniforms.pulseTime.value = beatClock({clock: uniforms.pulseTime.value, step: sinceLastTick / 1000, attended});
         const ambient = uniforms.pulseTime.value !== beatDrawn && pulsing(camera);
         const tick = {turned, changed, glints, ambient, attended, at: time, drawnAt, interactingUntil, sinceLastTick};
@@ -2445,6 +2454,7 @@ function startAnimation(
     return {
         stop: () => {
             renderer.setAnimationLoop(null);
+            document.documentElement.removeAttribute(UNWATCHED_ATTRIBUTE);
             listening.abort();
             controls.dispose();
             starfield.dispose();

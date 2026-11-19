@@ -21,6 +21,36 @@ from oscillators and noise with the Web Audio API at the moment it plays, in
 first `pointerdown`/`keydown` on the window, so a bonus box or a chat message
 before the player has touched the page is silent, by design of the browser.
 
+**A context runs only while it can be heard.** A running `AudioContext` keeps
+the audio hardware awake, and the browser's audio thread with it, sound or not.
+
+- **No context while every sound is off.** `unlock` makes one only if a sound
+  is audible. Turning a sound on in the settings previews it, and the preview
+  makes the context inside that tap. Otherwise the next gesture makes it.
+- **The effects' context is suspended `SILENCE_MS` (10 s) after the last
+  sound**, longer than the longest one (a bomb's fall, its 4.5 s tail and the
+  room's echo). The next sound wakes it: `start` resumes it and drops the sound
+  if the wake takes more than `LATE_MS`. Each gesture wakes it as well, because
+  iOS lets a context start only inside a gesture: `resume` is called at once
+  there, never after a wait. A sound that comes while a suspend is under way
+  waits for it, then wakes the context.
+- **The anthem's context is made only when the anthem is heard**, after a
+  gesture: at the gesture itself, or when the player turns it on. Play, the
+  switch and the volume are taps, and React runs the effect of a tap's update
+  inside that tap, so iOS sees the gesture. **It is suspended a second after
+  the anthem goes quiet** (off, volume 0, muted or a hidden tab), when the
+  fade is all but over and the recording is paused. It is resumed when the
+  anthem is heard again. A recording is fetched only to be heard: a new leader's
+  anthem waits for that.
+- **Why.** Before, every page made both contexts at its first tap and kept them
+  running for as long as it was open, even with the sound off. Measured on
+  2026-11-19 in headless Chrome on an M2 Max, the globe still, the page in use,
+  renderer and GPU process together: with the sound on, the anthem and the chat's ping
+  off and nothing playing, 11.4% of a core before (two contexts running), 9.0% after (one
+  context, suspended); with the sound off, 11.3% before, 9.3% after (no context).
+  A playing anthem runs its context, as it must. The fake's chat pings every 8 s,
+  which keeps the effects' context awake: each sound wakes it.
+
 Where each one fires: the click and the refusal in `globe.ts`'s click handler
 (`reportClickFailure` returns whether the server refused — a transport fault is
 not a "nope"); the box appearing and being caught at the same places the box

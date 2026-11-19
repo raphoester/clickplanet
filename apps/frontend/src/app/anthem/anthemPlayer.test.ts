@@ -16,7 +16,14 @@ function fakes() {
         state: "running", currentTime: 0, destination: {},
         createGain: vi.fn(node),
         createMediaElementSource: vi.fn(node),
-        resume: vi.fn(() => Promise.resolve()),
+        resume: vi.fn(() => {
+            ctx.state = "running"
+            return Promise.resolve()
+        }),
+        suspend: vi.fn(() => {
+            ctx.state = "suspended"
+            return Promise.resolve()
+        }),
         close: vi.fn(() => Promise.resolve()),
     }
     const createAudio = (url: string) => {
@@ -37,8 +44,9 @@ function fakes() {
         audios.push(audio)
         return audio as unknown as HTMLAudioElement
     }
-    const player = createAnthemPlayer({createContext: () => ctx as unknown as AudioContext, createAudio})
-    return {player, audios, ctx}
+    const createContext = vi.fn(() => ctx as unknown as AudioContext)
+    const player = createAnthemPlayer({createContext, createAudio})
+    return {player, audios, ctx, createContext}
 }
 
 describe("createAnthemPlayer", () => {
@@ -73,6 +81,7 @@ describe("createAnthemPlayer", () => {
 
     it("does not restart a recording asked for again", () => {
         const {player, audios} = fakes()
+        player.setAudible(true)
         player.unlock()
         player.setTrack("/fr.m4a")
         player.setTrack("/fr.m4a")
@@ -93,10 +102,73 @@ describe("createAnthemPlayer", () => {
         expect(audios[0].paused).toBe(false)
     })
 
-    it("stays paused when muted before the first gesture", () => {
-        const {player, audios} = fakes()
+    it("makes no context and loads nothing at a gesture while it is not heard", () => {
+        const {player, audios, createContext} = fakes()
         player.setTrack("/fr.m4a")
         player.unlock()
-        expect(audios[0].paused).toBe(true)
+        expect(createContext).not.toHaveBeenCalled()
+        expect(audios).toHaveLength(0)
+    })
+
+    it("makes no context before the first gesture, even when it is heard", () => {
+        const {player, createContext} = fakes()
+        player.setTrack("/fr.m4a")
+        player.setAudible(true)
+        expect(createContext).not.toHaveBeenCalled()
+    })
+
+    it("plays at once when it is turned on after the first gesture", () => {
+        const {player, audios, createContext} = fakes()
+        player.setTrack("/fr.m4a")
+        player.unlock()
+
+        player.setAudible(true)
+        expect(createContext).toHaveBeenCalledTimes(1)
+        expect(audios.map((a) => a.url)).toEqual(["/fr.m4a"])
+        expect(audios[0].paused).toBe(false)
+    })
+
+    it("suspends the context once it goes quiet, and wakes it when it is heard again", () => {
+        const {player, audios, ctx} = fakes()
+        player.setAudible(true)
+        player.unlock()
+        player.setTrack("/fr.m4a")
+
+        player.setAudible(false)
+        vi.advanceTimersByTime(1100)
+        expect(ctx.suspend).toHaveBeenCalledTimes(1)
+        expect(ctx.state).toBe("suspended")
+
+        player.setAudible(true)
+        expect(ctx.resume).toHaveBeenCalled()
+        expect(ctx.state).toBe("running")
+        expect(audios[0].paused).toBe(false)
+    })
+
+    it("does not suspend a context heard again before the fade is over", () => {
+        const {player, ctx} = fakes()
+        player.setAudible(true)
+        player.unlock()
+
+        player.setAudible(false)
+        vi.advanceTimersByTime(500)
+        player.setAudible(true)
+        vi.advanceTimersByTime(1000)
+        expect(ctx.suspend).not.toHaveBeenCalled()
+    })
+
+    it("fetches a new leader's recording only once it is heard", () => {
+        const {player, audios} = fakes()
+        player.setAudible(true)
+        player.unlock()
+        player.setTrack("/fr.m4a")
+
+        player.setAudible(false)
+        player.setTrack("/de.m4a")
+        expect(audios.map((a) => a.url)).toEqual(["/fr.m4a"])
+
+        player.setAudible(true)
+        expect(audios.map((a) => a.url)).toEqual(["/fr.m4a", "/de.m4a"])
+        expect(audios[1].paused).toBe(false)
     })
 })
