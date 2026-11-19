@@ -157,7 +157,10 @@ the server's (spread 2, shields 3, enclose 5, bomb 7, virus 10, mine 13, rally 1
 A slot is drawn with its box's icon (`BonusIcon`) in its box's colours (the `--bonus-*` properties in
 `BonusAward.css`, shared with the announcement); All with four small boxes in the bonus colours. An empty slot is
 dimmed, and a press on it does nothing but say how to get one. A pool shows its count against its size (`5/8`,
-`2/3`) in a pill on its corner. **The refills, the bombs and the viruses are counted the same way once they stack**
+`2/3`) in a pill on its corner. **On a phone the pill sits under the middle of its slot**, the tray's too, and the
+bar's is 11px with little padding, so even "26/60" is no wider than a 38px slot: the phone's slots stand 3 to 5px
+apart, and a pill pinned to the right corner grows to the left, so one wider than a slot and its gap ran over the
+next slot's pill ("26/60" over "1/3", 2026-11-19). **The refills, the bombs and the viruses are counted the same way once they stack**
 (`stackCountOf`): while the rules let a hand hold one at most and it holds no more (production for now), their slot
 shows no count, as when each was held or not; once a hand holds more than one, or may, the pill says it (`2/3`, an
 empty one `0/3`), so two bombs read as 2. A drop or a use spends one and puts the bomb or the virus away: the next
