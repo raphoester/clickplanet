@@ -101,8 +101,8 @@ function Body({making, onSignIn}: {making: Making, onSignIn?: () => void}) {
         }
         case "ready":
             return <div className="video-ready">
-                <video className="video-preview" src={making.url} controls playsInline loop autoPlay muted/>
                 <p className="video-tag">{rich("video.tag", {handle: <strong className="video-handle">{TIKTOK_HANDLE}</strong>})}</p>
+                <video className="video-preview" src={making.url} controls playsInline loop autoPlay muted/>
                 {onSignIn && <button type="button" className="button button-action" onClick={onSignIn}>{t("video.signInForName")}</button>}
             </div>
         case "empty":
