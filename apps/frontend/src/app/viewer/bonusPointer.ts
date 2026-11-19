@@ -93,9 +93,11 @@ export function createBonusPointer(container: HTMLElement, variant?: "blast" | "
 
     const arrow = document.createElement("span")
     arrow.className = "bonus-pointer-arrow"
+    if (!variant) arrow.append(...colourLayers("bonus-pointer-arrow-colour"))
 
     const badge = document.createElement("span")
     badge.className = "bonus-pointer-badge"
+    if (!variant) badge.append(...colourLayers("bonus-pointer-badge-colour"))
     badge.append(variant === "blast"
         ? blastMarkSvg("bonus-pointer-mark")
         : variant === "rally"
@@ -142,4 +144,14 @@ export function createBonusPointer(container: HTMLElement, variant?: "blast" | "
             root.remove()
         },
     }
+}
+
+// A box's pointer runs through the kinds' colours, each on a layer of its own that only fades: a colour animated
+// repaints the pointer every frame.
+function colourLayers(className: string): HTMLSpanElement[] {
+    return ["bomb", "refill", "spread"].map((kind) => {
+        const layer = document.createElement("span")
+        layer.className = `${className} ${className}--${kind}`
+        return layer
+    })
 }

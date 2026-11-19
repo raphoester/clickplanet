@@ -1,6 +1,7 @@
+/* From under the medal's rim to 10px past a 56px medal's edge. */
 @keyframes title-pulse {
-    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 40%, transparent); }
-    50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--gold) 0%, transparent); }
+    0%, 100% { opacity: 1; transform: scale(0.94); }
+    50% { opacity: 0; transform: scale(1.36); }
 }
 
 .title-emblem {
@@ -15,13 +16,21 @@
     align-self: center;
 }
 
+.title-pulse {
+    isolation: isolate;
+}
+
+/* A gold disc behind the medal swells past its rim and fades: a box-shadow animated repaints it every frame. */
 .title-pulse::before {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
+    z-index: -1;
     aspect-ratio: 1;
     border-radius: 50%;
-    animation: title-pulse 1.8s ease-in-out infinite;
+    background: color-mix(in srgb, var(--gold) 40%, transparent);
+    opacity: 0;
+    animation: title-pulse 1.8s ease-in-out infinite var(--endless, running);
     pointer-events: none;
 }
 

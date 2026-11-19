@@ -14,8 +14,10 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   and the fake's console commands (`giveBomb()`, `closeDay()`, …).
 - [Testing](docs/testing.md) — vitest, co-located, on node by default; jsdom only where a file asks for it; the two
   boards tests read, `earth-1` and the coarse `fixture-1`, which no page serves, and the geometry of every shipped board.
-- [Styling](docs/styling.md) — `DESIGN.md` is the design system; `ScrollArea`, the scrolling body of every panel,
-  and its fade; a modal's padding; a box as wide as its word in nine languages; how to debug a mobile layout.
+- [Styling](docs/styling.md) — `DESIGN.md` is the design system; an endless animation moves only opacity or
+  transform and pauses a minute after the last input (`var(--endless, running)`), but a spinner; `ScrollArea`, the
+  scrolling body of every panel, and its fade; a modal's padding; a box as wide as its word in nine languages; how to
+  debug a mobile layout.
 - [Protocol Buffers](docs/protobuf.md) — types from the shared `/proto`, generated into `src/gen/grpc`.
 - [Static assets](docs/static-assets.md) — the content-addressed files in `static/`, and how each is made: every board's
   copy and its own border lines, landmass names and province names in `static/boards/<board>/`, named in `BOARDS`.
@@ -145,7 +147,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
   starts, as the stills of a TikTok carousel and a slideshow for YouTube, which the backend's promo module posts.
 - [In a clip](docs/clip-appearances.md) — "You are in a clip!" with links to watch it, and the switch that keeps
   a name out of the clips.
-- [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem.
+- [Sound](docs/sound.md) — every sound built with Web Audio, no audio file; the leader's anthem; an audio context
+  only while it can be heard, the effects' suspended 10 s after the last sound.
 - [Discord pings](docs/discord-alerts.md) — "Join Discord" in the chat's Discord bar, and "Get pinged" in the moment
   once a page when the flag is under attack, are a Discord sign-in, which joins the game's server; the moment's "Go
   there", for every player, flies to the attack; "Open Discord" once in; no plain invite anywhere, the plain pages
@@ -154,7 +157,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 ## The globe (`src/app/viewer/`)
 
 - [The GPU layer](docs/viewer.md) — `globe.ts` and the files around it: marks, glints, passes.
-- [Drawing only when something changed](docs/render-on-demand.md) — the loop draws a frame only when needed.
+- [Drawing only when something changed](docs/render-on-demand.md) — the loop draws a frame only when needed; the spin
+  and a glint at 60 frames a second at most, a glint on a page nobody touches at 20.
 - [The tiles out of sight are not drawn](docs/far-side.md) — the map and the countries' outlines cut into chunks the CPU
   skips when behind the earth or off screen, an outline pass drawn as up to 8 ranges of its pieces, and no tile under
   the painted flags but those wearing a ring.

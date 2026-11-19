@@ -66,7 +66,7 @@
     border-radius: 50%;
     background: radial-gradient(circle, color-mix(in srgb, var(--gold) 50%, transparent), transparent 65%);
     scale: 1;
-    animation: title-reveal-rays-in 600ms ease-out var(--impact) both, title-reveal-breathe 2.4s ease-in-out calc(var(--impact) + 600ms) infinite;
+    animation: title-reveal-rays-in 600ms ease-out var(--impact) both, title-reveal-breathe 2.4s ease-in-out calc(var(--impact) + 600ms) infinite var(--endless, running);
 }
 
 .title-reveal-rays {
@@ -79,7 +79,7 @@
     opacity: 0.55;
     scale: 1;
     rotate: 0deg;
-    animation: title-reveal-rays-in 600ms cubic-bezier(0.2, 0.9, 0.3, 1.3) var(--impact) both, title-reveal-turn 28s linear var(--impact) infinite;
+    animation: title-reveal-rays-in 600ms cubic-bezier(0.2, 0.9, 0.3, 1.3) var(--impact) both, title-reveal-turn 28s linear var(--impact) infinite var(--endless, running);
 }
 
 .title-reveal-wave {
@@ -131,7 +131,7 @@
     position: absolute;
     inset: 0 0 auto 0;
     display: block;
-    animation: title-reveal-float 3.2s ease-in-out calc(var(--impact) + 400ms) infinite;
+    animation: title-reveal-float 3.2s ease-in-out calc(var(--impact) + 400ms) infinite var(--endless, running);
 }
 
 .title-reveal-spin {

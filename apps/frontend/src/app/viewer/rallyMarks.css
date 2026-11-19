@@ -56,7 +56,7 @@
     background-repeat: no-repeat;
     box-shadow: var(--drop-xs);
     transform-origin: left center;
-    animation: rally-pin-wave 2.4s ease-in-out infinite;
+    animation: rally-pin-wave 2.4s ease-in-out infinite var(--endless, running);
 }
 
 .rally-pin--own .rally-pin-cloth {

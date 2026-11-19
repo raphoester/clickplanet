@@ -12,6 +12,12 @@
     --top-room: calc(2 * min(var(--top-centre) - var(--menu-right, 0px), 100vw - var(--top-centre)));
 }
 
+/* Every endless animation but a spinner the player waits on plays as var(--endless, running): it stops on a page nobody
+   has touched for a minute, which globe.ts marks on <html>. */
+:root[data-unwatched] {
+    --endless: paused;
+}
+
 @media only screen and (max-width: 1279px) {
     :root {
         --dock-width: 460px;

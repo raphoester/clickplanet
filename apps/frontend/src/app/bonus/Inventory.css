@@ -68,7 +68,7 @@
     stroke: var(--bonus-accent);
     stroke-width: 3;
     stroke-dasharray: 6 5;
-    animation: inventory-loop 0.6s linear infinite;
+    animation: inventory-loop 0.6s linear infinite var(--endless, running);
 }
 
 .inventory-box {
@@ -87,12 +87,30 @@
     height: 28px;
 }
 
+/* The glows are drawn once on a layer of their own and only fade: a box-shadow animated repaints the slot every frame. */
 .inventory-slot--on .inventory-box {
-    animation: inventory-on 1.6s ease-in-out infinite;
+    position: relative;
 }
 
-.inventory-slot--new {
-    animation: inventory-new 1.4s ease-in-out infinite;
+.inventory-slot--on .inventory-box::before,
+.inventory-slot--new::before {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--outline-thin));
+    border-radius: inherit;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.inventory-slot--on .inventory-box::before {
+    box-shadow: 0 0 10px var(--bonus-accent);
+    animation: inventory-on 1.6s ease-in-out infinite var(--endless, running);
+}
+
+/* Its own drop on top, as the slot's: the ring stays under it. */
+.inventory-slot--new::before {
+    box-shadow: var(--drop-s), 0 0 0 2px var(--bonus-accent), 0 0 16px var(--bonus-box);
+    animation: inventory-new 1.4s ease-in-out infinite var(--endless, running);
 }
 
 /* No word over a slot: two side by side ran over each other ("Nouveau", "Zapnuto"). New is a dot on the corner; On keeps the ring and the glow. */
@@ -216,7 +234,7 @@
 
 @keyframes inventory-on {
     50% {
-        box-shadow: 0 0 10px var(--bonus-accent);
+        opacity: 1;
     }
 }
 
@@ -228,7 +246,7 @@
 
 @keyframes inventory-new {
     50% {
-        box-shadow: var(--drop-s), 0 0 0 2px var(--bonus-accent), 0 0 16px var(--bonus-box);
+        opacity: 1;
     }
 }
 
@@ -271,8 +289,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .inventory-slot--on .inventory-box,
-    .inventory-slot--new,
+    .inventory-slot--on .inventory-box::before,
+    .inventory-slot--new::before,
     .inventory-loop rect {
         animation: none;
     }

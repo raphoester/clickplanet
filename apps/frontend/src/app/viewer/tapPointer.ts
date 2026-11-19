@@ -36,8 +36,7 @@ export function createTapPointer(container: HTMLElement): TapPointer {
     root.className = "tap-pointer"
     root.hidden = true
 
-    const hand = handSvg()
-    root.append(burstSvg(), hand)
+    root.append(burstSvg(), shadowSvg(), handSvg())
     container.append(root)
 
     const projected = new THREE.Vector3()
@@ -77,17 +76,7 @@ export function createTapPointer(container: HTMLElement): TapPointer {
 }
 
 function handSvg(): SVGSVGElement {
-    const svg = document.createElementNS(SVG_NS, "svg")
-    svg.setAttribute("viewBox", `0 0 ${HAND.width} ${HAND.height}`)
-    svg.setAttribute("class", "tap-pointer-hand")
-    svg.setAttribute("aria-hidden", "true")
-    svg.style.width = `${HAND.width}px`
-    svg.style.height = `${HAND.height}px`
-    svg.style.setProperty("--tap-tip-x", `${HAND.fingertip.x}px`)
-    svg.style.setProperty("--tap-tip-y", `${HAND.fingertip.y}px`)
-
-    const outline = gloveGroup("tap-pointer-outline")
-    outline.setAttribute("stroke-width", String(HAND.outline))
+    const svg = gloveSvg("tap-pointer-hand")
     const glove = gloveGroup("tap-pointer-glove")
 
     const creases = document.createElementNS(SVG_NS, "g")
@@ -95,8 +84,34 @@ function handSvg(): SVGSVGElement {
     creases.setAttribute("stroke-width", String(HAND.crease))
     for (const d of HAND.creases) creases.append(pathOf(d))
 
-    svg.append(outline, glove, creases)
+    svg.append(outlineGroup(), glove, creases)
     return svg
+}
+
+// The hand's hard shadow is its silhouette under it, moved on its own: a drop-shadow animated repaints the hand every
+// frame.
+function shadowSvg(): SVGSVGElement {
+    const svg = gloveSvg("tap-pointer-shadow")
+    svg.append(outlineGroup())
+    return svg
+}
+
+function gloveSvg(className: string): SVGSVGElement {
+    const svg = document.createElementNS(SVG_NS, "svg")
+    svg.setAttribute("viewBox", `0 0 ${HAND.width} ${HAND.height}`)
+    svg.setAttribute("class", className)
+    svg.setAttribute("aria-hidden", "true")
+    svg.style.width = `${HAND.width}px`
+    svg.style.height = `${HAND.height}px`
+    svg.style.setProperty("--tap-tip-x", `${HAND.fingertip.x}px`)
+    svg.style.setProperty("--tap-tip-y", `${HAND.fingertip.y}px`)
+    return svg
+}
+
+function outlineGroup(): SVGGElement {
+    const outline = gloveGroup("tap-pointer-outline")
+    outline.setAttribute("stroke-width", String(HAND.outline))
+    return outline
 }
 
 function gloveGroup(className: string): SVGGElement {
