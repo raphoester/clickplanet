@@ -1,5 +1,5 @@
 import {ReactNode, useEffect, useRef, useState} from 'react'
-import {ClickBudget, nextClickProgress, now, rallied, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
+import {ClickBudget, nextClickProgress, now, rallied, refilling, secondsToOneMore, tokensAt} from "../../backends/clickBudget.ts"
 import {factor} from "../../domain/clickPrice.ts"
 import {DiscordIcon, HourglassIcon, LockIcon, UsersIcon} from "./icons.tsx"
 import {timeLeftTo} from "../../domain/seasonClock.ts"
@@ -139,19 +139,31 @@ export default function ClickBudgetMeter({
             box.classList.toggle("click-budget-full", whole >= budget.capacity)
         }
 
-        draw()
+        const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+        let frame: number | undefined
+        let timer: ReturnType<typeof setTimeout> | undefined
 
-        if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-            const timer = setInterval(draw, STEP_MS)
-            return () => clearInterval(timer)
+        // Each frame only while the bank fills: a full one waits for the next budget, or for the rally's ring to end.
+        const tick = () => {
+            frame = undefined
+            timer = undefined
+            draw()
+            const at = now()
+            if (refilling(budget, at)) {
+                if (reduced) timer = setTimeout(tick, STEP_MS)
+                else frame = requestAnimationFrame(tick)
+                return
+            }
+            const until = budget.rally?.until
+            if (until !== undefined && at < until) timer = setTimeout(tick, until - at)
         }
 
-        let frame = requestAnimationFrame(function tick() {
-            draw()
-            frame = requestAnimationFrame(tick)
-        })
+        tick()
 
-        return () => cancelAnimationFrame(frame)
+        return () => {
+            if (frame !== undefined) cancelAnimationFrame(frame)
+            clearTimeout(timer)
+        }
     }, [budget])
 
     if (frozen) {

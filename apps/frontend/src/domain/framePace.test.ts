@@ -168,6 +168,18 @@ describe("FramePace", () => {
         expect(ticks.draw(SETTLING_FRAMES, 2 * AT_60HZ)).toBe(0)
     })
 
+    it("does not take a sleep of the loop for the display's own interval", () => {
+        const ticks = new Ticks()
+        ticks.idle(5, AT_60HZ)
+        for (let i = 0; i < 10; i++) {
+            ticks.tick(200, false)
+            ticks.pace.pause()
+        }
+        ticks.measure()
+
+        expect(ticks.draw(SETTLING_FRAMES + 60, 2 * AT_60HZ)).toBe(1)
+    })
+
     it("takes the display's own interval only after a tick that drew nothing", () => {
         const ticks = new Ticks()
         ticks.measure()

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {addDisplayObjects, setupScene} from "./scene.ts";
 import {Sharpness} from "./sharpness.ts";
+import {FrameLoop} from "./frameLoop.ts";
 import {endStrayFingers} from "./strayFingers.ts";
 import {Halo, paintHalo} from "./atmosphere.ts";
 import {graphicsOf} from "./graphics.ts";
@@ -268,6 +269,16 @@ export function drawsFrame(
     return at + sinceLastTick / 2 >= drawnAt + (idlePace ? IDLE_FRAME_MS : AMBIENT_FRAME_MS)
 }
 
+export type Wait = Tick & {
+    flying: boolean
+    directed: boolean
+}
+
+// After a tick that drew nothing: whether a frame is still to come at the display's pace, or the loop can sleep.
+export function ticksOn({turned, glints, ambient, at, interactingUntil, flying, directed}: Wait): boolean {
+    return turned || glints === "playing" || ambient || at <= interactingUntil || flying || directed
+}
+
 const CLAIM_MARGIN_MS = 2_000
 
 // The ghosts raid only while fewer play than this.
@@ -485,9 +496,11 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         : "countries"
     let divisions: Divisions = divisionsNow("countries")
 
+    const frames = new FrameLoop()
     let dirty = true
     const invalidate = () => {
         dirty = true
+        frames.wake()
     }
 
     const slots = new FlagSlots(invalidate)
@@ -2102,7 +2115,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
         return true
     }
 
-    const {stop: stopAnimation} = startAnimation(renderer, scene, camera, uniforms, scale, director, pilot, () => mapView, () => {
+    const {stop: stopAnimation} = startAnimation(frames, renderer, scene, camera, uniforms, scale, director, pilot, () => mapView, () => {
         const was = dirty
         dirty = false
         return was
@@ -2176,7 +2189,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
 
         const frame = readDrawingBuffer(renderer)
         for (const request of takeCaptureRequests()) request.resolve(frame)
-    }, pulsing, driveGlints);
+    }, pulsing, driveGlints, () => sharpness.pause());
 
     const globe: Globe = {
         tilesCount: field.size,
@@ -2346,6 +2359,7 @@ function rangeTiles({start, end}: TileRange): number[] {
 }
 
 function startAnimation(
+    frames: FrameLoop,
     renderer: THREE.WebGLRenderer,
     scene: THREE.Scene,
     camera: THREE.OrthographicCamera,
@@ -2360,6 +2374,7 @@ function startAnimation(
     afterRender: () => void,
     pulsing: (camera: THREE.Camera) => boolean,
     driveGlints: (seconds: number) => Glints,
+    rest: () => void,
 ): {stop: () => void} {
     const starfield = createStarfield();
 
@@ -2376,6 +2391,7 @@ function startAnimation(
 
     controls.addEventListener('change', () => {
         moved = true;
+        frames.wake();
 
         controls.rotateSpeed = (1 / camera.zoom) / 1.5;
     });
@@ -2385,6 +2401,7 @@ function startAnimation(
     for (const input of INPUTS) {
         window.addEventListener(input, () => {
             lastInputAt = performance.now();
+            frames.wake();
         }, {capture: true, passive: true, signal: listening.signal});
     }
 
@@ -2392,6 +2409,7 @@ function startAnimation(
     controls.addEventListener('start', () => {
         interactingUntil = Infinity;
         pilot.cancel();
+        frames.wake();
     });
     controls.addEventListener('end', () => {
         interactingUntil = performance.now() + INTERACTION_GRACE_MS;
@@ -2403,7 +2421,7 @@ function startAnimation(
     let tickedAt: number | undefined;
     const viewport = new THREE.Vector2();
 
-    renderer.setAnimationLoop((time: number) => {
+    frames.start((time: number) => {
         const sinceLastTick = tickedAt === undefined ? 0 : time - tickedAt;
         tickedAt = time;
 
@@ -2440,7 +2458,11 @@ function startAnimation(
         uniforms.pulseTime.value = beatClock({clock: uniforms.pulseTime.value, step: sinceLastTick / 1000, attended});
         const ambient = uniforms.pulseTime.value !== beatDrawn && pulsing(camera);
         const tick = {turned, changed, glints, ambient, attended, at: time, drawnAt, interactingUntil, sinceLastTick};
-        if (!drawsFrame(tick)) return;
+        if (!drawsFrame(tick)) {
+            const busy = ticksOn({...tick, flying: flown !== undefined, directed: director !== undefined});
+            if (!busy) rest();
+            return busy;
+        }
 
         moved = false;
         drawnAt = time;
@@ -2449,11 +2471,12 @@ function startAnimation(
         beforeDraw();
         starfield.render(renderer, camera, () => renderer.render(scene, camera));
         afterRender();
+        return true;
     });
 
     return {
         stop: () => {
-            renderer.setAnimationLoop(null);
+            frames.stop();
             document.documentElement.removeAttribute(UNWATCHED_ATTRIBUTE);
             listening.abort();
             controls.dispose();

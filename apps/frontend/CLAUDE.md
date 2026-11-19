@@ -158,7 +158,8 @@ the doc before you change its area, and read [`DESIGN.md`](DESIGN.md) before you
 
 - [The GPU layer](docs/viewer.md) — `globe.ts` and the files around it: marks, glints, passes.
 - [Drawing only when something changed](docs/render-on-demand.md) — the loop draws a frame only when needed; the spin
-  and a glint at 60 frames a second at most, a glint on a page nobody touches at 20.
+  and a glint at 60 frames a second at most, a glint on a page nobody touches at 20; with nothing to draw, the loop
+  sleeps and ticks every 200 ms.
 - [The tiles out of sight are not drawn](docs/far-side.md) — the map and the countries' outlines cut into chunks the CPU
   skips when behind the earth or off screen, an outline pass drawn as up to 8 ranges of its pieces, and no tile under
   the painted flags but those wearing a ring.

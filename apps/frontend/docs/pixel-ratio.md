@@ -74,7 +74,8 @@ quarter of the pixels of ratio 2.
   compile and the tiles upload. The 3 s after a lowered ratio, while the canvas
   is sized again. A gap, a tick more than 1 s after the last: a hidden tab, a tab
   the browser stopped, a freeze; the frames before it are dropped, and the next 3 s
-  are left out. One hitch is one frame of 60, and the median does not move.
+  are left out. The tick after the loop slept (`FramePace.pause`): it measures
+  nothing, so 200 ms of sleep is never read as the display's own interval. One hitch is one frame of 60, and the median does not move.
 - **Not lowered:** in a build without the flag; with HD graphics off (the ratio
   is 1 already); with `?gfx=` in the URL, which wins, unless it names `adaptive`;
   in a clip or a player's video, whose director draws every frame. These keep the

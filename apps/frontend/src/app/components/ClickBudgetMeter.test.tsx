@@ -135,6 +135,41 @@ describe("ClickBudgetMeter", () => {
         return vi.waitFor(() => expect(chip.hidden).toBe(true))
     })
 
+    it("asks for no frame once the bank is full: nothing on it moves", () => {
+        stoppedClock()
+        const frames = vi.spyOn(window, "requestAnimationFrame")
+        onTestFinished(() => frames.mockRestore())
+        render(budgeted(reading({tokens: 10}), <ClickBudgetMeter/>))
+
+        expect(screen.getByText("10.0")).toBeTruthy()
+        expect(frames).not.toHaveBeenCalled()
+    })
+
+    it("draws on every frame while the bank fills", () => {
+        stoppedClock()
+        const frames = vi.spyOn(window, "requestAnimationFrame")
+        onTestFinished(() => frames.mockRestore())
+        render(budgeted(reading(), <ClickBudgetMeter/>))
+
+        expect(frames).toHaveBeenCalled()
+    })
+
+    it("hides a rally's price when its ring ends, on a full bank too", () => {
+        const clock = stoppedClock()
+        vi.useFakeTimers({toFake: ["setTimeout", "clearTimeout"]})
+        try {
+            render(budgeted(reading({tokens: 10, rally: {cost: 0.5, until: STOPPED_AT_MS + 1_000}}), <ClickBudgetMeter/>))
+            const chip = screen.getByRole("img", {name: "Rally: inside the ring, a click costs 0.5"})
+            expect(chip.hidden).toBe(false)
+
+            clock.mockReturnValue(STOPPED_AT_MS + 1_000)
+            act(() => void vi.advanceTimersByTime(1_000))
+            expect(chip.hidden).toBe(true)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
     it("says nothing of a rally when the last click took a whole one", () => {
         render(budgeted(reading(), <ClickBudgetMeter/>))
 

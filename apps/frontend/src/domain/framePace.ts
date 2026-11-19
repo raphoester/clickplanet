@@ -56,6 +56,11 @@ export class FramePace {
         return true
     }
 
+    // The loop sleeps: the next tick comes after the sleep, not at the display's pace.
+    pause(): void {
+        this.tickedAt = undefined
+    }
+
     startMeasuring(at: number): void {
         this.frames.length = 0
         this.measuresFrom = at + SETTLE_MS

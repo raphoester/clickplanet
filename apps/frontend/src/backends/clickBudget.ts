@@ -53,6 +53,11 @@ export function rallied(budget: ClickBudget, at: number): boolean {
     return budget.rally !== undefined && at < budget.rally.until
 }
 
+// The bank still fills: what it shows moves with the clock.
+export function refilling(budget: ClickBudget, at: number): boolean {
+    return budget.perSecond > 0 && tokensAt(budget, at) < budget.capacity
+}
+
 export function nextClickProgress(budget: ClickBudget, at: number): number {
     const tokens = tokensAt(budget, at)
     if (tokens >= budget.capacity) return 1
