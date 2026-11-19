@@ -45,20 +45,29 @@ export type Divisions = "countries" | "provinces"
 // short of zoom 3 on a phone, where one band of the biggest countries' flags fills the screen.
 const PROVINCES_KM = 7
 const PROVINCES_FROM = 6371 / PROVINCES_KM
+// And the screen's shorter side shows no more than this much ground, about the USA from Canada to Mexico: what a phone
+// shows at 7 km a pixel, so a wider screen, which reads 7 km a pixel far sooner, waits until it shows as little of the
+// map and no more provinces at once. On a laptop the provinces came in at zoom 2.1, the screen 10,000 km across; the
+// owner found it far too soon (2026-11-19).
+const PROVINCES_VIEW_KM = 2700
 // The whole globe in view is the countries' on any screen, however tall.
 const PROVINCES_LEAST_ZOOM = 1.25
 // A zoom held on the line does not switch to and fro: the provinces come 5% past it and go 5% short of it.
 const PROVINCES_MARGIN = 1.05
 
-// The zoom from which the provinces divide the map, on a viewport this high in CSS pixels.
-export function provincesZoomOf(viewportHeight: number): number {
-    // The camera's frustum is 2 tall at zoom 1: a radian is half the viewport high.
-    return Math.max(PROVINCES_LEAST_ZOOM, PROVINCES_FROM / (viewportHeight / 2))
+// The zoom from which the provinces divide the map, on a viewport this wide and high in CSS pixels: the later of where
+// a pixel is PROVINCES_KM and where the shorter side is PROVINCES_VIEW_KM.
+export function provincesZoomOf(viewportWidth: number, viewportHeight: number): number {
+    // The camera's frustum is 2 tall at zoom 1: a radian is half the viewport high, and the shorter side 2 × min(1,
+    // width / height) radians at zoom 1.
+    const readable = PROVINCES_FROM / (viewportHeight / 2)
+    const few = 2 * Math.min(1, viewportWidth / viewportHeight) * 6371 / PROVINCES_VIEW_KM
+    return Math.max(PROVINCES_LEAST_ZOOM, readable, few)
 }
 
 // The divisions drawn at this zoom, by the ones drawn now.
-export function divisionsAt(zoom: number, viewportHeight: number, shown: Divisions): Divisions {
-    const from = provincesZoomOf(viewportHeight)
+export function divisionsAt(zoom: number, viewportWidth: number, viewportHeight: number, shown: Divisions): Divisions {
+    const from = provincesZoomOf(viewportWidth, viewportHeight)
     const line = shown === "provinces" ? from / PROVINCES_MARGIN : from * PROVINCES_MARGIN
     return zoom >= line ? "provinces" : "countries"
 }

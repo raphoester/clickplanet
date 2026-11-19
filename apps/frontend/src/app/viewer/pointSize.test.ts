@@ -130,51 +130,79 @@ describe("orbit", () => {
 })
 
 describe("the provinces", () => {
-    // iPhone 13's page in Safari: 390 by 664 CSS pixels.
-    const PHONE = 664
+    // iPhone 13's page in Safari, 390 by 664 CSS pixels; a 13" laptop's, 1440 by 900.
+    const PHONE: [number, number] = [390, 664]
+    const LAPTOP: [number, number] = [1440, 900]
+    // Phones upright and on their side, a tablet, laptops and desktops.
+    const SCREENS: [number, number][] = [[360, 640], PHONE, [844, 390], [768, 1024], LAPTOP, [1920, 1080], [2560, 1440], [3840, 2160]]
     const PROVINCED = Object.values(BOARDS).filter((board) => board.files.provinces !== undefined)
+    const kmAPixel = (zoom: number, height: number) => 6371 / (zoom * height / 2)
+    const shorterSideKm = (zoom: number, [width, height]: [number, number]) => kmAPixel(zoom, height) * Math.min(width, height)
 
-    it("come in where a CSS pixel is 7 km of the ground: about zoom 2.7 on a phone, short of 3", () => {
-        expect(provincesZoomOf(PHONE)).toBeCloseTo(2.741, 3)
-        expect(provincesZoomOf(900)).toBeCloseTo(2.023, 3)
-        for (const height of [PHONE, 900, 1243]) {
-            expect(6371 / (provincesZoomOf(height) * height / 2), `${height}px`).toBeCloseTo(7, 9)
+    it("come in on a phone where the screen's 390 px are 2,700 km, a pixel about 7 km: zoom 2.77, short of 3", () => {
+        const line = provincesZoomOf(...PHONE)
+        expect(line).toBeCloseTo(2.772, 3)
+        expect(shorterSideKm(line, PHONE)).toBeCloseTo(2700, 6)
+        expect(kmAPixel(line, PHONE[1])).toBeCloseTo(6.92, 2)
+        expect(line * 1.05).toBeLessThan(3)
+    })
+
+    it("wait on a laptop until it shows as little of the map as a phone: zoom 4.72, not 2.02", () => {
+        const line = provincesZoomOf(...LAPTOP)
+        expect(line).toBeCloseTo(4.719, 3)
+        expect(shorterSideKm(line, LAPTOP)).toBeCloseTo(2700, 6)
+        // 7 km a pixel alone would have brought them in at 2.02, the screen 10,000 km across.
+        expect(6371 / 7 / (LAPTOP[1] / 2)).toBeCloseTo(2.023, 3)
+        expect(provincesZoomOf(1920, 1080)).toBeCloseTo(4.719, 3)
+    })
+
+    it("wait on a small phone until a pixel is 7 km, so each province is big enough to read", () => {
+        const line = provincesZoomOf(360, 640)
+        expect(line).toBeCloseTo(2.844, 3)
+        expect(kmAPixel(line, 640)).toBeCloseTo(7, 9)
+        expect(shorterSideKm(line, [360, 640])).toBeLessThan(2700)
+    })
+
+    it("come in where both hold, on every screen: a pixel 7 km or less and the shorter side 2,700 km or less", () => {
+        for (const screen of SCREENS) {
+            const line = provincesZoomOf(...screen)
+            expect(kmAPixel(line, screen[1]), `${screen}`).toBeLessThanOrEqual(7 + 1e-9)
+            expect(shorterSideKm(line, screen), `${screen}`).toBeLessThanOrEqual(2700 + 1e-6)
         }
-        expect(provincesZoomOf(PHONE) * 1.05).toBeLessThan(3)
     })
 
     it("never divide the whole globe in view, on any screen", () => {
-        for (const height of VIEWPORTS) {
-            for (const zoom of [MIN_ZOOM, 1, 1.2]) expect(divisionsAt(zoom, height, "countries"), `zoom ${zoom} at ${height}px`).toBe("countries")
-            expect(provincesZoomOf(height), `${height}px`).toBeGreaterThanOrEqual(1.25)
+        for (const screen of SCREENS) {
+            for (const zoom of [MIN_ZOOM, 1, 1.2]) expect(divisionsAt(zoom, ...screen, "countries"), `zoom ${zoom} at ${screen}`).toBe("countries")
+            expect(provincesZoomOf(...screen), `${screen}`).toBeGreaterThanOrEqual(1.25)
         }
     })
 
     it("come 5% past the line and go 5% short of it, so a zoom held on it does not switch to and fro", () => {
-        for (const height of VIEWPORTS) {
-            const line = provincesZoomOf(height)
-            expect(divisionsAt(line * 1.04, height, "countries"), `${height}px`).toBe("countries")
-            expect(divisionsAt(line * 1.05, height, "countries"), `${height}px`).toBe("provinces")
-            expect(divisionsAt(line / 1.04, height, "provinces"), `${height}px`).toBe("provinces")
-            expect(divisionsAt(line / 1.06, height, "provinces"), `${height}px`).toBe("countries")
-            for (const shown of ["countries", "provinces"] as const) expect(divisionsAt(line, height, shown)).toBe(shown)
+        for (const screen of SCREENS) {
+            const line = provincesZoomOf(...screen)
+            expect(divisionsAt(line * 1.04, ...screen, "countries"), `${screen}`).toBe("countries")
+            expect(divisionsAt(line * 1.05, ...screen, "countries"), `${screen}`).toBe("provinces")
+            expect(divisionsAt(line / 1.04, ...screen, "provinces"), `${screen}`).toBe("provinces")
+            expect(divisionsAt(line / 1.06, ...screen, "provinces"), `${screen}`).toBe("countries")
+            for (const shown of ["countries", "provinces"] as const) expect(divisionsAt(line, ...screen, shown)).toBe(shown)
         }
     })
 
-    it("divide earth-2's painted flags in orbit, long before its tiles take over", () => {
+    it("divide earth-2's painted flags in orbit before its tiles take over, on a phone and a laptop", () => {
         const scale = scaleOf(BOARDS["earth-2"])
-        for (const height of VIEWPORTS) {
-            expect(inOrbit(provincesZoomOf(height) * 1.05 * 1.25, height, scale), `${height}px`).toBe(true)
-        }
-        // A phone sees the provinces' flags over 3 times the zoom before the tiles.
-        expect(inOrbit(provincesZoomOf(PHONE) * 1.05 * 3, PHONE, scale)).toBe(true)
+        // A phone sees the provinces' flags over 3 times the zoom before the tiles, a laptop over 1.4 times.
+        expect(inOrbit(provincesZoomOf(...PHONE) * 1.05 * 3, PHONE[1], scale)).toBe(true)
+        expect(inOrbit(provincesZoomOf(...LAPTOP) * 1.05 * 1.4, LAPTOP[1], scale)).toBe(true)
+        // A screen 1,440 px tall reaches the tiles first: its pixels are small enough for them before it shows as little.
+        expect(inOrbit(provincesZoomOf(2560, 1440) * 1.05, 1440, scale)).toBe(false)
     })
 
     it("are not seen in orbit on siege-1, whose tiles, 6 times earth-2's, take over first on every screen", () => {
         expect(PROVINCED.map(({name}) => name).sort()).toEqual(["earth-2", "siege-1"])
         const scale = scaleOf(BOARDS["siege-1"])
-        for (const height of VIEWPORTS) {
-            expect(inOrbit(provincesZoomOf(height) * 1.05, height, scale), `${height}px`).toBe(false)
+        for (const screen of SCREENS) {
+            expect(inOrbit(provincesZoomOf(...screen) * 1.05, screen[1], scale), `${screen}`).toBe(false)
         }
     })
 })

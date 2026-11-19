@@ -477,7 +477,7 @@ export async function createGlobe(options: GlobeOptions): Promise<Globe> {
     let mapView: MapView = initialMapView
     const divides = byZoom && board.files.provinces !== undefined
     const divisionsNow = (shown: Divisions): Divisions => divides
-        ? divisionsAt(camera.zoom, renderer.domElement.height / renderer.getPixelRatio(), shown)
+        ? divisionsAt(camera.zoom, renderer.domElement.width / renderer.getPixelRatio(), renderer.domElement.height / renderer.getPixelRatio(), shown)
         : "countries"
     let divisions: Divisions = divisionsNow("countries")
 
