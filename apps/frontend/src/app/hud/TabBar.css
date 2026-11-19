@@ -14,25 +14,21 @@
     box-shadow: inset 0 2px 0 var(--sheen);
 }
 
-/* Each tab is as wide as its word, then the room left is shared: "Compartilhar" and "Udostępnij" take what "Chat"
-   leaves, so six tabs fit a 360px phone in every language. */
+/* Every tab is as wide as the others: an icon alone, with no word to size it. */
 .tab-bar-tab {
     position: relative;
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
     margin: 7px 2px;
     padding: 0 2px;
     border: none;
     border-radius: var(--radius-m);
     background: none;
     color: var(--text-muted);
-    font-family: var(--font-text);
-    font-weight: 600;
-    font-size: var(--text-xs);
     cursor: pointer;
     transition: background 0.12s ease, color 0.12s ease;
 }
@@ -41,10 +37,6 @@
     color: var(--gold);
     background: var(--panel-raised);
     box-shadow: inset 0 0 0 var(--outline-thin) var(--ink);
-}
-
-.tab-bar-label {
-    line-height: 1;
 }
 
 .tab-bar-badge {

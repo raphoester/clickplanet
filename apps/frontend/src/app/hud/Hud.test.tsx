@@ -19,14 +19,23 @@ afterEach(() => {
 })
 
 describe("TabBar", () => {
+    const names = () => screen.getAllByRole("button").map((b) => b.getAttribute("aria-label"))
+
+    it("shows icons alone, each named by its label", () => {
+        render(<TabBar chat you="player"/>)
+        const board = screen.getByRole("button", {name: "Board"})
+        expect(board.textContent).toBe("")
+        expect(board.getAttribute("title")).toBe("Board")
+    })
+
     it("offers the board, the chat, the account, Share and the settings, in that order", () => {
         render(<TabBar chat you="player"/>)
-        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "You", "Share", "Settings"])
+        expect(names()).toEqual(["Board", "Chat", "You", "Share", "Settings"])
     })
 
     it("invites in place of Share on CrazyGames", () => {
         render(<TabBar chat invite/>)
-        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Chat", "Invite", "Settings"])
+        expect(names()).toEqual(["Board", "Chat", "Invite", "Settings"])
 
         fireEvent.click(screen.getByRole("button", {name: "Invite"}))
         expect(useScreen.getState().sheet).toBe("invite")
@@ -39,18 +48,18 @@ describe("TabBar", () => {
 
     it("leaves out what is not wired", () => {
         render(<TabBar chat={false}/>)
-        expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Board", "Share", "Settings"])
+        expect(names()).toEqual(["Board", "Share", "Settings"])
     })
 
     it("counts what the chat missed", () => {
         useChat.setState({unread: 3})
         render(<TabBar chat/>)
-        expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("Chat3")
+        expect(screen.getByRole("button", {name: "Chat, 3 new messages"}).textContent).toBe("3")
     })
 
     it("counts the missions not seen yet", () => {
         render(<TabBar chat missions={3}/>)
-        expect(screen.getByRole("button", {name: "Missions, 3 new"}).textContent).toBe("Missions3")
+        expect(screen.getByRole("button", {name: "Missions, 3 new"}).textContent).toBe("3")
     })
 
     it("says which sheet is open, and opens the one pressed", () => {

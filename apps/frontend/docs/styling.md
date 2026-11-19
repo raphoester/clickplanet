@@ -64,8 +64,9 @@ and Escape and the backdrop leave it open: the warning before an alt ban is one.
 German, Polish and Brazilian Portuguese run up to 30% longer than English ("Classement", "Compartilhar",
 "Doładowanie"). Found by measuring every panel in every language at 360px, 390px and 1280px wide (Nov 2026).
 
-- **A row of tabs or slots** sizes each to its word and shares the room left: the phone's tab bar (`flex: 1 1
-  auto`), the desktop rail (`min-width`). The dock has a fixed width, so a bonus slot keeps its 72px and only a
+- **A row of tabs or slots** sizes each to its word and shares the room left: the desktop rail (`min-width`). The
+  phone's tab bar has no words: its six tabs sized to "Classement" and "Chat" were uneven, so each is an icon alone,
+  as wide as the others (`flex: 1 1 0`), named by its label and titled with it (Nov 2026). The dock has a fixed width, so a bonus slot keeps its 72px and only a
   longer name widens its own slot (the name carries the side padding); making every slot as wide as the widest
   pushed them over the clicks left.
 - **A chip or a line that must stay one line** is never narrower than its words (`min-width: min-content`, the

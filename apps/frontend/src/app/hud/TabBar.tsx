@@ -9,6 +9,7 @@ import "./TabBar.css"
 export type Tab = "board" | "missions" | "chat" | "you" | "share" | "invite" | "settings"
 
 const UNREAD_CAP = 99
+const ICON = 26
 
 export type TabBarProps = {
     chat: boolean
@@ -28,26 +29,28 @@ export default function TabBar({chat, you, missions, invite, videoDot}: TabBarPr
         <button type="button"
                 className={open === id ? "tab-bar-tab tab-bar-tab--open" : "tab-bar-tab"}
                 aria-expanded={open === id}
-                aria-label={name}
+                aria-label={name ?? label}
+                title={label}
                 onClick={() => toggleSheet(id)}>
             {icon}
-            <span className="tab-bar-label">{label}</span>
             {extra}
         </button>
 
+    // The tabs are icons alone, each as wide as the others: a label made each tab as wide as its word, and the six of
+    // them uneven ("Classement" beside "Chat"). The label is the tab's name, and its tooltip in a small desktop frame.
     return <nav className="tab-bar panel" aria-label={t("hud.game")}>
-        {tab("board", t("menu.board"), <TrophyIcon/>)}
-        {missions !== undefined && tab("missions", t("menu.missions"), <TargetIcon/>,
+        {tab("board", t("menu.board"), <TrophyIcon size={ICON}/>)}
+        {missions !== undefined && tab("missions", t("menu.missions"), <TargetIcon size={ICON}/>,
             missions > 0 && <span className="chip tab-bar-badge" key={missions} aria-hidden="true">{missions}</span>,
             missions === 0 ? undefined : t("menu.missionsNews", {count: missions}))}
-        {chat && tab("chat", t("menu.chat"), <ChatIcon/>,
+        {chat && tab("chat", t("menu.chat"), <ChatIcon size={ICON}/>,
             unread > 0 && <span className="chip tab-bar-badge" key={unread} aria-hidden="true">
                 {unread > UNREAD_CAP ? t("hud.overCap", {count: UNREAD_CAP}) : unread}
             </span>,
             unread === 0 ? undefined : t("menu.chatNews", {count: unread}))}
-        {you && tab("you", you === "guest" ? t("common.signIn") : t("menu.you"), <UserIcon/>,
+        {you && tab("you", you === "guest" ? t("common.signIn") : t("menu.you"), <UserIcon size={ICON}/>,
             you === "guest" && <span className="tab-bar-dot" aria-hidden="true"/>)}
-        {invite ? tab("invite", t("menu.invite"), <UsersIcon/>) : tab("share", t("menu.share"), <ShareIcon size={22}/>, videoDot && <VideoDot/>)}
-        {tab("settings", t("menu.settings"), <SettingsIcon/>)}
+        {invite ? tab("invite", t("menu.invite"), <UsersIcon size={ICON}/>) : tab("share", t("menu.share"), <ShareIcon size={ICON}/>, videoDot && <VideoDot/>)}
+        {tab("settings", t("menu.settings"), <SettingsIcon size={ICON}/>)}
     </nav>
 }
